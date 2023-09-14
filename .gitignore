@@ -1,0 +1,45 @@
+*.class
+
+# Package Files #
+*.jar
+*.war
+*.ear
+target
+.classpath
+.project
+.settings
+.factorypath
+dependency-reduced-pom.xml
+
+# OSX
+*.DS_Store
+
+# IntelliJ IDE Project Files #
+*.iml
+*.idea
+*.versionsBackup
+pom.xml.versionsBackup
+jacoco.exec
+.*.md.html
+node
+dump
+TODO
+.interp
+tmp
+checkstyle
+#javadoc
+*.mv.db
+versions
+out
+node
+node_modules
+build
+.gradle
+
+# Emacs
+
+\#*\#
+.\#*
+
+#VS code
+.vscode
