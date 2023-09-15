@@ -8,6 +8,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.Ansi.Attribute;
 import org.fusesource.jansi.Ansi.Color;
+import org.fusesource.jansi.AnsiConsole;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
@@ -89,8 +90,19 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 		}
 		
 		public JansiLogFormatter build() {
+			if (installJansi()) {
+				AnsiConsole.systemInstall();
+			}
 			return new JansiLogFormatter(levelFormatter, instantFormatter, nameFormatter, throwableFormatter,
 					keyValuesFormatter, threadFormatter);
+		}
+		
+		private static boolean installJansi() {
+			if (!System.getProperty("surefire.real.class.path", "")
+				.isEmpty()) {
+				return false;
+			}
+			return true;
 		}
 		
 	}

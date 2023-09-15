@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.RainbowGum;
 
-public class RainbowGumLoggerFactory implements ILoggerFactory {
+class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	private final ConcurrentMap<String, Logger> loggerMap;
 	private final RainbowGum rainbowGum;

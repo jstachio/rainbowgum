@@ -14,7 +14,7 @@ import org.slf4j.spi.MDCAdapter;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogEvent;
 
-public class RainbowGumLogger extends LegacyAbstractLogger {
+class RainbowGumLogger extends LegacyAbstractLogger {
 
 	private static final long serialVersionUID = 1L;
 	protected static final int LOG_LEVEL_TRACE = java.lang.System.Logger.Level.TRACE.getSeverity();

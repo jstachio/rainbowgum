@@ -23,6 +23,8 @@
     -->
     <maven.core.version>3.9.4</maven.core.version>
     
+    <pistachio.version>0.1.2</pistachio.version>
+
     <slf4j.version>2.0.7</slf4j.version>
 
   </properties>
@@ -87,10 +89,10 @@
         <version>1.15</version>
       </dependency>
       <dependency>
-          <groupId>org.junit.jupiter</groupId>
-          <artifactId>junit-jupiter</artifactId>
-          <version>5.10.0</version>
-          <scope>test</scope>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>5.10.0</version>
+        <scope>test</scope>
       </dependency>
       
       <dependency>
@@ -117,6 +119,20 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-simple</artifactId>
         <version>${slf4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jstach.pistachio</groupId>
+        <artifactId>pistachio-svc</artifactId>
+        <version>${pistachio.version}</version>
+        <optional>true</optional>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.jstach.pistachio</groupId>
+        <artifactId>pistachio-svc-apt</artifactId>
+        <version>${pistachio.version}</version>
+        <optional>true</optional>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.fusesource.jansi</groupId>
@@ -651,5 +667,6 @@
   <modules>
     <module>core</module>
     <module>rainbowgum-slf4j</module>
+    <module>rainbowgum-jdk</module>
   </modules>
 </project>
