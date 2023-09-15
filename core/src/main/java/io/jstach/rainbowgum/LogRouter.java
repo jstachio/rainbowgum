@@ -19,14 +19,14 @@ public sealed interface LogRouter extends LogAppender, AutoCloseable {
 	public static LogRouter global() {
 		return GlobalLogRouter.INSTANCE;
 	}
-	
+
 	static void setRouter(LogRouter router) {
 		if (GlobalLogRouter.INSTANCE == router) {
 			throw new IllegalArgumentException();
 		}
 		GlobalLogRouter.INSTANCE.drain(router);
 	}
-	
+
 	public static void error(LogEvent event) {
 		FailsafeAppender.INSTANCE.append(event);
 	}
@@ -34,121 +34,119 @@ public sealed interface LogRouter extends LogAppender, AutoCloseable {
 	public static void error(Class<?> loggerName, Throwable throwable) {
 		error(loggerName, throwable.getMessage(), throwable);
 	}
-	
+
 	public static void error(Class<?> loggerName, String message, Throwable throwable) {
 		var event = LogEvent.of(Level.ERROR, loggerName.getName(), message, throwable);
 		error(event);
 	}
-	
-	boolean isEnabled(
-			String loggerName,
-			java.lang.System.Logger.Level level);
 
-	default void log(
-			String loggerName,
-			java.lang.System.Logger.Level level,
-			String message,
+	boolean isEnabled(String loggerName, java.lang.System.Logger.Level level);
+
+	default void log(String loggerName, java.lang.System.Logger.Level level, String message,
 			@Nullable Throwable cause) {
 		log(LogEvent.of(level, loggerName, message, cause));
 	}
-	
-	default void log(
-			String loggerName,
-			java.lang.System.Logger.Level level,
-			String message) {
+
+	default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
 		log(LogEvent.of(level, loggerName, message, null));
 	}
 
 	@Override
-	default void append(
-			LogEvent event) {
+	default void append(LogEvent event) {
 		log(event);
 	}
-	
-	void log(
-			LogEvent event);
-	
-	default void start(LogConfig config) {}
-	
+
+	void log(LogEvent event);
+
+	default void start(LogConfig config) {
+	}
+
 	@Override
 	public void close();
-	
+
 	public non-sealed interface SyncLogRouter extends LogRouter {
+
 		public static Builder builder() {
 			return new Builder();
 		}
+
 		public static class Builder extends AbstractBuilder<Builder> {
-			private Builder() {}
+
+			private Builder() {
+			}
+
 			@Override
 			protected Builder self() {
 				return this;
 			}
+
 			public SyncLogRouter builder() {
 				return new DefaultLogRouter(List.copyOf(appenders));
 			}
+
 		}
+
 	}
-	
+
 	public non-sealed interface AsyncLogRouter extends LogRouter {
-		
+
 		@Override
 		public void start(LogConfig config);
-		
+
 		public static Builder builder() {
 			return new Builder();
 		}
-		
+
 		public static class Builder extends AbstractBuilder<Builder> {
+
 			private ThreadFactory threadFactory = DaemonThreadFactory.INSTANCE;
+
 			private int bufferSize = 1024;
-			
-			private Builder() {}
-			
-			public Builder threadFactory(
-					ThreadFactory threadFactory) {
+
+			private Builder() {
+			}
+
+			public Builder threadFactory(ThreadFactory threadFactory) {
 				this.threadFactory = threadFactory;
 				return this;
 			}
-			public Builder bufferSize(
-					int bufferSize) {
+
+			public Builder bufferSize(int bufferSize) {
 				this.bufferSize = bufferSize;
 				return this;
 			}
-			
+
 			public AsyncLogRouter build() {
 				return DisruptorLogRouter.of(List.copyOf(this.appenders()), threadFactory, bufferSize);
 			}
-			
+
 			@Override
 			protected Builder self() {
 				return this;
 			}
+
 		}
+
 	}
-	
+
 }
 
 class DefaultLogRouter implements SyncLogRouter {
-	
+
 	private final List<? extends LogAppender> logAppenders;
 
-	public DefaultLogRouter(
-			List<? extends LogAppender> logAppenders) {
+	public DefaultLogRouter(List<? extends LogAppender> logAppenders) {
 		super();
 		this.logAppenders = logAppenders;
 	}
 
 	@Override
-	public boolean isEnabled(
-			String loggerName,
-			Level level) {
+	public boolean isEnabled(String loggerName, Level level) {
 		return true;
 	}
 
-
 	@Override
-	public void log(
-			LogEvent event) {
+	public void log(LogEvent event) {
 		for (var a : logAppenders) {
 			a.append(event);
 		}
@@ -160,16 +158,15 @@ class DefaultLogRouter implements SyncLogRouter {
 			appender.close();
 		}
 	}
-	
-	
+
 }
 
 enum FailsafeAppender implements LogAppender {
+
 	INSTANCE;
 
 	@Override
-	public void append(
-			LogEvent event) {
+	public void append(LogEvent event) {
 		if (event.level().compareTo(Level.ERROR) >= 0) {
 			System.err.println(event.formattedMessage());
 			var throwable = event.throwable();
@@ -178,18 +175,18 @@ enum FailsafeAppender implements LogAppender {
 			}
 		}
 	}
-	
+
 }
 
 enum GlobalLogRouter implements LogRouter {
+
 	INSTANCE;
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
+
 	private volatile @Nullable LogRouter delegate = null;
 
-	public boolean isEnabled(
-			String loggerName,
-			java.lang.System.Logger.Level level) {
+	public boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
 		LogRouter d = delegate;
 		if (d != null) {
 			return d.isEnabled(loggerName, level);
@@ -197,11 +194,7 @@ enum GlobalLogRouter implements LogRouter {
 		return level.compareTo(System.Logger.Level.DEBUG) > 0;
 	}
 
-	public void log(
-			String loggerName,
-			java.lang.System.Logger.Level level,
-			String message,
-			@Nullable Throwable cause) {
+	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
 		LogRouter d = delegate;
 		if (d != null) {
 			d.log(loggerName, level, message, cause);
@@ -212,8 +205,7 @@ enum GlobalLogRouter implements LogRouter {
 
 	}
 
-	public synchronized void drain(
-			LogRouter delegate) {
+	public synchronized void drain(LogRouter delegate) {
 		this.delegate = Objects.requireNonNull(delegate);
 		LogEvent e;
 		while ((e = this.events.poll()) != null) {
@@ -222,8 +214,7 @@ enum GlobalLogRouter implements LogRouter {
 	}
 
 	@Override
-	public void log(
-			LogEvent event) {
+	public void log(LogEvent event) {
 		LogRouter d = delegate;
 		if (d != null) {
 			d.log(event);
@@ -236,28 +227,27 @@ enum GlobalLogRouter implements LogRouter {
 	@Override
 	public void close() {
 	}
-	
+
 }
+
 abstract class AbstractBuilder<T> {
+
 	protected List<LogAppender> appenders = new ArrayList<>();
 
-	public T appenders(
-			List<LogAppender> appenders) {
+	public T appenders(List<LogAppender> appenders) {
 		this.appenders = appenders;
 		return self();
 	}
+
 	public T appender(LogAppender appender) {
 		this.appenders.add(appender);
 		return self();
 	}
-	
+
 	protected List<LogAppender> appenders() {
 		return this.appenders;
 	}
-	
+
 	protected abstract T self();
+
 }
-
-
-
-

@@ -14,18 +14,20 @@ import io.jstach.svc.ServiceProvider;
 public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 
 	/**
-	 * Declare the version of the SLF4J API this implementation is compiled
-	 * against. The value of this field is modified with each major release.
+	 * Declare the version of the SLF4J API this implementation is compiled against. The
+	 * value of this field is modified with each major release.
 	 */
 	private static final String REQUESTED_API_VERSION = "2.0";
-	
+
 	@Nullable
 	private ILoggerFactory loggerFactory;
+
 	@Nullable
 	private IMarkerFactory markerFactory;
+
 	@Nullable
 	private MDCAdapter mdcAdapter;
-	
+
 	@Override
 	public ILoggerFactory getLoggerFactory() {
 		return require(loggerFactory);
@@ -45,7 +47,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	public String getRequestedApiVersion() {
 		return REQUESTED_API_VERSION;
 	}
-	
+
 	private static <T> T require(@Nullable T factory) {
 		if (factory == null) {
 			throw new IllegalStateException("slf4j was not initialized correctly");

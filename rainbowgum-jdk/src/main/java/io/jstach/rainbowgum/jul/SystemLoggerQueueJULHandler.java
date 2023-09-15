@@ -12,19 +12,20 @@ import io.jstach.rainbowgum.LogRouter;
 public class SystemLoggerQueueJULHandler extends Handler {
 
 	private static final int TRACE_LEVEL_THRESHOLD = java.util.logging.Level.FINEST.intValue();
+
 	private static final int DEBUG_LEVEL_THRESHOLD = java.util.logging.Level.FINE.intValue();
+
 	private static final int INFO_LEVEL_THRESHOLD = java.util.logging.Level.INFO.intValue();
+
 	private static final int WARN_LEVEL_THRESHOLD = java.util.logging.Level.WARNING.intValue();
 
 	@Override
-	public void publish(
-			@Nullable LogRecord record) {
+	public void publish(@Nullable LogRecord record) {
 		if (record == null) {
 			return;
 		}
 
-		int lv = record.getLevel()
-			.intValue();
+		int lv = record.getLevel().intValue();
 		final Level level;
 		if (TRACE_LEVEL_THRESHOLD >= lv) {
 			level = Level.TRACE;
@@ -46,7 +47,7 @@ public class SystemLoggerQueueJULHandler extends Handler {
 		if (loggerName == null) {
 			return;
 		}
-		if ( LogRouter.global().isEnabled(loggerName, level)) {
+		if (LogRouter.global().isEnabled(loggerName, level)) {
 			return;
 		}
 		String message = record.getMessage();
@@ -65,8 +66,7 @@ public class SystemLoggerQueueJULHandler extends Handler {
 	}
 
 	@Override
-	public void close()
-			throws SecurityException {
+	public void close() throws SecurityException {
 
 	}
 
@@ -80,15 +80,12 @@ public class SystemLoggerQueueJULHandler extends Handler {
 
 	@SuppressWarnings("null")
 	private static java.util.logging.Logger getRootLogger() {
-		return LogManager.getLogManager()
-			.getLogger("");
+		return LogManager.getLogManager().getLogger("");
 	}
 
 	public static void install() {
 		removeHandlersForRootLogger();
-		LogManager.getLogManager()
-			.getLogger("")
-			.addHandler(new SystemLoggerQueueJULHandler());
+		LogManager.getLogManager().getLogger("").addHandler(new SystemLoggerQueueJULHandler());
 	}
 
 }

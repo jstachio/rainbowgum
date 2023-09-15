@@ -11,11 +11,11 @@ public interface LogConfig {
 
 	@Nullable
 	String property(String key);
-	
+
 	default RuntimeException throwPropertyError(String key, RuntimeException e) {
 		throw new RuntimeException("Error for property: " + key, e);
 	}
-	
+
 	default LogEncoder defaultOutput() {
 		return LogEncoder.of(System.out);
 	}
@@ -27,11 +27,11 @@ public interface LogConfig {
 		}
 		return hostName;
 	}
-	
+
 	default Map<String, String> headers() {
 		return Map.of();
 	}
-	
+
 	default @Nullable Level logLevelOrNull(String name) {
 		String key = "log." + name;
 		String s = property(key);
@@ -40,12 +40,12 @@ public interface LogConfig {
 		}
 		try {
 			return Level.valueOf(s.toUpperCase(Locale.ROOT));
-		} catch (IllegalArgumentException e) {
+		}
+		catch (IllegalArgumentException e) {
 			throw throwPropertyError(key, e);
 		}
 	}
-	
-	
+
 	default Level logLevel(String name, Level fallback) {
 		String tempName = name;
 		Level level = null;
@@ -53,33 +53,31 @@ public interface LogConfig {
 		while ((level == null) && (indexOfLastDot > -1)) {
 			tempName = tempName.substring(0, indexOfLastDot);
 			level = logLevelOrNull(tempName);
-			indexOfLastDot = String.valueOf(tempName)
-				.lastIndexOf(".");
+			indexOfLastDot = String.valueOf(tempName).lastIndexOf(".");
 		}
 		return level;
 	}
-	
+
 	default Level logLevel(String name) {
 		return logLevel(name, defaultLogLevel());
 	}
-	
+
 	default Level defaultLogLevel() {
 		return Level.INFO;
 	}
-	
+
 	public static LogConfig of() {
 		return LogConfig.of(System::getProperty);
 	}
-	
+
 	public static LogConfig of(Function<String, @Nullable String> propertySupplier) {
 		return new LogConfig() {
-			
+
 			@Override
-			public @Nullable String property(
-					String key) {
+			public @Nullable String property(String key) {
 				return propertySupplier.apply("rainbowgum." + key);
 			}
 		};
 	}
-}
 
+}

@@ -14,7 +14,6 @@ public interface LogPlugin {
 		return true;
 	}
 
-	public List<LogAppender> createLogAppenders(
-			LogConfig config);
+	public List<LogAppender> createLogAppenders(LogConfig config);
 
 }

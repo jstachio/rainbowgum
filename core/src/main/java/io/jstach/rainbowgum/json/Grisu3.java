@@ -51,11 +51,14 @@ abstract class Grisu3 {
 	private static final class DiyFp {
 
 		long f;
+
 		int e;
 
 		static final int kSignificandSize = 64;
 		static final long kUint64MSB = 0x8000000000000000L;
+
 		private static final long kM32 = 0xFFFFFFFFL;
+
 		private static final long k10MSBits = 0xFFC00000L << 32;
 
 		DiyFp() {
@@ -68,14 +71,12 @@ abstract class Grisu3 {
 		// this
 		// must be bigger than the significand of other.
 		// The result will not be normalized.
-		void subtract(
-				DiyFp other) {
+		void subtract(DiyFp other) {
 			f -= other.f;
 		}
 
 		// this = this * other.
-		void multiply(
-				DiyFp other) {
+		void multiply(DiyFp other) {
 			// Simply "emulates" a 128 bit multiplication.
 			// However: the resulting number only contains 64 bits. The least
 			// significant 64 bits are only used for rounding the most
@@ -135,24 +136,22 @@ abstract class Grisu3 {
 		static final double kD_1_LOG2_10 = 0.30102999566398114; // 1 / lg(10)
 
 		static class CachedPower {
+
 			final long significand;
+
 			final short binaryExponent;
+
 			final short decimalExponent;
 
-			CachedPower(
-					long significand,
-					short binaryExponent,
-					short decimalExponent) {
+			CachedPower(long significand, short binaryExponent, short decimalExponent) {
 				this.significand = significand;
 				this.binaryExponent = binaryExponent;
 				this.decimalExponent = decimalExponent;
 			}
+
 		}
 
-		static int getCachedPower(
-				int e,
-				int alpha,
-				DiyFp c_mk) {
+		static int getCachedPower(int e, int alpha, DiyFp c_mk) {
 			final int kQ = DiyFp.kSignificandSize;
 			final double k = Math.ceil((alpha - e + kQ - 1) * kD_1_LOG2_10);
 			final int index = (GRISU_CACHE_OFFSET + (int) k - 1) / CACHED_POWERS_SPACING + 1;
@@ -171,8 +170,7 @@ abstract class Grisu3 {
 		// interval between entries of the powers cache below
 		static final int CACHED_POWERS_SPACING = 8;
 
-		static final CachedPower[] CACHED_POWERS = {
-				new CachedPower(0xe61acf033d1a45dfL, (short) -1087, (short) -308),
+		static final CachedPower[] CACHED_POWERS = { new CachedPower(0xe61acf033d1a45dfL, (short) -1087, (short) -308),
 				new CachedPower(0xab70fe17c79ac6caL, (short) -1060, (short) -300),
 				new CachedPower(0xff77b1fcbebcdc4fL, (short) -1034, (short) -292),
 				new CachedPower(0xbe5691ef416bd60cL, (short) -1007, (short) -284),
@@ -258,6 +256,7 @@ abstract class Grisu3 {
 		// nb elements (8): 82
 
 		static final int GRISU_CACHE_OFFSET = 308;
+
 	}
 
 	private static class DoubleHelper {
@@ -266,17 +265,13 @@ abstract class Grisu3 {
 		static final long kSignificandMask = 0x000FFFFFFFFFFFFFL;
 		static final long kHiddenBit = 0x0010000000000000L;
 
-		static void asDiyFp(
-				long d64,
-				DiyFp v) {
+		static void asDiyFp(long d64, DiyFp v) {
 			v.f = significand(d64);
 			v.e = exponent(d64);
 		}
 
 		// this->Significand() must not be 0.
-		static void asNormalizedDiyFp(
-				long d64,
-				DiyFp w) {
+		static void asNormalizedDiyFp(long d64, DiyFp w) {
 			long f = significand(d64);
 			int e = exponent(d64);
 
@@ -293,8 +288,7 @@ abstract class Grisu3 {
 			w.e = e;
 		}
 
-		static int exponent(
-				long d64) {
+		static int exponent(long d64) {
 			if (isDenormal(d64))
 				return kDenormalExponent;
 
@@ -302,8 +296,7 @@ abstract class Grisu3 {
 			return biased_e - kExponentBias;
 		}
 
-		static long significand(
-				long d64) {
+		static long significand(long d64) {
 			long significand = d64 & kSignificandMask;
 			if (!isDenormal(d64)) {
 				return significand + kHiddenBit;
@@ -314,8 +307,7 @@ abstract class Grisu3 {
 		}
 
 		// Returns true if the double is a denormal.
-		private static boolean isDenormal(
-				long d64) {
+		private static boolean isDenormal(long d64) {
 			return (d64 & kExponentMask) == 0L;
 		}
 
@@ -323,11 +315,7 @@ abstract class Grisu3 {
 		// The bigger boundary (m_plus) is normalized. The lower boundary has
 		// the same
 		// exponent as m_plus.
-		static void normalizedBoundaries(
-				DiyFp v,
-				long d64,
-				DiyFp m_minus,
-				DiyFp m_plus) {
+		static void normalizedBoundaries(DiyFp v, long d64, DiyFp m_minus, DiyFp m_plus) {
 			asDiyFp(d64, v);
 			final boolean significand_is_zero = (v.f == kHiddenBit);
 			m_plus.f = (v.f << 1) + 1;
@@ -356,7 +344,9 @@ abstract class Grisu3 {
 
 		private static final int kSignificandSize = 52; // Excludes the hidden
 														// bit.
+
 		private static final int kExponentBias = 0x3FF + kSignificandSize;
+
 		private static final int kDenormalExponent = -kExponentBias + 1;
 
 	}
@@ -382,13 +372,8 @@ abstract class Grisu3 {
 		// representable number to the input.
 		// Modifies the generated digits in the buffer to approach (round
 		// towards) w.
-		static boolean roundWeed(
-				final FastDtoaBuilder buffer,
-				final long distance_too_high_w,
-				final long unsafe_interval,
-				long rest,
-				final long ten_kappa,
-				final long unit) {
+		static boolean roundWeed(final FastDtoaBuilder buffer, final long distance_too_high_w,
+				final long unsafe_interval, long rest, final long ten_kappa, final long unit) {
 			final long small_distance = distance_too_high_w - unit;
 			final long big_distance = distance_too_high_w + unit;
 			// Let w_low = too_high - big_distance, and
@@ -495,8 +480,7 @@ abstract class Grisu3 {
 			// possible
 			// representations close to w, but we cannot decide which one is
 			// closer.
-			if (rest < big_distance
-					&& unsafe_interval - rest >= ten_kappa
+			if (rest < big_distance && unsafe_interval - rest >= ten_kappa
 					&& (rest + ten_kappa < big_distance || big_distance - rest > rest + ten_kappa - big_distance)) {
 				return false;
 			}
@@ -524,9 +508,7 @@ abstract class Grisu3 {
 		// The number of bits must be <= 32.
 		// Precondition: (1 << number_bits) <= number < (1 << (number_bits +
 		// 1)).
-		static long biggestPowerTen(
-				int number,
-				int number_bits) {
+		static long biggestPowerTen(int number, int number_bits) {
 			int power, exponent;
 			switch (number_bits) {
 				case 32:
@@ -678,9 +660,7 @@ abstract class Grisu3 {
 		// represent 'w' we can stop. Everything inside the interval low - high
 		// represents w. However we have to pay attention to low, high and w's
 		// imprecision.
-		static boolean digitGen(
-				FastDtoaBuilder buffer,
-				int mk) {
+		static boolean digitGen(FastDtoaBuilder buffer, int mk) {
 			final DiyFp low = buffer.scaled_boundary_minus;
 			final DiyFp w = buffer.scaled_w;
 			final DiyFp high = buffer.scaled_boundary_plus;
@@ -813,11 +793,10 @@ abstract class Grisu3 {
 				}
 			}
 		}
+
 	}
 
-	public static boolean tryConvert(
-			final double value,
-			final FastDtoaBuilder buffer) {
+	public static boolean tryConvert(final double value, final FastDtoaBuilder buffer) {
 		final long bits;
 		final int firstDigit;
 		buffer.reset();
@@ -866,22 +845,32 @@ abstract class Grisu3 {
 	static class FastDtoaBuilder {
 
 		private final DiyFp v = new DiyFp();
+
 		private final DiyFp w = new DiyFp();
+
 		private final DiyFp boundary_minus = new DiyFp();
+
 		private final DiyFp boundary_plus = new DiyFp();
+
 		private final DiyFp ten_mk = new DiyFp();
+
 		private final DiyFp scaled_w = new DiyFp();
+
 		private final DiyFp scaled_boundary_minus = new DiyFp();
+
 		private final DiyFp scaled_boundary_plus = new DiyFp();
 
 		private final DiyFp too_low = new DiyFp();
+
 		private final DiyFp too_high = new DiyFp();
+
 		private final DiyFp unsafe_interval = new DiyFp();
+
 		private final DiyFp one = new DiyFp();
+
 		private final DiyFp minus_round = new DiyFp();
 
-		int initialize(
-				final long bits) {
+		int initialize(final long bits) {
 			DoubleHelper.asNormalizedDiyFp(bits, w);
 			// boundary_minus and boundary_plus are the boundaries between v and
 			// its
@@ -932,15 +921,16 @@ abstract class Grisu3 {
 		// allocate buffer for generated digits + extra notation + padding
 		// zeroes
 		private final byte[] chars = new byte[kFastDtoaMaximalLength + 10];
+
 		private int end = 0;
+
 		private int point;
 
 		void reset() {
 			end = 0;
 		}
 
-		void append(
-				byte c) {
+		void append(byte c) {
 			chars[end++] = c;
 		}
 
@@ -953,17 +943,14 @@ abstract class Grisu3 {
 			return "[chars:" + new String(chars, 0, end) + ", point:" + point + "]";
 		}
 
-		int copyTo(
-				final byte[] target,
-				final int position) {
+		int copyTo(final byte[] target, final int position) {
 			for (int i = 0; i < end; i++) {
 				target[i + position] = chars[i];
 			}
 			return end;
 		}
 
-		public void write(
-				int firstDigit) {
+		public void write(int firstDigit) {
 			// check for minus sign
 			int decPoint = point - firstDigit;
 			if (decPoint < -5 || decPoint > 21) {
@@ -974,9 +961,7 @@ abstract class Grisu3 {
 			}
 		}
 
-		private void toFixedFormat(
-				int firstDigit,
-				int decPoint) {
+		private void toFixedFormat(int firstDigit, int decPoint) {
 			if (point < end) {
 				// insert decimal point
 				if (decPoint > 0) {
@@ -1021,9 +1006,7 @@ abstract class Grisu3 {
 			}
 		}
 
-		private void toExponentialFormat(
-				int firstDigit,
-				int decPoint) {
+		private void toExponentialFormat(int firstDigit, int decPoint) {
 			if (end - firstDigit > 1) {
 				// insert decimal point if more than one digit was produced
 				int dot = firstDigit + 1;
@@ -1052,5 +1035,7 @@ abstract class Grisu3 {
 		}
 
 		final static byte[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+
 	}
+
 }

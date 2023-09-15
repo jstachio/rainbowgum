@@ -17,18 +17,19 @@ import io.jstach.rainbowgum.LogOutput;
 public class JansiLogFormatter implements LogFormatter.EventFormatter {
 
 	private final LevelFormatter levelFormatter;
+
 	private final InstantFormatter instantFormatter;
+
 	private final NameFormatter nameFormatter;
+
 	private final ThrowableFormatter throwableFormatter;
+
 	private final KeyValuesFormatter keyValuesFormatter;
+
 	private final ThreadFormatter threadFormatter;
 
-	public JansiLogFormatter(
-			LevelFormatter levelFormatter,
-			InstantFormatter instantFormatter,
-			NameFormatter nameFormatter,
-			ThrowableFormatter throwableFormatter,
-			KeyValuesFormatter keyValuesFormatter,
+	public JansiLogFormatter(LevelFormatter levelFormatter, InstantFormatter instantFormatter,
+			NameFormatter nameFormatter, ThrowableFormatter throwableFormatter, KeyValuesFormatter keyValuesFormatter,
 			ThreadFormatter threadFormatter) {
 		super();
 		this.levelFormatter = levelFormatter;
@@ -38,57 +39,62 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 		this.keyValuesFormatter = keyValuesFormatter;
 		this.threadFormatter = threadFormatter;
 	}
-	
+
 	public static Builder builder() {
 		return new Builder();
 	}
-	
+
 	public static class Builder {
+
 		private LevelFormatter levelFormatter = LevelFormatter.of();
+
 		private InstantFormatter instantFormatter = InstantFormatter.of();
+
 		private NameFormatter nameFormatter = NameFormatter.of();
+
 		private ThrowableFormatter throwableFormatter = ThrowableFormatter.of();
+
 		private KeyValuesFormatter keyValuesFormatter = LogFormatter.noop();
+
 		private ThreadFormatter threadFormatter = ThreadFormatter.of();
-		
+
 		private Builder() {
 		}
-		
-		public Builder levelFormatter(
-				LevelFormatter levelFormatter) {
+
+		public Builder levelFormatter(LevelFormatter levelFormatter) {
 			this.levelFormatter = levelFormatter;
 			return this;
 		}
-		public Builder instantFormatter(
-				InstantFormatter instantFormatter) {
+
+		public Builder instantFormatter(InstantFormatter instantFormatter) {
 			this.instantFormatter = instantFormatter;
 			return this;
 
 		}
-		public Builder nameFormatter(
-				NameFormatter nameFormatter) {
+
+		public Builder nameFormatter(NameFormatter nameFormatter) {
 			this.nameFormatter = nameFormatter;
 			return this;
 
 		}
-		public Builder throwableFormatter(
-				ThrowableFormatter throwableFormatter) {
+
+		public Builder throwableFormatter(ThrowableFormatter throwableFormatter) {
 			this.throwableFormatter = throwableFormatter;
 			return this;
 
 		}
-		public Builder keyValuesFormatter(
-				KeyValuesFormatter keyValuesFormatter) {
+
+		public Builder keyValuesFormatter(KeyValuesFormatter keyValuesFormatter) {
 			this.keyValuesFormatter = keyValuesFormatter;
 			return this;
 
 		}
-		public Builder threadFormatter(
-				ThreadFormatter threadFormatter) {
+
+		public Builder threadFormatter(ThreadFormatter threadFormatter) {
 			this.threadFormatter = threadFormatter;
 			return this;
 		}
-		
+
 		public JansiLogFormatter build() {
 			if (installJansi()) {
 				AnsiConsole.systemInstall();
@@ -96,21 +102,17 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 			return new JansiLogFormatter(levelFormatter, instantFormatter, nameFormatter, throwableFormatter,
 					keyValuesFormatter, threadFormatter);
 		}
-		
+
 		private static boolean installJansi() {
-			if (!System.getProperty("surefire.real.class.path", "")
-				.isEmpty()) {
+			if (!System.getProperty("surefire.real.class.path", "").isEmpty()) {
 				return false;
 			}
 			return true;
 		}
-		
+
 	}
 
-
-	public void format(
-			LogOutput output,
-			LogEvent logEvent) {
+	public void format(LogOutput output, LogEvent logEvent) {
 
 		var level = logEvent.level();
 		var instant = logEvent.timeStamp();
@@ -131,7 +133,7 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 		buf.a(' ');
 
 		// Append current thread name if so configured
-		if (! threadFormatter.isNoop()) {
+		if (!threadFormatter.isNoop()) {
 			buf.a(Attribute.INTENSITY_FAINT);
 			buf.a("[");
 			buf.append(threadFormatter.formatThread(logEvent.threadName()));
@@ -146,14 +148,14 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 
 		// Append the name of the log instance if so configured
 
-		if (! nameFormatter.isNoop()) {
+		if (!nameFormatter.isNoop()) {
 			buf.fg(Color.MAGENTA);
 			buf.a(String.valueOf(name));
 		}
 
 		Map<String, @Nullable String> m = logEvent.getKeyValues();
 
-		if (! LogFormatter.isNoop(keyValuesFormatter)) {
+		if (!LogFormatter.isNoop(keyValuesFormatter)) {
 			buf.fg(Color.WHITE);
 			buf.append(" ");
 			buf.a(Attribute.INTENSITY_FAINT);
@@ -172,42 +174,36 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 		write(output, buf.toString(), t);
 	}
 
-
-	private Ansi colorLevel(
-			Ansi ansi,
-			Level level) {
-		if (levelFormatter.isNoop()) return ansi;
+	private Ansi colorLevel(Ansi ansi, Level level) {
+		if (levelFormatter.isNoop())
+			return ansi;
 		String levelStr = levelFormatter.format(level);
 		switch (level) {
-		case ERROR:
-			ansi.a(Attribute.INTENSITY_BOLD).fg(Color.RED);
-			break;
-		case INFO:
-			ansi.a(Attribute.INTENSITY_BOLD).fg(Color.BLUE);
-			break;
-		case WARNING:
-			ansi.fg(Color.RED);
-			break;
-		case DEBUG:
-			ansi.a(Attribute.INTENSITY_FAINT).fg(Color.CYAN);
-		case TRACE:
-		default:
-			ansi.fg(Color.DEFAULT);
-			break;
+			case ERROR:
+				ansi.a(Attribute.INTENSITY_BOLD).fg(Color.RED);
+				break;
+			case INFO:
+				ansi.a(Attribute.INTENSITY_BOLD).fg(Color.BLUE);
+				break;
+			case WARNING:
+				ansi.fg(Color.RED);
+				break;
+			case DEBUG:
+				ansi.a(Attribute.INTENSITY_FAINT).fg(Color.CYAN);
+			case TRACE:
+			default:
+				ansi.fg(Color.DEFAULT);
+				break;
 		}
 		return ansi.a(levelStr).fg(Color.DEFAULT).a(Attribute.RESET).a("");
 	}
 
-	private String getFormattedDate(
-			Instant instant) {
+	private String getFormattedDate(Instant instant) {
 		String dateText = instantFormatter.format(instant);
 		return dateText;
 	}
 
-	void write(
-			LogOutput output,
-			String buf,
-			@Nullable Throwable t) {
+	void write(LogOutput output, String buf, @Nullable Throwable t) {
 		output.append(buf);
 		output.append("\n");
 		if (t != null) {

@@ -10,36 +10,44 @@ import io.jstach.rainbowgum.LogEncoder;
 public class RawJsonWriter {
 
 	private int position;
+
 	private byte[] buffer;
 
 	/**
 	 * Helper for writing JSON object start: {
 	 */
 	public static final byte OBJECT_START = '{';
+
 	/**
 	 * Helper for writing JSON object end: }
 	 */
 	public static final byte OBJECT_END = '}';
+
 	/**
 	 * Helper for writing JSON array start: [
 	 */
 	public static final byte ARRAY_START = '[';
+
 	/**
 	 * Helper for writing JSON array end: ]
 	 */
 	public static final byte ARRAY_END = ']';
+
 	/**
 	 * Helper for writing comma separator: ,
 	 */
 	public static final byte COMMA = ',';
+
 	/**
 	 * Helper for writing semicolon: :
 	 */
 	public static final byte SEMI = ':';
+
 	/**
 	 * Helper for writing JSON quote: "
 	 */
 	public static final byte QUOTE = '"';
+
 	/**
 	 * Helper for writing JSON escape: \\
 	 */
@@ -47,38 +55,30 @@ public class RawJsonWriter {
 
 	private final Grisu3.FastDtoaBuilder doubleBuilder = new Grisu3.FastDtoaBuilder();
 
-	public RawJsonWriter(
-			int capacity) {
+	public RawJsonWriter(int capacity) {
 		this.buffer = new byte[capacity];
 	}
 
-	final byte[] ensureCapacity(
-			final int free) {
+	final byte[] ensureCapacity(final int free) {
 		if (position + free >= buffer.length) {
 			enlargeOrFlush(position, free);
 		}
 		return buffer;
 	}
 
-	void advance(
-			int size) {
+	void advance(int size) {
 		position += size;
 	}
 
-	private void enlargeOrFlush(
-			final int size,
-			final int padding) {
+	private void enlargeOrFlush(final int size, final int padding) {
 		buffer = Arrays.copyOf(buffer, buffer.length + buffer.length / 2 + padding);
 	}
 
 	/**
 	 * Write a single byte into the JSON.
-	 *
-	 * @param value
-	 *            byte to write into the JSON
+	 * @param value byte to write into the JSON
 	 */
-	public final void writeByte(
-			final byte value) {
+	public final void writeByte(final byte value) {
 		if (position == buffer.length) {
 			enlargeOrFlush(position, 0);
 		}
@@ -86,14 +86,11 @@ public class RawJsonWriter {
 	}
 
 	/**
-	 * Write a quoted string into the JSON. String will be appropriately escaped
-	 * according to JSON escaping rules.
-	 *
-	 * @param value
-	 *            string to write
+	 * Write a quoted string into the JSON. String will be appropriately escaped according
+	 * to JSON escaping rules.
+	 * @param value string to write
 	 */
-	public final void writeString(
-			final String value) {
+	public final void writeString(final String value) {
 		final int len = value.length();
 		if (position + (len << 2) + (len << 1) + 2 >= buffer.length) {
 			enlargeOrFlush(position, (len << 2) + (len << 1) + 2);
@@ -115,11 +112,7 @@ public class RawJsonWriter {
 		position = cur + 1;
 	}
 
-	private void writeQuotedString(
-			final CharSequence str,
-			int i,
-			int cur,
-			final int len) {
+	private void writeQuotedString(final CharSequence str, int i, int cur, final int len) {
 		final byte[] _result = this.buffer;
 		for (; i < len; i++) {
 			final char c = str.charAt(i);
@@ -307,15 +300,12 @@ public class RawJsonWriter {
 	}
 
 	/**
-	 * Write a quoted string consisting of only ascii characters. String will
-	 * not be escaped according to JSON escaping rules.
-	 *
-	 * @param value
-	 *            ascii string
+	 * Write a quoted string consisting of only ascii characters. String will not be
+	 * escaped according to JSON escaping rules.
+	 * @param value ascii string
 	 */
 	@SuppressWarnings("deprecation")
-	public final void writeAsciiString(
-			final String value) {
+	public final void writeAsciiString(final String value) {
 		final int len = value.length() + 2;
 		if (position + len >= buffer.length) {
 			enlargeOrFlush(position, len);
@@ -327,8 +317,7 @@ public class RawJsonWriter {
 		position += len;
 	}
 
-	public final void writeDouble(
-			final double value) {
+	public final void writeDouble(final double value) {
 		if (value == Double.POSITIVE_INFINITY) {
 			writeAsciiString("\"Infinity\"");
 		}
@@ -356,15 +345,12 @@ public class RawJsonWriter {
 	}
 
 	/**
-	 * Write string consisting of only ascii characters. String will not be
-	 * escaped according to JSON escaping rules.
-	 *
-	 * @param value
-	 *            ascii string
+	 * Write string consisting of only ascii characters. String will not be escaped
+	 * according to JSON escaping rules.
+	 * @param value ascii string
 	 */
 	@SuppressWarnings("deprecation")
-	public final void writeAscii(
-			final String value) {
+	public final void writeAscii(final String value) {
 		final int len = value.length();
 		if (position + len >= buffer.length) {
 			enlargeOrFlush(position, len);
@@ -373,17 +359,15 @@ public class RawJsonWriter {
 		position += len;
 	}
 
-	public final void writeInt(
-			final int value) {
+	public final void writeInt(final int value) {
 		writeAscii(Integer.toString(value));
 	}
 
 	/**
-	 * Content of buffer can be copied to another array of appropriate size.
-	 * This method can't be used when targeting output stream. Ideally it should
-	 * be avoided if possible, since it will create an array copy. It's better
-	 * to use getByteBuffer and size instead.
-	 *
+	 * Content of buffer can be copied to another array of appropriate size. This method
+	 * can't be used when targeting output stream. Ideally it should be avoided if
+	 * possible, since it will create an array copy. It's better to use getByteBuffer and
+	 * size instead.
 	 * @return copy of the buffer up to the current position
 	 */
 	public final byte[] toByteArray() {
@@ -392,41 +376,32 @@ public class RawJsonWriter {
 		return r;
 	}
 
-	public void toByteBuffer(
-			ByteBuffer b) {
+	public void toByteBuffer(ByteBuffer b) {
 		b.put(buffer, 0, position);
 		b.flip();
 		reset();
 	}
 
 	/**
-	 * When JsonWriter does not target stream, this method should be used to
-	 * copy content of the buffer into target stream. It will also reset the
-	 * buffer position to 0 so writer can be continued to be used even without a
-	 * call to reset().
-	 *
-	 * @param stream
-	 *            target stream
-	 * @throws IOException
-	 *             propagates from stream.write
+	 * When JsonWriter does not target stream, this method should be used to copy content
+	 * of the buffer into target stream. It will also reset the buffer position to 0 so
+	 * writer can be continued to be used even without a call to reset().
+	 * @param stream target stream
+	 * @throws IOException propagates from stream.write
 	 */
-	public final void toStream(
-			final OutputStream stream)
-			throws IOException {
+	public final void toStream(final OutputStream stream) throws IOException {
 		stream.write(buffer, 0, position);
 		position = 0;
 	}
-	
-	public final void toStream(
-			final LogEncoder encoder) {
+
+	public final void toStream(final LogEncoder encoder) {
 		encoder.encode(buffer, 0, position);
 		position = 0;
 	}
 
 	/**
-	 * Current position in the buffer. When stream is not used, this is also
-	 * equivalent to the size of the resulting JSON in bytes
-	 *
+	 * Current position in the buffer. When stream is not used, this is also equivalent to
+	 * the size of the resulting JSON in bytes
 	 * @return position in the populated buffer
 	 */
 	public final int size() {

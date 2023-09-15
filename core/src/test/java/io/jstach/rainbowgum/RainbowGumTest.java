@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum;
 
-
 import java.lang.System.Logger.Level;
 
 import org.junit.jupiter.api.Test;

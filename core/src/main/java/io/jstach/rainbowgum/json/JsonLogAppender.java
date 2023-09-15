@@ -25,38 +25,35 @@ public class JsonLogAppender implements LogAppender {
 
 	/*
 	 * { "version": "1.1", "host": "example.org", "short_message":
-	 * "A short message that helps you identify what is going on",
-	 * "full_message": "Backtrace here\n\nmore stuff", "timestamp":
-	 * 1385053862.3072, "level": 1, "_user_id": 9001, "_some_info": "foo",
-	 * "_some_env_var": "bar" }
+	 * "A short message that helps you identify what is going on", "full_message":
+	 * "Backtrace here\n\nmore stuff", "timestamp": 1385053862.3072, "level": 1,
+	 * "_user_id": 9001, "_some_info": "foo", "_some_env_var": "bar" }
 	 */
 
 	private final String host;
+
 	private final Map<String, String> headers;
+
 	private final RawJsonWriter raw = new RawJsonWriter(1024 * 8);
+
 	private final LogEncoder out;
+
 	private final boolean prettyprint;
+
 	private final LevelFormatter levelFormatter = LevelFormatter.of();
 
 	private static final int EXTENDED_F = 0x00000002;
+
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
-	public JsonLogAppender(
-			LogConfig config) {
-		this(
-				config.hostName(),
-				config.headers(),
-				config.defaultOutput(),
+	public JsonLogAppender(LogConfig config) {
+		this(config.hostName(), config.headers(), config.defaultOutput(),
 				Optional.ofNullable(config.property("json.prettyprint"))
 					.map(p -> Boolean.valueOf(p))
 					.orElseGet(() -> false));
 	}
 
-	public JsonLogAppender(
-			String host,
-			Map<String, String> headers,
-			LogEncoder out,
-			boolean prettyprint) {
+	public JsonLogAppender(String host, Map<String, String> headers, LogEncoder out, boolean prettyprint) {
 		super();
 		this.host = host;
 		this.headers = headers;
@@ -65,12 +62,11 @@ public class JsonLogAppender implements LogAppender {
 	}
 
 	/*
-	 * N.B. synchronized. This would be bad but outputstreams are synchronized
-	 * as well .. so.
+	 * N.B. synchronized. This would be bad but outputstreams are synchronized as well ..
+	 * so.
 	 */
 	@Override
-	public synchronized void append(
-			LogEvent event) {
+	public synchronized void append(LogEvent event) {
 		raw.reset();
 		final String host = this.host;
 		final String shortMessage = event.formattedMessage();
@@ -95,17 +91,15 @@ public class JsonLogAppender implements LogAppender {
 		index = writeDouble("timestamp", timeStamp, index, 0);
 		index = writeInt("level", level, index, 0);
 		index = write("_time", timeFormatter.format(now), index);
-		index = write("_level",  levelFormatter.format(event.level()), index);
+		index = write("_level", levelFormatter.format(event.level()), index);
 		index = write("_logger", event.loggerName(), index);
 		index = write("_thread_name", event.threadName(), index);
 		index = write("_thread_id", String.valueOf(event.threadId()), index);
 
 		if (t != null) {
-			String tn = t.getClass()
-				.getCanonicalName();
+			String tn = t.getClass().getCanonicalName();
 			if (tn == null) {
-				tn = t.getClass()
-					.getName();
+				tn = t.getClass().getName();
 			}
 			index = write("_throwable", tn, index);
 		}
@@ -145,18 +139,11 @@ public class JsonLogAppender implements LogAppender {
 
 	}
 
-	private final int write(
-			String k,
-			@Nullable String v,
-			int index) {
+	private final int write(String k, @Nullable String v, int index) {
 		return write(k, v, index, 0);
 	}
 
-	private final int write(
-			String k,
-			@Nullable String v,
-			int index,
-			int flag) {
+	private final int write(String k, @Nullable String v, int index, int flag) {
 		if (v == null)
 			return index;
 		_writeStartField(k, index, flag);
@@ -166,32 +153,21 @@ public class JsonLogAppender implements LogAppender {
 
 	}
 
-	private final int writeDouble(
-			String k,
-			double v,
-			int index,
-			int flag) {
+	private final int writeDouble(String k, double v, int index, int flag) {
 		_writeStartField(k, index, flag);
 		raw.writeDouble(v);
 		_writeEndField(flag);
 		return index + 1;
 	}
 
-	private final int writeInt(
-			String k,
-			int v,
-			int index,
-			int flag) {
+	private final int writeInt(String k, int v, int index, int flag) {
 		_writeStartField(k, index, flag);
 		raw.writeInt(v);
 		_writeEndField(flag);
 		return index + 1;
 	}
 
-	private final void _writeStartField(
-			String k,
-			int index,
-			int flag) {
+	private final void _writeStartField(String k, int index, int flag) {
 		if (index > 0) {
 			raw.writeByte(COMMA);
 		}
@@ -208,18 +184,15 @@ public class JsonLogAppender implements LogAppender {
 		raw.writeByte(SEMI);
 	}
 
-	private final void _writeEndField(
-			int flag) {
+	private final void _writeEndField(int flag) {
 
 	}
 
-	private int levelToSyslogLevel(
-			Level level) {
+	private int levelToSyslogLevel(Level level) {
 		/*
-		 * FROM LOGBACK The syslog severity of a logging event is converted from
-		 * the level of the logging event. The DEBUG level is converted to 7,
-		 * INFO is converted to 6, WARN is converted to 4 and ERROR is converted
-		 * to 3.
+		 * FROM LOGBACK The syslog severity of a logging event is converted from the level
+		 * of the logging event. The DEBUG level is converted to 7, INFO is converted to
+		 * 6, WARN is converted to 4 and ERROR is converted to 3.
 		 */
 		int r = switch (level) {
 			case ERROR -> 3;

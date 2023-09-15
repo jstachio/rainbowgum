@@ -32,20 +32,19 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 	final ThreadLocal<@Nullable Map<@NonNull String, @Nullable String>> copyOnThreadLocal = new ThreadLocal<>();
 
 	private static final int WRITE_OPERATION = 1;
+
 	private static final int MAP_COPY_OPERATION = 2;
 
 	// keeps track of the last operation performed
 	final ThreadLocal<Integer> lastOperation = new ThreadLocal<Integer>();
 
-	private Integer getAndSetLastOperation(
-			int op) {
+	private Integer getAndSetLastOperation(int op) {
 		Integer lastOp = lastOperation.get();
 		lastOperation.set(op);
 		return lastOp;
 	}
 
-	private boolean wasLastOpReadOrNull(
-			@Nullable Integer lastOp) {
+	private boolean wasLastOpReadOrNull(@Nullable Integer lastOp) {
 		return lastOp == null || lastOp.intValue() == MAP_COPY_OPERATION;
 	}
 
@@ -65,21 +64,16 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 	}
 
 	/**
-	 * Put a context value (the <code>val</code> parameter) as identified with
-	 * the <code>key</code> parameter into the current thread's context map.
-	 * Note that contrary to log4j, the <code>val</code> parameter can be null.
+	 * Put a context value (the <code>val</code> parameter) as identified with the
+	 * <code>key</code> parameter into the current thread's context map. Note that
+	 * contrary to log4j, the <code>val</code> parameter can be null.
 	 * <p/>
 	 * <p/>
-	 * If the current thread does not have a context map it is created as a side
-	 * effect of this call.
-	 *
-	 * @throws NullPointerException
-	 *             in case the "key" parameter is null
+	 * If the current thread does not have a context map it is created as a side effect of
+	 * this call.
+	 * @throws NullPointerException in case the "key" parameter is null
 	 */
-	public void put(
-			@NonNull String key,
-			@Nullable String val)
-			throws NullPointerException {
+	public void put(@NonNull String key, @Nullable String val) throws NullPointerException {
 		requireNonNull(key, "key cannot be null");
 
 		Map<String, @Nullable String> oldMap = copyOnThreadLocal.get();
@@ -98,8 +92,7 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 	 * Remove the the context identified by the <code>key</code> parameter.
 	 * <p/>
 	 */
-	public void remove(
-			@Nullable String key) {
+	public void remove(@Nullable String key) {
 		if (key == null) {
 			return;
 		}
@@ -130,8 +123,7 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 	 * Get the context identified by the <code>key</code> parameter.
 	 * <p/>
 	 */
-	public @Nullable String get(
-			String key) {
+	public @Nullable String get(String key) {
 		if (Objects.isNull(key)) {
 			return null;
 		}
@@ -154,8 +146,7 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 	}
 
 	/**
-	 * Returns the keys in the MDC as a {@link Set}. The returned value can be
-	 * null.
+	 * Returns the keys in the MDC as a {@link Set}. The returned value can be null.
 	 */
 	@Nullable
 	public Set<String> getKeys() {
@@ -170,8 +161,7 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 	}
 
 	/**
-	 * Return a copy of the current thread's context map. Returned value may be
-	 * null.
+	 * Return a copy of the current thread's context map. Returned value may be null.
 	 */
 	@Nullable
 	public Map<String, @Nullable String> getCopyOfContextMap() {
@@ -184,8 +174,7 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 		}
 	}
 
-	public void setContextMap(
-			Map<String, @Nullable String> contextMap) {
+	public void setContextMap(Map<String, @Nullable String> contextMap) {
 		lastOperation.set(WRITE_OPERATION);
 
 		Map<String, @Nullable String> newMap = Collections.synchronizedMap(new HashMap<>());
@@ -196,26 +185,23 @@ public class RainbowGumMDCAdapter implements MDCAdapter {
 	}
 
 	@Override
-	public void pushByKey(
-			String key,
-			String value) {}
+	public void pushByKey(String key, String value) {
+	}
 
 	@Override
-	public @Nullable String popByKey(
-			String key) {
+	public @Nullable String popByKey(String key) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public @Nullable Deque<String> getCopyOfDequeByKey(
-			String key) {
+	public @Nullable Deque<String> getCopyOfDequeByKey(String key) {
 		return null;
 	}
 
 	@Override
-	public void clearDequeByKey(
-			String key) {
+	public void clearDequeByKey(String key) {
 
 	}
+
 }

@@ -26,6 +26,7 @@
     <pistachio.version>0.1.2</pistachio.version>
 
     <slf4j.version>2.0.7</slf4j.version>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
 
   </properties>
       
@@ -69,6 +70,16 @@
       <dependency>
         <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-jdk</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-slf4j</artifactId>
         <version>${project.version}</version>
       </dependency>
       <!-- to make dependabot check for latest maven version -->

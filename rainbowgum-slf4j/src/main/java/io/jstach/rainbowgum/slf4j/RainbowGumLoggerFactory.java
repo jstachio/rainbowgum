@@ -12,8 +12,8 @@ import io.jstach.rainbowgum.RainbowGum;
 class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	private final ConcurrentMap<String, Logger> loggerMap;
+
 	private final RainbowGum rainbowGum;
-	
 
 	public RainbowGumLoggerFactory(RainbowGum rainbowGum) {
 		super();
@@ -22,8 +22,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	}
 
 	@Override
-	public Logger getLogger(
-			String name) {
+	public Logger getLogger(String name) {
 		Logger simpleLogger = loggerMap.get(name);
 		if (simpleLogger != null) {
 			return simpleLogger;
@@ -36,5 +35,5 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			return oldInstance == null ? newInstance : oldInstance;
 		}
 	}
-	
+
 }
