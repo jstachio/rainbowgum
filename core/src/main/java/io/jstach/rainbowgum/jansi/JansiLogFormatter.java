@@ -1,14 +1,9 @@
 package io.jstach.rainbowgum.jansi;
 
 import java.lang.System.Logger.Level;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.Ansi.Attribute;
@@ -18,36 +13,88 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogOutput;
 
-public class JansiLogFormatter implements LogFormatter {
+public class JansiLogFormatter implements LogFormatter.EventFormatter {
 
 	private final LevelFormatter levelFormatter;
 	private final InstantFormatter instantFormatter;
+	private final NameFormatter nameFormatter;
 	private final ThrowableFormatter throwableFormatter;
-	private final boolean showThreadName;
-	private final boolean levelInBrackets;
-	private final boolean showShortLogName;
-	private final boolean showLogName;
-	private final List<String> mdcKeys;
+	private final KeyValuesFormatter keyValuesFormatter;
+	private final ThreadFormatter threadFormatter;
 
 	public JansiLogFormatter(
 			LevelFormatter levelFormatter,
 			InstantFormatter instantFormatter,
+			NameFormatter nameFormatter,
 			ThrowableFormatter throwableFormatter,
-			boolean showThreadName,
-			boolean levelInBrackets,
-			boolean showShortLogName,
-			boolean showLogName,
-			List<String> mdcKeys) {
+			KeyValuesFormatter keyValuesFormatter,
+			ThreadFormatter threadFormatter) {
 		super();
 		this.levelFormatter = levelFormatter;
 		this.instantFormatter = instantFormatter;
+		this.nameFormatter = nameFormatter;
 		this.throwableFormatter = throwableFormatter;
-		this.showThreadName = showThreadName;
-		this.levelInBrackets = levelInBrackets;
-		this.showShortLogName = showShortLogName;
-		this.showLogName = showLogName;
-		this.mdcKeys = mdcKeys;
+		this.keyValuesFormatter = keyValuesFormatter;
+		this.threadFormatter = threadFormatter;
 	}
+	
+	public static Builder builder() {
+		return new Builder();
+	}
+	
+	public static class Builder {
+		private LevelFormatter levelFormatter = LevelFormatter.of();
+		private InstantFormatter instantFormatter = InstantFormatter.of();
+		private NameFormatter nameFormatter = NameFormatter.of();
+		private ThrowableFormatter throwableFormatter = ThrowableFormatter.of();
+		private KeyValuesFormatter keyValuesFormatter = LogFormatter.noop();
+		private ThreadFormatter threadFormatter = ThreadFormatter.of();
+		
+		private Builder() {
+		}
+		
+		public Builder levelFormatter(
+				LevelFormatter levelFormatter) {
+			this.levelFormatter = levelFormatter;
+			return this;
+		}
+		public Builder instantFormatter(
+				InstantFormatter instantFormatter) {
+			this.instantFormatter = instantFormatter;
+			return this;
+
+		}
+		public Builder nameFormatter(
+				NameFormatter nameFormatter) {
+			this.nameFormatter = nameFormatter;
+			return this;
+
+		}
+		public Builder throwableFormatter(
+				ThrowableFormatter throwableFormatter) {
+			this.throwableFormatter = throwableFormatter;
+			return this;
+
+		}
+		public Builder keyValuesFormatter(
+				KeyValuesFormatter keyValuesFormatter) {
+			this.keyValuesFormatter = keyValuesFormatter;
+			return this;
+
+		}
+		public Builder threadFormatter(
+				ThreadFormatter threadFormatter) {
+			this.threadFormatter = threadFormatter;
+			return this;
+		}
+		
+		public JansiLogFormatter build() {
+			return new JansiLogFormatter(levelFormatter, instantFormatter, nameFormatter, throwableFormatter,
+					keyValuesFormatter, threadFormatter);
+		}
+		
+	}
+
 
 	public void format(
 			LogOutput output,
@@ -55,7 +102,6 @@ public class JansiLogFormatter implements LogFormatter {
 
 		var level = logEvent.level();
 		var instant = logEvent.timeStamp();
-		var shortLogName = logEvent.loggerShortName();
 		var name = logEvent.loggerName();
 		@Nullable
 		Throwable t = logEvent.throwable();
@@ -73,67 +119,34 @@ public class JansiLogFormatter implements LogFormatter {
 		buf.a(' ');
 
 		// Append current thread name if so configured
-		if (showThreadName) {
+		if (! threadFormatter.isNoop()) {
 			buf.a(Attribute.INTENSITY_FAINT);
 			buf.a("[");
-			buf.append(padRight(Thread.currentThread().getName(), 12)).append("]");
+			buf.append(threadFormatter.formatThread(logEvent.threadName()));
+			buf.append("]");
 			buf.a(Attribute.RESET);
 			buf.a(" ");
-			// buf.append('[');
-			// buf.append(
-			//
-			// buf.append("] ");
 		}
-
-		if (levelInBrackets)
-			buf.append('[');
-
-		// Append a readable representation of the log level
 
 		colorLevel(buf, level);
 
-		if (levelInBrackets)
-			buf.append(']');
 		buf.append(' ');
 
 		// Append the name of the log instance if so configured
-		if (showShortLogName) {
-			buf.append(String.valueOf(shortLogName));
-		} else if (showLogName) {
+
+		if (! nameFormatter.isNoop()) {
 			buf.fg(Color.MAGENTA);
 			buf.a(String.valueOf(name));
 		}
 
 		Map<String, @Nullable String> m = logEvent.getKeyValues();
-		List<String> keys = mdcKeys;
 
-		if (!keys.isEmpty()) {
-			Collection<@NonNull String> ks;
-			if (keys.size() == 1 && "*".equals(keys.get(0))) {
-				ks = m.keySet();
-			} else {
-				ks = keys;
-			}
+		if (! LogFormatter.isNoop(keyValuesFormatter)) {
 			buf.fg(Color.WHITE);
 			buf.append(" ");
 			buf.a(Attribute.INTENSITY_FAINT);
 			buf.a("{");
-			boolean first = true;
-			for (String k : ks) {
-				String v = m.get(k);
-				if (v == null) {
-					continue;
-				}
-				if (first) {
-					first = false;
-				} else {
-					buf.append("&");
-				}
-				buf.append(URLEncoder.encode(k, StandardCharsets.US_ASCII));
-				buf.append("=");
-				buf.append(URLEncoder.encode(v, StandardCharsets.US_ASCII));
-
-			}
+			keyValuesFormatter.format(output, m);
 			buf.a("}");
 			buf.fg(Color.DEFAULT);
 			buf.a(Attribute.RESET);
@@ -147,15 +160,11 @@ public class JansiLogFormatter implements LogFormatter {
 		write(output, buf.toString(), t);
 	}
 
-	public static String padRight(
-			String s,
-			int n) {
-		return String.format("%-" + n + "s", s.substring(0, Math.min(s.length(), n)));
-	}
 
 	private Ansi colorLevel(
 			Ansi ansi,
 			Level level) {
+		if (levelFormatter.isNoop()) return ansi;
 		String levelStr = levelFormatter.format(level);
 		switch (level) {
 		case ERROR:

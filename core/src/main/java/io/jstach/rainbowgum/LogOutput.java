@@ -1,11 +1,10 @@
 package io.jstach.rainbowgum;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 
-public interface LogOutput {
+public sealed interface LogOutput permits LogEncoder {
 	
 	void append(String s);
 	

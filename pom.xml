@@ -64,6 +64,11 @@
   </dependencies>
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <!-- to make dependabot check for latest maven version -->
       <dependency>
           <groupId>org.apache.maven</groupId>
@@ -117,6 +122,11 @@
         <groupId>org.fusesource.jansi</groupId>
         <artifactId>jansi</artifactId>
         <version>2.4.0</version>
+      </dependency>
+      <dependency>
+        <groupId>com.lmax</groupId>
+        <artifactId>disruptor</artifactId>
+        <version>4.0.0.RC1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

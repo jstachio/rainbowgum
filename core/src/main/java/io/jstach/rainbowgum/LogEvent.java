@@ -11,7 +11,6 @@ public record LogEvent(
 		long threadId,
 		System.Logger.Level level,
 		String loggerName,
-		String loggerShortName,
 		String formattedMessage,
 		Map<String, String> keyValues,
 		@Nullable Throwable throwable) {
@@ -20,7 +19,6 @@ public record LogEvent(
 		return throwable();
 	}
 
-	@SuppressWarnings({ "null", "exports" })
 	public Map<String, @Nullable String> getKeyValues() {
 		return keyValues;
 	}
@@ -28,7 +26,6 @@ public record LogEvent(
 	public static LogEvent of(
 			System.Logger.Level level,
 			String loggerName,
-			String loggerShortName,
 			String formattedMessage,
 			Map<String, String> keyValues,
 			@Nullable Throwable throwable) {
@@ -43,7 +40,6 @@ public record LogEvent(
 				threadId,
 				level,
 				loggerName,
-				loggerName,
 				formattedMessage,
 				keyValues,
 				throwable);
@@ -54,6 +50,6 @@ public record LogEvent(
 			String loggerName,
 			String formattedMessage,
 			@Nullable Throwable throwable) {
-		return of(level, loggerName, loggerName, formattedMessage, Map.of(), throwable);
+		return of(level, loggerName, formattedMessage, Map.of(), throwable);
 	}
 }
