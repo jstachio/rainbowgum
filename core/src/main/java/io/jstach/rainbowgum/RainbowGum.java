@@ -1,10 +1,9 @@
 package io.jstach.rainbowgum;
 
-import java.util.ServiceLoader;
-
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 public interface RainbowGum {
 
@@ -71,17 +70,7 @@ record SimpleRainbowGum(LogConfig config, LogRouter router) implements RainbowGu
 	private enum Holder {
 
 		;
-		private static final RainbowGum rainbowGum = init();
-
-		private static RainbowGum init() {
-			ServiceLoader<RainbowGum> loader = ServiceLoader.load(RainbowGum.class);
-			var gum = loader.findFirst().orElse(null);
-			if (gum == null) {
-				gum = RainbowGum.builder().build();
-			}
-			RainbowGum.start(gum);
-			return gum;
-		}
+		private static final RainbowGum rainbowGum = RainbowGumServiceProvider.provide();
 
 	}
 

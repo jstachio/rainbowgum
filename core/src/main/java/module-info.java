@@ -7,5 +7,5 @@ module io.jstach.rainbowgum {
 	requires org.fusesource.jansi;
 	requires com.lmax.disruptor;
 	
-	uses io.jstach.rainbowgum.RainbowGum;
+	uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 }
