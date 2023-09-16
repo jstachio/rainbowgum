@@ -79,6 +79,7 @@ record SimpleRainbowGum(LogConfig config, LogRouter router) implements RainbowGu
 			if (gum == null) {
 				gum = RainbowGum.builder().build();
 			}
+			RainbowGum.start(gum);
 			return gum;
 		}
 

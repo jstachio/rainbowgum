@@ -679,5 +679,6 @@
     <module>core</module>
     <module>rainbowgum-slf4j</module>
     <module>rainbowgum-jdk</module>
+    <module>rainbowgum</module>
   </modules>
 </project>

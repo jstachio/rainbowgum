@@ -47,7 +47,6 @@ public class SystemLoggingFactory extends System.LoggerFinder {
 				@Nullable Throwable thrown) {
 			String message = requireNonNullElse(msg, "");
 			LogRouter.global().log(name, level, message, thrown);
-			;
 		}
 
 		@Override
