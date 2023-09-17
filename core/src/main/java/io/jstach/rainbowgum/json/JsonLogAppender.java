@@ -66,7 +66,7 @@ public class JsonLogAppender implements LogAppender {
 	 * so.
 	 */
 	@Override
-	public synchronized void append(LogEvent event) {
+	public void append(LogEvent event) {
 		raw.reset();
 		final String host = this.host;
 		final String shortMessage = event.formattedMessage();
