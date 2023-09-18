@@ -3,17 +3,21 @@ package io.jstach.rainbowgum;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
+import io.jstach.rainbowgum.LogRouter.SyncLogRouter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
-public interface RainbowGum {
+public interface RainbowGum extends AutoCloseable {
 
 	public static RainbowGum of() {
 		return SimpleRainbowGum.of();
 	}
 
 	public static void start(RainbowGum gum) {
-		gum.start();
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			gum.close();
+		}));
 		LogRouter.setRouter(gum.router());
+		gum.start();
 	}
 
 	public LogConfig config();
@@ -22,6 +26,10 @@ public interface RainbowGum {
 
 	default void start() {
 		router().start(config());
+	}
+
+	default void close() {
+		router().close();
 	}
 
 	public static Builder builder() {
@@ -51,7 +59,9 @@ public interface RainbowGum {
 			var router = this.router;
 			var config = this.config;
 			if (router == null) {
-				router = AsyncLogRouter.builder().appender(LogAppender.builder().build()).build();
+				// router =
+				// AsyncLogRouter.builder().appender(LogAppender.builder().build()).build();
+				router = SyncLogRouter.builder().appender(LogAppender.builder().build()).build();
 			}
 
 			return new SimpleRainbowGum(config, router);

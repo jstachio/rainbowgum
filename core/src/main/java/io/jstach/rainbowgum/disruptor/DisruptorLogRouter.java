@@ -74,7 +74,7 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 
 	@Override
 	public void close() {
-		this.disruptor.shutdown();
+		this.disruptor.halt();
 	}
 
 	private static class LogEventCell {
@@ -103,8 +103,14 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 
 		@Override
 		public void handleEventException(Throwable ex, long sequence, Object event) {
-			LogRouter.error(DisruptorLogRouter.class, ex);
-
+			if (ex instanceof InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException("interrupted");
+			}
+			else {
+				LogRouter.error(DisruptorLogRouter.class, ex);
+				throw new RuntimeException(ex);
+			}
 		}
 
 		@Override

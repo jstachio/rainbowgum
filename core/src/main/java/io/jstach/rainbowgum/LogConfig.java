@@ -55,7 +55,10 @@ public interface LogConfig {
 			level = logLevelOrNull(tempName);
 			indexOfLastDot = String.valueOf(tempName).lastIndexOf(".");
 		}
-		return level;
+		if (level != null) {
+			return level;
+		}
+		return fallback;
 	}
 
 	default Level logLevel(String name) {

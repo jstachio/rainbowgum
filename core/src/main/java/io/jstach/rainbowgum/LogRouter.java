@@ -80,7 +80,7 @@ public sealed interface LogRouter extends LogAppender, AutoCloseable {
 				return this;
 			}
 
-			public SyncLogRouter builder() {
+			public SyncLogRouter build() {
 				return new DefaultLogRouter(List.copyOf(appenders));
 			}
 
