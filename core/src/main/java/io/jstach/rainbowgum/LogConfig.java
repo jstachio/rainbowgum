@@ -73,6 +73,7 @@ public interface LogConfig {
 		return LogConfig.of(System::getProperty);
 	}
 
+	@SuppressWarnings("exports")
 	public static LogConfig of(Function<String, @Nullable String> propertySupplier) {
 		return new LogConfig() {
 

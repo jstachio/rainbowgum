@@ -12,6 +12,7 @@ public record LogEvent(Instant timeStamp, String threadName, long threadId, Syst
 		return throwable();
 	}
 
+	@SuppressWarnings("exports")
 	public Map<String, @Nullable String> getKeyValues() {
 		return keyValues;
 	}

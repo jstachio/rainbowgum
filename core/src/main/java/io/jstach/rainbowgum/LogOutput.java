@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 
-public sealed interface LogOutput permits LogEncoder {
+public sealed interface LogOutput extends AutoCloseable permits LogEncoder {
 
 	void append(String s);
 
@@ -40,5 +40,8 @@ public sealed interface LogOutput permits LogEncoder {
 		};
 		return new PrintWriter(writer);
 	}
+
+
+	void close();
 
 }

@@ -2,7 +2,6 @@ package io.jstach.rainbowgum;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
 import io.jstach.rainbowgum.LogRouter.SyncLogRouter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
