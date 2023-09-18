@@ -41,7 +41,6 @@ public sealed interface LogOutput extends AutoCloseable permits LogEncoder {
 		return new PrintWriter(writer);
 	}
 
-
 	void close();
 
 }

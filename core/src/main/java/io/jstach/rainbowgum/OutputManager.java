@@ -10,23 +10,27 @@ import java.nio.file.StandardOpenOption;
 public interface OutputManager extends AutoCloseable {
 
 	LogEncoder of(URI uri) throws IOException;
-	
-	default void close() {}
+
+	default void close() {
+	}
+
 }
+
 enum DefaultOutputManager implements OutputManager {
+
 	INSTANCE;
 
-	//private CopyOnWriteArrayList<AutoCloseable> closeables = new CopyOnWriteArrayList<>();
-	
+	// private CopyOnWriteArrayList<AutoCloseable> closeables = new
+	// CopyOnWriteArrayList<>();
+
 	@Override
-	public LogEncoder of(
-			URI uri) throws IOException {
+	public LogEncoder of(URI uri) throws IOException {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
 		if (scheme == null && path != null) {
 			@SuppressWarnings("resource")
 			FileOutputStream fos = new FileOutputStream(path);
-			//closeables.add(fos);
+			// closeables.add(fos);
 			return LogEncoder.of(fos.getChannel());
 		}
 		else if ("stdout".equals(scheme)) {
@@ -42,5 +46,5 @@ enum DefaultOutputManager implements OutputManager {
 			return LogEncoder.of(channel);
 		}
 	}
-	
+
 }

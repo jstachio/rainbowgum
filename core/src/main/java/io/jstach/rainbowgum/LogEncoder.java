@@ -41,7 +41,7 @@ public non-sealed interface LogEncoder extends LogOutput {
 				printStream.write(bytes, off, len);
 
 			}
-			
+
 			@Override
 			public void close() {
 			}
@@ -60,11 +60,11 @@ public non-sealed interface LogEncoder extends LogOutput {
 					throw new UncheckedIOException(e);
 				}
 			}
-			
+
 			@Override
 			public void close() {
 				// TODO Auto-generated method stub
-				
+
 			}
 		};
 	}
@@ -86,10 +86,10 @@ public non-sealed interface LogEncoder extends LogOutput {
 					throw new UncheckedIOException(e);
 				}
 			}
-			
+
 			@Override
 			public void close() {
-				
+
 			}
 		};
 	}

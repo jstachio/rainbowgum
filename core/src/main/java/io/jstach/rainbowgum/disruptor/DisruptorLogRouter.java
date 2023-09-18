@@ -26,7 +26,7 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 			int bufferSize) {
 
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory);
-		disruptor.setDefaultExceptionHandler(LogExceptionHandler.INSTANCE);
+		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown));
 
 		boolean found = false;
 		for (var appender : appenders) {
@@ -97,15 +97,12 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 
 	}
 
-	private enum LogExceptionHandler implements ExceptionHandler<Object> {
-
-		INSTANCE;
+	private record LogExceptionHandler(Runnable shutdownHook) implements ExceptionHandler<Object> {
 
 		@Override
 		public void handleEventException(Throwable ex, long sequence, Object event) {
 			if (ex instanceof InterruptedException ie) {
-				Thread.currentThread().interrupt();
-				throw new RuntimeException("interrupted");
+				shutdownHook.run();
 			}
 			else {
 				LogRouter.error(DisruptorLogRouter.class, ex);
