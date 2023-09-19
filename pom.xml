@@ -24,7 +24,7 @@
     <maven.core.version>3.9.4</maven.core.version>
     
     <pistachio.version>0.1.2</pistachio.version>
-
+    <jstachio.version>1.3.2</jstachio.version>
     <slf4j.version>2.0.9</slf4j.version>
     <maven.javadoc.skip>true</maven.javadoc.skip>
 
@@ -142,6 +142,20 @@
         <groupId>io.jstach.pistachio</groupId>
         <artifactId>pistachio-svc-apt</artifactId>
         <version>${pistachio.version}</version>
+        <optional>true</optional>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.jstach</groupId>
+        <artifactId>jstachio-annotation</artifactId>
+        <version>${jstachio.version}</version>
+        <optional>true</optional>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.jstach</groupId>
+        <artifactId>jstachio-apt</artifactId>
+        <version>${jstachio.version}</version>
         <optional>true</optional>
         <scope>provided</scope>
       </dependency>

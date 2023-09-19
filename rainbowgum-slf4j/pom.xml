@@ -25,5 +25,15 @@
       <groupId>io.jstach.pistachio</groupId>
       <artifactId>pistachio-svc-apt</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.jstach</groupId>
+      <artifactId>jstachio-annotation</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach</groupId>
+      <artifactId>jstachio-apt</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
