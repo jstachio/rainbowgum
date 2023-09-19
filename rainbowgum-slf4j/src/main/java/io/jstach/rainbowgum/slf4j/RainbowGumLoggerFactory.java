@@ -30,9 +30,18 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		else {
 			LogAppender appender = this.rainbowGum.router();
 			var level = this.rainbowGum.config().logLevel(name);
-			Logger newInstance = new RainbowGumLogger(name, appender, level);
-			Logger oldInstance = loggerMap.putIfAbsent(name, newInstance);
-			return oldInstance == null ? newInstance : oldInstance;
+
+			Logger newLogger;
+			if (level == System.Logger.Level.OFF) {
+				newLogger = new LevelLogger.OffLogger(name);
+			}
+			else {
+				var slf4jLevel = Levels.toSlf4jLevel(level);
+				newLogger = LevelLogger.of(slf4jLevel, name, appender);
+
+			}
+			Logger oldInstance = loggerMap.putIfAbsent(name, newLogger);
+			return oldInstance == null ? newLogger : oldInstance;
 		}
 	}
 

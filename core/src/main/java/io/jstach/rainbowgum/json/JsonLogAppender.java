@@ -74,7 +74,7 @@ public class JsonLogAppender implements LogAppender {
 		final double timeStamp = ((double) now.toEpochMilli()) / 1000;
 		@Nullable
 		String fullMessage = null;
-		var t = event.getThrowable();
+		var t = event.throwable();
 		if (t != null) {
 			StringWriter sw = new StringWriter();
 			sw.write(shortMessage);
@@ -104,7 +104,7 @@ public class JsonLogAppender implements LogAppender {
 			index = write("_throwable", tn, index);
 		}
 
-		var kvs = event.getKeyValues();
+		var kvs = event.keyValues();
 
 		/*
 		 * output headers

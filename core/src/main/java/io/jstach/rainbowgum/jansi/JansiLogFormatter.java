@@ -153,7 +153,7 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 			buf.a(String.valueOf(name));
 		}
 
-		Map<String, @Nullable String> m = logEvent.getKeyValues();
+		Map<String, @Nullable String> m = logEvent.keyValues();
 
 		if (!LogFormatter.isNoop(keyValuesFormatter)) {
 			buf.fg(Color.WHITE);

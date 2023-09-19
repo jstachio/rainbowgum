@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum.slf4j;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -11,17 +9,57 @@ import org.slf4j.event.Level;
 
 import io.jstach.jstache.JStache;
 import io.jstach.jstache.JStacheConfig;
+import io.jstach.jstache.JStachePartial;
+import io.jstach.jstache.JStachePartials;
 import io.jstach.jstache.JStacheType;
 
+@JStacheConfig(type = JStacheType.STACHE)
 class LevelLoggerTest {
 
 	@Test
 	void test() {
-		String actual = LoggerModelRenderer.of().execute(LoggerModel.of(Level.ERROR));
+		String actual = ClassModelRenderer.of().execute(new ClassModel());
 		System.out.println(actual);
 	}
 
-	@JStacheConfig(type = JStacheType.STACHE)
+	@JStache(
+			template = """
+					package io.jstach.rainbowgum.slf4j;
+
+					import org.slf4j.Logger;
+					import org.slf4j.Marker;
+					import org.slf4j.event.Level;
+					import org.slf4j.spi.LoggingEventBuilder;
+
+
+					sealed interface LevelLogger extends BaseLogger, Logger {
+
+						record OffLogger(String loggerName) implements LevelLogger {
+							@Override
+							public void handle(io.jstach.rainbowgum.LogEvent event) {
+							}
+						}
+
+						public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogAppender appender ) {
+							return switch(level) {
+								{{#loggers}}
+								case {{level.name}} -> new {{className}}(loggerName, appender);
+								{{/loggers}}
+							};
+						}
+
+						{{#loggers}}
+						{{> logger }}
+						{{/loggers}}
+					}
+					""")
+	@JStachePartials(@JStachePartial(name = "logger", template = template))
+	public record ClassModel() {
+		public List<LoggerModel> loggers() {
+			return EnumSet.allOf(Level.class).stream().map(LoggerModel::of).toList();
+		}
+	}
+
 	@JStache(template = template)
 	public record LoggerModel(LevelModel level) {
 		public List<LevelModel> levels() {
@@ -31,6 +69,7 @@ class LevelLoggerTest {
 		public String className() {
 			return level.className();
 		}
+
 		public static LoggerModel of(Level level) {
 			LevelModel m = new LevelModel(level, level);
 			return new LoggerModel(m);
@@ -39,12 +78,16 @@ class LevelLoggerTest {
 
 	public record LevelModel(Level level, Level selected) {
 		public String enabledMethodName() {
-			return "is" + level.name().substring(0, 1).toUpperCase(Locale.ROOT) + 
-					level.name().substring(1).toLowerCase(Locale.ROOT) + "Enabled";
+			return "is" + capitalize(level) + "Enabled";
+		}
+
+		public String atName() {
+			return "at" + capitalize(level);
 		}
 
 		static String capitalize(Level level) {
-			return level.name().substring(0, 1).toUpperCase(Locale.ROOT) + level.name().substring(1);
+			return level.name().substring(0, 1).toUpperCase(Locale.ROOT)
+					+ level.name().substring(1).toLowerCase(Locale.ROOT);
 		}
 
 		public String methodName() {
@@ -62,70 +105,63 @@ class LevelLoggerTest {
 		public String name() {
 			return level.name();
 		}
+
 	}
 
 	public static final String template = """
-			public interface {{className}} {
-				{{#levels}}
+			record {{className}}(String loggerName, io.jstach.rainbowgum.LogAppender appender) implements LevelLogger {
+
+				@Override
+				public void handle(io.jstach.rainbowgum.LogEvent event) {
+					appender.append(event);
+				}
+
+				@Override
+				public LoggingEventBuilder {{level.atName}}() {
+					return makeLoggingEventBuilder(Level.{{level.name}});
+				}
+
+				{{#level}}
 				@Override
 				public boolean {{enabledMethodName}}() {
 					{{#isEnabled}}
-						return true;
+					return true;
 					{{/isEnabled}}
 					{{^isEnabled}}
-						return false;
+					return false;
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						String msg) {
+				public void {{methodName}}(String msg) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, msg);
+					handle(Level.{{name}}, msg);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						String format,
-						Object arg) {
+				public void {{methodName}}(String format, Object arg) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, format, arg);
+					handle(Level.{{name}}, format, arg);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						String format,
-						Object arg1,
-						Object arg2) {
+				public void {{methodName}}(String format, Object arg1, Object arg2) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, format, arg1, arg2);
+					handle(Level.{{name}}, format, arg1, arg2);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						String format,
-						Object... arguments) {
+				public void {{methodName}}(String format, Object... arguments) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, format, arguments);
+					handle(Level.{{name}}, format, arguments);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						String msg,
-						Throwable t) {
-						Object... arguments) {
-					{{#isEnabled}}
-					// handle(Level.{{name}}, msg, t, arguments);
-					{{/isEnabled}}
-				}
-
-				@Override
-				public boolean {{enabledMethodName}}(
-						Marker marker) {
+				public boolean {{enabledMethodName}}(Marker marker) {
 					{{#isEnabled}}
 						return true;
 					{{/isEnabled}}
@@ -135,55 +171,40 @@ class LevelLoggerTest {
 				}
 
 				@Override
-				public void {{methodName}}(
-						Marker marker,
-						String msg) {
+				public void {{methodName}}(Marker marker, String msg) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, msg);
+					handle(Level.{{name}}, msg);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						Marker marker,
-						String format,
-						Object arg) {
+				public void {{methodName}}(Marker marker, String format, Object arg) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, format, arg);
+					handle(Level.{{name}}, format, arg);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						Marker marker,
-						String format,
-						Object arg1,
-						Object arg2) {
+				public void {{methodName}}(Marker marker, String format, Object arg1, Object arg2) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, format, arg1, arg2);
+					handle(Level.{{name}}, format, arg1, arg2);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						Marker marker,
-						String format,
-						Object... argArray) {
+				public void {{methodName}}(Marker marker, String format, Object... argArray) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, format, argArray);
+					handle(Level.{{name}}, format, argArray);
 					{{/isEnabled}}
 				}
 
 				@Override
-				public void {{methodName}}(
-						Marker marker,
-						String msg,
-						Throwable t) {
+				public void {{methodName}}(Marker marker, String msg, Throwable t) {
 					{{#isEnabled}}
-					// handle(Level.{{name}}, msg, t);
+					handle(Level.{{name}}, msg, t);
 					{{/isEnabled}}
 				}
-				{{/levels}}
+				{{/level}}
 			}
 			""";
 
