@@ -12,7 +12,6 @@ import org.fusesource.jansi.AnsiConsole;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
-import io.jstach.rainbowgum.LogOutput;
 
 public class JansiLogFormatter implements LogFormatter.EventFormatter {
 
@@ -112,7 +111,7 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 
 	}
 
-	public void format(LogOutput output, LogEvent logEvent) {
+	public void format(StringBuilder output, LogEvent logEvent) {
 
 		var level = logEvent.level();
 		var instant = logEvent.timeStamp();
@@ -122,8 +121,7 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 		var formattedMessage = logEvent.formattedMessage();
 
 		// StringBuilder buf = new StringBuilder(32);
-		StringBuilder b = new StringBuilder(32);
-		Ansi buf = Ansi.ansi(b);
+		Ansi buf = Ansi.ansi(output);
 
 		// Append date-time if so configured
 
@@ -170,8 +168,10 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 		buf.a(" - ");
 
 		buf.append(formattedMessage);
-
-		write(output, buf.toString(), t);
+		output.append("\n");
+		if (t != null) {
+			throwableFormatter.format(output, t);
+		}
 	}
 
 	private Ansi colorLevel(Ansi ansi, Level level) {
@@ -201,15 +201,6 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 	private String getFormattedDate(Instant instant) {
 		String dateText = instantFormatter.format(instant);
 		return dateText;
-	}
-
-	void write(LogOutput output, String buf, @Nullable Throwable t) {
-		output.append(buf);
-		output.append("\n");
-		if (t != null) {
-			throwableFormatter.format(output, t);
-		}
-
 	}
 
 }

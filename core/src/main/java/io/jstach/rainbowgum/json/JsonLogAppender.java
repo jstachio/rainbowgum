@@ -11,15 +11,13 @@ import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.Optional;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender;
-import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
-import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogOutput;
 
 public class JsonLogAppender implements LogAppender {
 
@@ -36,7 +34,7 @@ public class JsonLogAppender implements LogAppender {
 
 	private final RawJsonWriter raw = new RawJsonWriter(1024 * 8);
 
-	private final LogEncoder out;
+	private final LogOutput out;
 
 	private final boolean prettyprint;
 
@@ -46,14 +44,7 @@ public class JsonLogAppender implements LogAppender {
 
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
-	public JsonLogAppender(LogConfig config) {
-		this(config.hostName(), config.headers(), config.defaultOutput(),
-				Optional.ofNullable(config.property("json.prettyprint"))
-					.map(p -> Boolean.valueOf(p))
-					.orElseGet(() -> false));
-	}
-
-	public JsonLogAppender(String host, Map<String, String> headers, LogEncoder out, boolean prettyprint) {
+	public JsonLogAppender(String host, Map<String, String> headers, LogOutput out, boolean prettyprint) {
 		super();
 		this.host = host;
 		this.headers = headers;
@@ -135,7 +126,7 @@ public class JsonLogAppender implements LogAppender {
 		}
 		raw.writeByte(OBJECT_END);
 		raw.writeAscii("\n");
-		raw.toStream(out);
+		raw.write(out, event);
 
 	}
 

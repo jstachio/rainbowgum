@@ -1,7 +1,10 @@
 package io.jstach.rainbowgum.spi;
 
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.stream.Stream;
+
+import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.RainbowGum;
@@ -16,9 +19,14 @@ public sealed interface RainbowGumServiceProvider {
 
 	public non-sealed interface RainbowGumProvider extends RainbowGumServiceProvider {
 
-		RainbowGum provide(LogConfig config);
+		Optional<RainbowGum> provide(LogConfig config);
 
 	}
+
+	// public non-sealed interface LogAppendersProvider extends RainbowGumServiceProvider
+	// {
+	// Stream<LogAppender> provide(LogConfig config);
+	// }
 
 	private static <T extends RainbowGumServiceProvider> Stream<T> findProviders(
 			ServiceLoader<RainbowGumServiceProvider> loader, Class<T> pt) {
@@ -31,16 +39,29 @@ public sealed interface RainbowGumServiceProvider {
 		});
 	}
 
-	public static RainbowGum provide() {
-		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
-
-		LogConfig config = findProviders(loader, ConfigProvider.class).findFirst()
+	private static LogConfig provideConfig(ServiceLoader<RainbowGumServiceProvider> loader) {
+		return findProviders(loader, ConfigProvider.class).findFirst()
 			.map(s -> s.provideConfig())
 			.orElseGet(LogConfig::of);
+	}
 
-		RainbowGum gum = findProviders(loader, RainbowGumProvider.class).findFirst()
-			.map(s -> s.provide(config))
-			.orElseGet(() -> RainbowGum.builder().config(config).build());
+	// private static List<LogAppender> provideAppenders(
+	// ServiceLoader<RainbowGumServiceProvider> loader, LogConfig config) {
+	// return findProviders(loader, LogAppendersProvider.class)
+	// .<LogAppender>flatMap(p -> p.provide(config)).toList();
+	// }
+	//
+	public static RainbowGum provide() {
+		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
+		var config = provideConfig(loader);
+		@Nullable
+		RainbowGum gum = findProviders(loader, RainbowGumProvider.class).flatMap(s -> s.provide(config).stream())
+			.findFirst()
+			.orElse(null);
+
+		if (gum == null) {
+			gum = RainbowGum.builder().config(config).build();
+		}
 		RainbowGum.start(gum);
 		return gum;
 	}

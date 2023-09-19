@@ -1,5 +1,8 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.lang.System.Logger.Level;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -7,10 +10,12 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.LogFormatter.InstantFormatter;
 import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
@@ -20,6 +25,12 @@ import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 
 public sealed interface LogFormatter {
 
+	public void format(StringBuilder output, LogEvent event);
+
+	public static EventFormatter.Builder builder() {
+		return EventFormatter.builder();
+	}
+
 	default boolean isNoop() {
 		return isNoop(this);
 	}
@@ -28,18 +39,61 @@ public sealed interface LogFormatter {
 		return NoopFormatter.INSTANT;
 	}
 
+	public record StaticFormatter(String content) implements LogFormatter {
+		@Override
+		public void format(StringBuilder output, LogEvent event) {
+			output.append(content);
+		}
+	}
+
 	public non-sealed interface EventFormatter extends LogFormatter {
 
-		public void format(LogOutput output, LogEvent event);
+		public void format(StringBuilder output, LogEvent event);
+
+		public static EventFormatter of(List<LogFormatter> formatters) {
+			return new DefaultEventFormatter(formatters);
+		}
+
+		public static Builder builder() {
+			return new Builder();
+		}
+
+		public static class Builder {
+
+			private List<LogFormatter> formatters = new ArrayList<>();
+
+			private Builder() {
+			}
+
+			public Builder add(LogFormatter formatter) {
+				formatters.add(formatter);
+				return this;
+			}
+
+			public Builder add(String content) {
+				formatters.add(new StaticFormatter(content));
+				return this;
+			}
+
+			public EventFormatter build() {
+				return EventFormatter.of(formatters);
+			}
+
+		}
 
 	}
 
 	public non-sealed interface NameFormatter extends LogFormatter {
 
+		@Override
+		default void format(StringBuilder output, LogEvent event) {
+			output.append(formatName(event.loggerName()));
+		}
+
 		public String formatName(String name);
 
 		public static NameFormatter of() {
-			return DefaultFormatter.INSTANT;
+			return DefaultNameFormatter.INSTANT;
 		}
 
 	}
@@ -48,8 +102,14 @@ public sealed interface LogFormatter {
 
 		String format(Level level);
 
+		@Override
+		default void format(StringBuilder output, LogEvent event) {
+			output.append(format(event.level()));
+
+		}
+
 		public static LevelFormatter of() {
-			return DefaultFormatter.INSTANT;
+			return DefaultLevelFormatter.INSTANT;
 		}
 
 	}
@@ -58,25 +118,50 @@ public sealed interface LogFormatter {
 
 		String format(Instant instant);
 
+		@Override
+		default void format(StringBuilder output, LogEvent event) {
+			output.append(format(event.timeStamp()));
+		}
+
 		public static InstantFormatter of() {
-			return DefaultFormatter.INSTANT;
+			return DefaultInstantFormatter.INSTANT;
 		}
 
 	}
 
 	public non-sealed interface ThrowableFormatter extends LogFormatter {
 
-		void format(LogOutput output, Throwable throwable);
+		void format(StringBuilder output, Throwable throwable);
+
+		@Override
+		default void format(StringBuilder output, LogEvent event) {
+			var t = event.throwable();
+			if (t != null) {
+				format(output, t);
+			}
+		}
 
 		public static ThrowableFormatter of() {
-			return DefaultFormatter.INSTANT;
+			return DefaultThrowableFormatter.INSTANT;
+		}
+
+		public static void append(StringBuilder b, Throwable t) {
+			/*
+			 * TODO optimize
+			 */
+			t.printStackTrace(new PrintWriter(new StringWriter(b)));
 		}
 
 	}
 
 	public non-sealed interface KeyValuesFormatter extends LogFormatter {
 
-		void format(LogOutput output, Map<String, String> keyValues);
+		void format(StringBuilder output, Map<String, String> keyValues);
+
+		@Override
+		default void format(StringBuilder output, LogEvent event) {
+			format(output, event.keyValues());
+		}
 
 		public static KeyValuesFormatter of(List<String> keys) {
 			if (keys.isEmpty()) {
@@ -95,8 +180,13 @@ public sealed interface LogFormatter {
 
 		String formatThread(String threadName);
 
+		@Override
+		default void format(StringBuilder output, LogEvent event) {
+			output.append(formatThread(event.threadName()));
+		}
+
 		public static ThreadFormatter of() {
-			return DefaultFormatter.INSTANT;
+			return DefaultThreadFormatter.INSTANT;
 		}
 
 	}
@@ -111,11 +201,11 @@ public sealed interface LogFormatter {
 		INSTANT;
 
 		@Override
-		public void format(LogOutput output, Map<String, String> keyValues) {
+		public void format(StringBuilder output, Map<String, String> keyValues) {
 		}
 
 		@Override
-		public void format(LogOutput output, Throwable throwable) {
+		public void format(StringBuilder output, Throwable throwable) {
 		}
 
 		@Override
@@ -138,6 +228,10 @@ public sealed interface LogFormatter {
 			return "";
 		}
 
+		@Override
+		public void format(StringBuilder output, LogEvent event) {
+		}
+
 	}
 
 	public static String padRight(String s, int n) {
@@ -146,7 +240,18 @@ public sealed interface LogFormatter {
 
 }
 
-enum DefaultFormatter implements NameFormatter, LevelFormatter, ThreadFormatter, InstantFormatter, ThrowableFormatter {
+record DefaultEventFormatter(List<LogFormatter> formatters) implements EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		for (var formatter : formatters) {
+			formatter.format(output, event);
+		}
+	}
+
+}
+
+enum DefaultNameFormatter implements NameFormatter {
 
 	INSTANT;
 
@@ -155,23 +260,11 @@ enum DefaultFormatter implements NameFormatter, LevelFormatter, ThreadFormatter,
 		return name;
 	}
 
-	@Override
-	public String formatThread(String threadName) {
-		return LogFormatter.padRight(threadName, 12);
-	}
+}
 
-	private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
-		.withZone(ZoneId.from(ZoneOffset.UTC));
+enum DefaultLevelFormatter implements LevelFormatter {
 
-	@Override
-	public String format(Instant instant) {
-		return formatter.format(instant);
-	}
-
-	@Override
-	public void format(LogOutput output, Throwable throwable) {
-		throwable.printStackTrace(output.asWriter());
-	}
+	INSTANT;
 
 	@Override
 	public String format(Level level) {
@@ -188,10 +281,46 @@ enum DefaultFormatter implements NameFormatter, LevelFormatter, ThreadFormatter,
 
 }
 
+enum DefaultThreadFormatter implements ThreadFormatter {
+
+	INSTANT;
+
+	@Override
+	public String formatThread(String threadName) {
+		return LogFormatter.padRight(threadName, 12);
+	}
+
+}
+
+enum DefaultInstantFormatter implements InstantFormatter {
+
+	INSTANT;
+
+	private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+		.withZone(ZoneId.from(ZoneOffset.UTC));
+
+	@Override
+	public String format(Instant instant) {
+		return formatter.format(instant);
+	}
+
+}
+
+enum DefaultThrowableFormatter implements ThrowableFormatter {
+
+	INSTANT;
+
+	@Override
+	public void format(StringBuilder output, Throwable throwable) {
+		ThrowableFormatter.append(output, throwable);
+	}
+
+}
+
 record DefaultKeyValuesFormatter(List<String> keys) implements KeyValuesFormatter {
 
 	@Override
-	public void format(LogOutput output, Map<String, String> keyValues) {
+	public void format(StringBuilder output, Map<String, String> keyValues) {
 		if (!keys.isEmpty()) {
 			Collection<String> ks;
 			if (keys.size() == 1 && "*".equals(keys.get(0))) {
@@ -220,4 +349,80 @@ record DefaultKeyValuesFormatter(List<String> keys) implements KeyValuesFormatte
 		}
 
 	}
+}
+
+class StringWriter extends Writer {
+
+	private final StringBuilder buf;
+
+	/**
+	 * Create a new string writer using the default initial string-buffer size.
+	 */
+	public StringWriter(StringBuilder buf) {
+		this.buf = buf;
+		lock = buf;
+	}
+
+	/**
+	 * Write a single character.
+	 */
+	public void write(int c) {
+		buf.append((char) c);
+	}
+
+	public void write(char cbuf[], int off, int len) {
+		if ((off < 0) || (off > cbuf.length) || (len < 0) || ((off + len) > cbuf.length) || ((off + len) < 0)) {
+			throw new IndexOutOfBoundsException();
+		}
+		else if (len == 0) {
+			return;
+		}
+		buf.append(cbuf, off, len);
+	}
+
+	/**
+	 * Write a string.
+	 */
+	public void write(String str) {
+		buf.append(str);
+	}
+
+	public void write(String str, int off, int len) {
+		buf.append(str, off, off + len);
+	}
+
+	public StringWriter append(CharSequence csq) {
+		write(String.valueOf(csq));
+		return this;
+	}
+
+	public StringWriter append(CharSequence csq, int start, int end) {
+		if (csq == null)
+			csq = "null";
+		return append(csq.subSequence(start, end));
+	}
+
+	public StringWriter append(char c) {
+		write(c);
+		return this;
+	}
+
+	/**
+	 * Return the string buffer itself.
+	 * @return StringBuffer holding the current buffer value.
+	 */
+	public StringBuilder getBuffer() {
+		return buf;
+	}
+
+	public void flush() {
+	}
+
+	/**
+	 * Closing a {@code StringWriter} has no effect. The methods in this class can be
+	 * called after the stream has been closed without generating an {@code IOException}.
+	 */
+	public void close() throws IOException {
+	}
+
 }

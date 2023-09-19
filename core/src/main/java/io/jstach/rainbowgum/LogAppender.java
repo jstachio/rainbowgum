@@ -14,9 +14,9 @@ public interface LogAppender extends AutoCloseable {
 
 	public static class Builder {
 
-		protected LogOutput output = LogEncoder.of(System.out);
+		protected LogOutput output = LogOutput.ofStandardOut();
 
-		protected LogFormatter.EventFormatter formatter = JansiLogFormatter.builder().build();
+		protected LogFormatter formatter = JansiLogFormatter.builder().build();
 
 		private Builder() {
 		}
@@ -26,12 +26,12 @@ public interface LogAppender extends AutoCloseable {
 			return this;
 		}
 
-		public Builder formatter(LogFormatter.EventFormatter formatter) {
+		public Builder formatter(LogFormatter formatter) {
 			this.formatter = formatter;
 			return this;
 		}
 
-		LogAppender build() {
+		public LogAppender build() {
 			return new DefaultLogAppender(requireNonNull(output), requireNonNull(formatter));
 		}
 
@@ -43,10 +43,16 @@ public interface LogAppender extends AutoCloseable {
 
 }
 
-record DefaultLogAppender(LogOutput output, LogFormatter.EventFormatter formatter) implements LogAppender {
+record DefaultLogAppender(LogOutput output, LogFormatter formatter) implements LogAppender {
 	@Override
 	public void append(LogEvent event) {
-		formatter.format(output, event);
+		StringBuilder sb = new StringBuilder();
+		formatter.format(sb, event);
 
+	}
+
+	@Override
+	public void close() {
+		output.close();
 	}
 }

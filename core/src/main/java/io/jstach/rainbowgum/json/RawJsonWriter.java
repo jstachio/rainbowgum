@@ -5,7 +5,8 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogOutput;
 
 public class RawJsonWriter {
 
@@ -394,8 +395,8 @@ public class RawJsonWriter {
 		position = 0;
 	}
 
-	public final void toStream(final LogEncoder encoder) {
-		encoder.encode(buffer, 0, position);
+	public final void write(final LogOutput output, LogEvent event) {
+		output.write(event, buffer, 0, position);
 		position = 0;
 	}
 

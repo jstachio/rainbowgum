@@ -7,43 +7,44 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
-public interface OutputManager extends AutoCloseable {
+public interface LogOutputProvider extends AutoCloseable {
 
-	LogEncoder of(URI uri) throws IOException;
+	LogOutput of(URI uri) throws IOException;
 
 	default void close() {
 	}
 
+	public static LogOutputProvider of() {
+		return DefaultOutputProvider.INSTANCE;
+	}
+
 }
 
-enum DefaultOutputManager implements OutputManager {
+enum DefaultOutputProvider implements LogOutputProvider {
 
 	INSTANCE;
 
-	// private CopyOnWriteArrayList<AutoCloseable> closeables = new
-	// CopyOnWriteArrayList<>();
-
 	@Override
-	public LogEncoder of(URI uri) throws IOException {
+	public LogOutput of(URI uri) throws IOException {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
 		if (scheme == null && path != null) {
 			@SuppressWarnings("resource")
 			FileOutputStream fos = new FileOutputStream(path);
 			// closeables.add(fos);
-			return LogEncoder.of(fos.getChannel());
+			return LogOutput.of(fos.getChannel());
 		}
 		else if ("stdout".equals(scheme)) {
-			return LogEncoder.of(System.out);
+			return LogOutput.ofStandardOut();
 		}
 		else if ("stderr".equals(scheme)) {
-			return LogEncoder.of(System.err);
+			return LogOutput.ofStandardErr();
 		}
 		else {
 			var p = Paths.get(uri);
 			var channel = FileChannel.open(p, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
 			channel.close();
-			return LogEncoder.of(channel);
+			return LogOutput.of(channel);
 		}
 	}
 

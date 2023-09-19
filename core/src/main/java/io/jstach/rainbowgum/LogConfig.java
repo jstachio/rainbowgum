@@ -1,8 +1,8 @@
 package io.jstach.rainbowgum;
 
-import java.lang.System.Logger.Level;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -12,12 +12,27 @@ public interface LogConfig {
 	@Nullable
 	String property(String key);
 
-	default RuntimeException throwPropertyError(String key, RuntimeException e) {
-		throw new RuntimeException("Error for property: " + key, e);
+	default LogOutput defaultOutput() {
+		return LogOutput.of(System.out);
 	}
 
-	default LogEncoder defaultOutput() {
-		return LogEncoder.of(System.out);
+	default RuntimeMode runtimeMode() {
+		return Property.of(this, "mode") //
+			.mapString(s -> s.toUpperCase(Locale.ROOT)) //
+			.map(RuntimeMode::valueOf) //
+			.requireElse(RuntimeMode.DEV);
+	}
+
+	public LevelResolver levelResolver();
+
+	public enum RuntimeMode {
+
+		DEV, STAGE, PROD
+
+	}
+
+	default LogOutputProvider outputProvider() {
+		return LogOutputProvider.of();
 	}
 
 	default String hostName() {
@@ -32,56 +47,122 @@ public interface LogConfig {
 		return Map.of();
 	}
 
-	default @Nullable Level logLevelOrNull(String name) {
-		String key = "log." + name;
-		String s = property(key);
-		if (s == null || s.isBlank()) {
-			return null;
-		}
-		try {
-			return Level.valueOf(s.toUpperCase(Locale.ROOT));
-		}
-		catch (IllegalArgumentException e) {
-			throw throwPropertyError(key, e);
-		}
-	}
-
-	default Level logLevel(String name, Level fallback) {
-		String tempName = name;
-		Level level = null;
-		int indexOfLastDot = tempName.length();
-		while ((level == null) && (indexOfLastDot > -1)) {
-			tempName = tempName.substring(0, indexOfLastDot);
-			level = logLevelOrNull(tempName);
-			indexOfLastDot = String.valueOf(tempName).lastIndexOf(".");
-		}
-		if (level != null) {
-			return level;
-		}
-		return fallback;
-	}
-
-	default Level logLevel(String name) {
-		return logLevel(name, defaultLogLevel());
-	}
-
-	default Level defaultLogLevel() {
-		return Level.INFO;
-	}
-
 	public static LogConfig of() {
 		return LogConfig.of(System::getProperty);
 	}
 
 	@SuppressWarnings("exports")
 	public static LogConfig of(Function<String, @Nullable String> propertySupplier) {
-		return new LogConfig() {
+		return new DefaultLogConfig(propertySupplier);
+	}
 
-			@Override
-			public @Nullable String property(String key) {
-				return propertySupplier.apply("rainbowgum." + key);
-			}
-		};
+}
+
+class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
+
+	private final Function<String, @Nullable String> propertySupplier;
+
+	@Override
+	public @Nullable String property(String key) {
+		return propertySupplier.apply("rainbowgum." + key);
+	}
+
+	public DefaultLogConfig(Function<String, @Nullable String> propertySupplier) {
+		super();
+		this.propertySupplier = propertySupplier;
+	}
+
+	@Override
+	public LogConfig config() {
+		return this;
+	}
+
+	@Override
+	public LevelResolver levelResolver() {
+		return this;
+	}
+
+}
+
+sealed interface Property<T> {
+
+	String key();
+
+	@Nullable
+	String original();
+
+	@Nullable
+	T value();
+
+	static RuntimeException throwPropertyError(String key, Exception e) {
+		throw new RuntimeException("Error for property: " + key, e);
+	}
+
+	static StringValue of(LogConfig config, String key) {
+		String v = config.property(key);
+		return of(key, v);
+	}
+
+	static StringValue of(String key, @Nullable String value) {
+		return new StringValue(key, value, value);
+	}
+
+	default T require() {
+		var t = value();
+		if (t == null)
+			throw new RuntimeException("Missing value for key: " + key());
+		return t;
+	}
+
+	default <U> Property<U> map(Function<? super T, ? extends U> mapper) {
+		Objects.requireNonNull(mapper);
+		var v = value();
+		if (v == null) {
+			return new EmptyValue<>(key(), original());
+		}
+		try {
+			var nv = mapper.apply(v);
+			return new ObjectValue<>(key(), nv, original());
+		}
+		catch (Exception e) {
+			throw throwPropertyError(key(), e);
+		}
+	}
+
+	default StringValue mapString(Function<? super T, String> mapper) {
+		Objects.requireNonNull(mapper);
+		var v = value();
+		if (v == null) {
+			return new StringValue(key(), null, original());
+		}
+		try {
+			var nv = mapper.apply(v);
+			return new StringValue(key(), nv, original());
+		}
+		catch (Exception e) {
+			throw throwPropertyError(key(), e);
+		}
+	}
+
+	default T requireElse(T fallback) {
+		var t = value();
+		if (t == null) {
+			return fallback;
+		}
+		return t;
+	}
+
+	record EmptyValue<T>(String key, @Nullable String original) implements Property<T> {
+		public @Nullable T value() {
+			return null;
+		}
+	}
+
+	record ObjectValue<T>(String key, @Nullable T value, @Nullable String original) implements Property<T> {
+	}
+
+	record StringValue(String key, @Nullable String value, @Nullable String original) implements Property<String> {
+
 	}
 
 }
