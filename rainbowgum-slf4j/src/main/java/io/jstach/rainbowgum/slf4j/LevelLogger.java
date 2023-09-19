@@ -18,95 +18,69 @@ public class LevelLogger implements Logger {
 	}
 
 	@Override
-	public void trace(
-			String msg) {
+	public void trace(String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			String format,
-			Object arg) {
+	public void trace(String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void trace(String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			String format,
-			Object... arguments) {
+	public void trace(String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			String msg,
-			Throwable t) {
+	public void trace(String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public boolean isTraceEnabled(
-			Marker marker) {
+	public boolean isTraceEnabled(Marker marker) {
 		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
-	public void trace(
-			Marker marker,
-			String msg) {
+	public void trace(Marker marker, String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			Marker marker,
-			String format,
-			Object arg) {
+	public void trace(Marker marker, String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			Marker marker,
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void trace(Marker marker, String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			Marker marker,
-			String format,
-			Object... argArray) {
+	public void trace(Marker marker, String format, Object... argArray) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void trace(
-			Marker marker,
-			String msg,
-			Throwable t) {
+	public void trace(Marker marker, String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -116,95 +90,69 @@ public class LevelLogger implements Logger {
 	}
 
 	@Override
-	public void debug(
-			String msg) {
+	public void debug(String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			String format,
-			Object arg) {
+	public void debug(String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void debug(String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			String format,
-			Object... arguments) {
+	public void debug(String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			String msg,
-			Throwable t) {
+	public void debug(String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public boolean isDebugEnabled(
-			Marker marker) {
+	public boolean isDebugEnabled(Marker marker) {
 		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
-	public void debug(
-			Marker marker,
-			String msg) {
+	public void debug(Marker marker, String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			Marker marker,
-			String format,
-			Object arg) {
+	public void debug(Marker marker, String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			Marker marker,
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void debug(Marker marker, String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			Marker marker,
-			String format,
-			Object... arguments) {
+	public void debug(Marker marker, String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void debug(
-			Marker marker,
-			String msg,
-			Throwable t) {
+	public void debug(Marker marker, String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -214,95 +162,69 @@ public class LevelLogger implements Logger {
 	}
 
 	@Override
-	public void info(
-			String msg) {
+	public void info(String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			String format,
-			Object arg) {
+	public void info(String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void info(String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			String format,
-			Object... arguments) {
+	public void info(String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			String msg,
-			Throwable t) {
+	public void info(String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public boolean isInfoEnabled(
-			Marker marker) {
+	public boolean isInfoEnabled(Marker marker) {
 		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
-	public void info(
-			Marker marker,
-			String msg) {
+	public void info(Marker marker, String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			Marker marker,
-			String format,
-			Object arg) {
+	public void info(Marker marker, String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			Marker marker,
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void info(Marker marker, String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			Marker marker,
-			String format,
-			Object... arguments) {
+	public void info(Marker marker, String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void info(
-			Marker marker,
-			String msg,
-			Throwable t) {
+	public void info(Marker marker, String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -312,95 +234,69 @@ public class LevelLogger implements Logger {
 	}
 
 	@Override
-	public void warn(
-			String msg) {
+	public void warn(String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			String format,
-			Object arg) {
+	public void warn(String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			String format,
-			Object... arguments) {
+	public void warn(String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void warn(String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			String msg,
-			Throwable t) {
+	public void warn(String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public boolean isWarnEnabled(
-			Marker marker) {
+	public boolean isWarnEnabled(Marker marker) {
 		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
-	public void warn(
-			Marker marker,
-			String msg) {
+	public void warn(Marker marker, String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			Marker marker,
-			String format,
-			Object arg) {
+	public void warn(Marker marker, String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			Marker marker,
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void warn(Marker marker, String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			Marker marker,
-			String format,
-			Object... arguments) {
+	public void warn(Marker marker, String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void warn(
-			Marker marker,
-			String msg,
-			Throwable t) {
+	public void warn(Marker marker, String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -410,96 +306,69 @@ public class LevelLogger implements Logger {
 	}
 
 	@Override
-	public void error(
-			String msg) {
+	public void error(String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			String format,
-			Object arg) {
+	public void error(String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void error(String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			String format,
-			Object... arguments) {
+	public void error(String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			String msg,
-			Throwable t) {
+	public void error(String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public boolean isErrorEnabled(
-			Marker marker) {
+	public boolean isErrorEnabled(Marker marker) {
 		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
-	public void error(
-			Marker marker,
-			String msg) {
+	public void error(Marker marker, String msg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			Marker marker,
-			String format,
-			Object arg) {
+	public void error(Marker marker, String format, Object arg) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			Marker marker,
-			String format,
-			Object arg1,
-			Object arg2) {
+	public void error(Marker marker, String format, Object arg1, Object arg2) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			Marker marker,
-			String format,
-			Object... arguments) {
+	public void error(Marker marker, String format, Object... arguments) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
-	public void error(
-			Marker marker,
-			String msg,
-			Throwable t) {
+	public void error(Marker marker, String msg, Throwable t) {
 		// TODO Auto-generated method stub
-		
-	}
 
+	}
 
 }
