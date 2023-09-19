@@ -48,6 +48,7 @@ record DefaultLogAppender(LogOutput output, LogFormatter formatter) implements L
 	public void append(LogEvent event) {
 		StringBuilder sb = new StringBuilder();
 		formatter.format(sb, event);
+		output.write(event, sb.toString());
 
 	}
 
