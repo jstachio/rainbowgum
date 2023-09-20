@@ -57,7 +57,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(String format, Object... arguments) {
-			handle(Level.ERROR, format, arguments);
+			handleArray(Level.ERROR, format, arguments);
 		}
 
 		@Override
@@ -82,7 +82,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(Marker marker, String format, Object... argArray) {
-			handle(Level.ERROR, format, argArray);
+			handleArray(Level.ERROR, format, argArray);
 		}
 
 		@Override
@@ -125,7 +125,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(String format, Object... arguments) {
-			handle(Level.WARN, format, arguments);
+			handleArray(Level.WARN, format, arguments);
 		}
 
 		@Override
@@ -150,7 +150,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(Marker marker, String format, Object... argArray) {
-			handle(Level.WARN, format, argArray);
+			handleArray(Level.WARN, format, argArray);
 		}
 
 		@Override
@@ -193,7 +193,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(String format, Object... arguments) {
-			handle(Level.INFO, format, arguments);
+			handleArray(Level.INFO, format, arguments);
 		}
 
 		@Override
@@ -218,7 +218,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(Marker marker, String format, Object... argArray) {
-			handle(Level.INFO, format, argArray);
+			handleArray(Level.INFO, format, argArray);
 		}
 
 		@Override
@@ -261,7 +261,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void debug(String format, Object... arguments) {
-			handle(Level.DEBUG, format, arguments);
+			handleArray(Level.DEBUG, format, arguments);
 		}
 
 		@Override
@@ -286,7 +286,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void debug(Marker marker, String format, Object... argArray) {
-			handle(Level.DEBUG, format, argArray);
+			handleArray(Level.DEBUG, format, argArray);
 		}
 
 		@Override
@@ -329,7 +329,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(String format, Object... arguments) {
-			handle(Level.TRACE, format, arguments);
+			handleArray(Level.TRACE, format, arguments);
 		}
 
 		@Override
@@ -354,7 +354,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(Marker marker, String format, Object... argArray) {
-			handle(Level.TRACE, format, argArray);
+			handleArray(Level.TRACE, format, argArray);
 		}
 
 		@Override

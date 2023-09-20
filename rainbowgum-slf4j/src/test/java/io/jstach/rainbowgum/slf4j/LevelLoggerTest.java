@@ -156,7 +156,7 @@ class LevelLoggerTest {
 				@Override
 				public void {{methodName}}(String format, Object... arguments) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, format, arguments);
+					handleArray(Level.{{name}}, format, arguments);
 					{{/isEnabled}}
 				}
 
@@ -194,7 +194,7 @@ class LevelLoggerTest {
 				@Override
 				public void {{methodName}}(Marker marker, String format, Object... argArray) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, format, argArray);
+					handleArray(Level.{{name}}, format, argArray);
 					{{/isEnabled}}
 				}
 
