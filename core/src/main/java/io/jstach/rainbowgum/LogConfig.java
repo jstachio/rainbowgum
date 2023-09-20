@@ -1,8 +1,10 @@
 package io.jstach.rainbowgum;
 
+import java.lang.System.Logger.Level;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -62,6 +64,8 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 
 	private final Function<String, @Nullable String> propertySupplier;
 
+	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
+
 	@Override
 	public @Nullable String property(String key) {
 		return propertySupplier.apply("rainbowgum." + key);
@@ -80,6 +84,15 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 	@Override
 	public LevelResolver levelResolver() {
 		return this;
+	}
+
+	@Override
+	public Level logLevel(String name) {
+		var level = levelCache.get(name);
+		if (level != null) {
+			return level;
+		}
+		return levelCache.computeIfAbsent(name, n -> ConfigLevelResolver.super.logLevel(name));
 	}
 
 }

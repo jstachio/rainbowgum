@@ -10,6 +10,7 @@ import com.lmax.disruptor.ExceptionHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
@@ -18,12 +19,14 @@ import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
 
 public final class DisruptorLogRouter implements AsyncLogRouter {
 
+	private final LevelResolver levelResolver;
+
 	private final Disruptor<LogEventCell> disruptor;
 
 	private final RingBuffer<LogEventCell> ringBuffer;
 
-	public static DisruptorLogRouter of(Iterable<? extends LogAppender> appenders, ThreadFactory threadFactory,
-			int bufferSize) {
+	public static DisruptorLogRouter of(LevelResolver levelResolver, Iterable<? extends LogAppender> appenders,
+			ThreadFactory threadFactory, int bufferSize) {
 
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory);
 		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown));
@@ -38,7 +41,7 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 		}
 		var ringBuffer = disruptor.getRingBuffer();
 
-		var router = new DisruptorLogRouter(disruptor, ringBuffer);
+		var router = new DisruptorLogRouter(levelResolver, disruptor, ringBuffer);
 		return router;
 	}
 
@@ -48,15 +51,17 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 
 	}
 
-	DisruptorLogRouter(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer) {
+	DisruptorLogRouter(LevelResolver levelResolver, Disruptor<LogEventCell> disruptor,
+			RingBuffer<LogEventCell> ringBuffer) {
 		super();
+		this.levelResolver = levelResolver;
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
 	}
 
 	@Override
 	public boolean isEnabled(String loggerName, Level level) {
-		return true;
+		return levelResolver.isEnabled(loggerName, level);
 	}
 
 	@Override

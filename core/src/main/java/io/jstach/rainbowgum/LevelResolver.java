@@ -11,6 +11,10 @@ public interface LevelResolver {
 
 	public Level defaultLogLevel();
 
+	default boolean isEnabled(String loggerName, Level level) {
+		return logLevel(loggerName).getSeverity() <= level.getSeverity();
+	}
+
 	public static LevelResolver of(LogConfig config) {
 		return new ConfigLevelResolver() {
 

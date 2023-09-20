@@ -15,6 +15,9 @@ public class LoggerTest {
 		var logger = LevelLogger.of(Level.ERROR, "stuff", appender);
 
 		logger.error("Crap {} {} {}", "1", "2", "3");
+
+		logger.trace("No Crap {} {} {}", "1", "2", "3");
+
 	}
 
 }

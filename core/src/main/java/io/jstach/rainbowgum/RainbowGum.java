@@ -60,7 +60,7 @@ public interface RainbowGum extends AutoCloseable {
 			if (router == null) {
 				// router =
 				// AsyncLogRouter.builder().appender(LogAppender.builder().build()).build();
-				router = SyncLogRouter.builder().appender(LogAppender.builder().build()).build();
+				router = SyncLogRouter.builder(config).appender(LogAppender.builder().build()).build();
 			}
 
 			return new SimpleRainbowGum(config, router);
