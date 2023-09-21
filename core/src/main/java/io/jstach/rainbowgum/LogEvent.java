@@ -8,8 +8,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 public interface LogEvent {
 
-	public static LogEvent of(
-			System.Logger.Level level, String loggerName, String formattedMessage,
+	public static LogEvent of(System.Logger.Level level, String loggerName, String formattedMessage,
 			KeyValues keyValues, @Nullable Throwable throwable) {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
@@ -38,9 +37,8 @@ public interface LogEvent {
 	public String formattedMessage();
 
 	public Throwable throwable();
-	
+
 	public KeyValues keyValues();
-	
 
 	public interface MessageFormatter {
 
@@ -145,22 +143,20 @@ public interface LogEvent {
 }
 
 enum EmptyKeyValues implements KeyValues {
+
 	INSTANCE;
 
 	@Override
-	public @Nullable String getValue(
-			String key) {
+	public @Nullable String getValue(String key) {
 		return null;
-	}
-	
-	@Override
-	public void forEach(
-			BiConsumer<? super String, ? super String> action) {
 	}
 
 	@Override
-	public <V> int forEach(
-			KeyValuesConsumer<V> action, int index, V storage) {
+	public void forEach(BiConsumer<? super String, ? super String> action) {
+	}
+
+	@Override
+	public <V> int forEach(KeyValuesConsumer<V> action, int index, V storage) {
 		return index;
 	}
 
@@ -168,35 +164,32 @@ enum EmptyKeyValues implements KeyValues {
 	public int size() {
 		return 0;
 	}
-	
+
 	@Override
-	public int next(
-			int index) {
+	public int next(int index) {
 		return -1;
 	}
-	
+
 	@Override
-	public @Nullable String key(
-			int index) {
+	public @Nullable String key(int index) {
 		throw new IndexOutOfBoundsException(index);
 	}
-	
+
 	@Override
-	public @Nullable String value(
-			int index) {
+	public @Nullable String value(int index) {
 		throw new IndexOutOfBoundsException(index);
 	}
-	
+
 	@Override
 	public int start() {
 		return -1;
 	}
-	
+
 	@Override
 	public Map<String, String> copyToMap() {
 		return Map.of();
 	}
-	
+
 }
 
 record DefaultLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level,

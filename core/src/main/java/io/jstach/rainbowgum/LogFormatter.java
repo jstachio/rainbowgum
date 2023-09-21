@@ -168,7 +168,7 @@ public sealed interface LogFormatter {
 			}
 			return new ListKeyValuesFormatter(keys);
 		}
-		
+
 		public static KeyValuesFormatter of() {
 			return DefaultKeyValuesFormatter.INSTANCE;
 		}
@@ -323,14 +323,12 @@ enum DefaultThrowableFormatter implements ThrowableFormatter {
 enum DefaultKeyValuesFormatter implements KeyValuesFormatter, KeyValuesConsumer<StringBuilder> {
 
 	INSTANCE;
-	
+
 	@Override
-	public void format(
-			StringBuilder output,
-			KeyValues keyValues) {
+	public void format(StringBuilder output, KeyValues keyValues) {
 		keyValues.forEach(this, 0, output);
 	}
-	
+
 	static void formatKeyValue(StringBuilder output, String k, String v) {
 		output.append(URLEncoder.encode(k, StandardCharsets.US_ASCII));
 		output.append("=");
@@ -338,20 +336,16 @@ enum DefaultKeyValuesFormatter implements KeyValuesFormatter, KeyValuesConsumer<
 	}
 
 	@Override
-	public int accept(
-			KeyValues values,
-			String key,
-			String value,
-			int index,
-			StringBuilder storage) {
+	public int accept(KeyValues values, String key, String value, int index, StringBuilder storage) {
 		if (index > 0) {
 			storage.append("&");
 		}
 		formatKeyValue(storage, key, value);
-		return index+1;
+		return index + 1;
 	}
-	
+
 }
+
 final class ListKeyValuesFormatter implements KeyValuesFormatter {
 
 	private final String[] keys;
@@ -360,11 +354,9 @@ final class ListKeyValuesFormatter implements KeyValuesFormatter {
 		var ks = List.copyOf(keys);
 		this.keys = ks.toArray(new String[] {});
 	}
-	
+
 	@Override
-	public void format(
-			StringBuilder output,
-			KeyValues keyValues) {
+	public void format(StringBuilder output, KeyValues keyValues) {
 		boolean first = true;
 		for (String k : keys) {
 			String v = keyValues.getValue(k);
@@ -373,13 +365,14 @@ final class ListKeyValuesFormatter implements KeyValuesFormatter {
 			}
 			if (first) {
 				first = false;
-			} else {
+			}
+			else {
 				output.append("&");
 			}
 			DefaultKeyValuesFormatter.formatKeyValue(output, k, v);
 		}
 	}
-	
+
 }
 
 class StringWriter extends Writer {

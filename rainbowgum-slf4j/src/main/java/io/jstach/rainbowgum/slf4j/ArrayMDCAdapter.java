@@ -15,7 +15,6 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
 class ArrayMDCAdapter implements MDCAdapter {
 
-
 	final ThreadLocal<MutableKeyValues> copyOnThreadLocal = new ThreadLocal<>();
 
 	private static final int WRITE_OPERATION = 1;
@@ -35,15 +34,14 @@ class ArrayMDCAdapter implements MDCAdapter {
 		return lastOp == null || lastOp.intValue() == MAP_COPY_OPERATION;
 	}
 
-	private MutableKeyValues duplicateAndInsertNewMap(
-			@Nullable MutableKeyValues oldMap) {
+	private MutableKeyValues duplicateAndInsertNewMap(@Nullable MutableKeyValues oldMap) {
 
 		MutableKeyValues newMap;
 
 		if (oldMap != null) {
 			// we don't want the parent thread modifying oldMap while we are
 			// iterating over it
-			synchronized(oldMap) {
+			synchronized (oldMap) {
 				newMap = oldMap.copy();
 			}
 		}
@@ -76,7 +74,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 			newMap.accept(key, val);
 		}
 		else {
-			synchronized(oldMap) {
+			synchronized (oldMap) {
 				oldMap.accept(key, val);
 			}
 		}
@@ -101,7 +99,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 			newMap.remove(key);
 		}
 		else {
-			synchronized(oldMap) {
+			synchronized (oldMap) {
 				oldMap.remove(key);
 			}
 		}
@@ -173,7 +171,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 	public void setContextMap(Map<String, @Nullable String> contextMap) {
 		lastOperation.set(WRITE_OPERATION);
 
-		MutableKeyValues newMap =  MutableKeyValues.of(contextMap.size());
+		MutableKeyValues newMap = MutableKeyValues.of(contextMap.size());
 		newMap.putAll(contextMap);
 
 		// the newMap replaces the old one for serialisation's sake
@@ -186,7 +184,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	@Override
 	public @Nullable String popByKey(String key) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

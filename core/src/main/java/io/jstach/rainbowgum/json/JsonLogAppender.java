@@ -119,7 +119,7 @@ public class JsonLogAppender implements LogAppender {
 		}
 
 		index = write("version", "1.1", index);
-		
+
 		if (index > 0 && prettyprint) {
 			raw.writeAscii("\n");
 		}
