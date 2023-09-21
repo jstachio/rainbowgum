@@ -2,7 +2,6 @@ package io.jstach.rainbowgum.jansi;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
-import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.fusesource.jansi.Ansi;
@@ -10,6 +9,7 @@ import org.fusesource.jansi.Ansi.Attribute;
 import org.fusesource.jansi.Ansi.Color;
 import org.fusesource.jansi.AnsiConsole;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 
@@ -151,7 +151,7 @@ public class JansiLogFormatter implements LogFormatter.EventFormatter {
 			buf.a(String.valueOf(name));
 		}
 
-		Map<String, @Nullable String> m = logEvent.keyValues();
+		KeyValues m = logEvent.keyValues();
 
 		if (!LogFormatter.isNoop(keyValuesFormatter)) {
 			buf.fg(Color.WHITE);

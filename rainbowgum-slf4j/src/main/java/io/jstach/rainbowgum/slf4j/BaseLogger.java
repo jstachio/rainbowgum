@@ -1,9 +1,5 @@
 package io.jstach.rainbowgum.slf4j;
 
-import java.util.Collections;
-import java.util.Map;
-
-import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.MDC;
 import org.slf4j.Marker;
@@ -13,6 +9,7 @@ import org.slf4j.spi.LoggingEventBuilder;
 import org.slf4j.spi.MDCAdapter;
 import org.slf4j.spi.NOPLoggingEventBuilder;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.EventCreator;
 
@@ -62,16 +59,15 @@ interface BaseLogger extends EventCreator<Level>, Logger {
 	}
 
 	@Override
-	default Map<String, String> keyValues() {
+	default KeyValues keyValues() {
 		MDCAdapter adapter = MDC.getMDCAdapter();
-		Map<String, @Nullable String> keyValues = Collections.emptyMap();
 		if (adapter instanceof RainbowGumMDCAdapter simpleAdapter) {
 			var m = simpleAdapter.getPropertyMap();
 			if (m != null) {
-				keyValues = m;
+				return m;
 			}
 		}
-		return keyValues;
+		return KeyValues.of();
 	}
 
 	void handle(LogEvent event);

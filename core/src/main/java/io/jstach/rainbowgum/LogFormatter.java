@@ -11,10 +11,9 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
+import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.LogFormatter.InstantFormatter;
 import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
@@ -156,7 +155,7 @@ public sealed interface LogFormatter {
 
 	public non-sealed interface KeyValuesFormatter extends LogFormatter {
 
-		void format(StringBuilder output, Map<String, String> keyValues);
+		void format(StringBuilder output, KeyValues keyValues);
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
@@ -167,10 +166,14 @@ public sealed interface LogFormatter {
 			if (keys.isEmpty()) {
 				return NoopFormatter.INSTANT;
 			}
-			return new DefaultKeyValuesFormatter(keys);
+			return new ListKeyValuesFormatter(keys);
+		}
+		
+		public static KeyValuesFormatter of() {
+			return DefaultKeyValuesFormatter.INSTANCE;
 		}
 
-		public static KeyValuesFormatter of() {
+		public static KeyValuesFormatter noop() {
 			return NoopFormatter.INSTANT;
 		}
 
@@ -201,7 +204,7 @@ public sealed interface LogFormatter {
 		INSTANT;
 
 		@Override
-		public void format(StringBuilder output, Map<String, String> keyValues) {
+		public void format(StringBuilder output, KeyValues keyValues) {
 		}
 
 		@Override
@@ -317,38 +320,66 @@ enum DefaultThrowableFormatter implements ThrowableFormatter {
 
 }
 
-record DefaultKeyValuesFormatter(List<String> keys) implements KeyValuesFormatter {
+enum DefaultKeyValuesFormatter implements KeyValuesFormatter, KeyValuesConsumer<StringBuilder> {
+
+	INSTANCE;
+	
+	@Override
+	public void format(
+			StringBuilder output,
+			KeyValues keyValues) {
+		keyValues.forEach(this, 0, output);
+	}
+	
+	static void formatKeyValue(StringBuilder output, String k, String v) {
+		output.append(URLEncoder.encode(k, StandardCharsets.US_ASCII));
+		output.append("=");
+		output.append(URLEncoder.encode(v, StandardCharsets.US_ASCII));
+	}
 
 	@Override
-	public void format(StringBuilder output, Map<String, String> keyValues) {
-		if (!keys.isEmpty()) {
-			Collection<String> ks;
-			if (keys.size() == 1 && "*".equals(keys.get(0))) {
-				ks = keyValues.keySet();
-			}
-			else {
-				ks = keys;
-			}
-			boolean first = true;
-			for (String k : ks) {
-				String v = keyValues.get(k);
-				if (v == null) {
-					continue;
-				}
-				if (first) {
-					first = false;
-				}
-				else {
-					output.append("&");
-				}
-				output.append(URLEncoder.encode(k, StandardCharsets.US_ASCII));
-				output.append("=");
-				output.append(URLEncoder.encode(v, StandardCharsets.US_ASCII));
-
-			}
+	public int accept(
+			KeyValues values,
+			String key,
+			String value,
+			int index,
+			StringBuilder storage) {
+		if (index > 0) {
+			storage.append("&");
 		}
-
+		formatKeyValue(storage, key, value);
+		return index+1;
 	}
+	
+}
+final class ListKeyValuesFormatter implements KeyValuesFormatter {
+
+	private final String[] keys;
+
+	ListKeyValuesFormatter(List<String> keys) {
+		var ks = List.copyOf(keys);
+		this.keys = ks.toArray(new String[] {});
+	}
+	
+	@Override
+	public void format(
+			StringBuilder output,
+			KeyValues keyValues) {
+		boolean first = true;
+		for (String k : keys) {
+			String v = keyValues.getValue(k);
+			if (v == null) {
+				continue;
+			}
+			if (first) {
+				first = false;
+			} else {
+				output.append("&");
+			}
+			DefaultKeyValuesFormatter.formatKeyValue(output, k, v);
+		}
+	}
+	
 }
 
 class StringWriter extends Writer {

@@ -2,13 +2,15 @@ package io.jstach.rainbowgum;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 public interface LogEvent {
 
-	public static LogEvent of(System.Logger.Level level, String loggerName, String formattedMessage,
-			Map<String, String> keyValues, @Nullable Throwable throwable) {
+	public static LogEvent of(
+			System.Logger.Level level, String loggerName, String formattedMessage,
+			KeyValues keyValues, @Nullable Throwable throwable) {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
@@ -20,7 +22,7 @@ public interface LogEvent {
 
 	public static LogEvent of(System.Logger.Level level, String loggerName, String formattedMessage,
 			@Nullable Throwable throwable) {
-		return of(level, loggerName, formattedMessage, Map.of(), throwable);
+		return of(level, loggerName, formattedMessage, KeyValues.of(), throwable);
 	}
 
 	public Instant timeStamp();
@@ -35,10 +37,10 @@ public interface LogEvent {
 
 	public String formattedMessage();
 
-	@SuppressWarnings("exports")
-	public Map<String, @Nullable String> keyValues();
-
 	public Throwable throwable();
+	
+	public KeyValues keyValues();
+	
 
 	public interface MessageFormatter {
 
@@ -85,7 +87,7 @@ public interface LogEvent {
 
 		public System.Logger.Level translateLevel(LEVEL level);
 
-		public Map<String, String> keyValues();
+		public KeyValues keyValues();
 
 		default StringBuilder createMessageBuffer(String message) {
 			return new StringBuilder();
@@ -142,15 +144,70 @@ public interface LogEvent {
 
 }
 
+enum EmptyKeyValues implements KeyValues {
+	INSTANCE;
+
+	@Override
+	public @Nullable String getValue(
+			String key) {
+		return null;
+	}
+	
+	@Override
+	public void forEach(
+			BiConsumer<? super String, ? super String> action) {
+	}
+
+	@Override
+	public <V> int forEach(
+			KeyValuesConsumer<V> action, int index, V storage) {
+		return index;
+	}
+
+	@Override
+	public int size() {
+		return 0;
+	}
+	
+	@Override
+	public int next(
+			int index) {
+		return -1;
+	}
+	
+	@Override
+	public @Nullable String key(
+			int index) {
+		throw new IndexOutOfBoundsException(index);
+	}
+	
+	@Override
+	public @Nullable String value(
+			int index) {
+		throw new IndexOutOfBoundsException(index);
+	}
+	
+	@Override
+	public int start() {
+		return -1;
+	}
+	
+	@Override
+	public Map<String, String> copyToMap() {
+		return Map.of();
+	}
+	
+}
+
 record DefaultLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level,
-		String loggerName, String formattedMessage, Map<String, String> keyValues,
+		String loggerName, String formattedMessage, KeyValues keyValues,
 		@Nullable Throwable throwable) implements LogEvent {
 
 	public @Nullable Throwable getThrowable() {
 		return throwable();
 	}
 
-	public Map<String, @Nullable String> getKeyValues() {
+	public KeyValues getKeyValues() {
 		return keyValues;
 	}
 

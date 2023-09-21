@@ -10,10 +10,10 @@ import java.io.StringWriter;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
@@ -30,7 +30,7 @@ public class JsonLogAppender implements LogAppender {
 
 	private final String host;
 
-	private final Map<String, String> headers;
+	private final KeyValues headers;
 
 	private final RawJsonWriter raw = new RawJsonWriter(1024 * 8);
 
@@ -44,7 +44,7 @@ public class JsonLogAppender implements LogAppender {
 
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
-	public JsonLogAppender(String host, Map<String, String> headers, LogOutput out, boolean prettyprint) {
+	public JsonLogAppender(String host, KeyValues headers, LogOutput out, boolean prettyprint) {
 		super();
 		this.host = host;
 		this.headers = headers;
@@ -100,27 +100,26 @@ public class JsonLogAppender implements LogAppender {
 		/*
 		 * output headers
 		 */
-		for (var e : headers.entrySet()) {
-			String k = e.getKey();
-			if (kvs.containsKey(k)) {
+		for (int i = headers.start(); i >= 0; i = headers.next(i)) {
+			String k = headers.key(i);
+			if (kvs.getValue(k) != null) {
 				continue;
 			}
-			@Nullable
-			String v = e.getValue();
+			String v = headers.value(i);
 			index = write(k, v, index, EXTENDED_F);
 		}
 
 		/*
 		 * output MDC
 		 */
-		for (var e : kvs.entrySet()) {
-			String k = e.getKey();
-			@Nullable
-			String v = e.getValue();
+		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
+			String k = kvs.key(i);
+			String v = kvs.value(i);
 			index = write(k, v, index, EXTENDED_F);
 		}
 
 		index = write("version", "1.1", index);
+		
 		if (index > 0 && prettyprint) {
 			raw.writeAscii("\n");
 		}
