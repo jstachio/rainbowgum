@@ -8,7 +8,7 @@ It is called **rainbow gum** after
 [Eucalyptus Deglupta](https://en.wikipedia.org/wiki/Eucalyptus_deglupta) a beautiful tree native
 to Hawaii that has colorful bark (*colorful logs*).
 
-In Rainbow gum you do all your logging configuration in Java and can choose to leverage your existing configuration framework. You write a single service provider using a discoverable API of builders and then package it up in a Jar. It will be graal vm native friendly, initialize hella fast and no configuration drift.
+In Rainbow gum you do all your logging configuration in Java and can choose to leverage your existing configuration framework (like [avaje-config](https://avaje.io/config/)). You write a single service provider using a discoverable API of builders and then package it up in a Jar. It will be graal vm native friendly, initialize hella fast and no configuration drift.
 
 
 ## Comparison to other frameworks
@@ -93,13 +93,13 @@ Because I think this is a fundemental problem with most logging frameworks. It i
 ### Initialization issues (why no config file cont.)
 
 When logging tries to handle configuration there are initialization issues.
-Because so many logging frameworks are the first to execute
-they provide their own configuration framework.
+Because so many logging frameworks are the first to execute they provide their own configuration framework.
 
-What really should happen is the configuration framework should load first, capture events, and then replay
-them when the logging framework starts. Libraries that participate in configuration should not use logging.
+What really should happen is the configuration framework should load first, capture events like warnings or info, and then provide or replay them when the logging framework starts. Libraries that participate in configuration really should not use logging and while SLF4J does provide some form of trampolining (ie queue while initializing) that is not the case for JUL or System logger.
 
-Because many poorly designed configuration libraries needing logging and logging needs configuration in some cases I have seen log4j2 initialize more than 5 times during boot (spring boot) and for logback 3 times (dropwizard).
+Because many poorly designed configuration libraries needing logging and logging needs configuration in some cases I have seen log4j2 initialize more than 5 times during boot (spring boot) and for logback 3 times (dropwizard). 
+
+For configuration library that understands these bootstrapping problems I recommend [avaje config](https://avaje.io/config/) or writing your own to load simple properties files. It is a shame there are not more bootstrapping configuration libraries as most configuration really is just `Map<String,String>`.
 
 ### Configuration Drift (why no config file cont.)
 
