@@ -40,7 +40,7 @@ class LevelLoggerTest {
 							}
 						}
 
-						public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogAppender appender ) {
+						public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender ) {
 							return switch(level) {
 								{{#loggers}}
 								case {{level.name}} -> new {{className}}(loggerName, appender);
@@ -109,11 +109,11 @@ class LevelLoggerTest {
 	}
 
 	public static final String template = """
-			record {{className}}(String loggerName, io.jstach.rainbowgum.LogAppender appender) implements LevelLogger {
+			record {{className}}(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
 
 				@Override
 				public void handle(io.jstach.rainbowgum.LogEvent event) {
-					appender.append(event);
+					appender.log(event);
 				}
 
 				@Override

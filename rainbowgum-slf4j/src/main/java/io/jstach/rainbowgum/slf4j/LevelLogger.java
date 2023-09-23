@@ -13,7 +13,7 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogAppender appender) {
+	public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender) {
 		return switch (level) {
 			case ERROR -> new ErrorLogger(loggerName, appender);
 			case WARN -> new WarnLogger(loggerName, appender);
@@ -23,11 +23,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		};
 	}
 
-	record ErrorLogger(String loggerName, io.jstach.rainbowgum.LogAppender appender) implements LevelLogger {
+	record ErrorLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.append(event);
+			appender.log(event);
 		}
 
 		@Override
@@ -91,11 +91,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record WarnLogger(String loggerName, io.jstach.rainbowgum.LogAppender appender) implements LevelLogger {
+	record WarnLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.append(event);
+			appender.log(event);
 		}
 
 		@Override
@@ -159,11 +159,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record InfoLogger(String loggerName, io.jstach.rainbowgum.LogAppender appender) implements LevelLogger {
+	record InfoLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.append(event);
+			appender.log(event);
 		}
 
 		@Override
@@ -227,11 +227,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record DebugLogger(String loggerName, io.jstach.rainbowgum.LogAppender appender) implements LevelLogger {
+	record DebugLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.append(event);
+			appender.log(event);
 		}
 
 		@Override
@@ -295,11 +295,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record TraceLogger(String loggerName, io.jstach.rainbowgum.LogAppender appender) implements LevelLogger {
+	record TraceLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.append(event);
+			appender.log(event);
 		}
 
 		@Override

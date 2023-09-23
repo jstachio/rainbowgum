@@ -15,11 +15,11 @@ public interface LevelResolver {
 		return logLevel(loggerName).getSeverity() <= level.getSeverity();
 	}
 
-	public static LevelResolver of(LogConfig config) {
+	public static LevelResolver of(LogProperties config) {
 		return new ConfigLevelResolver() {
 
 			@Override
-			public LogConfig config() {
+			public LogProperties properties() {
 				return config;
 			}
 		};
@@ -29,11 +29,11 @@ public interface LevelResolver {
 
 interface ConfigLevelResolver extends LevelResolver {
 
-	LogConfig config();
+	LogProperties properties();
 
 	default @Nullable Level logLevelOrNull(String name) {
 		String key = "log." + name;
-		return Property.of(config(), key) //
+		return Property.of(properties(), key) //
 			.mapString(s -> s.toUpperCase(Locale.ROOT)) //
 			.map(Level::valueOf) //
 			.value();

@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
-import io.jstach.rainbowgum.LogAppender;
+import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.RainbowGum;
 
 class RainbowGumLoggerFactory implements ILoggerFactory {
@@ -28,7 +28,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			return simpleLogger;
 		}
 		else {
-			LogAppender appender = this.rainbowGum.router();
+			LogEventLogger logger = this.rainbowGum.router();
 			var level = this.rainbowGum.config().levelResolver().logLevel(name);
 
 			Logger newLogger;
@@ -37,7 +37,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			}
 			else {
 				var slf4jLevel = Levels.toSlf4jLevel(level);
-				newLogger = LevelLogger.of(slf4jLevel, name, appender);
+				newLogger = LevelLogger.of(slf4jLevel, name, logger);
 
 			}
 			Logger oldInstance = loggerMap.putIfAbsent(name, newLogger);

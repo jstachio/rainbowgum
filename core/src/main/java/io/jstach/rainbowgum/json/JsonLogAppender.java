@@ -52,10 +52,6 @@ public class JsonLogAppender implements LogAppender {
 		this.prettyprint = prettyprint;
 	}
 
-	/*
-	 * N.B. synchronized. This would be bad but outputstreams are synchronized as well ..
-	 * so.
-	 */
 	@Override
 	public void append(LogEvent event) {
 		raw.reset();

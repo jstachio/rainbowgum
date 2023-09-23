@@ -1,7 +1,10 @@
 package io.jstach.rainbowgum;
 
-import org.eclipse.jdt.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
+import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.SyncLogRouter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
@@ -39,13 +42,13 @@ public interface RainbowGum extends AutoCloseable {
 
 		private LogConfig config = LogConfig.of(System::getProperty);
 
-		private @Nullable LogRouter router;
+		private List<LogRouter> routers = new ArrayList<>();
 
 		private Builder() {
 		}
 
 		public Builder router(LogRouter router) {
-			this.router = router;
+			this.routers.add(router);
 			return this;
 		}
 
@@ -54,16 +57,26 @@ public interface RainbowGum extends AutoCloseable {
 			return this;
 		}
 
-		public RainbowGum build() {
-			var router = this.router;
-			var config = this.config;
-			if (router == null) {
-				// router =
-				// AsyncLogRouter.builder().appender(LogAppender.builder().build()).build();
-				router = SyncLogRouter.builder(config).appender(LogAppender.builder().build()).build();
-			}
+		public Builder synchronous(Consumer<LogRouter.SyncLogRouter.Builder> consumer) {
+			var builder = LogRouter.SyncLogRouter.builder();
+			consumer.accept(builder);
+			return router(builder.build());
+		}
 
-			return new SimpleRainbowGum(config, router);
+		public Builder asynchronous(Consumer<LogRouter.AsyncLogRouter.Builder> consumer) {
+			var builder = LogRouter.AsyncLogRouter.builder();
+			consumer.accept(builder);
+			return router(builder.build());
+		}
+
+		public RainbowGum build() {
+			var routers = this.routers;
+			var config = this.config;
+			if (routers.isEmpty()) {
+				routers = List.of(SyncLogRouter.builder().appender(LogAppender.builder().build()).build());
+			}
+			var root = RootRouter.of(routers, config.levelResolver());
+			return new SimpleRainbowGum(config, root);
 		}
 
 	}

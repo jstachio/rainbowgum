@@ -18,6 +18,7 @@ import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.LogFormatter.InstantFormatter;
 import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
+import io.jstach.rainbowgum.LogFormatter.MessageFormatter;
 import io.jstach.rainbowgum.LogFormatter.NameFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThreadFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
@@ -43,6 +44,35 @@ public sealed interface LogFormatter {
 		public void format(StringBuilder output, LogEvent event) {
 			output.append(content);
 		}
+
+		public StaticFormatter concat(StaticFormatter next) {
+			return new StaticFormatter(this.content + next.content);
+		}
+	}
+
+	static LogFormatter[] coalesce(List<? extends LogFormatter> formatters) {
+		List<LogFormatter> resolved = new ArrayList<>();
+		StaticFormatter current = null;
+		for (var f : formatters) {
+			if (current == null && f instanceof StaticFormatter sf) {
+				current = sf;
+			}
+			else if (current != null && f instanceof StaticFormatter sf) {
+				current = current.concat(sf);
+			}
+			else if (current != null) {
+				resolved.add(current);
+				resolved.add(f);
+				current = null;
+			}
+			else {
+				resolved.add(f);
+			}
+		}
+		if (current != null) {
+			resolved.add(current);
+		}
+		return resolved.toArray(new LogFormatter[] {});
 	}
 
 	@FunctionalInterface
@@ -50,8 +80,8 @@ public sealed interface LogFormatter {
 
 		public void format(StringBuilder output, LogEvent event);
 
-		public static EventFormatter of(List<LogFormatter> formatters) {
-			return new DefaultEventFormatter(formatters);
+		public static EventFormatter of(List<? extends LogFormatter> formatters) {
+			return new DefaultEventFormatter(LogFormatter.coalesce(formatters));
 		}
 
 		public static Builder builder() {
@@ -65,23 +95,53 @@ public sealed interface LogFormatter {
 			private Builder() {
 			}
 
+			public Builder timeStamp() {
+				formatters.add(new DateTimeFormatterInstantFormatter(DateTimeFormatter.ISO_INSTANT));
+				return this;
+			}
+
+			public Builder timeStamp(DateTimeFormatter dateTimeFormatter) {
+				formatters.add(new DateTimeFormatterInstantFormatter(dateTimeFormatter));
+				return this;
+			}
+
 			public Builder level() {
 				formatters.add(LogFormatter.LevelFormatter.of());
 				return this;
 			}
-			
+
 			public Builder loggerName() {
 				formatters.add(LogFormatter.NameFormatter.of());
 				return this;
 			}
-			
+
 			public Builder add(LogFormatter formatter) {
 				formatters.add(formatter);
 				return this;
 			}
 
-			public Builder add(String content) {
+			public Builder message() {
+				formatters.add(LogFormatter.MessageFormatter.of());
+				return this;
+			}
+
+			public Builder text(String content) {
 				formatters.add(new StaticFormatter(content));
+				return this;
+			}
+
+			public Builder space() {
+				formatters.add(new StaticFormatter(" "));
+				return this;
+			}
+
+			public Builder newline() {
+				text("\n");
+				return this;
+			}
+
+			public Builder threadName() {
+				formatters.add(ThreadFormatter.of());
 				return this;
 			}
 
@@ -89,6 +149,21 @@ public sealed interface LogFormatter {
 				return EventFormatter.of(formatters);
 			}
 
+		}
+
+	}
+
+	public non-sealed interface MessageFormatter extends LogFormatter {
+
+		@Override
+		default void format(StringBuilder output, LogEvent event) {
+			output.append(formatMessage(event.formattedMessage()));
+		}
+
+		public String formatMessage(String message);
+
+		public static MessageFormatter of() {
+			return DefaultMessageFormatter.INSTANT;
 		}
 
 	}
@@ -254,13 +329,24 @@ public sealed interface LogFormatter {
 
 }
 
-record DefaultEventFormatter(List<LogFormatter> formatters) implements EventFormatter {
+record DefaultEventFormatter(LogFormatter[] formatters) implements EventFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		for (var formatter : formatters) {
 			formatter.format(output, event);
 		}
+	}
+
+}
+
+enum DefaultMessageFormatter implements MessageFormatter {
+
+	INSTANT;
+
+	@Override
+	public String formatMessage(String message) {
+		return message;
 	}
 
 }
@@ -318,6 +404,12 @@ enum DefaultInstantFormatter implements InstantFormatter {
 		return formatter.format(instant);
 	}
 
+}
+
+record DateTimeFormatterInstantFormatter(DateTimeFormatter dateTimeFormatter) implements InstantFormatter {
+	public String format(Instant instant) {
+		return dateTimeFormatter.format(instant);
+	}
 }
 
 enum DefaultThrowableFormatter implements ThrowableFormatter {
