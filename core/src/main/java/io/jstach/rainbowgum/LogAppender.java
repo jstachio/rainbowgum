@@ -31,6 +31,12 @@ public interface LogAppender extends AutoCloseable {
 			return this;
 		}
 
+		
+		public Builder formatter(LogFormatter.EventFormatter formatter) {
+			this.formatter = formatter;
+			return this;
+		}
+		
 		public LogAppender build() {
 			return new DefaultLogAppender(requireNonNull(output), requireNonNull(formatter));
 		}

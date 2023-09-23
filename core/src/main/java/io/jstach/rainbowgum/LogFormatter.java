@@ -45,6 +45,7 @@ public sealed interface LogFormatter {
 		}
 	}
 
+	@FunctionalInterface
 	public non-sealed interface EventFormatter extends LogFormatter {
 
 		public void format(StringBuilder output, LogEvent event);
@@ -64,6 +65,16 @@ public sealed interface LogFormatter {
 			private Builder() {
 			}
 
+			public Builder level() {
+				formatters.add(LogFormatter.LevelFormatter.of());
+				return this;
+			}
+			
+			public Builder loggerName() {
+				formatters.add(LogFormatter.NameFormatter.of());
+				return this;
+			}
+			
 			public Builder add(LogFormatter formatter) {
 				formatters.add(formatter);
 				return this;
