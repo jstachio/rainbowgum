@@ -16,6 +16,10 @@ public sealed interface RainbowGumServiceProvider {
 		LogConfig provideConfig();
 
 	}
+	
+	public non-sealed interface Initializer extends RainbowGumServiceProvider {
+		void initialize(LogConfig config);
+	}
 
 	public non-sealed interface RainbowGumProvider extends RainbowGumServiceProvider {
 

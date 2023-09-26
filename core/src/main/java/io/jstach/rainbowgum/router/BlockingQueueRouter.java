@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
@@ -17,6 +18,8 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 	private final BlockingQueue<LogEvent> queue;
 
 	private final LogAppender appender;
+	
+	private final LevelResolver levelResolver;
 
 	private volatile boolean running = false;
 
@@ -24,25 +27,26 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 
 	private final Worker worker;
 
-	public static BlockingQueueRouter of(LogAppender appender, int bufferSize) {
+	public static BlockingQueueRouter of(LogAppender appender, LevelResolver levelResolver, int bufferSize) {
 		BlockingQueue<LogEvent> queue = new ArrayBlockingQueue<>(bufferSize);
-		return new BlockingQueueRouter(appender, queue, bufferSize);
+		return new BlockingQueueRouter(appender, levelResolver, queue, bufferSize);
 	}
 
-	public BlockingQueueRouter(LogAppender appender, BlockingQueue<LogEvent> queue, int bufferSize) {
+	public BlockingQueueRouter(LogAppender appender, LevelResolver levelResolver, BlockingQueue<LogEvent> queue, int bufferSize) {
 		super();
 		if (bufferSize <= 0) {
 			throw new IllegalArgumentException("buffer size should be greater than 0");
 		}
 		this.appender = appender;
+		this.levelResolver = levelResolver;
 		this.queue = queue;
 		this.bufferSize = bufferSize;
 		this.worker = new Worker();
 	}
-
+	
 	@Override
-	public boolean isEnabled(String loggerName, Level level) {
-		return true;
+	public LevelResolver levelResolver() {
+		return this.levelResolver;
 	}
 
 	@Override

@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum.disruptor;
 
-import java.lang.System.Logger.Level;
 import java.util.concurrent.ThreadFactory;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -58,10 +57,10 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
 	}
-
+	
 	@Override
-	public boolean isEnabled(String loggerName, Level level) {
-		return levelResolver.isEnabled(loggerName, level);
+	public LevelResolver levelResolver() {
+		return this.levelResolver;
 	}
 
 	@Override

@@ -1,26 +1,29 @@
 package io.jstach.rainbowgum.router;
 
-import java.lang.System.Logger.Level;
 import java.util.concurrent.locks.ReentrantLock;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogRouter;
 
 public class LockingQueueRouter implements LogRouter.SyncLogRouter {
+	
+	private final LevelResolver levelResolver;
 
 	private final LogAppender appender;
 
 	private final ReentrantLock lock = new ReentrantLock(false);
 
-	public LockingQueueRouter(LogAppender appender) {
+	public LockingQueueRouter(LogAppender appender, LevelResolver levelResolver) {
 		super();
 		this.appender = appender;
+		this.levelResolver = levelResolver;
 	}
 
 	@Override
-	public boolean isEnabled(String loggerName, Level level) {
-		return true;
+	public LevelResolver levelResolver() {
+		return this.levelResolver;
 	}
 
 	@Override

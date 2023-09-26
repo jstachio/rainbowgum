@@ -17,8 +17,13 @@ import io.jstach.rainbowgum.router.LockingQueueRouter;
 
 public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
-	boolean isEnabled(String loggerName, java.lang.System.Logger.Level level);
 
+	LevelResolver levelResolver();
+	
+	default boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
+		return levelResolver().isEnabled(loggerName, level);
+	}
+	
 	default void log(String loggerName, java.lang.System.Logger.Level level, String message,
 			@Nullable Throwable cause) {
 		log(LogEvent.of(level, loggerName, message, cause));
@@ -60,7 +65,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 		error(event);
 	}
 
-	abstract class AbstractBuilder<T> {
+	abstract class AbstractBuilder<T> extends LevelResolver.AbstractBuilder<T> {
 
 		protected List<LogAppender> appenders = new ArrayList<>();
 
@@ -110,7 +115,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 					sorted.add(a);
 				}
 			}
-			return new CompositeLogRouter(sorted.toArray(new LogRouter[] {}), levelResolver);
+			return CompositeLogRouter.of(sorted, levelResolver);
 		}
 
 	}
@@ -133,7 +138,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 			}
 
 			public SyncLogRouter build() {
-				return new LockingQueueRouter(LogAppender.of(appenders));
+				return new LockingQueueRouter(LogAppender.of(appenders), buildLevelResolver());
 			}
 
 		}
@@ -163,7 +168,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 			}
 
 			public AsyncLogRouter build() {
-				return BlockingQueueRouter.of(LogAppender.of(appenders), bufferSize);
+				return BlockingQueueRouter.of(LogAppender.of(appenders), buildLevelResolver(), bufferSize);
 			}
 
 			@Override
@@ -178,6 +183,15 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 }
 
 record CompositeLogRouter(LogRouter[] routers, LevelResolver levelResolver) implements RootRouter {
+	
+	public static RootRouter of(List<? extends LogRouter> routers, LevelResolver levelResolver) {
+		List<LevelResolver> resolvers = new ArrayList<>();
+		routers.stream().map(LogRouter::levelResolver).forEach(resolvers::add);
+		resolvers.add(levelResolver);
+		var resolver = LevelResolver.of(resolvers);
+		LogRouter[] array = routers.toArray(new LogRouter[] {});
+		return new CompositeLogRouter(array, resolver);
+	}
 
 	@Override
 	public boolean isEnabled(String loggerName, Level level) {
@@ -205,7 +219,6 @@ record CompositeLogRouter(LogRouter[] routers, LevelResolver levelResolver) impl
 			r.close();
 		}
 	}
-
 }
 
 enum FailsafeAppender implements LogAppender {
@@ -230,15 +243,18 @@ enum GlobalLogRouter implements RootRouter {
 	INSTANCE;
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
+	
+	private static final LevelResolver INFO_RESOLVER = LevelResolver.of(Level.INFO);
 
 	private volatile @Nullable LogRouter delegate = null;
-
-	public boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
+	
+	@Override
+	public LevelResolver levelResolver() {
 		LogRouter d = delegate;
 		if (d != null) {
-			return d.isEnabled(loggerName, level);
+			return d.levelResolver();
 		}
-		return level.compareTo(System.Logger.Level.DEBUG) > 0;
+		return INFO_RESOLVER;
 	}
 
 	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {

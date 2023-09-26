@@ -1,9 +1,10 @@
 package io.jstach.rainbowgum;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 import java.lang.System.Logger.Level;
 import java.net.URI;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class RainbowGumTest {
@@ -26,7 +27,9 @@ class RainbowGumTest {
 		var formatter = LogFormatter.builder() //
 			.timeStamp() //
 			.space() //
+			.text("[") //
 			.threadName() //
+			.text("]") //
 			.level() //
 			.space() //
 			.loggerName() //
@@ -52,11 +55,16 @@ class RainbowGumTest {
 
 		try (RainbowGum gum = RainbowGum.builder().asynchronous(r -> {
 			r.appender(sysout);
+			r.level("stuff", Level.WARNING);
 		}).build()) {
 
 			gum.start();
 			gum.router().log("stuff", Level.INFO, "Stuff");
 			gum.router().log("stuff", Level.ERROR, "bad");
+			
+			boolean enabled = gum.router().isEnabled("stuff", Level.INFO);
+			assertFalse(enabled);
+			
 			Thread.sleep(50);
 		}
 

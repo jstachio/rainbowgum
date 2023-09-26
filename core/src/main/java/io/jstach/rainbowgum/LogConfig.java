@@ -85,12 +85,17 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 	}
 
 	@Override
-	public Level logLevel(String name) {
+	public Level resolveLevel(String name) {
 		var level = levelCache.get(name);
 		if (level != null) {
 			return level;
 		}
-		return levelCache.computeIfAbsent(name, n -> ConfigLevelResolver.super.logLevel(name));
+		return levelCache.computeIfAbsent(name, n -> ConfigLevelResolver.super.resolveLevel(name));
+	}
+
+	@Override
+	public String levelPropertyPrefix() {
+		return "log.";
 	}
 
 }
