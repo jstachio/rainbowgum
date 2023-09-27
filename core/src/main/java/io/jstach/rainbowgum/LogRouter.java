@@ -17,13 +17,12 @@ import io.jstach.rainbowgum.router.LockingQueueRouter;
 
 public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
-
 	LevelResolver levelResolver();
-	
+
 	default boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
 		return levelResolver().isEnabled(loggerName, level);
 	}
-	
+
 	default void log(String loggerName, java.lang.System.Logger.Level level, String message,
 			@Nullable Throwable cause) {
 		log(LogEvent.of(level, loggerName, message, cause));
@@ -183,7 +182,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 }
 
 record CompositeLogRouter(LogRouter[] routers, LevelResolver levelResolver) implements RootRouter {
-	
+
 	public static RootRouter of(List<? extends LogRouter> routers, LevelResolver levelResolver) {
 		List<LevelResolver> resolvers = new ArrayList<>();
 		routers.stream().map(LogRouter::levelResolver).forEach(resolvers::add);
@@ -243,11 +242,11 @@ enum GlobalLogRouter implements RootRouter {
 	INSTANCE;
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
-	
+
 	private static final LevelResolver INFO_RESOLVER = LevelResolver.of(Level.INFO);
 
 	private volatile @Nullable LogRouter delegate = null;
-	
+
 	@Override
 	public LevelResolver levelResolver() {
 		LogRouter d = delegate;

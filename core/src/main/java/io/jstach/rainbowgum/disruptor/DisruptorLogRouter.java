@@ -57,7 +57,7 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
 	}
-	
+
 	@Override
 	public LevelResolver levelResolver() {
 		return this.levelResolver;

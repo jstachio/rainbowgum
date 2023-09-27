@@ -18,7 +18,7 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 	private final BlockingQueue<LogEvent> queue;
 
 	private final LogAppender appender;
-	
+
 	private final LevelResolver levelResolver;
 
 	private volatile boolean running = false;
@@ -32,7 +32,8 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 		return new BlockingQueueRouter(appender, levelResolver, queue, bufferSize);
 	}
 
-	public BlockingQueueRouter(LogAppender appender, LevelResolver levelResolver, BlockingQueue<LogEvent> queue, int bufferSize) {
+	public BlockingQueueRouter(LogAppender appender, LevelResolver levelResolver, BlockingQueue<LogEvent> queue,
+			int bufferSize) {
 		super();
 		if (bufferSize <= 0) {
 			throw new IllegalArgumentException("buffer size should be greater than 0");
@@ -43,7 +44,7 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 		this.bufferSize = bufferSize;
 		this.worker = new Worker();
 	}
-	
+
 	@Override
 	public LevelResolver levelResolver() {
 		return this.levelResolver;

@@ -6,6 +6,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 public interface LevelAware {
 
-	@Nullable Level levelOrNull(String name);
+	@Nullable
+	Level levelOrNull(String name);
 
 }

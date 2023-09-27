@@ -8,7 +8,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogRouter;
 
 public class LockingQueueRouter implements LogRouter.SyncLogRouter {
-	
+
 	private final LevelResolver levelResolver;
 
 	private final LogAppender appender;
