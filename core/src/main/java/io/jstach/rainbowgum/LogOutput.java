@@ -135,15 +135,12 @@ class FileChannelOutput implements LogOutput {
 
 			}
 			catch (IOException e) {
-				// Mainly to catch FileLockInterruptionExceptions (see LOGBACK-875)
 				LogRouter.error(FileChannelOutput.class, e);
 			}
 			finally {
 				if (fileLock != null && fileLock.isValid()) {
 					fileLock.release();
 				}
-
-				// Re-interrupt if we started in an interrupted state (see LOGBACK-875)
 				if (interrupted) {
 					Thread.currentThread().interrupt();
 				}

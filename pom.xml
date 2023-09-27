@@ -82,6 +82,16 @@
         <artifactId>rainbowgum-slf4j</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-jansi</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-disruptor</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <!-- to make dependabot check for latest maven version -->
       <dependency>
           <groupId>org.apache.maven</groupId>
@@ -694,5 +704,7 @@
     <module>rainbowgum-slf4j</module>
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>
+    <module>rainbowgum-disruptor</module>
+    <module>rainbowgum-jansi</module>
   </modules>
 </project>

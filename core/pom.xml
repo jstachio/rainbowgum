@@ -8,15 +8,4 @@
     <version>0.1.3-SNAPSHOT</version>
   </parent>
   <artifactId>rainbowgum-core</artifactId>
-  <dependencies>
-    <dependency>
-      <groupId>org.fusesource.jansi</groupId>
-      <artifactId>jansi</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.lmax</groupId>
-      <artifactId>disruptor</artifactId>
-    </dependency>
-  </dependencies>
-  
 </project>

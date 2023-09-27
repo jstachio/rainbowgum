@@ -29,11 +29,6 @@ public sealed interface RainbowGumServiceProvider {
 
 	}
 
-	// public non-sealed interface LogAppendersProvider extends RainbowGumServiceProvider
-	// {
-	// Stream<LogAppender> provide(LogConfig config);
-	// }
-
 	private static <T extends RainbowGumServiceProvider> Stream<T> findProviders(
 			ServiceLoader<RainbowGumServiceProvider> loader, Class<T> pt) {
 		return loader.stream().flatMap(p -> {
@@ -51,15 +46,14 @@ public sealed interface RainbowGumServiceProvider {
 			.orElseGet(LogConfig::of);
 	}
 
-	// private static List<LogAppender> provideAppenders(
-	// ServiceLoader<RainbowGumServiceProvider> loader, LogConfig config) {
-	// return findProviders(loader, LogAppendersProvider.class)
-	// .<LogAppender>flatMap(p -> p.provide(config)).toList();
-	// }
-	//
+	private static void runInitializers(ServiceLoader<RainbowGumServiceProvider> loader, LogConfig config) {
+		findProviders(loader, Initializer.class).forEach(c -> c.initialize(config));
+	}
+
 	public static RainbowGum provide() {
 		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
 		var config = provideConfig(loader);
+		runInitializers(loader, config);
 		@Nullable
 		RainbowGum gum = findProviders(loader, RainbowGumProvider.class).flatMap(s -> s.provide(config).stream())
 			.findFirst()

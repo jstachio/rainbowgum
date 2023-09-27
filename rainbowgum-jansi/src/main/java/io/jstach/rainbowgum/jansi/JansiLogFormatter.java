@@ -7,106 +7,39 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.Ansi.Attribute;
 import org.fusesource.jansi.Ansi.Color;
-import org.fusesource.jansi.AnsiConsole;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
+import io.jstach.rainbowgum.format.StandardEventFormatter;
 
-public class JansiLogFormatter implements LogFormatter.EventFormatter {
+public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
-	private final LevelFormatter levelFormatter;
-
-	private final InstantFormatter instantFormatter;
-
-	private final NameFormatter nameFormatter;
-
-	private final ThrowableFormatter throwableFormatter;
-
-	private final KeyValuesFormatter keyValuesFormatter;
-
-	private final ThreadFormatter threadFormatter;
-
-	public JansiLogFormatter(LevelFormatter levelFormatter, InstantFormatter instantFormatter,
+	protected JansiLogFormatter(LevelFormatter levelFormatter, InstantFormatter instantFormatter,
 			NameFormatter nameFormatter, ThrowableFormatter throwableFormatter, KeyValuesFormatter keyValuesFormatter,
 			ThreadFormatter threadFormatter) {
-		super();
-		this.levelFormatter = levelFormatter;
-		this.instantFormatter = instantFormatter;
-		this.nameFormatter = nameFormatter;
-		this.throwableFormatter = throwableFormatter;
-		this.keyValuesFormatter = keyValuesFormatter;
-		this.threadFormatter = threadFormatter;
+		super(levelFormatter, instantFormatter, nameFormatter, throwableFormatter, keyValuesFormatter, threadFormatter);
 	}
 
 	public static Builder builder() {
 		return new Builder();
 	}
 
-	public static class Builder {
-
-		private LevelFormatter levelFormatter = LevelFormatter.of();
-
-		private InstantFormatter instantFormatter = InstantFormatter.of();
-
-		private NameFormatter nameFormatter = NameFormatter.of();
-
-		private ThrowableFormatter throwableFormatter = ThrowableFormatter.of();
-
-		private KeyValuesFormatter keyValuesFormatter = LogFormatter.noop();
-
-		private ThreadFormatter threadFormatter = ThreadFormatter.of();
+	public static class Builder extends StandardEventFormatter.AbstractBuilder<Builder> {
 
 		private Builder() {
 		}
 
-		public Builder levelFormatter(LevelFormatter levelFormatter) {
-			this.levelFormatter = levelFormatter;
-			return this;
-		}
-
-		public Builder instantFormatter(InstantFormatter instantFormatter) {
-			this.instantFormatter = instantFormatter;
-			return this;
-
-		}
-
-		public Builder nameFormatter(NameFormatter nameFormatter) {
-			this.nameFormatter = nameFormatter;
-			return this;
-
-		}
-
-		public Builder throwableFormatter(ThrowableFormatter throwableFormatter) {
-			this.throwableFormatter = throwableFormatter;
-			return this;
-
-		}
-
-		public Builder keyValuesFormatter(KeyValuesFormatter keyValuesFormatter) {
-			this.keyValuesFormatter = keyValuesFormatter;
-			return this;
-
-		}
-
-		public Builder threadFormatter(ThreadFormatter threadFormatter) {
-			this.threadFormatter = threadFormatter;
-			return this;
-		}
-
 		public JansiLogFormatter build() {
-			if (installJansi()) {
-				AnsiConsole.systemInstall();
-			}
+
 			return new JansiLogFormatter(levelFormatter, instantFormatter, nameFormatter, throwableFormatter,
 					keyValuesFormatter, threadFormatter);
 		}
 
-		private static boolean installJansi() {
-			if (!System.getProperty("surefire.real.class.path", "").isEmpty()) {
-				return false;
-			}
-			return true;
+		@Override
+		protected Builder self() {
+			return this;
 		}
 
 	}

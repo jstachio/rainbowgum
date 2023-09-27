@@ -3,7 +3,6 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.lang.System.Logger.Level;
-import java.net.URI;
 
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +22,7 @@ class RainbowGumTest {
 
 	@Test
 	void testFormatterBuilder() throws Exception {
-		var config = LogConfig.of();
+		// var config = LogConfig.of();
 		var formatter = LogFormatter.builder() //
 			.timeStamp() //
 			.space() //
@@ -42,16 +41,16 @@ class RainbowGumTest {
 			.formatter(formatter)
 			.build();
 
-		var logFile = config.outputProvider().of(URI.create("target/my.log"));
-
-		var f = LogAppender.builder() //
-			.formatter((StringBuilder sb, LogEvent e) -> {
-				sb.append(e.level());
-				sb.append(" ");
-				sb.append(e.formattedMessage());
-			})
-			.output(logFile)
-			.build();
+		// var logFile = config.outputProvider().of(URI.create("target/my.log"));
+		//
+		// var f = LogAppender.builder() //
+		// .formatter((StringBuilder sb, LogEvent e) -> {
+		// sb.append(e.level());
+		// sb.append(" ");
+		// sb.append(e.formattedMessage());
+		// })
+		// .output(logFile)
+		// .build();
 
 		try (RainbowGum gum = RainbowGum.builder().asynchronous(r -> {
 			r.appender(sysout);

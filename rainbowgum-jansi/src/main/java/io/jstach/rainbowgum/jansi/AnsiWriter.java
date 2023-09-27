@@ -3,7 +3,6 @@ package io.jstach.rainbowgum.jansi;
 import org.fusesource.jansi.Ansi.Attribute;
 import org.fusesource.jansi.Ansi.Color;
 
-@SuppressWarnings("exports")
 /*
  * TODO
  */

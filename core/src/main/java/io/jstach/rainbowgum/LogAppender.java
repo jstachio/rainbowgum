@@ -4,7 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 
-import io.jstach.rainbowgum.jansi.JansiLogFormatter;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
@@ -35,7 +35,7 @@ public interface LogAppender extends AutoCloseable {
 
 		protected LogOutput output = LogOutput.ofStandardOut();
 
-		protected LogFormatter formatter = JansiLogFormatter.builder().build();
+		protected @Nullable LogFormatter formatter;
 
 		private Builder() {
 		}
@@ -56,7 +56,11 @@ public interface LogAppender extends AutoCloseable {
 		}
 
 		public LogAppender build() {
-			return new DefaultLogAppender(requireNonNull(output), requireNonNull(formatter));
+			var f = this.formatter;
+			if (f == null) {
+				f = Defaults.CONSOLE.defaultFormatter.get();
+			}
+			return new DefaultLogAppender(requireNonNull(output), requireNonNull(f));
 		}
 
 	}

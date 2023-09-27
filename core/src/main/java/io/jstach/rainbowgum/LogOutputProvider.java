@@ -31,7 +31,6 @@ enum DefaultOutputProvider implements LogOutputProvider {
 		if (scheme == null && path != null) {
 			@SuppressWarnings("resource")
 			FileOutputStream fos = new FileOutputStream(path);
-			// closeables.add(fos);
 			return LogOutput.of(fos.getChannel());
 		}
 		else if ("stdout".equals(scheme)) {

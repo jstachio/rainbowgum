@@ -1,11 +1,10 @@
 module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum;
-	exports io.jstach.rainbowgum.jansi;
 	exports io.jstach.rainbowgum.json;
+	exports io.jstach.rainbowgum.format;
+	exports io.jstach.rainbowgum.spi;
 	
 	requires static org.eclipse.jdt.annotation;
-	requires org.fusesource.jansi;
-	requires com.lmax.disruptor;
 	
 	uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 }
