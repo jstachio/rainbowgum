@@ -45,6 +45,12 @@ public interface LevelResolver {
 	}
 
 	public static LevelResolver of(Collection<? extends LevelResolver> resolvers) {
+		if (resolvers.isEmpty()) {
+			return EmptyLevelResolver.INSTANCE;
+		}
+		else if (resolvers.size() == 1) {
+			return resolvers.iterator().next();
+		}
 		return CompositeLevelResolver.of(resolvers);
 	}
 
@@ -136,6 +142,17 @@ public interface LevelResolver {
 			return level;
 		}
 		return levelBindings.defaultLevel();
+	}
+
+}
+
+enum EmptyLevelResolver implements LevelResolver {
+
+	INSTANCE;
+
+	@Override
+	public Level resolveLevel(String name) {
+		return Level.OFF;
 	}
 
 }

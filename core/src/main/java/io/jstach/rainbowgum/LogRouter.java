@@ -200,7 +200,9 @@ record CompositeLogRouter(LogRouter[] routers, LevelResolver levelResolver) impl
 	@Override
 	public void log(LogEvent event) {
 		for (var r : routers) {
-			r.log(event);
+			if (r.isEnabled(event.loggerName(), event.level())) {
+				r.log(event);
+			}
 		}
 
 	}

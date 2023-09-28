@@ -216,38 +216,13 @@ abstract class Std extends FileChannelOutput implements LogOutput {
 
 	@Override
 	public void close() {
-		// try {
-		// this.outputStream.close();
-		// }
-		// catch (IOException e) {
-		// throw new UncheckedIOException(e);
-		// }
 	}
 
 	@Override
 	public void flush() {
-		// try {
-		// outputStream.flush();
-		// }
-		// catch (IOException e) {
-		// throw new UncheckedIOException(e);
-		// }
 	}
 
 }
-
-// class StdOutOutput extends Std {
-//
-// public StdOutOutput(FileChannel channel, OutputStream outputStream) {
-// super(channel, outputStream);
-// }
-//
-// @Override
-// public OutputType type() {
-// return OutputType.CONSOLE_OUT;
-// }
-//
-// }
 
 abstract class OutputStreamOutput implements LogOutput {
 

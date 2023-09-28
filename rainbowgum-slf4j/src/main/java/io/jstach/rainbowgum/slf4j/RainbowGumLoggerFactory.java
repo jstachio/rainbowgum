@@ -29,7 +29,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		}
 		else {
 			LogEventLogger logger = this.rainbowGum.router();
-			var level = this.rainbowGum.config().levelResolver().resolveLevel(name);
+			var level = this.rainbowGum.router().levelResolver().resolveLevel(name);
 
 			Logger newLogger;
 			if (level == System.Logger.Level.OFF) {
