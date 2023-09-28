@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
 
@@ -13,6 +14,7 @@ class RainbowGumTest {
 		var gum = RainbowGum.builder().build();
 		gum.start();
 		gum.router().log("stuff", Level.INFO, "Stuff");
+		assertTrue(gum.router().isEnabled("stuff", Level.WARNING));
 	}
 
 	@Test

@@ -10,12 +10,34 @@ import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LevelResolver.LevelConfig;
+
 public interface LevelResolver {
 
 	public Level resolveLevel(String name);
 
 	default boolean isEnabled(String loggerName, Level level) {
 		return resolveLevel(loggerName).getSeverity() <= level.getSeverity();
+	}
+
+	@FunctionalInterface
+	interface LevelConfig extends LevelResolver {
+
+		@Nullable
+		Level levelOrNull(String name);
+
+		default Level defaultLevel() {
+			var root = levelOrNull("");
+			if (root == null) {
+				return Level.OFF;
+			}
+			return root;
+		}
+
+		default Level resolveLevel(String name) {
+			return LevelResolver.resolveLevel(this, name);
+		}
+
 	}
 
 	public static Builder builder() {
@@ -66,15 +88,21 @@ public interface LevelResolver {
 			return self();
 		}
 
+		public T level(Level level) {
+			levels.put("", level);
+			return self();
+		}
+
 		public T add(LevelResolver resolver) {
 			resolvers.add(resolver);
 			return self();
 		}
 
 		protected LevelResolver buildLevelResolver() {
-			if (!levels.isEmpty()) {
-				resolvers.add(LevelResolver.of(levels));
+			if (levels.isEmpty()) {
+				level(Level.INFO);
 			}
+			resolvers.add(0, LevelResolver.of(levels));
 			return LevelResolver.of(resolvers);
 		}
 
@@ -95,34 +123,28 @@ public interface LevelResolver {
 
 	}
 
-	public static Level resolveLevel(LevelAware levelBindings, String name, Level fallback) {
+	public static Level resolveLevel(LevelConfig levelBindings, String name) {
 		String tempName = name;
 		Level level = null;
 		int indexOfLastDot = tempName.length();
 		while ((level == null) && (indexOfLastDot > -1)) {
 			tempName = tempName.substring(0, indexOfLastDot);
 			level = levelBindings.levelOrNull(tempName);
-			indexOfLastDot = String.valueOf(tempName).lastIndexOf(".");
+			indexOfLastDot = tempName.lastIndexOf(".");
 		}
 		if (level != null) {
 			return level;
 		}
-		return fallback;
+		return levelBindings.defaultLevel();
 	}
 
 }
 
-record MapLevelResolver(Map<String, Level> levels) implements LevelResolver {
-
+record MapLevelResolver(Map<String, Level> levels) implements LevelConfig {
 	@Override
-	public Level resolveLevel(String name) {
-		var level = levels.get(name);
-		if (level == null) {
-			return Level.OFF;
-		}
+	public Level levelOrNull(String name) {
 		return levels.get(name);
 	}
-
 }
 
 record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolver {
@@ -161,7 +183,7 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 
 }
 
-interface ConfigLevelResolver extends LevelResolver, LevelAware {
+interface ConfigLevelResolver extends LevelConfig {
 
 	LogProperties properties();
 
@@ -173,10 +195,6 @@ interface ConfigLevelResolver extends LevelResolver, LevelAware {
 			.mapString(s -> s.toUpperCase(Locale.ROOT)) //
 			.map(Level::valueOf) //
 			.value();
-	}
-
-	default Level resolveLevel(String name) {
-		return LevelResolver.resolveLevel(this, name, defaultLevel());
 	}
 
 	default Level defaultLevel() {
