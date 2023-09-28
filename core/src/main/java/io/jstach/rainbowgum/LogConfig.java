@@ -23,6 +23,10 @@ public interface LogConfig extends LogProperties {
 
 	public LogProperties properties();
 
+	default Runnable shutdownHook() {
+		return Defaults.shutdownHook.apply(this);
+	}
+
 	public LevelResolver levelResolver();
 
 	public enum RuntimeMode {

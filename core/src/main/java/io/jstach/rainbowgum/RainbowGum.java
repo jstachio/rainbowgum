@@ -16,6 +16,7 @@ public interface RainbowGum extends AutoCloseable {
 
 	public static void start(RainbowGum gum) {
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			gum.config().shutdownHook().run();
 			gum.close();
 		}));
 		LogRouter.setRouter(gum.router());

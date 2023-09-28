@@ -249,6 +249,14 @@ enum GlobalLogRouter implements RootRouter {
 
 	private volatile @Nullable LogRouter delegate = null;
 
+	static boolean isShutdownEvent(String loggerName, java.lang.System.Logger.Level level) {
+		return Boolean.parseBoolean(System.getProperty(Defaults.SHUTDOWN)) && matchesShutdown(loggerName, level);
+	}
+
+	private static boolean matchesShutdown(String loggerName, java.lang.System.Logger.Level level) {
+		return loggerName.equals(Defaults.SHUTDOWN);
+	}
+
 	@Override
 	public LevelResolver levelResolver() {
 		LogRouter d = delegate;
@@ -263,6 +271,9 @@ enum GlobalLogRouter implements RootRouter {
 		if (d != null) {
 			if (d.isEnabled(loggerName, level)) {
 				d.log(loggerName, level, message, cause);
+			}
+			if (isShutdownEvent(loggerName, level)) {
+				d.close();
 			}
 		}
 		else {
