@@ -69,6 +69,11 @@
     <dependencies>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-core</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -706,5 +711,6 @@
     <module>rainbowgum</module>
     <module>rainbowgum-disruptor</module>
     <module>rainbowgum-jansi</module>
+    <module>benchmark</module>
   </modules>
 </project>

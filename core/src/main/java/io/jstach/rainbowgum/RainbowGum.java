@@ -36,16 +36,21 @@ public interface RainbowGum extends AutoCloseable {
 	}
 
 	public static Builder builder() {
-		return new Builder();
+		return builder(Defaults.config.get());
+	}
+
+	public static Builder builder(LogConfig config) {
+		return new Builder(config);
 	}
 
 	public class Builder {
 
-		private LogConfig config = LogConfig.of(System::getProperty);
+		private final LogConfig config;
 
 		private List<LogRouter> routers = new ArrayList<>();
 
-		private Builder() {
+		private Builder(LogConfig config) {
+			this.config = config;
 		}
 
 		public Builder router(LogRouter router) {
@@ -53,15 +58,10 @@ public interface RainbowGum extends AutoCloseable {
 			return this;
 		}
 
-		public Builder config(LogConfig config) {
-			this.config = config;
-			return this;
-		}
-
 		public Builder synchronous(Consumer<LogRouter.SyncLogRouter.Builder> consumer) {
 			var builder = LogRouter.SyncLogRouter.builder();
 			consumer.accept(builder);
-			return router(builder.build());
+			return router(builder.build(this.config));
 		}
 
 		public Builder asynchronous(Consumer<LogRouter.AsyncLogRouter.Builder> consumer) {
@@ -74,7 +74,7 @@ public interface RainbowGum extends AutoCloseable {
 			var routers = this.routers;
 			var config = this.config;
 			if (routers.isEmpty()) {
-				routers = List.of(SyncLogRouter.builder().appender(LogAppender.builder().build()).build());
+				routers = List.of(SyncLogRouter.builder().appender(LogAppender.builder().build()).build(this.config));
 			}
 			var root = RootRouter.of(routers, config.levelResolver());
 			return new SimpleRainbowGum(config, root);

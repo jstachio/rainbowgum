@@ -60,7 +60,7 @@ public sealed interface RainbowGumServiceProvider {
 			.orElse(null);
 
 		if (gum == null) {
-			gum = RainbowGum.builder().config(config).build();
+			gum = RainbowGum.builder(config).build();
 		}
 		RainbowGum.start(gum);
 		return gum;

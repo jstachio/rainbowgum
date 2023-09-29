@@ -45,16 +45,11 @@ public interface LogOutput extends AutoCloseable, Flushable {
 	}
 
 	public static LogOutput ofStandardOut() {
-		// var out = FileDescriptor.out;
-		// @SuppressWarnings("resource")
-		// FileOutputStream fos = new FileOutputStream(out);
-		// return new StdOutOutput(fos.getChannel(), fos);
 		return new StdOutOutput();
 	}
 
 	public static LogOutput ofStandardErr() {
 		var out = FileDescriptor.err;
-		@SuppressWarnings("resource")
 		FileOutputStream fos = new FileOutputStream(out);
 		return new StdErrOutput(fos.getChannel(), fos);
 	}
@@ -226,12 +221,17 @@ abstract class Std extends FileChannelOutput implements LogOutput {
 
 abstract class OutputStreamOutput implements LogOutput {
 
-	protected abstract OutputStream outputStream();
+	protected final OutputStream outputStream;
+
+	protected OutputStreamOutput(OutputStream outputStream) {
+		super();
+		this.outputStream = outputStream;
+	}
 
 	@Override
 	public void write(LogEvent event, byte[] bytes, int off, int len) {
 		try {
-			outputStream().write(bytes, off, len);
+			outputStream.write(bytes, off, len);
 		}
 		catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -241,7 +241,7 @@ abstract class OutputStreamOutput implements LogOutput {
 	@Override
 	public void flush() {
 		try {
-			outputStream().flush();
+			outputStream.flush();
 		}
 		catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -251,7 +251,7 @@ abstract class OutputStreamOutput implements LogOutput {
 	@Override
 	public void close() {
 		try {
-			outputStream().close();
+			outputStream.close();
 		}
 		catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -262,14 +262,17 @@ abstract class OutputStreamOutput implements LogOutput {
 
 class StdOutOutput extends OutputStreamOutput {
 
-	@Override
-	protected OutputStream outputStream() {
-		return System.out;
+	public StdOutOutput() {
+		super(System.out);
 	}
 
 	@Override
 	public OutputType type() {
 		return OutputType.CONSOLE_OUT;
+	}
+
+	@Override
+	public void close() {
 	}
 
 }

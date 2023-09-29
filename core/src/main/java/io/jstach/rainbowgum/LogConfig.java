@@ -4,7 +4,6 @@ import java.lang.System.Logger.Level;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -55,32 +54,31 @@ public interface LogConfig extends LogProperties {
 		return LogConfig.of(System::getProperty);
 	}
 
-	@SuppressWarnings("exports")
-	public static LogConfig of(Function<String, @Nullable String> propertySupplier) {
-		return new DefaultLogConfig(propertySupplier);
+	public static LogConfig of(LogProperties properties) {
+		return new DefaultLogConfig(properties);
 	}
 
 }
 
 class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 
-	private final Function<String, @Nullable String> propertySupplier;
+	private final LogProperties properties;
 
 	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
 
 	@Override
 	public @Nullable String property(String key) {
-		return propertySupplier.apply("rainbowgum." + key);
+		return properties.property("rainbowgum." + key);
 	}
 
-	public DefaultLogConfig(Function<String, @Nullable String> propertySupplier) {
+	public DefaultLogConfig(LogProperties properties) {
 		super();
-		this.propertySupplier = propertySupplier;
+		this.properties = properties;
 	}
 
 	@Override
-	public LogConfig properties() {
-		return this;
+	public LogProperties properties() {
+		return properties;
 	}
 
 	@Override
@@ -99,7 +97,7 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 
 	@Override
 	public String levelPropertyPrefix() {
-		return "log.";
+		return "log";
 	}
 
 }

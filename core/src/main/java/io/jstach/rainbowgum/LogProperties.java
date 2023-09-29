@@ -5,6 +5,7 @@ import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+@FunctionalInterface
 public interface LogProperties {
 
 	public @Nullable String property(String key);
@@ -19,7 +20,7 @@ sealed interface Property<T> {
 	String original();
 
 	@Nullable
-	T value();
+	T orNull();
 
 	static RuntimeException throwPropertyError(String key, Exception e) {
 		throw new RuntimeException("Error for property: " + key, e);
@@ -35,7 +36,7 @@ sealed interface Property<T> {
 	}
 
 	default T require() {
-		var t = value();
+		var t = orNull();
 		if (t == null)
 			throw new RuntimeException("Missing value for key: " + key());
 		return t;
@@ -43,7 +44,7 @@ sealed interface Property<T> {
 
 	default <U> Property<U> map(Function<? super T, ? extends U> mapper) {
 		Objects.requireNonNull(mapper);
-		var v = value();
+		var v = orNull();
 		if (v == null) {
 			return new EmptyValue<>(key(), original());
 		}
@@ -58,7 +59,7 @@ sealed interface Property<T> {
 
 	default StringValue mapString(Function<? super T, String> mapper) {
 		Objects.requireNonNull(mapper);
-		var v = value();
+		var v = orNull();
 		if (v == null) {
 			return new StringValue(key(), null, original());
 		}
@@ -72,7 +73,7 @@ sealed interface Property<T> {
 	}
 
 	default T requireElse(T fallback) {
-		var t = value();
+		var t = orNull();
 		if (t == null) {
 			return fallback;
 		}
@@ -80,15 +81,15 @@ sealed interface Property<T> {
 	}
 
 	record EmptyValue<T>(String key, @Nullable String original) implements Property<T> {
-		public @Nullable T value() {
+		public @Nullable T orNull() {
 			return null;
 		}
 	}
 
-	record ObjectValue<T>(String key, @Nullable T value, @Nullable String original) implements Property<T> {
+	record ObjectValue<T>(String key, @Nullable T orNull, @Nullable String original) implements Property<T> {
 	}
 
-	record StringValue(String key, @Nullable String value, @Nullable String original) implements Property<String> {
+	record StringValue(String key, @Nullable String orNull, @Nullable String original) implements Property<String> {
 
 	}
 

@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -29,7 +30,7 @@ public interface LevelResolver {
 		default Level defaultLevel() {
 			var root = levelOrNull("");
 			if (root == null) {
-				return Level.OFF;
+				return Level.ALL;
 			}
 			return root;
 		}
@@ -44,9 +45,13 @@ public interface LevelResolver {
 		return new Builder();
 	}
 
+	public static LevelResolver off() {
+		return StaticLevelResolver.OFF;
+	}
+
 	public static LevelResolver of(Collection<? extends LevelResolver> resolvers) {
 		if (resolvers.isEmpty()) {
-			return EmptyLevelResolver.INSTANCE;
+			return LevelResolver.off();
 		}
 		else if (resolvers.size() == 1) {
 			return resolvers.iterator().next();
@@ -55,32 +60,48 @@ public interface LevelResolver {
 	}
 
 	public static LevelResolver of(Map<String, Level> levels) {
+		if (levels.isEmpty()) {
+			return LevelResolver.off();
+		}
+		else if (levels.size() == 1) {
+			var e = levels.entrySet().iterator().next();
+			return new SingleLevelResolver(e.getKey(), e.getValue());
+		}
 		return new MapLevelResolver(levels);
 	}
 
 	public static LevelResolver of(Level level) {
-		return new LevelResolver() {
-
-			@Override
-			public Level resolveLevel(String name) {
-				return level;
-			}
+		return switch (level) {
+			case INFO -> StaticLevelResolver.INFO;
+			case ALL -> StaticLevelResolver.ALL;
+			case DEBUG -> StaticLevelResolver.DEBUG;
+			case ERROR -> StaticLevelResolver.ERROR;
+			case OFF -> StaticLevelResolver.OFF;
+			case TRACE -> StaticLevelResolver.TRACE;
+			case WARNING -> StaticLevelResolver.WARNING;
 		};
 	}
 
-	public static LevelResolver of(LogProperties config, String prefix) {
-		return new ConfigLevelResolver() {
+	// public static LevelResolver of(LogProperties config, String prefix) {
+	// return new ConfigLevelResolver() {
+	//
+	// @Override
+	// public LogProperties properties() {
+	// return config;
+	// }
+	//
+	// @Override
+	// public String levelPropertyPrefix() {
+	// return prefix;
+	// }
+	// };
+	// }
 
-			@Override
-			public LogProperties properties() {
-				return config;
-			}
-
-			@Override
-			public String levelPropertyPrefix() {
-				return prefix;
-			}
-		};
+	public static LevelResolver cached(LevelResolver resolver) {
+		if (resolver instanceof StaticLevelResolver) {
+			return resolver;
+		}
+		return new CachedLevelResolver(resolver);
 	}
 
 	abstract class AbstractBuilder<T> {
@@ -88,6 +109,8 @@ public interface LevelResolver {
 		protected List<LevelResolver> resolvers = new ArrayList<>();
 
 		protected Map<String, Level> levels = new LinkedHashMap<>();
+
+		protected boolean levelResolverCached = true;
 
 		public T level(String loggerName, Level level) {
 			levels.put(loggerName, level);
@@ -104,12 +127,21 @@ public interface LevelResolver {
 			return self();
 		}
 
+		public T cached(boolean cached) {
+			this.levelResolverCached = cached;
+			return self();
+		}
+
 		protected LevelResolver buildLevelResolver() {
 			if (levels.isEmpty()) {
 				level(Level.INFO);
 			}
 			resolvers.add(0, LevelResolver.of(levels));
-			return LevelResolver.of(resolvers);
+			var combined = LevelResolver.of(resolvers);
+			if (levelResolverCached) {
+				return LevelResolver.cached(combined);
+			}
+			return combined;
 		}
 
 		protected abstract T self();
@@ -135,7 +167,7 @@ public interface LevelResolver {
 		int indexOfLastDot = tempName.length();
 		while ((level == null) && (indexOfLastDot > -1)) {
 			tempName = tempName.substring(0, indexOfLastDot);
-			level = levelBindings.levelOrNull(tempName);
+			level = allToNull(levelBindings.levelOrNull(tempName));
 			indexOfLastDot = tempName.lastIndexOf(".");
 		}
 		if (level != null) {
@@ -144,15 +176,72 @@ public interface LevelResolver {
 		return levelBindings.defaultLevel();
 	}
 
+	private static @Nullable Level allToNull(@Nullable Level level) {
+		if (level == null || level == Level.ALL) {
+			return null;
+		}
+		return level;
+	}
+
 }
 
-enum EmptyLevelResolver implements LevelResolver {
+enum StaticLevelResolver implements LevelResolver {
 
-	INSTANCE;
+	INFO {
+		@Override
+		public Level resolveLevel(String name) {
+			return Level.INFO;
+		}
+	},
+	OFF {
+		@Override
+		public Level resolveLevel(String name) {
+			return Level.OFF;
+		}
+	},
+	ALL {
+		@Override
+		public Level resolveLevel(String name) {
+			return Level.ALL;
+		}
+	},
+	DEBUG {
+		@Override
+		public Level resolveLevel(String name) {
+			return Level.DEBUG;
+		}
+
+	},
+	ERROR {
+		@Override
+		public Level resolveLevel(String name) {
+			return Level.ERROR;
+		}
+	},
+	WARNING {
+		@Override
+		public Level resolveLevel(String name) {
+			return Level.WARNING;
+		}
+
+	},
+	TRACE {
+		@Override
+		public Level resolveLevel(String name) {
+			return Level.TRACE;
+		}
+	};
+
+}
+
+record SingleLevelResolver(String name, Level level) implements LevelConfig {
 
 	@Override
-	public Level resolveLevel(String name) {
-		return Level.OFF;
+	public @Nullable Level levelOrNull(String name) {
+		if (this.name.equals(name)) {
+			return this.level;
+		}
+		return null;
 	}
 
 }
@@ -188,7 +277,10 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 		var lowestLevel = Level.OFF;
 		for (var resolver : resolvers) {
 			var level = resolver.resolveLevel(name);
-			if (level == Level.ALL || level == Level.TRACE) {
+			if (level == Level.ALL) {
+				continue;
+			}
+			if (level == Level.TRACE) {
 				return level;
 			}
 			if (lowestLevel.getSeverity() > level.getSeverity()) {
@@ -200,18 +292,47 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 
 }
 
+class CachedLevelResolver implements LevelResolver {
+
+	private final LevelResolver levelResolver;
+
+	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
+
+	public CachedLevelResolver(LevelResolver levelResolver) {
+		super();
+		this.levelResolver = levelResolver;
+	}
+
+	@Override
+	public Level resolveLevel(String name) {
+		var level = levelCache.get(name);
+		if (level != null) {
+			return level;
+		}
+		return levelCache.computeIfAbsent(name, n -> levelResolver.resolveLevel(name));
+	}
+
+}
+
 interface ConfigLevelResolver extends LevelConfig {
 
 	LogProperties properties();
 
 	String levelPropertyPrefix();
 
+	private static String concatName(String prefix, String name) {
+		if (name.equals("")) {
+			return prefix;
+		}
+		return prefix + "." + name;
+	}
+
 	default @Nullable Level levelOrNull(String name) {
-		String key = levelPropertyPrefix() + name;
+		String key = concatName(levelPropertyPrefix(), name);
 		return Property.of(properties(), key) //
 			.mapString(s -> s.toUpperCase(Locale.ROOT)) //
 			.map(Level::valueOf) //
-			.value();
+			.orNull();
 	}
 
 	default Level defaultLevel() {

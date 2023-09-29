@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.systemlogger;
 import static java.util.Objects.requireNonNullElse;
 
 import java.lang.System.Logger;
+import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -53,7 +54,14 @@ public class SystemLoggingFactory extends System.LoggerFinder {
 		public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format,
 				@Nullable Object... params) {
 			String message = requireNonNullElse(format, "");
-			LogRouter.global().log(name, level, message, null);
+			String formattedMessage;
+			if (params != null && params.length > 0 && !message.isBlank()) {
+				formattedMessage = MessageFormat.format(message, params);
+			}
+			else {
+				formattedMessage = message;
+			}
+			LogRouter.global().log(name, level, formattedMessage, null);
 		}
 
 	}
