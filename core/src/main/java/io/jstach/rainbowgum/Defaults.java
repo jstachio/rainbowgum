@@ -15,12 +15,12 @@ public enum Defaults {
 
 	public static Function<LogConfig, ? extends Runnable> shutdownHook = (config) -> {
 		return () -> {
-			 try {
-			 Thread.sleep(50);
-			 }
-			 catch (InterruptedException e) {
-			 Thread.currentThread().interrupt();
-			 }
+			try {
+				Thread.sleep(50);
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
 		};
 	};
 
