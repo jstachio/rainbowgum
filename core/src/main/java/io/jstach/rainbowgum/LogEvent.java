@@ -48,35 +48,6 @@ public interface LogEvent {
 
 		void formatArray(StringBuilder builder, String message, Object[] args);
 
-		default @Nullable Throwable getThrowable(final Object[] argArray) {
-			if (argArray == null || argArray.length == 0) {
-				return null;
-			}
-
-			final Object lastEntry = argArray[argArray.length - 1];
-			if (lastEntry instanceof Throwable t) {
-				return t;
-			}
-
-			return null;
-		}
-
-		static Object[] trimmedCopy(final Object[] argArray) {
-			if (argArray == null || argArray.length == 0) {
-				throw new IllegalStateException("non-sensical empty or null argument array");
-			}
-
-			final int trimmedLen = argArray.length - 1;
-
-			Object[] trimmed = new Object[trimmedLen];
-
-			if (trimmedLen > 0) {
-				System.arraycopy(argArray, 0, trimmed, 0, trimmedLen);
-			}
-
-			return trimmed;
-		}
-
 	}
 
 	public interface EventCreator<LEVEL> extends MessageFormatter {
@@ -103,9 +74,9 @@ public interface LogEvent {
 		}
 
 		default LogEvent event1(LEVEL level, String message, Object arg1) {
-			if (arg1 instanceof Throwable t) {
-				return event(level, message, t);
-			}
+			// if (arg1 instanceof Throwable t) {
+			// return event(level, message, t);
+			// }
 			StringBuilder sb = createMessageBuffer(message);
 			format(sb, message, arg1);
 			var formatted = sb.toString();
@@ -113,12 +84,12 @@ public interface LogEvent {
 		}
 
 		default LogEvent event2(LEVEL level, String message, Object arg1, Object arg2) {
-			if (arg2 instanceof Throwable t) {
-				StringBuilder sb = createMessageBuffer(message);
-				format(sb, message, arg1);
-				var formatted = sb.toString();
-				return event(level, formatted, t);
-			}
+			// if (arg2 instanceof Throwable t) {
+			// StringBuilder sb = createMessageBuffer(message);
+			// format(sb, message, arg1);
+			// var formatted = sb.toString();
+			// return event(level, formatted, t);
+			// }
 			StringBuilder sb = createMessageBuffer(message);
 			format(sb, message, arg1, arg2);
 			var formatted = sb.toString();
@@ -126,16 +97,16 @@ public interface LogEvent {
 		}
 
 		default LogEvent eventArray(LEVEL level, String message, Object[] args) {
-			Throwable throwable = getThrowable(args);
-			if (throwable != null) {
-				args = MessageFormatter.trimmedCopy(args);
-			}
+			// Throwable throwable = getThrowable(args);
+			// if (throwable != null) {
+			// args = MessageFormatter.trimmedCopy(args);
+			// }
 
 			StringBuilder sb = createMessageBuffer(message);
 			formatArray(sb, message, args);
 
 			var formatted = sb.toString();
-			return event(level, formatted, throwable);
+			return event(level, formatted, null);
 		}
 
 	}

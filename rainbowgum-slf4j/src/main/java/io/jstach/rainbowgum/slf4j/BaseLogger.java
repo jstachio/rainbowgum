@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.MDC;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
-import org.slf4j.helpers.MessageFormatter;
 import org.slf4j.spi.LoggingEventBuilder;
 import org.slf4j.spi.MDCAdapter;
 import org.slf4j.spi.NOPLoggingEventBuilder;
@@ -12,29 +11,23 @@ import org.slf4j.spi.NOPLoggingEventBuilder;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.EventCreator;
+import io.jstach.rainbowgum.format.SLF4JMessageFormatter;
 
 interface BaseLogger extends EventCreator<Level>, Logger {
 
 	@Override
 	default void format(StringBuilder builder, String message, Object arg1) {
-		/*
-		 * TODO fix formatting so that we do not have to create an array
-		 */
-		formatArray(builder, message, new Object[] { arg1 });
+		SLF4JMessageFormatter.format(builder, message, arg1);
 	}
 
 	@Override
 	default void format(StringBuilder builder, String message, Object arg1, Object arg2) {
-		/*
-		 * TODO fix formatting so that we do not have to create an array
-		 */
-		formatArray(builder, message, new Object[] { arg1, arg2 });
+		SLF4JMessageFormatter.format(builder, message, arg1, arg2);
 	}
 
 	@Override
 	default void formatArray(StringBuilder builder, String message, Object[] args) {
-		String r = MessageFormatter.basicArrayFormat(message, args);
-		builder.append(r);
+		SLF4JMessageFormatter.format(builder, message, args);
 	}
 
 	@Override
