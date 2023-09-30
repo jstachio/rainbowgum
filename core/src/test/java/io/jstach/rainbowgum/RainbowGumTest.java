@@ -28,6 +28,7 @@ class RainbowGumTest {
 		gum.router().log("stuff", Level.DEBUG, "Stuff");
 		gum.router().log("stuff", Level.DEBUG, "Stuff");
 		assertFalse(gum.router().isEnabled("stuff", Level.TRACE));
+		assertTrue(gum.router().isEnabled("stuff", Level.DEBUG));
 
 	}
 

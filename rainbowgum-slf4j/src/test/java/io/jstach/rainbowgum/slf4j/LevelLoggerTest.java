@@ -121,7 +121,7 @@ class LevelLoggerTest {
 					return makeLoggingEventBuilder(Level.{{level.name}});
 				}
 
-				{{#level}}
+				{{#levels}}
 				@Override
 				public boolean {{enabledMethodName}}() {
 					{{#isEnabled}}
@@ -204,7 +204,7 @@ class LevelLoggerTest {
 					handle(Level.{{name}}, msg, t);
 					{{/isEnabled}}
 				}
-				{{/level}}
+				{{/levels}}
 			}
 			""";
 

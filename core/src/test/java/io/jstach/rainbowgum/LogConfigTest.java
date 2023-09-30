@@ -14,9 +14,9 @@ class LogConfigTest {
 
 		var resolver = LogConfig.of().levelResolver();
 		var actual = resolver.resolveLevel("stuff");
-		
+
 		assertEquals(Level.DEBUG, actual);
-		
+
 		assertTrue(LogConfig.of().levelResolver().isEnabled("stuff", Level.DEBUG));
 	}
 

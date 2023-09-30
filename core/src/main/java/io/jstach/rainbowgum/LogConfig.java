@@ -51,11 +51,22 @@ public interface LogConfig extends LogProperties {
 	}
 
 	public static LogConfig of() {
-		return LogConfig.of(System::getProperty);
+		return LogConfig.of(SystemProperties.INSTANCE);
 	}
 
 	public static LogConfig of(LogProperties properties) {
 		return new DefaultLogConfig(properties);
+	}
+
+}
+
+enum SystemProperties implements LogProperties {
+
+	INSTANCE;
+
+	@Override
+	public @Nullable String property(String key) {
+		return System.getProperty(key);
 	}
 
 }
@@ -78,7 +89,7 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 
 	@Override
 	public LogProperties properties() {
-		return properties;
+		return this;
 	}
 
 	@Override
