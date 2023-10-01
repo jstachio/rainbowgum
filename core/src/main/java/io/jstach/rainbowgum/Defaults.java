@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.format.StandardEventFormatter;
@@ -12,6 +13,10 @@ public enum Defaults {
 	public static String SHUTDOWN = "#SHUTDOWN#";
 
 	Supplier<? extends LogFormatter> defaultFormatter;
+
+	public static IntSupplier maxStringBuilderSize = () -> {
+		return 1024 * 1024;
+	};
 
 	public static Function<LogConfig, ? extends Runnable> shutdownHook = (config) -> {
 		return () -> {

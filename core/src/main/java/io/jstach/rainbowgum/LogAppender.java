@@ -103,6 +103,8 @@ final class DefaultLogAppender implements LogAppender {
 
 	protected final StringBuilder sb = new StringBuilder();
 
+	protected final int maxStringBuilderSize = Defaults.maxStringBuilderSize.getAsInt();
+
 	public DefaultLogAppender(LogOutput output, LogFormatter formatter) {
 		super();
 		this.output = output;
@@ -111,13 +113,14 @@ final class DefaultLogAppender implements LogAppender {
 
 	@Override
 	public void append(LogEvent event) {
-		/*
-		 * TODO trim size of StringBuilder if it gets too large
-		 */
+		boolean shrink = sb.length() > maxStringBuilderSize;
 		sb.setLength(0);
 		formatter.format(sb, event);
 		output.write(event, sb.toString());
 		output.flush();
+		if (shrink && sb.length() < maxStringBuilderSize) {
+			sb.trimToSize();
+		}
 
 	}
 

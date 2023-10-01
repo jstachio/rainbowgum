@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import io.jstach.rainbowgum.LogRouter.ChildLogRouter;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.SyncLogRouter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -47,13 +48,13 @@ public interface RainbowGum extends AutoCloseable {
 
 		private final LogConfig config;
 
-		private List<LogRouter> routers = new ArrayList<>();
+		private List<ChildLogRouter> routers = new ArrayList<>();
 
 		private Builder(LogConfig config) {
 			this.config = config;
 		}
 
-		public Builder router(LogRouter router) {
+		public Builder router(ChildLogRouter router) {
 			this.routers.add(router);
 			return this;
 		}

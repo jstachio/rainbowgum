@@ -96,16 +96,17 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 		void start(LogConfig config);
 
-		public static LogRouter of(List<? extends LogRouter> routers, LevelResolver levelResolver) {
+		public static LogRouter of(List<? extends ChildLogRouter> routers, LevelResolver levelResolver) {
+
+			if (routers.isEmpty()) {
+				throw new IllegalArgumentException("atleast one router is required");
+			}
 			List<LogRouter> sorted = new ArrayList<>();
 			/*
 			 * We add the async routers first
 			 */
-			Set<LogRouter> matched = Collections.newSetFromMap(new IdentityHashMap<LogRouter, Boolean>());
+			Set<ChildLogRouter> matched = Collections.newSetFromMap(new IdentityHashMap<ChildLogRouter, Boolean>());
 			for (var r : routers) {
-				if (r instanceof RootRouter) {
-					throw new IllegalArgumentException("no root inside another router");
-				}
 				if (r instanceof AsyncLogRouter a) {
 					matched.add(a);
 					sorted.add(a);
@@ -116,15 +117,41 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 					sorted.add(a);
 				}
 			}
-			return CompositeLogRouter.of(sorted, levelResolver);
+
+			List<LevelResolver> resolvers = new ArrayList<>();
+			routers.stream().map(LogRouter::levelResolver).forEach(resolvers::add);
+			resolvers.add(levelResolver);
+			var globalLevelResolver = LevelResolver.of(resolvers);
+
+			List<ChildLogRouter> wrappedRouters = new ArrayList<>();
+			for (var router : routers) {
+				wrappedRouters.add(ReLevelLogRouter.of(router, levelResolver));
+			}
+
+			ChildLogRouter[] array = wrappedRouters.toArray(new ChildLogRouter[] {});
+
+			if (array.length == 1 && array[0].synchronous()) {
+				return new SingleSyncRootRouter(array[0], globalLevelResolver);
+			}
+			return new CompositeLogRouter(array, globalLevelResolver);
 		}
 
 	}
 
-	public non-sealed interface SyncLogRouter extends LogRouter {
+	public sealed interface ChildLogRouter extends LogRouter {
+
+		public boolean synchronous();
+
+	}
+
+	public non-sealed interface SyncLogRouter extends ChildLogRouter {
 
 		public static Builder builder() {
 			return new Builder();
+		}
+
+		default boolean synchronous() {
+			return true;
 		}
 
 		public static class Builder extends AbstractBuilder<Builder> {
@@ -147,10 +174,15 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 	}
 
-	public non-sealed interface AsyncLogRouter extends LogRouter {
+	public non-sealed interface AsyncLogRouter extends ChildLogRouter {
 
 		@Override
 		public void start(LogConfig config);
+
+		@Override
+		default boolean synchronous() {
+			return false;
+		}
 
 		public static Builder builder() {
 			return new Builder();
@@ -182,27 +214,31 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 	}
 
-	sealed interface ForwardingLogRouter extends LogRouter permits ConfigLogRouter {
+	sealed interface ForwardingLogRouter extends ChildLogRouter permits ReLevelLogRouter {
 
 	}
 
 }
 
-final class ConfigLogRouter implements ForwardingLogRouter {
+final class ReLevelLogRouter implements ForwardingLogRouter {
 
-	private final LogRouter router;
+	private final ChildLogRouter router;
 
 	private final LevelResolver levelResolver;
 
-	ConfigLogRouter(LogRouter router, LevelResolver levelResolver) {
+	ReLevelLogRouter(ChildLogRouter router, LevelResolver levelResolver) {
 		super();
 		this.router = router;
 		this.levelResolver = levelResolver;
 	}
 
-	static ConfigLogRouter of(LogRouter router, LevelResolver levelResolver) {
+	static ReLevelLogRouter of(ChildLogRouter router, LevelResolver levelResolver) {
 		var resolver = LevelResolver.builder().add(router.levelResolver()).add(levelResolver).build();
-		return new ConfigLogRouter(router, resolver);
+		return new ReLevelLogRouter(router, resolver);
+	}
+
+	public boolean synchronous() {
+		return router.synchronous();
 	}
 
 	@Override
@@ -222,21 +258,7 @@ final class ConfigLogRouter implements ForwardingLogRouter {
 
 }
 
-record CompositeLogRouter(LogRouter[] routers, LevelResolver levelResolver) implements RootRouter {
-
-	public static RootRouter of(List<? extends LogRouter> routers, LevelResolver levelResolver) {
-		List<LevelResolver> resolvers = new ArrayList<>();
-		routers.stream().map(LogRouter::levelResolver).forEach(resolvers::add);
-		resolvers.add(levelResolver);
-		var globalLevelResolver = LevelResolver.of(resolvers);
-
-		List<LogRouter> wrappedRouters = new ArrayList<>();
-		for (var router : routers) {
-			wrappedRouters.add(ConfigLogRouter.of(router, levelResolver));
-		}
-		LogRouter[] array = wrappedRouters.toArray(new LogRouter[] {});
-		return new CompositeLogRouter(array, globalLevelResolver);
-	}
+record SingleSyncRootRouter(LogRouter router, LevelResolver levelResolver) implements RootRouter {
 
 	@Override
 	public boolean isEnabled(String loggerName, Level level) {
@@ -245,9 +267,44 @@ record CompositeLogRouter(LogRouter[] routers, LevelResolver levelResolver) impl
 
 	@Override
 	public void log(LogEvent event) {
+		if (router.isEnabled(event.loggerName(), event.level())) {
+			router.log(event);
+		}
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		router.start(config);
+	}
+
+	@Override
+	public void close() {
+		router.close();
+	}
+
+}
+
+record CompositeLogRouter(ChildLogRouter[] routers, LevelResolver levelResolver) implements RootRouter {
+
+	@Override
+	public boolean isEnabled(String loggerName, Level level) {
+		return levelResolver.isEnabled(loggerName, level);
+	}
+
+	@Override
+	public void log(LogEvent event) {
+		LogEvent frozen = null;
 		for (var r : routers) {
 			if (r.isEnabled(event.loggerName(), event.level())) {
-				r.log(event);
+				if (!r.synchronous()) {
+					if (frozen == null) {
+						frozen = event.freeze();
+					}
+					r.log(frozen);
+				}
+				else {
+					r.log(event);
+				}
 			}
 		}
 

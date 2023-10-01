@@ -10,7 +10,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.format.SLF4JMessageFormatter;
 
-public interface LogEvent {
+public sealed interface LogEvent {
 
 	public static LogEvent of(System.Logger.Level level, String loggerName, String formattedMessage,
 			KeyValues keyValues, @Nullable Throwable throwable) {
@@ -56,6 +56,8 @@ public interface LogEvent {
 	public KeyValues keyValues();
 
 	public int argCount();
+
+	public LogEvent freeze();
 
 	default MessageFormatType formatType() {
 		return MessageFormatType.SLF4J;
@@ -239,6 +241,12 @@ record OneArgLogEvent(Instant timeStamp, String threadName, long threadId, Syste
 		return null;
 	}
 
+	public LogEvent freeze() {
+		StringBuilder sb = new StringBuilder(message.length());
+		formattedMessage(sb);
+		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(), keyValues, null);
+	}
+
 }
 
 record TwoArgLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
@@ -254,6 +262,12 @@ record TwoArgLogEvent(Instant timeStamp, String threadName, long threadId, Syste
 
 	public @Nullable Throwable throwable() {
 		return null;
+	}
+
+	public LogEvent freeze() {
+		StringBuilder sb = new StringBuilder(message.length());
+		formattedMessage(sb);
+		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(), keyValues, null);
 	}
 }
 
@@ -275,6 +289,10 @@ record DefaultLogEvent(Instant timeStamp, String threadName, long threadId, Syst
 
 	public void formattedMessage(StringBuilder sb) {
 		sb.append(this.formattedMessage);
+	}
+
+	public LogEvent freeze() {
+		return this;
 	}
 
 }
