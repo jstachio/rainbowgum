@@ -15,7 +15,7 @@ class RainbowGumLoggerFactoryTest {
 		var list = new ListLogOutput();
 		var gum = RainbowGum.builder().synchronous(b -> {
 			b.appender(LogAppender.builder().formatter((output, event) -> {
-				output.append(event.formattedMessage());
+				event.formattedMessage(output);
 				output.append("\n");
 			}).output(list).build());
 		}).build();

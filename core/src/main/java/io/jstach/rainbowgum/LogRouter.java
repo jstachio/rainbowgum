@@ -275,7 +275,7 @@ enum FailsafeAppender implements LogAppender {
 	@Override
 	public void append(LogEvent event) {
 		if (event.level().compareTo(Level.ERROR) >= 0) {
-			System.err.println(event.formattedMessage());
+			event.formattedMessage(System.err);
 			var throwable = event.throwable();
 			if (throwable != null) {
 				throwable.printStackTrace(System.err);

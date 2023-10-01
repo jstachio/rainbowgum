@@ -157,10 +157,10 @@ public sealed interface LogFormatter {
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			output.append(formatMessage(event.formattedMessage()));
+			formatMessage(output, event);
 		}
 
-		public String formatMessage(String message);
+		public void formatMessage(StringBuilder output, LogEvent event);
 
 		public static MessageFormatter of() {
 			return DefaultMessageFormatter.INSTANT;
@@ -345,8 +345,8 @@ enum DefaultMessageFormatter implements MessageFormatter {
 	INSTANT;
 
 	@Override
-	public String formatMessage(String message) {
-		return message;
+	public void formatMessage(StringBuilder output, LogEvent event) {
+		event.formattedMessage(output);
 	}
 
 }

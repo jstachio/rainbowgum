@@ -95,10 +95,26 @@ record CompositeLogAppender(LogAppender[] appenders) implements LogAppender {
 
 }
 
-record DefaultLogAppender(LogOutput output, LogFormatter formatter) implements LogAppender {
+final class DefaultLogAppender implements LogAppender {
+
+	protected final LogOutput output;
+
+	protected final LogFormatter formatter;
+
+	protected final StringBuilder sb = new StringBuilder();
+
+	public DefaultLogAppender(LogOutput output, LogFormatter formatter) {
+		super();
+		this.output = output;
+		this.formatter = formatter;
+	}
+
 	@Override
 	public void append(LogEvent event) {
-		StringBuilder sb = new StringBuilder();
+		/*
+		 * TODO trim size of StringBuilder if it gets too large
+		 */
+		sb.setLength(0);
 		formatter.format(sb, event);
 		output.write(event, sb.toString());
 		output.flush();
@@ -109,4 +125,5 @@ record DefaultLogAppender(LogOutput output, LogFormatter formatter) implements L
 	public void close() {
 		output.close();
 	}
+
 }

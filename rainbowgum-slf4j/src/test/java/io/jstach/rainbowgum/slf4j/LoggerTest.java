@@ -10,7 +10,7 @@ public class LoggerTest {
 	@Test
 	public void testErrorLogger() {
 		LogEventLogger appender = e -> {
-			System.out.println(e.formattedMessage());
+			e.formattedMessage(System.out);
 		};
 		var logger = LevelLogger.of(Level.ERROR, "stuff", appender);
 

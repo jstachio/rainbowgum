@@ -16,10 +16,16 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
-	protected JansiLogFormatter(LevelFormatter levelFormatter, InstantFormatter instantFormatter,
-			NameFormatter nameFormatter, ThrowableFormatter throwableFormatter, KeyValuesFormatter keyValuesFormatter,
+	protected JansiLogFormatter( //
+			LevelFormatter levelFormatter, //
+			InstantFormatter instantFormatter, //
+			NameFormatter nameFormatter, //
+			MessageFormatter messageFormatter, //
+			ThrowableFormatter throwableFormatter, //
+			KeyValuesFormatter keyValuesFormatter, //
 			ThreadFormatter threadFormatter) {
-		super(levelFormatter, instantFormatter, nameFormatter, throwableFormatter, keyValuesFormatter, threadFormatter);
+		super(levelFormatter, instantFormatter, nameFormatter, messageFormatter, throwableFormatter, keyValuesFormatter,
+				threadFormatter);
 	}
 
 	public static Builder builder() {
@@ -33,8 +39,8 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 		public JansiLogFormatter build() {
 
-			return new JansiLogFormatter(levelFormatter, instantFormatter, nameFormatter, throwableFormatter,
-					keyValuesFormatter, threadFormatter);
+			return new JansiLogFormatter(levelFormatter, instantFormatter, nameFormatter, messageFormatter,
+					throwableFormatter, keyValuesFormatter, threadFormatter);
 		}
 
 		@Override
@@ -51,7 +57,6 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 		var name = logEvent.loggerName();
 		@Nullable
 		Throwable t = logEvent.throwable();
-		var formattedMessage = logEvent.formattedMessage();
 
 		// StringBuilder buf = new StringBuilder(32);
 		Ansi buf = Ansi.ansi(output);
@@ -99,8 +104,7 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 		buf.fg(Color.DEFAULT);
 		buf.a(" - ");
-
-		buf.append(formattedMessage);
+		messageFormatter.formatMessage(output, logEvent);
 		output.append("\n");
 		if (t != null) {
 			throwableFormatter.format(output, t);

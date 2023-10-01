@@ -16,19 +16,26 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 
 	protected final NameFormatter nameFormatter;
 
+	protected final MessageFormatter messageFormatter;
+
 	protected final ThrowableFormatter throwableFormatter;
 
 	protected final KeyValuesFormatter keyValuesFormatter;
 
 	protected final ThreadFormatter threadFormatter;
 
-	protected AbstractStandardEventFormatter(LevelFormatter levelFormatter, InstantFormatter instantFormatter,
-			NameFormatter nameFormatter, ThrowableFormatter throwableFormatter, KeyValuesFormatter keyValuesFormatter,
+	protected AbstractStandardEventFormatter(LevelFormatter levelFormatter, //
+			InstantFormatter instantFormatter, //
+			NameFormatter nameFormatter, //
+			MessageFormatter messageFormatter, //
+			ThrowableFormatter throwableFormatter, //
+			KeyValuesFormatter keyValuesFormatter, //
 			ThreadFormatter threadFormatter) {
 		super();
 		this.levelFormatter = levelFormatter;
 		this.instantFormatter = instantFormatter;
 		this.nameFormatter = nameFormatter;
+		this.messageFormatter = messageFormatter;
 		this.throwableFormatter = throwableFormatter;
 		this.keyValuesFormatter = keyValuesFormatter;
 		this.threadFormatter = threadFormatter;
@@ -41,6 +48,8 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		protected InstantFormatter instantFormatter = InstantFormatter.of();
 
 		protected NameFormatter nameFormatter = NameFormatter.of();
+
+		protected MessageFormatter messageFormatter = MessageFormatter.of();
 
 		protected ThrowableFormatter throwableFormatter = ThrowableFormatter.of();
 
@@ -93,7 +102,6 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		var name = logEvent.loggerName();
 		@Nullable
 		Throwable t = logEvent.throwable();
-		var formattedMessage = logEvent.formattedMessage();
 
 		// Append date-time if so configured
 
@@ -127,8 +135,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		output.append(" - ");
-
-		output.append(formattedMessage);
+		messageFormatter.format(output, logEvent);
 		output.append("\n");
 
 		if (t != null) {

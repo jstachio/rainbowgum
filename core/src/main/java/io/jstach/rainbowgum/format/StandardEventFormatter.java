@@ -2,10 +2,15 @@ package io.jstach.rainbowgum.format;
 
 public class StandardEventFormatter extends AbstractStandardEventFormatter {
 
-	protected StandardEventFormatter(LevelFormatter levelFormatter, InstantFormatter instantFormatter,
-			NameFormatter nameFormatter, ThrowableFormatter throwableFormatter, KeyValuesFormatter keyValuesFormatter,
-			ThreadFormatter threadFormatter) {
-		super(levelFormatter, instantFormatter, nameFormatter, throwableFormatter, keyValuesFormatter, threadFormatter);
+	protected StandardEventFormatter( //
+			LevelFormatter levelFormatter, //
+			InstantFormatter instantFormatter, //
+			NameFormatter nameFormatter, //
+			MessageFormatter messageFormatter, //
+			ThrowableFormatter throwableFormatter, //
+			KeyValuesFormatter keyValuesFormatter, ThreadFormatter threadFormatter) {
+		super(levelFormatter, instantFormatter, nameFormatter, messageFormatter, throwableFormatter, keyValuesFormatter,
+				threadFormatter);
 	}
 
 	public static Builder builder() {
@@ -20,8 +25,8 @@ public class StandardEventFormatter extends AbstractStandardEventFormatter {
 		}
 
 		public StandardEventFormatter build() {
-			return new StandardEventFormatter(levelFormatter, instantFormatter, nameFormatter, throwableFormatter,
-					keyValuesFormatter, threadFormatter);
+			return new StandardEventFormatter(levelFormatter, instantFormatter, nameFormatter, messageFormatter,
+					throwableFormatter, keyValuesFormatter, threadFormatter);
 		}
 
 	}

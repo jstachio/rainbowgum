@@ -1,10 +1,14 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 import org.eclipse.jdt.annotation.Nullable;
+
+import io.jstach.rainbowgum.format.SLF4JMessageFormatter;
 
 public interface LogEvent {
 
@@ -34,11 +38,28 @@ public interface LogEvent {
 
 	public String loggerName();
 
-	public String formattedMessage();
+	public void formattedMessage(StringBuilder sb);
+
+	default void formattedMessage(Appendable a) {
+		StringBuilder sb = new StringBuilder();
+		formattedMessage(sb);
+		try {
+			a.append(sb);
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
 
 	public Throwable throwable();
 
 	public KeyValues keyValues();
+
+	public int argCount();
+
+	default MessageFormatType formatType() {
+		return MessageFormatType.SLF4J;
+	}
 
 	public interface MessageFormatter {
 
@@ -47,6 +68,27 @@ public interface LogEvent {
 		void format(StringBuilder builder, String message, Object arg1, Object arg2);
 
 		void formatArray(StringBuilder builder, String message, Object[] args);
+
+	}
+
+	public enum MessageFormatType implements MessageFormatter {
+
+		SLF4J() {
+			@Override
+			public void format(StringBuilder builder, String message, Object arg1) {
+				SLF4JMessageFormatter.format(builder, message, arg1);
+			}
+
+			@Override
+			public void format(StringBuilder builder, String message, Object arg1, Object arg2) {
+				SLF4JMessageFormatter.format(builder, message, arg1, arg2);
+			}
+
+			@Override
+			public void formatArray(StringBuilder builder, String message, Object[] args) {
+				SLF4JMessageFormatter.format(builder, message, args);
+			}
+		}
 
 	}
 
@@ -60,6 +102,25 @@ public interface LogEvent {
 
 		default StringBuilder createMessageBuffer(String message) {
 			return new StringBuilder();
+		}
+
+		default MessageFormatType formatType() {
+			return MessageFormatType.SLF4J;
+		}
+
+		@Override
+		default void format(StringBuilder builder, String message, Object arg1) {
+			formatType().format(builder, message, arg1);
+		}
+
+		@Override
+		default void format(StringBuilder builder, String message, Object arg1, Object arg2) {
+			formatType().format(builder, message, arg1, arg2);
+		}
+
+		@Override
+		default void formatArray(StringBuilder builder, String message, Object[] args) {
+			formatType().format(builder, message, args);
 		}
 
 		default LogEvent event(LEVEL level, String formattedMessage, @Nullable Throwable throwable) {
@@ -163,9 +224,46 @@ enum EmptyKeyValues implements KeyValues {
 
 }
 
+record OneArgLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
+		String message, KeyValues keyValues, @Nullable Object arg1) implements LogEvent {
+
+	public void formattedMessage(StringBuilder sb) {
+		formatType().format(sb, message, sb);
+	}
+
+	public int argCount() {
+		return 1;
+	}
+
+	public @Nullable Throwable throwable() {
+		return null;
+	}
+
+}
+
+record TwoArgLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
+		String message, KeyValues keyValues, @Nullable Object arg1, @Nullable Object arg2) implements LogEvent {
+
+	public void formattedMessage(StringBuilder sb) {
+		formatType().format(sb, message, sb);
+	}
+
+	public int argCount() {
+		return 2;
+	}
+
+	public @Nullable Throwable throwable() {
+		return null;
+	}
+}
+
 record DefaultLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String formattedMessage, KeyValues keyValues,
 		@Nullable Throwable throwable) implements LogEvent {
+
+	public int argCount() {
+		return 0;
+	}
 
 	public @Nullable Throwable getThrowable() {
 		return throwable();
@@ -173,6 +271,10 @@ record DefaultLogEvent(Instant timeStamp, String threadName, long threadId, Syst
 
 	public KeyValues getKeyValues() {
 		return keyValues;
+	}
+
+	public void formattedMessage(StringBuilder sb) {
+		sb.append(this.formattedMessage);
 	}
 
 }

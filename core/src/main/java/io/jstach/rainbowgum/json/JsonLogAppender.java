@@ -34,6 +34,8 @@ public class JsonLogAppender implements LogAppender {
 
 	private final RawJsonWriter raw = new RawJsonWriter(1024 * 8);
 
+	private final StringBuilder formattedMessage = new StringBuilder();
+
 	private final LogOutput out;
 
 	private final boolean prettyprint;
@@ -55,8 +57,10 @@ public class JsonLogAppender implements LogAppender {
 	@Override
 	public void append(LogEvent event) {
 		raw.reset();
+		formattedMessage.setLength(0);
 		final String host = this.host;
-		final String shortMessage = event.formattedMessage();
+		event.formattedMessage(formattedMessage);
+		final String shortMessage = formattedMessage.toString();
 		Instant now = event.timeStamp();
 		final double timeStamp = ((double) now.toEpochMilli()) / 1000;
 		@Nullable
