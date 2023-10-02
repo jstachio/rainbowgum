@@ -16,17 +16,14 @@ public interface RainbowGum extends AutoCloseable {
 	}
 
 	public static void start(RainbowGum gum) {
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			gum.config().shutdownHook().run();
-			gum.close();
-		}));
+		Defaults.addShutdownHook(gum);
 		LogRouter.setRouter(gum.router());
 		gum.start();
 	}
 
 	public LogConfig config();
 
-	public LogRouter router();
+	public RootRouter router();
 
 	default void start() {
 		router().start(config());
@@ -59,13 +56,13 @@ public interface RainbowGum extends AutoCloseable {
 			return this;
 		}
 
-		public Builder synchronous(Consumer<LogRouter.SyncLogRouter.Builder> consumer) {
+		public Builder sync(Consumer<LogRouter.SyncLogRouter.Builder> consumer) {
 			var builder = LogRouter.SyncLogRouter.builder();
 			consumer.accept(builder);
-			return router(builder.build(this.config));
+			return router(builder.build());
 		}
 
-		public Builder asynchronous(Consumer<LogRouter.AsyncLogRouter.Builder> consumer) {
+		public Builder async(Consumer<LogRouter.AsyncLogRouter.Builder> consumer) {
 			var builder = LogRouter.AsyncLogRouter.builder();
 			consumer.accept(builder);
 			return router(builder.build());
@@ -75,7 +72,7 @@ public interface RainbowGum extends AutoCloseable {
 			var routers = this.routers;
 			var config = this.config;
 			if (routers.isEmpty()) {
-				routers = List.of(SyncLogRouter.builder().appender(LogAppender.builder().build()).build(this.config));
+				routers = List.of(SyncLogRouter.builder().appender(LogAppender.builder().build()).build());
 			}
 			var root = RootRouter.of(routers, config.levelResolver());
 			return new SimpleRainbowGum(config, root);
@@ -85,7 +82,7 @@ public interface RainbowGum extends AutoCloseable {
 
 }
 
-record SimpleRainbowGum(LogConfig config, LogRouter router) implements RainbowGum {
+record SimpleRainbowGum(LogConfig config, RootRouter router) implements RainbowGum {
 
 	static RainbowGum of() {
 		return Holder.rainbowGum;

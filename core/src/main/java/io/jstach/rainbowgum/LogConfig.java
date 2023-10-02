@@ -2,19 +2,14 @@ package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-public interface LogConfig extends LogProperties {
-
-	default @Nullable String property(String key) {
-		return properties().property(key);
-	}
+public interface LogConfig {
 
 	default RuntimeMode runtimeMode() {
-		return Property.of(this, "mode") //
+		return Property.of(properties(), "mode") //
 			.mapString(s -> s.toUpperCase(Locale.ROOT)) //
 			.map(RuntimeMode::valueOf) //
 			.requireElse(RuntimeMode.DEV);
@@ -22,32 +17,16 @@ public interface LogConfig extends LogProperties {
 
 	public LogProperties properties();
 
-	default Runnable shutdownHook() {
-		return Defaults.shutdownHook.apply(this);
-	}
-
 	public LevelResolver levelResolver();
 
 	public enum RuntimeMode {
 
-		DEV, STAGE, PROD
+		DEV, TEST, PROD
 
 	}
 
 	default LogOutputProvider outputProvider() {
 		return LogOutputProvider.of();
-	}
-
-	default String hostName() {
-		String hostName = property("HOSTNAME");
-		if (hostName == null) {
-			return "localhost";
-		}
-		return hostName;
-	}
-
-	default Map<String, String> headers() {
-		return Map.of();
 	}
 
 	public static LogConfig of() {
@@ -71,7 +50,7 @@ enum SystemProperties implements LogProperties {
 
 }
 
-class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
+class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties {
 
 	private final LogProperties properties;
 

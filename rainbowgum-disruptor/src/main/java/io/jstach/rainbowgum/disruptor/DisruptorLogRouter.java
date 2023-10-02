@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.disruptor;
 
+import java.lang.System.Logger.Level;
 import java.util.concurrent.ThreadFactory;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -9,11 +10,11 @@ import com.lmax.disruptor.ExceptionHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 
+import io.jstach.rainbowgum.Errors;
 import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
 
 public final class DisruptorLogRouter implements AsyncLogRouter {
@@ -64,6 +65,11 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 	}
 
 	@Override
+	public boolean isEnabled(String loggerName, Level level) {
+		return this.levelResolver.isEnabled(loggerName, level);
+	}
+
+	@Override
 	public void log(LogEvent event) {
 		long sequence = ringBuffer.next();
 		try {
@@ -109,19 +115,19 @@ public final class DisruptorLogRouter implements AsyncLogRouter {
 				shutdownHook.run();
 			}
 			else {
-				LogRouter.error(DisruptorLogRouter.class, ex);
+				Errors.error(DisruptorLogRouter.class, ex);
 				throw new RuntimeException(ex);
 			}
 		}
 
 		@Override
 		public void handleOnStartException(Throwable ex) {
-			LogRouter.error(DisruptorLogRouter.class, ex);
+			Errors.error(DisruptorLogRouter.class, ex);
 		}
 
 		@Override
 		public void handleOnShutdownException(Throwable ex) {
-			LogRouter.error(DisruptorLogRouter.class, ex);
+			Errors.error(DisruptorLogRouter.class, ex);
 		}
 
 	}

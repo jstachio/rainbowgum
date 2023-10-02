@@ -15,24 +15,11 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogRouter.ForwardingLogRouter;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.router.BlockingQueueRouter;
-import io.jstach.rainbowgum.router.LockingQueueRouter;
+import io.jstach.rainbowgum.router.LockingSyncLogRouter;
 
 public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
-	LevelResolver levelResolver();
-
-	default boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
-		return levelResolver().isEnabled(loggerName, level);
-	}
-
-	default void log(String loggerName, java.lang.System.Logger.Level level, String message,
-			@Nullable Throwable cause) {
-		log(LogEvent.of(level, loggerName, message, cause));
-	}
-
-	default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
-		log(LogEvent.of(level, loggerName, message, null));
-	}
+	public boolean isEnabled(String loggerName, java.lang.System.Logger.Level level);
 
 	void log(LogEvent event);
 
@@ -42,28 +29,15 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 	@Override
 	public void close();
 
-	public static LogRouter global() {
+	public static RootRouter global() {
 		return GlobalLogRouter.INSTANCE;
 	}
 
-	static void setRouter(LogRouter router) {
+	static void setRouter(RootRouter router) {
 		if (GlobalLogRouter.INSTANCE == router) {
 			throw new IllegalArgumentException();
 		}
 		GlobalLogRouter.INSTANCE.drain(router);
-	}
-
-	public static void error(LogEvent event) {
-		FailsafeAppender.INSTANCE.append(event);
-	}
-
-	public static void error(Class<?> loggerName, Throwable throwable) {
-		error(loggerName, throwable.getMessage(), throwable);
-	}
-
-	public static void error(Class<?> loggerName, String message, Throwable throwable) {
-		var event = LogEvent.of(Level.ERROR, loggerName.getName(), message, throwable);
-		error(event);
 	}
 
 	abstract class AbstractBuilder<T> extends LevelResolver.AbstractBuilder<T> {
@@ -96,7 +70,21 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 		void start(LogConfig config);
 
-		public static LogRouter of(List<? extends ChildLogRouter> routers, LevelResolver levelResolver) {
+		public LevelResolver levelResolver();
+
+		default void log(String loggerName, java.lang.System.Logger.Level level, String formattedMessage,
+				@Nullable Throwable cause) {
+			if (isEnabled(loggerName, level)) {
+				LogEvent event = LogEvent.of(level, loggerName, formattedMessage, cause);
+				log(event);
+			}
+		}
+
+		default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
+			log(loggerName, level, message, null);
+		}
+
+		public static RootRouter of(List<? extends ChildLogRouter> routers, LevelResolver levelResolver) {
 
 			if (routers.isEmpty()) {
 				throw new IllegalArgumentException("atleast one router is required");
@@ -119,7 +107,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 			}
 
 			List<LevelResolver> resolvers = new ArrayList<>();
-			routers.stream().map(LogRouter::levelResolver).forEach(resolvers::add);
+			routers.stream().map(ChildLogRouter::levelResolver).forEach(resolvers::add);
 			resolvers.add(levelResolver);
 			var globalLevelResolver = LevelResolver.of(resolvers);
 
@@ -139,6 +127,8 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 	}
 
 	public sealed interface ChildLogRouter extends LogRouter {
+
+		LevelResolver levelResolver();
 
 		public boolean synchronous();
 
@@ -165,9 +155,9 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 				return this;
 			}
 
-			public SyncLogRouter build(LogConfig config) {
+			public SyncLogRouter build() {
 
-				return new LockingQueueRouter(LogAppender.of(appenders), buildLevelResolver());
+				return new LockingSyncLogRouter(LogAppender.of(appenders), buildLevelResolver());
 			}
 
 		}
@@ -220,20 +210,27 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 }
 
+/*
+ * TODO revisit this. We use this shitty wrapper because the router does not have the
+ * config yet to do proper level resolution.
+ */
 final class ReLevelLogRouter implements ForwardingLogRouter {
 
 	private final ChildLogRouter router;
 
 	private final LevelResolver levelResolver;
 
-	ReLevelLogRouter(ChildLogRouter router, LevelResolver levelResolver) {
+	private ReLevelLogRouter(ChildLogRouter router, LevelResolver levelResolver) {
 		super();
 		this.router = router;
 		this.levelResolver = levelResolver;
 	}
 
 	static ReLevelLogRouter of(ChildLogRouter router, LevelResolver levelResolver) {
-		var resolver = LevelResolver.builder().add(router.levelResolver()).add(levelResolver).build();
+		var resolver = LevelResolver.builder()
+			.levelResolver(router.levelResolver())
+			.levelResolver(levelResolver)
+			.build();
 		return new ReLevelLogRouter(router, resolver);
 	}
 
@@ -244,6 +241,11 @@ final class ReLevelLogRouter implements ForwardingLogRouter {
 	@Override
 	public LevelResolver levelResolver() {
 		return levelResolver;
+	}
+
+	@Override
+	public boolean isEnabled(String loggerName, Level level) {
+		return levelResolver.isEnabled(loggerName, level);
 	}
 
 	@Override
@@ -258,7 +260,7 @@ final class ReLevelLogRouter implements ForwardingLogRouter {
 
 }
 
-record SingleSyncRootRouter(LogRouter router, LevelResolver levelResolver) implements RootRouter {
+record SingleSyncRootRouter(ChildLogRouter router, LevelResolver levelResolver) implements RootRouter {
 
 	@Override
 	public boolean isEnabled(String loggerName, Level level) {
@@ -296,7 +298,11 @@ record CompositeLogRouter(ChildLogRouter[] routers, LevelResolver levelResolver)
 		LogEvent frozen = null;
 		for (var r : routers) {
 			if (r.isEnabled(event.loggerName(), event.level())) {
-				if (!r.synchronous()) {
+				if (frozen != null) {
+					r.log(frozen);
+
+				}
+				else if (!r.synchronous()) {
 					if (frozen == null) {
 						frozen = event.freeze();
 					}
@@ -350,7 +356,7 @@ enum GlobalLogRouter implements RootRouter {
 
 	private static final LevelResolver INFO_RESOLVER = LevelResolver.of(Level.INFO);
 
-	private volatile @Nullable LogRouter delegate = null;
+	private volatile @Nullable RootRouter delegate = null;
 
 	private final ReentrantLock drainLock = new ReentrantLock();
 
@@ -364,30 +370,40 @@ enum GlobalLogRouter implements RootRouter {
 
 	@Override
 	public LevelResolver levelResolver() {
-		LogRouter d = delegate;
+		RootRouter d = delegate;
 		if (d != null) {
 			return d.levelResolver();
 		}
 		return INFO_RESOLVER;
 	}
 
-	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
+	@Override
+	public boolean isEnabled(String loggerName, Level level) {
 		LogRouter d = delegate;
 		if (d != null) {
-			if (d.isEnabled(loggerName, level)) {
-				d.log(loggerName, level, message, cause);
-			}
+			return d.isEnabled(loggerName, level);
+		}
+		return INFO_RESOLVER.isEnabled(loggerName, level);
+	}
+
+	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
+		RootRouter d = delegate;
+		if (d != null) {
+			d.log(loggerName, level, message, cause);
 			if (isShutdownEvent(loggerName, level)) {
 				d.close();
 			}
 		}
 		else {
-			events.add(LogEvent.of(level, loggerName, message, cause));
+			var event = LogEvent.of(level, loggerName, message, cause);
+			events.add(event);
+			if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
+				Errors.error(event);
+			}
 		}
-
 	}
 
-	public void drain(LogRouter delegate) {
+	public void drain(RootRouter delegate) {
 		drainLock.lock();
 		try {
 			this.delegate = Objects.requireNonNull(delegate);

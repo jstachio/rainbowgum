@@ -58,7 +58,7 @@ public interface LogAppender extends AutoCloseable {
 		public LogAppender build() {
 			var f = this.formatter;
 			if (f == null) {
-				f = Defaults.CONSOLE.defaultFormatter.get();
+				f = Defaults.formatterForOutputType(output.type());
 			}
 			return new DefaultLogAppender(requireNonNull(output), requireNonNull(f));
 		}

@@ -122,12 +122,12 @@ public interface LevelResolver {
 			return self();
 		}
 
-		public T add(LevelResolver resolver) {
+		public T levelResolver(LevelResolver resolver) {
 			resolvers.add(resolver);
 			return self();
 		}
 
-		public T cached(boolean cached) {
+		public T levelCache(boolean cached) {
 			this.levelResolverCached = cached;
 			return self();
 		}

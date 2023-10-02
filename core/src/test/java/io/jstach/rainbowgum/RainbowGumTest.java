@@ -64,7 +64,7 @@ class RainbowGumTest {
 		// .output(logFile)
 		// .build();
 
-		try (RainbowGum gum = RainbowGum.builder().asynchronous(r -> {
+		try (RainbowGum gum = RainbowGum.builder().async(r -> {
 			r.appender(sysout);
 			r.level("stuff", Level.WARNING);
 		}).build()) {

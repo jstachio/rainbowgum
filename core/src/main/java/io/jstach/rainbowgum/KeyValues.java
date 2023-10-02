@@ -12,7 +12,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
-public interface KeyValues {
+public sealed interface KeyValues {
 
 	public @Nullable String getValue(String key);
 
@@ -52,7 +52,9 @@ public interface KeyValues {
 
 	Map<String, String> copyToMap();
 
-	public interface MutableKeyValues extends KeyValues, BiConsumer<String, String> {
+	public KeyValues freeze();
+
+	public sealed interface MutableKeyValues extends KeyValues, BiConsumer<String, String> {
 
 		MutableKeyValues copy();
 
@@ -120,51 +122,78 @@ public interface KeyValues {
 
 }
 
-/*
- * A KeyValues that uses a single string array for memory savings which is desirable in
- * the case of loom where there could be several orders of keyvalues instances at any
- * given time.
- */
-class ArrayKeyValues implements BiConsumer<String, String>, Function<String, String>, MutableKeyValues {
+enum EmptyKeyValues implements KeyValues {
 
-	private static final int DEFAULT_INITIAL_CAPACITY = 2;
+	INSTANCE;
 
-	private static final String[] EMPTY = new String[] {};
-
-	private String[] kvs = EMPTY;
-
-	private int size = 0;
-
-	private int threshold;
-
-	public ArrayKeyValues() {
-		this(DEFAULT_INITIAL_CAPACITY);
+	@Override
+	public @Nullable String getValue(String key) {
+		return null;
 	}
 
-	public ArrayKeyValues(final int initialCapacity) {
-		if (initialCapacity < 0) {
-			throw new IllegalArgumentException("Initial capacity must be at least zero but was " + initialCapacity);
-		}
-		threshold = 2 * ceilingNextPowerOfTwo(initialCapacity == 0 ? 1 : initialCapacity);
+	@Override
+	public void forEach(BiConsumer<? super String, ? super String> action) {
 	}
 
-	private ArrayKeyValues(String[] kvs, int size, int threshold) {
-		super();
-		this.kvs = kvs;
-		this.size = size;
-		this.threshold = threshold;
+	@Override
+	public <V> int forEach(KeyValuesConsumer<V> action, int index, V storage) {
+		return index;
 	}
 
 	@Override
 	public int size() {
-		return this.size;
+		return 0;
 	}
 
-	public MutableKeyValues copy() {
-		ArrayKeyValues orig = this;
-		String[] copyKvs = new String[this.threshold];
-		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.size * 2);
-		return new ArrayKeyValues(copyKvs, size, threshold);
+	@Override
+	public int next(int index) {
+		return -1;
+	}
+
+	@Override
+	public @Nullable String key(int index) {
+		throw new IndexOutOfBoundsException(index);
+	}
+
+	@Override
+	public @Nullable String value(int index) {
+		throw new IndexOutOfBoundsException(index);
+	}
+
+	@Override
+	public int start() {
+		return -1;
+	}
+
+	@Override
+	public Map<String, String> copyToMap() {
+		return Map.of();
+	}
+
+	@Override
+	public KeyValues freeze() {
+		return this;
+	}
+
+}
+
+sealed abstract class AbstractArrayKeyValues implements KeyValues {
+
+	protected static final int DEFAULT_INITIAL_CAPACITY = 2;
+
+	protected static final String[] EMPTY = new String[] {};
+
+	protected String[] kvs;
+
+	protected int size;
+
+	protected int threshold;
+
+	protected AbstractArrayKeyValues(String[] kvs, int size, int threshold) {
+		super();
+		this.kvs = kvs;
+		this.size = size;
+		this.threshold = threshold;
 	}
 
 	@Override
@@ -181,6 +210,11 @@ class ArrayKeyValues implements BiConsumer<String, String>, Function<String, Str
 			throw new IndexOutOfBoundsException(index);
 		}
 		return kvs[index + 1];
+	}
+
+	@Override
+	public int size() {
+		return this.size;
 	}
 
 	private int _next(int index) {
@@ -208,51 +242,6 @@ class ArrayKeyValues implements BiConsumer<String, String>, Function<String, Str
 	@Override
 	public int start() {
 		return _next(0);
-	}
-
-	@Override
-	public String apply(String t) {
-		return getValue(t);
-	}
-
-	@Override
-	public void accept(String t, String u) {
-		putKeyValue(t, u);
-	}
-
-	/*
-	 * We implement BiConsumer to avoid garbage like entry set and iterators
-	 */
-	@Override
-	public void putKeyValue(String key, String value) {
-		if (kvs == EMPTY) {
-			inflateTable(threshold);
-		}
-		if (Objects.isNull(key)) {
-			return;
-		}
-		for (int i = 0; i < size * 2; i += 2) {
-			var k = kvs[i];
-			/*
-			 * replacement
-			 */
-			if (Objects.equals(k, key)) {
-				kvs[i + 1] = value;
-				return;
-			}
-			else if (k == null && kvs[i + 1] == null) {
-				kvs[i] = key;
-				kvs[i + 1] = value;
-				size++;
-				return;
-			}
-		}
-		ensureCapacity();
-		size++;
-		int valueIndex = (size * 2) - 1;
-		kvs[valueIndex - 1] = key;
-		kvs[valueIndex] = value;
-		return;
 	}
 
 	@Override
@@ -306,6 +295,140 @@ class ArrayKeyValues implements BiConsumer<String, String>, Function<String, Str
 
 	}
 
+	@Override
+	public Map<String, String> copyToMap() {
+		final Map<String, String> result = new HashMap<>(size);
+		forEach(result::put);
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		KeyValues.prettyPrint(this, sb);
+		return sb.toString();
+	}
+
+	protected static int calculateInitialThreshold(final int initialCapacity) {
+		if (initialCapacity < 0) {
+			throw new IllegalArgumentException("Initial capacity must be at least zero but was " + initialCapacity);
+		}
+		return 2 * ceilingNextPowerOfTwo(initialCapacity == 0 ? 1 : initialCapacity);
+	}
+
+	/**
+	 * Calculate the next power of 2, greater than or equal to x.
+	 * <p>
+	 * From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
+	 * @param x Value to round up
+	 * @return The next power of 2 from x inclusive
+	 */
+	protected static int ceilingNextPowerOfTwo(final int x) {
+		final int BITS_PER_INT = 32;
+		return 1 << (BITS_PER_INT - Integer.numberOfLeadingZeros(x - 1));
+	}
+
+}
+
+final class ImmutableArrayKeyValues extends AbstractArrayKeyValues {
+
+	ImmutableArrayKeyValues(String[] kvs, int size, int threshold) {
+		super(kvs, size, threshold);
+	}
+
+	@Override
+	public KeyValues freeze() {
+		return this;
+	}
+
+}
+
+/*
+ * A KeyValues that uses a single string array for memory savings which is desirable in
+ * the case of loom where there could be several orders of keyvalues instances at any
+ * given time.
+ */
+final class ArrayKeyValues extends AbstractArrayKeyValues
+		implements BiConsumer<String, String>, Function<String, String>, MutableKeyValues {
+
+	public ArrayKeyValues() {
+		this(DEFAULT_INITIAL_CAPACITY);
+	}
+
+	public ArrayKeyValues(final int initialCapacity) {
+		this(EMPTY, 0, calculateInitialThreshold(initialCapacity));
+	}
+
+	private ArrayKeyValues(String[] kvs, int size, int threshold) {
+		super(kvs, size, threshold);
+		this.kvs = kvs;
+		this.size = size;
+		this.threshold = threshold;
+	}
+
+	public MutableKeyValues copy() {
+		ArrayKeyValues orig = this;
+		String[] copyKvs = new String[this.threshold];
+		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.size * 2);
+		return new ArrayKeyValues(copyKvs, size, threshold);
+	}
+
+	@Override
+	public KeyValues freeze() {
+		if (size == 0) {
+			return KeyValues.of();
+		}
+		ArrayKeyValues orig = this;
+		String[] copyKvs = new String[this.threshold];
+		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.size * 2);
+		return new ImmutableArrayKeyValues(copyKvs, size, threshold);
+	}
+
+	@Override
+	public String apply(String t) {
+		return getValue(t);
+	}
+
+	@Override
+	public void accept(String t, String u) {
+		putKeyValue(t, u);
+	}
+
+	/*
+	 * We implement BiConsumer to avoid garbage like entry set and iterators
+	 */
+	@Override
+	public void putKeyValue(String key, String value) {
+		if (kvs == EMPTY) {
+			inflateTable(threshold);
+		}
+		if (Objects.isNull(key)) {
+			return;
+		}
+		for (int i = 0; i < size * 2; i += 2) {
+			var k = kvs[i];
+			/*
+			 * replacement
+			 */
+			if (Objects.equals(k, key)) {
+				kvs[i + 1] = value;
+				return;
+			}
+			else if (k == null && kvs[i + 1] == null) {
+				kvs[i] = key;
+				kvs[i + 1] = value;
+				size++;
+				return;
+			}
+		}
+		ensureCapacity();
+		size++;
+		int valueIndex = (size * 2) - 1;
+		kvs[valueIndex - 1] = key;
+		kvs[valueIndex] = value;
+		return;
+	}
+
 	public void putAll(Map<String, String> m) {
 		m.forEach(this);
 	}
@@ -326,13 +449,6 @@ class ArrayKeyValues implements BiConsumer<String, String>, Function<String, Str
 				size--;
 			}
 		}
-	}
-
-	@Override
-	public Map<String, String> copyToMap() {
-		final Map<String, String> result = new HashMap<>(size);
-		forEach(result::put);
-		return result;
 	}
 
 	private void ensureCapacity() {
@@ -357,34 +473,6 @@ class ArrayKeyValues implements BiConsumer<String, String>, Function<String, Str
 	private void inflateTable(final int toSize) {
 		threshold = toSize;
 		kvs = new String[toSize];
-	}
-
-	/**
-	 * Calculate the next power of 2, greater than or equal to x.
-	 * <p>
-	 * From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
-	 * @param x Value to round up
-	 * @return The next power of 2 from x inclusive
-	 */
-	private static int ceilingNextPowerOfTwo(final int x) {
-		final int BITS_PER_INT = 32;
-		return 1 << (BITS_PER_INT - Integer.numberOfLeadingZeros(x - 1));
-	}
-
-	// @Override
-	// public int hashCode() {
-	// final int prime = 31;
-	// int result = 1;
-	// result = prime * result + Arrays.hashCode(kvs);
-	// result = prime * result + Objects.hash(size, threshold);
-	// return result;
-	// }
-
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		KeyValues.prettyPrint(this, sb);
-		return sb.toString();
 	}
 
 	@Override

@@ -130,7 +130,7 @@ class FileChannelOutput implements LogOutput {
 
 			}
 			catch (IOException e) {
-				LogRouter.error(FileChannelOutput.class, e);
+				Errors.error(FileChannelOutput.class, e);
 			}
 			finally {
 				if (fileLock != null && fileLock.isValid()) {

@@ -3,11 +3,10 @@ package io.jstach.rainbowgum;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Instant;
-import java.util.Map;
-import java.util.function.BiConsumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.format.SLF4JMessageFormatter;
 
 public sealed interface LogEvent {
@@ -188,56 +187,6 @@ public sealed interface LogEvent {
 
 }
 
-enum EmptyKeyValues implements KeyValues {
-
-	INSTANCE;
-
-	@Override
-	public @Nullable String getValue(String key) {
-		return null;
-	}
-
-	@Override
-	public void forEach(BiConsumer<? super String, ? super String> action) {
-	}
-
-	@Override
-	public <V> int forEach(KeyValuesConsumer<V> action, int index, V storage) {
-		return index;
-	}
-
-	@Override
-	public int size() {
-		return 0;
-	}
-
-	@Override
-	public int next(int index) {
-		return -1;
-	}
-
-	@Override
-	public @Nullable String key(int index) {
-		throw new IndexOutOfBoundsException(index);
-	}
-
-	@Override
-	public @Nullable String value(int index) {
-		throw new IndexOutOfBoundsException(index);
-	}
-
-	@Override
-	public int start() {
-		return -1;
-	}
-
-	@Override
-	public Map<String, String> copyToMap() {
-		return Map.of();
-	}
-
-}
-
 record OneArgLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
 		String message, KeyValues keyValues, @Nullable Object arg1) implements LogEvent {
 
@@ -256,7 +205,8 @@ record OneArgLogEvent(Instant timeStamp, String threadName, long threadId, Syste
 	public LogEvent freeze() {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
-		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(), keyValues, null);
+		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(),
+				keyValues.freeze(), null);
 	}
 
 }
@@ -279,7 +229,8 @@ record TwoArgLogEvent(Instant timeStamp, String threadName, long threadId, Syste
 	public LogEvent freeze() {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
-		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(), keyValues, null);
+		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(),
+				keyValues.freeze(), null);
 	}
 }
 
@@ -301,7 +252,8 @@ record ArrayArgLogEvent(Instant timeStamp, String threadName, long threadId, Sys
 	public LogEvent freeze() {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
-		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(), keyValues, null);
+		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(),
+				keyValues.freeze(), null);
 	}
 }
 
@@ -326,6 +278,10 @@ record DefaultLogEvent(Instant timeStamp, String threadName, long threadId, Syst
 	}
 
 	public LogEvent freeze() {
+		if (keyValues instanceof MutableKeyValues mkvs) {
+			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,
+					throwable);
+		}
 		return this;
 	}
 

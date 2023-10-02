@@ -1,15 +1,16 @@
 package io.jstach.rainbowgum.router;
 
+import java.lang.System.Logger.Level;
 import java.util.AbstractCollection;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import io.jstach.rainbowgum.Errors;
 import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
 
 public class BlockingQueueRouter implements AsyncLogRouter {
@@ -50,6 +51,11 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 	}
 
 	@Override
+	public boolean isEnabled(String loggerName, Level level) {
+		return this.levelResolver.isEnabled(loggerName, level);
+	}
+
+	@Override
 	public void log(LogEvent event) {
 		queue.offer(event);
 	}
@@ -64,7 +70,7 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 			worker.join(1000);
 		}
 		catch (InterruptedException e) {
-			LogRouter.error(BlockingQueueRouter.class, e);
+			Errors.error(BlockingQueueRouter.class, e);
 		}
 		finally {
 			tool.unmaskInterruptFlag();
@@ -108,7 +114,7 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 					break;
 				}
 				catch (Exception e) {
-					LogRouter.error(BlockingQueueRouter.class, e);
+					Errors.error(BlockingQueueRouter.class, e);
 				}
 			}
 			drain();
