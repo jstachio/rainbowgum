@@ -329,7 +329,8 @@ public sealed interface LogFormatter {
 			sb.append(s, 0, n);
 			return;
 		}
-		spacePad(sb, length - n);
+		sb.append(s);
+		spacePad(sb, n - length);
 	}
 
 	static String[] SPACES = { " ", "  ", "    ", "        ", // 1,2,4,8 spaces

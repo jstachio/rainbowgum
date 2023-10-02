@@ -43,3 +43,7 @@ build
 
 #VS code
 .vscode
+
+#Log files
+
+*.log
