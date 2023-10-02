@@ -128,10 +128,6 @@ public sealed interface LogEvent {
 
 		public KeyValues keyValues();
 
-		default StringBuilder createMessageBuffer(String message) {
-			return new StringBuilder();
-		}
-
 		default MessageFormatType formatType() {
 			return MessageFormatType.SLF4J;
 		}

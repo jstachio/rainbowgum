@@ -134,7 +134,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 	 * Get the current thread's MDC as a map. This method is intended to be used
 	 * internally.
 	 */
-	public @Nullable MutableKeyValues getPropertyMap() {
+	public @Nullable MutableKeyValues getMutableKeyValues() {
 		lastOperation.set(MAP_COPY_OPERATION);
 		return copyOnThreadLocal.get();
 	}
@@ -144,7 +144,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 	 */
 	@Nullable
 	public Set<String> getKeys() {
-		MutableKeyValues map = getPropertyMap();
+		MutableKeyValues map = getMutableKeyValues();
 
 		if (map != null) {
 			return map.copyToMap().keySet();
