@@ -7,7 +7,7 @@ public class SLF4JBenchmark {
 
 	public static void main(String[] args) {
 
-		final int SIZE = 100;
+		final int SIZE = 100_00;
 
 		long start = System.nanoTime();
 		Logger log = LoggerFactory.getLogger("test.BENCHMARK");

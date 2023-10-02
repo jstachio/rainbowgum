@@ -323,8 +323,34 @@ public sealed interface LogFormatter {
 
 	}
 
-	public static String padRight(String s, int n) {
-		return String.format("%-" + n + "s", s.substring(0, Math.min(s.length(), n)));
+	public static void padRight(StringBuilder sb, String s, int n) {
+		int length = s.length();
+		if (length >= n) {
+			sb.append(s, 0, n);
+			return;
+		}
+		spacePad(sb, length - n);
+	}
+
+	static String[] SPACES = { " ", "  ", "    ", "        ", // 1,2,4,8 spaces
+			"                ", // 16 spaces
+			"                                " }; // 32 spaces
+
+	/**
+	 * Fast space padding method.
+	 */
+	public static void spacePad(final StringBuilder sbuf, final int length) {
+		int l = length;
+		while (l >= 32) {
+			sbuf.append(SPACES[5]);
+			l -= 32;
+		}
+
+		for (int i = 4; i >= 0; i--) {
+			if ((l & (1 << i)) != 0) {
+				sbuf.append(SPACES[i]);
+			}
+		}
 	}
 
 }
@@ -386,8 +412,13 @@ enum DefaultThreadFormatter implements ThreadFormatter {
 	INSTANT;
 
 	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		LogFormatter.padRight(output, event.threadName(), 12);
+	}
+
+	@Override
 	public String formatThread(String threadName) {
-		return LogFormatter.padRight(threadName, 12);
+		return threadName;
 	}
 
 }

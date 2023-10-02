@@ -28,6 +28,33 @@ public sealed interface LogEvent {
 		return of(level, loggerName, formattedMessage, KeyValues.of(), throwable);
 	}
 
+	public static LogEvent of(System.Logger.Level level, String loggerName, String message, KeyValues keyValues,
+			Object arg1) {
+		Instant timeStamp = Instant.now();
+		Thread currentThread = Thread.currentThread();
+		String threadName = currentThread.getName();
+		long threadId = currentThread.getId();
+		return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, arg1);
+	}
+
+	public static LogEvent of(System.Logger.Level level, String loggerName, String message, KeyValues keyValues,
+			Object arg1, Object arg2) {
+		Instant timeStamp = Instant.now();
+		Thread currentThread = Thread.currentThread();
+		String threadName = currentThread.getName();
+		long threadId = currentThread.getId();
+		return new TwoArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, arg1, arg2);
+	}
+
+	public static LogEvent ofArgs(System.Logger.Level level, String loggerName, String message, KeyValues keyValues,
+			Object[] args) {
+		Instant timeStamp = Instant.now();
+		Thread currentThread = Thread.currentThread();
+		String threadName = currentThread.getName();
+		long threadId = currentThread.getId();
+		return new ArrayArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, args);
+	}
+
 	public Instant timeStamp();
 
 	public String threadName();
@@ -137,39 +164,24 @@ public sealed interface LogEvent {
 		}
 
 		default LogEvent event1(LEVEL level, String message, Object arg1) {
-			// if (arg1 instanceof Throwable t) {
-			// return event(level, message, t);
-			// }
-			StringBuilder sb = createMessageBuffer(message);
-			format(sb, message, arg1);
-			var formatted = sb.toString();
-			return event(level, formatted, null);
+			var sysLevel = translateLevel(level);
+			var loggerName = loggerName();
+			var keyValues = keyValues();
+			return LogEvent.of(sysLevel, loggerName, message, keyValues, arg1);
 		}
 
 		default LogEvent event2(LEVEL level, String message, Object arg1, Object arg2) {
-			// if (arg2 instanceof Throwable t) {
-			// StringBuilder sb = createMessageBuffer(message);
-			// format(sb, message, arg1);
-			// var formatted = sb.toString();
-			// return event(level, formatted, t);
-			// }
-			StringBuilder sb = createMessageBuffer(message);
-			format(sb, message, arg1, arg2);
-			var formatted = sb.toString();
-			return event(level, formatted, null);
+			var sysLevel = translateLevel(level);
+			var loggerName = loggerName();
+			var keyValues = keyValues();
+			return LogEvent.of(sysLevel, loggerName, message, keyValues, arg1, arg2);
 		}
 
 		default LogEvent eventArray(LEVEL level, String message, Object[] args) {
-			// Throwable throwable = getThrowable(args);
-			// if (throwable != null) {
-			// args = MessageFormatter.trimmedCopy(args);
-			// }
-
-			StringBuilder sb = createMessageBuffer(message);
-			formatArray(sb, message, args);
-
-			var formatted = sb.toString();
-			return event(level, formatted, null);
+			var sysLevel = translateLevel(level);
+			var loggerName = loggerName();
+			var keyValues = keyValues();
+			return LogEvent.ofArgs(sysLevel, loggerName, message, keyValues, args);
 		}
 
 	}
@@ -230,7 +242,7 @@ record OneArgLogEvent(Instant timeStamp, String threadName, long threadId, Syste
 		String message, KeyValues keyValues, @Nullable Object arg1) implements LogEvent {
 
 	public void formattedMessage(StringBuilder sb) {
-		formatType().format(sb, message, sb);
+		formatType().format(sb, message, arg1);
 	}
 
 	public int argCount() {
@@ -253,11 +265,33 @@ record TwoArgLogEvent(Instant timeStamp, String threadName, long threadId, Syste
 		String message, KeyValues keyValues, @Nullable Object arg1, @Nullable Object arg2) implements LogEvent {
 
 	public void formattedMessage(StringBuilder sb) {
-		formatType().format(sb, message, sb);
+		formatType().format(sb, message, arg1, arg2);
 	}
 
 	public int argCount() {
 		return 2;
+	}
+
+	public @Nullable Throwable throwable() {
+		return null;
+	}
+
+	public LogEvent freeze() {
+		StringBuilder sb = new StringBuilder(message.length());
+		formattedMessage(sb);
+		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, sb.toString(), keyValues, null);
+	}
+}
+
+record ArrayArgLogEvent(Instant timeStamp, String threadName, long threadId, System.Logger.Level level,
+		String loggerName, String message, KeyValues keyValues, Object[] args) implements LogEvent {
+
+	public void formattedMessage(StringBuilder sb) {
+		formatType().formatArray(sb, message, args);
+	}
+
+	public int argCount() {
+		return args.length;
 	}
 
 	public @Nullable Throwable throwable() {

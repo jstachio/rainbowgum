@@ -111,7 +111,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		// Append current thread name if so configured
 		if (!threadFormatter.isNoop()) {
 			output.append("[");
-			output.append(threadFormatter.formatThread(logEvent.threadName()));
+			threadFormatter.format(output, logEvent);
 			output.append("]");
 			output.append(" ");
 		}
