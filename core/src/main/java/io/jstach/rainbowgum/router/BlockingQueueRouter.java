@@ -13,7 +13,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
 
-public class BlockingQueueRouter implements AsyncLogRouter {
+public final class BlockingQueueRouter implements AsyncLogRouter {
 
 	private final BlockingQueue<LogEvent> queue;
 
@@ -32,7 +32,7 @@ public class BlockingQueueRouter implements AsyncLogRouter {
 		return new BlockingQueueRouter(appender, levelResolver, queue, bufferSize);
 	}
 
-	public BlockingQueueRouter(LogAppender appender, LevelResolver levelResolver, BlockingQueue<LogEvent> queue,
+	private BlockingQueueRouter(LogAppender appender, LevelResolver levelResolver, BlockingQueue<LogEvent> queue,
 			int bufferSize) {
 		super();
 		if (bufferSize <= 0) {
