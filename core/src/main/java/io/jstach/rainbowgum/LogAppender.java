@@ -28,6 +28,12 @@ public interface LogAppender extends AutoCloseable {
 	}
 
 	public static LogAppender of(List<? extends LogAppender> appenders) {
+		if (appenders.isEmpty()) {
+			throw new IllegalArgumentException("A single appender is required");
+		}
+		if (appenders.size() == 1) {
+			return appenders.get(0);
+		}
 		return new CompositeLogAppender(appenders.toArray(new LogAppender[] {}));
 	}
 
@@ -66,8 +72,7 @@ public interface LogAppender extends AutoCloseable {
 	}
 
 	@Override
-	default void close() {
-	}
+	public void close();
 
 }
 
@@ -101,7 +106,7 @@ final class DefaultLogAppender implements LogAppender {
 
 	protected final LogFormatter formatter;
 
-	protected final StringBuilder sb = new StringBuilder();
+	protected final StringBuilder buffer = new StringBuilder();
 
 	protected final int maxStringBuilderSize = Defaults.maxStringBuilderSize.getAsInt();
 
@@ -113,13 +118,13 @@ final class DefaultLogAppender implements LogAppender {
 
 	@Override
 	public void append(LogEvent event) {
-		boolean shrink = sb.length() > maxStringBuilderSize;
-		sb.setLength(0);
-		formatter.format(sb, event);
-		output.write(event, sb.toString());
+		boolean shrink = buffer.length() > maxStringBuilderSize;
+		buffer.setLength(0);
+		formatter.format(buffer, event);
+		output.write(event, buffer.toString());
 		output.flush();
-		if (shrink && sb.length() < maxStringBuilderSize) {
-			sb.trimToSize();
+		if (shrink && buffer.length() < maxStringBuilderSize) {
+			buffer.trimToSize();
 		}
 
 	}

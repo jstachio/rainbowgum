@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -133,11 +134,20 @@ public interface LevelResolver {
 		}
 
 		protected LevelResolver buildLevelResolver() {
-			if (levels.isEmpty()) {
-				level(Level.INFO);
+			return buildLevelResolver(null);
+		}
+
+		protected LevelResolver buildLevelResolver(@Nullable LevelResolver globalLevelResolver) {
+			var copyLevels = new LinkedHashMap<>(levels);
+			if (copyLevels.isEmpty()) {
+				copyLevels.put("", Level.INFO);
 			}
-			resolvers.add(0, LevelResolver.of(levels));
-			var combined = LevelResolver.of(resolvers);
+			var copyResolvers = new ArrayList<>(resolvers);
+			copyResolvers.add(0, LevelResolver.of(copyLevels));
+			if (globalLevelResolver != null) {
+				copyResolvers.add(globalLevelResolver);
+			}
+			var combined = LevelResolver.of(copyResolvers);
 			if (levelResolverCached) {
 				return LevelResolver.cached(combined);
 			}
@@ -273,6 +283,11 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 	}
 
 	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + Arrays.asList(resolvers);
+	}
+
+	@Override
 	public Level resolveLevel(String name) {
 		var lowestLevel = Level.OFF;
 		for (var resolver : resolvers) {
@@ -310,6 +325,11 @@ class CachedLevelResolver implements LevelResolver {
 			return level;
 		}
 		return levelCache.computeIfAbsent(name, n -> levelResolver.resolveLevel(name));
+	}
+
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + "[" + levelResolver + "]";
 	}
 
 }

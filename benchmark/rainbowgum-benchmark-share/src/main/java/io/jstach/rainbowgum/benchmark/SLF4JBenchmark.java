@@ -7,7 +7,13 @@ public class SLF4JBenchmark {
 
 	public static void main(String[] args) {
 
-		final int SIZE = 100_00;
+		final int SIZE;
+		if (args.length == 0) {
+			SIZE = 2;
+		}
+		else {
+			SIZE = Integer.parseInt(args[0]);
+		}
 
 		long start = System.nanoTime();
 		Logger log = LoggerFactory.getLogger("test.BENCHMARK");

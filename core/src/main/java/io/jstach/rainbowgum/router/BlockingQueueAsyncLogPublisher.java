@@ -1,25 +1,21 @@
 package io.jstach.rainbowgum.router;
 
-import java.lang.System.Logger.Level;
 import java.util.AbstractCollection;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import io.jstach.rainbowgum.Errors;
-import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogRouter.AsyncLogRouter;
+import io.jstach.rainbowgum.LogPublisher;
 
-public final class BlockingQueueRouter implements AsyncLogRouter {
+public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncLogPublisher {
 
 	private final BlockingQueue<LogEvent> queue;
 
 	private final LogAppender appender;
-
-	private final LevelResolver levelResolver;
 
 	private volatile boolean running = false;
 
@@ -27,32 +23,20 @@ public final class BlockingQueueRouter implements AsyncLogRouter {
 
 	private final Worker worker;
 
-	public static BlockingQueueRouter of(LogAppender appender, LevelResolver levelResolver, int bufferSize) {
+	public static BlockingQueueAsyncLogPublisher of(LogAppender appender, int bufferSize) {
 		BlockingQueue<LogEvent> queue = new ArrayBlockingQueue<>(bufferSize);
-		return new BlockingQueueRouter(appender, levelResolver, queue, bufferSize);
+		return new BlockingQueueAsyncLogPublisher(appender, queue, bufferSize);
 	}
 
-	private BlockingQueueRouter(LogAppender appender, LevelResolver levelResolver, BlockingQueue<LogEvent> queue,
-			int bufferSize) {
+	private BlockingQueueAsyncLogPublisher(LogAppender appender, BlockingQueue<LogEvent> queue, int bufferSize) {
 		super();
 		if (bufferSize <= 0) {
 			throw new IllegalArgumentException("buffer size should be greater than 0");
 		}
 		this.appender = appender;
-		this.levelResolver = levelResolver;
 		this.queue = queue;
 		this.bufferSize = bufferSize;
 		this.worker = new Worker();
-	}
-
-	@Override
-	public LevelResolver levelResolver() {
-		return this.levelResolver;
-	}
-
-	@Override
-	public boolean isEnabled(String loggerName, Level level) {
-		return this.levelResolver.isEnabled(loggerName, level);
 	}
 
 	@Override
@@ -70,7 +54,7 @@ public final class BlockingQueueRouter implements AsyncLogRouter {
 			worker.join(1000);
 		}
 		catch (InterruptedException e) {
-			Errors.error(BlockingQueueRouter.class, e);
+			Errors.error(BlockingQueueAsyncLogPublisher.class, e);
 		}
 		finally {
 			tool.unmaskInterruptFlag();
@@ -88,7 +72,7 @@ public final class BlockingQueueRouter implements AsyncLogRouter {
 		}
 
 		worker.setDaemon(true);
-		worker.setName(BlockingQueueRouter.class.getSimpleName());
+		worker.setName(BlockingQueueAsyncLogPublisher.class.getSimpleName());
 		running = true;
 		worker.start();
 	}
@@ -114,7 +98,7 @@ public final class BlockingQueueRouter implements AsyncLogRouter {
 					break;
 				}
 				catch (Exception e) {
-					Errors.error(BlockingQueueRouter.class, e);
+					Errors.error(BlockingQueueAsyncLogPublisher.class, e);
 				}
 			}
 			drain();

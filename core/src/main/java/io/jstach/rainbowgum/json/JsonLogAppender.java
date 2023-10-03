@@ -164,11 +164,11 @@ public class JsonLogAppender implements LogAppender {
 		if (prettyprint) {
 			raw.writeAscii("\n");
 		}
-		if ((flag & EXTENDED_F) == EXTENDED_F) {
-			k = "_" + k;
-		}
 		if (prettyprint) {
 			raw.writeAscii(" ");
+		}
+		if ((flag & EXTENDED_F) == EXTENDED_F) {
+			raw.writeAsciiString("_");
 		}
 		raw.writeAsciiString(k);
 		raw.writeByte(SEMI);
@@ -196,12 +196,9 @@ public class JsonLogAppender implements LogAppender {
 		return r;
 	}
 
-	// protected String throwableToString(
-	// @Nullable Throwable t,
-	// @Nullable PrintStream targetStream) {
-	// if (t != null && targetStream != null) {
-	// t.printStackTrace(targetStream);
-	// }
-	// }
+	@Override
+	public void close() {
+		out.close();
+	}
 
 }

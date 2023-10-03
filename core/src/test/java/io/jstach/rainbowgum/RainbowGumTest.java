@@ -15,7 +15,11 @@ class RainbowGumTest {
 		var gum = RainbowGum.builder().build();
 		gum.start();
 		gum.router().log("stuff", Level.INFO, "Stuff");
-		assertTrue(gum.router().isEnabled("stuff", Level.WARNING));
+		var router = gum.router();
+		var level = router.levelResolver().resolveLevel("stuff");
+		System.out.println(level);
+		boolean actual = router.isEnabled("stuff", Level.WARNING);
+		assertTrue(actual);
 		assertFalse(gum.router().isEnabled("stuff", Level.DEBUG));
 
 	}
@@ -56,16 +60,18 @@ class RainbowGumTest {
 		// var logFile = config.outputProvider().of(URI.create("target/my.log"));
 		//
 		// var f = LogAppender.builder() //
-		// .formatter((StringBuilder sb, LogEvent e) -> {
-		// sb.append(e.level());
-		// sb.append(" ");
-		// sb.append(e.formattedMessage());
+		// .formatter((StringBuilder buffer, LogEvent e) -> {
+		// buffer.append(e.level());
+		// buffer.append(" ");
+		// buffer.append(e.formattedMessage());
 		// })
 		// .output(logFile)
 		// .build();
 
-		try (RainbowGum gum = RainbowGum.builder().async(r -> {
-			r.appender(sysout);
+		try (var gum = RainbowGum.builder().route(r -> {
+			r.async(publisher -> {
+				publisher.appender(sysout);
+			});
 			r.level("stuff", Level.WARNING);
 		}).build()) {
 

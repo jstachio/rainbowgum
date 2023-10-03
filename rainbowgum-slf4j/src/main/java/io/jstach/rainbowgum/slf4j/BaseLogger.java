@@ -46,7 +46,7 @@ interface BaseLogger extends EventCreator<Level>, Logger {
 	default void handle(Level level, String format, Object arg) {
 		handle(event1(level, format, arg));
 	}
-	
+
 	default void handle(Level level, String format, Object arg1, Object arg2) {
 		handle(event2(level, format, arg1, arg2));
 	}
