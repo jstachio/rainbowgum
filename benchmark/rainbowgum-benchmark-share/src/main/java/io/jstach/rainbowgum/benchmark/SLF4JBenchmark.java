@@ -1,9 +1,13 @@
 package io.jstach.rainbowgum.benchmark;
 
+import java.util.concurrent.Executors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SLF4JBenchmark {
+
+	private static boolean preinit = true;
 
 	public static void main(String[] args) {
 
@@ -12,23 +16,39 @@ public class SLF4JBenchmark {
 			SIZE = 2;
 		}
 		else {
-			SIZE = Integer.parseInt(args[0]);
+			SIZE = Integer.parseInt(args[0].replace("_", ""));
+		}
+
+		if (preinit) {
+			LoggerFactory.getLogger("test.BENCHMARK").debug("asdfsaf");
 		}
 
 		long start = System.nanoTime();
-		Logger log = LoggerFactory.getLogger("test.BENCHMARK");
-
-		for (int i = 0; i < SIZE; i++) {
-			log.info("message");
-			log.info("message {}", "one");
-			log.info("message {} {}", "one", "two");
-			log.debug("message");
-			log.debug("message {}", "one");
-			log.debug("message {} {}", "one", "two");
-		}
+		runVirtualThreads(SIZE);
 
 		long duration = System.nanoTime() - start;
 		System.out.println("DURATION: " + duration);
+	}
+
+	public static void runSingleThread(final int SIZE) {
+		Logger log = LoggerFactory.getLogger("test.BENCHMARK");
+
+		for (int i = 0; i < SIZE; i++) {
+			log.error("message");
+			log.error("message {}", "one");
+			log.error("message {} {}", "one", "two");
+		}
+	}
+
+	public static void runVirtualThreads(final int SIZE) {
+
+		// force initialization
+
+		try (var exec = Executors.newVirtualThreadPerTaskExecutor()) {
+			for (int i = 0; i < SIZE; i++) {
+				exec.execute(() -> SLF4JBenchmark.runSingleThread(10));
+			}
+		}
 	}
 
 }

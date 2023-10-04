@@ -72,7 +72,7 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 		if (!threadFormatter.isNoop()) {
 			buf.a(Attribute.INTENSITY_FAINT);
 			buf.a("[");
-			buf.append(threadFormatter.formatThread(logEvent.threadName()));
+			threadFormatter.format(output, logEvent);
 			buf.append("]");
 			buf.a(Attribute.RESET);
 			buf.a(" ");
