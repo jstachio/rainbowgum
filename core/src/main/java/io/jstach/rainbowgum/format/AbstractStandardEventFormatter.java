@@ -95,8 +95,8 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 
 	public void format(StringBuilder output, LogEvent logEvent) {
 
-		var level = logEvent.level();
 		var name = logEvent.loggerName();
+
 		@Nullable
 		Throwable t = logEvent.throwable();
 
@@ -115,7 +115,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		if (!levelFormatter.isNoop()) {
-			output.append(levelFormatter.format(level));
+			levelFormatter.format(output, logEvent);
 			output.append(' ');
 		}
 
