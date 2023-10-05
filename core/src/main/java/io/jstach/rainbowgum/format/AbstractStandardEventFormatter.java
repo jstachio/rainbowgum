@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum.format;
 
-import java.time.Instant;
-
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
@@ -98,14 +96,14 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	public void format(StringBuilder output, LogEvent logEvent) {
 
 		var level = logEvent.level();
-		var instant = logEvent.timeStamp();
 		var name = logEvent.loggerName();
 		@Nullable
 		Throwable t = logEvent.throwable();
 
 		// Append date-time if so configured
 
-		output.append(getFormattedDate(instant));
+		instantFormatter.format(output, logEvent);
+
 		output.append(' ');
 
 		// Append current thread name if so configured
@@ -141,11 +139,6 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		if (t != null) {
 			throwableFormatter.format(output, t);
 		}
-	}
-
-	private String getFormattedDate(Instant instant) {
-		String dateText = instantFormatter.format(instant);
-		return dateText;
 	}
 
 }

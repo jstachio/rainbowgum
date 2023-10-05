@@ -16,7 +16,7 @@ public sealed interface LogEvent {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
-		long threadId = currentThread.getId();
+		long threadId = currentThread.threadId();
 
 		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
 				throwable);
@@ -32,7 +32,7 @@ public sealed interface LogEvent {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
-		long threadId = currentThread.getId();
+		long threadId = currentThread.threadId();
 		return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, arg1);
 	}
 
@@ -41,7 +41,7 @@ public sealed interface LogEvent {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
-		long threadId = currentThread.getId();
+		long threadId = currentThread.threadId();
 		return new TwoArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, arg1, arg2);
 	}
 
@@ -50,7 +50,7 @@ public sealed interface LogEvent {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
-		long threadId = currentThread.getId();
+		long threadId = currentThread.threadId();
 		return new ArrayArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, args);
 	}
 

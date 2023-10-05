@@ -1,5 +1,9 @@
 package io.jstach.rainbowgum;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
 import io.jstach.rainbowgum.router.BlockingQueueAsyncLogPublisher;
 import io.jstach.rainbowgum.router.LockingSyncLogPublisher;
 
@@ -11,6 +15,42 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 	public void close();
 
+	abstract class AbstractBuilder<T> {
+
+		protected List<LogAppender> appenders = new ArrayList<>();
+
+		protected final LogConfig config;
+
+		protected AbstractBuilder(LogConfig config) {
+			super();
+			this.config = config;
+		}
+
+		public T appenders(List<LogAppender> appenders) {
+			this.appenders = appenders;
+			return self();
+		}
+
+		public T appender(Provider<? extends LogAppender> appender) {
+			this.appenders.add(appender.provide(config));
+			return self();
+		}
+
+		public T appender(Consumer<LogAppender.Builder> consumer) {
+			var builder = LogAppender.builder();
+			consumer.accept(builder);
+			this.appenders.add(builder.build().provide(config));
+			return self();
+		}
+
+		protected List<LogAppender> appenders() {
+			return this.appenders;
+		}
+
+		protected abstract T self();
+
+	}
+
 	non-sealed interface AsyncLogPublisher extends LogPublisher {
 
 		@Override
@@ -21,16 +61,16 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 			return false;
 		}
 
-		public static AsyncLogPublisher.Builder builder() {
-			return new Builder();
+		public static AsyncLogPublisher.Builder builder(LogConfig config) {
+			return new Builder(config);
 		}
 
-		public static class Builder extends LogRouter.AbstractBuilder<AsyncLogPublisher.Builder> {
+		public static class Builder extends AbstractBuilder<AsyncLogPublisher.Builder> {
 
 			private int bufferSize = 1024;
 
-			private Builder() {
-				super();
+			private Builder(LogConfig config) {
+				super(config);
 			}
 
 			public AsyncLogPublisher.Builder bufferSize(int bufferSize) {
@@ -53,8 +93,8 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 	non-sealed interface SyncLogPublisher extends LogPublisher {
 
-		public static SyncLogPublisher.Builder builder() {
-			return new Builder();
+		public static SyncLogPublisher.Builder builder(LogConfig config) {
+			return new Builder(config);
 		}
 
 		@Override
@@ -66,10 +106,10 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 			return true;
 		}
 
-		public static class Builder extends LogRouter.AbstractBuilder<SyncLogPublisher.Builder> {
+		public static class Builder extends AbstractBuilder<SyncLogPublisher.Builder> {
 
-			private Builder() {
-				super();
+			private Builder(LogConfig config) {
+				super(config);
 			}
 
 			@Override

@@ -201,11 +201,11 @@ public sealed interface LogFormatter {
 
 	public non-sealed interface InstantFormatter extends LogFormatter {
 
-		String format(Instant instant);
+		void formatTimestamp(StringBuilder output, Instant instant);
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			output.append(format(event.timeStamp()));
+			formatTimestamp(output, event.timeStamp());
 		}
 
 		public static InstantFormatter of() {
@@ -298,8 +298,7 @@ public sealed interface LogFormatter {
 		}
 
 		@Override
-		public String format(Instant instant) {
-			return "";
+		public void formatTimestamp(StringBuilder output, Instant instant) {
 		}
 
 		@Override
@@ -414,7 +413,8 @@ enum DefaultThreadFormatter implements ThreadFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
-		LogFormatter.padRight(output, event.threadName(), 12);
+		// LogFormatter.padRight(output, event.threadName(), 12);
+		output.append(event.threadName());
 	}
 
 	@Override
@@ -432,15 +432,17 @@ enum DefaultInstantFormatter implements InstantFormatter {
 		.withZone(ZoneId.from(ZoneOffset.UTC));
 
 	@Override
-	public String format(Instant instant) {
-		return formatter.format(instant);
+	public void formatTimestamp(StringBuilder output, Instant instant) {
+		formatter.formatTo(instant, output);
 	}
 
 }
 
 record DateTimeFormatterInstantFormatter(DateTimeFormatter dateTimeFormatter) implements InstantFormatter {
-	public String format(Instant instant) {
-		return dateTimeFormatter.format(instant);
+
+	@Override
+	public void formatTimestamp(StringBuilder output, Instant instant) {
+		dateTimeFormatter.formatTo(instant, output);
 	}
 }
 

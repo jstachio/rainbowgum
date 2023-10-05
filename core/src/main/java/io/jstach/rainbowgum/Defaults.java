@@ -96,4 +96,15 @@ public enum Defaults {
 		return LogConfig.of();
 	};
 
+	public static LogAppenderProvider logAppender = (config, output, formatter) -> {
+		return new DefaultLogAppender(output, formatter);
+		// return new VirtualThreadLogAppender(output, formatter);
+	};
+
+	public interface LogAppenderProvider {
+
+		public LogAppender provide(LogConfig config, LogOutput output, LogFormatter formatter);
+
+	}
+
 }

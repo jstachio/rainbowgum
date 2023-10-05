@@ -25,6 +25,7 @@ public class SLF4JBenchmark {
 
 		long start = System.nanoTime();
 		runVirtualThreads(SIZE);
+		// runSingleThread(SIZE);
 
 		long duration = System.nanoTime() - start;
 		System.out.println("DURATION: " + duration);
@@ -35,8 +36,12 @@ public class SLF4JBenchmark {
 
 		for (int i = 0; i < SIZE; i++) {
 			log.error("message");
-			log.error("message {}", "one");
-			log.error("message {} {}", "one", "two");
+			// log.error("message {}", "one");
+			// log.error("message {} {}", "one", "two");
+			//
+			// log.trace("message");
+			// log.trace("message {}", "one");
+			// log.trace("message {} {}", "one", "two");
 		}
 	}
 

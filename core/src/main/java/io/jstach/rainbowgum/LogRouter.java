@@ -39,46 +39,6 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 		GlobalLogRouter.INSTANCE.drain(router);
 	}
 
-	abstract class AbstractBuilder<T> {
-
-		protected List<LogAppender> appenders = new ArrayList<>();
-
-		protected AbstractBuilder() {
-			super();
-		}
-
-		public T appenders(List<LogAppender> appenders) {
-			this.appenders = appenders;
-			return self();
-		}
-
-		public T appender(LogAppender appender) {
-			this.appenders.add(appender);
-			return self();
-		}
-
-		public T appender(Consumer<LogAppender.Builder> consumer) {
-			var builder = LogAppender.builder();
-			consumer.accept(builder);
-			this.appenders.add(builder.build());
-			return self();
-		}
-
-		protected List<LogAppender> appenders() {
-			return this.appenders;
-		}
-
-		// protected List<LogAppender> copyAppenders() {
-		// ArrayList<LogAppender> copy = new ArrayList<>(this.appenders);
-		// if (copy.isEmpty()) {
-		// copy.add
-		// }
-		// return copy;
-		// }
-		protected abstract T self();
-
-	}
-
 	public sealed interface RootRouter extends LogRouter {
 
 		void start(LogConfig config);
@@ -177,13 +137,13 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 			}
 
 			public Builder sync(Consumer<LogPublisher.SyncLogPublisher.Builder> consumer) {
-				var builder = LogPublisher.SyncLogPublisher.builder();
+				var builder = LogPublisher.SyncLogPublisher.builder(config);
 				consumer.accept(builder);
 				return publisher(builder.build());
 			}
 
 			public Builder async(Consumer<LogPublisher.AsyncLogPublisher.Builder> consumer) {
-				var builder = LogPublisher.AsyncLogPublisher.builder();
+				var builder = LogPublisher.AsyncLogPublisher.builder(config);
 				consumer.accept(builder);
 				return publisher(builder.build());
 			}
@@ -193,7 +153,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 				var publisher = this.publisher;
 				if (publisher == null) {
 					publisher = LogPublisher.SyncLogPublisher //
-						.builder() //
+						.builder(config) //
 						.appender(LogAppender.builder().output(LogOutput.ofStandardOut()).build())
 						.build();
 				}

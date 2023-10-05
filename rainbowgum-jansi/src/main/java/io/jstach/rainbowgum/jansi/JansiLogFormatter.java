@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum.jansi;
 
 import java.lang.System.Logger.Level;
-import java.time.Instant;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.fusesource.jansi.Ansi;
@@ -53,7 +52,6 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 	public void format(StringBuilder output, LogEvent logEvent) {
 
 		var level = logEvent.level();
-		var instant = logEvent.timeStamp();
 		var name = logEvent.loggerName();
 		@Nullable
 		Throwable t = logEvent.throwable();
@@ -64,7 +62,7 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 		// Append date-time if so configured
 
 		buf.fg(Color.CYAN);
-		buf.a(getFormattedDate(instant));
+		instantFormatter.format(output, logEvent);
 		buf.fg(Color.DEFAULT);
 		buf.a(' ');
 
@@ -133,11 +131,6 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 				break;
 		}
 		return ansi.a(levelStr).fg(Color.DEFAULT).a(Attribute.RESET).a("");
-	}
-
-	private String getFormattedDate(Instant instant) {
-		String dateText = instantFormatter.format(instant);
-		return dateText;
 	}
 
 }
