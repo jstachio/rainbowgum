@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.benchmark;
 
+import java.nio.channels.FileChannel;
 import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
@@ -24,15 +25,20 @@ public class SLF4JBenchmark {
 		}
 
 		long start = System.nanoTime();
-		runVirtualThreads(SIZE);
-		// runSingleThread(SIZE);
+		if (args.length == 0) {
+			runSingleThread(SIZE);
+		}
+		else {
+			runVirtualThreads(SIZE);
+		}
 
 		long duration = System.nanoTime() - start;
 		System.out.println("DURATION: " + duration);
 	}
 
+	static Logger log = LoggerFactory.getLogger("test.BENCHMARK");
+
 	public static void runSingleThread(final int SIZE) {
-		Logger log = LoggerFactory.getLogger("test.BENCHMARK");
 
 		for (int i = 0; i < SIZE; i++) {
 			log.error("message");
@@ -48,7 +54,6 @@ public class SLF4JBenchmark {
 	public static void runVirtualThreads(final int SIZE) {
 
 		// force initialization
-
 		try (var exec = Executors.newVirtualThreadPerTaskExecutor()) {
 			for (int i = 0; i < SIZE; i++) {
 				exec.execute(() -> SLF4JBenchmark.runSingleThread(10));

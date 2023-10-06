@@ -307,6 +307,13 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 
 }
 
+/*
+ * Revisit perf. ConcurrentHashMap based on benchmarks is incredibly slow for most cases
+ * and looping can be faster.
+ *
+ * Luckily level resolution is only called when a logger is created and the loggers are
+ * cached.
+ */
 class CachedLevelResolver implements LevelResolver {
 
 	private final LevelResolver levelResolver;

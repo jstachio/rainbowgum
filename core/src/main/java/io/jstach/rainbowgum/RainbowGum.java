@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import io.jstach.rainbowgum.LogRouter.RootRouter;
-import io.jstach.rainbowgum.LogRouter.Route;
+import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 public interface RainbowGum extends AutoCloseable {
@@ -46,19 +46,19 @@ public interface RainbowGum extends AutoCloseable {
 
 		private final LogConfig config;
 
-		private List<Route> routes = new ArrayList<>();
+		private List<Router> routes = new ArrayList<>();
 
 		private Builder(LogConfig config) {
 			this.config = config;
 		}
 
-		public Builder route(Route route) {
+		public Builder route(Router route) {
 			this.routes.add(route);
 			return this;
 		}
 
-		public Builder route(Consumer<Route.Builder> consumer) {
-			var builder = Route.builder(config);
+		public Builder route(Consumer<Router.Builder> consumer) {
+			var builder = Router.builder(config);
 			consumer.accept(builder);
 			return route(builder.build());
 		}
@@ -67,7 +67,7 @@ public interface RainbowGum extends AutoCloseable {
 			var routes = this.routes;
 			var config = this.config;
 			if (routes.isEmpty()) {
-				routes = List.of(Route.builder(config).build());
+				routes = List.of(Router.builder(config).build());
 			}
 			var root = RootRouter.of(routes, config.levelResolver());
 			return new SimpleRainbowGum(config, root);

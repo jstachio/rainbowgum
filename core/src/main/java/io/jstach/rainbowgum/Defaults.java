@@ -4,9 +4,11 @@ import java.util.EnumMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
+import io.jstach.rainbowgum.LogAppender.LockingLogAppender;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 
@@ -97,8 +99,13 @@ public enum Defaults {
 	};
 
 	public static LogAppenderProvider logAppender = (config, output, formatter) -> {
-		return new DefaultLogAppender(output, formatter);
-		// return new VirtualThreadLogAppender(output, formatter);
+		// return new DefaultLogAppender(output, formatter);
+		return new VirtualThreadLogAppender(output, formatter);
+		// return new SynchronizedLogAppender(output, formatter);
+	};
+
+	public static Function<LogAppender, LockingLogAppender> lockingAppender = (appender) -> {
+		return new SynchronizedLockingLogAppender(appender);
 	};
 
 	public interface LogAppenderProvider {

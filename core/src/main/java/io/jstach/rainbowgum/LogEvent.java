@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.System.Logger.Level;
 import java.time.Instant;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -20,6 +21,7 @@ public sealed interface LogEvent {
 
 		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
 				throwable);
+
 	}
 
 	public static LogEvent of(System.Logger.Level level, String loggerName, String formattedMessage,
@@ -179,6 +181,66 @@ public sealed interface LogEvent {
 			return LogEvent.ofArgs(sysLevel, loggerName, message, keyValues, args);
 		}
 
+	}
+
+}
+
+enum EmptyLogEvent implements LogEvent {
+
+	INFO() {
+		public Level level() {
+			return Level.INFO;
+		}
+	},
+	DEBUG() {
+		public Level level() {
+			return Level.DEBUG;
+		}
+	};
+
+	@Override
+	public Instant timeStamp() {
+		return null;
+	}
+
+	@Override
+	public String threadName() {
+		return null;
+	}
+
+	@Override
+	public long threadId() {
+		return 0;
+	}
+
+	@Override
+	public String loggerName() {
+		return "";
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb) {
+
+	}
+
+	@Override
+	public Throwable throwable() {
+		return null;
+	}
+
+	@Override
+	public KeyValues keyValues() {
+		return KeyValues.of();
+	}
+
+	@Override
+	public int argCount() {
+		return 0;
+	}
+
+	@Override
+	public LogEvent freeze() {
+		return this;
 	}
 
 }

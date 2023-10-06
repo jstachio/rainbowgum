@@ -15,12 +15,11 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
+import io.jstach.rainbowgum.LogRouter.Router;
 
-public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
+public sealed interface LogRouter extends AutoCloseable {
 
-	public boolean isEnabled(String loggerName, java.lang.System.Logger.Level level);
-
-	void log(LogEvent event);
+	public Route route(String loggerName, java.lang.System.Logger.Level level);
 
 	default void start(LogConfig config) {
 	}
@@ -39,17 +38,54 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 		GlobalLogRouter.INSTANCE.drain(router);
 	}
 
+	public interface Route extends LogEventLogger {
+
+		public boolean isEnabled();
+
+		public static Route of(List<? extends Route> routes) {
+			Route[] array = routes.stream().filter(Route::isEnabled).toList().toArray(new Route[] {});
+			if (array.length == 0) {
+				return Routes.NotFound;
+			}
+			if (array.length == 1) {
+				return array[0];
+			}
+			return new CompositeRoute(array);
+		}
+
+		public enum Routes implements Route {
+
+			NotFound {
+				@Override
+				public void log(LogEvent event) {
+				}
+
+				@Override
+				public boolean isEnabled() {
+					return false;
+				}
+			}
+
+		}
+
+	}
+
 	public sealed interface RootRouter extends LogRouter {
 
 		void start(LogConfig config);
 
 		public LevelResolver levelResolver();
 
+		default boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
+			return route(loggerName, level).isEnabled();
+		}
+
 		default void log(String loggerName, java.lang.System.Logger.Level level, String formattedMessage,
 				@Nullable Throwable cause) {
-			if (isEnabled(loggerName, level)) {
+			var route = route(loggerName, level);
+			if (route.isEnabled()) {
 				LogEvent event = LogEvent.of(level, loggerName, formattedMessage, cause);
-				log(event);
+				route.log(event);
 			}
 		}
 
@@ -57,16 +93,16 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 			log(loggerName, level, message, null);
 		}
 
-		public static RootRouter of(List<? extends Route> routes, LevelResolver levelResolver) {
+		public static RootRouter of(List<? extends Router> routes, LevelResolver levelResolver) {
 
 			if (routes.isEmpty()) {
 				throw new IllegalArgumentException("atleast one route is required");
 			}
-			List<Route> sorted = new ArrayList<>();
+			List<Router> sorted = new ArrayList<>();
 			/*
 			 * We add the async routers first
 			 */
-			Set<Route> matched = Collections.newSetFromMap(new IdentityHashMap<Route, Boolean>());
+			Set<Router> matched = Collections.newSetFromMap(new IdentityHashMap<Router, Boolean>());
 			for (var r : routes) {
 				if (!r.synchronous()) {
 					matched.add(r);
@@ -80,11 +116,11 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 			}
 
 			List<LevelResolver> resolvers = new ArrayList<>();
-			routes.stream().map(Route::levelResolver).forEach(resolvers::add);
+			routes.stream().map(Router::levelResolver).forEach(resolvers::add);
 			resolvers.add(levelResolver);
 			var globalLevelResolver = LevelResolver.of(resolvers);
 
-			Route[] array = routes.toArray(new Route[] {});
+			Router[] array = routes.toArray(new Router[] {});
 
 			if (array.length == 1 && array[0].synchronous()) {
 				return new SingleSyncRootRouter(array[0]);
@@ -94,7 +130,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 	}
 
-	public sealed interface Route extends LogEventLogger {
+	public sealed interface Router extends LogRouter, LogEventLogger {
 
 		LevelResolver levelResolver();
 
@@ -102,10 +138,6 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 		default boolean synchronous() {
 			return publisher().synchronous();
-		}
-
-		default boolean isEnabled(String name, Level level) {
-			return levelResolver().isEnabled(name, level);
 		}
 
 		default void log(LogEvent event) {
@@ -148,7 +180,7 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 				return publisher(builder.build());
 			}
 
-			public Route build() {
+			public Router build() {
 				var levelResolver = buildLevelResolver(config.levelResolver());
 				var publisher = this.publisher;
 				if (publisher == null) {
@@ -166,81 +198,114 @@ public sealed interface LogRouter extends LogEventLogger, AutoCloseable {
 
 }
 
-record SimpleRoute(LogPublisher publisher, LevelResolver levelResolver) implements Route {
-
-}
-
-record SingleSyncRootRouter(Route route) implements RootRouter {
-
-	@Override
-	public boolean isEnabled(String loggerName, Level level) {
-		return route.isEnabled(loggerName, level);
-	}
+record CompositeRoute(Route[] routes) implements Route {
 
 	@Override
 	public void log(LogEvent event) {
-		if (route.isEnabled(event.loggerName(), event.level())) {
-			route.log(event);
+		for (var r : routes) {
+			r.log(event);
 		}
 	}
 
 	@Override
+	public boolean isEnabled() {
+		return true;
+	}
+
+}
+
+record SimpleRoute(LogPublisher publisher, LevelResolver levelResolver) implements Router, Route {
+
+	@Override
+	public void close() {
+		publisher.close();
+	}
+
+	public Route route(String loggerName, java.lang.System.Logger.Level level) {
+		if (levelResolver().isEnabled(loggerName, level)) {
+			return this;
+		}
+		return Route.Routes.NotFound;
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return true;
+	}
+
+}
+
+record SingleSyncRootRouter(Router router) implements RootRouter {
+
+	@Override
 	public void start(LogConfig config) {
-		route.publisher().start(config);
+		router.start(config);
 	}
 
 	@Override
 	public void close() {
-		route.publisher().close();
+		router.close();
 	}
 
 	public LevelResolver levelResolver() {
-		return route.levelResolver();
+		return router.levelResolver();
+	}
+
+	@Override
+	public Route route(String loggerName, Level level) {
+		return router.route(loggerName, level);
 	}
 
 }
 
-record CompositeLogRouter(Route[] routes, LevelResolver levelResolver) implements RootRouter {
+record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) implements RootRouter, Route {
 
 	@Override
-	public boolean isEnabled(String loggerName, Level level) {
-		return levelResolver.isEnabled(loggerName, level);
-	}
-
-	@Override
-	public void log(LogEvent event) {
-		LogEvent frozen = null;
-		for (var r : routes) {
-			if (r.isEnabled(event.loggerName(), event.level())) {
-				if (frozen != null) {
-					r.log(frozen);
-
-				}
-				else if (!r.synchronous()) {
-					if (frozen == null) {
-						frozen = event.freeze();
-					}
-					r.log(frozen);
-				}
-				else {
-					r.log(event);
-				}
+	public Route route(String loggerName, Level level) {
+		for (var router : routers) {
+			if (router.route(loggerName, level).isEnabled()) {
+				return this;
 			}
 		}
+		return Routes.NotFound;
+	}
 
+	public void log(LogEvent event) {
+		for (var router : routers) {
+			var route = router.route(event.loggerName(), event.level());
+			if (route.isEnabled()) {
+				/*
+				 * We assume async routers are earlier in the array.
+				 */
+				if (!router.synchronous()) {
+					/*
+					 * Now all events are frozen from here onward to guarantee that the
+					 * synchronous routers see the same thing as the async routers.
+					 *
+					 * Freeze is a noop if it already frozen.
+					 */
+					event = event.freeze();
+				}
+				router.log(event);
+			}
+		}
+	}
+
+	public boolean isEnabled() {
+		return true;
 	}
 
 	@Override
 	public void start(LogConfig config) {
-		for (var r : routes) {
-			r.publisher().start(config);
+		for (var r : routers) {
+			r.start(config);
 		}
 	}
 
 	@Override
 	public void close() {
-		for (var r : routes) {
-			r.publisher().close();
+		for (var r : routers) {
+			r.close();
 		}
 	}
 }
@@ -266,7 +331,7 @@ enum FailsafeAppender implements LogAppender {
 
 }
 
-enum GlobalLogRouter implements RootRouter {
+enum GlobalLogRouter implements RootRouter, Route {
 
 	INSTANCE;
 
@@ -292,13 +357,53 @@ enum GlobalLogRouter implements RootRouter {
 	}
 
 	@Override
-	public boolean isEnabled(String loggerName, Level level) {
-		LogRouter d = delegate;
-		if (d != null) {
-			return d.isEnabled(loggerName, level);
-		}
-		return INFO_RESOLVER.isEnabled(loggerName, level);
+	public boolean isEnabled() {
+		return true;
 	}
+
+	@Override
+	public void log(LogEvent event) {
+		RootRouter d = delegate;
+		if (d != null) {
+			String loggerName = event.loggerName();
+			var level = event.level();
+			var route = d.route(event.loggerName(), event.level());
+			if (route.isEnabled()) {
+				route.log(event);
+			}
+			if (isShutdownEvent(loggerName, level)) {
+				d.close();
+			}
+		}
+		else {
+			events.add(event);
+			if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
+				Errors.error(event);
+			}
+		}
+
+	}
+
+	@Override
+	public Route route(String loggerName, Level level) {
+		RootRouter d = delegate;
+		if (d != null) {
+			return d.route(loggerName, level);
+		}
+		if (INFO_RESOLVER.isEnabled(loggerName, level)) {
+			return this;
+		}
+		return Routes.NotFound;
+	}
+
+	// @Override
+	// public boolean isEnabled(String loggerName, Level level) {
+	// RootRouter d = delegate;
+	// if (d != null) {
+	// return d.isEnabled(loggerName, level);
+	// }
+	// return INFO_RESOLVER.isEnabled(loggerName, level);
+	// }
 
 	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
 		RootRouter d = delegate;
@@ -323,9 +428,7 @@ enum GlobalLogRouter implements RootRouter {
 			this.delegate = Objects.requireNonNull(delegate);
 			LogEvent e;
 			while ((e = this.events.poll()) != null) {
-				if (delegate.isEnabled(e.loggerName(), e.level())) {
-					delegate.log(e);
-				}
+				delegate.route(e.loggerName(), e.level()).log(e);
 			}
 		}
 		finally {
@@ -333,18 +436,18 @@ enum GlobalLogRouter implements RootRouter {
 		}
 	}
 
-	@Override
-	public void log(LogEvent event) {
-		LogRouter d = delegate;
-		if (d != null) {
-			if (d.isEnabled(event.loggerName(), event.level())) {
-				d.log(event);
-			}
-		}
-		else {
-			events.add(event);
-		}
-	}
+	// @Override
+	// public void route(LogEvent event) {
+	// LogRouter d = delegate;
+	// if (d != null) {
+	// if (d.isEnabled(event.loggerName(), event.level())) {
+	// d.log(event);
+	// }
+	// }
+	// else {
+	// events.add(event);
+	// }
+	// }
 
 	@Override
 	public void start(LogConfig config) {
