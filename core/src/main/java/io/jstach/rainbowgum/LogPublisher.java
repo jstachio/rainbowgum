@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.router.BlockingQueueAsyncLogPublisher;
-import io.jstach.rainbowgum.router.LockingSyncLogPublisher;
 
 public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
@@ -118,11 +118,32 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 			}
 
 			public LogPublisher.SyncLogPublisher build() {
-				return new LockingSyncLogPublisher(LogAppender.of(appenders));
+				return new DefaultSyncLogPublisher(LogAppender.of(appenders));
 			}
 
 		}
 
+	}
+
+}
+
+final class DefaultSyncLogPublisher implements LogPublisher.SyncLogPublisher {
+
+	private final ThreadSafeLogAppender appender;
+
+	public DefaultSyncLogPublisher(LogAppender appender) {
+		super();
+		this.appender = ThreadSafeLogAppender.of(appender);
+	}
+
+	@Override
+	public void log(LogEvent event) {
+		appender.append(event);
+	}
+
+	@Override
+	public void close() {
+		appender.close();
 	}
 
 }

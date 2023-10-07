@@ -96,14 +96,15 @@ public interface LogOutput extends AutoCloseable, Flushable {
 	}
 
 	void close();
-	
+
 	public interface ThreadSafeLogOutput extends LogOutput {
-		
+
 	}
 
 }
 
 class SynchronizedLogOutput implements ThreadSafeLogOutput {
+
 	private final LogOutput output;
 
 	public SynchronizedLogOutput(LogOutput output) {
@@ -111,11 +112,7 @@ class SynchronizedLogOutput implements ThreadSafeLogOutput {
 	}
 
 	@Override
-	public synchronized void write(
-			LogEvent event,
-			byte[] bytes,
-			int off,
-			int len) {
+	public synchronized void write(LogEvent event, byte[] bytes, int off, int len) {
 		output.write(event, bytes, off, len);
 	}
 
@@ -128,9 +125,9 @@ class SynchronizedLogOutput implements ThreadSafeLogOutput {
 	public synchronized void close() {
 		output.close();
 	}
-	
-	
+
 }
+
 class FileChannelOutput implements LogOutput {
 
 	protected final FileChannel channel;

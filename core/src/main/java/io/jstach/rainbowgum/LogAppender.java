@@ -8,8 +8,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
-import io.jstach.rainbowgum.LogAppender.LockingLogAppender;
-import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
+import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
+import io.jstach.rainbowgum.LogEncoder.Buffer;
+import io.jstach.rainbowgum.LogEncoder.BufferProvider;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
@@ -88,13 +89,13 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 	@Override
 	public void close();
 
-	public interface LockingLogAppender extends LogAppender {
+	public interface ThreadSafeLogAppender extends LogAppender {
 
-		public static LockingLogAppender of(LogAppender appender) {
-			if (appender instanceof LockingLogAppender lo) {
+		public static ThreadSafeLogAppender of(LogAppender appender) {
+			if (appender instanceof ThreadSafeLogAppender lo) {
 				return lo;
 			}
-			return Defaults.lockingAppender.apply(appender);
+			return Defaults.threadSafeAppender.apply(appender);
 		}
 
 	}
@@ -103,10 +104,39 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 		protected final LogOutput output;
 
-		public AbstractLogAppender(LogOutput output) {
+		protected final LogEncoder encoder;
+
+		protected final BufferProvider bufferProvider;
+
+		public AbstractLogAppender(LogOutput output, LogEncoder encoder) {
 			super();
 			this.output = output;
+			this.encoder = encoder;
+			this.bufferProvider = BufferProvider.of();
 		}
+
+		@Override
+		public final void append(LogEvent event) {
+			try (var buffer = bufferProvider.provideBuffer()) {
+				append(event, buffer);
+			}
+		}
+
+		@Override
+		public final void append(LogEvent[] events, int count) {
+			try (var buffer = bufferProvider.provideBuffer()) {
+				append(events, count, buffer);
+			}
+		}
+
+		protected void append(LogEvent[] events, int count, Buffer buffer) {
+			for (int i = 0; i < count; i++) {
+				append(events[i], buffer);
+				buffer.clear();
+			}
+		}
+
+		protected abstract void append(LogEvent event, Buffer buffer);
 
 		@Override
 		public void close() {
@@ -114,71 +144,6 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		}
 
 	}
-	
-	class FormattingLogAppender extends AbstractLogAppender implements LockingLogAppender {
-
-		protected LogFormatter formatter;
-		
-		public FormattingLogAppender(
-				ThreadSafeLogOutput output, LogFormatter formatter) {
-			super(
-					output);
-			this.formatter = formatter;
-		}
-		
-		@Override
-		public final void append(
-				LogEvent event) {
-			var buffer = createBuffer();
-			int size = buffer.length();
-			append(event, createBuffer());
-			releaseBuffer(buffer, size);
-		}
-		
-		@Override
-		public final void append(
-				LogEvent[] events,
-				int count) {
-			var buffer = createBuffer();
-			int size = buffer.length();
-			append(events, count, buffer);
-			releaseBuffer(buffer, size);
-		}
-		
-		protected StringBuilder createBuffer() {
-			return new StringBuilder();
-		}
-		
-		protected void releaseBuffer(StringBuilder buffer, int originalSize) {
-		}
-		
-		public String format(LogEvent event, StringBuilder sb) {
-			this.formatter.format(sb, event);
-			return sb.toString();
-		}
-
-		protected void appendLocked(
-				LogEvent event, String formatted) {
-			output.write(event, formatted);
-		}
-		
-		protected void append(
-				LogEvent[] events,
-				int count,
-				StringBuilder sb) {
-			for (int i = 0; i < count; i++) {
-				sb.setLength(0);
-				append(events[i], sb);
-			}
-		}
-		
-		protected void append(
-				LogEvent event, StringBuilder sb) {
-			String formatted = format(event, sb);
-			appendLocked(event, formatted);
-		}
-	}
-	
 
 }
 
@@ -206,39 +171,13 @@ record CompositeLogAppender(LogAppender[] appenders) implements LogAppender {
 
 }
 
-class AbstractLockingLogAppender implements LockingLogAppender {
-
-	
-	@Override
-	public void append(
-			LogEvent[] events,
-			int count) {
-		// TODO Auto-generated method stub
-		LockingLogAppender.super.append(events, count);
-	}
-	
-	@Override
-	public void append(
-			LogEvent event) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void close() {
-		// TODO Auto-generated method stub
-		
-	}
-	
-}
-
-class DefaultLockingLogAppender implements LockingLogAppender {
+class LockingLogAppender implements ThreadSafeLogAppender {
 
 	private final LogAppender appender;
 
 	private final ReentrantLock lock = new ReentrantLock();
 
-	public DefaultLockingLogAppender(LogAppender appender) {
+	public LockingLogAppender(LogAppender appender) {
 		this.appender = appender;
 	}
 
@@ -273,74 +212,42 @@ class DefaultLockingLogAppender implements LockingLogAppender {
 
 }
 
-class SynchronizedLockingLogAppender implements LockingLogAppender {
-
-	private final LogAppender appender;
-
-	public SynchronizedLockingLogAppender(LogAppender appender) {
-		this.appender = appender;
-	}
-
-	@Override
-	public synchronized void append(LogEvent[] events, int count) {
-		appender.append(events, count);
-	}
-
-	@Override
-	public synchronized void append(LogEvent event) {
-		appender.append(event);
-	}
-
-	@Override
-	public void close() {
-		appender.close();
-	}
-
-}
-
 /*
  * The idea here is to have the virtual thread do the formatting outside of the lock
  */
-class VirtualThreadLogAppender extends AbstractLogAppender implements LockingLogAppender {
+final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
 
 	private final ReentrantLock lock = new ReentrantLock();
-	protected final LogFormatter formatter;
-	public VirtualThreadLogAppender(LogOutput output, LogFormatter formatter) {
-		super(output);
-		this.formatter = formatter;
+
+	public DefaultLogAppender(LogOutput output, LogEncoder encoder) {
+		super(output, encoder);
 	}
 
 	@Override
-	public void append(LogEvent[] events, int count) {
+	protected void append(LogEvent[] events, int count, Buffer buffer) {
 		lock.lock();
 		try {
-			StringBuilder sb = new StringBuilder();
 			for (int i = 0; i < count; i++) {
-				append(events[i], sb);
+				append(events[i], buffer);
+				buffer.clear();
 			}
 		}
 		finally {
 			lock.unlock();
 		}
+
 	}
 
-	private void append(LogEvent event, StringBuilder sb) {
-		formatter.format(sb, event);
-		String result = sb.toString();
+	protected void append(LogEvent event, Buffer buffer) {
+		encoder.encode(event, buffer);
 		lock.lock();
 		try {
-			output.write(event, result);
+			buffer.drain(output, event);
 			output.flush();
 		}
 		finally {
 			lock.unlock();
 		}
-	}
-
-	@Override
-	public void append(LogEvent event) {
-		StringBuilder sb = new StringBuilder();
-		append(event, sb);
 	}
 
 	@Override
@@ -356,7 +263,7 @@ class VirtualThreadLogAppender extends AbstractLogAppender implements LockingLog
 
 }
 
-final class DefaultLogAppender extends AbstractLogAppender {
+final class SimpleLogAppender implements LogAppender {
 
 	protected final LogFormatter formatter;
 
@@ -364,8 +271,10 @@ final class DefaultLogAppender extends AbstractLogAppender {
 
 	protected final int maxStringBuilderSize = Defaults.maxStringBuilderSize.getAsInt();
 
-	public DefaultLogAppender(LogOutput output, LogFormatter formatter) {
-		super(output);
+	protected final LogOutput output;
+
+	public SimpleLogAppender(LogOutput output, LogFormatter formatter) {
+		this.output = output;
 		this.formatter = formatter;
 	}
 

@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum.benchmark;
 
-import java.nio.channels.FileChannel;
 import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
@@ -33,10 +32,28 @@ public class SLF4JBenchmark {
 		}
 
 		long duration = System.nanoTime() - start;
-		System.out.println("DURATION: " + duration);
+
+		System.out.println("DURATION: " + formatNano(duration));
 	}
 
 	static Logger log = LoggerFactory.getLogger("test.BENCHMARK");
+
+	// fun fact ... chatgpt wrote this bs for me
+	static String formatNano(long nano) {
+		String input = String.valueOf(nano);
+
+		int length = input.length();
+		StringBuilder result = new StringBuilder();
+
+		for (int i = length - 1; i >= 0; i--) {
+			result.append(input.charAt(i));
+			if ((length - i) % 3 == 0 && i != 0) {
+				result.append('_');
+			}
+		}
+
+		return result.reverse().toString();
+	}
 
 	public static void runSingleThread(final int SIZE) {
 
