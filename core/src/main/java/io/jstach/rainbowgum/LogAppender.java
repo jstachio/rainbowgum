@@ -33,6 +33,13 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 	public void append(LogEvent event);
 
+	public interface AppenderProvider {
+		LogAppender provide(LogConfig config);
+		public static Builder builder() {
+			return LogAppender.builder();
+		}
+	}
+	
 	public static Builder builder() {
 		return new Builder();
 	}
@@ -71,17 +78,15 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 			return this;
 		}
 
-		public Provider<LogAppender> build() {
+		public AppenderProvider build() {
 			var _output = output;
 			var _formatter = formatter;
-			return config -> {
-				var f = _formatter;
-				var o = _output;
-				if (_formatter == null) {
-					f = Defaults.formatterForOutputType(o.type());
-				}
-				return Defaults.logAppender.provide(config, requireNonNull(o), requireNonNull(f));
-			};
+			var f = _formatter;
+			var o = _output;
+			if (_formatter == null) {
+				f = Defaults.formatterForOutputType(o.type());
+			}
+			return Defaults.logAppender.provide(requireNonNull(o), requireNonNull(f));
 		}
 
 	}
@@ -108,11 +113,20 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 		protected final BufferProvider bufferProvider;
 
-		public AbstractLogAppender(LogOutput output, LogEncoder encoder) {
+		
+		public AbstractLogAppender(LogOutput output, LogEncoder encoder, BufferProvider bufferProvider) {
 			super();
 			this.output = output;
 			this.encoder = encoder;
-			this.bufferProvider = BufferProvider.of();
+			this.bufferProvider = bufferProvider;
+		}
+		
+		
+
+		public AbstractLogAppender(
+				LogOutput output,
+				LogEncoder encoder) {
+			this(output, encoder, BufferProvider.of());
 		}
 
 		@Override

@@ -8,7 +8,7 @@ import io.jstach.rainbowgum.benchmark.SLF4JBenchmark;
 public class Main {
 
 	public static void main(String[] args) {
-		Defaults.logAppender = (config, output, format) -> SynchronizedLogAppender.of(output, LogEncoder.of(format));
+		Defaults.logAppender = (output, format) -> config -> SynchronizedLogAppender.of(output, LogEncoder.of(format));
 		SLF4JBenchmark.main(args);
 	}
 

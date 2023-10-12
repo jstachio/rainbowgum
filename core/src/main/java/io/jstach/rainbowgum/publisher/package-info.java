@@ -1,2 +1,2 @@
 @org.eclipse.jdt.annotation.NonNullByDefault
-package io.jstach.rainbowgum.router;
+package io.jstach.rainbowgum.publisher;

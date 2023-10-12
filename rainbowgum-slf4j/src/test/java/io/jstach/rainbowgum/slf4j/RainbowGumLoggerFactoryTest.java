@@ -17,10 +17,10 @@ class RainbowGumLoggerFactoryTest {
 	@Test
 	void testGetLogger() {
 		var list = new ListLogOutput();
-		var gum = RainbowGum.builder().route(route -> route.sync(b -> {
+		var gum = RainbowGum.builder().route(route -> {
 			route.level("ignore", System.Logger.Level.WARNING);
 			route.level(System.Logger.Level.INFO);
-			b.appender(a -> {
+			route.appender(a -> {
 				a.formatter((output, event) -> {
 					event.formattedMessage(output);
 					output.append(" {");
@@ -30,7 +30,7 @@ class RainbowGumLoggerFactoryTest {
 				});
 				a.output(list);
 			});
-		}));
+		});
 
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(gum.build());
 		Consumer<Logger> consumer = (logger) -> {

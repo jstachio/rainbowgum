@@ -13,6 +13,8 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogAppender.AppenderProvider;
+import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
 import io.jstach.rainbowgum.LogRouter.Router;
@@ -151,45 +153,52 @@ public sealed interface LogRouter extends AutoCloseable {
 		public class Builder extends LevelResolver.AbstractBuilder<Builder> {
 
 			private final LogConfig config;
+			private List<AppenderProvider> appenders = new ArrayList<>();
 
 			private Builder(LogConfig config) {
 				this.config = config;
 			}
 
-			private LogPublisher publisher;
+			private PublisherProvider publisher;
 
 			@Override
 			protected Builder self() {
 				return this;
 			}
+			
+			public Builder appender(Consumer<LogAppender.Builder> consumer) {
+				var builder = LogAppender.builder();
+				consumer.accept(builder);
+				this.appenders.add(builder.build());
+				return this;
+			}
+			public Builder appender(AppenderProvider appender) {
+				this.appenders.add(appender);
+				return self();
+			}
 
-			public Builder publisher(LogPublisher publisher) {
+			public Builder publisher(PublisherProvider publisher) {
 				this.publisher = publisher;
 				return self();
 			}
 
-			public Builder sync(Consumer<LogPublisher.SyncLogPublisher.Builder> consumer) {
-				var builder = LogPublisher.SyncLogPublisher.builder(config);
-				consumer.accept(builder);
-				return publisher(builder.build());
-			}
-
-			public Builder async(Consumer<LogPublisher.AsyncLogPublisher.Builder> consumer) {
-				var builder = LogPublisher.AsyncLogPublisher.builder(config);
-				consumer.accept(builder);
-				return publisher(builder.build());
-			}
-
-			public Router build() {
+			Router build() {
 				var levelResolver = buildLevelResolver(config.levelResolver());
 				var publisher = this.publisher;
+				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
+				if (this.appenders.isEmpty()) {
+					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
+				}
 				if (publisher == null) {
 					publisher = LogPublisher.SyncLogPublisher //
-						.builder(config) //
-						.appender(LogAppender.builder().output(LogOutput.ofStandardOut()).build())
+						.builder() //
 						.build();
 				}
-				return new SimpleRoute(publisher, levelResolver);
+				
+				var apps = this.appenders.stream().map(a -> a.provide(config)).toList();
+				var pub = this.publisher.provide(config, apps);
+				
+				return new SimpleRoute(pub, levelResolver);
 			}
 
 		}

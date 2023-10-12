@@ -1,7 +1,8 @@
-package io.jstach.rainbowgum.router;
+package io.jstach.rainbowgum.publisher;
 
 import java.util.AbstractCollection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -23,9 +24,9 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 	private final Worker worker;
 
-	public static BlockingQueueAsyncLogPublisher of(LogAppender appender, int bufferSize) {
+	public static BlockingQueueAsyncLogPublisher of(List<? extends LogAppender> appender, int bufferSize) {
 		BlockingQueue<LogEvent> queue = new ArrayBlockingQueue<>(bufferSize);
-		return new BlockingQueueAsyncLogPublisher(appender, queue, bufferSize);
+		return new BlockingQueueAsyncLogPublisher(LogAppender.of(appender), queue, bufferSize);
 	}
 
 	private BlockingQueueAsyncLogPublisher(LogAppender appender, BlockingQueue<LogEvent> queue, int bufferSize) {

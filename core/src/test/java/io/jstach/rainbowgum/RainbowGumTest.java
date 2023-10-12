@@ -8,6 +8,9 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
+import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
+
 class RainbowGumTest {
 
 	@Test
@@ -69,9 +72,8 @@ class RainbowGumTest {
 		// .build();
 
 		try (var gum = RainbowGum.builder().route(r -> {
-			r.async(publisher -> {
-				publisher.appender(sysout);
-			});
+			r.publisher(PublisherProvider.async().build());
+			r.appender(sysout);
 			r.level("stuff", Level.WARNING);
 		}).build()) {
 

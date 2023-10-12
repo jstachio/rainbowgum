@@ -8,6 +8,7 @@ import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
+import io.jstach.rainbowgum.LogAppender.AppenderProvider;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
@@ -98,9 +99,9 @@ public enum Defaults {
 		return LogConfig.of();
 	};
 
-	public static LogAppenderProvider logAppender = (config, output, formatter) -> {
+	public static LogAppenderProvider logAppender = (output, formatter) -> {
 		// return new DefaultLogAppender(output, formatter);
-		return new DefaultLogAppender(output, LogEncoder.of(formatter));
+		return config -> new DefaultLogAppender(output, LogEncoder.of(formatter));
 		// return new SynchronizedLogAppender(output, formatter);
 	};
 
@@ -110,7 +111,7 @@ public enum Defaults {
 
 	public interface LogAppenderProvider {
 
-		public LogAppender provide(LogConfig config, LogOutput output, LogFormatter formatter);
+		public AppenderProvider provide(LogOutput output, LogFormatter formatter);
 
 	}
 

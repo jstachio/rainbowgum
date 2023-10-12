@@ -1,11 +1,9 @@
 package io.jstach.rainbowgum;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
-import io.jstach.rainbowgum.router.BlockingQueueAsyncLogPublisher;
+import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
@@ -15,39 +13,25 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 	public void close();
 
+	public interface PublisherProvider {
+		LogPublisher provide(LogConfig config, List<? extends LogAppender> appenders);
+		public static AsyncLogPublisher.Builder async() {
+			return AsyncLogPublisher.builder();
+		}
+		public static SyncLogPublisher.Builder sync() {
+			return SyncLogPublisher.builder();
+		}
+	}
+	
 	abstract class AbstractBuilder<T> {
 
-		protected List<LogAppender> appenders = new ArrayList<>();
-
-		protected final LogConfig config;
-
-		protected AbstractBuilder(LogConfig config) {
+		protected AbstractBuilder() {
 			super();
-			this.config = config;
-		}
-
-		public T appenders(List<LogAppender> appenders) {
-			this.appenders = appenders;
-			return self();
-		}
-
-		public T appender(Provider<? extends LogAppender> appender) {
-			this.appenders.add(appender.provide(config));
-			return self();
-		}
-
-		public T appender(Consumer<LogAppender.Builder> consumer) {
-			var builder = LogAppender.builder();
-			consumer.accept(builder);
-			this.appenders.add(builder.build().provide(config));
-			return self();
-		}
-
-		protected List<LogAppender> appenders() {
-			return this.appenders;
 		}
 
 		protected abstract T self();
+		
+		public abstract PublisherProvider build();
 
 	}
 
@@ -61,16 +45,15 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 			return false;
 		}
 
-		public static AsyncLogPublisher.Builder builder(LogConfig config) {
-			return new Builder(config);
+		public static AsyncLogPublisher.Builder builder() {
+			return new Builder();
 		}
 
 		public static class Builder extends AbstractBuilder<AsyncLogPublisher.Builder> {
 
 			private int bufferSize = 1024;
 
-			private Builder(LogConfig config) {
-				super(config);
+			private Builder() {
 			}
 
 			public AsyncLogPublisher.Builder bufferSize(int bufferSize) {
@@ -78,8 +61,8 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 				return this;
 			}
 
-			public LogPublisher.AsyncLogPublisher build() {
-				return BlockingQueueAsyncLogPublisher.of(LogAppender.of(appenders), bufferSize);
+			public PublisherProvider build() {
+				return (config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
 			}
 
 			@Override
@@ -93,8 +76,8 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 	non-sealed interface SyncLogPublisher extends LogPublisher {
 
-		public static SyncLogPublisher.Builder builder(LogConfig config) {
-			return new Builder(config);
+		public static SyncLogPublisher.Builder builder() {
+			return new Builder();
 		}
 
 		@Override
@@ -108,8 +91,7 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 		public static class Builder extends AbstractBuilder<SyncLogPublisher.Builder> {
 
-			private Builder(LogConfig config) {
-				super(config);
+			private Builder() {
 			}
 
 			@Override
@@ -117,8 +99,8 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 				return this;
 			}
 
-			public LogPublisher.SyncLogPublisher build() {
-				return new DefaultSyncLogPublisher(LogAppender.of(appenders));
+			public PublisherProvider build() {
+				return (config, appenders) -> new DefaultSyncLogPublisher(LogAppender.of(appenders));
 			}
 
 		}
