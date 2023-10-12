@@ -108,8 +108,9 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 		private void drain() {
 			try {
-				queue.drainTo(fake, bufferSize);
-				append(buffer, fake.index);
+				int count = queue.drainTo(fake, bufferSize);
+				assert count == fake.size;
+				append(buffer, count);
 			}
 			finally {
 				fake.reset();
@@ -118,11 +119,11 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 		class FakeCollection extends AbstractCollection<LogEvent> {
 
-			private int index = 0;
+			private int size = 0;
 
 			@Override
 			public boolean add(LogEvent e) {
-				buffer[index++] = e;
+				buffer[size++] = e;
 				return true;
 			}
 
@@ -133,11 +134,11 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 			@Override
 			public int size() {
-				return bufferSize;
+				return size;
 			}
 
 			void reset() {
-				index = 0;
+				size = 0;
 			}
 
 		}
