@@ -10,11 +10,12 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
-import io.jstach.rainbowgum.LogEncoder.BufferProvider;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
  * concurrency.
+ * 
+ * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
 public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
@@ -111,34 +112,25 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 		protected final LogEncoder encoder;
 
-		protected final BufferProvider bufferProvider;
-
 		
-		public AbstractLogAppender(LogOutput output, LogEncoder encoder, BufferProvider bufferProvider) {
+		public AbstractLogAppender(LogOutput output, LogEncoder encoder) {
 			super();
 			this.output = output;
 			this.encoder = encoder;
-			this.bufferProvider = bufferProvider;
 		}
 		
 		
-
-		public AbstractLogAppender(
-				LogOutput output,
-				LogEncoder encoder) {
-			this(output, encoder, BufferProvider.of());
-		}
 
 		@Override
 		public final void append(LogEvent event) {
-			try (var buffer = bufferProvider.provideBuffer()) {
+			try (var buffer = encoder.buffer()) {
 				append(event, buffer);
 			}
 		}
 
 		@Override
-		public final void append(LogEvent[] events, int count) {
-			try (var buffer = bufferProvider.provideBuffer()) {
+		public void append(LogEvent[] events, int count) {
+			try (var buffer = encoder.buffer()) {
 				append(events, count, buffer);
 			}
 		}
@@ -229,9 +221,9 @@ class LockingLogAppender implements ThreadSafeLogAppender {
 /*
  * The idea here is to have the virtual thread do the formatting outside of the lock
  */
-final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
+class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
 
-	private final ReentrantLock lock = new ReentrantLock();
+	protected final ReentrantLock lock = new ReentrantLock();
 
 	public DefaultLogAppender(LogOutput output, LogEncoder encoder) {
 		super(output, encoder);
@@ -243,7 +235,6 @@ final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafe
 		try {
 			for (int i = 0; i < count; i++) {
 				append(events[i], buffer);
-				buffer.clear();
 			}
 		}
 		finally {
@@ -275,6 +266,25 @@ final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafe
 		}
 	}
 
+}
+
+class BufferLogAppender extends AbstractLogAppender {
+
+	public BufferLogAppender(
+			LogOutput output,
+			LogEncoder encoder) {
+		super(
+				output,
+				LogEncoder.cached(encoder));
+	}
+
+	@Override
+	protected void append(
+			LogEvent event,
+			Buffer buffer) {
+		buffer.drain(output, event);
+	}
+	
 }
 
 final class SimpleLogAppender implements LogAppender {

@@ -1,127 +1,115 @@
 package io.jstach.rainbowgum;
 
-import org.eclipse.jdt.annotation.Nullable;
-
-import io.jstach.rainbowgum.LogEncoder.Buffer;
-import io.jstach.rainbowgum.LogEncoder.BufferProvider;
-import io.jstach.rainbowgum.LogEncoder.BufferWriter;
+import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
+import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 
 /**
  * Log encoders must be thread safe.
  */
-@SuppressWarnings("exports")
 public interface LogEncoder {
 
+	public Buffer buffer();
+	
 	public void encode(LogEvent event, Buffer buffer);
 
 	public static LogEncoder of(LogFormatter formatter) {
 		return new FormatterEncoder(formatter);
 	}
+	
+	static LogEncoder cached(LogEncoder encoder) {
+		if (encoder instanceof CachedEncoder ce) {
+			return ce;
+		}
+		return new CachedEncoder(encoder, encoder.buffer());
+	}
 
 	public interface Buffer extends AutoCloseable {
-
-		public StringBuilder stringBuilder();
-		
-		public <T> @Nullable T get();
-		
-		public <T> void store(T object, BufferWriter<T> writer);
 		
 		public void drain(LogOutput output, LogEvent event);
 
 		public void clear();
 
-		public void close();
+		default void close() {
+			clear();
+		}
+		
+		public class StringBuilderBuffer implements Buffer {
 
-	}
-	
-	public interface BufferWriter<T> {
-		public void write(LogOutput output, LogEvent event, T buffer);
-	}
+			public final StringBuilder stringBuilder;
+			
+			public StringBuilderBuffer(
+					StringBuilder stringBuilder) {
+				super();
+				this.stringBuilder = stringBuilder;
+			}
 
-	public sealed interface BufferProvider {
+			@Override
+			public void drain(
+					LogOutput output,
+					LogEvent event) {
+				output.write(event, stringBuilder.toString());
+			}
 
-		public Buffer provideBuffer();
-
-		public void releaseBuffer(Buffer buffer);
-
-		public static BufferProvider of() {
-			return DefaultBufferProvider.INSTANT;
+			@Override
+			public void clear() {
+				stringBuilder.setLength(0);
+			}
+			
 		}
 
 	}
+	abstract class AbstractEncoder<T extends Buffer> implements LogEncoder {
+
+		protected abstract T doBuffer();
+		
+		protected abstract void doEncode(LogEvent event, T buffer);
+
+		@Override
+		public Buffer buffer() {
+			return doBuffer();
+		}
+		
+		@SuppressWarnings("unchecked")
+		@Override
+		public void encode(
+				LogEvent event,
+				Buffer buffer) {
+			doEncode(event, (T) buffer);
+			
+		}
+		
+	}
 
 }
 
-enum DefaultBufferProvider implements BufferProvider {
+final class CachedEncoder implements LogEncoder {
 
-	INSTANT;
-
-	@Override
-	public Buffer provideBuffer() {
-		return new DefaultBuffer(new StringBuilder());
-	}
-
-	@Override
-	public void releaseBuffer(Buffer buffer) {
-
-	}
-
-}
-
-class DefaultBuffer implements Buffer {
-
-	private final StringBuilder stringBuilder;
-	private @Nullable Object custom;
-	@SuppressWarnings("rawtypes")
-	private @Nullable BufferWriter writer;
-
-	public DefaultBuffer(StringBuilder stringBuilder) {
+	private final LogEncoder encoder;
+	private final Buffer buffer;
+	
+	public CachedEncoder(
+			LogEncoder encoder,
+			Buffer buffer) {
 		super();
-		this.stringBuilder = stringBuilder;
+		this.encoder = encoder;
+		this.buffer = buffer;
 	}
 
 	@Override
-	public StringBuilder stringBuilder() {
-		return stringBuilder;
+	public Buffer buffer() {
+		return this.buffer;
+	}
+
+	@Override
+	public void encode(
+			LogEvent event,
+			Buffer buffer) {
+		encoder.encode(event, buffer);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public <T> @Nullable T get() {
-		return (T) custom;
-	}
-	
-	public <T> void store(T object, LogEncoder.BufferWriter<T> writer) {
-		this.custom = object;
-		this.writer = writer;
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public void drain(LogOutput output, LogEvent event) {
-		var w = this.writer;
-		if (w == null) {
-			writer.write(output, event, this.custom);
-		} 
-		else {
-			output.write(event, stringBuilder.toString());
-		}
-		clear();
-	}
-
-	@Override
-	public void clear() {
-		stringBuilder.setLength(0);
-		writer = null;
-	}
-
-	@Override
-	public void close() {
-		clear();
-	}
-
 }
 
-class FormatterEncoder implements LogEncoder {
+final class FormatterEncoder extends AbstractEncoder<StringBuilderBuffer> {
 
 	private final LogFormatter formatter;
 
@@ -131,9 +119,16 @@ class FormatterEncoder implements LogEncoder {
 	}
 
 	@Override
-	public void encode(LogEvent event, Buffer buffer) {
-		StringBuilder sb = buffer.stringBuilder();
+	protected void doEncode(LogEvent event, StringBuilderBuffer buffer) {
+		buffer.clear();
+		StringBuilder sb = buffer.stringBuilder;
 		formatter.format(sb, event);
 	}
 
+	@Override
+	protected StringBuilderBuffer doBuffer() {
+		return new StringBuilderBuffer(new StringBuilder());
+	}
+
 }
+
