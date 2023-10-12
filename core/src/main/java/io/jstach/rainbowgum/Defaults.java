@@ -101,7 +101,11 @@ public enum Defaults {
 
 	public static LogAppenderProvider logAppender = (output, formatter) -> {
 		// return new DefaultLogAppender(output, formatter);
-		return config -> new DefaultLogAppender(output, LogEncoder.of(formatter));
+		return config -> Properties.of(config)
+			.property("defaults.appender.buffer")
+			.map(s -> Boolean.parseBoolean(s))
+			.requireElse(false) ? new BufferLogAppender(output, LogEncoder.of(formatter))
+					: new DefaultLogAppender(output, LogEncoder.of(formatter));
 		// return new SynchronizedLogAppender(output, formatter);
 	};
 

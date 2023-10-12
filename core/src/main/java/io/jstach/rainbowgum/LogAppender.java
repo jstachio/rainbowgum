@@ -14,7 +14,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
  * concurrency.
- * 
+ *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
 public interface LogAppender extends AutoCloseable, LogEventConsumer {
@@ -35,12 +35,15 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 	public void append(LogEvent event);
 
 	public interface AppenderProvider {
+
 		LogAppender provide(LogConfig config);
+
 		public static Builder builder() {
 			return LogAppender.builder();
 		}
+
 	}
-	
+
 	public static Builder builder() {
 		return new Builder();
 	}
@@ -112,14 +115,11 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 		protected final LogEncoder encoder;
 
-		
 		public AbstractLogAppender(LogOutput output, LogEncoder encoder) {
 			super();
 			this.output = output;
 			this.encoder = encoder;
 		}
-		
-		
 
 		@Override
 		public final void append(LogEvent event) {
@@ -270,21 +270,15 @@ class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogApp
 
 class BufferLogAppender extends AbstractLogAppender {
 
-	public BufferLogAppender(
-			LogOutput output,
-			LogEncoder encoder) {
-		super(
-				output,
-				LogEncoder.cached(encoder));
+	public BufferLogAppender(LogOutput output, LogEncoder encoder) {
+		super(output, LogEncoder.cached(encoder));
 	}
 
 	@Override
-	protected void append(
-			LogEvent event,
-			Buffer buffer) {
+	protected void append(LogEvent event, Buffer buffer) {
 		buffer.drain(output, event);
 	}
-	
+
 }
 
 final class SimpleLogAppender implements LogAppender {

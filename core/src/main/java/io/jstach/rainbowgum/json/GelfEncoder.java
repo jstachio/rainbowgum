@@ -20,7 +20,6 @@ import io.jstach.rainbowgum.LogOutput;
 
 public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
-	
 	private final String host;
 
 	private final KeyValues headers;
@@ -37,17 +36,14 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		this.headers = headers;
 		this.prettyprint = prettyprint;
 	}
-	
-	
+
 	@Override
 	protected JsonBuffer doBuffer() {
 		return new JsonBuffer(this.prettyprint);
 	}
 
 	@Override
-	protected void doEncode(
-			LogEvent event,
-			JsonBuffer buffer) {
+	protected void doEncode(LogEvent event, JsonBuffer buffer) {
 		buffer.clear();
 		var raw = buffer.getJsonWriter();
 		var formattedMessage = buffer.getFormattedMessageBuilder();
@@ -137,5 +133,5 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		};
 		return r;
 	}
-	
+
 }

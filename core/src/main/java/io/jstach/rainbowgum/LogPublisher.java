@@ -14,15 +14,19 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 	public void close();
 
 	public interface PublisherProvider {
+
 		LogPublisher provide(LogConfig config, List<? extends LogAppender> appenders);
+
 		public static AsyncLogPublisher.Builder async() {
 			return AsyncLogPublisher.builder();
 		}
+
 		public static SyncLogPublisher.Builder sync() {
 			return SyncLogPublisher.builder();
 		}
+
 	}
-	
+
 	abstract class AbstractBuilder<T> {
 
 		protected AbstractBuilder() {
@@ -30,7 +34,7 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 		}
 
 		protected abstract T self();
-		
+
 		public abstract PublisherProvider build();
 
 	}

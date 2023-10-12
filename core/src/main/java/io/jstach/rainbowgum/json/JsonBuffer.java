@@ -13,21 +13,20 @@ import io.jstach.rainbowgum.LogOutput;
 public class JsonBuffer implements Buffer {
 
 	private final RawJsonWriter jsonWriter = new RawJsonWriter(1024 * 8);
+
 	private final StringBuilder formattedMessageBuilder = new StringBuilder();
+
 	private final boolean prettyprint;
 
 	public static final int EXTENDED_F = 0x00000002;
 
-	public JsonBuffer(
-			boolean prettyprint) {
+	public JsonBuffer(boolean prettyprint) {
 		super();
 		this.prettyprint = prettyprint;
 	}
 
 	@Override
-	public void drain(
-			LogOutput output,
-			LogEvent event) {
+	public void drain(LogOutput output, LogEvent event) {
 		jsonWriter.write(output, event);
 		clear();
 	}
@@ -35,18 +34,17 @@ public class JsonBuffer implements Buffer {
 	@Override
 	public void clear() {
 		jsonWriter.reset();
-		formattedMessageBuilder.setLength(0);	
+		formattedMessageBuilder.setLength(0);
 	}
-	
+
 	public RawJsonWriter getJsonWriter() {
 		return jsonWriter;
 	}
-	
+
 	public StringBuilder getFormattedMessageBuilder() {
 		return formattedMessageBuilder;
 	}
-	
-	
+
 	public final int write(String k, @Nullable String v, int index) {
 		return write(k, v, index, 0);
 	}
@@ -95,4 +93,5 @@ public class JsonBuffer implements Buffer {
 	private final void _writeEndField(int flag) {
 
 	}
+
 }

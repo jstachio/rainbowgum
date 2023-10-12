@@ -5,11 +5,23 @@ import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.Property.StringValue;
+
 @FunctionalInterface
 public interface LogProperties {
 
 	public @Nullable String property(String key);
 
+}
+
+record Properties(LogProperties properties) {
+	StringValue property(String key) {
+		return Property.of(properties, key);
+	}
+
+	public static Properties of(LogConfig config) {
+		return new Properties(config.properties());
+	}
 }
 
 sealed interface Property<T> {

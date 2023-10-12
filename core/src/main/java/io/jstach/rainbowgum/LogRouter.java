@@ -153,6 +153,7 @@ public sealed interface LogRouter extends AutoCloseable {
 		public class Builder extends LevelResolver.AbstractBuilder<Builder> {
 
 			private final LogConfig config;
+
 			private List<AppenderProvider> appenders = new ArrayList<>();
 
 			private Builder(LogConfig config) {
@@ -165,13 +166,14 @@ public sealed interface LogRouter extends AutoCloseable {
 			protected Builder self() {
 				return this;
 			}
-			
+
 			public Builder appender(Consumer<LogAppender.Builder> consumer) {
 				var builder = LogAppender.builder();
 				consumer.accept(builder);
 				this.appenders.add(builder.build());
 				return this;
 			}
+
 			public Builder appender(AppenderProvider appender) {
 				this.appenders.add(appender);
 				return self();
@@ -194,10 +196,10 @@ public sealed interface LogRouter extends AutoCloseable {
 						.builder() //
 						.build();
 				}
-				
+
 				var apps = this.appenders.stream().map(a -> a.provide(config)).toList();
 				var pub = this.publisher.provide(config, apps);
-				
+
 				return new SimpleRoute(pub, levelResolver);
 			}
 

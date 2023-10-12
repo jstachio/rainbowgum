@@ -9,13 +9,13 @@ import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 public interface LogEncoder {
 
 	public Buffer buffer();
-	
+
 	public void encode(LogEvent event, Buffer buffer);
 
 	public static LogEncoder of(LogFormatter formatter) {
 		return new FormatterEncoder(formatter);
 	}
-	
+
 	static LogEncoder cached(LogEncoder encoder) {
 		if (encoder instanceof CachedEncoder ce) {
 			return ce;
@@ -24,7 +24,7 @@ public interface LogEncoder {
 	}
 
 	public interface Buffer extends AutoCloseable {
-		
+
 		public void drain(LogOutput output, LogEvent event);
 
 		public void clear();
@@ -32,21 +32,18 @@ public interface LogEncoder {
 		default void close() {
 			clear();
 		}
-		
+
 		public class StringBuilderBuffer implements Buffer {
 
 			public final StringBuilder stringBuilder;
-			
-			public StringBuilderBuffer(
-					StringBuilder stringBuilder) {
+
+			public StringBuilderBuffer(StringBuilder stringBuilder) {
 				super();
 				this.stringBuilder = stringBuilder;
 			}
 
 			@Override
-			public void drain(
-					LogOutput output,
-					LogEvent event) {
+			public void drain(LogOutput output, LogEvent event) {
 				output.write(event, stringBuilder.toString());
 			}
 
@@ -54,30 +51,29 @@ public interface LogEncoder {
 			public void clear() {
 				stringBuilder.setLength(0);
 			}
-			
+
 		}
 
 	}
+
 	abstract class AbstractEncoder<T extends Buffer> implements LogEncoder {
 
 		protected abstract T doBuffer();
-		
+
 		protected abstract void doEncode(LogEvent event, T buffer);
 
 		@Override
 		public Buffer buffer() {
 			return doBuffer();
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		@Override
-		public void encode(
-				LogEvent event,
-				Buffer buffer) {
+		public void encode(LogEvent event, Buffer buffer) {
 			doEncode(event, (T) buffer);
-			
+
 		}
-		
+
 	}
 
 }
@@ -85,11 +81,10 @@ public interface LogEncoder {
 final class CachedEncoder implements LogEncoder {
 
 	private final LogEncoder encoder;
+
 	private final Buffer buffer;
-	
-	public CachedEncoder(
-			LogEncoder encoder,
-			Buffer buffer) {
+
+	public CachedEncoder(LogEncoder encoder, Buffer buffer) {
 		super();
 		this.encoder = encoder;
 		this.buffer = buffer;
@@ -101,12 +96,10 @@ final class CachedEncoder implements LogEncoder {
 	}
 
 	@Override
-	public void encode(
-			LogEvent event,
-			Buffer buffer) {
+	public void encode(LogEvent event, Buffer buffer) {
 		encoder.encode(event, buffer);
 	}
-	
+
 }
 
 final class FormatterEncoder extends AbstractEncoder<StringBuilderBuffer> {
@@ -131,4 +124,3 @@ final class FormatterEncoder extends AbstractEncoder<StringBuilderBuffer> {
 	}
 
 }
-
