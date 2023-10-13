@@ -1,5 +1,8 @@
 package io.jstach.rainbowgum;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -12,6 +15,68 @@ public interface LogProperties {
 
 	public @Nullable String property(String key);
 
+	default int order() {
+		return 0;
+	}
+
+	public static LogProperties of(List<? extends LogProperties> logProperties, LogProperties fallback) {
+		if (logProperties.isEmpty()) {
+			return fallback;
+		}
+		if (logProperties.size() == 0) {
+			return logProperties.get(0);
+		}
+		var array = logProperties.toArray(new LogProperties[] {});
+		Arrays.sort(array, Comparator.comparingInt(LogProperties::order).reversed());
+		return new CompositeLogProperties(array);
+	}
+
+	public static LogProperties of(List<? extends LogProperties> logProperties) {
+		return of(logProperties, StandardProperties.EMPTY);
+	}
+
+	enum StandardProperties implements LogProperties {
+
+		EMPTY {
+			@Override
+			public @Nullable String property(String key) {
+				return null;
+			}
+
+			@Override
+			public int order() {
+				return -1;
+			}
+		},
+		SYSTEM_PROPERTIES {
+			@Override
+			public @Nullable String property(String key) {
+				return System.getProperty(key);
+			}
+
+			@Override
+			public int order() {
+				return 400;
+			}
+		}
+
+	}
+
+}
+
+record CompositeLogProperties(LogProperties[] properties) implements LogProperties {
+
+	@Override
+	public @Nullable String property(String key) {
+		for (var props : properties) {
+			var value = props.property(key);
+			if (value != null) {
+				return value;
+			}
+		}
+		return null;
+	}
+
 }
 
 record Properties(LogProperties properties) {
@@ -21,6 +86,10 @@ record Properties(LogProperties properties) {
 
 	public static Properties of(LogConfig config) {
 		return new Properties(config.properties());
+	}
+
+	public static Properties of(LogProperties properties) {
+		return new Properties(properties);
 	}
 }
 
@@ -102,7 +171,13 @@ sealed interface Property<T> {
 	}
 
 	record StringValue(String key, @Nullable String orNull, @Nullable String original) implements Property<String> {
-
+		public boolean parseBoolean(boolean fallback) {
+			var v = orNull;
+			if (v == null) {
+				return fallback;
+			}
+			return Boolean.parseBoolean(v);
+		}
 	}
 
 }

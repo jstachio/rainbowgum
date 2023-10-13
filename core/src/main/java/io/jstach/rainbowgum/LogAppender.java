@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -62,7 +60,7 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 		protected LogOutput output = LogOutput.ofStandardOut();
 
-		protected @Nullable LogFormatter formatter;
+		protected @Nullable LogEncoder encoder;
 
 		private Builder() {
 		}
@@ -73,24 +71,21 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		}
 
 		public Builder formatter(LogFormatter formatter) {
-			this.formatter = formatter;
+			this.encoder = LogEncoder.of(formatter);
 			return this;
 		}
 
 		public Builder formatter(LogFormatter.EventFormatter formatter) {
-			this.formatter = formatter;
+			this.encoder = LogEncoder.of(formatter);
 			return this;
 		}
 
 		public AppenderProvider build() {
-			var _output = output;
-			var _formatter = formatter;
-			var f = _formatter;
-			var o = _output;
-			if (_formatter == null) {
-				f = Defaults.formatterForOutputType(o.type());
-			}
-			return Defaults.logAppender.provide(requireNonNull(o), requireNonNull(f));
+			var output = this.output;
+			var encoder = this.encoder;
+			return config -> {
+				return config.defaults().logAppender(output, encoder);
+			};
 		}
 
 	}

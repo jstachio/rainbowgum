@@ -2,7 +2,6 @@ package io.jstach.rainbowgum.jansi;
 
 import org.fusesource.jansi.AnsiConsole;
 
-import io.jstach.rainbowgum.Defaults;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -17,7 +16,8 @@ public class JansiInitializer implements RainbowGumServiceProvider.Initializer {
 	public void initialize(LogConfig config) {
 		if (installJansi(config)) {
 			AnsiConsole.systemInstall();
-			Defaults.setFormatterForOutputType(OutputType.CONSOLE_OUT, () -> JansiLogFormatter.builder().build());
+			config.defaults()
+				.setFormatterForOutputType(OutputType.CONSOLE_OUT, () -> JansiLogFormatter.builder().build());
 		}
 	}
 

@@ -8,7 +8,6 @@ import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
-import io.jstach.rainbowgum.LogAppender.AppenderProvider;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
@@ -16,9 +15,7 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
 /**
  * Static defaults that should probably be in the config class.
  */
-public enum Defaults {
-
-	;
+public class Defaults {
 
 	public static final String SHUTDOWN = "#SHUTDOWN#";
 
@@ -26,26 +23,36 @@ public enum Defaults {
 
 	public static final String LOGGER_PROPERTY_PREFIX = "log";
 
-	private static EnumMap<OutputType, Supplier<? extends LogFormatter>> formatters = new EnumMap<>(OutputType.class);
+	private static final ReentrantReadWriteLock staticLock = new ReentrantReadWriteLock();
 
-	private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
 	private static CopyOnWriteArrayList<AutoCloseable> shutdownHooks = new CopyOnWriteArrayList<>();
 
 	// we do not need the newer VarHandle because there is only one of these guys
 	private static AtomicBoolean shutdownHookRegistered = new AtomicBoolean(false);
 
-	public static void setFormatterForOutputType(OutputType outputType, Supplier<? extends LogFormatter> formatter) {
-		lock.writeLock().lock();
-		try {
-			formatters.put(outputType, formatter);
-		}
-		finally {
-			lock.writeLock().unlock();
-		}
+	private final EnumMap<OutputType, Supplier<? extends LogFormatter>> formatters = new EnumMap<>(OutputType.class);
+
+	private final Properties properties;
+
+	public Defaults(LogProperties logProperties) {
+		this.properties = Properties.of(logProperties);
 	}
 
-	public static LogFormatter formatterForOutputType(OutputType outputType) {
+	static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
+		return new LockingLogAppender(appender);
+	};
+
+	public LogAppender logAppender(LogOutput output, LogEncoder encoder) {
+		if (encoder == null) {
+			encoder = LogEncoder.of(formatterForOutputType(output.type()));
+		}
+		return properties.property("defaults.appender.buffer").parseBoolean(false)
+				? new BufferLogAppender(output, encoder) : new DefaultLogAppender(output, encoder);
+	}
+
+	public LogFormatter formatterForOutputType(OutputType outputType) {
 		lock.readLock().lock();
 		try {
 			var formatter = formatters.get(outputType);
@@ -59,12 +66,22 @@ public enum Defaults {
 		}
 	}
 
+	public void setFormatterForOutputType(OutputType outputType, Supplier<? extends LogFormatter> formatter) {
+		lock.writeLock().lock();
+		try {
+			formatters.put(outputType, formatter);
+		}
+		finally {
+			lock.writeLock().unlock();
+		}
+	}
+
 	public static IntSupplier maxStringBuilderSize = () -> {
 		return 1024 * 1024;
 	};
 
 	public static void addShutdownHook(AutoCloseable hook) {
-		lock.writeLock().lock();
+		staticLock.writeLock().lock();
 		try {
 			if (shutdownHookRegistered.compareAndSet(false, true)) {
 				var thread = new Thread(() -> {
@@ -76,7 +93,7 @@ public enum Defaults {
 			shutdownHooks.add(hook);
 		}
 		finally {
-			lock.writeLock().unlock();
+			staticLock.writeLock().unlock();
 		}
 	}
 
@@ -93,30 +110,8 @@ public enum Defaults {
 				Errors.error(Defaults.class, e);
 			}
 		}
-	}
-
-	public static Supplier<? extends LogConfig> config = () -> {
-		return LogConfig.of();
-	};
-
-	public static LogAppenderProvider logAppender = (output, formatter) -> {
-		// return new DefaultLogAppender(output, formatter);
-		return config -> Properties.of(config)
-			.property("defaults.appender.buffer")
-			.map(s -> Boolean.parseBoolean(s))
-			.requireElse(false) ? new BufferLogAppender(output, LogEncoder.of(formatter))
-					: new DefaultLogAppender(output, LogEncoder.of(formatter));
-		// return new SynchronizedLogAppender(output, formatter);
-	};
-
-	public static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
-		return new LockingLogAppender(appender);
-	};
-
-	public interface LogAppenderProvider {
-
-		public AppenderProvider provide(LogOutput output, LogFormatter formatter);
-
+		// Help the GC or whatever final cleanup is going on
+		shutdownHooks.clear();
 	}
 
 }

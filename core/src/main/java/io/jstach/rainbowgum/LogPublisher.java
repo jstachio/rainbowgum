@@ -66,6 +66,7 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 			}
 
 			public PublisherProvider build() {
+				int bufferSize = this.bufferSize;
 				return (config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
 			}
 
@@ -104,7 +105,8 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 			}
 
 			public PublisherProvider build() {
-				return (config, appenders) -> new DefaultSyncLogPublisher(LogAppender.of(appenders));
+				return (config,
+						appenders) -> new DefaultSyncLogPublisher(ThreadSafeLogAppender.of(LogAppender.of(appenders)));
 			}
 
 		}
@@ -117,9 +119,9 @@ final class DefaultSyncLogPublisher implements LogPublisher.SyncLogPublisher {
 
 	private final ThreadSafeLogAppender appender;
 
-	public DefaultSyncLogPublisher(LogAppender appender) {
+	public DefaultSyncLogPublisher(ThreadSafeLogAppender appender) {
 		super();
-		this.appender = ThreadSafeLogAppender.of(appender);
+		this.appender = appender;
 	}
 
 	@Override

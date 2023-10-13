@@ -2,8 +2,11 @@ package io.jstach.rainbowgum;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
@@ -12,7 +15,15 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 public interface RainbowGum extends AutoCloseable {
 
 	public static RainbowGum of() {
+		return RainbowGumHolder.supplier.get();
+	}
+
+	public static RainbowGum defaults() {
 		return SimpleRainbowGum.of();
+	}
+
+	public static void set(Supplier<RainbowGum> supplier) {
+		RainbowGumHolder.supplier = Objects.requireNonNull(supplier);
 	}
 
 	public static void start(RainbowGum gum) {
@@ -35,7 +46,9 @@ public interface RainbowGum extends AutoCloseable {
 	}
 
 	public static Builder builder() {
-		return builder(Defaults.config.get());
+		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
+		var config = RainbowGumServiceProvider.provideConfig(loader);
+		return builder(config);
 	}
 
 	public static Builder builder(LogConfig config) {
@@ -74,6 +87,12 @@ public interface RainbowGum extends AutoCloseable {
 		}
 
 	}
+
+}
+
+final class RainbowGumHolder {
+
+	static Supplier<RainbowGum> supplier = SimpleRainbowGum::of;
 
 }
 

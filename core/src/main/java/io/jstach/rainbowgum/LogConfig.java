@@ -1,51 +1,41 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
-import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 public interface LogConfig {
 
-	default RuntimeMode runtimeMode() {
-		return Property.of(properties(), "mode") //
-			.mapString(s -> s.toUpperCase(Locale.ROOT)) //
-			.map(RuntimeMode::valueOf) //
-			.requireElse(RuntimeMode.DEV);
-	}
+	// default RuntimeMode runtimeMode() {
+	// return Property.of(properties(), "mode") //
+	// .mapString(s -> s.toUpperCase(Locale.ROOT)) //
+	// .map(RuntimeMode::valueOf) //
+	// .requireElse(RuntimeMode.DEV);
+	// }
+	//
+	// public enum RuntimeMode {
+	//
+	// DEV, TEST, PROD
+	//
+	// }
 
 	public LogProperties properties();
 
 	public LevelResolver levelResolver();
 
-	public enum RuntimeMode {
-
-		DEV, TEST, PROD
-
-	}
+	public Defaults defaults();
 
 	default LogOutputProvider outputProvider() {
 		return LogOutputProvider.of();
 	}
 
 	public static LogConfig of() {
-		return LogConfig.of(SystemProperties.INSTANCE);
+		return LogConfig.of(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
 	}
 
 	public static LogConfig of(LogProperties properties) {
 		return new DefaultLogConfig(properties);
-	}
-
-}
-
-enum SystemProperties implements LogProperties {
-
-	INSTANCE;
-
-	@Override
-	public @Nullable String property(String key) {
-		return System.getProperty(key);
 	}
 
 }
@@ -55,6 +45,8 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 	private final LogProperties properties;
 
 	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
+
+	private final Defaults defaults = new Defaults(this);
 
 	@Override
 	public @Nullable String property(String key) {
@@ -74,6 +66,11 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 	@Override
 	public LevelResolver levelResolver() {
 		return this;
+	}
+
+	@Override
+	public Defaults defaults() {
+		return defaults;
 	}
 
 	@Override
