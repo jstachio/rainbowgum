@@ -50,7 +50,7 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 
 	@Override
 	public @Nullable String property(String key) {
-		return properties.property("rainbowgum." + key);
+		return properties.property("logging." + key);
 	}
 
 	public DefaultLogConfig(LogProperties properties) {
@@ -84,7 +84,7 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 
 	@Override
 	public String levelPropertyPrefix() {
-		return "log";
+		return "level";
 	}
 
 }

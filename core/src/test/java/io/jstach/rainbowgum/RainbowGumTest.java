@@ -4,14 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
-import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
-import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 class RainbowGumTest {
 
@@ -31,7 +28,7 @@ class RainbowGumTest {
 
 	@Test
 	public void testLevelConfig() throws Exception {
-		Map<String, String> config = Map.of("rainbowgum.log.stuff", "" + Level.DEBUG.name());
+		Map<String, String> config = Map.of("logging.level.stuff", "" + Level.DEBUG.name());
 		var gum = RainbowGum.builder(LogConfig.of(config::get)).build();
 
 		gum.router().log("stuff", Level.DEBUG, "Stuff");
@@ -76,7 +73,7 @@ class RainbowGumTest {
 		try (var gum = RainbowGum.builder().route(r -> {
 			r.publisher(PublisherProvider.async().build());
 			r.appender(sysout);
-			r.level("stuff", Level.WARNING);
+			r.level(Level.WARNING, "stuff");
 		}).build()) {
 
 			gum.start();

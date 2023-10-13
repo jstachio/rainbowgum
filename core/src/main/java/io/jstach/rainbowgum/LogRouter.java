@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -146,7 +147,7 @@ public sealed interface LogRouter extends AutoCloseable {
 			publisher().log(event);
 		}
 
-		public static Builder builder(LogConfig config) {
+		static Builder builder(LogConfig config) {
 			return new Builder(config);
 		}
 
@@ -165,6 +166,10 @@ public sealed interface LogRouter extends AutoCloseable {
 			@Override
 			protected Builder self() {
 				return this;
+			}
+
+			public LogConfig config() {
+				return this.config;
 			}
 
 			public Builder appender(Consumer<LogAppender.Builder> consumer) {
@@ -188,8 +193,17 @@ public sealed interface LogRouter extends AutoCloseable {
 				var levelResolver = buildLevelResolver(config.levelResolver());
 				var publisher = this.publisher;
 				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
-				if (this.appenders.isEmpty()) {
+				if (appenders.isEmpty()) {
 					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
+					Properties.of(config) //
+						.property("file") //
+						.map(URI::new)
+						.map(u -> config.outputProvider().of(u))
+						.map(o -> {
+							return LogAppender.builder().output(o).build();
+						}) //
+						.optional()
+						.ifPresent(appenders::add);
 				}
 				if (publisher == null) {
 					publisher = LogPublisher.SyncLogPublisher //
@@ -197,8 +211,8 @@ public sealed interface LogRouter extends AutoCloseable {
 						.build();
 				}
 
-				var apps = this.appenders.stream().map(a -> a.provide(config)).toList();
-				var pub = this.publisher.provide(config, apps);
+				var apps = appenders.stream().map(a -> a.provide(config)).toList();
+				var pub = publisher.provide(config, apps);
 
 				return new SimpleRoute(pub, levelResolver);
 			}

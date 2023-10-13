@@ -13,7 +13,7 @@ class LogConfigTest {
 	void test() {
 		// System.setProperty("rainbowgum.log.stuff", "DEBUG");
 
-		var config = LogConfig.of(Map.<String, String>of("rainbowgum.log.stuff", "DEBUG")::get);
+		var config = LogConfig.of(Map.<String, String>of("logging.level.stuff", "DEBUG")::get);
 		var resolver = config.levelResolver();
 		var actual = resolver.resolveLevel("stuff");
 

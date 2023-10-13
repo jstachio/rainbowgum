@@ -113,7 +113,7 @@ public interface LevelResolver {
 
 		protected boolean levelResolverCached = true;
 
-		public T level(String loggerName, Level level) {
+		public T level(Level level, String loggerName) {
 			levels.put(loggerName, level);
 			return self();
 		}

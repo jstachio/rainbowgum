@@ -35,6 +35,12 @@ public sealed interface RainbowGumServiceProvider {
 
 		Optional<RainbowGum> provide(LogConfig config);
 
+		public static RainbowGum defaults(LogConfig config) {
+			return RainbowGum.builder(config).route(r -> {
+
+			}).build();
+		}
+
 	}
 
 	private static <T extends RainbowGumServiceProvider> Stream<T> findProviders(

@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -123,7 +124,7 @@ sealed interface Property<T> {
 		return t;
 	}
 
-	default <U> Property<U> map(Function<? super T, ? extends U> mapper) {
+	default <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 		Objects.requireNonNull(mapper);
 		var v = orNull();
 		if (v == null) {
@@ -138,7 +139,7 @@ sealed interface Property<T> {
 		}
 	}
 
-	default StringValue mapString(Function<? super T, String> mapper) {
+	default StringValue mapString(PropertyFunction<? super T, String, ? super Exception> mapper) {
 		Objects.requireNonNull(mapper);
 		var v = orNull();
 		if (v == null) {
@@ -161,6 +162,10 @@ sealed interface Property<T> {
 		return t;
 	}
 
+	default Optional<T> optional() {
+		return Optional.ofNullable(orNull());
+	}
+
 	record EmptyValue<T>(String key, @Nullable String original) implements Property<T> {
 		public @Nullable T orNull() {
 			return null;
@@ -178,6 +183,30 @@ sealed interface Property<T> {
 			}
 			return Boolean.parseBoolean(v);
 		}
+
+	}
+
+	public interface PropertyFunction<T extends @Nullable Object, R extends @Nullable Object, E extends Exception>
+			extends Function<T, R> {
+
+		@Override
+		default R apply(T t) {
+			try {
+				return _apply(t);
+			}
+			catch (Exception e) {
+				sneakyThrow(e);
+				throw new RuntimeException(e);
+			}
+		}
+
+		public R _apply(T t) throws E;
+
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <E extends Throwable> void sneakyThrow(final Throwable x) throws E {
+		throw (E) x;
 	}
 
 }
