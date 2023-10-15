@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -11,6 +12,7 @@ import java.util.function.Supplier;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
+import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 /**
  * Static defaults that should probably be in the config class.
@@ -43,6 +45,10 @@ public class Defaults {
 	static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
 		return new LockingLogAppender(appender);
 	};
+
+	public LogPublisher.AsyncLogPublisher asyncPublisher(List<? extends LogAppender> appenders, int bufferSize) {
+		return BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
+	}
 
 	public LogAppender logAppender(LogOutput output, LogEncoder encoder) {
 		if (encoder == null) {

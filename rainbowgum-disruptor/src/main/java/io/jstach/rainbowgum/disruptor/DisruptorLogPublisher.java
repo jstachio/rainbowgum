@@ -15,13 +15,13 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
 
-public final class DisruptorLogRouter implements AsyncLogPublisher {
+public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	private final Disruptor<LogEventCell> disruptor;
 
 	private final RingBuffer<LogEventCell> ringBuffer;
 
-	public static DisruptorLogRouter of(Iterable<? extends LogAppender> appenders, ThreadFactory threadFactory,
+	public static DisruptorLogPublisher of(Iterable<? extends LogAppender> appenders, ThreadFactory threadFactory,
 			int bufferSize) {
 
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory);
@@ -37,7 +37,7 @@ public final class DisruptorLogRouter implements AsyncLogPublisher {
 		}
 		var ringBuffer = disruptor.getRingBuffer();
 
-		var router = new DisruptorLogRouter(disruptor, ringBuffer);
+		var router = new DisruptorLogPublisher(disruptor, ringBuffer);
 		return router;
 	}
 
@@ -47,7 +47,7 @@ public final class DisruptorLogRouter implements AsyncLogPublisher {
 
 	}
 
-	DisruptorLogRouter(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer) {
+	DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer) {
 		super();
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
@@ -99,19 +99,19 @@ public final class DisruptorLogRouter implements AsyncLogPublisher {
 				shutdownHook.run();
 			}
 			else {
-				Errors.error(DisruptorLogRouter.class, ex);
+				Errors.error(DisruptorLogPublisher.class, ex);
 				throw new RuntimeException(ex);
 			}
 		}
 
 		@Override
 		public void handleOnStartException(Throwable ex) {
-			Errors.error(DisruptorLogRouter.class, ex);
+			Errors.error(DisruptorLogPublisher.class, ex);
 		}
 
 		@Override
 		public void handleOnShutdownException(Throwable ex) {
-			Errors.error(DisruptorLogRouter.class, ex);
+			Errors.error(DisruptorLogPublisher.class, ex);
 		}
 
 	}

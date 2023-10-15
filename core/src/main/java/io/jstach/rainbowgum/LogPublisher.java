@@ -67,7 +67,7 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 			public PublisherProvider build() {
 				int bufferSize = this.bufferSize;
-				return (config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
+				return (config, appenders) -> config.defaults().asyncPublisher(appenders, bufferSize);
 			}
 
 			@Override
