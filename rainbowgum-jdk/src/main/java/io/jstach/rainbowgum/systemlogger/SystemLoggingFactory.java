@@ -1,12 +1,6 @@
 package io.jstach.rainbowgum.systemlogger;
 
-import static java.util.Objects.requireNonNullElse;
-
 import java.lang.System.Logger;
-import java.text.MessageFormat;
-import java.util.ResourceBundle;
-
-import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.jul.SystemLoggerQueueJULHandler;
@@ -21,49 +15,7 @@ public class SystemLoggingFactory extends System.LoggerFinder {
 
 	@Override
 	public Logger getLogger(String name, Module module) {
-		return new TinyLogger(name);
-	}
-
-	private static class TinyLogger implements System.Logger {
-
-		private final String name;
-
-		public TinyLogger(String name) {
-			super();
-			this.name = name;
-		}
-
-		@Override
-		public String getName() {
-			return this.name;
-		}
-
-		@Override
-		public boolean isLoggable(Level level) {
-			return LogRouter.global().isEnabled(name, level);
-		}
-
-		@Override
-		public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg,
-				@Nullable Throwable thrown) {
-			String message = requireNonNullElse(msg, "");
-			LogRouter.global().log(name, level, message, thrown);
-		}
-
-		@Override
-		public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format,
-				@Nullable Object... params) {
-			String message = requireNonNullElse(format, "");
-			String formattedMessage;
-			if (params != null && params.length > 0 && !message.isBlank()) {
-				formattedMessage = MessageFormat.format(message, params);
-			}
-			else {
-				formattedMessage = message;
-			}
-			LogRouter.global().log(name, level, formattedMessage, null);
-		}
-
+		return LogRouter.global().getLogger(name);
 	}
 
 }

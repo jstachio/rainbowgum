@@ -1,12 +1,17 @@
 package io.jstach.rainbowgum;
 
+import static java.util.Objects.requireNonNullElse;
+
+import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.URI;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
@@ -94,6 +99,14 @@ public sealed interface LogRouter extends AutoCloseable {
 
 		default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
 			log(loggerName, level, message, null);
+		}
+
+		default Logger getLogger(String loggerName) {
+			return logger(this, loggerName);
+		}
+
+		public static Logger logger(RootRouter router, String loggerName) {
+			return new TinyLogger(loggerName, router);
 		}
 
 		public static RootRouter of(List<? extends Router> routes, LevelResolver levelResolver) {
@@ -480,6 +493,49 @@ enum GlobalLogRouter implements RootRouter, Route {
 
 	@Override
 	public void close() {
+	}
+
+}
+
+class TinyLogger implements System.Logger {
+
+	private final String name;
+
+	private final RootRouter router;
+
+	public TinyLogger(String name, RootRouter router) {
+		super();
+		this.name = name;
+		this.router = router;
+	}
+
+	@Override
+	public String getName() {
+		return this.name;
+	}
+
+	@Override
+	public boolean isLoggable(Level level) {
+		return router.isEnabled(name, level);
+	}
+
+	@Override
+	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Throwable thrown) {
+		String message = requireNonNullElse(msg, "");
+		router.log(name, level, message, thrown);
+	}
+
+	@Override
+	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format, @Nullable Object... params) {
+		String message = requireNonNullElse(format, "");
+		String formattedMessage;
+		if (params != null && params.length > 0 && !message.isBlank()) {
+			formattedMessage = MessageFormat.format(message, params);
+		}
+		else {
+			formattedMessage = message;
+		}
+		router.log(name, level, formattedMessage, null);
 	}
 
 }

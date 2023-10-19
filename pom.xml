@@ -712,5 +712,6 @@
     <module>rainbowgum-disruptor</module>
     <module>rainbowgum-jansi</module>
     <module>benchmark</module>
+    <module>rainbowgum-avaje-config</module>
   </modules>
 </project>
