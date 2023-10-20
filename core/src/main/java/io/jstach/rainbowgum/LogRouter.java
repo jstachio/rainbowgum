@@ -25,6 +25,10 @@ import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
 import io.jstach.rainbowgum.LogRouter.Router;
 
+/**
+ * Routes messages to a publisher by providing a {@link Route}
+ * from a logger name and level. 
+ */
 public sealed interface LogRouter extends AutoCloseable {
 
 	public Route route(String loggerName, java.lang.System.Logger.Level level);
@@ -46,20 +50,20 @@ public sealed interface LogRouter extends AutoCloseable {
 		GlobalLogRouter.INSTANCE.drain(router);
 	}
 
+	/**
+	 * A route is similar to a SLF4J Logger or System Logger but
+	 * has a much simpler contract.
+	 * 
+	 * The proper usage of Route in most cases is to call {@link #isEnabled()}
+	 * before calling {@link #log(LogEvent)}.
+	 * 
+	 * That is {@link #log(LogEvent)} does not do any checking if the event is allowed
+	 * furthermore by first checking if {@link #isEnabled()} is true one can decide
+	 * whether or not to create a {@link LogEvent}.
+	 */
 	public interface Route extends LogEventLogger {
 
 		public boolean isEnabled();
-
-		public static Route of(List<? extends Route> routes) {
-			Route[] array = routes.stream().filter(Route::isEnabled).toList().toArray(new Route[] {});
-			if (array.length == 0) {
-				return Routes.NotFound;
-			}
-			if (array.length == 1) {
-				return array[0];
-			}
-			return new CompositeRoute(array);
-		}
 
 		public enum Routes implements Route {
 
@@ -232,22 +236,6 @@ public sealed interface LogRouter extends AutoCloseable {
 
 		}
 
-	}
-
-}
-
-record CompositeRoute(Route[] routes) implements Route {
-
-	@Override
-	public void log(LogEvent event) {
-		for (var r : routes) {
-			r.log(event);
-		}
-	}
-
-	@Override
-	public boolean isEnabled() {
-		return true;
 	}
 
 }
@@ -473,19 +461,6 @@ enum GlobalLogRouter implements RootRouter, Route {
 			drainLock.unlock();
 		}
 	}
-
-	// @Override
-	// public void route(LogEvent event) {
-	// LogRouter d = delegate;
-	// if (d != null) {
-	// if (d.isEnabled(event.loggerName(), event.level())) {
-	// d.log(event);
-	// }
-	// }
-	// else {
-	// events.add(event);
-	// }
-	// }
 
 	@Override
 	public void start(LogConfig config) {

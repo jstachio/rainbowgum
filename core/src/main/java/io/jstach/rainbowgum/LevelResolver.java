@@ -9,10 +9,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
+import io.jstach.rainbowgum.LevelResolver.LevelPublisher;
 
 public interface LevelResolver {
 
@@ -20,6 +23,15 @@ public interface LevelResolver {
 
 	default boolean isEnabled(String loggerName, Level level) {
 		return resolveLevel(loggerName).getSeverity() <= level.getSeverity();
+	}
+	
+	default ResolverType resolverType() {
+		return ResolverType.STATIC;
+	}
+	
+	public enum ResolverType {
+		STATIC,
+		DYNAMIC
 	}
 
 	@FunctionalInterface
@@ -41,6 +53,14 @@ public interface LevelResolver {
 		}
 
 	}
+	
+	interface LevelPublisher extends LevelResolver {
+		
+		public void subscribe(Consumer<? super LevelResolver> consumer);
+		
+		public void publish();
+	}
+	
 
 	public static Builder builder() {
 		return new Builder();
@@ -307,6 +327,54 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 
 }
 
+abstract class AbstractLevelPublisher implements LevelPublisher {
+
+	private final Collection<Consumer<? super LevelResolver>> consumers = new CopyOnWriteArrayList<Consumer<? super LevelResolver>>();
+	
+	@Override
+	public final ResolverType resolverType() {
+		return ResolverType.DYNAMIC;
+	}
+	
+	@Override
+	public void publish() {
+		for (var c : consumers) {
+			c.accept(this);
+		}
+	}
+	
+	@Override
+	public void subscribe(
+			Consumer<? super LevelResolver> consumer) {
+		consumers.add(consumer);
+		consumer.accept(this);
+	}
+}
+
+class DefaultLevelPublisher extends AbstractLevelPublisher {
+	private final LevelResolver levelResolver;
+
+	
+	public DefaultLevelPublisher(
+			LevelResolver levelResolver) {
+		super();
+		if (levelResolver.resolverType() != ResolverType.DYNAMIC) {
+			throw new IllegalArgumentException("should be " + ResolverType.DYNAMIC);
+		}
+		if (levelResolver instanceof LevelPublisher) {
+			throw new IllegalArgumentException("should not wrap publishers");
+		}
+		this.levelResolver = levelResolver;
+	}
+
+	@Override
+	public Level resolveLevel(
+			String name) {
+		return levelResolver.resolveLevel(name);
+	}
+	
+}
+
 /*
  * Revisit perf. ConcurrentHashMap based on benchmarks is incredibly slow for most cases
  * and looping can be faster.
@@ -314,15 +382,17 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
  * Luckily level resolution is only called when a logger is created and the loggers are
  * cached.
  */
-class CachedLevelResolver implements LevelResolver {
+class CachedLevelResolver implements LevelPublisher {
 
 	private final LevelResolver levelResolver;
 
 	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
 
 	public CachedLevelResolver(LevelResolver levelResolver) {
-		super();
 		this.levelResolver = levelResolver;
+		if (levelResolver instanceof LevelPublisher p) {
+			p.subscribe(this::onChange);
+		}
 	}
 
 	@Override
@@ -332,6 +402,34 @@ class CachedLevelResolver implements LevelResolver {
 			return level;
 		}
 		return levelCache.computeIfAbsent(name, n -> levelResolver.resolveLevel(name));
+	}
+	
+	public void publish() {
+		if (levelResolver instanceof LevelPublisher p) {
+			p.publish();
+		}
+	}
+	
+	private void onChange(LevelResolver resolver) {
+		if (resolverType() == ResolverType.DYNAMIC) {
+			levelCache.clear();
+		}
+	}
+	
+	@Override
+	public ResolverType resolverType() {
+		return levelResolver.resolverType();
+	}
+	
+	public void subscribe(Consumer<? super LevelResolver> consumer) {
+		if (levelResolver instanceof LevelPublisher p) {
+			p.subscribe(lr -> {
+				consumer.accept(this);
+			});
+		}
+		else {
+			consumer.accept(this);
+		}
 	}
 
 	@Override

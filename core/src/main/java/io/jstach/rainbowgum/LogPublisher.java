@@ -3,7 +3,6 @@ package io.jstach.rainbowgum;
 import java.util.List;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
-import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 

@@ -1,3 +1,11 @@
+/**
+ * Core module for RainbowGum which provides low level components for logging as well as a builder 
+ * for creating custom RainbowGums.
+ * 
+ * @uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider
+ * @see {@link io.jstach.rainbowgum}
+ */
+
 module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum;
 	exports io.jstach.rainbowgum.format;
