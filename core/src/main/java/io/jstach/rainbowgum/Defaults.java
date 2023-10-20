@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.net.URI;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -11,6 +12,7 @@ import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogOutput.OutputType;
+import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
@@ -36,10 +38,17 @@ public class Defaults {
 
 	private final EnumMap<OutputType, Supplier<? extends LogFormatter>> formatters = new EnumMap<>(OutputType.class);
 
-	private final Properties properties;
+	private final LogProperties properties;
+
+	private static final Property<Boolean> defaultsAppenderBufferSetting = Property.builder()
+		.map(s -> Boolean.parseBoolean(s))
+		.orElse(false)
+		.build("defaults.appender.buffer");
+
+	static final Property<URI> fileProperty = Property.builder().map(URI::new).build("file");
 
 	public Defaults(LogProperties logProperties) {
-		this.properties = Properties.of(logProperties);
+		this.properties = logProperties;
 	}
 
 	static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
@@ -54,8 +63,8 @@ public class Defaults {
 		if (encoder == null) {
 			encoder = LogEncoder.of(formatterForOutputType(output.type()));
 		}
-		return properties.property("defaults.appender.buffer").parseBoolean(false)
-				? new BufferLogAppender(output, encoder) : new DefaultLogAppender(output, encoder);
+		return defaultsAppenderBufferSetting.require(properties) ? new BufferLogAppender(output, encoder)
+				: new DefaultLogAppender(output, encoder);
 	}
 
 	public LogFormatter formatterForOutputType(OutputType outputType) {

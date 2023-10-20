@@ -4,7 +4,6 @@ import static java.util.Objects.requireNonNullElse;
 
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.net.URI;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,8 +25,8 @@ import io.jstach.rainbowgum.LogRouter.Route;
 import io.jstach.rainbowgum.LogRouter.Router;
 
 /**
- * Routes messages to a publisher by providing a {@link Route}
- * from a logger name and level. 
+ * Routes messages to a publisher by providing a {@link Route} from a logger name and
+ * level.
  */
 public sealed interface LogRouter extends AutoCloseable {
 
@@ -51,12 +50,12 @@ public sealed interface LogRouter extends AutoCloseable {
 	}
 
 	/**
-	 * A route is similar to a SLF4J Logger or System Logger but
-	 * has a much simpler contract.
-	 * 
-	 * The proper usage of Route in most cases is to call {@link #isEnabled()}
-	 * before calling {@link #log(LogEvent)}.
-	 * 
+	 * A route is similar to a SLF4J Logger or System Logger but has a much simpler
+	 * contract.
+	 *
+	 * The proper usage of Route in most cases is to call {@link #isEnabled()} before
+	 * calling {@link #log(LogEvent)}.
+	 *
 	 * That is {@link #log(LogEvent)} does not do any checking if the event is allowed
 	 * furthermore by first checking if {@link #isEnabled()} is true one can decide
 	 * whether or not to create a {@link LogEvent}.
@@ -150,7 +149,7 @@ public sealed interface LogRouter extends AutoCloseable {
 
 	}
 
-	public sealed interface Router extends LogRouter, LogEventLogger {
+	sealed interface Router extends LogRouter, LogEventLogger {
 
 		LevelResolver levelResolver();
 
@@ -212,15 +211,13 @@ public sealed interface LogRouter extends AutoCloseable {
 				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
 					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
-					Properties.of(config) //
-						.property("file") //
-						.map(URI::new)
-						.map(u -> config.outputProvider().of(u))
-						.map(o -> {
-							return LogAppender.builder().output(o).build();
-						}) //
+					// Defaults.fileProperty.value(config.properties()) //
+					config.properties().value(Defaults.fileProperty).map(u -> config.outputProvider().of(u)).map(o -> {
+						return LogAppender.builder().output(o).build();
+					}) //
 						.optional()
 						.ifPresent(appenders::add);
+
 				}
 				if (publisher == null) {
 					publisher = LogPublisher.SyncLogPublisher //

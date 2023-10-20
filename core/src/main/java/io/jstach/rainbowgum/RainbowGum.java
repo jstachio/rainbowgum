@@ -14,12 +14,12 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
  * The main entrypoint and configuration of RainbowGum logging.
- * 
- * RainbowGum logging loads configuration through the service loader.
- * While you can manually set RainbowGum using {@link #set(Supplier)} it is better to 
- * register implementations through the ServiceLoader so that RainbowGum will load prior
- * to any externally logging.
- * 
+ *
+ * RainbowGum logging loads configuration through the service loader. While you can
+ * manually set RainbowGum using {@link #set(Supplier)} it is better to register
+ * implementations through the ServiceLoader so that RainbowGum will load prior to any
+ * externally logging.
+ *
  */
 public interface RainbowGum extends AutoCloseable {
 
