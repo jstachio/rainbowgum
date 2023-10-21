@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogProperties.PropertyFunction;
 
 public sealed interface PropertyValue<T> {
@@ -18,7 +19,7 @@ public sealed interface PropertyValue<T> {
 	T orNull();
 
 	static StringValue of(LogProperties config, String key) {
-		String v = config.property(key);
+		String v = config.valueOrNull(key);
 		return of(key, v);
 	}
 
@@ -73,6 +74,25 @@ public sealed interface PropertyValue<T> {
 
 	default Optional<T> optional() {
 		return Optional.ofNullable(orNull());
+	}
+
+	record PropertyPropertyValue<T>(LogProperties properties, Property<T> property) implements PropertyValue<T> {
+
+		@Override
+		public String key() {
+			return property.key();
+		}
+
+		@Override
+		public @Nullable String original() {
+			return properties.valueOrNull(key());
+		}
+
+		@Override
+		public @Nullable T orNull() {
+			return property.valueOrNull(properties);
+		}
+
 	}
 
 	record EmptyValue<T>(String key, @Nullable String original) implements PropertyValue<T> {

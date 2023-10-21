@@ -40,7 +40,7 @@ public class Defaults {
 
 	private final LogProperties properties;
 
-	private static final Property<Boolean> defaultsAppenderBufferSetting = Property.builder()
+	private static final Property<Boolean> defaultsAppenderBufferProperty = Property.builder()
 		.map(s -> Boolean.parseBoolean(s))
 		.orElse(false)
 		.build("defaults.appender.buffer");
@@ -63,7 +63,7 @@ public class Defaults {
 		if (encoder == null) {
 			encoder = LogEncoder.of(formatterForOutputType(output.type()));
 		}
-		return defaultsAppenderBufferSetting.require(properties) ? new BufferLogAppender(output, encoder)
+		return defaultsAppenderBufferProperty.require(properties) ? new BufferLogAppender(output, encoder)
 				: new DefaultLogAppender(output, encoder);
 	}
 

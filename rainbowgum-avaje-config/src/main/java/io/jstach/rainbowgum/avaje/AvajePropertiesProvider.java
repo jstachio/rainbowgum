@@ -31,7 +31,7 @@ class AvajeProperties implements LogProperties {
 	}
 
 	@Override
-	public @Nullable String property(String key) {
+	public @Nullable String valueOrNull(String key) {
 		return configuration.getNullable(key);
 	}
 

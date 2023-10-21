@@ -9,10 +9,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
+import io.jstach.rainbowgum.LogProperties.Extractor;
 
 public interface LevelResolver {
 
@@ -176,14 +178,8 @@ public interface LevelResolver {
 	}
 
 	public static Level resolveLevel(LevelConfig levelBindings, String name) {
-		String tempName = name;
-		Level level = null;
-		int indexOfLastDot = tempName.length();
-		while ((level == null) && (indexOfLastDot > -1)) {
-			tempName = tempName.substring(0, indexOfLastDot);
-			level = allToNull(levelBindings.levelOrNull(tempName));
-			indexOfLastDot = tempName.lastIndexOf(".");
-		}
+		Function<String, @Nullable Level> f = s -> allToNull(levelBindings.levelOrNull(s));
+		var level = LogProperties.searchPath(name, f);
 		if (level != null) {
 			return level;
 		}
@@ -401,20 +397,13 @@ interface ConfigLevelResolver extends LevelConfig {
 
 	LogProperties properties();
 
-	String levelPropertyPrefix();
+	static Extractor<Level> levelExtractor = Extractor.of()
+		.withPrefix(LogProperties.DEFAULT_LEVEL_PREFIX)
+		.map(s -> s.toUpperCase(Locale.ROOT))
+		.map(Level::valueOf);
 
 	default @Nullable Level levelOrNull(String name) {
-		String key = LogProperties.concatName(levelPropertyPrefix(), name);
-//		return Extractor.of()
-//			.withPrefix(levelPropertyPrefix())
-//			.map(s -> s.toUpperCase(Locale.ROOT))
-//			.map(Level::valueOf)
-//			.get(properties(), key);
-		
-		 return properties().propertyValue(key)
-		 .mapString(s -> s.toUpperCase(Locale.ROOT)) //
-		 .map(Level::valueOf) //
-		 .orNull();
+		return properties().valueOrNull(levelExtractor.property(name));
 	}
 
 	default Level defaultLevel() {

@@ -90,8 +90,8 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 	private final ChangePublisher publisher;
 
 	@Override
-	public @Nullable String property(String key) {
-		return properties.property(DEFAULT_ROOT_PREFIX + key);
+	public @Nullable String valueOrNull(String key) {
+		return properties.valueOrNull(DEFAULT_ROOT_PREFIX + key);
 	}
 
 	public DefaultLogConfig(LogProperties properties) {
@@ -127,11 +127,6 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 			return level;
 		}
 		return levelCache.computeIfAbsent(name, n -> ConfigLevelResolver.super.resolveLevel(name));
-	}
-
-	@Override
-	public String levelPropertyPrefix() {
-		return LogProperties.DEFAULT_LEVEL_PREFIX;
 	}
 
 	private static final Extractor<Boolean> changeSetting = Extractor.of()

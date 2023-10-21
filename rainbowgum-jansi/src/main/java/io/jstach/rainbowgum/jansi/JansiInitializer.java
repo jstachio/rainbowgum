@@ -25,7 +25,7 @@ public class JansiInitializer implements RainbowGumServiceProvider.Initializer {
 		if (!System.getProperty("surefire.real.class.path", "").isEmpty()) {
 			return false;
 		}
-		var disableProperty = Boolean.parseBoolean(config.properties().property(JANSI_DISABLE));
+		var disableProperty = Boolean.parseBoolean(config.properties().valueOrNull(JANSI_DISABLE));
 		if (disableProperty) {
 			return true;
 		}
