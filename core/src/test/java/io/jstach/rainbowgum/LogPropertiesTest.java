@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
 import java.lang.System.Logger.Level;
 import java.util.Map;
 
@@ -16,15 +14,10 @@ class LogPropertiesTest {
 		Map<String, String> m = Map.of("logging.level.com.stuff", "DEBUG");
 		LogProperties props = s -> m.get(s);
 		var extractor = ConfigLevelResolver.levelExtractor;
-		var property = extractor.property("com.stuffs");
+		var property = extractor.property("com.stuff");
 		// assertEquals(Level.ALL, property.require(props));
 		PropertyValue<Level> value = props.property(property);
 		value.value();
-	}
-
-	@Test
-	void testProperty() {
-		fail("Not yet implemented");
 	}
 
 }
