@@ -7,9 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
-import org.eclipse.jdt.annotation.Nullable;
-
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
+import io.jstach.rainbowgum.LogProperties.Extractor;
 
 public interface LogConfig {
 
@@ -79,24 +78,20 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 }
 
-class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties {
+class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 
 	private final LogProperties properties;
 
 	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
 
-	private final Defaults defaults = new Defaults(this);
+	private final Defaults defaults;
 
 	private final ChangePublisher publisher;
-
-	@Override
-	public @Nullable String valueOrNull(String key) {
-		return properties.valueOrNull(DEFAULT_ROOT_PREFIX + key);
-	}
 
 	public DefaultLogConfig(LogProperties properties) {
 		super();
 		this.properties = properties;
+		this.defaults = new Defaults(this.properties);
 		this.publisher = new AbstractChangePublisher() {
 			@Override
 			protected LogConfig _config() {
@@ -107,7 +102,7 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 
 	@Override
 	public LogProperties properties() {
-		return this;
+		return properties;
 	}
 
 	@Override
@@ -136,7 +131,7 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver, LogProperties 
 
 	@Override
 	public Optional<ChangePublisher> publisher(String loggerName) {
-		boolean changeAllowed = changeSetting.require(this, loggerName);
+		boolean changeAllowed = changeSetting.require(properties(), loggerName);
 		if (changeAllowed) {
 			return Optional.of(publisher);
 		}

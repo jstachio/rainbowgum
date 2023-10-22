@@ -211,6 +211,10 @@ public sealed interface LogRouter extends AutoCloseable {
 				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
 					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
+					// Defaults.fileProperty.valueOrNull(config.properties(), uri -> {
+					// var o = config.outputProvider().of(uri);
+					// return LogAppender.builder().output(o).build();
+					// });
 					config.properties()
 						.property(Defaults.fileProperty) //
 						.map(u -> config.outputProvider().of(u))

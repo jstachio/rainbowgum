@@ -23,9 +23,9 @@ public class Defaults {
 
 	public static final String SHUTDOWN = "#SHUTDOWN#";
 
-	public static final String ROOT_PROPERTY_PREFIX = "rainbowgum";
-
-	public static final String LOGGER_PROPERTY_PREFIX = "log";
+	// public static final String ROOT_PROPERTY_PREFIX = "rainbowgum";
+	//
+	// public static final String LOGGER_PROPERTY_PREFIX = "log";
 
 	private static final ReentrantReadWriteLock staticLock = new ReentrantReadWriteLock();
 
@@ -63,7 +63,8 @@ public class Defaults {
 		if (encoder == null) {
 			encoder = LogEncoder.of(formatterForOutputType(output.type()));
 		}
-		return defaultsAppenderBufferProperty.require(properties) ? new BufferLogAppender(output, encoder)
+		;
+		return defaultsAppenderBufferProperty.get(properties).value() ? new BufferLogAppender(output, encoder)
 				: new DefaultLogAppender(output, encoder);
 	}
 

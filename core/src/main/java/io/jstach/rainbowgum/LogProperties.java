@@ -16,37 +16,23 @@ import io.jstach.rainbowgum.LogProperties.Extractor.RootExtractor;
 @FunctionalInterface
 public interface LogProperties {
 
-	static final String DEFAULT_ROOT_PREFIX = "logging.";
-	static final String DEFAULT_LEVEL_PREFIX = "level";
+	static final String ROOT_PREFIX = "logging.";
+	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
+	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
 
 	public @Nullable String valueOrNull(String key);
 
-	// default <T> T value(String key,
-	// @SuppressWarnings("exports") PropertyFunction<@Nullable String, T, ? super
-	// Exception> mapper) {
-	// String value = valueOrNull(key);
-	// try {
-	// return mapper._apply(value);
+	// default <T> T value(Property<T> property) {
+	// return property.require(this);
 	// }
-	// catch (Exception e) {
-	// throw throwPropertyError(description(key), e);
+	//
+	// @SuppressWarnings("exports")
+	// default <T> @Nullable T valueOrNull(Property<T> property) {
+	// return property.valueOrNull(this);
 	// }
-	// }
-
-	default <T> T value(Property<T> property) {
-		return property.require(this);
-	}
-
-	default <T> T valueOrNull(Property<T> property) {
-		return property.valueOrNull(this);
-	}
-
-	default <T> Optional<T> optional(Property<T> property) {
-		return Optional.ofNullable(valueOrNull(property));
-	}
 
 	default <T> PropertyValue<T> property(Property<T> property) {
-		return property.value(this);
+		return property.get(this);
 	}
 
 	default @Nullable String search(String root, String key) {
@@ -129,11 +115,11 @@ public interface LogProperties {
 	}
 
 	static RuntimeException throwPropertyError(String key, Exception e) {
-		throw new RuntimeException("Error for property: " + key, e);
+		throw new RuntimeException("Error for property. key: " + key, e);
 	}
 
 	static RuntimeException throwMissingError(String key) {
-		throw new NoSuchElementException("Property missing. property key: " + key);
+		throw new NoSuchElementException("Property missing. key: " + key);
 	}
 
 	@SuppressWarnings("exports")
@@ -164,17 +150,32 @@ public interface LogProperties {
 		return prefix + "." + name;
 	}
 
+	record PropertyValue<T>(Property<T> property, LogProperties properties) {
+		public <U> PropertyValue<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+			return new PropertyValue<>(property.map(mapper), properties);
+		}
+
+		public @Nullable T valueOrNull() {
+			return property.extractor.valueOrNull(properties, property.key);
+		}
+
+		public Optional<T> optional() {
+			return Optional.ofNullable(valueOrNull());
+		}
+
+		public T value() {
+			return property.extractor.require(properties, property.key);
+		}
+	}
+
 	record Property<T>(Extractor<T> extractor, String key) {
-		public PropertyValue<T> value(LogProperties properties) {
-			return new PropertyValue.PropertyPropertyValue<>(properties, this);
+
+		public PropertyValue<T> get(LogProperties properties) {
+			return new PropertyValue<>(this, properties);
 		}
 
-		public @Nullable T valueOrNull(LogProperties properties) {
-			return extractor.valueOrNull(properties, key);
-		}
-
-		public T require(LogProperties properties) {
-			return extractor.require(properties, key);
+		private <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+			return new Property<>(extractor.map(mapper), key);
 		}
 
 		public static RootExtractor builder() {
@@ -190,7 +191,8 @@ public interface LogProperties {
 		default T require(LogProperties props, String key) {
 			var t = valueOrNull(props, key);
 			if (t == null) {
-				throw LogProperties.throwMissingError(props.description(key));
+				throw throwMissing(props, key);
+
 			}
 			return t;
 		}
@@ -204,6 +206,8 @@ public interface LogProperties {
 		}
 
 		RuntimeException throwError(LogProperties props, String key, Exception e);
+
+		NoSuchElementException throwMissing(LogProperties props, String key);
 
 		public static RootExtractor of() {
 			return new RootExtractor("", false);
@@ -221,7 +225,12 @@ public interface LogProperties {
 
 			@Override
 			public RuntimeException throwError(LogProperties props, String key, Exception e) {
-				throw LogProperties.throwPropertyError(props.description(prefix + key), e);
+				throw LogProperties.throwPropertyError(props.description(concatName(prefix, key)), e);
+			}
+
+			@Override
+			public NoSuchElementException throwMissing(LogProperties props, String key) {
+				throw LogProperties.throwMissingError(props.description(concatName(prefix, key)));
 			}
 
 			public RootExtractor withSearch(String prefix) {
@@ -264,6 +273,11 @@ public interface LogProperties {
 				throw parent.throwError(props, key, e);
 			}
 
+			@Override
+			public NoSuchElementException throwMissing(LogProperties props, String key) {
+				throw parent.throwMissing(props, key);
+			}
+
 		}
 
 		record MapExtractor<T, R>(Extractor<T> parent,
@@ -286,6 +300,11 @@ public interface LogProperties {
 			@Override
 			public RuntimeException throwError(LogProperties props, String key, Exception e) {
 				throw parent.throwError(props, key, e);
+			}
+
+			@Override
+			public NoSuchElementException throwMissing(LogProperties props, String key) {
+				throw parent.throwMissing(props, key);
 			}
 
 		}

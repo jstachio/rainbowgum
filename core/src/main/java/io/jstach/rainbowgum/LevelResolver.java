@@ -398,12 +398,12 @@ interface ConfigLevelResolver extends LevelConfig {
 	LogProperties properties();
 
 	static Extractor<Level> levelExtractor = Extractor.of()
-		.withPrefix(LogProperties.DEFAULT_LEVEL_PREFIX)
+		.withPrefix(LogProperties.LEVEL_PREFIX)
 		.map(s -> s.toUpperCase(Locale.ROOT))
 		.map(Level::valueOf);
 
 	default @Nullable Level levelOrNull(String name) {
-		return properties().valueOrNull(levelExtractor.property(name));
+		return levelExtractor.property(name).get(properties()).valueOrNull();
 	}
 
 	default Level defaultLevel() {
