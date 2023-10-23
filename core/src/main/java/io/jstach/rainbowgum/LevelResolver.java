@@ -14,7 +14,7 @@ import java.util.function.Function;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
-import io.jstach.rainbowgum.LogProperties.Extractor;
+import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 
 public interface LevelResolver {
 
@@ -88,21 +88,6 @@ public interface LevelResolver {
 			case WARNING -> StaticLevelResolver.WARNING;
 		};
 	}
-
-	// public static LevelResolver of(LogProperties config, String prefix) {
-	// return new ConfigLevelResolver() {
-	//
-	// @Override
-	// public LogProperties properties() {
-	// return config;
-	// }
-	//
-	// @Override
-	// public String levelPropertyPrefix() {
-	// return prefix;
-	// }
-	// };
-	// }
 
 	public static LevelResolver cached(LevelResolver resolver) {
 		if (resolver instanceof StaticLevelResolver) {
@@ -313,46 +298,6 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 
 }
 
-// abstract class AbstractLevelPublisher implements LevelPublisher, LevelResolver {
-//
-// private final Collection<Consumer<? super LevelResolver>> consumers = new
-// CopyOnWriteArrayList<Consumer<? super LevelResolver>>();
-//
-// @Override
-// public void publish() {
-// for (var c : consumers) {
-// c.accept(this);
-// }
-// }
-//
-// @Override
-// public void subscribe(
-// Consumer<? super LevelResolver> consumer) {
-// consumers.add(consumer);
-// consumer.accept(this);
-// }
-// }
-//
-// class DefaultLevelPublisher extends AbstractLevelPublisher {
-// private final LevelResolver levelResolver;
-//
-// public DefaultLevelPublisher(
-// LevelResolver levelResolver) {
-// super();
-// if (levelResolver instanceof LevelPublisher) {
-// throw new IllegalArgumentException("should not wrap publishers");
-// }
-// this.levelResolver = levelResolver;
-// }
-//
-// @Override
-// public Level resolveLevel(
-// String name) {
-// return levelResolver.resolveLevel(name);
-// }
-//
-// }
-
 /*
  * Revisit perf. ConcurrentHashMap based on benchmarks is incredibly slow for most cases
  * and looping can be faster.
@@ -360,7 +305,7 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
  * Luckily level resolution is only called when a logger is created and the loggers are
  * cached.
  */
-class CachedLevelResolver implements LevelResolver {
+final class CachedLevelResolver implements LevelResolver {
 
 	private final LevelResolver levelResolver;
 
@@ -393,20 +338,25 @@ class CachedLevelResolver implements LevelResolver {
 
 }
 
-interface ConfigLevelResolver extends LevelConfig {
+final class ConfigLevelResolver implements LevelConfig {
 
-	LogProperties properties();
+	private final LogProperties properties;
 
-	static Extractor<Level> levelExtractor = Extractor.of()
+	public ConfigLevelResolver(LogProperties properties) {
+		super();
+		this.properties = properties;
+	}
+
+	static PropertyGetter<Level> levelExtractor = PropertyGetter.of()
 		.withPrefix(LogProperties.LEVEL_PREFIX)
 		.map(s -> s.toUpperCase(Locale.ROOT))
 		.map(Level::valueOf);
 
-	default @Nullable Level levelOrNull(String name) {
-		return levelExtractor.property(name).get(properties()).valueOrNull();
+	public @Nullable Level levelOrNull(String name) {
+		return levelExtractor.property(name).get(properties).valueOrNull();
 	}
 
-	default Level defaultLevel() {
+	public Level defaultLevel() {
 		var level = levelOrNull("");
 		if (level == null) {
 			return Level.OFF;

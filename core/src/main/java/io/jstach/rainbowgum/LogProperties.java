@@ -11,32 +11,25 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogProperties.Extractor.RootExtractor;
+import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
 
 @FunctionalInterface
 public interface LogProperties {
 
-	static final String ROOT_PREFIX = "logging.";
+	static final String SEP = ".";
+	static final String ROOT_PREFIX = "logging" + SEP;
 	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
+	static final String FILE_PROPERTY = ROOT_PREFIX + "file";
 
 	public @Nullable String valueOrNull(String key);
-
-	// default <T> T value(Property<T> property) {
-	// return property.require(this);
-	// }
-	//
-	// @SuppressWarnings("exports")
-	// default <T> @Nullable T valueOrNull(Property<T> property) {
-	// return property.valueOrNull(this);
-	// }
 
 	default <T> PropertyValue<T> property(Property<T> property) {
 		return property.get(this);
 	}
 
 	default @Nullable String search(String root, String key) {
-		return searchPath(key, k -> valueOrNull(concatName(root, k)));
+		return searchPath(key, k -> valueOrNull(concatKey(root, k)));
 
 	}
 
@@ -114,17 +107,17 @@ public interface LogProperties {
 		throw (E) x;
 	}
 
-	static RuntimeException throwPropertyError(String key, Exception e) {
+	private static RuntimeException throwPropertyError(String key, Exception e) {
 		throw new RuntimeException("Error for property. key: " + key, e);
 	}
 
-	static RuntimeException throwMissingError(String key) {
+	private static RuntimeException throwMissingError(String key) {
 		throw new NoSuchElementException("Property missing. key: " + key);
 	}
 
 	@SuppressWarnings("exports")
 	static <T> @Nullable T searchPath(String name, Function<String, @Nullable T> resolveFunc) {
-		return searchPath(name, resolveFunc, ".");
+		return searchPath(name, resolveFunc, SEP);
 	}
 
 	@SuppressWarnings("exports")
@@ -143,11 +136,24 @@ public interface LogProperties {
 		return null;
 	}
 
-	static String concatName(String prefix, String name) {
+	static String concatKey(String name) {
+		return concatKey(LogProperties.ROOT_PREFIX, name);
+	}
+
+	static String concatKey(String prefix, String name) {
 		if (name.equals("")) {
 			return prefix;
 		}
-		return prefix + "." + name;
+		if (prefix.equals("")) {
+			return name;
+		}
+		if (prefix.endsWith(".")) {
+			prefix = prefix.substring(0, prefix.length() - 1);
+		}
+		if (name.startsWith(SEP)) {
+			return prefix + name;
+		}
+		return prefix + SEP + name;
 	}
 
 	record PropertyValue<T>(Property<T> property, LogProperties properties) {
@@ -156,7 +162,7 @@ public interface LogProperties {
 		}
 
 		public @Nullable T valueOrNull() {
-			return property.extractor.valueOrNull(properties, property.key);
+			return property.propertyGetter.valueOrNull(properties, property.key);
 		}
 
 		public Optional<T> optional() {
@@ -164,100 +170,134 @@ public interface LogProperties {
 		}
 
 		public T value() {
-			return property.extractor.require(properties, property.key);
+			return property.propertyGetter.require(properties, property.key);
 		}
 	}
 
-	record Property<T>(Extractor<T> extractor, String key) {
+	record Property<T>(PropertyGetter<T> propertyGetter, String key) {
+
+		// public Property {
+		// if (!key.startsWith(LogProperties.ROOT_PREFIX)) {
+		// throw new IllegalArgumentException(
+		// "Property key should start with: '" + LogProperties.ROOT_PREFIX + "'");
+		// }
+		// }
 
 		public PropertyValue<T> get(LogProperties properties) {
 			return new PropertyValue<>(this, properties);
 		}
 
 		private <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
-			return new Property<>(extractor.map(mapper), key);
+			return new Property<>(propertyGetter.map(mapper), key);
 		}
 
-		public static RootExtractor builder() {
-			return Extractor.of();
+		public static RootPropertyGetter builder() {
+			return PropertyGetter.of();
 		}
 	}
 
-	interface Extractor<T> {
+	sealed interface PropertyGetter<T> {
 
 		@Nullable
 		T valueOrNull(LogProperties props, String key);
 
+		default String fullyQualifiedKey(String key) {
+			return findRoot(this).fullyQualifiedKey(key);
+		}
+
 		default T require(LogProperties props, String key) {
 			var t = valueOrNull(props, key);
 			if (t == null) {
-				throw throwMissing(props, key);
-
+				throw findRoot(this).throwMissing(props, key);
 			}
 			return t;
 		}
 
 		default Property<T> property(String key) {
-			return new Property<>(this, key);
+			return build(key);
 		}
 
 		default Property<T> build(String key) {
+			String fqn = fullyQualifiedKey(key);
+			if (!fqn.startsWith(LogProperties.ROOT_PREFIX)) {
+				throw new IllegalArgumentException(
+						"Property key should start with: '" + LogProperties.ROOT_PREFIX + "'");
+			}
 			return new Property<>(this, key);
 		}
 
-		RuntimeException throwError(LogProperties props, String key, Exception e);
+		private static RootPropertyGetter findRoot(PropertyGetter<?> e) {
+			if (e instanceof RootPropertyGetter r) {
+				return r;
+			}
+			else if (e instanceof ChildPropertyGetter c) {
+				return findRoot(c.parent());
+			}
+			else {
+				throw new IllegalStateException("bug");
+			}
 
-		NoSuchElementException throwMissing(LogProperties props, String key);
-
-		public static RootExtractor of() {
-			return new RootExtractor("", false);
 		}
 
-		record RootExtractor(String prefix, boolean search) implements Extractor<String> {
+		public static RootPropertyGetter of() {
+			return new RootPropertyGetter("", false);
+		}
+
+		record RootPropertyGetter(String prefix, boolean search) implements PropertyGetter<String> {
 
 			@Override
 			public @Nullable String valueOrNull(LogProperties props, String key) {
 				if (search) {
 					return props.search(prefix, key);
 				}
-				return props.valueOrNull(LogProperties.concatName(prefix, key));
+				return props.valueOrNull(LogProperties.concatKey(prefix, key));
+			}
+
+			private RuntimeException throwError(LogProperties props, String key, Exception e) {
+				throw LogProperties.throwPropertyError(props.description(fullyQualifiedKey(key)), e);
+			}
+
+			private NoSuchElementException throwMissing(LogProperties props, String key) {
+				throw LogProperties.throwMissingError(props.description(fullyQualifiedKey(key)));
+			}
+
+			public RootPropertyGetter withSearch(String prefix) {
+				return new RootPropertyGetter(prefix, true);
+			}
+
+			public RootPropertyGetter withPrefix(String prefix) {
+				return new RootPropertyGetter(prefix, search);
 			}
 
 			@Override
-			public RuntimeException throwError(LogProperties props, String key, Exception e) {
-				throw LogProperties.throwPropertyError(props.description(concatName(prefix, key)), e);
-			}
-
-			@Override
-			public NoSuchElementException throwMissing(LogProperties props, String key) {
-				throw LogProperties.throwMissingError(props.description(concatName(prefix, key)));
-			}
-
-			public RootExtractor withSearch(String prefix) {
-				return new RootExtractor(prefix, true);
-			}
-
-			public RootExtractor withPrefix(String prefix) {
-				return new RootExtractor(prefix, search);
+			public String fullyQualifiedKey(String key) {
+				return concatKey(prefix, key);
 			}
 
 		}
 
-		default <U> Extractor<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+		public sealed interface ChildPropertyGetter<T> extends PropertyGetter<T> {
+
+			PropertyGetter<?> parent();
+
+		}
+
+		default <U> PropertyGetter<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 			return new MapExtractor<T, U>(this, mapper);
 		}
 
-		default Extractor<T> orElse(T fallback) {
+		default PropertyGetter<T> orElse(T fallback) {
 			Objects.requireNonNull(fallback);
 			return new FallbackExtractor<T>(this, () -> fallback);
 		}
 
-		default Extractor<T> orElseGet(Supplier<? extends T> fallback) {
+		default PropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
 			Objects.requireNonNull(fallback);
 			return new FallbackExtractor<T>(this, fallback);
 		}
 
-		record FallbackExtractor<T>(Extractor<T> parent, Supplier<? extends T> fallback) implements Extractor<T> {
+		record FallbackExtractor<T>(PropertyGetter<T> parent,
+				Supplier<? extends T> fallback) implements ChildPropertyGetter<T> {
 
 			@Override
 			public T valueOrNull(LogProperties props, String key) {
@@ -268,20 +308,10 @@ public interface LogProperties {
 				return fallback.get();
 			}
 
-			@Override
-			public RuntimeException throwError(LogProperties props, String key, Exception e) {
-				throw parent.throwError(props, key, e);
-			}
-
-			@Override
-			public NoSuchElementException throwMissing(LogProperties props, String key) {
-				throw parent.throwMissing(props, key);
-			}
-
 		}
 
-		record MapExtractor<T, R>(Extractor<T> parent,
-				PropertyFunction<? super T, ? extends R, ? super Exception> mapper) implements Extractor<R> {
+		record MapExtractor<T, R>(PropertyGetter<T> parent,
+				PropertyFunction<? super T, ? extends R, ? super Exception> mapper) implements ChildPropertyGetter<R> {
 
 			@Override
 			public @Nullable R valueOrNull(LogProperties props, String key) {
@@ -291,20 +321,10 @@ public interface LogProperties {
 						return mapper._apply(n);
 					}
 					catch (Exception e) {
-						throw LogProperties.throwPropertyError(props.description(key), e);
+						throw findRoot(parent).throwError(props, key, e);
 					}
 				}
 				return null;
-			}
-
-			@Override
-			public RuntimeException throwError(LogProperties props, String key, Exception e) {
-				throw parent.throwError(props, key, e);
-			}
-
-			@Override
-			public NoSuchElementException throwMissing(LogProperties props, String key) {
-				throw parent.throwMissing(props, key);
 			}
 
 		}
@@ -327,18 +347,3 @@ record CompositeLogProperties(LogProperties[] properties) implements LogProperti
 	}
 
 }
-
-// record Properties(LogProperties properties) {
-// StringValue property(String key) {
-// return Property.of(properties, key);
-// }
-//
-// public static Properties of(LogConfig config) {
-// return new Properties(config.properties());
-// }
-//
-// public static Properties of(LogProperties properties) {
-// return new Properties(properties);
-// }
-//
-// }

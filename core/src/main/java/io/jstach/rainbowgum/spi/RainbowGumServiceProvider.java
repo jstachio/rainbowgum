@@ -10,24 +10,25 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.ServiceRegistry;
 
 public sealed interface RainbowGumServiceProvider {
 
 	public non-sealed interface PropertiesProvider extends RainbowGumServiceProvider {
 
-		List<LogProperties> provideProperties();
+		List<LogProperties> provideProperties(ServiceRegistry registry);
 
 	}
 
 	public non-sealed interface ConfigProvider extends RainbowGumServiceProvider {
 
-		LogConfig provideConfig(LogProperties properties);
+		LogConfig provideConfig(ServiceRegistry registry, LogProperties properties);
 
 	}
 
 	public non-sealed interface Initializer extends RainbowGumServiceProvider {
 
-		void initialize(LogConfig config);
+		void initialize(ServiceRegistry registry, LogConfig config);
 
 	}
 
@@ -54,27 +55,31 @@ public sealed interface RainbowGumServiceProvider {
 		});
 	}
 
-	private static LogProperties provideProperties(ServiceLoader<RainbowGumServiceProvider> loader) {
+	private static LogProperties provideProperties(ServiceRegistry registry,
+			ServiceLoader<RainbowGumServiceProvider> loader) {
 		List<LogProperties> props = findProviders(loader, PropertiesProvider.class)
-			.flatMap(s -> s.provideProperties().stream())
+			.flatMap(s -> s.provideProperties(registry).stream())
 			.toList();
 		return LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
 	}
 
-	private static LogConfig provideConfig(ServiceLoader<RainbowGumServiceProvider> loader, LogProperties properties) {
+	private static LogConfig provideConfig(ServiceLoader<RainbowGumServiceProvider> loader, ServiceRegistry registry,
+			LogProperties properties) {
 		return findProviders(loader, ConfigProvider.class).findFirst()
-			.map(s -> s.provideConfig(properties))
-			.orElseGet(() -> LogConfig.of(properties));
+			.map(s -> s.provideConfig(registry, properties))
+			.orElseGet(() -> LogConfig.of(registry, properties));
 	}
 
-	private static void runInitializers(ServiceLoader<RainbowGumServiceProvider> loader, LogConfig config) {
-		findProviders(loader, Initializer.class).forEach(c -> c.initialize(config));
+	private static void runInitializers(ServiceLoader<RainbowGumServiceProvider> loader, ServiceRegistry registry,
+			LogConfig config) {
+		findProviders(loader, Initializer.class).forEach(c -> c.initialize(registry, config));
 	}
 
 	public static LogConfig provideConfig(ServiceLoader<RainbowGumServiceProvider> loader) {
-		var properties = provideProperties(loader);
-		var config = provideConfig(loader, properties);
-		runInitializers(loader, config);
+		ServiceRegistry registry = ServiceRegistry.of();
+		var properties = provideProperties(registry, loader);
+		var config = provideConfig(loader, registry, properties);
+		runInitializers(loader, registry, config);
 		return config;
 	}
 

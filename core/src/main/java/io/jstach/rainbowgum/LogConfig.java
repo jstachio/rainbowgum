@@ -1,29 +1,13 @@
 package io.jstach.rainbowgum;
 
-import java.lang.System.Logger.Level;
 import java.util.Collection;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
-import io.jstach.rainbowgum.LogProperties.Extractor;
+import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 
 public interface LogConfig {
-
-	// default RuntimeMode runtimeMode() {
-	// return Property.of(properties(), "mode") //
-	// .mapString(s -> s.toUpperCase(Locale.ROOT)) //
-	// .map(RuntimeMode::valueOf) //
-	// .requireElse(RuntimeMode.DEV);
-	// }
-	//
-	// public enum RuntimeMode {
-	//
-	// DEV, TEST, PROD
-	//
-	// }
 
 	public LogProperties properties();
 
@@ -36,16 +20,16 @@ public interface LogConfig {
 	}
 
 	public static LogConfig of() {
-		return LogConfig.of(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+		return LogConfig.of(ServiceRegistry.of(), LogProperties.StandardProperties.SYSTEM_PROPERTIES);
 	}
 
-	public static LogConfig of(LogProperties properties) {
-		return new DefaultLogConfig(properties);
+	public static LogConfig of(ServiceRegistry registry, LogProperties properties) {
+		return new DefaultLogConfig(registry, properties);
 	}
 
-	default Optional<ChangePublisher> publisher(String loggerName) {
-		return Optional.empty();
-	}
+	public ChangePublisher publisher();
+
+	public ServiceRegistry registry();
 
 	interface ChangePublisher {
 
@@ -53,11 +37,18 @@ public interface LogConfig {
 
 		public void publish();
 
+		public boolean isEnabled(String loggerName);
+
 	}
 
 }
 
 abstract class AbstractChangePublisher implements ChangePublisher {
+
+	static final PropertyGetter<Boolean> changeSetting = PropertyGetter.of()
+		.withSearch(LogProperties.CHANGE_PREFIX)
+		.map(s -> Boolean.parseBoolean(s))
+		.orElse(false);
 
 	private final Collection<Consumer<? super LogConfig>> consumers = new CopyOnWriteArrayList<Consumer<? super LogConfig>>();
 
@@ -76,22 +67,32 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		consumers.add(consumer);
 	}
 
+	@Override
+	public boolean isEnabled(String loggerName) {
+		return changeSetting.require(_config().properties(), loggerName);
+
+	}
+
 }
 
-class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
+class DefaultLogConfig implements LogConfig {
+
+	private final ServiceRegistry registry;
 
 	private final LogProperties properties;
 
-	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
+	private final LevelResolver levelResolver;
 
 	private final Defaults defaults;
 
 	private final ChangePublisher publisher;
 
-	public DefaultLogConfig(LogProperties properties) {
+	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties) {
 		super();
+		this.registry = registry;
 		this.properties = properties;
-		this.defaults = new Defaults(this.properties);
+		this.levelResolver = new ConfigLevelResolver(properties);
+		this.defaults = new Defaults(properties);
 		this.publisher = new AbstractChangePublisher() {
 			@Override
 			protected LogConfig _config() {
@@ -107,7 +108,7 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 
 	@Override
 	public LevelResolver levelResolver() {
-		return this;
+		return this.levelResolver;
 	}
 
 	@Override
@@ -116,26 +117,13 @@ class DefaultLogConfig implements LogConfig, ConfigLevelResolver {
 	}
 
 	@Override
-	public Level resolveLevel(String name) {
-		var level = levelCache.get(name);
-		if (level != null) {
-			return level;
-		}
-		return levelCache.computeIfAbsent(name, n -> ConfigLevelResolver.super.resolveLevel(name));
+	public ServiceRegistry registry() {
+		return this.registry;
 	}
 
-	private static final Extractor<Boolean> changeSetting = Extractor.of()
-		.withSearch("change")
-		.map(s -> Boolean.parseBoolean(s))
-		.orElse(false);
-
 	@Override
-	public Optional<ChangePublisher> publisher(String loggerName) {
-		boolean changeAllowed = changeSetting.require(properties(), loggerName);
-		if (changeAllowed) {
-			return Optional.of(publisher);
-		}
-		return Optional.empty();
+	public ChangePublisher publisher() {
+		return this.publisher;
 	}
 
 }

@@ -275,38 +275,3 @@ class BufferLogAppender extends AbstractLogAppender {
 	}
 
 }
-
-final class SimpleLogAppender implements LogAppender {
-
-	protected final LogFormatter formatter;
-
-	protected final StringBuilder buffer = new StringBuilder();
-
-	protected final int maxStringBuilderSize = Defaults.maxStringBuilderSize.getAsInt();
-
-	protected final LogOutput output;
-
-	public SimpleLogAppender(LogOutput output, LogFormatter formatter) {
-		this.output = output;
-		this.formatter = formatter;
-	}
-
-	@Override
-	public void append(LogEvent event) {
-		boolean shrink = buffer.length() > maxStringBuilderSize;
-		buffer.setLength(0);
-		formatter.format(buffer, event);
-		output.write(event, buffer.toString());
-		output.flush();
-		if (shrink && buffer.length() < maxStringBuilderSize) {
-			buffer.trimToSize();
-		}
-
-	}
-
-	@Override
-	public void close() {
-		output.close();
-	}
-
-}

@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.jansi;
 import org.fusesource.jansi.AnsiConsole;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
@@ -13,7 +14,7 @@ public class JansiInitializer implements RainbowGumServiceProvider.Initializer {
 	public static String JANSI_DISABLE = "jansi.disable";
 
 	@Override
-	public void initialize(LogConfig config) {
+	public void initialize(ServiceRegistry registry, LogConfig config) {
 		if (installJansi(config)) {
 			AnsiConsole.systemInstall();
 			config.defaults()

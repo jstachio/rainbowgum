@@ -7,7 +7,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
-import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
@@ -22,10 +21,6 @@ import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 public class Defaults {
 
 	public static final String SHUTDOWN = "#SHUTDOWN#";
-
-	// public static final String ROOT_PROPERTY_PREFIX = "rainbowgum";
-	//
-	// public static final String LOGGER_PROPERTY_PREFIX = "log";
 
 	private static final ReentrantReadWriteLock staticLock = new ReentrantReadWriteLock();
 
@@ -43,9 +38,9 @@ public class Defaults {
 	private static final Property<Boolean> defaultsAppenderBufferProperty = Property.builder()
 		.map(s -> Boolean.parseBoolean(s))
 		.orElse(false)
-		.build("defaults.appender.buffer");
+		.build(LogProperties.concatKey("defaults.appender.buffer"));
 
-	static final Property<URI> fileProperty = Property.builder().map(URI::new).build("file");
+	static final Property<URI> fileProperty = Property.builder().map(URI::new).build(LogProperties.FILE_PROPERTY);
 
 	public Defaults(LogProperties logProperties) {
 		this.properties = logProperties;
@@ -91,10 +86,6 @@ public class Defaults {
 			lock.writeLock().unlock();
 		}
 	}
-
-	public static IntSupplier maxStringBuilderSize = () -> {
-		return 1024 * 1024;
-	};
 
 	public static void addShutdownHook(AutoCloseable hook) {
 		staticLock.writeLock().lock();

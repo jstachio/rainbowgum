@@ -31,8 +31,11 @@ class RainbowGumLoggerFactoryTest {
 				a.output(list);
 			});
 		});
+		var rainbowgum = gum.build();
+		var lr = rainbowgum.router().levelResolver();
+		System.out.println(lr);
 
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(gum.build());
+		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum);
 		Consumer<Logger> consumer = (logger) -> {
 			MDC.put("status", "alive");
 			logger.info("Eric");
