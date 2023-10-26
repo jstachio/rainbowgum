@@ -30,23 +30,29 @@ import io.jstach.rainbowgum.LogRouter.Router;
  */
 public sealed interface LogRouter extends AutoCloseable {
 
+	/**
+	 * Finds a route.
+	 * @param loggerName topic.
+	 * @param level level.
+	 * @return route never <code>null</code>.
+	 */
 	public Route route(String loggerName, java.lang.System.Logger.Level level);
 
-	default void start(LogConfig config) {
-	}
+	/**
+	 * Call before using router.
+	 * @param config config.
+	 */
+	void start(LogConfig config);
 
 	@Override
 	public void close();
 
+	/**
+	 * Global router which is always available.
+	 * @return global root router.
+	 */
 	public static RootRouter global() {
 		return GlobalLogRouter.INSTANCE;
-	}
-
-	static void setRouter(RootRouter router) {
-		if (GlobalLogRouter.INSTANCE == router) {
-			throw new IllegalArgumentException();
-		}
-		GlobalLogRouter.INSTANCE.drain(router);
 	}
 
 	/**
@@ -62,10 +68,20 @@ public sealed interface LogRouter extends AutoCloseable {
 	 */
 	public interface Route extends LogEventLogger {
 
+		/**
+		 * Determines if {@link #log(LogEvent)} maybe called.
+		 * @return true if log can be called.
+		 */
 		public boolean isEnabled();
 
+		/**
+		 * Route singletons and utilities.
+		 */
 		public enum Routes implements Route {
 
+			/**
+			 * A route that is a NOOP and is always disabled.
+			 */
 			NotFound {
 				@Override
 				public void log(LogEvent event) {
@@ -81,16 +97,32 @@ public sealed interface LogRouter extends AutoCloseable {
 
 	}
 
-	public sealed interface RootRouter extends LogRouter {
+	public sealed interface RootRouter extends LogRouter permits InternalRootRouter {
 
 		void start(LogConfig config);
 
+		/**
+		 * Level resolver to find levels for a long name.
+		 * @return level resolver.
+		 */
 		public LevelResolver levelResolver();
 
-		default boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
-			return route(loggerName, level).isEnabled();
+		/**
+		 * Gets an uncached System Logger.
+		 * @param loggerName logger name usually a class.
+		 * @return System Logger.
+		 */
+		default Logger getLogger(String loggerName) {
+			return logger(this, loggerName);
 		}
 
+		/**
+		 * Low level convenience method for direct logging.
+		 * @param loggerName logger name.
+		 * @param level level.
+		 * @param formattedMessage already formatted message.
+		 * @param cause error at event time.
+		 */
 		default void log(String loggerName, java.lang.System.Logger.Level level, String formattedMessage,
 				@Nullable Throwable cause) {
 			var route = route(loggerName, level);
@@ -100,51 +132,11 @@ public sealed interface LogRouter extends AutoCloseable {
 			}
 		}
 
-		default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
-			log(loggerName, level, message, null);
-		}
-
-		default Logger getLogger(String loggerName) {
-			return logger(this, loggerName);
-		}
-
-		public static Logger logger(RootRouter router, String loggerName) {
-			return new TinyLogger(loggerName, router);
-		}
-
-		public static RootRouter of(List<? extends Router> routes, LevelResolver levelResolver) {
-
-			if (routes.isEmpty()) {
-				throw new IllegalArgumentException("atleast one route is required");
+		private static Logger logger(RootRouter router, String loggerName) {
+			if (!(router instanceof InternalRootRouter r)) {
+				throw new IllegalArgumentException("bug");
 			}
-			List<Router> sorted = new ArrayList<>();
-			/*
-			 * We add the async routers first
-			 */
-			Set<Router> matched = Collections.newSetFromMap(new IdentityHashMap<Router, Boolean>());
-			for (var r : routes) {
-				if (!r.synchronous()) {
-					matched.add(r);
-					sorted.add(r);
-				}
-			}
-			for (var r : routes) {
-				if (r.synchronous() && !matched.contains(r)) {
-					sorted.add(r);
-				}
-			}
-
-			List<LevelResolver> resolvers = new ArrayList<>();
-			routes.stream().map(Router::levelResolver).forEach(resolvers::add);
-			resolvers.add(levelResolver);
-			var globalLevelResolver = LevelResolver.of(resolvers);
-
-			Router[] array = routes.toArray(new Router[] {});
-
-			if (array.length == 1 && array[0].synchronous()) {
-				return new SingleSyncRootRouter(array[0]);
-			}
-			return new CompositeLogRouter(array, globalLevelResolver);
+			return new TinyLogger(loggerName, r);
 		}
 
 	}
@@ -167,7 +159,7 @@ public sealed interface LogRouter extends AutoCloseable {
 			return new Builder(config);
 		}
 
-		public class Builder extends LevelResolver.AbstractBuilder<Builder> {
+		public final class Builder extends LevelResolver.AbstractBuilder<Builder> {
 
 			private final LogConfig config;
 
@@ -258,9 +250,73 @@ record SimpleRoute(LogPublisher publisher, LevelResolver levelResolver) implemen
 		return true;
 	}
 
+	@Override
+	public void start(LogConfig config) {
+		publisher.start(config);
+	}
+
 }
 
-record SingleSyncRootRouter(Router router) implements RootRouter {
+sealed interface InternalRootRouter extends RootRouter {
+
+	/**
+	 * Sets the root router.
+	 * @param router root router.
+	 */
+	static void setRouter(RootRouter router) {
+		if (GlobalLogRouter.INSTANCE == router) {
+			throw new IllegalArgumentException();
+		}
+		GlobalLogRouter.INSTANCE.drain(router);
+	}
+
+	static InternalRootRouter of(List<? extends Router> routes, LevelResolver levelResolver) {
+
+		if (routes.isEmpty()) {
+			throw new IllegalArgumentException("atleast one route is required");
+		}
+		List<Router> sorted = new ArrayList<>();
+		/*
+		 * We add the async routers first
+		 */
+		Set<Router> matched = Collections.newSetFromMap(new IdentityHashMap<Router, Boolean>());
+		for (var r : routes) {
+			if (!r.synchronous()) {
+				matched.add(r);
+				sorted.add(r);
+			}
+		}
+		for (var r : routes) {
+			if (r.synchronous() && !matched.contains(r)) {
+				sorted.add(r);
+			}
+		}
+
+		List<LevelResolver> resolvers = new ArrayList<>();
+		routes.stream().map(Router::levelResolver).forEach(resolvers::add);
+		resolvers.add(levelResolver);
+		var globalLevelResolver = InternalLevelResolver.cached(InternalLevelResolver.of(resolvers));
+
+		Router[] array = routes.toArray(new Router[] {});
+
+		if (array.length == 1 && array[0].synchronous()) {
+			return new SingleSyncRootRouter(array[0]);
+		}
+		return new CompositeLogRouter(array, globalLevelResolver);
+	}
+
+	default boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
+		return route(loggerName, level).isEnabled();
+
+	}
+
+	default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
+		log(loggerName, level, message, null);
+	}
+
+}
+
+record SingleSyncRootRouter(Router router) implements InternalRootRouter {
 
 	@Override
 	public void start(LogConfig config) {
@@ -283,7 +339,7 @@ record SingleSyncRootRouter(Router router) implements RootRouter {
 
 }
 
-record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) implements RootRouter, Route {
+record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) implements InternalRootRouter, Route {
 
 	@Override
 	public Route route(String loggerName, Level level) {
@@ -356,15 +412,15 @@ enum FailsafeAppender implements LogAppender {
 
 }
 
-enum GlobalLogRouter implements RootRouter, Route {
+enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	INSTANCE;
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
 
-	private static final LevelResolver INFO_RESOLVER = LevelResolver.of(Level.INFO);
+	private static final LevelResolver INFO_RESOLVER = InternalLevelResolver.of(Level.INFO);
 
-	private volatile @Nullable RootRouter delegate = null;
+	private volatile @Nullable InternalRootRouter delegate = null;
 
 	private final ReentrantLock drainLock = new ReentrantLock();
 
@@ -403,7 +459,7 @@ enum GlobalLogRouter implements RootRouter, Route {
 		else {
 			events.add(event);
 			if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
-				Errors.error(event);
+				MetaLog.error(event);
 			}
 		}
 
@@ -421,17 +477,17 @@ enum GlobalLogRouter implements RootRouter, Route {
 		return Routes.NotFound;
 	}
 
-	// @Override
-	// public boolean isEnabled(String loggerName, Level level) {
-	// RootRouter d = delegate;
-	// if (d != null) {
-	// return d.isEnabled(loggerName, level);
-	// }
-	// return INFO_RESOLVER.isEnabled(loggerName, level);
-	// }
+	@Override
+	public boolean isEnabled(String loggerName, Level level) {
+		InternalRootRouter d = delegate;
+		if (d != null) {
+			return d.isEnabled(loggerName, level);
+		}
+		return INFO_RESOLVER.isEnabled(loggerName, level);
+	}
 
 	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
-		RootRouter d = delegate;
+		InternalRootRouter d = delegate;
 		if (d != null) {
 			d.log(loggerName, level, message, cause);
 			if (isShutdownEvent(loggerName, level)) {
@@ -442,15 +498,18 @@ enum GlobalLogRouter implements RootRouter, Route {
 			var event = LogEvent.of(level, loggerName, message, cause);
 			events.add(event);
 			if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
-				Errors.error(event);
+				MetaLog.error(event);
 			}
 		}
 	}
 
 	public void drain(RootRouter delegate) {
+		if (!(delegate instanceof InternalRootRouter r)) {
+			throw new IllegalArgumentException("bug");
+		}
 		drainLock.lock();
 		try {
-			this.delegate = Objects.requireNonNull(delegate);
+			this.delegate = Objects.requireNonNull(r);
 			LogEvent e;
 			while ((e = this.events.poll()) != null) {
 				delegate.route(e.loggerName(), e.level()).log(e);
@@ -475,9 +534,9 @@ class TinyLogger implements System.Logger {
 
 	private final String name;
 
-	private final RootRouter router;
+	private final InternalRootRouter router;
 
-	public TinyLogger(String name, RootRouter router) {
+	public TinyLogger(String name, InternalRootRouter router) {
 		super();
 		this.name = name;
 		this.router = router;

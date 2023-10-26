@@ -1,13 +1,42 @@
-package io.jstach.rainbowgum.format;
+package io.jstach.rainbowgum;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.Arguments;
+public sealed interface LogMessageFormatter {
 
-public class SLF4JMessageFormatter {
+	void format(StringBuilder builder, String message, Object arg1);
+
+	void format(StringBuilder builder, String message, Object arg1, Object arg2);
+
+	void formatArray(StringBuilder builder, String message, Object[] args);
+
+	public enum StandardMessageFormatter implements LogMessageFormatter {
+
+		SLF4J() {
+			@Override
+			public void format(StringBuilder builder, String message, Object arg1) {
+				SLF4JMessageFormatter.format(builder, message, arg1);
+			}
+
+			@Override
+			public void format(StringBuilder builder, String message, Object arg1, Object arg2) {
+				SLF4JMessageFormatter.format(builder, message, arg1, arg2);
+			}
+
+			@Override
+			public void formatArray(StringBuilder builder, String message, Object[] args) {
+				SLF4JMessageFormatter.format(builder, message, args);
+			}
+		}
+
+	}
+
+}
+
+class SLF4JMessageFormatter {
 
 	static final char DELIM_START = '{';
 	static final char DELIM_STOP = '}';
@@ -128,69 +157,6 @@ public class SLF4JMessageFormatter {
 			return arg2;
 		}
 		throw new IndexOutOfBoundsException(i);
-	}
-
-	public static void format(final StringBuilder sbuf, final String messagePattern, final Arguments argArray,
-			final @Nullable Throwable throwable) {
-
-		if (messagePattern == null) {
-			return;
-		}
-
-		if (argArray == null) {
-			sbuf.append(messagePattern);
-			return;
-		}
-
-		int i = 0;
-		int j;
-		// use string builder for better multicore performance
-
-		int L;
-		for (L = 0; L < argArray.argCount(); L++) {
-
-			j = messagePattern.indexOf(DELIM_STR, i);
-
-			if (j == -1) {
-				// no more variables
-				if (i == 0) { // this is a simple string
-					sbuf.append(messagePattern);
-					return;
-				}
-				else { // add the tail string which contains no variables and return
-						// the result.
-					sbuf.append(messagePattern, i, messagePattern.length());
-					return;
-				}
-			}
-			else {
-				if (isEscapedDelimeter(messagePattern, j)) {
-					if (!isDoubleEscaped(messagePattern, j)) {
-						L--; // DELIM_START was escaped, thus should not be incremented
-						sbuf.append(messagePattern, i, j - 1);
-						sbuf.append(DELIM_START);
-						i = j + 1;
-					}
-					else {
-						// The escape character preceding the delimiter start is
-						// itself escaped: "abc x:\\{}"
-						// we have to consume one backward slash
-						sbuf.append(messagePattern, i, j - 1);
-						deeplyAppendParameter(sbuf, argArray.arg(L), null);
-						i = j + 2;
-					}
-				}
-				else {
-					// normal case
-					sbuf.append(messagePattern, i, j);
-					deeplyAppendParameter(sbuf, argArray.arg(L), null);
-					i = j + 2;
-				}
-			}
-		}
-		// append the characters following the last {} pair.
-		sbuf.append(messagePattern, i, messagePattern.length());
-		return;
 	}
 
 	final static boolean isEscapedDelimeter(String messagePattern, int delimeterStartIndex) {

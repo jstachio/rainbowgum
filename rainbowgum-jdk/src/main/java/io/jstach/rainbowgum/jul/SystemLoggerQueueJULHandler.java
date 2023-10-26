@@ -47,9 +47,6 @@ public class SystemLoggerQueueJULHandler extends Handler {
 		if (loggerName == null) {
 			return;
 		}
-		if (LogRouter.global().isEnabled(loggerName, level)) {
-			return;
-		}
 		String message = record.getMessage();
 		if (message == null) {
 			message = "";

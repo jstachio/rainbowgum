@@ -10,14 +10,15 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.LogRouter.RootRouter;
-
+/**
+ * 
+ */
 public class RouterTest {
 
 	@Test
 	void testSingleRouter() throws Exception {
 
-		LevelResolver resolver = LevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
+		LevelResolver resolver = InternalLevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
 		var publisher = new TestSyncPublisher();
 		@SuppressWarnings("resource")
 		var router = new SimpleRoute(publisher, resolver);
@@ -30,15 +31,15 @@ public class RouterTest {
 	@Test
 	void testCompositeRouter() throws Exception {
 
-		LevelResolver resolver1 = LevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
+		LevelResolver resolver1 = InternalLevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
 		var publisher1 = new TestSyncPublisher();
 		var router1 = new SimpleRoute(publisher1, resolver1);
 
-		LevelResolver resolver2 = LevelResolver.of(Map.of("stuff", Level.DEBUG, "", Level.WARNING));
+		LevelResolver resolver2 = InternalLevelResolver.of(Map.of("stuff", Level.DEBUG, "", Level.WARNING));
 		var publisher2 = new TestSyncPublisher();
 		var router2 = new SimpleRoute(publisher2, resolver2);
 
-		var root = RootRouter.of(List.of(router1, router2), LevelResolver.of(Level.ERROR));
+		var root = InternalRootRouter.of(List.of(router1, router2), InternalLevelResolver.of(Level.ERROR));
 
 		var route = root.route("stuff", Level.DEBUG);
 

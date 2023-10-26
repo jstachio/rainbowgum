@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import io.jstach.rainbowgum.Errors;
+import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
@@ -55,7 +55,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			worker.join(1000);
 		}
 		catch (InterruptedException e) {
-			Errors.error(BlockingQueueAsyncLogPublisher.class, e);
+			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
 		}
 		finally {
 			tool.unmaskInterruptFlag();
@@ -99,7 +99,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 					break;
 				}
 				catch (Exception e) {
-					Errors.error(BlockingQueueAsyncLogPublisher.class, e);
+					MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
 				}
 			}
 			drain();

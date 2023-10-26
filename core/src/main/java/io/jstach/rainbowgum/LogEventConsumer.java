@@ -1,7 +1,7 @@
 package io.jstach.rainbowgum;
 
 @FunctionalInterface
-public interface LogEventConsumer {
+interface LogEventConsumer {
 
 	void append(LogEvent event);
 

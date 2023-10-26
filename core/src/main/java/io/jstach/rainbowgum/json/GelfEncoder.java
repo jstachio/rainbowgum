@@ -50,7 +50,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		final String host = this.host;
 		event.formattedMessage(formattedMessage);
 		final String shortMessage = formattedMessage.toString();
-		Instant now = event.timeStamp();
+		Instant now = event.timestamp();
 		final double timeStamp = ((double) now.toEpochMilli()) / 1000;
 		@Nullable
 		String fullMessage = null;

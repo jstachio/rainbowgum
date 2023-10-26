@@ -10,25 +10,8 @@ import org.slf4j.spi.NOPLoggingEventBuilder;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogEvent.EventCreator;
-import io.jstach.rainbowgum.format.SLF4JMessageFormatter;
 
 interface BaseLogger extends EventCreator<Level>, Logger {
-
-	@Override
-	default void format(StringBuilder builder, String message, Object arg1) {
-		SLF4JMessageFormatter.format(builder, message, arg1);
-	}
-
-	@Override
-	default void format(StringBuilder builder, String message, Object arg1, Object arg2) {
-		SLF4JMessageFormatter.format(builder, message, arg1, arg2);
-	}
-
-	@Override
-	default void formatArray(StringBuilder builder, String message, Object[] args) {
-		SLF4JMessageFormatter.format(builder, message, args);
-	}
 
 	@Override
 	default java.lang.System.Logger.Level translateLevel(Level level) {

@@ -8,36 +8,90 @@ import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 
+/**
+ * The configuration of a RainbowGum. In some other logging implementations this is called
+ * "context".
+ */
 public interface LogConfig {
 
+	/**
+	 * String kv properties.
+	 * @return properties.
+	 */
 	public LogProperties properties();
 
+	/**
+	 * Level resolver for resolving levels from logger names.
+	 * @return level resolver.
+	 */
 	public LevelConfig levelResolver();
 
+	/**
+	 * Special defaults. Internal for now.
+	 * @return defaults.
+	 */
 	public Defaults defaults();
 
+	/**
+	 * Output provider that uses URI to find output.
+	 * @return output provider.
+	 */
 	default LogOutputProvider outputProvider() {
 		return LogOutputProvider.of();
 	}
 
+	/**
+	 * Creates default log config backed by system properties.
+	 * @return config.
+	 */
 	public static LogConfig of() {
 		return LogConfig.of(ServiceRegistry.of(), LogProperties.StandardProperties.SYSTEM_PROPERTIES);
 	}
 
+	/**
+	 * Creates config.
+	 * @param registry service registry.
+	 * @param properties properties.
+	 * @return config.
+	 */
 	public static LogConfig of(ServiceRegistry registry, LogProperties properties) {
 		return new DefaultLogConfig(registry, properties);
 	}
 
+	/**
+	 * An event publisher to publish configuration changes.
+	 * @return publisher.
+	 */
 	public ChangePublisher publisher();
 
+	/**
+	 * Service registry are custom services needed by plugins particularly during the
+	 * initialization process.
+	 * @return registry.
+	 */
 	public ServiceRegistry registry();
 
+	/**
+	 * Config Change Publisher.
+	 */
 	interface ChangePublisher {
 
+		/**
+		 * Subscribe to changes.
+		 * @param consumer consumer.
+		 */
 		public void subscribe(Consumer<? super LogConfig> consumer);
 
+		/**
+		 * Publish that there has been changes.
+		 */
 		public void publish();
 
+		/**
+		 * Test to see if changes are enabled for a logger.
+		 * @param loggerName logger name.
+		 * @return true if enabled.
+		 */
 		public boolean isEnabled(String loggerName);
 
 	}

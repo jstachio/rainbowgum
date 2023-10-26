@@ -205,7 +205,7 @@ public sealed interface LogFormatter {
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			formatTimestamp(output, event.timeStamp());
+			formatTimestamp(output, event.timestamp());
 		}
 
 		public static InstantFormatter of() {

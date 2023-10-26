@@ -17,10 +17,12 @@ import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 /**
  * Static defaults that should probably be in the config class.
+ *
+ * @author agentgt
  */
 public class Defaults {
 
-	public static final String SHUTDOWN = "#SHUTDOWN#";
+	static final String SHUTDOWN = "#SHUTDOWN#";
 
 	private static final ReentrantReadWriteLock staticLock = new ReentrantReadWriteLock();
 
@@ -42,7 +44,7 @@ public class Defaults {
 
 	static final Property<URI> fileProperty = Property.builder().map(URI::new).build(LogProperties.FILE_PROPERTY);
 
-	public Defaults(LogProperties logProperties) {
+	Defaults(LogProperties logProperties) {
 		this.properties = logProperties;
 	}
 
@@ -50,11 +52,11 @@ public class Defaults {
 		return new LockingLogAppender(appender);
 	};
 
-	public LogPublisher.AsyncLogPublisher asyncPublisher(List<? extends LogAppender> appenders, int bufferSize) {
+	LogPublisher.AsyncLogPublisher asyncPublisher(List<? extends LogAppender> appenders, int bufferSize) {
 		return BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
 	}
 
-	public LogAppender logAppender(LogOutput output, LogEncoder encoder) {
+	LogAppender logAppender(LogOutput output, LogEncoder encoder) {
 		if (encoder == null) {
 			encoder = LogEncoder.of(formatterForOutputType(output.type()));
 		}
@@ -63,6 +65,11 @@ public class Defaults {
 				: new DefaultLogAppender(output, encoder);
 	}
 
+	/**
+	 * Associates a default formatter with a specific output type
+	 * @param outputType
+	 * @return formatter for output type.
+	 */
 	public LogFormatter formatterForOutputType(OutputType outputType) {
 		lock.readLock().lock();
 		try {
@@ -77,6 +84,11 @@ public class Defaults {
 		}
 	}
 
+	/**
+	 * Sets a default formatter for a specific output type.
+	 * @param outputType output type.
+	 * @param formatter formatter.
+	 */
 	public void setFormatterForOutputType(OutputType outputType, Supplier<? extends LogFormatter> formatter) {
 		lock.writeLock().lock();
 		try {
@@ -87,7 +99,7 @@ public class Defaults {
 		}
 	}
 
-	public static void addShutdownHook(AutoCloseable hook) {
+	static void addShutdownHook(AutoCloseable hook) {
 		staticLock.writeLock().lock();
 		try {
 			if (shutdownHookRegistered.compareAndSet(false, true)) {
@@ -114,7 +126,7 @@ public class Defaults {
 				hook.close();
 			}
 			catch (Exception e) {
-				Errors.error(Defaults.class, e);
+				MetaLog.error(Defaults.class, e);
 			}
 		}
 		// Help the GC or whatever final cleanup is going on

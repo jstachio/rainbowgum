@@ -9,7 +9,7 @@ import com.lmax.disruptor.ExceptionHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 
-import io.jstach.rainbowgum.Errors;
+import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
@@ -99,19 +99,19 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 				shutdownHook.run();
 			}
 			else {
-				Errors.error(DisruptorLogPublisher.class, ex);
+				MetaLog.error(DisruptorLogPublisher.class, ex);
 				throw new RuntimeException(ex);
 			}
 		}
 
 		@Override
 		public void handleOnStartException(Throwable ex) {
-			Errors.error(DisruptorLogPublisher.class, ex);
+			MetaLog.error(DisruptorLogPublisher.class, ex);
 		}
 
 		@Override
 		public void handleOnShutdownException(Throwable ex) {
-			Errors.error(DisruptorLogPublisher.class, ex);
+			MetaLog.error(DisruptorLogPublisher.class, ex);
 		}
 
 	}

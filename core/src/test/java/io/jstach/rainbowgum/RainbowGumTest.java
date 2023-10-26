@@ -16,13 +16,14 @@ class RainbowGumTest {
 	public void testBuilder() throws Exception {
 		var gum = RainbowGum.builder().build();
 		gum.start();
-		gum.router().log("stuff", Level.INFO, "Stuff");
+		var logger = gum.router().getLogger("stuff");
+		logger.log(Level.INFO, "Stuff");
 		var router = gum.router();
 		var level = router.levelResolver().resolveLevel("stuff");
 		System.out.println(level);
-		boolean actual = router.isEnabled("stuff", Level.WARNING);
+		boolean actual = router.route("stuff", Level.WARNING).isEnabled();
 		assertTrue(actual);
-		assertFalse(gum.router().isEnabled("stuff", Level.DEBUG));
+		assertFalse(gum.router().route("stuff", Level.DEBUG).isEnabled());
 
 	}
 
@@ -31,10 +32,12 @@ class RainbowGumTest {
 		Map<String, String> config = Map.of("logging.level.stuff", "" + Level.DEBUG.name());
 		var gum = RainbowGum.builder(LogConfig.of(ServiceRegistry.of(), config::get)).build();
 
-		gum.router().log("stuff", Level.DEBUG, "Stuff");
-		gum.router().log("stuff", Level.DEBUG, "Stuff");
-		assertFalse(gum.router().isEnabled("stuff", Level.TRACE));
-		assertTrue(gum.router().isEnabled("stuff", Level.DEBUG));
+		var logger = gum.router().getLogger("stuff");
+
+		logger.log(Level.DEBUG, "Stuff");
+		assertFalse(logger.isLoggable(Level.TRACE));
+
+		assertTrue(logger.isLoggable(Level.DEBUG));
 
 	}
 
@@ -77,10 +80,10 @@ class RainbowGumTest {
 		}).build()) {
 
 			gum.start();
-			gum.router().log("stuff", Level.INFO, "Stuff");
-			gum.router().log("stuff", Level.ERROR, "bad");
+			gum.router().log("stuff", Level.INFO, "Stuff", null);
+			gum.router().log("stuff", Level.ERROR, "bad", null);
 
-			boolean enabled = gum.router().isEnabled("stuff", Level.INFO);
+			boolean enabled = gum.router().route("stuff", Level.INFO).isEnabled();
 			assertFalse(enabled);
 
 			Thread.sleep(50);

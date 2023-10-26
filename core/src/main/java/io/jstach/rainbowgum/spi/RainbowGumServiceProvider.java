@@ -94,7 +94,6 @@ public sealed interface RainbowGumServiceProvider {
 		if (gum == null) {
 			gum = RainbowGum.builder(config).build();
 		}
-		RainbowGum.start(gum);
 		return gum;
 	}
 

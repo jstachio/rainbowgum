@@ -16,18 +16,42 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 
+/**
+ * Resolves levels from logger names.
+ *
+ * @apiNote {@linkplain Level#ALL} is considered to be equivalent to null.
+ */
 public interface LevelResolver {
 
+	/**
+	 * Determines what level the logger should be at.
+	 * @param name logger name.
+	 * @return level.
+	 */
 	public Level resolveLevel(String name);
 
+	/**
+	 * Convenience method that checks if the loggers resolved level is less than the
+	 * passed in level.
+	 * @param loggerName logger name.
+	 * @param level level.
+	 * @return true if logger is less than passed in level.
+	 */
 	default boolean isEnabled(String loggerName, Level level) {
 		return resolveLevel(loggerName).getSeverity() <= level.getSeverity();
 	}
 
+	/**
+	 * Clears any caching of levels.
+	 */
 	default void clear() {
 
 	}
 
+	/**
+	 * A special resolver that has direct mappings of logger name to level via
+	 * {@link #levelOrNull(String)}.
+	 */
 	@FunctionalInterface
 	interface LevelConfig extends LevelResolver {
 
@@ -58,13 +82,116 @@ public interface LevelResolver {
 
 	}
 
+	/**
+	 * Level resolver builder.
+	 * @return builder.
+	 */
 	public static Builder builder() {
 		return new Builder();
 	}
 
+	/**
+	 * A level resolver that is off.
+	 * @return level resolver that is {@link Level#OFF}.
+	 */
 	public static LevelResolver off() {
 		return StaticLevelResolver.OFF;
 	}
+
+	/**
+	 * Abstract level resolver builder.
+	 *
+	 * @param <T> builder type.
+	 */
+	sealed abstract class AbstractBuilder<T> permits Builder, LogRouter.Router.Builder {
+
+		protected List<LevelConfig> resolvers = new ArrayList<>();
+
+		protected Map<String, Level> levels = new LinkedHashMap<>();
+
+		public T level(Level level, String loggerName) {
+			levels.put(loggerName, level);
+			return self();
+		}
+
+		public T level(Level level) {
+			levels.put("", level);
+			return self();
+		}
+
+		public T levelResolver(LevelConfig resolver) {
+			resolvers.add(resolver);
+			return self();
+		}
+
+		protected LevelResolver buildLevelResolver() {
+			return buildLevelResolver(null);
+		}
+
+		protected LevelResolver buildLevelResolver(@Nullable LevelConfig globalLevelResolver) {
+			var copyLevels = new LinkedHashMap<>(levels);
+			boolean noBuilderLevels = copyLevels.isEmpty();
+
+			var copyResolvers = new ArrayList<>(resolvers);
+			if (!copyLevels.isEmpty()) {
+				copyResolvers.add(0, InternalLevelResolver.of(copyLevels));
+			}
+			if (globalLevelResolver != null) {
+				copyResolvers.add(globalLevelResolver);
+			}
+
+			if (noBuilderLevels) {
+				copyResolvers.add(StaticLevelResolver.INFO);
+			}
+
+			var combined = LevelConfig.of(copyResolvers);
+
+			return combined;
+		}
+
+		protected abstract T self();
+
+	}
+
+	/**
+	 * Level resolver builder.
+	 */
+	public final class Builder extends AbstractBuilder<Builder> {
+
+		/**
+		 * Builds a level resolver.
+		 * @return level resolver.
+		 */
+		public LevelResolver build() {
+			return buildLevelResolver();
+		}
+
+		@Override
+		protected Builder self() {
+			return this;
+		}
+
+	}
+
+	private static Level resolveLevel(LevelConfig levelBindings, String name) {
+		Function<String, @Nullable Level> f = s -> allToNull(levelBindings.levelOrNull(s));
+		var level = LogProperties.searchPath(name, f);
+		if (level != null) {
+			return level;
+		}
+		return levelBindings.defaultLevel();
+	}
+
+	private static @Nullable Level allToNull(@Nullable Level level) {
+		if (level == null || level == Level.ALL) {
+			return null;
+		}
+		return level;
+	}
+
+}
+
+interface InternalLevelResolver {
 
 	public static LevelResolver of(Collection<? extends LevelResolver> resolvers) {
 		if (resolvers.isEmpty()) {
@@ -104,95 +231,6 @@ public interface LevelResolver {
 			return resolver;
 		}
 		return new CachedLevelResolver(resolver);
-	}
-
-	abstract class AbstractBuilder<T> {
-
-		protected List<LevelConfig> resolvers = new ArrayList<>();
-
-		protected Map<String, Level> levels = new LinkedHashMap<>();
-
-		protected boolean levelResolverCached = true;
-
-		public T level(Level level, String loggerName) {
-			levels.put(loggerName, level);
-			return self();
-		}
-
-		public T level(Level level) {
-			levels.put("", level);
-			return self();
-		}
-
-		public T levelResolver(LevelConfig resolver) {
-			resolvers.add(resolver);
-			return self();
-		}
-
-		public T levelCache(boolean cached) {
-			this.levelResolverCached = cached;
-			return self();
-		}
-
-		protected LevelResolver buildLevelResolver() {
-			return buildLevelResolver(null);
-		}
-
-		protected LevelResolver buildLevelResolver(@Nullable LevelConfig globalLevelResolver) {
-			var copyLevels = new LinkedHashMap<>(levels);
-			boolean noBuilderLevels = copyLevels.isEmpty();
-
-			var copyResolvers = new ArrayList<>(resolvers);
-			if (!copyLevels.isEmpty()) {
-				copyResolvers.add(0, LevelResolver.of(copyLevels));
-			}
-			if (globalLevelResolver != null) {
-				copyResolvers.add(globalLevelResolver);
-			}
-
-			if (noBuilderLevels) {
-				copyResolvers.add(StaticLevelResolver.INFO);
-			}
-
-			var combined = LevelConfig.of(copyResolvers);
-
-			if (levelResolverCached) {
-				return LevelResolver.cached(combined);
-			}
-			return combined;
-		}
-
-		protected abstract T self();
-
-	}
-
-	public class Builder extends AbstractBuilder<Builder> {
-
-		public LevelResolver build() {
-			return buildLevelResolver();
-		}
-
-		@Override
-		protected Builder self() {
-			return this;
-		}
-
-	}
-
-	public static Level resolveLevel(LevelConfig levelBindings, String name) {
-		Function<String, @Nullable Level> f = s -> allToNull(levelBindings.levelOrNull(s));
-		var level = LogProperties.searchPath(name, f);
-		if (level != null) {
-			return level;
-		}
-		return levelBindings.defaultLevel();
-	}
-
-	private static @Nullable Level allToNull(@Nullable Level level) {
-		if (level == null || level == Level.ALL) {
-			return null;
-		}
-		return level;
 	}
 
 }
@@ -241,11 +279,11 @@ record MapLevelResolver(Map<String, Level> levels) implements LevelConfig {
 	}
 }
 
-record CompositeLevelConfig(LevelConfig[] levelConfig) implements LevelConfig {
+record CompositeLevelConfig(LevelConfig[] levelConfigs) implements LevelConfig {
 
 	@Override
 	public @Nullable Level levelOrNull(String name) {
-		for (var c : levelConfig) {
+		for (var c : levelConfigs) {
 			var level = c.levelOrNull(name);
 			if (level != null) {
 				return level;
@@ -254,9 +292,14 @@ record CompositeLevelConfig(LevelConfig[] levelConfig) implements LevelConfig {
 		return null;
 	}
 
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + Arrays.asList(levelConfigs);
+	}
+
 }
 
-record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolver {
+record CompositeLevelResolver(LevelResolver[] resolvers, Level defaultLevel) implements LevelResolver {
 
 	public static LevelResolver of(Collection<? extends LevelResolver> resolvers) {
 		List<LevelResolver> resolved = new ArrayList<>();
@@ -272,7 +315,7 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 			}
 		}
 		LevelResolver[] array = resolved.toArray(new LevelResolver[] {});
-		return new CompositeLevelResolver(array);
+		return new CompositeLevelResolver(array, Level.OFF);
 	}
 
 	@Override
@@ -282,20 +325,24 @@ record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolve
 
 	@Override
 	public Level resolveLevel(String name) {
-		var lowestLevel = Level.OFF;
+		Level current = Level.ALL;
 		for (var resolver : resolvers) {
 			var level = resolver.resolveLevel(name);
-			if (level == Level.ALL) {
-				continue;
-			}
 			if (level == Level.TRACE) {
 				return level;
 			}
-			if (lowestLevel.getSeverity() > level.getSeverity()) {
-				lowestLevel = level;
+			if (current == Level.ALL) {
+				current = level;
+				continue;
+			}
+			if (current.getSeverity() > level.getSeverity()) {
+				current = level;
 			}
 		}
-		return lowestLevel;
+		if (current == Level.ALL) {
+			current = defaultLevel;
+		}
+		return current;
 	}
 
 	public void clear() {

@@ -12,54 +12,156 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
+/**
+ * Key Value Pairs similar to a {@code Map<String,String>} but optimized for memory and
+ * less garbage (no iterators).
+ * <p>
+ * <strong>The integer index used in the low level access are not in array order and thus
+ * {@link #start()} and {@link #next(int)} should be used to iterate over the keyvalues
+ * instead of manually incrementing.</strong>
+ */
 public sealed interface KeyValues {
 
+	/**
+	 * Analagous to {@link Map#get(Object)}
+	 * @param key key never <code>null</code>.
+	 * @return value for key maybe <code>null</code>.
+	 */
 	public @Nullable String getValue(String key);
 
+	/**
+	 * Lowlevel key access.
+	 * @param i index from {@link #start()} or {@link #next(int)}.
+	 * @return key.
+	 */
 	public @Nullable String key(int i);
 
+	/**
+	 * Lowlevel key access.
+	 * @param i index from {@link #start()} or {@link #next(int)}.
+	 * @return key.
+	 */
 	public @Nullable String value(int i);
 
+	/**
+	 * Returns the index of the first key.
+	 * @return the start index which may or may not be zero.
+	 */
 	public int start();
 
+	/**
+	 * Gets the next key index from the passed in previous key index.
+	 * @param i the previous key index.
+	 * @return next key index.
+	 */
 	public int next(int i);
 
+	/**
+	 * Used to easily iterate over the key value pairs without using an iterator.
+	 * @param action consumer called on each key value pair.
+	 */
 	void forEach(BiConsumer<? super String, ? super String> action);
 
-	<V> int forEach(KeyValues.KeyValuesConsumer<V> action, int index, V storage);
+	/**
+	 * Used to easily iterate over the key value pairs without using an iterator.
+	 * @param <V> storate type
+	 * @param action consumer.
+	 * @param counter zero based counter that unlike index will be in normal counter
+	 * order.
+	 * @param storage an extra parameter to avoid unneccessary lambda creation.
+	 * @return total accumulated by the
+	 * {@link KeyValuesConsumer#accept(KeyValues, String, String, int, Object)} return.
+	 */
+	<V> int forEach(KeyValues.KeyValuesConsumer<V> action, int counter, V storage);
 
+	/**
+	 * An immutable empty {@link KeyValues}.
+	 * @return immutable empty {@link KeyValues}.
+	 */
 	static KeyValues of() {
 		return EmptyKeyValues.INSTANCE;
 	}
 
+	/**
+	 * Analogous to {@link Map#size()}.
+	 * @return size.
+	 */
 	int size();
 
+	/**
+	 * Analogous to {@link Map#isEmpty()}.
+	 * @return true if empty.
+	 */
 	default boolean isEmpty() {
 		return size() <= 0;
 	}
 
+	/**
+	 * A specialy consumer that avoids lambda garbage.
+	 *
+	 * @param <V> storage
+	 */
 	interface KeyValuesConsumer<V> {
 
+		/**
+		 * @param kvs kvs.
+		 * @param k key.
+		 * @param v value.
+		 * @param index counter.
+		 * @param storage storage like a StringBuidler.
+		 * @return custom user count that will be accumulated. If one was returned for
+		 * each call then the result would be the total count.
+		 */
 		public int accept(KeyValues kvs, String k, String v, int index, V storage);
 
 	}
 
+	/**
+	 * Creates an immutable key values by copying a Map.
+	 * @param m map.
+	 * @return immutable key values.
+	 */
 	public static KeyValues of(Map<String, String> m) {
 		ArrayKeyValues mdc = new ArrayKeyValues(m.size());
 		mdc.putAll(m);
 		return mdc;
 	}
 
+	/**
+	 * Copies the KeyValues to a Map. This should be used sparingly.
+	 * @return map of kvs.
+	 */
 	Map<String, String> copyToMap();
 
+	/**
+	 * Makes the KeyValues thread safe either by copying or returning if already
+	 * immutable.
+	 * @return immutable keyvalues.
+	 */
 	public KeyValues freeze();
 
+	/**
+	 * KeyValues that can be updated.
+	 */
 	public sealed interface MutableKeyValues extends KeyValues, BiConsumer<String, String> {
 
+		/**
+		 * Copies.
+		 * @return kvs copy.
+		 */
 		MutableKeyValues copy();
 
+		/**
+		 * Same as {@link Map#put(Object, Object)}.
+		 * @param key key.
+		 * @param value value.
+		 */
 		void putKeyValue(String key, String value);
 
+		/**
+		 * Same as {@link Map#remove(Object)}.
+		 * @param key key.
+		 */
 		void remove(String key);
 
 		@Override
@@ -67,41 +169,62 @@ public sealed interface KeyValues {
 			putKeyValue(t, u);
 		}
 
+		/**
+		 * Same as {@link Map#putAll(Map)}.
+		 * @param m
+		 */
 		default void putAll(Map<String, String> m) {
 			m.forEach(this);
 		}
 
+		/**
+		 * Copies a map into {@link MutableKeyValues}.
+		 * @param m map.
+		 * @return key values
+		 */
 		public static MutableKeyValues of(Map<String, String> m) {
 			var kvs = of(m.size());
 			kvs.putAll(m);
 			return kvs;
 		}
 
+		/**
+		 * Creates mutable keys with pre-allocation.
+		 * @param size should be greater than 0.
+		 * @return mutable keys.
+		 */
 		public static MutableKeyValues of(int size) {
 			return new ArrayKeyValues(size);
 		}
 
+		/**
+		 * Empty mutable keys with default pre-allocation.
+		 * @return mutable keys.
+		 */
 		public static MutableKeyValues of() {
 			return new ArrayKeyValues();
 		}
 
 	}
 
-	KeyValuesConsumer<StringBuilder> toStringer = (kvs, k, v, i, b) -> {
-		if (i > 0) {
-			b.append(',').append(' ');
-		}
-		b.append('"').append(k).append('"').append(':').append('"').append(v).append('"');
-		return i + 1;
-	};
-
+	/**
+	 * Pretty prints key values.
+	 * @param kvs kvs.
+	 * @param sb StringBuilder.
+	 */
 	public static void prettyPrint(KeyValues kvs, StringBuilder sb) {
 		sb.append('{');
-		kvs.forEach(toStringer, 0, sb);
+		kvs.forEach(AbstractArrayKeyValues.toStringer, 0, sb);
 		sb.append('}');
 	}
 
-	static boolean equals(KeyValues self, KeyValues kvs) {
+	/**
+	 * Checks if two {@link KeyValues} are equal.
+	 * @param self first.
+	 * @param kvs second.
+	 * @return true if equal.
+	 */
+	static boolean equals(KeyValues self, @Nullable KeyValues kvs) {
 		if (self == kvs)
 			return true;
 		if (kvs == null) {
@@ -178,6 +301,14 @@ enum EmptyKeyValues implements KeyValues {
 }
 
 sealed abstract class AbstractArrayKeyValues implements KeyValues {
+
+	protected static final KeyValuesConsumer<StringBuilder> toStringer = (kvs, k, v, i, b) -> {
+		if (i > 0) {
+			b.append(',').append(' ');
+		}
+		b.append('"').append(k).append('"').append(':').append('"').append(v).append('"');
+		return i + 1;
+	};
 
 	protected static final int DEFAULT_INITIAL_CAPACITY = 2;
 

@@ -161,7 +161,7 @@ class FileChannelOutput implements LogOutput {
 
 			}
 			catch (IOException e) {
-				Errors.error(FileChannelOutput.class, e);
+				MetaLog.error(FileChannelOutput.class, e);
 			}
 			finally {
 				if (fileLock != null && fileLock.isValid()) {

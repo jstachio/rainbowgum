@@ -32,20 +32,42 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 	public void append(LogEvent event);
 
+	/**
+	 * A factor of appenders.
+	 */
 	public interface AppenderProvider {
 
+		/**
+		 * Creates an appender from config.
+		 * @param config config.
+		 * @return appender.
+		 */
 		LogAppender provide(LogConfig config);
 
+		/**
+		 * Creates a builder to create an appender provider.
+		 * @return builder.
+		 */
 		public static Builder builder() {
 			return LogAppender.builder();
 		}
 
 	}
 
+	/**
+	 * Creates a builder.
+	 * @return builder.
+	 */
 	public static Builder builder() {
 		return new Builder();
 	}
 
+	/**
+	 * Creates a composite log appender from many. The appenders will be appended
+	 * synchronously.
+	 * @param appenders appenders.
+	 * @return appender.
+	 */
 	public static LogAppender of(List<? extends LogAppender> appenders) {
 		if (appenders.isEmpty()) {
 			throw new IllegalArgumentException("A single appender is required");
@@ -56,6 +78,9 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		return new CompositeLogAppender(appenders.toArray(new LogAppender[] {}));
 	}
 
+	/**
+	 * Builder for creating standard appenders.
+	 */
 	public static class Builder {
 
 		protected LogOutput output = LogOutput.ofStandardOut();
@@ -65,21 +90,50 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		private Builder() {
 		}
 
+		/**
+		 * Sets output
+		 * @param output
+		 * @return builder.
+		 */
 		public Builder output(LogOutput output) {
 			this.output = output;
 			return this;
 		}
 
+		/**
+		 * Sets encoder as formatter.
+		 * @param formatter
+		 * @return builder.
+		 */
 		public Builder formatter(LogFormatter formatter) {
 			this.encoder = LogEncoder.of(formatter);
 			return this;
 		}
 
+		/**
+		 * Sets encoder as formatter.
+		 * @param formatter
+		 * @return builder.
+		 */
 		public Builder formatter(LogFormatter.EventFormatter formatter) {
 			this.encoder = LogEncoder.of(formatter);
 			return this;
 		}
 
+		/**
+		 * Sets encoder.
+		 * @param encoder
+		 * @return builder.
+		 */
+		public Builder encoder(LogEncoder encoder) {
+			this.encoder = encoder;
+			return this;
+		}
+
+		/**
+		 * Builds.
+		 * @return an appender factory.
+		 */
 		public AppenderProvider build() {
 			var output = this.output;
 			var encoder = this.encoder;
@@ -93,8 +147,17 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 	@Override
 	public void close();
 
+	/**
+	 * An appender that can be used by a {@link LogPublisher.SyncLogPublisher}.
+	 */
 	public interface ThreadSafeLogAppender extends LogAppender {
 
+		/**
+		 * Make an appender thread safe if is not already thread safe.
+		 * @param appender appender.
+		 * @return new thread safe appender if is not one or the passed in appender if it
+		 * thread safe.
+		 */
 		public static ThreadSafeLogAppender of(LogAppender appender) {
 			if (appender instanceof ThreadSafeLogAppender lo) {
 				return lo;
@@ -104,6 +167,9 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 	}
 
+	/**
+	 * An abstract appender to help create custom appenders.
+	 */
 	abstract class AbstractLogAppender implements LogAppender {
 
 		protected final LogOutput output;

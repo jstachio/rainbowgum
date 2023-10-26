@@ -5,8 +5,14 @@ import java.util.LinkedList;
 
 import io.jstach.rainbowgum.LogPublisher.SyncLogPublisher;
 
+/**
+ * 
+ */
 public class TestSyncPublisher implements SyncLogPublisher {
 
+	/**
+	 * 
+	 */
 	public Deque<LogEvent> events = new LinkedList<>();
 
 	@Override

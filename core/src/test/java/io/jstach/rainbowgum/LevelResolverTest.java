@@ -3,6 +3,7 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.lang.System.Logger.Level;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,24 @@ class LevelResolverTest {
 		var resolver = LevelResolver.builder().buildLevelResolver(config.levelResolver());
 		var level = resolver.resolveLevel("io.avaje");
 		assertEquals(expected, level);
+	}
+
+	@Test
+	void testComposite() throws Exception {
+		LevelResolver first = LevelResolver.builder().level(Level.OFF).build();
+		LevelResolver second = LevelResolver.builder().level(Level.DEBUG).build();
+		InternalLevelResolver.of(List.of(first, second));
+
+		var expected = Level.OFF;
+		var actual = first.resolveLevel("");
+
+		assertEquals(expected, actual);
+
+		expected = Level.DEBUG;
+		actual = second.resolveLevel("");
+
+		assertEquals(expected, actual);
+
 	}
 
 }

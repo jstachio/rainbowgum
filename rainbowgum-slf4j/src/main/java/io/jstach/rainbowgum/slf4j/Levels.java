@@ -6,7 +6,7 @@ import org.slf4j.event.Level;
 
 class Levels {
 
-	public static boolean isEnabled(Logger logger, Level level) {
+	static boolean isEnabled(Logger logger, Level level) {
 		return switch (level) {
 			case DEBUG -> logger.isDebugEnabled();
 			case ERROR -> logger.isErrorEnabled();
@@ -16,11 +16,11 @@ class Levels {
 		};
 	}
 
-	public static boolean isEnabled(System.Logger.Level current, System.Logger.Level level) {
+	static boolean isEnabled(System.Logger.Level current, System.Logger.Level level) {
 		return current.getSeverity() <= level.getSeverity();
 	}
 
-	public static void log(Logger logger, Level level, String msg, @Nullable Throwable cause) {
+	static void log(Logger logger, Level level, String msg, @Nullable Throwable cause) {
 		if (cause == null) {
 			switch (level) {
 				case DEBUG -> logger.debug(msg);
@@ -43,7 +43,7 @@ class Levels {
 		}
 	}
 
-	public static String toString(System.Logger.Level level) {
+	static String toString(System.Logger.Level level) {
 		return toSlf4jLevel(level).name();
 	}
 
