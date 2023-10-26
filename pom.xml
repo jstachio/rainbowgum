@@ -97,6 +97,11 @@
         <artifactId>rainbowgum-disruptor</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-avaje-config</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <!-- to make dependabot check for latest maven version -->
       <dependency>
           <groupId>org.apache.maven</groupId>
@@ -713,5 +718,6 @@
     <module>rainbowgum-jansi</module>
     <module>benchmark</module>
     <module>rainbowgum-avaje-config</module>
+    <module>test</module>
   </modules>
 </project>

@@ -46,6 +46,16 @@ public interface LevelResolver {
 			return LevelResolver.resolveLevel(this, name);
 		}
 
+		public static LevelConfig of(Collection<? extends LevelConfig> config) {
+			if (config.isEmpty()) {
+				return StaticLevelResolver.OFF;
+			}
+			else if (config.size() == 1) {
+				return config.iterator().next();
+			}
+			return new CompositeLevelConfig(config.stream().toList().toArray(new LevelConfig[] {}));
+		}
+
 	}
 
 	public static Builder builder() {
@@ -66,9 +76,9 @@ public interface LevelResolver {
 		return CompositeLevelResolver.of(resolvers);
 	}
 
-	public static LevelResolver of(Map<String, Level> levels) {
+	public static LevelConfig of(Map<String, Level> levels) {
 		if (levels.isEmpty()) {
-			return LevelResolver.off();
+			return StaticLevelResolver.ALL;
 		}
 		else if (levels.size() == 1) {
 			var e = levels.entrySet().iterator().next();
@@ -98,7 +108,7 @@ public interface LevelResolver {
 
 	abstract class AbstractBuilder<T> {
 
-		protected List<LevelResolver> resolvers = new ArrayList<>();
+		protected List<LevelConfig> resolvers = new ArrayList<>();
 
 		protected Map<String, Level> levels = new LinkedHashMap<>();
 
@@ -114,7 +124,7 @@ public interface LevelResolver {
 			return self();
 		}
 
-		public T levelResolver(LevelResolver resolver) {
+		public T levelResolver(LevelConfig resolver) {
 			resolvers.add(resolver);
 			return self();
 		}
@@ -128,17 +138,24 @@ public interface LevelResolver {
 			return buildLevelResolver(null);
 		}
 
-		protected LevelResolver buildLevelResolver(@Nullable LevelResolver globalLevelResolver) {
+		protected LevelResolver buildLevelResolver(@Nullable LevelConfig globalLevelResolver) {
 			var copyLevels = new LinkedHashMap<>(levels);
-			if (copyLevels.isEmpty()) {
-				copyLevels.put("", Level.INFO);
-			}
+			boolean noBuilderLevels = copyLevels.isEmpty();
+
 			var copyResolvers = new ArrayList<>(resolvers);
-			copyResolvers.add(0, LevelResolver.of(copyLevels));
+			if (!copyLevels.isEmpty()) {
+				copyResolvers.add(0, LevelResolver.of(copyLevels));
+			}
 			if (globalLevelResolver != null) {
 				copyResolvers.add(globalLevelResolver);
 			}
-			var combined = LevelResolver.of(copyResolvers);
+
+			if (noBuilderLevels) {
+				copyResolvers.add(StaticLevelResolver.INFO);
+			}
+
+			var combined = LevelConfig.of(copyResolvers);
+
 			if (levelResolverCached) {
 				return LevelResolver.cached(combined);
 			}
@@ -180,52 +197,28 @@ public interface LevelResolver {
 
 }
 
-enum StaticLevelResolver implements LevelResolver {
+enum StaticLevelResolver implements LevelResolver, LevelConfig {
 
-	INFO {
-		@Override
-		public Level resolveLevel(String name) {
-			return Level.INFO;
-		}
-	},
-	OFF {
-		@Override
-		public Level resolveLevel(String name) {
-			return Level.OFF;
-		}
-	},
-	ALL {
-		@Override
-		public Level resolveLevel(String name) {
-			return Level.ALL;
-		}
-	},
-	DEBUG {
-		@Override
-		public Level resolveLevel(String name) {
-			return Level.DEBUG;
-		}
+	INFO(Level.INFO), OFF(Level.OFF), ALL(Level.ALL), DEBUG(Level.DEBUG), ERROR(Level.ERROR), WARNING(Level.WARNING),
+	TRACE(Level.TRACE);
 
-	},
-	ERROR {
-		@Override
-		public Level resolveLevel(String name) {
-			return Level.ERROR;
-		}
-	},
-	WARNING {
-		@Override
-		public Level resolveLevel(String name) {
-			return Level.WARNING;
-		}
+	private final Level level;
 
-	},
-	TRACE {
-		@Override
-		public Level resolveLevel(String name) {
-			return Level.TRACE;
+	private StaticLevelResolver(Level level) {
+		this.level = level;
+	}
+
+	public Level levelOrNull(String name) {
+		if ("".equals(name)) {
+			return this.level;
 		}
-	};
+		return null;
+	}
+
+	@Override
+	public Level resolveLevel(String name) {
+		return this.level;
+	}
 
 }
 
@@ -246,6 +239,21 @@ record MapLevelResolver(Map<String, Level> levels) implements LevelConfig {
 	public Level levelOrNull(String name) {
 		return levels.get(name);
 	}
+}
+
+record CompositeLevelConfig(LevelConfig[] levelConfig) implements LevelConfig {
+
+	@Override
+	public @Nullable Level levelOrNull(String name) {
+		for (var c : levelConfig) {
+			var level = c.levelOrNull(name);
+			if (level != null) {
+				return level;
+			}
+		}
+		return null;
+	}
+
 }
 
 record CompositeLevelResolver(LevelResolver[] resolvers) implements LevelResolver {
@@ -354,14 +362,6 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	public @Nullable Level levelOrNull(String name) {
 		return levelExtractor.property(name).get(properties).valueOrNull();
-	}
-
-	public Level defaultLevel() {
-		var level = levelOrNull("");
-		if (level == null) {
-			return Level.OFF;
-		}
-		return level;
 	}
 
 }

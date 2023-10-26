@@ -14,7 +14,7 @@ import io.jstach.jstache.JStacheType;
 
 @JStacheConfig(type = JStacheType.STACHE)
 public class CodeTemplates {
-	
+
 	@JStache(
 			template = """
 					package io.jstach.rainbowgum.slf4j;

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 
@@ -11,7 +12,7 @@ public interface LogConfig {
 
 	public LogProperties properties();
 
-	public LevelResolver levelResolver();
+	public LevelConfig levelResolver();
 
 	public Defaults defaults();
 
@@ -81,7 +82,7 @@ class DefaultLogConfig implements LogConfig {
 
 	private final LogProperties properties;
 
-	private final LevelResolver levelResolver;
+	private final LevelConfig levelResolver;
 
 	private final Defaults defaults;
 
@@ -107,7 +108,7 @@ class DefaultLogConfig implements LogConfig {
 	}
 
 	@Override
-	public LevelResolver levelResolver() {
+	public LevelConfig levelResolver() {
 		return this.levelResolver;
 	}
 
