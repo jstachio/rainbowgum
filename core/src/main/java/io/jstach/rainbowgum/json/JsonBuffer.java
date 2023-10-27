@@ -10,7 +10,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 
-public class JsonBuffer implements Buffer {
+class JsonBuffer implements Buffer {
 
 	private final RawJsonWriter jsonWriter = new RawJsonWriter(1024 * 8);
 

@@ -16,7 +16,6 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
-import io.jstach.rainbowgum.LogOutput;
 
 public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
@@ -26,11 +25,9 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final boolean prettyprint;
 
-	private final LevelFormatter levelFormatter = LevelFormatter.of();
-
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
-	public GelfEncoder(String host, KeyValues headers, LogOutput out, boolean prettyprint) {
+	public GelfEncoder(String host, KeyValues headers, boolean prettyprint) {
 		super();
 		this.host = host;
 		this.headers = headers;
@@ -71,7 +68,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		index = buffer.writeDouble("timestamp", timeStamp, index, 0);
 		index = buffer.writeInt("level", level, index, 0);
 		index = buffer.write("_time", timeFormatter.format(now), index);
-		index = buffer.write("_level", levelFormatter.format(event.level()), index);
+		index = buffer.write("_level", LevelFormatter.toString(event.level()), index);
 		index = buffer.write("_logger", event.loggerName(), index);
 		index = buffer.write("_thread_name", event.threadName(), index);
 		index = buffer.write("_thread_id", String.valueOf(event.threadId()), index);

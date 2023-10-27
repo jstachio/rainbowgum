@@ -332,7 +332,7 @@ class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogApp
 class BufferLogAppender extends AbstractLogAppender {
 
 	public BufferLogAppender(LogOutput output, LogEncoder encoder) {
-		super(output, LogEncoder.cached(encoder));
+		super(output, CachedEncoder.of(encoder));
 	}
 
 	@Override

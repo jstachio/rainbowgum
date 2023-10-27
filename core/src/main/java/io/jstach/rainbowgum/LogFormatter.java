@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.lang.System.Logger.Level;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -172,10 +171,10 @@ public sealed interface LogFormatter {
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			output.append(formatName(event.loggerName()));
+			formatName(output, event.loggerName());
 		}
 
-		public String formatName(String name);
+		public void formatName(StringBuilder output, String name);
 
 		public static NameFormatter of() {
 			return DefaultNameFormatter.INSTANT;
@@ -185,16 +184,27 @@ public sealed interface LogFormatter {
 
 	public non-sealed interface LevelFormatter extends LogFormatter {
 
-		String format(Level level);
+		void formatLevel(StringBuilder output, Level level);
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			output.append(format(event.level()));
-
+			formatLevel(output, event.level());
 		}
 
 		public static LevelFormatter of() {
 			return DefaultLevelFormatter.INSTANT;
+		}
+
+		public static String toString(Level level) {
+			return switch (level) {
+				case DEBUG -> "DEBUG";
+				case ALL -> "ERROR";
+				case ERROR -> "ERROR";
+				case INFO -> "INFO";
+				case OFF -> "TRACE";
+				case TRACE -> "TRACE";
+				case WARNING -> "WARN";
+			};
 		}
 
 	}
@@ -216,13 +226,13 @@ public sealed interface LogFormatter {
 
 	public non-sealed interface ThrowableFormatter extends LogFormatter {
 
-		void format(StringBuilder output, Throwable throwable);
+		void formatThrowable(StringBuilder output, Throwable throwable);
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			var t = event.throwable();
 			if (t != null) {
-				format(output, t);
+				formatThrowable(output, t);
 			}
 		}
 
@@ -241,11 +251,11 @@ public sealed interface LogFormatter {
 
 	public non-sealed interface KeyValuesFormatter extends LogFormatter {
 
-		void format(StringBuilder output, KeyValues keyValues);
+		void formatKeyValues(StringBuilder output, KeyValues keyValues);
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			format(output, event.keyValues());
+			formatKeyValues(output, event.keyValues());
 		}
 
 		public static KeyValuesFormatter of(List<String> keys) {
@@ -267,11 +277,11 @@ public sealed interface LogFormatter {
 
 	public non-sealed interface ThreadFormatter extends LogFormatter {
 
-		String formatThread(String threadName);
+		void formatThread(StringBuilder output, String threadName, long threadId);
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			output.append(formatThread(event.threadName()));
+			formatThread(output, event.threadName(), event.threadId());
 		}
 
 		public static ThreadFormatter of() {
@@ -282,44 +292,6 @@ public sealed interface LogFormatter {
 
 	public static boolean isNoop(LogFormatter logFormatter) {
 		return NoopFormatter.INSTANT == logFormatter;
-	}
-
-	public enum NoopFormatter implements InstantFormatter, ThrowableFormatter, KeyValuesFormatter, LevelFormatter,
-			NameFormatter, ThreadFormatter {
-
-		INSTANT;
-
-		@Override
-		public void format(StringBuilder output, KeyValues keyValues) {
-		}
-
-		@Override
-		public void format(StringBuilder output, Throwable throwable) {
-		}
-
-		@Override
-		public void formatTimestamp(StringBuilder output, Instant instant) {
-		}
-
-		@Override
-		public String formatName(String name) {
-			return "";
-		}
-
-		@Override
-		public String format(Level level) {
-			return "";
-		}
-
-		@Override
-		public String formatThread(String threadName) {
-			return "";
-		}
-
-		@Override
-		public void format(StringBuilder output, LogEvent event) {
-		}
-
 	}
 
 	public static void padRight(StringBuilder sb, String s, int n) {
@@ -355,6 +327,41 @@ public sealed interface LogFormatter {
 
 }
 
+enum NoopFormatter implements InstantFormatter, ThrowableFormatter, KeyValuesFormatter, LevelFormatter, NameFormatter,
+		ThreadFormatter {
+
+	INSTANT;
+
+	@Override
+	public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
+	}
+
+	@Override
+	public void formatThrowable(StringBuilder output, Throwable throwable) {
+	}
+
+	@Override
+	public void formatTimestamp(StringBuilder output, Instant instant) {
+	}
+
+	@Override
+	public void formatName(StringBuilder output, String name) {
+	}
+
+	@Override
+	public void formatLevel(StringBuilder output, Level level) {
+	}
+
+	@Override
+	public void formatThread(StringBuilder output, String threadName, long threadId) {
+	}
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+	}
+
+}
+
 record DefaultEventFormatter(LogFormatter[] formatters) implements EventFormatter {
 
 	@Override
@@ -382,8 +389,8 @@ enum DefaultNameFormatter implements NameFormatter {
 	INSTANT;
 
 	@Override
-	public String formatName(String name) {
-		return name;
+	public void formatName(StringBuilder output, String name) {
+		output.append(name);
 	}
 
 }
@@ -393,16 +400,8 @@ enum DefaultLevelFormatter implements LevelFormatter {
 	INSTANT;
 
 	@Override
-	public String format(Level level) {
-		return switch (level) {
-			case DEBUG -> "DEBUG";
-			case ALL -> "ERROR";
-			case ERROR -> "ERROR";
-			case INFO -> "INFO";
-			case OFF -> "TRACE";
-			case TRACE -> "TRACE";
-			case WARNING -> "WARN";
-		};
+	public void formatLevel(StringBuilder output, Level level) {
+		output.append(LevelFormatter.toString(level));
 	}
 
 }
@@ -412,14 +411,8 @@ enum DefaultThreadFormatter implements ThreadFormatter {
 	INSTANT;
 
 	@Override
-	public void format(StringBuilder output, LogEvent event) {
-		// LogFormatter.padRight(output, event.threadName(), 12);
-		output.append(event.threadName());
-	}
-
-	@Override
-	public String formatThread(String threadName) {
-		return threadName;
+	public void formatThread(StringBuilder output, String threadName, long threadId) {
+		output.append(threadName);
 	}
 
 }
@@ -451,7 +444,7 @@ enum DefaultThrowableFormatter implements ThrowableFormatter {
 	INSTANT;
 
 	@Override
-	public void format(StringBuilder output, Throwable throwable) {
+	public void formatThrowable(StringBuilder output, Throwable throwable) {
 		ThrowableFormatter.append(output, throwable);
 	}
 
@@ -462,14 +455,14 @@ enum DefaultKeyValuesFormatter implements KeyValuesFormatter, KeyValuesConsumer<
 	INSTANCE;
 
 	@Override
-	public void format(StringBuilder output, KeyValues keyValues) {
+	public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
 		keyValues.forEach(this, 0, output);
 	}
 
 	static void formatKeyValue(StringBuilder output, String k, String v) {
-		output.append(URLEncoder.encode(k, StandardCharsets.US_ASCII));
+		PercentCodec.encode(output, k, StandardCharsets.UTF_8);
 		output.append("=");
-		output.append(URLEncoder.encode(v, StandardCharsets.US_ASCII));
+		PercentCodec.encode(output, v, StandardCharsets.UTF_8);
 	}
 
 	@Override
@@ -493,7 +486,7 @@ final class ListKeyValuesFormatter implements KeyValuesFormatter {
 	}
 
 	@Override
-	public void format(StringBuilder output, KeyValues keyValues) {
+	public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
 		boolean first = true;
 		for (String k : keys) {
 			String v = keyValues.getValue(k);
@@ -519,7 +512,7 @@ class StringWriter extends Writer {
 	/**
 	 * Create a new string writer using the default initial string-buffer size.
 	 */
-	public StringWriter(StringBuilder buf) {
+	StringWriter(StringBuilder buf) {
 		this.buf = buf;
 		lock = buf;
 	}

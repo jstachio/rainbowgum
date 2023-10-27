@@ -2,12 +2,10 @@ package io.jstach.rainbowgum.jansi;
 
 import java.lang.System.Logger.Level;
 
-import org.eclipse.jdt.annotation.Nullable;
 import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.Ansi.Attribute;
 import org.fusesource.jansi.Ansi.Color;
 
-import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
@@ -53,8 +51,6 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 		var level = logEvent.level();
 		var name = logEvent.loggerName();
-		@Nullable
-		Throwable t = logEvent.throwable();
 
 		// StringBuilder buf = new StringBuilder(32);
 		Ansi buf = Ansi.ansi(output);
@@ -76,7 +72,7 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 			buf.a(" ");
 		}
 
-		colorLevel(buf, level);
+		colorLevel(buf, output, level);
 
 		buf.append(' ');
 
@@ -87,14 +83,12 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 			buf.a(String.valueOf(name));
 		}
 
-		KeyValues m = logEvent.keyValues();
-
 		if (!LogFormatter.isNoop(keyValuesFormatter)) {
 			buf.fg(Color.WHITE);
 			buf.append(" ");
 			buf.a(Attribute.INTENSITY_FAINT);
 			buf.a("{");
-			keyValuesFormatter.format(output, m);
+			keyValuesFormatter.format(output, logEvent);
 			buf.a("}");
 			buf.fg(Color.DEFAULT);
 			buf.a(Attribute.RESET);
@@ -102,17 +96,14 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 		buf.fg(Color.DEFAULT);
 		buf.a(" - ");
-		messageFormatter.formatMessage(output, logEvent);
+		messageFormatter.format(output, logEvent);
 		output.append("\n");
-		if (t != null) {
-			throwableFormatter.format(output, t);
-		}
+		throwableFormatter.format(output, logEvent);
 	}
 
-	private Ansi colorLevel(Ansi ansi, Level level) {
+	private Ansi colorLevel(Ansi ansi, StringBuilder sb, Level level) {
 		if (levelFormatter.isNoop())
 			return ansi;
-		String levelStr = levelFormatter.format(level);
 		switch (level) {
 			case ERROR:
 				ansi.a(Attribute.INTENSITY_BOLD).fg(Color.RED);
@@ -130,7 +121,9 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 				ansi.fg(Color.DEFAULT);
 				break;
 		}
-		return ansi.a(levelStr).fg(Color.DEFAULT).a(Attribute.RESET).a("");
+		ansi.a("");
+		levelFormatter.formatLevel(sb, level);
+		return ansi.a("").fg(Color.DEFAULT).a(Attribute.RESET).a("");
 	}
 
 }

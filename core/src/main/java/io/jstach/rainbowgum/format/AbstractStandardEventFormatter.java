@@ -123,12 +123,10 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 
 		output.append(name);
 
-		KeyValues m = logEvent.keyValues();
-
 		if (!LogFormatter.isNoop(keyValuesFormatter)) {
 			output.append(" ");
 			output.append("{");
-			keyValuesFormatter.format(output, m);
+			keyValuesFormatter.format(output, logEvent);
 			output.append("}");
 		}
 
@@ -137,7 +135,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		output.append("\n");
 
 		if (t != null) {
-			throwableFormatter.format(output, t);
+			throwableFormatter.format(output, logEvent);
 		}
 	}
 

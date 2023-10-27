@@ -8,7 +8,7 @@ import java.util.Arrays;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 
-public class RawJsonWriter {
+class RawJsonWriter {
 
 	private int position;
 
