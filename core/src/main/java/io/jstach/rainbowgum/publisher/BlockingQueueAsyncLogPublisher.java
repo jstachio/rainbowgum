@@ -12,6 +12,9 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
 
+/**
+ * An async publisher that uses a blocking queue and a single thread consumer.
+ */
 public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncLogPublisher {
 
 	private final BlockingQueue<LogEvent> queue;
@@ -24,6 +27,12 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 	private final Worker worker;
 
+	/**
+	 * Creates the publisher.
+	 * @param appender appenders.
+	 * @param bufferSize the queue size.
+	 * @return async publisher.
+	 */
 	public static BlockingQueueAsyncLogPublisher of(List<? extends LogAppender> appender, int bufferSize) {
 		BlockingQueue<LogEvent> queue = new ArrayBlockingQueue<>(bufferSize);
 		return new BlockingQueueAsyncLogPublisher(LogAppender.of(appender), queue, bufferSize);

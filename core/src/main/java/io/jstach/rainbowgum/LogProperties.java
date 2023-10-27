@@ -13,34 +13,90 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
 
+/**
+ * Provides String based properties like {@link System#getProperty(String)} for default
+ * configuration of logging levels and output.
+ */
 @FunctionalInterface
 public interface LogProperties {
 
+	/**
+	 * properties separator.
+	 */
 	static final String SEP = ".";
+
+	/**
+	 * Logging properties prefix.
+	 */
 	static final String ROOT_PREFIX = "logging" + SEP;
+
+	/**
+	 * Logging level properties prefix.
+	 */
 	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
+
+	/**
+	 * Logging change properties prefix.
+	 */
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
+
+	/**
+	 * Logging file property for default single file appending.
+	 */
 	static final String FILE_PROPERTY = ROOT_PREFIX + "file";
 
+	/**
+	 * Analogous to {@link System#getProperty(String)}.
+	 * @param key property key.
+	 * @return property value.
+	 */
 	public @Nullable String valueOrNull(String key);
 
+	/**
+	 * Gets a value based on the passed in property.
+	 * @param <T> value type.
+	 * @param property property.
+	 * @return property value.
+	 */
 	default <T> PropertyValue<T> property(Property<T> property) {
 		return property.get(this);
 	}
 
+	/**
+	 * Searches up a path using this properties to check for values.
+	 * @param root prefix.
+	 * @param key should start with prefix.
+	 * @return closest value.
+	 */
 	default @Nullable String search(String root, String key) {
 		return searchPath(key, k -> valueOrNull(concatKey(root, k)));
 
 	}
 
+	/**
+	 * Describes a key and by default is usually just the key.
+	 * @param key key.
+	 * @return usually the key.
+	 */
 	default String description(String key) {
 		return key;
 	}
 
+	/**
+	 * When log properties are coalesced this method is used to resolve order. A higher
+	 * number gives higher precedence.
+	 * @return zero by default.
+	 */
 	default int order() {
 		return 0;
 	}
 
+	/**
+	 * Creates log properties from many log properties.
+	 * @param logProperties list of properties.
+	 * @param fallback if the logProperties list is empty.
+	 * @return log properties
+	 */
 	public static LogProperties of(List<? extends LogProperties> logProperties, LogProperties fallback) {
 		if (logProperties.isEmpty()) {
 			return fallback;
@@ -53,10 +109,19 @@ public interface LogProperties {
 		return new CompositeLogProperties(array);
 	}
 
+	/**
+	 * Creates log properties from many log properties.
+	 * @param logProperties the list of properties.
+	 * @return if the logProperties is empty {@link StandardProperties#EMPTY} will be
+	 * used.
+	 */
 	public static LogProperties of(List<? extends LogProperties> logProperties) {
 		return of(logProperties, StandardProperties.EMPTY);
 	}
 
+	/**
+	 * Common log properties.
+	 */
 	enum StandardProperties implements LogProperties {
 
 		EMPTY {
@@ -84,6 +149,13 @@ public interface LogProperties {
 
 	}
 
+	/**
+	 * An error friendly {@link Function} for converting properties.
+	 *
+	 * @param <T> input type.
+	 * @param <R> output type.
+	 * @param <E> error type.
+	 */
 	public interface PropertyFunction<T extends @Nullable Object, R extends @Nullable Object, E extends Exception>
 			extends Function<T, R> {
 
@@ -98,13 +170,19 @@ public interface LogProperties {
 			}
 		}
 
+		/**
+		 * Apply that throws error.
+		 * @param t input
+		 * @return output
+		 * @throws E if an error happened in function.
+		 */
 		public R _apply(T t) throws E;
 
-	}
+		@SuppressWarnings("unchecked")
+		private static <E extends Throwable> void sneakyThrow(final Throwable x) throws E {
+			throw (E) x;
+		}
 
-	@SuppressWarnings("unchecked")
-	public static <E extends Throwable> void sneakyThrow(final Throwable x) throws E {
-		throw (E) x;
 	}
 
 	private static RuntimeException throwPropertyError(String key, Exception e) {
@@ -115,13 +193,19 @@ public interface LogProperties {
 		throw new NoSuchElementException("Property missing. key: " + key);
 	}
 
+	/**
+	 * Searches a property path recursing up the path.
+	 * @param <T> type to return.
+	 * @param name the initial path.
+	 * @param resolveFunc function that returns the value at path or <code>null</code>.
+	 * @return value or <code>null</code>.
+	 */
 	@SuppressWarnings("exports")
-	static <T> @Nullable T searchPath(String name, Function<String, @Nullable T> resolveFunc) {
+	public static <T> @Nullable T searchPath(String name, Function<String, @Nullable T> resolveFunc) {
 		return searchPath(name, resolveFunc, SEP);
 	}
 
-	@SuppressWarnings("exports")
-	static <T> @Nullable T searchPath(String name, Function<String, @Nullable T> resolveFunc, String sep) {
+	private static <T> @Nullable T searchPath(String name, Function<String, @Nullable T> resolveFunc, String sep) {
 		String tempName = name;
 		T level = null;
 		int indexOfLastDot = tempName.length();
@@ -136,10 +220,21 @@ public interface LogProperties {
 		return null;
 	}
 
+	/**
+	 * Concats a key using {@link #SEP} to the root prefix.
+	 * @param name key.
+	 * @return concat key.
+	 */
 	static String concatKey(String name) {
 		return concatKey(LogProperties.ROOT_PREFIX, name);
 	}
 
+	/**
+	 * Concats a keys using {@link #SEP} as the separator.
+	 * @param prefix start of key.
+	 * @param name second part of key.
+	 * @return key.
+	 */
 	static String concatKey(String prefix, String name) {
 		if (name.equals("")) {
 			return prefix;
@@ -156,6 +251,13 @@ public interface LogProperties {
 		return prefix + SEP + name;
 	}
 
+	/**
+	 * A property value is a property and its lazily retrieved value.
+	 *
+	 * @param <T> value type.
+	 * @param property backing property.
+	 * @param properties the log properties instance.
+	 */
 	record PropertyValue<T>(Property<T> property, LogProperties properties) {
 		public <U> PropertyValue<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 			return new PropertyValue<>(property.map(mapper), properties);
@@ -174,14 +276,14 @@ public interface LogProperties {
 		}
 	}
 
+	/**
+	 * A property description.
+	 *
+	 * @param <T> property type.
+	 * @param propertyGetter getter to retrieve property value from {@link LogProperties}.
+	 * @param key property key.
+	 */
 	record Property<T>(PropertyGetter<T> propertyGetter, String key) {
-
-		// public Property {
-		// if (!key.startsWith(LogProperties.ROOT_PREFIX)) {
-		// throw new IllegalArgumentException(
-		// "Property key should start with: '" + LogProperties.ROOT_PREFIX + "'");
-		// }
-		// }
 
 		public PropertyValue<T> get(LogProperties properties) {
 			return new PropertyValue<>(this, properties);
@@ -196,6 +298,11 @@ public interface LogProperties {
 		}
 	}
 
+	/**
+	 * Extracts and converts from {@link LogProperties}.
+	 *
+	 * @param <T> value type.
+	 */
 	sealed interface PropertyGetter<T> {
 
 		@Nullable

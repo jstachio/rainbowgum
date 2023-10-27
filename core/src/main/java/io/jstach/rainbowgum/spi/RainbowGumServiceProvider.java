@@ -12,30 +12,72 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.ServiceRegistry;
 
+/**
+ * RainbowGum SPI
+ */
 public sealed interface RainbowGumServiceProvider {
 
+	/**
+	 * Provides properties.
+	 */
 	public non-sealed interface PropertiesProvider extends RainbowGumServiceProvider {
 
+		/**
+		 * Provides properties.
+		 * @param registry registry is usually empty here.
+		 * @return list of properties.
+		 */
 		List<LogProperties> provideProperties(ServiceRegistry registry);
 
 	}
 
+	/**
+	 * Provides config from registry and properties.
+	 */
 	public non-sealed interface ConfigProvider extends RainbowGumServiceProvider {
 
+		/**
+		 * Provide config from registry and properties.
+		 * @param registry registry.
+		 * @param properties properties.
+		 * @return config.
+		 */
 		LogConfig provideConfig(ServiceRegistry registry, LogProperties properties);
 
 	}
 
+	/**
+	 * Called after {@link LogConfig} has been loaded.
+	 */
 	public non-sealed interface Initializer extends RainbowGumServiceProvider {
 
+		/**
+		 * Do adhoc initialization before RainbowGum is fully loaded.
+		 * @param registry registry.
+		 * @param config config.
+		 */
 		void initialize(ServiceRegistry registry, LogConfig config);
 
 	}
 
+	/**
+	 * Implement to create a custom RainbowGum. This is the preferred way to custommize
+	 * RainbowGum publishers, appenders, and outputs.
+	 */
 	public non-sealed interface RainbowGumProvider extends RainbowGumServiceProvider {
 
+		/**
+		 * Optionally provides a rainbow gum based on config.
+		 * @param config config loaded.
+		 * @return a rainbowgum or not.
+		 */
 		Optional<RainbowGum> provide(LogConfig config);
 
+		/**
+		 * Creates a default rainbow gum from a config.
+		 * @param config config.
+		 * @return rainbowgum.
+		 */
 		public static RainbowGum defaults(LogConfig config) {
 			return RainbowGum.builder(config).route(r -> {
 
@@ -75,6 +117,11 @@ public sealed interface RainbowGumServiceProvider {
 		findProviders(loader, Initializer.class).forEach(c -> c.initialize(registry, config));
 	}
 
+	/**
+	 * Creates config from service loader.
+	 * @param loader service loader.
+	 * @return config.
+	 */
 	public static LogConfig provideConfig(ServiceLoader<RainbowGumServiceProvider> loader) {
 		ServiceRegistry registry = ServiceRegistry.of();
 		var properties = provideProperties(registry, loader);
@@ -83,6 +130,10 @@ public sealed interface RainbowGumServiceProvider {
 		return config;
 	}
 
+	/**
+	 * Will load all RainbowGum SPI to create a RainbowGum powered from the ServiceLoader.
+	 * @return rainbowgum.
+	 */
 	public static RainbowGum provide() {
 		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
 		var config = provideConfig(loader);

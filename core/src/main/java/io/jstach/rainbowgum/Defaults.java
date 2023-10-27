@@ -65,6 +65,8 @@ public class Defaults {
 				: new DefaultLogAppender(output, encoder);
 	}
 
+	static final String NEW_LINE = "\n";
+
 	/**
 	 * Associates a default formatter with a specific output type
 	 * @param outputType

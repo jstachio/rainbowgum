@@ -7,14 +7,37 @@ import org.eclipse.jdt.annotation.Nullable;
 
 public sealed interface LogMessageFormatter {
 
+	/**
+	 * Formats and appends the results.
+	 * @param builder output.
+	 * @param message message usually with formatting delimiters for replacement.
+	 * @param arg1 to use for replacement.
+	 */
 	void format(StringBuilder builder, String message, Object arg1);
 
+	/**
+	 * Formats and appends the results.
+	 * @param builder output.
+	 * @param message message usually with formatting delimiters for replacement.
+	 * @param arg1 to use for replacement.
+	 * @param arg2 to use for replacement.
+	 */
 	void format(StringBuilder builder, String message, Object arg1, Object arg2);
 
+	/**
+	 * Formats and appends the result.
+	 * @param builder output.
+	 * @param message message usually with formatting delimiters for replacement.
+	 * @param args array of args.
+	 */
 	void formatArray(StringBuilder builder, String message, Object[] args);
 
 	public enum StandardMessageFormatter implements LogMessageFormatter {
 
+		/**
+		 * SLF4J format style where "<code>{}</code>" is replaced with the parameters. The
+		 * implementation largely comes from the SLF4J but optimized for StringBuilder.
+		 */
 		SLF4J() {
 			@Override
 			public void format(StringBuilder builder, String message, Object arg1) {

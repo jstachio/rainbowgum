@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.lang.System.Logger.Level;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -12,138 +13,254 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
-import io.jstach.rainbowgum.LogFormatter.InstantFormatter;
 import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogFormatter.MessageFormatter;
 import io.jstach.rainbowgum.LogFormatter.NameFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThreadFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
+import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 
+/**
+ * Formats a log event using a {@link StringBuilder}. <strong>All formatters should be
+ * threadsafe!</strong>.
+ * <p>
+ * The appender will make sure the {@link StringBuilder} is not shared with multiple
+ * threads so the formatter does not have to synchronize/lock on and should definitely not
+ * do that.
+ *
+ * @see LogFormatter.EventFormatter
+ * @see LogEncoder#of(LogFormatter)
+ * @apiNote This class is sealed. An interface that has the same contract that can be
+ * implemented is {@link EventFormatter}.
+ */
 public sealed interface LogFormatter {
 
+	/**
+	 * Formats a log event.
+	 * @param output buffer.
+	 * @param event log event.
+	 * @see EventFormatter
+	 */
 	public void format(StringBuilder output, LogEvent event);
 
+	/**
+	 * See {@link EventFormatter#builder()}.
+	 * @return builder.
+	 */
 	public static EventFormatter.Builder builder() {
 		return EventFormatter.builder();
 	}
 
+	/**
+	 * Ask the formatter if will do anything.
+	 * @return true if promises not to write to builder.
+	 * @see #noop()
+	 */
 	default boolean isNoop() {
-		return isNoop(this);
+		return NoopFormatter.INSTANT == this;
 	}
 
+	/**
+	 * A special formatter that will do nothing. It is a singleton so identity comparison
+	 * can be used.
+	 * @return a formatter tha implements all formatting interfaces but does nothing.
+	 */
 	public static NoopFormatter noop() {
 		return NoopFormatter.INSTANT;
 	}
 
+	/**
+	 * A special formatter that will append static text.
+	 *
+	 * @param content static text.
+	 */
 	public record StaticFormatter(String content) implements LogFormatter {
 		@Override
 		public void format(StringBuilder output, LogEvent event) {
 			output.append(content);
 		}
 
+		/**
+		 * Creates a new formatter by concat the {@link #content}. This is mainly used by
+		 * the {@link EventFormatter#builder()} to coallesce multiple static text.
+		 * @param next the text that will follow this formatter.
+		 * @return new formatter.
+		 */
 		public StaticFormatter concat(StaticFormatter next) {
 			return new StaticFormatter(this.content + next.content);
 		}
-	}
 
-	static LogFormatter[] coalesce(List<? extends LogFormatter> formatters) {
-		List<LogFormatter> resolved = new ArrayList<>();
-		StaticFormatter current = null;
-		for (var f : formatters) {
-			if (current == null && f instanceof StaticFormatter sf) {
-				current = sf;
+		/**
+		 * Coalese formatters that can be such as {@link StaticFormatter}.
+		 * @param formatters list of formatters in the order of which they will be
+		 * executed.
+		 * @return an array of formatters where static formatters next to each other will
+		 * be coalesced.
+		 */
+		private static LogFormatter[] coalesce(List<? extends LogFormatter> formatters) {
+			List<LogFormatter> resolved = new ArrayList<>();
+			StaticFormatter current = null;
+			for (var f : formatters) {
+				if (current == null && f instanceof StaticFormatter sf) {
+					current = sf;
+				}
+				else if (current != null && f instanceof StaticFormatter sf) {
+					current = current.concat(sf);
+				}
+				else if (current != null) {
+					resolved.add(current);
+					resolved.add(f);
+					current = null;
+				}
+				else {
+					resolved.add(f);
+				}
 			}
-			else if (current != null && f instanceof StaticFormatter sf) {
-				current = current.concat(sf);
-			}
-			else if (current != null) {
+			if (current != null) {
 				resolved.add(current);
-				resolved.add(f);
-				current = null;
 			}
-			else {
-				resolved.add(f);
-			}
+			return resolved.toArray(new LogFormatter[] {});
 		}
-		if (current != null) {
-			resolved.add(current);
-		}
-		return resolved.toArray(new LogFormatter[] {});
 	}
 
+	/**
+	 * Generic event formatting that is lambda friendly.
+	 */
 	@FunctionalInterface
 	public non-sealed interface EventFormatter extends LogFormatter {
 
 		public void format(StringBuilder output, LogEvent event);
 
-		public static EventFormatter of(List<? extends LogFormatter> formatters) {
-			return new DefaultEventFormatter(LogFormatter.coalesce(formatters));
+		private static EventFormatter of(List<? extends LogFormatter> formatters) {
+			return new DefaultEventFormatter(StaticFormatter.coalesce(formatters));
 		}
 
+		/**
+		 * Builder
+		 * @return builder.
+		 */
 		public static Builder builder() {
 			return new Builder();
 		}
 
-		public static class Builder {
+		/**
+		 * Log formatter builder.
+		 */
+		public final static class Builder {
 
 			private List<LogFormatter> formatters = new ArrayList<>();
 
 			private Builder() {
 			}
 
-			public Builder timeStamp() {
-				formatters.add(new DateTimeFormatterInstantFormatter(DateTimeFormatter.ISO_INSTANT));
-				return this;
-			}
-
-			public Builder timeStamp(DateTimeFormatter dateTimeFormatter) {
-				formatters.add(new DateTimeFormatterInstantFormatter(dateTimeFormatter));
-				return this;
-			}
-
-			public Builder level() {
-				formatters.add(LogFormatter.LevelFormatter.of());
-				return this;
-			}
-
-			public Builder loggerName() {
-				formatters.add(LogFormatter.NameFormatter.of());
-				return this;
-			}
-
+			/**
+			 * @param formatter
+			 * @return this builder.
+			 */
 			public Builder add(LogFormatter formatter) {
 				formatters.add(formatter);
 				return this;
 			}
 
+			/**
+			 * @param formatter
+			 * @return this builder.
+			 */
+			public Builder event(LogFormatter.EventFormatter formatter) {
+				formatters.add(formatter);
+				return this;
+			}
+
+			/**
+			 * Append the timestamp in ISO format.
+			 * @return this builder.
+			 */
+			public Builder timeStamp() {
+				formatters.add(new DateTimeFormatterInstantFormatter(DateTimeFormatter.ISO_INSTANT));
+				return this;
+			}
+
+			/**
+			 * @param dateTimeFormatter
+			 * @return this builder.
+			 */
+			public Builder timeStamp(DateTimeFormatter dateTimeFormatter) {
+				formatters.add(new DateTimeFormatterInstantFormatter(dateTimeFormatter));
+				return this;
+			}
+
+			/**
+			 * @return this builder.
+			 */
+			public Builder level() {
+				formatters.add(LogFormatter.LevelFormatter.of());
+				return this;
+			}
+
+			/**
+			 * @return this builder.
+			 */
+			public Builder loggerName() {
+				formatters.add(LogFormatter.NameFormatter.of());
+				return this;
+			}
+
+			/**
+			 * Formats the message by calling
+			 * {@link LogEvent#formattedMessage(StringBuilder)}.
+			 * @return this builder.
+			 */
 			public Builder message() {
 				formatters.add(LogFormatter.MessageFormatter.of());
 				return this;
 			}
 
+			/**
+			 * Appends static text.
+			 * @param content static text.
+			 * @return this builder.
+			 */
 			public Builder text(String content) {
 				formatters.add(new StaticFormatter(content));
 				return this;
 			}
 
+			/**
+			 * Appends a space.
+			 * @return this builder.
+			 */
 			public Builder space() {
 				formatters.add(new StaticFormatter(" "));
 				return this;
 			}
 
+			/**
+			 * Appends a newline.
+			 * @return this builder.
+			 */
 			public Builder newline() {
-				text("\n");
+				text(Defaults.NEW_LINE);
 				return this;
 			}
 
+			/**
+			 * Appends a thread name.
+			 * @return this builder.
+			 */
 			public Builder threadName() {
 				formatters.add(ThreadFormatter.of());
 				return this;
 			}
 
+			/**
+			 * Builds the formatter.
+			 * @return this builder.
+			 */
 			public EventFormatter build() {
 				return EventFormatter.of(formatters);
 			}
@@ -152,6 +269,9 @@ public sealed interface LogFormatter {
 
 	}
 
+	/**
+	 * Formats {@link LogEvent#formattedMessage(StringBuilder)}.
+	 */
 	public non-sealed interface MessageFormatter extends LogFormatter {
 
 		@Override
@@ -159,14 +279,26 @@ public sealed interface LogFormatter {
 			formatMessage(output, event);
 		}
 
+		/**
+		 * Formats the message from the log event.
+		 * @param output buffer.
+		 * @param event log event.
+		 */
 		public void formatMessage(StringBuilder output, LogEvent event);
 
+		/**
+		 * The default implementation.
+		 * @return formatter.
+		 */
 		public static MessageFormatter of() {
 			return DefaultMessageFormatter.INSTANT;
 		}
 
 	}
 
+	/**
+	 * Formats a logger name.
+	 */
 	public non-sealed interface NameFormatter extends LogFormatter {
 
 		@Override
@@ -174,16 +306,33 @@ public sealed interface LogFormatter {
 			formatName(output, event.loggerName());
 		}
 
+		/**
+		 * Formats a logger name.
+		 * @param output buffer.
+		 * @param name logger name.
+		 */
 		public void formatName(StringBuilder output, String name);
 
+		/**
+		 * Default implementation that calls {@link LogEvent#loggerName()}.
+		 * @return formatter.
+		 */
 		public static NameFormatter of() {
 			return DefaultNameFormatter.INSTANT;
 		}
 
 	}
 
+	/**
+	 * Formats a {@link Level}.
+	 */
 	public non-sealed interface LevelFormatter extends LogFormatter {
 
+		/**
+		 * Formats the level.
+		 * @param output buffer.
+		 * @param level level.
+		 */
 		void formatLevel(StringBuilder output, Level level);
 
 		@Override
@@ -191,10 +340,29 @@ public sealed interface LogFormatter {
 			formatLevel(output, event.level());
 		}
 
+		/**
+		 * Default implementation calls {@link LevelFormatter#toString(Level)}
+		 * @return formatter.
+		 */
 		public static LevelFormatter of() {
-			return DefaultLevelFormatter.INSTANT;
+			return DefaultLevelFormatter.NO_PAD;
 		}
 
+		/**
+		 * Default implementation calls {@link LevelFormatter#rightPadded(Level)}
+		 * @return formatter.
+		 */
+		public static LevelFormatter ofRightPadded() {
+			return DefaultLevelFormatter.RIGHT_PAD;
+		}
+
+		/**
+		 * Turns a Level into a SLF4J like level String that is all upper case.
+		 * {@link Level#ALL} is "<code>ERROR</code>", {@link Level#OFF} is
+		 * "<code>TRACE</code>" and {@link Level#WARNING} is "<code>WARN</code>".
+		 * @param level system logger level.
+		 * @return upper case string of level.
+		 */
 		public static String toString(Level level) {
 			return switch (level) {
 				case DEBUG -> "DEBUG";
@@ -207,10 +375,47 @@ public sealed interface LogFormatter {
 			};
 		}
 
+		/**
+		 * Turns a Level into a SLF4J like level String that is all upper case and same
+		 * length with right padding. {@link Level#ALL} is "<code>ERROR</code>",
+		 * {@link Level#OFF} is "<code>TRACE</code>" and {@link Level#WARNING} is
+		 * "<code>WARN</code>".
+		 * @param level system logger level.
+		 * @return upper case string of level.
+		 */
+		public static String rightPadded(Level level) {
+			return switch (level) {
+				case DEBUG -> /*   */ "DEBUG";
+				case ALL -> /*     */ "ERROR";
+				case ERROR -> /*   */ "ERROR";
+				case INFO -> /*    */ "INFO ";
+				case OFF -> /*    */ "TRACE";
+				case TRACE -> /*  */ "TRACE";
+				case WARNING -> /* */ "WARN ";
+			};
+		}
+
 	}
 
-	public non-sealed interface InstantFormatter extends LogFormatter {
+	/**
+	 * Formats event timestamps.
+	 */
+	public non-sealed interface TimestampFormatter extends LogFormatter {
 
+		/**
+		 * The default timestamp format used in many logging frameworks which does not
+		 * have dates and only time at millisecond precision.
+		 * <p>
+		 * It is called TTLL as that is the name of the format where it is used in
+		 * logback, log4j etc.
+		 */
+		public static String TTLL_TIME_FORMAT = "HH:mm:ss.SSS";
+
+		/**
+		 * Format timestamp.
+		 * @param output
+		 * @param instant
+		 */
 		void formatTimestamp(StringBuilder output, Instant instant);
 
 		@Override
@@ -218,14 +423,26 @@ public sealed interface LogFormatter {
 			formatTimestamp(output, event.timestamp());
 		}
 
-		public static InstantFormatter of() {
+		/**
+		 * Formats timestamp using {@link #TTLL_TIME_FORMAT}.
+		 * @return formatter.
+		 */
+		public static TimestampFormatter of() {
 			return DefaultInstantFormatter.INSTANT;
 		}
 
 	}
 
+	/**
+	 * Formats a throwable.
+	 */
 	public non-sealed interface ThrowableFormatter extends LogFormatter {
 
+		/**
+		 * Formats a throwable and appends.
+		 * @param output buffer.
+		 * @param throwable throwable.
+		 */
 		void formatThrowable(StringBuilder output, Throwable throwable);
 
 		@Override
@@ -236,11 +453,21 @@ public sealed interface LogFormatter {
 			}
 		}
 
+		/**
+		 * Default implementation uses {@link Throwable#printStackTrace(PrintWriter)}.
+		 * @return formatter.
+		 */
 		public static ThrowableFormatter of() {
 			return DefaultThrowableFormatter.INSTANT;
 		}
 
-		public static void append(StringBuilder b, Throwable t) {
+		/**
+		 * Convenience to append a throwable to string builder.
+		 * @param b buffer.
+		 * @param t throwable.
+		 * @apiNote this call creates garbage.
+		 */
+		public static void appendThrowable(StringBuilder b, Throwable t) {
 			/*
 			 * TODO optimize
 			 */
@@ -249,8 +476,16 @@ public sealed interface LogFormatter {
 
 	}
 
+	/**
+	 * Formats key values.
+	 */
 	public non-sealed interface KeyValuesFormatter extends LogFormatter {
 
+		/**
+		 * Format key values.
+		 * @param output buffer.
+		 * @param keyValues kvs.
+		 */
 		void formatKeyValues(StringBuilder output, KeyValues keyValues);
 
 		@Override
@@ -258,6 +493,13 @@ public sealed interface LogFormatter {
 			formatKeyValues(output, event.keyValues());
 		}
 
+		/**
+		 * Creates a formatter that will print the key values in order of the passed in
+		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
+		 * used in {@link URI#getQuery()}).
+		 * @param keys keys where order is important.
+		 * @return formatter.
+		 */
 		public static KeyValuesFormatter of(List<String> keys) {
 			if (keys.isEmpty()) {
 				return NoopFormatter.INSTANT;
@@ -265,18 +507,29 @@ public sealed interface LogFormatter {
 			return new ListKeyValuesFormatter(keys);
 		}
 
+		/**
+		 * Creates a formatter that will print the key values by percent encoding (RFC
+		 * 3986 URI aka the format usually used in {@link URI#getQuery()}).
+		 * @param keys keys where order is important.
+		 * @return formatter.
+		 */
 		public static KeyValuesFormatter of() {
 			return DefaultKeyValuesFormatter.INSTANCE;
 		}
 
-		public static KeyValuesFormatter noop() {
-			return NoopFormatter.INSTANT;
-		}
-
 	}
 
+	/**
+	 * Formats a thread.
+	 */
 	public non-sealed interface ThreadFormatter extends LogFormatter {
 
+		/**
+		 * Formats a thread.
+		 * @param output buffer.
+		 * @param threadName {@link LogEvent#threadName()}.
+		 * @param threadId {@link LogEvent#threadId()}.
+		 */
 		void formatThread(StringBuilder output, String threadName, long threadId);
 
 		@Override
@@ -284,16 +537,34 @@ public sealed interface LogFormatter {
 			formatThread(output, event.threadName(), event.threadId());
 		}
 
+		/**
+		 * Default thread formatter prints the the {@link Thread#getName()}.
+		 * @return thread formatter.
+		 */
 		public static ThreadFormatter of() {
 			return DefaultThreadFormatter.INSTANT;
 		}
 
 	}
 
-	public static boolean isNoop(LogFormatter logFormatter) {
-		return NoopFormatter.INSTANT == logFormatter;
+	/**
+	 * Tests if the log formatter is noop or is null which will be considered as noop.
+	 * @param logFormatter formatter which <strong>can be <code>null</code></strong>!
+	 * @return true if the formatter should not be used.
+	 */
+	public static boolean isNoop(@Nullable LogFormatter logFormatter) {
+		return logFormatter == null || logFormatter.isNoop();
 	}
 
+	/**
+	 * Pads the right hand side of text with space.
+	 * @param sb buffer.
+	 * @param s string that will be appended first (left hand) and will not be longer than
+	 * the <code>n</code> parameter.
+	 * @param n the size of string. If the size is bigger than passed in string the result
+	 * will have padding otherwise the passed in string will be cut to the size of this
+	 * parameter.
+	 */
 	public static void padRight(StringBuilder sb, String s, int n) {
 		int length = s.length();
 		if (length >= n) {
@@ -304,65 +575,87 @@ public sealed interface LogFormatter {
 		spacePad(sb, n - length);
 	}
 
-	static String[] SPACES = { " ", "  ", "    ", "        ", // 1,2,4,8 spaces
-			"                ", // 16 spaces
-			"                                " }; // 32 spaces
+	/**
+	 * Pads the left hand side of text with space.
+	 * @param sb buffer.
+	 * @param s string that will be appended second (right hand) and will not be longer
+	 * than the <code>n</code> parameter.
+	 * @param n the size of string. If the size is bigger than passed in string the result
+	 * will have padding otherwise the passed in string will be cut to the size of this
+	 * parameter.
+	 */
+	public static void padLeft(StringBuilder sb, String s, int n) {
+		int length = s.length();
+		if (length >= n) {
+			sb.append(s, 0, n);
+			return;
+		}
+		spacePad(sb, n - length);
+		sb.append(s);
+	}
 
 	/**
 	 * Fast space padding method.
 	 */
-	public static void spacePad(final StringBuilder sbuf, final int length) {
+	private static void spacePad(final StringBuilder sbuf, final int length) {
 		int l = length;
 		while (l >= 32) {
-			sbuf.append(SPACES[5]);
+			sbuf.append(DefaultEventFormatter.SPACES[5]);
 			l -= 32;
 		}
 
 		for (int i = 4; i >= 0; i--) {
 			if ((l & (1 << i)) != 0) {
-				sbuf.append(SPACES[i]);
+				sbuf.append(DefaultEventFormatter.SPACES[i]);
 			}
 		}
 	}
 
-}
+	/**
+	 * A special formatter that will do nothing.
+	 */
+	enum NoopFormatter implements TimestampFormatter, ThrowableFormatter, KeyValuesFormatter, LevelFormatter,
+			NameFormatter, ThreadFormatter {
 
-enum NoopFormatter implements InstantFormatter, ThrowableFormatter, KeyValuesFormatter, LevelFormatter, NameFormatter,
-		ThreadFormatter {
+		INSTANT;
 
-	INSTANT;
+		@Override
+		public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
+		}
 
-	@Override
-	public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
-	}
+		@Override
+		public void formatThrowable(StringBuilder output, Throwable throwable) {
+		}
 
-	@Override
-	public void formatThrowable(StringBuilder output, Throwable throwable) {
-	}
+		@Override
+		public void formatTimestamp(StringBuilder output, Instant instant) {
+		}
 
-	@Override
-	public void formatTimestamp(StringBuilder output, Instant instant) {
-	}
+		@Override
+		public void formatName(StringBuilder output, String name) {
+		}
 
-	@Override
-	public void formatName(StringBuilder output, String name) {
-	}
+		@Override
+		public void formatLevel(StringBuilder output, Level level) {
+		}
 
-	@Override
-	public void formatLevel(StringBuilder output, Level level) {
-	}
+		@Override
+		public void formatThread(StringBuilder output, String threadName, long threadId) {
+		}
 
-	@Override
-	public void formatThread(StringBuilder output, String threadName, long threadId) {
-	}
+		@Override
+		public void format(StringBuilder output, LogEvent event) {
+		}
 
-	@Override
-	public void format(StringBuilder output, LogEvent event) {
 	}
 
 }
 
 record DefaultEventFormatter(LogFormatter[] formatters) implements EventFormatter {
+
+	static String[] SPACES = { " ", "  ", "    ", "        ", // 1,2,4,8 spaces
+			"                ", // 16 spaces
+			"                                " }; // 32 spaces
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
@@ -397,11 +690,17 @@ enum DefaultNameFormatter implements NameFormatter {
 
 enum DefaultLevelFormatter implements LevelFormatter {
 
-	INSTANT;
-
-	@Override
-	public void formatLevel(StringBuilder output, Level level) {
-		output.append(LevelFormatter.toString(level));
+	NO_PAD {
+		@Override
+		public void formatLevel(StringBuilder output, Level level) {
+			output.append(LevelFormatter.toString(level));
+		}
+	},
+	RIGHT_PAD {
+		@Override
+		public void formatLevel(StringBuilder output, Level level) {
+			output.append(LevelFormatter.rightPadded(level));
+		}
 	}
 
 }
@@ -417,11 +716,11 @@ enum DefaultThreadFormatter implements ThreadFormatter {
 
 }
 
-enum DefaultInstantFormatter implements InstantFormatter {
+enum DefaultInstantFormatter implements TimestampFormatter {
 
 	INSTANT;
 
-	private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+	private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT)
 		.withZone(ZoneId.from(ZoneOffset.UTC));
 
 	@Override
@@ -431,7 +730,7 @@ enum DefaultInstantFormatter implements InstantFormatter {
 
 }
 
-record DateTimeFormatterInstantFormatter(DateTimeFormatter dateTimeFormatter) implements InstantFormatter {
+record DateTimeFormatterInstantFormatter(DateTimeFormatter dateTimeFormatter) implements TimestampFormatter {
 
 	@Override
 	public void formatTimestamp(StringBuilder output, Instant instant) {
@@ -445,7 +744,7 @@ enum DefaultThrowableFormatter implements ThrowableFormatter {
 
 	@Override
 	public void formatThrowable(StringBuilder output, Throwable throwable) {
-		ThrowableFormatter.append(output, throwable);
+		ThrowableFormatter.appendThrowable(output, throwable);
 	}
 
 }

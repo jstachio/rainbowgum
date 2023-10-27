@@ -17,7 +17,7 @@ import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 
-public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
+class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final String host;
 
@@ -27,7 +27,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
-	public GelfEncoder(String host, KeyValues headers, boolean prettyprint) {
+	GelfEncoder(String host, KeyValues headers, boolean prettyprint) {
 		super();
 		this.host = host;
 		this.headers = headers;

@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.output;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,15 +11,26 @@ import java.util.stream.Collectors;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 
-public class ListLogOutput implements LogOutput {
+/**
+ * An output for debugging.
+ */
+public final class ListLogOutput implements LogOutput {
 
 	private List<Entry<LogEvent, String>> events;
 
-	public ListLogOutput(List<Entry<LogEvent, String>> events) {
+	private ListLogOutput(List<Entry<LogEvent, String>> events) {
 		super();
 		this.events = events;
 	}
 
+	@Override
+	public URI uri() throws UnsupportedOperationException {
+		throw new UnsupportedOperationException("uri");
+	}
+
+	/**
+	 * Creates a list output.
+	 */
 	public ListLogOutput() {
 		this(new ArrayList<>());
 	}
@@ -41,6 +53,10 @@ public class ListLogOutput implements LogOutput {
 	public void close() {
 	}
 
+	/**
+	 * The arraylist that contains the logged events so far.
+	 * @return list.
+	 */
 	public List<Entry<LogEvent, String>> events() {
 		return events;
 	}
@@ -48,6 +64,11 @@ public class ListLogOutput implements LogOutput {
 	@Override
 	public String toString() {
 		return events.stream().map(e -> e.getValue()).collect(Collectors.joining());
+	}
+
+	@Override
+	public OutputType type() {
+		return OutputType.MEMORY;
 	}
 
 }

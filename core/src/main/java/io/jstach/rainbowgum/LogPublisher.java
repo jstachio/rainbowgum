@@ -4,28 +4,53 @@ import java.util.List;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 
-public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
+/**
+ * Publishers push logs to appenders either synchronously or asynchronously.
+ */
+public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
-	public void start(LogConfig config);
-
+	/**
+	 * If the publisher is synchronous.
+	 * @return true if {@link LogPublisher.SyncLogPublisher}.
+	 */
 	public boolean synchronous();
 
-	public void close();
-
+	/**
+	 * A factory for a publisher from config and appenders.
+	 */
 	public interface PublisherProvider {
 
+		/**
+		 * Create the log publisher from config and appenders.
+		 * @param config log config.
+		 * @param appenders appenders.
+		 * @return publisher.
+		 */
 		LogPublisher provide(LogConfig config, List<? extends LogAppender> appenders);
 
+		/**
+		 * Async builder.
+		 * @return async builder.
+		 */
 		public static AsyncLogPublisher.Builder async() {
 			return AsyncLogPublisher.builder();
 		}
 
+		/**
+		 * Sync builder.
+		 * @return sync builder.
+		 */
 		public static SyncLogPublisher.Builder sync() {
 			return SyncLogPublisher.builder();
 		}
 
 	}
 
+	/**
+	 * Abstract publisher builder.
+	 *
+	 * @param <T> publisher builder type.
+	 */
 	abstract class AbstractBuilder<T> {
 
 		protected AbstractBuilder() {
@@ -38,10 +63,10 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 	}
 
+	/**
+	 * Async publisher.
+	 */
 	non-sealed interface AsyncLogPublisher extends LogPublisher {
-
-		@Override
-		public void start(LogConfig config);
 
 		@Override
 		default boolean synchronous() {
@@ -78,6 +103,9 @@ public sealed interface LogPublisher extends LogEventLogger, AutoCloseable {
 
 	}
 
+	/**
+	 * Synchronous publisher.
+	 */
 	non-sealed interface SyncLogPublisher extends LogPublisher {
 
 		public static SyncLogPublisher.Builder builder() {

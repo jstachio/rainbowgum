@@ -6,21 +6,54 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+/**
+ * A simple service locator for initialization purposes.
+ */
 public sealed interface ServiceRegistry permits DefaultServiceRegistry {
 
+	/**
+	 * Creates an empty service registry.
+	 * @return registry.
+	 */
 	public static ServiceRegistry of() {
 		return new DefaultServiceRegistry();
 	}
 
+	/**
+	 * Puts a service.
+	 * @param <T> service type.
+	 * @param type type.
+	 * @param service service instance.
+	 * @param name name of service.
+	 */
 	public <T> void put(Class<T> type, T service, String name);
 
+	/**
+	 * Puts a service with name "".
+	 * @param <T> service type.
+	 * @param type type.
+	 * @param service service instance.
+	 */
 	default <T> void put(Class<T> type, T service) {
 		put(type, service, "");
 	}
 
+	/**
+	 * Finds a service or null.
+	 * @param <T> service type
+	 * @param type service class.
+	 * @param name name of service.
+	 * @return service or <code>null</code>.
+	 */
 	@SuppressWarnings("exports")
 	public <T> @Nullable T findOrNull(Class<T> type, String name);
 
+	/**
+	 * Finds a service or null.
+	 * @param <T> service type.
+	 * @param type service class.
+	 * @return service or <code>null</code>.
+	 */
 	@SuppressWarnings("exports")
 	default <T> @Nullable T findOrNull(Class<T> type) {
 		return findOrNull(type, "");

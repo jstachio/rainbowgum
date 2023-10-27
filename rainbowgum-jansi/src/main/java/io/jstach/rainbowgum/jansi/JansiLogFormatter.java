@@ -15,14 +15,14 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 	protected JansiLogFormatter( //
 			LevelFormatter levelFormatter, //
-			InstantFormatter instantFormatter, //
+			TimestampFormatter timestampFormatter, //
 			NameFormatter nameFormatter, //
 			MessageFormatter messageFormatter, //
 			ThrowableFormatter throwableFormatter, //
 			KeyValuesFormatter keyValuesFormatter, //
 			ThreadFormatter threadFormatter) {
-		super(levelFormatter, instantFormatter, nameFormatter, messageFormatter, throwableFormatter, keyValuesFormatter,
-				threadFormatter);
+		super(timestampFormatter, threadFormatter, levelFormatter, nameFormatter, messageFormatter, throwableFormatter,
+				keyValuesFormatter);
 	}
 
 	public static Builder builder() {
@@ -36,7 +36,7 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 		public JansiLogFormatter build() {
 
-			return new JansiLogFormatter(levelFormatter, instantFormatter, nameFormatter, messageFormatter,
+			return new JansiLogFormatter(levelFormatter, timestampFormatter, nameFormatter, messageFormatter,
 					throwableFormatter, keyValuesFormatter, threadFormatter);
 		}
 
@@ -58,7 +58,7 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 		// Append date-time if so configured
 
 		buf.fg(Color.CYAN);
-		instantFormatter.format(output, logEvent);
+		timestampFormatter.format(output, logEvent);
 		buf.fg(Color.DEFAULT);
 		buf.a(' ');
 
