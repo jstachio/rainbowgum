@@ -53,12 +53,23 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 	 */
 	abstract class AbstractBuilder<T> {
 
+		/**
+		 * do nothing.
+		 */
 		protected AbstractBuilder() {
 			super();
 		}
 
+		/**
+		 * This.
+		 * @return this.
+		 */
 		protected abstract T self();
 
+		/**
+		 * Creates publisher provider.
+		 * @return publisher provider
+		 */
 		public abstract PublisherProvider build();
 
 	}
@@ -73,17 +84,30 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			return false;
 		}
 
+		/**
+		 * Async publisher builder.
+		 * @return builder.
+		 */
 		public static AsyncLogPublisher.Builder builder() {
 			return new Builder();
 		}
 
+		/**
+		 * Async publisher builder.
+		 */
 		public static class Builder extends AbstractBuilder<AsyncLogPublisher.Builder> {
 
-			private int bufferSize = 1024;
+			private int bufferSize = Defaults.ASYNC_BUFFER_SIZE;
 
 			private Builder() {
 			}
 
+			/**
+			 * Sets buffer size. Typically means how many events can be queued up. Default
+			 * is {@link Defaults#ASYNC_BUFFER_SIZE}.
+			 * @param bufferSize buffer size.
+			 * @return this.
+			 */
 			public AsyncLogPublisher.Builder bufferSize(int bufferSize) {
 				this.bufferSize = bufferSize;
 				return this;
@@ -121,16 +145,27 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			return true;
 		}
 
-		public static class Builder extends AbstractBuilder<SyncLogPublisher.Builder> {
+		/**
+		 * Synchronous publisher builder.
+		 */
+		public static final class Builder extends AbstractBuilder<SyncLogPublisher.Builder> {
 
 			private Builder() {
 			}
 
+			/**
+			 * This builder.
+			 * @return this builder.
+			 */
 			@Override
 			protected SyncLogPublisher.Builder self() {
 				return this;
 			}
 
+			/**
+			 * Build a publisher provider.
+			 * @return provider
+			 */
 			public PublisherProvider build() {
 				return (config,
 						appenders) -> new DefaultSyncLogPublisher(ThreadSafeLogAppender.of(LogAppender.of(appenders)));

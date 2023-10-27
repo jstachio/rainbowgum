@@ -18,7 +18,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
 public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 	/**
-	 * Batch of events. <strong>DO NOT MODIFY THE ARRAY<strong>. Do not use the
+	 * Batch of events. <strong>DO NOT MODIFY THE ARRAY</strong>. Do not use the
 	 * <code>length</code> of the passed in array but instead use <code>count</code>
 	 * parameter.
 	 * @param events an array guaranteed to be smaller than count.
@@ -80,6 +80,9 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 	/**
 	 * Builder for creating standard appenders.
+	 * <p>
+	 * If the output is not set standard out will be used. If the encoder is not set a
+	 * default encoder will be resolved from the output.
 	 */
 	public static class Builder {
 
@@ -91,8 +94,8 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		}
 
 		/**
-		 * Sets output
-		 * @param output
+		 * Sets output. If not set defaults to {@link LogOutput#ofStandardOut()}.
+		 * @param output output.
 		 * @return builder.
 		 */
 		public Builder output(LogOutput output) {
@@ -101,9 +104,10 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		}
 
 		/**
-		 * Sets encoder as formatter.
-		 * @param formatter
+		 * Sets formatter as encoder.
+		 * @param formatter formatter to be converted to encoder.
 		 * @return builder.
+		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter formatter) {
 			this.encoder = LogEncoder.of(formatter);
@@ -111,9 +115,10 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		}
 
 		/**
-		 * Sets encoder as formatter.
-		 * @param formatter
+		 * Sets formatter as encoder.
+		 * @param formatter formatter to be converted to encoder.
 		 * @return builder.
+		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter.EventFormatter formatter) {
 			this.encoder = LogEncoder.of(formatter);
@@ -122,7 +127,7 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 
 		/**
 		 * Sets encoder.
-		 * @param encoder
+		 * @param encoder encoder not <code>null</code>.
 		 * @return builder.
 		 */
 		public Builder encoder(LogEncoder encoder) {
@@ -172,11 +177,22 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 	 */
 	abstract class AbstractLogAppender implements LogAppender {
 
+		/**
+		 * output
+		 */
 		protected final LogOutput output;
 
+		/**
+		 * encoder
+		 */
 		protected final LogEncoder encoder;
 
-		public AbstractLogAppender(LogOutput output, LogEncoder encoder) {
+		/**
+		 * Creates an appender from an output and encoder.
+		 * @param output
+		 * @param encoder
+		 */
+		protected AbstractLogAppender(LogOutput output, LogEncoder encoder) {
 			super();
 			this.output = output;
 			this.encoder = encoder;

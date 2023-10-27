@@ -62,7 +62,7 @@ public sealed interface LogFormatter {
 	 * @see #noop()
 	 */
 	default boolean isNoop() {
-		return NoopFormatter.INSTANT == this;
+		return NoopFormatter.INSTANCE == this;
 	}
 
 	/**
@@ -71,7 +71,7 @@ public sealed interface LogFormatter {
 	 * @return a formatter tha implements all formatting interfaces but does nothing.
 	 */
 	public static NoopFormatter noop() {
-		return NoopFormatter.INSTANT;
+		return NoopFormatter.INSTANCE;
 	}
 
 	/**
@@ -86,8 +86,8 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Creates a new formatter by concat the {@link #content}. This is mainly used by
-		 * the {@link EventFormatter#builder()} to coallesce multiple static text.
+		 * Creates a new formatter by concat the {@link #content()}. This is mainly used
+		 * by the {@link EventFormatter#builder()} to coallesce multiple static text.
 		 * @param next the text that will follow this formatter.
 		 * @return new formatter.
 		 */
@@ -149,7 +149,8 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Log formatter builder.
+		 * Log formatter builder that is composed of other formatters. The
+		 * {@link #add(LogFormatter)} are executed in insertion order.
 		 */
 		public final static class Builder {
 
@@ -159,7 +160,8 @@ public sealed interface LogFormatter {
 			}
 
 			/**
-			 * @param formatter
+			 * Adds a formatter.
+			 * @param formatter formatter to be added the list of formatters.
 			 * @return this builder.
 			 */
 			public Builder add(LogFormatter formatter) {
@@ -168,7 +170,8 @@ public sealed interface LogFormatter {
 			}
 
 			/**
-			 * @param formatter
+			 * Adds an event formatter.
+			 * @param formatter event formatter to be added the list of formatters.
 			 * @return this builder.
 			 */
 			public Builder event(LogFormatter.EventFormatter formatter) {
@@ -186,7 +189,9 @@ public sealed interface LogFormatter {
 			}
 
 			/**
-			 * @param dateTimeFormatter
+			 * Formatter for {@link LogEvent#timestamp()} derived from standard
+			 * {@link DateTimeFormatter}.
+			 * @param dateTimeFormatter formatter for {@link LogEvent#timestamp()}
 			 * @return this builder.
 			 */
 			public Builder timeStamp(DateTimeFormatter dateTimeFormatter) {
@@ -195,7 +200,9 @@ public sealed interface LogFormatter {
 			}
 
 			/**
+			 * Adds the default level formatter.
 			 * @return this builder.
+			 * @see LevelFormatter
 			 */
 			public Builder level() {
 				formatters.add(LogFormatter.LevelFormatter.of());
@@ -203,7 +210,9 @@ public sealed interface LogFormatter {
 			}
 
 			/**
+			 * Adds the default logger name formatter.
 			 * @return this builder.
+			 * @see NameFormatter
 			 */
 			public Builder loggerName() {
 				formatters.add(LogFormatter.NameFormatter.of());
@@ -214,6 +223,7 @@ public sealed interface LogFormatter {
 			 * Formats the message by calling
 			 * {@link LogEvent#formattedMessage(StringBuilder)}.
 			 * @return this builder.
+			 * @see MessageFormatter
 			 */
 			public Builder message() {
 				formatters.add(LogFormatter.MessageFormatter.of());
@@ -224,6 +234,7 @@ public sealed interface LogFormatter {
 			 * Appends static text.
 			 * @param content static text.
 			 * @return this builder.
+			 * @see StaticFormatter
 			 */
 			public Builder text(String content) {
 				formatters.add(new StaticFormatter(content));
@@ -413,8 +424,8 @@ public sealed interface LogFormatter {
 
 		/**
 		 * Format timestamp.
-		 * @param output
-		 * @param instant
+		 * @param output buffer.
+		 * @param instant timestamp.
 		 */
 		void formatTimestamp(StringBuilder output, Instant instant);
 
@@ -502,7 +513,7 @@ public sealed interface LogFormatter {
 		 */
 		public static KeyValuesFormatter of(List<String> keys) {
 			if (keys.isEmpty()) {
-				return NoopFormatter.INSTANT;
+				return NoopFormatter.INSTANCE;
 			}
 			return new ListKeyValuesFormatter(keys);
 		}
@@ -510,7 +521,6 @@ public sealed interface LogFormatter {
 		/**
 		 * Creates a formatter that will print the key values by percent encoding (RFC
 		 * 3986 URI aka the format usually used in {@link URI#getQuery()}).
-		 * @param keys keys where order is important.
 		 * @return formatter.
 		 */
 		public static KeyValuesFormatter of() {
@@ -617,7 +627,10 @@ public sealed interface LogFormatter {
 	enum NoopFormatter implements TimestampFormatter, ThrowableFormatter, KeyValuesFormatter, LevelFormatter,
 			NameFormatter, ThreadFormatter {
 
-		INSTANT;
+		/**
+		 * instance.
+		 */
+		INSTANCE;
 
 		@Override
 		public void formatKeyValues(StringBuilder output, KeyValues keyValues) {

@@ -15,11 +15,11 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
  * The main entrypoint and configuration of RainbowGum logging.
- *
+ * <p>
  * RainbowGum logging loads configuration through the service loader. While you can
  * manually set RainbowGum using {@link #set(Supplier)} it is better to register
  * implementations through the ServiceLoader so that RainbowGum will load prior to any
- * externally logging.
+ * external logging.
  *
  */
 public interface RainbowGum extends AutoCloseable {
@@ -121,10 +121,11 @@ public interface RainbowGum extends AutoCloseable {
 		}
 
 		/**
-		 * Adds a route by using a lambda of the route builder.
-		 * @param consumer
+		 * Adds a route by using a consumer of the route builder.
+		 * @param consumer consumer is passed router builder. The consumer does not need
+		 * to call {@link Router#builder(LogConfig)}
 		 * @return builder.
-		 * @see Router.Builder
+		 * @see io.jstach.rainbowgum.LogRouter.Router.Builder
 		 */
 		public Builder route(Consumer<Router.Builder> consumer) {
 			var builder = Router.builder(config);

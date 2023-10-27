@@ -107,8 +107,9 @@ public interface LogOutput extends AutoCloseable, Flushable {
 	public void write(LogEvent event, byte[] bytes, int off, int len);
 
 	/**
-	 * @param event
-	 * @param buf
+	 * Write event with byte buffer.
+	 * @param event event.
+	 * @param buf byte buffer.
 	 */
 	default void write(LogEvent event, ByteBuffer buf) {
 		byte[] arr = new byte[buf.position()];

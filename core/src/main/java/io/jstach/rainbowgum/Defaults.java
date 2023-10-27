@@ -9,6 +9,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties.Property;
@@ -23,6 +25,11 @@ import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 public class Defaults {
 
 	static final String SHUTDOWN = "#SHUTDOWN#";
+
+	/**
+	 * Default async buffer size.
+	 */
+	public static final int ASYNC_BUFFER_SIZE = 1024;
 
 	private static final ReentrantReadWriteLock staticLock = new ReentrantReadWriteLock();
 
@@ -56,7 +63,7 @@ public class Defaults {
 		return BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
 	}
 
-	LogAppender logAppender(LogOutput output, LogEncoder encoder) {
+	LogAppender logAppender(LogOutput output, @Nullable LogEncoder encoder) {
 		if (encoder == null) {
 			encoder = LogEncoder.of(formatterForOutputType(output.type()));
 		}
@@ -69,7 +76,7 @@ public class Defaults {
 
 	/**
 	 * Associates a default formatter with a specific output type
-	 * @param outputType
+	 * @param outputType output type to use for finding best default formatter.
 	 * @return formatter for output type.
 	 */
 	public LogFormatter formatterForOutputType(OutputType outputType) {

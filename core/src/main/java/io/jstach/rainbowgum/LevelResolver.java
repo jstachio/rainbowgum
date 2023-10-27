@@ -55,9 +55,18 @@ public interface LevelResolver {
 	@FunctionalInterface
 	interface LevelConfig extends LevelResolver {
 
+		/**
+		 * Returns a level exactly matching a logger name.
+		 * @param name logger name.
+		 * @return level or <code>null</code>.
+		 */
 		@Nullable
 		Level levelOrNull(String name);
 
+		/**
+		 * The default level if no level is found.
+		 * @return level
+		 */
 		default Level defaultLevel() {
 			var root = levelOrNull("");
 			if (root == null) {
@@ -66,10 +75,16 @@ public interface LevelResolver {
 			return root;
 		}
 
+		@Override
 		default Level resolveLevel(String name) {
 			return LevelResolver.resolveLevel(this, name);
 		}
 
+		/**
+		 * Creates a level config from a list of level configs.
+		 * @param config configs.
+		 * @return coalesced config.
+		 */
 		public static LevelConfig of(Collection<? extends LevelConfig> config) {
 			if (config.isEmpty()) {
 				return StaticLevelResolver.OFF;
@@ -105,29 +120,65 @@ public interface LevelResolver {
 	 */
 	sealed abstract class AbstractBuilder<T> permits Builder, LogRouter.Router.Builder {
 
+		/**
+		 * resolvers
+		 */
 		protected List<LevelConfig> resolvers = new ArrayList<>();
 
+		/**
+		 * levels
+		 */
 		protected Map<String, Level> levels = new LinkedHashMap<>();
 
+		/**
+		 * Do nothing constructor.
+		 */
+		protected AbstractBuilder() {
+		}
+
+		/**
+		 * Sets a logger to a level.
+		 * @param level level.
+		 * @param loggerName logger name.
+		 * @return this builder.
+		 */
 		public T level(Level level, String loggerName) {
 			levels.put(loggerName, level);
 			return self();
 		}
 
+		/**
+		 * Sets a level for all loggers.
+		 * @param level level.
+		 * @return this builder.
+		 */
 		public T level(Level level) {
 			levels.put("", level);
 			return self();
 		}
 
+		/**
+		 * Adds a level config.
+		 * @param resolver level config.
+		 * @return this builder.
+		 */
 		public T levelResolver(LevelConfig resolver) {
 			resolvers.add(resolver);
 			return self();
 		}
 
+		/**
+		 * @return built level resolver.
+		 */
 		protected LevelResolver buildLevelResolver() {
 			return buildLevelResolver(null);
 		}
 
+		/**
+		 * Builds a level resolver using global level resolver as the last resolver.
+		 * @param globalLevelResolver global resolver.
+		 * @return built level resolver.
+		 */
 		protected LevelResolver buildLevelResolver(@Nullable LevelConfig globalLevelResolver) {
 			var copyLevels = new LinkedHashMap<>(levels);
 			boolean noBuilderLevels = copyLevels.isEmpty();
@@ -149,6 +200,10 @@ public interface LevelResolver {
 			return combined;
 		}
 
+		/**
+		 * This.
+		 * @return this.
+		 */
 		protected abstract T self();
 
 	}
@@ -158,6 +213,9 @@ public interface LevelResolver {
 	 */
 	public final class Builder extends AbstractBuilder<Builder> {
 
+		private Builder() {
+		}
+
 		/**
 		 * Builds a level resolver.
 		 * @return level resolver.
@@ -166,6 +224,10 @@ public interface LevelResolver {
 			return buildLevelResolver();
 		}
 
+		/**
+		 * This.
+		 * @return this.
+		 */
 		@Override
 		protected Builder self() {
 			return this;

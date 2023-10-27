@@ -104,6 +104,7 @@ public sealed interface KeyValues {
 	interface KeyValuesConsumer<V> {
 
 		/**
+		 * Accepts the KeyValues at the current key and value.
 		 * @param kvs kvs.
 		 * @param k key.
 		 * @param v value.
@@ -171,7 +172,7 @@ public sealed interface KeyValues {
 
 		/**
 		 * Same as {@link Map#putAll(Map)}.
-		 * @param m
+		 * @param m map.
 		 */
 		default void putAll(Map<String, String> m) {
 			m.forEach(this);

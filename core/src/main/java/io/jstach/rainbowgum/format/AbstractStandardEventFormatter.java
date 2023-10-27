@@ -6,8 +6,18 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 
 /**
- * An abstract formatter that has the layout of <strong>TTLL - Time, Thread, Level,
- * Logger</strong> but allows changing the format of time, thread, level, logger, etc.
+ * An abstract formatter that has the semi standard layout of <strong>TTLL - Time, Thread,
+ * Level, Logger</strong> but allows changing the format of time, thread, level, logger,
+ * etc. The formatters get called in the following order.
+ * <ol>
+ * <li>{@link io.jstach.rainbowgum.LogFormatter.TimestampFormatter}</li>
+ * <li>{@link io.jstach.rainbowgum.LogFormatter.ThreadFormatter}</li>
+ * <li>{@link io.jstach.rainbowgum.LogFormatter.LevelFormatter}</li>
+ * <li>{@link io.jstach.rainbowgum.LogFormatter.NameFormatter}</li>
+ * <li>{@link io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter}</li>
+ * <li>{@link io.jstach.rainbowgum.LogFormatter.MessageFormatter}</li>
+ * <li>{@link io.jstach.rainbowgum.LogFormatter.ThrowableFormatter}</li>
+ * </ol>
  */
 public class AbstractStandardEventFormatter implements LogFormatter.EventFormatter {
 
@@ -67,8 +77,16 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		protected abstract T self();
 
 		/**
-		 * Sets timestamp formatter.
-		 * @param timestampFormatter
+		 * Do nothing constructor
+		 */
+		protected AbstractBuilder() {
+		}
+
+		/**
+		 * Sets timestamp formatter. If not set
+		 * {@link io.jstach.rainbowgum.LogFormatter.TimestampFormatter#of()} will be used.
+		 * @param timestampFormatter formatter to use for rendering
+		 * {@link LogEvent#timestamp()}.
 		 * @return this builder.
 		 */
 		public T timestampFormatter(TimestampFormatter timestampFormatter) {
@@ -78,8 +96,9 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		/**
-		 * Sets thread formatter.
-		 * @param threadFormatter
+		 * Sets thread formatter. If not set
+		 * {@link io.jstach.rainbowgum.LogFormatter.ThreadFormatter#of()} will be used.
+		 * @param threadFormatter formatter to use for rendering thread information.
 		 * @return this builder.
 		 */
 		public T threadFormatter(ThreadFormatter threadFormatter) {
@@ -88,7 +107,9 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		/**
-		 * @param levelFormatter
+		 * Sets the level formatter. If not set
+		 * {@link io.jstach.rainbowgum.LogFormatter.LevelFormatter#of()} will be used.
+		 * @param levelFormatter formatter to use for rendering level information.
 		 * @return this builder.
 		 */
 		public T levelFormatter(LevelFormatter levelFormatter) {
@@ -97,7 +118,9 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		/**
-		 * @param nameFormatter
+		 * Sets the logger name formatter. If not set
+		 * {@link io.jstach.rainbowgum.LogFormatter.NameFormatter#of()} will be used.
+		 * @param nameFormatter formatter to use for rendering logger name.
 		 * @return this builder.
 		 */
 		public T nameFormatter(NameFormatter nameFormatter) {
@@ -107,7 +130,9 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		/**
-		 * @param throwableFormatter
+		 * Sets the throwable formatter. If not set
+		 * {@link io.jstach.rainbowgum.LogFormatter.ThrowableFormatter#of()} will be used.
+		 * @param throwableFormatter formatter to use for rendering throwables.
 		 * @return this builder.
 		 */
 		public T throwableFormatter(ThrowableFormatter throwableFormatter) {
@@ -117,7 +142,9 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		/**
-		 * @param keyValuesFormatter
+		 * Sets the key values formatter. If not set
+		 * {@link io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter#of()} will be used.
+		 * @param keyValuesFormatter formatter to use for rendering key values.
 		 * @return this builder.
 		 */
 		public T keyValuesFormatter(KeyValuesFormatter keyValuesFormatter) {

@@ -146,6 +146,13 @@ public interface LogEncoder {
 	abstract class AbstractEncoder<T extends Buffer> implements LogEncoder {
 
 		/**
+		 * Do nothing constructor.
+		 */
+		protected AbstractEncoder() {
+
+		}
+
+		/**
 		 * Create a specific buffer implementation.
 		 * @return
 		 */

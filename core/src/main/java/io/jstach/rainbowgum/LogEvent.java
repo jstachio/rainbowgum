@@ -148,9 +148,9 @@ public sealed interface LogEvent {
 	public long threadId();
 
 	/**
-	 * The logging level. {@linkplain System.Logger.Level#ALL} and
-	 * {@linkplain System.Logger.Level#OFF} should not be returned as they have special
-	 * meaning.
+	 * The logging level. {@linkplain java.lang.System.Logger.Level#ALL} and
+	 * {@linkplain java.lang.System.Logger.Level#OFF} should not be returned as they have
+	 * special meaning.
 	 * @return level.
 	 */
 	public System.Logger.Level level();
@@ -160,6 +160,13 @@ public sealed interface LogEvent {
 	 * @return name of logger.
 	 */
 	public String loggerName();
+
+	/**
+	 * Unformatted message.
+	 * @return unformatted message
+	 * @see #formattedMessage(StringBuilder)
+	 */
+	public String message();
 
 	/**
 	 * Appends the formatted message.
@@ -237,6 +244,11 @@ enum EmptyLogEvent implements LogEvent {
 
 	@Override
 	public String loggerName() {
+		return "";
+	}
+
+	@Override
+	public String message() {
 		return "";
 	}
 
@@ -353,6 +365,10 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 
 	public void formattedMessage(StringBuilder sb) {
 		sb.append(this.formattedMessage);
+	}
+
+	public String message() {
+		return this.formattedMessage;
 	}
 
 	public LogEvent freeze() {

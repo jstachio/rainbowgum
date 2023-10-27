@@ -28,7 +28,7 @@ import io.jstach.rainbowgum.LogRouter.Router;
  * Routes messages to a publisher by providing a {@link Route} from a logger name and
  * level.
  */
-public sealed interface LogRouter extends AutoCloseable {
+public sealed interface LogRouter extends LogLifecycle {
 
 	/**
 	 * Finds a route.
@@ -37,15 +37,6 @@ public sealed interface LogRouter extends AutoCloseable {
 	 * @return route never <code>null</code>.
 	 */
 	public Route route(String loggerName, java.lang.System.Logger.Level level);
-
-	/**
-	 * Call before using router.
-	 * @param config config.
-	 */
-	void start(LogConfig config);
-
-	@Override
-	public void close();
 
 	/**
 	 * Global router which is always available.
@@ -97,9 +88,10 @@ public sealed interface LogRouter extends AutoCloseable {
 
 	}
 
+	/**
+	 * Root router is a router that has child routers.
+	 */
 	public sealed interface RootRouter extends LogRouter permits InternalRootRouter {
-
-		void start(LogConfig config);
 
 		/**
 		 * Level resolver to find levels for a long name.
@@ -141,12 +133,28 @@ public sealed interface LogRouter extends AutoCloseable {
 
 	}
 
+	/**
+	 * Router routes messages to a publisher.
+	 */
 	sealed interface Router extends LogRouter, LogEventLogger {
 
+		/**
+		 * Level resolver.
+		 * @return level resolver.
+		 */
 		LevelResolver levelResolver();
 
+		/**
+		 * Log publisher.
+		 * @return publisher.
+		 */
 		LogPublisher publisher();
 
+		/**
+		 * Whether or not the publisher is synchronous. A synchronous publisher generally
+		 * blocks.
+		 * @return true if the publisher is synchronous.
+		 */
 		default boolean synchronous() {
 			return publisher().synchronous();
 		}
@@ -155,10 +163,18 @@ public sealed interface LogRouter extends AutoCloseable {
 			publisher().log(event);
 		}
 
+		/**
+		 * Creates a builder from config.
+		 * @param config config.
+		 * @return builder.
+		 */
 		static Builder builder(LogConfig config) {
 			return new Builder(config);
 		}
 
+		/**
+		 * Router builder.
+		 */
 		public final class Builder extends LevelResolver.AbstractBuilder<Builder> {
 
 			private final LogConfig config;
@@ -176,10 +192,15 @@ public sealed interface LogRouter extends AutoCloseable {
 				return this;
 			}
 
-			public LogConfig config() {
-				return this.config;
-			}
+			// public LogConfig config() {
+			// return this.config;
+			// }
 
+			/**
+			 * Adds an appender by giving an appender builder to a consumer.
+			 * @param consumer consumer.
+			 * @return this builder.
+			 */
 			public Builder appender(Consumer<LogAppender.Builder> consumer) {
 				var builder = LogAppender.builder();
 				consumer.accept(builder);
@@ -187,16 +208,30 @@ public sealed interface LogRouter extends AutoCloseable {
 				return this;
 			}
 
+			/**
+			 * Adds an appender.
+			 * @param appender appender provider.
+			 * @return this builder.
+			 */
 			public Builder appender(AppenderProvider appender) {
 				this.appenders.add(appender);
 				return self();
 			}
 
+			/**
+			 * Sets the publisher. Only one publisher to router.
+			 * @param publisher publisher.
+			 * @return this builder.
+			 */
 			public Builder publisher(PublisherProvider publisher) {
 				this.publisher = publisher;
 				return self();
 			}
 
+			/**
+			 * Builds the router.
+			 * @return router.
+			 */
 			Router build() {
 				var levelResolver = buildLevelResolver(config.levelResolver());
 				var publisher = this.publisher;

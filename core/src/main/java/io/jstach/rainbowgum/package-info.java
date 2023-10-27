@@ -9,7 +9,7 @@
  * <li>{@link io.jstach.rainbowgum.LogAppender}</li>
  * <li>{@link io.jstach.rainbowgum.LogEncoder}</li>
  * <li>{@link io.jstach.rainbowgum.LogOutput}</li>
- * </ul>
+ * </ol>
  * 
  */
 @org.eclipse.jdt.annotation.NonNullByDefault

@@ -5,6 +5,9 @@ import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+/**
+ * Formattes a LogEvent message.
+ */
 public sealed interface LogMessageFormatter {
 
 	/**
@@ -32,6 +35,9 @@ public sealed interface LogMessageFormatter {
 	 */
 	void formatArray(StringBuilder builder, String message, Object[] args);
 
+	/**
+	 * Builtin message formatters.
+	 */
 	public enum StandardMessageFormatter implements LogMessageFormatter {
 
 		/**
