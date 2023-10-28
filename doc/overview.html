@@ -1,0 +1,180 @@
+<html>
+<body>
+
+<h1 class="overview">User Guide</h1>
+
+<strong>
+Rainbow Gum: a modern logging implementation
+</strong>
+<p>
+<em>
+Fast, modern, GraalVM native friendly and easy to use.
+</em>
+</p>
+
+<h2 class="toc-title">Contents</h2>
+
+<nav class="js-toc"></nav>
+
+<div class="js-toc-content">
+
+<h2 id="gettingstarted">Getting Started</h2>
+
+Follow these steps:
+
+<ol>
+  <li><a href="#installation">Setup your build correctly</a></li>
+  <li><a href="#java_code">See or copy Java Code example.</a></li>
+  <li><a href="#mustache">Read about mustache syntax if you are not familiar with it.</a></li>
+  <li><a href="#configuration">Explore configuring to make JStachio your way.</a></li>
+</ol>
+
+If you are using Spring it is probably easiest to <a href="#spring-example">see the example projects</a>
+and or copy it.
+
+
+<h2 id="description">Description</h2>
+
+
+<h3 id="use_cases">Use Cases</h3>
+
+
+<h2 id="project_information">Project Information</h2>
+
+<dl class="notes">
+  <dt>Source Control</dt>
+  <dd><a href="https://github.com/jstachio/rainbowgum">https://github.com/jstachio/rainbowgum</a></dd>
+  <dt>Team</dt>
+  <dd>
+    <ul>
+      <li><a href="https://github.com/agentgt">Adam Gent (agentgt)</a> - lead</li>
+    </ul>
+  </dd>
+  <dt>Issues</dt>
+  <dd><a href="https://github.com/jstachio/jstachio/issues">https://github.com/jstachio/rainbowgum/issues</a></dd>
+  <dt>Community</dt>
+  <dd><a href="https://github.com/jstachio/jstachio/discussions">https://github.com/jstachio/rainbowgum/discussions</a></dd>
+  <dt>User Guide</dt>
+  <dd>
+    <a href="index.html">This document</a>
+  </dd>
+  <dt>Javadoc</dt>
+  <dd>
+    <a href="#all-modules-table">This document (modules listing at bottom)</a>
+  </dd>
+</dl>
+
+The project follows <a href="https://semver.org/">semantic versioning</a>.
+
+<h3 id="requirements">Requirements</h3>
+
+<ol>
+  <li><a href="https://docs.oracle.com/en/java/javase/21/">Java 21 or greater</a></li>
+  <li>A build system that supports running the Java compiler annotation processor</li>
+</ol>
+
+The only module needed during runtime is  
+<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/module-summary.html">
+  <code>java.base</code>
+</a>
+
+<h3 id="limitations">Limitations</h3>
+
+
+<h2 id="how_it_works">How it works</h2>
+
+
+
+<h2 id="installation">Installation</h2>
+
+
+
+<h3 id="maven">Maven</h3>
+
+Maven configuration has two choices. <code>annotationProcessorPaths</code> or classpath.
+
+<h4 id="maven_annotationProcessorPaths">Option 1 annotationProcessorPaths</h4>
+<pre class="language-xml">
+{@code
+<properties>
+    <io.jstach.version>_VERSION_</io.jstach.version>
+</properties>
+...
+<dependencies>
+    <dependency>
+        <groupId>io.jstach</groupId>
+        <artifactId>jstachio</artifactId>
+        <version>${io.jstach.version}</version>
+    </dependency>
+</dependencies>
+...
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.8.1</version>
+            <configuration>
+                <source>21</source> <!-- 17 is the minimum -->
+                <target>17</target> <!-- 17 is the minimum -->
+                
+                <!-- You may not need annotationProcessorPaths if jstachio-apt is added as an option dep -->
+                <annotationProcessorPaths>
+                    <path>
+                        <groupId>io.jstach</groupId>
+                        <artifactId>jstachio-apt</artifactId>
+                        <version>${io.jstach.version}</version>
+                    </path>
+                    <!-- other annotation processors -->
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+}
+</pre>
+
+
+
+<h3 id="3.2">Gradle</h3>
+
+<pre><code class="language-kotlin">
+dependencies {
+    
+    implementation 'io.jstach:jstachio:_VERSION_'
+ 
+    annotationProcessor 'io.jstach:jstachio-apt:_VERSION_'
+}
+</code>
+</pre>
+
+
+<h2 id="configuration">Configuration</h2>
+
+
+<h2 id="integration">Extensions and Integrations</h2>
+
+
+<h3 id="springframework">Spring Framework</h3>
+
+<h2 id="FAQ">FAQ</h2>
+
+<h3 id="faq_editdoc">There is a typo in this documentation how can I fix it?</h3>
+
+If you would like to make corrections please
+file an issue or even better fork, edit, PR this file: 
+<pre><a href="https://github.com/jstachio/jstachio/blob/main/doc/src/main/javadoc/overview.html">doc/src/main/javadoc/overview.html</a></pre>
+
+<h3 id="faq_javadoc">Where is the Javadoc?</h3>
+
+<em>Shockingly this document is the Javadoc!</em> To be precise it is the aggregate javadoc 
+<code>overview.html</code>. 
+
+The modules javadocs should be at the bottom of this document and the search bar at the top can be
+used to find documented classes.
+
+<br/>
+</div>
+
+</body>
+</html>

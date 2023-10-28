@@ -474,9 +474,7 @@
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
               <show>public</show>
-              <!--  
-              <overview>src/main/javadoc/overview.html</overview>
-              -->
+              <overview>doc/overview.html</overview>
               <docfilessubdirs>true</docfilessubdirs>
               <doctitle>rainbowgum API ${project.version}</doctitle>
               <windowtitle>rainbowgum API ${project.version}</windowtitle>

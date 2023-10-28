@@ -7,6 +7,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @provides AppLog.Provider
  */
 module io.jstach.rainbowgum.avaje {
+	
+	exports io.jstach.rainbowgum.avaje;
+	
 	requires io.jstach.rainbowgum;
 	requires io.avaje.applog;
 	requires io.avaje.config;
