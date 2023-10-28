@@ -11,6 +11,21 @@ to Hawaii that has colorful bark (*colorful logs*).
 In Rainbow gum you do all your logging configuration in Java and can choose to leverage your existing configuration framework (like [avaje-config](https://avaje.io/config/)). You write a single service provider using a discoverable API of builders and then package it up in a Jar. It will be graal vm native friendly, initialize hella fast and no configuration drift.
 
 
+## Documentation
+
+* **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
+* **[Current released RainbowGum doc](https://jstach.io/doc/rainbowgum/current/apidocs)**
+
+The doc is also on javadoc.io but is not aggregated like the above.
+The aggregated javadoc is the preferred documentation and the rest of this readme
+is mainly for ~~propaganda~~ marketing purposes.
+
+For previous releases:
+
+    https://jstach.io/doc/rainbowgum/VERSION/apidocs
+
+Where `VERSION` is the version you want.
+
 ## Comparison to other frameworks
 
 In terms of features and complexity Rainbow Gum aims to be slightly more complicated than
@@ -29,7 +44,7 @@ For example in ascending order of complexity/features:
 | --------------- | -------- | ---------------- | ------- | ---------------------------------------- |
 | slf4j-simple    | 2.0.9    |  15              | 15  KB  | Uses System.out PrintStream              |
 | penna           | 0.6      |  41 + 8 + 9      | 58  KB  | Only does JSON currently                 |
-| **rainbowgum**  | 0.1.0    |  ~100-200 + ~20  | 150 KB  | Requires JDK 17 and 21 for Scoped values |
+| **rainbowgum**  | 0.1.0    |  200 + 20        | 220 KB  | Requires JDK 21 and preview (optional)   |
 | reload4j        | 1.2.25   |  325 + 10        | 335 KB  | JDK 1.5 uses synchronized on IO          |
 | logback         | 1.4.11   |  583 + 276       | 859 KB  | Slightly complicated to configure        |
 | log4j2          | 2.20.0   |  305 + 1847 + 23 | 2.1 MB! | Kitchen sink of features. log4jshell     | 
@@ -49,7 +64,7 @@ For example in ascending order of complexity/features:
 
 Consequently:
 
-* It does the right thing OOB like using JAnsi to test for color output and not blocking on console output
+* It does the right thing OOB like using JAnsi to test for color output and not using `synchronized` for any IO.
 * It starts much faster than logback and log4j (1 and 2)
 * It focuses on being programmatically configurable.
 * It has zero dependencies (unless using the slf4j bridge)
