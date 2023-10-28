@@ -427,41 +427,22 @@
         </plugins>
       </build>
     </profile>
+
     <profile>
       <!-- mvn -f doc clean package -Pjavadoc -->
       <id>javadoc</id>
-      <activation>
-        <property>
-          <name>!javadoc.disable</name>
-        </property>
-      </activation>
+      <!-- unfortunately the only way to make this work is to change to the doc directory or use -f -->
+      <modules>
+        <module>doc</module>
+      </modules>
       <build>
         <plugins>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
+            <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
-              <show>public</show>
-              <tags>
-                <tag>
-                  <name>apiNote</name>
-                  <placement>a</placement>
-                  <head>API Note</head>
-                </tag>
-              </tags>
-              <failOnWarnings>true</failOnWarnings>
-              <excludePackageNames>
-              *.internal:*.internal.*
-              </excludePackageNames>
+              <failOnWarning>false</failOnWarning>
             </configuration>
-            <executions>
-              <execution>
-                <id>attach-javadocs</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
           </plugin>
         </plugins>
       </build>
