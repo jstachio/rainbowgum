@@ -11,6 +11,9 @@
   <packaging>pom</packaging>
   <properties>
     <exec.classpathPrefix>${settings.localRepository}</exec.classpathPrefix>
+    <parent.root>${basedir}/../..</parent.root>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
+    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
   </properties>
   <modules>
   <module>rainbowgum-test-avaje</module>

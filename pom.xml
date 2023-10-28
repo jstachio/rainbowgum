@@ -26,7 +26,6 @@
     <pistachio.version>0.1.2</pistachio.version>
     <jstachio.version>1.3.3</jstachio.version>
     <slf4j.version>2.0.9</slf4j.version>
-    <maven.javadoc.skip>true</maven.javadoc.skip>
 
   </properties>
       
@@ -700,5 +699,6 @@
     <module>benchmark</module>
     <module>rainbowgum-avaje-config</module>
     <module>test</module>
+    <module>etc</module>
   </modules>
 </project>
