@@ -12,9 +12,18 @@ import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
 
+/**
+ * Makes avaje provide properties to RainbowGum.
+ */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public class AvajePropertiesProvider
 		implements RainbowGumServiceProvider.PropertiesProvider, RainbowGumServiceProvider.Initializer {
+
+	/**
+	 * For service loader.
+	 */
+	public AvajePropertiesProvider() {
+	}
 
 	@Override
 	public List<LogProperties> provideProperties(ServiceRegistry registry) {

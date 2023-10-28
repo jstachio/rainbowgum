@@ -15,12 +15,22 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
 
+/**
+ * Disruptor async publisher.
+ */
 public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	private final Disruptor<LogEventCell> disruptor;
 
 	private final RingBuffer<LogEventCell> ringBuffer;
 
+	/**
+	 * Creates.
+	 * @param appenders appenders.
+	 * @param threadFactory thread factory to create writer thread.
+	 * @param bufferSize maximum queue elements.
+	 * @return publisher.
+	 */
 	public static DisruptorLogPublisher of(Iterable<? extends LogAppender> appenders, ThreadFactory threadFactory,
 			int bufferSize) {
 

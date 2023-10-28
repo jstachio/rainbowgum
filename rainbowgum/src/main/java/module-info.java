@@ -1,4 +1,7 @@
+/**
+ * RainbowGum default grouping of modules transitively pulled
+ * in from Maven and module system.
+ */
 module io.jstach.rainbowgum.bundle {
-	requires transitive io.jstach.rainbowgum;
-	requires transitive io.jstach.rainbowgum.jansi;
+	requires io.jstach.rainbowgum;
 }
