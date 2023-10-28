@@ -1,3 +1,7 @@
+/**
+ * Rainbowgum JDK components
+ * @provides System.LoggerFinder
+ */
 module io.jstach.rainbowgum.jdk {
 	requires io.jstach.rainbowgum;
 	requires java.logging;

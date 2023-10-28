@@ -6,7 +6,7 @@ import org.fusesource.jansi.Ansi.Color;
 /*
  * TODO
  */
-public interface AnsiWriter {
+interface AnsiWriter {
 
 	public void append(StringBuilder buf, String s);
 

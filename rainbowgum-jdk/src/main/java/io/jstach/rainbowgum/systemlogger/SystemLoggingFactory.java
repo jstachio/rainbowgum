@@ -6,9 +6,15 @@ import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.jul.SystemLoggerQueueJULHandler;
 import io.jstach.svc.ServiceProvider;
 
+/**
+ * System Logger rainbow gum implementation.
+ */
 @ServiceProvider(System.LoggerFinder.class)
 public class SystemLoggingFactory extends System.LoggerFinder {
 
+	/**
+	 * No-Arg for Service Loader.
+	 */
 	public SystemLoggingFactory() {
 		SystemLoggerQueueJULHandler.install();
 	}

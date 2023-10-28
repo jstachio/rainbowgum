@@ -1,5 +1,5 @@
 package io.jstach.rainbowgum.slf4j;
 
-public class RainbowGumMDCAdapter extends ArrayMDCAdapter {
+class RainbowGumMDCAdapter extends ArrayMDCAdapter {
 
 }

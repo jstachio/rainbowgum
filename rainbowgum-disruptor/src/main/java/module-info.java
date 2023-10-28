@@ -1,3 +1,6 @@
+/**
+ * Disruptor async publisher
+ */
 module io.jstach.rainbowgum.disruptor {
 	
 	exports io.jstach.rainbowgum.disruptor;

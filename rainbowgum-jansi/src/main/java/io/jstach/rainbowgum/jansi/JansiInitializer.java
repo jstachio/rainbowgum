@@ -8,10 +8,22 @@ import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
 
+/**
+ * Jansi initializer.
+ */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public class JansiInitializer implements RainbowGumServiceProvider.Initializer {
 
+	/**
+	 * Jansi disable property.
+	 */
 	public static String JANSI_DISABLE = "jansi.disable";
+
+	/**
+	 * No Arg for service loader.
+	 */
+	public JansiInitializer() {
+	}
 
 	@Override
 	public void initialize(ServiceRegistry registry, LogConfig config) {

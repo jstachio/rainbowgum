@@ -13,7 +13,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.spi.MDCAdapter;
 
-public class MapMDCAdapter implements MDCAdapter {
+class MapMDCAdapter implements MDCAdapter {
 
 	// The internal map is copied so as
 

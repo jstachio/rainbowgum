@@ -9,6 +9,9 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogRouter;
 
+/**
+ * JUL logger that uses global router.
+ */
 public class SystemLoggerQueueJULHandler extends Handler {
 
 	private static final int TRACE_LEVEL_THRESHOLD = java.util.logging.Level.FINEST.intValue();
@@ -18,6 +21,12 @@ public class SystemLoggerQueueJULHandler extends Handler {
 	private static final int INFO_LEVEL_THRESHOLD = java.util.logging.Level.INFO.intValue();
 
 	private static final int WARN_LEVEL_THRESHOLD = java.util.logging.Level.WARNING.intValue();
+
+	/**
+	 * Do nothing constuctor
+	 */
+	public SystemLoggerQueueJULHandler() {
+	}
 
 	@Override
 	public void publish(@Nullable LogRecord record) {
@@ -67,6 +76,9 @@ public class SystemLoggerQueueJULHandler extends Handler {
 
 	}
 
+	/**
+	 * Call to remove all handlers.
+	 */
 	public static void removeHandlersForRootLogger() {
 		java.util.logging.Logger rootLogger = getRootLogger();
 		java.util.logging.Handler[] handlers = rootLogger.getHandlers();
@@ -80,6 +92,9 @@ public class SystemLoggerQueueJULHandler extends Handler {
 		return LogManager.getLogManager().getLogger("");
 	}
 
+	/**
+	 * Installs.
+	 */
 	public static void install() {
 		removeHandlersForRootLogger();
 		LogManager.getLogManager().getLogger("").addHandler(new SystemLoggerQueueJULHandler());

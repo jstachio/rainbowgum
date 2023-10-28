@@ -1,5 +1,10 @@
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
+/**
+ * JANSI module that will install jansi.
+ * 
+ * @provides RainbowGumServiceProvider
+ */
 module io.jstach.rainbowgum.jansi {
 	requires transitive io.jstach.rainbowgum;
 	requires org.fusesource.jansi;

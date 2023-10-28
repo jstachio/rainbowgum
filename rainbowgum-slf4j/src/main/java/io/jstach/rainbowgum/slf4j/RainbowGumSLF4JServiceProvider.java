@@ -10,6 +10,9 @@ import org.slf4j.spi.SLF4JServiceProvider;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
 
+/**
+ * SLF4J provider using RainbowGum.
+ */
 @ServiceProvider(SLF4JServiceProvider.class)
 public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 
@@ -27,6 +30,12 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 
 	@Nullable
 	private MDCAdapter mdcAdapter;
+
+	/**
+	 * No Arg for service laoder.
+	 */
+	public RainbowGumSLF4JServiceProvider() {
+	}
 
 	@Override
 	public ILoggerFactory getLoggerFactory() {

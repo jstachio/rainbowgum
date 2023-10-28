@@ -53,16 +53,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 		return newMap;
 	}
 
-	/**
-	 * Put a context value (the <code>val</code> parameter) as identified with the
-	 * <code>key</code> parameter into the current thread's context map. Note that
-	 * contrary to log4j, the <code>val</code> parameter can be null.
-	 * <p/>
-	 * <p/>
-	 * If the current thread does not have a context map it is created as a side effect of
-	 * this call.
-	 * @throws NullPointerException in case the "key" parameter is null
-	 */
 	public void put(@NonNull String key, @Nullable String val) throws NullPointerException {
 		requireNonNull(key, "key cannot be null");
 
@@ -80,10 +70,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 		}
 	}
 
-	/**
-	 * Remove the the context identified by the <code>key</code> parameter.
-	 * <p/>
-	 */
 	public void remove(@Nullable String key) {
 		if (key == null) {
 			return;
@@ -105,18 +91,11 @@ class ArrayMDCAdapter implements MDCAdapter {
 		}
 	}
 
-	/**
-	 * Clear all entries in the MDC.
-	 */
 	public void clear() {
 		lastOperation.set(WRITE_OPERATION);
 		copyOnThreadLocal.remove();
 	}
 
-	/**
-	 * Get the context identified by the <code>key</code> parameter.
-	 * <p/>
-	 */
 	public @Nullable String get(String key) {
 		if (Objects.isNull(key)) {
 			return null;
@@ -133,6 +112,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 	/**
 	 * Get the current thread's MDC as a map. This method is intended to be used
 	 * internally.
+	 * @return mutable key values.
 	 */
 	public @Nullable MutableKeyValues getMutableKeyValues() {
 		lastOperation.set(MAP_COPY_OPERATION);
@@ -141,9 +121,10 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	/**
 	 * Returns the keys in the MDC as a {@link Set}. The returned value can be null.
+	 * @return keys.
 	 */
-	@Nullable
-	public Set<String> getKeys() {
+
+	public @Nullable Set<String> getKeys() {
 		MutableKeyValues map = getMutableKeyValues();
 
 		if (map != null) {
@@ -156,9 +137,10 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	/**
 	 * Return a copy of the current thread's context map. Returned value may be null.
+	 * @return map copy.
 	 */
-	@Nullable
-	public Map<String, @Nullable String> getCopyOfContextMap() {
+
+	public @Nullable Map<String, @Nullable String> getCopyOfContextMap() {
 		MutableKeyValues hashMap = copyOnThreadLocal.get();
 		if (hashMap == null) {
 			return null;

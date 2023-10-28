@@ -1,5 +1,9 @@
 import io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider;
 
+/**
+ * SLF4J implementation.
+ * @provides org.slf4j.spi.SLF4JServiceProvider
+ */
 module io.jstach.rainbowgum.slf4j {
 	
 	requires static org.eclipse.jdt.annotation;

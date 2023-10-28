@@ -11,6 +11,9 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 
+/**
+ * Jansi TTLL formater.
+ */
 public class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 	protected JansiLogFormatter( //
@@ -25,15 +28,26 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 				keyValuesFormatter);
 	}
 
+	/**
+	 * Builder.
+	 * @return builder.
+	 */
 	public static Builder builder() {
 		return new Builder();
 	}
 
+	/**
+	 * Jansi log formatter builder.
+	 */
 	public static class Builder extends StandardEventFormatter.AbstractBuilder<Builder> {
 
 		private Builder() {
 		}
 
+		/**
+		 * Builds.
+		 * @return formatter.
+		 */
 		public JansiLogFormatter build() {
 
 			return new JansiLogFormatter(levelFormatter, timestampFormatter, nameFormatter, messageFormatter,
