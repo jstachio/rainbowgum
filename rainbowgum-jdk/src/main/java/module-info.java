@@ -3,6 +3,9 @@
  * @provides System.LoggerFinder
  */
 module io.jstach.rainbowgum.jdk {
+	
+	exports io.jstach.rainbowgum.jul;
+	
 	requires io.jstach.rainbowgum;
 	requires java.logging;
 	requires static org.eclipse.jdt.annotation;

@@ -6,6 +6,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @provides RainbowGumServiceProvider
  */
 module io.jstach.rainbowgum.jansi {
+	
+	exports io.jstach.rainbowgum.jansi;
+	
 	requires transitive io.jstach.rainbowgum;
 	requires org.fusesource.jansi;
 	
