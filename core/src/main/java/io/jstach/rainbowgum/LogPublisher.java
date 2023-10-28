@@ -132,6 +132,10 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 	 */
 	non-sealed interface SyncLogPublisher extends LogPublisher {
 
+		/**
+		 * Sync publisher builder.
+		 * @return builder.
+		 */
 		public static SyncLogPublisher.Builder builder() {
 			return new Builder();
 		}

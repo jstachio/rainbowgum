@@ -1,9 +1,10 @@
 /**
  * Core module for RainbowGum which provides low level components for logging as well as a builder 
- * for creating custom RainbowGums.
+ * for creating custom RainbowGums. Use {@link io.jstach.rainbowgum.RainbowGum#builder()} to
+ * get starting configuring.
  * 
  * @uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider
- * @see {@link io.jstach.rainbowgum}
+ * @see io.jstach.rainbowgum
  */
 
 module io.jstach.rainbowgum {

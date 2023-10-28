@@ -11,6 +11,9 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogProperties.PropertyFunction;
+import io.jstach.rainbowgum.LogProperties.PropertyGetter;
+import io.jstach.rainbowgum.LogProperties.PropertyGetter.ChildPropertyGetter;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
 
 /**
@@ -124,6 +127,9 @@ public interface LogProperties {
 	 */
 	enum StandardProperties implements LogProperties {
 
+		/**
+		 * Empty properties.
+		 */
 		EMPTY {
 			@Override
 			public @Nullable String valueOrNull(String key) {
@@ -135,6 +141,10 @@ public interface LogProperties {
 				return -1;
 			}
 		},
+		/**
+		 * Uses {@link System#getProperty(String)} for {@link #valueOrNull(String)}. The
+		 * {@link #order()} is the same value as microprofile config ordinal.
+		 */
 		SYSTEM_PROPERTIES {
 			@Override
 			public @Nullable String valueOrNull(String key) {
@@ -259,19 +269,39 @@ public interface LogProperties {
 	 * @param properties the log properties instance.
 	 */
 	record PropertyValue<T>(Property<T> property, LogProperties properties) {
+		/**
+		 * Maps a property value to a new property value.
+		 * @param <U> new value type.
+		 * @param mapper function.
+		 * @return new property value.
+		 */
 		public <U> PropertyValue<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 			return new PropertyValue<>(property.map(mapper), properties);
 		}
 
+		/**
+		 * Gets the value.
+		 * @return value or <code>null</code>.
+		 */
 		public @Nullable T valueOrNull() {
 			return property.propertyGetter.valueOrNull(properties, property.key);
 		}
 
+		/**
+		 * Convenience that turns a value into an optional.
+		 * @return optional.
+		 */
 		public Optional<T> optional() {
 			return Optional.ofNullable(valueOrNull());
 		}
 
-		public T value() {
+		/**
+		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
+		 * value.
+		 * @return value.
+		 * @throws NoSuchElementException if there is no value.
+		 */
+		public T value() throws NoSuchElementException {
 			return property.propertyGetter.require(properties, property.key);
 		}
 	}
@@ -285,14 +315,29 @@ public interface LogProperties {
 	 */
 	record Property<T>(PropertyGetter<T> propertyGetter, String key) {
 
+		/**
+		 * Gets a property value.
+		 * @param properties properties.
+		 * @return property value from this property and passed in properties.
+		 */
 		public PropertyValue<T> get(LogProperties properties) {
 			return new PropertyValue<>(this, properties);
 		}
 
+		/**
+		 * Maps the property to another value type.
+		 * @param <U> value type.
+		 * @param mapper function to map.
+		 * @return property.
+		 */
 		private <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 			return new Property<>(propertyGetter.map(mapper), key);
 		}
 
+		/**
+		 * Builder.
+		 * @return builder.
+		 */
 		public static RootPropertyGetter builder() {
 			return PropertyGetter.of();
 		}
@@ -305,14 +350,32 @@ public interface LogProperties {
 	 */
 	sealed interface PropertyGetter<T> {
 
+		/**
+		 * Value or null.
+		 * @param props log properties.
+		 * @param key key to use.
+		 * @return value or <code>null</code>.
+		 */
 		@Nullable
 		T valueOrNull(LogProperties props, String key);
 
+		/**
+		 * Determines full name of key.
+		 * @param key key.
+		 * @return fully qualified key name.
+		 */
 		default String fullyQualifiedKey(String key) {
 			return findRoot(this).fullyQualifiedKey(key);
 		}
 
-		default T require(LogProperties props, String key) {
+		/**
+		 * Uses the key to get a property and fail if missing.
+		 * @param props log properties.
+		 * @param key key.
+		 * @return value.
+		 * @throws NoSuchElementException if no value is found for key.
+		 */
+		default T require(LogProperties props, String key) throws NoSuchElementException {
 			var t = valueOrNull(props, key);
 			if (t == null) {
 				throw findRoot(this).throwMissing(props, key);
@@ -320,10 +383,20 @@ public interface LogProperties {
 			return t;
 		}
 
+		/**
+		 * Creates a Property from the given key and this getter.
+		 * @param key key.
+		 * @return property.
+		 */
 		default Property<T> property(String key) {
 			return build(key);
 		}
 
+		/**
+		 * Creates a Property from the given key and this getter.
+		 * @param key key.
+		 * @return property.
+		 */
 		default Property<T> build(String key) {
 			String fqn = fullyQualifiedKey(key);
 			if (!fqn.startsWith(LogProperties.ROOT_PREFIX)) {
@@ -333,7 +406,12 @@ public interface LogProperties {
 			return new Property<>(this, key);
 		}
 
-		private static RootPropertyGetter findRoot(PropertyGetter<?> e) {
+		/**
+		 * Find root property getter.
+		 * @param e property getter.
+		 * @return root.
+		 */
+		public static RootPropertyGetter findRoot(PropertyGetter<?> e) {
 			if (e instanceof RootPropertyGetter r) {
 				return r;
 			}
@@ -346,10 +424,21 @@ public interface LogProperties {
 
 		}
 
+		/**
+		 * Default root property getter.
+		 * @return property getter.
+		 */
 		public static RootPropertyGetter of() {
 			return new RootPropertyGetter("", false);
 		}
 
+		/**
+		 * A property getter that has no conversion but maye prefix the key and search
+		 * recursively up the key path.
+		 *
+		 * @param prefix added to the key before looking up in {@link LogProperties}.
+		 * @param search if true will recursively search up the key path
+		 */
 		record RootPropertyGetter(String prefix, boolean search) implements PropertyGetter<String> {
 
 			@Override
@@ -360,18 +449,28 @@ public interface LogProperties {
 				return props.valueOrNull(LogProperties.concatKey(prefix, key));
 			}
 
-			private RuntimeException throwError(LogProperties props, String key, Exception e) {
+			RuntimeException throwError(LogProperties props, String key, Exception e) {
 				throw LogProperties.throwPropertyError(props.description(fullyQualifiedKey(key)), e);
 			}
 
-			private NoSuchElementException throwMissing(LogProperties props, String key) {
+			NoSuchElementException throwMissing(LogProperties props, String key) {
 				throw LogProperties.throwMissingError(props.description(fullyQualifiedKey(key)));
 			}
 
+			/**
+			 * Will search with prefix.
+			 * @param prefix prefix.
+			 * @return new property getter.
+			 */
 			public RootPropertyGetter withSearch(String prefix) {
 				return new RootPropertyGetter(prefix, true);
 			}
 
+			/**
+			 * Will prefix key.
+			 * @param prefix prefix.
+			 * @return new property getter.
+			 */
 			public RootPropertyGetter withPrefix(String prefix) {
 				return new RootPropertyGetter(prefix, search);
 			}
@@ -383,59 +482,84 @@ public interface LogProperties {
 
 		}
 
+		/**
+		 * Mapped property getter.
+		 *
+		 * @param <T> will convert to this type.
+		 */
 		public sealed interface ChildPropertyGetter<T> extends PropertyGetter<T> {
 
+			/**
+			 * Parent.
+			 * @return parent.
+			 */
 			PropertyGetter<?> parent();
 
 		}
 
+		/**
+		 * Sets up to converts a value.
+		 * @param <U> value type
+		 * @param mapper function.
+		 * @return new property getter.
+		 */
 		default <U> PropertyGetter<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 			return new MapExtractor<T, U>(this, mapper);
 		}
 
+		/**
+		 * Fallback to value if property not found.
+		 * @param fallback fallback value.
+		 * @return new property getter.
+		 */
 		default PropertyGetter<T> orElse(T fallback) {
 			Objects.requireNonNull(fallback);
 			return new FallbackExtractor<T>(this, () -> fallback);
 		}
 
+		/**
+		 * Fallback to value if property not found.
+		 * @param fallback supplier.
+		 * @return new property getter.
+		 */
 		default PropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
 			Objects.requireNonNull(fallback);
 			return new FallbackExtractor<T>(this, fallback);
 		}
 
-		record FallbackExtractor<T>(PropertyGetter<T> parent,
-				Supplier<? extends T> fallback) implements ChildPropertyGetter<T> {
+	}
 
-			@Override
-			public T valueOrNull(LogProperties props, String key) {
-				var n = parent.valueOrNull(props, key);
-				if (n != null) {
-					return n;
-				}
-				return fallback.get();
-			}
+}
 
+record FallbackExtractor<T>(PropertyGetter<T> parent,
+		Supplier<? extends T> fallback) implements ChildPropertyGetter<T> {
+
+	@Override
+	public T valueOrNull(LogProperties props, String key) {
+		var n = parent.valueOrNull(props, key);
+		if (n != null) {
+			return n;
 		}
+		return fallback.get();
+	}
 
-		record MapExtractor<T, R>(PropertyGetter<T> parent,
-				PropertyFunction<? super T, ? extends R, ? super Exception> mapper) implements ChildPropertyGetter<R> {
+}
 
-			@Override
-			public @Nullable R valueOrNull(LogProperties props, String key) {
-				var n = parent.valueOrNull(props, key);
-				if (n != null) {
-					try {
-						return mapper._apply(n);
-					}
-					catch (Exception e) {
-						throw findRoot(parent).throwError(props, key, e);
-					}
-				}
-				return null;
+record MapExtractor<T, R>(PropertyGetter<T> parent,
+		PropertyFunction<? super T, ? extends R, ? super Exception> mapper) implements ChildPropertyGetter<R> {
+
+	@Override
+	public @Nullable R valueOrNull(LogProperties props, String key) {
+		var n = parent.valueOrNull(props, key);
+		if (n != null) {
+			try {
+				return mapper._apply(n);
 			}
-
+			catch (Exception e) {
+				throw PropertyGetter.findRoot(parent).throwError(props, key, e);
+			}
 		}
-
+		return null;
 	}
 
 }

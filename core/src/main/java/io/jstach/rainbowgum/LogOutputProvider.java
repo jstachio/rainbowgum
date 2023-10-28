@@ -16,7 +16,7 @@ public interface LogOutputProvider extends AutoCloseable {
 	 * Loads an output from a URI.
 	 * @param uri uri.
 	 * @return output.
-	 * @throws IOException
+	 * @throws IOException if unable to use the URI.
 	 */
 	LogOutput of(URI uri) throws IOException;
 
