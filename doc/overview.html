@@ -20,23 +20,11 @@ Fast, modern, GraalVM native friendly and easy to use.
 
 <h2 id="gettingstarted">Getting Started</h2>
 
-Follow these steps:
-
-<ol>
-  <li><a href="#installation">Setup your build correctly</a></li>
-  <li><a href="#java_code">See or copy Java Code example.</a></li>
-  <li><a href="#mustache">Read about mustache syntax if you are not familiar with it.</a></li>
-  <li><a href="#configuration">Explore configuring to make JStachio your way.</a></li>
-</ol>
-
-If you are using Spring it is probably easiest to <a href="#spring-example">see the example projects</a>
-and or copy it.
-
+TODO. See <a href="#installation">Installation</a>
 
 <h2 id="description">Description</h2>
 
-
-<h3 id="use_cases">Use Cases</h3>
+TODO
 
 
 <h2 id="project_information">Project Information</h2>
@@ -80,74 +68,88 @@ The only module needed during runtime is
 
 <h3 id="limitations">Limitations</h3>
 
+Currently Rainbowgum does not provide support for:
+
+<ul>
+  <li>External config - by design you will need to bring your own configuration lib or just use env/system properties</li>
+  <li>Rolling of log files. Possibly will be added in the future.</li>
+  <li>Dynamically changing logger level after logger has been created - by design with some special features coming.</li>
+ </ul>
 
 <h2 id="how_it_works">How it works</h2>
 
-
+Rainbow Gum uses the Service Loader to load "default" configurations. Other than logger levels
+most configuration is simply choosing which jars to be included at runtime.
+<p>
+If you would like more custom programmatic configuration you can use the 
+RainbowGum builder to create your own.
+</p>
 
 <h2 id="installation">Installation</h2>
 
 
-
 <h3 id="maven">Maven</h3>
 
-Maven configuration has two choices. <code>annotationProcessorPaths</code> or classpath.
 
-<h4 id="maven_annotationProcessorPaths">Option 1 annotationProcessorPaths</h4>
 <pre class="language-xml">
 {@code
 <properties>
-    <io.jstach.version>_VERSION_</io.jstach.version>
+    <rainbowgum.version>_VERSION_</rainbowgum.version>
 </properties>
 ...
 <dependencies>
     <dependency>
-        <groupId>io.jstach</groupId>
-        <artifactId>jstachio</artifactId>
-        <version>${io.jstach.version}</version>
+        <groupId>io.jstach.rainbowgum</groupId>
+        <artifactId>rainbowgum</artifactId>
+        <version>${rainbowgum.version}</version>
+        <scope>runtime</scope>
     </dependency>
 </dependencies>
-...
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.8.1</version>
-            <configuration>
-                <source>21</source> <!-- 17 is the minimum -->
-                <target>17</target> <!-- 17 is the minimum -->
-                
-                <!-- You may not need annotationProcessorPaths if jstachio-apt is added as an option dep -->
-                <annotationProcessorPaths>
-                    <path>
-                        <groupId>io.jstach</groupId>
-                        <artifactId>jstachio-apt</artifactId>
-                        <version>${io.jstach.version}</version>
-                    </path>
-                    <!-- other annotation processors -->
-                </annotationProcessorPaths>
-            </configuration>
-        </plugin>
-    </plugins>
-</build>
 }
 </pre>
 
 
+If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
+service loader registration. In that case you will want the dependency like:
+
+<pre class="language-xml">
+{@code
+<properties>
+    <rainbowgum.version>_VERSION_</rainbowgum.version>
+</properties>
+...
+<dependencies>
+    <dependency>
+        <groupId>io.jstach.rainbowgum</groupId>
+        <artifactId>rainbowgum-core</artifactId>
+        <version>${rainbowgum.version}</version>
+        <scope>compile</scope>
+    </dependency>
+</dependencies>
+}
+</pre>
 
 <h3 id="3.2">Gradle</h3>
 
 <pre><code class="language-kotlin">
 dependencies {
     
-    implementation 'io.jstach:jstachio:_VERSION_'
- 
-    annotationProcessor 'io.jstach:jstachio-apt:_VERSION_'
+    runtimeOnly 'io.jstach.rainbowgum:rainbowgum:_VERSION_'
 }
 </code>
 </pre>
 
+
+If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
+service loader registration. In that case you will want the dependency like:
+
+<pre><code class="language-kotlin">
+dependencies {
+    
+    implementation 'io.jstach.rainbowgum:rainbowgum-core:_VERSION_'
+}
+</code>
+</pre>
 
 <h2 id="configuration">Configuration</h2>
 
