@@ -53,14 +53,16 @@ For example in ascending order of complexity/features:
 
 1. Inititalization speed
 1. Configuration is programmatic instead of joran/xml/yaml/properties etc
-1. Add a single dependency that works for both development and production for most usages
+1. Ability to test newer JDK offerings because of newer design
+1. Additional configuration like other outputs can be done by simply adding a runtime dependency.
 1. Determine best pratices and provide them for OOB
 1. Developer experience is more important than other things (colorful logs)
-1. Ability to test newer JDK offerings because of newer design
+   * Themes color console output is in the works so you just add a jar get a unique styling. 
 1. Keep jar size down
 1. Graal VM Native works with no special configuration
 1. Designed for microservices/cloud/native/lambda instead of monolithic beasts of past.
 1. Builtin Fast no dependency JSON support 
+1. Add a single dependency that works for both development and production for most usages
 
 Consequently:
 
