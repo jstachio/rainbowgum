@@ -6,6 +6,10 @@
     <version>0.1.3-SNAPSHOT</version>
   </parent>
   <artifactId>rainbowgum-avaje-config</artifactId>
+  <properties>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>

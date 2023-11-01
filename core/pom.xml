@@ -10,6 +10,7 @@
   <artifactId>rainbowgum-core</artifactId>
   <properties>
     <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
     <maven.javadoc.skip>false</maven.javadoc.skip>
   </properties>
 </project>

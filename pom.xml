@@ -18,7 +18,6 @@
     <project.build.outputTimestamp>1692385133</project.build.outputTimestamp>
     <doc.resources>../</doc.resources>
     <doc.snippets>rainbowgum/src/test/java</doc.snippets>
-
     <deploy>snapshot</deploy>
     <!-- 
     This property is to pin the build to a specific version of maven for reproducible builds
@@ -444,6 +443,17 @@
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
               <show>public</show>
+              <header>
+                <![CDATA[
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+                <script>hljs.highlightAll();</script>
+                ]]>
+              </header>
+              <bottom>
+                <![CDATA[
+                Copyright &#169; {currentYear} {organizationName}. All rights reserved.
+                ]]>
+              </bottom>
               <tags>
                 <tag>
                   <name>apiNote</name>
@@ -452,11 +462,16 @@
                 </tag>
               </tags>
               <failOnWarnings>true</failOnWarnings>
+              <links>
+                <link>https://www.slf4j.org/api/</link>
+              </links>
               <excludePackageNames>
               *.internal:*.internal.*
               </excludePackageNames>
               <additionalOptions>
+                <additionalOption>--allow-script-in-comments</additionalOption>
                 <additionalOption>--snippet-path ${project.basedir}/${doc.resources}${doc.snippets}</additionalOption>
+                <additionalOption>--add-stylesheet ${parent.root}/doc/jstachio.css</additionalOption>
               </additionalOptions>
             </configuration>
             <executions>
@@ -475,6 +490,7 @@
       <id>doc</id>
       <properties>
         <doc.resources></doc.resources>
+        <parent.root>${basedir}/.</parent.root>
       </properties>
       <build>
         <plugins>
@@ -487,25 +503,6 @@
               <docfilessubdirs>true</docfilessubdirs>
               <doctitle>rainbowgum API ${project.version}</doctitle>
               <windowtitle>rainbowgum API ${project.version}</windowtitle>
-              <header>
-                &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"&gt;&lt;/script&gt;&lt;script&gt;hljs.highlightAll();&lt;/script&gt;
-              </header>
-              <bottom>
-                <![CDATA[
-                Copyright &#169; {currentYear} {organizationName}. All rights reserved.
-                ]]>
-              </bottom>
-              <addStylesheets>
-                <addStylesheet>${javadoc.stylesheet}</addStylesheet>
-              </addStylesheets>
-              <tags>
-                <tag>
-                  <name>apiNote</name>
-                  <placement>a</placement>
-                  <head>API Note</head>
-                </tag>
-              </tags>
-              <additionalJOptions>--allow-script-in-comments</additionalJOptions>
               <linksource>true</linksource>
             </configuration>
             <executions>
