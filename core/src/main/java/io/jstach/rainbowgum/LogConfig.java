@@ -1,12 +1,16 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
+import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
+import io.jstach.rainbowgum.LogProperties.PropertyValue;
 
 /**
  * The configuration of a RainbowGum. In some other logging implementations this is called
@@ -19,6 +23,16 @@ public interface LogConfig {
 	 * @return properties.
 	 */
 	public LogProperties properties();
+
+	/**
+	 * Gets a property value from the properties.
+	 * @param <T> property type
+	 * @param property property to look up.
+	 * @return property value nevern <code>null</code>.
+	 */
+	default <T> PropertyValue<T> get(Property<T> property) {
+		return properties().property(property);
+	}
 
 	/**
 	 * Level resolver for resolving levels from logger names.
@@ -38,6 +52,16 @@ public interface LogConfig {
 	 */
 	default LogOutputProvider outputProvider() {
 		return LogOutputProvider.of();
+	}
+
+	/**
+	 * Finds an output from a URI.
+	 * @param uri uri.
+	 * @return output.
+	 * @throws IOException if output fails fast
+	 */
+	default LogOutput output(URI uri) throws IOException {
+		return outputProvider().of(uri);
 	}
 
 	/**

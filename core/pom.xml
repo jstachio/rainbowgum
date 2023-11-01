@@ -9,6 +9,7 @@
   </parent>
   <artifactId>rainbowgum-core</artifactId>
   <properties>
+    <doc.resources>../</doc.resources>
     <maven.javadoc.skip>false</maven.javadoc.skip>
   </properties>
 </project>

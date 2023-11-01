@@ -31,7 +31,7 @@ import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
  * @see LogOutputProvider
  * @see Buffer
  */
-public interface LogOutput extends AutoCloseable, Flushable {
+public interface LogOutput extends LogLifecycle, Flushable {
 
 	/**
 	 * {@link FileDescriptor#err} URI scheme.
@@ -78,6 +78,10 @@ public interface LogOutput extends AutoCloseable, Flushable {
 	 *
 	 */
 	public URI uri() throws UnsupportedOperationException;
+
+	@Override
+	default void start(LogConfig config) {
+	}
 
 	/**
 	 * Writes a string and by default with charset {@link StandardCharsets#UTF_8}.

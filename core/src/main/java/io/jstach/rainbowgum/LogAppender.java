@@ -84,7 +84,7 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 	 * If the output is not set standard out will be used. If the encoder is not set a
 	 * default encoder will be resolved from the output.
 	 */
-	public static class Builder {
+	public static final class Builder {
 
 		protected LogOutput output = LogOutput.ofStandardOut();
 

@@ -16,6 +16,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <metainf-services.version>1.11</metainf-services.version>
     <project.build.outputTimestamp>1692385133</project.build.outputTimestamp>
+    <doc.resources>../</doc.resources>
+    <doc.snippets>rainbowgum/src/test/java</doc.snippets>
+
     <deploy>snapshot</deploy>
     <!-- 
     This property is to pin the build to a specific version of maven for reproducible builds
@@ -452,6 +455,9 @@
               <excludePackageNames>
               *.internal:*.internal.*
               </excludePackageNames>
+              <additionalOptions>
+                <additionalOption>--snippet-path ${project.basedir}/${doc.resources}${doc.snippets}</additionalOption>
+              </additionalOptions>
             </configuration>
             <executions>
               <execution>
@@ -467,6 +473,9 @@
     </profile>
     <profile>
       <id>doc</id>
+      <properties>
+        <doc.resources></doc.resources>
+      </properties>
       <build>
         <plugins>
           <plugin>
