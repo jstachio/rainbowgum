@@ -397,6 +397,13 @@
   </build>
   <profiles>
     <profile>
+      <!-- this is to make maven version plugin update bin pom -->
+      <id>bin</id>
+      <modules>
+        <module>bin</module>
+      </modules>
+    </profile>
+    <profile>
       <id>enforce-maven-version</id>
       <activation>
         <property>
@@ -465,6 +472,7 @@
               <links>
                 <link>https://www.slf4j.org/api/</link>
               </links>
+              <javadocDirectory>${parent.root}/doc</javadocDirectory>
               <excludePackageNames>
               *.internal:*.internal.*
               </excludePackageNames>
@@ -482,6 +490,29 @@
                 </goals>
               </execution>
             </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>javadoc-javascript</id>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>package</phase>
+                <inherited>false</inherited>
+              </execution>
+            </executions>
+            <configuration>
+              <executable>java</executable>
+              <!-- optional -->
+              <workingDirectory>bin</workingDirectory>
+              <arguments>
+                <argument>src/main/java/io/jstach/script/JavadocJavascript.java</argument>
+                <argument>${project.version}</argument>
+              </arguments>
+            </configuration>
           </plugin>
         </plugins>
       </build>

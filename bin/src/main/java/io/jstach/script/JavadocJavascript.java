@@ -16,7 +16,8 @@ public class JavadocJavascript {
 	static PrintStream out = System.out;
 	static final String VERSION_TOKEN = "_VERSION_";
 	static String version = VERSION_TOKEN;
-  final static String = DOC_ROOT = "../doc/";
+	final static String DOC_ROOT = "../";
+	
 	public static void main(String[] args) {
 		try {
 			if (args.length > 0) {
