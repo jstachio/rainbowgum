@@ -61,7 +61,7 @@ public interface LogConfig {
 	 * @throws IOException if output fails fast
 	 */
 	default LogOutput output(URI uri) throws IOException {
-		return outputProvider().of(uri);
+		return outputProvider().output(uri);
 	}
 
 	/**

@@ -18,7 +18,7 @@ public interface LogOutputProvider extends AutoCloseable {
 	 * @return output.
 	 * @throws IOException if unable to use the URI.
 	 */
-	LogOutput of(URI uri) throws IOException;
+	LogOutput output(URI uri) throws IOException;
 
 	default void close() {
 	}
@@ -38,7 +38,7 @@ enum DefaultOutputProvider implements LogOutputProvider {
 	INSTANCE;
 
 	@Override
-	public LogOutput of(URI uri) throws IOException {
+	public LogOutput output(URI uri) throws IOException {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
 		if (scheme == null && path != null) {

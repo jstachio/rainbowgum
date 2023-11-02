@@ -159,6 +159,17 @@ dependencies {
 
 <h2 id="configuration">Configuration</h2>
 
+Most configuration of Rainbow Gum is done by adding extension jars as runtime dependencies
+or by setting key values in {@linkplain io.jstach.rainbowgum.LogProperties properties}.
+
+By default Rainbow Gum uses System properties for properties but a configuration system
+can be used instead.
+
+Logger levels and output can be configured through properties.
+
+More information on builtin properties is in  {@link io.jstach.rainbowgum.LogProperties}.
+
+IF you would like use your own properties system see {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider}.
 
 <h2 id="integration">Extensions and Integrations</h2>
 

@@ -51,6 +51,8 @@ public class Defaults {
 
 	static final Property<URI> fileProperty = Property.builder().map(URI::new).build(LogProperties.FILE_PROPERTY);
 
+	static final Property<URI> outputProperty = Property.builder().map(URI::new).build(LogProperties.OUTPUT_PROPERTY);
+
 	Defaults(LogProperties logProperties) {
 		this.properties = logProperties;
 	}

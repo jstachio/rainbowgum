@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.lang.System.Logger.Level;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -19,6 +20,41 @@ import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
 /**
  * Provides String based properties like {@link System#getProperty(String)} for default
  * configuration of logging levels and output.
+ * <p>
+ * If a custom {@link LogProperties} is configured the default implementation uses System
+ * properties.
+ * <p>
+ * The builtin propertiers to configure RainbowGum are modeled after <a href=
+ * "https://docs.spring.io/spring-boot/docs/3.1.0/reference/html/features.html#features.logging">
+ * Spring Boot logging </a>
+ * 
+ * <table class="table">
+ * <caption>Builtin Properties</caption>
+ * <tr>
+ * <th>Property Pattern</th>
+ * <th>Description</th>
+ * </tr>
+ * <tr>
+ * <td>{@value #LEVEL_PREFIX} + {@value #SEP} + logger = LEVEL</td>
+ * <td>Sets the level for the logger. If logger name is missing then it is considered the
+ * root logger. {@link Level#INFO} is the default level for the root logger.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #CHANGE_PREFIX} + {@value #SEP} + logger = boolean</td>
+ * <td>Allows runtime changing of levels for the logger. By design RainbowGum does not
+ * allow loggers to change levels once initialized. This configuration will allow the
+ * level to be changed for the logger and its children and by default is false as the
+ * builtin {@link LogProperties} is generally static (system properties).</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #FILE_PROPERTY} = URI</td>
+ * <td>A URI or file path to log to a file.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #OUTPUT_PROPERTY} = URI</td>
+ * <td>A URI to an {@linkplain LogOutput output}.</td>
+ * </tr>
+ * </table>
  */
 @FunctionalInterface
 public interface LogProperties {
@@ -34,7 +70,8 @@ public interface LogProperties {
 	static final String ROOT_PREFIX = "logging" + SEP;
 
 	/**
-	 * Logging level properties prefix.
+	 * Logging level properties prefix. The value should be the name of a
+	 * {@linkplain java.lang.System.Logger.Level level}.
 	 */
 	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
 
@@ -44,9 +81,14 @@ public interface LogProperties {
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
 
 	/**
-	 * Logging file property for default single file appending.
+	 * Logging file property for default single file appending. The value should be a URI.
 	 */
-	static final String FILE_PROPERTY = ROOT_PREFIX + "file";
+	static final String FILE_PROPERTY = ROOT_PREFIX + "file.name";
+
+	/**
+	 * Logging output property for appending to a resource. The value should be a URI.
+	 */
+	static final String OUTPUT_PROPERTY = ROOT_PREFIX + "output";
 
 	/**
 	 * Analogous to {@link System#getProperty(String)}.

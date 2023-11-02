@@ -238,9 +238,15 @@ public sealed interface LogRouter extends LogLifecycle {
 				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
 					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
-					config.properties()
-						.property(Defaults.fileProperty) //
-						.map(u -> config.outputProvider().of(u))
+					config.get(Defaults.fileProperty) //
+						.map(config::output) //
+						.map(o -> {
+							return LogAppender.builder().output(o).build();
+						}) //
+						.optional() //
+						.ifPresent(appenders::add);
+					config.get(Defaults.outputProperty) //
+						.map(config::output) //
 						.map(o -> {
 							return LogAppender.builder().output(o).build();
 						}) //

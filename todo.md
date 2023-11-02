@@ -24,10 +24,10 @@ logical resource (it might not be a single physical resource particularly in the
 
 ## TODO before release
 
-[ ] A network based LogOutput. Probably AMQP.
-[ ] A console theme.
-[ ] Remove all the field based formatters.
-[ ] Code samples and instructions for custom configuration.
-[ ] Scoped Value plugin
-[ ] JEP 430 String templates example
-
+- [ ] A network based LogOutput. Probably AMQP.
+- [ ] A console theme.
+- [ ] Remove all the field based formatters.
+- [ ] Code samples and instructions for custom configuration.
+- [ ] Scoped Value plugin
+- [ ] JEP 430 String templates example
+ 
