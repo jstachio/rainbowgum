@@ -491,29 +491,6 @@
               </execution>
             </executions>
           </plugin>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>javadoc-javascript</id>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <phase>package</phase>
-                <inherited>false</inherited>
-              </execution>
-            </executions>
-            <configuration>
-              <executable>java</executable>
-              <!-- optional -->
-              <workingDirectory>bin</workingDirectory>
-              <arguments>
-                <argument>src/main/java/io/jstach/script/JavadocJavascript.java</argument>
-                <argument>${project.version}</argument>
-              </arguments>
-            </configuration>
-          </plugin>
         </plugins>
       </build>
     </profile>
@@ -547,6 +524,29 @@
                 </configuration>
               </execution>
             </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>javadoc-javascript</id>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>package</phase>
+                <inherited>false</inherited>
+              </execution>
+            </executions>
+            <configuration>
+              <executable>java</executable>
+              <!-- optional -->
+              <workingDirectory>bin</workingDirectory>
+              <arguments>
+                <argument>src/main/java/io/jstach/script/JavadocJavascript.java</argument>
+                <argument>${project.version}</argument>
+              </arguments>
+            </configuration>
           </plugin>
         </plugins>
       </build>
