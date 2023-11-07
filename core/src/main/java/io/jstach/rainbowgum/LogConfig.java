@@ -16,7 +16,7 @@ import io.jstach.rainbowgum.LogProperties.PropertyValue;
  * The configuration of a RainbowGum. In some other logging implementations this is called
  * "context".
  */
-public interface LogConfig {
+public sealed interface LogConfig {
 
 	/**
 	 * String kv properties.
@@ -50,8 +50,8 @@ public interface LogConfig {
 	 * Output provider that uses URI to find output.
 	 * @return output provider.
 	 */
-	default LogOutputProvider outputProvider() {
-		return LogOutputProvider.of();
+	default LogOutputRegistry outputRegistry() {
+		return LogOutputRegistry.of();
 	}
 
 	/**
@@ -61,7 +61,7 @@ public interface LogConfig {
 	 * @throws IOException if output fails fast
 	 */
 	default LogOutput output(URI uri) throws IOException {
-		return outputProvider().output(uri);
+		return outputRegistry().output(uri);
 	}
 
 	/**
@@ -154,7 +154,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 }
 
-class DefaultLogConfig implements LogConfig {
+final class DefaultLogConfig implements LogConfig {
 
 	private final ServiceRegistry registry;
 
