@@ -135,11 +135,11 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * methods but this signals to the encoder which style it prefers.
 	 * @return write mode.
 	 */
-	default WriteMode writeMode() {
+	default WriteMethod writeMethod() {
 		return switch (type()) {
-			case CONSOLE_OUT, CONSOLE_ERR -> WriteMode.BYTES;
-			case FILE, NETWORK -> WriteMode.BYTE_BUFFER;
-			case MEMORY -> WriteMode.STRING;
+			case CONSOLE_OUT, CONSOLE_ERR -> WriteMethod.BYTES;
+			case FILE, NETWORK -> WriteMethod.BYTE_BUFFER;
+			case MEMORY -> WriteMethod.STRING;
 		};
 	}
 
@@ -147,7 +147,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * The preferred write style of an output. The output should still honor all write
 	 * methods but this signals to the encoder which style it prefers.
 	 */
-	public enum WriteMode {
+	public enum WriteMethod {
 
 		/**
 		 * Prefer calling {@link LogOutput#write(LogEvent, String)}.
@@ -485,8 +485,8 @@ abstract class OutputStreamOutput implements LogOutput {
 	}
 
 	@Override
-	public WriteMode writeMode() {
-		return WriteMode.BYTES;
+	public WriteMethod writeMethod() {
+		return WriteMethod.BYTES;
 	}
 
 }
