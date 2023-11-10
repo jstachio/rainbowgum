@@ -1,9 +1,13 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
@@ -27,7 +31,7 @@ import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
  * The builtin propertiers to configure RainbowGum are modeled after <a href=
  * "https://docs.spring.io/spring-boot/docs/3.1.0/reference/html/features.html#features.logging">
  * Spring Boot logging </a>
- * 
+ *
  * <table class="table">
  * <caption>Builtin Properties</caption>
  * <tr>
@@ -56,7 +60,6 @@ import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
  * </tr>
  * </table>
  */
-@FunctionalInterface
 public interface LogProperties {
 
 	/**
@@ -162,6 +165,54 @@ public interface LogProperties {
 	 */
 	public static LogProperties of(List<? extends LogProperties> logProperties) {
 		return of(logProperties, StandardProperties.EMPTY);
+	}
+
+	/**
+	 * Creates log properties from a {@linkplain URI#getQuery() URI query} in <a href=
+	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
+	 * application/x-www-form-urlencoded </a> format useful for parsing {@link LogOutput}
+	 * configuration. <strong>This parser unlike form encoding uses <code>%20</code> for
+	 * space as the data is coming from a URI.</strong>
+	 * @param uri uri to get query from.
+	 * @return properties
+	 * @see LogOutput
+	 */
+	public static LogProperties of(URI uri) {
+		var m = parseUriQuery(uri.getRawQuery(), true);
+		return new MapProperties(uri.toString(), m);
+	}
+
+	private static Map<String, String> parseUriQuery(String query, boolean decode) {
+
+		Map<String, String> kvs = new LinkedHashMap<>();
+		String[] pairs = query.split("&");
+		for (String pair : pairs) {
+			int idx = pair.indexOf("=");
+			String key;
+			String value;
+			if (idx == 0) {
+				continue;
+			}
+			else if (idx < 0) {
+				key = pair;
+				value = "";
+			}
+			else {
+				key = pair.substring(0, idx);
+				value = pair.substring(idx + 1);
+			}
+			if (decode) {
+				key = PercentCodec.decode(key, StandardCharsets.UTF_8);
+				value = PercentCodec.decode(key, StandardCharsets.UTF_8);
+
+			}
+			if (key.isBlank()) {
+				continue;
+			}
+			kvs.put(key, value);
+
+		}
+		return kvs;
 	}
 
 	/**
@@ -569,6 +620,20 @@ public interface LogProperties {
 			return new FallbackExtractor<T>(this, fallback);
 		}
 
+	}
+
+}
+
+record MapProperties(String description, Map<String, String> map) implements LogProperties {
+
+	@Override
+	public @Nullable String valueOrNull(String key) {
+		return map.get(key);
+	}
+
+	@Override
+	public String description(String key) {
+		return description + " (" + key + ")";
 	}
 
 }
