@@ -41,7 +41,7 @@ public final class ListLogOutput implements LogOutput {
 	}
 
 	@Override
-	public void write(LogEvent event, byte[] bytes, int off, int len) {
+	public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
 		write(event, new String(bytes, off, len, StandardCharsets.UTF_8));
 	}
 

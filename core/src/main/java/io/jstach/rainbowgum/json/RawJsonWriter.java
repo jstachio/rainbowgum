@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
+import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 
 class RawJsonWriter {
 
@@ -396,7 +397,7 @@ class RawJsonWriter {
 	}
 
 	public final void write(final LogOutput output, LogEvent event) {
-		output.write(event, buffer, 0, position);
+		output.write(event, buffer, 0, position, StandardContentType.APPLICATION_JSON);
 		position = 0;
 	}
 

@@ -148,7 +148,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public boolean isEnabled(String loggerName) {
-		return changeSetting.require(_config().properties(), loggerName);
+		return changeSetting.value(_config().properties(), loggerName);
 
 	}
 

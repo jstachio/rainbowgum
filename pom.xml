@@ -103,6 +103,11 @@
         <artifactId>rainbowgum-avaje-config</artifactId>
         <version>${project.version}</version>
       </dependency>
+       <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-config-apt</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <!-- to make dependabot check for latest maven version -->
       <dependency>
           <groupId>org.apache.maven</groupId>
@@ -166,6 +171,20 @@
         <optional>true</optional>
         <scope>provided</scope>
       </dependency>
+     <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-prism</artifactId>
+      <version>${pistachio.version}</version>
+      <optional>true</optional>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-prism-apt</artifactId>
+      <version>${pistachio.version}</version>
+      <optional>true</optional>
+      <scope>provided</scope>
+    </dependency>
       <dependency>
         <groupId>io.jstach</groupId>
         <artifactId>jstachio-annotation</artifactId>
@@ -189,6 +208,11 @@
         <groupId>com.lmax</groupId>
         <artifactId>disruptor</artifactId>
         <version>4.0.0.RC1</version>
+      </dependency>
+      <dependency>
+        <groupId>com.rabbitmq</groupId>
+        <artifactId>amqp-client</artifactId>
+        <version>5.20.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -217,7 +241,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.12.0</version>
+          <version>3.12.1</version>
           <configuration>
             <source>${java.version}</source>
             <target>${java.version}</target>
@@ -754,5 +778,7 @@
     <module>rainbowgum-avaje-config</module>
     <module>test</module>
     <module>etc</module>
+    <module>rainbowgum-rabbitmq</module>
+    <module>rainbowgum-config-apt</module>
   </modules>
 </project>

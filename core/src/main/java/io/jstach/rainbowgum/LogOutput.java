@@ -71,6 +71,45 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
+	 * The content type of the binary data passed to the output from an encoder.
+	 */
+	public interface ContentType {
+
+		/**
+		 * Content type of binary datay passed to output.
+		 * @return content type.
+		 */
+		String contentType();
+
+		/**
+		 * Builtin content types.
+		 */
+		public enum StandardContentType implements ContentType {
+
+			/**
+			 * text/plain
+			 */
+			TEXT_PLAIN() {
+				@Override
+				public String contentType() {
+					return "text/plain";
+				}
+			},
+			/**
+			 * application/json
+			 */
+			APPLICATION_JSON() {
+				@Override
+				public String contentType() {
+					return "application/json";
+				}
+			}
+
+		}
+
+	}
+
+	/**
 	 * The uri of the output.
 	 * @return uri.
 	 * @throws UnsupportedOperationException if this output does not support URI
@@ -89,16 +128,17 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @param s string.
 	 */
 	default void write(LogEvent event, String s) {
-		write(event, s.getBytes(StandardCharsets.UTF_8));
+		write(event, s.getBytes(StandardCharsets.UTF_8), ContentType.StandardContentType.TEXT_PLAIN);
 	}
 
 	/**
 	 * Analogous to {@link OutputStream#write(byte[])}.
 	 * @param event event associated with bytes.
 	 * @param bytes data to be written.
+	 * @param contentType content type of the bytes.
 	 */
-	default void write(LogEvent event, byte[] bytes) {
-		write(event, bytes, 0, bytes.length);
+	default void write(LogEvent event, byte[] bytes, ContentType contentType) {
+		write(event, bytes, 0, bytes.length, contentType);
 	}
 
 	/**
@@ -107,19 +147,21 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @param bytes data to be written.
 	 * @param off offset.
 	 * @param len length.
+	 * @param contentType content type of the bytes.
 	 */
-	public void write(LogEvent event, byte[] bytes, int off, int len);
+	public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType);
 
 	/**
 	 * Write event with byte buffer.
 	 * @param event event.
 	 * @param buf byte buffer.
+	 * @param contentType content type of the buf
 	 */
-	default void write(LogEvent event, ByteBuffer buf) {
+	default void write(LogEvent event, ByteBuffer buf, ContentType contentType) {
 		byte[] arr = new byte[buf.position()];
 		buf.rewind();
 		buf.get(arr);
-		write(event, arr);
+		write(event, arr, contentType);
 	}
 
 	public void flush();
@@ -154,12 +196,12 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		 */
 		STRING,
 		/**
-		 * Prefer calling {@link LogOutput#write(LogEvent, byte[])} or
-		 * {@link LogOutput#write(LogEvent, byte[], int, int)}.
+		 * Prefer calling {@link LogOutput#write(LogEvent, byte[], ContentType)} or
+		 * {@link LogOutput#write(LogEvent, byte[], int, int, ContentType)}.
 		 */
 		BYTES,
 		/**
-		 * Prefer calling {@link LogOutput#write(LogEvent, ByteBuffer)}.
+		 * Prefer calling {@link LogOutput#write(LogEvent, ByteBuffer, ContentType)}.
 		 */
 		BYTE_BUFFER
 
@@ -211,41 +253,6 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		return new StdErrOutput(fos.getChannel(), fos);
 	}
 
-	// public static LogOutput of(OutputStream out) {
-	// return new LogOutput() {
-	//
-	// @Override
-	// public void write(LogEvent event, byte[] bytes, int off, int len) {
-	// try {
-	// out.write(bytes, off, len);
-	// }
-	// catch (IOException e) {
-	// throw new UncheckedIOException(e);
-	// }
-	// }
-	//
-	// @Override
-	// public void flush() {
-	// try {
-	// out.flush();
-	// }
-	// catch (IOException e) {
-	// throw new UncheckedIOException(e);
-	// }
-	// }
-	//
-	// @Override
-	// public void close() {
-	// try {
-	// out.close();
-	// }
-	// catch (IOException e) {
-	// throw new UncheckedIOException(e);
-	// }
-	// }
-	// };
-	// }
-
 	/**
 	 * Creates an output from a file channel.
 	 * @param uri uri of output.
@@ -281,8 +288,8 @@ class SynchronizedLogOutput implements ThreadSafeLogOutput {
 	}
 
 	@Override
-	public synchronized void write(LogEvent event, byte[] bytes, int off, int len) {
-		output.write(event, bytes, off, len);
+	public synchronized void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
+		output.write(event, bytes, off, len, contentType);
 	}
 
 	@Override
@@ -320,12 +327,12 @@ class FileChannelOutput implements LogOutput {
 	}
 
 	@Override
-	public void write(LogEvent event, byte[] bytes, int off, int len) {
-		write(event, ByteBuffer.wrap(bytes, off, len));
+	public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
+		write(event, ByteBuffer.wrap(bytes, off, len), contentType);
 	}
 
 	@Override
-	public void write(LogEvent event, ByteBuffer buffer) {
+	public void write(LogEvent event, ByteBuffer buffer, ContentType contentType) {
 		try {
 
 			// Clear any current interrupt (see LOGBACK-875)
@@ -396,7 +403,7 @@ abstract class Std extends FileChannelOutput implements LogOutput {
 	}
 
 	@Override
-	public void write(LogEvent event, ByteBuffer buffer) {
+	public void write(LogEvent event, ByteBuffer buffer, ContentType contentType) {
 		try {
 			channel.write(buffer);
 		}
@@ -455,7 +462,7 @@ abstract class OutputStreamOutput implements LogOutput {
 	}
 
 	@Override
-	public void write(LogEvent event, byte[] bytes, int off, int len) {
+	public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
 		try {
 			outputStream.write(bytes, off, len);
 		}

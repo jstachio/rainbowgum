@@ -381,6 +381,15 @@ public interface LogProperties {
 		}
 
 		/**
+		 * Gets a value if there if not uses the fallback.
+		 * @param fallback maybe <code>null</code>.
+		 * @return value.
+		 */
+		public @Nullable T valueOrNull(@Nullable T fallback) {
+			return property.propertyGetter.valueOrNull(properties, property.key, fallback);
+		}
+
+		/**
 		 * Convenience that turns a value into an optional.
 		 * @return optional.
 		 */
@@ -395,7 +404,19 @@ public interface LogProperties {
 		 * @throws NoSuchElementException if there is no value.
 		 */
 		public T value() throws NoSuchElementException {
-			return property.propertyGetter.require(properties, property.key);
+			return property.propertyGetter.value(properties, property.key);
+		}
+
+		/**
+		 * Gets a value if there if not uses the fallback if not null otherwise throws an
+		 * exception.
+		 * @param fallback maybe <code>null</code>.
+		 * @return value.
+		 * @throws NoSuchElementException if no property and fallback is
+		 * <code>null</code>.
+		 */
+		public T value(@Nullable T fallback) throws NoSuchElementException {
+			return property.propertyGetter.value(properties, property.key, fallback);
 		}
 	}
 
@@ -423,7 +444,7 @@ public interface LogProperties {
 		 * @param mapper function to map.
 		 * @return property.
 		 */
-		private <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+		public <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 			return new Property<>(propertyGetter.map(mapper), key);
 		}
 
@@ -453,6 +474,21 @@ public interface LogProperties {
 		T valueOrNull(LogProperties props, String key);
 
 		/**
+		 * Value or fallback if property is missing.
+		 * @param props log properties.
+		 * @param key key to use.
+		 * @param fallback to use can be null.
+		 * @return value or <code>null</code>.
+		 */
+		default @Nullable T valueOrNull(LogProperties props, String key, @Nullable T fallback) {
+			var t = valueOrNull(props, key);
+			if (t == null) {
+				return fallback;
+			}
+			return t;
+		}
+
+		/**
 		 * Determines full name of key.
 		 * @param key key.
 		 * @return fully qualified key name.
@@ -468,8 +504,28 @@ public interface LogProperties {
 		 * @return value.
 		 * @throws NoSuchElementException if no value is found for key.
 		 */
-		default T require(LogProperties props, String key) throws NoSuchElementException {
+		default T value(LogProperties props, String key) throws NoSuchElementException {
 			var t = valueOrNull(props, key);
+			if (t == null) {
+				throw findRoot(this).throwMissing(props, key);
+			}
+			return t;
+		}
+
+		/**
+		 * Value or fallback or exception if property is missing and fallback is null.
+		 * @param props log properties.
+		 * @param key key to use.
+		 * @param fallback to use can be null.
+		 * @return value or <code>null</code>.
+		 * @throws NoSuchElementException if property is missing and fallback is
+		 * <code>null</code>.
+		 */
+		default T value(LogProperties props, String key, @Nullable T fallback) throws NoSuchElementException {
+			var t = valueOrNull(props, key);
+			if (t == null) {
+				t = fallback;
+			}
 			if (t == null) {
 				throw findRoot(this).throwMissing(props, key);
 			}
@@ -571,6 +627,18 @@ public interface LogProperties {
 			@Override
 			public String fullyQualifiedKey(String key) {
 				return concatKey(prefix, key);
+			}
+
+			public PropertyGetter<Integer> toInt() {
+				return this.map(Integer::parseInt);
+			}
+
+			public <T extends Enum<T>> PropertyGetter<T> toEnum(Class<T> enumClass) {
+				return this.map(s -> Enum.valueOf(enumClass, s));
+			}
+
+			public PropertyGetter<URI> toURI() {
+				return this.map(URI::new);
 			}
 
 		}

@@ -17,6 +17,7 @@
   </properties>
   <modules>
   <module>rainbowgum-test-avaje</module>
+  <module>rainbowgum-test-config</module>
   </modules>
   <dependencies>
   </dependencies>
