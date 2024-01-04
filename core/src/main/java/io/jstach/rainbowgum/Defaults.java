@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -51,7 +52,9 @@ public class Defaults {
 
 	static final Property<URI> fileProperty = Property.builder().map(URI::new).build(LogProperties.FILE_PROPERTY);
 
-	static final Property<URI> outputProperty = Property.builder().map(URI::new).build(LogProperties.OUTPUT_PROPERTY);
+	static final Property<List<String>> outputProperty = Property.builder()
+		.map(p -> Stream.of(p.split(",")).filter(s -> !s.trim().isEmpty()).toList())
+		.build(LogProperties.OUTPUT_PROPERTY);
 
 	Defaults(LogProperties logProperties) {
 		this.properties = logProperties;

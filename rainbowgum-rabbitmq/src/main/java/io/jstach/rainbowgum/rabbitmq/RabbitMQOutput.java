@@ -7,7 +7,6 @@ import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -19,12 +18,11 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
+import io.jstach.rainbowgum.ConfigObject;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperties.Property;
-
 import io.jstach.rainbowgum.MetaLog;
 
 class RabbitMQOutput implements LogOutput {
@@ -95,18 +93,22 @@ class RabbitMQOutput implements LogOutput {
 		this.exchangeType = exchangeType;
 	}
 
-	public RabbitMQOutput(URI uri, String exchange, String routingKey, @Nullable Boolean declareExchange,
-			@Nullable String host, @Nullable String username, @Nullable String password, @Nullable Integer port,
-			@Nullable String appId, @Nullable String connectionName, @Nullable String exchangeType,
+	@ConfigObject(prefix = LogProperties.OUTPUT_PREFIX, name = "RabbitMQOutputBuilder")
+	public static RabbitMQOutput of(@ConfigObject.PrefixParameter String name, //
+			@Nullable URI uri, //
+			String exchange, //
+			String routingKey, //
+			@Nullable Boolean declareExchange, //
+			@Nullable String host, //
+			@Nullable String username, @Nullable String password, //
+			@Nullable Integer port, //
+			@Nullable String appId, //
+			@Nullable String connectionName, //
+			@Nullable String exchangeType, //
 			@Nullable String virtualHost) throws KeyManagementException, NoSuchAlgorithmException, URISyntaxException {
-		super();
-		this.uri = uri;
-		this.exchange = exchange;
-		this.routingKey = routingKey;
-		this.appId = appId;
-		this.connectionName = connectionName == null ? "rainbowgumOutput" : connectionName;
-		this.declareExchange = declareExchange == null ? false : declareExchange;
-		this.exchangeType = exchangeType == null ? "topic" : exchangeType;
+		connectionName = connectionName == null ? "rainbowgumOutput" : connectionName;
+		declareExchange = declareExchange == null ? false : declareExchange;
+		exchangeType = exchangeType == null ? "topic" : exchangeType;
 		ConnectionFactory factory = new ConnectionFactory();
 		factory.setUri(uri);
 		if (username != null) {
@@ -124,7 +126,7 @@ class RabbitMQOutput implements LogOutput {
 		if (virtualHost != null) {
 			factory.setVirtualHost(virtualHost);
 		}
-		this.connectionFactory = factory;
+		return new RabbitMQOutput(uri, factory, appId, exchange, routingKey, connectionName, false, exchangeType);
 	}
 
 	@Override

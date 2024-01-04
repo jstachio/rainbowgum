@@ -41,7 +41,7 @@ class DefaultOutputRegistry implements LogOutputRegistry {
 	}
 
 	@Override
-	public LogOutput output(URI uri) throws IOException {
+	public LogOutput output(URI uri, String name, LogProperties properties) throws IOException {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
 		LogOutputProvider customProvider;
@@ -57,7 +57,7 @@ class DefaultOutputRegistry implements LogOutputRegistry {
 			return LogOutput.ofStandardErr();
 		}
 		else if ((customProvider = providers.get(scheme)) != null) {
-			return customProvider.output(uri);
+			return customProvider.output(uri, name, properties);
 		}
 		else {
 			var p = Paths.get(uri);

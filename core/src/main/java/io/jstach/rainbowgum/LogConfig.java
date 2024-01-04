@@ -50,18 +50,17 @@ public sealed interface LogConfig {
 	 * Output provider that uses URI to find output.
 	 * @return output provider.
 	 */
-	default LogOutputRegistry outputRegistry() {
-		return LogOutputRegistry.of();
-	}
+	public LogOutputRegistry outputRegistry();
 
 	/**
 	 * Finds an output from a URI.
 	 * @param uri uri.
+	 * @param name output name.
 	 * @return output.
 	 * @throws IOException if output fails fast
 	 */
-	default LogOutput output(URI uri) throws IOException {
-		return outputRegistry().output(uri);
+	default LogOutput output(URI uri, String name) throws IOException {
+		return outputRegistry().output(uri, name, properties());
 	}
 
 	/**
@@ -166,6 +165,8 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final ChangePublisher publisher;
 
+	private final LogOutputRegistry outputRegistry;
+
 	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties) {
 		super();
 		this.registry = registry;
@@ -178,6 +179,7 @@ final class DefaultLogConfig implements LogConfig {
 				return DefaultLogConfig.this;
 			}
 		};
+		this.outputRegistry = LogOutputRegistry.of();
 	}
 
 	@Override
@@ -203,6 +205,11 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public ChangePublisher publisher() {
 		return this.publisher;
+	}
+
+	@Override
+	public LogOutputRegistry outputRegistry() {
+		return this.outputRegistry;
 	}
 
 }

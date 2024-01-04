@@ -4,6 +4,7 @@ import static java.util.Objects.requireNonNullElse;
 
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
+import java.net.URI;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,6 +20,7 @@ import java.util.function.Consumer;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderProvider;
+import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
@@ -239,20 +241,21 @@ public sealed interface LogRouter extends LogLifecycle {
 				if (appenders.isEmpty()) {
 					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
 					config.get(Defaults.fileProperty) //
-						.map(config::output) //
-						.map(o -> {
-							return LogAppender.builder().output(o).build();
-						}) //
-						.optional() //
-						.ifPresent(appenders::add);
-					config.get(Defaults.outputProperty) //
-						.map(config::output) //
+						.map(u -> config.output(u, "")) //
 						.map(o -> {
 							return LogAppender.builder().output(o).build();
 						}) //
 						.optional() //
 						.ifPresent(appenders::add);
 
+					List<String> outputs = config.get(Defaults.outputProperty).value(List.of());
+					for (String o : outputs) {
+						Property<URI> outputProperty = output(Defaults.outputProperty, o);
+						LogOutput output = outputProperty.map(u -> config.output(u, o))
+							.get(config.properties())
+							.value();
+						appenders.add(LogAppender.builder().output(output).build());
+					}
 				}
 				if (publisher == null) {
 					publisher = LogPublisher.SyncLogPublisher //
@@ -266,6 +269,11 @@ public sealed interface LogRouter extends LogLifecycle {
 				return new SimpleRoute(pub, levelResolver);
 			}
 
+		}
+
+		private static Property<URI> output(Property<?> property, String name) {
+			String newKey = LogProperties.concatKey(property.key(), name);
+			return Property.builder().toURI().build(newKey);
 		}
 
 	}

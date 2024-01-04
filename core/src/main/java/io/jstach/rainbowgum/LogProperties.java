@@ -89,9 +89,15 @@ public interface LogProperties {
 	static final String FILE_PROPERTY = ROOT_PREFIX + "file.name";
 
 	/**
-	 * Logging output property for appending to a resource. The value should be a URI.
+	 * Logging output property for appending to a resource. The value should be a list of
+	 * names.
 	 */
 	static final String OUTPUT_PROPERTY = ROOT_PREFIX + "output";
+
+	/**
+	 * Logging output prefix for configuration.
+	 */
+	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.{name}.";
 
 	/**
 	 * Analogous to {@link System#getProperty(String)}.
