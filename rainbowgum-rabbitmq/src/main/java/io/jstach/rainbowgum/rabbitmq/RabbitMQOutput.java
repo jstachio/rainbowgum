@@ -27,7 +27,7 @@ import io.jstach.rainbowgum.LogProperties.Property;
 
 import io.jstach.rainbowgum.MetaLog;
 
-public class RabbitMQOutput implements LogOutput {
+class RabbitMQOutput implements LogOutput {
 
 	private final URI uri;
 
@@ -55,25 +55,25 @@ public class RabbitMQOutput implements LogOutput {
 
 	public static final String EXCHANGE_PROPERTY = PREFIX + "exchange";
 
-	public static final String ROUTING_KEY_PROPERTY = PREFIX + "routingKey";
+	static final String ROUTING_KEY_PROPERTY = PREFIX + "routingKey";
 
-	public static final String CONNECTION_NAME_PROPERTY = PREFIX + "connectionName";
+	static final String CONNECTION_NAME_PROPERTY = PREFIX + "connectionName";
 
-	public static final String DECLARE_EXCHANGE_PROPERTY = PREFIX + "declareExchange";
+	static final String DECLARE_EXCHANGE_PROPERTY = PREFIX + "declareExchange";
 
-	public static final String EXCHANGE_TYPE_PROPERTY = PREFIX + "exchangeType";
+	static final String EXCHANGE_TYPE_PROPERTY = PREFIX + "exchangeType";
 
-	public static final String USERNAME_PROPERTY = PREFIX + "username";
+	static final String USERNAME_PROPERTY = PREFIX + "username";
 
-	public static final String PASSWORD_PROPERTY = PREFIX + "password";
+	static final String PASSWORD_PROPERTY = PREFIX + "password";
 
-	public static final String PORT_PROPERTY = PREFIX + "port";
+	static final String PORT_PROPERTY = PREFIX + "port";
 
-	public static final String HOST_PROPERTY = PREFIX + "host";
+	static final String HOST_PROPERTY = PREFIX + "host";
 
-	public static final String VIRTUAL_HOST_PROPERTY = PREFIX + "virtualHost";
+	static final String VIRTUAL_HOST_PROPERTY = PREFIX + "virtualHost";
 
-	public static final String APP_ID_PROPERTY = PREFIX + "appId";
+	static final String APP_ID_PROPERTY = PREFIX + "appId";
 
 	// public static RabbitMQOutput of(URI uri, LogProperties properties) {
 	// LogProperties combined = LogProperties.of(List.of(LogProperties.of(uri)),

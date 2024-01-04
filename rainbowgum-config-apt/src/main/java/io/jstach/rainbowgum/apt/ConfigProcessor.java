@@ -2,16 +2,22 @@ package io.jstach.rainbowgum.apt;
 
 import static java.util.Objects.requireNonNull;
 
-import java.beans.Introspector;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,13 +37,11 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementScanner8;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.SimpleTypeVisitor8;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
 import javax.tools.FileObject;
@@ -48,16 +52,24 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.apt.prism.ConfigObjectPrism;
+import io.jstach.rainbowgum.apt.prism.PrefixParameterPrism;
 import io.jstach.svc.ServiceProvider;
 
-@SupportedAnnotationTypes({ ConfigObjectPrism.PRISM_ANNOTATION_TYPE })
+/**
+ * Creates ConfigBuilders from static factory methods.
+ */
+@SupportedAnnotationTypes({ ConfigObjectPrism.PRISM_ANNOTATION_TYPE, PrefixParameterPrism.PRISM_ANNOTATION_TYPE })
 @ServiceProvider(value = Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
 
-	// Set<ConfigBeanDefinitionModel> configBeanDefinitions =
-	// Collections.newSetFromMap(new ConcurrentHashMap<>());
-
 	private static final String CONFIG_BEAN_CLASS = ConfigObjectPrism.PRISM_ANNOTATION_TYPE;
+
+	/**
+	 * No-Arg constructor for Service Loader.
+	 */
+	public ConfigProcessor() {
+		super();
+	}
 
 	@Override
 	public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -98,18 +110,55 @@ public class ConfigProcessor extends AbstractProcessor {
 		String factoryMethod = enclosingType + "." + ee.getSimpleName();
 		List<BuilderModel.PropertyModel> properties = new ArrayList<>();
 
+		var propertyParams = extractPropertyParams(propertyPrefix);
+		Map<String, VariableElement> foundParams = new HashMap<>();
 		List<? extends VariableElement> parameters = ee.getParameters();
+		ConfigJavadoc methodDoc = ConfigJavadoc.of(h.getJavadoc(ee));
+		String description = methodDoc.description;
 		for (var p : parameters) {
 			String name = p.getSimpleName().toString();
 			String type = h.getFullyQualifiedClassName(p.asType());
 			String typeWithAnnotation = ToStringTypeVisitor.toCodeSafeString(p.asType());
 			String defaultValue = "null";
 			boolean required = !h.isNullable(p.asType());
-			var prop = new BuilderModel.PropertyModel(name, type, typeWithAnnotation, defaultValue, required);
+			BuilderModel.PropertyKind kind;
+			var prefixParameter = PrefixParameterPrism.getInstanceOn(p);
+			if (prefixParameter == null) {
+				kind = BuilderModel.PropertyKind.NORMAL;
+			}
+			else {
+				// TODO do validation here
+				kind = BuilderModel.PropertyKind.NAME_PARAMETER;
+				foundParams.put(name, p);
+			}
+			@Nullable
+			String javadoc = methodDoc.properties.get(name);
+			if (javadoc == null) {
+				javadoc = "";
+			}
+			var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, defaultValue, required,
+					javadoc);
 			properties.add(prop);
 		}
-
-		var m = new BuilderModel(builderName, propertyPrefix, packageName, targetType, factoryMethod, properties);
+		var foundParamsKeys = foundParams.keySet();
+		if (!foundParamsKeys.equals(propertyParams)) {
+			for (var p : foundParams.entrySet()) {
+				if (!propertyParams.contains(p.getKey())) {
+					processingEnv.getMessager()
+						.printMessage(Kind.ERROR, "Property parameter missing from prefix. parameter = " + p.getKey(),
+								p.getValue());
+				}
+			}
+			for (var pp : propertyParams) {
+				if (!foundParamsKeys.contains(pp)) {
+					processingEnv.getMessager()
+						.printMessage(Kind.ERROR, "Property parameter defined but missing. parameter = " + pp, ee);
+				}
+			}
+			return null;
+		}
+		var m = new BuilderModel(builderName, propertyPrefix, packageName, targetType, factoryMethod, description,
+				properties);
 		String java = BuilderModelRenderer.of().execute(m);
 		try {
 			processingEnv.getMessager()
@@ -128,6 +177,43 @@ public class ConfigProcessor extends AbstractProcessor {
 			return null;
 		}
 		return m;
+	}
+
+	private static final Pattern pattern = Pattern.compile("\\{(.*?)\\}");
+
+	static Set<String> extractPropertyParams(String input) {
+		Set<String> tokens = new HashSet<>();
+		Matcher matcher = pattern.matcher(input);
+		while (matcher.find()) {
+			tokens.add(matcher.group(1));
+		}
+		return tokens;
+	}
+
+	private record ConfigJavadoc(String description, Map<String, String> properties) {
+		public static ConfigJavadoc of(String docComment) {
+			// Parse @param tags
+			boolean inDescription = true;
+			StringBuilder desc = new StringBuilder();
+			Map<String, String> properties = new LinkedHashMap<>();
+			for (String line : docComment.split("\\R")) {
+				if (line.trim().startsWith("@")) {
+					inDescription = false;
+				}
+				else if (inDescription) {
+					desc.append(line).append("\n");
+				}
+				if (line.trim().startsWith("@param")) {
+					String[] parts = line.trim().split("\\s+", 3);
+					if (parts.length >= 3) {
+						String paramName = parts[1];
+						String paramDescription = parts[2];
+						properties.put(paramName, paramDescription);
+					}
+				}
+			}
+			return new ConfigJavadoc(desc.toString(), properties);
+		}
 	}
 
 	private static Class<?> primitiveToClass(TypeKind k) {
@@ -154,17 +240,6 @@ public class ConfigProcessor extends AbstractProcessor {
 				throw new IllegalArgumentException("k is not a primitive" + k);
 
 		}
-	}
-
-	private static String propertyNameFromMethodName(String propertyName) {
-		int length = propertyName.length();
-		if (length > 3 && propertyName.startsWith("get")) {
-			return requireNonNull(Introspector.decapitalize(propertyName.substring(3)));
-		}
-		else if (length > 2 && propertyName.startsWith("is")) {
-			return requireNonNull(Introspector.decapitalize(propertyName.substring(2)));
-		}
-		return propertyName;
 	}
 
 	static class Helper {
@@ -206,6 +281,10 @@ public class ConfigProcessor extends AbstractProcessor {
 
 		public FileObject createResourceFile(final String file) throws IOException {
 			return filer.createResource(StandardLocation.CLASS_OUTPUT, "", file);
+		}
+
+		public String getJavadoc(Element e) {
+			return elements.getDocComment(e);
 		}
 
 		public Stream<ExecutableElement> getAllMethods(final TypeElement te) {

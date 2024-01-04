@@ -21,7 +21,7 @@ import javax.lang.model.type.UnionType;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.AbstractTypeVisitor14;
 
-public class ToStringTypeVisitor extends AbstractTypeVisitor14<StringBuilder, StringBuilder> {
+class ToStringTypeVisitor extends AbstractTypeVisitor14<StringBuilder, StringBuilder> {
 
 	private final int depth;
 

@@ -355,6 +355,29 @@ public interface LogProperties {
 	}
 
 	/**
+	 * Replace "{name}" tokens in property names.
+	 * @param name property name.
+	 * @param parameters tokens to replace with entry values.
+	 * @return interpolated property name.
+	 */
+	static String interpolateKey(String name, Map<String, String> parameters) {
+
+		// if (validate) {
+		// StringBuilder error = new StringBuilder();
+		// for (Map.Entry<String, String> entry : parameters.entrySet()) {
+		// String key = entry.getKey();
+		// String p = "{" + key + "}";
+		// if (! name.contains(p)) {
+		// }
+		// }
+		// }
+		for (Map.Entry<String, String> entry : parameters.entrySet()) {
+			name = name.replace("{" + entry.getKey() + "}", entry.getValue());
+		}
+		return name;
+	}
+
+	/**
 	 * A property value is a property and its lazily retrieved value.
 	 *
 	 * @param <T> value type.
@@ -629,14 +652,28 @@ public interface LogProperties {
 				return concatKey(prefix, key);
 			}
 
+			/**
+			 * An integer property getter.
+			 * @return getter that will convert to integers.
+			 */
 			public PropertyGetter<Integer> toInt() {
 				return this.map(Integer::parseInt);
 			}
 
+			/**
+			 * An enum property getter using {@link Enum#valueOf(Class, String)}.
+			 * @param <T> enum type.
+			 * @param enumClass enum class.
+			 * @return getter that will convert to enum type.
+			 */
 			public <T extends Enum<T>> PropertyGetter<T> toEnum(Class<T> enumClass) {
 				return this.map(s -> Enum.valueOf(enumClass, s));
 			}
 
+			/**
+			 * A URI property getter that parses URIs.
+			 * @return getter that will parse URIs.
+			 */
 			public PropertyGetter<URI> toURI() {
 				return this.map(URI::new);
 			}

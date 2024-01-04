@@ -27,4 +27,20 @@ public @interface ConfigObject {
 	 */
 	String prefix();
 
+	/**
+	 * Use as parameter to prefix property names.
+	 */
+	@Retention(CLASS)
+	@Target({ ElementType.PARAMETER })
+	@Documented
+	public @interface PrefixParameter {
+
+		/**
+		 * Use as parameter to prefix property names.
+		 * @return by default will use the parameter name.
+		 */
+		String value() default "";
+
+	}
+
 }
