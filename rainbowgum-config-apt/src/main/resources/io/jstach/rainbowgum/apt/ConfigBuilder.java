@@ -12,13 +12,17 @@ import io.jstach.rainbowgum.LogProperties.Property;
  * <tr>
  * <th>Property Pattern</th>
  * <th>Type</th>
+ * <th>Required</th>
+ * <th>Default</th>
  * <th>Description</th>
  * </tr>
  $$#properties$$
  $$#normal$$
  * <tr>
- * <td>{@value $$propertyLiteral$$ }</td>
+ * <td><code>{@value $$propertyLiteral$$ }</code></td>
  * <td><code>$$type$$</code></td>
+ * <td><code>$$required$$</code></td>
+ * <td><code>$$defaultValue$$</code></td>
  * <td>$$javadoc$$</td>
  * </tr>
  $$/normal$$ 
@@ -88,7 +92,7 @@ public final class $$builderName$$ {
 	$$#normal$$
 	
 	/**
-	 * Sets $$#required$$<strong>required</strong>$$/required$$$$name$$.
+	 * Sets $$#required$$<strong>required</strong> $$/required$$$$name$$.
 	 * @param $$name$$ <code>{@value #$$propertyLiteral$$ } = $$type$$</code> $$javadoc$$
 	 * @return this builder.
 	 */

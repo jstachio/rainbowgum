@@ -90,5 +90,11 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <id>doc</id>
+      <properties>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+      </properties>
+    </profile>
   </profiles>
 </project>
