@@ -7,5 +7,4 @@ module io.jstach.rainbowgum.rabbitmq {
 	requires io.jstach.rainbowgum;
 	requires com.rabbitmq.client;
 	requires static org.eclipse.jdt.annotation;
-	requires static io.jstach.rainbowgum.apt;
 }
