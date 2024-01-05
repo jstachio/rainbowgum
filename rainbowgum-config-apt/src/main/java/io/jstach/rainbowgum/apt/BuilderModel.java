@@ -21,6 +21,14 @@ record BuilderModel( //
 		return "org.eclipse.jdt.annotation.Nullable";
 	}
 
+	public String LB() {
+		return "{";
+	}
+
+	public String RB() {
+		return "}";
+	}
+
 	public List<PropertyModel> normalProperties() {
 		return properties.stream().filter(p -> p.kind == PropertyKind.NORMAL).toList();
 	}
@@ -43,6 +51,8 @@ record BuilderModel( //
 
 		private static final String STRING_TYPE = "java.lang.String";
 
+		private static final String BOOLEAN_TYPE = "java.lang.Boolean";
+
 		public String propertyVar() {
 			return "property_" + name;
 		}
@@ -56,6 +66,7 @@ record BuilderModel( //
 				case INTEGER_TYPE -> ".toInt()";
 				case STRING_TYPE -> "";
 				case URI_TYPE -> ".toURI()";
+				case BOOLEAN_TYPE -> ".toBoolean()";
 				default -> throw new IllegalStateException(type + " is not supported");
 			};
 		}

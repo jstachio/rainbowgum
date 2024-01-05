@@ -191,7 +191,10 @@ public class ConfigProcessor extends AbstractProcessor {
 	}
 
 	private record ConfigJavadoc(String description, Map<String, String> properties) {
-		public static ConfigJavadoc of(String docComment) {
+		public static ConfigJavadoc of(@Nullable String docComment) {
+			if (docComment == null) {
+				return new ConfigJavadoc("", Map.of());
+			}
 			// Parse @param tags
 			boolean inDescription = true;
 			StringBuilder desc = new StringBuilder();

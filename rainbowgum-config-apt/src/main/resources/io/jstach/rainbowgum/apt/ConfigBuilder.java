@@ -6,10 +6,26 @@ import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
  * Builder to create $$targetType$$.
- * <p>
  * $$description$$
+ * <table class="table">
+ * <caption>Properties retrieved from LogProperties</caption>
+ * <tr>
+ * <th>Property Pattern</th>
+ * <th>Type</th>
+ * <th>Description</th>
+ * </tr>
+ $$#properties$$
+ $$#normal$$
+ * <tr>
+ * <td>{@value $$propertyLiteral$$ }</td>
+ * <td><code>$$type$$</code></td>
+ * <td>$$javadoc$$</td>
+ * </tr>
+ $$/normal$$ 
+ $$/properties$$
+ * </table>
  */
-public class $$builderName$$ {
+public final class $$builderName$$ {
 
 	/**
 	 * The properties to be retrieved from config will have
@@ -20,7 +36,7 @@ public class $$builderName$$ {
 	$$#properties$$
 	$$#normal$$
 	/**
-	 * $$javadoc$$
+	 * <code>{@value #$$propertyLiteral$$ } = $$type$$</code> $$javadoc$$
 	 */
 	static final String $$propertyLiteral$$ = PROPERTY_PREFIX + "$$name$$";
 	$$/normal$$
@@ -43,9 +59,9 @@ public class $$builderName$$ {
 	
 	/**
 	 * Create a builder for $$targetType$$.
-	 * $$#prefixParameters$$
-	 * @param $$name$$ $$javadoc$$
-	 * $$/prefixParameters$$
+	 $$#prefixParameters$$
+	 * @param $$name$$ will fill <code>$$LB$$$$name$$$$RB$$</code> in <code>$$propertyPrefix$$</code>. $$javadoc$$
+	 $$/prefixParameters$$
 	 */
 	public $$builderName$$(
 			$$#prefixParameters$$
@@ -72,8 +88,8 @@ public class $$builderName$$ {
 	$$#normal$$
 	
 	/**
-	 * Sets $$name$$.
-	 * @param $$name$$ $$javadoc$$
+	 * Sets $$#required$$<strong>required</strong>$$/required$$$$name$$.
+	 * @param $$name$$ <code>{@value #$$propertyLiteral$$ } = $$type$$</code> $$javadoc$$
 	 * @return this builder.
 	 */
 	public $$builderName$$ $$name$$($$typeWithAnnotation$$ $$name$$) {

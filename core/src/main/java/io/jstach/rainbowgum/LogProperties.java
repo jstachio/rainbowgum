@@ -667,6 +667,14 @@ public interface LogProperties {
 			}
 
 			/**
+			 * A boolean property getter.
+			 * @return getter that will convert to boolean.
+			 */
+			public PropertyGetter<Boolean> toBoolean() {
+				return this.map(Boolean::parseBoolean);
+			}
+
+			/**
 			 * An enum property getter using {@link Enum#valueOf(Class, String)}.
 			 * @param <T> enum type.
 			 * @param enumClass enum class.

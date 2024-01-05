@@ -3,9 +3,6 @@ package io.jstach.rainbowgum.rabbitmq;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -105,12 +102,19 @@ class RabbitMQOutput implements LogOutput {
 			@Nullable String appId, //
 			@Nullable String connectionName, //
 			@Nullable String exchangeType, //
-			@Nullable String virtualHost) throws KeyManagementException, NoSuchAlgorithmException, URISyntaxException {
+			@Nullable String virtualHost) {
 		connectionName = connectionName == null ? "rainbowgumOutput" : connectionName;
 		declareExchange = declareExchange == null ? false : declareExchange;
 		exchangeType = exchangeType == null ? "topic" : exchangeType;
 		ConnectionFactory factory = new ConnectionFactory();
-		factory.setUri(uri);
+		if (uri != null) {
+			try {
+				factory.setUri(uri);
+			}
+			catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
 		if (username != null) {
 			factory.setUsername(username);
 		}

@@ -19,5 +19,11 @@
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-config-apt</artifactId>
+      <optional>true</optional>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>
