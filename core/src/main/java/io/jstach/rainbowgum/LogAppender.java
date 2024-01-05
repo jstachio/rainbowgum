@@ -15,7 +15,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
  *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
-public interface LogAppender extends AutoCloseable, LogEventConsumer {
+public interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 	/**
 	 * Batch of events. <strong>DO NOT MODIFY THE ARRAY</strong>. Do not use the
@@ -222,6 +222,11 @@ public interface LogAppender extends AutoCloseable, LogEventConsumer {
 		protected abstract void append(LogEvent event, Buffer buffer);
 
 		@Override
+		public void start(LogConfig config) {
+			output.start(config);
+		}
+
+		@Override
 		public void close() {
 			output.close();
 		}
@@ -249,6 +254,13 @@ record CompositeLogAppender(LogAppender[] appenders) implements LogAppender {
 	public void close() {
 		for (var appender : appenders) {
 			appender.close();
+		}
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		for (var appender : appenders) {
+			appender.start(config);
 		}
 	}
 
@@ -286,6 +298,11 @@ class LockingLogAppender implements ThreadSafeLogAppender {
 			lock.unlock();
 		}
 
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		appender.start(config);
 	}
 
 	@Override

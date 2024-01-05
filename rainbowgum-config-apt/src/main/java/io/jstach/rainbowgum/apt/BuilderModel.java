@@ -71,6 +71,13 @@ record BuilderModel( //
 			};
 		}
 
+		boolean isLiteralType() {
+			return switch (type) {
+				case INTEGER_TYPE, STRING_TYPE, BOOLEAN_TYPE -> true;
+				default -> false;
+			};
+		}
+
 		public String valueMethod() {
 			return required ? "value" : "valueOrNull";
 		}
@@ -81,6 +88,27 @@ record BuilderModel( //
 
 		public boolean isPrefixParameter() {
 			return kind == PropertyKind.NAME_PARAMETER;
+		}
+
+		public String defaultValueDoc() {
+			if (defaultValue.equals("null")) {
+				return "<code>null</code>";
+			}
+			String link = linkStatic(defaultValue);
+			if (isLiteralType()) {
+				return "{@value " + link + " }";
+			}
+			return "{@link " + link + " }";
+		}
+
+		private static String linkStatic(String constant) {
+			int index = constant.lastIndexOf(".");
+			if (index < 0) {
+				return constant;
+			}
+			StringBuilder sb = new StringBuilder(constant);
+			sb.setCharAt(index, '#');
+			return sb.toString();
 		}
 	}
 

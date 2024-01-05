@@ -459,6 +459,10 @@ enum FailsafeAppender implements LogAppender {
 	public void close() {
 	}
 
+	@Override
+	public void start(LogConfig config) {
+	}
+
 }
 
 enum GlobalLogRouter implements InternalRootRouter, Route {

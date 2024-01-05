@@ -17,9 +17,10 @@ public @interface ConfigObject {
 
 	/**
 	 * Name of builder.
-	 * @return name of builder.
+	 * @return name of builder by default if not set Builder will be suffixed to
+	 * targetType.
 	 */
-	String name();
+	String name() default "";
 
 	/**
 	 * Property prefix.
@@ -38,6 +39,23 @@ public @interface ConfigObject {
 		/**
 		 * Use as parameter to prefix property names.
 		 * @return by default will use the parameter name.
+		 */
+		String value() default "";
+
+	}
+
+	/**
+	 * Use to set static defaults to parameters.
+	 */
+	@Retention(CLASS)
+	@Target({ ElementType.PARAMETER })
+	@Documented
+	public @interface DefaultParameter {
+
+		/**
+		 * Use as parameter to prefix property names.
+		 * @return by default will use the static field
+		 * <code>DEFAULT_parameterName</code>.
 		 */
 		String value() default "";
 

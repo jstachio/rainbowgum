@@ -6,6 +6,8 @@ import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperties.Property;
@@ -82,6 +84,14 @@ public sealed interface LogConfig {
 	}
 
 	/**
+	 * Creates a builder for making LogConfig.
+	 * @return builder.
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
 	 * An event publisher to publish configuration changes.
 	 * @return publisher.
 	 */
@@ -116,6 +126,59 @@ public sealed interface LogConfig {
 		 * @return true if enabled.
 		 */
 		public boolean isEnabled(String loggerName);
+
+	}
+
+	/**
+	 * Builder for LogConfig.
+	 */
+	public static final class Builder {
+
+		private @Nullable ServiceRegistry serviceRegistry;
+
+		private @Nullable LogProperties logProperties;
+
+		/**
+		 * Default constructor
+		 */
+		private Builder() {
+		}
+
+		/**
+		 * Sets log properties
+		 * @param logProperties log properties.
+		 * @return this.
+		 */
+		public Builder logProperties(LogProperties logProperties) {
+			this.logProperties = logProperties;
+			return this;
+		}
+
+		/**
+		 * Sets service registry
+		 * @param serviceRegistry service registry.
+		 * @return this.
+		 */
+		public Builder serviceRegistry(ServiceRegistry serviceRegistry) {
+			this.serviceRegistry = serviceRegistry;
+			return this;
+		}
+
+		/**
+		 * Builds LogConfig using defaults on missing properties.
+		 * @return log config
+		 */
+		public LogConfig build() {
+			ServiceRegistry serviceRegistry = this.serviceRegistry;
+			LogProperties logProperties = this.logProperties;
+			if (serviceRegistry == null) {
+				serviceRegistry = ServiceRegistry.of();
+			}
+			if (logProperties == null) {
+				logProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+			}
+			return LogConfig.of(serviceRegistry, logProperties);
+		}
 
 	}
 

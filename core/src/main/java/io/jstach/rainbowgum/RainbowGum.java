@@ -24,7 +24,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * <p>
  * To register a custom RainbowGum:
  *
- * 
+ *
 {@snippet class="snippets.RainbowGumProviderExample" region="provider" :
 
 class RainbowGumProviderExample implements RainbowGumProvider {
@@ -208,6 +208,10 @@ final class RainbowGumHolder {
 		finally {
 			lock.readLock().unlock();
 		}
+		if (lock.writeLock().isHeldByCurrentThread()) {
+			throw new IllegalStateException("RainbowGum component tried to log too early. "
+					+ "This is usually caused by dependencies calling logging.");
+		}
 		lock.writeLock().lock();
 		try {
 			var r = rainbowGum;
@@ -228,6 +232,10 @@ final class RainbowGumHolder {
 
 	static void set(Supplier<RainbowGum> rainbowGumSupplier) {
 		Objects.requireNonNull(rainbowGumSupplier);
+		if (lock.writeLock().isHeldByCurrentThread()) {
+			throw new IllegalStateException("RainbowGum component tried to log too early. "
+					+ "This is usually caused by dependencies calling logging.");
+		}
 		lock.writeLock().lock();
 		try {
 			rainbowGum = null;

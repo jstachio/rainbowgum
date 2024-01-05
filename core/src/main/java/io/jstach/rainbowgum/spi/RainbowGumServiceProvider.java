@@ -118,9 +118,13 @@ public sealed interface RainbowGumServiceProvider {
 			.orElseGet(() -> LogConfig.of(registry, properties));
 	}
 
-	private static void runInitializers(ServiceLoader<RainbowGumServiceProvider> loader, ServiceRegistry registry,
-			LogConfig config) {
-		findProviders(loader, Initializer.class).forEach(c -> c.initialize(registry, config));
+	/**
+	 * Runs initializers based on config.
+	 * @param loader service loader to use.
+	 * @param config config before initializers have run.
+	 */
+	public static void runInitializers(ServiceLoader<RainbowGumServiceProvider> loader, LogConfig config) {
+		findProviders(loader, Initializer.class).forEach(c -> c.initialize(config.registry(), config));
 	}
 
 	/**
@@ -132,7 +136,7 @@ public sealed interface RainbowGumServiceProvider {
 		ServiceRegistry registry = ServiceRegistry.of();
 		var properties = provideProperties(registry, loader);
 		var config = provideConfig(loader, registry, properties);
-		runInitializers(loader, registry, config);
+		runInitializers(loader, config);
 		return config;
 	}
 

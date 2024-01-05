@@ -22,7 +22,7 @@ import io.jstach.rainbowgum.LogProperties.Property;
  * <td><code>{@value $$propertyLiteral$$ }</code></td>
  * <td><code>$$type$$</code></td>
  * <td><code>$$required$$</code></td>
- * <td><code>$$defaultValue$$</code></td>
+ * <td>$$defaultValueDoc$$</td>
  * <td>$$javadoc$$</td>
  * </tr>
  $$/normal$$ 
@@ -93,6 +93,7 @@ public final class $$builderName$$ {
 	
 	/**
 	 * Sets $$#required$$<strong>required</strong> $$/required$$$$name$$.
+	 * Default is $$defaultValueDoc$$.
 	 * @param $$name$$ <code>{@value #$$propertyLiteral$$ } = $$type$$</code> $$javadoc$$
 	 * @return this builder.
 	 */
@@ -128,4 +129,21 @@ public final class $$builderName$$ {
 		$$/properties$$
 		return this;
 	}
+	
+	/**
+	 * Turns the builder into java.util.Properties like Map
+	 * @return properties.
+	 */
+	public java.util.Map<String,String> asProperties() {
+		java.util.Map<String,String> m = new java.util.LinkedHashMap<>();
+		$$#properties$$
+		$$#normal$$
+		if (this.$$name$$ != null) {
+			m.put($$propertyVar$$.key(), String.valueOf(this.$$name$$));
+		}
+		$$/normal$$
+		$$/properties$$
+		return m;
+	}
+	
 }

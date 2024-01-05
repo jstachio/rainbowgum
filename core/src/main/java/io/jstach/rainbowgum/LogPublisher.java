@@ -140,11 +140,6 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			return new Builder();
 		}
 
-		@Override
-		default void start(LogConfig config) {
-
-		}
-
 		default boolean synchronous() {
 			return true;
 		}
@@ -193,6 +188,11 @@ final class DefaultSyncLogPublisher implements LogPublisher.SyncLogPublisher {
 	@Override
 	public void log(LogEvent event) {
 		appender.append(event);
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		appender.start(config);
 	}
 
 	@Override

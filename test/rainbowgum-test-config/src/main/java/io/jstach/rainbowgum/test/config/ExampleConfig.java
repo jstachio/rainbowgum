@@ -16,7 +16,13 @@ public record ExampleConfig(String name, Integer count, @Nullable URI uri) {
 	 * @return config
 	 */
 	@ConfigObject(name = "ExampleConfigBuilder", prefix = "logging.example.{name}.")
-	public static ExampleConfig of(@ConfigObject.PrefixParameter String name, Integer count, @Nullable URI uri) {
+	public static ExampleConfig of( //
+			@ConfigObject.PrefixParameter String name, //
+			@ConfigObject.DefaultParameter("DEFAULT_COUNT") Integer count, //
+			@Nullable URI uri) {
 		return new ExampleConfig(name, count, uri);
 	}
+
+	public static final int DEFAULT_COUNT = 8080;
+
 }

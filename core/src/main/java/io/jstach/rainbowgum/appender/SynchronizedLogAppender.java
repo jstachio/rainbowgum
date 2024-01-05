@@ -5,6 +5,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogEvent;
@@ -58,6 +59,11 @@ final class SynchronizedDecorator implements SynchronizedLogAppender {
 	@Override
 	public synchronized void append(LogEvent event) {
 		appender.append(event);
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		appender.start(config);
 	}
 
 	@Override

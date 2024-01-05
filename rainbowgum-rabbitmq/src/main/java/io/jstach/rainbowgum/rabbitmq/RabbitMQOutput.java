@@ -7,10 +7,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -22,7 +24,11 @@ import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.MetaLog;
 
-class RabbitMQOutput implements LogOutput {
+/**
+ * RabbitMQ Output that will write publish messages to a given exchange with a given
+ * routing key.
+ */
+public class RabbitMQOutput implements LogOutput {
 
 	private final URI uri;
 
@@ -38,7 +44,7 @@ class RabbitMQOutput implements LogOutput {
 
 	private final String exchange;
 
-	private final String routingKey;
+	private final Function<LogEvent, String> routingKeyFunction;
 
 	private final String connectionName;
 
@@ -46,66 +52,42 @@ class RabbitMQOutput implements LogOutput {
 
 	private final String exchangeType;
 
-	private static final String PREFIX = LogProperties.ROOT_PREFIX + "rabbitmq.";
+	final static String DEFAULT_EXCHANGE = "logging";
 
-	public static final String EXCHANGE_PROPERTY = PREFIX + "exchange";
+	final static String DEFAULT_EXCHANGE_TYPE = "topic";
 
-	static final String ROUTING_KEY_PROPERTY = PREFIX + "routingKey";
-
-	static final String CONNECTION_NAME_PROPERTY = PREFIX + "connectionName";
-
-	static final String DECLARE_EXCHANGE_PROPERTY = PREFIX + "declareExchange";
-
-	static final String EXCHANGE_TYPE_PROPERTY = PREFIX + "exchangeType";
-
-	static final String USERNAME_PROPERTY = PREFIX + "username";
-
-	static final String PASSWORD_PROPERTY = PREFIX + "password";
-
-	static final String PORT_PROPERTY = PREFIX + "port";
-
-	static final String HOST_PROPERTY = PREFIX + "host";
-
-	static final String VIRTUAL_HOST_PROPERTY = PREFIX + "virtualHost";
-
-	static final String APP_ID_PROPERTY = PREFIX + "appId";
-
-	// public static RabbitMQOutput of(URI uri, LogProperties properties) {
-	// LogProperties combined = LogProperties.of(List.of(LogProperties.of(uri)),
-	// properties);
-	// Property.builder().build(ROUTING_KEY_PROPERTY);
-	//
-	// }
-
-	public RabbitMQOutput(URI uri, ConnectionFactory connectionFactory, @Nullable String appId, String exchange,
-			String routingKey, String connectionName, boolean declareExchange, String exchangeType) {
+	RabbitMQOutput(URI uri, ConnectionFactory connectionFactory, @Nullable String appId, String exchange,
+			Function<LogEvent, String> routingKeyFunction, String connectionName, boolean declareExchange,
+			String exchangeType) {
 		super();
 		this.uri = uri;
 		this.connectionFactory = connectionFactory;
 		this.appId = appId;
 		this.exchange = exchange;
-		this.routingKey = routingKey;
+		this.routingKeyFunction = routingKeyFunction;
 		this.connectionName = connectionName;
 		this.declareExchange = declareExchange;
 		this.exchangeType = exchangeType;
 	}
 
-	@ConfigObject(prefix = LogProperties.OUTPUT_PREFIX, name = "RabbitMQOutputBuilder")
-	public static RabbitMQOutput of(@ConfigObject.PrefixParameter String name, //
+	@ConfigObject(prefix = LogProperties.OUTPUT_PREFIX)
+	static RabbitMQOutput of( //
+			@ConfigObject.PrefixParameter String name, //
 			@Nullable URI uri, //
-			String exchange, //
-			String routingKey, //
+			@ConfigObject.DefaultParameter("DEFAULT_EXCHANGE") String exchange, //
+			@Nullable String routingKey, //
 			@Nullable Boolean declareExchange, //
 			@Nullable String host, //
-			@Nullable String username, @Nullable String password, //
+			@Nullable String username, //
+			@Nullable String password, //
 			@Nullable Integer port, //
 			@Nullable String appId, //
 			@Nullable String connectionName, //
-			@Nullable String exchangeType, //
+			@ConfigObject.DefaultParameter("DEFAULT_EXCHANGE_TYPE") @Nullable String exchangeType, //
 			@Nullable String virtualHost) {
 		connectionName = connectionName == null ? "rainbowgumOutput" : connectionName;
 		declareExchange = declareExchange == null ? false : declareExchange;
-		exchangeType = exchangeType == null ? "topic" : exchangeType;
+		exchangeType = exchangeType == null ? DEFAULT_EXCHANGE_TYPE : exchangeType;
 		ConnectionFactory factory = new ConnectionFactory();
 		if (uri != null) {
 			try {
@@ -130,7 +112,15 @@ class RabbitMQOutput implements LogOutput {
 		if (virtualHost != null) {
 			factory.setVirtualHost(virtualHost);
 		}
-		return new RabbitMQOutput(uri, factory, appId, exchange, routingKey, connectionName, false, exchangeType);
+		Function<LogEvent, String> routingKeyFunction;
+		if (routingKey != null) {
+			routingKeyFunction = e -> routingKey;
+		}
+		else {
+			routingKeyFunction = e -> e.level().name();
+		}
+		return new RabbitMQOutput(uri, factory, appId, exchange, routingKeyFunction, connectionName, declareExchange,
+				exchangeType);
 	}
 
 	@Override
@@ -173,7 +163,7 @@ class RabbitMQOutput implements LogOutput {
 		byte[] body = bytes;
 		try {
 			var c = channel();
-			c.basicPublish(exchange, routingKey, props, body);
+			c.basicPublish(exchange, routingKeyFunction.apply(event), props, body);
 		}
 		catch (IOException e) {
 			MetaLog.error(RabbitMQOutput.class, e);
@@ -244,6 +234,9 @@ class RabbitMQOutput implements LogOutput {
 				try {
 					c.close();
 				}
+				catch (AlreadyClosedException ae) {
+					// do nothing.
+				}
 				catch (IOException | TimeoutException e) {
 					MetaLog.error(getClass(), e);
 				}
@@ -251,6 +244,9 @@ class RabbitMQOutput implements LogOutput {
 			if (conn != null) {
 				try {
 					c.close();
+				}
+				catch (AlreadyClosedException ae) {
+					// do nothing.
 				}
 				catch (IOException | TimeoutException e) {
 					MetaLog.error(getClass(), e);

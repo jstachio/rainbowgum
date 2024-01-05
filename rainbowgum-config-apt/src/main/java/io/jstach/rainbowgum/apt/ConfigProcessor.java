@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,14 +50,17 @@ import javax.tools.StandardLocation;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.apt.BuilderModel.PropertyModel;
 import io.jstach.rainbowgum.apt.prism.ConfigObjectPrism;
+import io.jstach.rainbowgum.apt.prism.DefaultParameterPrism;
 import io.jstach.rainbowgum.apt.prism.PrefixParameterPrism;
 import io.jstach.svc.ServiceProvider;
 
 /**
  * Creates ConfigBuilders from static factory methods.
  */
-@SupportedAnnotationTypes({ ConfigObjectPrism.PRISM_ANNOTATION_TYPE, PrefixParameterPrism.PRISM_ANNOTATION_TYPE })
+@SupportedAnnotationTypes({ ConfigObjectPrism.PRISM_ANNOTATION_TYPE, PrefixParameterPrism.PRISM_ANNOTATION_TYPE,
+		DefaultParameterPrism.PRISM_ANNOTATION_TYPE })
 @ServiceProvider(value = Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
 
@@ -104,59 +106,27 @@ public class ConfigProcessor extends AbstractProcessor {
 
 		TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
 		String builderName = prism.name();
+		if (builderName.isBlank()) {
+			builderName = h.getSimpleName(ee.getReturnType()) + "Builder";
+		}
 		String propertyPrefix = prism.prefix();
 		String packageName = h.getPackageString(enclosingType);
 		String targetType = h.getFullyQualifiedClassName(ee.getReturnType());
 		String factoryMethod = enclosingType + "." + ee.getSimpleName();
 		List<BuilderModel.PropertyModel> properties = new ArrayList<>();
 
-		var propertyParams = extractPropertyParams(propertyPrefix);
 		Map<String, VariableElement> foundParams = new HashMap<>();
 		List<? extends VariableElement> parameters = ee.getParameters();
 		ConfigJavadoc methodDoc = ConfigJavadoc.of(h.getJavadoc(ee));
 		String description = methodDoc.description;
 		for (var p : parameters) {
-			String name = p.getSimpleName().toString();
-			String type = h.getFullyQualifiedClassName(p.asType());
-			String typeWithAnnotation = ToStringTypeVisitor.toCodeSafeString(p.asType());
-			String defaultValue = "null";
-			boolean required = !h.isNullable(p.asType());
-			BuilderModel.PropertyKind kind;
-			var prefixParameter = PrefixParameterPrism.getInstanceOn(p);
-			if (prefixParameter == null) {
-				kind = BuilderModel.PropertyKind.NORMAL;
-			}
-			else {
-				// TODO do validation here
-				kind = BuilderModel.PropertyKind.NAME_PARAMETER;
-				foundParams.put(name, p);
-			}
-			@Nullable
-			String javadoc = methodDoc.properties.get(name);
-			if (javadoc == null) {
-				javadoc = "";
-			}
-			var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, defaultValue, required,
-					javadoc);
+			var prop = propertyModel(ee, p, h, methodDoc, foundParams);
 			properties.add(prop);
 		}
-		var foundParamsKeys = foundParams.keySet();
-		if (!foundParamsKeys.equals(propertyParams)) {
-			for (var p : foundParams.entrySet()) {
-				if (!propertyParams.contains(p.getKey())) {
-					processingEnv.getMessager()
-						.printMessage(Kind.ERROR, "Property parameter missing from prefix. parameter = " + p.getKey(),
-								p.getValue());
-				}
-			}
-			for (var pp : propertyParams) {
-				if (!foundParamsKeys.contains(pp)) {
-					processingEnv.getMessager()
-						.printMessage(Kind.ERROR, "Property parameter defined but missing. parameter = " + pp, ee);
-				}
-			}
+		if (!validatePrefix(ee, propertyPrefix, foundParams)) {
 			return null;
 		}
+
 		var m = new BuilderModel(builderName, propertyPrefix, packageName, targetType, factoryMethod, description,
 				properties);
 		String java = BuilderModelRenderer.of().execute(m);
@@ -177,6 +147,66 @@ public class ConfigProcessor extends AbstractProcessor {
 			return null;
 		}
 		return m;
+	}
+
+	private boolean validatePrefix(ExecutableElement ee, String propertyPrefix,
+			Map<String, VariableElement> foundParams) {
+		var propertyParams = extractPropertyParams(propertyPrefix);
+		var foundParamsKeys = foundParams.keySet();
+		if (!foundParamsKeys.equals(propertyParams)) {
+			for (var p : foundParams.entrySet()) {
+				if (!propertyParams.contains(p.getKey())) {
+					processingEnv.getMessager()
+						.printMessage(Kind.ERROR, "Property parameter missing from prefix. parameter = " + p.getKey(),
+								p.getValue());
+				}
+			}
+			for (var pp : propertyParams) {
+				if (!foundParamsKeys.contains(pp)) {
+					processingEnv.getMessager()
+						.printMessage(Kind.ERROR, "Property parameter defined but missing. parameter = " + pp, ee);
+				}
+			}
+			return false;
+		}
+		return true;
+	}
+
+	private PropertyModel propertyModel(ExecutableElement ee, VariableElement p, Helper h, ConfigJavadoc methodDoc,
+			Map<String, VariableElement> foundParams) {
+		String name = p.getSimpleName().toString();
+		String type = h.getFullyQualifiedClassName(p.asType());
+		String typeWithAnnotation = ToStringTypeVisitor.toCodeSafeString(p.asType());
+		String defaultValue = "null";
+		var defaultParameter = DefaultParameterPrism.getInstanceOn(p);
+		if (defaultParameter != null) {
+			TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
+			String field = defaultParameter.value();
+			if (field.isBlank()) {
+				field = "DEFAULT_" + name;
+			}
+			defaultValue = h.getFullyQualifiedClassName(enclosingType.asType()) + "." + field;
+
+		}
+		boolean required = !h.isNullable(p.asType());
+		BuilderModel.PropertyKind kind;
+		var prefixParameter = PrefixParameterPrism.getInstanceOn(p);
+		if (prefixParameter == null) {
+			kind = BuilderModel.PropertyKind.NORMAL;
+		}
+		else {
+			// TODO do validation here
+			kind = BuilderModel.PropertyKind.NAME_PARAMETER;
+			foundParams.put(name, p);
+		}
+		@Nullable
+		String javadoc = methodDoc.properties.get(name);
+		if (javadoc == null) {
+			javadoc = "";
+		}
+		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, defaultValue, required,
+				javadoc);
+		return prop;
 	}
 
 	private static final Pattern pattern = Pattern.compile("\\{(.*?)\\}");
@@ -381,7 +411,16 @@ public class ConfigProcessor extends AbstractProcessor {
 			else {
 				return t.toString();
 			}
+		}
 
+		public String getSimpleName(TypeMirror t) {
+			if (t.getKind() == TypeKind.DECLARED) {
+				TypeElement te = requireNonNull((TypeElement) types.asElement(t));
+				return te.getSimpleName().toString();
+			}
+			else {
+				return t.toString();
+			}
 		}
 
 		public String getFullyQualifiedClassNameWithTypeAnnotations(TypeMirror t) {
