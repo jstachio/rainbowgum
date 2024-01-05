@@ -2,6 +2,8 @@
  * Provides RabbitMQ Rainbow Gum output.
  */
 module io.jstach.rainbowgum.rabbitmq {
+	exports io.jstach.rainbowgum.rabbitmq;
+	
 	requires io.jstach.rainbowgum;
 	requires com.rabbitmq.client;
 	requires static org.eclipse.jdt.annotation;
