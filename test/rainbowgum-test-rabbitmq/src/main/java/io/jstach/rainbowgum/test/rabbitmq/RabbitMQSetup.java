@@ -34,8 +34,8 @@ public class RabbitMQSetup {
 		RainbowGum.of();
 		// RainbowGum.set(() -> gum);
 		System.getLogger(RabbitMQSetup.class.getName()).log(Level.INFO, "hello");
-		//var logger = LoggerFactory.getLogger(RabbitMQSetup.class);
-		//logger.info("hello");
+		// var logger = LoggerFactory.getLogger(RabbitMQSetup.class);
+		// logger.info("hello");
 	}
 
 }

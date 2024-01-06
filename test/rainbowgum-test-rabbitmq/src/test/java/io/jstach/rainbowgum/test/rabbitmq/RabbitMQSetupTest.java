@@ -29,8 +29,8 @@ class RabbitMQSetupTest {
 	@Test
 	void testMain() {
 		RabbitMQOutputBuilder b = new RabbitMQOutputBuilder("amqp");
-		//b.host(rabbit.getHost());
-		//b.port(rabbit.getAmqpPort());
+		// b.host(rabbit.getHost());
+		// b.port(rabbit.getAmqpPort());
 		b.uri(URI.create(rabbit.getAmqpUrl()));
 		b.declareExchange(true);
 		Map<String, String> properties = b.asProperties();
@@ -38,7 +38,7 @@ class RabbitMQSetupTest {
 		properties.put(LogProperties.OUTPUT_PROPERTY + ".amqp", "amqp:///");
 		System.out.println(properties);
 		System.out.println(rabbit.getAmqpUrl());
-		//LoggerFactoryFriend.reset();
+		// LoggerFactoryFriend.reset();
 		RabbitMQSetup.run(properties);
 	}
 
