@@ -1,13 +1,16 @@
 package io.jstach.rainbowgum;
 
+import java.net.URI;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
+import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
@@ -143,8 +146,24 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 			var output = this.output;
 			var encoder = this.encoder;
 			return config -> {
-				return config.defaults().logAppender(output, encoder);
+				return logAppender(config, output, encoder);
 			};
+		}
+
+		private static final Property<Boolean> defaultsAppenderBufferProperty = Property.builder()
+			.map(s -> Boolean.parseBoolean(s))
+			.orElse(false)
+			.build(LogProperties.concatKey("defaults.appender.buffer"));
+
+		private static LogAppender logAppender(LogConfig config, LogOutput output, @Nullable LogEncoder encoder) {
+			var formatterRegistry = config.formatterRegistry();
+			var properties = config.properties();
+			if (encoder == null) {
+				encoder = LogEncoder.of(formatterRegistry.formatterForOutputType(output.type()));
+			}
+
+			return defaultsAppenderBufferProperty.get(properties).value() ? new BufferLogAppender(output, encoder)
+					: new DefaultLogAppender(output, encoder);
 		}
 
 	}
@@ -167,7 +186,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 			if (appender instanceof ThreadSafeLogAppender lo) {
 				return lo;
 			}
-			return Defaults.threadSafeAppender.apply(appender);
+			return DefaultLogAppender.threadSafeAppender.apply(appender);
 		}
 
 	}
@@ -316,6 +335,12 @@ class LockingLogAppender implements ThreadSafeLogAppender {
  * The idea here is to have the virtual thread do the formatting outside of the lock
  */
 class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
+
+	static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
+		return new LockingLogAppender(appender);
+	};
+
+	static final Property<URI> fileProperty = Property.builder().map(URI::new).build(LogProperties.FILE_PROPERTY);
 
 	protected final ReentrantLock lock = new ReentrantLock();
 

@@ -3,6 +3,7 @@ package io.jstach.rainbowgum;
 import java.util.List;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
+import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 /**
  * Publishers push logs to appenders either synchronously or asynchronously.
@@ -97,14 +98,19 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		 */
 		public static class Builder extends AbstractBuilder<AsyncLogPublisher.Builder> {
 
-			private int bufferSize = Defaults.ASYNC_BUFFER_SIZE;
+			/**
+			 * Default async buffer size.
+			 */
+			public static final int ASYNC_BUFFER_SIZE = 1024;
+
+			private int bufferSize = ASYNC_BUFFER_SIZE;
 
 			private Builder() {
 			}
 
 			/**
 			 * Sets buffer size. Typically means how many events can be queued up. Default
-			 * is {@link Defaults#ASYNC_BUFFER_SIZE}.
+			 * is {@value #ASYNC_BUFFER_SIZE}.
 			 * @param bufferSize buffer size.
 			 * @return this.
 			 */
@@ -115,12 +121,17 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
 			public PublisherProvider build() {
 				int bufferSize = this.bufferSize;
-				return (config, appenders) -> config.defaults().asyncPublisher(appenders, bufferSize);
+				return (config, appenders) -> asyncPublisher(appenders, bufferSize);
 			}
 
 			@Override
 			protected AsyncLogPublisher.Builder self() {
 				return this;
+			}
+
+			private static LogPublisher.AsyncLogPublisher asyncPublisher(List<? extends LogAppender> appenders,
+					int bufferSize) {
+				return BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
 			}
 
 		}

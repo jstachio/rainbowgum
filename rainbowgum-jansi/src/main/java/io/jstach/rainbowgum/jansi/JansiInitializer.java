@@ -29,7 +29,7 @@ public class JansiInitializer implements RainbowGumServiceProvider.Initializer {
 	public void initialize(ServiceRegistry registry, LogConfig config) {
 		if (installJansi(config)) {
 			AnsiConsole.systemInstall();
-			config.defaults()
+			config.formatterRegistry()
 				.setFormatterForOutputType(OutputType.CONSOLE_OUT, () -> JansiLogFormatter.builder().build());
 		}
 	}

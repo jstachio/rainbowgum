@@ -6,13 +6,17 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
+
+import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
  * Register output providers by URI scheme.
  */
-public interface LogOutputRegistry extends LogOutputProvider {
+public sealed interface LogOutputRegistry extends LogOutputProvider permits DefaultOutputRegistry {
 
 	/**
 	 * Register a provider by {@link URI#getScheme() scheme}.
@@ -31,7 +35,11 @@ public interface LogOutputRegistry extends LogOutputProvider {
 
 }
 
-class DefaultOutputRegistry implements LogOutputRegistry {
+final class DefaultOutputRegistry implements LogOutputRegistry {
+
+	static final Property<List<String>> outputProperty = Property.builder()
+		.map(p -> Stream.of(p.split(",")).filter(s -> !s.trim().isEmpty()).toList())
+		.build(LogProperties.OUTPUT_PROPERTY);
 
 	private final Map<String, LogOutputProvider> providers = new ConcurrentHashMap<>();
 

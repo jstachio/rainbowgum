@@ -93,10 +93,10 @@ public sealed interface LogRouter extends LogLifecycle {
 	/**
 	 * Root router is a router that has child routers.
 	 */
-	public sealed interface RootRouter extends LogRouter permits InternalRootRouter {
+	sealed interface RootRouter extends LogRouter permits InternalRootRouter {
 
 		/**
-		 * Level resolver to find levels for a long name.
+		 * Level resolver to find levels for a log name.
 		 * @return level resolver.
 		 */
 		public LevelResolver levelResolver();
@@ -240,7 +240,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
 					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
-					config.get(Defaults.fileProperty) //
+					config.get(DefaultLogAppender.fileProperty) //
 						.map(u -> config.output(u, "")) //
 						.map(o -> {
 							return LogAppender.builder().output(o).build();
@@ -248,9 +248,9 @@ public sealed interface LogRouter extends LogLifecycle {
 						.optional() //
 						.ifPresent(appenders::add);
 
-					List<String> outputs = config.get(Defaults.outputProperty).value(List.of());
+					List<String> outputs = config.get(DefaultOutputRegistry.outputProperty).value(List.of());
 					for (String o : outputs) {
-						Property<URI> outputProperty = output(Defaults.outputProperty, o);
+						Property<URI> outputProperty = output(DefaultOutputRegistry.outputProperty, o);
 						LogOutput output = outputProperty.map(u -> config.output(u, o))
 							.get(config.properties())
 							.value();

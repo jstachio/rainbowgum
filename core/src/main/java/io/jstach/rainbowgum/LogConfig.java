@@ -43,10 +43,10 @@ public sealed interface LogConfig {
 	public LevelConfig levelResolver();
 
 	/**
-	 * Special defaults. Internal for now.
-	 * @return defaults.
+	 * Registered formatters.
+	 * @return formatter registry.
 	 */
-	public Defaults defaults();
+	public LogFormatterRegistry formatterRegistry();
 
 	/**
 	 * Output provider that uses URI to find output.
@@ -224,18 +224,17 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LevelConfig levelResolver;
 
-	private final Defaults defaults;
-
 	private final ChangePublisher publisher;
 
 	private final LogOutputRegistry outputRegistry;
+
+	private final LogFormatterRegistry formatterRegistry;
 
 	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties) {
 		super();
 		this.registry = registry;
 		this.properties = properties;
 		this.levelResolver = new ConfigLevelResolver(properties);
-		this.defaults = new Defaults(properties);
 		this.publisher = new AbstractChangePublisher() {
 			@Override
 			protected LogConfig _config() {
@@ -243,6 +242,7 @@ final class DefaultLogConfig implements LogConfig {
 			}
 		};
 		this.outputRegistry = LogOutputRegistry.of();
+		this.formatterRegistry = LogFormatterRegistry.of();
 	}
 
 	@Override
@@ -253,11 +253,6 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LevelConfig levelResolver() {
 		return this.levelResolver;
-	}
-
-	@Override
-	public Defaults defaults() {
-		return defaults;
 	}
 
 	@Override
@@ -273,6 +268,11 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogOutputRegistry outputRegistry() {
 		return this.outputRegistry;
+	}
+
+	@Override
+	public LogFormatterRegistry formatterRegistry() {
+		return this.formatterRegistry;
 	}
 
 }

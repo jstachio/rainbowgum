@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.test.rabbitmq;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterAll;
@@ -33,9 +34,10 @@ class RabbitMQSetupTest {
 		// b.port(rabbit.getAmqpPort());
 		b.uri(URI.create(rabbit.getAmqpUrl()));
 		b.declareExchange(true);
-		Map<String, String> properties = b.asProperties();
+		Map<String, String> properties = new LinkedHashMap<>();
 		properties.put(LogProperties.OUTPUT_PROPERTY, "amqp");
 		properties.put(LogProperties.OUTPUT_PROPERTY + ".amqp", "amqp:///");
+		b.toProperties(properties::put);
 		System.out.println(properties);
 		System.out.println(rabbit.getAmqpUrl());
 		// LoggerFactoryFriend.reset();

@@ -7,7 +7,6 @@ import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.Defaults;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutputProvider;
 import io.jstach.rainbowgum.LogProperties;
@@ -53,7 +52,6 @@ public sealed interface RainbowGumServiceProvider {
 	 * like registering {@link LogOutputProvider}s.
 	 *
 	 * @see LogConfig#outputRegistry()
-	 * @see Defaults#formatterForOutputType(io.jstach.rainbowgum.LogOutput.OutputType)
 	 */
 	public non-sealed interface Initializer extends RainbowGumServiceProvider {
 

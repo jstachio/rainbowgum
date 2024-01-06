@@ -178,7 +178,6 @@ class InterruptUtil {
 				Thread.currentThread().interrupt();
 			}
 			catch (SecurityException se) {
-				// addError("Failed to interrupt current thread", se);
 			}
 		}
 	}

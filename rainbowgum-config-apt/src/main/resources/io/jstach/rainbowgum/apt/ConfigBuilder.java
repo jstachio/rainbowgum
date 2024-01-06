@@ -131,19 +131,17 @@ public final class $$builderName$$ {
 	}
 	
 	/**
-	 * Turns the builder into java.util.Properties like Map
-	 * @return properties.
+	 * Turns the builder into java.util.Properties like Map skipping values that are null.
+	 * @param consumer apply is called where first arg is key and second is value.
 	 */
-	public java.util.Map<String,String> asProperties() {
-		java.util.Map<String,String> m = new java.util.LinkedHashMap<>();
+	public void toProperties(java.util.function.BiConsumer<String, String> consumer) {
 		$$#properties$$
 		$$#normal$$
 		if (this.$$name$$ != null) {
-			m.put($$propertyVar$$.key(), String.valueOf(this.$$name$$));
+			consumer.accept($$propertyVar$$.key(), String.valueOf(this.$$name$$));
 		}
 		$$/normal$$
 		$$/properties$$
-		return m;
 	}
 	
 }
