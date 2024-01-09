@@ -51,7 +51,8 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.apt.BuilderModel.PropertyModel;
-import io.jstach.rainbowgum.apt.prism.ConfigObjectPrism;
+import io.jstach.rainbowgum.apt.prism.LogConfigurablePrism;
+import io.jstach.rainbowgum.apt.prism.ConvertParameterPrism;
 import io.jstach.rainbowgum.apt.prism.DefaultParameterPrism;
 import io.jstach.rainbowgum.apt.prism.PrefixParameterPrism;
 import io.jstach.svc.ServiceProvider;
@@ -59,12 +60,12 @@ import io.jstach.svc.ServiceProvider;
 /**
  * Creates ConfigBuilders from static factory methods.
  */
-@SupportedAnnotationTypes({ ConfigObjectPrism.PRISM_ANNOTATION_TYPE, PrefixParameterPrism.PRISM_ANNOTATION_TYPE,
+@SupportedAnnotationTypes({ LogConfigurablePrism.PRISM_ANNOTATION_TYPE, PrefixParameterPrism.PRISM_ANNOTATION_TYPE,
 		DefaultParameterPrism.PRISM_ANNOTATION_TYPE })
 @ServiceProvider(value = Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
 
-	private static final String CONFIG_BEAN_CLASS = ConfigObjectPrism.PRISM_ANNOTATION_TYPE;
+	private static final String CONFIG_BEAN_CLASS = LogConfigurablePrism.PRISM_ANNOTATION_TYPE;
 
 	/**
 	 * No-Arg constructor for Service Loader.
@@ -89,7 +90,7 @@ public class ConfigProcessor extends AbstractProcessor {
 					continue;
 				}
 				ExecutableElement ee = (ExecutableElement) annotatedElement;
-				ConfigObjectPrism prism = ConfigObjectPrism.getInstanceOn(annotatedElement);
+				LogConfigurablePrism prism = LogConfigurablePrism.getInstanceOn(annotatedElement);
 				model(h, prism, ee);
 			}
 		}
@@ -102,7 +103,7 @@ public class ConfigProcessor extends AbstractProcessor {
 	}
 
 	@Nullable
-	private BuilderModel model(Helper h, ConfigObjectPrism prism, ExecutableElement ee) {
+	private BuilderModel model(Helper h, LogConfigurablePrism prism, ExecutableElement ee) {
 
 		TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
 		String builderName = prism.name();
@@ -179,13 +180,14 @@ public class ConfigProcessor extends AbstractProcessor {
 		String typeWithAnnotation = ToStringTypeVisitor.toCodeSafeString(p.asType());
 		String defaultValue = "null";
 		var defaultParameter = DefaultParameterPrism.getInstanceOn(p);
+		TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
+		String fqnEnclosing = h.getFullyQualifiedClassName(enclosingType.asType());
 		if (defaultParameter != null) {
-			TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
 			String field = defaultParameter.value();
 			if (field.isBlank()) {
 				field = "DEFAULT_" + name;
 			}
-			defaultValue = h.getFullyQualifiedClassName(enclosingType.asType()) + "." + field;
+			defaultValue = fqnEnclosing + "." + field;
 
 		}
 		boolean required = !h.isNullable(p.asType());
@@ -204,8 +206,13 @@ public class ConfigProcessor extends AbstractProcessor {
 		if (javadoc == null) {
 			javadoc = "";
 		}
-		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, defaultValue, required,
-				javadoc);
+		BuilderModel.Converter c = null;
+		ConvertParameterPrism converterParameterPrism = ConvertParameterPrism.getInstanceOn(p);
+		if (converterParameterPrism != null) {
+			c = new BuilderModel.Converter(fqnEnclosing + "." + converterParameterPrism.value());
+		}
+		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, defaultValue, required, javadoc,
+				c);
 		return prop;
 	}
 

@@ -3,6 +3,7 @@ package io.jstach.rainbowgum;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -100,6 +102,11 @@ public interface LogProperties {
 	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.{name}.";
 
 	/**
+	 * Logging output prefix for configuration.
+	 */
+	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.{name}.";
+
+	/**
 	 * Analogous to {@link System#getProperty(String)}.
 	 * @param key property key.
 	 * @return property value.
@@ -184,14 +191,88 @@ public interface LogProperties {
 	 * @see LogOutput
 	 */
 	public static LogProperties of(URI uri) {
-		var m = parseUriQuery(uri.getRawQuery(), true);
+		Map<String, String> m = new LinkedHashMap<>();
+		parseUriQuery(uri.getRawQuery(), (k, v) -> {
+			if (v != null) {
+				m.put(k, v);
+			}
+		});
 		return new MapProperties(uri.toString(), m);
 	}
 
-	private static Map<String, String> parseUriQuery(String query, boolean decode) {
+	/**
+	 * Parse a {@linkplain URI#getRawQuery() URI query} in <a href=
+	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
+	 * application/x-www-form-urlencoded </a> format useful for parsing properties values
+	 * that have key values embedded in them. <strong>This parser unlike form encoding
+	 * uses <code>%20</code> for space as the data is coming from a URI.</strong>
+	 * @param query raw query component of URI.
+	 * @param consumer accept will be called for each entry and if key (left hand) does
+	 * not have a "<code>=</code>" following it the second parameter on the consumer
+	 * accept will be passed <code>null</code>.
+	 */
+	public static void parseUriQuery(String query,
+			@SuppressWarnings("exports") BiConsumer<String, @Nullable String> consumer) {
+		parseUriQuery(query, true, consumer);
+	}
 
-		Map<String, String> kvs = new LinkedHashMap<>();
-		String[] pairs = query.split("&");
+	/**
+	 * Parses a URI query formatted string to a Map.
+	 * @param query raw query component of URI.
+	 * @return decoded key values with last key winning over previous equal keys.
+	 * @see #parseUriQuery(String, BiConsumer)
+	 */
+	public static Map<String, String> parseMap(String query) {
+		Map<String, String> m = new LinkedHashMap<>();
+		parseUriQuery(query, (k, v) -> {
+			if (v != null) {
+				m.put(k, v);
+			}
+		});
+		return m;
+	}
+
+	/**
+	 * Parses a URI query for a multi value map.
+	 * @param query raw query component of URI.
+	 * @return decoded key values with multiple keys grouped together in order found.
+	 */
+	public static Map<String, List<String>> parseMultiMap(String query) {
+		Map<String, List<String>> m = new LinkedHashMap<>();
+		BiConsumer<String, String> f = (k, v) -> {
+			m.computeIfAbsent(k, _k -> new ArrayList<String>()).add(v);
+		};
+		parseUriQuery(query, true, f);
+		return m;
+	}
+
+	/**
+	 * Parses a list of strings from a string that is <a href=
+	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
+	 * percent encoded for escaping (application/x-www-form-urlencoded)</a> where the
+	 * separator can be either "<code>&amp;</code>" or "<code>,</code>".
+	 * <p>
+	 * An example would be using ampersand: <pre><code>
+	 *  "a&amp;b%20B&amp;c" -> ["a","b B","c"]
+	 *  </code> </pre> and comma: <pre><code>
+	 *  "a,b,c" -> ["a","b","c"]
+	 *  </code> </pre>
+	 * @param query the comma or ampersand delimited string that is in URI query format.
+	 * @return list of strings
+	 */
+	public static List<String> parseList(String query) {
+		List<String> list = new ArrayList<>();
+		parseUriQuery(query, true, "[&,]", (k, v) -> list.add(k));
+		return list;
+	}
+
+	private static void parseUriQuery(String query, boolean decode, BiConsumer<String, @Nullable String> consumer) {
+		parseUriQuery(query, decode, "&", consumer);
+	}
+
+	private static void parseUriQuery(String query, boolean decode, String sep,
+			BiConsumer<String, @Nullable String> consumer) {
+		String[] pairs = query.split(sep);
 		for (String pair : pairs) {
 			int idx = pair.indexOf("=");
 			String key;
@@ -201,7 +282,7 @@ public interface LogProperties {
 			}
 			else if (idx < 0) {
 				key = pair;
-				value = "";
+				value = null;
 			}
 			else {
 				key = pair.substring(0, idx);
@@ -209,16 +290,16 @@ public interface LogProperties {
 			}
 			if (decode) {
 				key = PercentCodec.decode(key, StandardCharsets.UTF_8);
-				value = PercentCodec.decode(key, StandardCharsets.UTF_8);
+				if (value != null) {
+					value = PercentCodec.decode(value, StandardCharsets.UTF_8);
+				}
 
 			}
 			if (key.isBlank()) {
 				continue;
 			}
-			kvs.put(key, value);
-
+			consumer.accept(key, value);
 		}
-		return kvs;
 	}
 
 	/**

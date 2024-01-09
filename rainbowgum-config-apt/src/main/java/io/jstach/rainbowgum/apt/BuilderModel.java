@@ -2,9 +2,12 @@ package io.jstach.rainbowgum.apt;
 
 import java.util.List;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 import io.jstach.jstache.JStache;
 import io.jstach.jstache.JStacheConfig;
 import io.jstach.jstache.JStacheType;
+import io.jstach.rainbowgum.apt.BuilderModel.PropertyModel;
 
 @JStacheConfig(type = JStacheType.STACHE)
 @JStache(path = "io/jstach/rainbowgum/apt/ConfigBuilder.java")
@@ -37,13 +40,17 @@ record BuilderModel( //
 		return properties.stream().filter(p -> p.kind == PropertyKind.NAME_PARAMETER).toList();
 	}
 
+	record Converter(String methodName) {
+	}
+
 	record PropertyModel(PropertyKind kind, //
 			String name, //
 			String type, //
 			String typeWithAnnotation, //
 			String defaultValue, //
 			boolean required, //
-			String javadoc) {
+			String javadoc, //
+			@Nullable Converter converter) {
 
 		private static final String INTEGER_TYPE = "java.lang.Integer";
 
@@ -62,6 +69,9 @@ record BuilderModel( //
 		}
 
 		public String convertMethod() {
+			if (converter != null) {
+				return ".map(_v -> " + converter.methodName + "(_v))";
+			}
 			return switch (type) {
 				case INTEGER_TYPE -> ".toInt()";
 				case STRING_TYPE -> "";

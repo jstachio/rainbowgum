@@ -17,12 +17,12 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
-import io.jstach.rainbowgum.ConfigObject;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.MetaLog;
+import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
  * RabbitMQ Output that will write publish messages to a given exchange with a given
@@ -70,11 +70,11 @@ public class RabbitMQOutput implements LogOutput {
 		this.exchangeType = exchangeType;
 	}
 
-	@ConfigObject(prefix = LogProperties.OUTPUT_PREFIX)
+	@LogConfigurable(prefix = LogProperties.OUTPUT_PREFIX)
 	static RabbitMQOutput of( //
-			@ConfigObject.PrefixParameter String name, //
+			@LogConfigurable.PrefixParameter String name, //
 			@Nullable URI uri, //
-			@ConfigObject.DefaultParameter("DEFAULT_EXCHANGE") String exchange, //
+			@LogConfigurable.DefaultParameter("DEFAULT_EXCHANGE") String exchange, //
 			@Nullable String routingKey, //
 			@Nullable Boolean declareExchange, //
 			@Nullable String host, //
@@ -83,7 +83,7 @@ public class RabbitMQOutput implements LogOutput {
 			@Nullable Integer port, //
 			@Nullable String appId, //
 			@Nullable String connectionName, //
-			@ConfigObject.DefaultParameter("DEFAULT_EXCHANGE_TYPE") @Nullable String exchangeType, //
+			@LogConfigurable.DefaultParameter("DEFAULT_EXCHANGE_TYPE") @Nullable String exchangeType, //
 			@Nullable String virtualHost) {
 		connectionName = connectionName == null ? "rainbowgumOutput" : connectionName;
 		declareExchange = declareExchange == null ? false : declareExchange;

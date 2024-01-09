@@ -4,7 +4,7 @@ import java.net.URI;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.ConfigObject;
+import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 public record ExampleConfig(String name, Integer count, @Nullable URI uri) {
 
@@ -15,10 +15,10 @@ public record ExampleConfig(String name, Integer count, @Nullable URI uri) {
 	 * @param uri parameter uri.
 	 * @return config
 	 */
-	@ConfigObject(name = "ExampleConfigBuilder", prefix = "logging.example.{name}.")
+	@LogConfigurable(name = "ExampleConfigBuilder", prefix = "logging.example.{name}.")
 	public static ExampleConfig of( //
-			@ConfigObject.PrefixParameter String name, //
-			@ConfigObject.DefaultParameter("DEFAULT_COUNT") Integer count, //
+			@LogConfigurable.PrefixParameter String name, //
+			@LogConfigurable.DefaultParameter("DEFAULT_COUNT") Integer count, //
 			@Nullable URI uri) {
 		return new ExampleConfig(name, count, uri);
 	}

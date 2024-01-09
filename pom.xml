@@ -95,6 +95,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-json</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-disruptor</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -788,5 +793,6 @@
     <module>etc</module>
     <module>rainbowgum-rabbitmq</module>
     <module>rainbowgum-config-apt</module>
+    <module>rainbowgum-json</module>
   </modules>
 </project>

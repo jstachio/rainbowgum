@@ -1,14 +1,14 @@
-package io.jstach.rainbowgum.json;
+package io.jstach.rainbowgum.json.encoder;
 
 import static io.jstach.rainbowgum.json.JsonBuffer.EXTENDED_F;
-import static io.jstach.rainbowgum.json.RawJsonWriter.OBJECT_END;
-import static io.jstach.rainbowgum.json.RawJsonWriter.OBJECT_START;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import java.util.Objects;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -16,8 +16,16 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
+import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.annotation.LogConfigurable;
+import io.jstach.rainbowgum.json.JsonBuffer;
+import io.jstach.rainbowgum.json.JsonBuffer.ExtendedFieldPrefix;
+import io.jstach.rainbowgum.json.JsonBuffer.JSONToken;
 
-class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
+/**
+ * A JSON encoder in GELF format.
+ */
+public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final String host;
 
@@ -34,15 +42,31 @@ class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		this.prettyprint = prettyprint;
 	}
 
+	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
+	public static GelfEncoder of(@LogConfigurable.PrefixParameter String name, String host, //
+			/*
+			 * @LogConfigurable.ConvertParameter("convertHeaders") @Nullable Map<String,
+			 * String>
+			 */
+			String headers, @Nullable Boolean prettyPrint) {
+		prettyPrint = prettyPrint == null ? false : prettyPrint;
+		host = Objects.requireNonNull(host);
+		var _headers = KeyValues.of(convertHeaders(headers));
+		return new GelfEncoder(host, _headers, prettyPrint);
+	}
+
+	static Map<String, String> convertHeaders(String headers) {
+		return LogProperties.parseMap(headers);
+	}
+
 	@Override
 	protected JsonBuffer doBuffer() {
-		return new JsonBuffer(this.prettyprint);
+		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE);
 	}
 
 	@Override
 	protected void doEncode(LogEvent event, JsonBuffer buffer) {
 		buffer.clear();
-		var raw = buffer.getJsonWriter();
 		var formattedMessage = buffer.getFormattedMessageBuilder();
 		final String host = this.host;
 		event.formattedMessage(formattedMessage);
@@ -60,7 +84,7 @@ class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 			fullMessage = sw.toString();
 		}
 		int level = levelToSyslogLevel(event.level());
-		raw.writeByte(OBJECT_START);
+		buffer.write(JSONToken.OBJECT_START);
 		int index = 0;
 		index = buffer.write("host", host, index);
 		index = buffer.write("short_message", shortMessage, index);
@@ -107,10 +131,10 @@ class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		index = buffer.write("version", "1.1", index);
 
 		if (index > 0 && prettyprint) {
-			raw.writeAscii("\n");
+			buffer.writeLineFeed();
 		}
-		raw.writeByte(OBJECT_END);
-		raw.writeAscii("\n");
+		buffer.write(JSONToken.OBJECT_END);
+		buffer.writeLineFeed();
 	}
 
 	private int levelToSyslogLevel(Level level) {
