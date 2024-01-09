@@ -48,7 +48,7 @@ public final class $$builderName$$ {
 		
 	$$#properties$$
 	$$#normal$$
-	final Property<$$type$$> $$propertyVar$$;
+	final Property<$$typeWithAnnotation$$> $$propertyVar$$;
 	$$/normal$$
 	$$/properties$$
 	
@@ -80,7 +80,8 @@ public final class $$builderName$$ {
 		$$#properties$$
 		$$#normal$$
 		$$propertyVar$$ = Property.builder()
-			$$convertMethod$$.build(LogProperties.interpolateKey($$propertyLiteral$$, prefixParameters));
+			$$convertMethod$$
+			.build(LogProperties.interpolateKey($$propertyLiteral$$, prefixParameters));
 		$$/normal$$
 		$$#prefixParameter$$
 		this.$$name$$ = $$name$$;

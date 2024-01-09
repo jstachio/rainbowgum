@@ -44,14 +44,16 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	public static GelfEncoder of(@LogConfigurable.PrefixParameter String name, String host, //
-			/*
-			 * @LogConfigurable.ConvertParameter("convertHeaders") @Nullable Map<String,
-			 * String>
-			 */
-			String headers, @Nullable Boolean prettyPrint) {
+
+			@LogConfigurable.ConvertParameter("convertHeaders") @Nullable Map<String, String> headers,
+
+			// String headers,
+			@Nullable Boolean prettyPrint) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		host = Objects.requireNonNull(host);
-		var _headers = KeyValues.of(convertHeaders(headers));
+		// var _headers = KeyValues.of(convertHeaders(headers));
+		var _headers = KeyValues.of(headers);
+
 		return new GelfEncoder(host, _headers, prettyPrint);
 	}
 
