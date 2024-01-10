@@ -676,7 +676,7 @@ public interface LogProperties {
 			String fqn = fullyQualifiedKey(key);
 			if (!fqn.startsWith(LogProperties.ROOT_PREFIX)) {
 				throw new IllegalArgumentException(
-						"Property key should start with: '" + LogProperties.ROOT_PREFIX + "'");
+						"Property key should start with: '" + LogProperties.ROOT_PREFIX + "'. key = " + key);
 			}
 			return new Property<>(this, key);
 		}
@@ -689,7 +689,7 @@ public interface LogProperties {
 		 * @return property.
 		 */
 		default Property<T> buildWithName(String key, String name) {
-			String fqn = LogProperties.interpolateKey(name, Map.of(NAME, name));
+			String fqn = LogProperties.interpolateKey(key, Map.of(NAME, name));
 			return build(fqn);
 		}
 

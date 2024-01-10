@@ -118,9 +118,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 		private void drain() {
 			try {
-				int count = queue.drainTo(fake, bufferSize);
-				assert count == fake.size;
-				append(buffer, count);
+				queue.drainTo(fake, bufferSize);
+				append(buffer, fake.size);
 			}
 			finally {
 				fake.reset();

@@ -77,9 +77,8 @@ class RainbowGumTest {
 			r.publisher(PublisherProvider.async().build());
 			r.appender(sysout);
 			r.level(Level.WARNING, "stuff");
-		}).build()) {
+		}).build().start()) {
 
-			gum.start();
 			gum.router().log("stuff", Level.INFO, "Stuff", null);
 			gum.router().log("stuff", Level.ERROR, "bad", null);
 
