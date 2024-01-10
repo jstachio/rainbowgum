@@ -57,7 +57,7 @@ import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
  * <td>A URI or file path to log to a file.</td>
  * </tr>
  * <tr>
- * <td>{@value #OUTPUT_PROPERTY} = URI</td>
+ * <td>{@value #APPENDERS_PROPERTY} = <code>List&lt;String&gt;</code></td>
  * <td>A URI to an {@linkplain LogOutput output}.</td>
  * </tr>
  * </table>
@@ -90,21 +90,37 @@ public interface LogProperties {
 	 */
 	static final String FILE_PROPERTY = ROOT_PREFIX + "file.name";
 
+	// /**
+	// * Logging output property for appending to a resource. The value should be a list
+	// of
+	// * names.
+	// */
+	// static final String OUTPUT_PROPERTY = ROOT_PREFIX + "output";
+
 	/**
-	 * Logging output property for appending to a resource. The value should be a list of
-	 * names.
+	 * A common prefix parameter is called name.
 	 */
-	static final String OUTPUT_PROPERTY = ROOT_PREFIX + "output";
+	static final String NAME = "name";
 
 	/**
 	 * Logging output prefix for configuration.
 	 */
-	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.{name}.";
+	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.{" + NAME + "}.";
 
 	/**
 	 * Logging output prefix for configuration.
 	 */
-	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.{name}.";
+	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.{" + NAME + "}.";
+
+	/**
+	 * Logging appenders. The value should be a list of names.
+	 */
+	static final String APPENDERS_PROPERTY = ROOT_PREFIX + "appenders";
+
+	/**
+	 * Logging appender prefix for configuration.
+	 */
+	static final String APPENDER_PREFIX = ROOT_PREFIX + "appender.{" + NAME + "}.";
 
 	/**
 	 * Analogous to {@link System#getProperty(String)}.
@@ -112,16 +128,6 @@ public interface LogProperties {
 	 * @return property value.
 	 */
 	public @Nullable String valueOrNull(String key);
-
-	/**
-	 * Gets a value based on the passed in property.
-	 * @param <T> value type.
-	 * @param property property.
-	 * @return property value.
-	 */
-	default <T> PropertyValue<T> property(Property<T> property) {
-		return property.get(this);
-	}
 
 	/**
 	 * Searches up a path using this properties to check for values.
@@ -233,14 +239,24 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Parses a URI query for a multi value map.
+	 * Parses a URI query for a multi value map. The list values of the map maybe empty if
+	 * the query parameter does not have any values associated with it which would be the
+	 * case if there is a parameter (key) with no "<code>=</code>" following it. For
+	 * example the following would have three entries of <code>a,b,c</code> all with empty
+	 * list: <pre>
+	 * <code>
+	 * a&amp;b&amp;c&amp;
+	 * </code> </pre>
 	 * @param query raw query component of URI.
 	 * @return decoded key values with multiple keys grouped together in order found.
 	 */
 	public static Map<String, List<String>> parseMultiMap(String query) {
 		Map<String, List<String>> m = new LinkedHashMap<>();
 		BiConsumer<String, String> f = (k, v) -> {
-			m.computeIfAbsent(k, _k -> new ArrayList<String>()).add(v);
+			var list = m.computeIfAbsent(k, _k -> new ArrayList<String>());
+			if (v != null) {
+				list.add(v);
+			}
 		};
 		parseUriQuery(query, true, f);
 		return m;
@@ -663,6 +679,18 @@ public interface LogProperties {
 						"Property key should start with: '" + LogProperties.ROOT_PREFIX + "'");
 			}
 			return new Property<>(this, key);
+		}
+
+		/**
+		 * Creates a Property from the given key and its {@value LogProperties#NAME}
+		 * parameter.
+		 * @param key key.
+		 * @param name interpolates <code>{name}</code> in property name with this value.
+		 * @return property.
+		 */
+		default Property<T> buildWithName(String key, String name) {
+			String fqn = LogProperties.interpolateKey(name, Map.of(NAME, name));
+			return build(fqn);
 		}
 
 		/**

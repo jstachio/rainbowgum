@@ -5,7 +5,7 @@ import java.net.URI;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
-import io.jstach.rainbowgum.LogOutputProvider;
+import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -27,10 +27,10 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Initialize
 
 	@Override
 	public void initialize(ServiceRegistry registry, LogConfig config) {
-		config.outputRegistry().put(SCHEME, RabbitMQOutputProvider.INSTANCE);
+		config.outputRegistry().register(SCHEME, RabbitMQOutputProvider.INSTANCE);
 	}
 
-	private enum RabbitMQOutputProvider implements LogOutputProvider {
+	private enum RabbitMQOutputProvider implements OutputProvider {
 
 		INSTANCE;
 

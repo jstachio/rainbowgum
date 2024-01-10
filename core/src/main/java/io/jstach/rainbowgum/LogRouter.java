@@ -239,23 +239,10 @@ public sealed interface LogRouter extends LogLifecycle {
 				var publisher = this.publisher;
 				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
-					appenders.add(LogAppender.builder().output(LogOutput.ofStandardOut()).build());
-					config.get(DefaultLogAppender.fileProperty) //
-						.map(u -> config.output(u, "")) //
-						.map(o -> {
-							return LogAppender.builder().output(o).build();
-						}) //
-						.optional() //
-						.ifPresent(appenders::add);
-
-					List<String> outputs = config.get(DefaultOutputRegistry.outputProperty).value(List.of());
-					for (String o : outputs) {
-						Property<URI> outputProperty = output(DefaultOutputRegistry.outputProperty, o);
-						LogOutput output = outputProperty.map(u -> config.output(u, o))
-							.get(config.properties())
-							.value();
-						appenders.add(LogAppender.builder().output(output).build());
-					}
+					DefaultAppenderRegistry.defaultAppenders(config) //
+						.stream() //
+						.<AppenderProvider>map(a -> (c -> a)) //
+						.forEach(appenders::add);
 				}
 				if (publisher == null) {
 					publisher = LogPublisher.SyncLogPublisher //
@@ -269,11 +256,6 @@ public sealed interface LogRouter extends LogLifecycle {
 				return new SimpleRoute(pub, levelResolver);
 			}
 
-		}
-
-		private static Property<URI> output(Property<?> property, String name) {
-			String newKey = LogProperties.concatKey(property.key(), name);
-			return Property.builder().toURI().build(newKey);
 		}
 
 	}

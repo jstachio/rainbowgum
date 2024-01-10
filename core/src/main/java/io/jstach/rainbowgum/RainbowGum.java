@@ -9,6 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -45,9 +46,9 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
-				r.publisher(PublisherProvider.async().bufferSize(config.get(bufferSize).value()).build());
+				r.publisher(PublisherProvider.async().bufferSize(bufferSize.get(config.properties()).value()).build());
 				r.appender(a -> {
-					a.output(config.get(output).value());
+					a.output(output.get(config.properties()).value());					
 				});
 				r.level(Level.INFO);
 			})

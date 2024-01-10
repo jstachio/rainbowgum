@@ -10,9 +10,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
-import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
-import io.jstach.rainbowgum.LogProperties.PropertyValue;
 
 /**
  * The configuration of a RainbowGum. In some other logging implementations this is called
@@ -25,16 +23,6 @@ public sealed interface LogConfig {
 	 * @return properties.
 	 */
 	public LogProperties properties();
-
-	/**
-	 * Gets a property value from the properties.
-	 * @param <T> property type
-	 * @param property property to look up.
-	 * @return property value nevern <code>null</code>.
-	 */
-	default <T> PropertyValue<T> get(Property<T> property) {
-		return properties().property(property);
-	}
 
 	/**
 	 * Level resolver for resolving levels from logger names.
@@ -53,6 +41,18 @@ public sealed interface LogConfig {
 	 * @return output provider.
 	 */
 	public LogOutputRegistry outputRegistry();
+
+	/**
+	 * Provides appenders by name.
+	 * @return appender registry.
+	 */
+	public LogAppenderRegistry appenderRegistry();
+
+	/**
+	 * Provides encoders by name.
+	 * @return encoder registry.
+	 */
+	public LogEncoderRegistry encoderRegistry();
 
 	/**
 	 * Finds an output from a URI.
@@ -102,7 +102,7 @@ public sealed interface LogConfig {
 	 * initialization process.
 	 * @return registry.
 	 */
-	public ServiceRegistry registry();
+	public ServiceRegistry serviceRegistry();
 
 	/**
 	 * Config Change Publisher.
@@ -230,6 +230,10 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogFormatterRegistry formatterRegistry;
 
+	private final LogAppenderRegistry appenderRegistry;
+
+	private final LogEncoderRegistry encoderRegistry;
+
 	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties) {
 		super();
 		this.registry = registry;
@@ -243,6 +247,8 @@ final class DefaultLogConfig implements LogConfig {
 		};
 		this.outputRegistry = LogOutputRegistry.of();
 		this.formatterRegistry = LogFormatterRegistry.of();
+		this.appenderRegistry = LogAppenderRegistry.of();
+		this.encoderRegistry = LogEncoderRegistry.of();
 	}
 
 	@Override
@@ -256,7 +262,7 @@ final class DefaultLogConfig implements LogConfig {
 	}
 
 	@Override
-	public ServiceRegistry registry() {
+	public ServiceRegistry serviceRegistry() {
 		return this.registry;
 	}
 
@@ -273,6 +279,16 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogFormatterRegistry formatterRegistry() {
 		return this.formatterRegistry;
+	}
+
+	@Override
+	public LogAppenderRegistry appenderRegistry() {
+		return this.appenderRegistry;
+	}
+
+	@Override
+	public LogEncoderRegistry encoderRegistry() {
+		return this.encoderRegistry;
 	}
 
 }

@@ -35,8 +35,8 @@ class RabbitMQSetupTest {
 		b.uri(URI.create(rabbit.getAmqpUrl()));
 		b.declareExchange(true);
 		Map<String, String> properties = new LinkedHashMap<>();
-		properties.put(LogProperties.OUTPUT_PROPERTY, "amqp");
-		properties.put(LogProperties.OUTPUT_PROPERTY + ".amqp", "amqp:///");
+		properties.put(LogProperties.APPENDERS_PROPERTY, "amqp");
+		properties.put(LogProperties.interpolateKey(LogProperties.APPENDER_PREFIX, Map.of("name", "amqp")), "amqp:///");
 		b.toProperties(properties::put);
 		System.out.println(properties);
 		System.out.println(rabbit.getAmqpUrl());

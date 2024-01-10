@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -66,6 +68,23 @@ public interface LogEncoder {
 	 */
 	public static LogEncoder of(LogFormatter formatter) {
 		return new FormatterEncoder(formatter);
+	}
+
+	/**
+	 * Finds output based on URI.
+	 */
+	public interface EncoderProvider {
+
+		/**
+		 * Loads an encoder from a URI.
+		 * @param uri uri.
+		 * @param name name of encoder.
+		 * @param properties key value config.
+		 * @return output.
+		 * @see LogProperties#of(URI)
+		 */
+		LogEncoder provide(URI uri, String name, LogProperties properties);
+
 	}
 
 	/**

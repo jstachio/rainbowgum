@@ -28,7 +28,7 @@ import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
  * The write methods do not throw {@link IOException} on purpose as it is implementations
  * responsibility to handle errors and to be resilient on their own.
  *
- * @see LogOutputProvider
+ * @see LogOutput.OutputProvider
  * @see Buffer
  */
 public interface LogOutput extends LogLifecycle, Flushable {
@@ -68,6 +68,24 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Finds output based on URI.
+	 */
+	public interface OutputProvider {
+
+		/**
+		 * Loads an output from a URI.
+		 * @param uri uri.
+		 * @param name name of output.
+		 * @param properties key value config.
+		 * @return output.
+		 * @throws IOException if unable to use the URI.
+		 * @see LogProperties#of(URI)
+		 */
+		LogOutput output(URI uri, String name, LogProperties properties) throws IOException;
+
 	}
 
 	/**

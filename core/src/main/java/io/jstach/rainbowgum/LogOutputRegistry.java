@@ -6,24 +6,42 @@ import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogOutput.OutputProvider;
 
 /**
  * Register output providers by URI scheme.
  */
-public sealed interface LogOutputRegistry extends LogOutputProvider permits DefaultOutputRegistry {
+public sealed interface LogOutputRegistry extends OutputProvider permits DefaultOutputRegistry {
+
+	/**
+	 * A meta URI scheme to reference outputs registered somewhere else.
+	 */
+	public static String NAMED_OUTPUT_SCHEME = "output";
 
 	/**
 	 * Register a provider by {@link URI#getScheme() scheme}.
 	 * @param scheme URI scheme to match for.
 	 * @param provider provider for scheme.
 	 */
-	public void put(String scheme, LogOutputProvider provider);
+	public void register(String scheme, OutputProvider provider);
+
+	/**
+	 * Finds an output by name.
+	 * @param name output name.
+	 * @return maybe an output.
+	 */
+	Optional<LogOutput> output(String name);
+
+	/**
+	 * Register a provider by {@link URI#getScheme() scheme}.
+	 * @param name URI scheme to match for.
+	 * @param output for name.
+	 */
+	public void register(String name, LogOutput output);
 
 	/**
 	 * Default output provider.
@@ -37,26 +55,42 @@ public sealed interface LogOutputRegistry extends LogOutputProvider permits Defa
 
 final class DefaultOutputRegistry implements LogOutputRegistry {
 
-	static final Property<List<String>> outputProperty = Property.builder()
-		.map(p -> Stream.of(p.split(",")).filter(s -> !s.trim().isEmpty()).toList())
-		.build(LogProperties.OUTPUT_PROPERTY);
+	private final Map<String, OutputProvider> providers = new ConcurrentHashMap<>();
 
-	private final Map<String, LogOutputProvider> providers = new ConcurrentHashMap<>();
+	private final Map<String, LogOutput> outputs = new ConcurrentHashMap<>();
 
 	@Override
-	public void put(String scheme, LogOutputProvider provider) {
+	public void register(String scheme, OutputProvider provider) {
 		providers.put(scheme, provider);
+	}
+
+	@Override
+	public void register(String name, LogOutput output) {
+		outputs.put(name, output);
+	}
+
+	@Override
+	public Optional<LogOutput> output(String name) {
+		return Optional.ofNullable(outputs.get(name));
 	}
 
 	@Override
 	public LogOutput output(URI uri, String name, LogProperties properties) throws IOException {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
-		LogOutputProvider customProvider;
+		OutputProvider customProvider;
 		if (scheme == null && path != null) {
 			@SuppressWarnings("resource")
 			FileOutputStream fos = new FileOutputStream(path);
 			return LogOutput.of(uri, fos.getChannel());
+		}
+		else if (NAMED_OUTPUT_SCHEME.equals(scheme)) {
+			String host = uri.getHost();
+			if (host != null) {
+				name = host;
+			}
+			String _name = name;
+			return output(name).orElseThrow(() -> new IOException("Output for name: " + _name + " not found."));
 		}
 		else if (LogOutput.STDOUT_SCHEME.equals(scheme)) {
 			return LogOutput.ofStandardOut();

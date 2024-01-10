@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.net.URI;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -19,6 +18,26 @@ import io.jstach.rainbowgum.LogProperties.Property;
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
 public interface LogAppender extends LogLifecycle, LogEventConsumer {
+
+	/**
+	 * Default Console appender name.
+	 */
+	static final String CONSOLE_APPENDER_NAME = "console";
+
+	/**
+	 * Default output file appender name.
+	 */
+	static final String FILE_APPENDER_NAME = "file";
+
+	/**
+	 * Output appender property.
+	 */
+	static final String APPENDER_OUTPUT_PROPERTY = LogProperties.APPENDER_PREFIX + "output";
+
+	/**
+	 * Encoder appender property.
+	 */
+	static final String APPENDER_ENCODER_PROPERTY = LogProperties.APPENDER_PREFIX + "encoder";
 
 	/**
 	 * Batch of events. <strong>DO NOT MODIFY THE ARRAY</strong>. Do not use the
@@ -93,8 +112,18 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 		protected @Nullable LogEncoder encoder;
 
+		// private final String name;
+
 		private Builder() {
 		}
+
+		//// /**
+		//// * Name of the appender.
+		//// * @return name.
+		//// */
+		//// public String name() {
+		//// return this.name;
+		// }
 
 		/**
 		 * Sets output. If not set defaults to {@link LogOutput#ofStandardOut()}.
@@ -339,8 +368,6 @@ class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogApp
 	static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
 		return new LockingLogAppender(appender);
 	};
-
-	static final Property<URI> fileProperty = Property.builder().map(URI::new).build(LogProperties.FILE_PROPERTY);
 
 	protected final ReentrantLock lock = new ReentrantLock();
 

@@ -8,7 +8,6 @@ import java.util.stream.Stream;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogOutputProvider;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.ServiceRegistry;
@@ -49,7 +48,7 @@ public sealed interface RainbowGumServiceProvider {
 
 	/**
 	 * Called after {@link LogConfig} has been loaded to do various custom initialization
-	 * like registering {@link LogOutputProvider}s.
+	 * like registering {@link io.jstach.rainbowgum.LogOutput.OutputProvider}s.
 	 *
 	 * @see LogConfig#outputRegistry()
 	 */
@@ -122,7 +121,7 @@ public sealed interface RainbowGumServiceProvider {
 	 * @param config config before initializers have run.
 	 */
 	public static void runInitializers(ServiceLoader<RainbowGumServiceProvider> loader, LogConfig config) {
-		findProviders(loader, Initializer.class).forEach(c -> c.initialize(config.registry(), config));
+		findProviders(loader, Initializer.class).forEach(c -> c.initialize(config.serviceRegistry(), config));
 	}
 
 	/**

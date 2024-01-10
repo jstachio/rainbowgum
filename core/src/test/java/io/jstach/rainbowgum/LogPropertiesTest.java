@@ -16,7 +16,7 @@ class LogPropertiesTest {
 		var extractor = ConfigLevelResolver.levelExtractor;
 		var property = extractor.property("com.stuff");
 		// assertEquals(Level.ALL, property.require(props));
-		PropertyValue<Level> value = props.property(property);
+		PropertyValue<Level> value = property.get(props);
 		value.value();
 	}
 
