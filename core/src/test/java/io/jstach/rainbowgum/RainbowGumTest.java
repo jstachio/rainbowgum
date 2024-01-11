@@ -58,7 +58,8 @@ class RainbowGumTest {
 			.newline() //
 			.build();
 
-		var sysout = LogAppender.builder() //
+		var sysout = LogAppender.builder("sysout") //
+			.output(LogOutput.ofStandardOut())
 			.formatter(formatter)
 			.build();
 

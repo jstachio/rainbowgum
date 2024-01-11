@@ -7,14 +7,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -395,8 +399,8 @@ public interface LogProperties {
 		throw new RuntimeException("Error for property. key: " + key, e);
 	}
 
-	private static RuntimeException throwMissingError(String key) {
-		throw new NoSuchElementException("Property missing. key: " + key);
+	private static RuntimeException throwMissingError(List<String> keys) {
+		throw new NoSuchElementException("Property missing. key: " + keys);
 	}
 
 	/**
@@ -481,13 +485,162 @@ public interface LogProperties {
 	}
 
 	/**
+	 * Property prefix parameter pattern.
+	 */
+	static final Pattern PARAMETER_PATTERN = Pattern.compile("\\{(.*?)\\}");
+
+	/**
+	 * Extract key parameters with {@link #PARAMETER_PATTERN}.
+	 * @param key also known as property name.
+	 * @return parameters in key.
+	 */
+	static Set<String> keyParameters(String key) {
+		Set<String> tokens = new LinkedHashSet<>();
+		Matcher matcher = PARAMETER_PATTERN.matcher(key);
+		while (matcher.find()) {
+			tokens.add(matcher.group(1));
+		}
+		return tokens;
+	}
+
+	private static void validateKeyParameters(String key, Set<String> parameters) {
+		var keyParameters = keyParameters(key);
+		if (!parameters.equals(keyParameters)) {
+			throw new IllegalArgumentException("Keyed parameter mismatch. key is parameters: " + keyParameters
+					+ " provided parameters: " + parameters);
+		}
+	}
+
+	/**
+	 * A lazily retrieved value.
+	 *
+	 * @param <T> value type.
+	 */
+	sealed interface Value<T> {
+
+		/**
+		 * Maps a property value to a new property value.
+		 * @param <U> new value type.
+		 * @param mapper function.
+		 * @return new property value.
+		 */
+		public <U> Value<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper);
+
+		/**
+		 * Gets the value.
+		 * @return value or <code>null</code>.
+		 */
+		public @Nullable T valueOrNull();
+
+		/**
+		 * Gets a value if there is if not uses the fallback.
+		 * @param fallback maybe <code>null</code>.
+		 * @return value.
+		 */
+		default @Nullable T valueOrNull(@Nullable T fallback) {
+			var v = valueOrNull();
+			if (v != null) {
+				return v;
+			}
+			return fallback;
+		}
+
+		/**
+		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
+		 * value.
+		 * @return value.
+		 * @throws NoSuchElementException if there is no value.
+		 */
+		public T value() throws NoSuchElementException;
+
+		/**
+		 * Append description of value.
+		 * @param sb appended to.
+		 */
+		public void describe(StringBuilder sb);
+
+	}
+
+	// record ValueValue<T>(@Nullable T valueOrNull) implements Value<T>{
+	//
+	// @Override
+	// public <U> Value<U> map(
+	// PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+	// // TODO Auto-generated method stub
+	// return null;
+	// }
+	//
+	// @Override
+	// public T value()
+	// throws NoSuchElementException {
+	// var t = valueOrNull();
+	// if (t == null) {
+	// throw new NoSuchElementException();
+	// }
+	// return t;
+	// }
+	//
+	// }
+
+	/**
+	 * Multiple properties tried in order.
+	 *
+	 * @param <T> property type.
+	 * @param propertyValues property values
+	 */
+	record PropertiesValue<T>(List<Value<T>> propertyValues) implements Value<T> {
+
+		@Override
+		public <U> Value<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+
+			List<Value<U>> values = new ArrayList<>();
+			for (var v : propertyValues) {
+				values.add(v.map(mapper));
+			}
+			return new PropertiesValue<>(values);
+		}
+
+		@Override
+		public @Nullable T valueOrNull() {
+			for (var pv : propertyValues) {
+				var v = pv.valueOrNull();
+				if (v != null) {
+					return v;
+				}
+			}
+			return null;
+		}
+
+		@Override
+		public T value() throws NoSuchElementException {
+			var t = valueOrNull();
+			if (t != null) {
+				return t;
+			}
+			StringBuilder error = new StringBuilder();
+			error.append("Property not found for: ");
+			describe(error);
+			throw new NoSuchElementException(error.toString());
+		}
+
+		@Override
+		public void describe(StringBuilder sb) {
+			for (var v : propertyValues) {
+				v.describe(sb);
+				sb.append(", ");
+			}
+		}
+
+	}
+
+	/**
 	 * A property value is a property and its lazily retrieved value.
 	 *
 	 * @param <T> value type.
 	 * @param property backing property.
 	 * @param properties the log properties instance.
 	 */
-	record PropertyValue<T>(Property<T> property, LogProperties properties) {
+	record PropertyValue<T>(Property<T> property, LogProperties properties) implements Value<T> {
 		/**
 		 * Maps a property value to a new property value.
 		 * @param <U> new value type.
@@ -503,7 +656,7 @@ public interface LogProperties {
 		 * @return value or <code>null</code>.
 		 */
 		public @Nullable T valueOrNull() {
-			return property.propertyGetter.valueOrNull(properties, property.key);
+			return property.propertyGetter.valueOrNull(properties, property.keys);
 		}
 
 		/**
@@ -512,7 +665,11 @@ public interface LogProperties {
 		 * @return value.
 		 */
 		public @Nullable T valueOrNull(@Nullable T fallback) {
-			return property.propertyGetter.valueOrNull(properties, property.key, fallback);
+			var v = valueOrNull();
+			if (v != null) {
+				return v;
+			}
+			return fallback;
 		}
 
 		/**
@@ -530,7 +687,7 @@ public interface LogProperties {
 		 * @throws NoSuchElementException if there is no value.
 		 */
 		public T value() throws NoSuchElementException {
-			return property.propertyGetter.value(properties, property.key);
+			return property.propertyGetter.value(properties, property.keys);
 		}
 
 		/**
@@ -542,18 +699,68 @@ public interface LogProperties {
 		 * <code>null</code>.
 		 */
 		public T value(@Nullable T fallback) throws NoSuchElementException {
-			return property.propertyGetter.value(properties, property.key, fallback);
+			return property.propertyGetter.value(properties, property.keys, fallback);
+		}
+
+		/**
+		 * Gets a value if there if not uses the fallback if not null otherwise throws an
+		 * exception.
+		 * @param fallback maybe <code>null</code>.
+		 * @return value.
+		 * @throws NoSuchElementException if no property and fallback is
+		 * <code>null</code>.
+		 */
+		public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
+				throws NoSuchElementException {
+			return property.propertyGetter.value(properties, property.keys, fallback);
+		}
+
+		/**
+		 * Set a property if its not null.
+		 * @param consumer first parameter is first key and second parameter is non null
+		 * value.
+		 */
+		public void set(BiConsumer<String, T> consumer) {
+			T value = valueOrNull();
+			if (value != null) {
+				consumer.accept(property.key(), value);
+			}
+		}
+
+		public void describe(StringBuilder b) {
+			b.append(property);
 		}
 	}
 
 	/**
 	 * A property description.
 	 *
-	 * @param <T> property type.
 	 * @param propertyGetter getter to retrieve property value from {@link LogProperties}.
-	 * @param key property key.
+	 * @param keys property keys to try in order
+	 * @param <T> property type.
 	 */
-	record Property<T>(PropertyGetter<T> propertyGetter, String key) {
+	record Property<T>(PropertyGetter<T> propertyGetter, List<String> keys) {
+
+		/**
+		 * Property Constructor.
+		 * @param propertyGetter getter to retrieve property value from
+		 * {@link LogProperties}.
+		 * @param keys property keys to try in order
+		 */
+		public Property {
+			Objects.requireNonNull(propertyGetter);
+			if (keys.isEmpty()) {
+				throw new IllegalArgumentException("should have at least one key");
+			}
+		}
+
+		/**
+		 * Gets the first key.
+		 * @return key.
+		 */
+		public String key() {
+			return keys.get(0);
+		}
 
 		/**
 		 * Gets a property value.
@@ -571,7 +778,19 @@ public interface LogProperties {
 		 * @return property.
 		 */
 		public <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
-			return new Property<>(propertyGetter.map(mapper), key);
+			return new Property<>(propertyGetter.map(mapper), keys);
+		}
+
+		/**
+		 * Set a property if its not null.
+		 * @param value value to set.
+		 * @param consumer first parameter is first key and second parameter is non null
+		 * value.
+		 */
+		public void set(T value, BiConsumer<String, T> consumer) {
+			if (value != null) {
+				consumer.accept(key(), value);
+			}
 		}
 
 		/**
@@ -598,6 +817,23 @@ public interface LogProperties {
 		 */
 		@Nullable
 		T valueOrNull(LogProperties props, String key);
+
+		/**
+		 * Value or null.
+		 * @param props log properties.
+		 * @param keys key to use in order.
+		 * @return value or <code>null</code>.
+		 */
+		@Nullable
+		default T valueOrNull(LogProperties props, List<String> keys) {
+			for (String key : keys) {
+				var v = valueOrNull(props, key);
+				if (v != null) {
+					return v;
+				}
+			}
+			return null;
+		}
 
 		/**
 		 * Value or fallback if property is missing.
@@ -631,11 +867,24 @@ public interface LogProperties {
 		 * @throws NoSuchElementException if no value is found for key.
 		 */
 		default T value(LogProperties props, String key) throws NoSuchElementException {
-			var t = valueOrNull(props, key);
-			if (t == null) {
-				throw findRoot(this).throwMissing(props, key);
+			return value(props, List.of(key));
+		}
+
+		/**
+		 * Uses the key to get a property and fail if missing.
+		 * @param props log properties.
+		 * @param keys keys to try in order.
+		 * @return value.
+		 * @throws NoSuchElementException if no value is found for key.
+		 */
+		default T value(LogProperties props, List<String> keys) throws NoSuchElementException {
+			for (String key : keys) {
+				var v = valueOrNull(props, key);
+				if (v != null) {
+					return v;
+				}
 			}
-			return t;
+			throw findRoot(this).throwMissing(props, keys);
 		}
 
 		/**
@@ -648,12 +897,46 @@ public interface LogProperties {
 		 * <code>null</code>.
 		 */
 		default T value(LogProperties props, String key, @Nullable T fallback) throws NoSuchElementException {
-			var t = valueOrNull(props, key);
+			return value(props, List.of(key), fallback);
+		}
+
+		/**
+		 * Value or fallback or exception if property is missing and fallback is null.
+		 * @param props log properties.
+		 * @param keys key to use.
+		 * @param fallback to use can be null.
+		 * @return value or <code>null</code>.
+		 * @throws NoSuchElementException if property is missing and fallback is
+		 * <code>null</code>.
+		 */
+		default T value(LogProperties props, List<String> keys, @Nullable T fallback) throws NoSuchElementException {
+			var t = valueOrNull(props, keys);
 			if (t == null) {
 				t = fallback;
 			}
 			if (t == null) {
-				throw findRoot(this).throwMissing(props, key);
+				throw findRoot(this).throwMissing(props, keys);
+			}
+			return t;
+		}
+
+		/**
+		 * Value or fallback or exception if property is missing and fallback is null.
+		 * @param props log properties.
+		 * @param keys key to use.
+		 * @param fallback to use can be null returned.
+		 * @return value or <code>null</code>.
+		 * @throws NoSuchElementException if property is missing and fallback is
+		 * <code>null</code>.
+		 */
+		default T value(LogProperties props, List<String> keys,
+				@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback) throws NoSuchElementException {
+			var t = valueOrNull(props, keys);
+			if (t == null) {
+				t = fallback.get();
+			}
+			if (t == null) {
+				throw findRoot(this).throwMissing(props, keys);
 			}
 			return t;
 		}
@@ -671,14 +954,20 @@ public interface LogProperties {
 		 * Creates a Property from the given key and this getter.
 		 * @param key key.
 		 * @return property.
+		 * @throws IllegalArgumentException if the key is malformed.
 		 */
-		default Property<T> build(String key) {
+		default Property<T> build(String key) throws IllegalArgumentException {
 			String fqn = fullyQualifiedKey(key);
 			if (!fqn.startsWith(LogProperties.ROOT_PREFIX)) {
 				throw new IllegalArgumentException(
 						"Property key should start with: '" + LogProperties.ROOT_PREFIX + "'. key = " + key);
 			}
-			return new Property<>(this, key);
+			if (fqn.endsWith(".") || fqn.startsWith(".")) {
+				throw new IllegalArgumentException(
+						"Property key should not start or end with '" + LogProperties.SEP + "'");
+			}
+			validateKeyParameters(key, Set.of());
+			return new Property<>(this, List.of(key));
 		}
 
 		/**
@@ -689,7 +978,9 @@ public interface LogProperties {
 		 * @return property.
 		 */
 		default Property<T> buildWithName(String key, String name) {
-			String fqn = LogProperties.interpolateKey(key, Map.of(NAME, name));
+			var parameters = Map.of(NAME, name);
+			validateKeyParameters(key, parameters.keySet());
+			String fqn = LogProperties.interpolateKey(key, parameters);
 			return build(fqn);
 		}
 
@@ -740,8 +1031,13 @@ public interface LogProperties {
 				throw LogProperties.throwPropertyError(props.description(fullyQualifiedKey(key)), e);
 			}
 
-			NoSuchElementException throwMissing(LogProperties props, String key) {
-				throw LogProperties.throwMissingError(props.description(fullyQualifiedKey(key)));
+			NoSuchElementException throwMissing(LogProperties props, List<String> keys) {
+				List<String> resolvedKeys = describeKeys(props, keys);
+				throw LogProperties.throwMissingError(resolvedKeys);
+			}
+
+			List<String> describeKeys(LogProperties props, List<String> keys) {
+				return keys.stream().map(k -> props.description(fullyQualifiedKey(k))).toList();
 			}
 
 			/**

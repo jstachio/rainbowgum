@@ -52,9 +52,15 @@ public class RabbitMQOutput implements LogOutput {
 
 	private final String exchangeType;
 
-	final static String DEFAULT_EXCHANGE = "logging";
+	/**
+	 * Default exchange.
+	 */
+	public final static String DEFAULT_EXCHANGE = "logging";
 
-	final static String DEFAULT_EXCHANGE_TYPE = "topic";
+	/**
+	 * Default exchange type for declaration.
+	 */
+	public final static String DEFAULT_EXCHANGE_TYPE = "topic";
 
 	RabbitMQOutput(URI uri, ConnectionFactory connectionFactory, @Nullable String appId, String exchange,
 			Function<LogEvent, String> routingKeyFunction, String connectionName, boolean declareExchange,

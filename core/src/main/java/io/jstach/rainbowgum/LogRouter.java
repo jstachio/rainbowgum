@@ -200,11 +200,12 @@ public sealed interface LogRouter extends LogLifecycle {
 
 			/**
 			 * Adds an appender by giving an appender builder to a consumer.
+			 * @param name appender name.
 			 * @param consumer consumer.
 			 * @return this builder.
 			 */
-			public Builder appender(Consumer<LogAppender.Builder> consumer) {
-				var builder = LogAppender.builder();
+			public Builder appender(String name, Consumer<LogAppender.Builder> consumer) {
+				var builder = LogAppender.builder(name);
 				consumer.accept(builder);
 				this.appenders.add(builder.build());
 				return this;

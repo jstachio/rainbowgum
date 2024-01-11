@@ -20,7 +20,7 @@ class RainbowGumLoggerFactoryTest {
 		var gum = RainbowGum.builder().route(route -> {
 			route.level(System.Logger.Level.WARNING, "ignore");
 			route.level(System.Logger.Level.INFO);
-			route.appender(a -> {
+			route.appender("list", a -> {
 				a.formatter((output, event) -> {
 					event.formattedMessage(output);
 					output.append(" {");

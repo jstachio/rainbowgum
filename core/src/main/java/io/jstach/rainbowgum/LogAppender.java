@@ -9,7 +9,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
-import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
@@ -68,20 +67,22 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 		/**
 		 * Creates a builder to create an appender provider.
+		 * @param name name of appender.
 		 * @return builder.
 		 */
-		public static Builder builder() {
-			return LogAppender.builder();
+		public static Builder builder(String name) {
+			return LogAppender.builder(name);
 		}
 
 	}
 
 	/**
 	 * Creates a builder.
+	 * @param name appender name.
 	 * @return builder.
 	 */
-	public static Builder builder() {
-		return new Builder();
+	public static Builder builder(String name) {
+		return new Builder(name);
 	}
 
 	/**
@@ -108,22 +109,23 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 */
 	public static final class Builder {
 
-		protected LogOutput output = LogOutput.ofStandardOut();
+		protected @Nullable LogOutput output;
 
 		protected @Nullable LogEncoder encoder;
 
-		// private final String name;
+		private final String name;
 
-		private Builder() {
+		private Builder(String name) {
+			this.name = name;
 		}
 
-		//// /**
-		//// * Name of the appender.
-		//// * @return name.
-		//// */
-		//// public String name() {
-		//// return this.name;
-		// }
+		/**
+		 * Name of the appender.
+		 * @return name.
+		 */
+		public String name() {
+			return this.name;
+		}
 
 		/**
 		 * Sets output. If not set defaults to {@link LogOutput#ofStandardOut()}.
@@ -172,27 +174,13 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * @return an appender factory.
 		 */
 		public AppenderProvider build() {
-			var output = this.output;
-			var encoder = this.encoder;
+			/*
+			 * We need to capture parameters since appender creation needs to be lazy.
+			 */
+			AppenderConfig a = new AppenderConfig(name, output, encoder);
 			return config -> {
-				return logAppender(config, output, encoder);
+				return DefaultAppenderRegistry.appender(a, config);
 			};
-		}
-
-		private static final Property<Boolean> defaultsAppenderBufferProperty = Property.builder()
-			.map(s -> Boolean.parseBoolean(s))
-			.orElse(false)
-			.build(LogProperties.concatKey("defaults.appender.buffer"));
-
-		private static LogAppender logAppender(LogConfig config, LogOutput output, @Nullable LogEncoder encoder) {
-			var formatterRegistry = config.formatterRegistry();
-			var properties = config.properties();
-			if (encoder == null) {
-				encoder = LogEncoder.of(formatterRegistry.formatterForOutputType(output.type()));
-			}
-
-			return defaultsAppenderBufferProperty.get(properties).value() ? new BufferLogAppender(output, encoder)
-					: new DefaultLogAppender(output, encoder);
 		}
 
 	}

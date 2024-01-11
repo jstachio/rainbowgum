@@ -74,15 +74,28 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		return Optional.ofNullable(outputs.get(name));
 	}
 
+	LogOutput provide(String name, LogProperties properties) throws IOException {
+		var o = output(name).orElse(null);
+		if (o != null) {
+			return o;
+		}
+		return output(URI.create(name + ":///"), name, properties);
+	}
+
 	@Override
 	public LogOutput output(URI uri, String name, LogProperties properties) throws IOException {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
 		OutputProvider customProvider;
 		if (scheme == null && path != null) {
-			@SuppressWarnings("resource")
-			FileOutputStream fos = new FileOutputStream(path);
-			return LogOutput.of(uri, fos.getChannel());
+			if (name.equals(LogAppender.FILE_APPENDER_NAME)) {
+				@SuppressWarnings("resource")
+				FileOutputStream fos = new FileOutputStream(path);
+				return LogOutput.of(uri, fos.getChannel());
+			}
+			else {
+				return provide(name, properties);
+			}
 		}
 		else if (NAMED_OUTPUT_SCHEME.equals(scheme)) {
 			String host = uri.getHost();
@@ -90,7 +103,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 				name = host;
 			}
 			String _name = name;
-			return output(name).orElseThrow(() -> new IOException("Output for name: " + _name + " not found."));
+			return output(_name).orElseThrow(() -> new IOException("Output for name: " + _name + " not found."));
 		}
 		else if (LogOutput.STDOUT_SCHEME.equals(scheme)) {
 			return LogOutput.ofStandardOut();

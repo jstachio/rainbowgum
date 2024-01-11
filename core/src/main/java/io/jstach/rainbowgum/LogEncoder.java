@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
