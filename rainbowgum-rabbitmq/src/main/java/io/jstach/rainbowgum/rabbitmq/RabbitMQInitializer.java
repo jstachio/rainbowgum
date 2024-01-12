@@ -12,7 +12,8 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
 
 /**
- * RabbitMQ initializer to register output provider with scheme {@value #SCHEME}.
+ * RabbitMQ initializer to register output provider with scheme
+ * {@value RabbitMQOutput#URI_SCHEME}.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public class RabbitMQInitializer implements RainbowGumServiceProvider.Initializer {
@@ -23,11 +24,9 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Initialize
 	public RabbitMQInitializer() {
 	}
 
-	final static String SCHEME = "amqp";
-
 	@Override
 	public void initialize(ServiceRegistry registry, LogConfig config) {
-		config.outputRegistry().register(SCHEME, RabbitMQOutputProvider.INSTANCE);
+		config.outputRegistry().register(RabbitMQOutput.URI_SCHEME, RabbitMQOutputProvider.INSTANCE);
 	}
 
 	private enum RabbitMQOutputProvider implements OutputProvider {

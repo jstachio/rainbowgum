@@ -8,6 +8,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
+import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 
 /**
@@ -16,7 +17,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
  *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
-public interface LogAppender extends LogLifecycle, LogEventConsumer {
+public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.Provider<LogAppender> {
 
 	/**
 	 * Default Console appender name.
@@ -53,27 +54,9 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 	public void append(LogEvent event);
 
-	/**
-	 * A factor of appenders.
-	 */
-	public interface AppenderProvider {
-
-		/**
-		 * Creates an appender from config.
-		 * @param config config.
-		 * @return appender.
-		 */
-		LogAppender provide(LogConfig config);
-
-		/**
-		 * Creates a builder to create an appender provider.
-		 * @param name name of appender.
-		 * @return builder.
-		 */
-		public static Builder builder(String name) {
-			return LogAppender.builder(name);
-		}
-
+	@Override
+	default LogAppender provide(LogConfig config) {
+		return this;
 	}
 
 	/**
@@ -109,9 +92,9 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 */
 	public static final class Builder {
 
-		protected @Nullable LogOutput output;
+		protected @Nullable Provider<LogOutput> output;
 
-		protected @Nullable LogEncoder encoder;
+		protected @Nullable Provider<LogEncoder> encoder;
 
 		private final String name;
 
@@ -128,11 +111,11 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 		}
 
 		/**
-		 * Sets output. If not set defaults to {@link LogOutput#ofStandardOut()}.
+		 * Sets output.
 		 * @param output output.
 		 * @return builder.
 		 */
-		public Builder output(LogOutput output) {
+		public Builder output(Provider<LogOutput> output) {
 			this.output = output;
 			return this;
 		}
@@ -164,7 +147,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * @param encoder encoder not <code>null</code>.
 		 * @return builder.
 		 */
-		public Builder encoder(LogEncoder encoder) {
+		public Builder encoder(Provider<LogEncoder> encoder) {
 			this.encoder = encoder;
 			return this;
 		}
@@ -173,12 +156,16 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * Builds.
 		 * @return an appender factory.
 		 */
-		public AppenderProvider build() {
+		public Provider<LogAppender> build() {
 			/*
 			 * We need to capture parameters since appender creation needs to be lazy.
 			 */
-			AppenderConfig a = new AppenderConfig(name, output, encoder);
+			var _name = name;
+			var _output = output;
+			var _encoder = encoder;
 			return config -> {
+				AppenderConfig a = new AppenderConfig(_name, Provider.provideOrNull(_output, config),
+						Provider.provideOrNull(_encoder, config));
 				return DefaultAppenderRegistry.appender(a, config);
 			};
 		}

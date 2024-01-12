@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogAppender.AppenderProvider;
+import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
@@ -22,14 +22,14 @@ public sealed interface LogAppenderRegistry permits DefaultAppenderRegistry {
 	 * @param name name of the appender.
 	 * @return appender provider to be used for creating the appender.
 	 */
-	Optional<AppenderProvider> appender(String name);
+	Optional<Provider<LogAppender>> appender(String name);
 
 	/**
 	 * Registers an appender provider by name.
 	 * @param name of the appender.
 	 * @param appenderProvider factory to be used for creating appenders.
 	 */
-	void register(String name, AppenderProvider appenderProvider);
+	void register(String name, Provider<LogAppender> appenderProvider);
 
 	/**
 	 * Creates a log appender registry.
@@ -68,7 +68,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	 * properties is complicated particularly because we want to support Spring Boots
 	 * configuration OOB.
 	 */
-	private final Map<String, AppenderProvider> providers = new ConcurrentHashMap<>();
+	private final Map<String, Provider<LogAppender>> providers = new ConcurrentHashMap<>();
 
 	static final Property<URI> fileProperty = Property.builder().toURI().build(LogProperties.FILE_PROPERTY);
 
@@ -101,12 +101,14 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	}
 
 	static Optional<LogAppender> fileAppender(LogConfig config) {
-		String name = LogAppender.FILE_APPENDER_NAME;
-		var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
+		final String name = LogAppender.FILE_APPENDER_NAME;
+		var outputProperty = fileProperty //
+			.map(u -> config.outputRegistry().output(u, name, config.properties()));
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
+
 		return fileProperty //
-			.map(u -> appender(name, config, outputProperty, encoderProperty))
-			.get(config.properties())
+			.map(u -> appender(name, config, outputProperty, encoderProperty)) //
+			.get(config.properties()) //
 			.optional();
 	}
 
@@ -198,12 +200,12 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	}
 
 	@Override
-	public Optional<AppenderProvider> appender(String name) {
+	public Optional<Provider<LogAppender>> appender(String name) {
 		return Optional.ofNullable(providers.get(name));
 	}
 
 	@Override
-	public void register(String name, AppenderProvider appenderProvider) {
+	public void register(String name, Provider<LogAppender> appenderProvider) {
 		providers.put(name, appenderProvider);
 
 	}

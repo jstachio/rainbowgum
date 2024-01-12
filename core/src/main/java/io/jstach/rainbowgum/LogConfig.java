@@ -105,6 +105,40 @@ public sealed interface LogConfig {
 	public ServiceRegistry serviceRegistry();
 
 	/**
+	 * A factory that may need config to provide. <strong>Most components implements this
+	 * interface so that you can use already created instances</strong>.
+	 *
+	 * @param <T> component
+	 */
+	@FunctionalInterface
+	public interface Provider<T> {
+
+		/**
+		 * Creates the component from config. The component is not always guaranteed to be
+		 * new object.
+		 * @param config config.
+		 * @return component.
+		 */
+		T provide(LogConfig config);
+
+		/**
+		 * Convenience for flattening nullable providers.
+		 * @param <U> component
+		 * @param provider nullable provider
+		 * @param config config used to provide if not null.
+		 * @return maybe null component.
+		 */
+		@SuppressWarnings("exports")
+		public static <U> @Nullable U provideOrNull(@Nullable Provider<U> provider, LogConfig config) {
+			if (provider == null) {
+				return null;
+			}
+			return provider.provide(config);
+		}
+
+	}
+
+	/**
 	 * Config Change Publisher.
 	 */
 	interface ChangePublisher {

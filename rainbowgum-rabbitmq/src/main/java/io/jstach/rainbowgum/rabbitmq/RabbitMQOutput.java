@@ -53,6 +53,11 @@ public class RabbitMQOutput implements LogOutput {
 	private final String exchangeType;
 
 	/**
+	 * The rabbitmq URI scheme for configuration.
+	 */
+	public final static String URI_SCHEME = "amqp";
+
+	/**
 	 * Default exchange.
 	 */
 	public final static String DEFAULT_EXCHANGE = "logging";
@@ -76,6 +81,23 @@ public class RabbitMQOutput implements LogOutput {
 		this.exchangeType = exchangeType;
 	}
 
+	/**
+	 * Creates a RabbitMQOutput. This method is called by the generated builder.
+	 * @param name used to resolve config and give the output a name.
+	 * @param uri passed to the rabbitmq connection factory.
+	 * @param exchange exchange to send messages to.
+	 * @param routingKey the logging event level will be used by default.
+	 * @param declareExchange declare exchange on start. Default is false.
+	 * @param host host.
+	 * @param username set user name if not null outside of URI.
+	 * @param password set password if not null outside of URI.
+	 * @param port set port if not null.
+	 * @param appId sets the message appId if not null.
+	 * @param connectionName connection name if not null.
+	 * @param exchangeType exchange type like "topic" covered in rabbitmq doc.
+	 * @param virtualHost sets virtualhost if not null.
+	 * @return output.
+	 */
 	@LogConfigurable(prefix = LogProperties.OUTPUT_PREFIX)
 	static RabbitMQOutput of( //
 			@LogConfigurable.PrefixParameter String name, //

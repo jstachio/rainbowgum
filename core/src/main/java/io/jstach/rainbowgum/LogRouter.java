@@ -4,7 +4,6 @@ import static java.util.Objects.requireNonNullElse;
 
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.net.URI;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,8 +18,6 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogAppender.AppenderProvider;
-import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
@@ -181,7 +178,7 @@ public sealed interface LogRouter extends LogLifecycle {
 
 			private final LogConfig config;
 
-			private List<AppenderProvider> appenders = new ArrayList<>();
+			private List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>();
 
 			private Builder(LogConfig config) {
 				this.config = config;
@@ -216,7 +213,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			 * @param appender appender provider.
 			 * @return this builder.
 			 */
-			public Builder appender(AppenderProvider appender) {
+			public Builder appender(LogConfig.Provider<LogAppender> appender) {
 				this.appenders.add(appender);
 				return self();
 			}
@@ -238,11 +235,10 @@ public sealed interface LogRouter extends LogLifecycle {
 			Router build() {
 				var levelResolver = buildLevelResolver(config.levelResolver());
 				var publisher = this.publisher;
-				List<AppenderProvider> appenders = new ArrayList<>(this.appenders);
+				List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
 					DefaultAppenderRegistry.defaultAppenders(config) //
 						.stream() //
-						.<AppenderProvider>map(a -> (c -> a)) //
 						.forEach(appenders::add);
 				}
 				if (publisher == null) {

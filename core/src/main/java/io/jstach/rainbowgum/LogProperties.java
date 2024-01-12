@@ -468,16 +468,6 @@ public interface LogProperties {
 	 * @return interpolated property name.
 	 */
 	static String interpolateKey(String name, Map<String, String> parameters) {
-
-		// if (validate) {
-		// StringBuilder error = new StringBuilder();
-		// for (Map.Entry<String, String> entry : parameters.entrySet()) {
-		// String key = entry.getKey();
-		// String p = "{" + key + "}";
-		// if (! name.contains(p)) {
-		// }
-		// }
-		// }
 		for (Map.Entry<String, String> entry : parameters.entrySet()) {
 			name = name.replace("{" + entry.getKey() + "}", entry.getValue());
 		}

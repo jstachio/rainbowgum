@@ -43,7 +43,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
  * @see LogAppender
  * @see StringBuilderBuffer
  */
-public interface LogEncoder {
+public interface LogEncoder extends LogConfig.Provider<LogEncoder> {
 
 	/**
 	 * Creates a <strong>new</strong> buffer. The encoder should not try to reuse buffers
@@ -84,6 +84,11 @@ public interface LogEncoder {
 		 */
 		LogEncoder provide(URI uri, String name, LogProperties properties);
 
+	}
+
+	@Override
+	default LogEncoder provide(LogConfig config) {
+		return this;
 	}
 
 	/**
