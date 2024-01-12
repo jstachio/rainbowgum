@@ -40,6 +40,10 @@ record BuilderModel( //
 		return properties.stream().filter(p -> p.kind == PropertyKind.NAME_PARAMETER).toList();
 	}
 
+	public List<String> descriptionLines() {
+		return description.lines().map(String::trim).toList();
+	}
+
 	record Converter(String methodName) {
 	}
 
@@ -68,16 +72,26 @@ record BuilderModel( //
 			return "PROPERTY_" + name;
 		}
 
-		public String convertMethod() {
+		public @Nullable String convertMethod() {
 			if (converter != null) {
 				return ".map(_v -> " + converter.methodName + "(_v))";
 			}
 			return switch (type) {
 				case INTEGER_TYPE -> ".toInt()";
-				case STRING_TYPE -> "";
+				case STRING_TYPE -> null;
 				case URI_TYPE -> ".toURI()";
 				case BOOLEAN_TYPE -> ".toBoolean()";
 				default -> throw new IllegalStateException(type + " is not supported");
+			};
+		}
+
+		public String typeDescription() {
+			return switch (type) {
+				case INTEGER_TYPE -> "Integer";
+				case STRING_TYPE -> "String";
+				case URI_TYPE -> "URI";
+				case BOOLEAN_TYPE -> "Boolean";
+				default -> "String (converted)";
 			};
 		}
 

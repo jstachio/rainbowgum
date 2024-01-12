@@ -248,12 +248,27 @@ public class ConfigProcessor extends AbstractProcessor {
 					if (parts.length >= 3) {
 						String paramName = parts[1];
 						String paramDescription = parts[2];
-						properties.put(paramName, paramDescription);
+						properties.put(paramName, processParamDescription(paramDescription));
 					}
 				}
 			}
 			return new ConfigJavadoc(desc.toString(), properties);
 		}
+	}
+
+	private static String processParamDescription(String description) {
+		String s = capitalizeFirstLetter(description);
+		if (!s.endsWith(".")) {
+			return s + ".";
+		}
+		return s;
+	}
+
+	private static String capitalizeFirstLetter(String str) {
+		if (str.isEmpty()) {
+			return str;
+		}
+		return str.trim().substring(0, 1).toUpperCase() + str.substring(1);
 	}
 
 	private static Class<?> primitiveToClass(TypeKind k) {

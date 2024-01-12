@@ -5,10 +5,12 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
- * Builder to create $$targetType$$.
- * $$description$$
+ * Builder to create {@link $$targetType$$ }.
+ $$#descriptionLines$$
+ * $$.$$
+ $$/descriptionLines$$
  * <table class="table">
- * <caption>Properties retrieved from LogProperties</caption>
+ * <caption><strong>Properties retrieved from LogProperties</strong></caption>
  * <tr>
  * <th>Property Pattern</th>
  * <th>Type</th>
@@ -20,7 +22,7 @@ import io.jstach.rainbowgum.LogProperties.Property;
  $$#normal$$
  * <tr>
  * <td><code>{@value $$propertyLiteral$$ }</code></td>
- * <td><code>$$type$$</code></td>
+ * <td><code>$$typeDescription$$</code></td>
  * <td><code>$$required$$</code></td>
  * <td>$$defaultValueDoc$$</td>
  * <td>$$javadoc$$</td>
@@ -80,8 +82,10 @@ public final class $$builderName$$ {
 		$$#properties$$
 		$$#normal$$
 		$$propertyVar$$ = Property.builder()
-			$$convertMethod$$
+			$$#convertMethod$$$$.$$
+			$$/convertMethod$$
 			.build(LogProperties.interpolateKey($$propertyLiteral$$, prefixParameters));
+
 		$$/normal$$
 		$$#prefixParameter$$
 		this.$$name$$ = $$name$$;
@@ -94,6 +98,7 @@ public final class $$builderName$$ {
 	
 	/**
 	 * Sets $$#required$$<strong>required</strong> $$/required$$$$name$$.
+	 * $$javadoc$$
 	 * Default is $$defaultValueDoc$$.
 	 * @param $$name$$ <code>{@value #$$propertyLiteral$$ } = $$type$$</code> $$javadoc$$
 	 * @return this builder.

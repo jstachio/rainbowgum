@@ -82,7 +82,7 @@ public class RabbitMQOutput implements LogOutput {
 	}
 
 	/**
-	 * Creates a RabbitMQOutput. This method is called by the generated builder.
+	 * Creates a RabbitMQOutput.
 	 * @param name used to resolve config and give the output a name.
 	 * @param uri passed to the rabbitmq connection factory.
 	 * @param exchange exchange to send messages to.
@@ -103,7 +103,7 @@ public class RabbitMQOutput implements LogOutput {
 			@LogConfigurable.PrefixParameter String name, //
 			@Nullable URI uri, //
 			@LogConfigurable.DefaultParameter("DEFAULT_EXCHANGE") String exchange, //
-			@Nullable String routingKey, //
+			@LogConfigurable.ConvertParameter("toRoutingKeyFunction") @Nullable Function<LogEvent, String> routingKey, //
 			@Nullable Boolean declareExchange, //
 			@Nullable String host, //
 			@Nullable String username, //
@@ -142,13 +142,17 @@ public class RabbitMQOutput implements LogOutput {
 		}
 		Function<LogEvent, String> routingKeyFunction;
 		if (routingKey != null) {
-			routingKeyFunction = e -> routingKey;
+			routingKeyFunction = routingKey;
 		}
 		else {
 			routingKeyFunction = e -> e.level().name();
 		}
 		return new RabbitMQOutput(uri, factory, appId, exchange, routingKeyFunction, connectionName, declareExchange,
 				exchangeType);
+	}
+
+	static Function<LogEvent, String> toRoutingKeyFunction(String routingKey) {
+		return e -> routingKey;
 	}
 
 	@Override
