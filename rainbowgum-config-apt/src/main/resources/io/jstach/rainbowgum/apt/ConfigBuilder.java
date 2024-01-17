@@ -144,7 +144,7 @@ public final class $$builderName$$ {
 		$$#properties$$
 		$$#normal$$
 		if (this.$$name$$ != null) {
-			consumer.accept($$propertyVar$$.key(), String.valueOf(this.$$name$$));
+			consumer.accept($$propertyVar$$.key(), $$propertyVar$$.propertyString(this.$$name$$));
 		}
 		$$/normal$$
 		$$/properties$$

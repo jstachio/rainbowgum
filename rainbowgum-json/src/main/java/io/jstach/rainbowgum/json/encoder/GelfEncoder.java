@@ -42,12 +42,17 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		this.prettyprint = prettyprint;
 	}
 
+	/**
+	 * Creates Gelf Encoder.
+	 * @param name property name prefix.
+	 * @param host host field in gelf.
+	 * @param headers additional headers that will be prefix with "_".
+	 * @param prettyPrint <code>true</code> will pretty prin the json, default is false.
+	 * @return encoder.
+	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
-	public static GelfEncoder of(@LogConfigurable.PrefixParameter String name, String host, //
-
+	static GelfEncoder of(@LogConfigurable.PrefixParameter String name, String host, //
 			@LogConfigurable.ConvertParameter("convertHeaders") @Nullable Map<String, String> headers,
-
-			// String headers,
 			@Nullable Boolean prettyPrint) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		host = Objects.requireNonNull(host);

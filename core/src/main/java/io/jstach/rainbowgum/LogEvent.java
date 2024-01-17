@@ -212,6 +212,13 @@ public sealed interface LogEvent {
 	 */
 	public LogEvent freeze();
 
+	/**
+	 * Freeze and replace with the given timestamp.
+	 * @param timestamp instant to replace timestamp in this.
+	 * @return a copy of this with the given timestamp.
+	 */
+	public LogEvent freeze(Instant timestamp);
+
 }
 
 enum EmptyLogEvent implements LogEvent {
@@ -276,6 +283,11 @@ enum EmptyLogEvent implements LogEvent {
 		return this;
 	}
 
+	@Override
+	public LogEvent freeze(Instant timestamp) {
+		return this;
+	}
+
 }
 
 record OneArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
@@ -295,6 +307,10 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 
 	public LogEvent freeze() {
+		return freeze(timestamp);
+	}
+
+	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
@@ -320,6 +336,10 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 
 	public LogEvent freeze() {
+		return freeze(timestamp);
+	}
+
+	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
@@ -344,11 +364,16 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 	}
 
 	public LogEvent freeze() {
+		return freeze(timestamp);
+	}
+
+	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
 				keyValues.freeze(), null);
 	}
+
 }
 
 record DefaultLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
@@ -377,6 +402,15 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 					throwable);
 		}
 		return this;
+	}
+
+	public LogEvent freeze(Instant timestamp) {
+		if (keyValues instanceof MutableKeyValues mkvs) {
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,
+					throwable);
+		}
+		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
+				throwable);
 	}
 
 }

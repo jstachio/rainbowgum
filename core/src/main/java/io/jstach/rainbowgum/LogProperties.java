@@ -1,5 +1,8 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.UncheckedIOException;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +16,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -128,10 +132,42 @@ public interface LogProperties {
 
 	/**
 	 * Analogous to {@link System#getProperty(String)}.
-	 * @param key property key.
+	 * @param key property name.
 	 * @return property value.
 	 */
 	public @Nullable String valueOrNull(String key);
+
+	/**
+	 * Gets a list or null if the key is missing and by default uses
+	 * {@link #parseList(String)}.
+	 * @param key property name.
+	 * @return list or <code>null</code>.
+	 * @apiNote the reason empty list is not returned for missing key is that it creates
+	 * ambiguity so null is returned when key is missing.
+	 */
+	default @Nullable List<String> listOrNull(String key) {
+		String s = valueOrNull(key);
+		if (s == null) {
+			return null;
+		}
+		return parseList(s);
+	}
+
+	/**
+	 * Gets a map or null if the key is missing and by default uses
+	 * {@link #parseMap(String)}.
+	 * @param key property name.
+	 * @return map or <code>null</code>.
+	 * @apiNote the reason empty map is not returned for missing key is that it creates
+	 * ambiguity so null is returned when key is missing.
+	 */
+	default Map<String, String> mapOrNull(String key) {
+		String s = valueOrNull(key);
+		if (s == null) {
+			return null;
+		}
+		return parseMap(s);
+	}
 
 	/**
 	 * Searches up a path using this properties to check for values.
@@ -160,6 +196,121 @@ public interface LogProperties {
 	 */
 	default int order() {
 		return 0;
+	}
+
+	/**
+	 * Builder for properties.
+	 */
+	public final static class Builder {
+
+		private String description = "custom";
+
+		private int order = 0;
+
+		private Function<String, String> function;
+
+		private Builder() {
+		}
+
+		/**
+		 * Description for properties.
+		 * @param description not null.
+		 * @return this.
+		 */
+		public Builder description(String description) {
+			this.description = description;
+			return this;
+		}
+
+		/**
+		 * When log properties are coalesced this method is used to resolve order. A
+		 * higher number gives higher precedence.
+		 * @param order order.
+		 * @return this.
+		 */
+		public Builder order(int order) {
+			this.order = order;
+			return this;
+		}
+
+		/**
+		 * Parses a string as {@link Properties}.
+		 * @param properties properties as a string.
+		 * @return this.
+		 */
+		public Builder fromProperties(String properties) {
+			function = Format.PROPERTIES.parse(properties);
+			return this;
+		}
+
+		/**
+		 * Parses a string as a URI query string.
+		 * @param query uri percent encoded uri with separator as "<code>&amp;</code>" and
+		 * key value separator of "<code>=</code>".
+		 * @return this.
+		 */
+		public Builder fromURIQuery(String query) {
+			function = Format.URI_QUERY.parse(query);
+			return this;
+		}
+
+		/**
+		 * Builds LogProperties based on builder config.
+		 * @return this.
+		 */
+		public LogProperties build() {
+			if (function == null) {
+				throw new IllegalStateException("function is was not set");
+			}
+			return new DefaultLogProperties(function, description, order);
+		}
+
+		private record DefaultLogProperties(Function<String, String> func, String description,
+				int order) implements LogProperties {
+
+			@Override
+			public @Nullable String valueOrNull(String key) {
+				return func.apply(key);
+			}
+
+		}
+
+		enum Format {
+
+			PROPERTIES() {
+				@Override
+				Function<String, String> parse(String content) {
+					var m = new LinkedHashMap<String, String>();
+					StringReader reader = new StringReader(content);
+					try {
+						PropertiesParser.readProperties(reader, m::put);
+					}
+					catch (IOException e) {
+						throw new UncheckedIOException(e);
+					}
+					return m::get;
+				}
+			},
+			URI_QUERY() {
+				@Override
+				Function<String, String> parse(String content) {
+					var m = parseMap(content);
+					return m::get;
+				}
+			};
+
+			abstract Function<String, String> parse(String content);
+
+		}
+
+	}
+
+	/**
+	 * LogProperties builder.
+	 * @return builder.
+	 */
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	/**
@@ -395,12 +546,69 @@ public interface LogProperties {
 
 	}
 
-	private static RuntimeException throwPropertyError(String key, Exception e) {
-		throw new RuntimeException("Error for property. key: " + key, e);
+	/**
+	 * Parent interface for property exceptions.
+	 */
+	sealed interface PropertyProblem {
+
+	}
+
+	/**
+	 * Thrown if an error happens while converting a property.
+	 */
+	final static class PropertyConvertException extends RuntimeException implements PropertyProblem {
+
+		private static final long serialVersionUID = -6260241455268426342L;
+
+		/**
+		 * Key.
+		 */
+		private final String key;
+
+		/**
+		 * Creates convert exception.
+		 * @param key property key.
+		 * @param message error message
+		 * @param cause maybe null.
+		 */
+		PropertyConvertException(String key, String message, @Nullable Throwable cause) {
+			super(message, cause);
+			this.key = key;
+		}
+
+		/**
+		 * Property key.
+		 * @return key.
+		 */
+		public String key() {
+			return this.key;
+		}
+
+	}
+
+	/**
+	 * Throw if property is missing.
+	 */
+	final static class PropertyMissingException extends NoSuchElementException implements PropertyProblem {
+
+		private static final long serialVersionUID = 4203076848052565692L;
+
+		/**
+		 * Creates a missing propety exception.
+		 * @param s error message.
+		 */
+		PropertyMissingException(String s) {
+			super(s);
+		}
+
+	}
+
+	private static PropertyConvertException throwPropertyError(String key, Exception e) {
+		throw new PropertyConvertException(key, "Error for property. key: " + key, e);
 	}
 
 	private static RuntimeException throwMissingError(List<String> keys) {
-		throw new NoSuchElementException("Property missing. key: " + keys);
+		throw new PropertyMissingException("Property missing. key: " + keys);
 	}
 
 	/**
@@ -772,6 +980,16 @@ public interface LogProperties {
 		}
 
 		/**
+		 * Converts the value into a String that can be parsed by the builtin properties
+		 * parsing of types. Supported types: String, Boolean, Integer, URI, Map, List.
+		 * @param value to be converted to string.
+		 * @return property representation of value.
+		 */
+		public String propertyString(T value) {
+			return propertyGetter.propertyString(value);
+		}
+
+		/**
 		 * Set a property if its not null.
 		 * @param value value to set.
 		 * @param consumer first parameter is first key and second parameter is non null
@@ -792,6 +1010,35 @@ public interface LogProperties {
 		}
 	}
 
+	// enum PropertyType {
+	// STRING,
+	// INTEGER,
+	// BOOLEAN,
+	// URI,
+	// MAP,
+	// LIST,
+	// UNKNOWN;
+	//
+	// public static PropertyType of(Object value) {
+	// return switch(value) {
+	// case String s -> STRING;
+	// case Integer i -> INTEGER;
+	// case Boolean b -> BOOLEAN;
+	// case Map<?,?> m -> MAP;
+	// default -> UNKNOWN;
+	// };
+	// }
+	//
+	// public static PropertyType of(Class<?> c) {
+	// return switch (c) {
+	// case Class<String> s -> STRING;
+	// default -> throw new IllegalArgumentException("Unexpected value: " + c);
+	//
+	// };
+	// }
+	//
+	// }
+
 	/**
 	 * Extracts and converts from {@link LogProperties}.
 	 *
@@ -807,6 +1054,14 @@ public interface LogProperties {
 		 */
 		@Nullable
 		T valueOrNull(LogProperties props, String key);
+
+		/**
+		 * Converts the value into a String that can be parsed by the builtin properties
+		 * parsing of types. Supported types: String, Boolean, Integer, URI, Map, List.
+		 * @param value to be converted to string.
+		 * @return property representation of value.
+		 */
+		String propertyString(T value);
 
 		/**
 		 * Value or null.
@@ -1014,7 +1269,12 @@ public interface LogProperties {
 				if (search) {
 					return props.search(prefix, key);
 				}
-				return props.valueOrNull(LogProperties.concatKey(prefix, key));
+				return props.valueOrNull(fullyQualifiedKey(key));
+			}
+
+			@Override
+			public String propertyString(String value) {
+				return value;
 			}
 
 			RuntimeException throwError(LogProperties props, String key, Exception e) {
@@ -1058,7 +1318,7 @@ public interface LogProperties {
 			 * @return getter that will convert to integers.
 			 */
 			public PropertyGetter<Integer> toInt() {
-				return this.map(Integer::parseInt);
+				return new FuncGetter<>(this, Integer::parseInt, String::valueOf);
 			}
 
 			/**
@@ -1066,7 +1326,7 @@ public interface LogProperties {
 			 * @return getter that will convert to boolean.
 			 */
 			public PropertyGetter<Boolean> toBoolean() {
-				return this.map(Boolean::parseBoolean);
+				return new FuncGetter<>(this, Boolean::parseBoolean, String::valueOf);
 			}
 
 			/**
@@ -1076,7 +1336,7 @@ public interface LogProperties {
 			 * @return getter that will convert to enum type.
 			 */
 			public <T extends Enum<T>> PropertyGetter<T> toEnum(Class<T> enumClass) {
-				return this.map(s -> Enum.valueOf(enumClass, s));
+				return new FuncGetter<>(this, s -> Enum.valueOf(enumClass, s), String::valueOf);
 			}
 
 			/**
@@ -1084,7 +1344,7 @@ public interface LogProperties {
 			 * @return getter that will parse URIs.
 			 */
 			public PropertyGetter<URI> toURI() {
-				return this.map(URI::new);
+				return new FuncGetter<>(this, URI::new, String::valueOf);
 			}
 
 		}
@@ -1102,6 +1362,18 @@ public interface LogProperties {
 			 */
 			PropertyGetter<?> parent();
 
+			@Override
+			default String propertyString(T value) {
+				return switch (value) {
+					case String s -> s;
+					case Boolean b -> String.valueOf(b);
+					case Integer i -> String.valueOf(i);
+					case URI u -> String.valueOf(u);
+					case Map<?, ?> m -> MapGetter._propertyString(m);
+					default -> throw new RuntimeException("Unable to convert to property string. value = " + value);
+				};
+			}
+
 		}
 
 		/**
@@ -1111,7 +1383,7 @@ public interface LogProperties {
 		 * @return new property getter.
 		 */
 		default <U> PropertyGetter<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
-			return new MapExtractor<T, U>(this, mapper);
+			return new FuncGetter<T, U>(this, mapper, null);
 		}
 
 		/**
@@ -1166,8 +1438,54 @@ record FallbackExtractor<T>(PropertyGetter<T> parent,
 
 }
 
-record MapExtractor<T, R>(PropertyGetter<T> parent,
-		PropertyFunction<? super T, ? extends R, ? super Exception> mapper) implements ChildPropertyGetter<R> {
+record BooleanGetter(RootPropertyGetter parent) implements ChildPropertyGetter<Boolean> {
+
+	@Override
+	public @Nullable Boolean valueOrNull(LogProperties props, String key) {
+		var v = parent.valueOrNull(props, key);
+		return Boolean.parseBoolean(v);
+	}
+
+}
+
+record MapGetter(RootPropertyGetter parent) implements ChildPropertyGetter<Map<String, String>> {
+
+	@Override
+	public @Nullable Map<String, String> valueOrNull(LogProperties props, String key) {
+		return props.mapOrNull(parent.fullyQualifiedKey(key));
+	}
+
+	@Override
+	public String propertyString(Map<String, String> value) {
+		return _propertyString(value);
+	}
+
+	static String _propertyString(Map<?, ?> value) {
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for (var e : value.entrySet()) {
+			if (first) {
+				first = true;
+			}
+			else {
+				sb.append("&");
+			}
+			PercentCodec.encode(sb, String.valueOf(e.getKey()), StandardCharsets.UTF_8);
+			Object v = e.getValue();
+			if (v != null) {
+				sb.append("=");
+				PercentCodec.encode(sb, String.valueOf(v), StandardCharsets.UTF_8);
+			}
+		}
+		return sb.toString();
+	}
+
+}
+
+record FuncGetter<T, R>(PropertyGetter<T> parent, PropertyFunction<? super T, ? extends R, ? super Exception> mapper,
+		@Nullable PropertyFunction<? super R, ? extends String, ? super Exception> stringFunc)
+		implements
+			ChildPropertyGetter<R> {
 
 	@Override
 	public @Nullable R valueOrNull(LogProperties props, String key) {
@@ -1181,6 +1499,15 @@ record MapExtractor<T, R>(PropertyGetter<T> parent,
 			}
 		}
 		return null;
+	}
+
+	@Override
+	public String propertyString(R value) {
+		var f = stringFunc;
+		if (f != null) {
+			return stringFunc.apply(value);
+		}
+		return ChildPropertyGetter.super.propertyString(value);
 	}
 
 }
