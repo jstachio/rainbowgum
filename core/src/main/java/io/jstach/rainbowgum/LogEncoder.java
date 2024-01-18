@@ -80,7 +80,6 @@ public interface LogEncoder extends LogConfig.Provider<LogEncoder> {
 		 * @param name name of encoder.
 		 * @param properties key value config.
 		 * @return output.
-		 * @see LogProperties#of(URI)
 		 */
 		LogEncoder provide(URI uri, String name, LogProperties properties);
 

@@ -86,7 +86,6 @@ public interface LogOutput extends LogLifecycle, Flushable, LogConfig.Provider<L
 		 * @param properties key value config.
 		 * @return output.
 		 * @throws IOException if unable to use the URI.
-		 * @see LogProperties#of(URI)
 		 */
 		LogOutput output(URI uri, String name, LogProperties properties) throws IOException;
 

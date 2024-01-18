@@ -234,6 +234,16 @@ public interface LogProperties {
 		}
 
 		/**
+		 * Sets what is called on {@link LogProperties#valueOrNull(String)}.
+		 * @param function valueOrNull func.
+		 * @return this.
+		 */
+		public Builder function(Function<String, String> function) {
+			this.function = function;
+			return this;
+		}
+
+		/**
 		 * Parses a string as {@link Properties}.
 		 * @param properties properties as a string.
 		 * @return this.
@@ -339,26 +349,6 @@ public interface LogProperties {
 	 */
 	public static LogProperties of(List<? extends LogProperties> logProperties) {
 		return of(logProperties, StandardProperties.EMPTY);
-	}
-
-	/**
-	 * Creates log properties from a {@linkplain URI#getQuery() URI query} in <a href=
-	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
-	 * application/x-www-form-urlencoded </a> format useful for parsing {@link LogOutput}
-	 * configuration. <strong>This parser unlike form encoding uses <code>%20</code> for
-	 * space as the data is coming from a URI.</strong>
-	 * @param uri uri to get query from.
-	 * @return properties
-	 * @see LogOutput
-	 */
-	public static LogProperties of(URI uri) {
-		Map<String, String> m = new LinkedHashMap<>();
-		parseUriQuery(uri.getRawQuery(), (k, v) -> {
-			if (v != null) {
-				m.put(k, v);
-			}
-		});
-		return new MapProperties(uri.toString(), m);
 	}
 
 	/**

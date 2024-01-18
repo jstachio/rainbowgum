@@ -11,7 +11,6 @@ logical resource (it might not be a single physical resource particularly in the
 
 # Features in limbo
 
-* Level changing loggers - medium
 * Filters - medium
 * Markers - We might use this for some other kind of features
 * Key values that are not MDC aka new slf4j event builder
@@ -24,10 +23,16 @@ logical resource (it might not be a single physical resource particularly in the
 
 ## TODO before release
 
-- [ ] A network based LogOutput. Probably AMQP.
-- [ ] A console theme.
+- [ ] Level changing loggers - medium
+- [X] A network based LogOutput. Probably AMQP.
+- [ ] More JSON encoders.
+- [ ] A console theme package based off of HL (logging colorizer).
 - [ ] Remove all the field based formatters.
 - [ ] Code samples and instructions for custom configuration.
+- [ ] How to setup a ServiceLoader registration for plugins
 - [ ] Scoped Value plugin
 - [ ] JEP 430 String templates example
+- [ ] Check performance again
+- [ ] Remove bloat / unused code
+- [ ] Check performance again
  
