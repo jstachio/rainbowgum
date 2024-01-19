@@ -3,7 +3,6 @@ package io.jstach.rainbowgum.jansi;
 import org.fusesource.jansi.AnsiConsole;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
@@ -12,7 +11,7 @@ import io.jstach.svc.ServiceProvider;
  * Jansi initializer.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
-public class JansiInitializer implements RainbowGumServiceProvider.Initializer {
+public class JansiInitializer implements RainbowGumServiceProvider.Configurator {
 
 	/**
 	 * Jansi disable property.
@@ -26,12 +25,13 @@ public class JansiInitializer implements RainbowGumServiceProvider.Initializer {
 	}
 
 	@Override
-	public void initialize(ServiceRegistry registry, LogConfig config) {
+	public boolean configure(LogConfig config) {
 		if (installJansi(config)) {
 			AnsiConsole.systemInstall();
 			config.formatterRegistry()
 				.setFormatterForOutputType(OutputType.CONSOLE_OUT, () -> JansiLogFormatter.builder().build());
 		}
+		return true;
 	}
 
 	private boolean installJansi(LogConfig config) {

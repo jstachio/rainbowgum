@@ -1,8 +1,13 @@
 package io.jstach.rainbowgum;
 
+import static io.jstach.rainbowgum.spi.RainbowGumServiceProvider.findProviders;
+
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -11,6 +16,9 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
 
 /**
  * The configuration of a RainbowGum. In some other logging implementations this is called
@@ -63,24 +71,6 @@ public sealed interface LogConfig {
 	 */
 	default LogOutput output(URI uri, String name) throws IOException {
 		return outputRegistry().output(uri, name, properties());
-	}
-
-	/**
-	 * Creates default log config backed by system properties.
-	 * @return config.
-	 */
-	public static LogConfig of() {
-		return LogConfig.of(ServiceRegistry.of(), LogProperties.StandardProperties.SYSTEM_PROPERTIES);
-	}
-
-	/**
-	 * Creates config.
-	 * @param registry service registry.
-	 * @param properties properties.
-	 * @return config.
-	 */
-	public static LogConfig of(ServiceRegistry registry, LogProperties properties) {
-		return new DefaultLogConfig(registry, properties);
 	}
 
 	/**
@@ -172,6 +162,10 @@ public sealed interface LogConfig {
 
 		private @Nullable LogProperties logProperties;
 
+		private @Nullable ServiceLoader<RainbowGumServiceProvider> serviceLoader;
+
+		private final List<RainbowGumServiceProvider.Configurator> configurators = new ArrayList<>();
+
 		/**
 		 * Default constructor
 		 */
@@ -183,7 +177,7 @@ public sealed interface LogConfig {
 		 * @param logProperties log properties.
 		 * @return this.
 		 */
-		public Builder logProperties(LogProperties logProperties) {
+		public Builder properties(LogProperties logProperties) {
 			this.logProperties = logProperties;
 			return this;
 		}
@@ -199,19 +193,62 @@ public sealed interface LogConfig {
 		}
 
 		/**
-		 * Builds LogConfig using defaults on missing properties.
+		 * Add to configure LogConfig and ServiceRegistry.
+		 * @param configurator will run on build.
+		 * @return this.
+		 */
+		public Builder configurator(RainbowGumServiceProvider.Configurator configurator) {
+			configurators.add(configurator);
+			return this;
+		}
+
+		/**
+		 * Sets the service loader to use for loading components that were not set.
+		 * @param serviceLoader loader to use for missing components.
+		 * @return this.
+		 */
+		public Builder serviceLoader(ServiceLoader<RainbowGumServiceProvider> serviceLoader) {
+			this.serviceLoader = serviceLoader;
+			return this;
+		}
+
+		/**
+		 * Builds LogConfig which will use the {@link ServiceLoader} if set to load
+		 * missing components and if not set will use static defaults.
 		 * @return log config
 		 */
 		public LogConfig build() {
 			ServiceRegistry serviceRegistry = this.serviceRegistry;
 			LogProperties logProperties = this.logProperties;
+			var serviceLoader = this.serviceLoader;
+			var configurators = this.configurators;
 			if (serviceRegistry == null) {
 				serviceRegistry = ServiceRegistry.of();
 			}
 			if (logProperties == null) {
-				logProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+				if (serviceLoader != null) {
+					logProperties = provideProperties(serviceRegistry, serviceLoader);
+				}
+				else {
+					logProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+				}
 			}
-			return LogConfig.of(serviceRegistry, logProperties);
+			var config = new DefaultLogConfig(serviceRegistry, logProperties);
+			if (configurators.isEmpty() && serviceLoader != null) {
+				configurators = findProviders(serviceLoader, Configurator.class).toList();
+			}
+			if (!configurators.isEmpty()) {
+				RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);
+			}
+			return config;
+		}
+
+		private static LogProperties provideProperties(ServiceRegistry registry,
+				ServiceLoader<RainbowGumServiceProvider> loader) {
+			List<LogProperties> props = findProviders(loader, PropertiesProvider.class)
+				.flatMap(s -> s.provideProperties(registry).stream())
+				.toList();
+			return LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
 		}
 
 	}

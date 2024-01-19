@@ -184,7 +184,8 @@ public sealed interface KeyValues {
 		 * @return key values
 		 */
 		public static MutableKeyValues of(Map<String, String> m) {
-			var kvs = of(m.size());
+			int size = m.size();
+			var kvs = of(size == 0 ? 4 : size);
 			kvs.putAll(m);
 			return kvs;
 		}
@@ -350,6 +351,9 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	private int _next(int index) {
+		if (size == 0) {
+			return -1;
+		}
 		var limit = threshold - 1;
 		if (index >= limit) {
 			return -1;

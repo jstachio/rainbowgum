@@ -13,7 +13,7 @@ class LevelResolverTest {
 	@Test
 	void testResolveLevelString() {
 		var m = Map.of("logging.level.io", "WARNING");
-		LogConfig config = LogConfig.of(ServiceRegistry.of(), (k) -> m.get(k));
+		LogConfig config = LogConfig.builder().properties((k) -> m.get(k)).build();
 		Level actual = config.levelResolver().levelOrNull("io");
 		Level expected = Level.WARNING;
 		assertEquals(actual, expected);

@@ -7,7 +7,6 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
 
@@ -16,7 +15,7 @@ import io.jstach.svc.ServiceProvider;
  * {@value RabbitMQOutput#URI_SCHEME}.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
-public class RabbitMQInitializer implements RainbowGumServiceProvider.Initializer {
+public class RabbitMQInitializer implements RainbowGumServiceProvider.Configurator {
 
 	/**
 	 * Default constructor for service loader.
@@ -25,8 +24,9 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Initialize
 	}
 
 	@Override
-	public void initialize(ServiceRegistry registry, LogConfig config) {
+	public boolean configure(LogConfig config) {
 		config.outputRegistry().register(RabbitMQOutput.URI_SCHEME, RabbitMQOutputProvider.INSTANCE);
+		return true;
 	}
 
 	private enum RabbitMQOutputProvider implements OutputProvider {

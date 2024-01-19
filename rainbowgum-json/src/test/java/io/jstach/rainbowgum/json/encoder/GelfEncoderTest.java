@@ -1,6 +1,6 @@
 package io.jstach.rainbowgum.json.encoder;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -8,8 +8,11 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.PropertiesParser;
+import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class GelfEncoderTest {
@@ -61,6 +64,41 @@ class GelfEncoderTest {
 				""";
 
 		assertEquals(expected, message);
+	}
+
+	@Test
+	void testFullLoad() throws Exception {
+		String properties = """
+				logging.appender.console.encoder=gelf:///
+				logging.encoder.console.host=localhost
+				logging.encoder.console.headers=header1\\=1
+				logging.encoder.console.prettyPrint=true
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new GelfEncoderConfigurator())
+			.build();
+		try (var r = RainbowGum.builder(config).build().start()) {
+			Instant instant = Instant.ofEpochMilli(1);
+			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
+			r.log(e);
+		}
+	}
+
+	@Test
+	void testFullLoadUri() throws Exception {
+		String properties = """
+				logging.appender.console.encoder=gelf://localhost/?prettyPrint=false
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new GelfEncoderConfigurator())
+			.build();
+		try (var r = RainbowGum.builder(config).build().start()) {
+			Instant instant = Instant.ofEpochMilli(1);
+			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
+			r.log(e);
+		}
 	}
 
 }

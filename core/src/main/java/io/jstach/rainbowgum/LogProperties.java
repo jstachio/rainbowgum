@@ -161,7 +161,7 @@ public interface LogProperties {
 	 * @apiNote the reason empty map is not returned for missing key is that it creates
 	 * ambiguity so null is returned when key is missing.
 	 */
-	default Map<String, String> mapOrNull(String key) {
+	default @Nullable Map<String, String> mapOrNull(String key) {
 		String s = valueOrNull(key);
 		if (s == null) {
 			return null;
@@ -209,6 +209,8 @@ public interface LogProperties {
 
 		private Function<String, String> function;
 
+		private Function<String, String> renameKey = s -> s;
+
 		private Builder() {
 		}
 
@@ -244,6 +246,16 @@ public interface LogProperties {
 		}
 
 		/**
+		 * Renames the key before it accesses function.
+		 * @param renameKey rename key function.
+		 * @return this.
+		 */
+		public Builder renameKey(Function<String, String> renameKey) {
+			this.renameKey = renameKey;
+			return this;
+		}
+
+		/**
 		 * Parses a string as {@link Properties}.
 		 * @param properties properties as a string.
 		 * @return this.
@@ -272,15 +284,22 @@ public interface LogProperties {
 			if (function == null) {
 				throw new IllegalStateException("function is was not set");
 			}
-			return new DefaultLogProperties(function, description, order);
+			return new DefaultLogProperties(function, description, renameKey, order);
 		}
 
-		private record DefaultLogProperties(Function<String, String> func, String description,
+		private record DefaultLogProperties( //
+				Function<String, String> func, //
+				String description, Function<String, String> renameKey, //
 				int order) implements LogProperties {
 
 			@Override
 			public @Nullable String valueOrNull(String key) {
-				return func.apply(key);
+				return func.apply(renameKey.apply(key));
+			}
+
+			@Override
+			public String description(String key) {
+				return renameKey.apply(key);
 			}
 
 		}
@@ -314,6 +333,13 @@ public interface LogProperties {
 		}
 
 	}
+
+	// /**
+	// * A log properties that can list all keys available.
+	// */
+	// public interface ListableProperties extends LogProperties {
+	// public Set<String> keys();
+	// }
 
 	/**
 	 * LogProperties builder.

@@ -64,7 +64,7 @@ record AppenderConfig(String name, @Nullable LogOutput output, @Nullable LogEnco
 final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	/*
-	 * The shit in here is a mess because auto configuration of appenders based on
+	 * TODO The shit in here is a mess because auto configuration of appenders based on
 	 * properties is complicated particularly because we want to support Spring Boots
 	 * configuration OOB.
 	 */

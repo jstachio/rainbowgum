@@ -63,12 +63,11 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	@Override
 	public LogEncoder provide(URI uri, String name, LogProperties properties) {
 		String scheme = uri.getScheme();
-		String path = uri.getPath();
-
-		if (scheme == null && path != null) {
-			return _encoder(uri, name, path);
+		if (scheme == null) {
+			throw new IllegalStateException("Encoder reference needs a URI with scheme. "
+					+ "For example 'gelf' is not valid but 'gelf:///' is.");
 		}
-		else if (scheme.equals("encoder") || scheme.equals("name")) {
+		if (scheme.equals("name")) {
 			String _name = uri.getHost();
 			if (_name == null) {
 				_name = name;
@@ -85,7 +84,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 
 	private LogEncoder _encoder(URI uri, String name, String resolvedName) {
 		return encoder(resolvedName).orElseThrow(() -> new NoSuchElementException(
-				"No encoder found. resolved = " + resolvedName + " name= " + name + ", uri=" + uri));
+				"No encoder found. resolved='" + resolvedName + "', name='" + name + "', uri='" + uri + "'"));
 	}
 
 	@Override

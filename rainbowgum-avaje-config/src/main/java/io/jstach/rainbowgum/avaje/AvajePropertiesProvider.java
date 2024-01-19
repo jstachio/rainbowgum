@@ -17,7 +17,7 @@ import io.jstach.svc.ServiceProvider;
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public class AvajePropertiesProvider
-		implements RainbowGumServiceProvider.PropertiesProvider, RainbowGumServiceProvider.Initializer {
+		implements RainbowGumServiceProvider.PropertiesProvider, RainbowGumServiceProvider.Configurator {
 
 	/**
 	 * For service loader.
@@ -33,13 +33,15 @@ public class AvajePropertiesProvider
 	}
 
 	@Override
-	public void initialize(ServiceRegistry registry, LogConfig config) {
+	public boolean configure(LogConfig config) {
+		var registry = config.serviceRegistry();
 		var props = registry.findOrNull(AvajeProperties.class);
 		if (props != null) {
 			props.configuration.onChange(e -> {
 				config.publisher().publish();
 			});
 		}
+		return true;
 	}
 
 }

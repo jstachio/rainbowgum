@@ -57,7 +57,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		host = Objects.requireNonNull(host);
 		// var _headers = KeyValues.of(convertHeaders(headers));
-		var _headers = KeyValues.of(headers);
+		var _headers = KeyValues.of(headers == null ? Map.of() : headers);
 
 		return new GelfEncoder(host, _headers, prettyPrint);
 	}

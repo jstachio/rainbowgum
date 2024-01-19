@@ -25,8 +25,10 @@ public class RabbitMQSetup {
 	// }
 
 	public static void run(Map<String, String> properties) {
-		var config = LogConfig.builder().logProperties(properties::get).build();
-		RainbowGumServiceProvider.runInitializers(ServiceLoader.load(RainbowGumServiceProvider.class), config);
+		var config = LogConfig.builder() //
+			.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class)) //
+			.properties(properties::get)
+			.build();
 		RainbowGum.set(() -> RainbowGum.builder(config).build());
 		RainbowGum.of();
 		// RainbowGum.set(() -> gum);

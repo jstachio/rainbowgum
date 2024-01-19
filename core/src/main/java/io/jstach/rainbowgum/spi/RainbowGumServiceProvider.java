@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.spi;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -49,17 +50,71 @@ public sealed interface RainbowGumServiceProvider {
 	/**
 	 * Called after {@link LogConfig} has been loaded to do various custom initialization
 	 * like registering {@link io.jstach.rainbowgum.LogOutput.OutputProvider}s.
+	 * <p>
+	 * The configurator has the option to return <code>false</code> to indicate a retry
+	 * needs to be made. This is poor mans way to handle dependency needs of one
+	 * configurator needing another to run prior.
 	 *
 	 * @see LogConfig#outputRegistry()
+	 * @see ServiceRegistry
 	 */
-	public non-sealed interface Initializer extends RainbowGumServiceProvider {
+	@FunctionalInterface
+	public non-sealed interface Configurator extends RainbowGumServiceProvider {
 
 		/**
 		 * Do adhoc initialization before RainbowGum is fully loaded.
-		 * @param registry registry.
 		 * @param config config.
+		 * @return <code>true</code> if all dependencies were found.
 		 */
-		void initialize(ServiceRegistry registry, LogConfig config);
+		boolean configure(LogConfig config);
+
+		/**
+		 * The default amount of passes made to resolve configurators.
+		 */
+		public static int CONFIGURATOR_PASSES = 4;
+
+		/**
+		 * Runs configurators. If a configurator returns false then it will be retried.
+		 * The default of {@value #CONFIGURATOR_PASSES} passes will be tried.
+		 * @param configurators stream of configurators.
+		 * @param config config to use for registration.
+		 * @throws IllegalStateException if there are configurators still returning
+		 * <code>false</code>.
+		 */
+		public static void runConfigurators(Stream<? extends RainbowGumServiceProvider.Configurator> configurators,
+				LogConfig config) {
+			runConfigurators(configurators, config, CONFIGURATOR_PASSES);
+		}
+
+		/**
+		 * Runs configurators. If a configurator returns false then it will be retried.
+		 * @param configurators stream of configurators.
+		 * @param config config to use for registration.
+		 * @param passes number of times to retry configurator if it returns
+		 * @throws IllegalStateException if there are configurators still returning
+		 * <code>false</code>.
+		 */
+		public static void runConfigurators(Stream<? extends RainbowGumServiceProvider.Configurator> configurators,
+				LogConfig config, int passes) {
+			List<Configurator> unresolved = new ArrayList<>(configurators.toList());
+			for (int i = 0; i < passes; i++) {
+				var it = unresolved.iterator();
+				while (it.hasNext()) {
+					var c = it.next();
+					if (c.configure(config)) {
+						it.remove();
+					}
+				}
+				if (unresolved.isEmpty()) {
+					break;
+				}
+			}
+			if (!unresolved.isEmpty()) {
+				throw new IllegalStateException("Configurators could not find dependencies (returned false) after "
+						+ passes + " passes. configurators = " + unresolved);
+			}
+
+		}
 
 	}
 
@@ -89,7 +144,14 @@ public sealed interface RainbowGumServiceProvider {
 
 	}
 
-	private static <T extends RainbowGumServiceProvider> Stream<T> findProviders(
+	/**
+	 * Finds service providers based on type.
+	 * @param <T> provider interface type.
+	 * @param loader service loader to use.
+	 * @param pt provider class.
+	 * @return stream containing only provider of the given type.
+	 */
+	public static <T extends RainbowGumServiceProvider> Stream<T> findProviders(
 			ServiceLoader<RainbowGumServiceProvider> loader, Class<T> pt) {
 		return loader.stream().flatMap(p -> {
 			if (pt.isAssignableFrom(p.type())) {
@@ -100,41 +162,13 @@ public sealed interface RainbowGumServiceProvider {
 		});
 	}
 
-	private static LogProperties provideProperties(ServiceRegistry registry,
-			ServiceLoader<RainbowGumServiceProvider> loader) {
-		List<LogProperties> props = findProviders(loader, PropertiesProvider.class)
-			.flatMap(s -> s.provideProperties(registry).stream())
-			.toList();
-		return LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
-	}
-
-	private static LogConfig provideConfig(ServiceLoader<RainbowGumServiceProvider> loader, ServiceRegistry registry,
-			LogProperties properties) {
-		return findProviders(loader, ConfigProvider.class).findFirst()
-			.map(s -> s.provideConfig(registry, properties))
-			.orElseGet(() -> LogConfig.of(registry, properties));
-	}
-
-	/**
-	 * Runs initializers based on config.
-	 * @param loader service loader to use.
-	 * @param config config before initializers have run.
-	 */
-	public static void runInitializers(ServiceLoader<RainbowGumServiceProvider> loader, LogConfig config) {
-		findProviders(loader, Initializer.class).forEach(c -> c.initialize(config.serviceRegistry(), config));
-	}
-
 	/**
 	 * Creates config from service loader.
 	 * @param loader service loader.
 	 * @return config.
 	 */
 	public static LogConfig provideConfig(ServiceLoader<RainbowGumServiceProvider> loader) {
-		ServiceRegistry registry = ServiceRegistry.of();
-		var properties = provideProperties(registry, loader);
-		var config = provideConfig(loader, registry, properties);
-		runInitializers(loader, config);
-		return config;
+		return LogConfig.builder().serviceLoader(loader).build();
 	}
 
 	/**

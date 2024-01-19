@@ -47,7 +47,8 @@ public final class $$builderName$$ {
 	static final String $$propertyLiteral$$ = PROPERTY_PREFIX + "$$name$$";
 	$$/normal$$
 	$$/properties$$
-		
+	
+	private final String propertyPrefix;
 	$$#properties$$
 	$$#normal$$
 	final Property<$$typeWithAnnotation$$> $$propertyVar$$;
@@ -79,6 +80,7 @@ public final class $$builderName$$ {
 				$$^-first$$, $$/-first$$"$$name$$", $$name$$
 				$$/prefixParameters$$
 			);
+		this.propertyPrefix = LogProperties.interpolateKey(PROPERTY_PREFIX, prefixParameters);
 		$$#properties$$
 		$$#normal$$
 		$$propertyVar$$ = Property.builder()
@@ -148,6 +150,14 @@ public final class $$builderName$$ {
 		}
 		$$/normal$$
 		$$/properties$$
+	}
+	
+	/**
+	 * The interpolated property prefix: {@value #PROPERTY_PREFIX}.
+	 * @return resolved prefix which should end with a "<code>.</code>".
+	 */
+	public String propertyPrefix() {
+		return this.propertyPrefix;
 	}
 	
 }

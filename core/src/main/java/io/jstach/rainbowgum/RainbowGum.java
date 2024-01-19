@@ -61,7 +61,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 }
  */
 //@formatter:on
-public interface RainbowGum extends AutoCloseable {
+public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/**
 	 * Gets the currently statically bound RainbowGum.
@@ -116,6 +116,18 @@ public interface RainbowGum extends AutoCloseable {
 	}
 
 	/**
+	 * This append call is mainly for testing as it does not avoid making events that do
+	 * not need to be made if no logging needs to be done. {@inheritDoc}
+	 */
+	@Override
+	default void log(LogEvent event) {
+		var r = router().route(event.loggerName(), event.level());
+		if (r.isEnabled()) {
+			r.log(event);
+		}
+	}
+
+	/**
 	 * Use to build a custom {@link RainbowGum} which will use the {@link LogConfig}
 	 * provided by the service loader.
 	 * @return builder.
@@ -127,7 +139,7 @@ public interface RainbowGum extends AutoCloseable {
 	}
 
 	/**
-	 * Use to build a custom {@link RainbowGum}.
+	 * Use to build a custom {@link RainbowGum} with supplied config.
 	 * @param config the config
 	 * @return builder.
 	 * @see #builder()
@@ -137,13 +149,26 @@ public interface RainbowGum extends AutoCloseable {
 	}
 
 	/**
+	 * Use to build a custom {@link RainbowGum} with supplied config.
+	 * @param config consumer that has first argument as config builder.
+	 * @return builder.
+	 * @see #builder()
+	 * @apiNote this method is for ergonomic fluent reasons.
+	 */
+	public static Builder builder(Consumer<? super LogConfig.Builder> config) {
+		var b = LogConfig.builder();
+		config.accept(b);
+		return builder(b.build());
+	}
+
+	/**
 	 * RainbowGum Builder.
 	 */
 	public class Builder {
 
 		private final LogConfig config;
 
-		private List<Router> routes = new ArrayList<>();
+		private final List<Router> routes = new ArrayList<>();
 
 		private Builder(LogConfig config) {
 			this.config = config;

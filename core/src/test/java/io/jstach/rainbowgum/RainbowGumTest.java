@@ -30,7 +30,7 @@ class RainbowGumTest {
 	@Test
 	public void testLevelConfig() throws Exception {
 		Map<String, String> config = Map.of("logging.level.stuff", "" + Level.DEBUG.name());
-		var gum = RainbowGum.builder(LogConfig.of(ServiceRegistry.of(), config::get)).build();
+		var gum = RainbowGum.builder(b -> b.properties(config::get)).build();
 
 		var logger = gum.router().getLogger("stuff");
 
