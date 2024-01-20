@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
+import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
  * Register output providers by URI scheme.
@@ -20,7 +21,12 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	/**
 	 * A meta URI scheme to reference outputs registered somewhere else.
 	 */
-	public static String NAMED_OUTPUT_SCHEME = "output";
+	public static String NAMED_OUTPUT_SCHEME = "name";
+
+	/**
+	 * The URI scheme for list provider.
+	 */
+	public static String LIST_OUTPUT_SCHEME = "list";
 
 	/**
 	 * Register a provider by {@link URI#getScheme() scheme}.
@@ -66,7 +72,12 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 
 	@Override
 	public void register(String name, LogOutput output) {
-		outputs.put(name, output);
+		_register(name, output);
+	}
+
+	private LogOutput _register(String name, LogOutput output) {
+		outputs.putIfAbsent(name, output);
+		return output;
 	}
 
 	@Override
@@ -82,6 +93,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		return output(URI.create(name + ":///"), name, properties);
 	}
 
+	@SuppressWarnings("resource")
 	@Override
 	public LogOutput output(URI uri, String name, LogProperties properties) throws IOException {
 		String scheme = uri.getScheme();
@@ -89,9 +101,8 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		OutputProvider customProvider;
 		if (scheme == null && path != null) {
 			if (name.equals(LogAppender.FILE_APPENDER_NAME)) {
-				@SuppressWarnings("resource")
 				FileOutputStream fos = new FileOutputStream(path);
-				return LogOutput.of(uri, fos.getChannel());
+				return _register(name, LogOutput.of(uri, fos.getChannel()));
 			}
 			else {
 				return provide(name, properties);
@@ -106,19 +117,22 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 			return output(_name).orElseThrow(() -> new IOException("Output for name: " + _name + " not found."));
 		}
 		else if (LogOutput.STDOUT_SCHEME.equals(scheme)) {
-			return LogOutput.ofStandardOut();
+			return _register(name, LogOutput.ofStandardOut());
 		}
 		else if (LogOutput.STDERR_SCHEME.equals(scheme)) {
-			return LogOutput.ofStandardErr();
+			return _register(name, LogOutput.ofStandardErr());
+		}
+		else if (LIST_OUTPUT_SCHEME.equals(scheme)) {
+			return _register(name, new ListLogOutput());
 		}
 		else if ((customProvider = providers.get(scheme)) != null) {
-			return customProvider.output(uri, name, properties);
+			return _register(name, customProvider.output(uri, name, properties));
 		}
 		else {
 			var p = Paths.get(uri);
 			var channel = FileChannel.open(p, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
 			channel.close();
-			return LogOutput.of(uri, channel);
+			return _register(name, LogOutput.of(uri, channel));
 		}
 	}
 

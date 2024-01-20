@@ -88,7 +88,9 @@ class GelfEncoderTest {
 	@Test
 	void testFullLoadUri() throws Exception {
 		String properties = """
-				logging.appender.console.encoder=gelf://localhost/?prettyPrint=false
+				logging.appenders=list
+				logging.appender.list.output=list:///
+				logging.appender.list.encoder=gelf://somehost/?prettyPrint=false
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -98,6 +100,12 @@ class GelfEncoderTest {
 			Instant instant = Instant.ofEpochMilli(1);
 			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
 			r.log(e);
+			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
+			String actual = output.events().get(0).getValue();
+			String expected = "{\"host\":\"somehost\",\"short_message\":\"hello\","
+					+ "\"timestamp\":0.001,\"level\":6,\"_time\":\"1970-01-01T00:00:00.001Z\","
+					+ "\"_level\":\"INFO\",\"_logger\":\"gelf\",\"_thread_name\":\"main\",\"_thread_id\":\"1\",\"version\":\"1.1\"}\n";
+			assertEquals(expected, actual);
 		}
 	}
 
