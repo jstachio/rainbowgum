@@ -39,7 +39,7 @@ public class GelfEncoderConfigurator implements Configurator {
 			query = query == null ? "" : query;
 			var uriProperties = LogProperties.builder()
 				.fromURIQuery(query)
-				.renameKey(s -> s.replace(prefix, ""))
+				.renameKey(s -> LogProperties.removeKeyPrefix(s, prefix))
 				.build();
 			LogProperties combined = LogProperties.of(List.of(uriProperties, properties));
 

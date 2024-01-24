@@ -1,5 +1,8 @@
 package io.jstach.rainbowgum;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -16,6 +19,12 @@ public interface LogLifecycle extends AutoCloseable {
 	public void start(LogConfig config);
 
 	public void close();
+
+}
+
+interface Shutdownable {
+
+	public void shutdown();
 
 }
 
@@ -45,14 +54,40 @@ final class ShutdownManager {
 		}
 	}
 
+	static void removeShutdownHook(AutoCloseable hook) {
+		staticLock.writeLock().lock();
+		try {
+			shutdownHooks.removeIf(h -> h == hook);
+		}
+		finally {
+			staticLock.writeLock().unlock();
+		}
+
+	}
+
+	/*
+	 * This is for unit testing.
+	 */
+	static List<AutoCloseable> shutdownHooks() {
+		return List.copyOf(shutdownHooks);
+	}
+
 	private static void runShutdownHooks() {
 		/*
 		 * We do not lock here since we are in the shutdown thread luckily shutdownHooks
 		 * is thread safe
 		 */
+		var found = Collections.newSetFromMap(new IdentityHashMap<>());
 		for (var hook : shutdownHooks) {
 			try {
-				hook.close();
+				if (found.add(hook)) {
+					if (hook instanceof Shutdownable shut) {
+						shut.shutdown();
+					}
+					else {
+						hook.close();
+					}
+				}
 			}
 			catch (Exception e) {
 				MetaLog.error(Defaults.class, e);

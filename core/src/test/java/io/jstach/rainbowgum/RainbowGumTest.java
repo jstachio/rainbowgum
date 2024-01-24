@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -73,21 +74,31 @@ class RainbowGumTest {
 		// })
 		// .output(logFile)
 		// .build();
-
+		GlobalLogRouter.INSTANCE.log("stuff", Level.WARNING, "first");
 		try (var gum = RainbowGum.builder().route(r -> {
 			r.publisher(PublisherProvider.async().build());
 			r.appender(sysout);
 			r.level(Level.WARNING, "stuff");
-		}).build().start()) {
+		}).set()) {
 
-			gum.router().log("stuff", Level.INFO, "Stuff", null);
-			gum.router().log("stuff", Level.ERROR, "bad", null);
+			assertEquals(1, ShutdownManager.shutdownHooks().size());
 
-			boolean enabled = gum.router().route("stuff", Level.INFO).isEnabled();
+			var router = gum.router();
+			router.log("stuff", Level.INFO, "Stuff", null);
+			router.log("stuff", Level.ERROR, "bad", null);
+
+			router.eventBuilder("stuff", Level.WARNING) //
+				.message("builder info - {}") //
+				.arg("hello") //
+				.log();
+
+			boolean enabled = router.route("stuff", Level.INFO).isEnabled();
 			assertFalse(enabled);
 
 			Thread.sleep(50);
 		}
+
+		assertEquals(0, ShutdownManager.shutdownHooks().size());
 
 	}
 

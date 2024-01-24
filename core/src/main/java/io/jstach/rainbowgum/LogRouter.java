@@ -38,6 +38,23 @@ public sealed interface LogRouter extends LogLifecycle {
 	public Route route(String loggerName, java.lang.System.Logger.Level level);
 
 	/**
+	 * Creates (or reuses in the case of logging off) an event builder.
+	 * @param loggerName logger name of the event.
+	 * @param level level that the event should be set to.
+	 * @return builder.
+	 * @apiNote using the builder is slightly slower and more garbage than just manually
+	 * checking {@link Route#isEnabled()} and constructing the event using the LogEvent
+	 * static "<code>of</code>" factory methods.
+	 */
+	default LogEvent.Builder eventBuilder(String loggerName, Level level) {
+		var route = route(loggerName, level);
+		if (route.isEnabled()) {
+			return new LogEventBuilder(route, level, loggerName);
+		}
+		return NoOpLogEventBuilder.NOOP;
+	}
+
+	/**
 	 * Global router which is always available.
 	 * @return global root router.
 	 */
@@ -81,6 +98,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				public boolean isEnabled() {
 					return false;
 				}
+
 			}
 
 		}
@@ -127,7 +145,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			if (!(router instanceof InternalRootRouter r)) {
 				throw new IllegalArgumentException("bug");
 			}
-			return new TinyLogger(loggerName, r);
+			return new DefaultSystemLogger(loggerName, r);
 		}
 
 	}
@@ -250,7 +268,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				var apps = appenders.stream().map(a -> a.provide(config)).toList();
 				var pub = publisher.provide(config, apps);
 
-				return new SimpleRoute(pub, levelResolver);
+				return new SimpleRouter(pub, levelResolver);
 			}
 
 		}
@@ -259,7 +277,7 @@ public sealed interface LogRouter extends LogLifecycle {
 
 }
 
-record SimpleRoute(LogPublisher publisher, LevelResolver levelResolver) implements Router, Route {
+record SimpleRouter(LogPublisher publisher, LevelResolver levelResolver) implements Router, Route {
 
 	@Override
 	public void close() {
@@ -295,7 +313,7 @@ sealed interface InternalRootRouter extends RootRouter {
 		if (GlobalLogRouter.INSTANCE == router) {
 			throw new IllegalArgumentException();
 		}
-		GlobalLogRouter.INSTANCE.drain(router);
+		GlobalLogRouter.INSTANCE.drain((InternalRootRouter) router);
 	}
 
 	static InternalRootRouter of(List<? extends Router> routes, LevelResolver levelResolver) {
@@ -327,8 +345,9 @@ sealed interface InternalRootRouter extends RootRouter {
 
 		Router[] array = routes.toArray(new Router[] {});
 
-		if (array.length == 1 && array[0].synchronous()) {
-			return new SingleSyncRootRouter(array[0]);
+		if (array.length == 1) {
+			var r = array[0];
+			return r.synchronous() ? new SingleSyncRootRouter(r) : new SingleAsyncRootRouter(r);
 		}
 		return new CompositeLogRouter(array, globalLevelResolver);
 	}
@@ -340,6 +359,10 @@ sealed interface InternalRootRouter extends RootRouter {
 
 	default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
 		log(loggerName, level, message, null);
+	}
+
+	default void drain(InternalRootRouter delegate) {
+
 	}
 
 }
@@ -363,6 +386,33 @@ record SingleSyncRootRouter(Router router) implements InternalRootRouter {
 	@Override
 	public Route route(String loggerName, Level level) {
 		return router.route(loggerName, level);
+	}
+
+}
+
+record SingleAsyncRootRouter(Router router) implements InternalRootRouter {
+
+	@Override
+	public void start(LogConfig config) {
+		router.start(config);
+	}
+
+	@Override
+	public void close() {
+		router.close();
+	}
+
+	public LevelResolver levelResolver() {
+		return router.levelResolver();
+	}
+
+	@Override
+	public Route route(String loggerName, Level level) {
+		return router.route(loggerName, level);
+	}
+
+	public void log(LogEvent event) {
+		router.log(event.freeze());
 	}
 
 }
@@ -444,15 +494,63 @@ enum FailsafeAppender implements LogAppender {
 
 }
 
-enum GlobalLogRouter implements InternalRootRouter, Route {
-
-	INSTANCE;
+final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
 
 	private static final LevelResolver INFO_RESOLVER = InternalLevelResolver.of(Level.INFO);
 
-	private volatile @Nullable InternalRootRouter delegate = null;
+	@Override
+	public LevelResolver levelResolver() {
+		return INFO_RESOLVER;
+	}
+
+	@Override
+	public Route route(String loggerName, Level level) {
+		if (INFO_RESOLVER.isEnabled(loggerName, level)) {
+			return this;
+		}
+		return Routes.NotFound;
+	}
+
+	@Override
+	public void start(LogConfig config) {
+	}
+
+	@Override
+	public void close() {
+		events.clear();
+	}
+
+	@Override
+	public void log(LogEvent event) {
+		events.add(event);
+		if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
+			MetaLog.error(event);
+		}
+
+	}
+
+	@Override
+	public void drain(InternalRootRouter delegate) {
+		LogEvent e;
+		while ((e = this.events.poll()) != null) {
+			delegate.route(e.loggerName(), e.level()).log(e);
+		}
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return true;
+	}
+
+}
+
+enum GlobalLogRouter implements InternalRootRouter, Route {
+
+	INSTANCE;
+
+	private volatile InternalRootRouter delegate = new QueueEventsRouter();
 
 	private final ReentrantLock drainLock = new ReentrantLock();
 
@@ -462,11 +560,7 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	@Override
 	public LevelResolver levelResolver() {
-		RootRouter d = delegate;
-		if (d != null) {
-			return d.levelResolver();
-		}
-		return INFO_RESOLVER;
+		return delegate.levelResolver();
 	}
 
 	@Override
@@ -476,8 +570,11 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	@Override
 	public void log(LogEvent event) {
-		RootRouter d = delegate;
-		if (d != null) {
+		InternalRootRouter d = delegate;
+		if (d instanceof QueueEventsRouter q) {
+			q.log(event);
+		}
+		else {
 			String loggerName = event.loggerName();
 			var level = event.level();
 			var route = d.route(event.loggerName(), event.level());
@@ -488,64 +585,32 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 				d.close();
 			}
 		}
-		else {
-			events.add(event);
-			if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
-				MetaLog.error(event);
-			}
-		}
-
 	}
 
 	@Override
 	public Route route(String loggerName, Level level) {
-		RootRouter d = delegate;
-		if (d != null) {
-			return d.route(loggerName, level);
-		}
-		if (INFO_RESOLVER.isEnabled(loggerName, level)) {
-			return this;
-		}
-		return Routes.NotFound;
+		return this.delegate.route(loggerName, level);
 	}
 
 	@Override
 	public boolean isEnabled(String loggerName, Level level) {
-		InternalRootRouter d = delegate;
-		if (d != null) {
-			return d.isEnabled(loggerName, level);
-		}
-		return INFO_RESOLVER.isEnabled(loggerName, level);
+		return this.delegate.isEnabled(loggerName, level);
 	}
 
 	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
 		InternalRootRouter d = delegate;
-		if (d != null) {
-			d.log(loggerName, level, message, cause);
-			if (isShutdownEvent(loggerName, level)) {
-				d.close();
-			}
-		}
-		else {
-			var event = LogEvent.of(level, loggerName, message, cause);
-			events.add(event);
-			if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
-				MetaLog.error(event);
-			}
+		d.log(loggerName, level, message, cause);
+		if (isShutdownEvent(loggerName, level)) {
+			d.close();
 		}
 	}
 
-	public void drain(RootRouter delegate) {
-		if (!(delegate instanceof InternalRootRouter r)) {
-			throw new IllegalArgumentException("bug");
-		}
+	public void drain(InternalRootRouter delegate) {
 		drainLock.lock();
 		try {
-			this.delegate = Objects.requireNonNull(r);
-			LogEvent e;
-			while ((e = this.events.poll()) != null) {
-				delegate.route(e.loggerName(), e.level()).log(e);
-			}
+			var original = this.delegate;
+			this.delegate = Objects.requireNonNull(delegate);
+			original.drain(delegate);
 		}
 		finally {
 			drainLock.unlock();
@@ -558,17 +623,18 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	@Override
 	public void close() {
+		this.delegate.close();
 	}
 
 }
 
-class TinyLogger implements System.Logger {
+class DefaultSystemLogger implements System.Logger {
 
 	private final String name;
 
 	private final InternalRootRouter router;
 
-	public TinyLogger(String name, InternalRootRouter router) {
+	public DefaultSystemLogger(String name, InternalRootRouter router) {
 		super();
 		this.name = name;
 		this.router = router;

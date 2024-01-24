@@ -620,7 +620,7 @@ public interface LogProperties {
 	}
 
 	private static PropertyConvertException throwPropertyError(String key, Exception e) {
-		throw new PropertyConvertException(key, "Error for property. key: " + key, e);
+		throw new PropertyConvertException(key, "Error for property. key: '" + key + "', " + e.getMessage(), e);
 	}
 
 	private static RuntimeException throwMissingError(List<String> keys) {
@@ -696,6 +696,20 @@ public interface LogProperties {
 			name = name.replace("{" + entry.getKey() + "}", entry.getValue());
 		}
 		return name;
+	}
+
+	/**
+	 * Remove key prefix from the key. Prefix should end in "." but this method does not
+	 * check that.
+	 * @param key key whose prefix will be removed.
+	 * @param prefix property name prefix.
+	 * @return prefix removed if the string is prefixed.
+	 */
+	static String removeKeyPrefix(String key, String prefix) {
+		if (key.startsWith(prefix)) {
+			return key.substring(prefix.length());
+		}
+		return key;
 	}
 
 	/**

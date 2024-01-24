@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -111,9 +111,18 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		return this;
 	}
 
-	default void close() {
-		router().close();
-	}
+	/**
+	 * Unique id of rainbow gum instance.
+	 * @return random id created on creation.
+	 */
+	public UUID instanceId();
+
+	/**
+	 * Will close the rainbowgum and all registered components as well as removed from the
+	 * shutdown hooks. If the rainbow gum is set as global it will no longer be global and
+	 * replaced with the bootstrapping in memory queue. {@inheritDoc}
+	 */
+	public void close();
 
 	/**
 	 * This append call is mainly for testing as it does not avoid making events that do
@@ -202,13 +211,41 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		 * @return an unstarted {@link RainbowGum}.
 		 */
 		public RainbowGum build() {
+			return build(UUID.randomUUID());
+		}
+
+		/**
+		 * Builds an unstarted {@link RainbowGum}.
+		 * @return an unstarted {@link RainbowGum}.
+		 */
+		private RainbowGum build(UUID instanceId) {
 			var routes = this.routes;
 			var config = this.config;
 			if (routes.isEmpty()) {
 				routes = List.of(Router.builder(config).build());
 			}
 			var root = InternalRootRouter.of(routes, config.levelResolver());
-			return new SimpleRainbowGum(config, root);
+			return new SimpleRainbowGum(config, root, instanceId);
+		}
+
+		/**
+		 * Builds, starts and sets the RainbowGum as the global one picked up by logging
+		 * facades.
+		 * @return started and set rainbow that can be used in a try-close.
+		 */
+		public RainbowGum set() {
+			UUID instanceId = UUID.randomUUID();
+			RainbowGum.set(() -> build(instanceId));
+			var gum = RainbowGum.of();
+			/*
+			 * TODO this is a hack. The holder lock should be used to make this not
+			 * happen.
+			 */
+			if (!instanceId.equals(gum.instanceId())) {
+				throw new IllegalStateException("Another rainbow gum registered itself as the global. "
+						+ "This is rare reace condition and probably a bug");
+			}
+			return gum;
 		}
 
 	}
@@ -256,6 +293,22 @@ final class RainbowGumHolder {
 
 	}
 
+	static boolean remove(RainbowGum gum) {
+		lock.writeLock().lock();
+		try {
+			var original = rainbowGum;
+			if (original != gum) {
+				return false;
+			}
+			rainbowGum = null;
+			supplier = RainbowGumServiceProvider::provide;
+			return true;
+		}
+		finally {
+			lock.writeLock().unlock();
+		}
+	}
+
 	static void set(Supplier<RainbowGum> rainbowGumSupplier) {
 		Objects.requireNonNull(rainbowGumSupplier);
 		if (lock.writeLock().isHeldByCurrentThread()) {
@@ -281,7 +334,7 @@ final class RainbowGumHolder {
 
 }
 
-final class SimpleRainbowGum implements RainbowGum {
+final class SimpleRainbowGum implements RainbowGum, Shutdownable {
 
 	private final LogConfig config;
 
@@ -289,16 +342,19 @@ final class SimpleRainbowGum implements RainbowGum {
 
 	private final AtomicInteger state = new AtomicInteger(0);
 
+	private final UUID instanceId;
+
 	private static final int INIT = 0;
 
 	private static final int STARTED = 1;
 
 	private static final int CLOSED = 2;
 
-	public SimpleRainbowGum(LogConfig config, RootRouter router) {
+	public SimpleRainbowGum(LogConfig config, RootRouter router, UUID instanceId) {
 		super();
 		this.config = config;
 		this.router = router;
+		this.instanceId = instanceId;
 	}
 
 	public LogConfig config() {
@@ -319,11 +375,33 @@ final class SimpleRainbowGum implements RainbowGum {
 	}
 
 	@Override
+	public UUID instanceId() {
+		return this.instanceId;
+	}
+
+	@Override
 	public void close() {
 		if (state.compareAndSet(STARTED, CLOSED)) {
-			RainbowGum.super.close();
+			RainbowGumHolder.remove(this);
+			try {
+				shutdown();
+			}
+			finally {
+				ShutdownManager.removeShutdownHook(this);
+			}
 			return;
 		}
+	}
+
+	@Override
+	public void shutdown() {
+		router().close();
+	}
+
+	@Override
+	public String toString() {
+		return "SimpleRainbowGum [instanceId=" + instanceId + ", config=" + config + ", router=" + router + ", state="
+				+ stateLabel(state.get()) + "]";
 	}
 
 	private static String stateLabel(int state) {

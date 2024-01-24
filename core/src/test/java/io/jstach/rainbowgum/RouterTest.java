@@ -21,7 +21,7 @@ public class RouterTest {
 		LevelResolver resolver = InternalLevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
 		var publisher = new TestSyncPublisher();
 		@SuppressWarnings("resource")
-		var router = new SimpleRoute(publisher, resolver);
+		var router = new SimpleRouter(publisher, resolver);
 		var route = router.route("stuff.crap", Level.DEBUG);
 		assertFalse(route.isEnabled());
 		assertTrue(router.route("blah", Level.DEBUG).isEnabled());
@@ -33,11 +33,11 @@ public class RouterTest {
 
 		LevelResolver resolver1 = InternalLevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
 		var publisher1 = new TestSyncPublisher();
-		var router1 = new SimpleRoute(publisher1, resolver1);
+		var router1 = new SimpleRouter(publisher1, resolver1);
 
 		LevelResolver resolver2 = InternalLevelResolver.of(Map.of("stuff", Level.DEBUG, "", Level.WARNING));
 		var publisher2 = new TestSyncPublisher();
-		var router2 = new SimpleRoute(publisher2, resolver2);
+		var router2 = new SimpleRouter(publisher2, resolver2);
 
 		var root = InternalRootRouter.of(List.of(router1, router2), InternalLevelResolver.of(Level.ERROR));
 
