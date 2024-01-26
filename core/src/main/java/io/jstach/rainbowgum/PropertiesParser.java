@@ -8,7 +8,11 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -181,6 +185,128 @@ public final class PropertiesParser {
 			this.lineNumber = lineNumber;
 		}
 
+	}
+
+}
+
+final class PercentCodec {
+
+	static final BitSet GEN_DELIMS = new BitSet(256);
+	static final BitSet SUB_DELIMS = new BitSet(256);
+	static final BitSet UNRESERVED = new BitSet(256);
+	static final BitSet URIC = new BitSet(256);
+
+	static {
+		GEN_DELIMS.set(':');
+		GEN_DELIMS.set('/');
+		GEN_DELIMS.set('?');
+		GEN_DELIMS.set('#');
+		GEN_DELIMS.set('[');
+		GEN_DELIMS.set(']');
+		GEN_DELIMS.set('@');
+
+		SUB_DELIMS.set('!');
+		SUB_DELIMS.set('$');
+		SUB_DELIMS.set('&');
+		SUB_DELIMS.set('\'');
+		SUB_DELIMS.set('(');
+		SUB_DELIMS.set(')');
+		SUB_DELIMS.set('*');
+		SUB_DELIMS.set('+');
+		SUB_DELIMS.set(',');
+		SUB_DELIMS.set(';');
+		SUB_DELIMS.set('=');
+
+		for (int i = 'a'; i <= 'z'; i++) {
+			UNRESERVED.set(i);
+		}
+		for (int i = 'A'; i <= 'Z'; i++) {
+			UNRESERVED.set(i);
+		}
+		// numeric characters
+		for (int i = '0'; i <= '9'; i++) {
+			UNRESERVED.set(i);
+		}
+		UNRESERVED.set('-');
+		UNRESERVED.set('.');
+		UNRESERVED.set('_');
+		UNRESERVED.set('~');
+		URIC.or(SUB_DELIMS);
+		URIC.or(UNRESERVED);
+	}
+
+	private static final int RADIX = 16;
+
+	static void encode(final StringBuilder buf, final CharSequence content, final @Nullable Charset charset,
+			final BitSet safechars, final boolean blankAsPlus) {
+		final CharBuffer cb = CharBuffer.wrap(content);
+		final ByteBuffer bb = (charset != null ? charset : StandardCharsets.UTF_8).encode(cb);
+		while (bb.hasRemaining()) {
+			final int b = bb.get() & 0xff;
+			if (safechars.get(b)) {
+				buf.append((char) b);
+			}
+			else if (blankAsPlus && b == ' ') {
+				buf.append("+");
+			}
+			else {
+				buf.append("%");
+				final char hex1 = Character.toUpperCase(Character.forDigit((b >> 4) & 0xF, RADIX));
+				final char hex2 = Character.toUpperCase(Character.forDigit(b & 0xF, RADIX));
+				buf.append(hex1);
+				buf.append(hex2);
+			}
+		}
+	}
+
+	static void encode(final StringBuilder buf, final CharSequence content, final Charset charset,
+			final boolean blankAsPlus) {
+		encode(buf, content, charset, UNRESERVED, blankAsPlus);
+	}
+
+	public static void encode(final StringBuilder buf, final CharSequence content, final Charset charset) {
+		encode(buf, content, charset, UNRESERVED, false);
+	}
+
+	public static String encode(final CharSequence content, final Charset charset) {
+
+		final StringBuilder buf = new StringBuilder();
+		encode(buf, content, charset, UNRESERVED, false);
+		return buf.toString();
+	}
+
+	static String decode(final CharSequence content, final @Nullable Charset charset, final boolean plusAsBlank) {
+		final ByteBuffer bb = ByteBuffer.allocate(content.length());
+		final CharBuffer cb = CharBuffer.wrap(content);
+		while (cb.hasRemaining()) {
+			final char c = cb.get();
+			if (c == '%' && cb.remaining() >= 2) {
+				final char uc = cb.get();
+				final char lc = cb.get();
+				final int u = Character.digit(uc, RADIX);
+				final int l = Character.digit(lc, RADIX);
+				if (u != -1 && l != -1) {
+					bb.put((byte) ((u << 4) + l));
+				}
+				else {
+					bb.put((byte) '%');
+					bb.put((byte) uc);
+					bb.put((byte) lc);
+				}
+			}
+			else if (plusAsBlank && c == '+') {
+				bb.put((byte) ' ');
+			}
+			else {
+				bb.put((byte) c);
+			}
+		}
+		bb.flip();
+		return (charset != null ? charset : StandardCharsets.UTF_8).decode(bb).toString();
+	}
+
+	public static String decode(final CharSequence content, final Charset charset) {
+		return decode(content, charset, false);
 	}
 
 }

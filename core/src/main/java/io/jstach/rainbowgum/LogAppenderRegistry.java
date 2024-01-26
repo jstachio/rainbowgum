@@ -4,32 +4,26 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogConfig.Provider;
+import io.jstach.rainbowgum.LogAppender.AppenderProvider;
 import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
  * Register appenders by name.
  */
-public sealed interface LogAppenderRegistry permits DefaultAppenderRegistry {
+public sealed interface LogAppenderRegistry extends AppenderProvider permits DefaultAppenderRegistry {
 
 	/**
-	 * Finds an appender by name.
-	 * @param name name of the appender.
-	 * @return appender provider to be used for creating the appender.
+	 * Register a provider by {@link URI#getScheme() scheme}.
+	 * @param scheme URI scheme to match for.
+	 * @param provider provider for scheme.
 	 */
-	Optional<Provider<LogAppender>> appender(String name);
-
-	/**
-	 * Registers an appender provider by name.
-	 * @param name of the appender.
-	 * @param appenderProvider factory to be used for creating appenders.
-	 */
-	void register(String name, Provider<LogAppender> appenderProvider);
+	public void register(String scheme, AppenderProvider provider);
 
 	/**
 	 * Creates a log appender registry.
@@ -63,12 +57,7 @@ record AppenderConfig(String name, @Nullable LogOutput output, @Nullable LogEnco
 
 final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
-	/*
-	 * TODO The shit in here is a mess because auto configuration of appenders based on
-	 * properties is complicated particularly because we want to support Spring Boots
-	 * configuration OOB.
-	 */
-	private final Map<String, Provider<LogAppender>> providers = new ConcurrentHashMap<>();
+	private final Map<String, AppenderProvider> providers = new ConcurrentHashMap<>();
 
 	static final Property<URI> fileProperty = Property.builder().toURI().build(LogProperties.FILE_PROPERTY);
 
@@ -77,6 +66,21 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		.orElse(List.of())
 		.build(LogProperties.APPENDERS_PROPERTY);
 
+	@Override
+	public LogAppender provide(URI uri, String name, LogConfig properties) {
+		throw new NoSuchElementException(uri.toString());
+	}
+
+	@Override
+	public void register(String scheme, AppenderProvider provider) {
+		providers.put(scheme, provider);
+	}
+
+	/*
+	 * TODO The shit in here is a mess because auto configuration of appenders based on
+	 * properties is complicated particularly because we want to support Spring Boots
+	 * configuration OOB.
+	 */
 	static List<LogAppender> defaultAppenders(LogConfig config) {
 		List<LogAppender> appenders = new ArrayList<>();
 		fileAppender(config).ifPresent(appenders::add);
@@ -135,25 +139,29 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	}
 
 	static LogAppender appender( //
-			AppenderConfig builder, //
+			AppenderConfig appenderConfig, //
 			LogConfig config, //
 			Property<LogOutput> outputProperty, Property<LogEncoder> encoderProperty) {
 
 		@Nullable
-		LogOutput output = builder.output();
+		LogOutput output = appenderConfig.output();
 		@Nullable
-		LogEncoder encoder = builder.encoder();
+		LogEncoder encoder = appenderConfig.encoder();
 		var properties = config.properties();
 
 		if (output == null) {
 			output = outputProperty.get(properties).value();
 		}
 
+		if (output instanceof LogEncoder e) {
+			encoder = e;
+		}
+
 		if (encoder == null) {
 			var _output = output;
 			encoder = encoderProperty.get(properties).value(() -> {
-				var formatterRegistry = config.formatterRegistry();
-				return LogEncoder.of(formatterRegistry.formatterForOutputType(_output.type()));
+				var encoderRegistry = config.encoderRegistry();
+				return encoderRegistry.encoderForOutputType(_output.type());
 			});
 		}
 
@@ -165,11 +173,6 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			String name, //
 			LogConfig config, //
 			Property<LogOutput> outputProperty, Property<LogEncoder> encoderProperty) {
-		var appenderRegistry = config.appenderRegistry();
-		var appender = appenderRegistry.appender(name).map(a -> a.provide(config)).orElse(null);
-		if (appender != null) {
-			return appender;
-		}
 		var builder = new AppenderConfig(name, null, null);
 		return appender(builder, config, outputProperty, encoderProperty);
 
@@ -197,17 +200,6 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.toURI() //
 			.map(u -> config.encoderRegistry().provide(u, name, config.properties())) //
 			.buildWithName(propertyName, name);
-	}
-
-	@Override
-	public Optional<Provider<LogAppender>> appender(String name) {
-		return Optional.ofNullable(providers.get(name));
-	}
-
-	@Override
-	public void register(String name, Provider<LogAppender> appenderProvider) {
-		providers.put(name, appenderProvider);
-
 	}
 
 }

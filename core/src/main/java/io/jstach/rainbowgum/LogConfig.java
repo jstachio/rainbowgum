@@ -39,12 +39,6 @@ public sealed interface LogConfig {
 	public LevelConfig levelResolver();
 
 	/**
-	 * Registered formatters.
-	 * @return formatter registry.
-	 */
-	public LogFormatterRegistry formatterRegistry();
-
-	/**
 	 * Output provider that uses URI to find output.
 	 * @return output provider.
 	 */
@@ -124,6 +118,16 @@ public sealed interface LogConfig {
 				return null;
 			}
 			return provider.provide(config);
+		}
+
+		/**
+		 * Creates a provider of instance that is already configured.
+		 * @param <U> component
+		 * @param instance component instance.
+		 * @return this.
+		 */
+		public static <U> Provider<U> of(U instance) {
+			return c -> instance;
 		}
 
 	}
@@ -299,8 +303,6 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogOutputRegistry outputRegistry;
 
-	private final LogFormatterRegistry formatterRegistry;
-
 	private final LogAppenderRegistry appenderRegistry;
 
 	private final LogEncoderRegistry encoderRegistry;
@@ -317,7 +319,6 @@ final class DefaultLogConfig implements LogConfig {
 			}
 		};
 		this.outputRegistry = LogOutputRegistry.of();
-		this.formatterRegistry = LogFormatterRegistry.of();
 		this.appenderRegistry = LogAppenderRegistry.of();
 		this.encoderRegistry = LogEncoderRegistry.of();
 	}
@@ -345,11 +346,6 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogOutputRegistry outputRegistry() {
 		return this.outputRegistry;
-	}
-
-	@Override
-	public LogFormatterRegistry formatterRegistry() {
-		return this.formatterRegistry;
 	}
 
 	@Override

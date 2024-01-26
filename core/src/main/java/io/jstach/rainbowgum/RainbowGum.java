@@ -216,6 +216,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 		/**
 		 * Builds an unstarted {@link RainbowGum}.
+		 * @param instanceId unique id for rainbow gum instance.
 		 * @return an unstarted {@link RainbowGum}.
 		 */
 		private RainbowGum build(UUID instanceId) {

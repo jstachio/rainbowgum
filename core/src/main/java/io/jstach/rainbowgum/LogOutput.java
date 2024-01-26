@@ -31,7 +31,7 @@ import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
  * @see LogOutput.OutputProvider
  * @see Buffer
  */
-public interface LogOutput extends LogLifecycle, Flushable, LogConfig.Provider<LogOutput> {
+public interface LogOutput extends LogLifecycle, Flushable {
 
 	/**
 	 * {@link FileDescriptor#err} URI scheme.
@@ -68,10 +68,6 @@ public interface LogOutput extends LogLifecycle, Flushable, LogConfig.Provider<L
 		catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	default LogOutput provide(LogConfig config) {
-		return this;
 	}
 
 	/**

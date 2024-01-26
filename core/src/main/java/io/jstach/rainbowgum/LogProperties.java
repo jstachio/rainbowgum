@@ -203,7 +203,7 @@ public interface LogProperties {
 	 */
 	public final static class Builder {
 
-		private String description = "custom";
+		private @Nullable String description = null;
 
 		private int order = 0;
 
@@ -262,6 +262,9 @@ public interface LogProperties {
 		 */
 		public Builder fromProperties(String properties) {
 			function = Format.PROPERTIES.parse(properties);
+			if (description == null) {
+				description = "Properties String";
+			}
 			return this;
 		}
 
@@ -277,12 +280,35 @@ public interface LogProperties {
 		}
 
 		/**
+		 * Parses a string as a URI query string. If the URI has no query portion then it
+		 * will be equivalent to empty properties.
+		 * @param uri percent encoded uri with separator as "<code>&amp;</code>" and key
+		 * value separator of "<code>=</code>".
+		 * @return this.
+		 */
+		public Builder fromURIQuery(URI uri) {
+			String query = uri.getRawQuery();
+			if (query == null) {
+				query = "";
+			}
+			if (description == null) {
+				description = "URI('" + uri + "')";
+			}
+			function = Format.URI_QUERY.parse(query);
+			return this;
+		}
+
+		/**
 		 * Builds LogProperties based on builder config.
 		 * @return this.
 		 */
 		public LogProperties build() {
 			if (function == null) {
 				throw new IllegalStateException("function is was not set");
+			}
+			String description = this.description;
+			if (description == null) {
+				description = "custom";
 			}
 			return new DefaultLogProperties(function, description, renameKey, order);
 		}
@@ -299,7 +325,12 @@ public interface LogProperties {
 
 			@Override
 			public String description(String key) {
-				return renameKey.apply(key);
+				String rename = renameKey.apply(key);
+				String desc = "'" + key + "' from " + description;
+				if (!rename.equals(key)) {
+					desc += "[" + rename + "]";
+				}
+				return desc;
 			}
 
 		}
@@ -362,7 +393,9 @@ public interface LogProperties {
 		if (logProperties.size() == 0) {
 			return logProperties.get(0);
 		}
-		var array = logProperties.toArray(new LogProperties[] {});
+		var array = logProperties.stream()
+			.filter(p -> p != StandardProperties.EMPTY)
+			.toArray(size -> new LogProperties[size]);
 		Arrays.sort(array, Comparator.comparingInt(LogProperties::order).reversed());
 		return new CompositeLogProperties(array);
 	}
@@ -490,12 +523,12 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Common log properties.
+	 * Common static log properties such as System properties ane environment variables.
 	 */
 	enum StandardProperties implements LogProperties {
 
 		/**
-		 * Empty properties.
+		 * Empty properties. The order is <code>-1</code>.
 		 */
 		EMPTY {
 			@Override
@@ -510,7 +543,8 @@ public interface LogProperties {
 		},
 		/**
 		 * Uses {@link System#getProperty(String)} for {@link #valueOrNull(String)}. The
-		 * {@link #order()} is the same value as microprofile config ordinal.
+		 * {@link #order()} is <code>400</code> which the same value as microprofile
+		 * config ordinal.
 		 */
 		SYSTEM_PROPERTIES {
 			@Override
@@ -522,6 +556,37 @@ public interface LogProperties {
 			public int order() {
 				return 400;
 			}
+		},
+		/**
+		 * Uses {@link System#getenv(String)} for {@link #valueOrNull(String)}.The
+		 * {@link #order()} is <code>300</code> which is the same value as microprofile
+		 * config ordinal.
+		 */
+		ENVIRONMENT_VARIABLES {
+			@Override
+			public @Nullable String valueOrNull(String key) {
+				return System.getenv(translateKey(key));
+			}
+
+			@Override
+			protected String translateKey(String key) {
+				return key.replace(".", "_");
+			}
+
+		};
+
+		@Override
+		public String description(String key) {
+			String k = translateKey(key);
+			String description = "'" + key + "' from " + name();
+			if (!k.equals(key)) {
+				description += "[" + k + "]";
+			}
+			return description;
+		}
+
+		protected String translateKey(String key) {
+			return key;
 		}
 
 	}
@@ -624,7 +689,7 @@ public interface LogProperties {
 	}
 
 	private static RuntimeException throwMissingError(List<String> keys) {
-		throw new PropertyMissingException("Property missing. key: " + keys);
+		throw new PropertyMissingException("Property missing. keys: " + keys);
 	}
 
 	/**
@@ -1553,6 +1618,21 @@ record CompositeLogProperties(LogProperties[] properties) implements LogProperti
 			}
 		}
 		return null;
+	}
+
+	public String description(String key) {
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for (var p : properties) {
+			if (first) {
+				first = false;
+			}
+			else {
+				sb.append(", ");
+			}
+			sb.append(p.description(key));
+		}
+		return sb.toString();
 	}
 
 }

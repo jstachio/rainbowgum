@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.net.URI;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -85,6 +86,22 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	}
 
 	/**
+	 * Finds an appender based on URI.
+	 */
+	public interface AppenderProvider {
+
+		/**
+		 * Loads an appender from a URI.
+		 * @param uri uri.
+		 * @param name name of appender.
+		 * @param config config to access properties and other components like encoders.
+		 * @return appender.
+		 */
+		LogAppender provide(URI uri, String name, LogConfig config);
+
+	}
+
+	/**
 	 * Builder for creating standard appenders.
 	 * <p>
 	 * If the output is not set standard out will be used. If the encoder is not set a
@@ -121,13 +138,23 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		}
 
 		/**
+		 * Sets output.
+		 * @param output output.
+		 * @return builder.
+		 */
+		public Builder output(LogOutput output) {
+			this.output = Provider.of(output);
+			return this;
+		}
+
+		/**
 		 * Sets formatter as encoder.
 		 * @param formatter formatter to be converted to encoder.
 		 * @return builder.
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter formatter) {
-			this.encoder = LogEncoder.of(formatter);
+			this.encoder = Provider.of(LogEncoder.of(formatter));
 			return this;
 		}
 
@@ -138,7 +165,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter.EventFormatter formatter) {
-			this.encoder = LogEncoder.of(formatter);
+			this.encoder = Provider.of(LogEncoder.of(formatter));
 			return this;
 		}
 

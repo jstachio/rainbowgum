@@ -1,12 +1,17 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
+import io.jstach.rainbowgum.LogOutput.OutputType;
+import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 /**
  * Encoder registry
@@ -33,6 +38,20 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 	 * @param encoder loaded encoder
 	 */
 	public void register(String name, EncoderProvider encoder);
+
+	/**
+	 * Associates a default formatter with a specific output type
+	 * @param outputType output type to use for finding best default formatter.
+	 * @return formatter for output type.
+	 */
+	public LogEncoder encoderForOutputType(OutputType outputType);
+
+	/**
+	 * Sets a default formatter for a specific output type.
+	 * @param outputType output type.
+	 * @param formatter formatter.
+	 */
+	public void setEncoderForOutputType(OutputType outputType, Supplier<? extends LogEncoder> formatter);
 
 	/**
 	 * Creates encoder registry
@@ -91,6 +110,44 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	public void register(String name, EncoderProvider encoder) {
 		providers.put(name, encoder);
 
+	}
+
+	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+
+	private final EnumMap<OutputType, Supplier<? extends LogEncoder>> formatters = new EnumMap<>(OutputType.class);
+
+	/**
+	 * Associates a default formatter with a specific output type
+	 * @param outputType output type to use for finding best default formatter.
+	 * @return encoder for output type.
+	 */
+	public LogEncoder encoderForOutputType(OutputType outputType) {
+		lock.readLock().lock();
+		try {
+			var formatter = formatters.get(outputType);
+			if (formatter == null) {
+				return LogEncoder.of(StandardEventFormatter.builder().build());
+			}
+			return formatter.get();
+		}
+		finally {
+			lock.readLock().unlock();
+		}
+	}
+
+	/**
+	 * Sets a default formatter for a specific output type.
+	 * @param outputType output type.
+	 * @param formatter formatter.
+	 */
+	public void setEncoderForOutputType(OutputType outputType, Supplier<? extends LogEncoder> formatter) {
+		lock.writeLock().lock();
+		try {
+			formatters.put(outputType, formatter);
+		}
+		finally {
+			lock.writeLock().unlock();
+		}
 	}
 
 }
