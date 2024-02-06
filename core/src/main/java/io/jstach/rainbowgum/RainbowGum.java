@@ -46,7 +46,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
-				r.publisher(PublisherProvider.async().bufferSize(bufferSize.get(config.properties()).value()).build());
+				r.publisher(PublisherFactory.async().bufferSize(bufferSize.get(config.properties()).value()).build());
 				r.appender("console", a -> {
 					a.output(output.get(config.properties()).value());					
 				});
@@ -195,13 +195,27 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 		/**
 		 * Adds a route by using a consumer of the route builder.
+		 * @param name name of router.
 		 * @param consumer consumer is passed router builder. The consumer does not need
-		 * to call {@link Router#builder(LogConfig)}
+		 * to call {@link Router#builder(String,LogConfig)}
+		 * @return builder.
+		 * @see io.jstach.rainbowgum.LogRouter.Router.Builder
+		 */
+		public Builder route(String name, Consumer<Router.Builder> consumer) {
+			var builder = Router.builder(name, config);
+			consumer.accept(builder);
+			return route(builder.build());
+		}
+
+		/**
+		 * Adds a route by using a consumer of the route builder.
+		 * @param consumer consumer is passed router builder. The consumer does not need
+		 * to call {@link Router#builder(String,LogConfig)}
 		 * @return builder.
 		 * @see io.jstach.rainbowgum.LogRouter.Router.Builder
 		 */
 		public Builder route(Consumer<Router.Builder> consumer) {
-			var builder = Router.builder(config);
+			var builder = Router.builder(Router.DEFAULT_ROUTER_NAME, config);
 			consumer.accept(builder);
 			return route(builder.build());
 		}
@@ -223,7 +237,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 			var routes = this.routes;
 			var config = this.config;
 			if (routes.isEmpty()) {
-				routes = List.of(Router.builder(config).build());
+				routes = List.of(Router.builder(Router.DEFAULT_ROUTER_NAME, config).build());
 			}
 			var root = InternalRootRouter.of(routes, config.levelResolver());
 			return new SimpleRainbowGum(config, root, instanceId);

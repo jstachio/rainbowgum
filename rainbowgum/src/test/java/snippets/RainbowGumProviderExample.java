@@ -8,7 +8,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.LogProperties.Property;
-import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
+import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
 
 // @start region="provider"
@@ -30,7 +30,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
-				r.publisher(PublisherProvider.async().bufferSize(bufferSize.get(config.properties()).value()).build());
+				r.publisher(PublisherFactory.async().bufferSize(bufferSize.get(config.properties()).value()).build());
 				r.appender("console", a -> {
 					a.output(output.get(config.properties()).value());
 				});

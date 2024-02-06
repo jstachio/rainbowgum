@@ -18,7 +18,8 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
+import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
 import io.jstach.rainbowgum.LogRouter.Router;
@@ -156,6 +157,11 @@ public sealed interface LogRouter extends LogLifecycle {
 	sealed interface Router extends LogRouter, LogEventLogger {
 
 		/**
+		 * The router name given if no router is explicitely declared.
+		 */
+		public static String DEFAULT_ROUTER_NAME = "default";
+
+		/**
 		 * Level resolver.
 		 * @return level resolver.
 		 */
@@ -182,11 +188,12 @@ public sealed interface LogRouter extends LogLifecycle {
 
 		/**
 		 * Creates a builder from config.
+		 * @param name name of the route which the publisher will inherit.
 		 * @param config config.
 		 * @return builder.
 		 */
-		static Builder builder(LogConfig config) {
-			return new Builder(config);
+		static Builder builder(String name, LogConfig config) {
+			return new Builder(name, config);
 		}
 
 		/**
@@ -196,22 +203,21 @@ public sealed interface LogRouter extends LogLifecycle {
 
 			private final LogConfig config;
 
+			private final String name;
+
 			private List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>();
 
-			private Builder(LogConfig config) {
+			private Builder(String name, LogConfig config) {
+				this.name = Objects.requireNonNull(name);
 				this.config = config;
 			}
 
-			private PublisherProvider publisher;
+			private PublisherFactory publisher;
 
 			@Override
 			protected Builder self() {
 				return this;
 			}
-
-			// public LogConfig config() {
-			// return this.config;
-			// }
 
 			/**
 			 * Adds an appender by giving an appender builder to a consumer.
@@ -241,7 +247,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			 * @param publisher publisher.
 			 * @return this builder.
 			 */
-			public Builder publisher(PublisherProvider publisher) {
+			public Builder publisher(PublisherFactory publisher) {
 				this.publisher = publisher;
 				return self();
 			}
@@ -253,20 +259,23 @@ public sealed interface LogRouter extends LogLifecycle {
 			Router build() {
 				var levelResolver = buildLevelResolver(config.levelResolver());
 				var publisher = this.publisher;
+				String name = this.name;
+
 				List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
 					DefaultAppenderRegistry.defaultAppenders(config) //
 						.stream() //
 						.forEach(appenders::add);
 				}
-				if (publisher == null) {
-					publisher = LogPublisher.SyncLogPublisher //
-						.builder() //
-						.build();
-				}
+				publisher = Property.builder() //
+					.toURI() //
+					.map(u -> config.publisherRegistry().provide(u, name, config.properties()))
+					.buildWithName(LogProperties.ROUTER_PUBLISHER_PROPERTY, name)
+					.get(config.properties())
+					.value(() -> LogPublisher.SyncLogPublisher.builder().build());
 
-				var apps = appenders.stream().map(a -> a.provide(config)).toList();
-				var pub = publisher.provide(config, apps);
+				var apps = appenders.stream().map(a -> a.provide(name, config)).toList();
+				var pub = publisher.create(name, config, apps);
 
 				return new SimpleRouter(pub, levelResolver);
 			}
@@ -476,6 +485,7 @@ enum FailsafeAppender implements LogAppender {
 	@Override
 	public void append(LogEvent event) {
 		if (event.level().compareTo(Level.ERROR) >= 0) {
+			System.err.append("[ERROR] - logging ");
 			event.formattedMessage(System.err);
 			var throwable = event.throwable();
 			if (throwable != null) {

@@ -34,7 +34,7 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Configurat
 		INSTANCE;
 
 		@Override
-		public LogOutput output(URI uri, String name, LogProperties properties) throws IOException {
+		public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
 			name = name.equals("") ? "rabbitmq" : name;
 			RabbitMQOutputBuilder b = new RabbitMQOutputBuilder(name);
 			b.uri(uri);

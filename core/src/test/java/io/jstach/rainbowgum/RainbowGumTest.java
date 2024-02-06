@@ -9,7 +9,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
+import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 
 class RainbowGumTest {
 
@@ -76,7 +76,7 @@ class RainbowGumTest {
 		// .build();
 		GlobalLogRouter.INSTANCE.log("stuff", Level.WARNING, "first");
 		try (var gum = RainbowGum.builder().route(r -> {
-			r.publisher(PublisherProvider.async().build());
+			r.publisher(PublisherFactory.async().build());
 			r.appender(sysout);
 			r.level(Level.WARNING, "stuff");
 		}).set()) {

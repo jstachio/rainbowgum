@@ -73,7 +73,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	/**
 	 * Finds output based on URI.
 	 */
-	public interface OutputProvider {
+	public interface OutputProvider extends PluginProvider<LogOutput, IOException> {
 
 		/**
 		 * Loads an output from a URI.
@@ -83,7 +83,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		 * @return output.
 		 * @throws IOException if unable to use the URI.
 		 */
-		LogOutput output(URI uri, String name, LogProperties properties) throws IOException;
+		LogOutput provide(URI uri, String name, LogProperties properties) throws IOException;
 
 	}
 

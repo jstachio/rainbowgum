@@ -65,7 +65,7 @@ public interface LogEncoder {
 	/**
 	 * Finds output based on URI.
 	 */
-	public interface EncoderProvider {
+	public interface EncoderProvider extends PluginProvider<LogEncoder, RuntimeException> {
 
 		/**
 		 * Loads an encoder from a URI.

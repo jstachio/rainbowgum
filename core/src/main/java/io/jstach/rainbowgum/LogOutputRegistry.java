@@ -59,16 +59,10 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 
 }
 
-final class DefaultOutputRegistry implements LogOutputRegistry {
-
-	private final Map<String, OutputProvider> providers = new ConcurrentHashMap<>();
+final class DefaultOutputRegistry extends ProviderRegistry<OutputProvider, LogOutput, IOException>
+		implements LogOutputRegistry {
 
 	private final Map<String, LogOutput> outputs = new ConcurrentHashMap<>();
-
-	@Override
-	public void register(String scheme, OutputProvider provider) {
-		providers.put(scheme, provider);
-	}
 
 	@Override
 	public void register(String name, LogOutput output) {
@@ -90,12 +84,12 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		if (o != null) {
 			return o;
 		}
-		return output(URI.create(name + ":///"), name, properties);
+		return provide(URI.create(name + ":///"), name, properties);
 	}
 
 	@SuppressWarnings("resource")
 	@Override
-	public LogOutput output(URI uri, String name, LogProperties properties) throws IOException {
+	public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
 		OutputProvider customProvider;
@@ -126,7 +120,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 			return _register(name, new ListLogOutput());
 		}
 		else if ((customProvider = providers.get(scheme)) != null) {
-			return _register(name, customProvider.output(uri, name, properties));
+			return _register(name, customProvider.provide(uri, name, properties));
 		}
 		else {
 			var p = Paths.get(uri);

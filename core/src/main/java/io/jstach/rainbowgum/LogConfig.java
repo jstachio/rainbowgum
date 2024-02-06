@@ -51,10 +51,16 @@ public sealed interface LogConfig {
 	public LogAppenderRegistry appenderRegistry();
 
 	/**
-	 * Provides encoders by name.
+	 * Provides encoders by URI scheme.
 	 * @return encoder registry.
 	 */
 	public LogEncoderRegistry encoderRegistry();
+
+	/**
+	 * Provides publishers by URI scheme.
+	 * @return publisher registry.
+	 */
+	public LogPublisherRegistry publisherRegistry();
 
 	/**
 	 * Finds an output from a URI.
@@ -64,7 +70,7 @@ public sealed interface LogConfig {
 	 * @throws IOException if output fails fast
 	 */
 	default LogOutput output(URI uri, String name) throws IOException {
-		return outputRegistry().output(uri, name, properties());
+		return outputRegistry().provide(uri, name, properties());
 	}
 
 	/**
@@ -100,24 +106,26 @@ public sealed interface LogConfig {
 		/**
 		 * Creates the component from config. The component is not always guaranteed to be
 		 * new object.
+		 * @param name config name of the parent component.
 		 * @param config config.
 		 * @return component.
 		 */
-		T provide(LogConfig config);
+		T provide(String name, LogConfig config);
 
 		/**
 		 * Convenience for flattening nullable providers.
 		 * @param <U> component
+		 * @param name name of parent component and can be ignored if not needed.
 		 * @param provider nullable provider
 		 * @param config config used to provide if not null.
 		 * @return maybe null component.
 		 */
 		@SuppressWarnings("exports")
-		public static <U> @Nullable U provideOrNull(@Nullable Provider<U> provider, LogConfig config) {
+		public static <U> @Nullable U provideOrNull(String name, @Nullable Provider<U> provider, LogConfig config) {
 			if (provider == null) {
 				return null;
 			}
-			return provider.provide(config);
+			return provider.provide(name, config);
 		}
 
 		/**
@@ -127,7 +135,7 @@ public sealed interface LogConfig {
 		 * @return this.
 		 */
 		public static <U> Provider<U> of(U instance) {
-			return c -> instance;
+			return (n, c) -> instance;
 		}
 
 	}
@@ -307,6 +315,8 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogEncoderRegistry encoderRegistry;
 
+	private final LogPublisherRegistry publisherRegistry;
+
 	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties) {
 		super();
 		this.registry = registry;
@@ -321,6 +331,7 @@ final class DefaultLogConfig implements LogConfig {
 		this.outputRegistry = LogOutputRegistry.of();
 		this.appenderRegistry = LogAppenderRegistry.of();
 		this.encoderRegistry = LogEncoderRegistry.of();
+		this.publisherRegistry = LogPublisherRegistry.of();
 	}
 
 	@Override
@@ -356,6 +367,11 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogEncoderRegistry encoderRegistry() {
 		return this.encoderRegistry;
+	}
+
+	@Override
+	public LogPublisherRegistry publisherRegistry() {
+		return this.publisherRegistry;
 	}
 
 }

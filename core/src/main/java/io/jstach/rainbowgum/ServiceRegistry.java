@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,6 +67,22 @@ record ServiceKey(Class<?> type, String name) {
 		type = Objects.requireNonNull(type);
 		name = Objects.requireNonNull(name);
 	}
+}
+
+interface PluginProvider<T, E extends Exception> {
+
+	public T provide(URI uri, String name, LogProperties properties) throws E;
+
+}
+
+abstract class ProviderRegistry<T extends PluginProvider<U, E>, U, E extends Exception> {
+
+	protected final Map<String, T> providers = new ConcurrentHashMap<>();
+
+	public void register(String scheme, T provider) {
+		providers.put(scheme, provider);
+	}
+
 }
 
 final class DefaultServiceRegistry implements ServiceRegistry {

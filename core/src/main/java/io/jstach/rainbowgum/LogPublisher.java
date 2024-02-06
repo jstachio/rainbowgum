@@ -1,8 +1,12 @@
 package io.jstach.rainbowgum;
 
+import java.net.URI;
 import java.util.List;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
+import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 /**
@@ -19,15 +23,16 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 	/**
 	 * A factory for a publisher from config and appenders.
 	 */
-	public interface PublisherProvider {
+	public interface PublisherFactory {
 
 		/**
 		 * Create the log publisher from config and appenders.
+		 * @param name used to identify where to pull config from.
 		 * @param config log config.
 		 * @param appenders appenders.
 		 * @return publisher.
 		 */
-		LogPublisher provide(LogConfig config, List<? extends LogAppender> appenders);
+		LogPublisher create(String name, LogConfig config, List<? extends LogAppender> appenders);
 
 		/**
 		 * Async builder.
@@ -44,6 +49,22 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		public static SyncLogPublisher.Builder sync() {
 			return SyncLogPublisher.builder();
 		}
+
+	}
+
+	/**
+	 * SPI for custom publishers.
+	 */
+	public interface PublisherProvider extends PluginProvider<PublisherFactory, RuntimeException> {
+
+		/**
+		 * Provides a publisher factory by properties and uri.
+		 * @param uri uri configuration of publisher
+		 * @param name name to use for config finding.
+		 * @param properties configuration properties
+		 * @return publisher factory.
+		 */
+		PublisherFactory provide(URI uri, String name, LogProperties properties);
 
 	}
 
@@ -71,7 +92,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		 * Creates publisher provider.
 		 * @return publisher provider
 		 */
-		public abstract PublisherProvider build();
+		public abstract PublisherFactory build();
 
 	}
 
@@ -103,7 +124,12 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			 */
 			public static final int ASYNC_BUFFER_SIZE = 1024;
 
-			private int bufferSize = ASYNC_BUFFER_SIZE;
+			/**
+			 * Buffer Size Property for Async publishers.
+			 */
+			public static final String BUFFER_SIZE_PROPERTY = LogProperties.PUBLISHER_PREFIX + "bufferSize";
+
+			private @Nullable Integer bufferSize;
 
 			private Builder() {
 			}
@@ -119,9 +145,9 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 				return this;
 			}
 
-			public PublisherProvider build() {
-				int bufferSize = this.bufferSize;
-				return (config, appenders) -> asyncPublisher(appenders, bufferSize);
+			public PublisherFactory build() {
+				Integer bufferSize = this.bufferSize;
+				return (name, config, appenders) -> asyncPublisher(name, config, appenders, bufferSize);
 			}
 
 			@Override
@@ -129,9 +155,14 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 				return this;
 			}
 
-			private static LogPublisher.AsyncLogPublisher asyncPublisher(List<? extends LogAppender> appenders,
-					int bufferSize) {
-				return BlockingQueueAsyncLogPublisher.of(appenders, bufferSize);
+			private static LogPublisher.AsyncLogPublisher asyncPublisher(String name, LogConfig config,
+					List<? extends LogAppender> appenders, Integer bufferSize) {
+				int _bufferSize = Property.builder()
+					.toInt() //
+					.buildWithName(BUFFER_SIZE_PROPERTY, name) //
+					.get(config.properties()) //
+					.value(ASYNC_BUFFER_SIZE);
+				return BlockingQueueAsyncLogPublisher.of(appenders, _bufferSize);
 			}
 
 		}
@@ -176,8 +207,8 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			 * Build a publisher provider.
 			 * @return provider
 			 */
-			public PublisherProvider build() {
-				return (config,
+			public PublisherFactory build() {
+				return (name, config,
 						appenders) -> new DefaultSyncLogPublisher(ThreadSafeLogAppender.of(LogAppender.of(appenders)));
 			}
 

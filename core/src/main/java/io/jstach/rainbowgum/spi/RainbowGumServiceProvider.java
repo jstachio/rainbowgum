@@ -137,9 +137,7 @@ public sealed interface RainbowGumServiceProvider {
 		 * @return rainbowgum.
 		 */
 		public static RainbowGum defaults(LogConfig config) {
-			return RainbowGum.builder(config).route(r -> {
-
-			}).build();
+			return RainbowGum.builder(config).build();
 		}
 
 	}

@@ -97,17 +97,27 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	}
 
 	private static LogAppender defaultConsoleAppender(LogConfig config) {
+		String name = LogAppender.CONSOLE_APPENDER_NAME;
+
+		var output = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config).get(config.properties())
+			.value(() -> LogOutput.ofStandardOut());
+
+		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
+
+		var encoder = resolveEncoder(config, output, encoderProperty);
+
 		var consoleAppender = LogAppender.builder(LogAppender.CONSOLE_APPENDER_NAME)
 			.output(LogOutput.ofStandardOut())
+			.encoder(encoder)
 			.build()
-			.provide(config);
+			.provide(LogAppender.CONSOLE_APPENDER_NAME, config);
 		return consoleAppender;
 	}
 
 	static Optional<LogAppender> fileAppender(LogConfig config) {
 		final String name = LogAppender.FILE_APPENDER_NAME;
 		var outputProperty = fileProperty //
-			.map(u -> config.outputRegistry().output(u, name, config.properties()));
+			.map(u -> config.outputRegistry().provide(u, name, config.properties()));
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 
 		return fileProperty //
@@ -158,15 +168,22 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		}
 
 		if (encoder == null) {
-			var _output = output;
-			encoder = encoderProperty.get(properties).value(() -> {
-				var encoderRegistry = config.encoderRegistry();
-				return encoderRegistry.encoderForOutputType(_output.type());
-			});
+			encoder = resolveEncoder(config, output, encoderProperty);
 		}
 
 		return defaultsAppenderBufferProperty.get(properties).value() ? new BufferLogAppender(output, encoder)
 				: new DefaultLogAppender(output, encoder);
+	}
+
+	private static LogEncoder resolveEncoder(LogConfig config, LogOutput output, Property<LogEncoder> encoderProperty) {
+		@Nullable
+		LogEncoder encoder;
+		var _output = output;
+		encoder = encoderProperty.get(config.properties()).value(() -> {
+			var encoderRegistry = config.encoderRegistry();
+			return encoderRegistry.encoderForOutputType(_output.type());
+		});
+		return encoder;
 	}
 
 	static LogAppender appender( //
@@ -178,20 +195,10 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	}
 
-	private static @Nullable LogOutput outputForAppender(String propertyName, String name, LogConfig config) {
-		LogOutput output = Property.builder() //
-			.toURI() //
-			.map(u -> config.outputRegistry().output(u, name, config.properties())) //
-			.buildWithName(propertyName, name) //
-			.get(config.properties()) //
-			.valueOrNull();
-		return output;
-	}
-
 	private static Property<LogOutput> outputProperty(String propertyName, String name, LogConfig config) {
 		return Property.builder() //
 			.toURI() //
-			.map(u -> config.outputRegistry().output(u, name, config.properties())) //
+			.map(u -> config.outputRegistry().provide(u, name, config.properties())) //
 			.buildWithName(propertyName, name);
 	}
 

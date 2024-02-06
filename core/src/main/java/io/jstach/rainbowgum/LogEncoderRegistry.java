@@ -63,11 +63,10 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 
 }
 
-final class DefaultEncoderRegistry implements LogEncoderRegistry {
+final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderProvider, LogEncoder, RuntimeException>
+		implements LogEncoderRegistry {
 
 	private Map<String, LogEncoder> encoders = new ConcurrentHashMap<>();
-
-	private Map<String, LogEncoder.EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	@Override
 	public Optional<LogEncoder> encoder(String name) {
@@ -104,12 +103,6 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	private LogEncoder _encoder(URI uri, String name, String resolvedName) {
 		return encoder(resolvedName).orElseThrow(() -> new NoSuchElementException(
 				"No encoder found. resolved='" + resolvedName + "', name='" + name + "', uri='" + uri + "'"));
-	}
-
-	@Override
-	public void register(String name, EncoderProvider encoder) {
-		providers.put(name, encoder);
-
 	}
 
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();

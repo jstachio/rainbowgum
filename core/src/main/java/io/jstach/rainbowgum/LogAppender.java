@@ -56,7 +56,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	public void append(LogEvent event);
 
 	@Override
-	default LogAppender provide(LogConfig config) {
+	default LogAppender provide(String name, LogConfig config) {
 		return this;
 	}
 
@@ -180,6 +180,16 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		}
 
 		/**
+		 * Sets encoder.
+		 * @param encoder encoder not <code>null</code>.
+		 * @return builder.
+		 */
+		public Builder encoder(LogEncoder encoder) {
+			this.encoder = Provider.of(encoder);
+			return this;
+		}
+
+		/**
 		 * Builds.
 		 * @return an appender factory.
 		 */
@@ -190,9 +200,9 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 			var _name = name;
 			var _output = output;
 			var _encoder = encoder;
-			return config -> {
-				AppenderConfig a = new AppenderConfig(_name, Provider.provideOrNull(_output, config),
-						Provider.provideOrNull(_encoder, config));
+			return (n, config) -> {
+				AppenderConfig a = new AppenderConfig(_name, Provider.provideOrNull(n, _output, config),
+						Provider.provideOrNull(n, _encoder, config));
 				return DefaultAppenderRegistry.appender(a, config);
 			};
 		}
