@@ -3,7 +3,6 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogProperties.PropertyMissingException;
-import io.jstach.rainbowgum.LogProperties.PropertyValue;
 
 class LogPropertiesTest {
 
@@ -23,7 +21,7 @@ class LogPropertiesTest {
 		var extractor = ConfigLevelResolver.levelExtractor;
 		var property = extractor.property("com.stuff");
 		// assertEquals(Level.ALL, property.require(props));
-		PropertyValue<Level> value = property.get(props);
+		var value = property.get(props);
 		value.value();
 	}
 

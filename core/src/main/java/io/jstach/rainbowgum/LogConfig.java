@@ -16,6 +16,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
+import io.jstach.rainbowgum.LogProperties.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
@@ -269,7 +270,7 @@ public sealed interface LogConfig {
 
 abstract class AbstractChangePublisher implements ChangePublisher {
 
-	static final PropertyGetter<Boolean> changeSetting = PropertyGetter.of()
+	static final RequiredPropertyGetter<Boolean> changeSetting = PropertyGetter.of()
 		.withSearch(LogProperties.CHANGE_PREFIX)
 		.map(s -> Boolean.parseBoolean(s))
 		.orElse(false);
@@ -293,8 +294,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public boolean isEnabled(String loggerName) {
-		return changeSetting.value(_config().properties(), loggerName);
-
+		return changeSetting.get(_config().properties(), loggerName).value();
 	}
 
 }
