@@ -100,7 +100,7 @@ public class RabbitMQOutput implements LogOutput {
 	 */
 	@LogConfigurable(prefix = LogProperties.OUTPUT_PREFIX)
 	static RabbitMQOutput of( //
-			@LogConfigurable.PrefixParameter String name, //
+			@LogConfigurable.KeyParameter String name, //
 			@Nullable URI uri, //
 			@LogConfigurable.DefaultParameter("DEFAULT_EXCHANGE") String exchange, //
 			@LogConfigurable.ConvertParameter("toRoutingKeyFunction") @Nullable Function<LogEvent, String> routingKey, //

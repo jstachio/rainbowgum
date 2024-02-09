@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum.json.encoder;
 
 import java.net.URI;
-import java.util.List;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
@@ -35,14 +34,7 @@ public class GelfEncoderConfigurator implements Configurator {
 		public LogEncoder provide(URI uri, String name, LogProperties properties) {
 			GelfEncoderBuilder b = new GelfEncoderBuilder(name);
 			String prefix = b.propertyPrefix();
-			String query = uri.getRawQuery();
-			query = query == null ? "" : query;
-			var uriProperties = LogProperties.builder()
-				.fromURIQuery(query)
-				.renameKey(s -> LogProperties.removeKeyPrefix(s, prefix))
-				.build();
-			LogProperties combined = LogProperties.of(List.of(uriProperties, properties));
-
+			LogProperties combined = LogProperties.of(uri, prefix, properties);
 			String host = uri.getHost();
 			if (host != null) {
 				b.host(host);

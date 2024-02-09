@@ -33,20 +33,49 @@ import io.jstach.rainbowgum.LogProperties.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
 import io.jstach.rainbowgum.LogProperties.RequiredResult;
 import io.jstach.rainbowgum.LogProperties.Result;
+import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
  * Provides String based properties like {@link System#getProperty(String)} for default
- * configuration of logging levels and output.
+ * configuration of logging levels and output. Since Rainbowgum is configuration agnostic
+ * LogProperties is a simple string key and string value interface to allow almost any
+ * configuration implementation.
  * <p>
- * If a custom {@link LogProperties} is configured the default implementation uses System
- * properties.
+ * If a custom {@link LogProperties} is not configured the default implementation uses
+ * System properties.
  * <p>
  * The builtin propertiers to configure RainbowGum are modeled after <a href=
  * "https://docs.spring.io/spring-boot/docs/3.1.0/reference/html/features.html#features.logging">
  * Spring Boot logging </a>
+ * <p>
+ * LogProperties should generally be accessed with the {@link PropertyGetter} and
+ * {@link Property} like-monads which will allow safe <em>programmatic</em> data
+ * conversion of the flat key values and useful error messages to users if the property
+ * cannot be mapped or is missing. For more <em>declaritive</em> injection of properties
+ * see {@link LogConfigurable} which will generate builders that can use LogProperties.
+ * <p>
+ * Rainbowgum treates {@value #SEP} in the keys as special separator analogous to
+ * Javascript/JSON and various other configuration systems. Furthermore to work with a
+ * wide set of configuration systems once a property key has a value it is
+ * <strong>RECOMMENDED</strong> that there should not be other property key value with a
+ * key that is a prefix of the previously mentioned key. For example allowing two
+ * properties <code>logging.example=stuff</code>, <code>logging.example.a=A</code> is not
+ * recommended as <code>logging.example</code> is defined as a leaf. The exception to this
+ * rule is logging levels mapped to logger names for consistency with Spring Boot.
+ * <p>
+ * A convention used through out Rainbowgum is to have the property names as constants as
+ * it makes documentation easier. These constants name are suffixed with
+ * <code>_PROPERTY</code> or <code>_PREFIX</code> the former being a fully qualified key
+ * that maybe parameterized and the latter being a partial key ending with
+ * "<code>.</code>". The fully qualified keys are like leaves on a tree.
+ * <p>
+ * Property keys can be paramertized by using
+ * {@link LogProperties#interpolateKey(String, Map)} and a general pattern is
+ * <code>logging.component.{name}.prop</code> where {@value #NAME} is a parameter. Many
+ * property constants use this to allow multiple configuration of components by name.
  *
  * <table class="table">
- * <caption>Builtin Properties</caption>
+ * <caption><strong>Builtin Properties</strong></caption>
  * <tr>
  * <th>Property Pattern</th>
  * <th>Description</th>
@@ -101,13 +130,6 @@ public interface LogProperties {
 	 */
 	static final String FILE_PROPERTY = ROOT_PREFIX + "file.name";
 
-	// /**
-	// * Logging output property for appending to a resource. The value should be a list
-	// of
-	// * names.
-	// */
-	// static final String OUTPUT_PROPERTY = ROOT_PREFIX + "output";
-
 	/**
 	 * A common key parameter is called name.
 	 */
@@ -124,7 +146,7 @@ public interface LogProperties {
 	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.{" + NAME + "}.";
 
 	/**
-	 * Logging appenders. The value should be a list of names.
+	 * Enabled Logging appenders. The value should be a list of names.
 	 */
 	static final String APPENDERS_PROPERTY = ROOT_PREFIX + "appenders";
 
@@ -157,7 +179,10 @@ public interface LogProperties {
 
 	/**
 	 * Gets a list or null if the key is missing and by default uses
-	 * {@link #parseList(String)}.
+	 * {@link #parseList(String)}. The default implementation will parse the string value
+	 * as a list using {@link LogProperties#parseList(String)} but custom implementations
+	 * may rely on their own parsing or the data type is builtin to the backing
+	 * configuration system.
 	 * @param key property name.
 	 * @return list or <code>null</code>.
 	 * @apiNote the reason empty list is not returned for missing key is that it creates
@@ -173,7 +198,10 @@ public interface LogProperties {
 
 	/**
 	 * Gets a map or null if the key is missing and by default uses
-	 * {@link #parseMap(String)}.
+	 * {@link #parseMap(String)}. The default implementation will parse the string value
+	 * as map using {@link LogProperties#parseMap(String)} but custom implementations may
+	 * rely on their own parsing or the data type is builtin to the backing configuration
+	 * system.
 	 * @param key property name.
 	 * @return map or <code>null</code>.
 	 * @apiNote the reason empty map is not returned for missing key is that it creates
@@ -426,6 +454,27 @@ public interface LogProperties {
 	 */
 	public static LogProperties of(List<? extends LogProperties> logProperties) {
 		return of(logProperties, StandardProperties.EMPTY);
+	}
+
+	/**
+	 * Creates log properties from a URI query and provided properties. This is useful for
+	 * URI based providers where the URI query is contributing properties for the plugin.
+	 * @param uri query will be used to pull properties from using
+	 * {@link #parseUriQuery(String, BiConsumer)}.
+	 * @param prefix part of the key that will stripped before accessing the URI
+	 * properties.
+	 * @param properties usually this is the properties coming from {@link LogConfig}.
+	 * @return combined properties where properties is tried first than the URI query
+	 * parameters.
+	 */
+	public static LogProperties of(URI uri, String prefix, LogProperties properties) {
+		String query = uri.getRawQuery();
+		query = query == null ? "" : query;
+		var uriProperties = LogProperties.builder()
+			.fromURIQuery(query)
+			.renameKey(s -> LogProperties.removeKeyPrefix(s, prefix))
+			.build();
+		return LogProperties.of(List.of(properties, uriProperties));
 	}
 
 	/**
@@ -844,19 +893,21 @@ public interface LogProperties {
 		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
 		 * value.
 		 * @return value.
-		 * @throws NoSuchElementException if there is no value.
+		 * @throws PropertyMissingException if there is no value.
+		 * @throws PropertyConvertException if the property failed conversion.
 		 */
-		public T value() throws NoSuchElementException;
+		public T value() throws PropertyMissingException, PropertyConvertException;
 
 		/**
 		 * Gets a value if there if not uses the fallback if not null otherwise throws an
 		 * exception.
 		 * @param fallback maybe <code>null</code>.
 		 * @return value.
-		 * @throws NoSuchElementException if no property and fallback is
+		 * @throws PropertyMissingException if no property and fallback is
 		 * <code>null</code>.
+		 * @throws PropertyConvertException if the property failed conversion.
 		 */
-		default T value(@Nullable T fallback) throws NoSuchElementException {
+		default T value(@Nullable T fallback) throws PropertyMissingException, PropertyConvertException {
 			if (fallback == null) {
 				return value();
 			}
@@ -868,11 +919,12 @@ public interface LogProperties {
 		 * exception.
 		 * @param fallback maybe <code>null</code>.
 		 * @return value.
-		 * @throws NoSuchElementException if no property and fallback is
+		 * @throws PropertyMissingException if no property and fallback is
 		 * <code>null</code>.
+		 * @throws PropertyConvertException if the property failed conversion.
 		 */
 		public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
-				throws NoSuchElementException;
+				throws PropertyMissingException, PropertyConvertException;
 
 		/**
 		 * Convenience that turns a value into an optional.
@@ -997,9 +1049,13 @@ public interface LogProperties {
 	}
 
 	/**
-	 * A property description.
+	 * A property description that can retrieve a property result by being passed
+	 * {@link LogProperties}. <em>The property instance does not actually contain the
+	 * value of the property!</em>.
 	 *
 	 * @param <T> property type.
+	 * @see RequiredProperty
+	 * @see Result
 	 */
 	sealed interface Property<T> {
 
@@ -1051,7 +1107,32 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Extracts and converts from {@link LogProperties}.
+	 * A property that should never be missing usually because there is non-null fallback.
+	 *
+	 * @param <T> property type.
+	 */
+	sealed interface RequiredProperty<T> extends Property<T> {
+
+		/**
+		 * Gets a property value as a result.
+		 * @param properties key values.
+		 * @return result.
+		 */
+		public RequiredResult<T> get(LogProperties properties);
+
+		/**
+		 * Maps the property to another value type.
+		 * @param <U> value type.
+		 * @param mapper function to map.
+		 * @return property.
+		 */
+		public <U> RequiredProperty<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper);
+
+	}
+
+	/**
+	 * Extracts and converts from {@link LogProperties} and is also an immutable builder
+	 * for {@link Property}s.
 	 *
 	 * @param <T> value type.
 	 */
@@ -1105,21 +1186,10 @@ public interface LogProperties {
 		}
 
 		/**
-		 * Creates a Property from the given key and this getter.
-		 * @param key key.
-		 * @return property.
+		 * Validates the key is correctly prefixed.
+		 * @param key dotted key.
 		 */
-		default Property<T> property(String key) {
-			return build(key);
-		}
-
-		/**
-		 * Creates a Property from the given key and this getter.
-		 * @param key key.
-		 * @return property.
-		 * @throws IllegalArgumentException if the key is malformed.
-		 */
-		default Property<T> build(String key) throws IllegalArgumentException {
+		default void validateKey(String key) {
 			String fqn = fullyQualifiedKey(key);
 			if (!fqn.startsWith(LogProperties.ROOT_PREFIX)) {
 				throw new IllegalArgumentException(
@@ -1130,6 +1200,16 @@ public interface LogProperties {
 						"Property key should not start or end with '" + LogProperties.SEP + "'");
 			}
 			validateKeyParameters(key, Set.of());
+		}
+
+		/**
+		 * Creates a Property from the given key and this getter.
+		 * @param key key.
+		 * @return property.
+		 * @throws IllegalArgumentException if the key is malformed.
+		 */
+		default Property<T> build(String key) throws IllegalArgumentException {
+			validateKey(key);
 			return new DefaultProperty<>(this, List.of(key));
 		}
 
@@ -1168,8 +1248,15 @@ public interface LogProperties {
 		}
 
 		/**
-		 * A property getter that has no conversion but may prefix the key and search
-		 * recursively up the key path.
+		 * A property getter and <strong>builder</strong> that has no conversion but may
+		 * prefix the key and search recursively up the key path.
+		 * <p>
+		 * While you can map the string properties with {@link #map(PropertyFunction)} it
+		 * is preferred to use the <code>to</code> methods on this class for basic types
+		 * especially for list or map types as the implementation will call the
+		 * implementation specific in LogProperties. An example is {@link #toMap()} which
+		 * will call the LogProperties implementration of
+		 * {@link LogProperties#mapOrNull(String)}.
 		 *
 		 * @param prefix added to the key before looking up in {@link LogProperties}.
 		 * @param search if true will recursively search up the key path
@@ -1254,6 +1341,22 @@ public interface LogProperties {
 			}
 
 			/**
+			 * A Map property that will use {@link LogProperties#mapOrNull(String)}.
+			 * @return getter that will convert string property to a Map.
+			 */
+			public PropertyGetter<Map<String, String>> toMap() {
+				return new MapGetter(this);
+			}
+
+			/**
+			 * A list property that will use {@link LogProperties#listOrNull(String)}.
+			 * @return getter that will convert string property to a List.
+			 */
+			public PropertyGetter<List<String>> toList() {
+				return new ListGetter(this);
+			}
+
+			/**
 			 * An enum property getter using {@link Enum#valueOf(Class, String)}.
 			 * @param <T> enum type.
 			 * @param enumClass enum class.
@@ -1294,23 +1397,10 @@ public interface LogProperties {
 					case Integer i -> String.valueOf(i);
 					case URI u -> String.valueOf(u);
 					case Map<?, ?> m -> MapGetter._propertyString(m);
+					case List<?> list -> ListGetter._propertyString(list);
 					default -> throw new RuntimeException("Unable to convert to property string. value = " + value);
 				};
 			}
-
-		}
-
-		/**
-		 * A property getter that guarantees the result will not be missing.
-		 *
-		 * @param <T> property type.
-		 */
-		public sealed interface RequiredPropertyGetter<T> extends ChildPropertyGetter<T> {
-
-			/**
-			 * This call unlike the parent returns a required result. {@inheritDoc}
-			 */
-			RequiredResult<T> get(LogProperties props, String key);
 
 		}
 
@@ -1331,7 +1421,7 @@ public interface LogProperties {
 		 */
 		default RequiredPropertyGetter<T> orElse(T fallback) {
 			Objects.requireNonNull(fallback);
-			return new FallbackExtractor<T>(this, () -> fallback);
+			return new FallbackGetter<T>(this, () -> fallback);
 		}
 
 		/**
@@ -1341,7 +1431,73 @@ public interface LogProperties {
 		 */
 		default RequiredPropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
 			Objects.requireNonNull(fallback);
-			return new FallbackExtractor<T>(this, fallback);
+			return new FallbackGetter<T>(this, fallback);
+		}
+
+		/**
+		 * A property getter that guarantees the result will not be missing usually
+		 * because a non-null fallback is provided somewhere.
+		 *
+		 * @param <T> property type.
+		 */
+		public sealed interface RequiredPropertyGetter<T> extends ChildPropertyGetter<T> {
+
+			/**
+			 * This call unlike the parent returns a required result. {@inheritDoc}
+			 */
+			RequiredResult<T> get(LogProperties props, String key);
+
+			/**
+			 * Gets a result from properties by trying a list of keys.
+			 * @param props properties.
+			 * @param keys list of property keys usually dotted.
+			 * @return result.
+			 */
+			default RequiredResult<T> get(LogProperties props, List<String> keys) {
+				if (keys.isEmpty()) {
+					throw new IllegalArgumentException("Keys is empty");
+				}
+				String key = keys.getFirst();
+				return get(props, key);
+			}
+
+			/**
+			 * Sets up to converts a value.
+			 * @param <U> value type
+			 * @param mapper function.
+			 * @return new property getter.
+			 */
+			default <U> RequiredPropertyGetter<U> map(
+					PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+				return new RequiredFuncGetter<T, U>(this, mapper, null);
+			}
+
+			/**
+			 * Creates a Property from the given key and this getter.
+			 * @param key key.
+			 * @return property.
+			 * @throws IllegalArgumentException if the key is malformed.
+			 */
+			default RequiredProperty<T> build(String key) throws IllegalArgumentException {
+				validateKey(key);
+				return new DefaultRequiredProperty<>(this, List.of(key));
+			}
+
+			/**
+			 * Creates a Property from the given key and its {@value LogProperties#NAME}
+			 * parameter.
+			 * @param key key.
+			 * @param name interpolates <code>{name}</code> in property name with this
+			 * value.
+			 * @return property.
+			 */
+			default RequiredProperty<T> buildWithName(String key, String name) {
+				var parameters = Map.of(NAME, name);
+				validateKeyParameters(key, parameters.keySet());
+				String fqn = LogProperties.interpolateKey(key, parameters);
+				return build(fqn);
+			}
+
 		}
 
 	}
@@ -1386,6 +1542,46 @@ record DefaultProperty<T>(PropertyGetter<T> propertyGetter, List<String> keys) i
 
 }
 
+record DefaultRequiredProperty<T>(RequiredPropertyGetter<T> propertyGetter,
+		List<String> keys) implements LogProperties.RequiredProperty<T> {
+
+	public DefaultRequiredProperty {
+		Objects.requireNonNull(propertyGetter);
+		if (keys.isEmpty()) {
+			throw new IllegalArgumentException("should have at least one key");
+		}
+	}
+
+	/**
+	 * Gets the first key.
+	 * @return key.
+	 */
+	public String key() {
+		return keys.get(0);
+	}
+
+	@Override
+	public RequiredResult<T> get(LogProperties properties) {
+		return propertyGetter.get(properties, keys);
+	}
+
+	public <U> LogProperties.RequiredProperty<U> map(
+			PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
+		return new DefaultRequiredProperty<>(propertyGetter.map(mapper), keys);
+	}
+
+	public String propertyString(T value) {
+		return propertyGetter.propertyString(value);
+	}
+
+	public void set(T value, BiConsumer<String, T> consumer) {
+		if (value != null) {
+			consumer.accept(key(), value);
+		}
+	}
+
+}
+
 record MapProperties(String description, Map<String, String> map) implements LogProperties {
 
 	@Override
@@ -1400,7 +1596,7 @@ record MapProperties(String description, Map<String, String> map) implements Log
 
 }
 
-record FallbackExtractor<T>(PropertyGetter<T> parent,
+record FallbackGetter<T>(PropertyGetter<T> parent,
 		Supplier<? extends T> fallback) implements RequiredPropertyGetter<T> {
 
 	@Override
@@ -1419,6 +1615,11 @@ record FallbackExtractor<T>(PropertyGetter<T> parent,
 			case Result.Error<T> e -> e;
 		};
 		return req;
+	}
+
+	@Override
+	public String propertyString(T value) {
+		return parent.propertyString(value);
 	}
 
 }
@@ -1465,6 +1666,38 @@ record MapGetter(RootPropertyGetter parent) implements ChildPropertyGetter<Map<S
 
 }
 
+record ListGetter(RootPropertyGetter parent) implements ChildPropertyGetter<List<String>> {
+
+	@Override
+	public Result<List<String>> get(LogProperties props, String key) {
+		var list = props.listOrNull(key);
+		if (list == null) {
+			return parent.missingResult(props, List.of(key));
+		}
+		return new Result.Success<>(list);
+	}
+
+	public String propertyString(List<String> list) {
+		return _propertyString(list);
+	}
+
+	static String _propertyString(List<?> list) {
+		StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for (var e : list) {
+			if (first) {
+				first = true;
+			}
+			else {
+				sb.append(",");
+			}
+			PercentCodec.encode(sb, String.valueOf(e), StandardCharsets.UTF_8);
+		}
+		return sb.toString();
+	}
+
+}
+
 record FuncGetter<T, R>(PropertyGetter<T> parent, PropertyFunction<? super T, ? extends R, ? super Exception> mapper,
 		@Nullable PropertyFunction<? super R, ? extends String, ? super Exception> stringFunc)
 		implements
@@ -1498,6 +1731,44 @@ record FuncGetter<T, R>(PropertyGetter<T> parent, PropertyFunction<? super T, ? 
 			return stringFunc.apply(value);
 		}
 		return ChildPropertyGetter.super.propertyString(value);
+	}
+
+}
+
+record RequiredFuncGetter<T, R>(RequiredPropertyGetter<T> parent,
+		PropertyFunction<? super T, ? extends R, ? super Exception> mapper,
+		@Nullable PropertyFunction<? super R, ? extends String, ? super Exception> stringFunc)
+		implements
+			RequiredPropertyGetter<R> {
+
+	@Override
+	public RequiredResult<R> get(LogProperties props, String key) {
+		var result = parent.get(props, key);
+		return switch (result) {
+			case Result.Success<T> s -> {
+				try {
+					R r = mapper._apply(s.value());
+					if (r == null) {
+						throw new NullPointerException(
+								"The property function returned a null. props=" + props + ", key=" + key);
+					}
+					yield new Result.Success<>(r);
+				}
+				catch (Exception e) {
+					yield PropertyGetter.findRoot(parent).errorResult(props, key, e);
+				}
+			}
+			case Result.Error<T> e -> e.convert();
+		};
+	}
+
+	@Override
+	public String propertyString(R value) {
+		var f = stringFunc;
+		if (f != null) {
+			return stringFunc.apply(value);
+		}
+		return RequiredPropertyGetter.super.propertyString(value);
 	}
 
 }

@@ -17,7 +17,7 @@ public record ExampleConfig(String name, Integer count, @Nullable URI uri) {
 	 */
 	@LogConfigurable(name = "ExampleConfigBuilder", prefix = "logging.example.{name}.")
 	public static ExampleConfig of( //
-			@LogConfigurable.PrefixParameter String name, //
+			@LogConfigurable.KeyParameter String name, //
 			@LogConfigurable.DefaultParameter("DEFAULT_COUNT") Integer count, //
 			@Nullable URI uri) {
 		return new ExampleConfig(name, count, uri);

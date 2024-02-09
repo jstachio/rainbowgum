@@ -212,7 +212,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				this.config = config;
 			}
 
-			private PublisherFactory publisher;
+			private @Nullable PublisherFactory publisher;
 
 			@Override
 			protected Builder self() {

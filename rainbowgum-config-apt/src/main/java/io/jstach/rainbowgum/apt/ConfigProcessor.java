@@ -51,16 +51,16 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.apt.BuilderModel.PropertyModel;
-import io.jstach.rainbowgum.apt.prism.LogConfigurablePrism;
 import io.jstach.rainbowgum.apt.prism.ConvertParameterPrism;
 import io.jstach.rainbowgum.apt.prism.DefaultParameterPrism;
-import io.jstach.rainbowgum.apt.prism.PrefixParameterPrism;
+import io.jstach.rainbowgum.apt.prism.KeyParameterPrism;
+import io.jstach.rainbowgum.apt.prism.LogConfigurablePrism;
 import io.jstach.svc.ServiceProvider;
 
 /**
  * Creates ConfigBuilders from static factory methods.
  */
-@SupportedAnnotationTypes({ LogConfigurablePrism.PRISM_ANNOTATION_TYPE, PrefixParameterPrism.PRISM_ANNOTATION_TYPE,
+@SupportedAnnotationTypes({ LogConfigurablePrism.PRISM_ANNOTATION_TYPE, KeyParameterPrism.PRISM_ANNOTATION_TYPE,
 		DefaultParameterPrism.PRISM_ANNOTATION_TYPE })
 @ServiceProvider(value = Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
@@ -192,7 +192,7 @@ public class ConfigProcessor extends AbstractProcessor {
 		}
 		boolean required = !h.isNullable(p.asType());
 		BuilderModel.PropertyKind kind;
-		var prefixParameter = PrefixParameterPrism.getInstanceOn(p);
+		var prefixParameter = KeyParameterPrism.getInstanceOn(p);
 		if (prefixParameter == null) {
 			kind = BuilderModel.PropertyKind.NORMAL;
 		}

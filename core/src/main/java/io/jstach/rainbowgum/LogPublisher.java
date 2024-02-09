@@ -6,8 +6,6 @@ import java.util.List;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
-import io.jstach.rainbowgum.LogProperties.Property;
-import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 /**
  * Publishers push logs to appenders either synchronously or asynchronously.
@@ -33,6 +31,56 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		 * @return publisher.
 		 */
 		LogPublisher create(String name, LogConfig config, List<? extends LogAppender> appenders);
+
+		/**
+		 * Provides a publisher factory by URI.
+		 * @param scheme scheme will be used to resolve publisher factory.
+		 * @return publisher factory.
+		 */
+		static PublisherFactory of(String scheme) {
+			URI uri = URI.create(scheme + ":///");
+			return of(uri);
+		}
+
+		/**
+		 * Provides the default publisher factory.
+		 * @return publisher factory.
+		 */
+		static PublisherFactory of() {
+			return of(LogPublisherRegistry.DEFAULT_SCHEME);
+		}
+
+		/**
+		 * Provides a publisher factory by URI.
+		 * @param uri uri whose scheme will be used to resolve publisher factory.
+		 * @return publisher factory.
+		 */
+		static PublisherFactory of(URI uri) {
+			return (name, config, appenders) -> config.publisherRegistry()
+				.provide(uri, name, config.properties())
+				.create(name, config, appenders);
+		}
+
+		/**
+		 * Provides the default async publisher.
+		 * @param bufferSize maybe null provided as convenience as almost all async
+		 * publishers have some buffer.
+		 * @return async publisher.
+		 */
+		static PublisherFactory ofAsync(@Nullable Integer bufferSize) {
+			String query = bufferSize == null ? ""
+					: "?" + DefaultPublisherProviders.BUFFER_SIZE_NAME + "=" + bufferSize;
+			URI uri = URI.create(LogPublisherRegistry.ASYNC_SCHEME + ":///" + query);
+			return of(uri);
+		}
+
+		/**
+		 * Provides the default registered sync publisher.
+		 * @return sync publisher.
+		 */
+		static PublisherFactory ofSync() {
+			return of(LogPublisherRegistry.SYNC_SCHEME);
+		}
 
 		/**
 		 * Async builder.
@@ -120,14 +168,9 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		public static class Builder extends AbstractBuilder<AsyncLogPublisher.Builder> {
 
 			/**
-			 * Default async buffer size.
-			 */
-			public static final int ASYNC_BUFFER_SIZE = 1024;
-
-			/**
 			 * Buffer Size Property for Async publishers.
 			 */
-			public static final String BUFFER_SIZE_PROPERTY = LogProperties.PUBLISHER_PREFIX + "bufferSize";
+			public static final String BUFFER_SIZE_PROPERTY = DefaultPublisherProviders.BUFFER_SIZE_PROPERTY;
 
 			private @Nullable Integer bufferSize;
 
@@ -136,7 +179,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
 			/**
 			 * Sets buffer size. Typically means how many events can be queued up. Default
-			 * is {@value #ASYNC_BUFFER_SIZE}.
+			 * is usually 1024.
 			 * @param bufferSize buffer size.
 			 * @return this.
 			 */
@@ -147,22 +190,12 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
 			public PublisherFactory build() {
 				Integer bufferSize = this.bufferSize;
-				return (name, config, appenders) -> asyncPublisher(name, config, appenders, bufferSize);
+				return PublisherFactory.ofAsync(bufferSize);
 			}
 
 			@Override
 			protected AsyncLogPublisher.Builder self() {
 				return this;
-			}
-
-			private static LogPublisher.AsyncLogPublisher asyncPublisher(String name, LogConfig config,
-					List<? extends LogAppender> appenders, Integer bufferSize) {
-				int _bufferSize = Property.builder()
-					.toInt() //
-					.buildWithName(BUFFER_SIZE_PROPERTY, name) //
-					.get(config.properties()) //
-					.value(ASYNC_BUFFER_SIZE);
-				return BlockingQueueAsyncLogPublisher.of(appenders, _bufferSize);
 			}
 
 		}
@@ -208,8 +241,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			 * @return provider
 			 */
 			public PublisherFactory build() {
-				return (name, config,
-						appenders) -> new DefaultSyncLogPublisher(ThreadSafeLogAppender.of(LogAppender.of(appenders)));
+				return PublisherFactory.ofSync();
 			}
 
 		}

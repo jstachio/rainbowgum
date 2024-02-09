@@ -19,7 +19,7 @@ class LogPropertiesTest {
 		Map<String, String> m = Map.of("logging.level.com.stuff", "DEBUG");
 		LogProperties props = s -> m.get(s);
 		var extractor = ConfigLevelResolver.levelExtractor;
-		var property = extractor.property("com.stuff");
+		var property = extractor.build("com.stuff");
 		// assertEquals(Level.ALL, property.require(props));
 		var value = property.get(props);
 		value.value();

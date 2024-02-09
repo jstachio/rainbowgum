@@ -51,7 +51,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
-	static GelfEncoder of(@LogConfigurable.PrefixParameter String name, String host, //
+	static GelfEncoder of(@LogConfigurable.KeyParameter String name, String host, //
 			@LogConfigurable.ConvertParameter("convertHeaders") @Nullable Map<String, String> headers,
 			@Nullable Boolean prettyPrint) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;

@@ -470,7 +470,7 @@ final class ConfigLevelResolver implements LevelConfig {
 		.map(Level::valueOf);
 
 	public @Nullable Level levelOrNull(String name) {
-		return levelExtractor.property(name).get(properties).valueOrNull();
+		return levelExtractor.build(name).get(properties).valueOrNull();
 	}
 
 }
