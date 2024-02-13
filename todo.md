@@ -25,6 +25,7 @@ logical resource (it might not be a single physical resource particularly in the
 
 - [ ] Level changing loggers - medium
 - [X] A network based LogOutput. Probably AMQP.
+- [ ] Fix LogProperties search to use interpolate key. 
 - [ ] More JSON encoders.
 - [ ] A console theme package based off of HL (logging colorizer).
 - [ ] Remove all the field based formatters.

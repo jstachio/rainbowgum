@@ -13,4 +13,10 @@
     <parent.root>${basedir}/..</parent.root>
     <maven.javadoc.skip>false</maven.javadoc.skip>
   </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-annotation</artifactId>
+    </dependency>
+  </dependencies>
 </project>

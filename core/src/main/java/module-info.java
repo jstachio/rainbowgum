@@ -9,11 +9,11 @@
 
 module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum;
-	exports io.jstach.rainbowgum.annotation;
 	exports io.jstach.rainbowgum.format;
 	exports io.jstach.rainbowgum.output;
 	exports io.jstach.rainbowgum.spi;
 	
+	requires static io.jstach.rainbowgum.annotation;
 	requires static org.eclipse.jdt.annotation;
 	
 	uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider;

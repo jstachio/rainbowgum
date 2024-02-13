@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperties.PropertyFunction;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter.ChildPropertyGetter;
@@ -119,6 +120,11 @@ public interface LogProperties {
 	 * {@linkplain java.lang.System.Logger.Level level}.
 	 */
 	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
+
+	/**
+	 * Logging change properties prefix.
+	 */
+	static final String GLOBAL_CHANGE_PROPERTY = ROOT_PREFIX + "global.change";
 
 	/**
 	 * Logging change properties prefix.
@@ -245,29 +251,51 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Builder for properties.
+	 * Abstract log properties builder.
+	 *
+	 * @param <T> builder.
+	 * @apiNote this abstract class can largely be ignored hence why it is sealed.
 	 */
-	public final static class Builder {
+	public sealed abstract class AbstractBuilder<T> {
 
-		private @Nullable String description = null;
+		protected @Nullable String description = null;
 
-		private int order = 0;
+		protected int order = 0;
 
-		private Function<String, String> function;
+		protected Function<String, String> renameKey = s -> s;
 
-		private Function<String, String> renameKey = s -> s;
+		protected List<LogProperties> fallbacks = new ArrayList<>();
 
-		private Builder() {
+		/**
+		 * Ignored.
+		 */
+		protected AbstractBuilder() {
 		}
+
+		/**
+		 * Add a fallback properties.
+		 * @param properties fallback not null.
+		 * @return this.
+		 */
+		public T from(LogProperties properties) {
+			this.fallbacks.add(properties);
+			return self();
+		}
+
+		/**
+		 * For returning this.
+		 * @return this builder.
+		 */
+		protected abstract T self();
 
 		/**
 		 * Description for properties.
 		 * @param description not null.
 		 * @return this.
 		 */
-		public Builder description(String description) {
+		public T description(String description) {
 			this.description = description;
-			return this;
+			return self();
 		}
 
 		/**
@@ -276,8 +304,66 @@ public interface LogProperties {
 		 * @param order order.
 		 * @return this.
 		 */
-		public Builder order(int order) {
+		public T order(int order) {
 			this.order = order;
+			return self();
+		}
+
+		/**
+		 * Renames the key before it accesses function.
+		 * @param renameKey rename key function.
+		 * @return this.
+		 */
+		public T renameKey(Function<String, String> renameKey) {
+			this.renameKey = renameKey;
+			return self();
+		}
+
+		enum Format {
+
+			PROPERTIES() {
+				@Override
+				Map<String, String> toMap(String content) {
+					var m = new LinkedHashMap<String, String>();
+					StringReader reader = new StringReader(content);
+					try {
+						PropertiesParser.readProperties(reader, m::put);
+					}
+					catch (IOException e) {
+						throw new UncheckedIOException(e);
+					}
+					return m;
+				}
+			},
+			URI_QUERY() {
+				@Override
+				Map<String, String> toMap(String content) {
+					return parseMap(content);
+				}
+			};
+
+			abstract Map<String, String> toMap(String content);
+
+			Function<String, String> parse(String content) {
+				return toMap(content)::get;
+			}
+
+		}
+
+	}
+
+	/**
+	 * Builder for properties.
+	 */
+	public final static class Builder extends AbstractBuilder<Builder> {
+
+		private Function<String, String> function;
+
+		private Builder() {
+		}
+
+		@Override
+		protected Builder self() {
 			return this;
 		}
 
@@ -288,16 +374,6 @@ public interface LogProperties {
 		 */
 		public Builder function(Function<String, String> function) {
 			this.function = function;
-			return this;
-		}
-
-		/**
-		 * Renames the key before it accesses function.
-		 * @param renameKey rename key function.
-		 * @return this.
-		 */
-		public Builder renameKey(Function<String, String> renameKey) {
-			this.renameKey = renameKey;
 			return this;
 		}
 
@@ -350,23 +426,43 @@ public interface LogProperties {
 		 */
 		public LogProperties build() {
 			if (function == null) {
+				if (!fallbacks.isEmpty()) {
+					return LogProperties.of(fallbacks);
+				}
 				throw new IllegalStateException("function is was not set");
 			}
 			String description = this.description;
 			if (description == null) {
 				description = "custom";
 			}
-			return new DefaultLogProperties(function, description, renameKey, order);
+			var first = new DefaultLogProperties(function, description, renameKey, order);
+			if (fallbacks.isEmpty()) {
+				return first;
+			}
+			List<LogProperties> combined = new ArrayList<>();
+			combined.add(first);
+			combined.addAll(fallbacks);
+			return LogProperties.of(combined);
 		}
 
-		private record DefaultLogProperties( //
-				Function<String, String> func, //
-				String description, Function<String, String> renameKey, //
-				int order) implements LogProperties {
+		static abstract class AbstractLogProperties implements LogProperties {
+
+			protected final String description;
+
+			protected final Function<String, String> renameKey;
+
+			protected final int order;
+
+			public AbstractLogProperties(String description, Function<String, String> renameKey, int order) {
+				super();
+				this.description = description;
+				this.renameKey = renameKey;
+				this.order = order;
+			}
 
 			@Override
-			public @Nullable String valueOrNull(String key) {
-				return func.apply(renameKey.apply(key));
+			public int order() {
+				return this.order;
 			}
 
 			@Override
@@ -379,44 +475,153 @@ public interface LogProperties {
 				return desc;
 			}
 
+			public String toString() {
+				return getClass().getSimpleName() + "[description='" + description + "', " + "order=" + order + "]";
+			}
+
 		}
 
-		enum Format {
+		private static final class DefaultLogProperties extends AbstractLogProperties {
 
-			PROPERTIES() {
-				@Override
-				Function<String, String> parse(String content) {
-					var m = new LinkedHashMap<String, String>();
-					StringReader reader = new StringReader(content);
-					try {
-						PropertiesParser.readProperties(reader, m::put);
-					}
-					catch (IOException e) {
-						throw new UncheckedIOException(e);
-					}
-					return m::get;
-				}
-			},
-			URI_QUERY() {
-				@Override
-				Function<String, String> parse(String content) {
-					var m = parseMap(content);
-					return m::get;
-				}
-			};
+			private final Function<String, @Nullable String> func;
 
-			abstract Function<String, String> parse(String content);
+			public DefaultLogProperties(Function<String, @Nullable String> func, String description,
+					Function<String, String> renameKey, int order) {
+				super(description, renameKey, order);
+				this.func = func;
+			}
+
+			@Override
+			public @Nullable String valueOrNull(String key) {
+				return func.apply(renameKey.apply(key));
+			}
 
 		}
 
 	}
 
-	// /**
-	// * A log properties that can list all keys available.
-	// */
-	// public interface ListableProperties extends LogProperties {
-	// public Set<String> keys();
-	// }
+	/**
+	 * A log properties that can be mutated like a map.
+	 */
+	public interface MutableLogProperties extends LogProperties {
+
+		/**
+		 * Assigns key to a value.
+		 * @param key key.
+		 * @param value value if null will remove the key.
+		 * @return this.
+		 */
+		MutableLogProperties put(String key, @Nullable String value);
+
+		/**
+		 * Copy Java Util {@link Properties} String useful for unit testing.
+		 * @param content string in {@link Properties} format (tip use multiline strings).
+		 * @return this.
+		 */
+		default MutableLogProperties copyProperties(String content) {
+			var m = AbstractBuilder.Format.PROPERTIES.toMap(content);
+			for (var e : m.entrySet()) {
+				put(e.getKey(), e.getKey());
+			}
+			return this;
+		}
+
+		/**
+		 * Builder for MutableLogProperties.
+		 * @return builder.
+		 */
+		public static Builder builder() {
+			return new Builder();
+		}
+
+		/**
+		 * Mutable Log properties builer.
+		 */
+		public final class Builder extends AbstractBuilder<Builder> {
+
+			protected Map<String, String> map = new LinkedHashMap<>();
+
+			private Builder() {
+			}
+
+			@Override
+			protected Builder self() {
+				return this;
+			}
+
+			/**
+			 * Sets the backing mutable map.
+			 * @param map backing map.
+			 * @return this.
+			 */
+			public Builder with(Map<String, String> map) {
+				this.map = map;
+				return this;
+			}
+
+			/**
+			 * Parses a string as {@link Properties} useful for unit testing with Java
+			 * multiline string literal.
+			 * @param properties properties as a string.
+			 * @return this.
+			 */
+			public Builder copyProperties(String properties) {
+				map.putAll(Format.PROPERTIES.toMap(properties));
+				return this;
+			}
+
+			/**
+			 * Builds a mutable log properties.
+			 * @return mutable log properties.
+			 */
+			public MutableLogProperties build() {
+				String description = this.description;
+				if (description == null) {
+					description = "custom mutable";
+				}
+				var first = new MapLogProperties(map, description, renameKey, order);
+				if (fallbacks.isEmpty()) {
+					return first;
+				}
+				List<LogProperties> combined = new ArrayList<>();
+				combined.add(first);
+				combined.addAll(fallbacks);
+				return new CompositeMutableLogProperties(sort(combined));
+			}
+
+			private static final class MapLogProperties extends LogProperties.Builder.AbstractLogProperties
+					implements MutableLogProperties {
+
+				private final Map<String, String> map;
+
+				public MapLogProperties(Map<String, String> map, String description, Function<String, String> renameKey,
+						int order) {
+					super(description, renameKey, order);
+					this.map = map;
+				}
+
+				@Override
+				public @Nullable String valueOrNull(String key) {
+					return map.get(renameKey.apply(key));
+				}
+
+				@Override
+				public MutableLogProperties put(String key, @Nullable String value) {
+					Objects.requireNonNull(key);
+					key = renameKey.apply(key);
+					if (value == null) {
+						map.remove(key);
+						return this;
+					}
+					map.put(key, value);
+					return this;
+				}
+
+			}
+
+		}
+
+	}
 
 	/**
 	 * LogProperties builder.
@@ -439,11 +644,16 @@ public interface LogProperties {
 		if (logProperties.size() == 0) {
 			return logProperties.get(0);
 		}
+		var array = sort(logProperties);
+		return new CompositeLogProperties(array);
+	}
+
+	private static LogProperties[] sort(List<? extends LogProperties> logProperties) {
 		var array = logProperties.stream()
 			.filter(p -> p != StandardProperties.EMPTY)
 			.toArray(size -> new LogProperties[size]);
 		Arrays.sort(array, Comparator.comparingInt(LogProperties::order).reversed());
-		return new CompositeLogProperties(array);
+		return array;
 	}
 
 	/**
@@ -775,7 +985,7 @@ public interface LogProperties {
 		if (level != null) {
 			return level;
 		}
-		return null;
+		return resolveFunc.apply("");
 	}
 
 	/**
@@ -1504,6 +1714,12 @@ public interface LogProperties {
 
 }
 
+abstract class AbstractLogPropertiesBuilder<T> {
+
+	protected abstract T self();
+
+}
+
 record DefaultProperty<T>(PropertyGetter<T> propertyGetter, List<String> keys) implements LogProperties.Property<T> {
 
 	public DefaultProperty {
@@ -1773,11 +1989,11 @@ record RequiredFuncGetter<T, R>(RequiredPropertyGetter<T> parent,
 
 }
 
-record CompositeLogProperties(LogProperties[] properties) implements LogProperties {
+interface ListLogProperties extends LogProperties {
 
 	@Override
-	public @Nullable String valueOrNull(String key) {
-		for (var props : properties) {
+	default @Nullable String valueOrNull(String key) {
+		for (var props : properties()) {
 			var value = props.valueOrNull(key);
 			if (value != null) {
 				return value;
@@ -1786,10 +2002,10 @@ record CompositeLogProperties(LogProperties[] properties) implements LogProperti
 		return null;
 	}
 
-	public String description(String key) {
+	default String description(String key) {
 		StringBuilder sb = new StringBuilder();
 		boolean first = true;
-		for (var p : properties) {
+		for (var p : properties()) {
 			if (first) {
 				first = false;
 			}
@@ -1801,4 +2017,36 @@ record CompositeLogProperties(LogProperties[] properties) implements LogProperti
 		return sb.toString();
 	}
 
+	LogProperties[] properties();
+
+	default StringBuilder toString(StringBuilder sb) {
+		sb.append(getClass().getSimpleName());
+		sb.append("[properties=").append(Arrays.deepToString(properties())).append("]");
+		return sb;
+	}
+
+}
+
+record CompositeMutableLogProperties(LogProperties[] properties) implements ListLogProperties, MutableLogProperties {
+
+	@Override
+	public MutableLogProperties put(String key, @Nullable String value) {
+		for (var p : properties()) {
+			if (p instanceof MutableLogProperties mp && mp != this) {
+				mp.put(key, value);
+			}
+		}
+		return this;
+	}
+
+	public String toString() {
+		return toString(new StringBuilder()).toString();
+	}
+
+}
+
+record CompositeLogProperties(LogProperties[] properties) implements ListLogProperties {
+	public String toString() {
+		return toString(new StringBuilder()).toString();
+	}
 }

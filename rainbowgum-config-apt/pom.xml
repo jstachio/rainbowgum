@@ -13,7 +13,7 @@
   <dependencies>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum-core</artifactId>
+      <artifactId>rainbowgum-annotation</artifactId>
       <optional>true</optional>
       <scope>provided</scope>
     </dependency>

@@ -29,17 +29,31 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		}
 		else {
 			var router = this.rainbowGum.router();
-			var level = router.levelResolver().resolveLevel(name);
-			LogEventLogger logger = router.route(name, level);
+			var changePublisher = this.rainbowGum.config().changePublisher();
 
 			Logger newLogger;
-			if (level == System.Logger.Level.OFF) {
-				newLogger = new LevelLogger.OffLogger(name);
+			var level = router.levelResolver().resolveLevel(name);
+			if (changePublisher.isEnabled(name)) {
+				/*
+				 * We get a logger that can log everything.
+				 */
+				LogEventLogger logger = router.route(name, System.Logger.Level.ERROR);
+				ChangeableLogger changeable = new ChangeableLogger(name, logger, Levels.toSlf4jLevel(level).toInt());
+				changePublisher.subscribe(c -> {
+					var slf4jLevel = Levels.toSlf4jLevel(router.levelResolver().resolveLevel(name));
+					changeable.setLevel(slf4jLevel.toInt());
+				});
+				newLogger = changeable;
 			}
 			else {
-				var slf4jLevel = Levels.toSlf4jLevel(level);
-				newLogger = LevelLogger.of(slf4jLevel, name, logger);
-
+				LogEventLogger logger = router.route(name, level);
+				if (level == System.Logger.Level.OFF) {
+					newLogger = new LevelLogger.OffLogger(name);
+				}
+				else {
+					var slf4jLevel = Levels.toSlf4jLevel(level);
+					newLogger = LevelLogger.of(slf4jLevel, name, logger);
+				}
 			}
 			Logger oldInstance = loggerMap.putIfAbsent(name, newLogger);
 			return oldInstance == null ? newLogger : oldInstance;

@@ -473,4 +473,9 @@ final class ConfigLevelResolver implements LevelConfig {
 		return levelExtractor.build(name).get(properties).valueOrNull();
 	}
 
+	@Override
+	public String toString() {
+		return "ConfigLevelResolver[" + properties + "]";
+	}
+
 }

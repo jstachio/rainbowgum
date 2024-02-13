@@ -78,6 +78,11 @@
         <artifactId>rainbowgum-core</artifactId>
         <version>${project.version}</version>
       </dependency>
+       <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-annotation</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-jdk</artifactId>
@@ -794,5 +799,6 @@
     <module>rainbowgum-rabbitmq</module>
     <module>rainbowgum-config-apt</module>
     <module>rainbowgum-json</module>
+    <module>rainbowgum-annotation</module>
   </modules>
 </project>

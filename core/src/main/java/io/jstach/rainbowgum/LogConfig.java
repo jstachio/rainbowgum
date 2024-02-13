@@ -15,6 +15,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
+import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -59,7 +60,7 @@ public sealed interface LogConfig {
 
 	/**
 	 * Provides publishers by URI scheme.
-	 * @return publisher registry.
+	 * @return changePublisher registry.
 	 */
 	public LogPublisherRegistry publisherRegistry();
 
@@ -83,10 +84,10 @@ public sealed interface LogConfig {
 	}
 
 	/**
-	 * An event publisher to publish configuration changes.
-	 * @return publisher.
+	 * An event changePublisher to publish configuration changes.
+	 * @return changePublisher.
 	 */
-	public ChangePublisher publisher();
+	public ChangePublisher changePublisher();
 
 	/**
 	 * Service registry are custom services needed by plugins particularly during the
@@ -277,11 +278,13 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	private final Collection<Consumer<? super LogConfig>> consumers = new CopyOnWriteArrayList<Consumer<? super LogConfig>>();
 
-	protected abstract LogConfig _config();
+	protected abstract LogConfig reload();
+
+	protected abstract LogConfig config();
 
 	@Override
 	public void publish() {
-		LogConfig config = _config();
+		LogConfig config = reload();
 		for (var c : consumers) {
 			c.accept(config);
 		}
@@ -294,7 +297,27 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public boolean isEnabled(String loggerName) {
-		return changeSetting.get(_config().properties(), loggerName).value();
+		return changeSetting.get(config().properties(), loggerName).value();
+	}
+
+}
+
+enum IgnoreChangePublisher implements ChangePublisher {
+
+	INSTANT;
+
+	@Override
+	public void subscribe(Consumer<? super LogConfig> consumer) {
+	}
+
+	@Override
+	public void publish() {
+
+	}
+
+	@Override
+	public boolean isEnabled(String loggerName) {
+		return false;
 	}
 
 }
@@ -307,7 +330,7 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LevelConfig levelResolver;
 
-	private final ChangePublisher publisher;
+	private final ChangePublisher changePublisher;
 
 	private final LogOutputRegistry outputRegistry;
 
@@ -322,12 +345,23 @@ final class DefaultLogConfig implements LogConfig {
 		this.registry = registry;
 		this.properties = properties;
 		this.levelResolver = new ConfigLevelResolver(properties);
-		this.publisher = new AbstractChangePublisher() {
+		boolean changeable = Property.builder() //
+			.toBoolean()
+			.orElse(false)
+			.build(LogProperties.GLOBAL_CHANGE_PROPERTY)
+			.get(properties)
+			.value();
+		this.changePublisher = changeable ? new AbstractChangePublisher() {
 			@Override
-			protected LogConfig _config() {
+			protected LogConfig config() {
 				return DefaultLogConfig.this;
 			}
-		};
+
+			protected LogConfig reload() {
+				levelResolver.clear();
+				return DefaultLogConfig.this;
+			}
+		} : IgnoreChangePublisher.INSTANT;
 		this.outputRegistry = LogOutputRegistry.of();
 		this.appenderRegistry = LogAppenderRegistry.of();
 		this.encoderRegistry = LogEncoderRegistry.of();
@@ -350,8 +384,8 @@ final class DefaultLogConfig implements LogConfig {
 	}
 
 	@Override
-	public ChangePublisher publisher() {
-		return this.publisher;
+	public ChangePublisher changePublisher() {
+		return this.changePublisher;
 	}
 
 	@Override

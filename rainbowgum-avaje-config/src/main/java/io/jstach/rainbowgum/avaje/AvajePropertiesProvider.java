@@ -38,7 +38,7 @@ public class AvajePropertiesProvider
 		var props = registry.findOrNull(AvajeProperties.class);
 		if (props != null) {
 			props.configuration.onChange(e -> {
-				config.publisher().publish();
+				config.changePublisher().publish();
 			});
 		}
 		return true;
