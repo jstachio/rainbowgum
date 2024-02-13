@@ -115,8 +115,11 @@ public final class $$builderName$$ {
 	/**
 	 * Creates $$targetType$$ from this builder.
 	 * @return $$targetType$$.
+	 $$#exceptions$$
+	 * @throws $$.$$ if factory method fails.
+	 $$/exceptions$$
 	 */
-	public $$targetType$$ build() {
+	public $$targetType$$ build() $$throwsList$${
 		return $$factoryMethod$$(
 				$$#properties$$
 				$$^-first$$, $$/-first$$this.$$name$$

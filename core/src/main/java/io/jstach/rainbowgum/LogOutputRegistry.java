@@ -4,13 +4,17 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.jstach.rainbowgum.DefaultOutputRegistry.StandardLogOutputProvider;
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
+import io.jstach.rainbowgum.output.FileOutputBuilder;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
@@ -54,7 +58,11 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	 * @return default output provider.
 	 */
 	public static LogOutputRegistry of() {
-		return new DefaultOutputRegistry();
+		var r = new DefaultOutputRegistry();
+		for (var p : StandardLogOutputProvider.values()) {
+			r.register(p.scheme(), p);
+		}
+		return r;
 	}
 
 }
@@ -87,47 +95,90 @@ final class DefaultOutputRegistry extends ProviderRegistry<OutputProvider, LogOu
 		return provide(URI.create(name + ":///"), name, properties);
 	}
 
-	@SuppressWarnings("resource")
-	@Override
-	public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
-		OutputProvider customProvider;
-		if (scheme == null && path != null) {
-			if (name.equals(LogAppender.FILE_APPENDER_NAME)) {
-				FileOutputStream fos = new FileOutputStream(path);
-				return _register(name, LogOutput.of(uri, fos.getChannel()));
+
+		if (scheme == null) {
+			if (path == null) {
+				throw new IllegalArgumentException("URI is not proper: " + uri);
+			}
+			if (path.startsWith("./")) {
+				uri = Paths.get(path).toUri();
 			}
 			else {
-				return provide(name, properties);
+				uri = URI.create(path + ":///");
 			}
 		}
-		else if (NAMED_OUTPUT_SCHEME.equals(scheme)) {
-			String host = uri.getHost();
-			if (host != null) {
-				name = host;
+		return uri;
+	}
+
+	@Override
+	public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+		uri = normalize(uri);
+		String scheme = Objects.requireNonNull(uri.getScheme());
+		OutputProvider customProvider = providers.get(scheme);
+		if (customProvider == null) {
+			throw new IOException("Output for uri: " + uri + " not found.");
+		}
+		return _register(name, customProvider.provide(uri, name, properties));
+	}
+
+	enum StandardLogOutputProvider implements LogOutput.OutputProvider {
+
+		STDOUT {
+			@Override
+			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+				return LogOutput.ofStandardOut();
 			}
-			String _name = name;
-			return output(_name).orElseThrow(() -> new IOException("Output for name: " + _name + " not found."));
-		}
-		else if (LogOutput.STDOUT_SCHEME.equals(scheme)) {
-			return _register(name, LogOutput.ofStandardOut());
-		}
-		else if (LogOutput.STDERR_SCHEME.equals(scheme)) {
-			return _register(name, LogOutput.ofStandardErr());
-		}
-		else if (LIST_OUTPUT_SCHEME.equals(scheme)) {
-			return _register(name, new ListLogOutput());
-		}
-		else if ((customProvider = providers.get(scheme)) != null) {
-			return _register(name, customProvider.provide(uri, name, properties));
-		}
-		else {
-			var p = Paths.get(uri);
-			var channel = FileChannel.open(p, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
-			channel.close();
-			return _register(name, LogOutput.of(uri, channel));
-		}
+
+			@Override
+			public String scheme() {
+				return LogOutput.STDOUT_SCHEME;
+			}
+
+		},
+		STDERR {
+			@Override
+			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+				return LogOutput.ofStandardErr();
+			}
+
+			@Override
+			public String scheme() {
+				return LogOutput.STDERR_SCHEME;
+			}
+
+		},
+		LIST {
+			@Override
+			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+				return new ListLogOutput();
+			}
+
+			@Override
+			public String scheme() {
+				return LIST_OUTPUT_SCHEME;
+			}
+
+		},
+		FILE {
+			@Override
+			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+				FileOutputBuilder b = new FileOutputBuilder(name);
+				b.uri(uri);
+				b.fromProperties(properties);
+				return b.build();
+			}
+
+			@Override
+			public String scheme() {
+				return LogOutput.FILE_SCHEME;
+			}
+		};
+
+		public abstract String scheme();
+
 	}
 
 }

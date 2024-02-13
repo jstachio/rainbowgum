@@ -18,5 +18,9 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-annotation</artifactId>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-config-apt</artifactId>
+    </dependency>
   </dependencies>
 </project>

@@ -127,9 +127,9 @@ public class ConfigProcessor extends AbstractProcessor {
 		if (!validatePrefix(ee, propertyPrefix, foundParams)) {
 			return null;
 		}
-
+		var exceptions = ee.getThrownTypes().stream().map(tm -> h.getFullyQualifiedClassName(tm)).toList();
 		var m = new BuilderModel(builderName, propertyPrefix, packageName, targetType, factoryMethod, description,
-				properties);
+				properties, exceptions);
 		String java = BuilderModelRenderer.of().execute(m);
 		try {
 			processingEnv.getMessager()

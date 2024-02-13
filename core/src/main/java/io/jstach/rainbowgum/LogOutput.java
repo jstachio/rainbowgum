@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum;
 
 import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.Flushable;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -9,8 +8,6 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
@@ -265,9 +262,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @return output.
 	 */
 	public static LogOutput ofStandardErr() {
-		var out = FileDescriptor.err;
-		FileOutputStream fos = new FileOutputStream(out);
-		return new StdErrOutput(fos.getChannel(), fos);
+		return new StdErrOutput();
 	}
 
 	/**
@@ -286,6 +281,63 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * Marker interface that the output is thread safe.
 	 */
 	public interface ThreadSafeLogOutput extends LogOutput {
+
+	}
+
+	/**
+	 * Abstract output on outputstream.
+	 */
+	abstract class AbstractOutputStreamOutput implements LogOutput {
+
+		protected final URI uri;
+
+		protected final OutputStream outputStream;
+
+		protected AbstractOutputStreamOutput(URI uri, OutputStream outputStream) {
+			super();
+			this.uri = uri;
+			this.outputStream = outputStream;
+		}
+
+		@Override
+		public URI uri() {
+			return uri;
+		}
+
+		@Override
+		public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
+			try {
+				outputStream.write(bytes, off, len);
+			}
+			catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		}
+
+		@Override
+		public void flush() {
+			try {
+				outputStream.flush();
+			}
+			catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		}
+
+		@Override
+		public void close() {
+			try {
+				outputStream.close();
+			}
+			catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		}
+
+		@Override
+		public WriteMethod writeMethod() {
+			return WriteMethod.BYTES;
+		}
 
 	}
 
@@ -410,119 +462,14 @@ class FileChannelOutput implements LogOutput {
 
 }
 
-abstract class Std extends FileChannelOutput implements LogOutput {
-
-	private final OutputStream outputStream;
-
-	public Std(URI uri, FileChannel channel, OutputStream outputStream) {
-		super(uri, channel);
-		this.outputStream = outputStream;
-	}
-
-	@Override
-	public void write(LogEvent event, ByteBuffer buffer, ContentType contentType) {
-		try {
-			channel.write(buffer);
-		}
-		catch (ClosedByInterruptException e) {
-			byte[] arr = new byte[buffer.position()];
-			buffer.rewind();
-			buffer.get(arr);
-			try {
-				outputStream.write(arr);
-			}
-			catch (IOException e1) {
-				throw new UncheckedIOException(e1);
-			}
-		}
-		catch (ClosedChannelException e) {
-			byte[] arr = new byte[buffer.position()];
-			buffer.rewind();
-			buffer.get(arr);
-			try {
-				outputStream.write(arr);
-			}
-			catch (IOException e1) {
-				throw new UncheckedIOException(e1);
-			}
-		}
-		catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-	}
-
-	@Override
-	public void close() {
-	}
-
-	@Override
-	public void flush() {
-	}
-
-}
-
-abstract class OutputStreamOutput implements LogOutput {
-
-	protected final URI uri;
-
-	protected final OutputStream outputStream;
-
-	protected OutputStreamOutput(URI uri, OutputStream outputStream) {
-		super();
-		this.uri = uri;
-		this.outputStream = outputStream;
-	}
-
-	@Override
-	public URI uri() {
-		return uri;
-	}
-
-	@Override
-	public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
-		try {
-			outputStream.write(bytes, off, len);
-		}
-		catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-	}
-
-	@Override
-	public void flush() {
-		try {
-			outputStream.flush();
-		}
-		catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-	}
-
-	@Override
-	public void close() {
-		try {
-			outputStream.close();
-		}
-		catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-	}
-
-	@Override
-	public WriteMethod writeMethod() {
-		return WriteMethod.BYTES;
-	}
-
-}
-
-class StdOutOutput extends OutputStreamOutput {
+class StdOutOutput extends LogOutput.AbstractOutputStreamOutput {
 
 	public StdOutOutput() {
-		super(STDOUT_URI, System.out);
+		super(LogOutput.STDOUT_URI, System.out);
 	}
 
 	@Override
-	public OutputType type() {
+	public LogOutput.OutputType type() {
 		return OutputType.CONSOLE_OUT;
 	}
 
@@ -532,10 +479,10 @@ class StdOutOutput extends OutputStreamOutput {
 
 }
 
-class StdErrOutput extends Std {
+class StdErrOutput extends LogOutput.AbstractOutputStreamOutput {
 
-	public StdErrOutput(FileChannel channel, OutputStream outputStream) {
-		super(STDERR_URI, channel, outputStream);
+	protected StdErrOutput() {
+		super(LogOutput.STDERR_URI, System.err);
 	}
 
 	@Override

@@ -1,13 +1,13 @@
 package io.jstach.rainbowgum.apt;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.jstache.JStache;
 import io.jstach.jstache.JStacheConfig;
 import io.jstach.jstache.JStacheType;
-import io.jstach.rainbowgum.apt.BuilderModel.PropertyModel;
 
 @JStacheConfig(type = JStacheType.STACHE)
 @JStache(path = "io/jstach/rainbowgum/apt/ConfigBuilder.java")
@@ -18,7 +18,7 @@ record BuilderModel( //
 		String targetType, //
 		String factoryMethod, //
 		String description, //
-		List<PropertyModel> properties) {
+		List<PropertyModel> properties, List<String> exceptions) {
 
 	public String nullableAnnotation() {
 		return "org.eclipse.jdt.annotation.Nullable";
@@ -42,6 +42,13 @@ record BuilderModel( //
 
 	public List<String> descriptionLines() {
 		return description.lines().map(String::trim).toList();
+	}
+
+	public String throwsList() {
+		if (exceptions.isEmpty()) {
+			return "";
+		}
+		return " throws " + exceptions.stream().collect(Collectors.joining(", "));
 	}
 
 	record Converter(String methodName) {
