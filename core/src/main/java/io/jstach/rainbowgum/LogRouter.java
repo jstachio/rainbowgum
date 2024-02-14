@@ -18,7 +18,6 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;

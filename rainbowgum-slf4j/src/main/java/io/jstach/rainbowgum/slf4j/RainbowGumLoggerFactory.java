@@ -1,5 +1,8 @@
 package io.jstach.rainbowgum.slf4j;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -8,6 +11,7 @@ import org.slf4j.Logger;
 
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 
 class RainbowGumLoggerFactory implements ILoggerFactory {
 
@@ -15,10 +19,13 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	private final RainbowGum rainbowGum;
 
+	private final LoggerDecorator decorator;
+
 	public RainbowGumLoggerFactory(RainbowGum rainbowGum) {
 		super();
 		this.loggerMap = new ConcurrentHashMap<>();
 		this.rainbowGum = rainbowGum;
+		this.decorator = LoggerDecorator.of(rainbowGum);
 	}
 
 	@Override
@@ -55,9 +62,62 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 					newLogger = LevelLogger.of(slf4jLevel, name, logger);
 				}
 			}
-			Logger oldInstance = loggerMap.putIfAbsent(name, newLogger);
-			return oldInstance == null ? newLogger : oldInstance;
+			Logger decorated = decorator.decorate(rainbowGum, newLogger);
+			Logger oldInstance = loggerMap.putIfAbsent(name, decorated);
+			return oldInstance == null ? decorated : oldInstance;
 		}
+	}
+
+	sealed interface LoggerDecorator {
+
+		public Logger decorate(RainbowGum gum, Logger logger);
+
+		public static LoggerDecorator of(RainbowGum gum) {
+			var array = gum.config()
+				.serviceRegistry()
+				.find(LoggerDecoratorService.class)
+				.toArray(i -> new LoggerDecoratorService[i]);
+			Arrays.sort(array,
+					Comparator.comparingInt(LoggerDecoratorService::order).thenComparing(LoggerDecoratorService::name));
+			if (array.length == 0) {
+				return Noop.INSTANCE;
+			}
+			if (array.length == 1) {
+				return new SingleLoggerDecorator(array[0]);
+			}
+			return new CompositeLoggerDecorator(array);
+		}
+
+		enum Noop implements LoggerDecorator {
+
+			INSTANCE;
+
+			@Override
+			public Logger decorate(RainbowGum gum, Logger logger) {
+				return logger;
+			}
+
+		}
+
+		record SingleLoggerDecorator(LoggerDecoratorService service) implements LoggerDecorator {
+			@Override
+			public Logger decorate(RainbowGum gum, Logger logger) {
+				return service.decorate(gum, logger);
+			}
+		}
+
+		record CompositeLoggerDecorator(LoggerDecoratorService[] services) implements LoggerDecorator {
+
+			@Override
+			public Logger decorate(RainbowGum gum, Logger logger) {
+				for (var p : services) {
+					logger = Objects.requireNonNull(p.decorate(gum, logger));
+				}
+				return logger;
+			}
+
+		}
+
 	}
 
 }

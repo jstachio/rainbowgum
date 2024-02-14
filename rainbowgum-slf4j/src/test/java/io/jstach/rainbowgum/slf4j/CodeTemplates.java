@@ -298,4 +298,97 @@ public class CodeTemplates {
 
 			""";
 
+	@JStache(template = forwardLoggerTemplate)
+	public record ForwardLoggerModel() {
+		public String delegate() {
+			return "delegate()";
+		}
+
+		public List<LevelModel> levels() {
+			return EnumSet.allOf(Level.class).stream().map(lv -> new LevelModel(lv, lv)).toList();
+		}
+	}
+
+	public static final String forwardLoggerTemplate = """
+			package io.jstach.rainbowgum.slf4j;
+
+			import org.slf4j.Logger;
+			import org.slf4j.Marker;
+
+			/**
+			 * A logger that forwards calls to the {@link #delegate()} logger.
+			 */
+			public interface ForwardingLogger extends Logger {
+
+				/**
+				 * The downstream logger to forward calls to.
+				 * @return delegate.
+				 */
+				public Logger delegate();
+
+				@Override
+				default String getName() {
+					return {{delegate}}.getName();
+				}
+
+				{{#levels}}
+
+				@Override
+				default boolean {{enabledMethodName}}() {
+					return {{delegate}}.{{enabledMethodName}}();
+				}
+
+				@Override
+				default void {{methodName}}(String msg) {
+					{{delegate}}.{{methodName}}(msg);
+				}
+
+				@Override
+				default void {{methodName}}(String format, Object arg) {
+					{{delegate}}.{{methodName}}(format, arg);
+				}
+
+				@Override
+				default void {{methodName}}(String format, Object arg1, Object arg2) {
+					{{delegate}}.{{methodName}}(format, arg1, arg2);
+				}
+
+				@Override
+				default void {{methodName}}(String format, Object... arguments) {
+					{{delegate}}.{{methodName}}(format, arguments);
+				}
+
+				@Override
+				default boolean {{enabledMethodName}}(Marker marker) {
+					return {{delegate}}.{{enabledMethodName}}(marker);
+				}
+
+				@Override
+				default void {{methodName}}(Marker marker, String msg) {
+					{{delegate}}.{{methodName}}(marker, msg);
+				}
+
+				@Override
+				default void {{methodName}}(Marker marker, String format, Object arg) {
+					{{delegate}}.{{methodName}}(marker, format, arg);
+				}
+
+				@Override
+				default void {{methodName}}(Marker marker, String format, Object arg1, Object arg2) {
+					{{delegate}}.{{methodName}}(marker, format, arg1, arg2);
+				}
+
+				@Override
+				default void {{methodName}}(Marker marker, String format, Object... argArray) {
+					{{delegate}}.{{methodName}}(marker, format, argArray);
+				}
+
+				@Override
+				default void {{methodName}}(Marker marker, String msg, Throwable t) {
+					{{delegate}}.{{methodName}}(marker, msg, t);
+				}
+				{{/levels}}
+			}
+			""";
+
 }

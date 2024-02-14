@@ -97,8 +97,7 @@ public sealed interface LogConfig {
 	public ServiceRegistry serviceRegistry();
 
 	/**
-	 * A factory that may need config to provide. <strong>Most components implements this
-	 * interface so that you can use already created instances</strong>.
+	 * A factory that may need config to provide.
 	 *
 	 * @param <T> component
 	 */

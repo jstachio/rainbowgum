@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,6 +61,14 @@ public sealed interface ServiceRegistry permits DefaultServiceRegistry {
 		return findOrNull(type, "");
 	}
 
+	/**
+	 * Finds <strong>all</strong> services of a specific type.
+	 * @param <T> service type.
+	 * @param type service class.
+	 * @return list of services.
+	 */
+	public <T> List<T> find(Class<T> type);
+
 }
 
 record ServiceKey(Class<?> type, String name) {
@@ -102,6 +111,12 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 		Objects.requireNonNull(type);
 		Objects.requireNonNull(name);
 		return (T) services.get(new ServiceKey(type, name));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T> List<T> find(Class<T> type) {
+		return services.entrySet().stream().filter(e -> e.getKey().type() == type).map(e -> (T) e.getValue()).toList();
 	}
 
 }

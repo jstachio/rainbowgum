@@ -5,7 +5,6 @@ import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
 
-@SuppressWarnings("exports") // Eclipse seems to think this is public
 sealed interface LevelLogger extends BaseLogger, Logger {
 
 	record OffLogger(String loggerName) implements LevelLogger {

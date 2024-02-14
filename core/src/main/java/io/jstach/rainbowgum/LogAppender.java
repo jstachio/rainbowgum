@@ -15,7 +15,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
  * concurrency.
- *
+ * 
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
 public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.Provider<LogAppender> {
