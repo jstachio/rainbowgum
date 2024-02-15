@@ -2,6 +2,8 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
  * Provides RabbitMQ Rainbow Gum output.
+ * <!-- START PROPERTIES -->
+ * <!-- END PROPERTIES -->
  */
 module io.jstach.rainbowgum.rabbitmq {
 	exports io.jstach.rainbowgum.rabbitmq;
