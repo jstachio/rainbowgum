@@ -49,6 +49,12 @@ public sealed interface LogFormatter {
 	public void format(StringBuilder output, LogEvent event);
 
 	/**
+	 * The type of formatter.
+	 * @return formatter type.
+	 */
+	public FormatterType type();
+
+	/**
 	 * See {@link EventFormatter#builder()}.
 	 * @return builder.
 	 */
@@ -72,6 +78,55 @@ public sealed interface LogFormatter {
 	 */
 	public static NoopFormatter noop() {
 		return NoopFormatter.INSTANCE;
+	}
+
+	/**
+	 * The types of formatters use for formatter resolving or lookup of formatters
+	 * designed for specific fields or common uses like literals.
+	 */
+	public enum FormatterType {
+
+		/**
+		 * Formatter for an entire {@link LogEvent}.
+		 */
+		Event,
+		/**
+		 * Formatter for {@link LogEvent#timestamp()}.
+		 */
+		Timestamp,
+		/**
+		 * Formatter for {@link LogEvent#throwable()}.
+		 */
+		Throwable,
+		/**
+		 * Formatter for {@link LogEvent#keyValues()}
+		 */
+		KeyValues,
+		/**
+		 * Formatter for {@link LogEvent#level()}
+		 */
+		Level,
+		/**
+		 * Formatter for {@link LogEvent#loggerName()}
+		 */
+		LoggerName,
+		/**
+		 * Formatter for {@link LogEvent#threadName()} and/or {@link LogEvent#threadId()}.
+		 */
+		Thread,
+		/**
+		 * Formatter for {@link LogEvent#formattedMessage(StringBuilder)}.
+		 */
+		Message,
+		/**
+		 * Formatter for static strings.
+		 */
+		Literal,
+		/**
+		 * Formatter that does nothing.
+		 */
+		Noop;
+
 	}
 
 	/**
@@ -106,7 +161,10 @@ public sealed interface LogFormatter {
 			List<LogFormatter> resolved = new ArrayList<>();
 			StaticFormatter current = null;
 			for (var f : formatters) {
-				if (current == null && f instanceof StaticFormatter sf) {
+				if (f.type() == FormatterType.Noop) {
+					continue;
+				}
+				else if (current == null && f instanceof StaticFormatter sf) {
 					current = sf;
 				}
 				else if (current != null && f instanceof StaticFormatter sf) {
@@ -126,6 +184,11 @@ public sealed interface LogFormatter {
 			}
 			return resolved.toArray(new LogFormatter[] {});
 		}
+
+		@Override
+		public FormatterType type() {
+			return FormatterType.Literal;
+		}
 	}
 
 	/**
@@ -135,6 +198,11 @@ public sealed interface LogFormatter {
 	public non-sealed interface EventFormatter extends LogFormatter {
 
 		public void format(StringBuilder output, LogEvent event);
+
+		@Override
+		default FormatterType type() {
+			return FormatterType.Event;
+		}
 
 		private static EventFormatter of(List<? extends LogFormatter> formatters) {
 			return new DefaultEventFormatter(StaticFormatter.coalesce(formatters));
@@ -184,7 +252,7 @@ public sealed interface LogFormatter {
 			 * @return this builder.
 			 */
 			public Builder timeStamp() {
-				formatters.add(new DateTimeFormatterInstantFormatter(DateTimeFormatter.ISO_INSTANT));
+				formatters.add(DefaultInstantFormatter.ISO);
 				return this;
 			}
 
@@ -276,6 +344,22 @@ public sealed interface LogFormatter {
 				return EventFormatter.of(formatters);
 			}
 
+			/**
+			 * Will create a generic log formatter that has the inner formatters coalesced
+			 * if possible and will noop if there are no formatters.
+			 * @return flattened formatter.
+			 */
+			public LogFormatter flatten() {
+				var array = StaticFormatter.coalesce(formatters);
+				if (array.length == 0) {
+					return NoopFormatter.INSTANCE;
+				}
+				if (array.length == 1) {
+					return array[0];
+				}
+				return EventFormatter.of(formatters);
+			}
+
 		}
 
 	}
@@ -288,6 +372,11 @@ public sealed interface LogFormatter {
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			formatMessage(output, event);
+		}
+
+		@Override
+		default FormatterType type() {
+			return FormatterType.Message;
 		}
 
 		/**
@@ -315,6 +404,11 @@ public sealed interface LogFormatter {
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			formatName(output, event.loggerName());
+		}
+
+		@Override
+		default FormatterType type() {
+			return FormatterType.LoggerName;
 		}
 
 		/**
@@ -345,6 +439,11 @@ public sealed interface LogFormatter {
 		 * @param level level.
 		 */
 		void formatLevel(StringBuilder output, Level level);
+
+		@Override
+		default FormatterType type() {
+			return FormatterType.Level;
+		}
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
@@ -430,6 +529,11 @@ public sealed interface LogFormatter {
 		void formatTimestamp(StringBuilder output, Instant instant);
 
 		@Override
+		default FormatterType type() {
+			return FormatterType.Timestamp;
+		}
+
+		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			formatTimestamp(output, event.timestamp());
 		}
@@ -439,7 +543,32 @@ public sealed interface LogFormatter {
 		 * @return formatter.
 		 */
 		public static TimestampFormatter of() {
-			return DefaultInstantFormatter.INSTANT;
+			return DefaultInstantFormatter.TTLL;
+		}
+
+		/**
+		 * Formats a timestamp using ISO format.
+		 * @return formatter.
+		 */
+		public static TimestampFormatter ofISO() {
+			return DefaultInstantFormatter.ISO;
+		}
+
+		/**
+		 * Micro seconds over the events last second. This is for logback compatibility.
+		 * @return microseconds zero padded.
+		 */
+		public static TimestampFormatter ofMicros() {
+			return DefaultInstantFormatter.MICROS;
+		}
+
+		/**
+		 * Formats a timestamp using standard JDK date time formatter.
+		 * @param dateTimeFormatter date time formatter.
+		 * @return timestamp formatter.
+		 */
+		public static TimestampFormatter of(DateTimeFormatter dateTimeFormatter) {
+			return new DateTimeFormatterInstantFormatter(dateTimeFormatter);
 		}
 
 	}
@@ -455,6 +584,11 @@ public sealed interface LogFormatter {
 		 * @param throwable throwable.
 		 */
 		void formatThrowable(StringBuilder output, Throwable throwable);
+
+		@Override
+		default FormatterType type() {
+			return FormatterType.Throwable;
+		}
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
@@ -500,6 +634,11 @@ public sealed interface LogFormatter {
 		void formatKeyValues(StringBuilder output, KeyValues keyValues);
 
 		@Override
+		default FormatterType type() {
+			return FormatterType.KeyValues;
+		}
+
+		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			formatKeyValues(output, event.keyValues());
 		}
@@ -543,6 +682,11 @@ public sealed interface LogFormatter {
 		void formatThread(StringBuilder output, String threadName, long threadId);
 
 		@Override
+		default FormatterType type() {
+			return FormatterType.Thread;
+		}
+
+		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			formatThread(output, event.threadName(), event.threadId());
 		}
@@ -575,7 +719,7 @@ public sealed interface LogFormatter {
 	 * will have padding otherwise the passed in string will be cut to the size of this
 	 * parameter.
 	 */
-	public static void padRight(StringBuilder sb, String s, int n) {
+	public static void padRight(StringBuilder sb, CharSequence s, int n) {
 		int length = s.length();
 		if (length >= n) {
 			sb.append(s, 0, n);
@@ -594,7 +738,7 @@ public sealed interface LogFormatter {
 	 * will have padding otherwise the passed in string will be cut to the size of this
 	 * parameter.
 	 */
-	public static void padLeft(StringBuilder sb, String s, int n) {
+	public static void padLeft(StringBuilder sb, CharSequence s, int n) {
 		int length = s.length();
 		if (length >= n) {
 			sb.append(s, 0, n);
@@ -658,6 +802,11 @@ public sealed interface LogFormatter {
 
 		@Override
 		public void format(StringBuilder output, LogEvent event) {
+		}
+
+		@Override
+		public FormatterType type() {
+			return FormatterType.Noop;
 		}
 
 	}
@@ -731,10 +880,32 @@ enum DefaultThreadFormatter implements ThreadFormatter {
 
 enum DefaultInstantFormatter implements TimestampFormatter {
 
-	INSTANT;
+	TTLL(DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC))),
+	ISO(DateTimeFormatter.ISO_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))),
+	MICROS(DateTimeFormatter.ISO_DATE_TIME) {
+		public void formatTimestamp(StringBuilder output, Instant instant) {
+			int nanos = instant.getNano();
 
-	private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT)
-		.withZone(ZoneId.from(ZoneOffset.UTC));
+			int millis_and_micros = nanos / 1000;
+			int micros = millis_and_micros % 1000;
+
+			if (micros >= 100) {
+				output.append(micros);
+			}
+			else if (micros >= 10) {
+				output.append("0").append(micros);
+			}
+			else {
+				output.append("00").append(micros);
+			}
+		}
+	};
+
+	private final DateTimeFormatter formatter;
+
+	DefaultInstantFormatter(DateTimeFormatter formatter) {
+		this.formatter = formatter;
+	}
 
 	@Override
 	public void formatTimestamp(StringBuilder output, Instant instant) {

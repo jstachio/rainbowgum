@@ -1,6 +1,6 @@
-package io.jstach.rainbowgum.apt.internal.pattern;
+package io.jstach.rainbowgum.pattern;
 
-import static io.jstach.rainbowgum.apt.internal.pattern.TokenStream.*;
+import static io.jstach.rainbowgum.pattern.TokenStream.*;
 
 /**
  * Logback: the reliable, generic, fast and flexible logging framework.
@@ -27,7 +27,7 @@ public class OptionTokenizer {
 
 	private final static int QUOTED_COLLECTING_STATE = 2;
 
-	final EscapeUtil escapeUtil;
+	final ParserEscaper parserEscaper;
 
 	final TokenStream tokenStream;
 
@@ -40,18 +40,18 @@ public class OptionTokenizer {
 	int state = EXPECTING_STATE;
 
 	OptionTokenizer(TokenStream tokenStream) {
-		this(tokenStream, new AsIsEscapeUtil());
+		this(tokenStream, new AsIsEscaper());
 	}
 
-	OptionTokenizer(TokenStream tokenStream, EscapeUtil escapeUtil) {
+	OptionTokenizer(TokenStream tokenStream, ParserEscaper parserEscaper) {
 		this.tokenStream = tokenStream;
 		this.pattern = tokenStream.pattern;
 		this.patternLength = tokenStream.patternLength;
-		this.escapeUtil = escapeUtil;
+		this.parserEscaper = parserEscaper;
 	}
 
 	void tokenize(char firstChar, List<Token> tokenList) throws ScanException {
-		StringBuffer buf = new StringBuffer();
+		StringBuilder buf = new StringBuilder();
 		List<String> optionList = new ArrayList<String>();
 		char c = firstChar;
 
@@ -136,10 +136,10 @@ public class OptionTokenizer {
 		tokenStream.state = TokenizerState.LITERAL_STATE;
 	}
 
-	void escape(String escapeChars, StringBuffer buf) {
+	void escape(String escapeChars, StringBuilder buf) {
 		if ((tokenStream.pointer < patternLength)) {
 			char next = pattern.charAt(tokenStream.pointer++);
-			escapeUtil.escape(escapeChars, buf, next, tokenStream.pointer);
+			parserEscaper.escape(escapeChars, buf, next, tokenStream.pointer);
 		}
 	}
 

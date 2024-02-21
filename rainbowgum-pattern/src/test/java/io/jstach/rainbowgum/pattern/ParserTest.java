@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.apt.internal.pattern;
+package io.jstach.rainbowgum.pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -28,7 +28,8 @@ enum ParserResult {
 	composite("hello%(%child)", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child']]"),
 	compositeSpace("hello%(%child) ", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child']], LITERAL[' ']"),
 	compositeArg("hello%(%child %h)", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child'], LITERAL[' '], KEYWORD['h']]"),
-	compositeNext("hello%(%child %h) %m", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child'], LITERAL[' '], KEYWORD['h']], LITERAL[' '], KEYWORD['m']");
+	compositeNext("hello%(%child %h) %m", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child'], LITERAL[' '], KEYWORD['h']], LITERAL[' '], KEYWORD['m']"),
+	group("%-30(%d{HH:mm:ss.SSS} %t) %-5level", "COMPOSITE[keyword='BARE', childNode=KEYWORD['d', options=[HH:mm:ss.SSS]], LITERAL[' '], KEYWORD['t']], LITERAL[' '], KEYWORD['level']");
 	
 	final String input;
 	final String expected;

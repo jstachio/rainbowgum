@@ -83,6 +83,11 @@
         <artifactId>rainbowgum-annotation</artifactId>
         <version>${project.version}</version>
       </dependency>
+        <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-pattern</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-jdk</artifactId>
@@ -802,5 +807,6 @@
     <module>rainbowgum-config-apt</module>
     <module>rainbowgum-json</module>
     <module>rainbowgum-annotation</module>
+    <module>rainbowgum-pattern</module>
   </modules>
 </project>

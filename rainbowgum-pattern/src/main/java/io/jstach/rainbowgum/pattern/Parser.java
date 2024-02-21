@@ -1,14 +1,14 @@
-package io.jstach.rainbowgum.apt.internal.pattern;
+package io.jstach.rainbowgum.pattern;
 
 import java.util.List;
 import java.util.Objects;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.apt.internal.pattern.Node.CompositeNode;
-import io.jstach.rainbowgum.apt.internal.pattern.Node.FormattingNode;
-import io.jstach.rainbowgum.apt.internal.pattern.Node.LiteralNode;
-import io.jstach.rainbowgum.apt.internal.pattern.Node.SimpleKeywordNode;
+import io.jstach.rainbowgum.pattern.Node.CompositeNode;
+import io.jstach.rainbowgum.pattern.Node.FormattingNode;
+import io.jstach.rainbowgum.pattern.Node.LiteralNode;
+import io.jstach.rainbowgum.pattern.Node.KeywordNode;
 
 // ~=lambda
 // E = TE|T
@@ -46,12 +46,12 @@ public class Parser {
 	}
 
 	public Parser(String pattern) throws ScanException {
-		this(pattern, new RegularEscapeUtil());
+		this(pattern, new RegularEscaper());
 	}
 
-	public Parser(String pattern, EscapeUtil escapeUtil) throws ScanException {
+	public Parser(String pattern, ParserEscaper parserEscaper) throws ScanException {
 		try {
-			TokenStream ts = new TokenStream(pattern, escapeUtil);
+			TokenStream ts = new TokenStream(pattern, parserEscaper);
 			this.tokenList = ts.tokenize();
 		}
 		catch (IllegalArgumentException npe) {
@@ -67,7 +67,8 @@ public class Parser {
 	// * @param converterMap
 	// * @return
 	// */
-	// public Converter<E> compile(final Node top, Map<String, String> converterMap) {
+	// public ConverterRegistry<E> compile(final Node top, Map<String, String>
+	// converterMap) {
 	// Compiler<E> compiler = new Compiler<E>(top, converterMap);
 	// compiler.setContext(context);
 	// // compiler.setStatusManager(statusManager);
@@ -177,7 +178,7 @@ public class Parser {
 		else {
 			optionList = List.of();
 		}
-		return n -> new SimpleKeywordNode(n, formatInfo, t.getValue(), optionList);
+		return n -> new KeywordNode(n, formatInfo, t.getValue(), optionList);
 	}
 
 	NodeBuilder<FormattingNode> COMPOSITE(@Nullable FormatInfo formatInfo, String keyword) throws ScanException {

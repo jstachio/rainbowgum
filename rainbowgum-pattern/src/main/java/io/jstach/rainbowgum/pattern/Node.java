@@ -1,11 +1,18 @@
-package io.jstach.rainbowgum.apt.internal.pattern;
+package io.jstach.rainbowgum.pattern;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 public sealed interface Node {
+
+	public enum NodeKind {
+
+		LITERAL, KEYWORD, COMPOSITE
+
+	}
 
 	public static End end() {
 		return End.END;
@@ -17,6 +24,10 @@ public sealed interface Node {
 
 		public void prettyPrint(StringBuilder sb) {
 			sb.append("END");
+		}
+
+		public Node nextOrNull() {
+			return null;
 		}
 
 	}
@@ -53,6 +64,14 @@ public sealed interface Node {
 
 		public Node next();
 
+		default NodeKind kind() {
+			return switch (this) {
+				case LiteralNode n -> NodeKind.LITERAL;
+				case KeywordNode n -> NodeKind.KEYWORD;
+				case CompositeNode n -> NodeKind.COMPOSITE;
+			};
+		}
+
 	}
 
 	public record LiteralNode(Node next, String value) implements HasNext {
@@ -64,11 +83,53 @@ public sealed interface Node {
 
 	public sealed interface FormattingNode extends HasNext {
 
-		public FormatInfo formatInfo();
+		@Nullable
+		FormatInfo formatInfo();
+
+		String keyword();
+
+		List<String> optionList();
+
+		default <T> T opt(int index, T fallback, Function<String, T> f) {
+			var v = opt(index, f);
+			if (v == null) {
+				return fallback;
+			}
+			return v;
+		}
+
+		default <T> @Nullable T opt(int index, Function<String, T> f) {
+			String s = opt(index);
+			if (s == null) {
+				return null;
+			}
+			return f.apply(s);
+		}
+
+		default @Nullable String opt(int index) {
+			var optionList = optionList();
+			int size = optionList.size();
+			if (index < size) {
+				String s = optionList.get(index);
+				if (s.isBlank()) {
+					return null;
+				}
+				return s;
+			}
+			return null;
+		}
+
+		default String opt(int index, String fallback) {
+			var v = opt(index);
+			if (v == null) {
+				return fallback;
+			}
+			return v;
+		}
 
 	}
 
-	public record SimpleKeywordNode(Node next, @Nullable FormatInfo formatInfo, String value,
+	public record KeywordNode(Node next, @Nullable FormatInfo formatInfo, String keyword,
 			List<String> optionList) implements FormattingNode {
 
 		public List<String> getOptions() {
@@ -76,7 +137,7 @@ public sealed interface Node {
 		}
 
 		public void prettyPrint(StringBuilder sb) {
-			sb.append("KEYWORD[").append("'").append(value).append("'");
+			sb.append("KEYWORD[").append("'").append(keyword).append("'");
 			if (!optionList.isEmpty()) {
 				sb.append(", options=").append(optionList);
 			}
@@ -86,7 +147,7 @@ public sealed interface Node {
 
 	}
 
-	public record CompositeNode(Node next, FormatInfo formatInfo, String keyword, List<String> optionList,
+	public record CompositeNode(Node next, @Nullable FormatInfo formatInfo, String keyword, List<String> optionList,
 			Node childNode) implements FormattingNode {
 
 		public void prettyPrint(StringBuilder sb) {

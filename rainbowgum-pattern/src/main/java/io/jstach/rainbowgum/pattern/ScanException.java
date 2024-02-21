@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.apt.internal.pattern;
+package io.jstach.rainbowgum.pattern;
 
 class ScanException extends RuntimeException {
 

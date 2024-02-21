@@ -1,14 +1,14 @@
-package io.jstach.rainbowgum.apt.internal.pattern;
+package io.jstach.rainbowgum.pattern;
 
-interface EscapeUtil {
+interface ParserEscaper {
 
-	void escape(String additionalEscapeChars, StringBuffer buf, char next, int pointer);
+	void escape(String additionalEscapeChars, StringBuilder buf, char next, int pointer);
 
 }
 
-class RestrictedEscapeUtil implements EscapeUtil {
+class RestrictedEscaper implements ParserEscaper {
 
-	public void escape(String escapeChars, StringBuffer buf, char next, int pointer) {
+	public void escape(String escapeChars, StringBuilder buf, char next, int pointer) {
 		if (escapeChars.indexOf(next) >= 0) {
 			buf.append(next);
 		}
@@ -23,7 +23,7 @@ class RestrictedEscapeUtil implements EscapeUtil {
 
 }
 
-class AsIsEscapeUtil implements EscapeUtil {
+class AsIsEscaper implements ParserEscaper {
 
 	/**
 	 * Do not perform any character escaping.
@@ -31,7 +31,7 @@ class AsIsEscapeUtil implements EscapeUtil {
 	 * Note that this method assumes that it is called after the escape character has been
 	 * consumed.
 	 */
-	public void escape(String escapeChars, StringBuffer buf, char next, int pointer) {
+	public void escape(String escapeChars, StringBuilder buf, char next, int pointer) {
 		// restitute the escape char (because it was consumed
 		// before this method was called).
 		buf.append("\\");
@@ -41,9 +41,9 @@ class AsIsEscapeUtil implements EscapeUtil {
 
 }
 
-class RegularEscapeUtil implements EscapeUtil {
+class RegularEscaper implements ParserEscaper {
 
-	public void escape(String escapeChars, StringBuffer buf, char next, int pointer) {
+	public void escape(String escapeChars, StringBuilder buf, char next, int pointer) {
 		if (escapeChars.indexOf(next) >= 0) {
 			buf.append(next);
 		}

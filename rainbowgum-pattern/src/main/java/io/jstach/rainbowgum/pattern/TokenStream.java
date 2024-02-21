@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.apt.internal.pattern;
+package io.jstach.rainbowgum.pattern;
 
 /**
  * Logback: the reliable, generic, fast and flexible logging framework.
@@ -65,26 +65,26 @@ class TokenStream {
 
 	final int patternLength;
 
-	final EscapeUtil escapeUtil;
+	final ParserEscaper parserEscaper;
 
-	final EscapeUtil optionEscapeUtil = new RestrictedEscapeUtil();
+	final ParserEscaper optionEscapeUtil = new RestrictedEscaper();
 
 	TokenizerState state = TokenizerState.LITERAL_STATE;
 
 	int pointer = 0;
 
-	TokenStream(String pattern, EscapeUtil escapeUtil) {
+	TokenStream(String pattern, ParserEscaper parserEscaper) {
 		if (pattern == null || pattern.length() == 0) {
 			throw new IllegalArgumentException("null or empty pattern string not allowed");
 		}
 		this.pattern = pattern;
 		patternLength = pattern.length();
-		this.escapeUtil = escapeUtil;
+		this.parserEscaper = parserEscaper;
 	}
 
 	List<Token> tokenize() throws ScanException {
 		List<Token> tokenList = new ArrayList<Token>();
-		StringBuffer buf = new StringBuffer();
+		StringBuilder buf = new StringBuilder();
 
 		while (pointer < patternLength) {
 			char c = pattern.charAt(pointer);
@@ -131,7 +131,7 @@ class TokenStream {
 		return tokenList;
 	}
 
-	private void handleRightParenthesisState(char c, List<Token> tokenList, StringBuffer buf) {
+	private void handleRightParenthesisState(char c, List<Token> tokenList, StringBuilder buf) {
 		tokenList.add(Token.RIGHT_PARENTHESIS_TOKEN);
 		switch (c) {
 			case RIGHT_PARENTHESIS_CHAR:
@@ -149,12 +149,12 @@ class TokenStream {
 		}
 	}
 
-	private void processOption(char c, List<Token> tokenList, StringBuffer buf) throws ScanException {
+	private void processOption(char c, List<Token> tokenList, StringBuilder buf) throws ScanException {
 		OptionTokenizer ot = new OptionTokenizer(this);
 		ot.tokenize(c, tokenList);
 	}
 
-	private void handleFormatModifierState(char c, List<Token> tokenList, StringBuffer buf) {
+	private void handleFormatModifierState(char c, List<Token> tokenList, StringBuilder buf) {
 		if (c == LEFT_PARENTHESIS_CHAR) {
 			addValuedToken(Token.FORMAT_MODIFIER, buf, tokenList);
 			tokenList.add(Token.BARE_COMPOSITE_KEYWORD_TOKEN);
@@ -170,7 +170,7 @@ class TokenStream {
 		}
 	}
 
-	private void handleLiteralState(char c, List<Token> tokenList, StringBuffer buf) {
+	private void handleLiteralState(char c, List<Token> tokenList, StringBuilder buf) {
 		switch (c) {
 			case ESCAPE_CHAR:
 				escape("%()", buf);
@@ -192,7 +192,7 @@ class TokenStream {
 		}
 	}
 
-	private void handleKeywordState(char c, List<Token> tokenList, StringBuffer buf) {
+	private void handleKeywordState(char c, List<Token> tokenList, StringBuilder buf) {
 
 		if (Character.isJavaIdentifierPart(c)) {
 			buf.append(c);
@@ -219,7 +219,7 @@ class TokenStream {
 			if (c == ESCAPE_CHAR) {
 				if ((pointer < patternLength)) {
 					char next = pattern.charAt(pointer++);
-					escapeUtil.escape("%()", buf, next, pointer);
+					parserEscaper.escape("%()", buf, next, pointer);
 				}
 			}
 			else {
@@ -229,21 +229,21 @@ class TokenStream {
 		}
 	}
 
-	void escape(String escapeChars, StringBuffer buf) {
+	void escape(String escapeChars, StringBuilder buf) {
 		if ((pointer < patternLength)) {
 			char next = pattern.charAt(pointer++);
-			escapeUtil.escape(escapeChars, buf, next, pointer);
+			parserEscaper.escape(escapeChars, buf, next, pointer);
 		}
 	}
 
-	void optionEscape(String escapeChars, StringBuffer buf) {
+	void optionEscape(String escapeChars, StringBuilder buf) {
 		if ((pointer < patternLength)) {
 			char next = pattern.charAt(pointer++);
 			optionEscapeUtil.escape(escapeChars, buf, next, pointer);
 		}
 	}
 
-	private void addValuedToken(int type, StringBuffer buf, List<Token> tokenList) {
+	private void addValuedToken(int type, StringBuilder buf, List<Token> tokenList) {
 		if (buf.length() > 0) {
 			tokenList.add(new Token(type, buf.toString()));
 			buf.setLength(0);
