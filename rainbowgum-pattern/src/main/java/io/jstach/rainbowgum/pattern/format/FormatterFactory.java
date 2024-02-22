@@ -38,6 +38,10 @@ public sealed interface FormatterFactory {
 
 		// public ServiceRegistry serviceRegistry();
 		// public LogProperties logProperties();
+		
+		default ZoneId zoneId() {
+			return ZoneId.systemDefault();
+		}
 
 		/**
 		 * Empty config.
@@ -102,7 +106,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 			if (pattern.equals(ISO8601_STR)) {
 				pattern = ISO8601_PATTERN;
 			}
-			ZoneId zoneId = node.opt(1, ZoneId.systemDefault(), s -> ZoneId.of(s));
+			ZoneId zoneId = node.opt(1, config.zoneId(), s -> ZoneId.of(s));
 			@Nullable
 			Locale locale = node.optOrNull(2, s -> Locale.forLanguageTag(s));
 			var dtf = DateTimeFormatter.ofPattern(pattern).withZone(zoneId);

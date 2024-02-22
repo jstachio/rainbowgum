@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -16,7 +18,13 @@ class CompilerTest {
 	@ParameterizedTest
 	@EnumSource(value = PatternTest.class)
 	void test(PatternTest test) {
-		Compiler c = new Compiler(PatternRegistry.of(), FormatterConfig.empty());
+		FormatterConfig fc = new FormatterConfig() {
+			@Override
+			public ZoneId zoneId() {
+				return ZoneId.from(ZoneOffset.UTC);
+			}
+		};
+		Compiler c = new Compiler(PatternRegistry.of(), fc);
 		StringBuilder sb = new StringBuilder();
 		c.compile(test.input).format(sb, test.event());
 		String actual = sb.toString();
@@ -30,7 +38,7 @@ class CompilerTest {
 
 	enum PatternTest {
 
-		DATE("%d", "1969-12-31 19:00:00,000"), LOGGER("%logger", "io.jstach.logger"),
+		DATE("%d", "1970-01-01 00:00:00,000"), LOGGER("%logger", "io.jstach.logger"),
 		LOGGER_LEFT_PAD("%20logger", "    io.jstach.logger"), LOGGER_RIGHT_PAD("%-20logger", "io.jstach.logger    "),
 		LOGGER_TRUNCATE("%.30logger", "logger.stu.123456789.123456789") {
 			@Override
