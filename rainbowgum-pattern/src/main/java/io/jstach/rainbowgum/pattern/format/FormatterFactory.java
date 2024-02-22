@@ -38,7 +38,12 @@ public sealed interface FormatterFactory {
 
 		// public ServiceRegistry serviceRegistry();
 		// public LogProperties logProperties();
-		
+
+		/**
+		 * Default zoneId if not specified. If not overriden the system default will be
+		 * used.
+		 * @return zone id.
+		 */
 		default ZoneId zoneId() {
 			return ZoneId.systemDefault();
 		}
