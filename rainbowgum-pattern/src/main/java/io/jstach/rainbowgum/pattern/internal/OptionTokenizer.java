@@ -1,6 +1,6 @@
-package io.jstach.rainbowgum.pattern;
+package io.jstach.rainbowgum.pattern.internal;
 
-import static io.jstach.rainbowgum.pattern.TokenStream.*;
+import static io.jstach.rainbowgum.pattern.internal.TokenStream.*;
 
 /**
  * Logback: the reliable, generic, fast and flexible logging framework.
@@ -19,7 +19,7 @@ import static io.jstach.rainbowgum.pattern.TokenStream.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OptionTokenizer {
+class OptionTokenizer {
 
 	private final static int EXPECTING_STATE = 0;
 

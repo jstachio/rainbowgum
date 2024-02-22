@@ -6,17 +6,21 @@ import io.jstach.rainbowgum.LogFormatter;
  * FormattingInfo instances contain the information obtained when parsing formatting
  * modifiers in conversion modifiers.
  *
+ * @param min minimum size of string before padding happens.
+ * @param max maximum size of string before truncating happens.
+ * @param leftPad if the left hand side will be truncated to meet min
+ * @param leftTruncate if the left hand side will be truncated to meet max.
  */
-public record FormatInfo(int min, int max, boolean leftPad, boolean leftTruncate) {
+public record PadInfo(int min, int max, boolean leftPad, boolean leftTruncate) {
 
 	/**
 	 * Create padding info.
 	 * @param min if min is less than zero and not Integer.MIN_VALUE left pad will be
 	 * disabled.
 	 * @param max if max is less than zero left truncate will be disabled.
-	 * @return
+	 * @return format info.
 	 */
-	public static FormatInfo of(int min, int max) {
+	public static PadInfo of(int min, int max) {
 		boolean leftPad = true;
 		boolean leftTruncate = true;
 		if (min != Integer.MIN_VALUE && min < 0) {
@@ -27,17 +31,17 @@ public record FormatInfo(int min, int max, boolean leftPad, boolean leftTruncate
 			max = -max;
 			leftTruncate = false;
 		}
-		return new FormatInfo(min, max, leftPad, leftTruncate);
+		return new PadInfo(min, max, leftPad, leftTruncate);
 	}
 
 	/**
 	 * This method is used to parse a string such as "5", ".7", "5.7" or "-5.7" into a
-	 * FormatInfo.
-	 * @param str A String to convert into a FormatInfo object
-	 * @return A newly created and appropriately initialized FormatInfo object.
-	 * @throws IllegalArgumentException
+	 * PadInfo.
+	 * @param str A String to convert into a PadInfo object
+	 * @return A newly created and appropriately initialized PadInfo object.
+	 * @throws IllegalArgumentException if the pattern is not valid.
 	 */
-	public static FormatInfo valueOf(String str) throws IllegalArgumentException {
+	public static PadInfo valueOf(String str) throws IllegalArgumentException {
 		if (str == null) {
 			throw new NullPointerException("Argument cannot be null");
 		}
@@ -85,9 +89,14 @@ public record FormatInfo(int min, int max, boolean leftPad, boolean leftTruncate
 			}
 		}
 
-		return new FormatInfo(min, max, leftPad, leftTruncate);
+		return new PadInfo(min, max, leftPad, leftTruncate);
 	}
 
+	/**
+	 * Pads the input sequence based on this instance of padding info.
+	 * @param buf buffer to append padded string.
+	 * @param s input.
+	 */
 	public void format(StringBuilder buf, CharSequence s) {
 		int len = s.length();
 		if (len == 0) {
@@ -113,42 +122,5 @@ public record FormatInfo(int min, int max, boolean leftPad, boolean leftTruncate
 			buf.append(s);
 		}
 	}
-
-	// @Override
-	// final public void write(StringBuilder buf, E event) {
-	// String s = convert(event);
-	//
-	// if (formattingInfo == null) {
-	// buf.append(s);
-	// return;
-	// }
-	//
-	// int min = formattingInfo.getMin();
-	// int max = formattingInfo.getMax();
-	//
-	// if (s == null) {
-	// if (0 < min)
-	// SpacePadder.spacePad(buf, min);
-	// return;
-	// }
-	//
-	// int len = s.length();
-	//
-	// if (len > max) {
-	// if (formattingInfo.isLeftTruncate()) {
-	// buf.append(s.substring(len - max));
-	// } else {
-	// buf.append(s.substring(0, max));
-	// }
-	// } else if (len < min) {
-	// if (formattingInfo.isLeftPad()) {
-	// SpacePadder.leftPad(buf, s, min);
-	// } else {
-	// SpacePadder.rightPad(buf, s, min);
-	// }
-	// } else {
-	// buf.append(s);
-	// }
-	// }
 
 }

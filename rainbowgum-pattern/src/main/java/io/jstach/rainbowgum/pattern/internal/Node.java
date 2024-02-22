@@ -1,10 +1,11 @@
-package io.jstach.rainbowgum.pattern;
+package io.jstach.rainbowgum.pattern.internal;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
+
+import io.jstach.rainbowgum.pattern.PadInfo;
+import io.jstach.rainbowgum.pattern.PatternKeyword;
 
 public sealed interface Node {
 
@@ -30,19 +31,6 @@ public sealed interface Node {
 			return null;
 		}
 
-	}
-
-	public static List<Node> nodes(Node node) {
-		List<Node> list = new ArrayList<>();
-		Node current = node;
-		while (current != end()) {
-			list.add(current);
-			current = switch (current) {
-				case HasNext h -> h.next();
-				case End e -> e;
-			};
-		}
-		return list;
 	}
 
 	public void prettyPrint(StringBuilder sb);
@@ -81,55 +69,11 @@ public sealed interface Node {
 		}
 	}
 
-	public sealed interface FormattingNode extends HasNext {
-
-		@Nullable
-		FormatInfo formatInfo();
-
-		String keyword();
-
-		List<String> optionList();
-
-		default <T> T opt(int index, T fallback, Function<String, T> f) {
-			var v = opt(index, f);
-			if (v == null) {
-				return fallback;
-			}
-			return v;
-		}
-
-		default <T> @Nullable T opt(int index, Function<String, T> f) {
-			String s = opt(index);
-			if (s == null) {
-				return null;
-			}
-			return f.apply(s);
-		}
-
-		default @Nullable String opt(int index) {
-			var optionList = optionList();
-			int size = optionList.size();
-			if (index < size) {
-				String s = optionList.get(index);
-				if (s.isBlank()) {
-					return null;
-				}
-				return s;
-			}
-			return null;
-		}
-
-		default String opt(int index, String fallback) {
-			var v = opt(index);
-			if (v == null) {
-				return fallback;
-			}
-			return v;
-		}
+	public sealed interface FormattingNode extends HasNext, PatternKeyword {
 
 	}
 
-	public record KeywordNode(Node next, @Nullable FormatInfo formatInfo, String keyword,
+	public record KeywordNode(Node next, @Nullable PadInfo padInfo, String keyword,
 			List<String> optionList) implements FormattingNode {
 
 		public List<String> getOptions() {
@@ -147,7 +91,7 @@ public sealed interface Node {
 
 	}
 
-	public record CompositeNode(Node next, @Nullable FormatInfo formatInfo, String keyword, List<String> optionList,
+	public record CompositeNode(Node next, @Nullable PadInfo padInfo, String keyword, List<String> optionList,
 			Node childNode) implements FormattingNode {
 
 		public void prettyPrint(StringBuilder sb) {

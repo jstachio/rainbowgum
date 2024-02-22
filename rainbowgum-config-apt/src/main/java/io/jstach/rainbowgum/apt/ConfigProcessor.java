@@ -112,7 +112,7 @@ public class ConfigProcessor extends AbstractProcessor {
 		}
 		String propertyPrefix = prism.prefix();
 		String packageName = h.getPackageString(enclosingType);
-		String targetType = h.getFullyQualifiedClassName(ee.getReturnType());
+		String targetType = ToStringTypeVisitor.toCodeSafeString(ee.getReturnType());
 		String factoryMethod = enclosingType + "." + ee.getSimpleName();
 		List<BuilderModel.PropertyModel> properties = new ArrayList<>();
 
@@ -269,32 +269,6 @@ public class ConfigProcessor extends AbstractProcessor {
 			return str;
 		}
 		return str.trim().substring(0, 1).toUpperCase() + str.substring(1);
-	}
-
-	private static Class<?> primitiveToClass(TypeKind k) {
-		if (!k.isPrimitive())
-			throw new IllegalArgumentException("k is not primitive: " + k);
-		switch (k) {
-			case BOOLEAN:
-				return Boolean.class;
-			case BYTE:
-				return Byte.class;
-			case CHAR:
-				return Character.class;
-			case DOUBLE:
-				return Double.class;
-			case FLOAT:
-				return Float.class;
-			case INT:
-				return Integer.class;
-			case LONG:
-				return Long.class;
-			case SHORT:
-				return Short.class;
-			default:
-				throw new IllegalArgumentException("k is not a primitive" + k);
-
-		}
 	}
 
 	static class Helper {

@@ -1,14 +1,15 @@
-package io.jstach.rainbowgum.pattern;
+package io.jstach.rainbowgum.pattern.internal;
 
 import java.util.List;
 import java.util.Objects;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.pattern.Node.CompositeNode;
-import io.jstach.rainbowgum.pattern.Node.FormattingNode;
-import io.jstach.rainbowgum.pattern.Node.LiteralNode;
-import io.jstach.rainbowgum.pattern.Node.KeywordNode;
+import io.jstach.rainbowgum.pattern.PadInfo;
+import io.jstach.rainbowgum.pattern.internal.Node.CompositeNode;
+import io.jstach.rainbowgum.pattern.internal.Node.FormattingNode;
+import io.jstach.rainbowgum.pattern.internal.Node.KeywordNode;
+import io.jstach.rainbowgum.pattern.internal.Node.LiteralNode;
 
 // ~=lambda
 // E = TE|T
@@ -67,7 +68,7 @@ public class Parser {
 	// * @param converterMap
 	// * @return
 	// */
-	// public ConverterRegistry<E> compile(final Node top, Map<String, String>
+	// public PatternRegistry<E> compile(final Node top, Map<String, String>
 	// converterMap) {
 	// Compiler<E> compiler = new Compiler<E>(top, converterMap);
 	// compiler.setContext(context);
@@ -125,12 +126,12 @@ public class Parser {
 			case Token.PERCENT:
 				advanceTokenPointer();
 				_debug("% token found");
-				FormatInfo fi;
+				PadInfo fi;
 				Token u = getCurentToken();
 				NodeBuilder<FormattingNode> c;
 				expectNotNull(u, "a FORMAT_MODIFIER, SIMPLE_KEYWORD or COMPOUND_KEYWORD");
 				if (u.getType() == Token.FORMAT_MODIFIER) {
-					fi = FormatInfo.valueOf((String) u.getValue());
+					fi = PadInfo.valueOf((String) u.getValue());
 					advanceTokenPointer();
 					c = C(fi);
 				}
@@ -145,7 +146,7 @@ public class Parser {
 
 	}
 
-	NodeBuilder<FormattingNode> C(@Nullable FormatInfo formatInfo) throws ScanException {
+	NodeBuilder<FormattingNode> C(@Nullable PadInfo padInfo) throws ScanException {
 		Token t = getCurentToken();
 		_debug("in C()");
 		_debug("Current token is ", t);
@@ -153,16 +154,16 @@ public class Parser {
 		int type = t.getType();
 		switch (type) {
 			case Token.SIMPLE_KEYWORD:
-				return SINGLE(formatInfo);
+				return SINGLE(padInfo);
 			case Token.COMPOSITE_KEYWORD:
 				advanceTokenPointer();
-				return COMPOSITE(formatInfo, t.getValue());
+				return COMPOSITE(padInfo, t.getValue());
 			default:
 				throw new IllegalStateException("Unexpected token " + t);
 		}
 	}
 
-	NodeBuilder<FormattingNode> SINGLE(@Nullable FormatInfo formatInfo) throws ScanException {
+	NodeBuilder<FormattingNode> SINGLE(@Nullable PadInfo padInfo) throws ScanException {
 		_debug("in SINGLE()");
 		Token t = getNextToken();
 		_debug("==", t);
@@ -178,10 +179,10 @@ public class Parser {
 		else {
 			optionList = List.of();
 		}
-		return n -> new KeywordNode(n, formatInfo, t.getValue(), optionList);
+		return n -> new KeywordNode(n, padInfo, t.getValue(), optionList);
 	}
 
-	NodeBuilder<FormattingNode> COMPOSITE(@Nullable FormatInfo formatInfo, String keyword) throws ScanException {
+	NodeBuilder<FormattingNode> COMPOSITE(@Nullable PadInfo padInfo, String keyword) throws ScanException {
 
 		Node childNode = E();
 
@@ -202,7 +203,7 @@ public class Parser {
 			optionList = List.of();
 		}
 
-		return n -> new CompositeNode(n, formatInfo, keyword, optionList, childNode);
+		return n -> new CompositeNode(n, padInfo, keyword, optionList, childNode);
 	}
 
 	Token getNextToken() {

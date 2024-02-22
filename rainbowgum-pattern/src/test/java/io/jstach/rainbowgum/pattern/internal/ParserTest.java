@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.pattern;
+package io.jstach.rainbowgum.pattern.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

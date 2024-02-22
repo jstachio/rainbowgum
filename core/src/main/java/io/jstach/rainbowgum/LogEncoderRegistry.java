@@ -33,11 +33,11 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 	public void register(String name, LogEncoder encoder);
 
 	/**
-	 * Registers an encoder by name.
-	 * @param name encoder name.
+	 * Registers an encoder by uri scheme.
+	 * @param scheme encoder name.
 	 * @param encoder loaded encoder
 	 */
-	public void register(String name, EncoderProvider encoder);
+	public void register(String scheme, EncoderProvider encoder);
 
 	/**
 	 * Associates a default formatter with a specific output type
@@ -78,13 +78,28 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 		encoders.put(name, encoder);
 	}
 
+	private static URI normalize(URI uri) {
+		String scheme = uri.getScheme();
+		String path = uri.getPath();
+
+		if (scheme == null) {
+			if (path == null) {
+				throw new IllegalArgumentException("URI is not proper: " + uri);
+			}
+			if (path.startsWith("./") || path.startsWith("/")) {
+				uri = URI.create("name://" + path);
+			}
+			else {
+				uri = URI.create(path + ":///");
+			}
+		}
+		return uri;
+	}
+
 	@Override
 	public LogEncoder provide(URI uri, String name, LogProperties properties) {
+		uri = normalize(uri);
 		String scheme = uri.getScheme();
-		if (scheme == null) {
-			throw new IllegalStateException("Encoder reference needs a URI with scheme. "
-					+ "For example 'gelf' is not valid but 'gelf:///' is.");
-		}
 		if (scheme.equals("name")) {
 			String _name = uri.getHost();
 			if (_name == null) {

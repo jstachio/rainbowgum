@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -29,6 +30,15 @@ public sealed interface ServiceRegistry permits DefaultServiceRegistry {
 	 * @param name name of service.
 	 */
 	public <T> void put(Class<T> type, T service, String name);
+
+	/**
+	 * Puts a service.
+	 * @param <T> service type.
+	 * @param type type.
+	 * @param supplier service instance.
+	 * @return service.
+	 */
+	public <T> T putIfAbsent(Class<T> type, Supplier<T> supplier);
 
 	/**
 	 * Puts a service with name "".
@@ -117,6 +127,12 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 	@Override
 	public <T> List<T> find(Class<T> type) {
 		return services.entrySet().stream().filter(e -> e.getKey().type() == type).map(e -> (T) e.getValue()).toList();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T> T putIfAbsent(Class<T> type, Supplier<T> supplier) {
+		return (T) services.computeIfAbsent(new ServiceKey(type, ""), k -> supplier.get());
 	}
 
 }

@@ -65,7 +65,7 @@ public final class $$builderName$$ {
 	$$/properties$$
 	
 	/**
-	 * Create a builder for $$targetType$$.
+	 * Create a builder for {@code $$targetType$$ }.
 	 $$#prefixParameters$$
 	 * @param $$name$$ will fill <code>$$LB$$$$name$$$$RB$$</code> in <code>$$propertyPrefix$$</code>. $$javadoc$$
 	 $$/prefixParameters$$
@@ -113,8 +113,8 @@ public final class $$builderName$$ {
 	$$/properties$$
 	
 	/**
-	 * Creates $$targetType$$ from this builder.
-	 * @return $$targetType$$.
+	 * Creates {@code $$targetType$$ } from this builder.
+	 * @return {@code $$targetType$$ }.
 	 $$#exceptions$$
 	 * @throws $$.$$ if factory method fails.
 	 $$/exceptions$$
