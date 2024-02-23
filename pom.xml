@@ -120,7 +120,7 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
-        <artifactId>rainbowgum-config-apt</artifactId>
+        <artifactId>rainbowgum-apt</artifactId>
         <version>${project.version}</version>
         <optional>true</optional>
         <scope>provided</scope>
@@ -804,7 +804,7 @@
     <module>test</module>
     <module>etc</module>
     <module>rainbowgum-rabbitmq</module>
-    <module>rainbowgum-config-apt</module>
+    <module>rainbowgum-apt</module>
     <module>rainbowgum-json</module>
     <module>rainbowgum-annotation</module>
     <module>rainbowgum-pattern</module>

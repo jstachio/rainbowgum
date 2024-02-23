@@ -20,7 +20,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-config-apt</artifactId>
+      <artifactId>rainbowgum-apt</artifactId>
     </dependency>
   </dependencies>
 </project>
