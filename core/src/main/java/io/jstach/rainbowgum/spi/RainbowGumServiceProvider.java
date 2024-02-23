@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.spi;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -52,7 +53,7 @@ public sealed interface RainbowGumServiceProvider {
 	 * like registering {@link io.jstach.rainbowgum.LogOutput.OutputProvider}s.
 	 * <p>
 	 * The configurator has the option to return <code>false</code> to indicate a retry
-	 * needs to be made. This is poor mans way to handle dependency needs of one
+	 * needs to be made. This is a simple way to handle dependency needs of one
 	 * configurator needing another to run prior.
 	 *
 	 * @see LogConfig#outputRegistry()
@@ -140,6 +141,20 @@ public sealed interface RainbowGumServiceProvider {
 			return RainbowGum.builder(config).build();
 		}
 
+		/**
+		 * If there are multiple rainbow gum providers found the higher priority ones are
+		 * tried first ({@link #provide(LogConfig)}). The default is {@code 0}.
+		 * <p>
+		 * This feature allows custom rainbow gums for different environments like a
+		 * testing version that lives in its own jar that is in maven scope test. If its
+		 * priority is higher and {@link #provide(LogConfig)} returns a non-empty optional
+		 * then it will be used instead of than the production rainbowgum.
+		 * @return priority order where higher number means it will be tried earlier.
+		 */
+		default int priority() {
+			return 0;
+		}
+
 	}
 
 	/**
@@ -177,7 +192,9 @@ public sealed interface RainbowGumServiceProvider {
 		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
 		var config = provideConfig(loader);
 		@Nullable
-		RainbowGum gum = findProviders(loader, RainbowGumProvider.class).flatMap(s -> s.provide(config).stream())
+		RainbowGum gum = findProviders(loader, RainbowGumProvider.class)
+			.sorted(Comparator.comparingInt(RainbowGumProvider::priority).reversed())
+			.flatMap(s -> s.provide(config).stream())
 			.findFirst()
 			.orElse(null);
 

@@ -102,7 +102,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		record SingleLoggerDecorator(LoggerDecoratorService service) implements LoggerDecorator {
 			@Override
 			public Logger decorate(RainbowGum gum, Logger logger) {
-				return service.decorate(gum, logger);
+				return Objects.requireNonNull(service.decorate(gum, logger));
 			}
 		}
 

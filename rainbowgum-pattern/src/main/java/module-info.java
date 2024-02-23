@@ -1,14 +1,16 @@
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
- * Provides Logback style pattern formatters.
+ * Provides 
+ * <a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">Logback style pattern formatters.</a>
  * @provides RainbowGumServiceProvider
  */
 module io.jstach.rainbowgum.pattern {
 	
 	exports io.jstach.rainbowgum.pattern;
 	exports io.jstach.rainbowgum.pattern.format;
-	
+	exports io.jstach.rainbowgum.pattern.format.spi;
+
 	requires transitive io.jstach.rainbowgum;
 	
 	requires static io.jstach.rainbowgum.annotation;

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -25,7 +26,9 @@ public sealed interface PatternRegistry {
 	public @Nullable FormatterFactory getOrNull(String key);
 
 	/**
-	 * Registers a pattern key with a formatter factory.
+	 * Registers a pattern key with a formatter factory. You may replace the builtin
+	 * pattern formatters with {@link KeywordKey} or {@link ColorKey}s or create a new key
+	 * with {@link PatternKey#of(String)}.
 	 * @param key pattern keys.
 	 * @param factory factory to create formatters from pattern keywords.
 	 */
@@ -41,6 +44,9 @@ public sealed interface PatternRegistry {
 
 	/**
 	 * Pattern keywords.
+	 *
+	 * @see KeywordKey
+	 * @see ColorKey
 	 */
 	public sealed interface PatternKey {
 
@@ -76,33 +82,202 @@ public sealed interface PatternRegistry {
 
 	}
 
+	/**
+	 * Builtin supported pattern keys.
+	 */
+	enum KeywordKey implements PatternKey {
+
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#date">Date keywords</a>
+		 */
+		DATE("d", "date"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#micros">Micros keywords</a>
+		 */
+		MICROS("ms", "micros"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#relative">Thread
+		 * keywords</a>
+		 */
+		THREAD("t", "thread"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#level">Level keywords</a>
+		 */
+		LEVEL("level", "le", "p"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#logger">Logger keywords</a>
+		 */
+		LOGGER("lo", "logger", "c"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#message">Message
+		 * keywords</a>
+		 */
+		MESSAGE("m", "msg", "message"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#mdc">MDC keywords</a>
+		 */
+		MDC("X", "mdc"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#ex">Throwable keywords</a>
+		 */
+		THROWABLE("ex", "exception", "throwable"), //
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#newline">Newline
+		 * keywords</a>
+		 */
+		LINESEP("n");
+
+		private final List<String> aliases;
+
+		private KeywordKey(List<String> aliases) {
+			this.aliases = aliases;
+		}
+
+		private KeywordKey(String... others) {
+			this(List.of(others));
+		}
+
+		public List<String> aliases() {
+			return this.aliases;
+		}
+
+	}
+
+	/**
+	 * Builtin supported color pattern keys.
+	 */
+	enum ColorKey implements PatternKey {
+
+		/**
+		 * ANSI black color
+		 */
+		BLACK("black"), //
+		/**
+		 * ANSI red color
+		 */
+		RED("red"), //
+		/**
+		 * ANSI green color
+		 */
+		GREEN("green"), //
+		/**
+		 * ANSI yellow color
+		 */
+		YELLOW("yellow"), //
+		/**
+		 * ANSI blue color
+		 */
+		BLUE("blue"), //
+		/**
+		 * ANSI magenta color
+		 */
+		MAGENTA("magenta"), //
+		/**
+		 * ANSI cyan color
+		 */
+		CYAN("cyan"), //
+		/**
+		 * ANSI white color
+		 */
+		WHITE("white"), //
+		/**
+		 * ANSI gray color
+		 */
+		GRAY("gray"), //
+		/**
+		 * ANSI boldRed color
+		 */
+		BOLD_RED("boldRed"), //
+		/**
+		 * ANSI boldGreen color
+		 */
+		BOLD_GREEN("boldGreen"), //
+		/**
+		 * ANSI boldYellow color
+		 */
+		BOLD_YELLOW("boldYellow"), //
+		/**
+		 * ANSI boldBlue color
+		 */
+		BOLD_BLUE("boldBlue"), //
+		/**
+		 * ANSI boldMagenta color
+		 */
+		BOLD_MAGENTA("boldMagenta"), //
+		/**
+		 * ANSI boldCyan color
+		 */
+		BOLD_CYAN("boldCyan"), //
+		/**
+		 * ANSI boldWhite color
+		 */
+		BOLD_WHITE("boldWhite"), //
+		/**
+		 * A special color composite key that will highlight based on logger level.
+		 */
+		HIGHLIGHT("highlight"), //
+		;
+
+		private final List<String> aliases;
+
+		private ColorKey(List<String> aliases) {
+			this.aliases = aliases;
+		}
+
+		private ColorKey(String... others) {
+			this(List.of(others));
+		}
+
+		public List<String> aliases() {
+			return this.aliases;
+		}
+
+	}
+
 }
 
 final class DefaultPatternRegistry implements PatternRegistry {
 
-	final Map<String, PatternKey> keys = new HashMap<>();
+	private final Map<String, PatternKey> keys = new HashMap<>();
 
-	final Map<PatternKey, FormatterFactory> converters = new HashMap<>();
+	private final Map<PatternKey, FormatterFactory> converters = new HashMap<>();
+
+	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
 	public DefaultPatternRegistry() {
 		super();
 	}
 
-	public void register(PatternKey key, FormatterFactory conveter) {
-		for (var a : key.aliases()) {
-			if (keys.containsKey(a)) {
-				throw new IllegalArgumentException("Key already registered: " + a);
+	public void register(PatternKey key, FormatterFactory factory) {
+		lock.writeLock().lock();
+		try {
+			var f = converters.get(key);
+			if (f == null) {
+				for (var a : key.aliases()) {
+					if (keys.containsKey(a)) {
+						throw new IllegalArgumentException("Key already registered: " + a);
+					}
+					keys.put(a, key);
+				}
 			}
-			keys.put(a, key);
+			converters.put(key, factory);
 		}
-		converters.put(key, conveter);
+		finally {
+			lock.writeLock().unlock();
+		}
 	}
 
 	public @Nullable FormatterFactory getOrNull(String key) {
-		var ck = keys.get(key);
-		if (ck == null)
-			return null;
-		return converters.get(ck);
+		lock.readLock().lock();
+		try {
+			var ck = keys.get(key);
+			if (ck == null)
+				return null;
+			return converters.get(ck);
+		}
+		finally {
+			lock.readLock().unlock();
+		}
 	}
 
 	static PatternRegistry registerDefaults(PatternRegistry registry) {
@@ -153,54 +328,6 @@ final class DefaultPatternRegistry implements PatternRegistry {
 
 	}
 
-	// enum FormatterType {
-	//
-	// Timestamp(NodeKind.KEYWORD), Throwable(NodeKind.KEYWORD),
-	// KeyValues(NodeKind.KEYWORD), Level(NodeKind.KEYWORD),
-	// Name(NodeKind.KEYWORD), Thread(NodeKind.KEYWORD), Message(NodeKind.KEYWORD),
-	// Literal(NodeKind.LITERAL),
-	// Bare(NodeKind.COMPOSITE), Color(NodeKind.COMPOSITE);
-	//
-	// private final Node.NodeKind kind;
-	//
-	// private FormatterType(NodeKind kind) {
-	// this.kind = kind;
-	// }
-	//
-	// Node.NodeKind kind() {
-	// return this.kind;
-	// }
-	//
-	// }
-
-	enum KeywordKey implements PatternKey {
-
-		DATE("d", "date"), //
-		MICROS("ms", "micros"), //
-		THREAD("t", "thread"), //
-		LEVEL("level", "le", "p"), //
-		LOGGER("lo", "logger", "c"), //
-		MESSAGE("m", "msg", "message"), //
-		MDC("X", "mdc"), //
-		THROWABLE("ex", "exception", "throwable"), //
-		LINESEP("n");
-
-		private final List<String> aliases;
-
-		private KeywordKey(List<String> aliases) {
-			this.aliases = aliases;
-		}
-
-		private KeywordKey(String... others) {
-			this(List.of(others));
-		}
-
-		public List<String> aliases() {
-			return this.aliases;
-		}
-
-	}
-
 	enum BareKey implements PatternKey {
 
 		BARE() {
@@ -209,43 +336,6 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				return List.of("BARE");
 			}
 
-		}
-
-	}
-
-	enum ColorKey implements PatternKey {
-
-		BLACK("black"), //
-		RED("red"), //
-		GREEN("green"), //
-		YELLOW("yellow"), //
-		BLUE("blue"), //
-		MAGENTA("magenta"), //
-		CYAN("cyan"), //
-		WHITE("white"), //
-		GRAY("gray"), //
-		BOLD_RED("boldRed"), //
-		BOLD_GREEN("boldGreen"), //
-		BOLD_YELLOW("boldYellow"), //
-		BOLD_BLUE("boldBlue"), //
-		BOLD_MAGENTA("boldMagenta"), //
-		BOLD_CYAN("boldCyan"), //
-		BOLD_WHITE("boldWhite"), //
-		HIGHLIGHT("highlight"), //
-		;
-
-		private final List<String> aliases;
-
-		private ColorKey(List<String> aliases) {
-			this.aliases = aliases;
-		}
-
-		private ColorKey(String... others) {
-			this(List.of(others));
-		}
-
-		public List<String> aliases() {
-			return this.aliases;
 		}
 
 	}
