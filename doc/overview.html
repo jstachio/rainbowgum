@@ -114,7 +114,6 @@ is <em>very different!</em>.
   in initialization time as well as security surface area.
 </p>
 
-<p>
 <strong>The key components expressed in the flow of log events is as follows:</strong>
 <ol>
 <li>Logging Facade (SLF4J)</li>
@@ -129,12 +128,11 @@ is <em>very different!</em>.
 In the next sections we will cover {@link io.jstach.rainbowgum.LevelResolver}, 
 Publishers, Appenders, Outputs, and Encoders as they are the main points of interest in customizing and configuring.
 
-</p>
 
 <h2 id="router">Router</h2>
 
 A Router has a {@link io.jstach.rainbowgum.LevelResolver} and a Publisher.
-A Level Resolver takes a logger name and produces a {@java.lang.System.Logger.Level level}.
+A Level Resolver takes a logger name and produces a {@link java.lang.System.Logger.Level level}.
 The logging facade implementation than decides based on the level whether or not to construct an event.
 It then passes the event to the router which in turn uses the publisher.
 
