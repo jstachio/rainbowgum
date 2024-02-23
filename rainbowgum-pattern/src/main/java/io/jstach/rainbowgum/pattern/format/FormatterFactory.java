@@ -214,7 +214,7 @@ class ANSIConstants {
 
 }
 
-record HighlightLogFormatter(LogFormatter child) implements LogFormatter.EventFormatter {
+record HighlightFormatter(LogFormatter child) implements LogFormatter.EventFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
@@ -246,7 +246,7 @@ enum HightlightCompositeFactory implements CompositeFactory {
 
 		@Override
 		public LogFormatter create(FormatterConfig config, PatternKeyword node, @Nullable LogFormatter child) {
-			return new HighlightLogFormatter(child);
+			return new HighlightFormatter(child);
 		}
 
 	}

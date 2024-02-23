@@ -1,6 +1,9 @@
 package io.jstach.rainbowgum.pattern.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
@@ -11,6 +14,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogFormatter.NameFormatter;
+import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.pattern.format.FormatterFactory.FormatterConfig;
 
 class CompilerTest {
@@ -26,20 +32,57 @@ class CompilerTest {
 		};
 		Compiler c = new Compiler(PatternRegistry.of(), fc);
 		StringBuilder sb = new StringBuilder();
-		c.compile(test.input).format(sb, test.event());
+		var formatter = c.compile(test.input);
+		formatter.format(sb, test.event());
 		String actual = sb.toString();
 		String expected = test.expected;
 		test.output(actual);
 		assertEquals(expected, actual);
 		test.assertOutput(actual);
+		test.assertFormatter(formatter);
 	}
 
 	public static final boolean OUTPUT = false;
 
 	enum PatternTest {
 
-		DATE("%d", "1970-01-01 00:00:00,000"), LOGGER("%logger", "io.jstach.logger"),
-		LOGGER_LEFT_PAD("%20logger", "    io.jstach.logger"), LOGGER_RIGHT_PAD("%-20logger", "io.jstach.logger    "),
+		DATE("%d", "1970-01-01 00:00:00,000") {
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				assertInstanceOf(TimestampFormatter.class, formatter);
+			}
+		},
+		LOGGER("%logger", "io.jstach.logger") {
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				assertInstanceOf(NameFormatter.class, formatter);
+			}
+		},
+		LOGGER_LEFT_PAD("%20logger", "    io.jstach.logger") {
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				assertInstanceOf(PadFormatter.class, formatter);
+				if (formatter instanceof PadFormatter pf) {
+					assertInstanceOf(NameFormatter.class, pf.formatter());
+					assertEquals(20, pf.padInfo().min());
+					assertTrue(pf.padInfo().leftPad());
+					assertTrue(pf.padInfo().leftTruncate());
+				}
+			}
+		},
+		LOGGER_RIGHT_PAD("%-20logger", "io.jstach.logger    ") {
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				System.out.println(formatter);
+				assertInstanceOf(PadFormatter.class, formatter);
+				if (formatter instanceof PadFormatter pf) {
+					assertInstanceOf(NameFormatter.class, pf.formatter());
+					assertEquals(20, pf.padInfo().min());
+					assertFalse(pf.padInfo().leftPad());
+					assertTrue(pf.padInfo().leftTruncate());
+				}
+			}
+		},
 		LOGGER_TRUNCATE("%.30logger", "logger.stu.123456789.123456789") {
 			@Override
 			protected String logger() {
@@ -91,6 +134,11 @@ class CompilerTest {
 			protected String logger() {
 				return "com.logback.TriviaMain";
 			}
+
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				System.out.println(formatter);
+			}
 		},
 		COLOR_ERROR("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] [1;31mERROR[0;39m [36mc.l.TriviaMain[0;39m - hello\n") {
@@ -131,6 +179,9 @@ class CompilerTest {
 		}
 
 		protected void assertOutput(String output) {
+		}
+
+		protected void assertFormatter(LogFormatter formatter) {
 		}
 
 		protected System.Logger.Level level() {

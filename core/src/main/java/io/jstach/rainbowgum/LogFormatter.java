@@ -11,6 +11,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -74,7 +75,7 @@ public sealed interface LogFormatter {
 	/**
 	 * A special formatter that will do nothing. It is a singleton so identity comparison
 	 * can be used.
-	 * @return a formatter tha implements all formatting interfaces but does nothing.
+	 * @return a formatter that implements all formatting interfaces but does nothing.
 	 */
 	public static NoopFormatter noop() {
 		return NoopFormatter.INSTANCE;
@@ -158,10 +159,11 @@ public sealed interface LogFormatter {
 		 * be coalesced.
 		 */
 		private static LogFormatter[] coalesce(List<? extends LogFormatter> formatters) {
+			var flattened = CompositeFormatter.flatten(formatters);
 			List<LogFormatter> resolved = new ArrayList<>();
 			StaticFormatter current = null;
-			for (var f : formatters) {
-				if (f.type() == FormatterType.Noop) {
+			for (var f : flattened) {
+				if (f.isNoop()) {
 					continue;
 				}
 				else if (current == null && f instanceof StaticFormatter sf) {
@@ -189,6 +191,11 @@ public sealed interface LogFormatter {
 		public FormatterType type() {
 			return FormatterType.Literal;
 		}
+
+		@Override
+		public String toString() {
+			return "STATIC['" + content + "']";
+		}
 	}
 
 	/**
@@ -205,7 +212,7 @@ public sealed interface LogFormatter {
 		}
 
 		private static EventFormatter of(List<? extends LogFormatter> formatters) {
-			return new DefaultEventFormatter(StaticFormatter.coalesce(formatters));
+			return new CompositeFormatter(StaticFormatter.coalesce(formatters));
 		}
 
 		/**
@@ -332,7 +339,7 @@ public sealed interface LogFormatter {
 			 * @return this builder.
 			 */
 			public Builder threadName() {
-				formatters.add(ThreadFormatter.of());
+				formatters.add(ThreadFormatter.ofName());
 				return this;
 			}
 
@@ -391,7 +398,7 @@ public sealed interface LogFormatter {
 		 * @return formatter.
 		 */
 		public static MessageFormatter of() {
-			return DefaultMessageFormatter.INSTANT;
+			return DefaultMessageFormatter.MESSAGE_FORMATTER;
 		}
 
 	}
@@ -423,7 +430,7 @@ public sealed interface LogFormatter {
 		 * @return formatter.
 		 */
 		public static NameFormatter of() {
-			return DefaultNameFormatter.INSTANT;
+			return DefaultNameFormatter.LOGGER_NAME_FORMATTER;
 		}
 
 	}
@@ -455,7 +462,7 @@ public sealed interface LogFormatter {
 		 * @return formatter.
 		 */
 		public static LevelFormatter of() {
-			return DefaultLevelFormatter.NO_PAD;
+			return DefaultLevelFormatter.LEVEL_FORMATTER;
 		}
 
 		/**
@@ -463,7 +470,7 @@ public sealed interface LogFormatter {
 		 * @return formatter.
 		 */
 		public static LevelFormatter ofRightPadded() {
-			return DefaultLevelFormatter.RIGHT_PAD;
+			return DefaultLevelFormatter.RIGHT_PAD_LEVEL_FORMATTER;
 		}
 
 		/**
@@ -692,11 +699,27 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Default thread formatter prints the the {@link Thread#getName()}.
+		 * Default thread formatter prints the {@link Thread#getName()}.
+		 * @return thread formatter.
+		 */
+		public static ThreadFormatter ofName() {
+			return DefaultThreadFormatter.THREAD_NAME_FORMATTER;
+		}
+
+		/**
+		 * Default thread formatter prints the {@link Thread#getName()}.
 		 * @return thread formatter.
 		 */
 		public static ThreadFormatter of() {
-			return DefaultThreadFormatter.INSTANT;
+			return DefaultThreadFormatter.THREAD_NAME_FORMATTER;
+		}
+
+		/**
+		 * Default thread formatter prints the {@link Thread#threadId()}.
+		 * @return thread formatter.
+		 */
+		public static ThreadFormatter ofId() {
+			return DefaultThreadFormatter.THREAD_ID_FORMATTER;
 		}
 
 	}
@@ -754,13 +777,13 @@ public sealed interface LogFormatter {
 	private static void spacePad(final StringBuilder sbuf, final int length) {
 		int l = length;
 		while (l >= 32) {
-			sbuf.append(DefaultEventFormatter.SPACES[5]);
+			sbuf.append(CompositeFormatter.SPACES[5]);
 			l -= 32;
 		}
 
 		for (int i = 4; i >= 0; i--) {
 			if ((l & (1 << i)) != 0) {
-				sbuf.append(DefaultEventFormatter.SPACES[i]);
+				sbuf.append(CompositeFormatter.SPACES[i]);
 			}
 		}
 	}
@@ -813,7 +836,7 @@ public sealed interface LogFormatter {
 
 }
 
-record DefaultEventFormatter(LogFormatter[] formatters) implements EventFormatter {
+record CompositeFormatter(LogFormatter[] formatters) implements EventFormatter {
 
 	static String[] SPACES = { " ", "  ", "    ", "        ", // 1,2,4,8 spaces
 			"                ", // 16 spaces
@@ -826,11 +849,41 @@ record DefaultEventFormatter(LogFormatter[] formatters) implements EventFormatte
 		}
 	}
 
+	public String toString() {
+		return getClass().getSimpleName() + Arrays.toString(formatters);
+	}
+
+	public static List<LogFormatter> flatten(CompositeFormatter formatter) {
+		return List.copyOf(_flatten(formatter));
+	}
+
+	public static List<LogFormatter> flatten(List<? extends LogFormatter> formatters) {
+		return List.copyOf(_flatten(formatters));
+	}
+
+	private static List<LogFormatter> _flatten(List<? extends LogFormatter> formatters) {
+		List<LogFormatter> result = new ArrayList<>();
+		for (var f : formatters) {
+			if (f instanceof CompositeFormatter cf) {
+				result.addAll(_flatten(cf));
+			}
+			else {
+				result.add(f);
+			}
+		}
+		return result;
+	}
+
+	private static List<LogFormatter> _flatten(CompositeFormatter formatter) {
+		var formatters = formatter.formatters;
+		return _flatten(Arrays.asList(formatters));
+	}
+
 }
 
 enum DefaultMessageFormatter implements MessageFormatter {
 
-	INSTANT;
+	MESSAGE_FORMATTER;
 
 	@Override
 	public void formatMessage(StringBuilder output, LogEvent event) {
@@ -841,7 +894,7 @@ enum DefaultMessageFormatter implements MessageFormatter {
 
 enum DefaultNameFormatter implements NameFormatter {
 
-	INSTANT;
+	LOGGER_NAME_FORMATTER;
 
 	@Override
 	public void formatName(StringBuilder output, String name) {
@@ -852,13 +905,13 @@ enum DefaultNameFormatter implements NameFormatter {
 
 enum DefaultLevelFormatter implements LevelFormatter {
 
-	NO_PAD {
+	LEVEL_FORMATTER {
 		@Override
 		public void formatLevel(StringBuilder output, Level level) {
 			output.append(LevelFormatter.toString(level));
 		}
 	},
-	RIGHT_PAD {
+	RIGHT_PAD_LEVEL_FORMATTER {
 		@Override
 		public void formatLevel(StringBuilder output, Level level) {
 			output.append(LevelFormatter.rightPadded(level));
@@ -869,11 +922,17 @@ enum DefaultLevelFormatter implements LevelFormatter {
 
 enum DefaultThreadFormatter implements ThreadFormatter {
 
-	INSTANT;
-
-	@Override
-	public void formatThread(StringBuilder output, String threadName, long threadId) {
-		output.append(threadName);
+	THREAD_NAME_FORMATTER() {
+		@Override
+		public void formatThread(StringBuilder output, String threadName, long threadId) {
+			output.append(threadName);
+		}
+	},
+	THREAD_ID_FORMATTER() {
+		@Override
+		public void formatThread(StringBuilder output, String threadName, long threadId) {
+			output.append(threadId);
+		}
 	}
 
 }
