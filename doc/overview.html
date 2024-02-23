@@ -79,7 +79,6 @@ Currently Rainbowgum does not provide support for:
 <ul>
   <li>External config - by design you will need to bring your own configuration lib or just use env/system properties</li>
   <li>Rolling of log files. Possibly will be added in the future.</li>
-  <li>Dynamically changing logger level after logger has been created - by design with some special features coming.</li>
  </ul>
 
 <h2 id="how_it_works">How it works</h2>
@@ -90,6 +89,78 @@ most configuration is simply choosing which jars to be included at runtime.
 If you would like more custom programmatic configuration you can use the 
 RainbowGum builder to create your own.
 </p>
+
+<h3 id="architecture">Architecture</h3>
+
+Rainbow Gum's design has many superficial similarties to Logback, Log4j2, and Reload4j in that
+there are Appenders and Encoders as well as how log levels are inherited but most of Rainbow Gum's design
+is <em>very different!</em>.
+
+<p>
+  The major key difference in Rainbow Gum is that once configured and initialized the logging system is locked in and
+  cannot be changed. Certain parts of the system can be changed at runtime but require opt-in which includes changing
+  levels of logger names.
+</p>
+<p>
+  Another major difference is that Rainbow Gum is highly modularized, immutable and componentized. In other frameworks
+  OOP inheritance is heavily abused and riddled with state management. Furthermore there are components that
+  have too much responsibility which is the case with Appenders in Logback or "Managers" in Log4j2.
+  Furthermore Rainbow Gum avoids reflection other than the Service Loader and follows the builder pattern
+  extensively to separate configuration from immutable runtime components. Almost all components have
+  a builder to programmatically configure and the builders can take flat string key values as configuration. 
+</p>
+<p>
+  The results of the above choices make Rainbow Gum far lighter than logback, log4j2, and reload4j particularly
+  in initialization time as well as security surface area.
+</p>
+
+<p>
+<strong>The key components expressed in the flow of log events is as follows:</strong>
+<ol>
+<li>Logging Facade (SLF4J)</li>
+<li>{@link io.jstach.rainbowgum.RainbowGum}</li>
+<li>{@link io.jstach.rainbowgum.LogRouter}</li>
+<li>{@link io.jstach.rainbowgum.LogPublisher}</li>
+<li>{@link io.jstach.rainbowgum.LogAppender}</li>
+<li>{@link io.jstach.rainbowgum.LogEncoder}</li>
+<li>{@link io.jstach.rainbowgum.LogOutput}</li>
+</ol>
+
+In the next sections we will cover {@link io.jstach.rainbowgum.LevelResolver}, 
+Publishers, Appenders, Outputs, and Encoders as they are the main points of interest in customizing and configuring.
+
+</p>
+
+<h2 id="router">Router</h2>
+
+A Router has a {@link io.jstach.rainbowgum.LevelResolver} and a Publisher.
+A Level Resolver takes a logger name and produces a {@java.lang.System.Logger.Level level}.
+The logging facade implementation than decides based on the level whether or not to construct an event.
+It then passes the event to the router which in turn uses the publisher.
+
+For those familiar with other logging frameworks 
+<strong>Rainbow Gum has no actual concept of named "Loggers"</strong> but a route from a router is the closest analog.
+
+<p>
+  When configuring Rainbow Gum we configure logger names to levels which we call "routes". 
+</p>
+
+<h2 id="publishers">Publishers</h2>
+
+A {@link io.jstach.rainbowgum.LogPublisher} basically schedules delivery of a {@link io.jstach.rainbowgum.LogEvent} to a group of 
+Appenders. Publishers come in two types: synchronous and asynchronous. An appender should only
+belong to one publisher. 
+
+<h2 id="appenders">Appenders</h2>
+
+An appender contains an {@linkplain io.jstach.rainbowgum.LogEncoder Encoder} and an {@link io.jstach.rainbowgum.LogOutput Output}.
+Unlike other logging frameworks it is rare to have custom Appenders as most of the work is done by the encoder and output.
+
+<h2 id="encoders">Encoders</h2>
+
+Encoders encode an event into binary. Because most encoding is text based RainbowGum has the concept of 
+{@link io.jstach.rainbowgum.LogFormatter} which can be turned into an Encoder. Log formatters
+are the most common extension point. 
 
 <h2 id="installation">Installation</h2>
 
