@@ -1,5 +1,5 @@
 /**
- * Disruptor async publisher
+ * <strong>EXPERIMENTAL</strong> Disruptor async publisher.
  */
 module io.jstach.rainbowgum.disruptor {
 	

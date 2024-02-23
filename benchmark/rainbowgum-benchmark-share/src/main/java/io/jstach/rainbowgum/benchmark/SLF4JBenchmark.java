@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 
 public class SLF4JBenchmark {
 
-	private static boolean preinit = true;
+	private static boolean preinit = false;
 
 	public static void main(String[] args) {
 
@@ -59,9 +59,9 @@ public class SLF4JBenchmark {
 
 		for (int i = 0; i < SIZE; i++) {
 			log.error("message");
-			// log.error("message {}", "one");
-			// log.error("message {} {}", "one", "two");
-			//
+			log.error("message {}", "one");
+			log.error("message {} {}", "one", "two");
+
 			// log.trace("message");
 			// log.trace("message {}", "one");
 			// log.trace("message {} {}", "one", "two");
