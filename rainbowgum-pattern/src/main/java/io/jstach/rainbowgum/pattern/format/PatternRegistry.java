@@ -35,6 +35,16 @@ public sealed interface PatternRegistry {
 	public void register(PatternKey key, FormatterFactory factory);
 
 	/**
+	 * Convenience function for {@link #register(PatternKey, FormatterFactory)} as keyword
+	 * factory is a lambda.
+	 * @param key pattern keys.
+	 * @param factory factory create formatter from a simple keyword.
+	 */
+	default void keyword(PatternKey key, KeywordFactory factory) {
+		register(key, factory);
+	}
+
+	/**
 	 * Creates a pattern registry with the defaults.
 	 * @return default registry.
 	 */
@@ -286,7 +296,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case MESSAGE -> KeywordFactory.of(LogFormatter.MessageFormatter.of());
 				case DATE -> StandardKeywordFactory.DATE;
 				case LEVEL -> KeywordFactory.of(LogFormatter.LevelFormatter.of());
-				case LINESEP -> KeywordFactory.of(new LogFormatter.StaticFormatter("\n"));
+				case LINESEP -> (fc, n) -> new LogFormatter.StaticFormatter(fc.lineSeparator());
 				case LOGGER -> StandardKeywordFactory.LOGGER;
 				case MDC -> KeywordFactory.of(LogFormatter.KeyValuesFormatter.of());
 				case MICROS -> KeywordFactory.of(LogFormatter.TimestampFormatter.ofMicros());

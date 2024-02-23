@@ -82,6 +82,15 @@ public sealed interface LogFormatter {
 	}
 
 	/**
+	 * Creates a static formatter of text.
+	 * @param text immutable text.
+	 * @return immutable static formatter.
+	 */
+	public static StaticFormatter of(String text) {
+		return new StaticFormatter(text);
+	}
+
+	/**
 	 * The types of formatters use for formatter resolving or lookup of formatters
 	 * designed for specific fields or common uses like literals.
 	 */

@@ -10,10 +10,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogConfig.Builder;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.pattern.format.PatternRegistry.PatternKey;
+import io.jstach.rainbowgum.pattern.format.spi.PatternKeywordProvider;
 
 class PatternConfiguratorTest {
 
@@ -24,6 +28,7 @@ class PatternConfiguratorTest {
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
 			.configurator(new PatternConfigurator())
+			.with(test::config)
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			var es = test.events();
@@ -44,6 +49,30 @@ class PatternConfiguratorTest {
 				[main] ERROR c.p.test.Test - hello
 				""") {
 
+		},
+		CUSTOM_KEYWORD("""
+				INFO  blah
+				WARN  blah
+				ERROR blah
+				""") {
+			String properties() {
+				return """
+						logging.appenders=list
+						logging.appender.list.output=list
+						logging.appender.list.encoder=pattern
+						logging.encoder.list.pattern=%-5level %stuff{}%n
+						""";
+			}
+
+			@Override
+			void config(Builder builder) {
+				builder.configurator(new PatternKeywordProvider() {
+					@Override
+					protected void register(PatternRegistry patternRegistry) {
+						patternRegistry.keyword(PatternKey.of("stuff"), (c, n) -> LogFormatter.of("blah"));
+					}
+				});
+			}
 		};
 
 		private final String expected;
@@ -75,6 +104,10 @@ class PatternConfiguratorTest {
 				events.add(e);
 			}
 			return events;
+		}
+
+		void config(LogConfig.Builder builder) {
+
 		}
 
 	}

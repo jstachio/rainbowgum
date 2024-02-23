@@ -226,6 +226,16 @@ public sealed interface LogConfig {
 		}
 
 		/**
+		 * Configures the builder with a function for ergonomics.
+		 * @param consumer passed the builder.
+		 * @return this.
+		 */
+		public Builder with(Consumer<? super Builder> consumer) {
+			consumer.accept(this);
+			return this;
+		}
+
+		/**
 		 * Builds LogConfig which will use the {@link ServiceLoader} if set to load
 		 * missing components and if not set will use static defaults.
 		 * @return log config

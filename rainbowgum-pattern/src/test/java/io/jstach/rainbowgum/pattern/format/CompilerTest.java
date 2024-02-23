@@ -7,8 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -24,12 +22,7 @@ class CompilerTest {
 	@ParameterizedTest
 	@EnumSource(value = PatternTest.class)
 	void test(PatternTest test) {
-		FormatterConfig fc = new FormatterConfig() {
-			@Override
-			public ZoneId zoneId() {
-				return ZoneId.from(ZoneOffset.UTC);
-			}
-		};
+		FormatterConfig fc = FormatterConfig.ofUniversal();
 		Compiler c = new Compiler(PatternRegistry.of(), fc);
 		StringBuilder sb = new StringBuilder();
 		var formatter = c.compile(test.input);

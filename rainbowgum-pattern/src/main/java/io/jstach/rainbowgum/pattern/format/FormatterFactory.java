@@ -13,6 +13,7 @@ import static io.jstach.rainbowgum.pattern.format.ANSIConstants.YELLOW_FG;
 
 import java.lang.System.Logger.Level;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
@@ -36,9 +37,6 @@ public sealed interface FormatterFactory {
 	 */
 	public interface FormatterConfig {
 
-		// public ServiceRegistry serviceRegistry();
-		// public LogProperties logProperties();
-
 		/**
 		 * Default zoneId if not specified. If not overriden the system default will be
 		 * used.
@@ -49,11 +47,38 @@ public sealed interface FormatterFactory {
 		}
 
 		/**
-		 * Empty config.
-		 * @return empty config.
+		 * Line separator for %n by default uses {@link System#lineSeparator()}.
+		 * @return line separator.
 		 */
-		public static FormatterConfig empty() {
+		default String lineSeparator() {
+			return System.lineSeparator();
+		}
+
+		/**
+		 * Default config.
+		 * @return default config.
+		 */
+		public static FormatterConfig of() {
 			return new FormatterConfig() {
+			};
+		}
+
+		/**
+		 * Platform independent formatter config that will not change across timezones or
+		 * platforms.
+		 * @return config.
+		 */
+		public static FormatterConfig ofUniversal() {
+			return new FormatterConfig() {
+				@Override
+				public String lineSeparator() {
+					return "\n";
+				}
+
+				@Override
+				public ZoneId zoneId() {
+					return ZoneId.from(ZoneOffset.UTC);
+				}
 			};
 		}
 

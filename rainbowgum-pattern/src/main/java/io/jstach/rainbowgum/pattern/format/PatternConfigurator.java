@@ -41,7 +41,7 @@ public final class PatternConfigurator implements Configurator {
 	static PatternCompiler compiler(LogConfig config) {
 		var registry = config.serviceRegistry().putIfAbsent(PatternRegistry.class, () -> PatternRegistry.of());
 		var compiler = config.serviceRegistry()
-			.putIfAbsent(PatternCompiler.class, () -> new Compiler(registry, FormatterConfig.empty()));
+			.putIfAbsent(PatternCompiler.class, () -> new Compiler(registry, FormatterConfig.of()));
 		return compiler;
 	}
 
