@@ -83,14 +83,37 @@ Currently Rainbowgum does not provide support for:
 
 <h2 id="how_it_works">How it works</h2>
 
-Rainbow Gum uses the Service Loader to load "default" configurations. Other than logger levels
-most configuration is simply choosing which jars to be included at runtime.
-<p>
-If you would like more custom programmatic configuration you can use the 
-RainbowGum builder to create your own.
-</p>
+Most users will use Rainbow Gum through a logging facade such as SLF4J and the only interaction with
+Rainbow Gum is configuration of output and formatting. Rainbow Gum provides three ways to configure
+out of the box:
 
-<h3 id="architecture">Architecture</h3>
+<ul>
+  <li>Programmatic Java configuration using builders.</li>
+  <li>Simple String key/value properties often derived from System properties / env variables</li>
+  <li>Dependency driven configuration where including a jar as dependency changes behavior automatically</li>
+</ul>
+
+In practice many will use a mixture of all three styles. Rainbow Gum uses the Service Loader to load "default" configurations. 
+Other than logger levels most configuration is simply choosing which jars to be included at runtime and providing some
+simple properties.
+
+<h3 id="simple_example">Simple Example using System properties</h3>
+
+Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using System Properties is below:
+
+{@code
+  java \
+  -Dlogging.appender.console.encoder=pattern \ 
+  -Dlogging.encoder.console.pattern="[%thread] %-5level %logger{15} - %msg%n" \
+  -Dlogging.level.com.myapp=DEBUG \
+  myapp.jar 
+}
+
+What happens with the above is Rainbow Gum will load its default Rainbow Gum via the service loader and use the properties to configure
+its builders. Unfortunately System properties on the command line can be rather tedious but luckily you
+can plugin in your own properties system easily.
+
+<h2 id="architecture">Architecture</h2>
 
 Rainbow Gum's design has many superficial similarties to Logback, Log4j2, and Reload4j in that
 there are Appenders and Encoders as well as how log levels are inherited but most of Rainbow Gum's design
