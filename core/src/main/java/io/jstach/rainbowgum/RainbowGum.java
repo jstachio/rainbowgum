@@ -3,11 +3,13 @@ package io.jstach.rainbowgum;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogRouter.RootRouter;
@@ -261,6 +263,29 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 						+ "This is rare reace condition and probably a bug");
 			}
 			return gum;
+		}
+
+		/**
+		 * For returning an optional for the Provider contract.
+		 * @return optional that always has a rainbow gum.
+		 * @apiNote this method is for ergonomics.
+		 */
+		public Optional<RainbowGum> optional() {
+			return Optional.of(this.build());
+		}
+
+		/**
+		 * For returning an optional for the Provider contract.
+		 * @param condition condition to check if this rainbow gum should be used.
+		 * @return optional rainbow gum.
+		 * @apiNote this method is for ergonomics.
+		 */
+		public Optional<RainbowGum> optional(Function<? super LogConfig, Boolean> condition) {
+			var cond = condition.apply(config);
+			if (cond) {
+				return Optional.of(this.build());
+			}
+			return Optional.empty();
 		}
 
 	}

@@ -15,7 +15,25 @@ import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.ServiceRegistry;
 
 /**
- * RainbowGum SPI
+ * RainbowGum SPI. The Rainbow Gum SPI uses the {@link ServiceLoader} with the
+ * registration of <strong>this class</strong> and <em>NOT the <code>non-sealed</code>
+ * subclasses!</em> Read the {@link ServiceLoader} doc to understand how to register a
+ * service loader class. A common option is to use an annotation processor to generate the
+ * <code>META-INF/services</code> registration. There are several libraries that can do
+ * this:
+ * <ul>
+ * <li><a href="https://github.com/jstachio/pistachio#serviceloader-helper">Pistachio
+ * SVC</a></li>
+ * <li><a href="https://avaje.io/spi/">Avaje SPI</a></li>
+ * <li><a href="https://github.com/kohsuke/metainf-services">metainf-services</a></li>
+ * </ul>
+ * However if your application is fully modularized (has a <code>module-info.java</code>)
+ * you will need to use the module-info syntax:
+ * {@snippet : 
+ * 
+ * provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with com.mycompany.SomeService;
+ * 
+ * }
  */
 public sealed interface RainbowGumServiceProvider {
 

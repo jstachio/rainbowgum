@@ -2,7 +2,7 @@ import io.avaje.applog.AppLog;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
- * Uses Avaje Config for LogProperties.
+ * Uses <a href="https://avaje.io/config/">Avaje Config</a> for LogProperties.
  * @provides RainbowGumServiceProvider
  * @provides AppLog.Provider
  */

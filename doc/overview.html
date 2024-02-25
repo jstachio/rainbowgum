@@ -60,39 +60,10 @@ shared between all your projects so that logging configuration is consistent.
 Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
 Java directly and the {@link java.util.ServiceLoader} is below. 
 
-{@snippet class="snippets.RainbowGumProviderExample" region="provider" :
+{@snippet class="snippets.GettingStartedExample" region="gettingStarted" }
 
-class RainbowGumProviderExample implements RainbowGumProvider {
-
-	@Override
-	public Optional<RainbowGum> provide(LogConfig config) {
-
-		Property<Integer> bufferSize = Property.builder()
-			.map(Integer::parseInt)
-			.orElse(1024)
-			.build("logging.custom.async.bufferSize");
-
-		Property<LogOutput> output = Property.builder()
-			.map(URI::create)
-			.map(u -> config.output(u, ""))
-			.orElse(LogOutput.ofStandardOut())
-			.build("logging.custom.output");
-
-		var gum = RainbowGum.builder() //
-			.route(r -> {
-				r.publisher(PublisherFactory.async().bufferSize(bufferSize.get(config.properties()).value()).build());
-				r.appender("console", a -> {
-					a.output(output.get(config.properties()).value());					
-				});
-				r.level(Level.INFO);
-			})
-			.build();
-
-		return Optional.of(gum);
-	}
-
-}
-}
+{@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider} has additional documentation on how to register
+a service loader aware jar.
 
 <h2 id="description">Description</h2>
 
@@ -102,7 +73,8 @@ while leveraging newer JDK technology.
 Rainbow Gum unlike Logback or Log4J (2) does not offer as much flexibility but is simpler
 and has less overhead.
 
-The readme in the Rainbow Gum project discusses more extensively on the design and philosophy.
+The <a href="https://github.com/jstachio/rainbowgum">readme in the Rainbow Gum project</a> 
+discusses more extensively on the opinionated design and philosophy.
 
 
 <h2 id="project_information">Project Information</h2>
@@ -205,34 +177,108 @@ is <em>very different!</em>.
 <li>{@link io.jstach.rainbowgum.LogOutput}</li>
 </ol>
 
-In the next sections we will cover {@link io.jstach.rainbowgum.LevelResolver}, 
-Publishers, Appenders, Outputs, and Encoders as they are the main points of interest in customizing and configuring.
+In the next sections we will cover  
+<a href="#configuration">Configuration</a>, 
+<a href="#publishers">Publishers</a>, 
+<a href="#appenders">Appenders</a>, 
+<a href="#encoders">Encoders</a>,
+and 
+<a href="#outputs">Outputs</a>.
 
+For most <a href="#level_resolvers">level resolving</a>, <a href="#formatters">formatters</a> (which are simplified encoders),
+and Outputs are the main points of interest in customizing and configuring.
+
+<h2 id="config">Configuration</h2>
+
+A defining characteristic of Rainbow Gum is that it does not have a special configuration format
+like Logback, Log4j2, and Reload4j (all three use XML as the default). The expectation
+is that for simple configuration {@linkplain io.jstach.rainbowgum.LogProperties simple properties interface} analogous to 
+<code>Function&lt;String,String&gt;</code> is good enough. For more complicated configuration
+programmatic configuration using the builders and service loader should be used.
+<p>
+  For implementers of plugins {@link io.jstach.rainbowgum.LogConfig } allows registering of services
+  and plugins (it also contains the global {@link io.jstach.rainbowgum.LogProperties} ) however
+  most users will not need to know about it. For those coming from Logback
+  {@link io.jstach.rainbowgum.LogConfig } is analogous to what Logback calls "Context".
+</p>
+
+Rainbow Gum out of the box uses System properties for {@link io.jstach.rainbowgum.LogProperties}
+but an optional module {@link io.jstach.rainbowgum.avaje/ } will allow using <a href="https://avaje.io/config/">Avaje Config</a>
+as the properties provider. Other configuration systems will be added in the future but an 
+important requirement is that these systems do not do any logging or if they do allow it to be
+turned off, intercepted or blocked.
 
 <h2 id="router">Router</h2>
 
 A Router has a {@link io.jstach.rainbowgum.LevelResolver} and a Publisher.
 A Level Resolver takes a logger name and produces a {@link java.lang.System.Logger.Level level}.
 The logging facade implementation than decides based on the level whether or not to construct an event.
-It then passes the event to the router which in turn uses the publisher.
+It then passes the event to the router which in turn uses the publisher to schedule the event.
 
 For those familiar with other logging frameworks 
 <strong>Rainbow Gum has no actual concept of named "Loggers"</strong> but a route from a router is the closest analog.
 
 <p>
-  When configuring Rainbow Gum we configure logger names to levels which we call "routes". 
+  When configuring routers you are configuring
+  {@link io.jstach.rainbowgum.LevelResolver Level Resolvers} which are logger names to levels 
+  and which publisher to use. We call this configuration a "route". As discussed later on
+  a publisher has appenders and appenders have outputs thus 
+  an important consequnce of this is if you want outputs to have different level thresholds
+  (e.g. a debug.log and an error.log) you will need multiple routers. 
 </p>
+
+<h3 id="level_resolvers">Level Resolvers</h3>
+
+As mentioned previously routers have a level resolver. A level resolver simply resolves
+the {@linkplain java.lang.System.Logger.Level level} (an enum) from a logger name (String).
+Because of {@link io.jstach.rainbowgum.LevelResolver} functional interface we can chain them
+with <em>fallbacks</em>. An important fallback level resolver that almost all routers use
+is the global level resolver. These levels can be configured with 
+{@link io.jstach.rainbowgum.LogProperties properties} where logger names prefixed with 
+{@value io.jstach.rainbowgum.LogProperties#LEVEL_PREFIX} as the key and the level as the value.
+Below is an example:
+
+{@snippet lang=properties :
+logging.level.com.mycompany.stuff=DEBUG
+logging.level.com.mycompany=INFO
+logging.level=ERROR
+}
+
+Most level resolvers including the global follow an inheritance or prefix model where 
+<code>com.mycompany.stuff.foo</code> will resolve to <code>DEBUG</code>
+and <code>com.mycompany.bar</code> will resolve to <code>INFO</code>
+and anything not prefixed with <code>com.mycompany</code> will resolve to <code>ERROR</code>.
+<p>
+  An important consideration is that Rainbow Gum
+  <strong>
+    by default assumes Level Resolvers are cached or static and will never change.
+  </strong>
+  This is a critical feature of Rainbow Gum as it <em>allows facade loggers like in SLF4J to be 
+  lower overhead than almost all other logging frameworks!</em>
+  That being said RainbowGum allows levels to be changed if the backing configuration framework
+  supports reloading and the logger name is allowed to be changed.
+</p>
+
+
+{@snippet lang=properties :
+logging.global.change=true          # this is required to turn on level changing. 
+logging.change.com.mycompany=true   # only logger names starting with com.mycompany can have their levels changed.
+}
+
 
 <h2 id="publishers">Publishers</h2>
 
 A {@link io.jstach.rainbowgum.LogPublisher} basically schedules delivery of a {@link io.jstach.rainbowgum.LogEvent} to a group of 
 Appenders. Publishers come in two types: synchronous and asynchronous. An appender should only
-belong to one publisher. 
+belong to one publisher. In other logging frameworks like Logback and Reload4J this responsibility is handled
+by an Appender but Rainbow Gum separates this responsibility out.
 
 <h2 id="appenders">Appenders</h2>
 
-An appender contains an {@linkplain io.jstach.rainbowgum.LogEncoder Encoder} and an {@link io.jstach.rainbowgum.LogOutput Output}.
+An {@linkplain io.jstach.rainbowgum.LogAppender appender} contains an {@linkplain io.jstach.rainbowgum.LogEncoder Encoder} 
+and an {@link io.jstach.rainbowgum.LogOutput Output}.
 Unlike other logging frameworks it is rare to have custom Appenders as most of the work is done by the encoder and output.
+That is an appender can be mostly thought of as a tuple of encoder and output.
 
 <h2 id="encoders">Encoders</h2>
 
@@ -240,6 +286,24 @@ Encoders encode an event into binary. Because most encoding is text based Rainbo
 {@link io.jstach.rainbowgum.LogFormatter} which can be turned into an Encoder. Log formatters
 are the most common extension point. 
 
+<h3 id="Formatters">Formatters</h3>
+
+Besides adjusting level configuration the most common configuration is formatting of log events as textual data.
+{@link io.jstach.rainbowgum.LogFormatter}s are designed to do just that. While formatters can at highlevel be considered
+an encoder for technical API reasons they are not. However any formatter can be converted to an
+encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}. 
+<p>
+  For those coming from Logback or Log4j2 
+  Rainbow Gum has an {@linkplain io.jstach.rainbowgum.pattern/ optional module} for logback style
+  based pattern formatters. This allows describing an output format using 
+  <code>String.format</code> percent style syntax. Rainbow Gum implements most of the builtin logback
+  pattern keywords with far less overhead. 
+</p>
+<p>
+  Rainbow Gum also has support for proper cross platform {@linkplain io.jstach.rainbowgum.jansi/ ANSI output with Jansi through an optional module}.
+  Unlike other frameworks where this is detected with reflection Rainbow Gum uses the 
+  Service Loader which is GraalVM native friendly.
+</p>
 <h2 id="installation">Installation</h2>
 
 
