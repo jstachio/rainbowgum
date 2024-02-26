@@ -92,3 +92,21 @@ table.table, table.table th, table.table td {
 pre {
   tab-size: 4;
 }
+
+body.module-index-page div.flex-box {
+  display: block;
+  position: relative;
+}
+body.module-index-page div.flex-content {
+  overflow-y: inherit;   
+}
+body.module-index-page nav.js-toc {
+  margin-left: -300px;
+  top: 45px;
+  width: 300px;
+  position: fixed;
+  overflow-wrap: anywhere;
+}
+body.module-index-page main {
+  margin-left: 300px;
+}

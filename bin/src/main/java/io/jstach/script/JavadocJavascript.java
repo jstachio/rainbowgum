@@ -48,6 +48,53 @@ public class JavadocJavascript {
 				addJavascript(_p, relativeResourcesPath);
 			}
 		}
+		addToc(Path.of(DOC_ROOT + "target/site/apidocs/index.html"));
+		removeSearchFocus(Path.of(DOC_ROOT + "target/site/apidocs/search.js"));
+
+	}
+	
+	static void addToc(Path htmlPath) throws IOException {
+		List<String> lines = Files.readAllLines(htmlPath);
+		List<String> processed = new ArrayList<>();
+		boolean found = false;
+		for (String line : lines) {
+			if (line.startsWith("<div class=\"header\"")) {
+				found = true;
+				processed.add(line);
+				processed.add("<nav class=\"js-toc\"></nav>");
+			}
+			else {
+				processed.add(line);
+			}
+		}
+		if (found) {
+			Files.write(htmlPath, processed, StandardOpenOption.WRITE);
+		}
+		else {
+			out.println("header not found for: " + htmlPath);
+		}	
+	}
+	
+	static void removeSearchFocus(Path searchJs) throws IOException {
+		List<String> lines = Files.readAllLines(searchJs);
+		List<String> processed = new ArrayList<>();
+		boolean found = false;
+		for (String line : lines) {
+			if (line.trim().equals("search.focus();")) {
+				found = true;
+				processed.add("//rainbowgum commented out: search.focus()");
+			}
+			else {
+				processed.add(line);
+			}
+		}
+		if (found) {
+			Files.write(searchJs, processed, StandardOpenOption.WRITE);
+		}
+		else {
+			throw new IOException("search.focus not found");
+			//out.println("header not found for: " + searchJs);
+		}	
 	}
 
 	static void addJavascript(Path htmlPath, Path resourcesPath) throws IOException {
@@ -57,7 +104,7 @@ public class JavadocJavascript {
 		for (String line : lines) {
 			if (line.startsWith("</body>")) {
 				found = true;
-				processed.add(scriptTag("https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.11.1/tocbot.min.js"));
+				processed.add(scriptTag("https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.18.2/tocbot.min.js"));
 				processed.add(scriptTag("https://cdn.jsdelivr.net/npm/anchor-js/anchor.min.js"));
 				processed.add(scriptTag(resourcesPath + "/" + "jstachio.js"));
 				processed.add(line);
