@@ -178,7 +178,7 @@ is <em>very different!</em>.
 </ol>
 
 In the next sections we will cover  
-<a href="#configuration">Configuration</a>, 
+<a href="#config">Config</a>, 
 <a href="#publishers">Publishers</a>, 
 <a href="#appenders">Appenders</a>, 
 <a href="#encoders">Encoders</a>,
@@ -188,7 +188,7 @@ and
 For most <a href="#level_resolvers">level resolving</a>, <a href="#formatters">formatters</a> (which are simplified encoders),
 and Outputs are the main points of interest in customizing and configuring.
 
-<h2 id="config">Configuration</h2>
+<h2 id="config">Config</h2>
 
 A defining characteristic of Rainbow Gum is that it does not have a special configuration format
 like Logback, Log4j2, and Reload4j (all three use XML as the default). The expectation
@@ -306,12 +306,17 @@ encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogF
 </p>
 <h2 id="installation">Installation</h2>
 
+For most simply including the dependency <code>io.jstach.rainbowgum:rainbowgum</code>
+is enough. That dependency will transitively pull in the most commonly used modules.
+For a more minimal setup (total application size in terms of classes)
+<code>{@linkplain io.jstach.rainbowgum/ io.jstach.rainbowgum:rainbowgum-core}</code>
+and <code>{@linkplain io.jstach.rainbowgum.slf4j/ io.jstach.rainbowgum:rainbowgum-slf4j}</code> 
+(if using SLF4J)
+should be used.
 
 <h3 id="maven">Maven</h3>
 
-
-<pre class="language-xml">
-{@code
+{@snippet lang=xml :
 <properties>
     <rainbowgum.version>_VERSION_</rainbowgum.version>
 </properties>
@@ -325,7 +330,6 @@ encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogF
     </dependency>
 </dependencies>
 }
-</pre>
 
 
 If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
@@ -386,9 +390,50 @@ IF you would like use your own properties system see {@link io.jstach.rainbowgum
 
 <h2 id="integration">Extensions and Integrations</h2>
 
-
 <h3 id="springframework">Spring Framework</h3>
 
+TODO 
+
+<h3 id="plugin_guide">Extension development guide</h3>
+
+To a develop a custom plugin it is probably easiest to look at the other rainbow gum modules.
+An important concept with extensions are the registries which allow you to register
+a provider with a URI scheme:
+
+<ol>
+  <li>{@link io.jstach.rainbowgum.LogPublisherRegistry}</li>
+  <li>{@link io.jstach.rainbowgum.LogEncoderRegistry}</li>
+  <li>{@link io.jstach.rainbowgum.LogOutputRegistry}</li>
+</ol>
+
+Secondly one should construct builders that are properties friendly to create the components
+so that programmatic configuration users can use your extension. Rainbow Gum provides
+an annotation processor that helps create builders
+{@link io.jstach.rainbowgum.annotation/}.
+
+{@snippet lang=xml :
+  <properties>
+      <rainbowgum.version>_VERSION_</rainbowgum.version>
+  </properties>
+  ...
+  <dependencies>
+      <dependency>
+          <groupId>io.jstach.rainbowgum</groupId>
+          <artifactId>rainbowgum-core</artifactId>
+          <version>${rainbowgum.version}</version>
+          <scope>compile</scope>
+      </dependency>
+      <!-- This is the annotation processor -->
+      <dependency>
+          <groupId>io.jstach.rainbowgum</groupId>
+          <artifactId>rainbowgum-apt</artifactId>
+          <version>${rainbowgum.version}</version>
+          <!-- the following maven config is important as the annotation processor should never be a transitive dep -->
+          <scope>provided</scope>
+          <optional>true</optional>
+      </dependency>
+  </dependencies>
+}
 <h2 id="FAQ">FAQ</h2>
 
 <h3 id="faq_editdoc">There is a typo in this documentation how can I fix it?</h3>
