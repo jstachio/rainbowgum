@@ -1,7 +1,7 @@
 
 # Rainbow Gum
 
-An opinionated modern small logging framework that offers implementations for multiple facades
+An opinionated small JDK 21+ logging framework that offers implementations for multiple facades
 like SLF4J and does mostly what you want out of the box.
 
 It is called **rainbow gum** after 

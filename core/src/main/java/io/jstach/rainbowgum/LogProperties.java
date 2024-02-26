@@ -76,7 +76,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * property constants use this to allow multiple configuration of components by name.
  *
  * <table class="table">
- * <caption><strong>Builtin Properties</strong></caption>
+ * <caption><strong>Builtin Property Patterns</strong></caption>
  * <tr>
  * <th>Property Pattern</th>
  * <th>Description</th>
@@ -99,9 +99,37 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * </tr>
  * <tr>
  * <td>{@value #APPENDERS_PROPERTY} = <code>List&lt;String&gt;</code></td>
- * <td>A URI to an {@linkplain LogOutput output}.</td>
+ * <td>A comma separated list of appenders that should be enabled. If not set
+ * {@value LogAppender#CONSOLE_APPENDER_NAME} is the default.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #APPENDER_PREFIX} = <code>URI</code></td>
+ * <td>Use a custom Appender by URI scheme lookup.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #APPENDER_OUTPUT_PROPERTY } = <code>URI</code></td>
+ * <td>Looks up an output by URI scheme using the {@link LogOutputRegistry}. The output is
+ * then configured by properties with {@link #OUTPUT_PREFIX}.</td>
+ * </tr>
+ * <tr>
+ * <tr>
+ * <td>{@value #OUTPUT_PREFIX} + <code>propertyName</code></td>
+ * <td>Configures the named output. The name of the output usually comes from the
+ * appender.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #APPENDER_ENCODER_PROPERTY } = <code>URI</code></td>
+ * <td>Looks up an encoder by URI scheme using the {@link LogEncoderRegistry}. The encoder
+ * is then configured by properties with {@link #ENCODER_PREFIX}.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #ENCODER_PREFIX} + <code>propertyName</code></td>
+ * <td>Configures the named encoder. The name of the encoder usually comes from the
+ * appender.</td>
  * </tr>
  * </table>
+ *
+ * @see LogConfigurable
  */
 public interface LogProperties {
 
@@ -160,6 +188,16 @@ public interface LogProperties {
 	 * Logging appender prefix for configuration.
 	 */
 	static final String APPENDER_PREFIX = ROOT_PREFIX + "appender.{" + NAME + "}.";
+
+	/**
+	 * Output appender property.
+	 */
+	static final String APPENDER_OUTPUT_PROPERTY = LogProperties.APPENDER_PREFIX + "output";
+
+	/**
+	 * Encoder appender property.
+	 */
+	static final String APPENDER_ENCODER_PROPERTY = LogProperties.APPENDER_PREFIX + "encoder";
 
 	/**
 	 * Logging publisher prefix for configuration.

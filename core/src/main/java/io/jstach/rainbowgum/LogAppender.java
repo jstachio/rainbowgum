@@ -33,12 +33,12 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	/**
 	 * Output appender property.
 	 */
-	static final String APPENDER_OUTPUT_PROPERTY = LogProperties.APPENDER_PREFIX + "output";
+	static final String APPENDER_OUTPUT_PROPERTY = LogProperties.APPENDER_OUTPUT_PROPERTY;
 
 	/**
 	 * Encoder appender property.
 	 */
-	static final String APPENDER_ENCODER_PROPERTY = LogProperties.APPENDER_PREFIX + "encoder";
+	static final String APPENDER_ENCODER_PROPERTY = LogProperties.APPENDER_ENCODER_PROPERTY;
 
 	/**
 	 * Batch of events. <strong>DO NOT MODIFY THE ARRAY</strong>. Do not use the

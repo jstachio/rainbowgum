@@ -4,11 +4,11 @@
 <h1 class="overview">User Guide</h1>
 
 <strong>
-Rainbow Gum: a modern logging implementation
+Rainbow Gum: a fast, small JDK 21+ logging implementation
 </strong>
 <p>
 <em>
-Fast, modern, GraalVM native friendly and easy to use.
+Fast, modular, GraalVM native friendly and easy to use.
 </em>
 </p>
 
@@ -65,7 +65,7 @@ a service loader aware jar.
 
 <h2 id="description">Description</h2>
 
-Rainbow Gum is a modern opinionated SLF4J implementation that aims to be easier to use
+Rainbow Gum is a JDK 21+ opinionated SLF4J implementation that aims to be easier to use
 while leveraging newer JDK technology.
 
 Rainbow Gum unlike Logback or Log4J (2) does not offer as much flexibility but is simpler
@@ -200,11 +200,23 @@ programmatic configuration using the builders and service loader should be used.
   {@link io.jstach.rainbowgum.LogConfig } is analogous to what Logback calls "Context".
 </p>
 
+<p>
 Rainbow Gum out of the box uses System properties for {@link io.jstach.rainbowgum.LogProperties}
 but an optional module {@link io.jstach.rainbowgum.avaje/ } will allow using <a href="https://avaje.io/config/">Avaje Config</a>
 as the properties provider. Other configuration systems will be added in the future but an 
 important requirement is that these systems do not do any logging or if they do allow it to be
 turned off, intercepted or blocked.
+</p>
+
+<p>
+A listing of property patterns that are used out of the box is discussed on {@link io.jstach.rainbowgum.LogProperties}.
+A general pattern is:
+
+{@snippet lang=properties :
+logging.{componentType}.{name}.{subComponent}=URI
+logging.{subComponent}.{name}.{propertyName}=someStringThatIsConverted
+}
+</p>
 
 <h2 id="router">Router</h2>
 

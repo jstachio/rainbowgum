@@ -106,7 +106,21 @@ body.module-index-page nav.js-toc {
   width: 300px;
   position: fixed;
   overflow-wrap: anywhere;
+  overflow-x: hidden;
 }
 body.module-index-page main {
   margin-left: 300px;
+}
+
+@media screen and (max-width: 800px) {
+
+body.module-index-page nav.js-toc {
+  left: 0;
+}
+
+body.module-index-page main {
+  margin-left: 0px;
+  overflow-wrap: anywhere;
+}
+
 }
