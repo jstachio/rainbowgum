@@ -257,20 +257,30 @@ public sealed interface LogRouter extends LogLifecycle {
 			 * @return router.
 			 */
 			Router build() {
-				var levelResolver = buildLevelResolver(config.levelResolver());
-				var publisher = this.publisher;
 				String name = this.name;
+				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
+				var routerConfigLevelResolver = ConfigLevelResolver.of(config.properties(), routerLevelPrefix);
+				var levelResolver = buildLevelResolver(List.of(routerConfigLevelResolver, config.levelResolver()));
+				var publisher = this.publisher;
 
 				List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
-					DefaultAppenderRegistry.defaultAppenders(config) //
+
+					List<String> appenderNames = Property.builder() //
+						.toList() //
+						.orElse(List.of())
+						.buildWithName(LogProperties.ROUTE_APPENDERS_PROPERTY, name)
+						.get(config.properties())
+						.value();
+
+					DefaultAppenderRegistry.defaultAppenders(config, appenderNames) //
 						.stream() //
 						.forEach(appenders::add);
 				}
 				publisher = Property.builder() //
 					.toURI() //
 					.map(u -> config.publisherRegistry().provide(u, name, config.properties()))
-					.buildWithName(LogProperties.ROUTER_PUBLISHER_PROPERTY, name)
+					.buildWithName(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
 					.get(config.properties())
 					.value(() -> LogPublisher.SyncLogPublisher.builder().build());
 

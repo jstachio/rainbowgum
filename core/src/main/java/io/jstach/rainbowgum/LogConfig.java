@@ -353,7 +353,7 @@ final class DefaultLogConfig implements LogConfig {
 		super();
 		this.registry = registry;
 		this.properties = properties;
-		this.levelResolver = new ConfigLevelResolver(properties);
+		this.levelResolver = ConfigLevelResolver.of(properties);
 		boolean changeable = Property.builder() //
 			.toBoolean()
 			.orElse(false)

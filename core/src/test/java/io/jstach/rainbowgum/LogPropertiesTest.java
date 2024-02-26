@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,17 +12,6 @@ import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogProperties.PropertyMissingException;
 
 class LogPropertiesTest {
-
-	@Test
-	void testLevelResolverProperty() {
-		Map<String, String> m = Map.of("logging.level.com.stuff", "DEBUG");
-		LogProperties props = s -> m.get(s);
-		var extractor = ConfigLevelResolver.levelExtractor;
-		var property = extractor.build("com.stuff");
-		// assertEquals(Level.ALL, property.require(props));
-		var value = property.get(props);
-		value.value();
-	}
 
 	@Test
 	void testStaticPropertiesDescription() {

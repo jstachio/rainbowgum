@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -239,7 +240,18 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 			var routes = this.routes;
 			var config = this.config;
 			if (routes.isEmpty()) {
-				routes = List.of(Router.builder(Router.DEFAULT_ROUTER_NAME, config).build());
+				List<String> routeNames = Property.builder() //
+					.toList()
+					.orElse(List.of())
+					.build(LogProperties.ROUTES_PROPERTY)
+					.get(config.properties())
+					.value();
+				if (routeNames.isEmpty()) {
+					routes = List.of(Router.builder(Router.DEFAULT_ROUTER_NAME, config).build());
+				}
+				else {
+					routes = routeNames.stream().map(n -> Router.builder(n, config).build()).toList();
+				}
 			}
 			var root = InternalRootRouter.of(routes, config.levelResolver());
 			return new SimpleRainbowGum(config, root, instanceId);

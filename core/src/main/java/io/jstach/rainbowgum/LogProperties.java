@@ -103,24 +103,20 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * {@value LogAppender#CONSOLE_APPENDER_NAME} is the default.</td>
  * </tr>
  * <tr>
- * <td>{@value #APPENDER_PREFIX} = <code>URI</code></td>
- * <td>Use a custom Appender by URI scheme lookup.</td>
- * </tr>
- * <tr>
  * <td>{@value #APPENDER_OUTPUT_PROPERTY } = <code>URI</code></td>
  * <td>Looks up an output by URI scheme using the {@link LogOutputRegistry}. The output is
  * then configured by properties with {@link #OUTPUT_PREFIX}.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #APPENDER_ENCODER_PROPERTY } = <code>URI</code></td>
+ * <td>Looks up an encoder by URI scheme using the {@link LogEncoderRegistry}. The encoder
+ * is then configured by properties with {@link #ENCODER_PREFIX}.</td>
  * </tr>
  * <tr>
  * <tr>
  * <td>{@value #OUTPUT_PREFIX} + <code>propertyName</code></td>
  * <td>Configures the named output. The name of the output usually comes from the
  * appender.</td>
- * </tr>
- * <tr>
- * <td>{@value #APPENDER_ENCODER_PROPERTY } = <code>URI</code></td>
- * <td>Looks up an encoder by URI scheme using the {@link LogEncoderRegistry}. The encoder
- * is then configured by properties with {@link #ENCODER_PREFIX}.</td>
  * </tr>
  * <tr>
  * <td>{@value #ENCODER_PREFIX} + <code>propertyName</code></td>
@@ -180,7 +176,8 @@ public interface LogProperties {
 	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.{" + NAME + "}.";
 
 	/**
-	 * Enabled Logging appenders. The value should be a list of names.
+	 * Enabled Logging appenders. The value should be a list of names. This is equivalent
+	 * to {@value #ROUTE_APPENDERS_PROPERTY} with name "default".
 	 */
 	static final String APPENDERS_PROPERTY = ROOT_PREFIX + "appenders";
 
@@ -205,14 +202,30 @@ public interface LogProperties {
 	static final String PUBLISHER_PREFIX = ROOT_PREFIX + "publisher.{" + NAME + "}.";
 
 	/**
-	 * Logging publisher prefix for configuration.
+	 * Routes enabled with names comma separated.
 	 */
-	static final String ROUTER_PREFIX = ROOT_PREFIX + "router.{" + NAME + "}.";
+	static final String ROUTES_PROPERTY = ROOT_PREFIX + "routes";
+
+	/**
+	 * Route prefix for configuration.
+	 */
+	static final String ROUTE_PREFIX = ROOT_PREFIX + "route.{" + NAME + "}.";
 
 	/**
 	 * Logging publisher URI property.
 	 */
-	static final String ROUTER_PUBLISHER_PROPERTY = ROUTER_PREFIX + "publisher";
+	static final String ROUTE_PUBLISHER_PROPERTY = ROUTE_PREFIX + "publisher";
+
+	/**
+	 * Appenders associated with a route comma separated.
+	 */
+	static final String ROUTE_APPENDERS_PROPERTY = ROUTE_PREFIX + "appenders";
+
+	/**
+	 * Logging level properties prefix. The value should be the name of a
+	 * {@linkplain java.lang.System.Logger.Level level}.
+	 */
+	static final String ROUTE_LEVEL_PREFIX = ROUTE_PREFIX + "level";
 
 	/**
 	 * Analogous to {@link System#getProperty(String)}.
@@ -1059,15 +1072,25 @@ public interface LogProperties {
 
 	/**
 	 * Replace "{name}" tokens in property names.
-	 * @param name property name.
+	 * @param key property name.
 	 * @param parameters tokens to replace with entry values.
-	 * @return interpolated property name.
+	 * @return interpolated property key.
 	 */
-	static String interpolateKey(String name, Map<String, String> parameters) {
+	static String interpolateKey(String key, Map<String, String> parameters) {
 		for (Map.Entry<String, String> entry : parameters.entrySet()) {
-			name = name.replace("{" + entry.getKey() + "}", entry.getValue());
+			key = key.replace("{" + entry.getKey() + "}", entry.getValue());
 		}
-		return name;
+		return key;
+	}
+
+	/**
+	 * Interpolates a named key which is a property key that has a {@value #NAME}.
+	 * @param key with name parameters.
+	 * @param name replace name token.
+	 * @return interpolated property key.
+	 */
+	static String interpolateNamedKey(String key, String name) {
+		return interpolateKey(key, Map.of(NAME, name));
 	}
 
 	/**

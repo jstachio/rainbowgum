@@ -171,15 +171,15 @@ public interface LevelResolver {
 		 * @return built level resolver.
 		 */
 		protected LevelResolver buildLevelResolver() {
-			return buildLevelResolver(null);
+			return buildLevelResolver(List.of());
 		}
 
 		/**
 		 * Builds a level resolver using global level resolver as the last resolver.
-		 * @param globalLevelResolver global resolver.
+		 * @param levelResolvers global resolver.
 		 * @return built level resolver.
 		 */
-		protected LevelResolver buildLevelResolver(@Nullable LevelConfig globalLevelResolver) {
+		protected LevelResolver buildLevelResolver(List<LevelConfig> levelResolvers) {
 			var copyLevels = new LinkedHashMap<>(levels);
 			boolean noBuilderLevels = copyLevels.isEmpty();
 
@@ -187,9 +187,7 @@ public interface LevelResolver {
 			if (!copyLevels.isEmpty()) {
 				copyResolvers.add(0, InternalLevelResolver.of(copyLevels));
 			}
-			if (globalLevelResolver != null) {
-				copyResolvers.add(globalLevelResolver);
-			}
+			copyResolvers.addAll(levelResolvers);
 
 			if (noBuilderLevels) {
 				copyResolvers.add(StaticLevelResolver.INFO);
@@ -459,15 +457,25 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	private final LogProperties properties;
 
-	public ConfigLevelResolver(LogProperties properties) {
-		super();
-		this.properties = properties;
+	private final PropertyGetter<Level> levelExtractor;
+
+	public static ConfigLevelResolver of(LogProperties properties) {
+		return of(properties, LogProperties.LEVEL_PREFIX);
 	}
 
-	static PropertyGetter<Level> levelExtractor = PropertyGetter.of()
-		.withPrefix(LogProperties.LEVEL_PREFIX)
-		.map(s -> s.toUpperCase(Locale.ROOT))
-		.map(Level::valueOf);
+	public static ConfigLevelResolver of(LogProperties properties, String prefix) {
+		var levelExtractor = PropertyGetter.of()
+			.withPrefix(prefix)
+			.map(s -> s.toUpperCase(Locale.ROOT))
+			.map(Level::valueOf);
+		return new ConfigLevelResolver(properties, levelExtractor);
+	}
+
+	private ConfigLevelResolver(LogProperties properties, PropertyGetter<Level> levelExtractor) {
+		super();
+		this.properties = properties;
+		this.levelExtractor = levelExtractor;
+	}
 
 	public @Nullable Level levelOrNull(String name) {
 		return levelExtractor.build(name).get(properties).valueOrNull();
@@ -475,7 +483,7 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	@Override
 	public String toString() {
-		return "ConfigLevelResolver[" + properties + "]";
+		return "ConfigLevelResolver[getter=" + levelExtractor + ", properties=" + properties + "]";
 	}
 
 }

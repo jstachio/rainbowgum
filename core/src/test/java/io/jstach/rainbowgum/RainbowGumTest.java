@@ -43,7 +43,7 @@ class RainbowGumTest {
 	}
 
 	@Test
-	void testFormatterBuilder() throws Exception {
+	void testAsyncPublisher() throws Exception {
 		// var config = LogConfig.of();
 		var formatter = LogFormatter.builder() //
 			.timeStamp() //

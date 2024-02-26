@@ -206,16 +206,44 @@ but an optional module {@link io.jstach.rainbowgum.avaje/ } will allow using <a 
 as the properties provider. Other configuration systems will be added in the future but an 
 important requirement is that these systems do not do any logging or if they do allow it to be
 turned off, intercepted or blocked.
+
+<strong>
+  IMPORTANT: Rainbow Gum core does not do any interpolation of property values!
+  That is the responsibility of the {@link io.jstach.rainbowgum.LogProperties}
+  backing implementation and the values retrieved should already be interpolated.
+</strong>
 </p>
 
 <p>
-A listing of property patterns that are used out of the box is discussed on {@link io.jstach.rainbowgum.LogProperties}.
+A listing of property patterns that are used out of the box is discussed in {@link io.jstach.rainbowgum.LogProperties}.
+
 A general pattern is:
 
 {@snippet lang=properties :
 logging.{componentType}.{name}.{subComponent}=URI
 logging.{subComponent}.{name}.{propertyName}=someStringThatIsConverted
 }
+
+An interpolated example might be:
+
+{@snippet lang=properties :
+logging.appender.example.encoder=gelf
+logging.encoder.example.prettyPrint=true
+}
+
+<em>
+  The astute might notice that "gelf" does not look like a URI.
+  It is but URIs missing schemes like the above get normalized so
+  that the path is used as the scheme.
+  Thus <code>gelf</code> is actually <code>gelf:///</code>
+</em>
+
+Because the first property is a URI one can do:
+
+{@snippet lang=properties :
+logging.appender.example.encoder=gelf:///?prettyPrint=true
+}
+
 </p>
 
 <h2 id="router">Router</h2>

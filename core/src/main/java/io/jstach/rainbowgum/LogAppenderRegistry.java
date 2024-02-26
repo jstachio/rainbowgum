@@ -62,7 +62,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	static final Property<URI> fileProperty = Property.builder().toURI().build(LogProperties.FILE_PROPERTY);
 
 	static final Property<List<String>> appendersProperty = Property.builder()
-		.map(LogProperties::parseList)
+		.toList()
 		.orElse(List.of())
 		.build(LogProperties.APPENDERS_PROPERTY);
 
@@ -81,10 +81,12 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	 * properties is complicated particularly because we want to support Spring Boots
 	 * configuration OOB.
 	 */
-	static List<LogAppender> defaultAppenders(LogConfig config) {
+	static List<LogAppender> defaultAppenders(LogConfig config, List<String> appenderNames) {
 		List<LogAppender> appenders = new ArrayList<>();
 		fileAppender(config).ifPresent(appenders::add);
-		List<String> appenderNames = appendersProperty.get(config.properties()).value(List.of());
+		if (appenderNames.isEmpty()) {
+			appenderNames = appendersProperty.get(config.properties()).value(List.of());
+		}
 
 		for (String appenderName : appenderNames) {
 			appenders.add(appender(appenderName, config));

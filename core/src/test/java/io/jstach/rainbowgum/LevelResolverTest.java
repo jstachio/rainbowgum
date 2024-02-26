@@ -20,7 +20,7 @@ class LevelResolverTest {
 		expected = config.levelResolver().resolveLevel("io.avaje");
 		assertEquals(actual, expected);
 
-		var resolver = LevelResolver.builder().buildLevelResolver(config.levelResolver());
+		var resolver = LevelResolver.builder().buildLevelResolver(List.of(config.levelResolver()));
 		var level = resolver.resolveLevel("io.avaje");
 		assertEquals(expected, level);
 	}
