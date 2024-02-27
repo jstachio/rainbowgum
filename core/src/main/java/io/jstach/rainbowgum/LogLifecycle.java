@@ -13,6 +13,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public interface LogLifecycle extends AutoCloseable {
 
 	/**
+	 * Special event message that serves as a poison pill for shutdown. For now this is
+	 * internal.
+	 */
+	static final String SHUTDOWN = "#SHUTDOWN#";
+
+	/**
 	 * Starts a component.
 	 * @param config log config.
 	 */
@@ -90,7 +96,7 @@ final class ShutdownManager {
 				}
 			}
 			catch (Exception e) {
-				MetaLog.error(Defaults.class, e);
+				MetaLog.error(ShutdownManager.class, e);
 			}
 		}
 		// Help the GC or whatever final cleanup is going on

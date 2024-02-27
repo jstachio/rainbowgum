@@ -159,7 +159,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		/**
 		 * The router name given if no router is explicitely declared.
 		 */
-		public static String DEFAULT_ROUTER_NAME = "default";
+		public static final String DEFAULT_ROUTER_NAME = "default";
 
 		/**
 		 * Level resolver.
@@ -575,7 +575,8 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 	private final ReentrantLock drainLock = new ReentrantLock();
 
 	static boolean isShutdownEvent(String loggerName, java.lang.System.Logger.Level level) {
-		return loggerName.equals(Defaults.SHUTDOWN) && Boolean.parseBoolean(System.getProperty(Defaults.SHUTDOWN));
+		return loggerName.equals(LogLifecycle.SHUTDOWN)
+				&& Boolean.parseBoolean(System.getProperty(LogLifecycle.SHUTDOWN));
 	}
 
 	@Override

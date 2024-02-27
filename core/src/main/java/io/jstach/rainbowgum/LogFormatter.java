@@ -335,11 +335,11 @@ public sealed interface LogFormatter {
 			}
 
 			/**
-			 * Appends a newline.
+			 * Appends a newline using the platforms line separator.
 			 * @return this builder.
 			 */
 			public Builder newline() {
-				text(Defaults.NEW_LINE);
+				text(System.lineSeparator());
 				return this;
 			}
 

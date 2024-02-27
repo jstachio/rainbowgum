@@ -40,12 +40,15 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * Provides String based properties like {@link System#getProperty(String)} for default
  * configuration of logging levels and output. Since Rainbowgum is configuration agnostic
  * LogProperties is a simple string key and string value interface to allow almost any
- * configuration implementation.
+ * configuration implementation. The only required method to implement is
+ * {@link #valueOrNull(String)} and thus LogProperties is a functional like interface but
+ * using {@link LogProperties#builder()} is preferred so that a
+ * {@linkplain #description(String) description} can be added.
  * <p>
- * If a custom {@link LogProperties} is not configured the default implementation uses
- * System properties.
+ * If a custom {@link LogProperties} is not configured the default RainbowGum uses System
+ * properties.
  * <p>
- * The builtin propertiers to configure RainbowGum are modeled after <a href=
+ * The builtin properties to configure RainbowGum are modeled after <a href=
  * "https://docs.spring.io/spring-boot/docs/3.1.0/reference/html/features.html#features.logging">
  * Spring Boot logging </a>
  * <p>
@@ -94,8 +97,19 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * builtin {@link LogProperties} is generally static (system properties).</td>
  * </tr>
  * <tr>
- * <td>{@value #FILE_PROPERTY} = URI</td>
- * <td>A URI or file path to log to a file.</td>
+ * <td>{@value #ROUTES_PROPERTY} = <code>List&lt;String&gt;</code></td>
+ * <td>A comma separated list of routes that should be enabled. If not set
+ * {@value LogRouter.Router#DEFAULT_ROUTER_NAME } is the default.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #ROUTE_APPENDERS_PROPERTY} = <code>List&lt;String&gt;</code></td>
+ * <td>A comma separated list of appenders associated with the route. If not set
+ * {@value #APPENDERS_PROPERTY} is ued.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #ROUTE_PUBLISHER_PROPERTY} = <code>URI</code></td>
+ * <td>Looks up a publisher by URI scheme using the {@link LogPublisherRegistry}. The
+ * publisher is then configured by properties with {@value #PUBLISHER_PREFIX}.</td>
  * </tr>
  * <tr>
  * <td>{@value #APPENDERS_PROPERTY} = <code>List&lt;String&gt;</code></td>
@@ -105,12 +119,12 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <tr>
  * <td>{@value #APPENDER_OUTPUT_PROPERTY } = <code>URI</code></td>
  * <td>Looks up an output by URI scheme using the {@link LogOutputRegistry}. The output is
- * then configured by properties with {@link #OUTPUT_PREFIX}.</td>
+ * then configured by properties with {@value #OUTPUT_PREFIX}.</td>
  * </tr>
  * <tr>
  * <td>{@value #APPENDER_ENCODER_PROPERTY } = <code>URI</code></td>
  * <td>Looks up an encoder by URI scheme using the {@link LogEncoderRegistry}. The encoder
- * is then configured by properties with {@link #ENCODER_PREFIX}.</td>
+ * is then configured by properties with {@value #ENCODER_PREFIX}.</td>
  * </tr>
  * <tr>
  * <tr>
@@ -122,6 +136,10 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <td>{@value #ENCODER_PREFIX} + <code>propertyName</code></td>
  * <td>Configures the named encoder. The name of the encoder usually comes from the
  * appender.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #FILE_PROPERTY} = URI</td>
+ * <td>A URI or file path to log to a file. This is for Spring Boot compatibility.</td>
  * </tr>
  * </table>
  *
@@ -273,10 +291,12 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Searches up a path using this properties to check for values.
+	 * Searches up a {@value #SEP} separated path using this properties to check for
+	 * values.
 	 * @param root prefix.
 	 * @param key should start with prefix.
 	 * @return closest value.
+	 * @see #searchPath(String, Function)
 	 */
 	default @Nullable String search(String root, String key) {
 		return searchPath(key, k -> valueOrNull(concatKey(root, k)));
@@ -1013,19 +1033,30 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Searches a property path recursing up the path.
+	 * Searches a {@value LogProperties#SEP} separated property path recursing up the path
+	 * till a non null value (not missing) is found.
+	 * <p>
+	 * For example assume we have a single property set like
+	 * <code>logging.level.com.stuff=DEBUG</code> and we call this function with
+	 * <code>logging.level.com.stuff.a.b</code>.
+	 * <ol>
+	 * <li><code>logging.level.com.stuff.a.b</code> will resolve to <code>null</code></li>
+	 * <li><code>logging.level.com.stuff.a</code> will resolve to <code>null</code></li>
+	 * <li><code>logging.level.com.stuff</code> will resolve to <code>"DEBUG"</code>, stop
+	 * and return <code>"DEBUG"</code>.</li>
+	 * </ol>
 	 * @param <T> type to return.
-	 * @param name the initial path.
+	 * @param key the initial path.
 	 * @param resolveFunc function that returns the value at path or <code>null</code>.
 	 * @return value or <code>null</code>.
 	 */
 	@SuppressWarnings("exports")
-	public static <T> @Nullable T searchPath(String name, Function<String, @Nullable T> resolveFunc) {
-		return searchPath(name, resolveFunc, SEP);
+	public static <T> @Nullable T searchPath(String key, Function<String, @Nullable T> resolveFunc) {
+		return searchPath(key, resolveFunc, SEP);
 	}
 
-	private static <T> @Nullable T searchPath(String name, Function<String, @Nullable T> resolveFunc, String sep) {
-		String tempName = name;
+	private static <T> @Nullable T searchPath(String key, Function<String, @Nullable T> resolveFunc, String sep) {
+		String tempName = key;
 		T level = null;
 		int indexOfLastDot = tempName.length();
 		while ((level == null) && (indexOfLastDot > -1)) {

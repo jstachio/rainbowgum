@@ -121,7 +121,10 @@ Currently Rainbowgum does not provide support for:
 <ul>
   <li>External config - by design you will need to bring your own configuration lib or just use env/system properties</li>
   <li>Rolling of log files. Possibly will be added in the future.</li>
+  <li>{@linkplain org.slf4j.Marker SLF4J Marker} support - through analysis of many libraries and application very few actually use it compared to MDC. </li>
  </ul>
+
+ If any of these limitations (or others not listed) are a show stopper please let us know by filing an issue.
 
 <h2 id="how_it_works">How it works</h2>
 
@@ -144,10 +147,10 @@ simple properties.
 
 Rainbow Gum's design has many superficial similarties to Logback, Log4j2, and Reload4j in that
 there are Appenders and Encoders as well as how log levels are inherited but most of Rainbow Gum's design
-is <em>very different!</em>.
+is <em>very different</em>!
 
 <p>
-  The major key difference in Rainbow Gum is that once configured and initialized the logging system is locked in and
+  The key difference in Rainbow Gum is that once configured and initialized the logging system is locked in and
   cannot be changed. Certain parts of the system can be changed at runtime but require opt-in which includes changing
   levels of logger names.
 </p>
@@ -155,9 +158,13 @@ is <em>very different!</em>.
   Another major difference is that Rainbow Gum is highly modularized, immutable and componentized. In other frameworks
   OOP inheritance is heavily abused and riddled with state management. Furthermore there are components that
   have too much responsibility which is the case with Appenders in Logback or "Managers" in Log4j2.
-  Furthermore Rainbow Gum avoids reflection other than the Service Loader and follows the builder pattern
+  Furthermore Rainbow Gum <strong>uses zero reflection</strong> other than the Service Loader and follows the builder pattern
   extensively to separate configuration from immutable runtime components. Almost all components have
   a builder to programmatically configure and the builders can take flat string key values as configuration. 
+  The other logging frameworks use an enormous amount of reflection which slows initialization time.
+  <em>(While the {@link java.util.ServiceLoader} is technically reflection it is GraalVM native friendly and
+    is the preferred way for pluggable components in modern JDKs.)
+  </em>
 </p>
 <p>
   The results of the above choices make Rainbow Gum far lighter than logback, log4j2, and reload4j particularly
@@ -244,6 +251,10 @@ Because the first property is a URI one can do:
 logging.appender.example.encoder=gelf:///?prettyPrint=true
 }
 
+URIs play an important part for component provision as the  {@link java.net.URI#getScheme() URI scheme}
+is used for plugin lookup as well as single line configuration. This follows  
+<a href="https://12factor.net/">12 factor</a> recommendation of resources and configuration.
+
 </p>
 
 <h2 id="router">Router</h2>
@@ -258,12 +269,28 @@ For those familiar with other logging frameworks
 
 <p>
   When configuring routers you are configuring
-  {@link io.jstach.rainbowgum.LevelResolver Level Resolvers} which are logger names to levels 
-  and which publisher to use. We call this configuration a "route". As discussed later on
+  {@link io.jstach.rainbowgum.LevelResolver Level Resolvers} which are logger names to levels,
+  which publisher to use and which appenders should be assocated with the publisher. 
+  We call this configuration a "route". As discussed later on
   a publisher has appenders and appenders have outputs thus 
   an important consequnce of this is if you want outputs to have different level thresholds
   (e.g. a debug.log and an error.log) you will need multiple routers. 
 </p>
+
+Example configuring router with properties using {@value io.jstach.rainbowgum.LogProperties#ROUTE_PREFIX}
+with name set to "<code>example</code>".
+
+{@snippet lang=properties :
+logging.routes=example
+logging.route.example.appenders=appender1,appender2
+logging.route.example.publisher=async
+logging.route.example.level.com.mycompany=DEBUG
+}
+
+If {@value io.jstach.rainbowgum.LogProperties#ROUTES_PROPERTY} is not set the route
+name is assumed to be {@value io.jstach.rainbowgum.LogRouter.Router#DEFAULT_ROUTER_NAME}.
+Notice that routes can contain their own level configuration and thus a route is a way
+to group appenders with the same level resolving.
 
 <h3 id="level_resolvers">Level Resolvers</h3>
 
@@ -282,7 +309,7 @@ logging.level.com.mycompany=INFO
 logging.level=ERROR
 }
 
-Most level resolvers including the global follow an inheritance or prefix model where 
+Although not required most level resolvers including the global follow an inheritance or prefix model where 
 <code>com.mycompany.stuff.foo</code> will resolve to <code>DEBUG</code>
 and <code>com.mycompany.bar</code> will resolve to <code>INFO</code>
 and anything not prefixed with <code>com.mycompany</code> will resolve to <code>ERROR</code>.
@@ -297,6 +324,7 @@ and anything not prefixed with <code>com.mycompany</code> will resolve to <code>
   supports reloading and the logger name is allowed to be changed.
 </p>
 
+Below is an example of configuring to allow <em>"changing" loggers</em>
 
 {@snippet lang=properties :
 logging.global.change=true          # this is required to turn on level changing. 
@@ -373,8 +401,7 @@ should be used.
 If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
 service loader registration. In that case you will want the dependency like:
 
-<pre class="language-xml">
-{@code
+{@snippet lang=xml :
 <properties>
     <rainbowgum.version>_VERSION_</rainbowgum.version>
 </properties>
@@ -388,7 +415,6 @@ service loader registration. In that case you will want the dependency like:
     </dependency>
 </dependencies>
 }
-</pre>
 
 <h3 id="3.2">Gradle</h3>
 
@@ -412,39 +438,71 @@ dependencies {
 </code>
 </pre>
 
-<h2 id="configuration">Configuration</h2>
-
-Most configuration of Rainbow Gum is done by adding extension jars as runtime dependencies
-or by setting key values in {@linkplain io.jstach.rainbowgum.LogProperties properties}.
-
-By default Rainbow Gum uses System properties for properties but a configuration system
-can be used instead.
-
-Logger levels and output can be configured through properties.
-
-More information on builtin properties is in  {@link io.jstach.rainbowgum.LogProperties}.
-
-IF you would like use your own properties system see {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider}.
-
 <h2 id="integration">Extensions and Integrations</h2>
 
-<h3 id="springframework">Spring Framework</h3>
+<h3 id="system_logger">java.lang.System.Logger and java.util.logging</h3>
 
-TODO 
+Rainbow Gum {@linkplain io.jstach.rainbowgum.jdk/ provides special optional integration and adapters for the builtin JDK logging facilities}.
+The impetus for this is these logging facilities can be used very early in the JDK boot processes well before
+logging has fully initialized. The default rainbow gum dependency has this integration as a transitive dependency.
+
+<p>
+  <em>
+    <strong>NOTE:</strong>
+    While the JDK System.Logger is good for low level libraries it's API (and implementation) is not designed for performance.
+    For applications and frameworks that do a lot of logging the SLF4J facade is the preferred choice.
+  </em>
+</p>
+
+<h3 id="springframework">Spring Boot</h3>
+
+<p>
+Spring Boot allows configuration through simple properties for logging that tries to be logging framework agnostic.
+How this works is Spring Boot configures the logging framework from its own set of properties.
+There is a shocking amount of code Spring Boot requires to do this for Logback and Log4J2
+because both of those frameworks were not designed well for progammatic configuration.
+</p>
+
+<p>
+Rainbow Gum at the moment does not require special integration because it largely follows
+the Spring Boot property patterns.
+
+For example configuring levels to logger name with properties in Spring Boot is exactly
+the same as it is in Rainbow Gum:
+
+{@snippet lang=properties :
+logging.level.com.mypackage=INFO
+}
+
+</p>
+
+<p>
+At some point Spring Boot will likely diverge enough on its property keys that
+special integration will be needed. Rainbow Gum will have a solution for that 
+in the future.
+</p>
+
+
 
 <h3 id="plugin_guide">Extension development guide</h3>
 
 To a develop a custom plugin it is probably easiest to look at the other rainbow gum modules.
 An important concept with extensions are the registries which allow you to register
-a provider with a URI scheme:
+a provider with a URI scheme.
 
 <ol>
   <li>{@link io.jstach.rainbowgum.LogPublisherRegistry}</li>
   <li>{@link io.jstach.rainbowgum.LogEncoderRegistry}</li>
   <li>{@link io.jstach.rainbowgum.LogOutputRegistry}</li>
 </ol>
+{@link io.jstach.rainbowgum.LogConfig} contains all the registries
+and a special generic registry: {@link io.jstach.rainbowgum.ServiceRegistry}
+The service registry is allows other plugins to share components.
+To access these registries at configuration time as a plugin is to implement
+a {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}.
 
-Secondly one should construct builders that are properties friendly to create the components
+<p>
+Next one should construct builders that are properties friendly to create the components
 so that programmatic configuration users can use your extension. Rainbow Gum provides
 an annotation processor that helps create builders
 {@link io.jstach.rainbowgum.annotation/}.
@@ -472,6 +530,12 @@ an annotation processor that helps create builders
       </dependency>
   </dependencies>
 }
+
+Once the annotation processor is enabled one can create a properties aware builder with a
+single static factory method annotated with {@link io.jstach.rainbowgum.annotation.LogConfigurable}.
+
+</p>
+
 <h2 id="FAQ">FAQ</h2>
 
 <h3 id="faq_editdoc">There is a typo in this documentation how can I fix it?</h3>
