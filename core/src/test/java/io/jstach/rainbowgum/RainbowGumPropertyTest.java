@@ -9,6 +9,8 @@ import java.util.List;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
+import io.jstach.rainbowgum.RainbowGum.Builder;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class RainbowGumPropertyTest {
@@ -21,7 +23,7 @@ class RainbowGumPropertyTest {
 			.properties(LogProperties.builder().fromProperties(properties).build())
 			.with(test::config)
 			.build();
-		try (var r = RainbowGum.builder(config).build().start()) {
+		try (var r = test.config(RainbowGum.builder(config)).build().start()) {
 			var es = test.events();
 			for (var e : es) {
 				r.log(e);
@@ -34,7 +36,7 @@ class RainbowGumPropertyTest {
 
 	enum _Test {
 
-		ROUTE("""
+		ROUTES_PROPERTY("""
 				logging.routes=error,debug
 				logging.route.error.appenders=list
 				logging.route.error.level=ERROR
@@ -43,6 +45,27 @@ class RainbowGumPropertyTest {
 				""", """
 				00:00:00.001 [main] ERROR com.pattern.test.Test - hello
 				""") {
+
+		},
+		ROUTER_OF_DEBUG_ONLY("""
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.level=TRACE
+				""", """
+				00:00:00.001 [main] DEBUG com.pattern.test.Test - hello
+				""") {
+
+			@Override
+			Builder config(Builder builder) {
+				return builder.route(rb -> {
+					rb.factory(RouterFactory.of(e -> {
+						return switch (e.level()) {
+							case DEBUG -> e;
+							default -> null;
+						};
+					}));
+				});
+			}
 
 		};
 
@@ -70,6 +93,10 @@ class RainbowGumPropertyTest {
 				events.add(e);
 			}
 			return events;
+		}
+
+		RainbowGum.Builder config(RainbowGum.Builder builder) {
+			return builder;
 		}
 
 		void config(LogConfig.Builder builder) {

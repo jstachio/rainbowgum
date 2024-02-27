@@ -119,12 +119,13 @@ The only module needed during runtime is
 Currently Rainbowgum does not provide support for:
 
 <ul>
-  <li>External config - by design you will need to bring your own configuration lib or just use env/system properties</li>
-  <li>Rolling of log files. Possibly will be added in the future.</li>
-  <li>{@linkplain org.slf4j.Marker SLF4J Marker} support - through analysis of many libraries and application very few actually use it compared to MDC. </li>
+  <li>External config - by design you will need to bring your own configuration lib or just use env/system properties.</li>
+  <li>Rolling of log files. Will be added in the future.</li>
+  <li>{@linkplain org.slf4j.Marker SLF4J Marker} support -  libraries and application rarely use it compared to MDC. </li>
  </ul>
 
  If any of these limitations (or others not listed) are a show stopper please let us know by filing an issue.
+ Particularly Markers. If you are using Markers we would like to hear from you.
 
 <h2 id="how_it_works">How it works</h2>
 
@@ -370,6 +371,57 @@ encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogF
   Unlike other frameworks where this is detected with reflection Rainbow Gum uses the 
   Service Loader which is GraalVM native friendly.
 </p>
+
+<h2 id="filter">Filtering</h2>
+
+Like logback Rainbow Gum provides two types of filtering through functional composition:
+
+<ol>
+  <li>{@linkplain io.jstach.rainbowgum.LogRouter.Router.RouterFactory#of(Function) router based filtering} 
+    - similar to logbacks normal filters.</li>
+  <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService SLF4J based filtering} 
+    - similar to <a href="https://logback.qos.ch/manual/filters.html#TurboFilter">logback Turbo Filters</a></li>
+</ol>
+
+<h3 id="router_filter">Event based Filtering</h3>
+
+Unfortunately at this time router based filtering is not configurable through properties and can only be
+added using {@linkplain io.jstach.rainbowgum.RainbowGum.Builder Rainbow Gum builder}
+and composition has to be done manually.
+<p>
+
+  An example using router based filtering:
+
+{@snippet class="snippets.FilteringExample" region="filteringExample" }
+
+Essentially what the above does is create a custom {@link io.jstach.rainbowgum.LogRouter.Router}
+with a function. 
+
+<em>
+Event based filtering is still based on the invariants
+of level resolvers not changing (unless they are configured to be dynamic) so
+not all events are delivered if the level resolved does not not allow it!
+</em>
+A work around is to adjust the levels of the router so that it does get
+all events desired and is why filtering is associated with routing.
+<strong>Unfortunately this can be inefficient as the event always has to be created</strong>
+so if performance matters consider using <a href="#slf4j_filter">SLF4J based filtering</a>.
+
+</p>
+
+<h3 id="slf4j_filter">SLF4J based filtering</h3>
+
+{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService SLF4J based filtering} is
+not really filtering but rather decorating of the SLF4J loggers somewhat akin to Servlet filtering.
+Basically Rainbow Gum hands off its generated SLF4J logger to you and you can decorate or even disregard
+it and provide your own implementation. This is extremely powerful and efficient but requires more work.
+There is not really an analog in Logback or Log4j but as usual <em>with great power comes great responsiblity</em>!
+<p>
+These filters are usually loaded with the ServiceLoader so manually using the Rainbow Gum builder is not required
+like router based filtering.
+</p>
+
+
 <h2 id="installation">Installation</h2>
 
 For most simply including the dependency <code>io.jstach.rainbowgum:rainbowgum</code>

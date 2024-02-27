@@ -7,6 +7,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+// @formatter:off
 /**
  * Used to generate Rainbow Gum config builder objects that once built will call the
  * method annotated with the properties from the generated builder on build. The method
@@ -21,7 +22,7 @@ import java.lang.annotation.Target;
  * Here is an example:
  * {@snippet :
 class final SomeFactory {
-	&#64;LogConfigurable(name="MyPluginBuilder", prefix="logging.myplugin.{name}.")
+	@LogConfigurable(name="MyPluginBuilder", prefix="logging.myplugin.{name}.")
 	static MyPlugin of(@KeyParameter String name, Integer myParameter) {
 		// do some additional logic.
 		return new MyPlugin(name, myParameter);
@@ -36,6 +37,7 @@ class final SomeFactory {
  * The builder will try the property <code>logging.myplugin.example.myParameter</code> and
  * use it if it exists to override the <code>80</code> value.
  */
+// @formatter:on
 @Retention(CLASS)
 @Target({ ElementType.CONSTRUCTOR, ElementType.METHOD })
 @Documented

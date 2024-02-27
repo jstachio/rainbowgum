@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -197,6 +198,41 @@ public sealed interface LogRouter extends LogLifecycle {
 		}
 
 		/**
+		 * Creates a router.
+		 *
+		 * @see AbstractRouter
+		 */
+		@FunctionalInterface
+		public interface RouterFactory {
+
+			/**
+			 * Builder will call this factory if passed in.
+			 * @param publisher publisher from builder.
+			 * @param levelResolver level resolver from builder.
+			 * @param name name from builder.
+			 * @param config config from builder.
+			 * @return router.
+			 */
+			public Router create(LogPublisher publisher, LevelResolver levelResolver, String name, LogConfig config);
+
+			/**
+			 * Creates a router from a function.
+			 * @param function <strong>the function may return <code>null</code></strong>
+			 * which indicates to ignore.
+			 * @return factory.
+			 */
+			static RouterFactory of(@SuppressWarnings("exports") Function<LogEvent, @Nullable LogEvent> function) {
+				return (pub, lr, n, c) -> new AbstractRouter(pub, lr) {
+					@Override
+					protected @Nullable LogEvent transformOrNull(LogEvent event) {
+						return function.apply(event);
+					}
+				};
+			}
+
+		}
+
+		/**
 		 * Router builder.
 		 */
 		public final class Builder extends LevelResolver.AbstractBuilder<Builder> {
@@ -204,6 +240,9 @@ public sealed interface LogRouter extends LogLifecycle {
 			private final LogConfig config;
 
 			private final String name;
+
+			private RouterFactory factory = (publisher, levelResolver, n, c) -> new SimpleRouter(publisher,
+					levelResolver);
 
 			private List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>();
 
@@ -238,7 +277,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			 * @return this builder.
 			 */
 			public Builder appender(LogConfig.Provider<LogAppender> appender) {
-				this.appenders.add(appender);
+				this.appenders.add(Objects.requireNonNull(appender));
 				return self();
 			}
 
@@ -253,10 +292,25 @@ public sealed interface LogRouter extends LogLifecycle {
 			}
 
 			/**
+			 * Factory to use for creating the router.
+			 * @param factory router factory.
+			 * @return this.
+			 */
+			public Builder factory(RouterFactory factory) {
+				this.factory = Objects.requireNonNull(factory);
+				return this;
+			}
+
+			Router build() {
+				return build(this.factory);
+			}
+
+			/**
 			 * Builds the router.
+			 * @param factory to create the router.
 			 * @return router.
 			 */
-			Router build() {
+			Router build(RouterFactory factory) {
 				String name = this.name;
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
 				var routerConfigLevelResolver = ConfigLevelResolver.of(config.properties(), routerLevelPrefix);
@@ -287,9 +341,84 @@ public sealed interface LogRouter extends LogLifecycle {
 				var apps = appenders.stream().map(a -> a.provide(name, config)).toList();
 				var pub = publisher.create(name, config, apps);
 
-				return new SimpleRouter(pub, levelResolver);
+				return factory.create(pub, levelResolver, name, config);
 			}
 
+		}
+
+	}
+
+	/**
+	 * A user supplied router usually for filtering or transforming purposes. The method
+	 * required to implement is {@link #transformOrNull(LogEvent)}.
+	 *
+	 * @see RouterFactory
+	 */
+	@SuppressWarnings("javadoc") // TODO Eclipse bug.
+	public non-sealed abstract class AbstractRouter implements Router, Route {
+
+		private final LogPublisher publisher;
+
+		private final LevelResolver levelResolver;
+
+		protected AbstractRouter(LogPublisher publisher, LevelResolver levelResolver) {
+			super();
+			this.publisher = publisher;
+			this.levelResolver = levelResolver;
+		}
+
+		@Override
+		public final boolean synchronous() {
+			return Router.super.synchronous();
+		}
+
+		@Override
+		public final void log(LogEvent event) {
+			var e = transformOrNull(event);
+			if (e != null) {
+				Router.super.log(event);
+			}
+		}
+
+		/**
+		 * Implement for custom filtering or transformation.
+		 * @param event usually from logging facade.
+		 * @return event to be pushed to logger or not if <code>null</code>.
+		 */
+		protected abstract @Nullable LogEvent transformOrNull(LogEvent event);
+
+		@Override
+		public final Route route(String loggerName, Level level) {
+			if (levelResolver().isEnabled(loggerName, level)) {
+				return this;
+			}
+			return Route.Routes.NotFound;
+		}
+
+		@Override
+		public void start(LogConfig config) {
+			publisher.start(config);
+		}
+
+		@Override
+		public void close() {
+			publisher.close();
+
+		}
+
+		@Override
+		public final boolean isEnabled() {
+			return true;
+		}
+
+		@Override
+		public final LevelResolver levelResolver() {
+			return this.levelResolver;
+		}
+
+		@Override
+		public final LogPublisher publisher() {
+			return this.publisher;
 		}
 
 	}
