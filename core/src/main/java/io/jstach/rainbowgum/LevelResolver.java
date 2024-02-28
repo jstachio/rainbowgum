@@ -38,6 +38,9 @@ public interface LevelResolver {
 	 * @return true if logger is less than passed in level.
 	 */
 	default boolean isEnabled(String loggerName, Level level) {
+		if (level == Level.OFF) {
+			return false;
+		}
 		return resolveLevel(loggerName).getSeverity() <= level.getSeverity();
 	}
 

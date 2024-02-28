@@ -3,17 +3,15 @@ package io.jstach.rainbowgum.pattern.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogConfig.Builder;
-import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.pattern.format.PatternRegistry.PatternKey;
@@ -31,10 +29,7 @@ class PatternConfiguratorTest {
 			.with(test::config)
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
-			var es = test.events();
-			for (var e : es) {
-				r.log(e);
-			}
+			test.events(r.router());
 			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.toString();
 			assertEquals(test.expected, actual);
@@ -93,17 +88,11 @@ class PatternConfiguratorTest {
 					""";
 		}
 
-		List<LogEvent> events() {
+		void events(LogRouter router) {
 			Instant instant = Instant.ofEpochMilli(1);
-			List<LogEvent> events = new ArrayList<>();
 			for (var level : System.Logger.Level.values()) {
-				if (level == System.Logger.Level.OFF) {
-					continue;
-				}
-				var e = LogEvent.of(level, "com.pattern.test.Test", "hello", null).freeze(instant);
-				events.add(e);
+				router.eventBuilder("com.pattern.test.Test", level).message("hello").timestamp(instant).log();
 			}
-			return events;
 		}
 
 		void config(LogConfig.Builder builder) {

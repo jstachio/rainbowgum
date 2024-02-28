@@ -3,8 +3,15 @@ package io.jstach.rainbowgum.slf4j;
 import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
+import static org.slf4j.event.EventConstants.DEBUG_INT;
+import static org.slf4j.event.EventConstants.ERROR_INT;
+import static org.slf4j.event.EventConstants.INFO_INT;
+import static org.slf4j.event.EventConstants.TRACE_INT;
+import static org.slf4j.event.EventConstants.WARN_INT;
 
 class Levels {
+
+	static final int OFF_INT = -1;
 
 	static boolean isEnabled(Logger logger, Level level) {
 		return switch (level) {
@@ -45,6 +52,18 @@ class Levels {
 
 	static String toString(System.Logger.Level level) {
 		return toSlf4jLevel(level).name();
+	}
+
+	static int toSlf4jInt(System.Logger.Level level) {
+		return switch (level) {
+			case DEBUG -> DEBUG_INT;
+			case ALL -> ERROR_INT;
+			case ERROR -> ERROR_INT;
+			case INFO -> INFO_INT;
+			case OFF -> OFF_INT;
+			case TRACE -> TRACE_INT;
+			case WARNING -> WARN_INT;
+		};
 	}
 
 	static Level toSlf4jLevel(System.Logger.Level level) {

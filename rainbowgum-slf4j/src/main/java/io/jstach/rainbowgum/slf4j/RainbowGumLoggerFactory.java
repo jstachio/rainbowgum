@@ -45,7 +45,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				 * We get a logger that can log everything.
 				 */
 				LogEventLogger logger = router.route(name, System.Logger.Level.ERROR);
-				ChangeableLogger changeable = new ChangeableLogger(name, logger, Levels.toSlf4jLevel(level).toInt());
+				ChangeableLogger changeable = new ChangeableLogger(name, logger, Levels.toSlf4jInt(level));
 				changePublisher.subscribe(c -> {
 					var slf4jLevel = Levels.toSlf4jLevel(router.levelResolver().resolveLevel(name));
 					changeable.setLevel(slf4jLevel.toInt());

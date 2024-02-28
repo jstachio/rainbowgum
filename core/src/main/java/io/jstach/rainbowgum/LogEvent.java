@@ -304,6 +304,15 @@ public sealed interface LogEvent {
 		 */
 		public boolean log();
 
+		/**
+		 * Will generate the event if the router can accept otherwise <code>null</code>.
+		 * @return event or <code>null</code>.
+		 * @apiNote The event is not logged but just created if possible if logging is
+		 * desired use {@link #log()} or check if the return is not <code>null</code> and
+		 * then log.
+		 */
+		public @Nullable LogEvent eventOrNull();
+
 	}
 
 }
@@ -398,14 +407,20 @@ final class LogEventBuilder implements LogEvent.Builder {
 
 	@Override
 	public boolean log() {
+		var event = eventOrNull();
+		logger.log(event);
+		return true;
+	}
+
+	@Override
+	public LogEvent eventOrNull() {
 		List<Object> args = this.args;
 		if (args == null) {
-			logger.log(new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					throwable));
-			return true;
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					throwable);
 		}
 		int size = args.size();
-		LogEvent event = switch (size) {
+		return switch (size) {
 			case 0 ->
 				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
 			case 1 -> new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
@@ -415,8 +430,6 @@ final class LogEventBuilder implements LogEvent.Builder {
 			default -> new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, throwable, args.toArray());
 		};
-		logger.log(event);
-		return true;
 	}
 
 }
@@ -463,6 +476,11 @@ enum NoOpLogEventBuilder implements LogEvent.Builder {
 	@Override
 	public boolean log() {
 		return false;
+	}
+
+	@Override
+	public @Nullable LogEvent eventOrNull() {
+		return null;
 	}
 
 	@Override
