@@ -1,15 +1,48 @@
 /**
- * Rainbowgum JDK components
+ * Rainbowgum JDK components. This module provides special integration and
+ * adapters for the builtin JDK logging facilities. The impetus for this is
+ * these logging facilities can be used very early in the JDK boot processes
+ * well before logging has fully initialized.
+ * 
+ * <p>
+ * The integration will make sure that neither the System.Logger or
+ * java.util.logging will initialize Rainbow Gum too early by queueing the
+ * events. When a Rainbow Gum initializes and
+ * {@linkplain io.jstach.rainbowgum.RainbowGum#set(Supplier) set as global} the
+ * events will be replayed. If the events level are equal to
+ * {@link java.lang.System.Logger.Level#ERROR} and a normal Rainbow Gum has not
+ * been bound the messages will be printed to <code>System.err</code>. The idea
+ * is something catastrophic has happened that will probably cause Rainbow Gum
+ * to never load and thus never replay the events and you will not be able to
+ * figure out what happened.
+ * </p>
+ * <p>
+ * SLF4J does <a href="https://www.slf4j.org/manual.html#jep264">provide an
+ * adapter/bridge for the System.Logger
+ * (org.slf4j:slf4j-jdk-platform-logging)</a> but its use may cause Rainbow Gum
+ * to initialize too early. <em>However that maybe desirable if</em>:
+ * <ul>
+ * <li>You are sure that Rainbow Gum can initialize early</li>
+ * <li>Your application uses System.Logger (the SLF4J adapter will initialize
+ * Rainbow Gum on Sytem.Logger usage if using  <code>io.jstach.rainbowgum.slf4j</code> module)</li>
+ * </ul>
+ * 
+ * <em> <strong>NOTE:</strong> While the JDK System.Logger is good for low level
+ * libraries it's API (and Rainbow Gum implementation) is not designed for
+ * performance. For applications and frameworks that do a lot of logging the
+ * SLF4J facade is the preferred choice. </em>
+ * 
+ * 
  * @provides System.LoggerFinder
  */
 module io.jstach.rainbowgum.jdk {
-	
+
 	exports io.jstach.rainbowgum.jul;
-	
+
 	requires io.jstach.rainbowgum;
 	requires java.logging;
 	requires static org.eclipse.jdt.annotation;
 	requires static io.jstach.svc;
-	
+
 	provides System.LoggerFinder with io.jstach.rainbowgum.systemlogger.SystemLoggingFactory;
 }

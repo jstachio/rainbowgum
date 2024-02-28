@@ -192,7 +192,7 @@ and
 <a href="#outputs">Outputs</a>.
 
 For most <a href="#level_resolvers">level resolving</a>, <a href="#formatters">formatters</a> (which are simplified encoders),
-and Outputs are the main points of interest in customizing and configuring.
+and <a href="outputs">Outputs</a> are the main points of interest in customizing and configuring.
 
 <h2 id="config">Config</h2>
 
@@ -258,9 +258,19 @@ is used for plugin lookup as well as single line configuration. This follows
 
 </p>
 
+<h3 id="config_change">Config Change during runtime</h3>
+
+While most of the logging components in Rainbow Gum are immutable and cannot be changed during runtime there are some
+exceptions including custom components.
+<p>
+  A supporting configuration system (a LogProperties provider) can notify that there has been a change
+  by using the {@linkplain io.jstach.rainbowgum.LogConfig#changePublisher() Change Publisher}.
+  This is how level resolving changes can be published.
+</p>
+
 <h2 id="router">Router</h2>
 
-A Router has a {@link io.jstach.rainbowgum.LevelResolver} and a Publisher.
+A Router has a {@link io.jstach.rainbowgum.LevelResolver} and a {@linkplain io.jstach.rainbowgum.LogPublisher Publisher}.
 A Level Resolver takes a logger name and produces a {@link java.lang.System.Logger.Level level}.
 The logging facade implementation than decides based on the level whether or not to construct an event.
 It then passes the event to the router which in turn uses the publisher to schedule the event.
@@ -335,10 +345,36 @@ logging.change.com.mycompany=true   # only logger names starting with com.mycomp
 
 <h2 id="publishers">Publishers</h2>
 
-A {@link io.jstach.rainbowgum.LogPublisher} basically schedules delivery of a {@link io.jstach.rainbowgum.LogEvent} to a group of 
-Appenders. Publishers come in two types: synchronous and asynchronous. An appender should only
+A {@link io.jstach.rainbowgum.LogPublisher} schedules delivery of a {@link io.jstach.rainbowgum.LogEvent} to a group of 
+Appenders. Publishers come in two types:
+
+<ol>
+  <li>{@linkplain io.jstach.rainbowgum.LogPublisher.SyncLogPublisher synchronous} - the default</li>
+  <li>{@linkplain io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher asynchronous}</li> 
+</ol> 
+
+An appender should only
 belong to one publisher. In other logging frameworks like Logback and Reload4J this responsibility is handled
 by an Appender but Rainbow Gum separates this responsibility out.
+<p>
+An example configuring a route named "example" to use the default async publisher:
+</p>
+
+{@snippet lang=properties :
+logging.route.example.publisher=async
+logging.publisher.example.bufferSize=1024
+}
+
+Using an async publisher is a complicated topic with many caveats one of them being what to do if
+the buffer is full. Rainbow Gum's default async publisher is a simple blocking queue implementation
+that has a single consumer thread and will block producing threads if the queue is full.
+The consumer thread simple iterates over the appenders pushing to each one. This loosely follows the
+single writer principle. In the future
+particularly with virtural threads more sophisticated async publishers might be offered
+that might fanout and other exotic strategies.
+<p>
+  <strong>NOTE:</strong> If you want some appenders to be async and others sync you just create multiple routes. 
+</p>
 
 <h2 id="appenders">Appenders</h2>
 
@@ -350,27 +386,122 @@ That is an appender can be mostly thought of as a tuple of encoder and output.
 <h2 id="encoders">Encoders</h2>
 
 Encoders encode an event into binary. Because most encoding is text based RainbowGum has the concept of 
-{@link io.jstach.rainbowgum.LogFormatter} which can be turned into an Encoder. Log formatters
-are the most common extension point. 
+{@link io.jstach.rainbowgum.LogFormatter} which can be turned into an Encoder and is covered 
+in the next section. However there are scenarios where generating bytes directly is desirable.
+<p>
+  Rainbow Gum JSON encoder module {@link io.jstach.rainbowgum.json/ } has efficient JSON encoders.
+  <em>
+    They are encoders instead of formatters (which are covered next) because writting JSON as bytes is more efficient.
+  </em>
+</p>
+Configuring an {@linkplain io.jstach.rainbowgum.LogProperties#APPENDER_ENCODER_PROPERTY appenders encoder with properties}
+looks something like:
 
-<h3 id="Formatters">Formatters</h3>
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.encoder=gelf
+logging.encoder.myappender.prettyPrint=true
+}
 
-Besides adjusting level configuration the most common configuration is formatting of log events as textual data.
-{@link io.jstach.rainbowgum.LogFormatter}s are designed to do just that. While formatters can at highlevel be considered
+The above will use the GELF JSON encoder and configure it to pretty print.
+<p>
+Encoders should have a builder as well to configure programmatically
+and the builders javadoc has the string properties that can configure it.
+</p>
+
+Here are some of the supported encoders (not a complete listing):
+
+<ul>
+  <li>{@link io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder}</li>
+  <li>{@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}</li>
+</ul>
+
+
+<h3 id="formatters">Formatters</h3>
+
+Formatting of log events as textual data is so common that Rainbow Gum has special support for that with
+{@link io.jstach.rainbowgum.LogFormatter}. While formatters can at highlevel be considered
 an encoder for technical API reasons they are not. However any formatter can be converted to an
 encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}. 
-<p>
+
+<h4 id="pattern">Pattern Formatter</h4>
+
   For those coming from Logback or Log4j2 
-  Rainbow Gum has an {@linkplain io.jstach.rainbowgum.pattern/ optional module} for logback style
-  based pattern formatters. This allows describing an output format using 
+  Rainbow Gum has an {@linkplain io.jstach.rainbowgum.pattern/ optional module} for 
+  <a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">logback style based pattern</a> formatters. 
+  This allows describing an output format using 
   <code>String.format</code> percent style syntax. Rainbow Gum implements most of the builtin logback
   pattern keywords with far less overhead. 
+  <p>
+Like logback you can even add your own pattern keywords which is covered in {@link io.jstach.rainbowgum.pattern/ } module.
+  </p>
+  <strong>The pattern layout module is pulled in by default with the aggregate rainbow gum dependency.</strong> 
+<p>
+  <strong>NOTE:</strong> <em>If you plan on using the color pattern keywords it is generally a good idea (for now) to use
+    the {@link io.jstach.rainbowgum.jansi/ } module which is covered next.
+  </em>
 </p>
+
+<h4 id="jansi">JAnsi support</h4>
 <p>
   Rainbow Gum also has support for proper cross platform {@linkplain io.jstach.rainbowgum.jansi/ ANSI output with Jansi through an optional module}.
   Unlike other frameworks where this is detected with reflection Rainbow Gum uses the 
   Service Loader which is GraalVM native friendly.
 </p>
+  <strong>Why is JAnsi desirable?</strong>
+  <ul>
+    <li>Support stripping ANSI characters on piping out which is desirable if you only use the console for output which
+      is often the case for kubernetes and other microservices.
+    </li>
+    <li>
+      Windows color output support.
+    </li>
+  </ul>
+<p>
+  <strong>NOTE:</strong>
+  <em>
+    <a href="https://openjdk.org/jeps/8307341">Future versions of the JDK may require command line arguments</a> 
+    for using jars packaged with native libraries. Given that Rainbow Gum favors security
+    we strongly agree with the draft JEP and are exploring other options for the future.
+  </em>
+</p>
+
+<h2 id="outputs">Outputs</h2>
+
+{@link io.jstach.rainbowgum.LogOutput} do the actual work of outputting an event.
+
+Configuring an {@linkplain io.jstach.rainbowgum.LogProperties#APPENDER_OUTPUT_PROPERTY appenders output with properties}
+looks something like:
+
+{@snippet lang=properties :
+  logging.appenders=myappender
+  logging.appender.myappender.output=stdout
+}
+
+One caveat with file support output via URI is if you need to output to a file in the current working directory
+the URI should be prefixed with <code>./</code>.
+
+{@snippet lang=properties :
+  logging.appenders=myappender
+  # logging.appender.myappender.output=app.log this is wrong.
+  logging.appender.myappender.output=./app.log
+}
+
+The reason is that Rainbow Gum will think <code>app.log</code> is a URI scheme if it is not prefixed.
+Of course fully qualified file URI are supported as well like: <code>file:///./app.log</code>.
+For Spring Boot compatibility {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} is also supported
+if custom routers and appenders are not configured.
+
+<p>
+Here are some of the supported outputs (not a complete listing):
+</p>
+
+<ul>
+  <li>stdout and stderr</li>
+  <li>{@link io.jstach.rainbowgum.output.FileOutputBuilder} with URI scheme of "file"</li>
+  <li>{@link io.jstach.rainbowgum.rabbitmq.RabbitMQOutputBuilder} with URI scheme of "amqp"</li>
+</ul>
+
 
 <h2 id="filter">Filtering</h2>
 
@@ -394,7 +525,7 @@ and composition has to be done manually.
 
 {@snippet class="snippets.FilteringExample" region="filteringExample" }
 
-Essentially what the above does is create a custom {@link io.jstach.rainbowgum.LogRouter.Router}
+The above does creates a custom {@link io.jstach.rainbowgum.LogRouter.Router}
 with a function. 
 
 <em>
@@ -412,8 +543,8 @@ so if performance matters consider using <a href="#slf4j_filter">SLF4J based fil
 <h3 id="slf4j_filter">SLF4J based filtering</h3>
 
 {@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService SLF4J based filtering} is
-not really filtering but rather decorating of the SLF4J loggers somewhat akin to Servlet filtering.
-Basically Rainbow Gum hands off its generated SLF4J logger to you and you can decorate or even disregard
+not simple filtering but rather decorating of the SLF4J loggers somewhat akin to Servlet filtering.
+Rainbow Gum hands off its generated SLF4J logger to you and you can decorate or even disregard
 it and provide your own implementation. This is extremely powerful and efficient but requires more work.
 There is not really an analog in Logback or Log4j but as usual <em>with great power comes great responsiblity</em>!
 <p>
@@ -494,14 +625,37 @@ dependencies {
 
 <h3 id="system_logger">java.lang.System.Logger and java.util.logging</h3>
 
-Rainbow Gum {@linkplain io.jstach.rainbowgum.jdk/ provides special optional integration and adapters for the builtin JDK logging facilities}.
-The impetus for this is these logging facilities can be used very early in the JDK boot processes well before
+Rainbow Gum {@link io.jstach.rainbowgum.jdk/} module provides special integration and adapters for the builtin JDK logging facilities.
+The impetus for this is these logging facilities can be used early in the JDK boot processes well before
 logging has fully initialized. The default rainbow gum dependency has this integration as a transitive dependency.
 
 <p>
+The integration will make sure that neither the System.Logger or java.util.logging initialize
+Rainbow Gum too early by queueing the events. When a Rainbow Gum initializes and 
+{@linkplain io.jstach.rainbowgum.RainbowGum#set(Supplier) set as global} the events will be replayed.
+If the events level are equal to {@link java.lang.System.Logger.Level#ERROR} and a normal Rainbow Gum has not been bound
+the messages will be printed to <code>System.err</code>. 
+The idea is something catastrophic has happened that will probably cause Rainbow Gum to never load and thus never replay the events
+and you will not be able to figure out what happened otherwise.
+</p>
+<p>
+  SLF4J does 
+  <a href="https://www.slf4j.org/manual.html#jep264">provide an adapter/bridge for the System.Logger (org.slf4j:slf4j-jdk-platform-logging)</a> 
+  but its use may cause Rainbow Gum to initialize
+  too early. <strong>However that maybe desirable if</strong>:
+</p>
+  <ul>
+    <li>You are sure that Rainbow Gum can initialize early</li>
+    <li>Your application uses System.Logger 
+      (the SLF4J adapter will initialize Rainbow Gum on Sytem.Logger usage if using {@link io.jstach.rainbowgum.slf4j/ })
+    </li>
+  </ul>
+  In the future Rainbow Gum may include a System.Logger provider module that does eager initilization. 
+<p>
   <em>
     <strong>NOTE:</strong>
-    While the JDK System.Logger is good for low level libraries it's API (and implementation) is not designed for performance.
+    While the JDK System.Logger is good for low level libraries that rarely log 
+    it's API (and Rainbow Gum implementation) is not designed for performance.
     For applications and frameworks that do a lot of logging the SLF4J facade is the preferred choice.
   </em>
 </p>

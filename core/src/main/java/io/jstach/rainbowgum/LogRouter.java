@@ -671,7 +671,7 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	@Override
 	public void log(LogEvent event) {
 		events.add(event);
-		if (event.level().getSeverity() >= Level.ERROR.getSeverity()) {
+		if (event.level() == Level.ERROR) {
 			MetaLog.error(event);
 		}
 
