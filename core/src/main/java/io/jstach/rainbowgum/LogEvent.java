@@ -227,7 +227,16 @@ public sealed interface LogEvent {
 	/**
 	 * A builder to create events by calling {@link Router#eventBuilder(String, Level)}.
 	 * <strong>{@link #log()}</strong> should be called at the very end otherwise the
-	 * event will not be logged.
+	 * event will not be logged. <strong> Because of potential future optimizations (see
+	 * API note) It is best to assume this builder returns a different builder on every
+	 * setter call even if it may not currently! </strong>
+	 *
+	 * @apiNote unless the builder gets marked for escape analysis the static
+	 * {@link LogEvent} factory methods are more likely to be superior in performance. EA
+	 * is tricky business and often requires the object be small enough and should not
+	 * leave the method it is constructed in but the JDK is continuously getting better
+	 * optimizing immutable objects. Thus it is best to assume this builder will return a
+	 * different builder on every call.
 	 */
 	public sealed interface Builder {
 

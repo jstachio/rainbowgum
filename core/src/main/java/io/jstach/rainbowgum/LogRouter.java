@@ -44,9 +44,10 @@ public sealed interface LogRouter extends LogLifecycle {
 	 * @param loggerName logger name of the event.
 	 * @param level level that the event should be set to.
 	 * @return builder.
-	 * @apiNote using the builder is slightly slower and more garbage than just manually
-	 * checking {@link Route#isEnabled()} and constructing the event using the LogEvent
-	 * static "<code>of</code>" factory methods.
+	 * @apiNote using the builder is slightly slower and possibly more garbage (if the
+	 * builder is not marked for escape analysis) than just manually checking
+	 * {@link Route#isEnabled()} and constructing the event using the LogEvent static
+	 * "<code>of</code>" factory methods.
 	 */
 	default LogEvent.Builder eventBuilder(String loggerName, Level level) {
 		var route = route(loggerName, level);
@@ -557,10 +558,6 @@ record SingleAsyncRootRouter(Router router) implements InternalRootRouter {
 	@Override
 	public Route route(String loggerName, Level level) {
 		return router.route(loggerName, level);
-	}
-
-	public void log(LogEvent event) {
-		router.log(event.freeze());
 	}
 
 }
