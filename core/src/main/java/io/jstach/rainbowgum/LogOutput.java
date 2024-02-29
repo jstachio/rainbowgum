@@ -17,7 +17,12 @@ import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
 
 /**
  * A resource that can be written to usually in binary. In other logging frameworks this
- * is often called an "Appender" not be confused with RainbowGum's appenders.
+ * is often called an "Appender" not be confused with RainbowGum's appenders. LogOutputs
+ * will be written synchronously by the appender either through locks or some other
+ * mechanism so other than output external specific locking (e.g file locking or db
+ * transaction) the output does not have to deal with that. <strong> In other words there
+ * will be no overlapping write calls as the appender and publisher combo promises that.
+ * </strong>
  * <p>
  * To simplyfy flushing and corruption prevention each call to the write methods MUST be
  * the contents of the entire event!
@@ -27,6 +32,8 @@ import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
  *
  * @see LogOutput.OutputProvider
  * @see Buffer
+ * @apiNote if for some reason the output needs to share events with other threads call
+ * {@link LogEvent#freeze()} which will return an immutable event.
  */
 public interface LogOutput extends LogLifecycle, Flushable {
 
@@ -134,6 +141,67 @@ public interface LogOutput extends LogLifecycle, Flushable {
 
 	@Override
 	default void start(LogConfig config) {
+	}
+
+	/**
+	 * Write a batch of events by default calls
+	 * {@link #write(LogEvent[], int, LogEncoder, Buffer)}. <strong>DO NOT MODIFY THE
+	 * ARRAY</strong>. Do not use the <code>length</code> of the passed in array but
+	 * instead use <code>count</code> parameter.
+	 * @param events an array guaranteed to be smaller than count.
+	 * @param count the number of items.
+	 * @param encoder encoder to use for encoding.
+	 */
+	default void write(LogEvent[] events, int count, LogEncoder encoder) {
+		try (var buffer = encoder.buffer()) {
+			write(events, count, encoder, buffer);
+		}
+	}
+
+	/**
+	 * Write a batch of events reusing the provided buffer and by default calling
+	 * {@link #write(LogEvent, Buffer)} for each event synchronously.
+	 * <p>
+	 * The batching is usually a result of an async publisher so the maximum size is
+	 * configured there with bufferSize. If this method is implemented there are some
+	 * caveats.
+	 * <p>
+	 * <strong>DO NOT MODIFY THE ARRAY</strong>. It is reused. Do not use the
+	 * <code>length</code> of the passed in array but instead use <code>count</code>
+	 * parameter. Consequently do not share the array or buffer with other threads however
+	 * individual events can be shared by calling {@link LogEvent#freeze()} to guarantee
+	 * that which is a safe noop if it is already immutable.
+	 * <p>
+	 * If the output plans on grouping the events into a single blob (byte array or byte
+	 * buffer) a different output can be passed to the encoder other than itself (which is
+	 * the default).
+	 * @param events an array guaranteed to be smaller than count.
+	 * @param count the number of items.
+	 * @param encoder encoder to use for encoding.
+	 * @param buffer buffer to reuse. Do not share it with other threads!
+	 * @apiNote If the output wants to fanout or encode with other threads the buffer
+	 * passed should not be used and instead {@link LogEncoder#buffer()} should be called
+	 * to get a new buffer for each thread. This is generally not desirable for most
+	 * resources such as a file or database as sending a batch is much faster (single
+	 * writer principle).
+	 */
+	default void write(LogEvent[] events, int count, LogEncoder encoder, Buffer buffer) {
+		for (int i = 0; i < count; i++) {
+			buffer.clear();
+			var event = events[i];
+			encoder.encode(event, buffer);
+			write(event, buffer);
+		}
+	}
+
+	/**
+	 * Writes a prepared buffer and by default drains the buffer to this output.
+	 * @param event event.
+	 * @param buffer buffer that is already filled. Do not share it with other threads!
+	 * @apiNote the buffer already has the encoding.
+	 */
+	default void write(LogEvent event, Buffer buffer) {
+		buffer.drain(this, event);
 	}
 
 	/**

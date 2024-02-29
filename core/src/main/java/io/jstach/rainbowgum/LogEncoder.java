@@ -40,7 +40,8 @@ public interface LogEncoder {
 
 	/**
 	 * Creates a <strong>new</strong> buffer. The encoder should not try to reuse buffers
-	 * as that is the responsibility of the {@linkplain LogAppender appender}.
+	 * as that is the responsibility of the {@linkplain LogAppender appender} (and
+	 * possibly {@link LogOutput} but usually not).
 	 * @return a new buffer.
 	 */
 	public Buffer buffer();
@@ -187,37 +188,6 @@ public interface LogEncoder {
 
 		}
 
-	}
-
-}
-
-final class CachedEncoder implements LogEncoder {
-
-	static LogEncoder of(LogEncoder encoder) {
-		if (encoder instanceof CachedEncoder ce) {
-			return ce;
-		}
-		return new CachedEncoder(encoder, encoder.buffer());
-	}
-
-	private final LogEncoder encoder;
-
-	private final Buffer buffer;
-
-	public CachedEncoder(LogEncoder encoder, Buffer buffer) {
-		super();
-		this.encoder = encoder;
-		this.buffer = buffer;
-	}
-
-	@Override
-	public Buffer buffer() {
-		return this.buffer;
-	}
-
-	@Override
-	public void encode(LogEvent event, Buffer buffer) {
-		encoder.encode(event, buffer);
 	}
 
 }

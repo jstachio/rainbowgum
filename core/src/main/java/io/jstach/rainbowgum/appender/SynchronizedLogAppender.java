@@ -7,7 +7,6 @@ import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
-import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 
@@ -15,7 +14,7 @@ import io.jstach.rainbowgum.LogOutput;
  * An appender that uses <code>synchronized</code> instead of {@linkplain ReentrantLock
  * locks}. <strong>DO NOT USE THIS APPENDER IN A VIRTUAL THREAD ENVIROMENT</strong> as
  * virtual threads will (as of JDK 21) pin the carrier thread when in a synchronized
- * block.
+ * block. This appender is currently mainly for benchmarking/testing purposes.
  */
 public sealed interface SynchronizedLogAppender extends ThreadSafeLogAppender {
 
@@ -80,18 +79,20 @@ final class DefaultSynchronizedLogAppender extends AbstractLogAppender implement
 	}
 
 	@Override
-	protected void append(LogEvent[] events, int count, Buffer buffer) {
-		synchronized (this) {
-			super.append(events, count, buffer);
+	public final void append(LogEvent event) {
+		try (var buffer = encoder.buffer()) {
+			encoder.encode(event, buffer);
+			synchronized (this) {
+				output.write(event, buffer);
+			}
 		}
-
 	}
 
 	@Override
-	protected void append(LogEvent event, Buffer buffer) {
-		encoder.encode(event, buffer);
+	public void append(LogEvent[] events, int count) {
 		synchronized (this) {
-			buffer.drain(output, event);
+			output.write(events, count, encoder);
+			output.flush();
 		}
 	}
 

@@ -631,6 +631,13 @@ enum FailsafeAppender implements LogAppender {
 	}
 
 	@Override
+	public void append(LogEvent[] events, int count) {
+		for (int i = 0; i < count; i++) {
+			append(events[i]);
+		}
+	}
+
+	@Override
 	public void close() {
 	}
 

@@ -15,7 +15,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
  * concurrency.
- * 
+ *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
 public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.Provider<LogAppender> {
@@ -47,11 +47,12 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	 * @param events an array guaranteed to be smaller than count.
 	 * @param count the number of items.
 	 */
-	default void append(LogEvent[] events, int count) {
-		for (int i = 0; i < count; i++) {
-			append(events[i]);
-		}
-	}
+	public void append(LogEvent[] events, int count);
+	// {
+	// for (int i = 0; i < count; i++) {
+	// append(events[i]);
+	// }
+	// }
 
 	public void append(LogEvent event);
 
@@ -259,29 +260,6 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		}
 
 		@Override
-		public final void append(LogEvent event) {
-			try (var buffer = encoder.buffer()) {
-				append(event, buffer);
-			}
-		}
-
-		@Override
-		public void append(LogEvent[] events, int count) {
-			try (var buffer = encoder.buffer()) {
-				append(events, count, buffer);
-			}
-		}
-
-		protected void append(LogEvent[] events, int count, Buffer buffer) {
-			for (int i = 0; i < count; i++) {
-				append(events[i], buffer);
-				buffer.clear();
-			}
-		}
-
-		protected abstract void append(LogEvent event, Buffer buffer);
-
-		@Override
 		public void start(LogConfig config) {
 			output.start(config);
 		}
@@ -349,10 +327,9 @@ class LockingLogAppender implements ThreadSafeLogAppender {
 
 	@Override
 	public void append(LogEvent event) {
-		LogEventConsumer a = appender;
 		lock.lock();
 		try {
-			a.append(event);
+			appender.append(event);
 		}
 		finally {
 			lock.unlock();
@@ -388,24 +365,24 @@ class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogApp
 	}
 
 	@Override
-	protected void append(LogEvent[] events, int count, Buffer buffer) {
-		lock.lock();
-		try {
-			for (int i = 0; i < count; i++) {
-				append(events[i], buffer);
+	public final void append(LogEvent event) {
+		try (var buffer = encoder.buffer()) {
+			encoder.encode(event, buffer);
+			lock.lock();
+			try {
+				output.write(event, buffer);
+			}
+			finally {
+				lock.unlock();
 			}
 		}
-		finally {
-			lock.unlock();
-		}
-
 	}
 
-	protected void append(LogEvent event, Buffer buffer) {
-		encoder.encode(event, buffer);
+	@Override
+	public void append(LogEvent[] events, int count) {
 		lock.lock();
 		try {
-			buffer.drain(output, event);
+			output.write(events, count, encoder);
 			output.flush();
 		}
 		finally {
@@ -428,13 +405,25 @@ class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogApp
 
 class BufferLogAppender extends AbstractLogAppender {
 
+	private final Buffer buffer;
+
 	public BufferLogAppender(LogOutput output, LogEncoder encoder) {
-		super(output, CachedEncoder.of(encoder));
+		super(output, encoder);
+		this.buffer = encoder.buffer();
 	}
 
 	@Override
-	protected void append(LogEvent event, Buffer buffer) {
-		buffer.drain(output, event);
+	public void append(LogEvent[] events, int count) {
+		buffer.clear();
+		output.write(events, count, encoder, buffer);
+		output.flush();
+	}
+
+	@Override
+	public void append(LogEvent event) {
+		buffer.clear();
+		output.write(event, buffer);
+		output.flush();
 	}
 
 }
