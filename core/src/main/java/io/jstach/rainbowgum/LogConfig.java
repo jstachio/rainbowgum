@@ -185,7 +185,29 @@ public sealed interface LogConfig {
 			/**
 			 * The logger is allowed to change caller info.
 			 */
-			CALLER_INFO
+			CALLER_INFO;
+
+			static Set<ChangeType> parse(List<String> value) {
+				if (value.isEmpty()) {
+					return Set.of();
+				}
+				var s = EnumSet.noneOf(ChangeType.class);
+				for (var v : value) {
+					if (v.equalsIgnoreCase("true")) {
+						return EnumSet.allOf(ChangeType.class);
+					}
+					if (v.equalsIgnoreCase("false")) {
+						return EnumSet.noneOf(ChangeType.class);
+					}
+					s.add(ChangeType.parse(v));
+				}
+				return s;
+			}
+
+			static ChangeType parse(String value) {
+				String v = value.toUpperCase();
+				return ChangeType.valueOf(v);
+			}
 
 		}
 
@@ -305,10 +327,11 @@ public sealed interface LogConfig {
 
 abstract class AbstractChangePublisher implements ChangePublisher {
 
-	static final RequiredPropertyGetter<Boolean> changeSetting = PropertyGetter.of()
+	static final RequiredPropertyGetter<Set<ChangeType>> changeSetting = PropertyGetter.of()
 		.withSearch(LogProperties.CHANGE_PREFIX)
-		.map(s -> Boolean.parseBoolean(s))
-		.orElse(false);
+		.toList()
+		.map(s -> ChangeType.parse(s))
+		.orElse(Set.of());
 
 	private final Collection<Consumer<? super LogConfig>> consumers = new CopyOnWriteArrayList<Consumer<? super LogConfig>>();
 
@@ -331,14 +354,11 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public boolean isEnabled(String loggerName) {
-		return changeSetting.get(config().properties(), loggerName).value();
+		return !allowedChanges(loggerName).isEmpty();
 	}
 
 	public Set<ChangeType> allowedChanges(String loggerName) {
-		if (isEnabled(loggerName)) {
-			return EnumSet.allOf(ChangeType.class);
-		}
-		return Set.of();
+		return changeSetting.get(config().properties(), loggerName).value();
 	}
 
 }

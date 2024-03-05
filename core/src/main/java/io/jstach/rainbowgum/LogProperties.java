@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -26,6 +27,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperties.PropertyFunction;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter;
@@ -90,7 +92,8 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * root logger. {@link Level#INFO} is the default level for the root logger.</td>
  * </tr>
  * <tr>
- * <td>{@value #CHANGE_PREFIX} + {@value #SEP} + logger = boolean</td>
+ * <td>{@value #CHANGE_PREFIX} + {@value #SEP} + logger = boolean |
+ * List&lt;{@link ChangeType}&gt;</td>
  * <td>Allows runtime changing of levels for the logger. By design RainbowGum does not
  * allow loggers to change levels once initialized. This configuration will allow the
  * level to be changed for the logger and its children and by default is false as the
@@ -299,8 +302,23 @@ public interface LogProperties {
 	 * @see #searchPath(String, Function)
 	 */
 	default @Nullable String search(String root, String key) {
-		return searchPath(key, k -> valueOrNull(concatKey(root, k)));
+		return search(root, key, (p, k) -> p.valueOrNull(k));
+		// return searchPath(key, k -> valueOrNull(concatKey(root, k)));
 
+	}
+
+	/**
+	 * Searches up a {@value #SEP} separated path using this properties to check for
+	 * values.
+	 * @param <T> result type
+	 * @param root prefix.
+	 * @param key should start with prefix.
+	 * @param func convert function
+	 * @return closest value.
+	 * @see #searchPath(String, Function)
+	 */
+	default @Nullable <T> T search(String root, String key, BiFunction<LogProperties, String, T> func) {
+		return searchPath(key, k -> func.apply(this, concatKey(root, k)));
 	}
 
 	/**
@@ -1573,6 +1591,22 @@ public interface LogProperties {
 				return props.valueOrNull(fullyQualifiedKey(key));
 			}
 
+			private <T> @Nullable T valueOrNull(LogProperties props, String key,
+					BiFunction<LogProperties, String, @Nullable T> func) {
+				if (search) {
+					return props.search(prefix, key, func);
+				}
+				return func.apply(props, fullyQualifiedKey(key));
+			}
+
+			<T> Result<T> get(LogProperties props, String key, BiFunction<LogProperties, String, @Nullable T> func) {
+				var v = valueOrNull(props, key, func);
+				if (v == null) {
+					return missingResult(props, List.of(key));
+				}
+				return new Result.Success<>(v);
+			}
+
 			@Override
 			public Result<String> get(LogProperties props, String key) {
 				var v = valueOrNull(props, key);
@@ -1934,17 +1968,9 @@ record FallbackGetter<T>(PropertyGetter<T> parent,
 
 record MapGetter(RootPropertyGetter parent) implements ChildPropertyGetter<Map<String, String>> {
 
-	private @Nullable Map<String, String> valueOrNull(LogProperties props, String key) {
-		return props.mapOrNull(parent.fullyQualifiedKey(key));
-	}
-
 	@Override
 	public Result<Map<String, String>> get(LogProperties props, String key) {
-		var v = valueOrNull(props, key);
-		if (v == null) {
-			return parent.missingResult(props, List.of(key));
-		}
-		return new Result.Success<>(v);
+		return parent.get(props, key, (p, k) -> p.mapOrNull(k));
 	}
 
 	@Override
@@ -1978,11 +2004,7 @@ record ListGetter(RootPropertyGetter parent) implements ChildPropertyGetter<List
 
 	@Override
 	public Result<List<String>> get(LogProperties props, String key) {
-		var list = props.listOrNull(key);
-		if (list == null) {
-			return parent.missingResult(props, List.of(key));
-		}
-		return new Result.Success<>(list);
+		return parent.get(props, key, (p, k) -> p.listOrNull(k));
 	}
 
 	public String propertyString(List<String> list) {
