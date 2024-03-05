@@ -40,15 +40,15 @@ interface BaseLogger extends EventCreator<Level>, Logger {
 
 	@Override
 	default KeyValues keyValues() {
-		MDCAdapter adapter = MDC.getMDCAdapter();
-		if (adapter instanceof RainbowGumMDCAdapter simpleAdapter) {
-			var m = simpleAdapter.getMutableKeyValues();
-			if (m != null) {
-				return m;
-			}
+		var mdc = mdc();
+		var m = mdc.getMutableKeyValues();
+		if (m != null) {
+			return m;
 		}
 		return KeyValues.of();
 	}
+
+	public RainbowGumMDCAdapter mdc();
 
 	void handle(LogEvent event);
 

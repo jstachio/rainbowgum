@@ -21,11 +21,14 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	private final LoggerDecorator decorator;
 
-	public RainbowGumLoggerFactory(RainbowGum rainbowGum) {
+	private final RainbowGumMDCAdapter mdc;
+
+	public RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
 		super();
 		this.loggerMap = new ConcurrentHashMap<>();
 		this.rainbowGum = rainbowGum;
 		this.decorator = LoggerDecorator.of(rainbowGum);
+		this.mdc = mdc;
 	}
 
 	@Override
@@ -45,7 +48,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				 * We get a logger that can log everything.
 				 */
 				LogEventLogger logger = router.route(name, System.Logger.Level.ERROR);
-				ChangeableLogger changeable = new ChangeableLogger(name, logger, Levels.toSlf4jInt(level));
+				ChangeableLogger changeable = new ChangeableLogger(name, logger, mdc, Levels.toSlf4jInt(level));
 				changePublisher.subscribe(c -> {
 					var slf4jLevel = Levels.toSlf4jLevel(router.levelResolver().resolveLevel(name));
 					changeable.setLevel(slf4jLevel.toInt());
@@ -59,7 +62,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				}
 				else {
 					var slf4jLevel = Levels.toSlf4jLevel(level);
-					newLogger = LevelLogger.of(slf4jLevel, name, logger);
+					newLogger = LevelLogger.of(slf4jLevel, name, logger, mdc);
 				}
 			}
 			Logger decorated = decorator.decorate(rainbowGum, newLogger);

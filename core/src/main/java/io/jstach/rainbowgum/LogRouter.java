@@ -332,12 +332,15 @@ public sealed interface LogRouter extends LogLifecycle {
 						.stream() //
 						.forEach(appenders::add);
 				}
-				publisher = Property.builder() //
-					.toURI() //
-					.map(u -> config.publisherRegistry().provide(u, name, config.properties()))
-					.buildWithName(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
-					.get(config.properties())
-					.value(() -> LogPublisher.SyncLogPublisher.builder().build());
+
+				if (publisher == null) {
+					publisher = Property.builder() //
+						.toURI() //
+						.map(u -> config.publisherRegistry().provide(u, name, config.properties()))
+						.buildWithName(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
+						.get(config.properties())
+						.value(() -> LogPublisher.SyncLogPublisher.builder().build());
+				}
 
 				var apps = appenders.stream().map(a -> a.provide(name, config)).toList();
 				var pub = publisher.create(name, config, apps);

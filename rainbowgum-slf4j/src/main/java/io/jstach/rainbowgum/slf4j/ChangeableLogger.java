@@ -20,13 +20,21 @@ class ChangeableLogger implements BaseLogger {
 
 	private final LogEventLogger eventLogger;
 
+	private final RainbowGumMDCAdapter mdc;
+
 	private volatile int level;
 
-	ChangeableLogger(String loggerName, LogEventLogger eventLogger, int level) {
+	ChangeableLogger(String loggerName, LogEventLogger eventLogger, RainbowGumMDCAdapter mdc, int level) {
 		super();
 		this.loggerName = loggerName;
 		this.eventLogger = eventLogger;
+		this.mdc = mdc;
 		this.level = level;
+	}
+
+	@Override
+	public RainbowGumMDCAdapter mdc() {
+		return mdc;
 	}
 
 	@Override

@@ -23,13 +23,14 @@ logical resource (it might not be a single physical resource particularly in the
 
 ## TODO before release
 
-- [ ] Level changing loggers - medium
+- [ ] Resilient File
+- [ ] MetaLog aka StatusLog
+- [X] Level changing loggers - medium
 - [X] A network based LogOutput. Probably AMQP.
 - [ ] Fix LogProperties search to use interpolate key. 
 - [ ] More JSON encoders.
 - [ ] A console theme package based off of HL (logging colorizer).
-- [ ] Remove all the field based formatters.
-- [ ] Code samples and instructions for custom configuration.
+- [X] Code samples and instructions for custom configuration.
 - [ ] How to setup a ServiceLoader registration for plugins
 - [ ] Scoped Value plugin
 - [ ] JEP 430 String templates example

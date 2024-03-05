@@ -24,19 +24,22 @@ public class CodeTemplates {
 					import org.slf4j.event.Level;
 					import org.slf4j.spi.LoggingEventBuilder;
 
-
+					@SuppressWarnings("exports")
 					sealed interface LevelLogger extends BaseLogger, Logger {
 
 						record OffLogger(String loggerName) implements LevelLogger {
 							@Override
 							public void handle(io.jstach.rainbowgum.LogEvent event) {
 							}
+							io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc() {
+								return null;
+							}
 						}
 
-						public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender ) {
+						public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender, io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) {
 							return switch(level) {
 								{{#loggers}}
-								case {{level.name}} -> new {{className}}(loggerName, appender);
+								case {{level.name}} -> new {{className}}(loggerName, appender, mdc);
 								{{/loggers}}
 							};
 						}
@@ -102,7 +105,7 @@ public class CodeTemplates {
 	}
 
 	public static final String levelLoggerTemplate = """
-			record {{className}}(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
+			record {{className}}(String loggerName, io.jstach.rainbowgum.LogEventLogger appender, io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
 
 				@Override
 				public void handle(io.jstach.rainbowgum.LogEvent event) {

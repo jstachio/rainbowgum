@@ -73,10 +73,19 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 			System.setProperty("org.jboss.logging.provider", "slf4j");
 		}
 		RainbowGum rainbowGum = RainbowGum.of();
-		loggerFactory = new RainbowGumLoggerFactory(rainbowGum);
-		markerFactory = new BasicMarkerFactory();
-		mdcAdapter = new RainbowGumMDCAdapter();
+		initialize(rainbowGum);
 		System.setProperty("SLF4J_LOGGING_LOADED", "true");
+	}
+
+	/**
+	 * For testing Rainbow Gums SLF4J without initializing SLF4J.
+	 * @param rainbowGum which gum to use for logger factory.
+	 */
+	public void initialize(RainbowGum rainbowGum) {
+		var mdc = new RainbowGumMDCAdapter();
+		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdc);
+		markerFactory = new BasicMarkerFactory();
+		mdcAdapter = mdc;
 	}
 
 }

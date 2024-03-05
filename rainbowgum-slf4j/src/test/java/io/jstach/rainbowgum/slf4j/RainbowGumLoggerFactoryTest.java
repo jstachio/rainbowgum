@@ -45,11 +45,12 @@ class RainbowGumLoggerFactoryTest {
 		var lr = rainbowgum.router().levelResolver();
 		System.out.println(lr);
 
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum);
+		var mdc = new RainbowGumMDCAdapter();
+		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, mdc);
 		Consumer<Logger> consumer = (logger) -> {
-			MDC.put("status", "alive");
+			mdc.put("status", "alive");
 			logger.info("Eric");
-			MDC.put("status", "dead");
+			mdc.put("status", "dead");
 			logger.debug("Kenny");
 			logger.warn("Stan");
 		};
@@ -87,7 +88,7 @@ class RainbowGumLoggerFactoryTest {
 
 		assertTrue(rainbowgum.config().changePublisher().isEnabled("mychange"));
 
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum);
+		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("mychange");
 		assertInstanceOf(ChangeableLogger.class, logger);
 		assertTrue(logger.isErrorEnabled());
@@ -131,7 +132,7 @@ class RainbowGumLoggerFactoryTest {
 				logging.level=WARNING
 				""").build();
 		var rainbowgum = gum(props);
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum);
+		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("anything");
 		assertInstanceOf(ChangeableLogger.class, logger);
 	}

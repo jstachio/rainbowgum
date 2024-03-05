@@ -7,7 +7,9 @@
    headingSelector: 'h1, h2, h3, h4, h5',
    // For headings inside relative or absolute positioned containers within content.
    hasInnerContainers: true,
-   collapseDepth: 6
+   collapseDepth: 6,
+   headingsOffset: 30,
+   scrollSmoothOffset: -30
  });
  $('#related-package-summary').parent().detach().appendTo('.summary-list');
 

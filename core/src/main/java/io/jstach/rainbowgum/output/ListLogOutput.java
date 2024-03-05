@@ -5,7 +5,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Map.Entry;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import io.jstach.rainbowgum.LogEvent;
@@ -18,9 +20,12 @@ public final class ListLogOutput implements LogOutput {
 
 	private List<Entry<LogEvent, String>> events;
 
-	private ListLogOutput(List<Entry<LogEvent, String>> events) {
+	private volatile BiConsumer<LogEvent, String> consumer;
+
+	private ListLogOutput(List<Entry<LogEvent, String>> events, BiConsumer<LogEvent, String> consumer) {
 		super();
 		this.events = events;
+		this.consumer = consumer;
 	}
 
 	@Override
@@ -32,12 +37,22 @@ public final class ListLogOutput implements LogOutput {
 	 * Creates a list output.
 	 */
 	public ListLogOutput() {
-		this(new ArrayList<>());
+		this(new ArrayList<>(), (e, s) -> {
+		});
+	}
+
+	/**
+	 * Sets a consumer for testing purposes. Default is a noop.
+	 * @param consumer callback to consume events.
+	 */
+	public void setConsumer(BiConsumer<LogEvent, String> consumer) {
+		this.consumer = Objects.requireNonNull(consumer);
 	}
 
 	@Override
 	public void write(LogEvent event, String s) {
 		events.add(Map.entry(event, s));
+		this.consumer.accept(event, s);
 	}
 
 	@Override

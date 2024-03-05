@@ -380,8 +380,8 @@ final class RainbowGumHolder {
 	private static void start(RainbowGum gum) {
 		Objects.requireNonNull(gum);
 		ShutdownManager.addShutdownHook(gum);
-		InternalRootRouter.setRouter(gum.router());
 		gum.start();
+		InternalRootRouter.setRouter(gum.router());
 	}
 
 }

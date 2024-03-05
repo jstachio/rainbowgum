@@ -51,6 +51,9 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 	@Override
 	public void log(LogEvent event) {
+		if (!running) {
+			throw new IllegalStateException();
+		}
 		queue.offer(event);
 	}
 

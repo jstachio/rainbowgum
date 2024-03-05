@@ -5,25 +5,33 @@ import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
 
+@SuppressWarnings("exports")
 sealed interface LevelLogger extends BaseLogger, Logger {
 
 	record OffLogger(String loggerName) implements LevelLogger {
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
 		}
+
+		@Override
+		public io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc() {
+			return null;
+		}
 	}
 
-	public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender) {
+	public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
+			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) {
 		return switch (level) {
-			case ERROR -> new ErrorLogger(loggerName, appender);
-			case WARN -> new WarnLogger(loggerName, appender);
-			case INFO -> new InfoLogger(loggerName, appender);
-			case DEBUG -> new DebugLogger(loggerName, appender);
-			case TRACE -> new TraceLogger(loggerName, appender);
+			case ERROR -> new ErrorLogger(loggerName, appender, mdc);
+			case WARN -> new WarnLogger(loggerName, appender, mdc);
+			case INFO -> new InfoLogger(loggerName, appender, mdc);
+			case DEBUG -> new DebugLogger(loggerName, appender, mdc);
+			case TRACE -> new TraceLogger(loggerName, appender, mdc);
 		};
 	}
 
-	record ErrorLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
+	record ErrorLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
+			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
@@ -275,7 +283,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record WarnLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
+	record WarnLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
+			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
@@ -536,7 +545,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record InfoLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
+	record InfoLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
+			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
@@ -806,7 +816,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record DebugLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
+	record DebugLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
+			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
@@ -1085,7 +1096,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record TraceLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender) implements LevelLogger {
+	record TraceLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
+			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
 
 		@Override
 		public void handle(io.jstach.rainbowgum.LogEvent event) {
