@@ -15,12 +15,12 @@ class BlockingQueueAsyncLogPublisherTest {
 
 	@Test
 	void testOf() throws InterruptedException {
-		int count = 5;
+		int count = 20;
 		CountDownLatch latch = new CountDownLatch(count);
 		ListLogOutput output = new ListLogOutput();
 		output.setConsumer((e, s) -> latch.countDown());
 		var appender = LogAppender.builder("blah").output(output).build().provide("blah", LogConfig.builder().build());
-		var b = BlockingQueueAsyncLogPublisher.of(List.of(appender), 1024);
+		var b = BlockingQueueAsyncLogPublisher.of(List.of(appender), 10);
 		b.start(LogConfig.builder().build());
 
 		try (BlockingQueueAsyncLogPublisher pub = b) {

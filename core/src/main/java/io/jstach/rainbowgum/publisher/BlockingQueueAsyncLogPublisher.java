@@ -54,7 +54,15 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 		if (!running) {
 			throw new IllegalStateException();
 		}
-		queue.offer(event);
+		// queue.offer(event);
+		try {
+			queue.put(event);
+		}
+		catch (InterruptedException e) {
+			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+			Thread.currentThread().interrupt();
+
+		}
 	}
 
 	@Override
@@ -121,7 +129,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 		private void drain() {
 			try {
-				queue.drainTo(fake, bufferSize);
+				int size = fake.size;
+				queue.drainTo(fake, bufferSize - size);
 				append(buffer, fake.size);
 			}
 			finally {
@@ -135,7 +144,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 			@Override
 			public boolean add(LogEvent e) {
-				buffer[size++] = e;
+				buffer[size] = e;
+				size++;
 				return true;
 			}
 

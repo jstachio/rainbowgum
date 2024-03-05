@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.output;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -36,21 +37,34 @@ public interface FileOutput extends LogOutput {
 	 * @param fileName file name.
 	 * @param append whether or not to append to existing file.
 	 * @param prudent logback prudent mode where files are locked on each write.
+	 * @param bufferSize buffer size in bytes.
 	 * @return file output.
 	 * @throws FileNotFoundException if file not found.
 	 */
 	@SuppressWarnings("resource")
 	@LogConfigurable(prefix = LogProperties.OUTPUT_PREFIX)
 	public static FileOutput of(@LogConfigurable.KeyParameter String name, URI uri, String fileName,
-			@Nullable Boolean append, @Nullable Boolean prudent) throws FileNotFoundException {
+			@Nullable Boolean append, @Nullable Boolean prudent, @Nullable Integer bufferSize)
+			throws FileNotFoundException {
 		prudent = prudent == null ? false : prudent;
+		append = append == null ? true : append;
 		File file = new File(fileName);
 		createMissingParentDirectories(file);
 		FileOutputStream stream = new FileOutputStream(file, append);
 		if (prudent) {
 			return new FileChannelOutput(uri, stream.getChannel());
 		}
-		return new FileOutputStreamOutput(uri, stream);
+		OutputStream s;
+		if (bufferSize == null) {
+			s = new BufferedOutputStream(stream);
+		}
+		else if (bufferSize > 0) {
+			s = new BufferedOutputStream(stream, bufferSize);
+		}
+		else {
+			s = stream;
+		}
+		return new FileOutputStreamOutput(uri, s);
 	}
 
 	/**
