@@ -20,7 +20,9 @@ import java.util.Locale;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEvent.CallerInfo;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.pattern.PadInfo;
 import io.jstach.rainbowgum.pattern.PatternKeyword;
 import io.jstach.rainbowgum.pattern.format.FormatterFactory.CompositeFactory;
@@ -124,6 +126,51 @@ public sealed interface FormatterFactory {
 		}
 
 	}
+
+}
+
+enum CallerInfoFormatter implements EventFormatter {
+
+	METHOD() {
+
+		@Override
+		protected void format(StringBuilder output, CallerInfo info) {
+			output.append(info.getMethodName());
+		}
+
+	},
+	CLASS {
+		@Override
+		protected void format(StringBuilder output, CallerInfo info) {
+			output.append(info.getClassName());
+
+		}
+	},
+	FILE {
+		@Override
+		protected void format(StringBuilder output, CallerInfo info) {
+			output.append(info.getFileName());
+
+		}
+	},
+	LINE {
+		@Override
+		protected void format(StringBuilder output, CallerInfo info) {
+			output.append(info.getLineNumber());
+
+		}
+	};
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		var info = event.callerInfo();
+		if (info != null) {
+			format(output, info);
+		}
+
+	}
+
+	protected abstract void format(StringBuilder output, CallerInfo info);
 
 }
 

@@ -64,6 +64,17 @@ public sealed interface LogFormatter {
 	}
 
 	/**
+	 * Create a formatter using event formatter that is a lambda so that
+	 * {@code LogFormater.of((o, e) -> ...); } works.
+	 * @param e will be returned.
+	 * @return passed in formatter.
+	 * @apiNote this is for ergonomics because LogFormatter is sealed.
+	 */
+	public static EventFormatter of(EventFormatter e) {
+		return e;
+	}
+
+	/**
 	 * Ask the formatter if will do anything.
 	 * @return true if promises not to write to builder.
 	 * @see #noop()

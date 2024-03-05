@@ -106,6 +106,22 @@ public sealed interface PatternRegistry {
 		 */
 		MICROS("ms", "micros"), //
 		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#file">File</a>
+		 */
+		FILE("f", "file"),
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#line">Line no</a>
+		 */
+		LINE("L", "line"),
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#class">Calling class</a>
+		 */
+		CLASS("C", "class"),
+		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#line">Line no</a>
+		 */
+		METHOD("M", "method"),
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#relative">Thread
 		 * keywords</a>
 		 */
@@ -302,6 +318,11 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case MICROS -> KeywordFactory.of(LogFormatter.TimestampFormatter.ofMicros());
 				case THREAD -> KeywordFactory.of(LogFormatter.ThreadFormatter.of());
 				case THROWABLE -> KeywordFactory.of(LogFormatter.ThrowableFormatter.of());
+				case CLASS -> KeywordFactory.of(CallerInfoFormatter.CLASS);
+				case FILE -> KeywordFactory.of(CallerInfoFormatter.FILE);
+				case LINE -> KeywordFactory.of(CallerInfoFormatter.LINE);
+				case METHOD -> KeywordFactory.of(CallerInfoFormatter.METHOD);
+				default -> throw new IllegalArgumentException("Unexpected value: " + c);
 			};
 
 			registry.register(c, keyword);
