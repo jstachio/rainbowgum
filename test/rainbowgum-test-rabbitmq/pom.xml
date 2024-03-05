@@ -22,7 +22,7 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>rabbitmq</artifactId>
-      <version>1.19.6</version>
+      <version>1.19.7</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
