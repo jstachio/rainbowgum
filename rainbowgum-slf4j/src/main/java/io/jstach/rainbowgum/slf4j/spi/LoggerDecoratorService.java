@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.slf4j.ForwardingLogger;
+import io.jstach.rainbowgum.slf4j.WrappingLogger;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
@@ -58,8 +59,27 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 	 * Decorate a logger. To not decorate simply return the previous logger.
 	 * @param rainbowGum rainbow gum passed to the slf4j factory.
 	 * @param previousLogger the previous logger in the chain.
-	 * @return decorated logger.
+	 * @return decorated logger and if decorated ideally one that implements
+	 * {@link WrappingLogger} so that caller info depth is retained.
 	 */
 	public abstract Logger decorate(RainbowGum rainbowGum, Logger previousLogger);
+
+	/**
+	 * Because wrapping can change the depth of the logger in the callstack this interface
+	 * allows loggers to be notified their depth has changed because of
+	 * {@link LoggerDecoratorService#decorate(RainbowGum, Logger)}. This is determined by
+	 * checking loggers that implement {@link WrappingLogger} in the decorate phase to
+	 * determine their depth in the chain.
+	 */
+	public interface DepthAware {
+
+		/**
+		 * Sets the depth information.
+		 * @param index current index.
+		 * @param depth depth of decorated loggers.
+		 */
+		public void setDepth(int index, int depth);
+
+	}
 
 }

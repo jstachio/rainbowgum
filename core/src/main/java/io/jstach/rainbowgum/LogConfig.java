@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -158,11 +160,34 @@ public sealed interface LogConfig {
 		public void publish();
 
 		/**
-		 * Test to see if changes are enabled for a logger.
+		 * Test to see if <strong>any</strong> changes are enabled for a logger.
 		 * @param loggerName logger name.
 		 * @return true if enabled.
 		 */
 		public boolean isEnabled(String loggerName);
+
+		/**
+		 * Returns what the logger is allowed to change.
+		 * @param loggerName logger name.
+		 * @return which things are allowed to change in the logger
+		 */
+		public Set<ChangeType> allowedChanges(String loggerName);
+
+		/**
+		 * Changing type options.
+		 */
+		public enum ChangeType {
+
+			/**
+			 * The logger is allowed to change levels.
+			 */
+			LEVEL,
+			/**
+			 * The logger is allowed to change caller info.
+			 */
+			CALLER_INFO
+
+		}
 
 	}
 
@@ -309,6 +334,13 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		return changeSetting.get(config().properties(), loggerName).value();
 	}
 
+	public Set<ChangeType> allowedChanges(String loggerName) {
+		if (isEnabled(loggerName)) {
+			return EnumSet.allOf(ChangeType.class);
+		}
+		return Set.of();
+	}
+
 }
 
 enum IgnoreChangePublisher implements ChangePublisher {
@@ -327,6 +359,10 @@ enum IgnoreChangePublisher implements ChangePublisher {
 	@Override
 	public boolean isEnabled(String loggerName) {
 		return false;
+	}
+
+	public Set<ChangeType> allowedChanges(String loggerName) {
+		return Set.of();
 	}
 
 }

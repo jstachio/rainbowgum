@@ -1,11 +1,9 @@
 package io.jstach.rainbowgum.slf4j;
 
 import org.slf4j.Logger;
-import org.slf4j.MDC;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
-import org.slf4j.spi.MDCAdapter;
 import org.slf4j.spi.NOPLoggingEventBuilder;
 
 import io.jstach.rainbowgum.KeyValues;

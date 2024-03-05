@@ -11,12 +11,12 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
-import org.slf4j.MDC;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEvent.CallerInfo;
 import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
-import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -114,9 +114,9 @@ class RainbowGumLoggerFactoryTest {
 		String actual = list.toString();
 
 		String expected = """
-				INFO after change info
-				TRACE two is now trace enabled
-								""";
+				INFO after change info <caller>io.jstach.rainbowgum.slf4j.RainbowGumLoggerFactoryTest.testChangeableLogger</caller>
+				TRACE two is now trace enabled <caller>io.jstach.rainbowgum.slf4j.RainbowGumLoggerFactoryTest.testChangeableLogger</caller>
+				""";
 		assertEquals(expected, actual);
 
 		assertInstanceOf(ChangeableLogger.class, logger);
@@ -144,6 +144,14 @@ class RainbowGumLoggerFactoryTest {
 				a.formatter((output, event) -> {
 					output.append(event.level()).append(" ");
 					event.formattedMessage(output);
+					CallerInfo caller = event.callerInfo();
+					if (caller != null) {
+						output.append(" <caller>");
+						output.append(caller.getClassName());
+						output.append(".");
+						output.append(caller.getMethodName());
+						output.append("</caller>");
+					}
 					output.append("\n");
 
 				});

@@ -6,9 +6,11 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
+import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
@@ -43,12 +45,15 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 			Logger newLogger;
 			var level = router.levelResolver().resolveLevel(name);
-			if (changePublisher.isEnabled(name)) {
+			var allowedChanges = changePublisher.allowedChanges(name);
+			if (!allowedChanges.isEmpty()) {
 				/*
 				 * We get a logger that can log everything.
 				 */
 				LogEventLogger logger = router.route(name, System.Logger.Level.ERROR);
-				ChangeableLogger changeable = new ChangeableLogger(name, logger, mdc, Levels.toSlf4jInt(level));
+				boolean callerInfo = allowedChanges.contains(ChangeType.CALLER_INFO);
+				ChangeableLogger changeable = new ChangeableLogger(name, logger, mdc, Levels.toSlf4jInt(level),
+						callerInfo);
 				changePublisher.subscribe(c -> {
 					var slf4jLevel = Levels.toSlf4jLevel(router.levelResolver().resolveLevel(name));
 					changeable.setLevel(slf4jLevel.toInt());
@@ -105,7 +110,12 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		record SingleLoggerDecorator(LoggerDecoratorService service) implements LoggerDecorator {
 			@Override
 			public Logger decorate(RainbowGum gum, Logger logger) {
-				return Objects.requireNonNull(service.decorate(gum, logger));
+				var decorated = Objects.requireNonNull(service.decorate(gum, logger));
+				if (decorated != logger && decorated instanceof WrappingLogger wl && wl.delegate() == logger) {
+					setDepth(logger, 0, 1);
+					setDepth(decorated, 1, 1);
+				}
+				return decorated;
 			}
 		}
 
@@ -116,8 +126,30 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				for (var p : services) {
 					logger = Objects.requireNonNull(p.decorate(gum, logger));
 				}
+				int count = 0;
+				for (var current = logger; current != null; current = getWrapping(current)) {
+					count++;
+				}
+				int i = 0;
+				for (var current = logger; current != null; current = getWrapping(current)) {
+					setDepth(current, i++, count);
+				}
 				return logger;
 			}
+
+		}
+
+		private static @Nullable Logger getWrapping(Logger logger) {
+			if (logger instanceof WrappingLogger wl) {
+				return wl.delegate();
+			}
+			return null;
+		}
+
+		/*
+		 * TODO for stack tracing
+		 */
+		static void setDepth(Logger logger, int index, int depth) {
 
 		}
 

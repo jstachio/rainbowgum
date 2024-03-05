@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.StackWalker.StackFrame;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent.Builder;
+import io.jstach.rainbowgum.LogEvent.CallerInfo;
 import io.jstach.rainbowgum.LogRouter.Router;
 
 /**
@@ -134,6 +136,17 @@ public sealed interface LogEvent {
 	}
 
 	/**
+	 * Creates a new event with the caller info attached. <em> This method always returns
+	 * a new event does not check if the original has caller info. </em>
+	 * @param event original event.
+	 * @param callerInfo caller info.
+	 * @return new log event.
+	 */
+	public static LogEvent withCallerInfo(LogEvent event, CallerInfo callerInfo) {
+		return new StackFrameLogEvent(event, callerInfo);
+	}
+
+	/**
 	 * Timestamp when the event was created.
 	 * @return instant when the event was created.
 	 */
@@ -208,6 +221,14 @@ public sealed interface LogEvent {
 	 * @return key values.
 	 */
 	public KeyValues keyValues();
+
+	/**
+	 * Returns info about caller or <code>null</code> if not supported.
+	 * @return caller info
+	 */
+	default @Nullable CallerInfo callerInfo() {
+		return null;
+	}
 
 	/**
 	 * Freeze will return a LogEvent that is safe to use in a different thread. Usually
@@ -322,6 +343,90 @@ public sealed interface LogEvent {
 		 */
 		public @Nullable LogEvent eventOrNull();
 
+	}
+
+	/**
+	 * Caller info usually derived from Stack walking.
+	 */
+	public sealed interface CallerInfo {
+
+		/**
+		 * Creates caller info from a stack frame.
+		 * @param stackFrame stack frame must have
+		 * {@link java.lang.StackWalker.Option#RETAIN_CLASS_REFERENCE}.
+		 * @return caller info.
+		 */
+		public static CallerInfo of(StackFrame stackFrame) {
+			return new StackFrameCallerInfo(stackFrame);
+		}
+
+		/**
+		 * See {@link StackFrame#getClassName()}.
+		 * @return class name.
+		 */
+		public String getClassName();
+
+		/**
+		 * See {@link StackFrame#getFileName()}.
+		 * @return file name.
+		 */
+		public String getFileName();
+
+		/**
+		 * See {@link StackFrame#getLineNumber()}.
+		 * @return line number.
+		 */
+		public int getLineNumber();
+
+		/**
+		 * See {@link StackFrame#getMethodName()}.
+		 * @return method name.
+		 */
+		public String getMethodName();
+
+		/**
+		 * Make the caller info immutable.
+		 * @return immutable caller info and if this is already immutable return this.
+		 */
+		public CallerInfo freeze();
+
+	}
+
+}
+
+record FrozenCallerInfo(String getClassName, String getFileName, int getLineNumber,
+		String getMethodName) implements LogEvent.CallerInfo {
+	@Override
+	public CallerInfo freeze() {
+		return this;
+	}
+}
+
+record StackFrameCallerInfo(StackFrame stackFrame) implements LogEvent.CallerInfo {
+
+	@Override
+	public String getClassName() {
+		return stackFrame.getClassName();
+	}
+
+	@Override
+	public String getFileName() {
+		return stackFrame.getFileName();
+	}
+
+	@Override
+	public int getLineNumber() {
+		return stackFrame.getLineNumber();
+	}
+
+	@Override
+	public String getMethodName() {
+		return stackFrame.getMethodName();
+	}
+
+	@Override
+	public CallerInfo freeze() {
+		return new FrozenCallerInfo(getClassName(), getFileName(), getLineNumber(), getMethodName());
 	}
 
 }
@@ -682,6 +787,77 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 		}
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
 				throwable);
+	}
+
+}
+
+record StackFrameLogEvent(LogEvent event, CallerInfo callerInfo) implements LogEvent {
+
+	@Override
+	public Instant timestamp() {
+		return event.timestamp();
+	}
+
+	@Override
+	public String threadName() {
+		return event.threadName();
+	}
+
+	@Override
+	public long threadId() {
+		return event.threadId();
+	}
+
+	@Override
+	public Level level() {
+		return event.level();
+	}
+
+	@Override
+	public String loggerName() {
+		return event.loggerName();
+	}
+
+	@Override
+	public String message() {
+		return event.message();
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb) {
+		event.formattedMessage(sb);
+
+	}
+
+	@Override
+	public @Nullable Throwable throwable() {
+		return event.throwable();
+	}
+
+	@Override
+	public KeyValues keyValues() {
+		return event.keyValues();
+	}
+
+	@Override
+	public LogEvent freeze() {
+		var e = event.freeze();
+		var info = callerInfo.freeze();
+		if (e == event && info == callerInfo) {
+			return this;
+		}
+
+		return new StackFrameLogEvent(e, info);
+	}
+
+	@Override
+	public LogEvent freeze(Instant timestamp) {
+		var e = event.freeze(timestamp);
+		var info = callerInfo.freeze();
+		if (e == event && info == callerInfo) {
+			return this;
+		}
+		return new StackFrameLogEvent(e, info);
 	}
 
 }

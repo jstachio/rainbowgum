@@ -1,20 +1,25 @@
 package io.jstach.rainbowgum.slf4j;
 
-import org.slf4j.Marker;
-import org.slf4j.event.Level;
-import org.slf4j.spi.LoggingEventBuilder;
-import org.slf4j.spi.NOPLoggingEventBuilder;
-
-import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogEventLogger;
-
 import static org.slf4j.event.EventConstants.DEBUG_INT;
 import static org.slf4j.event.EventConstants.ERROR_INT;
 import static org.slf4j.event.EventConstants.INFO_INT;
 import static org.slf4j.event.EventConstants.TRACE_INT;
 import static org.slf4j.event.EventConstants.WARN_INT;
 
-class ChangeableLogger implements BaseLogger {
+import java.lang.StackWalker.Option;
+
+import org.eclipse.jdt.annotation.Nullable;
+import org.slf4j.Marker;
+import org.slf4j.event.Level;
+import org.slf4j.spi.LoggingEventBuilder;
+import org.slf4j.spi.NOPLoggingEventBuilder;
+
+import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEvent.CallerInfo;
+import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAware;
+
+class ChangeableLogger implements BaseLogger, DepthAware {
 
 	private final String loggerName;
 
@@ -24,12 +29,20 @@ class ChangeableLogger implements BaseLogger {
 
 	private volatile int level;
 
-	ChangeableLogger(String loggerName, LogEventLogger eventLogger, RainbowGumMDCAdapter mdc, int level) {
+	private volatile boolean callerInfo;
+
+	private static final int DEPTH_DELTA = 6;
+
+	private int depth = DEPTH_DELTA;
+
+	ChangeableLogger(String loggerName, LogEventLogger eventLogger, RainbowGumMDCAdapter mdc, int level,
+			boolean callerInfo) {
 		super();
 		this.loggerName = loggerName;
 		this.eventLogger = eventLogger;
 		this.mdc = mdc;
 		this.level = level;
+		this.callerInfo = callerInfo;
 	}
 
 	@Override
@@ -52,8 +65,56 @@ class ChangeableLogger implements BaseLogger {
 	}
 
 	@Override
+	public void setDepth(int index, int depth) {
+		this.depth = index + DEPTH_DELTA;
+
+	}
+
+	@Override
 	public String toString() {
 		return "ChangeableLogger[loggerName=" + loggerName + ", level=" + level + "]";
+	}
+
+	private static final StackWalker stackWalker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
+
+	private @Nullable CallerInfo callerInfo(int depth) {
+		return stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> CallerInfo.of(f)).findFirst().orElse(null));
+
+	}
+
+	@Override
+	public LogEvent event(Level level, String formattedMessage, @Nullable Throwable throwable) {
+		return addCallerInfo(BaseLogger.super.event(level, formattedMessage, throwable));
+	}
+
+	private LogEvent addCallerInfo(LogEvent e) {
+		if (callerInfo) {
+			var found = callerInfo(this.depth);
+			if (found != null) {
+				return LogEvent.withCallerInfo(e, found);
+			}
+		}
+		return e;
+	}
+
+	@Override
+	public LogEvent event0(Level level, String formattedMessage) {
+		return addCallerInfo(BaseLogger.super.event0(level, formattedMessage));
+	}
+
+	@Override
+	public LogEvent event1(Level level, String message, Object arg1) {
+		return addCallerInfo(BaseLogger.super.event1(level, message, arg1));
+	}
+
+	@Override
+	public LogEvent event2(Level level, String message, Object arg1, Object arg2) {
+		return addCallerInfo(BaseLogger.super.event2(level, message, arg1, arg2));
+	}
+
+	@Override
+	public LogEvent eventArray(Level level, String message, Object[] args) {
+		return addCallerInfo(BaseLogger.super.eventArray(level, message, args));
 	}
 
 	@Override
