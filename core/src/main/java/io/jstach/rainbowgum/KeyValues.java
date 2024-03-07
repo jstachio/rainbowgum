@@ -34,7 +34,7 @@ public sealed interface KeyValues {
 	 * @param i index from {@link #start()} or {@link #next(int)}.
 	 * @return key.
 	 */
-	public @Nullable String keyOrNull(int i);
+	public String key(int i);
 
 	/**
 	 * Lowlevel key access.
@@ -236,7 +236,7 @@ public sealed interface KeyValues {
 			return false;
 		}
 		for (int i = self.start(); i > -1; i = self.next(i)) {
-			var k = self.keyOrNull(i);
+			var k = self.key(i);
 			var v = self.valueOrNull(i);
 			if (!Objects.equals(v, kvs.getValueOrNull(k))) {
 				return false;
@@ -276,7 +276,7 @@ enum EmptyKeyValues implements KeyValues {
 	}
 
 	@Override
-	public @Nullable String keyOrNull(int index) {
+	public String key(int index) {
 		throw new IndexOutOfBoundsException(index);
 	}
 
@@ -330,7 +330,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public @Nullable String keyOrNull(int index) {
+	public String key(int index) {
 		if (index >= (threshold - 1)) {
 			throw new IndexOutOfBoundsException(index);
 		}
@@ -381,7 +381,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public String getValueOrNull(String key) {
+	public @Nullable String getValueOrNull(String key) {
 		for (int i = 0; i < size * 2; i += 2) {
 			var k = kvs[i];
 			/*

@@ -51,13 +51,13 @@ public final class $$builderName$$ {
 	private final String propertyPrefix;
 	$$#properties$$
 	$$#normal$$
-	final Property<$$typeWithAnnotation$$> $$propertyVar$$;
+	final Property<$$typeWithNoAnnotation$$> $$propertyVar$$;
 	$$/normal$$
 	$$/properties$$
 	
 	$$#properties$$
 	$$#normal$$
-	private $$typeWithAnnotation$$ $$name$$ = $$defaultValue$$;
+	private $$fieldType$$ $$name$$ = $$defaultValue$$;
 	$$/normal$$
 	$$#prefixParameter$$
 	private final $$typeWithAnnotation$$ $$name$$;
@@ -148,8 +148,9 @@ public final class $$builderName$$ {
 	public void toProperties(java.util.function.BiConsumer<String, String> consumer) {
 		$$#properties$$
 		$$#normal$$
-		if (this.$$name$$ != null) {
-			consumer.accept($$propertyVar$$.key(), $$propertyVar$$.propertyString(this.$$name$$));
+		var _$$name$$ = this.$$name$$;
+		if (_$$name$$ != null) {
+			consumer.accept($$propertyVar$$.key(), $$propertyVar$$.propertyString(_$$name$$));
 		}
 		$$/normal$$
 		$$/properties$$

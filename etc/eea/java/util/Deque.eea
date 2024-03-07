@@ -1,0 +1,10 @@
+class java/util/Deque
+descendingIterator
+ ()Ljava/util/Iterator<TE;>;
+ ()L1java/util/Iterator<TE;>;
+peek
+ ()TE;
+ ()T0E;
+poll
+ ()TE;
+ ()T0E;

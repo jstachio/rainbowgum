@@ -58,6 +58,9 @@ record BuilderModel( //
 			String name, //
 			String type, //
 			String typeWithAnnotation, //
+			String typeWithNoAnnotation, //
+			String fieldType, //
+			ClassRef classRef, //
 			String defaultValue, //
 			boolean required, //
 			String javadoc, //
@@ -78,6 +81,14 @@ record BuilderModel( //
 		public String propertyLiteral() {
 			return "PROPERTY_" + name;
 		}
+
+		// public String fieldType() {
+		// if (defaultValue.equals("null") && !typeWithAnnotation.contains("Nullable")) {
+		// return classRef.getPackageName() + ".@org.eclipse.jdt.annotation.Nullable " +
+		// classRef.getSimpleName();
+		// }
+		// return typeWithAnnotation;
+		// }
 
 		public @Nullable String convertMethod() {
 			if (converter != null) {

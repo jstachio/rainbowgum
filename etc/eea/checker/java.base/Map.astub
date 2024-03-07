@@ -1,0 +1,7 @@
+package java.util;
+
+import org.checkerframework.checker.nullness.qual.NonNull;
+
+public interface Map<K, V> {
+  public static <K, V> Entry<K, V> entry(@NonNull K k, @NonNull V v);
+}

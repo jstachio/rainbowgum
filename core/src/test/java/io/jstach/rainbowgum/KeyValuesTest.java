@@ -40,7 +40,7 @@ public class KeyValuesTest {
 		// Map.of("1", "1value", "2", "2value", "3", "3value");
 		var kvs = create(m);
 		for (int i = kvs.start(), j = 0; i > -1; i = kvs.next(i), j++) {
-			String k = kvs.keyOrNull(i);
+			String k = kvs.key(i);
 			String v = kvs.valueOrNull(i);
 			String ek = String.valueOf(j + 1);
 			String ev = (j + 1) + "value";

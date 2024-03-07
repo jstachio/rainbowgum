@@ -177,7 +177,10 @@ public class ConfigProcessor extends AbstractProcessor {
 			Map<String, VariableElement> foundParams) {
 		String name = p.getSimpleName().toString();
 		String type = h.getFullyQualifiedClassName(p.asType());
+		ClassRef classRef = ClassRef.of(h.elements, p.asType());
 		String typeWithAnnotation = ToStringTypeVisitor.toCodeSafeString(p.asType());
+		String typeWithNoAnnotation = ToStringTypeVisitor.toCodeNoAnnotations(p.asType());
+
 		String defaultValue = "null";
 		var defaultParameter = DefaultParameterPrism.getInstanceOn(p);
 		TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
@@ -211,8 +214,12 @@ public class ConfigProcessor extends AbstractProcessor {
 		if (converterParameterPrism != null) {
 			c = new BuilderModel.Converter(fqnEnclosing + "." + converterParameterPrism.value());
 		}
-		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, defaultValue, required, javadoc,
-				c);
+		String fieldType = typeWithAnnotation;
+		if (defaultValue.equals("null")) {
+			fieldType = ToStringTypeVisitor.toCodeSafeString(p.asType(), "@org.eclipse.jdt.annotation.Nullable");
+		}
+		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, typeWithNoAnnotation, fieldType,
+				classRef, defaultValue, required, javadoc, c);
 		return prop;
 	}
 

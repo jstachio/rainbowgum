@@ -729,7 +729,7 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
-		@Nullable Throwable throwableOrNull, Object[] args) implements LogEvent {
+		@Nullable Throwable throwableOrNull, @Nullable Object[] args) implements LogEvent {
 
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.formatArray(sb, message, args);

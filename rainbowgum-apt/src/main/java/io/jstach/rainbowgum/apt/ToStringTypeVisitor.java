@@ -27,31 +27,44 @@ class ToStringTypeVisitor extends AbstractTypeVisitor14<StringBuilder, StringBui
 
 	private final boolean includeAnnotations;
 
+	private final String addAnnotation;
+
 	private final HashMap<TypeVariable, String> typeVariables;
 
 	private static final boolean DEBUG = false;
 
 	public static String toCodeSafeString(TypeMirror typeMirror) {
-		return toCodeSafeString(typeMirror, 1, Map.of());
+		return toCodeSafeString(typeMirror, 1, true, "");
 	}
 
-	static String toCodeSafeString(TypeMirror typeMirror, int depth, Map<TypeVariable, String> typeVariables) {
-		var v = new ToStringTypeVisitor(depth, typeVariables);
-		v.typeVariables.putAll(typeVariables);
+	public static String toCodeSafeString(TypeMirror typeMirror, String addAnnotation) {
+		return toCodeSafeString(typeMirror, 1, true, addAnnotation);
+
+	}
+
+	public static String toCodeNoAnnotations(TypeMirror typeMirror) {
+		return toCodeSafeString(typeMirror, 1, false, "");
+	}
+
+	static String toCodeSafeString(TypeMirror typeMirror, int depth, boolean includeAnnotations, String addAnnotation) {
+		var v = new ToStringTypeVisitor(depth, Map.of(), includeAnnotations, addAnnotation);
+		// v.typeVariables.putAll(typeVariables);
 		StringBuilder b = new StringBuilder();
 		return typeMirror.accept(v, b).toString();
 	}
 
 	private ToStringTypeVisitor() {
-		this(1, new HashMap<>());
+		this(1, new HashMap<>(), true, "");
 	}
 
-	private ToStringTypeVisitor(int depth, Map<TypeVariable, String> typeVariables) {
+	private ToStringTypeVisitor(int depth, Map<TypeVariable, String> typeVariables, boolean includeAnnotations,
+			String addAnnotation) {
 		super();
-		this.includeAnnotations = true;
+		this.includeAnnotations = includeAnnotations;
 		this.depth = depth;
 		this.typeVariables = new HashMap<>();
 		this.typeVariables.putAll(typeVariables);
+		this.addAnnotation = addAnnotation;
 	}
 
 	void debug(String message, Object o) {
@@ -74,7 +87,7 @@ class ToStringTypeVisitor extends AbstractTypeVisitor14<StringBuilder, StringBui
 	}
 
 	ToStringTypeVisitor child() {
-		ToStringTypeVisitor tmv = new ToStringTypeVisitor(depth + 1, typeVariables);
+		ToStringTypeVisitor tmv = new ToStringTypeVisitor(depth + 1, typeVariables, includeAnnotations, "");
 		return tmv;
 	}
 
@@ -121,7 +134,7 @@ class ToStringTypeVisitor extends AbstractTypeVisitor14<StringBuilder, StringBui
 	public StringBuilder visitDeclared(DeclaredType t, StringBuilder p) {
 		debug("declared", t);
 		// debug("enclosing type", t.getEnclosingType());
-		String fqn = fullyQualfiedName(t, includeAnnotations);
+		String fqn = fullyQualfiedName(t, includeAnnotations, addAnnotation);
 		debug("typeUseFQN", fqn);
 		p.append(fqn);
 		var tas = t.getTypeArguments();
@@ -142,12 +155,9 @@ class ToStringTypeVisitor extends AbstractTypeVisitor14<StringBuilder, StringBui
 		return p;
 	}
 
-	static String fullyQualfiedName(DeclaredType t, boolean includeAnnotations) {
+	static String fullyQualfiedName(DeclaredType t, boolean includeAnnotations, String addAnnotation) {
 		TypeElement element = (TypeElement) t.asElement();
 		var typeUseAnnotations = t.getAnnotationMirrors();
-		if (typeUseAnnotations.isEmpty() || !includeAnnotations) {
-			return element.getQualifiedName().toString();
-		}
 		String enclosedPart;
 		Element enclosed = element.getEnclosingElement();
 		if (enclosed instanceof QualifiedNameable qn) {
@@ -158,8 +168,14 @@ class ToStringTypeVisitor extends AbstractTypeVisitor14<StringBuilder, StringBui
 		}
 		StringBuilder sb = new StringBuilder();
 		sb.append(enclosedPart);
-		for (var ta : typeUseAnnotations) {
-			sb.append(ta.toString()).append(" ");
+
+		if (!addAnnotation.isBlank()) {
+			sb.append(addAnnotation).append(" ");
+		}
+		else if (includeAnnotations) {
+			for (var ta : typeUseAnnotations) {
+				sb.append(ta.toString()).append(" ");
+			}
 		}
 		sb.append(element.getSimpleName());
 		return sb.toString();

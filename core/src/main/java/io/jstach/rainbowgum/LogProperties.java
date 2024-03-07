@@ -318,7 +318,9 @@ public interface LogProperties {
 	 * @return closest value.
 	 * @see #searchPath(String, Function)
 	 */
-	default @Nullable <T> T search(String root, String key, BiFunction<LogProperties, String, T> func) {
+	@SuppressWarnings("exports")
+	default <T extends @Nullable Object> @Nullable T search(String root, String key,
+			BiFunction<LogProperties, String, @Nullable T> func) {
 		return searchPath(key, k -> func.apply(this, concatKey(root, k)));
 	}
 
@@ -434,7 +436,7 @@ public interface LogProperties {
 
 			abstract Map<String, String> toMap(String content);
 
-			Function<String, String> parse(String content) {
+			Function<String, @Nullable String> parse(String content) {
 				return toMap(content)::get;
 			}
 
@@ -447,7 +449,7 @@ public interface LogProperties {
 	 */
 	public final static class Builder extends AbstractBuilder<Builder> {
 
-		private Function<String, String> function;
+		private @Nullable Function<String, @Nullable String> function = null;
 
 		private Builder() {
 		}
@@ -462,7 +464,7 @@ public interface LogProperties {
 		 * @param function valueOrNull func.
 		 * @return this.
 		 */
-		public Builder function(Function<String, String> function) {
+		public Builder function(@SuppressWarnings("exports") Function<String, @Nullable String> function) {
 			this.function = function;
 			return this;
 		}
@@ -515,7 +517,8 @@ public interface LogProperties {
 		 * @return this.
 		 */
 		public LogProperties build() {
-			if (function == null) {
+			var f = this.function;
+			if (f == null) {
 				if (!fallbacks.isEmpty()) {
 					return LogProperties.of(fallbacks);
 				}
@@ -525,7 +528,7 @@ public interface LogProperties {
 			if (description == null) {
 				description = "custom";
 			}
-			var first = new DefaultLogProperties(function, description, renameKey, order);
+			var first = new DefaultLogProperties(f, description, renameKey, order);
 			if (fallbacks.isEmpty()) {
 				return first;
 			}
@@ -823,7 +826,7 @@ public interface LogProperties {
 	 */
 	public static Map<String, List<String>> parseMultiMap(String query) {
 		Map<String, List<String>> m = new LinkedHashMap<>();
-		BiConsumer<String, String> f = (k, v) -> {
+		BiConsumer<String, @Nullable String> f = (k, v) -> {
 			var list = m.computeIfAbsent(k, _k -> new ArrayList<String>());
 			if (v != null) {
 				list.add(v);
@@ -1071,7 +1074,8 @@ public interface LogProperties {
 	 * @return value or <code>null</code>.
 	 */
 	@SuppressWarnings("exports")
-	public static <T> @Nullable T searchPath(String key, Function<String, @Nullable T> resolveFunc) {
+	public static <T extends @Nullable Object> @Nullable T searchPath(String key,
+			Function<String, @Nullable T> resolveFunc) {
 		return searchPath(key, resolveFunc, SEP);
 	}
 
@@ -1172,7 +1176,11 @@ public interface LogProperties {
 		Set<String> tokens = new LinkedHashSet<>();
 		Matcher matcher = PARAMETER_PATTERN.matcher(key);
 		while (matcher.find()) {
-			tokens.add(matcher.group(1));
+			var t = matcher.group(1);
+			if (t == null) {
+				throw new IllegalStateException("bug with parameter pattern regex.");
+			}
+			tokens.add(t);
 		}
 		return tokens;
 	}
@@ -1268,7 +1276,9 @@ public interface LogProperties {
 			 * @param value actual value should not be <code>null</code>.
 			 */
 			public Success {
-				value = Objects.requireNonNull(value);
+				if (value == null) {
+					throw new NullPointerException("value");
+				}
 			}
 
 			@Override
@@ -1730,6 +1740,7 @@ public interface LogProperties {
 			@Override
 			default String propertyString(T value) {
 				return switch (value) {
+					case null -> throw new NullPointerException("null value passed into propertyString");
 					case String s -> s;
 					case Boolean b -> String.valueOf(b);
 					case Integer i -> String.valueOf(i);
@@ -1758,7 +1769,9 @@ public interface LogProperties {
 		 * @return new property getter.
 		 */
 		default RequiredPropertyGetter<T> orElse(T fallback) {
-			Objects.requireNonNull(fallback);
+			if (fallback == null) {
+				throw new NullPointerException();
+			}
 			return new FallbackGetter<T>(this, () -> fallback);
 		}
 
@@ -1768,7 +1781,9 @@ public interface LogProperties {
 		 * @return new property getter.
 		 */
 		default RequiredPropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
-			Objects.requireNonNull(fallback);
+			if (fallback == null) {
+				throw new NullPointerException();
+			}
 			return new FallbackGetter<T>(this, fallback);
 		}
 

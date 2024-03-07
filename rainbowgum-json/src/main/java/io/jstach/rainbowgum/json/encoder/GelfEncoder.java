@@ -118,7 +118,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		 * output headers
 		 */
 		for (int i = headers.start(); i >= 0; i = headers.next(i)) {
-			String k = headers.keyOrNull(i);
+			String k = headers.key(i);
 			if (kvs.getValueOrNull(k) != null) {
 				continue;
 			}
@@ -130,7 +130,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		 * output MDC
 		 */
 		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
-			String k = kvs.keyOrNull(i);
+			String k = kvs.key(i);
 			String v = kvs.valueOrNull(i);
 			index = buffer.write(k, v, index, EXTENDED_F);
 		}
