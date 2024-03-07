@@ -352,7 +352,7 @@ logging.change.com.mycompany=level  # only logger names starting with com.mycomp
 
 <h3 id="caller_info">Caller Information</h3>
 
-Somewhat related to level resolvers and config change is how to enable {@linkplain io.jstach.rainbowgum.LogEvent#callerInfo() caller info}.
+Somewhat related to level resolvers and config change is how to enable {@linkplain io.jstach.rainbowgum.LogEvent#callerOrNull() caller info}.
 {@link io.jstach.rainbowgum.LogEvent.CallerInfo} has stack trace like information on where the logging call was made.
 It is incredibly slow so like changing loggers it must be enabled and you can enable it with logger name inheritance
 so not all loggers will be slow.
