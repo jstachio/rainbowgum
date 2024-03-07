@@ -2,8 +2,6 @@ package io.jstach.rainbowgum;
 
 import static io.jstach.rainbowgum.spi.RainbowGumServiceProvider.findProviders;
 
-import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -65,17 +63,6 @@ public sealed interface LogConfig {
 	 * @return changePublisher registry.
 	 */
 	public LogPublisherRegistry publisherRegistry();
-
-	/**
-	 * Finds an output from a URI.
-	 * @param uri uri.
-	 * @param name output name.
-	 * @return output.
-	 * @throws IOException if output fails fast
-	 */
-	default LogOutput output(URI uri, String name) throws IOException {
-		return outputRegistry().provide(uri, name, properties());
-	}
 
 	/**
 	 * Creates a builder for making LogConfig.
@@ -215,6 +202,10 @@ public sealed interface LogConfig {
 
 	/**
 	 * Builder for LogConfig.
+	 * <p>
+	 * <strong>NOTE:</strong> The service laoder is not used by default with this builder.
+	 * If the automatic discovery of components is desired call
+	 * {@link #serviceLoader(ServiceLoader)}.
 	 */
 	public static final class Builder {
 
@@ -270,6 +261,16 @@ public sealed interface LogConfig {
 		public Builder serviceLoader(ServiceLoader<RainbowGumServiceProvider> serviceLoader) {
 			this.serviceLoader = serviceLoader;
 			return this;
+		}
+
+		/**
+		 * Sets a default service loader to use for loading components that were not set.
+		 * This call will just call the {@link ServiceLoader} without providing a class
+		 * loader.
+		 * @return this.
+		 */
+		public Builder serviceLoader() {
+			return this.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class));
 		}
 
 		/**

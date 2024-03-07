@@ -125,7 +125,7 @@ final class DefaultOutputRegistry extends ProviderRegistry<OutputProvider, LogOu
 		STDOUT {
 			@Override
 			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
-				return LogOutput.ofStandardOut();
+				return new StdOutOutput();
 			}
 
 			@Override
@@ -137,7 +137,7 @@ final class DefaultOutputRegistry extends ProviderRegistry<OutputProvider, LogOu
 		STDERR {
 			@Override
 			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
-				return LogOutput.ofStandardErr();
+				return new StdErrOutput();
 			}
 
 			@Override

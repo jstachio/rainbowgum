@@ -110,9 +110,9 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	 */
 	public static final class Builder {
 
-		protected @Nullable Provider<LogOutput> output;
+		protected @Nullable Provider<? extends LogOutput> output;
 
-		protected @Nullable Provider<LogEncoder> encoder;
+		protected @Nullable Provider<? extends LogEncoder> encoder;
 
 		private final String name;
 
@@ -133,7 +133,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @param output output.
 		 * @return builder.
 		 */
-		public Builder output(Provider<LogOutput> output) {
+		public Builder output(Provider<? extends LogOutput> output) {
 			this.output = output;
 			return this;
 		}
@@ -175,7 +175,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @param encoder encoder not <code>null</code>.
 		 * @return builder.
 		 */
-		public Builder encoder(Provider<LogEncoder> encoder) {
+		public Builder encoder(Provider<? extends LogEncoder> encoder) {
 			this.encoder = encoder;
 			return this;
 		}

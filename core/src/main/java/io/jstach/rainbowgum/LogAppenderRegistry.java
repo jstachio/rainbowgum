@@ -101,15 +101,16 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	private static LogAppender defaultConsoleAppender(LogConfig config) {
 		String name = LogAppender.CONSOLE_APPENDER_NAME;
 
-		var output = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config).get(config.properties())
-			.value(() -> LogOutput.ofStandardOut());
+		var output = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config) //
+			.get(config.properties()) //
+			.value(() -> LogOutput.ofStandardOut().provide(name, config));
 
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 
 		var encoder = resolveEncoder(config, output, encoderProperty);
 
 		var consoleAppender = LogAppender.builder(LogAppender.CONSOLE_APPENDER_NAME)
-			.output(LogOutput.ofStandardOut())
+			.output(output)
 			.encoder(encoder)
 			.build()
 			.provide(LogAppender.CONSOLE_APPENDER_NAME, config);
@@ -119,7 +120,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	static Optional<LogAppender> fileAppender(LogConfig config) {
 		final String name = LogAppender.FILE_APPENDER_NAME;
 		var outputProperty = fileProperty //
-			.map(u -> config.outputRegistry().provide(u, name, config.properties()));
+			.map(u -> LogOutput.of(u))
+			.map(p -> p.provide(name, config));
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 
 		return fileProperty //
@@ -153,7 +155,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	static LogAppender appender( //
 			AppenderConfig appenderConfig, //
 			LogConfig config, //
-			Property<LogOutput> outputProperty, Property<LogEncoder> encoderProperty) {
+			Property<LogOutput> outputProperty, //
+			Property<LogEncoder> encoderProperty) {
 
 		@Nullable
 		LogOutput output = appenderConfig.output();
@@ -200,14 +203,16 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	private static Property<LogOutput> outputProperty(String propertyName, String name, LogConfig config) {
 		return Property.builder() //
 			.toURI() //
-			.map(u -> config.outputRegistry().provide(u, name, config.properties())) //
+			.map(u -> LogOutput.of(u)) //
+			.map(p -> p.provide(name, config))
 			.buildWithName(propertyName, name);
 	}
 
 	private static Property<LogEncoder> encoderProperty(String propertyName, String name, LogConfig config) {
 		return Property.builder() //
 			.toURI() //
-			.map(u -> config.encoderRegistry().provide(u, name, config.properties())) //
+			.map(u -> LogEncoder.of(u)) //
+			.map(p -> p.provide(name, config))
 			.buildWithName(propertyName, name);
 	}
 

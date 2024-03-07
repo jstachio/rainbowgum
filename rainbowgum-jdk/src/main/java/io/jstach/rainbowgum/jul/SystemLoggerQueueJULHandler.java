@@ -29,7 +29,7 @@ public class SystemLoggerQueueJULHandler extends Handler {
 	}
 
 	@Override
-	public void publish(@Nullable LogRecord record) {
+	public void publish(@SuppressWarnings("exports") @Nullable LogRecord record) {
 		if (record == null) {
 			return;
 		}

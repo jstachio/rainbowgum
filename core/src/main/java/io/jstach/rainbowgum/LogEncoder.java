@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.net.URI;
 
+import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 
@@ -61,6 +62,17 @@ public interface LogEncoder {
 	 */
 	public static LogEncoder of(LogFormatter formatter) {
 		return new FormatterEncoder(formatter);
+	}
+
+	/**
+	 * Provides a lazy loaded encoder from a URI.
+	 * @param uri uri.
+	 * @return provider of encoder.
+	 */
+	public static Provider<LogEncoder> of(URI uri) {
+		return (s, c) -> {
+			return c.encoderRegistry().provide(uri, s, c.properties());
+		};
 	}
 
 	/**

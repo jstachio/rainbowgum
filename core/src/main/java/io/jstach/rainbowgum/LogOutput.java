@@ -12,6 +12,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 
+import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
 import io.jstach.rainbowgum.annotation.CaseChanging;
@@ -73,6 +74,39 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Provides a lazy loaded output from a URI.
+	 * @param uri uri.
+	 * @return provider of output.
+	 * @apiNote the provider may throw an {@link UncheckedIOException}.
+	 */
+	public static Provider<LogOutput> of(URI uri) {
+		return (s, c) -> {
+			try {
+				return c.outputRegistry().provide(uri, s, c.properties());
+			}
+			catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		};
+	}
+
+	/**
+	 * Standard out output.
+	 * @return output.
+	 */
+	public static Provider<LogOutput> ofStandardOut() {
+		return of(LogOutput.STDOUT_URI);
+	}
+
+	/**
+	 * Standard err output.
+	 * @return output.
+	 */
+	public static Provider<LogOutput> ofStandardErr() {
+		return of(LogOutput.STDERR_URI);
 	}
 
 	/**
@@ -318,22 +352,6 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		 */
 		MEMORY;
 
-	}
-
-	/**
-	 * Standard out output.
-	 * @return output.
-	 */
-	public static LogOutput ofStandardOut() {
-		return new StdOutOutput();
-	}
-
-	/**
-	 * Standard err output.
-	 * @return output.
-	 */
-	public static LogOutput ofStandardErr() {
-		return new StdErrOutput();
 	}
 
 	/**

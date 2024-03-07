@@ -41,9 +41,9 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.orElse(1024)
 			.build("logging.custom.async.bufferSize");
 
-		Property<LogOutput> output = Property.builder()
+		Property<Provider<LogOutput>> output = Property.builder()
 			.map(URI::create)
-			.map(u -> config.output(u, ""))
+			.map(u -> LogOutput.of(u))
 			.orElse(LogOutput.ofStandardOut())
 			.build("logging.custom.output");
 

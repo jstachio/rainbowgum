@@ -5,10 +5,11 @@ import java.net.URI;
 import java.util.Optional;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogOutput;
-import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
+import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
 
 // @start region="provider"
@@ -22,9 +23,9 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.orElse(1024)
 			.build("logging.custom.async.bufferSize");
 
-		Property<LogOutput> output = Property.builder()
+		Property<Provider<LogOutput>> output = Property.builder()
 			.map(URI::create)
-			.map(u -> config.output(u, ""))
+			.map(u -> LogOutput.of(u))
 			.orElse(LogOutput.ofStandardOut())
 			.build("logging.custom.output");
 
