@@ -36,6 +36,7 @@ import io.jstach.rainbowgum.LogProperties.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.LogProperties.PropertyGetter.RootPropertyGetter;
 import io.jstach.rainbowgum.LogProperties.RequiredResult;
 import io.jstach.rainbowgum.LogProperties.Result;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
@@ -891,6 +892,7 @@ public interface LogProperties {
 	/**
 	 * Common static log properties such as System properties ane environment variables.
 	 */
+	@CaseChanging
 	enum StandardProperties implements LogProperties {
 
 		/**

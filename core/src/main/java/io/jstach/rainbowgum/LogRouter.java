@@ -24,6 +24,7 @@ import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
 import io.jstach.rainbowgum.LogRouter.Router;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
  * Routes messages to a publisher by providing a {@link Route} from a logger name and
@@ -87,6 +88,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		/**
 		 * Route singletons and utilities.
 		 */
+		@CaseChanging
 		public enum Routes implements Route {
 
 			/**
@@ -626,7 +628,7 @@ enum FailsafeAppender implements LogAppender {
 		if (event.level().compareTo(Level.ERROR) >= 0) {
 			System.err.append("[ERROR] - logging ");
 			event.formattedMessage(System.err);
-			var throwable = event.throwable();
+			var throwable = event.throwableOrNull();
 			if (throwable != null) {
 				throwable.printStackTrace(System.err);
 			}

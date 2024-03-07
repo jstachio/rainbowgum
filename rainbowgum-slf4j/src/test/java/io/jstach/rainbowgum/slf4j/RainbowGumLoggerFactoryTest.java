@@ -144,7 +144,7 @@ class RainbowGumLoggerFactoryTest {
 				a.formatter((output, event) -> {
 					output.append(event.level()).append(" ");
 					event.formattedMessage(output);
-					CallerInfo caller = event.callerInfo();
+					CallerInfo caller = event.callerOrNull();
 					if (caller != null) {
 						output.append(" <caller>");
 						output.append(caller.getClassName());

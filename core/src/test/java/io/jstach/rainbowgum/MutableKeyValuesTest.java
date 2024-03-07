@@ -27,7 +27,7 @@ class MutableKeyValuesTest {
 		kvs.putKeyValue("B", "b");
 		kvs.putKeyValue("A", "a");
 		assertEquals(2, kvs.size());
-		assertEquals("a", kvs.getValue("A"));
+		assertEquals("a", kvs.getValueOrNull("A"));
 	}
 
 	@Test
@@ -39,10 +39,10 @@ class MutableKeyValuesTest {
 		assertEquals(2, kvs.size());
 		kvs.remove("A");
 		assertEquals(1, kvs.size());
-		assertNull(kvs.getValue("A"));
+		assertNull(kvs.getValueOrNull("A"));
 		kvs.putKeyValue("A", "added after remove");
 		assertEquals(2, kvs.size());
-		assertEquals("added after remove", kvs.getValue("A"));
+		assertEquals("added after remove", kvs.getValueOrNull("A"));
 	}
 
 	@Test
@@ -50,7 +50,7 @@ class MutableKeyValuesTest {
 		var kvs = create();
 		kvs.putAll(Map.of("A", "a"));
 		assertEquals(1, kvs.size());
-		assertEquals("a", kvs.getValue("A"));
+		assertEquals("a", kvs.getValueOrNull("A"));
 	}
 
 	MutableKeyValues create() {

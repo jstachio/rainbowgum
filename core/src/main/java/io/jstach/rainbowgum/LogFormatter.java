@@ -116,7 +116,7 @@ public sealed interface LogFormatter {
 		 */
 		Timestamp,
 		/**
-		 * Formatter for {@link LogEvent#throwable()}.
+		 * Formatter for {@link LogEvent#throwableOrNull()}.
 		 */
 		Throwable,
 		/**
@@ -619,7 +619,7 @@ public sealed interface LogFormatter {
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
-			var t = event.throwable();
+			var t = event.throwableOrNull();
 			if (t != null) {
 				formatThrowable(output, t);
 			}
@@ -1051,7 +1051,7 @@ final class ListKeyValuesFormatter implements KeyValuesFormatter {
 	public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
 		boolean first = true;
 		for (String k : keys) {
-			String v = keyValues.getValue(k);
+			String v = keyValues.getValueOrNull(k);
 			if (v == null) {
 				continue;
 			}

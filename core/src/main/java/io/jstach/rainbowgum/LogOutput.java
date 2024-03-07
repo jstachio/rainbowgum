@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
  * A resource that can be written to usually in binary. In other logging frameworks this
@@ -105,6 +106,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		/**
 		 * Builtin content types.
 		 */
+		@CaseChanging
 		public enum StandardContentType implements ContentType {
 
 			/**
@@ -292,6 +294,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	/**
 	 * Output type useful for defaults and categorization.
 	 */
+	@CaseChanging
 	public enum OutputType {
 
 		/**

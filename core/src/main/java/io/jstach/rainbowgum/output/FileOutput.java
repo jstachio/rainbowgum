@@ -11,9 +11,11 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
@@ -31,6 +33,19 @@ public interface FileOutput extends LogOutput {
 	}
 
 	/**
+	 * Creates a file output provider from lambda builder.
+	 * @param consumer builder lambda.
+	 * @return provider.
+	 */
+	public static Provider<FileOutput> of(Consumer<FileOutputBuilder> consumer) {
+		return (s, c) -> {
+			var builder = new FileOutputBuilder(s);
+			consumer.accept(builder);
+			return builder.build();
+		};
+	}
+
+	/**
 	 * Creates file output.
 	 * @param name name of output not file name.
 	 * @param uri file uri.
@@ -39,18 +54,24 @@ public interface FileOutput extends LogOutput {
 	 * @param prudent logback prudent mode where files are locked on each write.
 	 * @param bufferSize buffer size in bytes.
 	 * @return file output.
-	 * @throws FileNotFoundException if file not found.
+	 * @throws UncheckedIOException if file not found.
 	 */
 	@SuppressWarnings("resource")
 	@LogConfigurable(prefix = LogProperties.OUTPUT_PREFIX)
 	public static FileOutput of(@LogConfigurable.KeyParameter String name, URI uri, String fileName,
 			@Nullable Boolean append, @Nullable Boolean prudent, @Nullable Integer bufferSize)
-			throws FileNotFoundException {
+			throws UncheckedIOException {
 		prudent = prudent == null ? false : prudent;
 		append = append == null ? true : append;
 		File file = new File(fileName);
 		createMissingParentDirectories(file);
-		FileOutputStream stream = new FileOutputStream(file, append);
+		FileOutputStream stream;
+		try {
+			stream = new FileOutputStream(file, append);
+		}
+		catch (FileNotFoundException e) {
+			throw new UncheckedIOException(e);
+		}
 		if (prudent) {
 			return new FileChannelOutput(uri, stream.getChannel());
 		}

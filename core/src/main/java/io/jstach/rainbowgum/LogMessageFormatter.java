@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.annotation.CaseChanging;
+
 /**
  * Formattes a LogEvent message.
  */
@@ -38,6 +40,7 @@ public sealed interface LogMessageFormatter {
 	/**
 	 * Builtin message formatters.
 	 */
+	@CaseChanging
 	public enum StandardMessageFormatter implements LogMessageFormatter {
 
 		/**

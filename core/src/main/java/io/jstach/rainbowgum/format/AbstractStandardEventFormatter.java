@@ -159,7 +159,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		var name = logEvent.loggerName();
 
 		@Nullable
-		Throwable t = logEvent.throwable();
+		Throwable t = logEvent.throwableOrNull();
 
 		// Append date-time if so configured
 

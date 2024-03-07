@@ -91,7 +91,7 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 		if (callerInfo) {
 			var found = callerInfo(this.depth);
 			if (found != null) {
-				return LogEvent.withCallerInfo(e, found);
+				return LogEvent.withCaller(e, found);
 			}
 		}
 		return e;

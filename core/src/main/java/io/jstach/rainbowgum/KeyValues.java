@@ -27,21 +27,21 @@ public sealed interface KeyValues {
 	 * @param key key never <code>null</code>.
 	 * @return value for key maybe <code>null</code>.
 	 */
-	public @Nullable String getValue(String key);
+	public @Nullable String getValueOrNull(String key);
 
 	/**
 	 * Lowlevel key access.
 	 * @param i index from {@link #start()} or {@link #next(int)}.
 	 * @return key.
 	 */
-	public @Nullable String key(int i);
+	public @Nullable String keyOrNull(int i);
 
 	/**
 	 * Lowlevel key access.
 	 * @param i index from {@link #start()} or {@link #next(int)}.
 	 * @return key.
 	 */
-	public @Nullable String value(int i);
+	public @Nullable String valueOrNull(int i);
 
 	/**
 	 * Returns the index of the first key.
@@ -236,9 +236,9 @@ public sealed interface KeyValues {
 			return false;
 		}
 		for (int i = self.start(); i > -1; i = self.next(i)) {
-			var k = self.key(i);
-			var v = self.value(i);
-			if (!Objects.equals(v, kvs.getValue(k))) {
+			var k = self.keyOrNull(i);
+			var v = self.valueOrNull(i);
+			if (!Objects.equals(v, kvs.getValueOrNull(k))) {
 				return false;
 			}
 		}
@@ -252,7 +252,7 @@ enum EmptyKeyValues implements KeyValues {
 	INSTANCE;
 
 	@Override
-	public @Nullable String getValue(String key) {
+	public @Nullable String getValueOrNull(String key) {
 		return null;
 	}
 
@@ -276,12 +276,12 @@ enum EmptyKeyValues implements KeyValues {
 	}
 
 	@Override
-	public @Nullable String key(int index) {
+	public @Nullable String keyOrNull(int index) {
 		throw new IndexOutOfBoundsException(index);
 	}
 
 	@Override
-	public @Nullable String value(int index) {
+	public @Nullable String valueOrNull(int index) {
 		throw new IndexOutOfBoundsException(index);
 	}
 
@@ -330,7 +330,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public @Nullable String key(int index) {
+	public @Nullable String keyOrNull(int index) {
 		if (index >= (threshold - 1)) {
 			throw new IndexOutOfBoundsException(index);
 		}
@@ -338,7 +338,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public @Nullable String value(int index) {
+	public @Nullable String valueOrNull(int index) {
 		if (index >= (threshold - 1)) {
 			throw new IndexOutOfBoundsException(index);
 		}
@@ -381,7 +381,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public String getValue(String key) {
+	public String getValueOrNull(String key) {
 		for (int i = 0; i < size * 2; i += 2) {
 			var k = kvs[i];
 			/*
@@ -522,7 +522,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 
 	@Override
 	public String apply(String t) {
-		return getValue(t);
+		return getValueOrNull(t);
 	}
 
 	@Override

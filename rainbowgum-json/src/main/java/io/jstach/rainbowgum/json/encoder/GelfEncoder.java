@@ -82,7 +82,7 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		final double timeStamp = ((double) now.toEpochMilli()) / 1000;
 		@Nullable
 		String fullMessage = null;
-		var t = event.throwable();
+		var t = event.throwableOrNull();
 		if (t != null) {
 			StringWriter sw = new StringWriter();
 			sw.write(shortMessage);
@@ -118,11 +118,11 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		 * output headers
 		 */
 		for (int i = headers.start(); i >= 0; i = headers.next(i)) {
-			String k = headers.key(i);
-			if (kvs.getValue(k) != null) {
+			String k = headers.keyOrNull(i);
+			if (kvs.getValueOrNull(k) != null) {
 				continue;
 			}
-			String v = headers.value(i);
+			String v = headers.valueOrNull(i);
 			index = buffer.write(k, v, index, EXTENDED_F);
 		}
 
@@ -130,8 +130,8 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		 * output MDC
 		 */
 		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
-			String k = kvs.key(i);
-			String v = kvs.value(i);
+			String k = kvs.keyOrNull(i);
+			String v = kvs.valueOrNull(i);
 			index = buffer.write(k, v, index, EXTENDED_F);
 		}
 

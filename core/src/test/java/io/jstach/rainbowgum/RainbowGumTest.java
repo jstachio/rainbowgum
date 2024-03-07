@@ -64,16 +64,6 @@ class RainbowGumTest {
 			.formatter(formatter)
 			.build();
 
-		// var logFile = config.outputProvider().of(URI.create("target/my.log"));
-		//
-		// var f = LogAppender.builder() //
-		// .formatter((StringBuilder buffer, LogEvent e) -> {
-		// buffer.append(e.level());
-		// buffer.append(" ");
-		// buffer.append(e.formattedMessage());
-		// })
-		// .output(logFile)
-		// .build();
 		GlobalLogRouter.INSTANCE.log("stuff", Level.WARNING, "first");
 		try (var gum = RainbowGum.builder().route(r -> {
 			r.publisher(PublisherFactory.async().build());

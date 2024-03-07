@@ -139,11 +139,11 @@ public sealed interface LogEvent {
 	 * Creates a new event with the caller info attached. <em> This method always returns
 	 * a new event does not check if the original has caller info. </em>
 	 * @param event original event.
-	 * @param callerInfo caller info.
+	 * @param caller caller info.
 	 * @return new log event.
 	 */
-	public static LogEvent withCallerInfo(LogEvent event, CallerInfo callerInfo) {
-		return new StackFrameLogEvent(event, callerInfo);
+	public static LogEvent withCaller(LogEvent event, CallerInfo caller) {
+		return new StackFrameLogEvent(event, caller);
 	}
 
 	/**
@@ -214,7 +214,7 @@ public sealed interface LogEvent {
 	 * Throwable at the time of the event passed from the logger.
 	 * @return if the event does not have a throwable <code>null</code> will be returned.
 	 */
-	public @Nullable Throwable throwable();
+	public @Nullable Throwable throwableOrNull();
 
 	/**
 	 * Key values that usually come from MDC or an SLF4J Event Builder.
@@ -226,7 +226,7 @@ public sealed interface LogEvent {
 	 * Returns info about caller or <code>null</code> if not supported.
 	 * @return caller info
 	 */
-	default @Nullable CallerInfo callerInfo() {
+	default @Nullable CallerInfo callerOrNull() {
 		return null;
 	}
 
@@ -653,7 +653,7 @@ enum EmptyLogEvent implements LogEvent {
 	}
 
 	@Override
-	public Throwable throwable() {
+	public Throwable throwableOrNull() {
 		return null;
 	}
 
@@ -679,7 +679,7 @@ enum EmptyLogEvent implements LogEvent {
 }
 
 record OneArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
-		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwable,
+		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
 		@Nullable Object arg1) implements LogEvent {
 
 	public void formattedMessage(StringBuilder sb) {
@@ -698,13 +698,13 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
-				keyValues.freeze(), throwable);
+				keyValues.freeze(), throwableOrNull);
 	}
 
 }
 
 record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
-		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwable,
+		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
 		@Nullable Object arg1, @Nullable Object arg2) implements LogEvent {
 
 	public void formattedMessage(StringBuilder sb) {
@@ -723,13 +723,13 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
-				keyValues.freeze(), throwable);
+				keyValues.freeze(), throwableOrNull);
 	}
 }
 
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
-		@Nullable Throwable throwable, Object[] args) implements LogEvent {
+		@Nullable Throwable throwableOrNull, Object[] args) implements LogEvent {
 
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.formatArray(sb, message, args);
@@ -747,14 +747,14 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
-				keyValues.freeze(), throwable);
+				keyValues.freeze(), throwableOrNull);
 	}
 
 }
 
 record DefaultLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String formattedMessage, KeyValues keyValues,
-		@Nullable Throwable throwable) implements LogEvent {
+		@Nullable Throwable throwableOrNull) implements LogEvent {
 
 	public int argCount() {
 		return 0;
@@ -775,7 +775,7 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 	public LogEvent freeze() {
 		if (keyValues instanceof MutableKeyValues mkvs) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,
-					throwable);
+					throwableOrNull);
 		}
 		return this;
 	}
@@ -783,15 +783,15 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 	public LogEvent freeze(Instant timestamp) {
 		if (keyValues instanceof MutableKeyValues mkvs) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,
-					throwable);
+					throwableOrNull);
 		}
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
-				throwable);
+				throwableOrNull);
 	}
 
 }
 
-record StackFrameLogEvent(LogEvent event, CallerInfo callerInfo) implements LogEvent {
+record StackFrameLogEvent(LogEvent event, CallerInfo callerOrNull) implements LogEvent {
 
 	@Override
 	public Instant timestamp() {
@@ -830,8 +830,8 @@ record StackFrameLogEvent(LogEvent event, CallerInfo callerInfo) implements LogE
 	}
 
 	@Override
-	public @Nullable Throwable throwable() {
-		return event.throwable();
+	public @Nullable Throwable throwableOrNull() {
+		return event.throwableOrNull();
 	}
 
 	@Override
@@ -842,8 +842,8 @@ record StackFrameLogEvent(LogEvent event, CallerInfo callerInfo) implements LogE
 	@Override
 	public LogEvent freeze() {
 		var e = event.freeze();
-		var info = callerInfo.freeze();
-		if (e == event && info == callerInfo) {
+		var info = callerOrNull.freeze();
+		if (e == event && info == callerOrNull) {
 			return this;
 		}
 
@@ -853,8 +853,8 @@ record StackFrameLogEvent(LogEvent event, CallerInfo callerInfo) implements LogE
 	@Override
 	public LogEvent freeze(Instant timestamp) {
 		var e = event.freeze(timestamp);
-		var info = callerInfo.freeze();
-		if (e == event && info == callerInfo) {
+		var info = callerOrNull.freeze();
+		if (e == event && info == callerOrNull) {
 			return this;
 		}
 		return new StackFrameLogEvent(e, info);

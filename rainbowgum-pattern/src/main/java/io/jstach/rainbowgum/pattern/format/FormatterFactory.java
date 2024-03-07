@@ -163,14 +163,14 @@ enum CallerInfoFormatter implements EventFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
-		var info = event.callerInfo();
+		var info = event.callerOrNull();
 		if (info != null) {
 			format(output, info);
 		}
 
 	}
 
-	protected abstract void format(StringBuilder output, CallerInfo info);
+	protected abstract void format(StringBuilder output, CallerInfo caller);
 
 }
 

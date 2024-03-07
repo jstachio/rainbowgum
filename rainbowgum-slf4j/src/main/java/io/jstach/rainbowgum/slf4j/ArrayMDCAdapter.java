@@ -102,7 +102,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 		}
 		final MutableKeyValues map = copyOnThreadLocal.get();
 		if (map != null) {
-			return map.getValue(key);
+			return map.getValueOrNull(key);
 		}
 		else {
 			return null;
