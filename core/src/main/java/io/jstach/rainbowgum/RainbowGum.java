@@ -12,6 +12,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
@@ -310,7 +312,7 @@ final class RainbowGumHolder {
 
 	private static Supplier<RainbowGum> supplier = RainbowGumServiceProvider::provide;
 
-	private static volatile RainbowGum rainbowGum = null;
+	private static volatile @Nullable RainbowGum rainbowGum = null;
 
 	static RainbowGum get() {
 		lock.readLock().lock();

@@ -18,7 +18,7 @@ public sealed interface LogMessageFormatter {
 	 * @param message message usually with formatting delimiters for replacement.
 	 * @param arg1 to use for replacement.
 	 */
-	void format(StringBuilder builder, String message, Object arg1);
+	void format(StringBuilder builder, String message, @Nullable Object arg1);
 
 	/**
 	 * Formats and appends the results.
@@ -27,7 +27,7 @@ public sealed interface LogMessageFormatter {
 	 * @param arg1 to use for replacement.
 	 * @param arg2 to use for replacement.
 	 */
-	void format(StringBuilder builder, String message, Object arg1, Object arg2);
+	void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2);
 
 	/**
 	 * Formats and appends the result.
@@ -35,7 +35,7 @@ public sealed interface LogMessageFormatter {
 	 * @param message message usually with formatting delimiters for replacement.
 	 * @param args array of args.
 	 */
-	void formatArray(StringBuilder builder, String message, Object[] args);
+	void formatArray(StringBuilder builder, String message, @Nullable Object[] args);
 
 	/**
 	 * Builtin message formatters.
@@ -49,17 +49,17 @@ public sealed interface LogMessageFormatter {
 		 */
 		SLF4J() {
 			@Override
-			public void format(StringBuilder builder, String message, Object arg1) {
+			public void format(StringBuilder builder, String message, @Nullable Object arg1) {
 				SLF4JMessageFormatter.format(builder, message, arg1);
 			}
 
 			@Override
-			public void format(StringBuilder builder, String message, Object arg1, Object arg2) {
+			public void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2) {
 				SLF4JMessageFormatter.format(builder, message, arg1, arg2);
 			}
 
 			@Override
-			public void formatArray(StringBuilder builder, String message, Object[] args) {
+			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args) {
 				SLF4JMessageFormatter.format(builder, message, args);
 			}
 		}
@@ -87,7 +87,7 @@ class SLF4JMessageFormatter {
 	}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
-			final @Nullable Object[] args) {
+			final @Nullable Object @Nullable [] args) {
 		if (args == null || args.length == 0) {
 			format(sbuf, messagePattern, null, null, null, 0);
 			return;
@@ -109,7 +109,7 @@ class SLF4JMessageFormatter {
 			final @Nullable String messagePattern, //
 			final @Nullable Object arg1, //
 			final @Nullable Object arg2, //
-			final @Nullable Object[] args, //
+			final @Nullable Object @Nullable [] args, //
 			final int argCount) {
 
 		if (messagePattern == null) {
@@ -175,11 +175,14 @@ class SLF4JMessageFormatter {
 	}
 
 	private static @Nullable Object resolveArg(int i, @Nullable Object arg1, @Nullable Object arg2,
-			@Nullable Object[] args, int argCount) {
+			@Nullable Object @Nullable [] args, int argCount) {
 		if (i >= argCount || argCount == 0) {
 			throw new IndexOutOfBoundsException(i);
 		}
 		if (argCount > 2) {
+			if (args == null) {
+				throw new IndexOutOfBoundsException(i);
+			}
 			return args[i];
 		}
 		else if (i == 0) {
@@ -214,8 +217,12 @@ class SLF4JMessageFormatter {
 		}
 	}
 
+	/*
+	 * The below is adapted code from SLF4J
+	 */
 	// special treatment of array values was suggested by 'lizongbo'
-	private static void deeplyAppendParameter(StringBuilder sbuf, Object o, @Nullable Map<Object[], Object> seenMap) {
+	private static void deeplyAppendParameter(StringBuilder sbuf, @Nullable Object o,
+			@Nullable Map<@Nullable Object[], @Nullable Object> seenMap) {
 		if (o == null) {
 			sbuf.append("null");
 			return;
@@ -254,7 +261,7 @@ class SLF4JMessageFormatter {
 				if (seenMap == null) {
 					seenMap = new HashMap<>();
 				}
-				objectArrayAppend(sbuf, (Object[]) o, seenMap);
+				objectArrayAppend(sbuf, (@Nullable Object[]) o, seenMap);
 			}
 		}
 	}
@@ -272,7 +279,8 @@ class SLF4JMessageFormatter {
 
 	}
 
-	private static void objectArrayAppend(StringBuilder sbuf, Object[] a, Map<Object[], Object> seenMap) {
+	private static void objectArrayAppend(StringBuilder sbuf, @Nullable Object[] a,
+			Map<@Nullable Object[], @Nullable Object> seenMap) {
 		sbuf.append('[');
 		if (!seenMap.containsKey(a)) {
 			seenMap.put(a, null);

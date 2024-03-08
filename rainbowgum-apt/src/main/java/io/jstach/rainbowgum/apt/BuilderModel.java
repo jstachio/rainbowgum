@@ -7,6 +7,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.jstache.JStache;
 import io.jstach.jstache.JStacheConfig;
+import io.jstach.jstache.JStacheLambda;
 import io.jstach.jstache.JStacheType;
 
 @JStacheConfig(type = JStacheType.STACHE)
@@ -49,6 +50,13 @@ record BuilderModel( //
 			return "";
 		}
 		return " throws " + exceptions.stream().collect(Collectors.joining(", "));
+	}
+
+	// https://github.com/jstachio/jstachio/issues/325
+	@JStacheLambda(
+			template = "{{#checkForNull}}{{propertyVar}}.require({{> @section}}){{/checkForNull}}{{^checkForNull}}{{> @section}}{{/checkForNull}}")
+	public String validate(PropertyModel pm) {
+		return "";
 	}
 
 	record Converter(String methodName) {
@@ -111,6 +119,13 @@ record BuilderModel( //
 				case BOOLEAN_TYPE -> "Boolean";
 				default -> "String (converted)";
 			};
+		}
+
+		public boolean checkForNull() {
+			if (isPrefixParameter()) {
+				return false;
+			}
+			return required;
 		}
 
 		boolean isLiteralType() {

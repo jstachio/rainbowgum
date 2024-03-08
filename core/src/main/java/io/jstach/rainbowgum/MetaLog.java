@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
+import java.util.Objects;
 
 /**
  * Logging about logging. Currently not really public API.
@@ -24,7 +25,8 @@ public interface MetaLog {
 	 * @param throwable error to log.
 	 */
 	public static void error(Class<?> loggerName, Throwable throwable) {
-		error(loggerName, throwable.getMessage(), throwable);
+		String m = Objects.requireNonNullElse(throwable.getMessage(), "exception");
+		error(loggerName, m, throwable);
 	}
 
 	/**

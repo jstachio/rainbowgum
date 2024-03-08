@@ -309,7 +309,7 @@ enum StaticLevelResolver implements LevelResolver, LevelConfig {
 		this.level = level;
 	}
 
-	public Level levelOrNull(String name) {
+	public @Nullable Level levelOrNull(String name) {
 		if ("".equals(name)) {
 			return this.level;
 		}
@@ -337,7 +337,7 @@ record SingleLevelResolver(String name, Level level) implements LevelConfig {
 
 record MapLevelResolver(Map<String, Level> levels) implements LevelConfig {
 	@Override
-	public Level levelOrNull(String name) {
+	public @Nullable Level levelOrNull(String name) {
 		return levels.get(name);
 	}
 }

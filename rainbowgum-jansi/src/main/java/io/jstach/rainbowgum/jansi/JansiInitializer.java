@@ -5,6 +5,7 @@ import org.fusesource.jansi.AnsiConsole;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogOutput.OutputType;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
 
@@ -17,7 +18,7 @@ public class JansiInitializer implements RainbowGumServiceProvider.Configurator 
 	/**
 	 * Jansi disable property.
 	 */
-	public static String JANSI_DISABLE = "jansi.disable";
+	public static final String JANSI_DISABLE = LogProperties.ROOT_PREFIX + "jansi.disable";
 
 	/**
 	 * No Arg for service loader.

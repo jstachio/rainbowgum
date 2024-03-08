@@ -1021,14 +1021,16 @@ enum DefaultKeyValuesFormatter implements KeyValuesFormatter, KeyValuesConsumer<
 		keyValues.forEach(this, 0, output);
 	}
 
-	static void formatKeyValue(StringBuilder output, String k, String v) {
+	static void formatKeyValue(StringBuilder output, String k, @Nullable String v) {
 		PercentCodec.encode(output, k, StandardCharsets.UTF_8);
-		output.append("=");
-		PercentCodec.encode(output, v, StandardCharsets.UTF_8);
+		if (v != null) {
+			output.append("=");
+			PercentCodec.encode(output, v, StandardCharsets.UTF_8);
+		}
 	}
 
 	@Override
-	public int accept(KeyValues values, String key, String value, int index, StringBuilder storage) {
+	public int accept(KeyValues values, String key, @Nullable String value, int index, StringBuilder storage) {
 		if (index > 0) {
 			storage.append("&");
 		}
@@ -1042,6 +1044,7 @@ final class ListKeyValuesFormatter implements KeyValuesFormatter {
 
 	private final String[] keys;
 
+	@SuppressWarnings("nullness")
 	ListKeyValuesFormatter(List<String> keys) {
 		var ks = List.copyOf(keys);
 		this.keys = ks.toArray(new String[] {});
@@ -1107,12 +1110,12 @@ class StringWriter extends Writer {
 		buf.append(str, off, off + len);
 	}
 
-	public StringWriter append(CharSequence csq) {
+	public StringWriter append(@Nullable CharSequence csq) {
 		write(String.valueOf(csq));
 		return this;
 	}
 
-	public StringWriter append(CharSequence csq, int start, int end) {
+	public StringWriter append(@Nullable CharSequence csq, int start, int end) {
 		if (csq == null)
 			csq = "null";
 		return append(csq.subSequence(start, end));

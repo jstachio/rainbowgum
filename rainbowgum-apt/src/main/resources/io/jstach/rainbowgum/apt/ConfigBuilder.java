@@ -122,7 +122,7 @@ public final class $$builderName$$ {
 	public $$targetType$$ build() $$throwsList$${
 		return $$factoryMethod$$(
 				$$#properties$$
-				$$^-first$$, $$/-first$$this.$$name$$
+				$$^-first$$, $$/-first$$$$#validate$$this.{{name}}$$/validate$$
 				$$/properties$$
 				);
 	}

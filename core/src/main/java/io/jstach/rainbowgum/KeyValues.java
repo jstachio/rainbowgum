@@ -60,7 +60,8 @@ public sealed interface KeyValues {
 	 * Used to easily iterate over the key value pairs without using an iterator.
 	 * @param action consumer called on each key value pair.
 	 */
-	void forEach(BiConsumer<? super String, ? super String> action);
+	@SuppressWarnings("exports")
+	void forEach(BiConsumer<? super String, ? super @Nullable String> action);
 
 	/**
 	 * Used to easily iterate over the key value pairs without using an iterator.
@@ -113,7 +114,7 @@ public sealed interface KeyValues {
 		 * @return custom user count that will be accumulated. If one was returned for
 		 * each call then the result would be the total count.
 		 */
-		public int accept(KeyValues kvs, String k, String v, int index, V storage);
+		public int accept(KeyValues kvs, String k, @Nullable String v, int index, V storage);
 
 	}
 
@@ -144,7 +145,7 @@ public sealed interface KeyValues {
 	/**
 	 * KeyValues that can be updated.
 	 */
-	public sealed interface MutableKeyValues extends KeyValues, BiConsumer<String, String> {
+	public sealed interface MutableKeyValues extends KeyValues, BiConsumer<String, @Nullable String> {
 
 		/**
 		 * Copies.
@@ -157,7 +158,7 @@ public sealed interface KeyValues {
 		 * @param key key.
 		 * @param value value.
 		 */
-		void putKeyValue(String key, String value);
+		void putKeyValue(String key, @Nullable String value);
 
 		/**
 		 * Same as {@link Map#remove(Object)}.
@@ -166,7 +167,7 @@ public sealed interface KeyValues {
 		void remove(String key);
 
 		@Override
-		default void accept(String t, String u) {
+		default void accept(String t, @Nullable String u) {
 			putKeyValue(t, u);
 		}
 
@@ -316,13 +317,13 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 	protected static final String[] EMPTY = new String[] {};
 
-	protected String[] kvs;
+	protected @Nullable String[] kvs;
 
 	protected int size;
 
 	protected int threshold;
 
-	protected AbstractArrayKeyValues(String[] kvs, int size, int threshold) {
+	protected AbstractArrayKeyValues(@Nullable String[] kvs, int size, int threshold) {
 		super();
 		this.kvs = kvs;
 		this.size = size;
@@ -334,7 +335,11 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		if (index >= (threshold - 1)) {
 			throw new IndexOutOfBoundsException(index);
 		}
-		return kvs[index];
+		String k = kvs[index];
+		if (k == null) {
+			throw new IndexOutOfBoundsException(index);
+		}
+		return k;
 	}
 
 	@Override
@@ -394,11 +399,11 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		return null;
 	}
 
-	public void forEach(BiConsumer<? super String, ? super String> action) {
+	public void forEach(BiConsumer<? super String, ? super @Nullable String> action) {
 		for (int i = 0; i < size * 2; i += 2) {
 			var k = kvs[i];
 			var v = kvs[i + 1];
-			if (k == null && v == null) {
+			if (k == null) {
 				continue;
 			}
 			action.accept(k, v);
@@ -408,9 +413,12 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	public void forEachKey(Consumer<? super String> consumer) {
 		for (int i = 0; i < size * 2; i += 2) {
 			var k = kvs[i];
-			if (k == null && kvs[i + 1] == null) {
+			if (k == null) {
 				continue;
 			}
+			// if (kvs[i + 1] == null) {
+			// continue;
+			// }
 			consumer.accept(k);
 		}
 	}
@@ -421,7 +429,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		for (int i = 0; i < size * 2; i += 2) {
 			var k = kvs[i];
 			var v = kvs[i + 1];
-			if (k == null && kvs[i + 1] == null) {
+			if (k == null) {
 				continue;
 			}
 			index = action.accept(this, k, v, index, storage);
@@ -433,9 +441,9 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 	@Override
 	public Map<String, String> copyToMap() {
-		final Map<String, String> result = new HashMap<>(size);
+		final Map<String, @Nullable String> result = new HashMap<>(size);
 		forEach(result::put);
-		return result;
+		return (Map<String, String>) result;
 	}
 
 	@Override
@@ -485,7 +493,7 @@ final class ImmutableArrayKeyValues extends AbstractArrayKeyValues {
  * given time.
  */
 final class ArrayKeyValues extends AbstractArrayKeyValues
-		implements BiConsumer<String, String>, Function<String, String>, MutableKeyValues {
+		implements BiConsumer<String, String>, Function<String, @Nullable String>, MutableKeyValues {
 
 	public ArrayKeyValues() {
 		this(DEFAULT_INITIAL_CAPACITY);
@@ -495,7 +503,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 		this(EMPTY, 0, calculateInitialThreshold(initialCapacity));
 	}
 
-	private ArrayKeyValues(String[] kvs, int size, int threshold) {
+	private ArrayKeyValues(@Nullable String[] kvs, int size, int threshold) {
 		super(kvs, size, threshold);
 		this.kvs = kvs;
 		this.size = size;
@@ -521,12 +529,12 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 	}
 
 	@Override
-	public String apply(String t) {
+	public @Nullable String apply(String t) {
 		return getValueOrNull(t);
 	}
 
 	@Override
-	public void accept(String t, String u) {
+	public void accept(String t, @Nullable String u) {
 		putKeyValue(t, u);
 	}
 
@@ -534,7 +542,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 	 * We implement BiConsumer to avoid garbage like entry set and iterators
 	 */
 	@Override
-	public void putKeyValue(String key, String value) {
+	public void putKeyValue(String key, @Nullable String value) {
 		if (kvs == EMPTY) {
 			inflateTable(threshold);
 		}
@@ -594,9 +602,9 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 	}
 
 	private void resize(final int newCapacity) {
-		final String[] oldKvs = kvs;
+		final @Nullable String[] oldKvs = kvs;
 
-		kvs = new String[newCapacity];
+		kvs = new @Nullable String[newCapacity];
 
 		System.arraycopy(oldKvs, 0, kvs, 0, (size * 2));
 
@@ -621,7 +629,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 	}
 
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(@Nullable Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)

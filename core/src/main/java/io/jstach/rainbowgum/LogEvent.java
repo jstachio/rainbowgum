@@ -451,7 +451,7 @@ final class LogEventBuilder implements LogEvent.Builder {
 
 	private KeyValues keyValues = KeyValues.of();
 
-	private @Nullable List<Object> args = null;
+	private @Nullable List<@Nullable Object> args = null;
 
 	private LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 
@@ -505,7 +505,7 @@ final class LogEventBuilder implements LogEvent.Builder {
 	}
 
 	@Override
-	public Builder arg(Object arg) {
+	public Builder arg(@Nullable Object arg) {
 		var list = this.args;
 		if (list == null) {
 			list = this.args = new ArrayList<>();
@@ -528,7 +528,8 @@ final class LogEventBuilder implements LogEvent.Builder {
 
 	@Override
 	public LogEvent eventOrNull() {
-		List<Object> args = this.args;
+		@Nullable
+		List<@Nullable Object> args = this.args;
 		if (args == null) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					throwable);
@@ -624,12 +625,12 @@ enum EmptyLogEvent implements LogEvent {
 
 	@Override
 	public Instant timestamp() {
-		return null;
+		return Instant.EPOCH;
 	}
 
 	@Override
 	public String threadName() {
-		return null;
+		return "";
 	}
 
 	@Override
@@ -653,7 +654,7 @@ enum EmptyLogEvent implements LogEvent {
 	}
 
 	@Override
-	public Throwable throwableOrNull() {
+	public @Nullable Throwable throwableOrNull() {
 		return null;
 	}
 

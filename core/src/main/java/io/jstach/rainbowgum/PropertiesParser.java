@@ -16,11 +16,11 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
-import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
@@ -93,8 +93,9 @@ public final class PropertiesParser {
 				return map.entrySet();
 			}
 
+			@SuppressWarnings({ "nullness" }) // checker bug
 			@Override
-			public Object get(Object key) {
+			public @Nullable Object get(Object key) {
 				return map.get(key);
 			}
 		}.store(sw, null);
@@ -157,14 +158,14 @@ public final class PropertiesParser {
 	private static Properties prepareProperties(BiConsumer<String, String> consumer) throws IOException {
 
 		// Hack to use properties class to load but our map for preserved order
-		@SuppressWarnings("serial")
-		@NonNullByDefault({})
+		@SuppressWarnings({ "serial", "nullness" })
 		Properties bp = new Properties() {
 			@Override
-			public Object put(@Nullable Object key, @Nullable Object value) {
-				if (key != null && value != null) {
-					consumer.accept((String) key, (String) value);
-				}
+			@SuppressWarnings({ "nullness", "keyfor" }) // checker bug
+			public @Nullable Object put(Object key, Object value) {
+				Objects.requireNonNull(key);
+				Objects.requireNonNull(value);
+				consumer.accept((String) key, (String) value);
 				return null;
 			}
 		};

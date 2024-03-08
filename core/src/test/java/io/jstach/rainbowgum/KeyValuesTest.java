@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
@@ -26,7 +27,7 @@ public class KeyValuesTest {
 	void testForEach() throws Exception {
 		var m = Map.of("A", "a", "B", "b");
 		var kvs = create(m);
-		LinkedHashMap<String, String> copy = new LinkedHashMap<>();
+		LinkedHashMap<String, @Nullable String> copy = new LinkedHashMap<>();
 		kvs.forEach(copy::put);
 		assertEquals(m, copy);
 	}

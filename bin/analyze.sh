@@ -13,7 +13,7 @@ for profile in $_profiles; do
 echo ""
 echo "--------------------- Running $profile -----------------------"
 echo ""
-./mvnw $MAVEN_CLI_OPTS -X clean verify -pl core -P${profile},show-profiles,${_ignored_profiles} -Dmaven.javadoc.skip -DskipTests -Dmaven.source.skip=true 
+./mvnw $MAVEN_CLI_OPTS clean verify -pl core -P${profile},show-profiles,${_ignored_profiles} -Dmaven.javadoc.skip -DskipTests -Dmaven.source.skip=true 
 done
 
 # Checker or the maven compiler leaves these files around

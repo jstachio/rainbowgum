@@ -1429,6 +1429,23 @@ public interface LogProperties {
 		public void set(T value, BiConsumer<String, T> consumer);
 
 		/**
+		 * Programmatically check if a value that corresponds to this property is not
+		 * null.
+		 * @param value maybe <code>null</code> but an exception will be thrown if it is.
+		 * @return value if not null.
+		 * @throws NoSuchElementException if the value is null.
+		 * @apiNote this is an expected exception and should not be treated as crashable
+		 * exception that should avoided with static analysis such as checkerframework and
+		 * is why the input argument is nullable.
+		 */
+		default T require(@Nullable T value) {
+			if (value == null) {
+				throw new PropertyMissingException("Value is required not null. property key='" + key() + "'");
+			}
+			return value;
+		}
+
+		/**
 		 * Builder.
 		 * @return builder.
 		 */
@@ -2075,7 +2092,7 @@ record FuncGetter<T, R>(PropertyGetter<T> parent, PropertyFunction<? super T, ? 
 	public String propertyString(R value) {
 		var f = stringFunc;
 		if (f != null) {
-			return stringFunc.apply(value);
+			return f.apply(value);
 		}
 		return ChildPropertyGetter.super.propertyString(value);
 	}
@@ -2113,7 +2130,7 @@ record RequiredFuncGetter<T, R>(RequiredPropertyGetter<T> parent,
 	public String propertyString(R value) {
 		var f = stringFunc;
 		if (f != null) {
-			return stringFunc.apply(value);
+			return f.apply(value);
 		}
 		return RequiredPropertyGetter.super.propertyString(value);
 	}

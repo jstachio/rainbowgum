@@ -417,21 +417,25 @@ final class DefaultLogConfig implements LogConfig {
 			.build(LogProperties.GLOBAL_CHANGE_PROPERTY)
 			.get(properties)
 			.value();
-		this.changePublisher = changeable ? new AbstractChangePublisher() {
-			@Override
-			protected LogConfig config() {
-				return DefaultLogConfig.this;
-			}
-
-			protected LogConfig reload() {
-				levelResolver.clear();
-				return DefaultLogConfig.this;
-			}
-		} : IgnoreChangePublisher.INSTANT;
+		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		this.outputRegistry = LogOutputRegistry.of();
 		this.appenderRegistry = LogAppenderRegistry.of();
 		this.encoderRegistry = LogEncoderRegistry.of();
 		this.publisherRegistry = LogPublisherRegistry.of();
+	}
+
+	class DefaultChangePublisher extends AbstractChangePublisher {
+
+		@Override
+		protected LogConfig config() {
+			return DefaultLogConfig.this;
+		}
+
+		protected LogConfig reload() {
+			levelResolver.clear();
+			return DefaultLogConfig.this;
+		}
+
 	}
 
 	@Override
