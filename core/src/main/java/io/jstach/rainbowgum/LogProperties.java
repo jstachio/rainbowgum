@@ -568,6 +568,7 @@ public interface LogProperties {
 				return desc;
 			}
 
+			@Override
 			public String toString() {
 				return getClass().getSimpleName() + "[description='" + description + "', " + "order=" + order + "]";
 			}
@@ -1467,6 +1468,7 @@ public interface LogProperties {
 		 * @param properties key values.
 		 * @return result.
 		 */
+		@Override
 		public RequiredResult<T> get(LogProperties properties);
 
 		/**
@@ -1475,6 +1477,7 @@ public interface LogProperties {
 		 * @param mapper function to map.
 		 * @return property.
 		 */
+		@Override
 		public <U> RequiredProperty<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper);
 
 	}
@@ -1815,6 +1818,7 @@ public interface LogProperties {
 			/**
 			 * This call unlike the parent returns a required result. {@inheritDoc}
 			 */
+			@Override
 			RequiredResult<T> get(LogProperties props, String key);
 
 			/**
@@ -1823,6 +1827,7 @@ public interface LogProperties {
 			 * @param keys list of property keys usually dotted.
 			 * @return result.
 			 */
+			@Override
 			default RequiredResult<T> get(LogProperties props, List<String> keys) {
 				if (keys.isEmpty()) {
 					throw new IllegalArgumentException("Keys is empty");
@@ -1837,6 +1842,7 @@ public interface LogProperties {
 			 * @param mapper function.
 			 * @return new property getter.
 			 */
+			@Override
 			default <U> RequiredPropertyGetter<U> map(
 					PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 				return new RequiredFuncGetter<T, U>(this, mapper, null);
@@ -1848,6 +1854,7 @@ public interface LogProperties {
 			 * @return property.
 			 * @throws IllegalArgumentException if the key is malformed.
 			 */
+			@Override
 			default RequiredProperty<T> build(String key) throws IllegalArgumentException {
 				validateKey(key);
 				return new DefaultRequiredProperty<>(this, List.of(key));
@@ -1861,6 +1868,7 @@ public interface LogProperties {
 			 * value.
 			 * @return property.
 			 */
+			@Override
 			default RequiredProperty<T> buildWithName(String key, String name) {
 				var parameters = Map.of(NAME, name);
 				validateKeyParameters(key, parameters.keySet());
@@ -1893,6 +1901,7 @@ record DefaultProperty<T>(PropertyGetter<T> propertyGetter, List<String> keys) i
 	 * Gets the first key.
 	 * @return key.
 	 */
+	@Override
 	public String key() {
 		return keys.get(0);
 	}
@@ -1902,14 +1911,17 @@ record DefaultProperty<T>(PropertyGetter<T> propertyGetter, List<String> keys) i
 		return propertyGetter.get(properties, keys);
 	}
 
+	@Override
 	public <U> LogProperties.Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 		return new DefaultProperty<>(propertyGetter.map(mapper), keys);
 	}
 
+	@Override
 	public String propertyString(T value) {
 		return propertyGetter.propertyString(value);
 	}
 
+	@Override
 	public void set(T value, BiConsumer<String, T> consumer) {
 		if (value != null) {
 			consumer.accept(key(), value);
@@ -1932,6 +1944,7 @@ record DefaultRequiredProperty<T>(RequiredPropertyGetter<T> propertyGetter,
 	 * Gets the first key.
 	 * @return key.
 	 */
+	@Override
 	public String key() {
 		return keys.get(0);
 	}
@@ -1941,15 +1954,18 @@ record DefaultRequiredProperty<T>(RequiredPropertyGetter<T> propertyGetter,
 		return propertyGetter.get(properties, keys);
 	}
 
+	@Override
 	public <U> LogProperties.RequiredProperty<U> map(
 			PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
 		return new DefaultRequiredProperty<>(propertyGetter.map(mapper), keys);
 	}
 
+	@Override
 	public String propertyString(T value) {
 		return propertyGetter.propertyString(value);
 	}
 
+	@Override
 	public void set(T value, BiConsumer<String, T> consumer) {
 		if (value != null) {
 			consumer.accept(key(), value);
@@ -2041,6 +2057,7 @@ record ListGetter(RootPropertyGetter parent) implements ChildPropertyGetter<List
 		return parent.get(props, key, (p, k) -> p.listOrNull(k));
 	}
 
+	@Override
 	public String propertyString(List<String> list) {
 		return _propertyString(list);
 	}
@@ -2150,6 +2167,7 @@ interface ListLogProperties extends LogProperties {
 		return null;
 	}
 
+	@Override
 	default String description(String key) {
 		StringBuilder sb = new StringBuilder();
 		boolean first = true;
@@ -2187,6 +2205,7 @@ record CompositeMutableLogProperties(LogProperties[] properties) implements List
 		return this;
 	}
 
+	@Override
 	public String toString() {
 		return toString(new StringBuilder()).toString();
 	}
@@ -2194,6 +2213,7 @@ record CompositeMutableLogProperties(LogProperties[] properties) implements List
 }
 
 record CompositeLogProperties(LogProperties[] properties) implements ListLogProperties {
+	@Override
 	public String toString() {
 		return toString(new StringBuilder()).toString();
 	}

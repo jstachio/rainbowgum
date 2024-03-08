@@ -613,11 +613,13 @@ enum NoOpLogEventBuilder implements LogEvent.Builder {
 enum EmptyLogEvent implements LogEvent {
 
 	INFO() {
+		@Override
 		public Level level() {
 			return Level.INFO;
 		}
 	},
 	DEBUG() {
+		@Override
 		public Level level() {
 			return Level.DEBUG;
 		}
@@ -683,6 +685,7 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
 		@Nullable Object arg1) implements LogEvent {
 
+	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.format(sb, message, arg1);
 	}
@@ -691,10 +694,12 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		return 1;
 	}
 
+	@Override
 	public LogEvent freeze() {
 		return freeze(timestamp);
 	}
 
+	@Override
 	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
@@ -708,6 +713,7 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
 		@Nullable Object arg1, @Nullable Object arg2) implements LogEvent {
 
+	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.format(sb, message, arg1, arg2);
 	}
@@ -716,10 +722,12 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		return 2;
 	}
 
+	@Override
 	public LogEvent freeze() {
 		return freeze(timestamp);
 	}
 
+	@Override
 	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
@@ -732,6 +740,7 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
 		@Nullable Throwable throwableOrNull, @Nullable Object[] args) implements LogEvent {
 
+	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.formatArray(sb, message, args);
 	}
@@ -740,10 +749,12 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		return args.length;
 	}
 
+	@Override
 	public LogEvent freeze() {
 		return freeze(timestamp);
 	}
 
+	@Override
 	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
@@ -765,14 +776,17 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 		return keyValues;
 	}
 
+	@Override
 	public void formattedMessage(StringBuilder sb) {
 		sb.append(this.formattedMessage);
 	}
 
+	@Override
 	public String message() {
 		return this.formattedMessage;
 	}
 
+	@Override
 	public LogEvent freeze() {
 		if (keyValues instanceof MutableKeyValues mkvs) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,
@@ -781,6 +795,7 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 		return this;
 	}
 
+	@Override
 	public LogEvent freeze(Instant timestamp) {
 		if (keyValues instanceof MutableKeyValues mkvs) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,

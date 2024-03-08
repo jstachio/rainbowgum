@@ -188,6 +188,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 				return this;
 			}
 
+			@Override
 			public PublisherFactory build() {
 				Integer bufferSize = this.bufferSize;
 				return PublisherFactory.ofAsync(bufferSize);
@@ -215,6 +216,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			return new Builder();
 		}
 
+		@Override
 		default boolean synchronous() {
 			return true;
 		}
@@ -240,6 +242,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			 * Build a publisher provider.
 			 * @return provider
 			 */
+			@Override
 			public PublisherFactory build() {
 				return PublisherFactory.ofSync();
 			}

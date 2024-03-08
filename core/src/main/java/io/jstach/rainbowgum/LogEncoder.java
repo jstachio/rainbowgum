@@ -115,6 +115,7 @@ public interface LogEncoder {
 		/**
 		 * Convenience that will call clear.
 		 */
+		@Override
 		default void close() {
 			clear();
 		}

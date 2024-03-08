@@ -309,6 +309,7 @@ enum StaticLevelResolver implements LevelResolver, LevelConfig {
 		this.level = level;
 	}
 
+	@Override
 	public @Nullable Level levelOrNull(String name) {
 		if ("".equals(name)) {
 			return this.level;
@@ -408,6 +409,7 @@ record CompositeLevelResolver(LevelResolver[] resolvers, Level defaultLevel) imp
 		return current;
 	}
 
+	@Override
 	public void clear() {
 		for (var resolver : resolvers) {
 			resolver.clear();
@@ -480,6 +482,7 @@ final class ConfigLevelResolver implements LevelConfig {
 		this.levelExtractor = levelExtractor;
 	}
 
+	@Override
 	public @Nullable Level levelOrNull(String name) {
 		return levelExtractor.build(name).get(properties).valueOrNull();
 	}

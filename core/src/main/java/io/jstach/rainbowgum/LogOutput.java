@@ -282,6 +282,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		write(event, arr, contentType);
 	}
 
+	@Override
 	public void flush();
 
 	/**

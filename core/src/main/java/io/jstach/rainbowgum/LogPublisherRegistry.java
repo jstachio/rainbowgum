@@ -122,6 +122,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 
 	protected abstract PublisherFactory provide(String name, LogProperties properties);
 
+	@Override
 	public PublisherFactory provide(URI uri, String name, LogProperties properties) {
 		String prefix = LogProperties.interpolateKey(LogProperties.PUBLISHER_PREFIX, Map.of(LogProperties.NAME, name));
 		LogProperties combined = LogProperties.of(uri, prefix, properties);

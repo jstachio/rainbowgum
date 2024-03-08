@@ -129,6 +129,7 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 	 * @param outputType output type to use for finding best default formatter.
 	 * @return encoder for output type.
 	 */
+	@Override
 	public LogEncoder encoderForOutputType(OutputType outputType) {
 		lock.readLock().lock();
 		try {
@@ -148,6 +149,7 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 	 * @param outputType output type.
 	 * @param formatter formatter.
 	 */
+	@Override
 	public void setEncoderForOutputType(OutputType outputType, Supplier<? extends LogEncoder> formatter) {
 		lock.writeLock().lock();
 		try {

@@ -24,6 +24,7 @@ public interface LogLifecycle extends AutoCloseable {
 	 */
 	public void start(LogConfig config);
 
+	@Override
 	public void close();
 
 }

@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
+import io.jstach.rainbowgum.MetaLog;
 
 /**
  * An async publisher that uses a blocking queue and a single thread consumer.
@@ -108,6 +108,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 		final FakeCollection fake = new FakeCollection();
 
+		@Override
 		public void run() {
 			while (running) {
 				try {

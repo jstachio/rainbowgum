@@ -358,6 +358,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		return !allowedChanges(loggerName).isEmpty();
 	}
 
+	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
 		return changeSetting.get(config().properties(), loggerName).value();
 	}
@@ -382,6 +383,7 @@ enum IgnoreChangePublisher implements ChangePublisher {
 		return false;
 	}
 
+	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
 		return Set.of();
 	}
@@ -431,6 +433,7 @@ final class DefaultLogConfig implements LogConfig {
 			return DefaultLogConfig.this;
 		}
 
+		@Override
 		protected LogConfig reload() {
 			levelResolver.clear();
 			return DefaultLogConfig.this;

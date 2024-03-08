@@ -869,6 +869,7 @@ record CompositeFormatter(LogFormatter[] formatters) implements EventFormatter {
 		}
 	}
 
+	@Override
 	public String toString() {
 		return getClass().getSimpleName() + Arrays.toString(formatters);
 	}
@@ -962,6 +963,7 @@ enum DefaultInstantFormatter implements TimestampFormatter {
 	TTLL(DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC))),
 	ISO(DateTimeFormatter.ISO_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))),
 	MICROS(DateTimeFormatter.ISO_DATE_TIME) {
+		@Override
 		public void formatTimestamp(StringBuilder output, Instant instant) {
 			int nanos = instant.getNano();
 
@@ -1085,10 +1087,12 @@ class StringWriter extends Writer {
 	/**
 	 * Write a single character.
 	 */
+	@Override
 	public void write(int c) {
 		buf.append((char) c);
 	}
 
+	@Override
 	public void write(char cbuf[], int off, int len) {
 		if ((off < 0) || (off > cbuf.length) || (len < 0) || ((off + len) > cbuf.length) || ((off + len) < 0)) {
 			throw new IndexOutOfBoundsException();
@@ -1102,25 +1106,30 @@ class StringWriter extends Writer {
 	/**
 	 * Write a string.
 	 */
+	@Override
 	public void write(String str) {
 		buf.append(str);
 	}
 
+	@Override
 	public void write(String str, int off, int len) {
 		buf.append(str, off, off + len);
 	}
 
+	@Override
 	public StringWriter append(@Nullable CharSequence csq) {
 		write(String.valueOf(csq));
 		return this;
 	}
 
+	@Override
 	public StringWriter append(@Nullable CharSequence csq, int start, int end) {
 		if (csq == null)
 			csq = "null";
 		return append(csq.subSequence(start, end));
 	}
 
+	@Override
 	public StringWriter append(char c) {
 		write(c);
 		return this;
@@ -1134,6 +1143,7 @@ class StringWriter extends Writer {
 		return buf;
 	}
 
+	@Override
 	public void flush() {
 	}
 
@@ -1141,6 +1151,7 @@ class StringWriter extends Writer {
 	 * Closing a {@code StringWriter} has no effect. The methods in this class can be
 	 * called after the stream has been closed without generating an {@code IOException}.
 	 */
+	@Override
 	public void close() throws IOException {
 	}
 
