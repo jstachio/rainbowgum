@@ -4,7 +4,7 @@
   <artifactId>rainbowgum-maven-parent</artifactId>
   <name>rainbowgum-maven-parent</name>
   <packaging>pom</packaging>
-  <version>0.3.0-SNAPSHOT</version>
+  <version>0.4.0-SNAPSHOT</version>
   <url>https://github.com/jstachio/rainbowgum</url>
   <description>Minimum Opinionated Logging</description>
   <organization>
@@ -15,7 +15,7 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <metainf-services.version>1.11</metainf-services.version>
-    <project.build.outputTimestamp>1709068843</project.build.outputTimestamp>
+    <project.build.outputTimestamp>1709924386</project.build.outputTimestamp>
     <doc.resources>../</doc.resources>
     <doc.snippets>rainbowgum/src/test/java</doc.snippets>
     <deploy>snapshot</deploy>
