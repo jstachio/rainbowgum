@@ -20,23 +20,23 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-pattern</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-slf4j</artifactId>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-jdk</artifactId>
-      <scope>compile</scope>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-jansi</artifactId>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-pattern</artifactId>
-      <scope>compile</scope>
+      <scope>runtime</scope>
     </dependency>
   </dependencies>
 </project>

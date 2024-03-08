@@ -2,7 +2,9 @@
  * Rainbowgum JDK components. This module provides special integration and
  * adapters for the builtin JDK logging facilities. The impetus for this is
  * these logging facilities can be used very early in the JDK boot processes
- * well before logging has fully initialized.
+ * well before logging has fully initialized. Furthermore the JDK
+ * itself recommends that 
+ * {@link java.lang.System.LoggerFinder#LoggerFinder() heavy initialization should not happen}.
  * 
  * <p>
  * The integration will make sure that neither the System.Logger or
