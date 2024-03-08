@@ -633,7 +633,7 @@ public interface LogProperties {
 		 */
 		public final class Builder extends AbstractBuilder<Builder> {
 
-			protected Map<String, String> map = new LinkedHashMap<>();
+			private Map<String, String> map = new LinkedHashMap<>();
 
 			private Builder() {
 			}
@@ -863,6 +863,10 @@ public interface LogProperties {
 
 	private static void parseUriQuery(String query, boolean decode, String sep,
 			BiConsumer<String, @Nullable String> consumer) {
+		/*
+		 * TODO default java split has issues but is very fast
+		 */
+		@SuppressWarnings("StringSplitter")
 		String[] pairs = query.split(sep);
 		for (String pair : pairs) {
 			int idx = pair.indexOf("=");
@@ -1341,8 +1345,11 @@ public interface LogProperties {
 		 * @param message failure message.
 		 * @param cause exception thrown while trying to convert.
 		 */
+		@SuppressWarnings("JavaLangClash")
 		public record Error<T>(String key, String message, Exception cause) implements RequiredResult<T> {
-
+			/*
+			 * TODO consider rename to Failure
+			 */
 			@Override
 			public @Nullable T valueOrNull() {
 				throw new PropertyConvertException(key, message, cause);

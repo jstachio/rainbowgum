@@ -83,8 +83,8 @@ public sealed interface ServiceRegistry permits DefaultServiceRegistry {
 
 record ServiceKey(Class<?> type, String name) {
 	ServiceKey {
-		type = Objects.requireNonNull(type);
-		name = Objects.requireNonNull(name);
+		Objects.requireNonNull(type);
+		Objects.requireNonNull(name);
 	}
 }
 

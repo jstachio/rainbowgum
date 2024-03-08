@@ -171,6 +171,7 @@ public interface LevelResolver {
 		}
 
 		/**
+		 * Builds a level resolver using global level resolver as the last resolver.
 		 * @return built level resolver.
 		 */
 		protected LevelResolver buildLevelResolver() {

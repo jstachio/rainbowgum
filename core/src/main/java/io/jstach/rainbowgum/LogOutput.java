@@ -12,7 +12,6 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 
-import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
 import io.jstach.rainbowgum.annotation.CaseChanging;
@@ -82,7 +81,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @return provider of output.
 	 * @apiNote the provider may throw an {@link UncheckedIOException}.
 	 */
-	public static Provider<LogOutput> of(URI uri) {
+	public static LogConfig.Provider<LogOutput> of(URI uri) {
 		return (s, c) -> {
 			try {
 				return c.outputRegistry().provide(uri, s, c.properties());
@@ -97,7 +96,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * Standard out output.
 	 * @return output.
 	 */
-	public static Provider<LogOutput> ofStandardOut() {
+	public static LogConfig.Provider<LogOutput> ofStandardOut() {
 		return of(LogOutput.STDOUT_URI);
 	}
 
@@ -105,7 +104,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * Standard err output.
 	 * @return output.
 	 */
-	public static Provider<LogOutput> ofStandardErr() {
+	public static LogConfig.Provider<LogOutput> ofStandardErr() {
 		return of(LogOutput.STDERR_URI);
 	}
 
@@ -122,6 +121,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		 * @return output.
 		 * @throws IOException if unable to use the URI.
 		 */
+		@Override
 		LogOutput provide(URI uri, String name, LogProperties properties) throws IOException;
 
 	}
@@ -365,6 +365,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		return new FileChannelOutput(uri, channel);
 	}
 
+	@Override
 	void close();
 
 	/**

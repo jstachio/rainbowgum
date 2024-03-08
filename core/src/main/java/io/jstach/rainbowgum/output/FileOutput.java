@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogConfig.Provider;
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
@@ -37,7 +37,7 @@ public interface FileOutput extends LogOutput {
 	 * @param consumer builder lambda.
 	 * @return provider.
 	 */
-	public static Provider<FileOutput> of(Consumer<FileOutputBuilder> consumer) {
+	public static LogConfig.Provider<FileOutput> of(Consumer<FileOutputBuilder> consumer) {
 		return (s, c) -> {
 			var builder = new FileOutputBuilder(s);
 			consumer.accept(builder);

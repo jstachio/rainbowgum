@@ -2,7 +2,6 @@ package io.jstach.rainbowgum;
 
 import java.net.URI;
 
-import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 
@@ -69,7 +68,7 @@ public interface LogEncoder {
 	 * @param uri uri.
 	 * @return provider of encoder.
 	 */
-	public static Provider<LogEncoder> of(URI uri) {
+	public static LogConfig.Provider<LogEncoder> of(URI uri) {
 		return (s, c) -> {
 			return c.encoderRegistry().provide(uri, s, c.properties());
 		};
@@ -87,6 +86,7 @@ public interface LogEncoder {
 		 * @param properties key value config.
 		 * @return output.
 		 */
+		@Override
 		LogEncoder provide(URI uri, String name, LogProperties properties);
 
 	}
@@ -178,7 +178,7 @@ public interface LogEncoder {
 
 		/**
 		 * Create a specific buffer implementation.
-		 * @return
+		 * @return buffer
 		 */
 		protected abstract T doBuffer();
 

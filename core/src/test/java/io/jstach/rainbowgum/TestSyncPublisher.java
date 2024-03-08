@@ -1,19 +1,13 @@
 package io.jstach.rainbowgum;
 
+import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.LinkedList;
 
 import io.jstach.rainbowgum.LogPublisher.SyncLogPublisher;
 
-/**
- *
- */
-public class TestSyncPublisher implements SyncLogPublisher {
+class TestSyncPublisher implements SyncLogPublisher {
 
-	/**
-	 *
-	 */
-	public Deque<LogEvent> events = new LinkedList<>();
+	public Deque<LogEvent> events = new ArrayDeque<>();
 
 	@Override
 	public void start(LogConfig config) {

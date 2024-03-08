@@ -54,7 +54,6 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 		if (!running) {
 			throw new IllegalStateException();
 		}
-		// queue.offer(event);
 		try {
 			queue.put(event);
 		}
@@ -187,11 +186,7 @@ class InterruptUtil {
 
 	public void unmaskInterruptFlag() {
 		if (previouslyInterrupted) {
-			try {
-				Thread.currentThread().interrupt();
-			}
-			catch (SecurityException se) {
-			}
+			Thread.currentThread().interrupt();
 		}
 	}
 

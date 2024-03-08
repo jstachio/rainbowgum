@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -192,7 +193,7 @@ public sealed interface LogConfig {
 			}
 
 			static ChangeType parse(String value) {
-				String v = value.toUpperCase();
+				String v = value.toUpperCase(Locale.ROOT);
 				return ChangeType.valueOf(v);
 			}
 

@@ -10,7 +10,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
-import io.jstach.rainbowgum.RainbowGum.Builder;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class RainbowGumPropertyTest {
@@ -56,7 +55,7 @@ class RainbowGumPropertyTest {
 				""") {
 
 			@Override
-			Builder config(Builder builder) {
+			RainbowGum.Builder config(RainbowGum.Builder builder) {
 				return builder.route(rb -> {
 					rb.factory(RouterFactory.of(e -> {
 						return switch (e.level()) {

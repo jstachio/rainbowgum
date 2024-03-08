@@ -224,6 +224,7 @@ public sealed interface LogFormatter {
 	@FunctionalInterface
 	public non-sealed interface EventFormatter extends LogFormatter {
 
+		@Override
 		public void format(StringBuilder output, LogEvent event);
 
 		@Override
@@ -749,7 +750,7 @@ public sealed interface LogFormatter {
 	 * @param logFormatter formatter which <strong>can be <code>null</code></strong>!
 	 * @return true if the formatter should not be used.
 	 */
-	public static boolean isNoop(@Nullable LogFormatter logFormatter) {
+	public static boolean isNoopOrNull(@Nullable LogFormatter logFormatter) {
 		return logFormatter == null || logFormatter.isNoop();
 	}
 
@@ -964,6 +965,7 @@ enum DefaultInstantFormatter implements TimestampFormatter {
 	ISO(DateTimeFormatter.ISO_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))),
 	MICROS(DateTimeFormatter.ISO_DATE_TIME) {
 		@Override
+		@SuppressWarnings("JavaInstantGetSecondsGetNano")
 		public void formatTimestamp(StringBuilder output, Instant instant) {
 			int nanos = instant.getNano();
 

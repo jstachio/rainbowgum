@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.IdentityHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -171,7 +170,6 @@ class SLF4JMessageFormatter {
 		}
 		// append the characters following the last {} pair.
 		sbuf.append(messagePattern, i, messagePattern.length());
-		return;
 	}
 
 	private static @Nullable Object resolveArg(int i, @Nullable Object arg1, @Nullable Object arg2,
@@ -222,7 +220,7 @@ class SLF4JMessageFormatter {
 	 */
 	// special treatment of array values was suggested by 'lizongbo'
 	private static void deeplyAppendParameter(StringBuilder sbuf, @Nullable Object o,
-			@Nullable Map<@Nullable Object[], @Nullable Object> seenMap) {
+			@Nullable IdentityHashMap<@Nullable Object[], @Nullable Object> seenMap) {
 		if (o == null) {
 			sbuf.append("null");
 			return;
@@ -259,7 +257,7 @@ class SLF4JMessageFormatter {
 			}
 			else {
 				if (seenMap == null) {
-					seenMap = new HashMap<>();
+					seenMap = new IdentityHashMap<>();
 				}
 				objectArrayAppend(sbuf, (@Nullable Object[]) o, seenMap);
 			}
@@ -280,7 +278,7 @@ class SLF4JMessageFormatter {
 	}
 
 	private static void objectArrayAppend(StringBuilder sbuf, @Nullable Object[] a,
-			Map<@Nullable Object[], @Nullable Object> seenMap) {
+			IdentityHashMap<@Nullable Object[], @Nullable Object> seenMap) {
 		sbuf.append('[');
 		if (!seenMap.containsKey(a)) {
 			seenMap.put(a, null);

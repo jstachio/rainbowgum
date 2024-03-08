@@ -21,13 +21,14 @@ class ChangeTypeTest {
 		assertEquals(test.expected, actual);
 	}
 
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum _Test {
 
 		TRUE("true", EnumSet.allOf(ChangeType.class)), CALLER_INFO("caller_info", EnumSet.of(ChangeType.CALLER_INFO));
 
 		final String input;
 
-		final Set<ChangeType> expected;
+		private final Set<ChangeType> expected;
 
 		private _Test(String input, Set<ChangeType> expected) {
 			this.input = input;

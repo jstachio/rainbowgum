@@ -82,7 +82,7 @@ public final class PropertiesParser {
 		StringWriter sw = new StringWriter();
 		new Properties() {
 			@Override
-			@SuppressWarnings({ "unchecked", "rawtypes" })
+			@SuppressWarnings({ "unchecked", "rawtypes", "UnsynchronizedOverridesSynchronized" })
 			public java.util.Enumeration keys() {
 				return Collections.enumeration(map.keySet());
 			}
@@ -93,7 +93,8 @@ public final class PropertiesParser {
 				return map.entrySet();
 			}
 
-			@SuppressWarnings({ "nullness" }) // checker bug
+			@SuppressWarnings({ "nullness", "UnsynchronizedOverridesSynchronized" }) // checker
+																						// bug
 			@Override
 			public @Nullable Object get(Object key) {
 				return map.get(key);
@@ -161,7 +162,8 @@ public final class PropertiesParser {
 		@SuppressWarnings({ "serial", "nullness" })
 		Properties bp = new Properties() {
 			@Override
-			@SuppressWarnings({ "nullness", "keyfor" }) // checker bug
+			@SuppressWarnings({ "nullness", "keyfor", "UnsynchronizedOverridesSynchronized" }) // checker
+																								// bug
 			public @Nullable Object put(Object key, Object value) {
 				Objects.requireNonNull(key);
 				Objects.requireNonNull(value);

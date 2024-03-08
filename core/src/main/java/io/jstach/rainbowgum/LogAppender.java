@@ -48,12 +48,8 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	 * @param count the number of items.
 	 */
 	public void append(LogEvent[] events, int count);
-	// {
-	// for (int i = 0; i < count; i++) {
-	// append(events[i]);
-	// }
-	// }
 
+	@Override
 	public void append(LogEvent event);
 
 	@Override
@@ -110,9 +106,9 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	 */
 	public static final class Builder {
 
-		protected @Nullable Provider<? extends LogOutput> output;
+		private LogConfig.@Nullable Provider<? extends LogOutput> output = null;
 
-		protected @Nullable Provider<? extends LogEncoder> encoder;
+		private LogConfig.@Nullable Provider<? extends LogEncoder> encoder = null;
 
 		private final String name;
 
@@ -133,7 +129,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @param output output.
 		 * @return builder.
 		 */
-		public Builder output(Provider<? extends LogOutput> output) {
+		public Builder output(LogConfig.Provider<? extends LogOutput> output) {
 			this.output = output;
 			return this;
 		}
@@ -144,7 +140,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @return builder.
 		 */
 		public Builder output(LogOutput output) {
-			this.output = Provider.of(output);
+			this.output = LogConfig.Provider.of(output);
 			return this;
 		}
 
@@ -155,7 +151,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter formatter) {
-			this.encoder = Provider.of(LogEncoder.of(formatter));
+			this.encoder = LogConfig.Provider.of(LogEncoder.of(formatter));
 			return this;
 		}
 
@@ -166,7 +162,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter.EventFormatter formatter) {
-			this.encoder = Provider.of(LogEncoder.of(formatter));
+			this.encoder = LogConfig.Provider.of(LogEncoder.of(formatter));
 			return this;
 		}
 
@@ -175,7 +171,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @param encoder encoder not <code>null</code>.
 		 * @return builder.
 		 */
-		public Builder encoder(Provider<? extends LogEncoder> encoder) {
+		public Builder encoder(LogConfig.Provider<? extends LogEncoder> encoder) {
 			this.encoder = encoder;
 			return this;
 		}
@@ -186,7 +182,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * @return builder.
 		 */
 		public Builder encoder(LogEncoder encoder) {
-			this.encoder = Provider.of(encoder);
+			this.encoder = LogConfig.Provider.of(encoder);
 			return this;
 		}
 
@@ -194,7 +190,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		 * Builds.
 		 * @return an appender factory.
 		 */
-		public Provider<LogAppender> build() {
+		public LogConfig.Provider<LogAppender> build() {
 			/*
 			 * We need to capture parameters since appender creation needs to be lazy.
 			 */
@@ -202,8 +198,8 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 			var _output = output;
 			var _encoder = encoder;
 			return (n, config) -> {
-				AppenderConfig a = new AppenderConfig(_name, Provider.provideOrNull(n, _output, config),
-						Provider.provideOrNull(n, _encoder, config));
+				AppenderConfig a = new AppenderConfig(_name, LogConfig.Provider.provideOrNull(n, _output, config),
+						LogConfig.Provider.provideOrNull(n, _encoder, config));
 				return DefaultAppenderRegistry.appender(a, config);
 			};
 		}
@@ -250,8 +246,9 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 
 		/**
 		 * Creates an appender from an output and encoder.
-		 * @param output
-		 * @param encoder
+		 * @param output set the output field and will be started and closed with the
+		 * appender.
+		 * @param encoder set the encoder field.
 		 */
 		protected AbstractLogAppender(LogOutput output, LogEncoder encoder) {
 			super();
@@ -275,6 +272,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 
 record CompositeLogAppender(LogAppender[] appenders) implements LogAppender {
 
+	@Override
 	public void append(LogEvent[] event, int count) {
 		for (var appender : appenders) {
 			appender.append(event, count);

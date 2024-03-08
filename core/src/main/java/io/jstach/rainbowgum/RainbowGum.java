@@ -66,6 +66,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 }
  */
 //@formatter:on
+@SuppressWarnings("InvalidInlineTag")
 public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/**
@@ -127,6 +128,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * shutdown hooks. If the rainbow gum is set as global it will no longer be global and
 	 * replaced with the bootstrapping in memory queue. {@inheritDoc}
 	 */
+	@Override
 	public void close();
 
 	/**
@@ -411,10 +413,12 @@ final class SimpleRainbowGum implements RainbowGum, Shutdownable {
 		this.instanceId = instanceId;
 	}
 
+	@Override
 	public LogConfig config() {
 		return this.config;
 	}
 
+	@Override
 	public RootRouter router() {
 		return this.router;
 	}

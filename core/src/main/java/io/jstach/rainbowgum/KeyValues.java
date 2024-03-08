@@ -399,6 +399,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		return null;
 	}
 
+	@Override
 	public void forEach(BiConsumer<? super String, ? super @Nullable String> action) {
 		for (int i = 0; i < size * 2; i += 2) {
 			var k = kvs[i];
@@ -510,6 +511,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 		this.threshold = threshold;
 	}
 
+	@Override
 	public MutableKeyValues copy() {
 		ArrayKeyValues orig = this;
 		String[] copyKvs = new String[this.threshold];
@@ -570,9 +572,9 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 		int valueIndex = (size * 2) - 1;
 		kvs[valueIndex - 1] = key;
 		kvs[valueIndex] = value;
-		return;
 	}
 
+	@Override
 	public void putAll(Map<String, String> m) {
 		m.forEach(this);
 	}

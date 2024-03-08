@@ -9,6 +9,7 @@ import java.util.Objects;
  * @author agentgt
  * @hidden
  */
+@SuppressWarnings("InvalidBlockTag")
 public interface MetaLog {
 
 	/**

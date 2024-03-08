@@ -10,10 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
-/**
- * 
- */
-public class KeyValuesTest {
+class KeyValuesTest {
 
 	@Test
 	void testGetValue() throws Exception {

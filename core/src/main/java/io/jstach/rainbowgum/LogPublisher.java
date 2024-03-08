@@ -112,6 +112,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		 * @param properties configuration properties
 		 * @return publisher factory.
 		 */
+		@Override
 		PublisherFactory provide(URI uri, String name, LogProperties properties);
 
 	}

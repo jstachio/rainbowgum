@@ -154,6 +154,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 
 	}
 
+	@Override
 	public void format(StringBuilder output, LogEvent logEvent) {
 
 		var name = logEvent.loggerName();
@@ -184,7 +185,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 
 		output.append(name);
 
-		if (!LogFormatter.isNoop(keyValuesFormatter)) {
+		if (!LogFormatter.isNoopOrNull(keyValuesFormatter)) {
 			output.append(" ");
 			output.append("{");
 			keyValuesFormatter.format(output, logEvent);

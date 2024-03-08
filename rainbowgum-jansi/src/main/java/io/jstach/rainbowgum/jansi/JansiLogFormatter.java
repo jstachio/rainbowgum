@@ -97,7 +97,7 @@ public class JansiLogFormatter extends AbstractStandardEventFormatter {
 			buf.a(String.valueOf(name));
 		}
 
-		if (!LogFormatter.isNoop(keyValuesFormatter)) {
+		if (!LogFormatter.isNoopOrNull(keyValuesFormatter)) {
 			buf.fg(Color.WHITE);
 			buf.append(" ");
 			buf.a(Attribute.INTENSITY_FAINT);

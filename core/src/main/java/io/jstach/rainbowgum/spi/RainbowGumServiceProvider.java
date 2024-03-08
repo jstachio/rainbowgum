@@ -35,6 +35,7 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * 
  * }
  */
+@SuppressWarnings("InvalidInlineTag")
 public sealed interface RainbowGumServiceProvider {
 
 	/**

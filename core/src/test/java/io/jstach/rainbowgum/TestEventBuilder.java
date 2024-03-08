@@ -3,7 +3,7 @@ package io.jstach.rainbowgum;
 import java.lang.System.Logger.Level;
 
 /**
- *
+ * Used to create events.
  */
 public final class TestEventBuilder {
 
@@ -24,6 +24,7 @@ public final class TestEventBuilder {
 	}
 
 	/**
+	 * Set logger name.
 	 * @param loggerName logger name
 	 * @return this.
 	 */
@@ -33,6 +34,7 @@ public final class TestEventBuilder {
 	}
 
 	/**
+	 * Set level.
 	 * @param level level.
 	 * @return this.
 	 */
@@ -42,6 +44,7 @@ public final class TestEventBuilder {
 	}
 
 	/**
+	 * Creates event builder.
 	 * @return event builder.
 	 */
 	public LogEvent.Builder event() {

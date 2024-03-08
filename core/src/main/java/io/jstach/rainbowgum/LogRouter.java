@@ -186,6 +186,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			return publisher().synchronous();
 		}
 
+		@Override
 		default void log(LogEvent event) {
 			publisher().log(event);
 		}
@@ -438,6 +439,7 @@ record SimpleRouter(LogPublisher publisher, LevelResolver levelResolver) impleme
 		publisher.close();
 	}
 
+	@Override
 	public Route route(String loggerName, java.lang.System.Logger.Level level) {
 		if (levelResolver().isEnabled(loggerName, level)) {
 			return this;
@@ -482,16 +484,19 @@ sealed interface InternalRootRouter extends RootRouter {
 		Set<Router> matched = Collections.newSetFromMap(new IdentityHashMap<Router, Boolean>());
 		for (var r : routes) {
 			if (!r.synchronous()) {
-				matched.add(r);
-				sorted.add(r);
+				if (matched.add(r)) {
+					sorted.add(r);
+				}
 			}
 		}
 		for (var r : routes) {
-			if (r.synchronous() && !matched.contains(r)) {
-				sorted.add(r);
+			if (r.synchronous()) {
+				if (matched.add(r)) {
+					sorted.add(r);
+				}
 			}
 		}
-
+		routes = sorted;
 		List<LevelResolver> resolvers = new ArrayList<>();
 		routes.stream().map(Router::levelResolver).forEach(resolvers::add);
 		resolvers.add(levelResolver);
@@ -533,6 +538,7 @@ record SingleSyncRootRouter(Router router) implements InternalRootRouter {
 		router.close();
 	}
 
+	@Override
 	public LevelResolver levelResolver() {
 		return router.levelResolver();
 	}
@@ -556,6 +562,7 @@ record SingleAsyncRootRouter(Router router) implements InternalRootRouter {
 		router.close();
 	}
 
+	@Override
 	public LevelResolver levelResolver() {
 		return router.levelResolver();
 	}
@@ -579,6 +586,7 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) impleme
 		return Routes.NotFound;
 	}
 
+	@Override
 	public void log(LogEvent event) {
 		for (var router : routers) {
 			var route = router.route(event.loggerName(), event.level());
@@ -600,6 +608,7 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) impleme
 		}
 	}
 
+	@Override
 	public boolean isEnabled() {
 		return true;
 	}
@@ -704,6 +713,7 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 }
 
+@SuppressWarnings("ImmutableEnumChecker")
 enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	INSTANCE;
@@ -756,6 +766,7 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 		return this.delegate.isEnabled(loggerName, level);
 	}
 
+	@Override
 	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
 		InternalRootRouter d = delegate;
 		d.log(loggerName, level, message, cause);
@@ -764,6 +775,7 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 		}
 	}
 
+	@Override
 	public void drain(InternalRootRouter delegate) {
 		drainLock.lock();
 		try {
