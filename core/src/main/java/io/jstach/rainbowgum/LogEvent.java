@@ -364,25 +364,25 @@ public sealed interface LogEvent {
 		 * See {@link StackFrame#getClassName()}.
 		 * @return class name.
 		 */
-		public String getClassName();
+		public String className();
 
 		/**
 		 * See {@link StackFrame#getFileName()}.
 		 * @return file name.
 		 */
-		public String getFileName();
+		public @Nullable String fileNameOrNull();
 
 		/**
 		 * See {@link StackFrame#getLineNumber()}.
 		 * @return line number.
 		 */
-		public int getLineNumber();
+		public int lineNumber();
 
 		/**
 		 * See {@link StackFrame#getMethodName()}.
 		 * @return method name.
 		 */
-		public String getMethodName();
+		public String methodName();
 
 		/**
 		 * Make the caller info immutable.
@@ -394,8 +394,8 @@ public sealed interface LogEvent {
 
 }
 
-record FrozenCallerInfo(String getClassName, String getFileName, int getLineNumber,
-		String getMethodName) implements LogEvent.CallerInfo {
+record FrozenCallerInfo(String className, @Nullable String fileNameOrNull, int lineNumber,
+		String methodName) implements LogEvent.CallerInfo {
 	@Override
 	public CallerInfo freeze() {
 		return this;
@@ -405,28 +405,31 @@ record FrozenCallerInfo(String getClassName, String getFileName, int getLineNumb
 record StackFrameCallerInfo(StackFrame stackFrame) implements LogEvent.CallerInfo {
 
 	@Override
-	public String getClassName() {
+	public String className() {
 		return stackFrame.getClassName();
 	}
 
 	@Override
-	public String getFileName() {
+	public @Nullable String fileNameOrNull() {
+		/*
+		 * TODO checker did not know file name is null.
+		 */
 		return stackFrame.getFileName();
 	}
 
 	@Override
-	public int getLineNumber() {
+	public int lineNumber() {
 		return stackFrame.getLineNumber();
 	}
 
 	@Override
-	public String getMethodName() {
+	public String methodName() {
 		return stackFrame.getMethodName();
 	}
 
 	@Override
 	public CallerInfo freeze() {
-		return new FrozenCallerInfo(getClassName(), getFileName(), getLineNumber(), getMethodName());
+		return new FrozenCallerInfo(className(), fileNameOrNull(), lineNumber(), methodName());
 	}
 
 }

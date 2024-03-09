@@ -130,6 +130,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.optional();
 	}
 
+	@SuppressWarnings("null") // TODO Eclipse Null bug.
 	private static final Property<Boolean> defaultsAppenderBufferProperty = Property.builder()
 		.map(s -> Boolean.parseBoolean(s))
 		.orElse(false)

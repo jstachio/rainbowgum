@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
@@ -93,7 +94,9 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
-	 * Standard out output.
+	 * Standard out output. The default implementation
+	 * <em>uses whatever is set to {@link System#out} at provision time</em>.
+	 * <strong>If {@link System#out} is rebound the output will  not be updated!</strong>
 	 * @return output.
 	 */
 	public static LogConfig.Provider<LogOutput> ofStandardOut() {
@@ -101,7 +104,9 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
-	 * Standard err output.
+	 * Standard err output. The default implementation
+	 * <em>uses whatever is set to {@link System#err} at provision time</em>.
+	 * <strong>If {@link System#err} is rebound the output will not be updated!</strong>
 	 * @return output.
 	 */
 	public static LogConfig.Provider<LogOutput> ofStandardErr() {
@@ -556,7 +561,7 @@ class FileChannelOutput implements LogOutput {
 class StdOutOutput extends LogOutput.AbstractOutputStreamOutput {
 
 	public StdOutOutput() {
-		super(LogOutput.STDOUT_URI, System.out);
+		super(LogOutput.STDOUT_URI, Objects.requireNonNull(System.out));
 	}
 
 	@Override
@@ -573,7 +578,7 @@ class StdOutOutput extends LogOutput.AbstractOutputStreamOutput {
 class StdErrOutput extends LogOutput.AbstractOutputStreamOutput {
 
 	protected StdErrOutput() {
-		super(LogOutput.STDERR_URI, System.err);
+		super(LogOutput.STDERR_URI, Objects.requireNonNull(System.err));
 	}
 
 	@Override

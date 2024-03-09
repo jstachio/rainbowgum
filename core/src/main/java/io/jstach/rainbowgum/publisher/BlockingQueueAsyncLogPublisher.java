@@ -97,6 +97,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 		worker.start();
 	}
 
+	@SuppressWarnings("null") // TODO eclipse bug
 	void append(LogEvent[] events, int count) {
 		appender.append(events, count);
 	}

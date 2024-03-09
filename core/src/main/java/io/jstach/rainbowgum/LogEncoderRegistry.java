@@ -1,9 +1,11 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -81,17 +83,21 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
-
-		if (scheme == null) {
-			if (path == null) {
-				throw new IllegalArgumentException("URI is not proper: " + uri);
+		try {
+			if (scheme == null) {
+				if (path == null) {
+					throw new IllegalArgumentException("URI is not proper: " + uri);
+				}
+				if (path.startsWith("./") || path.startsWith("/")) {
+					uri = new URI("name://" + path);
+				}
+				else {
+					uri = new URI(path + ":///");
+				}
 			}
-			if (path.startsWith("./") || path.startsWith("/")) {
-				uri = URI.create("name://" + path);
-			}
-			else {
-				uri = URI.create(path + ":///");
-			}
+		}
+		catch (URISyntaxException e) {
+			throw new IllegalArgumentException("URI is not proper: " + uri);
 		}
 		return uri;
 	}
@@ -99,7 +105,13 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 	@Override
 	public LogEncoder provide(URI uri, String name, LogProperties properties) {
 		uri = normalize(uri);
+		/*
+		 * TODO file bug with checker as it should have found scheme to be null.
+		 */
 		String scheme = uri.getScheme();
+		if (scheme == null) {
+			throw new IllegalStateException("bug. uri was not normalized");
+		}
 		if (scheme.equals("name")) {
 			String _name = uri.getHost();
 			if (_name == null) {
@@ -137,7 +149,7 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 			if (formatter == null) {
 				return LogEncoder.of(StandardEventFormatter.builder().build());
 			}
-			return formatter.get();
+			return Objects.requireNonNull(formatter.get());
 		}
 		finally {
 			lock.readLock().unlock();

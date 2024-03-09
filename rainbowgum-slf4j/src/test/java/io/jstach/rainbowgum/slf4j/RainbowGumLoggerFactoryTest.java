@@ -147,9 +147,9 @@ class RainbowGumLoggerFactoryTest {
 					CallerInfo caller = event.callerOrNull();
 					if (caller != null) {
 						output.append(" <caller>");
-						output.append(caller.getClassName());
+						output.append(caller.className());
 						output.append(".");
-						output.append(caller.getMethodName());
+						output.append(caller.methodName());
 						output.append("</caller>");
 					}
 					output.append("\n");

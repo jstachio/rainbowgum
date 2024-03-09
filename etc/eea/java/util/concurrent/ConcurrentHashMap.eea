@@ -13,7 +13,7 @@ compute
  (T1K;L1java/util/function/BiFunction<-TK;-TV;+TV;>;)T0V;
 computeIfAbsent
  (TK;Ljava/util/function/Function<-TK;+TV;>;)TV;
- (T1K;L1java/util/function/Function<-TK;+T0V;>;)T0V;
+ (T1K;L1java/util/function/Function<-TK;+T0V;>;)TV;
 computeIfPresent
  (TK;Ljava/util/function/BiFunction<-TK;-TV;+TV;>;)TV;
  (T1K;L1java/util/function/BiFunction<-TK;-TV;+TV;>;)T0V;

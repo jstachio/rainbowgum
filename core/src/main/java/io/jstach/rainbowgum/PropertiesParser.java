@@ -82,7 +82,7 @@ public final class PropertiesParser {
 		StringWriter sw = new StringWriter();
 		new Properties() {
 			@Override
-			@SuppressWarnings({ "unchecked", "rawtypes", "UnsynchronizedOverridesSynchronized" })
+			@SuppressWarnings({ "unchecked", "rawtypes", "UnsynchronizedOverridesSynchronized", "null" })
 			public java.util.Enumeration keys() {
 				return Collections.enumeration(map.keySet());
 			}

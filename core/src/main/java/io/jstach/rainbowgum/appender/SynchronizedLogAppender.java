@@ -50,6 +50,7 @@ final class SynchronizedDecorator implements SynchronizedLogAppender {
 		this.appender = appender;
 	}
 
+	@SuppressWarnings("null") // TODO eclipse bug
 	@Override
 	public synchronized void append(LogEvent[] events, int count) {
 		appender.append(events, count);
@@ -88,6 +89,7 @@ final class DefaultSynchronizedLogAppender extends AbstractLogAppender implement
 		}
 	}
 
+	@SuppressWarnings("null") // TODO eclipse bug
 	@Override
 	public void append(LogEvent[] events, int count) {
 		synchronized (this) {

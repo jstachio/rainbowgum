@@ -1,0 +1,4 @@
+class java/io/FileOutputStream
+getChannel
+ ()Ljava/nio/channels/FileChannel;
+ ()L1java/nio/channels/FileChannel;

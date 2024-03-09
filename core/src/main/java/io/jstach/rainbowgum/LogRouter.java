@@ -17,6 +17,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperties.Property;
@@ -635,11 +636,15 @@ enum FailsafeAppender implements LogAppender {
 	@Override
 	public void append(LogEvent event) {
 		if (event.level().compareTo(Level.ERROR) >= 0) {
-			System.err.append("[ERROR] - logging ");
-			event.formattedMessage(System.err);
-			var throwable = event.throwableOrNull();
-			if (throwable != null) {
-				throwable.printStackTrace(System.err);
+			var err = System.err;
+			if (err != null) {
+				err.append("[ERROR] - logging ");
+				event.formattedMessage(err);
+
+				var throwable = event.throwableOrNull();
+				if (throwable != null) {
+					throwable.printStackTrace(err);
+				}
 			}
 		}
 	}
@@ -799,6 +804,7 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 }
 
+@SuppressWarnings("null") // TODO eclipse bug
 class DefaultSystemLogger implements System.Logger {
 
 	private final String name;
@@ -829,6 +835,8 @@ class DefaultSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format, @Nullable Object... params) {
+		// TODO Eclipse Null bug
+		@NonNull
 		String message = requireNonNullElse(format, "");
 		String formattedMessage;
 		if (params != null && params.length > 0 && !message.isBlank()) {

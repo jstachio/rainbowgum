@@ -736,14 +736,15 @@ public interface LogProperties {
 			return fallback;
 		}
 		if (logProperties.size() == 0) {
-			return logProperties.get(0);
+			return Objects.requireNonNull(logProperties.get(0));
 		}
 		var array = sort(logProperties);
 		return new CompositeLogProperties(array);
 	}
 
 	private static LogProperties[] sort(List<? extends LogProperties> logProperties) {
-		var array = logProperties.stream()
+		@SuppressWarnings("null") // TODO eclipse array issue
+		LogProperties[] array = logProperties.stream()
 			.filter(p -> p != StandardProperties.EMPTY)
 			.toArray(size -> new LogProperties[size]);
 		Arrays.sort(array, Comparator.comparingInt(LogProperties::order).reversed());
@@ -828,7 +829,7 @@ public interface LogProperties {
 	public static Map<String, List<String>> parseMultiMap(String query) {
 		Map<String, List<String>> m = new LinkedHashMap<>();
 		BiConsumer<String, @Nullable String> f = (k, v) -> {
-			var list = m.computeIfAbsent(k, _k -> new ArrayList<String>());
+			List<String> list = Objects.requireNonNull(m.computeIfAbsent(k, _k -> new ArrayList<String>()));
 			if (v != null) {
 				list.add(v);
 			}
@@ -1086,7 +1087,7 @@ public interface LogProperties {
 
 	private static <T> @Nullable T searchPath(String key, Function<String, @Nullable T> resolveFunc, String sep) {
 		String tempName = key;
-		T level = null;
+		@Nullable T level = null;
 		int indexOfLastDot = tempName.length();
 		while ((level == null) && (indexOfLastDot > -1)) {
 			tempName = tempName.substring(0, indexOfLastDot);
@@ -1514,6 +1515,7 @@ public interface LogProperties {
 		default Result<T> get(LogProperties props, List<String> keys) {
 			for (String key : keys) {
 				var r = get(props, key);
+				@SuppressWarnings("null") //TODO eclipse bug
 				@Nullable
 				Result<T> found = switch (r) {
 					case Result.Success<T> s -> s;
@@ -1591,6 +1593,7 @@ public interface LogProperties {
 		 * @param e property getter.
 		 * @return root.
 		 */
+		@SuppressWarnings("null") // TODO eclipse bug
 		public static RootPropertyGetter findRoot(PropertyGetter<?> e) {
 			return switch (e) {
 				case RootPropertyGetter r -> r;
@@ -1764,6 +1767,7 @@ public interface LogProperties {
 			 */
 			PropertyGetter<?> parent();
 
+			@SuppressWarnings("null") // TODO eclipse bug
 			@Override
 			default String propertyString(T value) {
 				return switch (value) {
@@ -1808,9 +1812,7 @@ public interface LogProperties {
 		 * @return new property getter.
 		 */
 		default RequiredPropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
-			if (fallback == null) {
-				throw new NullPointerException();
-			}
+			Objects.requireNonNull(fallback, "fallback");
 			return new FallbackGetter<T>(this, fallback);
 		}
 
@@ -1998,6 +2000,7 @@ record MapProperties(String description, Map<String, String> map) implements Log
 record FallbackGetter<T>(PropertyGetter<T> parent,
 		Supplier<? extends T> fallback) implements RequiredPropertyGetter<T> {
 
+	@SuppressWarnings("null") // TODO eclipse bug
 	@Override
 	public RequiredResult<T> get(LogProperties props, String key) {
 		var r = parent.get(props, key);

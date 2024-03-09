@@ -2,14 +2,15 @@ package io.jstach.rainbowgum;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
-import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 
 /**
@@ -77,9 +78,11 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 			throw new IllegalArgumentException("A single appender is required");
 		}
 		if (appenders.size() == 1) {
-			return appenders.get(0);
+			return Objects.requireNonNull(appenders.get(0));
 		}
-		return new CompositeLogAppender(appenders.toArray(new LogAppender[] {}));
+		@SuppressWarnings("null") // TODO Eclipse issue here
+		LogAppender @NonNull [] array = appenders.toArray(new LogAppender[] {});
+		return new CompositeLogAppender(array);
 	}
 
 	/**

@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -133,7 +132,8 @@ public sealed interface KeyValues {
 	 * Copies the KeyValues to a Map. This should be used sparingly.
 	 * @return map of kvs.
 	 */
-	Map<String, String> copyToMap();
+	@SuppressWarnings("exports")
+	Map<String, @Nullable String> copyToMap();
 
 	/**
 	 * Makes the KeyValues thread safe either by copying or returning if already
@@ -292,7 +292,7 @@ enum EmptyKeyValues implements KeyValues {
 	}
 
 	@Override
-	public Map<String, String> copyToMap() {
+	public Map<String, @Nullable String> copyToMap() {
 		return Map.of();
 	}
 
@@ -441,10 +441,10 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public Map<String, String> copyToMap() {
+	public Map<String,  @Nullable String> copyToMap() {
 		final Map<String, @Nullable String> result = new HashMap<>(size);
 		forEach(result::put);
-		return (Map<String, String>) result;
+		return result;
 	}
 
 	@Override
@@ -477,6 +477,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 final class ImmutableArrayKeyValues extends AbstractArrayKeyValues {
 
+	@SuppressWarnings("null")
 	ImmutableArrayKeyValues(String[] kvs, int size, int threshold) {
 		super(kvs, size, threshold);
 	}
@@ -493,13 +494,13 @@ final class ImmutableArrayKeyValues extends AbstractArrayKeyValues {
  * the case of loom where there could be several orders of keyvalues instances at any
  * given time.
  */
-final class ArrayKeyValues extends AbstractArrayKeyValues
-		implements BiConsumer<String, String>, Function<String, @Nullable String>, MutableKeyValues {
+final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyValues {
 
 	public ArrayKeyValues() {
 		this(DEFAULT_INITIAL_CAPACITY);
 	}
 
+	@SuppressWarnings("null")
 	public ArrayKeyValues(final int initialCapacity) {
 		this(EMPTY, 0, calculateInitialThreshold(initialCapacity));
 	}
@@ -514,11 +515,12 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 	@Override
 	public MutableKeyValues copy() {
 		ArrayKeyValues orig = this;
-		String[] copyKvs = new String[this.threshold];
+		@Nullable String[] copyKvs = new @Nullable String[this.threshold];
 		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.size * 2);
 		return new ArrayKeyValues(copyKvs, size, threshold);
 	}
 
+	@SuppressWarnings("null") // Eclipse bug
 	@Override
 	public KeyValues freeze() {
 		if (size == 0) {
@@ -530,7 +532,6 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 		return new ImmutableArrayKeyValues(copyKvs, size, threshold);
 	}
 
-	@Override
 	public @Nullable String apply(String t) {
 		return getValueOrNull(t);
 	}
@@ -618,7 +619,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues
 	 */
 	private void inflateTable(final int toSize) {
 		threshold = toSize;
-		kvs = new String[toSize];
+		kvs = new @Nullable String[toSize];
 	}
 
 	@Override

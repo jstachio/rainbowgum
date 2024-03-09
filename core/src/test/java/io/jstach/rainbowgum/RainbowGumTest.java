@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
 import java.util.Map;
+import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,8 @@ class RainbowGumTest {
 		logger.log(Level.INFO, "Stuff");
 		var router = gum.router();
 		var level = router.levelResolver().resolveLevel("stuff");
-		System.out.println(level);
+		var out = Objects.requireNonNull(System.out);
+		out.println(level);
 		boolean actual = router.route("stuff", Level.WARNING).isEnabled();
 		assertTrue(actual);
 		assertFalse(gum.router().route("stuff", Level.DEBUG).isEnabled());

@@ -135,28 +135,28 @@ enum CallerInfoFormatter implements EventFormatter {
 
 		@Override
 		protected void format(StringBuilder output, CallerInfo info) {
-			output.append(info.getMethodName());
+			output.append(info.methodName());
 		}
 
 	},
 	CLASS {
 		@Override
 		protected void format(StringBuilder output, CallerInfo info) {
-			output.append(info.getClassName());
+			output.append(info.className());
 
 		}
 	},
 	FILE {
 		@Override
 		protected void format(StringBuilder output, CallerInfo info) {
-			output.append(info.getFileName());
+			output.append(info.fileNameOrNull());
 
 		}
 	},
 	LINE {
 		@Override
 		protected void format(StringBuilder output, CallerInfo info) {
-			output.append(info.getLineNumber());
+			output.append(info.lineNumber());
 
 		}
 	};

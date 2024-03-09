@@ -8,9 +8,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
@@ -93,7 +95,7 @@ public interface LevelResolver {
 				return StaticLevelResolver.OFF;
 			}
 			else if (config.size() == 1) {
-				return config.iterator().next();
+				return Objects.requireNonNull(config.iterator().next());
 			}
 			return new CompositeLevelConfig(config.stream().toList().toArray(new LevelConfig[] {}));
 		}
@@ -262,7 +264,7 @@ interface InternalLevelResolver {
 			return LevelResolver.off();
 		}
 		else if (resolvers.size() == 1) {
-			return resolvers.iterator().next();
+			return Objects.requireNonNull(resolvers.iterator().next());
 		}
 		return CompositeLevelResolver.of(resolvers);
 	}
@@ -379,7 +381,8 @@ record CompositeLevelResolver(LevelResolver[] resolvers, Level defaultLevel) imp
 				resolved.add(r);
 			}
 		}
-		LevelResolver[] array = resolved.toArray(new LevelResolver[] {});
+		@SuppressWarnings("null") // TODO eclipse bug
+		LevelResolver @NonNull [] array = resolved.toArray(new LevelResolver[] {});
 		return new CompositeLevelResolver(array, Level.OFF);
 	}
 
@@ -437,9 +440,11 @@ final class CachedLevelResolver implements LevelResolver {
 		this.levelResolver = levelResolver;
 	}
 
+	@SuppressWarnings("unused") // TODO Eclipse null analysis bug
 	@Override
 	public Level resolveLevel(String name) {
-		var level = levelCache.get(name);
+		@Nullable
+		Level level = levelCache.get(name);
 		if (level != null) {
 			return level;
 		}

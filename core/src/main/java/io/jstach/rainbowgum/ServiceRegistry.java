@@ -120,12 +120,8 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T> @Nullable T findOrNull(Class<T> type, String name) {
-		if (type == null) {
-			throw new NullPointerException("type");
-		}
-		if (name == null) {
-			throw new NullPointerException("name");
-		}
+		Objects.requireNonNull(type, "type");
+		Objects.requireNonNull(name, "name");
 		return (T) services.get(new ServiceKey(type, name));
 	}
 
@@ -139,9 +135,6 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 	@Override
 	public <T> T putIfAbsent(Class<T> type, Supplier<T> supplier) {
 		var t = (T) services.computeIfAbsent(new ServiceKey(type, ""), k -> Objects.requireNonNull(supplier.get()));
-		if (t == null) {
-			throw new NullPointerException("supplier returned null");
-		}
 		return t;
 	}
 

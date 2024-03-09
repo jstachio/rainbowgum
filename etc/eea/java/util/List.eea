@@ -37,7 +37,7 @@ listIterator
  (I)L1java/util/ListIterator<TE;>;
 of
  <E:Ljava/lang/Object;>()Ljava/util/List<TE;>;
- <E:Ljava/lang/Object;>()L1java/util/List<TE;>;
+ <E:Ljava/lang/Object;>()L1java/util/List<T1E;>;
 of
  <E:Ljava/lang/Object;>(TE;)Ljava/util/List<TE;>;
  <E:Ljava/lang/Object;>(T1E;)L1java/util/List<TE;>;
@@ -94,7 +94,7 @@ subList
  (II)L1java/util/List<TE;>;
 toArray
  ()[Ljava/lang/Object;
- ()[1Ljava/lang/Object;
+ ()[1L0java/lang/Object;
 toArray
  <T:Ljava/lang/Object;>([TT;)[TT;
  <T:Ljava/lang/Object;>([1TT;)[1TT;

@@ -1,4 +1,9 @@
 class java/util/EnumMap
+ <K:Ljava/lang/Enum<TK;>;V:Ljava/lang/Object;>
+ <K:L1java/lang/Enum<TK;>;V:Ljava/lang/Object;>
+get
+ (Ljava/lang/Object;)TV;
+ (Ljava/lang/Object;)T0V;
 keySet
  ()Ljava/util/Set<TK;>;
  ()L1java/util/Set<T1K;>;
