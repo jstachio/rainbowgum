@@ -441,7 +441,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public Map<String,  @Nullable String> copyToMap() {
+	public Map<String, @Nullable String> copyToMap() {
 		final Map<String, @Nullable String> result = new HashMap<>(size);
 		forEach(result::put);
 		return result;
@@ -515,7 +515,8 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	@Override
 	public MutableKeyValues copy() {
 		ArrayKeyValues orig = this;
-		@Nullable String[] copyKvs = new @Nullable String[this.threshold];
+		@Nullable
+		String[] copyKvs = new @Nullable String[this.threshold];
 		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.size * 2);
 		return new ArrayKeyValues(copyKvs, size, threshold);
 	}

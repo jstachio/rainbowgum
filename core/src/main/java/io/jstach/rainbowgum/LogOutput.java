@@ -94,9 +94,9 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
-	 * Standard out output. The default implementation
-	 * <em>uses whatever is set to {@link System#out} at provision time</em>.
-	 * <strong>If {@link System#out} is rebound the output will  not be updated!</strong>
+	 * Standard out output. The default implementation <em>uses whatever is set to
+	 * {@link System#out} at provision time</em>. <strong>If {@link System#out} is rebound
+	 * the output will not be updated!</strong>
 	 * @return output.
 	 */
 	public static LogConfig.Provider<LogOutput> ofStandardOut() {
@@ -104,9 +104,9 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
-	 * Standard err output. The default implementation
-	 * <em>uses whatever is set to {@link System#err} at provision time</em>.
-	 * <strong>If {@link System#err} is rebound the output will not be updated!</strong>
+	 * Standard err output. The default implementation <em>uses whatever is set to
+	 * {@link System#err} at provision time</em>. <strong>If {@link System#err} is rebound
+	 * the output will not be updated!</strong>
 	 * @return output.
 	 */
 	public static LogConfig.Provider<LogOutput> ofStandardErr() {

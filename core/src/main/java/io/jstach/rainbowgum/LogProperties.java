@@ -1087,7 +1087,8 @@ public interface LogProperties {
 
 	private static <T> @Nullable T searchPath(String key, Function<String, @Nullable T> resolveFunc, String sep) {
 		String tempName = key;
-		@Nullable T level = null;
+		@Nullable
+		T level = null;
 		int indexOfLastDot = tempName.length();
 		while ((level == null) && (indexOfLastDot > -1)) {
 			tempName = tempName.substring(0, indexOfLastDot);
@@ -1515,7 +1516,7 @@ public interface LogProperties {
 		default Result<T> get(LogProperties props, List<String> keys) {
 			for (String key : keys) {
 				var r = get(props, key);
-				@SuppressWarnings("null") //TODO eclipse bug
+				@SuppressWarnings("null") // TODO eclipse bug
 				@Nullable
 				Result<T> found = switch (r) {
 					case Result.Success<T> s -> s;
