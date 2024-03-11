@@ -77,6 +77,7 @@ public class ConfigProcessor extends AbstractProcessor {
 	@Override
 	public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 		final Helper h = new Helper(requireNonNull(processingEnv));
+		processingEnv.getMessager().printMessage(Kind.NOTE, "Running Rainbow Gum config builder processor");
 		if (!roundEnv.processingOver()) {
 			TypeElement configBeanElement = processingEnv.getElementUtils().getTypeElement(CONFIG_BEAN_CLASS);
 			if (configBeanElement == null) {

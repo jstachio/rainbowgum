@@ -976,6 +976,7 @@
                 <annotationpath>CLASSPATH</annotationpath>
                 <!-- Because classpath is the only that works we add our eea directory to it -->
                 <classpath>${parent.root}/etc/eea</classpath>
+                <replaceProcessorPathWithProcessorModulePath>true</replaceProcessorPathWithProcessorModulePath>
               </compilerArguments>
               <compilerArgs combine.self="override">
               </compilerArgs>
