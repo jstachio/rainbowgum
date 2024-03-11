@@ -13,7 +13,6 @@ import static io.jstach.rainbowgum.pattern.format.ANSIConstants.YELLOW_FG;
 
 import java.lang.System.Logger.Level;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
@@ -25,72 +24,19 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.pattern.PadInfo;
 import io.jstach.rainbowgum.pattern.PatternKeyword;
-import io.jstach.rainbowgum.pattern.format.FormatterFactory.CompositeFactory;
-import io.jstach.rainbowgum.pattern.format.FormatterFactory.KeywordFactory;
+import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFactory;
+import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 
 /**
  * Creates formatters from pattern keywords.
  */
-public sealed interface FormatterFactory {
-
-	/**
-	 * Config needed to create the formatter. Currently this interface is blank but in the
-	 * future properties maybe added to access things like caching.
-	 */
-	public interface FormatterConfig {
-
-		/**
-		 * Default zoneId if not specified. If not overriden the system default will be
-		 * used.
-		 * @return zone id.
-		 */
-		default ZoneId zoneId() {
-			return ZoneId.systemDefault();
-		}
-
-		/**
-		 * Line separator for %n by default uses {@link System#lineSeparator()}.
-		 * @return line separator.
-		 */
-		default String lineSeparator() {
-			return System.lineSeparator();
-		}
-
-		/**
-		 * Default config.
-		 * @return default config.
-		 */
-		public static FormatterConfig of() {
-			return new FormatterConfig() {
-			};
-		}
-
-		/**
-		 * Platform independent formatter config that will not change across timezones or
-		 * platforms.
-		 * @return config.
-		 */
-		public static FormatterConfig ofUniversal() {
-			return new FormatterConfig() {
-				@Override
-				public String lineSeparator() {
-					return "\n";
-				}
-
-				@Override
-				public ZoneId zoneId() {
-					return ZoneId.from(ZoneOffset.UTC);
-				}
-			};
-		}
-
-	}
+public sealed interface PatternFormatterFactory {
 
 	/**
 	 * A composite formatter factory expects possible children. For example
 	 * {@code %keyword(child) }.
 	 */
-	public non-sealed interface CompositeFactory extends FormatterFactory {
+	public non-sealed interface CompositeFactory extends PatternFormatterFactory {
 
 		/**
 		 * Creates a formatter from a keyword.
@@ -99,14 +45,14 @@ public sealed interface FormatterFactory {
 		 * @param child the embedded child in the keyword or null if non is provided.
 		 * @return formatter.
 		 */
-		public LogFormatter create(FormatterConfig config, PatternKeyword node, @Nullable LogFormatter child);
+		public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child);
 
 	}
 
 	/**
 	 * A keyword formatter factory expects keywords and option list..
 	 */
-	public non-sealed interface KeywordFactory extends FormatterFactory {
+	public non-sealed interface KeywordFactory extends PatternFormatterFactory {
 
 		/**
 		 * Creates a formatter from a keyword.
@@ -114,14 +60,14 @@ public sealed interface FormatterFactory {
 		 * @param node current keyword info.
 		 * @return formatter.
 		 */
-		public LogFormatter create(FormatterConfig config, PatternKeyword node);
+		public LogFormatter create(PatternConfig config, PatternKeyword node);
 
 		/**
 		 * Creates a keyword factory from a formatter that only cares about padding info.
 		 * @param formatter existing formatter.
 		 * @return factory.
 		 */
-		static FormatterFactory.KeywordFactory of(LogFormatter formatter) {
+		static PatternFormatterFactory.KeywordFactory of(LogFormatter formatter) {
 			return (c, n) -> PadFormatter.of(formatter, n.padInfo());
 		}
 
@@ -178,7 +124,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 
 	DATE() {
 		@Override
-		protected LogFormatter _create(FormatterConfig config, PatternKeyword node) {
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			String pattern = node.opt(0, ISO8601_PATTERN);
 			if (pattern.equals(ISO8601_STR)) {
 				pattern = ISO8601_PATTERN;
@@ -196,7 +142,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 	LOGGER() {
 
 		@Override
-		protected LogFormatter _create(FormatterConfig config, PatternKeyword node) {
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			Integer length = node.optOrNull(0, Integer::parseInt);
 			if (length == null) {
 				return LogFormatter.NameFormatter.of();
@@ -220,13 +166,13 @@ enum StandardKeywordFactory implements KeywordFactory {
 	// LINESEP;
 
 	@Override
-	public LogFormatter create(FormatterConfig config, PatternKeyword node) {
+	public LogFormatter create(PatternConfig config, PatternKeyword node) {
 		var formatter = _create(config, node);
 		var formatInfo = node.padInfo();
 		return PadFormatter.of(formatter, formatInfo);
 	}
 
-	protected abstract LogFormatter _create(FormatterConfig config, PatternKeyword node);
+	protected abstract LogFormatter _create(PatternConfig config, PatternKeyword node);
 
 	record LoggerFormatter(Abbreviator abbreviator) implements LogFormatter.NameFormatter {
 
@@ -244,7 +190,7 @@ enum BareCompositeFactory implements CompositeFactory {
 
 	BARE() {
 		@Override
-		public LogFormatter create(FormatterConfig config, PatternKeyword node, @Nullable LogFormatter child) {
+		public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
 			if (child == null) {
 				child = new LogFormatter.StaticFormatter("");
 			}
@@ -286,10 +232,13 @@ class ANSIConstants {
 
 }
 
-record HighlightFormatter(LogFormatter child) implements LogFormatter.EventFormatter {
+record HighlightFormatter(@Nullable LogFormatter child) implements LogFormatter.EventFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
+		/*
+		 * TODO should a null child be a noop? Need to see what logback does for compat.
+		 */
 		var level = event.level();
 		String code = levelToANSI(level);
 		output.append(ANSIConstants.ESC_START);
@@ -317,7 +266,13 @@ enum HightlightCompositeFactory implements CompositeFactory {
 	HIGHTLIGHT() {
 
 		@Override
-		public LogFormatter create(FormatterConfig config, PatternKeyword node, @Nullable LogFormatter child) {
+		public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
+			if (config.ansiDisabled()) {
+				if (child == null) {
+					return LogFormatter.noop();
+				}
+				return child;
+			}
 			return new HighlightFormatter(child);
 		}
 
@@ -353,19 +308,25 @@ enum ColorCompositeFactory implements CompositeFactory {
 		this.name = name;
 	}
 
-	public LogFormatter create(FormatterConfig config, PatternKeyword node, @Nullable LogFormatter child) {
-		return create(node, child);
+	public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
+		return create(node, child, !config.ansiDisabled());
 	}
 
-	LogFormatter create(PatternKeyword node, @Nullable LogFormatter child) {
+	LogFormatter create(PatternKeyword node, @Nullable LogFormatter child, boolean ansi) {
 		var b = LogFormatter.builder();
-		b.text(ANSIConstants.ESC_START);
+		if (ansi) {
+			b.text(ANSIConstants.ESC_START);
+		}
 		b.text(fg);
-		b.text(ANSIConstants.ESC_END);
+		if (ansi) {
+			b.text(ANSIConstants.ESC_END);
+		}
 		if (child != null) {
 			b.add(child);
 		}
-		b.text(ANSIConstants.SET_DEFAULT_COLOR);
+		if (ansi) {
+			b.text(ANSIConstants.SET_DEFAULT_COLOR);
+		}
 		return b.flatten();
 
 	}

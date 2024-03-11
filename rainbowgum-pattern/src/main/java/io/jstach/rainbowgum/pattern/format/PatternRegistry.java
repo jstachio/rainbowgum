@@ -10,8 +10,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.pattern.format.DefaultPatternRegistry.CustomConverterKey;
-import io.jstach.rainbowgum.pattern.format.FormatterFactory.KeywordFactory;
+import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 
 /**
  * Pattern registry to register custom keywords.
@@ -23,7 +24,7 @@ public sealed interface PatternRegistry {
 	 * @param key keyword.
 	 * @return factory or null.
 	 */
-	public @Nullable FormatterFactory getOrNull(String key);
+	public @Nullable PatternFormatterFactory getOrNull(String key);
 
 	/**
 	 * Registers a pattern key with a formatter factory. You may replace the builtin
@@ -32,11 +33,11 @@ public sealed interface PatternRegistry {
 	 * @param key pattern keys.
 	 * @param factory factory to create formatters from pattern keywords.
 	 */
-	public void register(PatternKey key, FormatterFactory factory);
+	public void register(PatternKey key, PatternFormatterFactory factory);
 
 	/**
-	 * Convenience function for {@link #register(PatternKey, FormatterFactory)} as keyword
-	 * factory is a lambda.
+	 * Convenience function for {@link #register(PatternKey, PatternFormatterFactory)} as
+	 * keyword factory is a lambda.
 	 * @param key pattern keys.
 	 * @param factory factory create formatter from a simple keyword.
 	 */
@@ -95,6 +96,7 @@ public sealed interface PatternRegistry {
 	/**
 	 * Builtin supported pattern keys.
 	 */
+	@CaseChanging
 	enum KeywordKey implements PatternKey {
 
 		/**
@@ -172,6 +174,7 @@ public sealed interface PatternRegistry {
 	/**
 	 * Builtin supported color pattern keys.
 	 */
+	@CaseChanging
 	enum ColorKey implements PatternKey {
 
 		/**
@@ -266,7 +269,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 
 	private final Map<String, PatternKey> keys = new HashMap<>();
 
-	private final Map<PatternKey, FormatterFactory> converters = new HashMap<>();
+	private final Map<PatternKey, PatternFormatterFactory> converters = new HashMap<>();
 
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -274,7 +277,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 		super();
 	}
 
-	public void register(PatternKey key, FormatterFactory factory) {
+	public void register(PatternKey key, PatternFormatterFactory factory) {
 		lock.writeLock().lock();
 		try {
 			var f = converters.get(key);
@@ -293,7 +296,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 		}
 	}
 
-	public @Nullable FormatterFactory getOrNull(String key) {
+	public @Nullable PatternFormatterFactory getOrNull(String key) {
 		lock.readLock().lock();
 		try {
 			var ck = keys.get(key);

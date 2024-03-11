@@ -55,13 +55,14 @@ import io.jstach.rainbowgum.apt.prism.ConvertParameterPrism;
 import io.jstach.rainbowgum.apt.prism.DefaultParameterPrism;
 import io.jstach.rainbowgum.apt.prism.KeyParameterPrism;
 import io.jstach.rainbowgum.apt.prism.LogConfigurablePrism;
+import io.jstach.rainbowgum.apt.prism.PassThroughParameterPrism;
 import io.jstach.svc.ServiceProvider;
 
 /**
  * Creates ConfigBuilders from static factory methods.
  */
 @SupportedAnnotationTypes({ LogConfigurablePrism.PRISM_ANNOTATION_TYPE, KeyParameterPrism.PRISM_ANNOTATION_TYPE,
-		DefaultParameterPrism.PRISM_ANNOTATION_TYPE })
+		DefaultParameterPrism.PRISM_ANNOTATION_TYPE, PassThroughParameterPrism.PRISM_ANNOTATION_TYPE })
 @ServiceProvider(value = Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
 
@@ -197,7 +198,11 @@ public class ConfigProcessor extends AbstractProcessor {
 		boolean required = !h.isNullable(p.asType());
 		BuilderModel.PropertyKind kind;
 		var prefixParameter = KeyParameterPrism.getInstanceOn(p);
-		if (prefixParameter == null) {
+		boolean passThrough = PassThroughParameterPrism.getInstanceOn(p) != null;
+		if (passThrough) {
+			kind = BuilderModel.PropertyKind.PASSTHROUGH;
+		}
+		else if (prefixParameter == null) {
 			kind = BuilderModel.PropertyKind.NORMAL;
 		}
 		else {
@@ -210,17 +215,18 @@ public class ConfigProcessor extends AbstractProcessor {
 		if (javadoc == null) {
 			javadoc = "";
 		}
-		BuilderModel.Converter c = null;
+		BuilderModel.Converter converter = null;
 		ConvertParameterPrism converterParameterPrism = ConvertParameterPrism.getInstanceOn(p);
 		if (converterParameterPrism != null) {
-			c = new BuilderModel.Converter(fqnEnclosing + "." + converterParameterPrism.value());
+			converter = new BuilderModel.Converter(fqnEnclosing + "." + converterParameterPrism.value());
 		}
 		String fieldType = typeWithAnnotation;
 		if (defaultValue.equals("null")) {
 			fieldType = ToStringTypeVisitor.toCodeSafeString(p.asType(), "@org.eclipse.jdt.annotation.Nullable");
 		}
+
 		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, typeWithNoAnnotation, fieldType,
-				classRef, defaultValue, required, javadoc, c);
+				classRef, defaultValue, required, javadoc, converter);
 		return prop;
 	}
 

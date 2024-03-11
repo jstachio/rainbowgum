@@ -15,14 +15,19 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.NameFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
-import io.jstach.rainbowgum.pattern.format.FormatterFactory.FormatterConfig;
 
 class CompilerTest {
 
 	@ParameterizedTest
 	@EnumSource(value = PatternTest.class)
 	void test(PatternTest test) {
-		FormatterConfig fc = FormatterConfig.ofUniversal();
+		var uni = PatternConfig.ofUniversal();
+		PatternConfig fc = PatternConfig.builder() //
+			.ansiDisabled(false)
+			.lineSeparator(uni.lineSeparator())
+			.zoneId(uni.zoneId())
+			.build();
+
 		Compiler c = new Compiler(PatternRegistry.of(), fc);
 		StringBuilder sb = new StringBuilder();
 		var formatter = c.compile(test.input);

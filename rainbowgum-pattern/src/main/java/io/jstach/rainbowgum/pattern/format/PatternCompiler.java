@@ -1,9 +1,8 @@
 package io.jstach.rainbowgum.pattern.format;
 
 import io.jstach.rainbowgum.LogFormatter;
-import io.jstach.rainbowgum.pattern.format.FormatterFactory.CompositeFactory;
-import io.jstach.rainbowgum.pattern.format.FormatterFactory.FormatterConfig;
-import io.jstach.rainbowgum.pattern.format.FormatterFactory.KeywordFactory;
+import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFactory;
+import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 import io.jstach.rainbowgum.pattern.internal.Node;
 import io.jstach.rainbowgum.pattern.internal.Parser;
 import io.jstach.rainbowgum.pattern.internal.Node.CompositeNode;
@@ -24,15 +23,75 @@ public sealed interface PatternCompiler {
 	 */
 	public LogFormatter compile(String pattern);
 
+	/**
+	 * Creates a pattern compiler builder. If nothing is set the default pattern registry
+	 * and formatting config will be used.
+	 * @return builder.
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
+	 * Builder for {@link PatternCompiler}.
+	 */
+	public final static class Builder {
+
+		private PatternRegistry patternRegistry;
+
+		private PatternConfig patternConfig;
+
+		private Builder() {
+
+		}
+
+		/**
+		 * Pattern keyword registry.
+		 * @param patternRegistry keyword names registry.
+		 * @return this.
+		 */
+		public Builder patternRegistry(PatternRegistry patternRegistry) {
+			this.patternRegistry = patternRegistry;
+			return this;
+		}
+
+		/**
+		 * Formatting config that has platform config like timezone etc.
+		 * @param patternConfig config for formatting of keywords.
+		 * @return this.
+		 */
+		public Builder patternConfig(PatternConfig patternConfig) {
+			this.patternConfig = patternConfig;
+			return this;
+		}
+
+		/**
+		 * Creates a pattern compiler.
+		 * @return pattern compiler.
+		 */
+		public PatternCompiler build() {
+			var patternRegistry_ = patternRegistry;
+			var formatterConfig_ = patternConfig;
+			if (patternRegistry_ == null) {
+				patternRegistry_ = PatternRegistry.of();
+			}
+			if (formatterConfig_ == null) {
+				formatterConfig_ = PatternConfig.of();
+			}
+			return new Compiler(patternRegistry_, formatterConfig_);
+		}
+
+	}
+
 }
 
 final class Compiler implements PatternCompiler {
 
-	private final FormatterConfig config;
+	private final PatternConfig config;
 
 	private final PatternRegistry registry;
 
-	Compiler(PatternRegistry registry, FormatterConfig config) {
+	Compiler(PatternRegistry registry, PatternConfig config) {
 		this.config = config;
 		this.registry = registry;
 	}
@@ -59,7 +118,7 @@ final class Compiler implements PatternCompiler {
 					yield ln.next();
 				}
 				case FormattingNode fn -> {
-					FormatterFactory f = registry.getOrNull(fn.keyword());
+					PatternFormatterFactory f = registry.getOrNull(fn.keyword());
 					if (f == null) {
 						throw new IllegalStateException("Missing formatter for key: " + fn.keyword());
 					}

@@ -9,5 +9,8 @@
 		@io.jstach.prism.GeneratePrism(value = io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter.class,
 				publicAccess = true),
 		@io.jstach.prism.GeneratePrism(value = io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter.class,
+				publicAccess = true),
+		@io.jstach.prism.GeneratePrism(
+				value = io.jstach.rainbowgum.annotation.LogConfigurable.PassThroughParameter.class,
 				publicAccess = true) })
 package io.jstach.rainbowgum.apt.prism;

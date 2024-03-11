@@ -120,4 +120,15 @@ public @interface LogConfigurable {
 
 	}
 
+	/**
+	 * A parameter not to be configured with properties that will just pass through to the
+	 * build method.
+	 */
+	@Retention(CLASS)
+	@Target({ ElementType.PARAMETER })
+	@Documented
+	public @interface PassThroughParameter {
+
+	}
+
 }

@@ -62,6 +62,9 @@ public final class $$builderName$$ {
 	$$#prefixParameter$$
 	private final $$typeWithAnnotation$$ $$name$$;
 	$$/prefixParameter$$
+	$$#passThrough$$
+	private $$typeWithAnnotation$$ $$name$$;
+	$$/passThrough$$
 	$$/properties$$
 	
 	/**
@@ -94,6 +97,23 @@ public final class $$builderName$$ {
 		$$/prefixParameter$$
 		$$/properties$$
 	}
+
+	$$#properties$$
+	$$#passThrough$$
+
+	/**
+	 * Sets $$#required$$<strong>required</strong> $$/required$$$$name$$.
+	 * $$javadoc$$
+	 * Default is $$defaultValueDoc$$.
+	 * @param $$name$$ not configurable through properties $$javadoc$$
+	 * @return this builder.
+	 */
+	public $$builderName$$ $$name$$($$typeWithAnnotation$$ $$name$$) {
+		this.$$name$$ = $$name$$;
+		return this;
+	}
+	$$/passThrough$$
+	$$/properties$$
 
 	$$#properties$$
 	$$#normal$$

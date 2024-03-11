@@ -41,6 +41,10 @@ record BuilderModel( //
 		return properties.stream().filter(p -> p.kind == PropertyKind.NAME_PARAMETER).toList();
 	}
 
+	public List<PropertyModel> passThroughParameters() {
+		return properties.stream().filter(p -> p.kind == PropertyKind.PASSTHROUGH).toList();
+	}
+
 	public List<String> descriptionLines() {
 		return description.lines().map(String::trim).toList();
 	}
@@ -147,6 +151,10 @@ record BuilderModel( //
 			return kind == PropertyKind.NAME_PARAMETER;
 		}
 
+		public boolean isPassThrough() {
+			return kind == PropertyKind.PASSTHROUGH;
+		}
+
 		public String defaultValueDoc() {
 			if (defaultValue.equals("null")) {
 				return "<code>null</code>";
@@ -171,7 +179,7 @@ record BuilderModel( //
 
 	enum PropertyKind {
 
-		NORMAL, NAME_PARAMETER
+		NORMAL, NAME_PARAMETER, PASSTHROUGH
 
 	}
 
