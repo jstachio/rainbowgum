@@ -5,9 +5,9 @@ package io.jstach.rainbowgum.format;
  * Level, Logger</strong> but allows changing the format of time, thread, level, logger,
  * etc.
  */
-public class StandardEventFormatter extends AbstractStandardEventFormatter {
+public final class StandardEventFormatter extends AbstractStandardEventFormatter {
 
-	protected StandardEventFormatter( //
+	private StandardEventFormatter( //
 			LevelFormatter levelFormatter, //
 			TimestampFormatter timestampFormatter, //
 			NameFormatter nameFormatter, //

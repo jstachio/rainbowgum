@@ -21,20 +21,51 @@ import io.jstach.rainbowgum.LogFormatter;
  */
 public class AbstractStandardEventFormatter implements LogFormatter.EventFormatter {
 
+	/**
+	 * immutable field
+	 */
 	protected final TimestampFormatter timestampFormatter;
 
+	/**
+	 * immutable field
+	 */
 	protected final ThreadFormatter threadFormatter;
 
+	/**
+	 * immutable field
+	 */
 	protected final LevelFormatter levelFormatter;
 
+	/**
+	 * immutable field
+	 */
 	protected final NameFormatter nameFormatter;
 
+	/**
+	 * immutable field
+	 */
 	protected final MessageFormatter messageFormatter;
 
+	/**
+	 * immutable field
+	 */
 	protected final KeyValuesFormatter keyValuesFormatter;
 
+	/**
+	 * immutable field
+	 */
 	protected final ThrowableFormatter throwableFormatter;
 
+	/**
+	 * Override
+	 * @param timestampFormatter not <code>null</code>.
+	 * @param threadFormatter not <code>null</code>.
+	 * @param levelFormatter not <code>null</code>.
+	 * @param nameFormatter not <code>null</code>.
+	 * @param messageFormatter not <code>null</code>.
+	 * @param throwableFormatter not <code>null</code>.
+	 * @param keyValuesFormatter not <code>null</code>.
+	 */
 	protected AbstractStandardEventFormatter( //
 			TimestampFormatter timestampFormatter, //
 			ThreadFormatter threadFormatter, //
@@ -60,20 +91,45 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	 */
 	public static abstract class AbstractBuilder<T> {
 
+		/**
+		 * mutable field
+		 */
 		protected LevelFormatter levelFormatter = LevelFormatter.of();
 
+		/**
+		 * mutable field
+		 */
 		protected TimestampFormatter timestampFormatter = TimestampFormatter.of();
 
+		/**
+		 * mutable field
+		 */
 		protected NameFormatter nameFormatter = NameFormatter.of();
 
+		/**
+		 * mutable field
+		 */
 		protected MessageFormatter messageFormatter = MessageFormatter.of();
 
+		/**
+		 * mutable field
+		 */
 		protected ThrowableFormatter throwableFormatter = ThrowableFormatter.of();
 
+		/**
+		 * mutable field
+		 */
 		protected KeyValuesFormatter keyValuesFormatter = LogFormatter.noop();
 
+		/**
+		 * mutable field
+		 */
 		protected ThreadFormatter threadFormatter = ThreadFormatter.of();
 
+		/**
+		 * For builder
+		 * @return this.
+		 */
 		protected abstract T self();
 
 		/**

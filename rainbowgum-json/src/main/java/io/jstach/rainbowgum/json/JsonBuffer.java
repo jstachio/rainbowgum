@@ -29,6 +29,9 @@ public final class JsonBuffer implements Buffer {
 	 */
 	public static final int EXTENDED_F = 0x00000002;
 
+	/**
+	 * ASCII extended field prefix <code>_</code>
+	 */
 	protected static final byte DEFAULT_EXTENDED_FIELD_PREFIX = '_';
 
 	/**

@@ -385,10 +385,21 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 */
 	abstract class AbstractOutputStreamOutput implements LogOutput {
 
+		/**
+		 * passed in uri
+		 */
 		protected final URI uri;
 
+		/**
+		 * output stream to write to.
+		 */
 		protected final OutputStream outputStream;
 
+		/**
+		 * Adapts an OutputStream to an Output.
+		 * @param uri usually comes from output registry.
+		 * @param outputStream outputstream to adapt.
+		 */
 		protected AbstractOutputStreamOutput(URI uri, OutputStream outputStream) {
 			super();
 			this.uri = uri;

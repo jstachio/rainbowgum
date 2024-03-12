@@ -588,7 +588,7 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
-              <show>public</show>
+              <show>protected</show>
               <overview>doc/overview.html</overview>
               <docfilessubdirs>true</docfilessubdirs>
               <doctitle>rainbowgum API ${project.version}</doctitle>

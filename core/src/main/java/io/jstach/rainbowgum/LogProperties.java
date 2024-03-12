@@ -350,12 +350,24 @@ public interface LogProperties {
 	 */
 	public sealed abstract class AbstractBuilder<T> {
 
+		/**
+		 * description
+		 */
 		protected @Nullable String description = null;
 
+		/**
+		 * order
+		 */
 		protected int order = 0;
 
+		/**
+		 * rename key
+		 */
 		protected Function<String, String> renameKey = s -> s;
 
+		/**
+		 * fallbacks
+		 */
 		protected List<LogProperties> fallbacks = new ArrayList<>();
 
 		/**
@@ -962,6 +974,11 @@ public interface LogProperties {
 			return description;
 		}
 
+		/**
+		 * Translate the key.
+		 * @param key input
+		 * @return output
+		 */
 		protected String translateKey(String key) {
 			return key;
 		}

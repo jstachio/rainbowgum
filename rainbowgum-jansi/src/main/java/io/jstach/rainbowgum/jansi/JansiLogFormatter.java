@@ -14,9 +14,9 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
 /**
  * Jansi TTLL formater.
  */
-public class JansiLogFormatter extends AbstractStandardEventFormatter {
+public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 
-	protected JansiLogFormatter( //
+	JansiLogFormatter( //
 			LevelFormatter levelFormatter, //
 			TimestampFormatter timestampFormatter, //
 			NameFormatter nameFormatter, //

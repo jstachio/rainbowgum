@@ -369,6 +369,11 @@ public sealed interface LogRouter extends LogLifecycle {
 
 		private final LevelResolver levelResolver;
 
+		/**
+		 * Router tuple of publisher and resolver.
+		 * @param publisher not <code>null</code>.
+		 * @param levelResolver not <code>null</code>.
+		 */
 		protected AbstractRouter(LogPublisher publisher, LevelResolver levelResolver) {
 			super();
 			this.publisher = publisher;
