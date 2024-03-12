@@ -27,7 +27,7 @@
     <jdk.release.version>21.0.2</jdk.release.version>
 
     <ecj.version>3.37.0</ecj.version>
-    <plexus-compiler-eclipse.version>2.13.0</plexus-compiler-eclipse.version>
+    <plexus-compiler-eclipse.version>2.15.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.26.0</error-prone.version>
     <checkerframework.version>3.42.0</checkerframework.version>
     
