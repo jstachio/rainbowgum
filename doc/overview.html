@@ -116,7 +116,7 @@ The only module needed during runtime is
 
 <h3 id="limitations">Limitations</h3>
 
-Currently Rainbowgum does not provide support for:
+Currently Rainbow Gum does not provide support for:
 
 <ul>
   <li>External config - by design you will need to bring your own configuration lib or just use env/system properties.</li>
@@ -146,7 +146,7 @@ simple properties.
 
 <h2 id="architecture">Architecture</h2>
 
-Rainbow Gum's design has many superficial similarties to Logback, Log4j2, and Reload4j in that
+Rainbow Gum's design has many superficial similarities to Logback, Log4j2, and Reload4j in that
 there are Appenders and Encoders as well as how log levels are inherited but most of Rainbow Gum's design
 is <em>very different</em>!
 
@@ -397,8 +397,8 @@ the buffer is full. Rainbow Gum's default async publisher is a simple blocking q
 that has a single consumer thread and will block producing threads if the queue is full.
 The consumer thread simple iterates over the appenders pushing to each one. This loosely follows the
 single writer principle. In the future
-particularly with virtural threads more sophisticated async publishers might be offered
-that might fanout and other exotic strategies.
+particularly with virtual threads more sophisticated async publishers might be offered
+that might fan-out and other exotic strategies.
 <p>
   <strong>NOTE:</strong> If you want some appenders to be async and others sync you just create multiple routes. 
 </p>
@@ -573,7 +573,7 @@ so if performance matters consider using <a href="#slf4j_filter">SLF4J based fil
 not simple filtering but rather decorating of the SLF4J loggers somewhat akin to Servlet filtering.
 Rainbow Gum hands off its generated SLF4J logger to you and you can decorate or even disregard
 it and provide your own implementation. This is extremely powerful and efficient but requires more work.
-There is not really an analog in Logback or Log4j but as usual <em>with great power comes great responsiblity</em>!
+There is not really an analog in Logback or Log4j but as usual <em>with great power comes great responsibility</em>!
 <p>
 These filters are usually loaded with the ServiceLoader so manually using the Rainbow Gum builder is not required
 like router based filtering.
@@ -674,10 +674,10 @@ and you will not be able to figure out what happened otherwise.
   <ul>
     <li>You are sure that Rainbow Gum can initialize early</li>
     <li>Your application uses System.Logger 
-      (the SLF4J adapter will initialize Rainbow Gum on Sytem.Logger usage if using {@link io.jstach.rainbowgum.slf4j/ })
+      (the SLF4J adapter will initialize Rainbow Gum on System.Logger usage if using {@link io.jstach.rainbowgum.slf4j/ })
     </li>
   </ul>
-  In the future Rainbow Gum may include a System.Logger provider module that does eager initilization. 
+  In the future Rainbow Gum may include a System.Logger provider module that does eager initialization. 
 <p>
   <em>
     <strong>NOTE:</strong>
@@ -693,7 +693,7 @@ and you will not be able to figure out what happened otherwise.
 Spring Boot allows configuration through simple properties for logging that tries to be logging framework agnostic.
 How this works is Spring Boot configures the logging framework from its own set of properties.
 There is a shocking amount of code Spring Boot requires to do this for Logback and Log4J2
-because both of those frameworks were not designed well for progammatic configuration.
+because both of those frameworks were not designed well for programmatic configuration.
 </p>
 
 <p>

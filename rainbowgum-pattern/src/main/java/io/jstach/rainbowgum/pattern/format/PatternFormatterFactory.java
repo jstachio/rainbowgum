@@ -22,13 +22,14 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.CallerInfo;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
-import io.jstach.rainbowgum.pattern.PadInfo;
+import io.jstach.rainbowgum.pattern.Padding;
 import io.jstach.rainbowgum.pattern.PatternKeyword;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFactory;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 
 /**
- * Creates formatters from pattern keywords.
+ * Creates formatters from pattern keywords and are registered to a
+ * {@link PatternRegistry}.
  */
 public sealed interface PatternFormatterFactory {
 
@@ -50,7 +51,8 @@ public sealed interface PatternFormatterFactory {
 	}
 
 	/**
-	 * A keyword formatter factory expects keywords and option list..
+	 * A keyword formatter factory expects keywords and option list. It is usually in the
+	 * format of {@code %keyword}.
 	 */
 	public non-sealed interface KeywordFactory extends PatternFormatterFactory {
 
@@ -68,7 +70,7 @@ public sealed interface PatternFormatterFactory {
 		 * @return factory.
 		 */
 		static PatternFormatterFactory.KeywordFactory of(LogFormatter formatter) {
-			return (c, n) -> PadFormatter.of(formatter, n.padInfo());
+			return (c, n) -> PadFormatter.of(formatter, n.padding());
 		}
 
 	}
@@ -168,7 +170,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 	@Override
 	public LogFormatter create(PatternConfig config, PatternKeyword node) {
 		var formatter = _create(config, node);
-		var formatInfo = node.padInfo();
+		var formatInfo = node.padding();
 		return PadFormatter.of(formatter, formatInfo);
 	}
 
@@ -194,7 +196,7 @@ enum BareCompositeFactory implements CompositeFactory {
 			if (child == null) {
 				child = new LogFormatter.StaticFormatter("");
 			}
-			return PadFormatter.of(child, node.padInfo());
+			return PadFormatter.of(child, node.padding());
 		}
 	};
 
@@ -337,25 +339,25 @@ enum ColorCompositeFactory implements CompositeFactory {
 
 }
 
-record PadFormatter(PadInfo padInfo, LogFormatter formatter) implements LogFormatter.EventFormatter {
+record PadFormatter(Padding padding, LogFormatter formatter) implements LogFormatter.EventFormatter {
 
-	public static LogFormatter of(LogFormatter formatter, @Nullable PadInfo padInfo) {
-		if (padInfo == null) {
+	public static LogFormatter of(LogFormatter formatter, @Nullable Padding padding) {
+		if (padding == null) {
 			return formatter;
 		}
 		if (formatter instanceof LogFormatter.StaticFormatter sf) {
 			StringBuilder b = new StringBuilder();
-			padInfo.format(b, sf.content());
+			padding.format(b, sf.content());
 			return new LogFormatter.StaticFormatter(b.toString());
 		}
-		return new PadFormatter(padInfo, formatter);
+		return new PadFormatter(padding, formatter);
 	}
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		StringBuilder buf = new StringBuilder();
 		formatter.format(buf, event);
-		padInfo.format(output, buf);
+		padding.format(output, buf);
 	}
 
 }

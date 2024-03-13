@@ -28,7 +28,7 @@ import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 
 /**
  * Formats a log event using a {@link StringBuilder}. <strong>All formatters should be
- * threadsafe!</strong>.
+ * thread-safe!</strong>.
  * <p>
  * The appender will make sure the {@link StringBuilder} is not shared with multiple
  * threads so the formatter does not have to synchronize/lock on and should definitely not
@@ -163,7 +163,7 @@ public sealed interface LogFormatter {
 
 		/**
 		 * Creates a new formatter by concat the {@link #content()}. This is mainly used
-		 * by the {@link EventFormatter#builder()} to coallesce multiple static text.
+		 * by the {@link EventFormatter#builder()} to coalesce multiple static text.
 		 * @param next the text that will follow this formatter.
 		 * @return new formatter.
 		 */
@@ -172,7 +172,7 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Coalese formatters that can be such as {@link StaticFormatter}.
+		 * Coalesce formatters that can be such as {@link StaticFormatter}.
 		 * @param formatters list of formatters in the order of which they will be
 		 * executed.
 		 * @return an array of formatters where static formatters next to each other will

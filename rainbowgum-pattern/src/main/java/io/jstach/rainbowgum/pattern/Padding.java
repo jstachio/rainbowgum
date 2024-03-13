@@ -11,7 +11,7 @@ import io.jstach.rainbowgum.LogFormatter;
  * @param leftPad if the left hand side will be truncated to meet min
  * @param leftTruncate if the left hand side will be truncated to meet max.
  */
-public record PadInfo(int min, int max, boolean leftPad, boolean leftTruncate) {
+public record Padding(int min, int max, boolean leftPad, boolean leftTruncate) {
 
 	/**
 	 * Create padding info.
@@ -20,7 +20,7 @@ public record PadInfo(int min, int max, boolean leftPad, boolean leftTruncate) {
 	 * @param max if max is less than zero left truncate will be disabled.
 	 * @return format info.
 	 */
-	public static PadInfo of(int min, int max) {
+	public static Padding of(int min, int max) {
 		boolean leftPad = true;
 		boolean leftTruncate = true;
 		if (min != Integer.MIN_VALUE && min < 0) {
@@ -31,17 +31,17 @@ public record PadInfo(int min, int max, boolean leftPad, boolean leftTruncate) {
 			max = -max;
 			leftTruncate = false;
 		}
-		return new PadInfo(min, max, leftPad, leftTruncate);
+		return new Padding(min, max, leftPad, leftTruncate);
 	}
 
 	/**
 	 * This method is used to parse a string such as "5", ".7", "5.7" or "-5.7" into a
-	 * PadInfo.
-	 * @param str A String to convert into a PadInfo object
-	 * @return A newly created and appropriately initialized PadInfo object.
+	 * Padding.
+	 * @param str A String to convert into a Padding object
+	 * @return A newly created and appropriately initialized Padding object.
 	 * @throws IllegalArgumentException if the pattern is not valid.
 	 */
-	public static PadInfo valueOf(String str) throws IllegalArgumentException {
+	public static Padding valueOf(String str) throws IllegalArgumentException {
 		if (str == null) {
 			throw new NullPointerException("Argument cannot be null");
 		}
@@ -89,7 +89,7 @@ public record PadInfo(int min, int max, boolean leftPad, boolean leftTruncate) {
 			}
 		}
 
-		return new PadInfo(min, max, leftPad, leftTruncate);
+		return new Padding(min, max, leftPad, leftTruncate);
 	}
 
 	/**

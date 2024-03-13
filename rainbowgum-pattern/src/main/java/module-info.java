@@ -3,7 +3,11 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 /**
  * Provides 
  * <a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">Logback style pattern formatters.</a>
+ * The URI scheme of pattern encoders is {@value io.jstach.rainbowgum.pattern.format.PatternEncoder#PATTERN_SCHEME}.
+ * 
  * @provides RainbowGumServiceProvider
+ * @see io.jstach.rainbowgum.pattern.format.PatternConfigurator
+ * @see io.jstach.rainbowgum.pattern.format.PatternEncoder
  */
 module io.jstach.rainbowgum.pattern {
 	

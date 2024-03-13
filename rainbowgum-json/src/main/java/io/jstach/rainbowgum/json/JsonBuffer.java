@@ -19,7 +19,7 @@ public final class JsonBuffer implements Buffer {
 
 	private final StringBuilder formattedMessageBuilder = new StringBuilder();
 
-	private final boolean prettyprint;
+	private final boolean prettyPrint;
 
 	private final ExtendedFieldPrefix extendedFieldPrefix;
 
@@ -35,13 +35,13 @@ public final class JsonBuffer implements Buffer {
 	protected static final byte DEFAULT_EXTENDED_FIELD_PREFIX = '_';
 
 	/**
-	 * Create a json buffer.
-	 * @param prettyprint whether or not to pretty print the JSON.
+	 * Create a JSON buffer.
+	 * @param prettyPrint whether or not to pretty print the JSON.
 	 * @param extendedFieldPrefix prefix for extended fields.
 	 */
-	public JsonBuffer(boolean prettyprint, ExtendedFieldPrefix extendedFieldPrefix) {
+	public JsonBuffer(boolean prettyPrint, ExtendedFieldPrefix extendedFieldPrefix) {
 		super();
-		this.prettyprint = prettyprint;
+		this.prettyPrint = prettyPrint;
 		this.extendedFieldPrefix = extendedFieldPrefix;
 	}
 
@@ -227,10 +227,10 @@ public final class JsonBuffer implements Buffer {
 		if (index > 0) {
 			jsonWriter.writeByte(COMMA);
 		}
-		if (prettyprint) {
+		if (prettyPrint) {
 			jsonWriter.writeByte(LF);
 		}
-		if (prettyprint) {
+		if (prettyPrint) {
 			jsonWriter.writeByte(SPACE);
 		}
 		if ((flag & EXTENDED_F) == EXTENDED_F) {

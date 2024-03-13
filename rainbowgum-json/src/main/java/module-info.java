@@ -2,6 +2,9 @@
  * Provides JSON encoders.
  * This module does not require external JSON libraries but instead
  * provides a zero dependency JSON writer.
+ * @see io.jstach.rainbowgum.json.encoder
+ * @see io.jstach.rainbowgum.json.JsonBuffer
+ * @see io.jstach.rainbowgum.json.encoder.GelfEncoder
  */
 module io.jstach.rainbowgum.json {
 	exports io.jstach.rainbowgum.json;

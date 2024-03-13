@@ -18,7 +18,8 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
 
 /**
- * Configures Logback style pattern encoders.
+ * Configures Logback style pattern encoders and offers provision with the URI scheme
+ * {@value PatternEncoder#PATTERN_SCHEME}.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class PatternConfigurator implements Configurator {
@@ -27,18 +28,13 @@ public final class PatternConfigurator implements Configurator {
 	 * For service loader to call.
 	 */
 	public PatternConfigurator() {
-		// for service laoder.
+		// for service loader.
 	}
-
-	/**
-	 * Pattern encoder uri provider scheme.
-	 */
-	public static String PATTERN_SCHEME = "pattern";
 
 	@Override
 	public boolean configure(LogConfig config) {
 		var compiler = compiler(config);
-		config.encoderRegistry().register(PATTERN_SCHEME, new PatternEncoderProvider(compiler, config));
+		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider(compiler, config));
 		return true;
 	}
 
@@ -79,26 +75,6 @@ public final class PatternConfigurator implements Configurator {
 		ZoneId zoneId_ = zoneId == null ? dc.zoneId() : ZoneId.of(zoneId);
 		return zoneId_;
 	}
-
-	// static Provider<LogFormatter> provideFormatter(@KeyParameter String name, String
-	// pattern, String patternRegistry) {
-	// return (name_, config) -> {
-	// ZoneId zoneId_ = ZoneId.of(zoneId);
-	// SimpleFormatterConfig fc = new SimpleFormatterConfig(zoneId_, lineSeparator,
-	// ansiDisabled);
-	// PatternRegistry registry =
-	// config.serviceRegistry().putIfAbsent(PatternRegistry.class, () ->
-	// PatternRegistry.of());
-	// return new
-	// };
-	//
-	// }
-	//
-	// private static LogFormatter provideFormatter(String pattern, PatternConfig
-	// config, PatternRegistry registry) {
-	// var compiler = new Compiler(registry, config);
-	// return compiler.compile(pattern);
-	// }
 
 }
 

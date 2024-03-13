@@ -6,7 +6,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 
 /**
- * An abstract formatter that has the semi standard layout of <strong>TTLL - Time, Thread,
+ * An abstract formatter that has the semi-standard layout of <strong>TTLL - Time, Thread,
  * Level, Logger</strong> but allows changing the format of time, thread, level, logger,
  * etc. The formatters get called in the following order.
  * <ol>

@@ -7,8 +7,12 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
- * Formattes a LogEvent message.
+ * Formats a LogEvent message.
+ *
+ * @apiNote This is sealed at the moment and maybe unsealed in the future so exhaustive
+ * pattern matching should not be done.
  */
+@CaseChanging
 public sealed interface LogMessageFormatter {
 
 	/**
@@ -37,7 +41,7 @@ public sealed interface LogMessageFormatter {
 	void formatArray(StringBuilder builder, String message, @Nullable Object[] args);
 
 	/**
-	 * Builtin message formatters.
+	 * Built-in message formatters.
 	 */
 	@CaseChanging
 	public enum StandardMessageFormatter implements LogMessageFormatter {
@@ -122,8 +126,6 @@ class SLF4JMessageFormatter {
 
 		int i = 0;
 		int j;
-		// use string builder for better multicore performance
-
 		int L;
 		for (L = 0; L < argCount; L++) {
 

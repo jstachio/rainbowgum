@@ -62,9 +62,9 @@ class CompilerTest {
 				assertInstanceOf(PadFormatter.class, formatter);
 				if (formatter instanceof PadFormatter pf) {
 					assertInstanceOf(NameFormatter.class, pf.formatter());
-					assertEquals(20, pf.padInfo().min());
-					assertTrue(pf.padInfo().leftPad());
-					assertTrue(pf.padInfo().leftTruncate());
+					assertEquals(20, pf.padding().min());
+					assertTrue(pf.padding().leftPad());
+					assertTrue(pf.padding().leftTruncate());
 				}
 			}
 		},
@@ -75,9 +75,9 @@ class CompilerTest {
 				assertInstanceOf(PadFormatter.class, formatter);
 				if (formatter instanceof PadFormatter pf) {
 					assertInstanceOf(NameFormatter.class, pf.formatter());
-					assertEquals(20, pf.padInfo().min());
-					assertFalse(pf.padInfo().leftPad());
-					assertTrue(pf.padInfo().leftTruncate());
+					assertEquals(20, pf.padding().min());
+					assertFalse(pf.padding().leftPad());
+					assertTrue(pf.padding().leftTruncate());
 				}
 			}
 		},

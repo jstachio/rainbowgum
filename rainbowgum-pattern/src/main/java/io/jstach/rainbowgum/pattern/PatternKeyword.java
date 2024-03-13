@@ -11,11 +11,11 @@ import org.eclipse.jdt.annotation.Nullable;
 public interface PatternKeyword {
 
 	/**
-	 * Padding inforamation
+	 * Padding information
 	 * @return padding info.
 	 */
 	@Nullable
-	PadInfo padInfo();
+	Padding padding();
 
 	/**
 	 * Keyword used in pattern.

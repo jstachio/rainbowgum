@@ -56,7 +56,7 @@ public sealed interface PatternCompiler {
 		}
 
 		/**
-		 * Formatting config that has platform config like timezone etc.
+		 * Formatting config that has platform config like time zone etc.
 		 * @param patternConfig config for formatting of keywords.
 		 * @return this.
 		 */

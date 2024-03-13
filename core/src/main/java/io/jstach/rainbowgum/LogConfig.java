@@ -30,7 +30,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
 public sealed interface LogConfig {
 
 	/**
-	 * String kv properties.
+	 * String key value properties.
 	 * @return properties.
 	 */
 	public LogProperties properties();
@@ -204,7 +204,7 @@ public sealed interface LogConfig {
 	/**
 	 * Builder for LogConfig.
 	 * <p>
-	 * <strong>NOTE:</strong> The service laoder is not used by default with this builder.
+	 * <strong>NOTE:</strong> The service loader is not used by default with this builder.
 	 * If the automatic discovery of components is desired call
 	 * {@link #serviceLoader(ServiceLoader)}.
 	 */

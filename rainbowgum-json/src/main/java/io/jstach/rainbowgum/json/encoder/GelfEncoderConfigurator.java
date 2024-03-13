@@ -11,7 +11,8 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
 
 /**
- * Adds Gelf Encoder to encoder registry.
+ * Adds <a href="https://go2docs.graylog.org/5-2/getting_in_log_data/gelf.html">GELF
+ * JSON</a> Encoder to encoder registry with {@value GelfEncoder#GELF_SCHEME} URI scheme.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public class GelfEncoderConfigurator implements Configurator {
@@ -24,7 +25,7 @@ public class GelfEncoderConfigurator implements Configurator {
 
 	@Override
 	public boolean configure(LogConfig config) {
-		config.encoderRegistry().register("gelf", new GelfEncoderProvider());
+		config.encoderRegistry().register(GelfEncoder.GELF_SCHEME, new GelfEncoderProvider());
 		return true;
 	}
 

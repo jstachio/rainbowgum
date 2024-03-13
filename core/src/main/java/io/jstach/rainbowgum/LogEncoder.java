@@ -7,7 +7,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 
 /**
  * Encodes a {@link LogEvent} into a buffer of its choosing. While the {@link Buffer} does
- * not need to be threadsafe the encoder itself should be.
+ * not need to be thread-safe the encoder itself should be.
  * <p>
  * An appender typically calls an encoder by first {@linkplain #buffer() creating a
  * buffer} that the encoder knows about or reusing an existing {@link Buffer} the encoder

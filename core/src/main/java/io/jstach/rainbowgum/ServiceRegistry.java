@@ -10,7 +10,8 @@ import java.util.function.Supplier;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
- * A simple service locator for initialization purposes.
+ * A simple service locator for initialization purposes and external services provided by
+ * plugins.
  */
 public sealed interface ServiceRegistry permits DefaultServiceRegistry {
 

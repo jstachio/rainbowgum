@@ -123,7 +123,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		public LevelResolver levelResolver();
 
 		/**
-		 * Gets an uncached System Logger.
+		 * Gets an un-cached System Logger.
 		 * @param loggerName logger name usually a class.
 		 * @return System Logger.
 		 */

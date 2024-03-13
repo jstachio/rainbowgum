@@ -13,6 +13,11 @@ import io.jstach.rainbowgum.LogEncoder;
  */
 public final class PatternEncoder {
 
+	/**
+	 * Pattern encoder URI provider scheme.
+	 */
+	public static final String PATTERN_SCHEME = "pattern";
+
 	private PatternEncoder() {
 	}
 

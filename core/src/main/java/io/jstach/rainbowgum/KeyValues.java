@@ -16,27 +16,27 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
  * less garbage (no iterators).
  * <p>
  * <strong>The integer index used in the low level access are not in array order and thus
- * {@link #start()} and {@link #next(int)} should be used to iterate over the keyvalues
+ * {@link #start()} and {@link #next(int)} should be used to iterate over the key values
  * instead of manually incrementing.</strong>
  */
 public sealed interface KeyValues {
 
 	/**
-	 * Analagous to {@link Map#get(Object)}
+	 * Analogous to {@link Map#get(Object)}
 	 * @param key key never <code>null</code>.
 	 * @return value for key maybe <code>null</code>.
 	 */
 	public @Nullable String getValueOrNull(String key);
 
 	/**
-	 * Lowlevel key access.
+	 * Low-level key access.
 	 * @param i index from {@link #start()} or {@link #next(int)}.
 	 * @return key.
 	 */
 	public String key(int i);
 
 	/**
-	 * Lowlevel key access.
+	 * Low-level key access.
 	 * @param i index from {@link #start()} or {@link #next(int)}.
 	 * @return key.
 	 */
@@ -97,7 +97,7 @@ public sealed interface KeyValues {
 	}
 
 	/**
-	 * A specialy consumer that avoids lambda garbage.
+	 * A special consumer that avoids lambda garbage.
 	 *
 	 * @param <V> storage
 	 */
@@ -138,7 +138,7 @@ public sealed interface KeyValues {
 	/**
 	 * Makes the KeyValues thread safe either by copying or returning if already
 	 * immutable.
-	 * @return immutable keyvalues.
+	 * @return immutable key values.
 	 */
 	public KeyValues freeze();
 

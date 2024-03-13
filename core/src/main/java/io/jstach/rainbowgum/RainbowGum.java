@@ -21,7 +21,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 //@formatter:off
 /**
- * The main entrypoint and configuration of RainbowGum logging.
+ * The main entry point and configuration of RainbowGum logging.
  * <p>
  * RainbowGum logging loads configuration through the service loader. While you can
  * manually set RainbowGum using {@link #set(Supplier)} it is better to register
@@ -79,7 +79,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/**
 	 * Provides the service loader default based RainbowGum.
-	 * @return rainbowgum.
+	 * @return RainbowGum.
 	 */
 	public static RainbowGum defaults() {
 		return RainbowGumServiceProvider.provide();
@@ -96,7 +96,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	}
 
 	/**
-	 * The config assocated with this instance.
+	 * The config associated with this instance.
 	 * @return config.
 	 */
 	public LogConfig config();
@@ -110,7 +110,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	/**
 	 * Starts the rainbow gum and returns it. It is returned for try-with usage
 	 * convenience.
-	 * @return the started rainbowgum.
+	 * @return the started RainbowGum.
 	 */
 	default RainbowGum start() {
 		router().start(config());
@@ -124,7 +124,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	public UUID instanceId();
 
 	/**
-	 * Will close the rainbowgum and all registered components as well as removed from the
+	 * Will close the RainbowGum and all registered components as well as removed from the
 	 * shutdown hooks. If the rainbow gum is set as global it will no longer be global and
 	 * replaced with the bootstrapping in memory queue. {@inheritDoc}
 	 */
@@ -228,17 +228,17 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		}
 
 		/**
-		 * Builds an unstarted {@link RainbowGum}.
-		 * @return an unstarted {@link RainbowGum}.
+		 * Builds an un-started {@link RainbowGum}.
+		 * @return an un-started {@link RainbowGum}.
 		 */
 		public RainbowGum build() {
 			return build(UUID.randomUUID());
 		}
 
 		/**
-		 * Builds an unstarted {@link RainbowGum}.
+		 * Builds an un-started {@link RainbowGum}.
 		 * @param instanceId unique id for rainbow gum instance.
-		 * @return an unstarted {@link RainbowGum}.
+		 * @return an un-started {@link RainbowGum}.
 		 */
 		private RainbowGum build(UUID instanceId) {
 			var routes = this.routes;

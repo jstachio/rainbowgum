@@ -23,9 +23,16 @@ import io.jstach.rainbowgum.json.JsonBuffer.ExtendedFieldPrefix;
 import io.jstach.rainbowgum.json.JsonBuffer.JSONToken;
 
 /**
- * A JSON encoder in GELF format.
+ * A JSON encoder in
+ * <a href="https://go2docs.graylog.org/5-2/getting_in_log_data/gelf.html">GELF JSON
+ * format</a>.
  */
 public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
+
+	/**
+	 * GELF encoder URI scheme.
+	 */
+	public static final String GELF_SCHEME = "gelf";
 
 	private final String host;
 
@@ -43,11 +50,11 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	}
 
 	/**
-	 * Creates Gelf Encoder.
+	 * Creates GELF Encoder.
 	 * @param name property name prefix.
-	 * @param host host field in gelf.
+	 * @param host host field in GELF.
 	 * @param headers additional headers that will be prefix with "_".
-	 * @param prettyPrint <code>true</code> will pretty prin the json, default is false.
+	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
@@ -56,7 +63,6 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 			@Nullable Boolean prettyPrint) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		host = Objects.requireNonNull(host);
-		// var _headers = KeyValues.of(convertHeaders(headers));
 		var _headers = KeyValues.of(headers == null ? Map.of() : headers);
 
 		return new GelfEncoder(host, _headers, prettyPrint);

@@ -29,7 +29,7 @@ public abstract class PatternKeywordProvider implements Configurator {
 	}
 
 	/**
-	 * Registers formatter factorys with keyworkds.
+	 * Registers formatter factories with keywords.
 	 * @param patternRegistry not null.
 	 */
 	protected abstract void register(PatternRegistry patternRegistry);

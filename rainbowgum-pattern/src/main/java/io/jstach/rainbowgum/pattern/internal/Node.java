@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.pattern.PadInfo;
+import io.jstach.rainbowgum.pattern.Padding;
 import io.jstach.rainbowgum.pattern.PatternKeyword;
 
 public sealed interface Node {
@@ -73,7 +73,7 @@ public sealed interface Node {
 
 	}
 
-	public record KeywordNode(Node next, @Nullable PadInfo padInfo, String keyword,
+	public record KeywordNode(Node next, @Nullable Padding padding, String keyword,
 			List<String> optionList) implements FormattingNode {
 
 		public List<String> getOptions() {
@@ -91,7 +91,7 @@ public sealed interface Node {
 
 	}
 
-	public record CompositeNode(Node next, @Nullable PadInfo padInfo, String keyword, List<String> optionList,
+	public record CompositeNode(Node next, @Nullable Padding padding, String keyword, List<String> optionList,
 			Node childNode) implements FormattingNode {
 
 		public void prettyPrint(StringBuilder sb) {

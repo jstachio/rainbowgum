@@ -203,15 +203,15 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * Write a batch of events reusing the provided buffer and by default calling
 	 * {@link #write(LogEvent, Buffer)} for each event synchronously.
 	 * <p>
-	 * The batching is usually a result of an async publisher so the maximum size is
-	 * configured there with bufferSize. If this method is implemented there are some
+	 * The batching is usually a result of an asynchronous publisher so the maximum size
+	 * is configured there with bufferSize. If this method is implemented there are some
 	 * caveats.
 	 * <p>
 	 * <strong>DO NOT MODIFY THE ARRAY</strong>. It is reused. Do not use the
 	 * <code>length</code> of the passed in array but instead use <code>count</code>
 	 * parameter. Consequently do not share the array or buffer with other threads however
 	 * individual events can be shared by calling {@link LogEvent#freeze()} to guarantee
-	 * that which is a safe noop if it is already immutable.
+	 * that which is a safe no-op if it is already immutable.
 	 * <p>
 	 * If the output plans on grouping the events into a single blob (byte array or byte
 	 * buffer) a different output can be passed to the encoder other than itself (which is
@@ -220,7 +220,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @param count the number of items.
 	 * @param encoder encoder to use for encoding.
 	 * @param buffer buffer to reuse. Do not share it with other threads!
-	 * @apiNote If the output wants to fanout or encode with other threads the buffer
+	 * @apiNote If the output wants to fan-out or encode with other threads the buffer
 	 * passed should not be used and instead {@link LogEncoder#buffer()} should be called
 	 * to get a new buffer for each thread. This is generally not desirable for most
 	 * resources such as a file or database as sending a batch is much faster (single
@@ -381,7 +381,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
-	 * Abstract output on outputstream.
+	 * Abstract output on output stream.
 	 */
 	abstract class AbstractOutputStreamOutput implements LogOutput {
 
@@ -398,7 +398,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		/**
 		 * Adapts an OutputStream to an Output.
 		 * @param uri usually comes from output registry.
-		 * @param outputStream outputstream to adapt.
+		 * @param outputStream output stream to adapt.
 		 */
 		protected AbstractOutputStreamOutput(URI uri, OutputStream outputStream) {
 			super();

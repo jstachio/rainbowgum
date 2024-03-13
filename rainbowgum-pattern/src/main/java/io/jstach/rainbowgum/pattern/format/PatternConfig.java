@@ -40,7 +40,7 @@ public sealed interface PatternConfig extends Configurator {
 	/**
 	 * Whether or not print escape outputs. If true than the color patterns will not
 	 * decorate.
-	 * @return false if ansi escape sequences can be outputted.
+	 * @return false if ANSI escape sequences can be outputted.
 	 */
 	public boolean ansiDisabled();
 
@@ -83,7 +83,7 @@ public sealed interface PatternConfig extends Configurator {
 non-sealed interface DefaultFormatterConfig extends PatternConfig {
 
 	/**
-	 * Default zoneId if not specified. If not overriden the system default will be used.
+	 * Default zoneId if not specified. If not overridden the system default will be used.
 	 * @return zone id.
 	 */
 	default ZoneId zoneId() {
@@ -101,7 +101,7 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 	/**
 	 * Whether or not print escape outputs. If true than the color patterns will not
 	 * decorate.
-	 * @return false if ansi escape sequences can be outputted.
+	 * @return false if ANSI escape sequences can be outputted.
 	 */
 	default boolean ansiDisabled() {
 		return false;

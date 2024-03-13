@@ -82,7 +82,7 @@ public sealed interface RainbowGumServiceProvider {
 	public non-sealed interface Configurator extends RainbowGumServiceProvider {
 
 		/**
-		 * Do adhoc initialization before RainbowGum is fully loaded.
+		 * Do ad-hoc initialization before RainbowGum is fully loaded.
 		 * @param config config.
 		 * @return <code>true</code> if all dependencies were found.
 		 */
@@ -139,7 +139,7 @@ public sealed interface RainbowGumServiceProvider {
 	}
 
 	/**
-	 * Implement to create a custom RainbowGum. This is the preferred way to custommize
+	 * Implement to create a custom RainbowGum. This is the preferred way to customize
 	 * RainbowGum publishers, appenders, and outputs.
 	 */
 	public non-sealed interface RainbowGumProvider extends RainbowGumServiceProvider {
@@ -147,14 +147,14 @@ public sealed interface RainbowGumServiceProvider {
 		/**
 		 * Optionally provides a rainbow gum based on config.
 		 * @param config config loaded.
-		 * @return a rainbowgum or not.
+		 * @return a Rainbow Gum or not.
 		 */
 		Optional<RainbowGum> provide(LogConfig config);
 
 		/**
 		 * Creates a default rainbow gum from a config.
 		 * @param config config.
-		 * @return rainbowgum.
+		 * @return Rainbow Gum.
 		 */
 		public static RainbowGum defaults(LogConfig config) {
 			return RainbowGum.builder(config).build();
@@ -165,9 +165,9 @@ public sealed interface RainbowGumServiceProvider {
 		 * tried first ({@link #provide(LogConfig)}). The default is {@code 0}.
 		 * <p>
 		 * This feature allows custom rainbow gums for different environments like a
-		 * testing version that lives in its own jar that is in maven scope test. If its
+		 * testing version that lives in its own jar that is in Maven scope test. If its
 		 * priority is higher and {@link #provide(LogConfig)} returns a non-empty optional
-		 * then it will be used instead of than the production rainbowgum.
+		 * then it will be used instead of than the production Rainbow Gum.
 		 * @return priority order where higher number means it will be tried earlier.
 		 */
 		default int priority() {
@@ -180,14 +180,14 @@ public sealed interface RainbowGumServiceProvider {
 	 * Finds service providers based on type.
 	 * @param <T> provider interface type.
 	 * @param loader service loader to use.
-	 * @param pt provider class.
+	 * @param providerType provider class.
 	 * @return stream containing only provider of the given type.
 	 */
 	public static <T extends RainbowGumServiceProvider> Stream<T> findProviders(
-			ServiceLoader<RainbowGumServiceProvider> loader, Class<T> pt) {
+			ServiceLoader<RainbowGumServiceProvider> loader, Class<T> providerType) {
 		return loader.stream().flatMap(p -> {
-			if (pt.isAssignableFrom(p.type())) {
-				var s = pt.cast(p.get());
+			if (providerType.isAssignableFrom(p.type())) {
+				var s = providerType.cast(p.get());
 				return Stream.of(s);
 			}
 			return Stream.empty();
@@ -205,7 +205,7 @@ public sealed interface RainbowGumServiceProvider {
 
 	/**
 	 * Will load all RainbowGum SPI to create a RainbowGum powered from the ServiceLoader.
-	 * @return rainbowgum.
+	 * @return Rainbow Gum.
 	 */
 	public static RainbowGum provide() {
 		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);

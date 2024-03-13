@@ -27,7 +27,7 @@ public sealed interface PatternRegistry {
 	public @Nullable PatternFormatterFactory getOrNull(String key);
 
 	/**
-	 * Registers a pattern key with a formatter factory. You may replace the builtin
+	 * Registers a pattern key with a formatter factory. You may replace the built-in
 	 * pattern formatters with {@link KeywordKey} or {@link ColorKey}s or create a new key
 	 * with {@link PatternKey#of(String)}.
 	 * @param key pattern keys.
@@ -94,7 +94,7 @@ public sealed interface PatternRegistry {
 	}
 
 	/**
-	 * Builtin supported pattern keys.
+	 * Built-in supported pattern keys.
 	 */
 	@CaseChanging
 	enum KeywordKey implements PatternKey {
@@ -172,7 +172,7 @@ public sealed interface PatternRegistry {
 	}
 
 	/**
-	 * Builtin supported color pattern keys.
+	 * Built-in supported color pattern keys.
 	 */
 	@CaseChanging
 	enum ColorKey implements PatternKey {

@@ -41,7 +41,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
  * Provides String based properties like {@link System#getProperty(String)} for default
- * configuration of logging levels and output. Since Rainbowgum is configuration agnostic
+ * configuration of logging levels and output. Since Rainbow Gum is configuration agnostic
  * LogProperties is a simple string key and string value interface to allow almost any
  * configuration implementation. The only required method to implement is
  * {@link #valueOrNull(String)} and thus LogProperties is a functional like interface but
@@ -51,18 +51,18 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * If a custom {@link LogProperties} is not configured the default RainbowGum uses System
  * properties.
  * <p>
- * The builtin properties to configure RainbowGum are modeled after <a href=
+ * The built-in properties to configure RainbowGum are modeled after <a href=
  * "https://docs.spring.io/spring-boot/docs/3.1.0/reference/html/features.html#features.logging">
  * Spring Boot logging </a>
  * <p>
  * LogProperties should generally be accessed with the {@link PropertyGetter} and
  * {@link Property} like-monads which will allow safe <em>programmatic</em> data
  * conversion of the flat key values and useful error messages to users if the property
- * cannot be mapped or is missing. For more <em>declaritive</em> injection of properties
+ * cannot be mapped or is missing. For more <em>declarative</em> injection of properties
  * see {@link LogConfigurable} which will generate builders that can use LogProperties.
  * <p>
- * Rainbowgum treates {@value #SEP} in the keys as special separator analogous to
- * Javascript/JSON and various other configuration systems. Furthermore to work with a
+ * Rainbow Gum treats {@value #SEP} in the keys as special separator analogous to
+ * JavaScript/JSON and various other configuration systems. Furthermore to work with a
  * wide set of configuration systems once a property key has a value it is
  * <strong>RECOMMENDED</strong> that there should not be other property key value with a
  * key that is a prefix of the previously mentioned key. For example allowing two
@@ -70,19 +70,19 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * recommended as <code>logging.example</code> is defined as a leaf. The exception to this
  * rule is logging levels mapped to logger names for consistency with Spring Boot.
  * <p>
- * A convention used through out Rainbowgum is to have the property names as constants as
+ * A convention used through out Rainbow Gum is to have the property names as constants as
  * it makes documentation easier. These constants name are suffixed with
  * <code>_PROPERTY</code> or <code>_PREFIX</code> the former being a fully qualified key
  * that maybe parameterized and the latter being a partial key ending with
  * "<code>.</code>". The fully qualified keys are like leaves on a tree.
  * <p>
- * Property keys can be paramertized by using
+ * Property keys can be parameterized by using
  * {@link LogProperties#interpolateKey(String, Map)} and a general pattern is
  * <code>logging.component.{name}.prop</code> where {@value #NAME} is a parameter. Many
  * property constants use this to allow multiple configuration of components by name.
  *
  * <table class="table">
- * <caption><strong>Builtin Property Patterns</strong></caption>
+ * <caption><strong>Built-in Property Patterns</strong></caption>
  * <tr>
  * <th>Property Pattern</th>
  * <th>Description</th>
@@ -98,7 +98,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <td>Allows runtime changing of levels for the logger. By design RainbowGum does not
  * allow loggers to change levels once initialized. This configuration will allow the
  * level to be changed for the logger and its children and by default is false as the
- * builtin {@link LogProperties} is generally static (system properties).</td>
+ * built-in {@link LogProperties} is generally static (system properties).</td>
  * </tr>
  * <tr>
  * <td>{@value #ROUTES_PROPERTY} = <code>List&lt;String&gt;</code></td>
@@ -108,7 +108,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <tr>
  * <td>{@value #ROUTE_APPENDERS_PROPERTY} = <code>List&lt;String&gt;</code></td>
  * <td>A comma separated list of appenders associated with the route. If not set
- * {@value #APPENDERS_PROPERTY} is ued.</td>
+ * {@value #APPENDERS_PROPERTY} is used.</td>
  * </tr>
  * <tr>
  * <td>{@value #ROUTE_PUBLISHER_PROPERTY} = <code>URI</code></td>
@@ -260,7 +260,7 @@ public interface LogProperties {
 	 * Gets a list or null if the key is missing and by default uses
 	 * {@link #parseList(String)}. The default implementation will parse the string value
 	 * as a list using {@link LogProperties#parseList(String)} but custom implementations
-	 * may rely on their own parsing or the data type is builtin to the backing
+	 * may rely on their own parsing or the data type is built-in to the backing
 	 * configuration system.
 	 * @param key property name.
 	 * @return list or <code>null</code>.
@@ -279,7 +279,7 @@ public interface LogProperties {
 	 * Gets a map or null if the key is missing and by default uses
 	 * {@link #parseMap(String)}. The default implementation will parse the string value
 	 * as map using {@link LogProperties#parseMap(String)} but custom implementations may
-	 * rely on their own parsing or the data type is builtin to the backing configuration
+	 * rely on their own parsing or the data type is built-in to the backing configuration
 	 * system.
 	 * @param key property name.
 	 * @return map or <code>null</code>.
@@ -827,9 +827,9 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Parses a URI query for a multi value map. The list values of the map maybe empty if
-	 * the query parameter does not have any values associated with it which would be the
-	 * case if there is a parameter (key) with no "<code>=</code>" following it. For
+	 * Parses a URI query for a multiple value map. The list values of the map maybe empty
+	 * if the query parameter does not have any values associated with it which would be
+	 * the case if there is a parameter (key) with no "<code>=</code>" following it. For
 	 * example the following would have three entries of <code>a,b,c</code> all with empty
 	 * list: <pre>
 	 * <code>
@@ -932,7 +932,7 @@ public interface LogProperties {
 		},
 		/**
 		 * Uses {@link System#getProperty(String)} for {@link #valueOrNull(String)}. The
-		 * {@link #order()} is <code>400</code> which the same value as microprofile
+		 * {@link #order()} is <code>400</code> which the same value as MicroProfile
 		 * config ordinal.
 		 */
 		SYSTEM_PROPERTIES {
@@ -948,7 +948,7 @@ public interface LogProperties {
 		},
 		/**
 		 * Uses {@link System#getenv(String)} for {@link #valueOrNull(String)}.The
-		 * {@link #order()} is <code>300</code> which is the same value as microprofile
+		 * {@link #order()} is <code>300</code> which is the same value as MicroProfile
 		 * config ordinal.
 		 */
 		ENVIRONMENT_VARIABLES {
@@ -1069,7 +1069,7 @@ public interface LogProperties {
 		private static final long serialVersionUID = 4203076848052565692L;
 
 		/**
-		 * Creates a missing propety exception.
+		 * Creates a missing property exception.
 		 * @param s error message.
 		 */
 		PropertyMissingException(String s) {
@@ -1346,7 +1346,7 @@ public interface LogProperties {
 
 			/**
 			 * Helper just to cast the result to a different parameterized type.
-			 * @param <R> paramterized type.
+			 * @param <R> parameterized type.
 			 * @return this.
 			 */
 			@SuppressWarnings("unchecked")
@@ -1387,7 +1387,7 @@ public interface LogProperties {
 
 			/**
 			 * Helper just to cast the result to a different parameterized type.
-			 * @param <R> paramterized type.
+			 * @param <R> parameterized type.
 			 * @return this.
 			 */
 			@SuppressWarnings("unchecked")
@@ -1440,7 +1440,7 @@ public interface LogProperties {
 		public <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper);
 
 		/**
-		 * Converts the value into a String that can be parsed by the builtin properties
+		 * Converts the value into a String that can be parsed by the built-in properties
 		 * parsing of types. Supported types: String, Boolean, Integer, URI, Map, List.
 		 * @param value to be converted to string.
 		 * @return property representation of value.
@@ -1461,9 +1461,9 @@ public interface LogProperties {
 		 * @param value maybe <code>null</code> but an exception will be thrown if it is.
 		 * @return value if not null.
 		 * @throws NoSuchElementException if the value is null.
-		 * @apiNote this is an expected exception and should not be treated as crashable
-		 * exception that should avoided with static analysis such as checkerframework and
-		 * is why the input argument is nullable.
+		 * @apiNote this is an expected exception and should not be treated as crash-able
+		 * exception that should avoided with static analysis such as Checker Framework
+		 * and is why the input argument is nullable.
 		 */
 		default T require(@Nullable T value) {
 			if (value == null) {
@@ -1548,7 +1548,7 @@ public interface LogProperties {
 		}
 
 		/**
-		 * Converts the value into a String that can be parsed by the builtin properties
+		 * Converts the value into a String that can be parsed by the built-in properties
 		 * parsing of types. Supported types: String, Boolean, Integer, URI, Map, List.
 		 * @param value to be converted to string.
 		 * @return property representation of value.
@@ -1635,7 +1635,7 @@ public interface LogProperties {
 		 * is preferred to use the <code>to</code> methods on this class for basic types
 		 * especially for list or map types as the implementation will call the
 		 * implementation specific in LogProperties. An example is {@link #toMap()} which
-		 * will call the LogProperties implementration of
+		 * will call the LogProperties implementation of
 		 * {@link LogProperties#mapOrNull(String)}.
 		 *
 		 * @param prefix added to the key before looking up in {@link LogProperties}.
