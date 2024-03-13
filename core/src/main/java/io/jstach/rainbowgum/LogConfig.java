@@ -94,6 +94,10 @@ public sealed interface LogConfig {
 	@FunctionalInterface
 	public interface Provider<T> {
 
+		/*
+		 * TODO maybe make this sealed with sub provider types?
+		 */
+
 		/**
 		 * Creates the component from config. The component is not always guaranteed to be
 		 * new object.

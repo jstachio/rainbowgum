@@ -109,4 +109,37 @@ class GelfEncoderTest {
 		}
 	}
 
+	@Test
+	void testFullLoadBuilder() throws Exception {
+		var config = LogConfig.builder().build();
+		ListLogOutput output = new ListLogOutput();
+		try (var g = RainbowGum.builder(config).route(rb -> rb.appender("list", a -> {
+			a.encoder(GelfEncoder.of(gelf -> {
+				gelf.prettyPrint(true);
+				gelf.host("somehost");
+			}));
+			a.output(output);
+		})).build().start()) {
+			Instant instant = Instant.ofEpochMilli(1);
+			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
+			g.log(e);
+			String actual = output.events().get(0).getValue();
+			String expected = """
+					{
+					 "host":"somehost",
+					 "short_message":"hello",
+					 "timestamp":0.001,
+					 "level":6,
+					 "_time":"1970-01-01T00:00:00.001Z",
+					 "_level":"INFO",
+					 "_logger":"gelf",
+					 "_thread_name":"main",
+					 "_thread_id":"1",
+					 "version":"1.1"
+					}
+					""";
+			assertEquals(expected, actual);
+		}
+	}
+
 }

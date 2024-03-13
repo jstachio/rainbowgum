@@ -200,9 +200,12 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 			var _name = name;
 			var _output = output;
 			var _encoder = encoder;
+			/*
+			 * TODO should we use the parent name for resolution?
+			 */
 			return (n, config) -> {
-				AppenderConfig a = new AppenderConfig(_name, LogConfig.Provider.provideOrNull(n, _output, config),
-						LogConfig.Provider.provideOrNull(n, _encoder, config));
+				AppenderConfig a = new AppenderConfig(_name, LogConfig.Provider.provideOrNull(_name, _output, config),
+						LogConfig.Provider.provideOrNull(_name, _encoder, config));
 				return DefaultAppenderRegistry.appender(a, config);
 			};
 		}

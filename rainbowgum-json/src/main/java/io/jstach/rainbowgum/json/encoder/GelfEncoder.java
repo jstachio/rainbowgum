@@ -9,10 +9,12 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
@@ -27,7 +29,7 @@ import io.jstach.rainbowgum.json.JsonBuffer.JSONToken;
  * <a href="https://go2docs.graylog.org/5-2/getting_in_log_data/gelf.html">GELF JSON
  * format</a>.
  */
-public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
+public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	/**
 	 * GELF encoder URI scheme.
@@ -47,6 +49,20 @@ public class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		this.host = host;
 		this.headers = headers;
 		this.prettyprint = prettyprint;
+	}
+
+	/**
+	 * Creates a GELF encoder using a lambda for easier registration. The builder will
+	 * have properties loaded after the consumer has configured the builder.
+	 * @param consumer lambda to configure builder.
+	 * @return GELF encoder provider.
+	 */
+	public static LogConfig.Provider<GelfEncoder> of(Consumer<GelfEncoderBuilder> consumer) {
+		return (s, c) -> {
+			var b = new GelfEncoderBuilder(s);
+			consumer.accept(b);
+			return b.fromProperties(c.properties()).build();
+		};
 	}
 
 	/**
