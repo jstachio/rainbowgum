@@ -64,11 +64,11 @@ public sealed interface KeyValues {
 
 	/**
 	 * Used to easily iterate over the key value pairs without using an iterator.
-	 * @param <V> storate type
+	 * @param <V> storage type
 	 * @param action consumer.
 	 * @param counter zero based counter that unlike index will be in normal counter
 	 * order.
-	 * @param storage an extra parameter to avoid unneccessary lambda creation.
+	 * @param storage an extra parameter to avoid unnecessary lambda creation.
 	 * @return total accumulated by the
 	 * {@link KeyValuesConsumer#accept(KeyValues, String, String, int, Object)} return.
 	 */
@@ -491,7 +491,7 @@ final class ImmutableArrayKeyValues extends AbstractArrayKeyValues {
 
 /*
  * A KeyValues that uses a single string array for memory savings which is desirable in
- * the case of loom where there could be several orders of keyvalues instances at any
+ * the case of loom where there could be several orders of key values instances at any
  * given time.
  */
 final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyValues {
