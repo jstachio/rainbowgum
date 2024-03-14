@@ -71,13 +71,15 @@ public sealed interface LogMessageFormatter {
 
 }
 
-class SLF4JMessageFormatter {
+final class SLF4JMessageFormatter {
 
-	static final char DELIM_START = '{';
-	static final char DELIM_STOP = '}';
-	static final String DELIM_STR = "{}";
+	private static final char DELIM_START = '{';
+	// private static final char DELIM_STOP = '}';
+	private static final String DELIM_STR = "{}";
 
 	private static final char ESCAPE_CHAR = '\\';
+	
+	private SLF4JMessageFormatter() {}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
 			final @Nullable Object arg1) {
