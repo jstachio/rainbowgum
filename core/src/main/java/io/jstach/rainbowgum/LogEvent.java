@@ -435,14 +435,6 @@ public sealed interface LogEvent {
 
 	}
 
-	/**
-	 * Closed API for custom events.
-	 */
-	@CaseChanging
-	sealed interface InternalLogEvent extends LogEvent permits io.jstach.rainbowgum.internal.FacadeLogEvent {
-
-	}
-
 }
 
 record FrozenCallerInfo(String className, @Nullable String fileNameOrNull, int lineNumber,
