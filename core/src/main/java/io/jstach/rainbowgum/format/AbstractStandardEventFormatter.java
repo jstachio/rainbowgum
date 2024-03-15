@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum.format;
 
-import org.eclipse.jdt.annotation.Nullable;
-
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 
@@ -57,6 +55,11 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	protected final ThrowableFormatter throwableFormatter;
 
 	/**
+	 * Combined formatter.
+	 */
+	protected final LogFormatter eventFormatter;
+
+	/**
 	 * Override
 	 * @param timestampFormatter not <code>null</code>.
 	 * @param threadFormatter not <code>null</code>.
@@ -82,6 +85,36 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		this.throwableFormatter = throwableFormatter;
 		this.keyValuesFormatter = keyValuesFormatter;
 		this.threadFormatter = threadFormatter;
+		var b = LogFormatter.builder();
+		if (!timestampFormatter.isNoop()) {
+			b.add(timestampFormatter);
+			b.text(" ");
+		}
+		if (!threadFormatter.isNoop()) {
+			b.text("[");
+			b.add(threadFormatter);
+			b.text("] ");
+		}
+		if (!levelFormatter.isNoop()) {
+			b.add(levelFormatter);
+			b.text(" ");
+		}
+		b.add(LogFormatter.NameFormatter.of());
+		if (!keyValuesFormatter.isNoop()) {
+			b.text(" {");
+			b.add(keyValuesFormatter);
+			b.text("}");
+		}
+		if (!messageFormatter.isNoop()) {
+			b.text(" - ");
+			b.add(messageFormatter);
+		}
+		b.newline();
+		if (!throwableFormatter.isNoop()) {
+			b.add(throwableFormatter);
+		}
+		this.eventFormatter = b.flatten();
+
 	}
 
 	/**
@@ -212,49 +245,52 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 
 	@Override
 	public void format(StringBuilder output, LogEvent logEvent) {
-
-		var name = logEvent.loggerName();
-
-		@Nullable
-		Throwable t = logEvent.throwableOrNull();
-
-		// Append date-time if so configured
-
-		timestampFormatter.format(output, logEvent);
-
-		output.append(' ');
-
-		// Append current thread name if so configured
-		if (!threadFormatter.isNoop()) {
-			output.append("[");
-			threadFormatter.format(output, logEvent);
-			output.append("]");
-			output.append(" ");
-		}
-
-		if (!levelFormatter.isNoop()) {
-			levelFormatter.format(output, logEvent);
-			output.append(' ');
-		}
-
-		// Append the name of the log instance if so configured
-
-		output.append(name);
-
-		if (!LogFormatter.isNoopOrNull(keyValuesFormatter)) {
-			output.append(" ");
-			output.append("{");
-			keyValuesFormatter.format(output, logEvent);
-			output.append("}");
-		}
-
-		output.append(" - ");
-		messageFormatter.format(output, logEvent);
-		output.append("\n");
-
-		if (t != null) {
-			throwableFormatter.format(output, logEvent);
-		}
+		eventFormatter.format(output, logEvent);
+		//
+		// var name = logEvent.loggerName();
+		//
+		// @Nullable
+		// Throwable t = logEvent.throwableOrNull();
+		//
+		// // Append date-time if so configured
+		//
+		// timestampFormatter.format(output, logEvent);
+		//
+		// if (!timestampFormatter.isNoop()) {
+		// output.append(' ');
+		// }
+		//
+		// // Append current thread name if so configured
+		// if (!threadFormatter.isNoop()) {
+		// output.append("[");
+		// threadFormatter.format(output, logEvent);
+		// output.append("]");
+		// output.append(" ");
+		// }
+		//
+		// if (!levelFormatter.isNoop()) {
+		// levelFormatter.format(output, logEvent);
+		// output.append(' ');
+		// }
+		//
+		// // Append the name of the log instance if so configured
+		//
+		// output.append(name);
+		//
+		// if (!LogFormatter.isNoopOrNull(keyValuesFormatter)) {
+		// output.append(" ");
+		// output.append("{");
+		// keyValuesFormatter.format(output, logEvent);
+		// output.append("}");
+		// }
+		//
+		// output.append(" - ");
+		// messageFormatter.format(output, logEvent);
+		// output.append("\n");
+		//
+		// if (t != null) {
+		// throwableFormatter.format(output, logEvent);
+		// }
 	}
 
 }

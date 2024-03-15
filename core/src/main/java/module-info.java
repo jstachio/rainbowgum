@@ -13,6 +13,8 @@ module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum.output;
 	exports io.jstach.rainbowgum.spi;
 	
+	exports io.jstach.rainbowgum.internal to io.jstach.rainbowgum.slf4j;
+	
 	requires static io.jstach.rainbowgum.annotation;
 	requires static org.eclipse.jdt.annotation;
 	

@@ -50,6 +50,15 @@ interface BaseLogger extends EventCreator<Level>, Logger {
 
 	void handle(LogEvent event);
 
+	default void handle(LogEvent event, int depth) {
+		handle(event);
+	}
+
+	@Override
+	default LoggingEventBuilder makeLoggingEventBuilder(Level level) {
+		return new RainbowGumEventBuilder(this, mdc(), translateLevel(level));
+	}
+
 	@Override
 	default String getName() {
 		return loggerName();

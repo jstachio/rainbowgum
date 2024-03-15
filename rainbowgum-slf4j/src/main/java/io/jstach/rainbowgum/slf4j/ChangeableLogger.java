@@ -31,7 +31,7 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 
 	private volatile boolean callerInfo;
 
-	private static final int DEPTH_DELTA = 6;
+	private static final int DEPTH_DELTA = 7;
 
 	private int depth = DEPTH_DELTA;
 
@@ -57,7 +57,16 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 
 	@Override
 	public void handle(LogEvent event) {
+		/*
+		 * TODO perhaps we wrap callerInfo here instead.
+		 */
 		eventLogger.log(event);
+	}
+
+	@Override
+	public void handle(LogEvent event, int depth) {
+		var e = addCallerInfo(event, depth);
+		handle(e);
 	}
 
 	void setLevel(int level) {
@@ -87,9 +96,13 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 		return addCallerInfo(BaseLogger.super.event(level, formattedMessage, throwable));
 	}
 
-	private LogEvent addCallerInfo(LogEvent e) {
+	LogEvent addCallerInfo(LogEvent e) {
+		return addCallerInfo(e, this.depth);
+	}
+
+	LogEvent addCallerInfo(LogEvent e, int depth) {
 		if (callerInfo) {
-			var found = callerInfo(this.depth);
+			var found = callerInfo(depth);
 			if (found != null) {
 				return LogEvent.withCaller(e, found);
 			}

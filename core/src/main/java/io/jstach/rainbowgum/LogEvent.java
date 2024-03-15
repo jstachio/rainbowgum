@@ -15,13 +15,17 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent.Builder;
 import io.jstach.rainbowgum.LogEvent.CallerInfo;
 import io.jstach.rainbowgum.LogRouter.Router;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
- * A LogEvent is a container for a single call to a logger. An event should not created
+ * A LogEvent is a container for a single call to a logger. An event should not be created
  * unless a route or logger is actually enabled.
  *
  * @author agentgt
- * @apiNote LogEvent is currently sealed
+ * @apiNote LogEvent is currently sealed. The reason there are so many static creation
+ * methods is for optimization purposes because other than actual outputting creating
+ * events is generally the most expensive operation (mostly in terms of memory) a logging
+ * system does.
  * @see LogMessageFormatter
  */
 public sealed interface LogEvent {
@@ -133,6 +137,45 @@ public sealed interface LogEvent {
 		long threadId = currentThread.threadId();
 		return new ArrayArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
 				messageFormatter, null, args);
+	}
+
+	/**
+	 * Creates a log event with everything specified.
+	 * @param timestamp time of event
+	 * @param threadName or empty string
+	 * @param threadId thread id or 0 if that cannot be resolved.
+	 * @param level the logging level.
+	 * @param loggerName the name of the logger which is usually a class name.
+	 * @param message the unformatted message.
+	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
+	 * @param throwable or <code>null</code>.
+	 * @param messageFormatter formatter to use for rendering a message when
+	 * #{@link LogEvent#formattedMessage(StringBuilder)} is called.
+	 * @param args an array of arguments that will be passed to messageFormatter. The
+	 * contents maybe null elements but the array itself should not be null.
+	 * @return event
+	 * @see LevelResolver
+	 * @see LogMessageFormatter
+	 */
+	public static LogEvent ofAll(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
+			String loggerName, String message, KeyValues keyValues, @Nullable Throwable throwable,
+			LogMessageFormatter messageFormatter, @SuppressWarnings("exports") @Nullable List<@Nullable Object> args) {
+
+		if (args == null) {
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					throwable);
+		}
+		int size = args.size();
+		return switch (size) {
+			case 0 ->
+				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
+			case 1 -> new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					messageFormatter, throwable, args.get(0));
+			case 2 -> new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					messageFormatter, throwable, args.get(0), args.get(1));
+			default -> new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					messageFormatter, throwable, args.toArray());
+		};
 	}
 
 	/**
@@ -270,7 +313,7 @@ public sealed interface LogEvent {
 
 		/**
 		 * Add an argument to the event being built.
-		 * @param argSupplier supplier will be called immediatly if this event is to be
+		 * @param argSupplier supplier will be called immediately if this event is to be
 		 * logged.
 		 * @return this.
 		 */
@@ -323,7 +366,7 @@ public sealed interface LogEvent {
 
 		/**
 		 * Key values that usually come from MDC or an SLF4J Event Builder.
-		 * @param keyValues will use the passed in keyvalues for the event.
+		 * @param keyValues will use the passed in key values for the event.
 		 * @return key values.
 		 */
 		public Builder keyValues(KeyValues keyValues);
@@ -389,6 +432,14 @@ public sealed interface LogEvent {
 		 * @return immutable caller info and if this is already immutable return this.
 		 */
 		public CallerInfo freeze();
+
+	}
+
+	/**
+	 * Closed API for custom events.
+	 */
+	@CaseChanging
+	sealed interface InternalLogEvent extends LogEvent permits io.jstach.rainbowgum.internal.FacadeLogEvent {
 
 	}
 
@@ -531,23 +582,8 @@ final class LogEventBuilder implements LogEvent.Builder {
 
 	@Override
 	public LogEvent eventOrNull() {
-		@Nullable
-		List<@Nullable Object> args = this.args;
-		if (args == null) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					throwable);
-		}
-		int size = args.size();
-		return switch (size) {
-			case 0 ->
-				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
-			case 1 -> new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					messageFormatter, throwable, args.get(0));
-			case 2 -> new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					messageFormatter, throwable, args.get(0), args.get(1));
-			default -> new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					messageFormatter, throwable, args.toArray());
-		};
+		return LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
+				messageFormatter, this.args);
 	}
 
 }
@@ -792,8 +828,8 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 	@Override
 	public LogEvent freeze() {
 		if (keyValues instanceof MutableKeyValues mkvs) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,
-					throwableOrNull);
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage,
+					mkvs.freeze(), throwableOrNull);
 		}
 		return this;
 	}
@@ -801,8 +837,8 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 	@Override
 	public LogEvent freeze(Instant timestamp) {
 		if (keyValues instanceof MutableKeyValues mkvs) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, mkvs,
-					throwableOrNull);
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage,
+					mkvs.freeze(), throwableOrNull);
 		}
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
 				throwableOrNull);
