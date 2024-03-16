@@ -136,7 +136,12 @@ public sealed interface LogConfig {
 	}
 
 	/**
-	 * Config Change Publisher.
+	 * Config Change Publisher. By default this is enabled with
+	 * {@value LogProperties#GLOBAL_CHANGE_PROPERTY} set to <code>true</code> and then
+	 * configuring which "logger" prefix will be allowed to change with
+	 * {@value LogProperties#CHANGE_PREFIX} + {@value LogProperties#SEP} + logger name set
+	 * to a list of {@link ChangeType} or <code>true</code>/<code>false</code> to enable
+	 * or disable all changes.
 	 */
 	interface ChangePublisher {
 
