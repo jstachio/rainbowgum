@@ -24,7 +24,7 @@ class ChangeTypeTest {
 	@SuppressWarnings("ImmutableEnumChecker")
 	enum _Test {
 
-		TRUE("true", EnumSet.allOf(ChangeType.class)), CALLER_INFO("caller_info", EnumSet.of(ChangeType.CALLER_INFO));
+		TRUE("true", EnumSet.allOf(ChangeType.class)), CALLER_INFO("caller", EnumSet.of(ChangeType.CALLER));
 
 		final String input;
 

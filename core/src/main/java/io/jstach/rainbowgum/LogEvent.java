@@ -13,9 +13,8 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent.Builder;
-import io.jstach.rainbowgum.LogEvent.CallerInfo;
+import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogRouter.Router;
-import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
  * A LogEvent is a container for a single call to a logger. An event should not be created
@@ -185,7 +184,7 @@ public sealed interface LogEvent {
 	 * @param caller caller info.
 	 * @return new log event.
 	 */
-	public static LogEvent withCaller(LogEvent event, CallerInfo caller) {
+	public static LogEvent withCaller(LogEvent event, Caller caller) {
 		return new StackFrameLogEvent(event, caller);
 	}
 
@@ -269,7 +268,7 @@ public sealed interface LogEvent {
 	 * Returns info about caller or <code>null</code> if not supported.
 	 * @return caller info
 	 */
-	default @Nullable CallerInfo callerOrNull() {
+	default @Nullable Caller callerOrNull() {
 		return null;
 	}
 
@@ -391,7 +390,7 @@ public sealed interface LogEvent {
 	/**
 	 * Caller info usually derived from Stack walking.
 	 */
-	public sealed interface CallerInfo {
+	public sealed interface Caller {
 
 		/**
 		 * Creates caller info from a stack frame.
@@ -399,7 +398,7 @@ public sealed interface LogEvent {
 		 * {@link java.lang.StackWalker.Option#RETAIN_CLASS_REFERENCE}.
 		 * @return caller info.
 		 */
-		public static CallerInfo of(StackFrame stackFrame) {
+		public static Caller of(StackFrame stackFrame) {
 			return new StackFrameCallerInfo(stackFrame);
 		}
 
@@ -431,21 +430,21 @@ public sealed interface LogEvent {
 		 * Make the caller info immutable.
 		 * @return immutable caller info and if this is already immutable return this.
 		 */
-		public CallerInfo freeze();
+		public Caller freeze();
 
 	}
 
 }
 
 record FrozenCallerInfo(String className, @Nullable String fileNameOrNull, int lineNumber,
-		String methodName) implements LogEvent.CallerInfo {
+		String methodName) implements LogEvent.Caller {
 	@Override
-	public CallerInfo freeze() {
+	public Caller freeze() {
 		return this;
 	}
 }
 
-record StackFrameCallerInfo(StackFrame stackFrame) implements LogEvent.CallerInfo {
+record StackFrameCallerInfo(StackFrame stackFrame) implements LogEvent.Caller {
 
 	@Override
 	public String className() {
@@ -471,7 +470,7 @@ record StackFrameCallerInfo(StackFrame stackFrame) implements LogEvent.CallerInf
 	}
 
 	@Override
-	public CallerInfo freeze() {
+	public Caller freeze() {
 		return new FrozenCallerInfo(className(), fileNameOrNull(), lineNumber(), methodName());
 	}
 
@@ -838,7 +837,7 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 
 }
 
-record StackFrameLogEvent(LogEvent event, CallerInfo callerOrNull) implements LogEvent {
+record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEvent {
 
 	@Override
 	public Instant timestamp() {

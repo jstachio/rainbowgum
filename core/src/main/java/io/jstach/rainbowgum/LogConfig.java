@@ -177,7 +177,7 @@ public sealed interface LogConfig {
 			/**
 			 * The logger is allowed to change caller info.
 			 */
-			CALLER_INFO;
+			CALLER;
 
 			static Set<ChangeType> parse(List<String> value) {
 				if (value.isEmpty()) {

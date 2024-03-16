@@ -15,7 +15,7 @@ import org.slf4j.spi.LoggingEventBuilder;
 import org.slf4j.spi.NOPLoggingEventBuilder;
 
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogEvent.CallerInfo;
+import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAware;
 
@@ -86,8 +86,8 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 
 	private static final StackWalker stackWalker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
 
-	private @Nullable CallerInfo callerInfo(int depth) {
-		return stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> CallerInfo.of(f)).findFirst().orElse(null));
+	private @Nullable Caller caller(int depth) {
+		return stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
 
 	}
 
@@ -102,7 +102,7 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 
 	LogEvent addCallerInfo(LogEvent e, int depth) {
 		if (callerInfo) {
-			var found = callerInfo(depth);
+			var found = caller(depth);
 			if (found != null) {
 				return LogEvent.withCaller(e, found);
 			}

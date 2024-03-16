@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogEvent.CallerInfo;
+import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
@@ -144,7 +144,7 @@ class RainbowGumLoggerFactoryTest {
 				a.formatter((output, event) -> {
 					output.append(event.level()).append(" ");
 					event.formattedMessage(output);
-					CallerInfo caller = event.callerOrNull();
+					Caller caller = event.callerOrNull();
 					if (caller != null) {
 						output.append(" <caller>");
 						output.append(caller.className());

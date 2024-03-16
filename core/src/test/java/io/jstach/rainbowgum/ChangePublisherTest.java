@@ -33,7 +33,7 @@ class ChangePublisherTest {
 	@Test
 	void test() {
 		Set<ChangeType> changes = changePublisher.allowedChanges("anything");
-		assertEquals(EnumSet.of(ChangeType.LEVEL, ChangeType.CALLER_INFO), changes);
+		assertEquals(EnumSet.of(ChangeType.LEVEL, ChangeType.CALLER), changes);
 	}
 
 }

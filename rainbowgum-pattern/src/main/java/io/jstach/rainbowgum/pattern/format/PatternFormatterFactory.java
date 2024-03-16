@@ -19,7 +19,7 @@ import java.util.Locale;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogEvent.CallerInfo;
+import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.pattern.Padding;
@@ -82,28 +82,28 @@ enum CallerInfoFormatter implements EventFormatter {
 	METHOD() {
 
 		@Override
-		protected void format(StringBuilder output, CallerInfo info) {
+		protected void format(StringBuilder output, Caller info) {
 			output.append(info.methodName());
 		}
 
 	},
 	CLASS {
 		@Override
-		protected void format(StringBuilder output, CallerInfo info) {
+		protected void format(StringBuilder output, Caller info) {
 			output.append(info.className());
 
 		}
 	},
 	FILE {
 		@Override
-		protected void format(StringBuilder output, CallerInfo info) {
+		protected void format(StringBuilder output, Caller info) {
 			output.append(info.fileNameOrNull());
 
 		}
 	},
 	LINE {
 		@Override
-		protected void format(StringBuilder output, CallerInfo info) {
+		protected void format(StringBuilder output, Caller info) {
 			output.append(info.lineNumber());
 
 		}
@@ -118,7 +118,7 @@ enum CallerInfoFormatter implements EventFormatter {
 
 	}
 
-	protected abstract void format(StringBuilder output, CallerInfo caller);
+	protected abstract void format(StringBuilder output, Caller caller);
 
 }
 
