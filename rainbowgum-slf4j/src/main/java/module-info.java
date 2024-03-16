@@ -30,7 +30,7 @@ import io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider;
  * </ul>
  * Other logging implementations like Logback by default use something analogous to changing loggers
  * which require a constant check if the level threshold has changed.
- * Level loggers do not need to that check. Unless 
+ * Level loggers do not need to do that check. Unless 
  * {@linkplain io.jstach.rainbowgum.LogConfig.ChangePublisher changing loggers is turned on} 
  * by default Level Loggers are used which are close to zero cost for discarding events.
  * 

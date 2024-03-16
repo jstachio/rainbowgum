@@ -678,7 +678,7 @@ two special implementation of loggers:
 </ul>
 Other logging implementations like Logback by default use something analogous to changing loggers
 which require a constant check if the level threshold has changed.
-Level loggers do not need to that check. Unless 
+Level loggers do not need to do that check. Unless 
 {@linkplain io.jstach.rainbowgum.LogConfig.ChangePublisher changing loggers is turned on} 
 by default Level Loggers are used which are close to zero cost for discarding events.
 
@@ -761,7 +761,7 @@ a provider with a URI scheme.
   <li>{@link io.jstach.rainbowgum.LogOutputRegistry}</li>
 </ol>
 {@link io.jstach.rainbowgum.LogConfig} contains all the registries
-and a special generic registry: {@link io.jstach.rainbowgum.ServiceRegistry}
+and a special generic registry: {@link io.jstach.rainbowgum.ServiceRegistry}.
 The service registry is allows other plugins to share components.
 To access these registries at configuration time as a plugin is to implement
 a {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}.
