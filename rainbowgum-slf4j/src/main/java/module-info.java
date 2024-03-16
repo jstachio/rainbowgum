@@ -19,16 +19,16 @@ import io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider;
  * {@link io.jstach.rainbowgum.LogEvent#keyValues() events key values}.
  * The value parameter in 
  * {@link org.slf4j.spi.LoggingEventBuilder#addKeyValue(String,Object)} are
- * converted to {@link java.lang.String} immediatly as only String values are
+ * converted to {@link java.lang.String} immediately as only String values are
  * supported at this time.
  * <p>
  * Rainbow Gum SLF4J implementation is unique in that it has 
- * two special implementation of loggers.
+ * two special implementation of loggers:
  * <ul>
  * <li>Level Logger - logger based on level threshold and <em>can never change</em>!</li>
  * <li>Changing Logger - level and other configuration <em>can change</em>.</li>
  * </ul>
- * Other looging implementations like Logback by default use something analogous to changing loggers
+ * Other logging implementations like Logback by default use something analogous to changing loggers
  * which require a constant check if the level threshold has changed.
  * Level loggers do not need to that check. Unless 
  * {@linkplain io.jstach.rainbowgum.LogConfig.ChangePublisher changing loggers is turned on} 
