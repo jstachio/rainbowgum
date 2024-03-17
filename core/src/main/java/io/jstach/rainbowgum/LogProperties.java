@@ -176,7 +176,7 @@ public interface LogProperties {
 	 * Will globalally turn of any ANSI escape output as well disable extensions that do
 	 * things for ANSI escape like JANSI.
 	 */
-	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansiDisable";
+	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansi.disable";
 
 	/**
 	 * Logging change properties prefix.

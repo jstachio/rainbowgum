@@ -464,10 +464,10 @@ Like Logback you can even add your own pattern keywords which is covered in {@li
   </p>
   <strong>The pattern module is pulled in by default with the aggregate rainbow gum dependency.</strong> 
 <p>
-  <strong>NOTE:</strong> <em>If you plan on using the color pattern keywords it is generally a good idea (for now) to use
+  <strong>NOTE:</strong> <em>If you plan on using the <strong>color </strong> pattern keywords it is generally a good idea (for now) to use
     the {@link io.jstach.rainbowgum.jansi/ } module which is covered next. Regardless ANSI escape can be
     globally disabled by setting {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} to
-    <code>true</code> which will disable Jansi and the pattern formatter from omitting ANSI escape sequences.
+    <code>true</code> which will disable Jansi and the <em>default</em> pattern formatter from omitting ANSI escape sequences.
   </em>
 </p>
 
@@ -496,6 +496,11 @@ Like Logback you can even add your own pattern keywords which is covered in {@li
 </p>
 Jansi can be disabled with {@value io.jstach.rainbowgum.jansi.JAnsiConfigurator#JANSI_DISABLE}
 or {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} boolean properties.
+<p>
+  A major reason to disable Jansi is because it may <em>accidentally strip ANSI escape characters for terminals that
+  do support ANSI but Jansi cannot determine they do</em>. The most notable case of this problem are IDEs particularly
+  <a href="https://youtrack.jetbrains.com/issue/IDEA-132822"><strong>IntelliJ</strong></a>. 
+</p>
 
 <h2 id="outputs">Outputs</h2>
 
