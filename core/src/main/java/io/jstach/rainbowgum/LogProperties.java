@@ -168,9 +168,15 @@ public interface LogProperties {
 	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
 
 	/**
-	 * Logging change properties prefix.
+	 * Logging change configuration allowed property.
 	 */
 	static final String GLOBAL_CHANGE_PROPERTY = ROOT_PREFIX + "global.change";
+
+	/**
+	 * Will globalally turn of any ANSI escape output as well disable extensions that do
+	 * things for ANSI escape like JANSI.
+	 */
+	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansiDisable";
 
 	/**
 	 * Logging change properties prefix.

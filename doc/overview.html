@@ -447,7 +447,7 @@ Here are some of the supported encoders (not a complete listing):
 <h3 id="formatters">Formatters</h3>
 
 Formatting of log events as textual data is so common that Rainbow Gum has special support for that with
-{@link io.jstach.rainbowgum.LogFormatter}. While formatters can at highlevel be considered
+{@link io.jstach.rainbowgum.LogFormatter}. While formatters can at high-level be considered
 an encoder for technical API reasons they are not. However any formatter can be converted to an
 encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}. 
 
@@ -455,23 +455,25 @@ encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogF
 
   For those coming from Logback or Log4j2 
   Rainbow Gum has an {@linkplain io.jstach.rainbowgum.pattern/ optional module} for 
-  <a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">logback style based pattern</a> formatters. 
+  <a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">Logback style based pattern</a> formatters. 
   This allows describing an output format using 
-  <code>String.format</code> percent style syntax. Rainbow Gum implements most of the builtin logback
+  <code>String.format</code> percent style syntax. Rainbow Gum implements most of the builtin Logback
   pattern keywords with far less overhead. 
   <p>
-Like logback you can even add your own pattern keywords which is covered in {@link io.jstach.rainbowgum.pattern/ } module.
+Like Logback you can even add your own pattern keywords which is covered in {@link io.jstach.rainbowgum.pattern/ } module.
   </p>
-  <strong>The pattern layout module is pulled in by default with the aggregate rainbow gum dependency.</strong> 
+  <strong>The pattern module is pulled in by default with the aggregate rainbow gum dependency.</strong> 
 <p>
   <strong>NOTE:</strong> <em>If you plan on using the color pattern keywords it is generally a good idea (for now) to use
-    the {@link io.jstach.rainbowgum.jansi/ } module which is covered next.
+    the {@link io.jstach.rainbowgum.jansi/ } module which is covered next. Regardless ANSI escape can be
+    globally disabled by setting {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} to
+    <code>true</code> which will disable Jansi and the pattern formatter from omitting ANSI escape sequences.
   </em>
 </p>
 
 <h4 id="jansi">JAnsi support</h4>
 <p>
-  Rainbow Gum also has support for proper cross platform {@linkplain io.jstach.rainbowgum.jansi/ ANSI output with Jansi through an optional module}.
+  Rainbow Gum also has support for proper cross platform {@linkplain io.jstach.rainbowgum.jansi/ ANSI output with JAnsi through an optional module}.
   Unlike other frameworks where this is detected with reflection Rainbow Gum uses the 
   Service Loader which is GraalVM native friendly.
 </p>
@@ -492,6 +494,8 @@ Like logback you can even add your own pattern keywords which is covered in {@li
     we strongly agree with the draft JEP and are exploring other options for the future.
   </em>
 </p>
+Jansi can be disabled with {@value io.jstach.rainbowgum.jansi.JAnsiConfigurator#JANSI_DISABLE}
+or {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} boolean properties.
 
 <h2 id="outputs">Outputs</h2>
 

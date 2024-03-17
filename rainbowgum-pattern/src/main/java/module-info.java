@@ -8,6 +8,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @provides RainbowGumServiceProvider
  * @see io.jstach.rainbowgum.pattern.format.PatternConfigurator
  * @see io.jstach.rainbowgum.pattern.format.PatternEncoder
+ * @see io.jstach.rainbowgum.pattern.format.PatternConfig
  */
 module io.jstach.rainbowgum.pattern {
 	

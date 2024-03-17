@@ -40,11 +40,21 @@ public final class PatternConfigurator implements Configurator {
 
 	static PatternCompiler compiler(LogConfig config) {
 		var registry = config.serviceRegistry().putIfAbsent(PatternRegistry.class, () -> PatternRegistry.of());
-		var formatter = config.serviceRegistry()
-			.putIfAbsent(PatternConfig.class,
-					() -> PatternConfig.builder().fromProperties(config.properties()).build());
+		boolean ansiDisable = LogProperties.Property.builder() //
+			.toBoolean() //
+			.orElse(false) //
+			.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
+			.get(config.properties()) //
+			.value();
+		var patternConfig = config.serviceRegistry().putIfAbsent(PatternConfig.class, () -> {
+			var b = PatternConfig.builder().fromProperties(config.properties());
+			if (ansiDisable) {
+				b.ansiDisabled(true);
+			}
+			return b.build();
+		});
 		var compiler = config.serviceRegistry()
-			.putIfAbsent(PatternCompiler.class, () -> new Compiler(registry, formatter));
+			.putIfAbsent(PatternCompiler.class, () -> new Compiler(registry, patternConfig));
 		return compiler;
 	}
 
