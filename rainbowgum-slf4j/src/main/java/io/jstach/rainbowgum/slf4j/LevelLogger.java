@@ -69,6 +69,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void error(String msg, Throwable t) {
+			handle(Level.ERROR, msg, t);
+		}
+
+		@Override
 		public boolean isErrorEnabled(Marker marker) {
 			return true;
 		}
@@ -120,6 +125,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void warn(String msg, Throwable t) {
+		}
+
+		@Override
 		public boolean isWarnEnabled(Marker marker) {
 			return false;
 		}
@@ -163,6 +172,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(String format, Object... arguments) {
+		}
+
+		@Override
+		public void info(String msg, Throwable t) {
 		}
 
 		@Override
@@ -212,6 +225,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void debug(String msg, Throwable t) {
+		}
+
+		@Override
 		public boolean isDebugEnabled(Marker marker) {
 			return false;
 		}
@@ -255,6 +272,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(String format, Object... arguments) {
+		}
+
+		@Override
+		public void trace(String msg, Throwable t) {
 		}
 
 		@Override
@@ -322,6 +343,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void error(String msg, Throwable t) {
+			handle(Level.ERROR, msg, t);
+		}
+
+		@Override
 		public boolean isErrorEnabled(Marker marker) {
 			return true;
 		}
@@ -377,6 +403,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void warn(String msg, Throwable t) {
+			handle(Level.WARN, msg, t);
+		}
+
+		@Override
 		public boolean isWarnEnabled(Marker marker) {
 			return true;
 		}
@@ -428,6 +459,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void info(String msg, Throwable t) {
+		}
+
+		@Override
 		public boolean isInfoEnabled(Marker marker) {
 			return false;
 		}
@@ -474,6 +509,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void debug(String msg, Throwable t) {
+		}
+
+		@Override
 		public boolean isDebugEnabled(Marker marker) {
 			return false;
 		}
@@ -517,6 +556,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(String format, Object... arguments) {
+		}
+
+		@Override
+		public void trace(String msg, Throwable t) {
 		}
 
 		@Override
@@ -584,6 +627,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void error(String msg, Throwable t) {
+			handle(Level.ERROR, msg, t);
+		}
+
+		@Override
 		public boolean isErrorEnabled(Marker marker) {
 			return true;
 		}
@@ -636,6 +684,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void warn(String format, Object... arguments) {
 			handleArray(Level.WARN, format, arguments);
+		}
+
+		@Override
+		public void warn(String msg, Throwable t) {
+			handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -694,6 +747,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void info(String msg, Throwable t) {
+			handle(Level.INFO, msg, t);
+		}
+
+		@Override
 		public boolean isInfoEnabled(Marker marker) {
 			return true;
 		}
@@ -745,6 +803,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void debug(String msg, Throwable t) {
+		}
+
+		@Override
 		public boolean isDebugEnabled(Marker marker) {
 			return false;
 		}
@@ -788,6 +850,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(String format, Object... arguments) {
+		}
+
+		@Override
+		public void trace(String msg, Throwable t) {
 		}
 
 		@Override
@@ -855,6 +921,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void error(String msg, Throwable t) {
+			handle(Level.ERROR, msg, t);
+		}
+
+		@Override
 		public boolean isErrorEnabled(Marker marker) {
 			return true;
 		}
@@ -907,6 +978,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void warn(String format, Object... arguments) {
 			handleArray(Level.WARN, format, arguments);
+		}
+
+		@Override
+		public void warn(String msg, Throwable t) {
+			handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -965,6 +1041,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void info(String msg, Throwable t) {
+			handle(Level.INFO, msg, t);
+		}
+
+		@Override
 		public boolean isInfoEnabled(Marker marker) {
 			return true;
 		}
@@ -1020,6 +1101,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void debug(String msg, Throwable t) {
+			handle(Level.DEBUG, msg, t);
+		}
+
+		@Override
 		public boolean isDebugEnabled(Marker marker) {
 			return true;
 		}
@@ -1068,6 +1154,10 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(String format, Object... arguments) {
+		}
+
+		@Override
+		public void trace(String msg, Throwable t) {
 		}
 
 		@Override
@@ -1135,6 +1225,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void error(String msg, Throwable t) {
+			handle(Level.ERROR, msg, t);
+		}
+
+		@Override
 		public boolean isErrorEnabled(Marker marker) {
 			return true;
 		}
@@ -1187,6 +1282,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void warn(String format, Object... arguments) {
 			handleArray(Level.WARN, format, arguments);
+		}
+
+		@Override
+		public void warn(String msg, Throwable t) {
+			handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -1245,6 +1345,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void info(String msg, Throwable t) {
+			handle(Level.INFO, msg, t);
+		}
+
+		@Override
 		public boolean isInfoEnabled(Marker marker) {
 			return true;
 		}
@@ -1300,6 +1405,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public void debug(String msg, Throwable t) {
+			handle(Level.DEBUG, msg, t);
+		}
+
+		@Override
 		public boolean isDebugEnabled(Marker marker) {
 			return true;
 		}
@@ -1352,6 +1462,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void trace(String format, Object... arguments) {
 			handleArray(Level.TRACE, format, arguments);
+		}
+
+		@Override
+		public void trace(String msg, Throwable t) {
+			handle(Level.TRACE, msg, t);
 		}
 
 		@Override

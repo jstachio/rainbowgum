@@ -31,7 +31,8 @@ public class CodeTemplates {
 							@Override
 							public void handle(io.jstach.rainbowgum.LogEvent event) {
 							}
-							io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc() {
+							@Override
+							public io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc() {
 								return null;
 							}
 						}
@@ -153,6 +154,13 @@ public class CodeTemplates {
 				public void {{methodName}}(String format, Object... arguments) {
 					{{#isEnabled}}
 					handleArray(Level.{{name}}, format, arguments);
+					{{/isEnabled}}
+				}
+
+				@Override
+				public void {{methodName}}(String msg, Throwable t) {
+					{{#isEnabled}}
+					handle(Level.{{name}}, msg, t);
 					{{/isEnabled}}
 				}
 
