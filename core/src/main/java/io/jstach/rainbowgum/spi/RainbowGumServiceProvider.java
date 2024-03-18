@@ -152,15 +152,6 @@ public sealed interface RainbowGumServiceProvider {
 		Optional<RainbowGum> provide(LogConfig config);
 
 		/**
-		 * Creates a default rainbow gum from a config.
-		 * @param config config.
-		 * @return Rainbow Gum.
-		 */
-		public static RainbowGum defaults(LogConfig config) {
-			return RainbowGum.builder(config).build();
-		}
-
-		/**
 		 * If there are multiple rainbow gum providers found the higher priority ones are
 		 * tried first ({@link #provide(LogConfig)}). The default is {@code 0}.
 		 * <p>
