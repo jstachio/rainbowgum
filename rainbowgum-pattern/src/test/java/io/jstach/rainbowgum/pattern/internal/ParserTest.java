@@ -22,6 +22,8 @@ class ParserTest {
 // @formatter:off
 enum ParserResult {
 	space(" ", "LITERAL[' ']"),
+	escape("\\_\\%(stuff\\) \\\\ \\t \\n", "LITERAL['%(stuff) \\ \t \n']"),
+	escape_option("%blah{\" \\\" \"}", "KEYWORD['blah', options=[ \\\" ]]"),
 	keyword_first("%xyz", "KEYWORD['xyz']"),
 	keyword("hello%xyz", "LITERAL['hello'], KEYWORD['xyz']"),
 	keyword_value("hello%xyz{x}", "LITERAL['hello'], KEYWORD['xyz', options=[x]]"),

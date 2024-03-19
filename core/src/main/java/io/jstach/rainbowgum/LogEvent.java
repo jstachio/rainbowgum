@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.StackWalker.Option;
 import java.lang.StackWalker.StackFrame;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
@@ -403,6 +404,16 @@ public sealed interface LogEvent {
 		}
 
 		/**
+		 * Returns caller from a certain depth or <code>null</code>
+		 * @param depth how deep in the stack to pull stack frame.
+		 * @return caller or <code>null</code>.
+		 */
+		public static @Nullable Caller ofDepthOrNull(int depth) {
+			return StackFrameCallerInfo.stackWalker.<@Nullable Caller>walk(
+					s -> s.skip(depth + 1).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
+		}
+
+		/**
 		 * See {@link StackFrame#getClassName()}.
 		 * @return class name.
 		 */
@@ -445,6 +456,8 @@ record FrozenCallerInfo(String className, @Nullable String fileNameOrNull, int l
 }
 
 record StackFrameCallerInfo(StackFrame stackFrame) implements LogEvent.Caller {
+
+	static final StackWalker stackWalker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
 
 	@Override
 	public String className() {

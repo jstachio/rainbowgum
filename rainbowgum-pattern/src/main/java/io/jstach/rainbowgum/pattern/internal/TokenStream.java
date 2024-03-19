@@ -67,8 +67,6 @@ class TokenStream {
 
 	final ParserEscaper parserEscaper;
 
-	final ParserEscaper optionEscapeUtil = new RestrictedEscaper();
-
 	TokenizerState state = TokenizerState.LITERAL_STATE;
 
 	int pointer = 0;
@@ -233,13 +231,6 @@ class TokenStream {
 		if ((pointer < patternLength)) {
 			char next = pattern.charAt(pointer++);
 			parserEscaper.escape(escapeChars, buf, next, pointer);
-		}
-	}
-
-	void optionEscape(String escapeChars, StringBuilder buf) {
-		if ((pointer < patternLength)) {
-			char next = pattern.charAt(pointer++);
-			optionEscapeUtil.escape(escapeChars, buf, next, pointer);
 		}
 	}
 

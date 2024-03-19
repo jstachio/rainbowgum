@@ -2,6 +2,8 @@ package io.jstach.rainbowgum.pattern.internal;
 
 import java.util.List;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 class Token {
 
 	static final int PERCENT = 37;
@@ -32,7 +34,7 @@ class Token {
 
 	private final String value;
 
-	private final List<String> optionsList;
+	private final @Nullable List<String> optionsList;
 
 	public Token(int type) {
 		this(type, null, null);
@@ -64,64 +66,64 @@ class Token {
 		return optionsList;
 	}
 
-	public String toString() {
-		String typeStr = null;
-		switch (type) {
-
-			case PERCENT:
-				typeStr = "%";
-				break;
-			case FORMAT_MODIFIER:
-				typeStr = "FormatModifier";
-				break;
-			case LITERAL:
-				typeStr = "LITERAL";
-				break;
-			case OPTION:
-				typeStr = "OPTION";
-				break;
-			case SIMPLE_KEYWORD:
-				typeStr = "SIMPLE_KEYWORD";
-				break;
-			case COMPOSITE_KEYWORD:
-				typeStr = "COMPOSITE_KEYWORD";
-				break;
-			case RIGHT_PARENTHESIS:
-				typeStr = "RIGHT_PARENTHESIS";
-				break;
-			default:
-				typeStr = "UNKNOWN";
-		}
-		if (value == null) {
-			return "Token(" + typeStr + ")";
-
-		}
-		else {
-			return "Token(" + typeStr + ", \"" + value + "\")";
-		}
-	}
-
-	public int hashCode() {
-		int result;
-		result = type;
-		result = 29 * result + (value != null ? value.hashCode() : 0);
-		return result;
-	}
-
-	public boolean equals(Object o) {
-		if (this == o)
-			return true;
-		if (!(o instanceof Token))
-			return false;
-
-		final Token token = (Token) o;
-
-		if (type != token.type)
-			return false;
-		if (value != null ? !value.equals(token.value) : token.value != null)
-			return false;
-
-		return true;
-	}
+	// public String toString() {
+	// String typeStr = null;
+	// switch (type) {
+	//
+	// case PERCENT:
+	// typeStr = "%";
+	// break;
+	// case FORMAT_MODIFIER:
+	// typeStr = "FormatModifier";
+	// break;
+	// case LITERAL:
+	// typeStr = "LITERAL";
+	// break;
+	// case OPTION:
+	// typeStr = "OPTION";
+	// break;
+	// case SIMPLE_KEYWORD:
+	// typeStr = "SIMPLE_KEYWORD";
+	// break;
+	// case COMPOSITE_KEYWORD:
+	// typeStr = "COMPOSITE_KEYWORD";
+	// break;
+	// case RIGHT_PARENTHESIS:
+	// typeStr = "RIGHT_PARENTHESIS";
+	// break;
+	// default:
+	// typeStr = "UNKNOWN";
+	// }
+	// if (value == null) {
+	// return "Token(" + typeStr + ")";
+	//
+	// }
+	// else {
+	// return "Token(" + typeStr + ", \"" + value + "\")";
+	// }
+	// }
+	//
+	// public int hashCode() {
+	// int result;
+	// result = type;
+	// result = 29 * result + (value != null ? value.hashCode() : 0);
+	// return result;
+	// }
+	//
+	// public boolean equals(Object o) {
+	// if (this == o)
+	// return true;
+	// if (!(o instanceof Token))
+	// return false;
+	//
+	// final Token token = (Token) o;
+	//
+	// if (type != token.type)
+	// return false;
+	// if (value != null ? !value.equals(token.value) : token.value != null)
+	// return false;
+	//
+	// return true;
+	// }
 
 }

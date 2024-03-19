@@ -27,17 +27,17 @@ class OptionTokenizer {
 
 	private final static int QUOTED_COLLECTING_STATE = 2;
 
-	final ParserEscaper parserEscaper;
+	private final ParserEscaper parserEscaper;
 
-	final TokenStream tokenStream;
+	private final TokenStream tokenStream;
 
-	final String pattern;
+	private final String pattern;
 
-	final int patternLength;
+	private final int patternLength;
 
-	char quoteChar;
+	private char quoteChar;
 
-	int state = EXPECTING_STATE;
+	private int state = EXPECTING_STATE;
 
 	OptionTokenizer(TokenStream tokenStream) {
 		this(tokenStream, new AsIsEscaper());
