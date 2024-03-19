@@ -1,0 +1,7 @@
+package java.lang;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public final class StackWalker {
+  public <T extends @Nullable Object> T walk(Function<? super Stream<StackFrame>, ? extends T> function) { }
+}

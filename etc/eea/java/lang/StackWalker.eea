@@ -19,4 +19,4 @@ getInstance
  (L1java/util/Set<L1java/lang/StackWalker$Option;>;I)L1java/lang/StackWalker;
 walk
  <T:Ljava/lang/Object;>(Ljava/util/function/Function<-Ljava/util/stream/Stream<Ljava/lang/StackWalker$StackFrame;>;+TT;>;)TT;
- <T:Ljava/lang/Object;>(L1java/util/function/Function<-1L1java/util/stream/Stream<L1java/lang/StackWalker$StackFrame;>;+1T1T;>;)T1T;
+ <T:Ljava/lang/Object;>(L1java/util/function/Function<-1L1java/util/stream/Stream<L1java/lang/StackWalker$StackFrame;>;+1TT;>;)T1T;
