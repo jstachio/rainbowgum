@@ -331,7 +331,8 @@ class LogEventTest {
 	private static final StackWalker stackWalker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
 
 	private static @Nullable Caller caller(int depth) {
-		return stackWalker.<@Nullable Caller>walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
+		return stackWalker
+			.<@Nullable Caller>walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
 
 	}
 

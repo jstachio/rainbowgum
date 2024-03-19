@@ -29,14 +29,14 @@ class RainbowGumServiceProviderTest {
 		// TODO Ideally we mock a class loader here
 		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
 		System.setProperty(RainbowGumServiceProviderTest.class.getName(), "test");
-			var config = RainbowGumServiceProvider.provideConfig(loader);
-			assertNotNull(config);
-			String value = config.properties().valueOrNull(RainbowGumServiceProviderTest.class.getName());
-			assertEquals("test", value);
+		var config = RainbowGumServiceProvider.provideConfig(loader);
+		assertNotNull(config);
+		String value = config.properties().valueOrNull(RainbowGumServiceProviderTest.class.getName());
+		assertEquals("test", value);
 
 		// checker will not allow this.
 		// for now it really doesn't hurt anything.
-		//System.clearProperty(RainbowGumServiceProviderTest.class.getName());
+		// System.clearProperty(RainbowGumServiceProviderTest.class.getName());
 
 	}
 
