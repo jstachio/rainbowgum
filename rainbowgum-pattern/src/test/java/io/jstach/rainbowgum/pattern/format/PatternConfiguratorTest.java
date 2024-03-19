@@ -45,6 +45,25 @@ class PatternConfiguratorTest {
 				""") {
 
 		},
+		ANSI_DISABLE("""
+				[main] INFO  c.p.test.Test - hello
+				[main] WARN  c.p.test.Test - hello
+				[main] ERROR c.p.test.Test - hello
+				""") {
+			@Override
+			String properties() {
+				return """
+						logging.appenders=console,list
+						logging.appender.list.output=list
+						logging.appender.list.encoder=pattern
+						logging.appender.console.output=stdout
+						logging.appender.console.encoder=pattern
+						logging.encoder.console.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+						logging.encoder.list.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+						logging.global.ansi.disable=true
+						""";
+			}
+		},
 		CUSTOM_KEYWORD("""
 				INFO  blah
 				WARN  blah

@@ -29,7 +29,7 @@ public class Parser {
 
 	// public final static Map<String, String> DEFAULT_COMPOSITE_CONVERTER_MAP = new
 	// HashMap<String, String>();
-	final static String REPLACE_CONVERTER_WORD = "replace";
+	// private final static String REPLACE_CONVERTER_WORD = "replace";
 
 	// static {
 	// DEFAULT_COMPOSITE_CONVERTER_MAP.put(Token.BARE_COMPOSITE_KEYWORD_TOKEN.getValue().toString(),
@@ -38,13 +38,9 @@ public class Parser {
 	// ReplacingCompositeConverter.class.getName());
 	// }
 
-	final List<Token> tokenList;
+	private final List<Token> tokenList;
 
-	int pointer = 0;
-
-	Parser(TokenStream ts) throws ScanException {
-		this.tokenList = ts.tokenize();
-	}
+	private int pointer = 0;
 
 	public Parser(String pattern) throws ScanException {
 		this(pattern, new RegularEscaper());

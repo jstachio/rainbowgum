@@ -67,10 +67,6 @@ interface Abbreviator {
 		}
 
 		public String abbreviate(String fqClassName) {
-			if (fqClassName == null) {
-				throw new IllegalArgumentException("Class name may not be null");
-			}
-
 			int inLen = fqClassName.length();
 			if (inLen < targetLength) {
 				return fqClassName;

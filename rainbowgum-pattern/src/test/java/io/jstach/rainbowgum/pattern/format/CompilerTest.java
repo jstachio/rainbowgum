@@ -1,10 +1,6 @@
 package io.jstach.rainbowgum.pattern.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
@@ -17,7 +13,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.KeyValues;
-import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
@@ -30,7 +25,10 @@ class CompilerTest {
 	@ParameterizedTest
 	@EnumSource(value = PatternTest.class)
 	void test(PatternTest test) {
-		Compiler c = new Compiler(PatternRegistry.of(), test.patternConfig());
+		var c = PatternCompiler.builder()
+			.patternRegistry(PatternRegistry.of())
+			.patternConfig(test.patternConfig())
+			.build();
 		for (String input : test.inputs) {
 			StringBuilder sb = new StringBuilder();
 			var formatter = c.compile(input);
@@ -58,11 +56,22 @@ class CompilerTest {
 		}
 	}
 
+	@Test
+	void testMissingKeyword() throws Exception {
+		PatternConfig config = PatternConfig.builder().build();
+		var c = PatternCompiler.builder().patternConfig(config).build();
+		var e = assertThrows(IllegalArgumentException.class, () -> {
+			c.compile("%missing");
+		});
+		String message = e.getMessage();
+		assertEquals("Pattern is invalid: %missing", message);
+	}
+
 	public static final boolean OUTPUT = true;
 
 	enum PatternTest {
 
-		DATE(List.of("%d", "%date"), "1970-01-01 00:00:00,000") {
+		BARE("%BARE", ""), DATE(List.of("%d", "%date"), "1970-01-01 00:00:00,000") {
 			@Override
 			protected void assertFormatter(LogFormatter formatter) {
 				assertInstanceOf(TimestampFormatter.class, formatter);
@@ -80,13 +89,17 @@ class CompilerTest {
 				return LogEvent.withCaller(super.event(), caller);
 			}
 		},
-		/*
-		 * The line will change if you modify the test... sorry.
-		 */
-		LINE(List.of("%L", "%line"), "37") {
+		LINE(List.of("%L", "%line"), "OK") {
 			@Override
 			protected void assertFormatter(LogFormatter formatter) {
 				assertEquals(CallerInfoFormatter.LINE, formatter);
+			}
+
+			@Override
+			protected String filter(String output) {
+				int i = Integer.parseInt(output);
+				assertTrue(i > 0);
+				return "OK";
 			}
 
 			LogEvent event() {

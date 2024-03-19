@@ -1,7 +1,10 @@
 package io.jstach.rainbowgum.pattern.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -17,12 +20,39 @@ class ParserTest {
 		assertEquals(expected, actual);
 	}
 
+	@Test
+	void testFail() {
+		assertThrows(ScanException.class, () -> {
+			String input = "";
+			Parser parser = new Parser(input);
+			parser.parse();
+		});
+		assertThrows(IllegalStateException.class, () -> {
+			String input = "\\";
+			Parser parser = new Parser(input);
+			parser.parse();
+		});
+		Throwable e = assertThrows(ScanException.class, () -> {
+			String input = "\\p";
+			Parser parser = new Parser(input);
+			parser.parse();
+		});
+		while (e.getCause() != null) {
+			e = e.getCause();
+		}
+		assertInstanceOf(IllegalArgumentException.class, e);
+		String actual = e.getMessage();
+		assertEquals(
+				"Illegal char 'p at column 2. Only \\\\, \\_, \\%, \\(, \\), \\t, \\n, \\r combinations are allowed as escape characters.",
+				actual);
+	}
+
 }
 
 // @formatter:off
 enum ParserResult {
 	space(" ", "LITERAL[' ']"),
-	escape("\\_\\%(stuff\\) \\\\ \\t \\n", "LITERAL['%(stuff) \\ \t \n']"),
+	escape("\\_\\%(stuff\\) \\\\ \\t \\r\\n", "LITERAL['%(stuff) \\ \t \r\n']"),
 	escape_option("%blah{\" \\\" \"}", "KEYWORD['blah', options=[ \\\" ]]"),
 	keyword_first("%xyz", "KEYWORD['xyz']"),
 	keyword("hello%xyz", "LITERAL['hello'], KEYWORD['xyz']"),

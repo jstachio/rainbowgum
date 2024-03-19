@@ -5,6 +5,7 @@ import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFact
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 import io.jstach.rainbowgum.pattern.internal.Node;
 import io.jstach.rainbowgum.pattern.internal.Parser;
+import io.jstach.rainbowgum.pattern.internal.ScanException;
 import io.jstach.rainbowgum.pattern.internal.Node.CompositeNode;
 import io.jstach.rainbowgum.pattern.internal.Node.End;
 import io.jstach.rainbowgum.pattern.internal.Node.FormattingNode;
@@ -98,8 +99,13 @@ final class Compiler implements PatternCompiler {
 
 	@Override
 	public LogFormatter compile(String pattern) {
-		Parser p = new Parser(pattern);
-		return compile(p.parse());
+		try {
+			Parser p = new Parser(pattern);
+			return compile(p.parse());
+		}
+		catch (ScanException | IllegalStateException e) {
+			throw new IllegalArgumentException("Pattern is invalid: " + pattern, e);
+		}
 	}
 
 	LogFormatter compile(Node start) {

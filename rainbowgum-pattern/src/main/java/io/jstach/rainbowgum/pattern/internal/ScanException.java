@@ -1,10 +1,15 @@
 package io.jstach.rainbowgum.pattern.internal;
 
-class ScanException extends RuntimeException {
+import org.eclipse.jdt.annotation.Nullable;
+
+/**
+ * @hidden
+ */
+public class ScanException extends RuntimeException {
 
 	private static final long serialVersionUID = -3132040414328475658L;
 
-	Throwable cause;
+	private @Nullable Throwable cause;
 
 	public ScanException(String msg) {
 		super(msg);
@@ -15,7 +20,7 @@ class ScanException extends RuntimeException {
 		this.cause = rootCause;
 	}
 
-	public Throwable getCause() {
+	public @Nullable Throwable getCause() {
 		return cause;
 	}
 

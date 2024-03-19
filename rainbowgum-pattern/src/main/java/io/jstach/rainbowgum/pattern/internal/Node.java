@@ -9,12 +9,6 @@ import io.jstach.rainbowgum.pattern.PatternKeyword;
 
 public sealed interface Node {
 
-	public enum NodeKind {
-
-		LITERAL, KEYWORD, COMPOSITE
-
-	}
-
 	public static End end() {
 		return End.END;
 	}
@@ -25,10 +19,6 @@ public sealed interface Node {
 
 		public void prettyPrint(StringBuilder sb) {
 			sb.append("END");
-		}
-
-		public Node nextOrNull() {
-			return null;
 		}
 
 	}
@@ -52,14 +42,6 @@ public sealed interface Node {
 
 		public Node next();
 
-		default NodeKind kind() {
-			return switch (this) {
-				case LiteralNode n -> NodeKind.LITERAL;
-				case KeywordNode n -> NodeKind.KEYWORD;
-				case CompositeNode n -> NodeKind.COMPOSITE;
-			};
-		}
-
 	}
 
 	public record LiteralNode(Node next, String value) implements HasNext {
@@ -75,10 +57,6 @@ public sealed interface Node {
 
 	public record KeywordNode(Node next, @Nullable Padding padding, String keyword,
 			List<String> optionList) implements FormattingNode {
-
-		public List<String> getOptions() {
-			return optionList;
-		}
 
 		public void prettyPrint(StringBuilder sb) {
 			sb.append("KEYWORD[").append("'").append(keyword).append("'");

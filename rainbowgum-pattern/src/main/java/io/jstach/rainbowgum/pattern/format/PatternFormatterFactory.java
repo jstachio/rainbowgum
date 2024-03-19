@@ -202,7 +202,7 @@ enum BareCompositeFactory implements CompositeFactory {
 
 }
 
-class ANSIConstants {
+final class ANSIConstants {
 
 	final static String ESC_START = "\033[";
 
