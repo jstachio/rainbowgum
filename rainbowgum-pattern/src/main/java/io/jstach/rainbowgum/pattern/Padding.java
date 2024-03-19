@@ -42,10 +42,6 @@ public record Padding(int min, int max, boolean leftPad, boolean leftTruncate) {
 	 * @throws IllegalArgumentException if the pattern is not valid.
 	 */
 	public static Padding valueOf(String str) throws IllegalArgumentException {
-		if (str == null) {
-			throw new NullPointerException("Argument cannot be null");
-		}
-
 		int min = Integer.MIN_VALUE;
 		int max = Integer.MAX_VALUE;
 		boolean leftPad = true;

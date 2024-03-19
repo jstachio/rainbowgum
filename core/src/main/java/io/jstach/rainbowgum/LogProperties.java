@@ -302,32 +302,31 @@ public interface LogProperties {
 
 	/**
 	 * Searches up a {@value #SEP} separated path using this properties to check for
-	 * values.
+	 * values. The first value not missing (not <code>null</code>) will be returned.
 	 * @param root prefix.
 	 * @param key should start with prefix.
-	 * @return closest value.
-	 * @see #searchPath(String, Function)
+	 * @return closest value or <code>null</code> if no value can be found.
+	 * @see #findUpPathOrNull(String, Function)
 	 */
-	default @Nullable String search(String root, String key) {
-		return search(root, key, (p, k) -> p.valueOrNull(k));
-		// return searchPath(key, k -> valueOrNull(concatKey(root, k)));
-
+	default @Nullable String findOrNull(String root, String key) {
+		return findOrNull(root, key, (p, k) -> p.valueOrNull(k));
 	}
 
 	/**
 	 * Searches up a {@value #SEP} separated path using this properties to check for
-	 * values.
+	 * values. The first value not missing (not <code>null</code>) will be returned.
 	 * @param <T> result type
 	 * @param root prefix.
 	 * @param key should start with prefix.
-	 * @param func convert function
-	 * @return closest value.
-	 * @see #searchPath(String, Function)
+	 * @param func convert function where <code>null</code> return means to keep
+	 * searching.
+	 * @return closest value or <code>null</code> if no value can be found.
+	 * @see #findUpPathOrNull(String, Function)
 	 */
 	@SuppressWarnings("exports")
-	default <T extends @Nullable Object> @Nullable T search(String root, String key,
+	default <T extends @Nullable Object> @Nullable T findOrNull(String root, String key,
 			BiFunction<LogProperties, String, @Nullable T> func) {
-		return searchPath(key, k -> func.apply(this, concatKey(root, k)));
+		return findUpPathOrNull(key, k -> func.apply(this, concatKey(root, k)));
 	}
 
 	/**
@@ -1100,10 +1099,10 @@ public interface LogProperties {
 	 * @param <T> type to return.
 	 * @param key the initial path.
 	 * @param resolveFunc function that returns the value at path or <code>null</code>.
-	 * @return value or <code>null</code>.
+	 * @return value or <code>null</code> if no non null value can be found.
 	 */
 	@SuppressWarnings("exports")
-	public static <T extends @Nullable Object> @Nullable T searchPath(String key,
+	public static <T extends @Nullable Object> @Nullable T findUpPathOrNull(String key,
 			Function<String, @Nullable T> resolveFunc) {
 		return searchPath(key, resolveFunc, SEP);
 	}
@@ -1652,7 +1651,7 @@ public interface LogProperties {
 			// @Override
 			private @Nullable String valueOrNull(LogProperties props, String key) {
 				if (search) {
-					return props.search(prefix, key);
+					return props.findOrNull(prefix, key);
 				}
 				return props.valueOrNull(fullyQualifiedKey(key));
 			}
@@ -1660,7 +1659,7 @@ public interface LogProperties {
 			private <T> @Nullable T valueOrNull(LogProperties props, String key,
 					BiFunction<LogProperties, String, @Nullable T> func) {
 				if (search) {
-					return props.search(prefix, key, func);
+					return props.findOrNull(prefix, key, func);
 				}
 				return func.apply(props, fullyQualifiedKey(key));
 			}

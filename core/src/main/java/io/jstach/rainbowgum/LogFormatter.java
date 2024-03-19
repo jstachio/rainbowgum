@@ -875,10 +875,6 @@ record CompositeFormatter(LogFormatter[] formatters) implements EventFormatter {
 		return getClass().getSimpleName() + Arrays.toString(formatters);
 	}
 
-	public static List<LogFormatter> flatten(CompositeFormatter formatter) {
-		return List.copyOf(_flatten(formatter));
-	}
-
 	public static List<LogFormatter> flatten(List<? extends LogFormatter> formatters) {
 		return List.copyOf(_flatten(formatters));
 	}

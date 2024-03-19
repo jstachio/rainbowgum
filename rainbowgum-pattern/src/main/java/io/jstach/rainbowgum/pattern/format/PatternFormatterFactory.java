@@ -318,9 +318,7 @@ enum ColorCompositeFactory implements CompositeFactory {
 		var b = LogFormatter.builder();
 		if (ansi) {
 			b.text(ANSIConstants.ESC_START);
-		}
-		b.text(fg);
-		if (ansi) {
+			b.text(fg);
 			b.text(ANSIConstants.ESC_END);
 		}
 		if (child != null) {
@@ -355,6 +353,9 @@ record PadFormatter(Padding padding, LogFormatter formatter) implements LogForma
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
+		/*
+		 * TODO revisit formatting without using a temp buffer
+		 */
 		StringBuilder buf = new StringBuilder();
 		formatter.format(buf, event);
 		padding.format(output, buf);

@@ -55,6 +55,19 @@ public sealed interface PatternConfig extends Configurator {
 	}
 
 	/**
+	 * Copies the config to builder.
+	 * @param builder to receive properties.
+	 * @param config to copy from.
+	 * @return builder passed in.
+	 */
+	public static PatternConfigBuilder copy(PatternConfigBuilder builder, PatternConfig config) {
+		builder.ansiDisabled(config.ansiDisabled());
+		builder.lineSeparator(config.lineSeparator());
+		builder.zoneId(config.zoneId());
+		return builder;
+	}
+
+	/**
 	 * Default config.
 	 * @return default config.
 	 */

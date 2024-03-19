@@ -241,7 +241,7 @@ public interface LevelResolver {
 
 	private static Level resolveLevel(LevelConfig levelBindings, String name) {
 		Function<String, @Nullable Level> f = s -> allToNull(levelBindings.levelOrNull(s));
-		var level = LogProperties.searchPath(name, f);
+		var level = LogProperties.findUpPathOrNull(name, f);
 		if (level != null) {
 			return level;
 		}

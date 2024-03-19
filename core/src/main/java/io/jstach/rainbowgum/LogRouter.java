@@ -473,7 +473,7 @@ sealed interface InternalRootRouter extends RootRouter {
 	 */
 	static void setRouter(RootRouter router) {
 		if (GlobalLogRouter.INSTANCE == router) {
-			throw new IllegalArgumentException();
+			return;
 		}
 		GlobalLogRouter.INSTANCE.drain((InternalRootRouter) router);
 	}
