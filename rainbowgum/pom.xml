@@ -54,6 +54,11 @@
   <profiles>
     <profile>
       <id>codecover</id>
+      <activation>
+        <property>
+          <name>codecover</name>
+        </property>
+      </activation>
       <build>
         <plugins>
           <plugin>
