@@ -42,3 +42,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: jstachio/rainbowgum
+          files: ./rainbowgum/target/site/jacoco-aggregate/jacoco.xml

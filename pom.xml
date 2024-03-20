@@ -883,6 +883,11 @@
                 <goals>
                   <goal>prepare-agent</goal>
                 </goals>
+                <!--
+                <configuration>
+                  <destFile>${parent.root}/target/${project.artifactId}.exec</destFile>
+                </configuration>
+                -->
               </execution>
               <execution>
                 <id>report</id>
@@ -890,8 +895,24 @@
                 <goals>
                   <goal>report</goal>
                 </goals>
+                <!--
+                <configuration>
+                  <dataFile>${parent.root}/target/${project.artifactId}.exec</dataFile>
+                </configuration>
+                -->
               </execution>
             </executions>
+            
+            <configuration>
+              <fileSets>
+                <fileSet>
+                  <directory>${project.build.directory}</directory>
+                  <includes>
+                    <include>*.exec</include>
+                  </includes>
+                </fileSet>
+              </fileSets>
+            </configuration>
           </plugin>
         </plugins>
       </build>
