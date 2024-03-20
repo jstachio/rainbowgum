@@ -44,4 +44,4 @@ jobs:
           slug: jstachio/rainbowgum
           fail_ci_if_error: true
           disable_search: true
-          files: rainbowgum/target/site/jacoco-aggregate/jacoco.xml
+          files: ${{ github.workspace }}/rainbowgum/target/site/jacoco-aggregate/jacoco.xml
