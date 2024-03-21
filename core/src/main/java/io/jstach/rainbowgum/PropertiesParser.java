@@ -1,8 +1,6 @@
 package io.jstach.rainbowgum;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.io.Reader;
 import java.io.StringReader;
@@ -18,7 +16,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -107,52 +104,6 @@ public final class PropertiesParser {
 			if (!line.startsWith("#")) {
 				sb.append(line).append(System.lineSeparator());
 			}
-		}
-	}
-
-	enum PropertiesFormat {
-
-		PROPERTIES, XML
-
-	}
-
-	static Map<String, String> readProperties(InputStream s) throws IOException {
-		return readProperties(s, PropertiesFormat.PROPERTIES);
-	}
-
-	private static Map<String, String> readProperties(InputStream s, PropertiesFormat format) throws IOException {
-		final Map<String, String> ordered = new LinkedHashMap<>();
-
-		try {
-			switch (format) {
-				case PROPERTIES: {
-					LineNumberReader lr = new LineNumberReader(new InputStreamReader(s, StandardCharsets.UTF_8));
-					Properties bp = prepareProperties((k, v) -> {
-						if (ordered.containsKey(k)) {
-							throw new DuplicateKeyException(k, lr.getLineNumber());
-						}
-						ordered.put(k, v);
-					});
-					bp.load(lr);
-					break;
-				}
-				case XML: {
-					AtomicInteger i = new AtomicInteger();
-					Properties bp = prepareProperties((k, v) -> {
-						i.incrementAndGet();
-						if (ordered.containsKey(k)) {
-							throw new DuplicateKeyException(k, i.get());
-						}
-						ordered.put(k, v);
-					});
-					bp.loadFromXML(s);
-					break;
-				}
-			}
-			return ordered;
-		}
-		catch (DuplicateKeyException e) {
-			throw new IOException("Duplicate key detected. key: '" + e.key + "' line: " + e.lineNumber, e);
 		}
 	}
 
