@@ -75,7 +75,7 @@ class LogMessageFormatterTest {
 		assertTwoArg(expected, arg1, arg2, message);
 	}
 
-	@SuppressWarnings("null")
+	@SuppressWarnings({"null", "nullness"})
 	private void assertTwoArg(String expected, Arg arg1, Arg arg2, String message) {
 		StringBuilder builder = new StringBuilder();
 		formatter.format(builder, message, arg1.arg, arg2.arg);
