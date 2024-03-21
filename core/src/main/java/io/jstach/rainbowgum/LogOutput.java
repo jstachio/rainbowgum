@@ -8,13 +8,10 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import io.jstach.rainbowgum.LogEncoder.Buffer;
-import io.jstach.rainbowgum.LogOutput.ThreadSafeLogOutput;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**

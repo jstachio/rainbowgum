@@ -112,6 +112,7 @@ class LogMessageFormatterTest {
 
 	}
 
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum Arg {
 
 		BAD("[FAILED toString()]", new BadToString()), //
