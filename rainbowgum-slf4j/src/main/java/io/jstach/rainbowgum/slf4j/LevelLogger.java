@@ -313,8 +313,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
-		public LoggingEventBuilder atWarn() {
-			return makeLoggingEventBuilder(Level.WARN);
+		public LoggingEventBuilder atError() {
+			return makeLoggingEventBuilder(Level.ERROR);
 		}
 
 		@Override
@@ -375,6 +375,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void error(Marker marker, String msg, Throwable t) {
 			handle(Level.ERROR, msg, t);
+		}
+
+		@Override
+		public LoggingEventBuilder atWarn() {
+			return makeLoggingEventBuilder(Level.WARN);
 		}
 
 		@Override
@@ -597,8 +602,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
-		public LoggingEventBuilder atInfo() {
-			return makeLoggingEventBuilder(Level.INFO);
+		public LoggingEventBuilder atError() {
+			return makeLoggingEventBuilder(Level.ERROR);
 		}
 
 		@Override
@@ -662,6 +667,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public LoggingEventBuilder atWarn() {
+			return makeLoggingEventBuilder(Level.WARN);
+		}
+
+		@Override
 		public boolean isWarnEnabled() {
 			return true;
 		}
@@ -719,6 +729,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void warn(Marker marker, String msg, Throwable t) {
 			handle(Level.WARN, msg, t);
+		}
+
+		@Override
+		public LoggingEventBuilder atInfo() {
+			return makeLoggingEventBuilder(Level.INFO);
 		}
 
 		@Override
@@ -891,8 +906,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
-		public LoggingEventBuilder atDebug() {
-			return makeLoggingEventBuilder(Level.DEBUG);
+		public LoggingEventBuilder atError() {
+			return makeLoggingEventBuilder(Level.ERROR);
 		}
 
 		@Override
@@ -956,6 +971,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public LoggingEventBuilder atWarn() {
+			return makeLoggingEventBuilder(Level.WARN);
+		}
+
+		@Override
 		public boolean isWarnEnabled() {
 			return true;
 		}
@@ -1016,6 +1036,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public LoggingEventBuilder atInfo() {
+			return makeLoggingEventBuilder(Level.INFO);
+		}
+
+		@Override
 		public boolean isInfoEnabled() {
 			return true;
 		}
@@ -1073,6 +1098,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void info(Marker marker, String msg, Throwable t) {
 			handle(Level.INFO, msg, t);
+		}
+
+		@Override
+		public LoggingEventBuilder atDebug() {
+			return makeLoggingEventBuilder(Level.DEBUG);
 		}
 
 		@Override
@@ -1195,8 +1225,8 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
-		public LoggingEventBuilder atTrace() {
-			return makeLoggingEventBuilder(Level.TRACE);
+		public LoggingEventBuilder atError() {
+			return makeLoggingEventBuilder(Level.ERROR);
 		}
 
 		@Override
@@ -1260,6 +1290,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public LoggingEventBuilder atWarn() {
+			return makeLoggingEventBuilder(Level.WARN);
+		}
+
+		@Override
 		public boolean isWarnEnabled() {
 			return true;
 		}
@@ -1317,6 +1352,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void warn(Marker marker, String msg, Throwable t) {
 			handle(Level.WARN, msg, t);
+		}
+
+		@Override
+		public LoggingEventBuilder atInfo() {
+			return makeLoggingEventBuilder(Level.INFO);
 		}
 
 		@Override
@@ -1380,6 +1420,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 
 		@Override
+		public LoggingEventBuilder atDebug() {
+			return makeLoggingEventBuilder(Level.DEBUG);
+		}
+
+		@Override
 		public boolean isDebugEnabled() {
 			return true;
 		}
@@ -1437,6 +1482,11 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		@Override
 		public void debug(Marker marker, String msg, Throwable t) {
 			handle(Level.DEBUG, msg, t);
+		}
+
+		@Override
+		public LoggingEventBuilder atTrace() {
+			return makeLoggingEventBuilder(Level.TRACE);
 		}
 
 		@Override

@@ -113,12 +113,15 @@ public class CodeTemplates {
 					appender.log(event);
 				}
 
+				{{#levels}}
+
+				{{#isEnabled}}
 				@Override
-				public LoggingEventBuilder {{level.atName}}() {
+				public LoggingEventBuilder {{atName}}() {
 					return makeLoggingEventBuilder(Level.{{level.name}});
 				}
+				{{/isEnabled}}
 
-				{{#levels}}
 				@Override
 				public boolean {{enabledMethodName}}() {
 					{{#isEnabled}}
@@ -220,6 +223,137 @@ public class CodeTemplates {
 	}
 
 	public static final String changeLoggerTemplate = """
+			package io.jstach.rainbowgum.slf4j;
+
+			import static org.slf4j.event.EventConstants.DEBUG_INT;
+			import static org.slf4j.event.EventConstants.ERROR_INT;
+			import static org.slf4j.event.EventConstants.INFO_INT;
+			import static org.slf4j.event.EventConstants.TRACE_INT;
+			import static org.slf4j.event.EventConstants.WARN_INT;
+
+			import java.lang.StackWalker.Option;
+
+			import org.eclipse.jdt.annotation.Nullable;
+			import org.slf4j.Marker;
+			import org.slf4j.event.Level;
+			import org.slf4j.spi.LoggingEventBuilder;
+			import org.slf4j.spi.NOPLoggingEventBuilder;
+
+			import io.jstach.rainbowgum.LogEvent;
+			import io.jstach.rainbowgum.LogEvent.Caller;
+			import io.jstach.rainbowgum.LogEventLogger;
+			import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAware;
+
+			class ChangeableLogger implements BaseLogger, DepthAware {
+
+				private final String loggerName;
+
+				private final LogEventLogger eventLogger;
+
+				private final RainbowGumMDCAdapter mdc;
+
+				private volatile int level;
+
+				private volatile boolean callerInfo;
+
+				private static final int DEPTH_DELTA = 7;
+
+				private int depth = DEPTH_DELTA;
+
+				ChangeableLogger(String loggerName, LogEventLogger eventLogger, RainbowGumMDCAdapter mdc, int level,
+						boolean callerInfo) {
+					super();
+					this.loggerName = loggerName;
+					this.eventLogger = eventLogger;
+					this.mdc = mdc;
+					this.level = level;
+					this.callerInfo = callerInfo;
+				}
+
+				@Override
+				public RainbowGumMDCAdapter mdc() {
+					return mdc;
+				}
+
+				@Override
+				public String loggerName() {
+					return this.loggerName;
+				}
+
+				@Override
+				public void handle(LogEvent event) {
+					/*
+					 * TODO perhaps we wrap callerInfo here instead.
+					 */
+					eventLogger.log(event);
+				}
+
+				@Override
+				public void handle(LogEvent event, int depth) {
+					var e = addCallerInfo(event, depth);
+					handle(e);
+				}
+
+				void setLevel(int level) {
+					this.level = level;
+				}
+
+				@Override
+				public void setDepth(int index, int depth) {
+					this.depth = index + DEPTH_DELTA;
+
+				}
+
+				@Override
+				public String toString() {
+					return "ChangeableLogger[loggerName=" + loggerName + ", level=" + level + "]";
+				}
+
+				private static final StackWalker stackWalker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
+
+				private @Nullable Caller caller(int depth) {
+					return stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
+
+				}
+
+				@Override
+				public LogEvent event(Level level, String formattedMessage, @Nullable Throwable throwable) {
+					return addCallerInfo(BaseLogger.super.event(level, formattedMessage, throwable));
+				}
+
+				LogEvent addCallerInfo(LogEvent e) {
+					return addCallerInfo(e, this.depth);
+				}
+
+				LogEvent addCallerInfo(LogEvent e, int depth) {
+					if (callerInfo) {
+						var found = caller(depth);
+						if (found != null) {
+							return LogEvent.withCaller(e, found);
+						}
+					}
+					return e;
+				}
+
+				@Override
+				public LogEvent event0(Level level, String formattedMessage) {
+					return addCallerInfo(BaseLogger.super.event0(level, formattedMessage));
+				}
+
+				@Override
+				public LogEvent event1(Level level, String message, Object arg1) {
+					return addCallerInfo(BaseLogger.super.event1(level, message, arg1));
+				}
+
+				@Override
+				public LogEvent event2(Level level, String message, Object arg1, Object arg2) {
+					return addCallerInfo(BaseLogger.super.event2(level, message, arg1, arg2));
+				}
+
+				@Override
+				public LogEvent eventArray(Level level, String message, Object[] args) {
+					return addCallerInfo(BaseLogger.super.eventArray(level, message, args));
+				}
 
 				{{#levels}}
 
@@ -267,6 +401,13 @@ public class CodeTemplates {
 				}
 
 				@Override
+				public void {{methodName}}(String msg, Throwable t) {
+					if ( {{enabledMethodName}}() ) {
+						handle(Level.{{name}}, msg, t);
+					}
+				}
+
+				@Override
 				public boolean {{enabledMethodName}}(Marker marker) {
 					return {{enabledMethodName}}();
 				}
@@ -306,7 +447,7 @@ public class CodeTemplates {
 					}
 				}
 				{{/levels}}
-
+			}
 			""";
 
 	@JStache(template = forwardLoggerTemplate)
@@ -367,6 +508,11 @@ public class CodeTemplates {
 				@Override
 				default void {{methodName}}(String format, Object... arguments) {
 					{{delegate}}.{{methodName}}(format, arguments);
+				}
+
+				@Override
+				default void {{methodName}}(String msg, Throwable t) {
+					{{delegate}}.{{methodName}}(msg, t);
 				}
 
 				@Override

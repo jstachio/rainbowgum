@@ -1,54 +1,16 @@
 package io.jstach.rainbowgum.slf4j;
 
-import org.eclipse.jdt.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.event.Level;
 import static org.slf4j.event.EventConstants.DEBUG_INT;
 import static org.slf4j.event.EventConstants.ERROR_INT;
 import static org.slf4j.event.EventConstants.INFO_INT;
 import static org.slf4j.event.EventConstants.TRACE_INT;
 import static org.slf4j.event.EventConstants.WARN_INT;
 
+import org.slf4j.event.Level;
+
 class Levels {
 
 	static final int OFF_INT = -1;
-
-	static boolean isEnabled(Logger logger, Level level) {
-		return switch (level) {
-			case DEBUG -> logger.isDebugEnabled();
-			case ERROR -> logger.isErrorEnabled();
-			case INFO -> logger.isInfoEnabled();
-			case TRACE -> logger.isTraceEnabled();
-			case WARN -> logger.isWarnEnabled();
-		};
-	}
-
-	static boolean isEnabled(System.Logger.Level current, System.Logger.Level level) {
-		return current.getSeverity() <= level.getSeverity();
-	}
-
-	static void log(Logger logger, Level level, String msg, @Nullable Throwable cause) {
-		if (cause == null) {
-			switch (level) {
-				case DEBUG -> logger.debug(msg);
-				case ERROR -> logger.error(msg);
-				case INFO -> logger.info(msg);
-				case TRACE -> logger.trace(msg);
-				case WARN -> logger.warn(msg);
-			}
-			;
-		}
-		else {
-			switch (level) {
-				case DEBUG -> logger.debug(msg, cause);
-				case ERROR -> logger.error(msg, cause);
-				case INFO -> logger.info(msg, cause);
-				case TRACE -> logger.trace(msg, cause);
-				case WARN -> logger.warn(msg, cause);
-			}
-			;
-		}
-	}
 
 	static String toString(System.Logger.Level level) {
 		return toSlf4jLevel(level).name();

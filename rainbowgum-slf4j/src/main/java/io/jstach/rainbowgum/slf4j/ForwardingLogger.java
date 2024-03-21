@@ -6,7 +6,7 @@ import org.slf4j.Marker;
 /**
  * A logger that forwards calls to the {@link #delegate()} logger.
  */
-public interface ForwardingLogger extends Logger, WrappingLogger {
+public interface ForwardingLogger extends Logger {
 
 	/**
 	 * The downstream logger to forward calls to.
@@ -42,6 +42,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	@Override
 	default void error(String format, Object... arguments) {
 		delegate().error(format, arguments);
+	}
+
+	@Override
+	default void error(String msg, Throwable t) {
+		delegate().error(msg, t);
 	}
 
 	@Override
@@ -100,6 +105,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	}
 
 	@Override
+	default void warn(String msg, Throwable t) {
+		delegate().warn(msg, t);
+	}
+
+	@Override
 	default boolean isWarnEnabled(Marker marker) {
 		return delegate().isWarnEnabled(marker);
 	}
@@ -152,6 +162,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	@Override
 	default void info(String format, Object... arguments) {
 		delegate().info(format, arguments);
+	}
+
+	@Override
+	default void info(String msg, Throwable t) {
+		delegate().info(msg, t);
 	}
 
 	@Override
@@ -210,6 +225,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	}
 
 	@Override
+	default void debug(String msg, Throwable t) {
+		delegate().debug(msg, t);
+	}
+
+	@Override
 	default boolean isDebugEnabled(Marker marker) {
 		return delegate().isDebugEnabled(marker);
 	}
@@ -262,6 +282,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	@Override
 	default void trace(String format, Object... arguments) {
 		delegate().trace(format, arguments);
+	}
+
+	@Override
+	default void trace(String msg, Throwable t) {
+		delegate().trace(msg, t);
 	}
 
 	@Override

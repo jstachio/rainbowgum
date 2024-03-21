@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.slf4j.CodeTemplates.ClassModel;
 
+/*
+ * Run the tests to generate code
+ * and copy and paste.
+ */
 class LevelLoggerTest {
 
 	@Test

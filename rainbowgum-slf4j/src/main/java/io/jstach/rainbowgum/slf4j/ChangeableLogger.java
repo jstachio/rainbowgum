@@ -174,6 +174,13 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 	}
 
 	@Override
+	public void error(String msg, Throwable t) {
+		if (isErrorEnabled()) {
+			handle(Level.ERROR, msg, t);
+		}
+	}
+
+	@Override
 	public boolean isErrorEnabled(Marker marker) {
 		return isErrorEnabled();
 	}
@@ -253,6 +260,13 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 	public void warn(String format, Object... arguments) {
 		if (isWarnEnabled()) {
 			handleArray(Level.WARN, format, arguments);
+		}
+	}
+
+	@Override
+	public void warn(String msg, Throwable t) {
+		if (isWarnEnabled()) {
+			handle(Level.WARN, msg, t);
 		}
 	}
 
@@ -340,6 +354,13 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 	}
 
 	@Override
+	public void info(String msg, Throwable t) {
+		if (isInfoEnabled()) {
+			handle(Level.INFO, msg, t);
+		}
+	}
+
+	@Override
 	public boolean isInfoEnabled(Marker marker) {
 		return isInfoEnabled();
 	}
@@ -423,6 +444,13 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 	}
 
 	@Override
+	public void debug(String msg, Throwable t) {
+		if (isDebugEnabled()) {
+			handle(Level.DEBUG, msg, t);
+		}
+	}
+
+	@Override
 	public boolean isDebugEnabled(Marker marker) {
 		return isDebugEnabled();
 	}
@@ -502,6 +530,13 @@ class ChangeableLogger implements BaseLogger, DepthAware {
 	public void trace(String format, Object... arguments) {
 		if (isTraceEnabled()) {
 			handleArray(Level.TRACE, format, arguments);
+		}
+	}
+
+	@Override
+	public void trace(String msg, Throwable t) {
+		if (isTraceEnabled()) {
+			handle(Level.TRACE, msg, t);
 		}
 	}
 

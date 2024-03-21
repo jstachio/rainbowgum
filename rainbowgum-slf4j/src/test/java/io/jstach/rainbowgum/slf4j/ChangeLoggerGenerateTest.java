@@ -5,6 +5,10 @@ import org.junit.jupiter.api.Test;
 import io.jstach.rainbowgum.slf4j.CodeTemplates.ChangeLoggerModel;
 import io.jstach.rainbowgum.slf4j.CodeTemplates.ForwardLoggerModel;
 
+/*
+ * Run the tests to generate code
+ * and copy and paste.
+ */
 class ChangeLoggerGenerateTest {
 
 	@Test
