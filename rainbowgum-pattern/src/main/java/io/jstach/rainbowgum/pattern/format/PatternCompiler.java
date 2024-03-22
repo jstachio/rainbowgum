@@ -111,7 +111,7 @@ final class Compiler implements PatternCompiler {
 	LogFormatter compile(Node start) {
 		var b = LogFormatter.builder();
 		if (start == Node.end()) {
-			return b.flatten();
+			return b.build();
 		}
 
 		for (Node n = start; n != Node.end();) {
@@ -146,7 +146,7 @@ final class Compiler implements PatternCompiler {
 				}
 			};
 		}
-		return b.flatten();
+		return b.build();
 	}
 
 }

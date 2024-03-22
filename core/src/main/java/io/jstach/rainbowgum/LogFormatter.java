@@ -1,8 +1,6 @@
 package io.jstach.rainbowgum;
 
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.Writer;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -18,11 +16,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
-import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
-import io.jstach.rainbowgum.LogFormatter.MessageFormatter;
-import io.jstach.rainbowgum.LogFormatter.NameFormatter;
-import io.jstach.rainbowgum.LogFormatter.ThreadFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 
@@ -33,7 +27,12 @@ import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
  * The appender will make sure the {@link StringBuilder} is not shared with multiple
  * threads so the formatter does not have to synchronize/lock on and should definitely not
  * do that.
+ * <p>
+ * Because of various invariants the preferred way to compose formatters is to use the
+ * {@linkplain #builder() builder} which will do some optimization like combining static
+ * formatters etc.
  *
+ * @see #builder()
  * @see LogFormatter.EventFormatter
  * @see LogEncoder#of(LogFormatter)
  * @apiNote This class is sealed. An interface that has the same contract that can be
@@ -50,17 +49,11 @@ public sealed interface LogFormatter {
 	public void format(StringBuilder output, LogEvent event);
 
 	/**
-	 * The type of formatter.
-	 * @return formatter type.
-	 */
-	public FormatterType type();
-
-	/**
 	 * See {@link EventFormatter#builder()}.
 	 * @return builder.
 	 */
-	public static EventFormatter.Builder builder() {
-		return EventFormatter.builder();
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	/**
@@ -99,55 +92,6 @@ public sealed interface LogFormatter {
 	 */
 	public static StaticFormatter of(String text) {
 		return new StaticFormatter(text);
-	}
-
-	/**
-	 * The types of formatters use for formatter resolving or lookup of formatters
-	 * designed for specific fields or common uses like literals.
-	 */
-	public enum FormatterType {
-
-		/**
-		 * Formatter for an entire {@link LogEvent}.
-		 */
-		Event,
-		/**
-		 * Formatter for {@link LogEvent#timestamp()}.
-		 */
-		Timestamp,
-		/**
-		 * Formatter for {@link LogEvent#throwableOrNull()}.
-		 */
-		Throwable,
-		/**
-		 * Formatter for {@link LogEvent#keyValues()}
-		 */
-		KeyValues,
-		/**
-		 * Formatter for {@link LogEvent#level()}
-		 */
-		Level,
-		/**
-		 * Formatter for {@link LogEvent#loggerName()}
-		 */
-		LoggerName,
-		/**
-		 * Formatter for {@link LogEvent#threadName()} and/or {@link LogEvent#threadId()}.
-		 */
-		Thread,
-		/**
-		 * Formatter for {@link LogEvent#formattedMessage(StringBuilder)}.
-		 */
-		Message,
-		/**
-		 * Formatter for static strings.
-		 */
-		Literal,
-		/**
-		 * Formatter that does nothing.
-		 */
-		Noop;
-
 	}
 
 	/**
@@ -208,14 +152,201 @@ public sealed interface LogFormatter {
 		}
 
 		@Override
-		public FormatterType type() {
-			return FormatterType.Literal;
-		}
-
-		@Override
 		public String toString() {
 			return "STATIC['" + content + "']";
 		}
+	}
+
+	/**
+	 * Log formatter builder that is composed of other formatters. The
+	 * {@link #add(LogFormatter)} are executed in insertion order. <strong> This builder
+	 * is smart and will coalesce and consolidate formatters! </strong> For example if
+	 * only formatter is added to the builder it will be returned instead of a new
+	 * formatter.
+	 */
+	public final static class Builder {
+
+		private List<LogFormatter> formatters = new ArrayList<>();
+
+		private Builder() {
+		}
+
+		/**
+		 * Adds a formatter.
+		 * @param formatter formatter to be added the list of formatters.
+		 * @return this builder.
+		 */
+		public Builder add(LogFormatter formatter) {
+			formatters.add(formatter);
+			return this;
+		}
+
+		/**
+		 * Adds an event formatter.
+		 * @param formatter event formatter to be added the list of formatters.
+		 * @return this builder.
+		 */
+		public Builder event(LogFormatter.EventFormatter formatter) {
+			formatters.add(formatter);
+			return this;
+		}
+
+		/**
+		 * Append the timestamp in ISO format.
+		 * @return this builder.
+		 */
+		public Builder timeStamp() {
+			formatters.add(DefaultInstantFormatter.ISO);
+			return this;
+		}
+
+		/**
+		 * Formatter for {@link LogEvent#timestamp()} derived from standard
+		 * {@link DateTimeFormatter}.
+		 * @param dateTimeFormatter formatter for {@link LogEvent#timestamp()}
+		 * @return this builder.
+		 */
+		public Builder timeStamp(DateTimeFormatter dateTimeFormatter) {
+			formatters.add(new DateTimeFormatterInstantFormatter(dateTimeFormatter));
+			return this;
+		}
+
+		/**
+		 * Adds the default level formatter.
+		 * @return this builder.
+		 * @see LevelFormatter
+		 */
+		public Builder level() {
+			formatters.add(LogFormatter.LevelFormatter.of());
+			return this;
+		}
+
+		/**
+		 * Adds the default logger name formatter.
+		 * @return this builder.
+		 */
+		public Builder loggerName() {
+			formatters.add(DefaultNameFormatter.LOGGER_NAME_FORMATTER);
+			return this;
+		}
+
+		/**
+		 * Formats the message by calling
+		 * {@link LogEvent#formattedMessage(StringBuilder)}.
+		 * @return this builder.
+		 */
+		public Builder message() {
+			formatters.add(DefaultMessageFormatter.MESSAGE_FORMATTER);
+			return this;
+		}
+
+		/**
+		 * Appends static text.
+		 * @param content static text.
+		 * @return this builder.
+		 * @see StaticFormatter
+		 */
+		public Builder text(String content) {
+			formatters.add(new StaticFormatter(content));
+			return this;
+		}
+
+		/**
+		 * Creates a formatter that will print <strong>ALL</strong> of the key values by
+		 * percent encoding (RFC 3986 URI aka the format usually used in
+		 * {@link URI#getQuery()}).
+		 * @return formatter.
+		 */
+		public Builder keyValues() {
+			return add(DefaultKeyValuesFormatter.INSTANCE);
+		}
+
+		/**
+		 * Creates a formatter that will print the key values in order of the passed in
+		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
+		 * used in {@link URI#getQuery()}).
+		 * @param keys keys where order is important.
+		 * @return this.
+		 */
+		public Builder keyValues(List<String> keys) {
+			if (keys.isEmpty()) {
+				return this;
+			}
+			return add(new ListKeyValuesFormatter(keys));
+		}
+
+		/**
+		 * Creates a formatter that will print a single key value in percent encoding (RFC
+		 * 3986 URI aka the format usually used in {@link URI#getQuery()}).
+		 * @param key key to select.
+		 * @param fallback if the value is null the fallback will be used.
+		 * @return this.
+		 */
+		public Builder keyValues(String key, @Nullable String fallback) {
+			return add(new SingleKeyValueFormatter(key, fallback));
+		}
+
+		/**
+		 * Appends a space.
+		 * @return this builder.
+		 */
+		public Builder space() {
+			formatters.add(new StaticFormatter(" "));
+			return this;
+		}
+
+		/**
+		 * Appends a newline using the platforms line separator.
+		 * @return this builder.
+		 */
+		public Builder newline() {
+			text(System.lineSeparator());
+			return this;
+		}
+
+		/**
+		 * Appends a thread name : {@link Thread#getName()}.
+		 * @return this builder.
+		 */
+		public Builder threadName() {
+			formatters.add(DefaultThreadFormatter.THREAD_NAME_FORMATTER);
+			return this;
+		}
+
+		/**
+		 * Appends a thread ID : {@link Thread#threadId()}.
+		 * @return this builder.
+		 */
+		public Builder threadId() {
+			formatters.add(DefaultThreadFormatter.THREAD_ID_FORMATTER);
+			return this;
+		}
+
+		/**
+		 * Appends the events throwable stack trace.
+		 * @return this.
+		 */
+		public Builder throwable() {
+			formatters.add(ThrowableFormatter.of());
+			return this;
+		}
+
+		/**
+		 * Will create a generic log formatter that has the inner formatters coalesced if
+		 * possible and will noop if there are no formatters.
+		 * @return flattened formatter.
+		 */
+		public LogFormatter build() {
+			var array = StaticFormatter.coalesce(formatters);
+			if (array.length == 0) {
+				return NoopFormatter.INSTANCE;
+			}
+			if (array.length == 1) {
+				return array[0];
+			}
+			return EventFormatter.of(formatters);
+		}
+
 	}
 
 	/**
@@ -227,231 +358,8 @@ public sealed interface LogFormatter {
 		@Override
 		public void format(StringBuilder output, LogEvent event);
 
-		@Override
-		default FormatterType type() {
-			return FormatterType.Event;
-		}
-
 		private static EventFormatter of(List<? extends LogFormatter> formatters) {
 			return new CompositeFormatter(StaticFormatter.coalesce(formatters));
-		}
-
-		/**
-		 * Builder
-		 * @return builder.
-		 */
-		public static Builder builder() {
-			return new Builder();
-		}
-
-		/**
-		 * Log formatter builder that is composed of other formatters. The
-		 * {@link #add(LogFormatter)} are executed in insertion order.
-		 */
-		public final static class Builder {
-
-			private List<LogFormatter> formatters = new ArrayList<>();
-
-			private Builder() {
-			}
-
-			/**
-			 * Adds a formatter.
-			 * @param formatter formatter to be added the list of formatters.
-			 * @return this builder.
-			 */
-			public Builder add(LogFormatter formatter) {
-				formatters.add(formatter);
-				return this;
-			}
-
-			/**
-			 * Adds an event formatter.
-			 * @param formatter event formatter to be added the list of formatters.
-			 * @return this builder.
-			 */
-			public Builder event(LogFormatter.EventFormatter formatter) {
-				formatters.add(formatter);
-				return this;
-			}
-
-			/**
-			 * Append the timestamp in ISO format.
-			 * @return this builder.
-			 */
-			public Builder timeStamp() {
-				formatters.add(DefaultInstantFormatter.ISO);
-				return this;
-			}
-
-			/**
-			 * Formatter for {@link LogEvent#timestamp()} derived from standard
-			 * {@link DateTimeFormatter}.
-			 * @param dateTimeFormatter formatter for {@link LogEvent#timestamp()}
-			 * @return this builder.
-			 */
-			public Builder timeStamp(DateTimeFormatter dateTimeFormatter) {
-				formatters.add(new DateTimeFormatterInstantFormatter(dateTimeFormatter));
-				return this;
-			}
-
-			/**
-			 * Adds the default level formatter.
-			 * @return this builder.
-			 * @see LevelFormatter
-			 */
-			public Builder level() {
-				formatters.add(LogFormatter.LevelFormatter.of());
-				return this;
-			}
-
-			/**
-			 * Adds the default logger name formatter.
-			 * @return this builder.
-			 * @see NameFormatter
-			 */
-			public Builder loggerName() {
-				formatters.add(LogFormatter.NameFormatter.of());
-				return this;
-			}
-
-			/**
-			 * Formats the message by calling
-			 * {@link LogEvent#formattedMessage(StringBuilder)}.
-			 * @return this builder.
-			 * @see MessageFormatter
-			 */
-			public Builder message() {
-				formatters.add(LogFormatter.MessageFormatter.of());
-				return this;
-			}
-
-			/**
-			 * Appends static text.
-			 * @param content static text.
-			 * @return this builder.
-			 * @see StaticFormatter
-			 */
-			public Builder text(String content) {
-				formatters.add(new StaticFormatter(content));
-				return this;
-			}
-
-			/**
-			 * Appends a space.
-			 * @return this builder.
-			 */
-			public Builder space() {
-				formatters.add(new StaticFormatter(" "));
-				return this;
-			}
-
-			/**
-			 * Appends a newline using the platforms line separator.
-			 * @return this builder.
-			 */
-			public Builder newline() {
-				text(System.lineSeparator());
-				return this;
-			}
-
-			/**
-			 * Appends a thread name.
-			 * @return this builder.
-			 */
-			public Builder threadName() {
-				formatters.add(ThreadFormatter.ofName());
-				return this;
-			}
-
-			/**
-			 * Builds the formatter.
-			 * @return this builder.
-			 */
-			public EventFormatter build() {
-				return EventFormatter.of(formatters);
-			}
-
-			/**
-			 * Will create a generic log formatter that has the inner formatters coalesced
-			 * if possible and will noop if there are no formatters.
-			 * @return flattened formatter.
-			 */
-			public LogFormatter flatten() {
-				var array = StaticFormatter.coalesce(formatters);
-				if (array.length == 0) {
-					return NoopFormatter.INSTANCE;
-				}
-				if (array.length == 1) {
-					return array[0];
-				}
-				return EventFormatter.of(formatters);
-			}
-
-		}
-
-	}
-
-	/**
-	 * Formats {@link LogEvent#formattedMessage(StringBuilder)}.
-	 */
-	public non-sealed interface MessageFormatter extends LogFormatter {
-
-		@Override
-		default void format(StringBuilder output, LogEvent event) {
-			formatMessage(output, event);
-		}
-
-		@Override
-		default FormatterType type() {
-			return FormatterType.Message;
-		}
-
-		/**
-		 * Formats the message from the log event.
-		 * @param output buffer.
-		 * @param event log event.
-		 */
-		public void formatMessage(StringBuilder output, LogEvent event);
-
-		/**
-		 * The default implementation.
-		 * @return formatter.
-		 */
-		public static MessageFormatter of() {
-			return DefaultMessageFormatter.MESSAGE_FORMATTER;
-		}
-
-	}
-
-	/**
-	 * Formats a logger name.
-	 */
-	public non-sealed interface NameFormatter extends LogFormatter {
-
-		@Override
-		default void format(StringBuilder output, LogEvent event) {
-			formatName(output, event.loggerName());
-		}
-
-		@Override
-		default FormatterType type() {
-			return FormatterType.LoggerName;
-		}
-
-		/**
-		 * Formats a logger name.
-		 * @param output buffer.
-		 * @param name logger name.
-		 */
-		public void formatName(StringBuilder output, String name);
-
-		/**
-		 * Default implementation that calls {@link LogEvent#loggerName()}.
-		 * @return formatter.
-		 */
-		public static NameFormatter of() {
-			return DefaultNameFormatter.LOGGER_NAME_FORMATTER;
 		}
 
 	}
@@ -467,11 +375,6 @@ public sealed interface LogFormatter {
 		 * @param level level.
 		 */
 		void formatLevel(StringBuilder output, Level level);
-
-		@Override
-		default FormatterType type() {
-			return FormatterType.Level;
-		}
 
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
@@ -557,11 +460,6 @@ public sealed interface LogFormatter {
 		void formatTimestamp(StringBuilder output, Instant instant);
 
 		@Override
-		default FormatterType type() {
-			return FormatterType.Timestamp;
-		}
-
-		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			formatTimestamp(output, event.timestamp());
 		}
@@ -614,11 +512,6 @@ public sealed interface LogFormatter {
 		void formatThrowable(StringBuilder output, Throwable throwable);
 
 		@Override
-		default FormatterType type() {
-			return FormatterType.Throwable;
-		}
-
-		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			var t = event.throwableOrNull();
 			if (t != null) {
@@ -644,103 +537,7 @@ public sealed interface LogFormatter {
 			/*
 			 * TODO optimize
 			 */
-			t.printStackTrace(new PrintWriter(new StringWriter(b)));
-		}
-
-	}
-
-	/**
-	 * Formats key values.
-	 */
-	public non-sealed interface KeyValuesFormatter extends LogFormatter {
-
-		/**
-		 * Format key values.
-		 * @param output buffer.
-		 * @param keyValues kvs.
-		 */
-		void formatKeyValues(StringBuilder output, KeyValues keyValues);
-
-		@Override
-		default FormatterType type() {
-			return FormatterType.KeyValues;
-		}
-
-		@Override
-		default void format(StringBuilder output, LogEvent event) {
-			formatKeyValues(output, event.keyValues());
-		}
-
-		/**
-		 * Creates a formatter that will print the key values in order of the passed in
-		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
-		 * used in {@link URI#getQuery()}).
-		 * @param keys keys where order is important.
-		 * @return formatter.
-		 */
-		public static KeyValuesFormatter of(List<String> keys) {
-			if (keys.isEmpty()) {
-				return NoopFormatter.INSTANCE;
-			}
-			return new ListKeyValuesFormatter(keys);
-		}
-
-		/**
-		 * Creates a formatter that will print the key values by percent encoding (RFC
-		 * 3986 URI aka the format usually used in {@link URI#getQuery()}).
-		 * @return formatter.
-		 */
-		public static KeyValuesFormatter of() {
-			return DefaultKeyValuesFormatter.INSTANCE;
-		}
-
-	}
-
-	/**
-	 * Formats a thread.
-	 */
-	public non-sealed interface ThreadFormatter extends LogFormatter {
-
-		/**
-		 * Formats a thread.
-		 * @param output buffer.
-		 * @param threadName {@link LogEvent#threadName()}.
-		 * @param threadId {@link LogEvent#threadId()}.
-		 */
-		void formatThread(StringBuilder output, String threadName, long threadId);
-
-		@Override
-		default FormatterType type() {
-			return FormatterType.Thread;
-		}
-
-		@Override
-		default void format(StringBuilder output, LogEvent event) {
-			formatThread(output, event.threadName(), event.threadId());
-		}
-
-		/**
-		 * Default thread formatter prints the {@link Thread#getName()}.
-		 * @return thread formatter.
-		 */
-		public static ThreadFormatter ofName() {
-			return DefaultThreadFormatter.THREAD_NAME_FORMATTER;
-		}
-
-		/**
-		 * Default thread formatter prints the {@link Thread#getName()}.
-		 * @return thread formatter.
-		 */
-		public static ThreadFormatter of() {
-			return DefaultThreadFormatter.THREAD_NAME_FORMATTER;
-		}
-
-		/**
-		 * Default thread formatter prints the {@link Thread#threadId()}.
-		 * @return thread formatter.
-		 */
-		public static ThreadFormatter ofId() {
-			return DefaultThreadFormatter.THREAD_ID_FORMATTER;
+			t.printStackTrace(Internal.StringBuilderPrintWriter.of(b));
 		}
 
 	}
@@ -812,17 +609,12 @@ public sealed interface LogFormatter {
 	/**
 	 * A special formatter that will do nothing.
 	 */
-	enum NoopFormatter implements TimestampFormatter, ThrowableFormatter, KeyValuesFormatter, LevelFormatter,
-			NameFormatter, ThreadFormatter {
+	enum NoopFormatter implements TimestampFormatter, ThrowableFormatter, LevelFormatter {
 
 		/**
 		 * instance.
 		 */
 		INSTANCE;
-
-		@Override
-		public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
-		}
 
 		@Override
 		public void formatThrowable(StringBuilder output, Throwable throwable) {
@@ -833,24 +625,11 @@ public sealed interface LogFormatter {
 		}
 
 		@Override
-		public void formatName(StringBuilder output, String name) {
-		}
-
-		@Override
 		public void formatLevel(StringBuilder output, Level level) {
 		}
 
 		@Override
-		public void formatThread(StringBuilder output, String threadName, long threadId) {
-		}
-
-		@Override
 		public void format(StringBuilder output, LogEvent event) {
-		}
-
-		@Override
-		public FormatterType type() {
-			return FormatterType.Noop;
 		}
 
 	}
@@ -899,24 +678,26 @@ record CompositeFormatter(LogFormatter[] formatters) implements EventFormatter {
 
 }
 
-enum DefaultMessageFormatter implements MessageFormatter {
+enum DefaultMessageFormatter implements LogFormatter {
 
 	MESSAGE_FORMATTER;
 
 	@Override
-	public void formatMessage(StringBuilder output, LogEvent event) {
+	public void format(StringBuilder output, LogEvent event) {
 		event.formattedMessage(output);
+
 	}
 
 }
 
-enum DefaultNameFormatter implements NameFormatter {
+enum DefaultNameFormatter implements LogFormatter {
 
 	LOGGER_NAME_FORMATTER;
 
 	@Override
-	public void formatName(StringBuilder output, String name) {
-		output.append(name);
+	public void format(StringBuilder output, LogEvent event) {
+		output.append(event.loggerName());
+
 	}
 
 }
@@ -938,18 +719,18 @@ enum DefaultLevelFormatter implements LevelFormatter {
 
 }
 
-enum DefaultThreadFormatter implements ThreadFormatter {
+enum DefaultThreadFormatter implements LogFormatter {
 
 	THREAD_NAME_FORMATTER() {
 		@Override
-		public void formatThread(StringBuilder output, String threadName, long threadId) {
-			output.append(threadName);
+		public void format(StringBuilder output, LogEvent event) {
+			output.append(event.threadName());
 		}
 	},
 	THREAD_ID_FORMATTER() {
 		@Override
-		public void formatThread(StringBuilder output, String threadName, long threadId) {
-			output.append(threadId);
+		public void format(StringBuilder output, LogEvent event) {
+			output.append(event.threadId());
 		}
 	}
 
@@ -1012,12 +793,13 @@ enum DefaultThrowableFormatter implements ThrowableFormatter {
 
 }
 
-enum DefaultKeyValuesFormatter implements KeyValuesFormatter, KeyValuesConsumer<StringBuilder> {
+enum DefaultKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<StringBuilder> {
 
 	INSTANCE;
 
 	@Override
-	public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
+	public void format(StringBuilder output, LogEvent event) {
+		var keyValues = event.keyValues();
 		keyValues.forEach(this, 0, output);
 	}
 
@@ -1040,7 +822,7 @@ enum DefaultKeyValuesFormatter implements KeyValuesFormatter, KeyValuesConsumer<
 
 }
 
-final class ListKeyValuesFormatter implements KeyValuesFormatter {
+final class ListKeyValuesFormatter implements LogFormatter {
 
 	private final String[] keys;
 
@@ -1051,7 +833,12 @@ final class ListKeyValuesFormatter implements KeyValuesFormatter {
 	}
 
 	@Override
-	public void formatKeyValues(StringBuilder output, KeyValues keyValues) {
+	public void format(StringBuilder output, LogEvent event) {
+		var kvs = event.keyValues();
+		formatKeyValues(output, kvs);
+	}
+
+	void formatKeyValues(StringBuilder output, KeyValues keyValues) {
 		boolean first = true;
 		for (String k : keys) {
 			String v = keyValues.getValueOrNull(k);
@@ -1070,87 +857,19 @@ final class ListKeyValuesFormatter implements KeyValuesFormatter {
 
 }
 
-class StringWriter extends Writer {
-
-	private final StringBuilder buf;
-
-	/**
-	 * Create a new string writer using the default initial string-buffer size.
-	 */
-	StringWriter(StringBuilder buf) {
-		this.buf = buf;
-		lock = buf;
+record SingleKeyValueFormatter(String key, @Nullable String fallback) implements LogFormatter {
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		var kvs = event.keyValues();
+		formatKeyValues(output, kvs);
 	}
 
-	/**
-	 * Write a single character.
-	 */
-	@Override
-	public void write(int c) {
-		buf.append((char) c);
-	}
-
-	@Override
-	public void write(char cbuf[], int off, int len) {
-		if ((off < 0) || (off > cbuf.length) || (len < 0) || ((off + len) > cbuf.length) || ((off + len) < 0)) {
-			throw new IndexOutOfBoundsException();
+	void formatKeyValues(StringBuilder output, KeyValues keyValues) {
+		String v = keyValues.getValueOrNull(key);
+		if (v == null) {
+			v = fallback;
 		}
-		else if (len == 0) {
-			return;
-		}
-		buf.append(cbuf, off, len);
-	}
-
-	/**
-	 * Write a string.
-	 */
-	@Override
-	public void write(String str) {
-		buf.append(str);
-	}
-
-	@Override
-	public void write(String str, int off, int len) {
-		buf.append(str, off, off + len);
-	}
-
-	@Override
-	public StringWriter append(@Nullable CharSequence csq) {
-		write(String.valueOf(csq));
-		return this;
-	}
-
-	@Override
-	public StringWriter append(@Nullable CharSequence csq, int start, int end) {
-		if (csq == null)
-			csq = "null";
-		return append(csq.subSequence(start, end));
-	}
-
-	@Override
-	public StringWriter append(char c) {
-		write(c);
-		return this;
-	}
-
-	/**
-	 * Return the string buffer itself.
-	 * @return StringBuffer holding the current buffer value.
-	 */
-	public StringBuilder getBuffer() {
-		return buf;
-	}
-
-	@Override
-	public void flush() {
-	}
-
-	/**
-	 * Closing a {@code StringWriter} has no effect. The methods in this class can be
-	 * called after the stream has been closed without generating an {@code IOException}.
-	 */
-	@Override
-	public void close() throws IOException {
+		DefaultKeyValuesFormatter.formatKeyValue(output, key, v);
 	}
 
 }

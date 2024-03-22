@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
+import java.util.function.Consumer;
 
 /**
  * Used to create events.
@@ -49,6 +50,34 @@ public final class TestEventBuilder {
 	 */
 	public LogEvent.Builder event() {
 		return new LogEventBuilder(logger, level, loggerName);
+	}
+
+	/**
+	 * Creates an event.
+	 * @param consumer lambda to build event.
+	 * @return event.
+	 */
+	public LogEvent build(Consumer<LogEvent.Builder> consumer) {
+		var b = event();
+		consumer.accept(b);
+		var e = b.eventOrNull();
+		if (e == null) {
+			throw new IllegalStateException();
+		}
+		return e;
+	}
+
+	/**
+	 * Creates an event.
+	 * @return event.
+	 */
+	public LogEvent build() {
+		var b = event();
+		var e = b.eventOrNull();
+		if (e == null) {
+			throw new IllegalStateException();
+		}
+		return e;
 	}
 
 	/**

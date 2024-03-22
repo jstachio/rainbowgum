@@ -147,9 +147,33 @@ enum StandardKeywordFactory implements KeywordFactory {
 		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			Integer length = node.optOrNull(0, Integer::parseInt);
 			if (length == null) {
-				return LogFormatter.NameFormatter.of();
+				return LogFormatter.builder().loggerName().build();
 			}
 			return new LoggerFormatter(Abbreviator.of(length));
+		}
+
+	},
+	MDC() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			String key = node.optOrNull(0);
+			if (key == null) {
+				return LogFormatter.builder().keyValues().build();
+			}
+			String[] s = key.split(":-");
+			String k;
+			String fallback;
+			if (s.length == 2) {
+				k = s[0];
+				fallback = s[1];
+			}
+			else {
+				k = key;
+				fallback = null;
+			}
+			return LogFormatter.builder().keyValues(k, fallback).build();
+
 		}
 
 	};
@@ -176,12 +200,13 @@ enum StandardKeywordFactory implements KeywordFactory {
 
 	protected abstract LogFormatter _create(PatternConfig config, PatternKeyword node);
 
-	record LoggerFormatter(Abbreviator abbreviator) implements LogFormatter.NameFormatter {
+	record LoggerFormatter(Abbreviator abbreviator) implements LogFormatter.EventFormatter {
 
 		@Override
-		public void formatName(StringBuilder output, String name) {
-			String out = abbreviator.abbreviate(name);
+		public void format(StringBuilder output, LogEvent event) {
+			String out = abbreviator.abbreviate(event.loggerName());
 			output.append(out);
+
 		}
 
 	}
@@ -327,7 +352,7 @@ enum ColorCompositeFactory implements CompositeFactory {
 		if (ansi) {
 			b.text(ANSIConstants.SET_DEFAULT_COLOR);
 		}
-		return b.flatten();
+		return b.build();
 
 	}
 

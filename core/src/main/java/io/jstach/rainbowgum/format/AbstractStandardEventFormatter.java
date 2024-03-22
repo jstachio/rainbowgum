@@ -8,13 +8,13 @@ import io.jstach.rainbowgum.LogFormatter;
  * Level, Logger</strong> but allows changing the format of time, thread, level, logger,
  * etc. The formatters get called in the following order.
  * <ol>
- * <li>{@link io.jstach.rainbowgum.LogFormatter.TimestampFormatter}</li>
- * <li>{@link io.jstach.rainbowgum.LogFormatter.ThreadFormatter}</li>
- * <li>{@link io.jstach.rainbowgum.LogFormatter.LevelFormatter}</li>
- * <li>{@link io.jstach.rainbowgum.LogFormatter.NameFormatter}</li>
- * <li>{@link io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter}</li>
- * <li>{@link io.jstach.rainbowgum.LogFormatter.MessageFormatter}</li>
- * <li>{@link io.jstach.rainbowgum.LogFormatter.ThrowableFormatter}</li>
+ * <li>Timestamp</li>
+ * <li>Thread</li>
+ * <li>Level</li>
+ * <li>Logger Name</li>
+ * <li>Key Values if enabled</li>
+ * <li>Formatted Message</li>
+ * <li>Throwable if not null</li>
  * </ol>
  */
 public class AbstractStandardEventFormatter implements LogFormatter.EventFormatter {
@@ -22,37 +22,37 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	/**
 	 * immutable field
 	 */
-	protected final TimestampFormatter timestampFormatter;
+	protected final LogFormatter timestampFormatter;
 
 	/**
 	 * immutable field
 	 */
-	protected final ThreadFormatter threadFormatter;
+	protected final LogFormatter threadFormatter;
 
 	/**
 	 * immutable field
 	 */
-	protected final LevelFormatter levelFormatter;
+	protected final LogFormatter levelFormatter;
 
 	/**
 	 * immutable field
 	 */
-	protected final NameFormatter nameFormatter;
+	protected final LogFormatter nameFormatter;
 
 	/**
 	 * immutable field
 	 */
-	protected final MessageFormatter messageFormatter;
+	protected final LogFormatter messageFormatter;
 
 	/**
 	 * immutable field
 	 */
-	protected final KeyValuesFormatter keyValuesFormatter;
+	protected final LogFormatter keyValuesFormatter;
 
 	/**
 	 * immutable field
 	 */
-	protected final ThrowableFormatter throwableFormatter;
+	protected final LogFormatter throwableFormatter;
 
 	/**
 	 * Combined formatter.
@@ -70,13 +70,13 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	 * @param keyValuesFormatter not <code>null</code>.
 	 */
 	protected AbstractStandardEventFormatter( //
-			TimestampFormatter timestampFormatter, //
-			ThreadFormatter threadFormatter, //
-			LevelFormatter levelFormatter, //
-			NameFormatter nameFormatter, //
-			MessageFormatter messageFormatter, //
-			ThrowableFormatter throwableFormatter, //
-			KeyValuesFormatter keyValuesFormatter) {
+			LogFormatter timestampFormatter, //
+			LogFormatter threadFormatter, //
+			LogFormatter levelFormatter, //
+			LogFormatter nameFormatter, //
+			LogFormatter messageFormatter, //
+			LogFormatter throwableFormatter, //
+			LogFormatter keyValuesFormatter) {
 		super();
 		this.levelFormatter = levelFormatter;
 		this.timestampFormatter = timestampFormatter;
@@ -99,7 +99,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 			b.add(levelFormatter);
 			b.text(" ");
 		}
-		b.add(LogFormatter.NameFormatter.of());
+		b.add(nameFormatter);
 		if (!keyValuesFormatter.isNoop()) {
 			b.text(" {");
 			b.add(keyValuesFormatter);
@@ -113,7 +113,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		if (!throwableFormatter.isNoop()) {
 			b.add(throwableFormatter);
 		}
-		this.eventFormatter = b.flatten();
+		this.eventFormatter = b.build();
 
 	}
 
@@ -127,37 +127,37 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		/**
 		 * mutable field
 		 */
-		protected LevelFormatter levelFormatter = LevelFormatter.of();
+		protected LogFormatter levelFormatter = LevelFormatter.of();
 
 		/**
 		 * mutable field
 		 */
-		protected TimestampFormatter timestampFormatter = TimestampFormatter.of();
+		protected LogFormatter timestampFormatter = TimestampFormatter.of();
 
 		/**
 		 * mutable field
 		 */
-		protected NameFormatter nameFormatter = NameFormatter.of();
+		protected LogFormatter nameFormatter = LogFormatter.builder().loggerName().build();
 
 		/**
 		 * mutable field
 		 */
-		protected MessageFormatter messageFormatter = MessageFormatter.of();
+		protected LogFormatter messageFormatter = LogFormatter.builder().message().build();
 
 		/**
 		 * mutable field
 		 */
-		protected ThrowableFormatter throwableFormatter = ThrowableFormatter.of();
+		protected LogFormatter throwableFormatter = ThrowableFormatter.of();
 
 		/**
 		 * mutable field
 		 */
-		protected KeyValuesFormatter keyValuesFormatter = LogFormatter.noop();
+		protected LogFormatter keyValuesFormatter = LogFormatter.noop();
 
 		/**
 		 * mutable field
 		 */
-		protected ThreadFormatter threadFormatter = ThreadFormatter.of();
+		protected LogFormatter threadFormatter = LogFormatter.builder().threadName().build();
 
 		/**
 		 * For builder
@@ -178,19 +178,18 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		 * {@link LogEvent#timestamp()}.
 		 * @return this builder.
 		 */
-		public T timestampFormatter(TimestampFormatter timestampFormatter) {
+		public T timestampFormatter(LogFormatter timestampFormatter) {
 			this.timestampFormatter = timestampFormatter;
 			return self();
 
 		}
 
 		/**
-		 * Sets thread formatter. If not set
-		 * {@link io.jstach.rainbowgum.LogFormatter.ThreadFormatter#of()} will be used.
+		 * Sets thread formatter. If not set thread name will be used.
 		 * @param threadFormatter formatter to use for rendering thread information.
 		 * @return this builder.
 		 */
-		public T threadFormatter(ThreadFormatter threadFormatter) {
+		public T threadFormatter(LogFormatter threadFormatter) {
 			this.threadFormatter = threadFormatter;
 			return self();
 		}
@@ -201,19 +200,30 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		 * @param levelFormatter formatter to use for rendering level information.
 		 * @return this builder.
 		 */
-		public T levelFormatter(LevelFormatter levelFormatter) {
+		public T levelFormatter(LogFormatter levelFormatter) {
 			this.levelFormatter = levelFormatter;
 			return self();
 		}
 
 		/**
-		 * Sets the logger name formatter. If not set
-		 * {@link io.jstach.rainbowgum.LogFormatter.NameFormatter#of()} will be used.
+		 * Sets the logger name formatter. If not set the default will be used.
 		 * @param nameFormatter formatter to use for rendering logger name.
 		 * @return this builder.
 		 */
-		public T nameFormatter(NameFormatter nameFormatter) {
+		public T nameFormatter(LogFormatter nameFormatter) {
 			this.nameFormatter = nameFormatter;
+			return self();
+
+		}
+
+		/**
+		 * Sets the throwable formatter. If not set
+		 * {@link io.jstach.rainbowgum.LogFormatter.ThrowableFormatter#of()} will be used.
+		 * @param throwableFormatter formatter to use for rendering throwables.
+		 * @return this builder.
+		 */
+		public T throwableFormatter(LogFormatter throwableFormatter) {
+			this.throwableFormatter = throwableFormatter;
 			return self();
 
 		}
@@ -231,12 +241,12 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 
 		/**
-		 * Sets the key values formatter. If not set
-		 * {@link io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter#of()} will be used.
+		 * Sets the key values formatter. If not set the default key values formatter will
+		 * be used which is a noop.
 		 * @param keyValuesFormatter formatter to use for rendering key values.
 		 * @return this builder.
 		 */
-		public T keyValuesFormatter(KeyValuesFormatter keyValuesFormatter) {
+		public T keyValuesFormatter(LogFormatter keyValuesFormatter) {
 			this.keyValuesFormatter = keyValuesFormatter;
 			return self();
 		}
@@ -246,51 +256,6 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	@Override
 	public void format(StringBuilder output, LogEvent logEvent) {
 		eventFormatter.format(output, logEvent);
-		//
-		// var name = logEvent.loggerName();
-		//
-		// @Nullable
-		// Throwable t = logEvent.throwableOrNull();
-		//
-		// // Append date-time if so configured
-		//
-		// timestampFormatter.format(output, logEvent);
-		//
-		// if (!timestampFormatter.isNoop()) {
-		// output.append(' ');
-		// }
-		//
-		// // Append current thread name if so configured
-		// if (!threadFormatter.isNoop()) {
-		// output.append("[");
-		// threadFormatter.format(output, logEvent);
-		// output.append("]");
-		// output.append(" ");
-		// }
-		//
-		// if (!levelFormatter.isNoop()) {
-		// levelFormatter.format(output, logEvent);
-		// output.append(' ');
-		// }
-		//
-		// // Append the name of the log instance if so configured
-		//
-		// output.append(name);
-		//
-		// if (!LogFormatter.isNoopOrNull(keyValuesFormatter)) {
-		// output.append(" ");
-		// output.append("{");
-		// keyValuesFormatter.format(output, logEvent);
-		// output.append("}");
-		// }
-		//
-		// output.append(" - ");
-		// messageFormatter.format(output, logEvent);
-		// output.append("\n");
-		//
-		// if (t != null) {
-		// throwableFormatter.format(output, logEvent);
-		// }
 	}
 
 }

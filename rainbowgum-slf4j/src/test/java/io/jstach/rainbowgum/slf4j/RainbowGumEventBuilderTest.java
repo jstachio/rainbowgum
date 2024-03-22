@@ -12,7 +12,6 @@ import org.slf4j.spi.MDCAdapter;
 
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogFormatter;
-import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 class RainbowGumEventBuilderTest {
@@ -138,7 +137,7 @@ class RainbowGumEventBuilderTest {
 		LogFormatter formatter() {
 			var f = StandardEventFormatter.builder()
 				.timestampFormatter(LogFormatter.noop())
-				.keyValuesFormatter(KeyValuesFormatter.of())
+				.keyValuesFormatter(LogFormatter.builder().keyValues().build())
 				.throwableFormatter((sb, t) -> {
 					sb.append(t.getMessage());
 				})
@@ -152,7 +151,7 @@ class RainbowGumEventBuilderTest {
 					sb.append("\n");
 				}
 			});
-			return LogFormatter.builder().add(f).add(callerInfo).flatten();
+			return LogFormatter.builder().add(f).add(callerInfo).build();
 		}
 
 	}

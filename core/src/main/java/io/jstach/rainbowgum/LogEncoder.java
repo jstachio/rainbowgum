@@ -42,10 +42,14 @@ public interface LogEncoder {
 	/**
 	 * Creates a <strong>new</strong> buffer. The encoder should not try to reuse buffers
 	 * as that is the responsibility of the {@linkplain LogAppender appender} (and
-	 * possibly {@link LogOutput} but usually not).
+	 * possibly {@link LogOutput} but usually not). Hints can be retrieved by call
+	 * {@link LogOutput#bufferHints()}.
 	 * @param hints hints are like size and storage type etc.
 	 * @return a new buffer.
-	 * @apiNote hints can be retrieved by call {@link LogOutput#bufferHints()}.
+	 * @apiNote hints can be retrieved by calling {@link LogOutput#bufferHints()} the
+	 * reason the output itself is not passed is to prevent the buffer from using the
+	 * output directly at an inappropriate time as well as the rare possibility of the
+	 * buffer being used by multiple outputs.
 	 */
 	public Buffer buffer(BufferHints hints);
 

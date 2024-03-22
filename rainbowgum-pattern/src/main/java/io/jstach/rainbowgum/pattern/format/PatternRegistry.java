@@ -312,14 +312,14 @@ final class DefaultPatternRegistry implements PatternRegistry {
 	static PatternRegistry registerDefaults(PatternRegistry registry) {
 		for (KeywordKey c : KeywordKey.values()) {
 			KeywordFactory keyword = switch (c) {
-				case MESSAGE -> KeywordFactory.of(LogFormatter.MessageFormatter.of());
+				case MESSAGE -> KeywordFactory.of(LogFormatter.builder().message().build());
 				case DATE -> StandardKeywordFactory.DATE;
 				case LEVEL -> KeywordFactory.of(LogFormatter.LevelFormatter.of());
 				case LINESEP -> (fc, n) -> new LogFormatter.StaticFormatter(fc.lineSeparator());
 				case LOGGER -> StandardKeywordFactory.LOGGER;
-				case MDC -> KeywordFactory.of(LogFormatter.KeyValuesFormatter.of());
+				case MDC -> StandardKeywordFactory.MDC;
 				case MICROS -> KeywordFactory.of(LogFormatter.TimestampFormatter.ofMicros());
-				case THREAD -> KeywordFactory.of(LogFormatter.ThreadFormatter.of());
+				case THREAD -> KeywordFactory.of(LogFormatter.builder().threadName().build());
 				case THROWABLE -> KeywordFactory.of(LogFormatter.ThrowableFormatter.of());
 				case CLASS -> KeywordFactory.of(CallerInfoFormatter.CLASS);
 				case FILE -> KeywordFactory.of(CallerInfoFormatter.FILE);

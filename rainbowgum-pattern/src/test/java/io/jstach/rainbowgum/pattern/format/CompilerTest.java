@@ -16,7 +16,6 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
-import io.jstach.rainbowgum.LogFormatter.NameFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.pattern.format.PatternRegistry.KeywordKey;
 
@@ -124,14 +123,12 @@ class CompilerTest {
 		LEVEL(List.of("%level", "%le", "%p"), "INFO") {
 		},
 		LOGGER(List.of("%lo", "%logger", "%c"), "io.jstach.logger") {
-			@Override
-			protected void assertFormatter(LogFormatter formatter) {
-				assertInstanceOf(NameFormatter.class, formatter);
-			}
 		},
 		MESSAGE(List.of("%m", "%msg", "%message"), "hello") {
 		},
-		MDC(List.of("%X", "%mdc"), "k1=v1") {
+		MDC(List.of("%X", "%mdc"), "k1=v1&k2=v2") {
+		},
+		MDC_KEY(List.of("%X{k2}", "%mdc{k2}"), "k2=v2") {
 		},
 		THROWABLE(List.of("%ex", "%exception", "%throwable"), "java.lang.RuntimeException: test_throwable") {
 			LogEvent event() {
@@ -151,7 +148,6 @@ class CompilerTest {
 			protected void assertFormatter(LogFormatter formatter) {
 				assertInstanceOf(PadFormatter.class, formatter);
 				if (formatter instanceof PadFormatter pf) {
-					assertInstanceOf(NameFormatter.class, pf.formatter());
 					assertEquals(20, pf.padding().min());
 					assertTrue(pf.padding().leftPad());
 					assertTrue(pf.padding().leftTruncate());
@@ -164,7 +160,6 @@ class CompilerTest {
 				System.out.println(formatter);
 				assertInstanceOf(PadFormatter.class, formatter);
 				if (formatter instanceof PadFormatter pf) {
-					assertInstanceOf(NameFormatter.class, pf.formatter());
 					assertEquals(20, pf.padding().min());
 					assertFalse(pf.padding().leftPad());
 					assertTrue(pf.padding().leftTruncate());
@@ -376,7 +371,7 @@ class CompilerTest {
 		}
 
 		KeyValues keyValues() {
-			return KeyValues.of(Map.of("k1", "v1"));
+			return KeyValues.of(Map.of("k1", "v1", "k2", "v2"));
 		}
 
 		LogEvent event() {

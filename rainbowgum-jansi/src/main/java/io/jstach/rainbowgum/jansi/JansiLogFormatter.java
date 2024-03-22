@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum.jansi;
 
-import java.lang.System.Logger.Level;
-
 import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.Ansi.Attribute;
 import org.fusesource.jansi.Ansi.Color;
@@ -17,13 +15,13 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
 public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 	JansiLogFormatter( //
-			LevelFormatter levelFormatter, //
-			TimestampFormatter timestampFormatter, //
-			NameFormatter nameFormatter, //
-			MessageFormatter messageFormatter, //
-			ThrowableFormatter throwableFormatter, //
-			KeyValuesFormatter keyValuesFormatter, //
-			ThreadFormatter threadFormatter) {
+			LogFormatter timestampFormatter, //
+			LogFormatter threadFormatter, //
+			LogFormatter levelFormatter, //
+			LogFormatter nameFormatter, //
+			LogFormatter messageFormatter, //
+			LogFormatter throwableFormatter, //
+			LogFormatter keyValuesFormatter) {
 		super(timestampFormatter, threadFormatter, levelFormatter, nameFormatter, messageFormatter, throwableFormatter,
 				keyValuesFormatter);
 	}
@@ -50,8 +48,8 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 		 */
 		public JansiLogFormatter build() {
 
-			return new JansiLogFormatter(levelFormatter, timestampFormatter, nameFormatter, messageFormatter,
-					throwableFormatter, keyValuesFormatter, threadFormatter);
+			return new JansiLogFormatter(timestampFormatter, threadFormatter, levelFormatter, nameFormatter,
+					messageFormatter, throwableFormatter, keyValuesFormatter);
 		}
 
 		@Override
@@ -63,7 +61,6 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 	public void format(StringBuilder output, LogEvent logEvent) {
 
-		var level = logEvent.level();
 		var name = logEvent.loggerName();
 
 		// StringBuilder buf = new StringBuilder(32);
@@ -86,7 +83,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 			buf.a(" ");
 		}
 
-		colorLevel(buf, output, level);
+		colorLevel(buf, output, logEvent);
 
 		buf.append(' ');
 
@@ -115,7 +112,8 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 		throwableFormatter.format(output, logEvent);
 	}
 
-	private Ansi colorLevel(Ansi ansi, StringBuilder sb, Level level) {
+	private Ansi colorLevel(Ansi ansi, StringBuilder sb, LogEvent event) {
+		var level = event.level();
 		if (levelFormatter.isNoop())
 			return ansi;
 		switch (level) {
@@ -136,7 +134,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 				break;
 		}
 		ansi.a("");
-		levelFormatter.formatLevel(sb, level);
+		levelFormatter.format(sb, event);
 		return ansi.a("").fg(Color.DEFAULT).a(Attribute.RESET).a("");
 	}
 

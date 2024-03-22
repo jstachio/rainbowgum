@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.format;
 
+import io.jstach.rainbowgum.LogFormatter;
+
 /**
  * A <strong>TTLL</strong> formatter that has the layout of <strong>TTLL - Time, Thread,
  * Level, Logger</strong> but allows changing the format of time, thread, level, logger,
@@ -7,13 +9,14 @@ package io.jstach.rainbowgum.format;
  */
 public final class StandardEventFormatter extends AbstractStandardEventFormatter {
 
-	private StandardEventFormatter( //
-			LevelFormatter levelFormatter, //
-			TimestampFormatter timestampFormatter, //
-			NameFormatter nameFormatter, //
-			MessageFormatter messageFormatter, //
-			ThrowableFormatter throwableFormatter, //
-			KeyValuesFormatter keyValuesFormatter, ThreadFormatter threadFormatter) {
+	StandardEventFormatter( //
+			LogFormatter timestampFormatter, //
+			LogFormatter threadFormatter, //
+			LogFormatter levelFormatter, //
+			LogFormatter nameFormatter, //
+			LogFormatter messageFormatter, //
+			LogFormatter throwableFormatter, //
+			LogFormatter keyValuesFormatter) {
 		super(timestampFormatter, threadFormatter, levelFormatter, nameFormatter, messageFormatter, throwableFormatter,
 				keyValuesFormatter);
 	}
@@ -45,8 +48,8 @@ public final class StandardEventFormatter extends AbstractStandardEventFormatter
 		 * @return formatter.
 		 */
 		public StandardEventFormatter build() {
-			return new StandardEventFormatter(levelFormatter, timestampFormatter, nameFormatter, messageFormatter,
-					throwableFormatter, keyValuesFormatter, threadFormatter);
+			return new StandardEventFormatter(timestampFormatter, threadFormatter, levelFormatter, nameFormatter,
+					messageFormatter, throwableFormatter, keyValuesFormatter);
 		}
 
 	}

@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
-import io.jstach.rainbowgum.LogFormatter.KeyValuesFormatter;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.RainbowGum;
@@ -34,7 +34,7 @@ class RainbowGumLoggerFactoryTest {
 				a.formatter((output, event) -> {
 					event.formattedMessage(output);
 					output.append(" {");
-					KeyValuesFormatter.of().format(output, event);
+					LogFormatter.builder().keyValues().build().format(output, event);
 					output.append("}");
 					output.append("\n");
 				});
