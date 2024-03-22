@@ -370,7 +370,7 @@ class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogApp
 
 	@Override
 	public final void append(LogEvent event) {
-		try (var buffer = encoder.buffer()) {
+		try (var buffer = encoder.buffer(output.bufferHints())) {
 			encoder.encode(event, buffer);
 			lock.lock();
 			try {
@@ -413,7 +413,7 @@ class BufferLogAppender extends AbstractLogAppender {
 
 	public BufferLogAppender(LogOutput output, LogEncoder encoder) {
 		super(output, encoder);
-		this.buffer = encoder.buffer();
+		this.buffer = encoder.buffer(output.bufferHints());
 	}
 
 	@Override

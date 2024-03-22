@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import io.jstach.rainbowgum.LogEncoder.Buffer;
+import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
@@ -191,7 +192,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @param encoder encoder to use for encoding.
 	 */
 	default void write(LogEvent[] events, int count, LogEncoder encoder) {
-		try (var buffer = encoder.buffer()) {
+		try (var buffer = encoder.buffer(this.bufferHints())) {
 			write(events, count, encoder, buffer);
 		}
 	}
@@ -218,9 +219,9 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @param encoder encoder to use for encoding.
 	 * @param buffer buffer to reuse. Do not share it with other threads!
 	 * @apiNote If the output wants to fan-out or encode with other threads the buffer
-	 * passed should not be used and instead {@link LogEncoder#buffer()} should be called
-	 * to get a new buffer for each thread. This is generally not desirable for most
-	 * resources such as a file or database as sending a batch is much faster (single
+	 * passed should not be used and instead {@link LogEncoder#buffer(BufferHints)} should
+	 * be called to get a new buffer for each thread. This is generally not desirable for
+	 * most resources such as a file or database as sending a batch is much faster (single
 	 * writer principle).
 	 */
 	default void write(LogEvent[] events, int count, LogEncoder encoder, Buffer buffer) {
@@ -294,23 +295,20 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	public OutputType type();
 
 	/**
-	 * The preferred write style of this output. The output should still honor all write
-	 * methods but this signals to the encoder which style it prefers.
+	 * Hints to the buffer like what write style of the output and maximum buffer size.
+	 * The output should still honor all write methods but this signals to the encoder
+	 * which style it prefers.
 	 * @return write mode.
 	 */
-	default WriteMethod writeMethod() {
-		return switch (type()) {
-			case CONSOLE_OUT, CONSOLE_ERR -> WriteMethod.BYTES;
-			case FILE, NETWORK -> WriteMethod.BYTE_BUFFER;
-			case MEMORY -> WriteMethod.STRING;
-		};
+	default BufferHints bufferHints() {
+		return WriteMethod.BYTES;
 	}
 
 	/**
 	 * The preferred write style of an output. The output should still honor all write
 	 * methods but this signals to the encoder which style it prefers.
 	 */
-	public enum WriteMethod {
+	public enum WriteMethod implements BufferHints {
 
 		/**
 		 * Prefer calling {@link LogOutput#write(LogEvent, String)}.
@@ -324,7 +322,12 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		/**
 		 * Prefer calling {@link LogOutput#write(LogEvent, ByteBuffer, ContentType)}.
 		 */
-		BYTE_BUFFER
+		BYTE_BUFFER;
+
+		@Override
+		public WriteMethod writeMethod() {
+			return this;
+		}
 
 	}
 
@@ -429,7 +432,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		}
 
 		@Override
-		public WriteMethod writeMethod() {
+		public BufferHints bufferHints() {
 			return WriteMethod.BYTES;
 		}
 

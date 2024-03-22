@@ -197,7 +197,7 @@ class FileChannelOutput implements FileOutput {
 	}
 
 	@Override
-	public WriteMethod writeMethod() {
+	public WriteMethod bufferHints() {
 		return WriteMethod.BYTE_BUFFER;
 	}
 

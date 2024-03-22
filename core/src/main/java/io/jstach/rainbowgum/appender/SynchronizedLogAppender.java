@@ -81,7 +81,7 @@ final class DefaultSynchronizedLogAppender extends AbstractLogAppender implement
 
 	@Override
 	public final void append(LogEvent event) {
-		try (var buffer = encoder.buffer()) {
+		try (var buffer = encoder.buffer(output.bufferHints())) {
 			encoder.encode(event, buffer);
 			synchronized (this) {
 				output.write(event, buffer);

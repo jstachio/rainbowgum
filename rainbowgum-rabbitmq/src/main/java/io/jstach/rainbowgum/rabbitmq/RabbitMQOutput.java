@@ -18,6 +18,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
@@ -247,7 +248,7 @@ public class RabbitMQOutput implements LogOutput {
 	}
 
 	@Override
-	public WriteMethod writeMethod() {
+	public BufferHints bufferHints() {
 		return WriteMethod.BYTES;
 	}
 

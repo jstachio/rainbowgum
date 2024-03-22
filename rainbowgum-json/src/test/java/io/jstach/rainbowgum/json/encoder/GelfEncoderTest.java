@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.PropertiesParser;
 import io.jstach.rainbowgum.RainbowGum;
@@ -42,7 +43,7 @@ class GelfEncoderTest {
 
 		Instant instant = Instant.ofEpochMilli(1);
 		LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
-		var buffer = encoder.buffer();
+		var buffer = encoder.buffer(WriteMethod.STRING);
 		encoder.encode(e, buffer);
 		ListLogOutput out = new ListLogOutput();
 		buffer.drain(out, e);

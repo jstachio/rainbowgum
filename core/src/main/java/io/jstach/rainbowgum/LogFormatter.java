@@ -527,8 +527,8 @@ public sealed interface LogFormatter {
 				case ALL -> /*     */ "ERROR";
 				case ERROR -> /*   */ "ERROR";
 				case INFO -> /*    */ "INFO ";
-				case OFF -> /*    */ "TRACE";
-				case TRACE -> /*  */ "TRACE";
+				case OFF -> /*     */ "TRACE";
+				case TRACE -> /*   */ "TRACE";
 				case WARNING -> /* */ "WARN ";
 			};
 		}

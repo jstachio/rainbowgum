@@ -89,7 +89,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	}
 
 	@Override
-	protected JsonBuffer doBuffer() {
+	protected JsonBuffer doBuffer(BufferHints hints) {
 		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE);
 	}
 

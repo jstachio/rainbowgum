@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
+import javax.annotation.processing.FilerException;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
@@ -141,15 +142,37 @@ public class ConfigProcessor extends AbstractProcessor {
 				pw.print(java);
 			}
 		}
-		catch (IOException e1) {
-			processingEnv.getMessager().printMessage(Kind.ERROR, "Failed to create config builder", ee);
-			return null;
+		catch (FilerException e1) {
+			processingEnv.getMessager().printMessage(Kind.WARNING, exceptionToErrorMessage(e1), ee);
 		}
 		catch (Exception e1) {
-			processingEnv.getMessager().printMessage(Kind.ERROR, "Failed to create config builder", ee);
+			processingEnv.getMessager().printMessage(Kind.ERROR, exceptionToErrorMessage(e1), ee);
 			return null;
 		}
 		return m;
+	}
+
+	private String exceptionToErrorMessage(Throwable t) {
+		StringBuilder sb = new StringBuilder().append("Failed to create config builder");
+		return exceptionToErrorMessage(sb, t).toString();
+	}
+
+	private StringBuilder exceptionToErrorMessage(StringBuilder sb, Throwable t) {
+
+		List<Throwable> errors = new ArrayList<>();
+		errors.add(t);
+		@Nullable
+		Throwable e = t;
+		while (e != null) {
+			errors.add(e);
+			e = e.getCause();
+		}
+		errors = errors.reversed();
+		for (var ex : errors) {
+			sb.append(", ");
+			sb.append(ex.getClass().getSimpleName()).append(":").append(ex.getMessage());
+		}
+		return sb;
 	}
 
 	private boolean validatePrefix(ExecutableElement ee, String propertyPrefix,

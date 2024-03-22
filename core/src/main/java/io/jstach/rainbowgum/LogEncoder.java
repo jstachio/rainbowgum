@@ -4,14 +4,15 @@ import java.net.URI;
 
 import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
+import io.jstach.rainbowgum.LogOutput.WriteMethod;
 
 /**
  * Encodes a {@link LogEvent} into a buffer of its choosing. While the {@link Buffer} does
  * not need to be thread-safe the encoder itself should be.
  * <p>
- * An appender typically calls an encoder by first {@linkplain #buffer() creating a
- * buffer} that the encoder knows about or reusing an existing {@link Buffer} the encoder
- * knows about.
+ * An appender typically calls an encoder by first {@linkplain #buffer(BufferHints)
+ * creating a buffer} that the encoder knows about or reusing an existing {@link Buffer}
+ * the encoder knows about.
  * <p>
  * The {@linkplain #encode(LogEvent, Buffer) encoding into a buffer} typically happens
  * outside of lock to minimize lock contention. Thus the appender promises not to share a
@@ -42,15 +43,17 @@ public interface LogEncoder {
 	 * Creates a <strong>new</strong> buffer. The encoder should not try to reuse buffers
 	 * as that is the responsibility of the {@linkplain LogAppender appender} (and
 	 * possibly {@link LogOutput} but usually not).
+	 * @param hints hints are like size and storage type etc.
 	 * @return a new buffer.
+	 * @apiNote hints can be retrieved by call {@link LogOutput#bufferHints()}.
 	 */
-	public Buffer buffer();
+	public Buffer buffer(BufferHints hints);
 
 	/**
 	 * Encodes an event to the buffer. It is recommended that the encoder call
 	 * {@link Buffer#clear()} before using.
 	 * @param event log event.
-	 * @param buffer buffer created from {@link #buffer()}.
+	 * @param buffer buffer created from {@link #buffer(BufferHints)}.
 	 */
 	public void encode(LogEvent event, Buffer buffer);
 
@@ -162,6 +165,32 @@ public interface LogEncoder {
 	}
 
 	/**
+	 * Hints the writer can pass to the encoder for creating buffers like max size and
+	 * storage style of the buffer etc.
+	 *
+	 * @apiNote There is no guarantees the encoder/buffer will honor these hints.
+	 */
+	public interface BufferHints {
+
+		/**
+		 * The preferred write style of the output.
+		 * @return write method.
+		 * @apiNote {@link WriteMethod} implements this interface for convenience.
+		 */
+		LogOutput.WriteMethod writeMethod();
+
+		/**
+		 * Maximum size of the buffer. This is a way for the encoder to say it can only
+		 * handle so much data per event.
+		 * @return a negative number indicates size is not important.
+		 */
+		default int maximumSize() {
+			return -1;
+		}
+
+	}
+
+	/**
 	 * Abstract encoder that will cast the buffer to the desired implementation. Extend to
 	 * make creating encoders easier.
 	 *
@@ -178,9 +207,10 @@ public interface LogEncoder {
 
 		/**
 		 * Create a specific buffer implementation.
+		 * @param hints buffer creation hints.
 		 * @return buffer
 		 */
-		protected abstract T doBuffer();
+		protected abstract T doBuffer(BufferHints hints);
 
 		/**
 		 * A type safe version of {@link #encode(LogEvent, Buffer)}.
@@ -190,8 +220,8 @@ public interface LogEncoder {
 		protected abstract void doEncode(LogEvent event, T buffer);
 
 		@Override
-		public final Buffer buffer() {
-			return doBuffer();
+		public final Buffer buffer(BufferHints hints) {
+			return doBuffer(hints);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -222,7 +252,7 @@ final class FormatterEncoder extends AbstractEncoder<StringBuilderBuffer> {
 	}
 
 	@Override
-	protected StringBuilderBuffer doBuffer() {
+	protected StringBuilderBuffer doBuffer(BufferHints hints) {
 		return StringBuilderBuffer.of(new StringBuilder());
 	}
 
