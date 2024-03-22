@@ -18,6 +18,9 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
  * <strong>The integer index used in the low level access are not in array order and thus
  * {@link #start()} and {@link #next(int)} should be used to iterate over the key values
  * instead of manually incrementing.</strong>
+ * <p>
+ * The observed order of the current default Key Value Pairs is insertion based ordering
+ * but that should not be relied on as other implementations may change that.
  */
 public sealed interface KeyValues {
 
@@ -121,6 +124,8 @@ public sealed interface KeyValues {
 	 * Creates an immutable key values by copying a Map.
 	 * @param m map.
 	 * @return immutable key values.
+	 * @apiNote Be careful when use {@link Map#of()} as its order is non deterministic and
+	 * thus the resulting key values may not be in the order you expect.
 	 */
 	public static KeyValues of(Map<String, String> m) {
 		ArrayKeyValues mdc = new ArrayKeyValues(m.size());
@@ -159,7 +164,7 @@ public sealed interface KeyValues {
 		 * @param value value maybe <code>null</code>.
 		 */
 		void putKeyValue(String key, @Nullable String value);
-		
+
 		/**
 		 * Fluent version of put.
 		 * @param key key.

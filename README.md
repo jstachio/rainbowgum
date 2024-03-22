@@ -1,5 +1,6 @@
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.jstach.rainbowgum/rainbowgum/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.jstach.rainbowgum/rainbowgum)
 [![Github](https://github.com/jstachio/rainbowgum/actions/workflows/maven.yml/badge.svg)](https://github.com/jstachio/rainbowgum/actions)
+[![Code Coverage](https://codecov.io/gh/jstachio/rainbowgum/branch/main/graph/badge.svg)](https://app.codecov.io/gh/jstachio/rainbowgum)
 
 # Rainbow Gum
 
