@@ -13,6 +13,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
@@ -371,7 +372,7 @@ class CompilerTest {
 		}
 
 		KeyValues keyValues() {
-			return KeyValues.of(Map.of("k1", "v1", "k2", "v2"));
+			return MutableKeyValues.of().add("k1", "v1").add("k2", "v2").freeze();
 		}
 
 		LogEvent event() {

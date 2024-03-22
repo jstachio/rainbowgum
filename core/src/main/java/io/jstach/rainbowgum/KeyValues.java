@@ -156,9 +156,20 @@ public sealed interface KeyValues {
 		/**
 		 * Same as {@link Map#put(Object, Object)}.
 		 * @param key key.
-		 * @param value value.
+		 * @param value value maybe <code>null</code>.
 		 */
 		void putKeyValue(String key, @Nullable String value);
+		
+		/**
+		 * Fluent version of put.
+		 * @param key key.
+		 * @param value value maybe <code>null</code>.
+		 * @return this.
+		 */
+		default MutableKeyValues add(String key, @Nullable String value) {
+			putKeyValue(key, value);
+			return this;
+		}
 
 		/**
 		 * Same as {@link Map#remove(Object)}.
