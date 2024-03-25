@@ -9,7 +9,7 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum</artifactId>
+      <artifactId>rainbowgum-slf4j</artifactId>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
