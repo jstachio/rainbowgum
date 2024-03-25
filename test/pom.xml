@@ -19,6 +19,7 @@
   <module>rainbowgum-test-avaje</module>
   <module>rainbowgum-test-config</module>
   <module>rainbowgum-test-rabbitmq</module>
+  <module>rainbowgum-test-jdk</module>
   </modules>
   <dependencies>
   </dependencies>

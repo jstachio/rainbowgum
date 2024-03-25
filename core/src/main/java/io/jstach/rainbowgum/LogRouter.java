@@ -389,7 +389,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		public final void log(LogEvent event) {
 			var e = transformOrNull(event);
 			if (e != null) {
-				Router.super.log(event);
+				Router.super.log(e);
 			}
 		}
 

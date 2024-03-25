@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.test.rabbitmq;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
@@ -83,7 +84,10 @@ class RabbitMQSetupTest {
 
 		public List<Message> blockAndDrain() throws InterruptedException {
 			List<Message> r = new ArrayList<>();
-			r.add(messages.poll(5, TimeUnit.SECONDS));
+			var m = messages.poll(5, TimeUnit.SECONDS);
+			if (m != null) {
+				r.add(m);
+			}
 			messages.drainTo(r);
 			return r;
 		}
@@ -110,6 +114,8 @@ class RabbitMQSetupTest {
 		RabbitMQSetup.run(properties);
 		var messages = consumer.blockAndDrain();
 		assertEquals(1, messages.size());
+		var m = messages.get(0);
+		assertTrue(m.toString().contains("io.jstach.rainbowgum.test.rabbitmq.RabbitMQSetup - hello"));
 	}
 
 }

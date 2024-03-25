@@ -12,7 +12,7 @@ import io.jstach.rainbowgum.LogRouter;
 /**
  * JUL logger that uses global router.
  */
-public class SystemLoggerQueueJULHandler extends Handler {
+public final class SystemLoggerQueueJULHandler extends Handler {
 
 	private static final int TRACE_LEVEL_THRESHOLD = java.util.logging.Level.FINEST.intValue();
 
@@ -72,7 +72,7 @@ public class SystemLoggerQueueJULHandler extends Handler {
 	}
 
 	@Override
-	public void close() throws SecurityException {
+	public void close() {
 
 	}
 
@@ -87,9 +87,12 @@ public class SystemLoggerQueueJULHandler extends Handler {
 		}
 	}
 
-	@SuppressWarnings("null")
 	private static java.util.logging.Logger getRootLogger() {
-		return LogManager.getLogManager().getLogger("");
+		var logger = LogManager.getLogManager().getLogger("");
+		if (logger == null) {
+			throw new IllegalStateException("log manager return null for root logger");
+		}
+		return logger;
 	}
 
 	/**
@@ -97,7 +100,7 @@ public class SystemLoggerQueueJULHandler extends Handler {
 	 */
 	public static void install() {
 		removeHandlersForRootLogger();
-		LogManager.getLogManager().getLogger("").addHandler(new SystemLoggerQueueJULHandler());
+		getRootLogger().addHandler(new SystemLoggerQueueJULHandler());
 	}
 
 }

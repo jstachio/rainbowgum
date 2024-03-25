@@ -276,12 +276,12 @@ public class RabbitMQOutput implements LogOutput {
 			}
 			if (conn != null) {
 				try {
-					c.close();
+					conn.close();
 				}
 				catch (AlreadyClosedException ae) {
 					// do nothing.
 				}
-				catch (IOException | TimeoutException e) {
+				catch (IOException e) {
 					MetaLog.error(getClass(), e);
 				}
 			}

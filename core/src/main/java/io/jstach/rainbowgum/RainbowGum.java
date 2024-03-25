@@ -70,11 +70,25 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/**
-	 * Gets the currently statically bound RainbowGum.
-	 * @return current RainbowGum.
+	 * Gets the currently statically bound RainbowGum and will try to load and find one if
+	 * there is none currently bound. <strong> This is a blocking operation as in locks
+	 * are used and will block indefinitely till a gum has loaded. </strong> If that is
+	 * not desired see {@link #getOrNull()}.
+	 * @return current RainbowGum or new loaded one.
 	 */
 	public static RainbowGum of() {
 		return RainbowGumHolder.get();
+	}
+
+	/**
+	 * Gets the currently statically bound RainbowGum or <code>null</code> if none are
+	 * <strong>finished binding</strong>. Unlike {@link #of()} this will never load or
+	 * start an instance but rather just gets the currently bound one. It will also never
+	 * block and does not wait if one is currently being loaded.
+	 * @return current RainbowGum or <code>null</code>
+	 */
+	public static @Nullable RainbowGum getOrNull() {
+		return RainbowGumHolder.current();
 	}
 
 	/**
@@ -315,6 +329,18 @@ final class RainbowGumHolder {
 	private static Supplier<RainbowGum> supplier = RainbowGumServiceProvider::provide;
 
 	private static volatile @Nullable RainbowGum rainbowGum = null;
+
+	static @Nullable RainbowGum current() {
+		if (lock.readLock().tryLock()) {
+			try {
+				return rainbowGum;
+			}
+			finally {
+				lock.readLock().unlock();
+			}
+		}
+		return null;
+	}
 
 	static RainbowGum get() {
 		lock.readLock().lock();
