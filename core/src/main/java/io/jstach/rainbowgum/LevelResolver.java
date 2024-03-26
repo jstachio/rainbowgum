@@ -124,7 +124,7 @@ public interface LevelResolver {
 	 *
 	 * @param <T> builder type.
 	 */
-	sealed abstract class AbstractBuilder<T> permits Builder, LogRouter.Router.Builder {
+	sealed abstract class AbstractBuilder<T> permits Builder, LogRouter.Router.Builder, LogConfig.Builder {
 
 		/**
 		 * resolvers
@@ -177,7 +177,7 @@ public interface LevelResolver {
 		 * Builds a level resolver using global level resolver as the last resolver.
 		 * @return built level resolver.
 		 */
-		protected LevelResolver buildLevelResolver() {
+		protected LevelConfig buildLevelResolver() {
 			return buildLevelResolver(List.of());
 		}
 
@@ -186,7 +186,7 @@ public interface LevelResolver {
 		 * @param levelResolvers global resolver.
 		 * @return built level resolver.
 		 */
-		protected LevelResolver buildLevelResolver(List<LevelConfig> levelResolvers) {
+		protected LevelConfig buildLevelResolver(List<LevelConfig> levelResolvers) {
 			var copyLevels = new LinkedHashMap<>(levels);
 			boolean noBuilderLevels = copyLevels.isEmpty();
 
@@ -200,6 +200,18 @@ public interface LevelResolver {
 				copyResolvers.add(StaticLevelResolver.INFO);
 			}
 
+			var combined = LevelConfig.of(copyResolvers);
+
+			return combined;
+		}
+
+		LevelConfig buildGlobalResolver(LevelConfig levelResolver) {
+			var copyLevels = new LinkedHashMap<>(levels);
+			var copyResolvers = new ArrayList<>(resolvers);
+			if (!copyLevels.isEmpty()) {
+				copyResolvers.add(0, InternalLevelResolver.of(copyLevels));
+			}
+			copyResolvers.add(levelResolver);
 			var combined = LevelConfig.of(copyResolvers);
 
 			return combined;

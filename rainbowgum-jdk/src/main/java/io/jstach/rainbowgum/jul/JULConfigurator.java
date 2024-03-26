@@ -53,12 +53,19 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 		if (!disableLevel) {
 			var logger = Logger.getLogger("");
 			if (logger != null) {
-				var systemLevel = config.levelResolver().resolveLevel("");
+				var systemLevel = traceToAll(config.levelResolver().resolveLevel(""));
 				logger.setLevel(julLevel(systemLevel));
 			}
 		}
 		return true;
 
+	}
+
+	private static System.Logger.Level traceToAll(System.Logger.Level level) {
+		if (level == System.Logger.Level.TRACE) {
+			return System.Logger.Level.ALL;
+		}
+		return level;
 	}
 
 	/**

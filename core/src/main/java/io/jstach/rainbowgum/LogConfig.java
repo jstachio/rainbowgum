@@ -217,7 +217,7 @@ public sealed interface LogConfig {
 	 * If the automatic discovery of components is desired call
 	 * {@link #serviceLoader(ServiceLoader)}.
 	 */
-	public static final class Builder {
+	public static final class Builder extends LevelResolver.AbstractBuilder<Builder> {
 
 		private @Nullable ServiceRegistry serviceRegistry;
 
@@ -301,6 +301,7 @@ public sealed interface LogConfig {
 		public LogConfig build() {
 			ServiceRegistry serviceRegistry = this.serviceRegistry;
 			LogProperties logProperties = this.logProperties;
+
 			var serviceLoader = this.serviceLoader;
 			var configurators = this.configurators;
 			if (serviceRegistry == null) {
@@ -314,7 +315,8 @@ public sealed interface LogConfig {
 					logProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 				}
 			}
-			var config = new DefaultLogConfig(serviceRegistry, logProperties);
+			var levelResolver = this.buildGlobalResolver(ConfigLevelResolver.of(logProperties));
+			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver);
 			if (configurators.isEmpty() && serviceLoader != null) {
 				configurators = findProviders(serviceLoader, Configurator.class).toList();
 			}
@@ -330,6 +332,11 @@ public sealed interface LogConfig {
 				.flatMap(s -> s.provideProperties(registry).stream())
 				.toList();
 			return LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+		}
+
+		@Override
+		protected Builder self() {
+			return this;
 		}
 
 	}
@@ -418,11 +425,11 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogPublisherRegistry publisherRegistry;
 
-	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties) {
+	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver) {
 		super();
 		this.registry = registry;
 		this.properties = properties;
-		this.levelResolver = ConfigLevelResolver.of(properties);
+		this.levelResolver = levelResolver;
 		boolean changeable = Property.builder() //
 			.toBoolean()
 			.orElse(false)

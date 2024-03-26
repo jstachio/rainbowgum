@@ -43,7 +43,10 @@ final class SystemLoggerQueueJULHandler extends Handler {
 
 		int lv = rec.getLevel().intValue();
 		final Level level;
-		if (TRACE_LEVEL_THRESHOLD >= lv) {
+		if (Integer.MIN_VALUE == lv) {
+			level = Level.TRACE;
+		}
+		else if (TRACE_LEVEL_THRESHOLD >= lv) {
 			level = Level.TRACE;
 		}
 		else if (DEBUG_LEVEL_THRESHOLD >= lv) {
