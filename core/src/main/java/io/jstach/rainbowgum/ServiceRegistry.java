@@ -163,6 +163,7 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 				c.close();
 			}
 			catch (Exception e) {
+				MetaLog.error(ServiceRegistry.class, "Failure trying to close service registry", e);
 			}
 		}
 	}
