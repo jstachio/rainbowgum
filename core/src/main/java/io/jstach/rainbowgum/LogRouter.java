@@ -787,11 +787,16 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	@Override
 	public void drain(InternalRootRouter delegate) {
+		_drain(delegate);
+	}
+
+	private InternalRootRouter _drain(InternalRootRouter delegate) {
 		drainLock.lock();
 		try {
 			var original = this.delegate;
 			this.delegate = Objects.requireNonNull(delegate);
 			original.drain(delegate);
+			return original;
 		}
 		finally {
 			drainLock.unlock();
@@ -804,7 +809,8 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	@Override
 	public void close() {
-		this.delegate.close();
+		var d = _drain(new QueueEventsRouter());
+		d.close();
 	}
 
 }

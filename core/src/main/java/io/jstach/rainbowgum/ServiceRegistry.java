@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -13,7 +14,7 @@ import org.eclipse.jdt.annotation.Nullable;
  * A simple service locator for initialization purposes and external services provided by
  * plugins.
  */
-public sealed interface ServiceRegistry permits DefaultServiceRegistry {
+public sealed interface ServiceRegistry extends AutoCloseable permits DefaultServiceRegistry {
 
 	/**
 	 * Creates an empty service registry.
@@ -80,6 +81,15 @@ public sealed interface ServiceRegistry permits DefaultServiceRegistry {
 	 */
 	public <T> List<T> find(Class<T> type);
 
+	/**
+	 * Add a closeable to close on close in LIFO order.
+	 * @param closeable closeable.
+	 */
+	public void onClose(AutoCloseable closeable);
+
+	@Override
+	public void close();
+
 }
 
 record ServiceKey(Class<?> type, String name) {
@@ -109,6 +119,8 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 
 	private final Map<ServiceKey, Object> services = new ConcurrentHashMap<>();
 
+	private final CopyOnWriteArrayList<AutoCloseable> closeables = new CopyOnWriteArrayList<>();
+
 	@Override
 	public <T> void put(Class<T> type, T service, String name) {
 		if (service == null) {
@@ -137,6 +149,22 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 	public <T> T putIfAbsent(Class<T> type, Supplier<T> supplier) {
 		var t = (T) services.computeIfAbsent(new ServiceKey(type, ""), k -> Objects.requireNonNull(supplier.get()));
 		return t;
+	}
+
+	@Override
+	public void onClose(AutoCloseable closeable) {
+		closeables.addIfAbsent(closeable);
+	}
+
+	@Override
+	public void close() {
+		for (var c : closeables.reversed()) {
+			try {
+				c.close();
+			}
+			catch (Exception e) {
+			}
+		}
 	}
 
 }

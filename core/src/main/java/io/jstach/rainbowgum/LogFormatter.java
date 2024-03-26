@@ -367,7 +367,7 @@ public sealed interface LogFormatter {
 	/**
 	 * Formats a {@link Level}.
 	 */
-	public non-sealed interface LevelFormatter extends LogFormatter {
+	public sealed interface LevelFormatter extends LogFormatter {
 
 		/**
 		 * Formats the level.
@@ -379,6 +379,17 @@ public sealed interface LogFormatter {
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			formatLevel(output, event.level());
+		}
+
+		/**
+		 * Formats a level.
+		 * @param level level
+		 * @return formatted level as a string.
+		 */
+		default String formatLevel(Level level) {
+			StringBuilder sb = new StringBuilder();
+			formatLevel(sb, level);
+			return sb.toString();
 		}
 
 		/**
@@ -399,18 +410,18 @@ public sealed interface LogFormatter {
 
 		/**
 		 * Turns a Level into a SLF4J like level String that is all upper case.
-		 * {@link Level#ALL} is "<code>ERROR</code>", {@link Level#OFF} is
-		 * "<code>TRACE</code>" and {@link Level#WARNING} is "<code>WARN</code>".
+		 * {@link Level#ALL} is "<code>TRACE</code>", {@link Level#OFF} is
+		 * "<code>ERROR</code>" and {@link Level#WARNING} is "<code>WARN</code>".
 		 * @param level system logger level.
 		 * @return upper case string of level.
 		 */
 		public static String toString(Level level) {
 			return switch (level) {
 				case DEBUG -> "DEBUG";
-				case ALL -> "ERROR";
+				case ALL -> "TRACE";
 				case ERROR -> "ERROR";
 				case INFO -> "INFO";
-				case OFF -> "TRACE";
+				case OFF -> "ERROR";
 				case TRACE -> "TRACE";
 				case WARNING -> "WARN";
 			};
@@ -418,8 +429,8 @@ public sealed interface LogFormatter {
 
 		/**
 		 * Turns a Level into a SLF4J like level String that is all upper case and same
-		 * length with right padding. {@link Level#ALL} is "<code>ERROR</code>",
-		 * {@link Level#OFF} is "<code>TRACE</code>" and {@link Level#WARNING} is
+		 * length with right padding. {@link Level#ALL} is "<code>TRACE</code>",
+		 * {@link Level#OFF} is "<code>ERROR</code>" and {@link Level#WARNING} is
 		 * "<code>WARN</code>".
 		 * @param level system logger level.
 		 * @return upper case string of level.
@@ -427,10 +438,10 @@ public sealed interface LogFormatter {
 		public static String rightPadded(Level level) {
 			return switch (level) {
 				case DEBUG -> /*   */ "DEBUG";
-				case ALL -> /*     */ "ERROR";
+				case ALL -> /*     */ "TRACE";
 				case ERROR -> /*   */ "ERROR";
 				case INFO -> /*    */ "INFO ";
-				case OFF -> /*     */ "TRACE";
+				case OFF -> /*     */ "ERROR";
 				case TRACE -> /*   */ "TRACE";
 				case WARNING -> /* */ "WARN ";
 			};
@@ -441,7 +452,7 @@ public sealed interface LogFormatter {
 	/**
 	 * Formats event timestamps.
 	 */
-	public non-sealed interface TimestampFormatter extends LogFormatter {
+	public sealed interface TimestampFormatter extends LogFormatter {
 
 		/**
 		 * The default timestamp format used in many logging frameworks which does not

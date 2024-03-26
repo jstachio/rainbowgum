@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.text.MessageFormat;
 import java.util.IdentityHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -65,6 +66,54 @@ public sealed interface LogMessageFormatter {
 			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args) {
 				SLF4JMessageFormatter.format(builder, message, args);
 			}
+		},
+		/**
+		 * java.util.logging MessageFormat style.
+		 */
+		JUL() {
+
+			@Override
+			public void format(StringBuilder builder, String message, @Nullable Object arg1) {
+				try {
+					String result = MessageFormat.format(message, arg1);
+					builder.append(result);
+				}
+				catch (IllegalArgumentException e) {
+					formatBadPattern(builder, message, e);
+				}
+			}
+
+			private static void formatBadPattern(StringBuilder builder, String message, IllegalArgumentException e) {
+				builder.append(message)
+					.append(" ")
+					.append("[MessageFormat failed: ")
+					.append(e.getMessage())
+					.append("]");
+			}
+
+			@Override
+			public void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2) {
+				try {
+					String result = MessageFormat.format(message, arg1, arg2);
+					builder.append(result);
+				}
+				catch (IllegalArgumentException e) {
+					formatBadPattern(builder, message, e);
+				}
+
+			}
+
+			@Override
+			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args) {
+				try {
+					String result = MessageFormat.format(message, args);
+					builder.append(result);
+				}
+				catch (IllegalArgumentException e) {
+					formatBadPattern(builder, message, e);
+				}
+			}
+
 		}
 
 	}

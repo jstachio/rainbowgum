@@ -123,6 +123,9 @@ public sealed interface RainbowGumServiceProvider {
 					var c = it.next();
 					if (c.configure(config)) {
 						it.remove();
+						if (c instanceof AutoCloseable ac) {
+							config.serviceRegistry().onClose(ac);
+						}
 					}
 				}
 				if (unresolved.isEmpty()) {

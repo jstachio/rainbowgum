@@ -382,6 +382,10 @@ final class RainbowGumHolder {
 			if (original != gum) {
 				return false;
 			}
+			/*
+			 * Reset the global router
+			 */
+			LogRouter.global().close();
 			rainbowGum = null;
 			supplier = RainbowGumServiceProvider::provide;
 			return true;
@@ -480,6 +484,7 @@ final class SimpleRainbowGum implements RainbowGum, Shutdownable {
 	@Override
 	public void shutdown() {
 		router().close();
+		config().serviceRegistry().close();
 	}
 
 	@Override

@@ -179,6 +179,45 @@ public sealed interface LogEvent {
 	}
 
 	/**
+	 * Creates a log event with everything specified.
+	 * @param timestamp time of event
+	 * @param threadName or empty string
+	 * @param threadId thread id or 0 if that cannot be resolved.
+	 * @param level the logging level.
+	 * @param loggerName the name of the logger which is usually a class name.
+	 * @param message the unformatted message.
+	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
+	 * @param throwable or <code>null</code>.
+	 * @param messageFormatter formatter to use for rendering a message when
+	 * #{@link LogEvent#formattedMessage(StringBuilder)} is called.
+	 * @param args an array of arguments that will be passed to messageFormatter. The
+	 * contents maybe null elements but the array itself should not be null.
+	 * @return event
+	 * @see LevelResolver
+	 * @see LogMessageFormatter
+	 */
+	public static LogEvent ofAll(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
+			String loggerName, String message, KeyValues keyValues, @Nullable Throwable throwable,
+			LogMessageFormatter messageFormatter, @SuppressWarnings("exports") @Nullable Object @Nullable [] args) {
+
+		if (args == null) {
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					throwable);
+		}
+		int size = args == null ? 0 : args.length;
+		return switch (size) {
+			case 0 ->
+				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
+			case 1 -> new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					messageFormatter, throwable, args[0]);
+			case 2 -> new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					messageFormatter, throwable, args[0], args[1]);
+			default -> new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					messageFormatter, throwable, args);
+		};
+	}
+
+	/**
 	 * Creates a new event with the caller info attached. <em> This method always returns
 	 * a new event does not check if the original has caller info. </em>
 	 * @param event original event.

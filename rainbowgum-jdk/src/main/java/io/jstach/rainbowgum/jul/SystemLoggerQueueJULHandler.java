@@ -1,12 +1,19 @@
 package io.jstach.rainbowgum.jul;
 
 import java.lang.System.Logger.Level;
+import java.time.Instant;
+import java.util.MissingResourceException;
+import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.logging.Handler;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogRouter;
 
 /**
@@ -29,12 +36,12 @@ public final class SystemLoggerQueueJULHandler extends Handler {
 	}
 
 	@Override
-	public void publish(@SuppressWarnings("exports") @Nullable LogRecord record) {
-		if (record == null) {
+	public void publish(@SuppressWarnings("exports") @Nullable LogRecord rec) {
+		if (rec == null) {
 			return;
 		}
 
-		int lv = record.getLevel().intValue();
+		int lv = rec.getLevel().intValue();
 		final Level level;
 		if (TRACE_LEVEL_THRESHOLD >= lv) {
 			level = Level.TRACE;
@@ -52,18 +59,38 @@ public final class SystemLoggerQueueJULHandler extends Handler {
 			level = Level.ERROR;
 		}
 
-		String loggerName = record.getLoggerName();
+		String loggerName = rec.getLoggerName();
 		if (loggerName == null) {
 			return;
 		}
-		String message = record.getMessage();
-		if (message == null) {
-			message = "";
-		}
 		@Nullable
-		Throwable cause = record.getThrown();
+		Throwable cause = rec.getThrown();
+		var router = LogRouter.global();
+		var route = router.route(loggerName, level);
+		if (route.isEnabled()) {
+			@Nullable
+			String msg = alreadyFormattedOrNull(rec);
+			Object[] args;
+			if (msg != null) {
+				args = null;
+			}
+			else {
+				msg = Objects.requireNonNullElse(rec.getMessage(), "");
+				args = rec.getParameters();
+			}
 
-		LogRouter.global().log(loggerName, level, message, cause);
+			Instant timestamp = rec.getInstant();
+			long threadId = rec.getLongThreadID();
+			String threadName = "";
+			long currentThreadId = Thread.currentThread().threadId();
+			if (currentThreadId == threadId) {
+				threadName = Thread.currentThread().getName();
+			}
+			var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, msg, KeyValues.of(), cause,
+					StandardMessageFormatter.JUL, args);
+			route.log(event);
+
+		}
 	}
 
 	@Override
@@ -74,6 +101,37 @@ public final class SystemLoggerQueueJULHandler extends Handler {
 	@Override
 	public void close() {
 
+	}
+
+	private static @Nullable String alreadyFormattedOrNull(LogRecord record) {
+		String message = record.getMessage();
+		if (message == null) {
+			return null;
+		}
+		ResourceBundle bundle = record.getResourceBundle();
+		if (bundle != null) {
+			try {
+				return bundle.getString(message);
+			}
+			catch (MissingResourceException e) {
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Checks to see if this handler is installed
+	 * @return true if it is.
+	 */
+	public static boolean isInstalled() {
+		java.util.logging.Logger rootLogger = getRootLogger();
+		Handler[] handlers = rootLogger.getHandlers();
+		for (Handler handler : handlers) {
+			if (handler instanceof SystemLoggerQueueJULHandler) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

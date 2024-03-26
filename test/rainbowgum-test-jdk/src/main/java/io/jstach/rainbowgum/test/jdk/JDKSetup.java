@@ -11,7 +11,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 public class JDKSetup {
 
-	public static RainbowGum run(ListLogOutput output) {
+	public static RainbowGum run(ListLogOutput output, System.Logger.Level level) {
 		var config = LogConfig.builder() //
 			.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class)) //
 			.build();
@@ -20,6 +20,7 @@ public class JDKSetup {
 				a.output(output);
 			});
 			r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+			r.level(level);
 		}).build());
 		return RainbowGum.of();
 	}

@@ -36,6 +36,7 @@
  * 
  * 
  * @provides System.LoggerFinder
+ * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
 module io.jstach.rainbowgum.jdk {
 
@@ -47,4 +48,5 @@ module io.jstach.rainbowgum.jdk {
 	requires static io.jstach.svc;
 
 	provides System.LoggerFinder with io.jstach.rainbowgum.systemlogger.SystemLoggingFactory;
+	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.jul.JULConfigurator;
 }
