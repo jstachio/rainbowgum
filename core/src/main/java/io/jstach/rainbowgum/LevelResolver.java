@@ -4,6 +4,7 @@ import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -21,7 +22,7 @@ import io.jstach.rainbowgum.LogProperties.PropertyGetter;
 /**
  * Resolves levels from logger names.
  *
- * @apiNote {@linkplain Level#ALL} is considered to be equivalent to TRACE.
+ * @apiNote {@linkplain Level#ALL} is considered to be equivalent to null.
  */
 public interface LevelResolver {
 
@@ -42,9 +43,6 @@ public interface LevelResolver {
 	default boolean isEnabled(String loggerName, Level level) {
 		if (level == Level.OFF) {
 			return false;
-		}
-		if (level == Level.ALL) {
-			level = Level.TRACE;
 		}
 		return resolveLevel(loggerName).getSeverity() <= level.getSeverity();
 	}
@@ -243,7 +241,7 @@ public interface LevelResolver {
 	}
 
 	private static Level resolveLevel(LevelConfig levelBindings, String name) {
-		Function<String, @Nullable Level> f = s -> allToTrace(levelBindings.levelOrNull(s));
+		Function<String, @Nullable Level> f = s -> allToNull(levelBindings.levelOrNull(s));
 		var level = LogProperties.findUpPathOrNull(name, f);
 		if (level != null) {
 			return level;
@@ -251,12 +249,9 @@ public interface LevelResolver {
 		return levelBindings.defaultLevel();
 	}
 
-	private static @Nullable Level allToTrace(@Nullable Level level) {
-		if (level == null) {
+	private static @Nullable Level allToNull(@Nullable Level level) {
+		if (level == null || level == Level.ALL) {
 			return null;
-		}
-		if (level == Level.ALL) {
-			return Level.TRACE;
 		}
 		return level;
 	}
@@ -281,9 +276,21 @@ interface InternalLevelResolver {
 		}
 		else if (levels.size() == 1) {
 			var e = levels.entrySet().iterator().next();
-			return new SingleLevelResolver(e.getKey(), e.getValue());
+			return new SingleLevelResolver(e.getKey(), allToTrace(e.getValue()));
 		}
-		return new MapLevelResolver(levels);
+		Map<String, Level> copy = new HashMap<>();
+
+		for (var et : levels.entrySet()) {
+			copy.put(et.getKey(), allToTrace(et.getValue()));
+		}
+		return new MapLevelResolver(copy);
+	}
+
+	static Level allToTrace(Level level) {
+		if (level == Level.ALL) {
+			return Level.TRACE;
+		}
+		return level;
 	}
 
 	public static LevelResolver of(Level level) {

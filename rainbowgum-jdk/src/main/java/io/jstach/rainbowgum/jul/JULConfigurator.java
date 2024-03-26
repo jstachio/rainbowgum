@@ -53,7 +53,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 		if (!disableLevel) {
 			var logger = Logger.getLogger("");
 			if (logger != null) {
-				var systemLevel = config.levelResolver().defaultLevel();
+				var systemLevel = config.levelResolver().resolveLevel("");
 				logger.setLevel(julLevel(systemLevel));
 			}
 		}

@@ -831,6 +831,13 @@ class DefaultSystemLogger implements System.Logger {
 		this.router = router;
 	}
 
+	private static Level fixLevel(Level level) {
+		if (level == Level.ALL) {
+			return Level.TRACE;
+		}
+		return level;
+	}
+
 	@Override
 	public String getName() {
 		return this.loggerName;
@@ -838,7 +845,7 @@ class DefaultSystemLogger implements System.Logger {
 
 	@Override
 	public boolean isLoggable(Level level) {
-		return router.isEnabled(loggerName, level);
+		return router.isEnabled(loggerName, fixLevel(level));
 	}
 
 	@Override
@@ -853,6 +860,7 @@ class DefaultSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, Object obj) {
+		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = obj == null ? "" : obj.toString();
@@ -863,6 +871,7 @@ class DefaultSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, @Nullable String msg, @Nullable Throwable throwable) {
+		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = requireNonNullElse(msg, "");
@@ -873,6 +882,7 @@ class DefaultSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, Supplier<@Nullable String> msgSupplier, @Nullable Throwable throwable) {
+		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = requireNonNullElse(msgSupplier.get(), "");
@@ -894,6 +904,7 @@ class DefaultSystemLogger implements System.Logger {
 		/*
 		 * TODO handle resource bundle
 		 */
+		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			Instant timestamp = Instant.now();

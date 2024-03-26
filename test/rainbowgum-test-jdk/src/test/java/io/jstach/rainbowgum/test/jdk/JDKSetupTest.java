@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
@@ -159,6 +160,33 @@ class JDKSetupTest {
 		});
 	}
 
+	@Test
+	@Order(11)
+	void testOffForCeki() throws InterruptedException {
+		doInLock(() -> {
+			_testThrowable(JULLoggerTester.JUL, System.Logger.Level.OFF, System.Logger.Level.TRACE);
+		});
+	}
+
+	@Order(12)
+	@ParameterizedTest
+	@EnumSource(System.Logger.Level.class)
+	void testNullRecord(System.Logger.Level loggerLevel) throws InterruptedException {
+		doInLock(() -> {
+			ListLogOutput output = new ListLogOutput();
+			var tester = JULLoggerTester.JUL;
+			try (var gum = JDKSetup.run(output, loggerLevel)) {
+				var logger = tester.logger("");
+				var handlers = logger.getHandlers();
+				assertEquals(1, handlers.length);
+				handlers[0].publish(null);
+				String expected = "";
+				String actual = output.toString();
+				assertEquals(expected, actual);
+			}
+		});
+	}
+
 	interface LoggerProvider<T> {
 
 		T logger(String loggerName);
@@ -262,13 +290,6 @@ class JDKSetupTest {
 		}
 
 	}
-
-	/*
-	 * switch (level) { case TRACE -> jul.finest(message); case DEBUG ->
-	 * jul.fine(message); case INFO -> jul.info(message); case WARNING ->
-	 * jul.warning(message); case ERROR -> jul.severe(message); case ALL ->
-	 * jul.log(julLevel, message); case OFF -> jul.log(julLevel, message); }
-	 */
 
 	<T> void _testMessage(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel) {
 		ListLogOutput output = new ListLogOutput();
