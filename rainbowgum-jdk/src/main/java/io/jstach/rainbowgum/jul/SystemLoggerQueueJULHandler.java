@@ -19,7 +19,7 @@ import io.jstach.rainbowgum.LogRouter;
 /**
  * JUL logger that uses global router.
  */
-public final class SystemLoggerQueueJULHandler extends Handler {
+final class SystemLoggerQueueJULHandler extends Handler {
 
 	private static final int TRACE_LEVEL_THRESHOLD = java.util.logging.Level.FINEST.intValue();
 
@@ -36,7 +36,7 @@ public final class SystemLoggerQueueJULHandler extends Handler {
 	}
 
 	@Override
-	public void publish(@SuppressWarnings("exports") @Nullable LogRecord rec) {
+	public void publish(@Nullable LogRecord rec) {
 		if (rec == null) {
 			return;
 		}
@@ -54,6 +54,9 @@ public final class SystemLoggerQueueJULHandler extends Handler {
 		}
 		else if (WARN_LEVEL_THRESHOLD >= lv) {
 			level = Level.WARNING;
+		}
+		else if (Integer.MAX_VALUE == lv) {
+			level = Level.OFF;
 		}
 		else {
 			level = Level.ERROR;

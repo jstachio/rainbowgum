@@ -28,6 +28,9 @@
  * <li>Your application uses System.Logger (the SLF4J adapter will initialize
  * Rainbow Gum on Sytem.Logger usage if using  <code>io.jstach.rainbowgum.slf4j</code> module)</li>
  * </ul>
+ * To disable installation of the java.util.logging handler set the property:
+ * {@value io.jstach.rainbowgum.jul.JULConfigurator#JUL_DISABLE_PROPERTY}
+ * to <code>true</code>.
  * 
  * <em> <strong>NOTE:</strong> While the JDK System.Logger is good for low level
  * libraries it's API (and Rainbow Gum implementation) is not designed for
@@ -43,6 +46,10 @@ module io.jstach.rainbowgum.jdk {
 	exports io.jstach.rainbowgum.jul;
 
 	requires io.jstach.rainbowgum;
+	/*
+	 * TODO perhaps a separate module for
+	 * the java.logging handler
+	 */
 	requires java.logging;
 	requires static org.eclipse.jdt.annotation;
 	requires static io.jstach.svc;

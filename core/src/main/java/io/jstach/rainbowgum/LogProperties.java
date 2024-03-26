@@ -743,6 +743,38 @@ public interface LogProperties {
 	}
 
 	/**
+	 * Finds global properties by checking the currently bound rainbow gum and if not set
+	 * use system properties. <strong>This method should be used sparingly and is
+	 * preferred that you get the properties through a config instance instead.</strong>
+	 * @return currently bound properties or sytem properties.
+	 * @apiNote the intention of this method is to be used for ServiceLoader singleton
+	 * components and other systems that maybe bound prior to rainbow gum loading that
+	 * need to determine if they should be enabled.
+	 */
+	public static LogProperties findGlobalProperties() {
+		return findGlobalProperties(() -> StandardProperties.SYSTEM_PROPERTIES);
+	}
+
+	/**
+	 * Finds global properties by checking the currently bound rainbow gum and if not set
+	 * use the supplier as the fallback. <strong>This method should be used sparingly and
+	 * is preferred that you get the properties through a config instance
+	 * instead.</strong>
+	 * @param fallback supplier to use if no rainbow gum is bound.
+	 * @return currently bound properties or fallback.
+	 * @apiNote the intention of this method is to be used for ServiceLoader singleton
+	 * components and other systems that maybe bound prior to rainbow gum loading that
+	 * need to determine if they should be enabled.
+	 */
+	public static LogProperties findGlobalProperties(Supplier<? extends LogProperties> fallback) {
+		var gum = RainbowGum.getOrNull();
+		if (gum != null) {
+			return gum.config().properties();
+		}
+		return Objects.requireNonNull(fallback.get());
+	}
+
+	/**
 	 * Creates log properties from many log properties.
 	 * @param logProperties list of properties.
 	 * @param fallback if the logProperties list is empty.

@@ -10,7 +10,10 @@ import java.util.Objects;
  * @hidden
  */
 @SuppressWarnings("InvalidBlockTag")
-public interface MetaLog {
+public final class MetaLog {
+
+	private MetaLog() {
+	}
 
 	/**
 	 * Logs an error in the logging system.

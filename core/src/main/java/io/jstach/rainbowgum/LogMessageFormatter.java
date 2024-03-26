@@ -78,12 +78,12 @@ public sealed interface LogMessageFormatter {
 					String result = MessageFormat.format(message, arg1);
 					builder.append(result);
 				}
-				catch (IllegalArgumentException e) {
+				catch (RuntimeException e) {
 					formatBadPattern(builder, message, e);
 				}
 			}
 
-			private static void formatBadPattern(StringBuilder builder, String message, IllegalArgumentException e) {
+			private static void formatBadPattern(StringBuilder builder, String message, RuntimeException e) {
 				builder.append(message)
 					.append(" ")
 					.append("[MessageFormat failed: ")
@@ -97,7 +97,7 @@ public sealed interface LogMessageFormatter {
 					String result = MessageFormat.format(message, arg1, arg2);
 					builder.append(result);
 				}
-				catch (IllegalArgumentException e) {
+				catch (RuntimeException e) {
 					formatBadPattern(builder, message, e);
 				}
 
@@ -109,7 +109,7 @@ public sealed interface LogMessageFormatter {
 					String result = MessageFormat.format(message, args);
 					builder.append(result);
 				}
-				catch (IllegalArgumentException e) {
+				catch (RuntimeException e) {
 					formatBadPattern(builder, message, e);
 				}
 			}
