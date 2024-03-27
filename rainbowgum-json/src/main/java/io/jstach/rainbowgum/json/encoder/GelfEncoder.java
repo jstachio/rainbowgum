@@ -2,8 +2,6 @@ package io.jstach.rainbowgum.json.encoder;
 
 import static io.jstach.rainbowgum.json.JsonBuffer.EXTENDED_F;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -126,10 +124,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		index = buffer.write("_thread_id", String.valueOf(event.threadId()), index);
 
 		if (t != null) {
-			String tn = t.getClass().getCanonicalName();
-			if (tn == null) {
-				tn = t.getClass().getName();
-			}
+			String tn = t.getClass().getName();
 			index = buffer.write("_throwable", tn, index);
 		}
 
