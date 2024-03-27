@@ -98,7 +98,7 @@ class FileOutputTest {
 		return s.repeat(count);
 	}
 
-	private RainbowGum makeGum(Events test, Provider<FileOutput> file, ListLogOutput list) {
+	private RainbowGum makeGum(Events test, LogConfig.Provider<FileOutput> file, ListLogOutput list) {
 		var config = LogConfig.builder() //
 			.level(test.level()) //
 			.build();

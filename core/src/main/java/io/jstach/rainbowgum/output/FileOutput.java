@@ -81,7 +81,7 @@ public interface FileOutput extends LogOutput {
 		}
 		else {
 			file = new File(uri);
-			uri = Objects.requireNonNull(uri);
+			Objects.requireNonNull(uri);
 		}
 		createMissingParentDirectories(file);
 		FileOutputStream stream;
@@ -95,7 +95,7 @@ public interface FileOutput extends LogOutput {
 			return new FileChannelOutput(uri, stream.getChannel());
 		}
 		OutputStream s;
-		bufferSize = Objects.requireNonNull(bufferSize);
+		Objects.requireNonNull(bufferSize);
 		if (bufferSize <= 0) {
 			s = stream;
 		}

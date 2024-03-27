@@ -345,7 +345,7 @@ final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafe
 		return new LockingLogAppender(appender);
 	};
 
-	protected final ReentrantLock lock = new ReentrantLock();
+	private final ReentrantLock lock = new ReentrantLock();
 
 	public DefaultLogAppender(LogOutput output, LogEncoder encoder) {
 		super(output, encoder);
