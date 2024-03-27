@@ -3,27 +3,16 @@ package io.jstach.rainbowgum;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogAppender.AppenderProvider;
 import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
  * Register appenders by name.
  */
-public sealed interface LogAppenderRegistry extends AppenderProvider permits DefaultAppenderRegistry {
-
-	/**
-	 * Register a provider by {@link URI#getScheme() scheme}.
-	 * @param scheme URI scheme to match for.
-	 * @param provider provider for scheme.
-	 */
-	public void register(String scheme, AppenderProvider provider);
+public sealed interface LogAppenderRegistry permits DefaultAppenderRegistry {
 
 	/**
 	 * Creates a log appender registry.
@@ -57,24 +46,12 @@ record AppenderConfig(String name, @Nullable LogOutput output, @Nullable LogEnco
 
 final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
-	private final Map<String, AppenderProvider> providers = new ConcurrentHashMap<>();
-
 	static final Property<URI> fileProperty = Property.builder().toURI().build(LogProperties.FILE_PROPERTY);
 
 	static final Property<List<String>> appendersProperty = Property.builder()
 		.toList()
 		.orElse(List.of())
 		.build(LogProperties.APPENDERS_PROPERTY);
-
-	@Override
-	public LogAppender provide(URI uri, String name, LogConfig properties) {
-		throw new NoSuchElementException(uri.toString());
-	}
-
-	@Override
-	public void register(String scheme, AppenderProvider provider) {
-		providers.put(scheme, provider);
-	}
 
 	/*
 	 * TODO The shit in here is a mess because auto configuration of appenders based on

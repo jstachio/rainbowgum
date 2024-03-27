@@ -20,7 +20,7 @@ public final class MetaLog {
 	 * @param event event to log.
 	 */
 	public static void error(LogEvent event) {
-		FailsafeAppender.INSTANCE.append(event);
+		FailsafeAppender.INSTANCE.log(event);
 	}
 
 	/**
@@ -42,6 +42,28 @@ public final class MetaLog {
 	public static void error(Class<?> loggerName, String message, Throwable throwable) {
 		var event = LogEvent.of(Level.ERROR, loggerName.getName(), message, throwable);
 		error(event);
+	}
+
+}
+
+enum FailsafeAppender implements LogEventLogger {
+
+	INSTANCE;
+
+	@Override
+	public void log(LogEvent event) {
+		if (event.level().compareTo(Level.ERROR) >= 0) {
+			var err = System.err;
+			if (err != null) {
+				err.append("[ERROR] - logging ");
+				event.formattedMessage(err);
+
+				var throwable = event.throwableOrNull();
+				if (throwable != null) {
+					throwable.printStackTrace(err);
+				}
+			}
+		}
 	}
 
 }

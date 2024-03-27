@@ -637,43 +637,6 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) impleme
 	}
 }
 
-enum FailsafeAppender implements LogAppender {
-
-	INSTANCE;
-
-	@Override
-	public void append(LogEvent event) {
-		if (event.level().compareTo(Level.ERROR) >= 0) {
-			var err = System.err;
-			if (err != null) {
-				err.append("[ERROR] - logging ");
-				event.formattedMessage(err);
-
-				var throwable = event.throwableOrNull();
-				if (throwable != null) {
-					throwable.printStackTrace(err);
-				}
-			}
-		}
-	}
-
-	@Override
-	public void append(LogEvent[] events, int count) {
-		for (int i = 0; i < count; i++) {
-			append(events[i]);
-		}
-	}
-
-	@Override
-	public void close() {
-	}
-
-	@Override
-	public void start(LogConfig config) {
-	}
-
-}
-
 final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();

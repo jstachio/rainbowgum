@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
@@ -19,7 +18,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
  *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
-public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.Provider<LogAppender> {
+public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.Provider<LogAppender> {
 
 	/**
 	 * Default Console appender name.
@@ -83,22 +82,6 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 		@SuppressWarnings("null") // TODO Eclipse issue here
 		LogAppender @NonNull [] array = appenders.toArray(new LogAppender[] {});
 		return new CompositeLogAppender(array);
-	}
-
-	/**
-	 * Finds an appender based on URI.
-	 */
-	public interface AppenderProvider {
-
-		/**
-		 * Loads an appender from a URI.
-		 * @param uri uri.
-		 * @param name name of appender.
-		 * @param config config to access properties and other components like encoders.
-		 * @return appender.
-		 */
-		LogAppender provide(URI uri, String name, LogConfig config);
-
 	}
 
 	/**
@@ -218,7 +201,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	/**
 	 * An appender that can be used by a {@link LogPublisher.SyncLogPublisher}.
 	 */
-	public interface ThreadSafeLogAppender extends LogAppender {
+	public sealed interface ThreadSafeLogAppender extends LogAppender {
 
 		/**
 		 * Make an appender thread safe if is not already thread safe.
@@ -238,7 +221,7 @@ public interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.P
 	/**
 	 * An abstract appender to help create custom appenders.
 	 */
-	abstract class AbstractLogAppender implements LogAppender {
+	sealed abstract class AbstractLogAppender implements LogAppender {
 
 		/**
 		 * output
@@ -308,7 +291,7 @@ record CompositeLogAppender(LogAppender[] appenders) implements LogAppender {
 
 }
 
-class LockingLogAppender implements ThreadSafeLogAppender {
+final class LockingLogAppender implements ThreadSafeLogAppender {
 
 	private final LogAppender appender;
 
@@ -356,7 +339,7 @@ class LockingLogAppender implements ThreadSafeLogAppender {
 /*
  * The idea here is to have the virtual thread do the formatting outside of the lock
  */
-class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
+final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
 
 	static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
 		return new LockingLogAppender(appender);
@@ -407,7 +390,7 @@ class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogApp
 
 }
 
-class BufferLogAppender extends AbstractLogAppender {
+final class BufferLogAppender extends AbstractLogAppender {
 
 	private final Buffer buffer;
 
