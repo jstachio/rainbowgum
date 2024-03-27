@@ -29,7 +29,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * RabbitMQ Output that will write publish messages to a given exchange with a given
  * routing key.
  */
-public class RabbitMQOutput implements LogOutput {
+public final class RabbitMQOutput implements LogOutput {
 
 	private final URI uri;
 
