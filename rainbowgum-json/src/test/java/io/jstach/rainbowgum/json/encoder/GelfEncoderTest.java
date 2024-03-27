@@ -1,13 +1,20 @@
 package io.jstach.rainbowgum.json.encoder;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
@@ -141,6 +148,215 @@ class GelfEncoderTest {
 					""";
 			assertEquals(expected, actual);
 		}
+	}
+
+	@ParameterizedTest
+	@EnumSource(GelfTest.class)
+	void test(GelfTest test) throws Exception {
+		var config = LogConfig.builder().level(Level.TRACE).build();
+		ListLogOutput output = new ListLogOutput();
+		try (var g = RainbowGum.builder(config).route(rb -> rb.appender("list", a -> {
+			a.encoder(GelfEncoder.of(gelf -> {
+				gelf.prettyPrint(true);
+				gelf.host("somehost");
+			}));
+			a.output(output);
+		})).build().start()) {
+			var events = test.events();
+			for (var e : events) {
+				g.log(e);
+			}
+			String actual = output.toString();
+			test.assertOutput(actual);
+		}
+	}
+
+	enum GelfTest {
+
+		hello("""
+				{
+				 "host":"somehost",
+				 "short_message":"hello",
+				 "timestamp":0.001,
+				 "level":6,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"INFO",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 "version":"1.1"
+				}
+				"""), TRACE("""
+				{
+				 "host":"somehost",
+				 "short_message":"hello",
+				 "timestamp":0.001,
+				 "level":7,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"TRACE",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 "version":"1.1"
+				}
+				""", Level.TRACE), DEBUG("""
+				{
+				 "host":"somehost",
+				 "short_message":"hello",
+				 "timestamp":0.001,
+				 "level":7,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"DEBUG",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 "version":"1.1"
+				}
+				""", Level.DEBUG), INFO("""
+				{
+				 "host":"somehost",
+				 "short_message":"hello",
+				 "timestamp":0.001,
+				 "level":6,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"INFO",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 "version":"1.1"
+				}
+				""", Level.INFO), WARN("""
+				{
+				 "host":"somehost",
+				 "short_message":"hello",
+				 "timestamp":0.001,
+				 "level":4,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"WARN",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 "version":"1.1"
+				}
+				""", Level.WARNING), ERROR("""
+				{
+				 "host":"somehost",
+				 "short_message":"hello",
+				 "timestamp":0.001,
+				 "level":3,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"ERROR",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 "version":"1.1"
+				}
+				""", Level.ERROR), quote("""
+				{
+				 "host":"somehost",
+				 "short_message":"Let us put some double quotes \\"\\nand = and ' andd \\\\ < slash\\n\\f \\r \\b\\n",
+				 "timestamp":0.001,
+				 "level":6,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"INFO",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 "version":"1.1"
+				}
+								""") {
+			@Override
+			String message() {
+				return """
+						Let us put some double quotes "
+						and = and ' andd \\ < slash
+						\f \r \b
+						""";
+			}
+		},
+		mdc("""
+				{
+				 "host":"somehost",
+				 "short_message":"hello",
+				 "timestamp":0.001,
+				 "level":6,
+				 "_time":"1970-01-01T00:00:00.001Z",
+				 "_level":"INFO",
+				 "_logger":"gelf",
+				 "_thread_name":"main",
+				 "_thread_id":"1",
+				 _"k1":"v1",
+				 _"k2":"v2",
+				 "version":"1.1"
+				}
+				""")
+
+		{
+			@Override
+			List<LogEvent> events() {
+				var kvs = MutableKeyValues.of().add("k1", "v1").add("k2", "v2");
+				return List.of(LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", kvs, null).freeze(instant));
+
+			}
+		},
+		throwable("""
+				"_throwable":"java.lang.RuntimeException",
+				""") {
+
+			@Override
+			@Nullable
+			Throwable throwable() {
+				return new RuntimeException("expected");
+			}
+
+			@Override
+			void assertOutput(String actual) {
+				System.out.println(actual);
+				assertTrue(actual.contains(expected()));
+			}
+		};
+
+		private final String expected;
+
+		private final System.Logger.Level level;
+
+		private static final Instant instant = Instant.ofEpochMilli(1);
+
+		private GelfTest(String expected) {
+			this(expected, System.Logger.Level.INFO);
+		}
+
+		void assertOutput(String actual) {
+			assertEquals(expected, actual);
+
+		}
+
+		private GelfTest(String expected, System.Logger.Level level) {
+			this.expected = expected;
+			this.level = level;
+		}
+
+		System.Logger.Level level() {
+			return level;
+		}
+
+		String expected() {
+			return this.expected;
+		}
+
+		List<LogEvent> events() {
+			return List.of(LogEvent.of(level(), "gelf", message(), throwable()).freeze(instant));
+		}
+
+		@Nullable
+		Throwable throwable() {
+			return null;
+		}
+
+		String message() {
+			return "hello";
+		}
+
 	}
 
 }

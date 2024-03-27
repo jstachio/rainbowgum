@@ -18,6 +18,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
+import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.json.JsonBuffer;
@@ -106,11 +107,9 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		String fullMessage = null;
 		var t = event.throwableOrNull();
 		if (t != null) {
-			StringWriter sw = new StringWriter();
-			sw.write(shortMessage);
-			sw.write("\n");
-			t.printStackTrace(new PrintWriter(sw));
-			fullMessage = sw.toString();
+			formattedMessage.append("\n");
+			ThrowableFormatter.appendThrowable(formattedMessage, t);
+			fullMessage = formattedMessage.toString();
 		}
 		int level = levelToSyslogLevel(event.level());
 		buffer.write(JSONToken.OBJECT_START);
