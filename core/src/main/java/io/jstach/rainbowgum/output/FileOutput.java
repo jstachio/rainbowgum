@@ -71,17 +71,16 @@ public interface FileOutput extends LogOutput {
 		prudent = prudent == null ? false : prudent;
 		append = append == null ? true : append;
 
-		if (fileName == null && uri == null) {
-			throw new RuntimeException("fileName and uri cannot both be unset.");
-		}
 		File file;
 		if (fileName != null) {
 			file = new File(fileName);
 			uri = file.toURI();
 		}
-		else {
+		else if (uri != null) {
 			file = new File(uri);
-			Objects.requireNonNull(uri);
+		}
+		else {
+			throw new RuntimeException("fileName and uri cannot both be unset.");
 		}
 		createMissingParentDirectories(file);
 		FileOutputStream stream;

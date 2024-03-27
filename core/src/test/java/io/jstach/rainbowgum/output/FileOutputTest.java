@@ -264,7 +264,7 @@ class FileOutputTest {
 	}
 
 	@SafeVarargs
-	@SuppressWarnings("null")
+	@SuppressWarnings({"null", "nullness"})
 	private static void combinationsHelper(List<List<Enum<?>>> result, List<Enum<?>> current,
 			@SuppressWarnings("rawtypes") Class<? extends Enum> first, Class<? extends Enum<?>>... others) {
 
