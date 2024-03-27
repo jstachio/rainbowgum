@@ -43,8 +43,8 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	Optional<LogOutput> output(String name);
 
 	/**
-	 * Register a provider by {@link URI#getScheme() scheme}.
-	 * @param name URI scheme to match for.
+	 * Registers an output by name for lookup.
+	 * @param name name assigned to output.
 	 * @param output for name.
 	 */
 	public void register(String name, LogOutput output);
@@ -63,10 +63,16 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 
 }
 
-final class DefaultOutputRegistry extends ProviderRegistry<OutputProvider, LogOutput, IOException>
-		implements LogOutputRegistry {
+final class DefaultOutputRegistry implements LogOutputRegistry {
 
 	private final Map<String, LogOutput> outputs = new ConcurrentHashMap<>();
+
+	private final Map<String, OutputProvider> providers = new ConcurrentHashMap<>();
+
+	@Override
+	public void register(String scheme, OutputProvider provider) {
+		providers.put(scheme, provider);
+	}
 
 	@Override
 	public void register(String name, LogOutput output) {
@@ -74,7 +80,9 @@ final class DefaultOutputRegistry extends ProviderRegistry<OutputProvider, LogOu
 	}
 
 	private LogOutput _register(String name, LogOutput output) {
-		outputs.putIfAbsent(name, output);
+		if (outputs.putIfAbsent(name, output) != null) {
+			throw new IllegalArgumentException("Name is already in use. name = '%s'".formatted("name"));
+		}
 		return output;
 	}
 
@@ -83,13 +91,13 @@ final class DefaultOutputRegistry extends ProviderRegistry<OutputProvider, LogOu
 		return Optional.ofNullable(outputs.get(name));
 	}
 
-	LogOutput provide(String name, LogProperties properties) throws IOException {
-		var o = output(name).orElse(null);
-		if (o != null) {
-			return o;
-		}
-		return provide(URI.create(name + ":///"), name, properties);
-	}
+	// LogOutput provide(String name, LogProperties properties) throws IOException {
+	// var o = output(name).orElse(null);
+	// if (o != null) {
+	// return o;
+	// }
+	// return provide(URI.create(name + ":///"), name, properties);
+	// }
 
 	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();

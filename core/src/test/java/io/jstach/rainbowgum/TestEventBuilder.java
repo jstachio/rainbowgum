@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
+import java.time.Instant;
 import java.util.function.Consumer;
 
 /**
@@ -49,7 +50,7 @@ public final class TestEventBuilder {
 	 * @return event builder.
 	 */
 	public LogEvent.Builder event() {
-		return new LogEventBuilder(logger, level, loggerName);
+		return new LogEventBuilder(logger, level, loggerName).timestamp(Instant.EPOCH).message("testMessage");
 	}
 
 	/**

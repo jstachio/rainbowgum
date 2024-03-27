@@ -11,6 +11,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -21,11 +22,17 @@ import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
+import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
 
 /**
  * An output that is designed for writing to a file.
  */
 public interface FileOutput extends LogOutput {
+
+	/**
+	 * Default file buffer size. This size was chosen based on Logbacks default.
+	 */
+	public static final int DEFAULT_BUFFER_SIZE = 8192;
 
 	@Override
 	default OutputType type() {
@@ -58,12 +65,24 @@ public interface FileOutput extends LogOutput {
 	 */
 	@SuppressWarnings("resource")
 	@LogConfigurable(prefix = LogProperties.OUTPUT_PREFIX)
-	public static FileOutput of(@LogConfigurable.KeyParameter String name, URI uri, String fileName,
-			@Nullable Boolean append, @Nullable Boolean prudent, @Nullable Integer bufferSize)
-			throws UncheckedIOException {
+	public static FileOutput of(@LogConfigurable.KeyParameter String name, @Nullable URI uri, @Nullable String fileName,
+			@Nullable Boolean append, @Nullable Boolean prudent,
+			@DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize) throws UncheckedIOException {
 		prudent = prudent == null ? false : prudent;
 		append = append == null ? true : append;
-		File file = new File(fileName);
+
+		if (fileName == null && uri == null) {
+			throw new RuntimeException("fileName and uri cannot both be unset.");
+		}
+		File file;
+		if (fileName != null) {
+			file = new File(fileName);
+			uri = file.toURI();
+		}
+		else {
+			file = new File(uri);
+			uri = Objects.requireNonNull(uri);
+		}
 		createMissingParentDirectories(file);
 		FileOutputStream stream;
 		try {
@@ -76,14 +95,12 @@ public interface FileOutput extends LogOutput {
 			return new FileChannelOutput(uri, stream.getChannel());
 		}
 		OutputStream s;
-		if (bufferSize == null) {
-			s = new BufferedOutputStream(stream);
-		}
-		else if (bufferSize > 0) {
-			s = new BufferedOutputStream(stream, bufferSize);
+		bufferSize = Objects.requireNonNull(bufferSize);
+		if (bufferSize <= 0) {
+			s = stream;
 		}
 		else {
-			s = stream;
+			s = new BufferedOutputStream(stream, bufferSize);
 		}
 		return new FileOutputStreamOutput(uri, s);
 	}
