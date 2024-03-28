@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -74,9 +75,11 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable
 			String exceptionMessage() {
+				String uri = Paths.get(FILE_PATH).toUri().toString();
 				return "Error for property. key: ''logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name]', "
 						+ "Error for property. key: ''logging.output.file.bufferSize' from Properties String, 'logging.output.file.bufferSize' from ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], "
-						+ "'logging.output.file.bufferSize' from URI(file:///Users/agent/projects/rainbowgum/core/./target/FileOutputPropertiesTest/file.log?bufferSize=blah)[bufferSize]', For input string: \"blah\"";
+						+ "'logging.output.file.bufferSize' from URI(%s?bufferSize=blah)[bufferSize]', For input string: \"blah\""
+							.formatted(uri);
 			}
 		},
 		BAD_URI("""
