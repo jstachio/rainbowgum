@@ -3,7 +3,6 @@ package io.jstach.rainbowgum;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -60,19 +59,40 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	 */
 	static List<LogAppender> defaultAppenders(LogConfig config, List<String> appenderNames) {
 		List<LogAppender> appenders = new ArrayList<>();
-		fileAppender(config).ifPresent(appenders::add);
 		if (appenderNames.isEmpty()) {
 			appenderNames = appendersProperty.get(config.properties()).value(List.of());
 		}
-
+		if (appenderNames.isEmpty()) {
+			appenderNames = addDefaultAppenderNames(config);
+		}
+		appenderNames = appenderNames.stream().distinct().toList();
 		for (String appenderName : appenderNames) {
 			appenders.add(appender(appenderName, config));
 		}
-		if (appenders.isEmpty()) {
-			var consoleAppender = defaultConsoleAppender(config);
-			appenders.add(consoleAppender);
-		}
 		return appenders;
+	}
+
+	private static List<String> addDefaultAppenderNames(LogConfig config) {
+		List<String> appenderNames = new ArrayList<>();
+		fileProperty.get(config.properties())
+			.optional()
+			.ifPresent(a -> appenderNames.add(LogAppender.FILE_APPENDER_NAME));
+		appenderNames.add(LogAppender.CONSOLE_APPENDER_NAME);
+		return appenderNames;
+	}
+
+	static LogAppender appender( //
+			String name, LogConfig config) {
+		if (name.equals(LogAppender.FILE_APPENDER_NAME)) {
+			return fileAppender(config);
+		}
+		if (name.equals(LogAppender.CONSOLE_APPENDER_NAME)) {
+			return defaultConsoleAppender(config);
+		}
+		var builder = new AppenderConfig(name, null, null);
+		var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
+		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
+		return appender(builder, config, outputProperty, encoderProperty);
 	}
 
 	private static LogAppender defaultConsoleAppender(LogConfig config) {
@@ -94,17 +114,17 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		return consoleAppender;
 	}
 
-	static Optional<LogAppender> fileAppender(LogConfig config) {
+	static LogAppender fileAppender(LogConfig config) {
 		final String name = LogAppender.FILE_APPENDER_NAME;
-		var outputProperty = fileProperty //
+		Property<LogOutput> fileProperty = Property.builder() //
+			.toURI() //
+			.withKey(LogProperties.FILE_PROPERTY)
+			.addKeyWithName(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
+			.build()
 			.map(u -> LogOutput.of(u))
 			.map(p -> p.provide(name, config));
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
-
-		return fileProperty //
-			.map(u -> appender(name, config, outputProperty, encoderProperty)) //
-			.get(config.properties()) //
-			.optional();
+		return appender(name, config, fileProperty, encoderProperty);
 	}
 
 	@SuppressWarnings("null") // TODO Eclipse Null bug.
@@ -112,14 +132,6 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		.map(s -> Boolean.parseBoolean(s))
 		.orElse(false)
 		.build(LogProperties.concatKey("defaults.appender.buffer"));
-
-	static LogAppender appender( //
-			String name, LogConfig config) {
-		var builder = new AppenderConfig(name, null, null);
-		var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
-		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
-		return appender(builder, config, outputProperty, encoderProperty);
-	}
 
 	static LogAppender appender( //
 			AppenderConfig appenderConfig, //

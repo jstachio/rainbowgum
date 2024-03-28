@@ -173,7 +173,7 @@ public interface LogProperties {
 	static final String GLOBAL_CHANGE_PROPERTY = ROOT_PREFIX + "global.change";
 
 	/**
-	 * Will globalally turn of any ANSI escape output as well disable extensions that do
+	 * Will globally turn of any ANSI escape output as well disable extensions that do
 	 * things for ANSI escape like JANSI.
 	 */
 	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansi.disable";
@@ -625,7 +625,7 @@ public interface LogProperties {
 		MutableLogProperties put(String key, @Nullable String value);
 
 		/**
-		 * Copy Java Util {@link Properties} String useful for unit testing.
+		 * Copy java.util {@link Properties} String useful for unit testing.
 		 * @param content string in {@link Properties} format (tip use multiline strings).
 		 * @return this.
 		 */
@@ -646,7 +646,7 @@ public interface LogProperties {
 		}
 
 		/**
-		 * Mutable Log properties builer.
+		 * Mutable Log properties builder.
 		 */
 		public final class Builder extends AbstractBuilder<Builder> {
 
@@ -746,7 +746,7 @@ public interface LogProperties {
 	 * Finds global properties by checking the currently bound rainbow gum and if not set
 	 * use system properties. <strong>This method should be used sparingly and is
 	 * preferred that you get the properties through a config instance instead.</strong>
-	 * @return currently bound properties or sytem properties.
+	 * @return currently bound properties or system properties.
 	 * @apiNote the intention of this method is to be used for ServiceLoader singleton
 	 * components and other systems that maybe bound prior to rainbow gum loading that
 	 * need to determine if they should be enabled.
@@ -825,6 +825,7 @@ public interface LogProperties {
 		String query = uri.getRawQuery();
 		query = query == null ? "" : query;
 		var uriProperties = LogProperties.builder()
+			.description("URI(" + uri + ")")
 			.fromURIQuery(query)
 			.renameKey(s -> LogProperties.removeKeyPrefix(s, prefix))
 			.build();
@@ -1333,7 +1334,7 @@ public interface LogProperties {
 		 */
 		public record Success<T>(T value) implements RequiredResult<T> {
 			/**
-			 * Succesfully found property value.
+			 * Successfully found property value.
 			 * @param value actual value should not be <code>null</code>.
 			 */
 			public Success {
@@ -1520,6 +1521,55 @@ public interface LogProperties {
 	}
 
 	/**
+	 * Property Builder that can have keys added to try.
+	 *
+	 * @param <T> value type.
+	 */
+	final class PropertyBuilder<T> {
+
+		private final List<String> keys = new ArrayList<>();
+
+		private final PropertyGetter<T> getter;
+
+		private PropertyBuilder(String key, PropertyGetter<T> getter) {
+			keys.add(key);
+			this.getter = getter;
+		}
+
+		/**
+		 * Adds an additional key to try.
+		 * @param key key to try.
+		 * @return this
+		 */
+		public PropertyBuilder<T> addKey(String key) {
+			keys.add(key);
+			return this;
+		}
+
+		/**
+		 * Adds a key with a <code>{name}</code> parameter.
+		 * @param key key to be interpolated.
+		 * @param name name.
+		 * @return this
+		 */
+		public PropertyBuilder<T> addKeyWithName(String key, String name) {
+			var parameters = Map.of(NAME, name);
+			validateKeyParameters(key, parameters.keySet());
+			String fqn = LogProperties.interpolateKey(key, parameters);
+			return addKey(fqn);
+		}
+
+		/**
+		 * Builds the property with the supplied keys.
+		 * @return property
+		 */
+		public Property<T> build() {
+			return getter.build(keys.get(0), keys.subList(1, keys.size()).toArray(new String[] {}));
+		}
+
+	}
+
+	/**
 	 * A property that should never be missing usually because there is non-null fallback.
 	 *
 	 * @param <T> property type.
@@ -1619,6 +1669,15 @@ public interface LogProperties {
 		}
 
 		/**
+		 * Creates a property builder with the given first key.
+		 * @param key first key to try.
+		 * @return builder to add more keys.
+		 */
+		default PropertyBuilder<T> withKey(String key) {
+			return new PropertyBuilder<>(key, this);
+		}
+
+		/**
 		 * Creates a Property from the given key and this getter.
 		 * @param key key.
 		 * @return property.
@@ -1627,6 +1686,30 @@ public interface LogProperties {
 		default Property<T> build(String key) throws IllegalArgumentException {
 			validateKey(key);
 			return new DefaultProperty<>(this, List.of(key));
+		}
+
+		/**
+		 * Creates a Property from the given key and this getter.
+		 * @param key key.
+		 * @param otherKeys additional keys to try.
+		 * @return property.
+		 * @throws IllegalArgumentException if the key is malformed.
+		 */
+		default Property<T> build(String key, String... otherKeys) throws IllegalArgumentException {
+			List<String> keys = combine(key, otherKeys);
+			for (var k : keys) {
+				validateKey(k);
+			}
+			return new DefaultProperty<>(this, keys);
+		}
+
+		private static List<String> combine(String key, String... otherKeys) {
+			List<String> keys = new ArrayList<>();
+			keys.add(key);
+			for (var o : otherKeys) {
+				keys.add(o);
+			}
+			return keys.stream().distinct().toList();
 		}
 
 		/**
@@ -1938,6 +2021,22 @@ public interface LogProperties {
 				validateKeyParameters(key, parameters.keySet());
 				String fqn = LogProperties.interpolateKey(key, parameters);
 				return build(fqn);
+			}
+
+			/**
+			 * Creates a Property from the given key and this getter.
+			 * @param key key.
+			 * @param otherKeys other keys to try.
+			 * @return property.
+			 * @throws IllegalArgumentException if the key is malformed.
+			 */
+			@Override
+			default RequiredProperty<T> build(String key, String... otherKeys) throws IllegalArgumentException {
+				List<String> keys = combine(key, otherKeys);
+				for (var k : keys) {
+					validateKey(k);
+				}
+				return new DefaultRequiredProperty<>(this, keys);
 			}
 
 		}

@@ -22,7 +22,7 @@ class KeyValuesTest {
 
 	@Test
 	void testForEach() throws Exception {
-		var m = Map.of("A", "a", "B", "b");
+		Map<String, String> m = Map.of("A", "a", "B", "b");
 		var kvs = create(m);
 		LinkedHashMap<String, @Nullable String> copy = new LinkedHashMap<>();
 		kvs.forEach(copy::put);

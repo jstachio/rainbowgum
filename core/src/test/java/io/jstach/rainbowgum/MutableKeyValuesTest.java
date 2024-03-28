@@ -13,7 +13,7 @@ class MutableKeyValuesTest {
 
 	@Test
 	void testCopy() {
-		var expected = Map.of("A", "a", "B", "b");
+		Map<String, String> expected = Map.of("A", "a", "B", "b");
 		var kvs = create();
 		kvs.putAll(expected);
 		var actual = kvs.copyToMap();

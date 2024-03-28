@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Objects;
@@ -102,7 +103,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
-
+		String query = uri.getRawQuery();
 		if (scheme == null) {
 			if (path == null) {
 				throw new IllegalArgumentException("URI is not proper: " + uri);
@@ -112,6 +113,15 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 			}
 			else {
 				uri = URI.create(path + ":///");
+			}
+		}
+		else if (scheme.equals("file")) {
+			if (path.startsWith("/./")) {
+				path = path.substring(1);
+			}
+			uri = Paths.get(path).toUri();
+			if (query != null) {
+				uri = URI.create(uri.toString() + "?" + query);
 			}
 		}
 		return uri;
@@ -170,8 +180,20 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 			@Override
 			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
 				FileOutputBuilder b = new FileOutputBuilder(name);
+				LogProperties combined;
+				if (uri.getQuery() != null) {
+					combined = LogProperties.of(uri, b.propertyPrefix(), properties);
+					String s = uri.toString();
+					int index = s.indexOf('?');
+					s = s.substring(0, index);
+					uri = URI.create(s);
+					uri = Paths.get(uri).toUri();
+				}
+				else {
+					combined = properties;
+				}
 				b.uri(uri);
-				b.fromProperties(properties);
+				b.fromProperties(combined);
 				return b.build();
 			}
 

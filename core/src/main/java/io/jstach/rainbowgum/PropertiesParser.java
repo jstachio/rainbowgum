@@ -66,7 +66,7 @@ public final class PropertiesParser {
 	 * Read properties.
 	 * @param reader from
 	 * @param consumer to
-	 * @throws IOException on read failue
+	 * @throws IOException on read failure
 	 */
 	static void readProperties(Reader reader, BiConsumer<String, String> consumer) throws IOException {
 		Properties bp = prepareProperties(consumer);
