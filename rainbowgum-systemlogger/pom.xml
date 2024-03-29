@@ -5,33 +5,16 @@
     <artifactId>rainbowgum-maven-parent</artifactId>
     <version>0.5.0-SNAPSHOT</version>
   </parent>
-  <artifactId>rainbowgum-avaje-config</artifactId>
+  <artifactId>rainbowgum-systemlogger</artifactId>
   <properties>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>
+    <maven.javadoc.skip>false</maven.javadoc.skip>
   </properties>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-core</artifactId>
-    </dependency>
-     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-systemlogger</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.avaje</groupId>
-      <artifactId>avaje-config</artifactId>
-      <version>3.13</version>
-    </dependency>
-    
-    <dependency>
-      <groupId>io.jstach.pistachio</groupId>
-      <artifactId>pistachio-svc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.jstach.pistachio</groupId>
-      <artifactId>pistachio-svc-apt</artifactId>
     </dependency>
   </dependencies>
 </project>

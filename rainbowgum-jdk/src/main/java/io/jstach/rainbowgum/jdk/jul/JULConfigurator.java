@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.jul;
+package io.jstach.rainbowgum.jdk.jul;
 
 import java.util.logging.Logger;
 

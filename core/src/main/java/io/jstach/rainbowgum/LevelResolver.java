@@ -123,8 +123,10 @@ public interface LevelResolver {
 	 * Abstract level resolver builder.
 	 *
 	 * @param <T> builder type.
+	 * @apiNote while this builder class is public it is effectively package protected per
+	 * the constructor on purpose. It is public to allow Javadoc to propagate correctly.
 	 */
-	sealed abstract class AbstractBuilder<T> permits Builder, LogRouter.Router.Builder, LogConfig.Builder {
+	abstract class AbstractBuilder<T> {
 
 		/**
 		 * resolvers
@@ -139,7 +141,7 @@ public interface LevelResolver {
 		/**
 		 * Do nothing constructor.
 		 */
-		protected AbstractBuilder() {
+		AbstractBuilder() {
 		}
 
 		/**

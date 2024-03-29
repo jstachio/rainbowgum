@@ -18,6 +18,10 @@
       <artifactId>rainbowgum-core</artifactId>
     </dependency>
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-systemlogger</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.jstach.pistachio</groupId>
       <artifactId>pistachio-svc</artifactId>
     </dependency>

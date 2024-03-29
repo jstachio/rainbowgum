@@ -11,6 +11,7 @@ module io.jstach.rainbowgum.avaje {
 	exports io.jstach.rainbowgum.avaje;
 	
 	requires transitive io.jstach.rainbowgum;
+	requires io.jstach.rainbowgum.systemlogger;
 	requires io.avaje.applog;
 	requires io.avaje.config;
 	

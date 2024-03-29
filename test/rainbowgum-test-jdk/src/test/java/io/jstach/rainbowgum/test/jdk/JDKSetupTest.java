@@ -26,9 +26,9 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
+import io.jstach.rainbowgum.jdk.jul.JULConfigurator;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.jul.JULConfigurator;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 @TestMethodOrder(OrderAnnotation.class)

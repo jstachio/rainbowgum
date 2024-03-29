@@ -1,28 +1,19 @@
 package io.jstach.rainbowgum;
 
-import static java.util.Objects.requireNonNullElse;
-
-import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.text.MessageFormat;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogProperties.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
@@ -125,38 +116,6 @@ public sealed interface LogRouter extends LogLifecycle {
 		 */
 		public LevelResolver levelResolver();
 
-		/**
-		 * Gets an un-cached System Logger.
-		 * @param loggerName logger name usually a class.
-		 * @return System Logger.
-		 */
-		default Logger getLogger(String loggerName) {
-			return logger(this, loggerName);
-		}
-
-		/**
-		 * Low level convenience method for direct logging.
-		 * @param loggerName logger name.
-		 * @param level level.
-		 * @param formattedMessage already formatted message.
-		 * @param cause error at event time.
-		 */
-		default void log(String loggerName, java.lang.System.Logger.Level level, String formattedMessage,
-				@Nullable Throwable cause) {
-			var route = route(loggerName, level);
-			if (route.isEnabled()) {
-				LogEvent event = LogEvent.of(level, loggerName, formattedMessage, cause);
-				route.log(event);
-			}
-		}
-
-		private static Logger logger(RootRouter router, String loggerName) {
-			if (!(router instanceof InternalRootRouter r)) {
-				throw new IllegalArgumentException("bug");
-			}
-			return new DefaultSystemLogger(loggerName, r);
-		}
-
 	}
 
 	/**
@@ -165,7 +124,7 @@ public sealed interface LogRouter extends LogLifecycle {
 	sealed interface Router extends LogRouter, LogEventLogger {
 
 		/**
-		 * The router name given if no router is explicitely declared.
+		 * The router name given if no router is explicitly declared.
 		 */
 		public static final String DEFAULT_ROUTER_NAME = "default";
 
@@ -525,10 +484,6 @@ sealed interface InternalRootRouter extends RootRouter {
 
 	}
 
-	default void log(String loggerName, java.lang.System.Logger.Level level, String message) {
-		log(loggerName, level, message, null);
-	}
-
 	default void drain(InternalRootRouter delegate) {
 
 	}
@@ -743,15 +698,6 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 	}
 
 	@Override
-	public void log(String loggerName, java.lang.System.Logger.Level level, String message, @Nullable Throwable cause) {
-		InternalRootRouter d = delegate;
-		d.log(loggerName, level, message, cause);
-		if (isShutdownEvent(loggerName, level)) {
-			d.close();
-		}
-	}
-
-	@Override
 	public void drain(InternalRootRouter delegate) {
 		_drain(delegate);
 	}
@@ -777,108 +723,6 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 	public void close() {
 		var d = _drain(new QueueEventsRouter());
 		d.close();
-	}
-
-}
-
-@SuppressWarnings("null") // TODO eclipse bug
-class DefaultSystemLogger implements System.Logger {
-
-	private final String loggerName;
-
-	private final InternalRootRouter router;
-
-	public DefaultSystemLogger(String loggerName, InternalRootRouter router) {
-		super();
-		this.loggerName = loggerName;
-		this.router = router;
-	}
-
-	private static Level fixLevel(Level level) {
-		if (level == Level.ALL) {
-			return Level.TRACE;
-		}
-		return level;
-	}
-
-	@Override
-	public String getName() {
-		return this.loggerName;
-	}
-
-	@Override
-	public boolean isLoggable(Level level) {
-		return router.isEnabled(loggerName, fixLevel(level));
-	}
-
-	@Override
-	public void log(Level level, @Nullable String msg) {
-		this.log(level, msg, (Throwable) null);
-	}
-
-	@Override
-	public void log(Level level, Supplier<@Nullable String> msgSupplier) {
-		this.log(level, msgSupplier, (Throwable) null);
-	}
-
-	@Override
-	public void log(Level level, Object obj) {
-		level = fixLevel(level);
-		var route = router.route(loggerName, level);
-		if (route.isEnabled()) {
-			String formattedMessage = obj == null ? "" : obj.toString();
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
-			route.log(event);
-		}
-	}
-
-	@Override
-	public void log(Level level, @Nullable String msg, @Nullable Throwable throwable) {
-		level = fixLevel(level);
-		var route = router.route(loggerName, level);
-		if (route.isEnabled()) {
-			String formattedMessage = requireNonNullElse(msg, "");
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, throwable);
-			route.log(event);
-		}
-	}
-
-	@Override
-	public void log(Level level, Supplier<@Nullable String> msgSupplier, @Nullable Throwable throwable) {
-		level = fixLevel(level);
-		var route = router.route(loggerName, level);
-		if (route.isEnabled()) {
-			String formattedMessage = requireNonNullElse(msgSupplier.get(), "");
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, throwable);
-			route.log(event);
-		}
-	}
-
-	@Override
-	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Throwable throwable) {
-		/*
-		 * TODO handle resource bundle
-		 */
-		this.log(level, msg, throwable);
-	}
-
-	@Override
-	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format, @Nullable Object... args) {
-		/*
-		 * TODO handle resource bundle
-		 */
-		level = fixLevel(level);
-		var route = router.route(loggerName, level);
-		if (route.isEnabled()) {
-			Instant timestamp = Instant.now();
-			String threadName = Thread.currentThread().getName();
-			long threadId = Thread.currentThread().threadId();
-			String message = requireNonNullElse(format, "");
-			Throwable throwable = null;
-			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
-					throwable, StandardMessageFormatter.JUL, args);
-			route.log(event);
-		}
 	}
 
 }

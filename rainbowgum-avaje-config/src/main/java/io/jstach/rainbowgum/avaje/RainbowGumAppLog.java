@@ -5,10 +5,11 @@ import java.util.ResourceBundle;
 
 import io.avaje.applog.AppLog;
 import io.jstach.rainbowgum.LogRouter;
+import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLogger;
 import io.jstach.svc.ServiceProvider;
 
 /**
- * Provides a avaje logger to use RainbowGum global queue to avoid initilization issues.
+ * Provides an Avaje logger to use RainbowGum global queue to avoid initialization issues.
  */
 @ServiceProvider(AppLog.Provider.class)
 public class RainbowGumAppLog implements AppLog.Provider {
@@ -21,12 +22,12 @@ public class RainbowGumAppLog implements AppLog.Provider {
 
 	@Override
 	public Logger getLogger(String name) {
-		return LogRouter.global().getLogger(name);
+		return RainbowGumSystemLogger.of(name, LogRouter.global());
 	}
 
 	@Override
 	public Logger getLogger(String name, ResourceBundle bundle) {
-		return LogRouter.global().getLogger(name);
+		return getLogger(name);
 	}
 
 }

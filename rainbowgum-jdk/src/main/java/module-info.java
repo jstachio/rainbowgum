@@ -1,6 +1,6 @@
 /**
- * Rainbowgum JDK components. This module provides special integration and
- * adapters for the builtin JDK logging facilities. The impetus for this is
+ * Rainbow Gum JDK components. This module provides special integration and
+ * adapters for the built-in JDK logging facilities. The impetus for this is
  * these logging facilities can be used very early in the JDK boot processes
  * well before logging has fully initialized. Furthermore the JDK
  * itself recommends that 
@@ -29,23 +29,29 @@
  * Rainbow Gum on Sytem.Logger usage if using  <code>io.jstach.rainbowgum.slf4j</code> module)</li>
  * </ul>
  * To disable installation of the java.util.logging handler set the property:
- * {@value io.jstach.rainbowgum.jul.JULConfigurator#JUL_DISABLE_PROPERTY}
+ * {@value io.jstach.rainbowgum.jdk.jul.JULConfigurator#JUL_DISABLE_PROPERTY}
  * to <code>true</code>.
  * 
  * <em> <strong>NOTE:</strong> While the JDK System.Logger is good for low level
  * libraries it's API (and Rainbow Gum implementation) is not designed for
  * performance. For applications and frameworks that do a lot of logging the
  * SLF4J facade is the preferred choice. </em>
- * 
+ * <p>
+ * Because the logger names of System.Logger and JUL are far less likely
+ * to be actual class names and could be anything 
+ * (unlike SLF4J which encourages class names and static loggers) Rainbow Gum
+ * does not cache System.Loggers.
  * 
  * @provides System.LoggerFinder
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
 module io.jstach.rainbowgum.jdk {
 
-	exports io.jstach.rainbowgum.jul;
+	exports io.jstach.rainbowgum.jdk.jul;
 
 	requires io.jstach.rainbowgum;
+	requires io.jstach.rainbowgum.systemlogger;
+	
 	/*
 	 * TODO perhaps a separate module for
 	 * the java.logging handler
@@ -54,6 +60,6 @@ module io.jstach.rainbowgum.jdk {
 	requires static org.eclipse.jdt.annotation;
 	requires static io.jstach.svc;
 
-	provides System.LoggerFinder with io.jstach.rainbowgum.systemlogger.SystemLoggingFactory;
-	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.jul.JULConfigurator;
+	provides System.LoggerFinder with io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;
+	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.jdk.jul.JULConfigurator;
 }

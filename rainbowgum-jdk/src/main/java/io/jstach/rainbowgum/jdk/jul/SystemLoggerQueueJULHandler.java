@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.jul;
+package io.jstach.rainbowgum.jdk.jul;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;

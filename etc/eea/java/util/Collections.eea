@@ -40,7 +40,7 @@ emptySortedSet
  <E:Ljava/lang/Object;>()L1java/util/SortedSet<TE;>;
 newSetFromMap
  <E:Ljava/lang/Object;>(Ljava/util/Map<TE;Ljava/lang/Boolean;>;)Ljava/util/Set<TE;>;
- <E:Ljava/lang/Object;>(Ljava/util/Map<TE;Ljava/lang/Boolean;>;)L1java/util/Set<TE;>;
+ <E:Ljava/lang/Object;>(Ljava/util/Map<TE;L1java/lang/Boolean;>;)L1java/util/Set<TE;>;
 reverseOrder
  <T:Ljava/lang/Object;>(Ljava/util/Comparator<TT;>;)Ljava/util/Comparator<TT;>;
  <T:Ljava/lang/Object;>(Ljava/util/Comparator<TT;>;)L1java/util/Comparator<TT;>;
