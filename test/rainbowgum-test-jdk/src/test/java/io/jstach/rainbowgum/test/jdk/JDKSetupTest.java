@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -11,7 +12,9 @@ import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -26,9 +29,9 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
-import io.jstach.rainbowgum.jdk.jul.JULConfigurator;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.jdk.jul.JULConfigurator;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 @TestMethodOrder(OrderAnnotation.class)
@@ -57,6 +60,26 @@ class JDKSetupTest {
 	@Order(2)
 	@ParameterizedTest
 	@MethodSource("provideLevels")
+	void testJULName(System.Logger.Level level, System.Logger.Level loggerLevel) throws InterruptedException {
+		doInLock(() -> {
+			_testName(JULLoggerTester.JUL, level, loggerLevel);
+		});
+
+	}
+
+	@Order(2)
+	@ParameterizedTest
+	@MethodSource("provideLevels")
+	void testSystemLoggerName(System.Logger.Level level, System.Logger.Level loggerLevel) throws InterruptedException {
+		doInLock(() -> {
+			_testName(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel);
+		});
+
+	}
+
+	@Order(2)
+	@ParameterizedTest
+	@MethodSource("provideLevels")
 	void testJULMessage(System.Logger.Level level, System.Logger.Level loggerLevel) throws InterruptedException {
 		doInLock(() -> {
 			_testMessage(JULLoggerTester.JUL, level, loggerLevel);
@@ -71,6 +94,37 @@ class JDKSetupTest {
 			throws InterruptedException {
 		doInLock(() -> {
 			_testMessage(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel);
+		});
+
+	}
+
+	@Order(2)
+	@ParameterizedTest
+	@MethodSource("provideLevels")
+	void testJULMessageSupplier(System.Logger.Level level, System.Logger.Level loggerLevel)
+			throws InterruptedException {
+		doInLock(() -> {
+			_testMessageSupplier(JULLoggerTester.JUL, level, loggerLevel);
+		});
+	}
+
+	@Order(2)
+	@ParameterizedTest
+	@MethodSource("provideLevels")
+	void testSystemLoggerMessageSupplier(System.Logger.Level level, System.Logger.Level loggerLevel)
+			throws InterruptedException {
+		doInLock(() -> {
+			_testMessageSupplier(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel);
+		});
+	}
+
+	@Order(2)
+	@ParameterizedTest
+	@MethodSource("provideOneArg")
+	void testSystemLoggerObject(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
+			throws InterruptedException {
+		doInLock(() -> {
+			_testObject(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel, arg);
 		});
 
 	}
@@ -195,7 +249,13 @@ class JDKSetupTest {
 
 	interface LoggerTester<T> extends LoggerProvider<T> {
 
+		public String name(T logger, System.Logger.Level level);
+
 		public void message(T logger, System.Logger.Level level, String message);
+
+		public void messageSupplier(T logger, System.Logger.Level level, Supplier<String> message);
+
+		public void object(T logger, System.Logger.Level level, Arg arg);
 
 		public void oneArg(T logger, System.Logger.Level level, String message, Arg arg);
 
@@ -215,8 +275,23 @@ class JDKSetupTest {
 			return Logger.getLogger(loggerName);
 		}
 
+		@Override
+		public String name(Logger logger, Level level) {
+			return logger.getName();
+		}
+
 		public void message(java.util.logging.Logger logger, System.Logger.Level level, String message) {
 			logger.log(julLevel(level), message);
+		}
+
+		@Override
+		public void messageSupplier(Logger logger, Level level, Supplier<String> message) {
+			logger.log(julLevel(level), message);
+
+		}
+
+		public void object(java.util.logging.Logger logger, System.Logger.Level level, Arg arg) {
+			throw new UnsupportedOperationException();
 		}
 
 		public void oneArg(java.util.logging.Logger logger, System.Logger.Level level, String message, Arg arg) {
@@ -264,8 +339,24 @@ class JDKSetupTest {
 		}
 
 		@Override
+		public String name(java.lang.System.Logger logger, Level level) {
+			return logger.getName();
+		}
+
+		@Override
 		public void message(java.lang.System.Logger logger, Level level, String message) {
 			logger.log(level, message);
+		}
+
+		@Override
+		public void messageSupplier(java.lang.System.Logger logger, Level level, Supplier<String> message) {
+			logger.log(level, message);
+		}
+
+		@Override
+		public void object(java.lang.System.Logger logger, Level level, Arg message) {
+			logger.log(level, message.arg);
+
 		}
 
 		@Override
@@ -291,6 +382,16 @@ class JDKSetupTest {
 
 	}
 
+	<T> void _testName(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel) {
+		ListLogOutput output = new ListLogOutput();
+
+		var logger = tester.logger("after.load");
+		try (var gum = JDKSetup.run(output, loggerLevel)) {
+			String actual = tester.name(logger, loggerLevel);
+			assertEquals("after.load", actual);
+		}
+	}
+
 	<T> void _testMessage(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel) {
 		ListLogOutput output = new ListLogOutput();
 		String message = "Hello!";
@@ -303,7 +404,76 @@ class JDKSetupTest {
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
 						00:00:00.000 [main] %s after.load - Hello!
-						""".formatted(levelString, levelString);
+						""".formatted(levelString);
+			}
+			else {
+				expected = "";
+			}
+			String actual = output.toString();
+			assertEquals(expected, actual);
+		}
+
+	}
+
+	<T> void _testMessageSupplier(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel) {
+		ListLogOutput output = new ListLogOutput();
+		AtomicInteger count = new AtomicInteger();
+		Supplier<String> message = () -> {
+			count.incrementAndGet();
+			return "Hello!";
+		};
+
+		var logger = tester.logger("after.load");
+		try (var gum = JDKSetup.run(output, loggerLevel)) {
+			tester.messageSupplier(logger, level, message);
+			var levelString = LevelFormatter.of().formatLevel(level);
+			String expected;
+			int expectedCount;
+			if (isEnabled(level, loggerLevel)) {
+				expectedCount = 1;
+				expected = """
+						00:00:00.000 [main] %s after.load - Hello!
+						""".formatted(levelString);
+			}
+			else {
+				expectedCount = 0;
+				if (tester instanceof JULLoggerTester
+						&& (level == System.Logger.Level.OFF && loggerLevel != System.Logger.Level.OFF)) {
+					/*
+					 * JUL is messed up on passing OFF as it will always create the record
+					 */
+					expectedCount = 1;
+				}
+				expected = "";
+			}
+			String actual = output.toString();
+			assertEquals(expected, actual);
+			assertEquals(expectedCount, count.get());
+		}
+
+	}
+
+	<T> void _testObject(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg) {
+		ListLogOutput output = new ListLogOutput();
+		Object message = arg.arg;
+
+		var logger = tester.logger("after.load");
+		try (var gum = JDKSetup.run(output, loggerLevel)) {
+			if (arg == Arg.BAD && isEnabled(level, loggerLevel)) {
+				assertThrows(RuntimeException.class, () -> {
+					tester.object(logger, level, arg);
+				});
+				return;
+			}
+			else {
+				tester.object(logger, level, arg);
+			}
+			var levelString = LevelFormatter.of().formatLevel(level);
+			String expected;
+			if (isEnabled(level, loggerLevel)) {
+				expected = """
+						00:00:00.000 [main] %s after.load - %s
+						""".formatted(levelString, message);
 			}
 			else {
 				expected = "";
