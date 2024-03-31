@@ -347,6 +347,15 @@ public sealed interface LogFormatter {
 			return EventFormatter.of(formatters);
 		}
 
+		/**
+		 * Creates the formatter and converts it to an encoder.
+		 * @return encoder.
+		 * @apiNote for ergonomics
+		 */
+		public LogEncoder encoder() {
+			return LogEncoder.of(build());
+		}
+
 	}
 
 	/**

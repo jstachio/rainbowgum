@@ -3,18 +3,18 @@ package io.jstach.rainbowgum;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogAppender.AbstractLogAppender;
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
- * concurrency.
+ * concurrency. To ensure this invariant call
+ * {@link ThreadSafeLogAppender#of(LogAppender)}.
  *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
@@ -68,9 +68,10 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 
 	/**
 	 * Creates a composite log appender from many. The appenders will be appended
-	 * synchronously.
+	 * synchronously and are not thread safe.
 	 * @param appenders appenders.
 	 * @return appender.
+	 * @see ThreadSafeLogAppender#of(LogAppender)
 	 */
 	public static LogAppender of(List<? extends LogAppender> appenders) {
 		if (appenders.isEmpty()) {
@@ -80,7 +81,9 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 			return Objects.requireNonNull(appenders.get(0));
 		}
 		@SuppressWarnings("null") // TODO Eclipse issue here
-		LogAppender @NonNull [] array = appenders.toArray(new LogAppender[] {});
+		LogAppender @NonNull [] array = appenders.stream()
+			.map(ThreadSafeLogAppender::unwrapIfThreadSafe)
+			.toArray(i -> new LogAppender[i]);
 		return new CompositeLogAppender(array);
 	}
 
@@ -209,52 +212,73 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * @return new thread safe appender if is not one or the passed in appender if it
 		 * thread safe.
 		 */
+		@SuppressWarnings({ "null", "resource" }) // TODO eclipse bugs.
 		public static ThreadSafeLogAppender of(LogAppender appender) {
-			if (appender instanceof ThreadSafeLogAppender lo) {
-				return lo;
+			return switch (appender) {
+				case DefaultLogAppender ta -> ta;
+				case CompositeThreadSafeLogAppender ca -> ca;
+				case BufferLogAppender b -> new DefaultLogAppender(b.output, b.encoder);
+				case CompositeLogAppender cl -> {
+					ThreadSafeLogAppender[] array = Stream.of(cl.appenders())
+						.map(a -> ThreadSafeLogAppender.of(a))
+						.toArray(i -> new ThreadSafeLogAppender[i]);
+					yield new CompositeThreadSafeLogAppender(array);
+				}
+			};
+
+		}
+
+		/**
+		 * If thread safety is not needed because it is take care of through a publisher
+		 * this call will attempt to return the orginal non thread safe appender.
+		 * @return wrapped un-threadsafe appender.
+		 */
+		public LogAppender unwrap();
+
+		private static LogAppender unwrapIfThreadSafe(LogAppender appender) {
+			if (appender instanceof ThreadSafeLogAppender ta) {
+				return ta.unwrap();
 			}
-			return DefaultLogAppender.threadSafeAppender.apply(appender);
+			return appender;
 		}
 
 	}
 
+}
+
+/**
+ * An abstract appender to help create custom appenders.
+ */
+abstract class AbstractLogAppender {
+
 	/**
-	 * An abstract appender to help create custom appenders.
+	 * output
 	 */
-	sealed abstract class AbstractLogAppender implements LogAppender {
+	protected final LogOutput output;
 
-		/**
-		 * output
-		 */
-		protected final LogOutput output;
+	/**
+	 * encoder
+	 */
+	protected final LogEncoder encoder;
 
-		/**
-		 * encoder
-		 */
-		protected final LogEncoder encoder;
+	/**
+	 * Creates an appender from an output and encoder.
+	 * @param output set the output field and will be started and closed with the
+	 * appender.
+	 * @param encoder set the encoder field.
+	 */
+	protected AbstractLogAppender(LogOutput output, LogEncoder encoder) {
+		super();
+		this.output = output;
+		this.encoder = encoder;
+	}
 
-		/**
-		 * Creates an appender from an output and encoder.
-		 * @param output set the output field and will be started and closed with the
-		 * appender.
-		 * @param encoder set the encoder field.
-		 */
-		protected AbstractLogAppender(LogOutput output, LogEncoder encoder) {
-			super();
-			this.output = output;
-			this.encoder = encoder;
-		}
+	public void start(LogConfig config) {
+		output.start(config);
+	}
 
-		@Override
-		public void start(LogConfig config) {
-			output.start(config);
-		}
-
-		@Override
-		public void close() {
-			output.close();
-		}
-
+	public void close() {
+		output.close();
 	}
 
 }
@@ -291,47 +315,41 @@ record CompositeLogAppender(LogAppender[] appenders) implements LogAppender {
 
 }
 
-final class LockingLogAppender implements ThreadSafeLogAppender {
-
-	private final LogAppender appender;
-
-	private final ReentrantLock lock = new ReentrantLock();
-
-	public LockingLogAppender(LogAppender appender) {
-		this.appender = appender;
-	}
+record CompositeThreadSafeLogAppender(ThreadSafeLogAppender[] appenders) implements ThreadSafeLogAppender {
 
 	@Override
-	public void append(LogEvent[] events, int count) {
-		lock.lock();
-		try {
-			appender.append(events, count);
-		}
-		finally {
-			lock.unlock();
+	public void append(LogEvent[] event, int count) {
+		for (var appender : appenders) {
+			appender.append(event, count);
 		}
 	}
 
 	@Override
 	public void append(LogEvent event) {
-		lock.lock();
-		try {
+		for (var appender : appenders) {
 			appender.append(event);
 		}
-		finally {
-			lock.unlock();
-		}
-
-	}
-
-	@Override
-	public void start(LogConfig config) {
-		appender.start(config);
 	}
 
 	@Override
 	public void close() {
-		appender.close();
+		for (var appender : appenders) {
+			appender.close();
+		}
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		for (var appender : appenders) {
+			appender.start(config);
+		}
+	}
+
+	@Override
+	public LogAppender unwrap() {
+		@SuppressWarnings("null")
+		LogAppender[] array = Stream.of(appenders).map(ThreadSafeLogAppender::unwrap).toArray(i -> new LogAppender[i]);
+		return new CompositeLogAppender(array);
 	}
 
 }
@@ -340,10 +358,6 @@ final class LockingLogAppender implements ThreadSafeLogAppender {
  * The idea here is to have the virtual thread do the formatting outside of the lock
  */
 final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
-
-	static Function<LogAppender, ThreadSafeLogAppender> threadSafeAppender = (appender) -> {
-		return new LockingLogAppender(appender);
-	};
 
 	private final ReentrantLock lock = new ReentrantLock();
 
@@ -388,9 +402,14 @@ final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafe
 		}
 	}
 
+	@Override
+	public LogAppender unwrap() {
+		return new BufferLogAppender(output, encoder);
+	}
+
 }
 
-final class BufferLogAppender extends AbstractLogAppender {
+final class BufferLogAppender extends AbstractLogAppender implements LogAppender {
 
 	private final Buffer buffer;
 
