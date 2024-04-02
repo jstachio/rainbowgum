@@ -28,9 +28,16 @@
  * <li>Your application uses System.Logger (the SLF4J adapter will initialize
  * Rainbow Gum on Sytem.Logger usage if using  <code>io.jstach.rainbowgum.slf4j</code> module)</li>
  * </ul>
+ * An alternative to using the SLF4J bridge if eager initialization is desired is
+ * to set a System property with 
+ * {@value io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory#INTIALIZE_RAINBOW_GUM_PROPERTY} to
+ * the values in {@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption}.
+ * however that maybe difficult if one cannot set system properties before loading logging.
+ * <p>
  * To disable installation of the java.util.logging handler set the property:
  * {@value io.jstach.rainbowgum.jdk.jul.JULConfigurator#JUL_DISABLE_PROPERTY}
  * to <code>true</code>.
+ * </p>
  * 
  * <em> <strong>NOTE:</strong> While the JDK System.Logger is good for low level
  * libraries it's API (and Rainbow Gum implementation) is not designed for
