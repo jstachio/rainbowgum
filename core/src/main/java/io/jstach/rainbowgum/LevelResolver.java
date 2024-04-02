@@ -265,6 +265,10 @@ public interface LevelResolver {
 			return config(ConfigLevelResolver.of(properties, prefix));
 		}
 
+		/**
+		 * Builds the level config based on {@link #levelConfigs} and {@link #levels}.
+		 * @return level config or <code>null</code>.
+		 */
 		protected @Nullable LevelConfig buildLevelConfigOrNull() {
 			var copyLevels = new LinkedHashMap<>(levels);
 			var copyResolvers = new ArrayList<>(levelConfigs);

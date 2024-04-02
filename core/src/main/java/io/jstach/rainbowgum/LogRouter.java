@@ -396,6 +396,7 @@ public sealed interface LogRouter extends LogLifecycle {
 
 		/**
 		 * Router tuple of publisher and resolver.
+		 * @param name router name not <code>null</code>.
 		 * @param publisher not <code>null</code>.
 		 * @param levelResolver not <code>null</code>.
 		 */
