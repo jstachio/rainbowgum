@@ -9,17 +9,9 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogProperties.Property;
 
 /**
- * Register appenders by name.
+ * Register appenders by name. TODO probably can remove this.
  */
-public sealed interface LogAppenderRegistry permits DefaultAppenderRegistry {
-
-	/**
-	 * Creates a log appender registry.
-	 * @return appender registry.
-	 */
-	public static LogAppenderRegistry of() {
-		return new DefaultAppenderRegistry();
-	}
+sealed interface LogAppenderRegistry permits DefaultAppenderRegistry {
 
 }
 

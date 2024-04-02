@@ -48,12 +48,6 @@ public sealed interface LogConfig {
 	public LogOutputRegistry outputRegistry();
 
 	/**
-	 * Provides appenders by name.
-	 * @return appender registry.
-	 */
-	public LogAppenderRegistry appenderRegistry();
-
-	/**
 	 * Provides encoders by URI scheme.
 	 * @return encoder registry.
 	 */
@@ -428,8 +422,6 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogOutputRegistry outputRegistry;
 
-	private final LogAppenderRegistry appenderRegistry;
-
 	private final LogEncoderRegistry encoderRegistry;
 
 	private final LogPublisherRegistry publisherRegistry;
@@ -447,7 +439,6 @@ final class DefaultLogConfig implements LogConfig {
 			.value();
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		this.outputRegistry = LogOutputRegistry.of();
-		this.appenderRegistry = LogAppenderRegistry.of();
 		this.encoderRegistry = LogEncoderRegistry.of();
 		this.publisherRegistry = LogPublisherRegistry.of();
 	}
@@ -490,11 +481,6 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogOutputRegistry outputRegistry() {
 		return this.outputRegistry;
-	}
-
-	@Override
-	public LogAppenderRegistry appenderRegistry() {
-		return this.appenderRegistry;
 	}
 
 	@Override
