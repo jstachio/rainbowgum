@@ -3,6 +3,7 @@ package io.jstach.rainbowgum;
 import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
@@ -106,6 +107,19 @@ public sealed interface LogRouter extends LogLifecycle {
 	}
 
 	/**
+	 * Router flags for adhoc router customization.
+	 */
+	public enum RouteFlag {
+
+		/**
+		 * The route will not use the global level resolver and will only use the level
+		 * config directly on the router.
+		 */
+		IGNORE_GLOBAL_LEVEL_RESOLVER;
+
+	}
+
+	/**
 	 * Root router is a router that has child routers.
 	 */
 	sealed interface RootRouter extends LogRouter permits InternalRootRouter {
@@ -189,7 +203,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			 * @return factory.
 			 */
 			static RouterFactory of(@SuppressWarnings("exports") Function<LogEvent, @Nullable LogEvent> function) {
-				return (pub, lr, n, c) -> new AbstractRouter(pub, lr) {
+				return (pub, lr, n, c) -> new AbstractRouter(n, pub, lr) {
 					@Override
 					protected @Nullable LogEvent transformOrNull(LogEvent event) {
 						return function.apply(event);
@@ -208,7 +222,9 @@ public sealed interface LogRouter extends LogLifecycle {
 
 			private final String name;
 
-			private RouterFactory factory = (publisher, levelResolver, n, c) -> new SimpleRouter(publisher,
+			private final EnumSet<RouteFlag> flags = EnumSet.noneOf(RouteFlag.class);
+
+			private RouterFactory factory = (publisher, levelResolver, n, c) -> new SimpleRouter(n, publisher,
 					levelResolver);
 
 			private List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>();
@@ -222,6 +238,16 @@ public sealed interface LogRouter extends LogLifecycle {
 
 			@Override
 			protected Builder self() {
+				return this;
+			}
+
+			/**
+			 * Adds a flag.
+			 * @param flag flag added if not already added.
+			 * @return this.
+			 */
+			public Builder flag(RouteFlag flag) {
+				flags.add(flag);
 				return this;
 			}
 
@@ -280,8 +306,43 @@ public sealed interface LogRouter extends LogLifecycle {
 			Router build(RouterFactory factory) {
 				String name = this.name;
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
-				var routerConfigLevelResolver = ConfigLevelResolver.of(config.properties(), routerLevelPrefix);
-				var levelResolver = buildLevelResolver(List.of(routerConfigLevelResolver, config.levelResolver()));
+				var levelResolverBuilder = LevelResolver.builder();
+				var currentConfig = buildLevelConfigOrNull();
+				if (currentConfig != null) {
+					levelResolverBuilder.config(currentConfig);
+				}
+				levelResolverBuilder.config(config.properties(), routerLevelPrefix);
+				if (!flags.contains(RouteFlag.IGNORE_GLOBAL_LEVEL_RESOLVER)) {
+					levelResolverBuilder.config(config.levelResolver());
+				}
+				var levelResolver = levelResolverBuilder.build();
+				if (currentConfig == null) {
+					/*
+					 * If no config is provided in this route the global level might not
+					 * be set.
+					 */
+					var level = levelResolver.resolveLevel("");
+					Objects.requireNonNull(level);
+					if (level == System.Logger.Level.ALL) {
+						/*
+						 * The global root level was not set or set to ALL. This is a bug
+						 * if this happens as the builders and other places will turn ALL
+						 * -> TRACE.
+						 */
+						levelResolverBuilder.config(StaticLevelResolver.INFO);
+						levelResolver = levelResolverBuilder.build();
+						// throw new IllegalStateException("Global Level Resolver should
+						// not resolve to Level.ALL");
+					}
+				}
+
+				var _levelResolver = levelResolver;
+				/*
+				 * This routers level resolver needs to be notified if config changes.
+				 */
+				config.changePublisher().subscribe(c -> {
+					_levelResolver.clear();
+				});
 				var publisher = this.publisher;
 
 				List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>(this.appenders);
@@ -327,6 +388,8 @@ public sealed interface LogRouter extends LogLifecycle {
 	@SuppressWarnings("javadoc") // TODO Eclipse bug.
 	public non-sealed abstract class AbstractRouter implements Router, Route {
 
+		private final String name;
+
 		private final LogPublisher publisher;
 
 		private final LevelResolver levelResolver;
@@ -336,8 +399,9 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * @param publisher not <code>null</code>.
 		 * @param levelResolver not <code>null</code>.
 		 */
-		protected AbstractRouter(LogPublisher publisher, LevelResolver levelResolver) {
+		protected AbstractRouter(String name, LogPublisher publisher, LevelResolver levelResolver) {
 			super();
+			this.name = name;
 			this.publisher = publisher;
 			this.levelResolver = levelResolver;
 		}
@@ -396,11 +460,16 @@ public sealed interface LogRouter extends LogLifecycle {
 			return this.publisher;
 		}
 
+		@Override
+		public String toString() {
+			return getClass() + "[name=" + name + ", publisher=" + publisher + ", levelResolver=" + levelResolver + "]";
+		}
+
 	}
 
 }
 
-record SimpleRouter(LogPublisher publisher, LevelResolver levelResolver) implements Router, Route {
+record SimpleRouter(String name, LogPublisher publisher, LevelResolver levelResolver) implements Router, Route {
 
 	@Override
 	public void close() {
@@ -465,10 +534,9 @@ sealed interface InternalRootRouter extends RootRouter {
 			}
 		}
 		routes = sorted;
-		List<LevelResolver> resolvers = new ArrayList<>();
-		routes.stream().map(Router::levelResolver).forEach(resolvers::add);
-		resolvers.add(levelResolver);
-		var globalLevelResolver = InternalLevelResolver.cached(InternalLevelResolver.of(resolvers));
+		LevelResolver.Builder resolverBuilder = LevelResolver.builder();
+		routes.stream().map(Router::levelResolver).forEach(resolverBuilder::resolver);
+		var globalLevelResolver = resolverBuilder.build();
 
 		Router[] array = routes.toArray(new Router[] {});
 
@@ -596,7 +664,7 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
 
-	private static final LevelResolver INFO_RESOLVER = InternalLevelResolver.of(Level.INFO);
+	private static final LevelResolver INFO_RESOLVER = StaticLevelResolver.of(Level.INFO);
 
 	@Override
 	public LevelResolver levelResolver() {

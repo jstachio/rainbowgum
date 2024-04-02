@@ -281,6 +281,11 @@ abstract class AbstractLogAppender {
 		output.close();
 	}
 
+	@Override
+	public String toString() {
+		return getClass().getName() + "[encoder=" + encoder + ", " + "output=" + output + "]";
+	}
+
 }
 
 record CompositeLogAppender(LogAppender[] appenders) implements LogAppender {

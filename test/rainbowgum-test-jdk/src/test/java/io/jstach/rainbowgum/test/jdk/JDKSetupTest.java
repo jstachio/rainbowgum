@@ -28,6 +28,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
@@ -616,22 +617,7 @@ class JDKSetupTest {
 	}
 
 	private static boolean isEnabled(System.Logger.Level level, System.Logger.Level loggerLevel) {
-		if (level == System.Logger.Level.OFF) {
-			return false;
-		}
-		if (level == System.Logger.Level.ALL) {
-			level = System.Logger.Level.TRACE;
-		}
-		if (loggerLevel == System.Logger.Level.ALL) {
-			loggerLevel = System.Logger.Level.TRACE;
-		}
-		if (loggerLevel == System.Logger.Level.OFF) {
-			return false;
-		}
-		if (level == loggerLevel) {
-			return true;
-		}
-		return level.compareTo(loggerLevel) >= 0;
+		return LevelResolver.checkEnabled(level, loggerLevel);
 	}
 
 	private static Stream<Arguments> provideLevels() {

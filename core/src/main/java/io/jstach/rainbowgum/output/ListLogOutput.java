@@ -86,4 +86,11 @@ public final class ListLogOutput implements LogOutput {
 		return OutputType.MEMORY;
 	}
 
+	/**
+	 * Clears the currently stored events.
+	 */
+	public void clear() {
+		events.clear();
+	}
+
 }

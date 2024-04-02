@@ -256,6 +256,11 @@ public interface LogProperties {
 	static final String ROUTE_LEVEL_PREFIX = ROUTE_PREFIX + "level";
 
 	/**
+	 * Route flags.
+	 */
+	static final String ROUTE_FLAGS_PROPERTY = ROUTE_PREFIX + "flags";
+
+	/**
 	 * Analogous to {@link System#getProperty(String)}.
 	 * @param key property name.
 	 * @return property value.

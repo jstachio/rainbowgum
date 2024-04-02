@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,10 +14,13 @@ class RouterTest {
 	@Test
 	void testSingleRouter() throws Exception {
 
-		LevelResolver resolver = InternalLevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
+		// LevelResolver resolver = InternalLevelResolver.of(Map.of("stuff", Level.INFO,
+		// "", Level.DEBUG));
+		LevelResolver resolver = LevelResolver.builder().level(Level.DEBUG).level(Level.INFO, "stuff").build();
+		assertEquals(Level.INFO, resolver.resolveLevel("stuff.crap"));
 		var publisher = new TestSyncPublisher();
 		@SuppressWarnings("resource")
-		var router = new SimpleRouter(publisher, resolver);
+		var router = new SimpleRouter("1", publisher, resolver);
 		var route = router.route("stuff.crap", Level.DEBUG);
 		assertFalse(route.isEnabled());
 		assertTrue(router.route("blah", Level.DEBUG).isEnabled());
@@ -28,15 +30,20 @@ class RouterTest {
 	@Test
 	void testCompositeRouter() throws Exception {
 
-		LevelResolver resolver1 = InternalLevelResolver.of(Map.of("stuff", Level.INFO, "", Level.DEBUG));
+		// LevelResolver resolver1 = InternalLevelResolver.of(Map.of("stuff", Level.INFO,
+		// "", Level.DEBUG));
+		LevelResolver resolver1 = LevelResolver.builder().level(Level.DEBUG).level(Level.INFO, "stuff").build();
 		var publisher1 = new TestSyncPublisher();
-		var router1 = new SimpleRouter(publisher1, resolver1);
+		var router1 = new SimpleRouter("1", publisher1, resolver1);
 
-		LevelResolver resolver2 = InternalLevelResolver.of(Map.of("stuff", Level.DEBUG, "", Level.WARNING));
+		// LevelResolver resolver2 = InternalLevelResolver.of(Map.of("stuff", Level.DEBUG,
+		// "", Level.WARNING));
+		LevelResolver resolver2 = LevelResolver.builder().level(Level.DEBUG, "stuff").level(Level.WARNING).build();
+
 		var publisher2 = new TestSyncPublisher();
-		var router2 = new SimpleRouter(publisher2, resolver2);
+		var router2 = new SimpleRouter("2", publisher2, resolver2);
 
-		var root = InternalRootRouter.of(List.of(router1, router2), InternalLevelResolver.of(Level.ERROR));
+		var root = InternalRootRouter.of(List.of(router1, router2), StaticLevelResolver.of(Level.ERROR));
 
 		var route = root.route("stuff", Level.DEBUG);
 

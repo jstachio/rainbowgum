@@ -315,7 +315,7 @@ public sealed interface LogConfig {
 					logProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 				}
 			}
-			var levelResolver = this.buildGlobalResolver(ConfigLevelResolver.of(logProperties));
+			var levelResolver = this.buildGlobalResolver(logProperties);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver);
 			if (configurators.isEmpty() && serviceLoader != null) {
 				configurators = findProviders(serviceLoader, Configurator.class).toList();
@@ -324,6 +324,15 @@ public sealed interface LogConfig {
 				RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);
 			}
 			return config;
+		}
+
+		LevelConfig buildGlobalResolver(LogProperties logProperties) {
+			LevelConfig levelResolver = ConfigLevelResolver.of(logProperties);
+			var config = buildLevelConfigOrNull();
+			if (config != null) {
+				return LevelConfig.of(List.<LevelConfig>of(config, levelResolver));
+			}
+			return levelResolver;
 		}
 
 		private static LogProperties provideProperties(ServiceRegistry registry,

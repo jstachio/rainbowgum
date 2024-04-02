@@ -278,4 +278,9 @@ final class DefaultSyncLogPublisher implements LogPublisher.SyncLogPublisher {
 		appender.close();
 	}
 
+	@Override
+	public String toString() {
+		return "DefaultSyncLogPublisher[appender=" + appender + "]";
+	}
+
 }
