@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ServiceLoader;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -11,9 +12,10 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 public class JDKSetup {
 
-	public static RainbowGum run(ListLogOutput output, System.Logger.Level level) {
+	public static RainbowGum run(ListLogOutput output, System.Logger.Level level, LogProperties properties) {
 		var config = LogConfig.builder() //
 			.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class)) //
+			.properties(properties) //
 			.level(level) //
 			.build();
 		RainbowGum.set(() -> RainbowGum.builder(config).route(r -> {

@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.lang.System.Logger.Level;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,6 +21,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -30,9 +33,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
+import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.jdk.jul.JULConfigurator;
+import io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 @TestMethodOrder(OrderAnnotation.class)
@@ -59,128 +64,61 @@ class JDKSetupTest {
 	}
 
 	@Order(2)
-	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testJULName(System.Logger.Level level, System.Logger.Level loggerLevel) throws InterruptedException {
-		doInLock(() -> {
-			_testName(JULLoggerTester.JUL, level, loggerLevel);
-		});
-
-	}
-
-	@Order(2)
-	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testSystemLoggerName(System.Logger.Level level, System.Logger.Level loggerLevel) throws InterruptedException {
-		doInLock(() -> {
-			_testName(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel);
-		});
-
-	}
-
-	@Order(2)
-	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testJULMessage(System.Logger.Level level, System.Logger.Level loggerLevel) throws InterruptedException {
-		doInLock(() -> {
-			_testMessage(JULLoggerTester.JUL, level, loggerLevel);
-		});
-
-	}
-
-	@Order(2)
-	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testSystemLoggerMessage(System.Logger.Level level, System.Logger.Level loggerLevel)
-			throws InterruptedException {
-		doInLock(() -> {
-			_testMessage(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel);
-		});
-
-	}
-
-	@Order(2)
-	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testJULMessageSupplier(System.Logger.Level level, System.Logger.Level loggerLevel)
-			throws InterruptedException {
-		doInLock(() -> {
-			_testMessageSupplier(JULLoggerTester.JUL, level, loggerLevel);
-		});
-	}
-
-	@Order(2)
-	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testSystemLoggerMessageSupplier(System.Logger.Level level, System.Logger.Level loggerLevel)
-			throws InterruptedException {
-		doInLock(() -> {
-			_testMessageSupplier(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel);
-		});
-	}
-
-	@Order(2)
-	@ParameterizedTest
-	@MethodSource("provideOneArg")
-	void testSystemLoggerObject(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
-			throws InterruptedException {
-		doInLock(() -> {
-			_testObject(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel, arg);
-		});
-
-	}
-
-	@Order(3)
-	@ParameterizedTest
-	@MethodSource("provideOneArg")
-	void testJULOneArg(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
-			throws InterruptedException {
-		doInLock(() -> {
-			_testOneArg(JULLoggerTester.JUL, level, loggerLevel, arg);
-		});
-
+	@Test
+	void testReuseFail() throws InterruptedException {
+		try {
+			System.setProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "reuse");
+			var e = assertThrows(IllegalStateException.class, () -> {
+				new SystemLoggingFactory().getLogger("fail", null);
+			});
+			String actual = e.getMessage();
+			String expected = "SystemLogging was configured to reuse a loaded Rainbow Gum but none was found. logging.systemlogger.intialize=REUSE";
+			assertEquals(expected, actual);
+		}
+		finally {
+			System.clearProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY);
+		}
 	}
 
 	@Order(4)
 	@ParameterizedTest
-	@MethodSource("provideOneArg")
-	void testSystemLoggerOneArg(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
+	@MethodSource("provideLevels")
+	void testName(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel)
 			throws InterruptedException {
 		doInLock(() -> {
-			_testOneArg(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel, arg);
+			_testName(tester, level, loggerLevel);
 		});
 
 	}
 
 	@Order(5)
 	@ParameterizedTest
-	@MethodSource("provideOneArg")
-	void testJULTwoArgs(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
+	@MethodSource("provideLevels")
+	void testMessage(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel)
 			throws InterruptedException {
 		doInLock(() -> {
-			_testTwoArgs(JULLoggerTester.JUL, level, loggerLevel, arg);
+			_testMessage(tester, level, loggerLevel);
 		});
 
 	}
 
 	@Order(6)
 	@ParameterizedTest
-	@MethodSource("provideOneArg")
-	void testSystemLoggerTwoArgs(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
+	@MethodSource("provideLevels")
+	void testMessageSupplier(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel)
 			throws InterruptedException {
 		doInLock(() -> {
-			_testTwoArgs(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel, arg);
+			_testMessageSupplier(tester, level, loggerLevel);
 		});
-
 	}
 
 	@Order(7)
 	@ParameterizedTest
 	@MethodSource("provideOneArg")
-	void testJULThreeArgs(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
+	void testObject(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
 			throws InterruptedException {
 		doInLock(() -> {
-			_testThreeArgs(JULLoggerTester.JUL, level, loggerLevel, arg);
+			_testObject(tester, level, loggerLevel, arg);
 		});
 
 	}
@@ -188,38 +126,43 @@ class JDKSetupTest {
 	@Order(8)
 	@ParameterizedTest
 	@MethodSource("provideOneArg")
-	void testSystemLoggerThreeArgs(System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
+	void testOneArg(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
 			throws InterruptedException {
 		doInLock(() -> {
-			_testThreeArgs(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel, arg);
+			_testOneArg(tester, level, loggerLevel, arg);
 		});
 
 	}
 
 	@Order(9)
 	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testJULThrowable(System.Logger.Level level, System.Logger.Level loggerLevel) throws InterruptedException {
+	@MethodSource("provideOneArg")
+	void testTwoArgs(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
+			throws InterruptedException {
 		doInLock(() -> {
-			_testThrowable(JULLoggerTester.JUL, level, loggerLevel);
+			_testTwoArgs(tester, level, loggerLevel, arg);
 		});
+
 	}
 
 	@Order(10)
 	@ParameterizedTest
-	@MethodSource("provideLevels")
-	void testSystemLoggerThrowable(System.Logger.Level level, System.Logger.Level loggerLevel)
+	@MethodSource("provideOneArg")
+	void testThreeArgs(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
 			throws InterruptedException {
 		doInLock(() -> {
-			_testThrowable(SystemLoggerTester.SYSTEM_LOGGER, level, loggerLevel);
+			_testThreeArgs(tester, level, loggerLevel, arg);
 		});
+
 	}
 
-	@Test
 	@Order(11)
-	void testOffForCeki() throws InterruptedException {
+	@ParameterizedTest
+	@MethodSource("provideLevels")
+	void testThrowable(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel)
+			throws InterruptedException {
 		doInLock(() -> {
-			_testThrowable(JULLoggerTester.JUL, System.Logger.Level.OFF, System.Logger.Level.TRACE);
+			_testThrowable(tester, level, loggerLevel);
 		});
 	}
 
@@ -230,7 +173,7 @@ class JDKSetupTest {
 		doInLock(() -> {
 			ListLogOutput output = new ListLogOutput();
 			var tester = JULLoggerTester.JUL;
-			try (var gum = JDKSetup.run(output, loggerLevel)) {
+			try (var gum = tester.run(output, loggerLevel)) {
 				var logger = tester.logger("");
 				var handlers = logger.getHandlers();
 				assertEquals(1, handlers.length);
@@ -265,6 +208,32 @@ class JDKSetupTest {
 		public void threeArgs(T logger, System.Logger.Level level, String message, Arg arg1, Arg arg2, Arg arg3);
 
 		public void throwable(T logger, System.Logger.Level level, String message, Throwable throwable);
+
+		default RainbowGum run(ListLogOutput output, System.Logger.Level level) {
+			return JDKSetup.run(output, level, properties());
+		}
+
+		default LogProperties properties() {
+			return LogProperties.StandardProperties.EMPTY;
+		}
+
+		default @Nullable T beforeLoad() {
+			if (isAfterLoad()) {
+				return null;
+			}
+			return logger("after.load");
+		}
+
+		default T afterLoad(@Nullable T logger) {
+			if (logger == null) {
+				return logger("after.load");
+			}
+			return logger;
+		}
+
+		default boolean isAfterLoad() {
+			return false;
+		}
 
 	}
 
@@ -332,7 +301,63 @@ class JDKSetupTest {
 
 	enum SystemLoggerTester implements LoggerTester<System.Logger> {
 
-		SYSTEM_LOGGER;
+		SYSTEM_LOGGER, //
+		STATIC_GUM_SYSTEM_LOGGER() {
+			@Override
+			public java.lang.System.Logger logger(String loggerName) {
+				return new SystemLoggingFactory().getLogger(loggerName, null);
+			}
+
+			@Override
+			public boolean isAfterLoad() {
+				return true;
+			}
+
+			@Override
+			public LogProperties properties() {
+				return MutableLogProperties.builder()
+					.build()
+					.put(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "true");
+			}
+		},
+		REUSE_GUM_SYSTEM_LOGGER() {
+			@Override
+			public java.lang.System.Logger logger(String loggerName) {
+				return new SystemLoggingFactory().getLogger(loggerName, null);
+			}
+
+			@Override
+			public boolean isAfterLoad() {
+				return true;
+			}
+
+			@Override
+			public LogProperties properties() {
+				return MutableLogProperties.builder()
+					.build()
+					.put(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "reuse");
+			}
+		},
+		CHANGEABLE_GUM_SYSTEM_LOGGER() {
+			@Override
+			public java.lang.System.Logger logger(String loggerName) {
+				return new SystemLoggingFactory().getLogger(loggerName, null);
+			}
+
+			@Override
+			public boolean isAfterLoad() {
+				return true;
+			}
+
+			@Override
+			public LogProperties properties() {
+				return MutableLogProperties.builder()
+					.build()
+					.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true")
+					.put(LogProperties.CHANGE_PREFIX + "." + "after", "true")
+					.put(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "true");
+			}
+		},;
 
 		@Override
 		public java.lang.System.Logger logger(String loggerName) {
@@ -386,8 +411,9 @@ class JDKSetupTest {
 	<T> void _testName(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel) {
 		ListLogOutput output = new ListLogOutput();
 
-		var logger = tester.logger("after.load");
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
 			String actual = tester.name(logger, loggerLevel);
 			assertEquals("after.load", actual);
 		}
@@ -397,8 +423,9 @@ class JDKSetupTest {
 		ListLogOutput output = new ListLogOutput();
 		String message = "Hello!";
 
-		var logger = tester.logger("after.load");
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
 			tester.message(logger, level, message);
 			var levelString = LevelFormatter.of().formatLevel(level);
 			String expected;
@@ -424,8 +451,9 @@ class JDKSetupTest {
 			return "Hello!";
 		};
 
-		var logger = tester.logger("after.load");
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
 			tester.messageSupplier(logger, level, message);
 			var levelString = LevelFormatter.of().formatLevel(level);
 			String expected;
@@ -458,11 +486,12 @@ class JDKSetupTest {
 		ListLogOutput output = new ListLogOutput();
 		Object message = arg.arg;
 
-		var logger = tester.logger("after.load");
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			var _logger = logger = tester.afterLoad(logger);
 			if (arg == Arg.BAD && isEnabled(level, loggerLevel)) {
 				assertThrows(RuntimeException.class, () -> {
-					tester.object(logger, level, arg);
+					tester.object(_logger, level, arg);
 				});
 				return;
 			}
@@ -490,8 +519,9 @@ class JDKSetupTest {
 
 		String message = "Hello {0}!";
 
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
-			var logger = tester.logger("after.load");
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
 			tester.oneArg(logger, level, message, arg);
 			var levelString = LevelFormatter.of().formatLevel(level);
 			String expected;
@@ -525,8 +555,9 @@ class JDKSetupTest {
 
 		String message = "Hello {0} {1}!";
 
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
-			var logger = tester.logger("after.load");
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
 			tester.twoArgs(logger, level, message, arg1, arg2);
 			var levelString = LevelFormatter.of().formatLevel(level);
 			String expected;
@@ -562,8 +593,9 @@ class JDKSetupTest {
 
 		String message = "Hello {0} {1} {2}!";
 
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
-			var logger = tester.logger("after.load");
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
 			tester.threeArgs(logger, level, message, arg1, arg2, arg3);
 			var levelString = LevelFormatter.of().formatLevel(level);
 			String expected;
@@ -594,8 +626,9 @@ class JDKSetupTest {
 
 		String message = "Hello exception!";
 
-		try (var gum = JDKSetup.run(output, loggerLevel)) {
-			var logger = tester.logger("after.load");
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
 			var throwable = new RuntimeException("expected");
 			tester.throwable(logger, level, message, throwable);
 			var levelString = LevelFormatter.of().formatLevel(level);
@@ -620,11 +653,21 @@ class JDKSetupTest {
 		return LevelResolver.checkEnabled(level, loggerLevel);
 	}
 
+	private static List<LoggerTester<?>> provideTesters() {
+		List<LoggerTester<?>> testers = new ArrayList<>();
+		testers.addAll(EnumSet.allOf(JULLoggerTester.class));
+		testers.addAll(EnumSet.allOf(SystemLoggerTester.class));
+		return testers;
+
+	}
+
 	private static Stream<Arguments> provideLevels() {
 		List<Arguments> args = new ArrayList<>();
-		for (var level : System.Logger.Level.values()) {
-			for (var loggerLevel : System.Logger.Level.values()) {
-				args.add(Arguments.of(level, loggerLevel));
+		for (var tester : provideTesters()) {
+			for (var level : System.Logger.Level.values()) {
+				for (var loggerLevel : System.Logger.Level.values()) {
+					args.add(Arguments.of(tester, level, loggerLevel));
+				}
 			}
 		}
 		return args.stream();
@@ -632,10 +675,12 @@ class JDKSetupTest {
 
 	private static Stream<Arguments> provideOneArg() {
 		List<Arguments> args = new ArrayList<>();
-		for (var level : System.Logger.Level.values()) {
-			for (var loggerLevel : System.Logger.Level.values()) {
-				for (var arg : Arg.values()) {
-					args.add(Arguments.of(level, loggerLevel, arg));
+		for (var tester : provideTesters()) {
+			for (var level : System.Logger.Level.values()) {
+				for (var loggerLevel : System.Logger.Level.values()) {
+					for (var arg : Arg.values()) {
+						args.add(Arguments.of(tester, level, loggerLevel, arg));
+					}
 				}
 			}
 		}
@@ -656,6 +701,9 @@ class JDKSetupTest {
 		if (lock.tryLock(2, TimeUnit.SECONDS)) {
 			try {
 				r.run();
+			}
+			catch (UnsupportedOperationException o) {
+				abort("not supported");
 			}
 			finally {
 				lock.unlock();
@@ -682,7 +730,7 @@ class JDKSetupTest {
 		jul.log(java.util.logging.Level.INFO, "Hello {0} from JUL Logger!", "Gum");
 		assertNull(RainbowGum.getOrNull(), "Rainbow Gum should not be loaded yet.");
 		ListLogOutput output = new ListLogOutput();
-		try (var gum = JDKSetup.run(output, System.Logger.Level.INFO)) {
+		try (var gum = JDKSetup.run(output, System.Logger.Level.INFO, LogProperties.StandardProperties.EMPTY)) {
 			assertNotNull(RainbowGum.getOrNull());
 			String actual = output.toString();
 			String expected = """

@@ -11,7 +11,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
-import io.jstach.rainbowgum.LogRouter.RootRouter;
+import io.jstach.rainbowgum.LogRouter;
 
 /**
  * Rainbow Gum System Logger implementation. As noted in the module doc this can be used
@@ -24,7 +24,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	private final String loggerName;
 
-	private final RootRouter router;
+	private final LogRouter router;
 
 	/**
 	 * Provides a system logger that will use the given root router.
@@ -32,11 +32,11 @@ public final class RainbowGumSystemLogger implements System.Logger {
 	 * @param router root router usually the global.
 	 * @return un-cached system logger.
 	 */
-	public static RainbowGumSystemLogger of(String loggerName, RootRouter router) {
+	public static RainbowGumSystemLogger of(String loggerName, LogRouter router) {
 		return new RainbowGumSystemLogger(loggerName, router);
 	}
 
-	RainbowGumSystemLogger(String loggerName, RootRouter router) {
+	RainbowGumSystemLogger(String loggerName, LogRouter router) {
 		super();
 		this.loggerName = loggerName;
 		this.router = router;

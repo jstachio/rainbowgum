@@ -188,6 +188,8 @@ class LevelResolverTest {
 			props.put(LogProperties.LEVEL_PREFIX, "OFF");
 			props.put(LogProperties.concatKey(LogProperties.LEVEL_PREFIX, "com.stuff.foo"), "OFF");
 			assertEquals(Level.OFF, config.levelResolver().defaultLevel());
+			// assertNotEquals(Level.OFF,
+			// g.router().levelResolver().resolveLevel("com.stuff.foo"));
 
 			/*
 			 * Assuming the level is enabled we expect the next statement per the level

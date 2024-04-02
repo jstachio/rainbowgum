@@ -63,6 +63,19 @@ public sealed interface LogRouter extends LogLifecycle {
 	}
 
 	/**
+	 * Creates a <strong>static</strong> router based on the level. Use a
+	 * {@link LevelResolver} to resolve the level first.
+	 * @param logger to publish events that are equal or above level.
+	 * @param level threshold of the router.
+	 * @return immutable static router.
+	 * @apiNote This method is for facades that do not have named level methods but are
+	 * passed the level on every log method like the System Logger.
+	 */
+	public static LogRouter ofLevel(LogEventLogger logger, Level level) {
+		return new LevelRouter(level, logger);
+	}
+
+	/**
 	 * A route is similar to a SLF4J Logger or System Logger but has a much simpler
 	 * contract.
 	 *
@@ -73,7 +86,7 @@ public sealed interface LogRouter extends LogLifecycle {
 	 * furthermore by first checking if {@link #isEnabled()} is true one can decide
 	 * whether or not to create a {@link LogEvent}.
 	 */
-	public interface Route extends LogEventLogger {
+	public sealed interface Route extends LogEventLogger {
 
 		/**
 		 * Determines if {@link #log(LogEvent)} maybe called.
@@ -100,7 +113,7 @@ public sealed interface LogRouter extends LogLifecycle {
 					return false;
 				}
 
-			}
+			};
 
 		}
 
@@ -470,6 +483,35 @@ public sealed interface LogRouter extends LogLifecycle {
 
 }
 
+record LevelRouter(Level loggerLevel, LogEventLogger logger) implements LogRouter, Route {
+
+	@Override
+	public void start(LogConfig config) {
+	}
+
+	@Override
+	public void close() {
+	}
+
+	@Override
+	public void log(LogEvent event) {
+		logger.log(event);
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return true;
+	}
+
+	@Override
+	public Route route(String loggerName, Level level) {
+		if (LevelResolver.checkEnabled(level, loggerLevel)) {
+			return this;
+		}
+		return Routes.NotFound;
+	}
+}
+
 record SimpleRouter(String name, LogPublisher publisher, LevelResolver levelResolver) implements Router, Route {
 
 	@Override
@@ -611,10 +653,12 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) impleme
 
 	@Override
 	public Route route(String loggerName, Level level) {
-		for (var router : routers) {
-			if (router.route(loggerName, level).isEnabled()) {
-				return this;
-			}
+		/*
+		 * The assumption is the provided level resolver is a cached composite level
+		 * resolver of all the routers.
+		 */
+		if (levelResolver.isEnabled(loggerName, level)) {
+			return this;
 		}
 		return Routes.NotFound;
 	}
@@ -636,7 +680,7 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) impleme
 					 */
 					event = event.freeze();
 				}
-				router.log(event);
+				route.log(event);
 			}
 		}
 	}
