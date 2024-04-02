@@ -16,9 +16,9 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
-import io.jstach.rainbowgum.LogProperties.Property;
-import io.jstach.rainbowgum.LogProperties.PropertyGetter;
-import io.jstach.rainbowgum.LogProperties.PropertyGetter.RequiredPropertyGetter;
+import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogProperty.PropertyGetter;
+import io.jstach.rainbowgum.LogProperty.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;

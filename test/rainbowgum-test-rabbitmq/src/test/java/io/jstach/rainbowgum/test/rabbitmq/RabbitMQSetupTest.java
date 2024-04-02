@@ -29,7 +29,7 @@ import com.rabbitmq.client.Envelope;
 
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.rabbitmq.RabbitMQOutput;
 import io.jstach.rainbowgum.rabbitmq.RabbitMQOutputBuilder;
 

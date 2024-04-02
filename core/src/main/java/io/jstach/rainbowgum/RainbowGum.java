@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;

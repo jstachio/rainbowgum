@@ -2,7 +2,7 @@
 package $$packageName$$;
 
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogProperty.Property;
 
 /**
  * Builder to create {@link $$targetType$$ }.

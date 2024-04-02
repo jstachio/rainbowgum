@@ -9,6 +9,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.KeyParameter;
@@ -40,7 +41,7 @@ public final class PatternConfigurator implements Configurator {
 
 	static PatternCompiler compiler(LogConfig config) {
 		var registry = config.serviceRegistry().putIfAbsent(PatternRegistry.class, () -> PatternRegistry.of());
-		boolean ansiDisable = LogProperties.Property.builder() //
+		boolean ansiDisable = LogProperty.Property.builder() //
 			.toBoolean() //
 			.orElse(false) //
 			.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //

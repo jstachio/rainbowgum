@@ -8,8 +8,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.LogProperties.Property;
-import io.jstach.rainbowgum.LogProperties.PropertyMissingException;
+import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
 
 class LogPropertiesTest {
 

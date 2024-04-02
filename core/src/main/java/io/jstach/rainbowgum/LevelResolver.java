@@ -18,7 +18,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
-import io.jstach.rainbowgum.LogProperties.PropertyGetter;
+import io.jstach.rainbowgum.LogProperty.PropertyGetter;
 
 /**
  * Resolves levels from logger names.

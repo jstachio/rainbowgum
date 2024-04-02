@@ -7,7 +7,7 @@ import java.util.Optional;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogOutput;
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;

@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 

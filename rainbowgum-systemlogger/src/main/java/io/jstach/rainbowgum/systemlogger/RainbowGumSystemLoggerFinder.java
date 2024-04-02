@@ -9,7 +9,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogProperty.Property;
 
 /**
  * Abstract System Logger Finder to allow users to create their own custom

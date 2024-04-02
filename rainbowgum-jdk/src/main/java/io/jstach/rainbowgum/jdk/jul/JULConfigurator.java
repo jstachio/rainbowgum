@@ -4,8 +4,8 @@ import java.util.logging.Logger;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperties.Property;
-import io.jstach.rainbowgum.LogProperties.RequiredProperty;
+import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogProperty.RequiredProperty;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;

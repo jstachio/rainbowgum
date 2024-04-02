@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.jstach.rainbowgum.EnumCombinations;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.FileOutputTest.Events;
 
@@ -42,7 +43,7 @@ class FileOutputPropertiesTest {
 			assertEquals(expected, actual);
 
 		}
-		catch (LogProperties.PropertyConvertException | LogProperties.PropertyMissingException e) {
+		catch (LogProperty.PropertyConvertException | LogProperty.PropertyMissingException e) {
 			String expected = properties.exceptionMessage();
 			String actual = e.getMessage();
 			if (expected == null) {

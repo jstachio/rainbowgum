@@ -2,7 +2,6 @@ package io.jstach.rainbowgum;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Objects;

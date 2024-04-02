@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogProperties.Property;
+import io.jstach.rainbowgum.LogProperty.Property;
 
 /**
  * Register appenders by name. TODO probably can remove this.
