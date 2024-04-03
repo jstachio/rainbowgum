@@ -81,8 +81,8 @@ class RainbowGumLoggerFactoryTest {
 		m.put("logging.level.mychange.two", "INFO");
 
 		LogProperties props = LogProperties.builder() //
-			.function(m::get) //
-			.from(LogProperties.builder().fromProperties(global).build())
+			.fromFunction(m::get) //
+			.with(LogProperties.builder().fromProperties(global).build())
 			.build();
 		var rainbowgum = gum(props);
 

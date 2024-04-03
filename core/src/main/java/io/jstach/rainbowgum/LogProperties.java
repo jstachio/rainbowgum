@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
+import io.jstach.rainbowgum.LogProperties.Builder.AbstractLogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -61,6 +62,12 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * properties <code>logging.example=stuff</code>, <code>logging.example.a=A</code> is not
  * recommended as <code>logging.example</code> is defined as a leaf. The exception to this
  * rule is logging levels mapped to logger names for consistency with Spring Boot.
+ * <p>
+ * Rainbow Gum out of the the box supports parsing two formats into properties:
+ * {@link Properties} text, and {@link URI#getRawQuery()} percent encoded query
+ * parameters. The two different formats have different behavior for
+ * {@link #listOrNull(String)} and {@link #mapOrNull(String)}. If a custom format of
+ * LogProperties is created those two methods may need to be extended.
  * <p>
  * A convention used through out Rainbow Gum is to have the property names as constants as
  * it makes documentation easier. These constants name are suffixed with
@@ -383,7 +390,7 @@ public interface LogProperties {
 		 * @param properties fallback not null.
 		 * @return this.
 		 */
-		public T from(LogProperties properties) {
+		public T with(LogProperties properties) {
 			this.fallbacks.add(properties);
 			return self();
 		}
@@ -425,20 +432,21 @@ public interface LogProperties {
 			return self();
 		}
 
+		/**
+		 * Removes the prefix from a key before it accesses the underlying properties.
+		 * @param prefix to be removed from start of key.
+		 * @return this.
+		 */
+		public T removeKeyPrefix(String prefix) {
+			return renameKey(k -> LogProperties.removeKeyPrefix(k, prefix));
+		}
+
 		enum Format {
 
 			PROPERTIES() {
 				@Override
 				Map<String, String> toMap(String content) {
-					var m = new LinkedHashMap<String, String>();
-					StringReader reader = new StringReader(content);
-					try {
-						PropertiesParser.readProperties(reader, m::put);
-					}
-					catch (IOException e) {
-						throw new UncheckedIOException(e);
-					}
-					return m;
+					return PropertiesParser.readProperties(content);
 				}
 			},
 			URI_QUERY() {
@@ -463,7 +471,7 @@ public interface LogProperties {
 	 */
 	public final static class Builder extends AbstractBuilder<Builder> {
 
-		private @Nullable Function<String, @Nullable String> function = null;
+		private @Nullable Function<Builder, LogProperties> provider = null;
 
 		private Builder() {
 		}
@@ -473,14 +481,22 @@ public interface LogProperties {
 			return this;
 		}
 
+		private Builder provider(Function<Builder, LogProperties> provider) {
+			if (this.provider != null) {
+				throw new IllegalArgumentException("from already set");
+			}
+			this.provider = provider;
+			return this;
+		}
+
 		/**
 		 * Sets what is called on {@link LogProperties#valueOrNull(String)}.
 		 * @param function valueOrNull func.
 		 * @return this.
 		 */
-		public Builder function(@SuppressWarnings("exports") Function<String, @Nullable String> function) {
-			this.function = function;
-			return this;
+		public Builder fromFunction(@SuppressWarnings("exports") Function<String, @Nullable String> function) {
+			return provider((b) -> new DefaultLogProperties(function,
+					Objects.requireNonNullElse(description, "function"), renameKey, order));
 		}
 
 		/**
@@ -489,22 +505,10 @@ public interface LogProperties {
 		 * @return this.
 		 */
 		public Builder fromProperties(String properties) {
-			function = Format.PROPERTIES.parse(properties);
 			if (description == null) {
 				description = "Properties String";
 			}
-			return this;
-		}
-
-		/**
-		 * Parses a string as a URI query string.
-		 * @param query uri percent encoded uri with separator as "<code>&amp;</code>" and
-		 * key value separator of "<code>=</code>".
-		 * @return this.
-		 */
-		public Builder fromURIQuery(String query) {
-			function = Format.URI_QUERY.parse(query);
-			return this;
+			return fromFunction(Format.PROPERTIES.parse(properties));
 		}
 
 		/**
@@ -516,14 +520,32 @@ public interface LogProperties {
 		 */
 		public Builder fromURIQuery(URI uri) {
 			String query = uri.getRawQuery();
+			return provider(
+					(b) -> queryToProperties(query, Objects.requireNonNullElse(description, "URI_QUERY(" + uri + ")")));
+		}
+
+		/**
+		 * Parses a string as a URI query string.
+		 * @param query uri percent encoded uri with separator as "<code>&amp;</code>" and
+		 * key value separator of "<code>=</code>".
+		 * @return this.
+		 */
+		public Builder fromURIQuery(String query) {
+			return provider((b) -> queryToProperties(query,
+					Objects.requireNonNullElse(description, "URI_QUERY(" + query + ")")));
+
+		}
+
+		private MultiMapProperties queryToProperties(@Nullable String query, String description) {
+			Map<String, List<String>> multiMap;
 			if (query == null) {
-				query = "";
+				multiMap = Map.of();
 			}
-			if (description == null) {
-				description = "URI('" + uri + "')";
+			else {
+				multiMap = parseMultiMap(query);
 			}
-			function = Format.URI_QUERY.parse(query);
-			return this;
+			var properties = new MultiMapProperties(multiMap, description, renameKey, order);
+			return properties;
 		}
 
 		/**
@@ -531,18 +553,15 @@ public interface LogProperties {
 		 * @return this.
 		 */
 		public LogProperties build() {
-			var f = this.function;
+			var f = this.provider;
 			if (f == null) {
 				if (!fallbacks.isEmpty()) {
 					return LogProperties.of(fallbacks);
 				}
-				throw new IllegalStateException("function is was not set");
+				throw new IllegalStateException("from was not set");
 			}
-			String description = this.description;
-			if (description == null) {
-				description = "custom";
-			}
-			var first = new DefaultLogProperties(f, description, renameKey, order);
+
+			var first = f.apply(this);
 			if (fallbacks.isEmpty()) {
 				return first;
 			}
@@ -862,6 +881,31 @@ public interface LogProperties {
 	}
 
 	/**
+	 * Parses a URI query for a multiple value map. The list values of the map maybe empty
+	 * if the query parameter does not have any values associated with it which would be
+	 * the case if there is a parameter (key) with no "<code>=</code>" following it. For
+	 * example the following would have three entries of <code>a,b,c</code> all with empty
+	 * list: <pre>
+	 * <code>
+	 * a&amp;b&amp;c&amp;
+	 * </code> </pre>
+	 * @param query raw query component of URI.
+	 * @return decoded key values with multiple keys grouped together in order found.
+	 * @see #parseUriQuery(String, BiConsumer)
+	 */
+	public static Map<String, List<String>> parseMultiMap(String query) {
+		Map<String, List<String>> m = new LinkedHashMap<>();
+		BiConsumer<String, @Nullable String> f = (k, v) -> {
+			List<String> list = Objects.requireNonNull(m.computeIfAbsent(k, _k -> new ArrayList<String>()));
+			if (v != null) {
+				list.add(v);
+			}
+		};
+		parseUriQuery(query, f);
+		return m;
+	}
+
+	/**
 	 * Parses a list of strings from a string that is <a href=
 	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
 	 * percent encoded for escaping (application/x-www-form-urlencoded)</a> where the
@@ -877,12 +921,12 @@ public interface LogProperties {
 	 */
 	public static List<String> parseList(String query) {
 		List<String> list = new ArrayList<>();
-		parseUriQuery(query, true, "[&,]", (k, v) -> list.add(k));
+		parseUriQuery(query, (k, v) -> list.add(k));
 		return list;
 	}
 
 	private static void parseUriQuery(String query, boolean decode, BiConsumer<String, @Nullable String> consumer) {
-		parseUriQuery(query, decode, "&", consumer);
+		parseUriQuery(query, decode, "[&,]", consumer);
 	}
 
 	private static void parseUriQuery(String query, boolean decode, String sep,
@@ -1138,6 +1182,68 @@ public interface LogProperties {
 			throw new IllegalArgumentException("Keyed parameter mismatch. key is parameters: " + keyParameters
 					+ " provided parameters: " + parameters);
 		}
+	}
+
+}
+
+final class MultiMapProperties extends AbstractLogProperties {
+
+	private final Map<String, List<String>> multiMap;
+
+	public MultiMapProperties(Map<String, List<String>> multiMap, String description,
+			Function<String, String> renameKey, int order) {
+		super(description, renameKey, order);
+		this.multiMap = multiMap;
+	}
+
+	@Override
+	public @Nullable String valueOrNull(String key) {
+		return _valueOrNull(renameKey.apply(key));
+	}
+
+	private @Nullable String _valueOrNull(String key) {
+		var list = multiMap.get(key);
+		if (list == null || list.isEmpty()) {
+			return null;
+		}
+		return list.get(0);
+	}
+
+	@Override
+	public @Nullable List<String> listOrNull(String key) {
+		return multiMap.get(renameKey.apply(key));
+	}
+
+	@Override
+	public @Nullable Map<String, String> mapOrNull(String key) {
+		var list = listOrNull(key);
+
+		if (list != null) {
+			LinkedHashMap<String, String> m = new LinkedHashMap<>();
+			for (String k : list) {
+				String v = _valueOrNull(k);
+				if (v != null) {
+					m.put(k, v);
+				}
+			}
+			return m;
+		}
+
+		/*
+		 * Now we check for dotted notation since key was not set. key.subkey=value
+		 */
+		String prefix = renameKey.apply(key) + LogProperties.SEP;
+		LinkedHashMap<String, String> m = new LinkedHashMap<>();
+		for (var k : multiMap.keySet()) {
+			if (k.startsWith(prefix) && !k.equals(prefix)) {
+				String v = _valueOrNull(k);
+				if (v != null) {
+					String _k = k.substring(prefix.length());
+					m.put(_k, v);
+				}
+			}
+		}
+		return m;
 	}
 
 }

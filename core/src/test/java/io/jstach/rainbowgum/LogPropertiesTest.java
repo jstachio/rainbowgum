@@ -4,9 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.SequencedMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
@@ -33,7 +40,7 @@ class LogPropertiesTest {
 	void testLogPropertiesBuilderMissingDescription() {
 		var props = LogProperties.builder()
 			.fromURIQuery(URI.create("stuff:///?blah=hello"))
-			.renameKey(k -> LogProperties.removeKeyPrefix(k, LogProperties.ROOT_PREFIX))
+			.removeKeyPrefix(LogProperties.ROOT_PREFIX)
 			.build();
 		try {
 			Property.builder().build("logging.some.ignoreMe").get(props).value();
@@ -41,7 +48,7 @@ class LogPropertiesTest {
 		}
 		catch (PropertyMissingException e) {
 			assertEquals(
-					"Property missing. keys: ['logging.some.ignoreMe' from URI('stuff:///?blah=hello')[some.ignoreMe]]",
+					"Property missing. keys: ['logging.some.ignoreMe' from URI_QUERY(stuff:///?blah=hello)[some.ignoreMe]]",
 					e.getMessage());
 		}
 	}
@@ -49,11 +56,152 @@ class LogPropertiesTest {
 	@Test
 	void testLogPropertiesRenameKey() {
 		var props = LogProperties.builder()
-			.fromURIQuery(URI.create("stuff:///?blah=hello"))
 			.renameKey(k -> LogProperties.removeKeyPrefix(k, LogProperties.ROOT_PREFIX))
+			.fromURIQuery(URI.create("stuff:///?blah=hello"))
 			.build();
 		String actual = Property.builder().build("logging.blah").get(props).value();
 		assertEquals("hello", actual);
+
+	}
+
+	@ParameterizedTest
+	@EnumSource(PropsTest.class)
+	void testParseProperties(PropsTest test) {
+		String input = test.input;
+		var props = LogProperties.builder().fromProperties(input).build();
+		LinkedHashMap<String, String> values = new LinkedHashMap<>();
+		for (var k : test.expected.keySet()) {
+			var v = props.valueOrNull(k);
+			if (v == null) {
+				throw new AssertionError();
+			}
+			values.put(k, v);
+		}
+		assertEquals(test.expected, values);
+	}
+
+	@ParameterizedTest
+	@EnumSource(PropsTest.class)
+	void testWriteProperties(PropsTest test) {
+		String input = test.input;
+		var props = LogProperties.builder().fromProperties(input).build();
+		LinkedHashMap<String, String> values = new LinkedHashMap<>();
+		for (var k : test.expected.keySet()) {
+			var v = props.valueOrNull(k);
+			if (v == null) {
+				throw new AssertionError();
+			}
+			values.put(k, v);
+		}
+		String actual = PropertiesParser.writeProperties(values);
+		String expected = test.input; // properties always have a new line on the end.
+		assertEquals(expected, actual);
+	}
+
+	@SuppressWarnings("ImmutableEnumChecker")
+	enum PropsTest {
+
+		SINGLE_EMPTY("""
+				a=
+				""", "a", ""), SINGLE_VALUE("""
+				a=v1
+				""", "a", "v1"), TWO_EMPTY("""
+				a=
+				b=
+				""", "a", "", "b", ""), TWO_VALUE("""
+				a=v1
+				b=v2
+				""", "a", "v1", "b", "v2"),
+
+		;
+
+		private final String input;
+
+		private final SequencedMap<String, String> expected;
+
+		private PropsTest(String input, String... kvs) {
+			this.input = input;
+			this.expected = createLinkedHashMap(kvs);
+		}
+
+	}
+
+	private static SequencedMap<String, String> createLinkedHashMap(String[] array) {
+		if (array.length % 2 != 0) {
+			throw new IllegalArgumentException("Array must have an even number of elements");
+		}
+		LinkedHashMap<String, String> map = new LinkedHashMap<>();
+		for (int i = 0; i < array.length; i += 2) {
+			map.put(array[i], array[i + 1]);
+		}
+
+		return map;
+	}
+
+	@ParameterizedTest
+	@EnumSource(ParseListTest.class)
+	void testListOrNull(ParseListTest test) {
+		String propertiesString = """
+				list=%s
+				""".formatted(test.input);
+		var props = LogProperties.builder().fromProperties(propertiesString).build();
+		var actual = props.listOrNull("list");
+		var expected = test.output;
+		assertEquals(expected, actual);
+	}
+
+	@ParameterizedTest
+	@EnumSource(ParseListTest.class)
+	void testParseList(ParseListTest test) {
+		var actual = LogProperties.parseList(test.input);
+		var expected = test.output;
+		assertEquals(expected, actual);
+	}
+
+	@ParameterizedTest
+	@EnumSource(ParseListTest.class)
+	void testEncode(ParseListTest test) {
+
+		var encoded = test.output.stream()
+			.map(k -> PercentCodec.encode(k, StandardCharsets.UTF_8))
+			.collect(Collectors.joining("&"));
+		var actual = LogProperties.parseList(encoded);
+		assertEquals(test.output, actual);
+	}
+
+	@ParameterizedTest
+	@EnumSource(ParseListTest.class)
+	void testParseMultiMapEmptyList(ParseListTest test) {
+		var actual = LogProperties.parseMultiMap(test.input).keySet().stream().toList();
+		var expected = test.output.stream().distinct().toList();
+		assertEquals(expected, actual);
+	}
+
+	@SuppressWarnings("ImmutableEnumChecker")
+	enum ParseListTest {
+
+		SINGLE("a", "a"), //
+		TWO_COMMA("a,b", "a", "b"), THREE_COMMA("a,b,c", "a", "b", "c"), TWO_AMP("a&b", "a", "b"),
+		THREE_AMP("a&b&c", "a", "b", "c"), MIXED("a&b,c", "a", "b", "c"), TRAILING_COMMA("a,", "a"),
+		TRAILING_AMP("a&", "a"), STARTING_COMMA(",a", "a"), STARTING_AMP("&a", "a"), STARTING_DOUBLE_COMMA(",,a", "a"), // TODO
+																														// this
+																														// is
+																														// probably
+																														// bad
+		STARTING_DOUBLE_AMP("&&a", "a"), // TODO this is probably bad
+		TRAILING_DOUBLE_COMMA("a,,", "a"), // TODO this is probably bad
+		TRAILING_DOUBLE_AMP("a&&", "a"), // TODO this is probably bad
+		EQUAL_INGORED("a=&b=&c=", "a", "b", "c"), PERCENT_ESCAPING("a%20,b%20", "a ", "b "),
+		CHINESE_UNICODE("%E7%94%B0%E9%97%BB,%E7%94%B0%E9%97%BB", "\u7530\u95fb", "\u7530\u95fb");
+
+		private final String input;
+
+		private final List<String> output;
+
+		private ParseListTest(String input, String... output) {
+			this.input = input;
+			this.output = Stream.of(output).toList();
+		}
 
 	}
 

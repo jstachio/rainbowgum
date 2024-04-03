@@ -9,7 +9,6 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -125,22 +124,6 @@ public final class PropertiesParser {
 		return bp;
 	}
 
-	static class DuplicateKeyException extends RuntimeException {
-
-		private static final long serialVersionUID = 1L;
-
-		final String key;
-
-		final int lineNumber;
-
-		public DuplicateKeyException(String key, int lineNumber) {
-			super("Duplicate key detected. key: '" + key + "' line: " + lineNumber);
-			this.key = key;
-			this.lineNumber = lineNumber;
-		}
-
-	}
-
 }
 
 final class PercentCodec {
@@ -191,17 +174,13 @@ final class PercentCodec {
 
 	private static final int RADIX = 16;
 
-	static void encode(final StringBuilder buf, final CharSequence content, final @Nullable Charset charset,
-			final BitSet safechars, final boolean blankAsPlus) {
+	static void encode(final StringBuilder buf, final CharSequence content, Charset charset, final BitSet safechars) {
 		final CharBuffer cb = CharBuffer.wrap(content);
-		final ByteBuffer bb = (charset != null ? charset : StandardCharsets.UTF_8).encode(cb);
+		final ByteBuffer bb = charset.encode(cb);
 		while (bb.hasRemaining()) {
 			final int b = bb.get() & 0xff;
 			if (safechars.get(b)) {
 				buf.append((char) b);
-			}
-			else if (blankAsPlus && b == ' ') {
-				buf.append("+");
 			}
 			else {
 				buf.append("%");
@@ -213,23 +192,17 @@ final class PercentCodec {
 		}
 	}
 
-	static void encode(final StringBuilder buf, final CharSequence content, final Charset charset,
-			final boolean blankAsPlus) {
-		encode(buf, content, charset, UNRESERVED, blankAsPlus);
-	}
-
 	public static void encode(final StringBuilder buf, final CharSequence content, final Charset charset) {
-		encode(buf, content, charset, UNRESERVED, false);
+		encode(buf, content, charset, UNRESERVED);
 	}
 
 	public static String encode(final CharSequence content, final Charset charset) {
-
 		final StringBuilder buf = new StringBuilder();
-		encode(buf, content, charset, UNRESERVED, false);
+		encode(buf, content, charset);
 		return buf.toString();
 	}
 
-	static String decode(final CharSequence content, final @Nullable Charset charset, final boolean plusAsBlank) {
+	public static String decode(final CharSequence content, Charset charset) {
 		final ByteBuffer bb = ByteBuffer.allocate(content.length());
 		final CharBuffer cb = CharBuffer.wrap(content);
 		while (cb.hasRemaining()) {
@@ -248,19 +221,12 @@ final class PercentCodec {
 					bb.put((byte) lc);
 				}
 			}
-			else if (plusAsBlank && c == '+') {
-				bb.put((byte) ' ');
-			}
 			else {
 				bb.put((byte) c);
 			}
 		}
 		bb.flip();
-		return (charset != null ? charset : StandardCharsets.UTF_8).decode(bb).toString();
-	}
-
-	public static String decode(final CharSequence content, final Charset charset) {
-		return decode(content, charset, false);
+		return charset.decode(bb).toString();
 	}
 
 }

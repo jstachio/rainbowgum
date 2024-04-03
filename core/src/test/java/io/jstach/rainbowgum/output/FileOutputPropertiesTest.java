@@ -113,7 +113,7 @@ class FileOutputPropertiesTest {
 
 		LogConfig config() {
 			var fallback = LogProperties.StandardProperties.ENVIRONMENT_VARIABLES;
-			var props = LogProperties.builder().fromProperties(properties.formatted(fileUri())).from(fallback).build();
+			var props = LogProperties.builder().fromProperties(properties.formatted(fileUri())).with(fallback).build();
 			return LogConfig.builder().properties(props).build();
 		}
 
