@@ -12,6 +12,7 @@ import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 class LogEncoderRegistryTest {
@@ -63,7 +64,7 @@ class LogEncoderRegistryTest {
 		assertEquals(expected, actual);
 	}
 
-	class EncoderConfigurator implements Configurator {
+	static class EncoderConfigurator implements RainbowGumServiceProvider.Configurator {
 
 		@Override
 		public boolean configure(LogConfig config) {
@@ -83,7 +84,7 @@ class LogEncoderRegistryTest {
 
 	}
 
-	class OutputConfigurator implements Configurator {
+	class OutputConfigurator implements RainbowGumServiceProvider.Configurator {
 
 		@Override
 		public boolean configure(LogConfig config) {
