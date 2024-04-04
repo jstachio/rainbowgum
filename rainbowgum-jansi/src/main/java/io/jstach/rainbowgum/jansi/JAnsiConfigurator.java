@@ -31,19 +31,24 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 
 	@Override
 	public boolean configure(LogConfig config) {
-		boolean ansi = installJansi(config);
-		if (ansi) {
+		boolean globalDisable = isGlobalAnsiDisabled(config);
+		if (!globalDisable && installJansi(config)) {
 			AnsiConsole.systemInstall();
-			var stream = AnsiConsole.out();
-			boolean disableAnsi = stream.getMode() == AnsiMode.Strip;
-			config.encoderRegistry()
-				.setEncoderForOutputType(OutputType.CONSOLE_OUT,
-						() -> LogEncoder.of(JansiLogFormatter.builder().disableAnsi(disableAnsi).build()));
+			installJansiLogFormatter(config, AnsiConsole.out().getMode() == AnsiMode.Strip);
+		}
+		else {
+			installJansiLogFormatter(config, globalDisable);
 		}
 		return true;
 	}
 
-	private boolean installJansi(LogConfig config) {
+	void installJansiLogFormatter(LogConfig config, boolean disableAnsi) {
+		config.encoderRegistry()
+			.setEncoderForOutputType(OutputType.CONSOLE_OUT,
+					() -> LogEncoder.of(JansiLogFormatter.builder().disableAnsi(disableAnsi).build()));
+	}
+
+	boolean installJansi(LogConfig config) {
 		/*
 		 * Surefire seems to hate JANSI probably because maven uses. Regardless maven
 		 * tests probably do not need ansi output anyway.
@@ -51,20 +56,21 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 		if (!System.getProperty("surefire.real.class.path", "").isEmpty()) {
 			return false;
 		}
+		var disableProperty = Boolean.parseBoolean(config.properties().valueOrNull(JANSI_DISABLE));
+		if (disableProperty) {
+			return false;
+		}
+		return true;
+	}
+
+	private boolean isGlobalAnsiDisabled(LogConfig config) {
 		boolean globalDisable = Property.builder() //
 			.toBoolean() //
 			.orElse(false) //
 			.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 			.get(config.properties())
 			.value();
-		if (globalDisable) {
-			return false;
-		}
-		var disableProperty = Boolean.parseBoolean(config.properties().valueOrNull(JANSI_DISABLE));
-		if (disableProperty) {
-			return false;
-		}
-		return true;
+		return globalDisable;
 	}
 
 }
