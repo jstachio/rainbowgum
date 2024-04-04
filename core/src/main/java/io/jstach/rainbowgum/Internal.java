@@ -120,7 +120,30 @@ final class Internal {
 
 		@Override
 		public void write(@SuppressWarnings("null") String str, int off, int len) {
-			writer.append(str, off, off + len);
+			writer.write(str, off, off + len);
+		}
+
+		@Override
+		public StringBuilderPrintWriter append(char c) {
+			writer.append(c);
+			return this;
+		}
+
+		@Override
+		public StringBuilderPrintWriter append(@Nullable CharSequence csq) {
+			writer.append(csq);
+			return this;
+		}
+
+		@Override
+		public StringBuilderPrintWriter append(@Nullable CharSequence csq, int start, int end) {
+			writer.append(csq, start, end);
+			return this;
+		}
+
+		@Override
+		public void write(@SuppressWarnings("null") char[] buf, int off, int len) {
+			writer.write(buf, off, len);
 		}
 
 	}
