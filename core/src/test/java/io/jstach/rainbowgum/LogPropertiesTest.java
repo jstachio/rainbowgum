@@ -254,15 +254,18 @@ class LogPropertiesTest {
 	void testMapOrNullUri() {
 		URI uri = URI.create("stuff:///?" + "a.a1=v1,a.a2=v2");
 		var props = LogProperties.builder()
-				.removeKeyPrefix(LogProperties.ROOT_PREFIX) //
-				.fromURIQuery(uri)
-				.build();
+			.removeKeyPrefix(LogProperties.ROOT_PREFIX) //
+			.fromURIQuery(uri)
+			.build();
 		Map<String, String> actual = props.mapOrNull("a");
 		Map<String, String> expected = Map.of("a1", "v1", "a2", "v2");
 		assertEquals(expected, actual);
 		actual = LogProperty.builder()
-				.withPrefix(LogProperties.ROOT_PREFIX) //
-				.toMap().build("a").get(props).value();
+			.withPrefix(LogProperties.ROOT_PREFIX) //
+			.toMap()
+			.build("a")
+			.get(props)
+			.value();
 		assertEquals(expected, actual);
 	}
 

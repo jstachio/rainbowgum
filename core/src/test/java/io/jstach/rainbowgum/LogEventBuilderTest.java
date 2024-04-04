@@ -13,10 +13,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-
 class LogEventBuilderTest {
-	
-	
+
 	@ParameterizedTest
 	@MethodSource("args")
 	void testBuilder(BuilderTest test) {
@@ -24,7 +22,8 @@ class LogEventBuilderTest {
 		LogEvent.Builder builder = test.builder(level);
 		String message = "hello {} {}";
 		Supplier<?> argSupplier = test.argSupplier();
-		@Nullable Object arg = test.arg();
+		@Nullable
+		Object arg = test.arg();
 		KeyValues keyValues = KeyValues.MutableKeyValues.of().add("k1", "v1").add("k2", "v2").add("k3", "v3");
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		long threadId = test.threadId();
@@ -47,9 +46,9 @@ class LogEventBuilderTest {
 		builder.messageFormatter(messageFormatter);
 		builder.throwable(throwable);
 		var event = builder.eventOrNull();
-		
+
 		LogFormatter keyValuesFormatter = test.keyValuesFormatter();
-		
+
 		var formatter = LogFormatter.builder() //
 			.threadName() //
 			.text(",") //
@@ -91,15 +90,17 @@ class LogEventBuilderTest {
 		String expected = test.expected;
 		assertEquals(expected, actual);
 	}
-	
+
 	private static Stream<Arguments> args() {
 		return EnumCombinations.args(BuilderTest.class);
 	}
-	
+
 	enum BuilderTest {
-		EVERYTHING("""
-				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k1=v1&k2=v2&k3=v3},RuntimeException:expected
-				""") {
+
+		EVERYTHING(
+				"""
+						threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k1=v1&k2=v2&k3=v3},RuntimeException:expected
+						""") {
 			@Override
 			@Nullable
 			Throwable throwable() {
@@ -112,7 +113,7 @@ class LogEventBuilderTest {
 			@Override
 			LogFormatter keyValuesFormatter() {
 				return LogFormatter.builder().keyValue("k2", "blah").build();
-			}	
+			}
 		},
 		SELECT_KEY_VALUES("""
 				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k2=v2&k3=v3},null
@@ -120,7 +121,7 @@ class LogEventBuilderTest {
 			@Override
 			LogFormatter keyValuesFormatter() {
 				return LogFormatter.builder().keyValues(List.of("k2", "k3")).build();
-			}	
+			}
 		},
 		NO_KEY_VALUES_SELECTED("""
 				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{},null
@@ -128,20 +129,19 @@ class LogEventBuilderTest {
 			@Override
 			LogFormatter keyValuesFormatter() {
 				return LogFormatter.builder().keyValues(List.of()).build();
-			}	
+			}
 		},
 		NOOP("") {
 			@Override
-			LogEvent.Builder builder(
-					Level level) {
+			LogEvent.Builder builder(Level level) {
 				return TestEventBuilder.of().loggerName("test").level(level).noop();
 
 			}
 		};
+
 		private final String expected;
 
-		private BuilderTest(
-				String expected) {
+		private BuilderTest(String expected) {
 			this.expected = expected;
 		}
 
@@ -149,19 +149,23 @@ class LogEventBuilderTest {
 			return LogFormatter.builder().keyValues().build();
 		}
 
-		@Nullable Throwable throwable() {
+		@Nullable
+		Throwable throwable() {
 			return null;
 		}
 
-		@Nullable Supplier<?> argSupplier() {
+		@Nullable
+		Supplier<?> argSupplier() {
 			return () -> "argSupplier";
 		}
 
-		@Nullable Object arg() {
+		@Nullable
+		Object arg() {
 			return "arg";
 		}
 
-		@Nullable String threadName() {
+		@Nullable
+		String threadName() {
 			return "threadName";
 		}
 
@@ -176,7 +180,7 @@ class LogEventBuilderTest {
 		LogEvent.Builder builder(Level level) {
 			return TestEventBuilder.of().loggerName("test").level(level).event();
 		}
-		
+
 	}
 
 }

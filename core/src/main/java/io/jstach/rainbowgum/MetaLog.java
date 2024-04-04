@@ -1,7 +1,11 @@
 package io.jstach.rainbowgum;
 
+import java.io.PrintStream;
 import java.lang.System.Logger.Level;
 import java.util.Objects;
+import java.util.function.Supplier;
+
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * Logging about logging. Currently not really public API.
@@ -44,6 +48,8 @@ public final class MetaLog {
 		error(event);
 	}
 
+	static Supplier<? extends @Nullable PrintStream> output = () -> System.err;
+
 }
 
 enum FailsafeAppender implements LogEventLogger {
@@ -53,15 +59,16 @@ enum FailsafeAppender implements LogEventLogger {
 	@Override
 	public void log(LogEvent event) {
 		if (event.level().compareTo(Level.ERROR) >= 0) {
-			var err = System.err;
+			var err = MetaLog.output.get();
 			if (err != null) {
-				err.append("[ERROR] - logging ");
+				err.append("[ERROR] - RAINBOW_GUM ");
 				StringBuilder sb = new StringBuilder();
 				event.formattedMessage(sb);
 				err.append(sb.toString());
 
 				var throwable = event.throwableOrNull();
 				if (throwable != null) {
+					err.append(" ");
 					throwable.printStackTrace(err);
 				}
 			}
