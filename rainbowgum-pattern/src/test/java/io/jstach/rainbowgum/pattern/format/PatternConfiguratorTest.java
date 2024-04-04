@@ -83,7 +83,7 @@ class PatternConfiguratorTest {
 				builder.configurator(new PatternKeywordProvider() {
 					@Override
 					protected void register(PatternRegistry patternRegistry) {
-						patternRegistry.keyword(PatternKey.of("stuff"), (c, n) -> LogFormatter.of("blah"));
+						patternRegistry.keyword(PatternKey.of("stuff"), (c, n) -> LogFormatter.builder().text("blah").build());
 					}
 				});
 			}

@@ -40,6 +40,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 	public static class Builder extends StandardEventFormatter.AbstractBuilder<Builder> {
 
 		private Builder() {
+			levelFormatter = LevelFormatter.ofRightPadded();
 		}
 
 		/**

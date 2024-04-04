@@ -16,7 +16,7 @@ public final class TestEventBuilder {
 	private Level level = Level.INFO;
 
 	private String loggerName = "test";
-
+	
 	/**
 	 * Creates builder with level info and logger name test.
 	 * @return this.
@@ -51,6 +51,14 @@ public final class TestEventBuilder {
 	 */
 	public LogEvent.Builder event() {
 		return new LogEventBuilder(logger, level, loggerName).timestamp(Instant.EPOCH).message("testMessage");
+	}
+	
+	/**
+	 * Creates a noop event builder.
+	 * @return builder.
+	 */
+	public LogEvent.Builder noop() {
+		return NoOpLogEventBuilder.NOOP;
 	}
 
 	/**

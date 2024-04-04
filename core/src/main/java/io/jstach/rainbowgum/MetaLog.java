@@ -56,7 +56,9 @@ enum FailsafeAppender implements LogEventLogger {
 			var err = System.err;
 			if (err != null) {
 				err.append("[ERROR] - logging ");
-				event.formattedMessage(err);
+				StringBuilder sb = new StringBuilder();
+				event.formattedMessage(sb);
+				err.append(sb.toString());
 
 				var throwable = event.throwableOrNull();
 				if (throwable != null) {

@@ -10,7 +10,9 @@ public class LoggerTest {
 	@Test
 	public void testErrorLogger() {
 		LogEventLogger appender = e -> {
-			e.formattedMessage(System.out);
+			StringBuilder sb = new StringBuilder();
+			e.formattedMessage(sb);
+			System.out.append(sb);
 		};
 		var logger = LevelLogger.of(Level.ERROR, "stuff", appender, new RainbowGumMDCAdapter());
 

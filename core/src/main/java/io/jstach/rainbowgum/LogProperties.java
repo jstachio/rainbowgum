@@ -1,8 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.UncheckedIOException;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -441,29 +438,6 @@ public interface LogProperties {
 			return renameKey(k -> LogProperties.removeKeyPrefix(k, prefix));
 		}
 
-		enum Format {
-
-			PROPERTIES() {
-				@Override
-				Map<String, String> toMap(String content) {
-					return PropertiesParser.readProperties(content);
-				}
-			},
-			URI_QUERY() {
-				@Override
-				Map<String, String> toMap(String content) {
-					return parseMap(content);
-				}
-			};
-
-			abstract Map<String, String> toMap(String content);
-
-			Function<String, @Nullable String> parse(String content) {
-				return toMap(content)::get;
-			}
-
-		}
-
 	}
 
 	/**
@@ -508,7 +482,7 @@ public interface LogProperties {
 			if (description == null) {
 				description = "Properties String";
 			}
-			return fromFunction(Format.PROPERTIES.parse(properties));
+			return fromFunction(PropertiesParser.readProperties(properties)::get);
 		}
 
 		/**
@@ -646,7 +620,7 @@ public interface LogProperties {
 		 * @return this.
 		 */
 		default MutableLogProperties copyProperties(String content) {
-			var m = AbstractBuilder.Format.PROPERTIES.toMap(content);
+			var m = PropertiesParser.readProperties(content);
 			for (var e : m.entrySet()) {
 				put(e.getKey(), e.getKey());
 			}
@@ -693,7 +667,7 @@ public interface LogProperties {
 			 * @return this.
 			 */
 			public Builder copyProperties(String properties) {
-				map.putAll(Format.PROPERTIES.toMap(properties));
+				map.putAll(PropertiesParser.readProperties(properties));
 				return this;
 			}
 

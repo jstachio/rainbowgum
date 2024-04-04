@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.lang.StackWalker.Option;
 import java.lang.StackWalker.StackFrame;
 import java.lang.System.Logger.Level;
@@ -274,23 +272,6 @@ public sealed interface LogEvent {
 	 * @see LogMessageFormatter
 	 */
 	public void formattedMessage(StringBuilder sb);
-
-	/**
-	 * Appends the formatted message.
-	 * @param a appendable to append to.
-	 * @see LogMessageFormatter
-	 * @throws UncheckedIOException if an IOException is thrown by the appendable.
-	 */
-	default void formattedMessage(Appendable a) {
-		StringBuilder sb = new StringBuilder();
-		formattedMessage(sb);
-		try {
-			a.append(sb);
-		}
-		catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-	}
 
 	/**
 	 * Throwable at the time of the event passed from the logger.
@@ -687,77 +668,6 @@ enum NoOpLogEventBuilder implements LogEvent.Builder {
 
 	@Override
 	public Builder arg(@Nullable Object arg) {
-		return this;
-	}
-
-}
-
-enum EmptyLogEvent implements LogEvent {
-
-	INFO() {
-		@Override
-		public Level level() {
-			return Level.INFO;
-		}
-	},
-	DEBUG() {
-		@Override
-		public Level level() {
-			return Level.DEBUG;
-		}
-	};
-
-	@Override
-	public Instant timestamp() {
-		return Instant.EPOCH;
-	}
-
-	@Override
-	public String threadName() {
-		return "";
-	}
-
-	@Override
-	public long threadId() {
-		return 0;
-	}
-
-	@Override
-	public String loggerName() {
-		return "";
-	}
-
-	@Override
-	public String message() {
-		return "";
-	}
-
-	@Override
-	public void formattedMessage(StringBuilder sb) {
-
-	}
-
-	@Override
-	public @Nullable Throwable throwableOrNull() {
-		return null;
-	}
-
-	@Override
-	public KeyValues keyValues() {
-		return KeyValues.of();
-	}
-
-	public int argCount() {
-		return 0;
-	}
-
-	@Override
-	public LogEvent freeze() {
-		return this;
-	}
-
-	@Override
-	public LogEvent freeze(Instant timestamp) {
 		return this;
 	}
 

@@ -86,15 +86,6 @@ public sealed interface LogFormatter {
 	}
 
 	/**
-	 * Creates a static formatter of text.
-	 * @param text immutable text.
-	 * @return immutable static formatter.
-	 */
-	public static StaticFormatter of(String text) {
-		return new StaticFormatter(text);
-	}
-
-	/**
 	 * A special formatter that will append static text.
 	 *
 	 * @param content static text.
@@ -265,6 +256,8 @@ public sealed interface LogFormatter {
 		 * Creates a formatter that will print the key values in order of the passed in
 		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
 		 * used in {@link URI#getQuery()}).
+		 * <strong>An empty list is considered a noop and no keys will be ommitted!</strong>
+		 * If you want to all keys use {@link #keyValues()}.
 		 * @param keys keys where order is important.
 		 * @return this.
 		 */
@@ -282,7 +275,7 @@ public sealed interface LogFormatter {
 		 * @param fallback if the value is null the fallback will be used.
 		 * @return this.
 		 */
-		public Builder keyValues(String key, @Nullable String fallback) {
+		public Builder keyValue(String key, @Nullable String fallback) {
 			return add(new SingleKeyValueFormatter(key, fallback));
 		}
 

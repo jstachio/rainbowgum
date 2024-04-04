@@ -76,7 +76,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(OneArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1!", sb.toString());
 		assertFreeze(event);
@@ -99,7 +99,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(TwoArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1 https://jstach.io!", sb.toString());
 		assertFreeze(event);
@@ -120,7 +120,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(ArrayArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello!", sb.toString());
 		assertFreeze(event);
@@ -143,7 +143,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(ArrayArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1!", sb.toString());
 		assertFreeze(event);
@@ -167,7 +167,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(ArrayArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1 null!", sb.toString());
 		assertFreeze(event);
@@ -192,7 +192,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(ArrayArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1 null nonnull!", sb.toString());
 		assertFreeze(event);
@@ -224,7 +224,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(ArrayArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1 null nonnull!", sb.toString());
 		assertFreeze(event);
@@ -253,7 +253,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(DefaultLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello!", sb.toString());
 		assertFreeze(event);
@@ -283,7 +283,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(OneArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1!", sb.toString());
 		assertFreeze(event);
@@ -314,7 +314,7 @@ class LogEventTest {
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(TwoArgLogEvent.class, event);
-		Appendable sb = new StringBuilder();
+		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1 null!", sb.toString());
 		assertFreeze(event);

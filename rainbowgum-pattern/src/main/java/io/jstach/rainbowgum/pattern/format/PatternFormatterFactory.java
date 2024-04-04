@@ -172,7 +172,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 				k = key;
 				fallback = null;
 			}
-			return LogFormatter.builder().keyValues(k, fallback).build();
+			return LogFormatter.builder().keyValue(k, fallback).build();
 
 		}
 
