@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.jansi;
 
 import org.fusesource.jansi.AnsiConsole;
+import org.fusesource.jansi.AnsiMode;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
@@ -30,16 +31,23 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 
 	@Override
 	public boolean configure(LogConfig config) {
-		if (installJansi(config)) {
+		boolean ansi = installJansi(config);
+		if (ansi) {
 			AnsiConsole.systemInstall();
+			var stream = AnsiConsole.out();
+			boolean disableAnsi = stream.getMode() == AnsiMode.Strip;
 			config.encoderRegistry()
 				.setEncoderForOutputType(OutputType.CONSOLE_OUT,
-						() -> LogEncoder.of(JansiLogFormatter.builder().build()));
+						() -> LogEncoder.of(JansiLogFormatter.builder().disableAnsi(disableAnsi).build()));
 		}
 		return true;
 	}
 
 	private boolean installJansi(LogConfig config) {
+		/*
+		 * Surefire seems to hate JANSI probably because maven uses. Regardless maven
+		 * tests probably do not need ansi output anyway.
+		 */
 		if (!System.getProperty("surefire.real.class.path", "").isEmpty()) {
 			return false;
 		}
