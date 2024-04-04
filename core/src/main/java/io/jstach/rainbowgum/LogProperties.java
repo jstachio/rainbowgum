@@ -1216,18 +1216,18 @@ final class MultiMapProperties extends AbstractLogProperties {
 
 	@Override
 	public @Nullable Map<String, String> mapOrNull(String key) {
-		var list = listOrNull(key);
-
-		if (list != null) {
-			LinkedHashMap<String, String> m = new LinkedHashMap<>();
-			for (String k : list) {
-				String v = _valueOrNull(k);
-				if (v != null) {
-					m.put(k, v);
-				}
-			}
-			return m;
-		}
+		// var list = listOrNull(key);
+		//
+		// if (list != null) {
+		// LinkedHashMap<String, String> m = new LinkedHashMap<>();
+		// for (String k : list) {
+		// String v = _valueOrNull(k);
+		// if (v != null) {
+		// m.put(k, v);
+		// }
+		// }
+		// return m;
+		// }
 
 		/*
 		 * Now we check for dotted notation since key was not set. key.subkey=value

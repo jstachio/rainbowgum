@@ -1,13 +1,16 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.SequencedMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
 
@@ -177,17 +181,47 @@ class LogPropertiesTest {
 		assertEquals(expected, actual);
 	}
 
+	@Test
+	void testMutableLogProperties() {
+		ConcurrentHashMap<String, String> m = new ConcurrentHashMap<>();
+		var badProps = MutableLogProperties.builder()
+			.description("hello")
+			.order(2)
+			.with(m)
+			.build()
+			.put("greet", "hello");
+		assertThrows(IllegalArgumentException.class, () -> {
+			LogProperty.builder().build("greet").get(badProps).value();
+		});
+		m.clear();
+		var props = MutableLogProperties.builder()
+			.removeKeyPrefix(LogProperties.ROOT_PREFIX)
+			.copyProperties("")
+			.description("hello")
+			.order(2)
+			.with(m)
+			.build()
+			.put("greet", "hello");
+
+		String actual = LogProperty.builder().build("logging.greet").get(props).value();
+		String expected = "hello";
+		assertEquals(expected, actual);
+	}
+
 	@SuppressWarnings("ImmutableEnumChecker")
 	enum ParseListTest {
 
 		SINGLE("a", "a"), //
-		TWO_COMMA("a,b", "a", "b"), THREE_COMMA("a,b,c", "a", "b", "c"), TWO_AMP("a&b", "a", "b"),
-		THREE_AMP("a&b&c", "a", "b", "c"), MIXED("a&b,c", "a", "b", "c"), TRAILING_COMMA("a,", "a"),
-		TRAILING_AMP("a&", "a"), STARTING_COMMA(",a", "a"), STARTING_AMP("&a", "a"), STARTING_DOUBLE_COMMA(",,a", "a"), // TODO
-																														// this
-																														// is
-																														// probably
-																														// bad
+		TWO_COMMA("a,b", "a", "b"), //
+		THREE_COMMA("a,b,c", "a", "b", "c"), //
+		TWO_AMP("a&b", "a", "b"), //
+		THREE_AMP("a&b&c", "a", "b", "c"), //
+		MIXED("a&b,c", "a", "b", "c"), //
+		TRAILING_COMMA("a,", "a"), //
+		TRAILING_AMP("a&", "a"), //
+		STARTING_COMMA(",a", "a"), //
+		STARTING_AMP("&a", "a"), //
+		STARTING_DOUBLE_COMMA(",,a", "a"), // TODO this is probably bad
 		STARTING_DOUBLE_AMP("&&a", "a"), // TODO this is probably bad
 		TRAILING_DOUBLE_COMMA("a,,", "a"), // TODO this is probably bad
 		TRAILING_DOUBLE_AMP("a&&", "a"), // TODO this is probably bad
@@ -201,6 +235,39 @@ class LogPropertiesTest {
 		private ParseListTest(String input, String... output) {
 			this.input = input;
 			this.output = Stream.of(output).toList();
+		}
+
+	}
+
+	@ParameterizedTest
+	@EnumSource(ParseMultiTest.class)
+	void testParseMultiMap(ParseMultiTest test) {
+		var actual = LogProperties.parseMultiMap(test.input);
+		var expected = test.expected;
+		assertEquals(expected, actual);
+	}
+
+	@Test
+	void testMapOrNullUri() {
+		URI uri = URI.create("stuff:///?" + "a.a1=v1,a.a2=v2");
+		var props = LogProperties.builder().fromURIQuery(uri).build();
+		Map<String, String> actual = props.mapOrNull("a");
+		Map<String, String> expected = Map.of("a1", "v1", "a2", "v2");
+		assertEquals(expected, actual);
+
+	}
+
+	enum ParseMultiTest {
+
+		SIMPLE("a=v1&a=v2", List.of("v1", "v2")),;
+
+		private final String input;
+
+		private final Map<String, List<String>> expected;
+
+		private ParseMultiTest(String input, List<String> values) {
+			this.input = input;
+			this.expected = Map.of("a", values);
 		}
 
 	}

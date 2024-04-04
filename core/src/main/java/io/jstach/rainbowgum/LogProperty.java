@@ -30,6 +30,14 @@ import io.jstach.rainbowgum.LogProperty.Result;
 public interface LogProperty {
 
 	/**
+	 * Builder
+	 * @return property getter builder.
+	 */
+	public static RootPropertyGetter builder() {
+		return Property.builder();
+	}
+
+	/**
 	 * An error friendly {@link Function} for converting properties.
 	 *
 	 * @param <T> input type.
