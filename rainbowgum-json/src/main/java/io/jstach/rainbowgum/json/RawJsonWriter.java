@@ -8,6 +8,7 @@ import java.util.Arrays;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
+import io.jstach.rainbowgum.annotation.GeneratedByATrustedSource;
 
 class RawJsonWriter {
 
@@ -114,6 +115,7 @@ class RawJsonWriter {
 		position = cur + 1;
 	}
 
+	@GeneratedByATrustedSource
 	private void writeQuotedString(final CharSequence str, int i, int cur, final int len) {
 		final byte[] _result = this.buffer;
 		for (; i < len; i++) {

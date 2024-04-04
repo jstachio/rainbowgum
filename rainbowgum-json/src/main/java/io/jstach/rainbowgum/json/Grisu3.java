@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.json;
 
+import io.jstach.rainbowgum.annotation.GeneratedByATrustedSource;
+
 //Copyright 2010 the V8 project authors. All rights reserved.
 //Redistribution and use in source and binary forms, with or without
 //modification, are permitted provided that the following conditions are
@@ -33,6 +35,7 @@ package io.jstach.rainbowgum.json;
 //Modified by Rikard Pavelic do avoid allocations
 //and unused code paths due to external checks
 
+@GeneratedByATrustedSource
 abstract class Grisu3 {
 
 	// FastDtoa will produce at most kFastDtoaMaximalLength digits.
@@ -48,6 +51,7 @@ abstract class Grisu3 {
 	// generation, but a smaller range requires more powers of ten to be cached.
 	static final int minimal_target_exponent = -60;
 
+	@GeneratedByATrustedSource
 	private static final class DiyFp {
 
 		long f;
@@ -259,6 +263,7 @@ abstract class Grisu3 {
 
 	}
 
+	@GeneratedByATrustedSource
 	private static class DoubleHelper {
 
 		static final long kExponentMask = 0x7FF0000000000000L;
@@ -351,6 +356,7 @@ abstract class Grisu3 {
 
 	}
 
+	@GeneratedByATrustedSource
 	static class FastDtoa {
 
 		// Adjusts the last digit of the generated number, and screens out
@@ -842,6 +848,7 @@ abstract class Grisu3 {
 		}
 	}
 
+	@GeneratedByATrustedSource
 	static class FastDtoaBuilder {
 
 		private final DiyFp v = new DiyFp();

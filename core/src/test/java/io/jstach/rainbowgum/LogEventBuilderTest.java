@@ -13,6 +13,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.jstach.rainbowgum.LogEvent.Caller;
+
 class LogEventBuilderTest {
 
 	@ParameterizedTest
@@ -30,6 +32,7 @@ class LogEventBuilderTest {
 		String threadName = test.threadName();
 		Throwable throwable = test.throwable();
 		Instant timestamp = Instant.EPOCH;
+		Caller caller = test.caller();
 		if (threadName != null) {
 			builder.threadName(threadName);
 		}
@@ -45,6 +48,8 @@ class LogEventBuilderTest {
 		}
 		builder.messageFormatter(messageFormatter);
 		builder.throwable(throwable);
+		builder.caller(caller);
+
 		var event = builder.eventOrNull();
 
 		LogFormatter keyValuesFormatter = test.keyValuesFormatter();
@@ -75,6 +80,14 @@ class LogEventBuilderTest {
 					return;
 				}
 				sb.append(t.getClass().getSimpleName()).append(":").append(t.getMessage());
+			}) //
+			.event((sb, e) -> {
+				var c = e.callerOrNull();
+				if (c == null) {
+					return;
+				}
+				sb.append(",");
+				sb.append(c.className()).append(":").append(c.methodName());
 			}) //
 			.newline() //
 			.build();
@@ -131,6 +144,15 @@ class LogEventBuilderTest {
 				return LogFormatter.builder().keyValues(List.of()).build();
 			}
 		},
+		CALLER("""
+				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k1=v1&k2=v2&k3=v3},null,io.jstach.rainbowgum.LogEventBuilderTest:testBuilder
+				""") {
+			@Override
+			@Nullable
+			Caller caller() {
+				return Caller.ofDepthOrNull(1);
+			}
+		},
 		NOOP("") {
 			@Override
 			LogEvent.Builder builder(Level level) {
@@ -143,6 +165,11 @@ class LogEventBuilderTest {
 
 		private BuilderTest(String expected) {
 			this.expected = expected;
+		}
+
+		@Nullable
+		Caller caller() {
+			return null;
 		}
 
 		LogFormatter keyValuesFormatter() {

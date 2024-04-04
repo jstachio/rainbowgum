@@ -392,6 +392,13 @@ public sealed interface LogEvent {
 		public Builder keyValues(KeyValues keyValues);
 
 		/**
+		 * Adds caller info.
+		 * @param caller caller maybe <code>null</code>.
+		 * @return this.
+		 */
+		public Builder caller(@Nullable Caller caller);
+
+		/**
 		 * Will log the event with the current values.
 		 * @return true if accepted.
 		 */
@@ -533,6 +540,8 @@ final class LogEventBuilder implements LogEvent.Builder {
 
 	private LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 
+	private @Nullable Caller caller = null;
+
 	LogEventBuilder(LogEventLogger logger, Level level, String loggerName) {
 		super();
 		this.logger = logger;
@@ -598,6 +607,12 @@ final class LogEventBuilder implements LogEvent.Builder {
 	}
 
 	@Override
+	public Builder caller(@Nullable Caller caller) {
+		this.caller = caller;
+		return this;
+	}
+
+	@Override
 	public boolean log() {
 		var event = eventOrNull();
 		logger.log(event);
@@ -606,8 +621,13 @@ final class LogEventBuilder implements LogEvent.Builder {
 
 	@Override
 	public LogEvent eventOrNull() {
-		return LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
+		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, this.args);
+		var c = caller;
+		if (c != null) {
+			return LogEvent.withCaller(event, c);
+		}
+		return event;
 	}
 
 }
@@ -671,6 +691,11 @@ enum NoOpLogEventBuilder implements LogEvent.Builder {
 		return this;
 	}
 
+	@Override
+	public Builder caller(@Nullable Caller caller) {
+		return this;
+	}
+
 }
 
 record OneArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
@@ -680,10 +705,6 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.format(sb, message, arg1);
-	}
-
-	public int argCount() {
-		return 1;
 	}
 
 	@Override
@@ -708,10 +729,6 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.format(sb, message, arg1, arg2);
-	}
-
-	public int argCount() {
-		return 2;
 	}
 
 	@Override
@@ -759,14 +776,6 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 record DefaultLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String formattedMessage, KeyValues keyValues,
 		@Nullable Throwable throwableOrNull) implements LogEvent {
-
-	public int argCount() {
-		return 0;
-	}
-
-	public KeyValues getKeyValues() {
-		return keyValues;
-	}
 
 	@Override
 	public void formattedMessage(StringBuilder sb) {
