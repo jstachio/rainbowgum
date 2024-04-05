@@ -75,10 +75,10 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 
 		/**
 		 * Sets the depth information.
-		 * @param index current index.
-		 * @param depth depth of decorated loggers.
+		 * @param index current index. <code>0</code> would be the outer most logger.
+		 * @param endIndex index of last logger which is inclusive.
 		 */
-		public void setDepth(int index, int depth);
+		public void setDepth(int index, int endIndex);
 
 	}
 

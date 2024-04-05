@@ -126,8 +126,7 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 		if (service == null) {
 			throw new NullPointerException("service");
 		}
-		services.getOrDefault(new ServiceKey(type, name), service);
-
+		services.putIfAbsent(new ServiceKey(type, name), service);
 	}
 
 	@SuppressWarnings("unchecked")

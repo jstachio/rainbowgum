@@ -14,6 +14,7 @@ import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAware;
 
 class RainbowGumLoggerFactory implements ILoggerFactory {
 
@@ -90,9 +91,6 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			if (array.length == 0) {
 				return Noop.INSTANCE;
 			}
-			if (array.length == 1) {
-				return new SingleLoggerDecorator(array[0]);
-			}
 			return new CompositeLoggerDecorator(array);
 		}
 
@@ -107,18 +105,6 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 		}
 
-		record SingleLoggerDecorator(LoggerDecoratorService service) implements LoggerDecorator {
-			@Override
-			public Logger decorate(RainbowGum gum, Logger logger) {
-				var decorated = Objects.requireNonNull(service.decorate(gum, logger));
-				if (decorated != logger && decorated instanceof WrappingLogger wl && wl.delegate() == logger) {
-					setDepth(logger, 0, 1);
-					setDepth(decorated, 1, 1);
-				}
-				return decorated;
-			}
-		}
-
 		record CompositeLoggerDecorator(LoggerDecoratorService[] services) implements LoggerDecorator {
 
 			@Override
@@ -130,9 +116,16 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				for (var current = logger; current != null; current = getWrapping(current)) {
 					count++;
 				}
+				int endIndex = count - 1;
 				int i = 0;
-				for (var current = logger; current != null; current = getWrapping(current)) {
-					setDepth(current, i++, count);
+				if (endIndex > 0) {
+					for (var current = logger; current != null; current = getWrapping(current)) {
+						setDepth(current, i, endIndex);
+						if (i >= endIndex) {
+							break;
+						}
+						i++;
+					}
 				}
 				return logger;
 			}
@@ -146,10 +139,10 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			return null;
 		}
 
-		/*
-		 * TODO for stack tracing
-		 */
-		static void setDepth(Logger logger, int index, int depth) {
+		static void setDepth(Logger logger, int index, int endIndex) {
+			if (logger instanceof DepthAware da) {
+				da.setDepth(index, endIndex);
+			}
 
 		}
 

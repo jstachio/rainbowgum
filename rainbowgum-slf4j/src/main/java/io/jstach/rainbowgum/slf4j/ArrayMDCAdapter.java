@@ -5,7 +5,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.Deque;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
@@ -53,6 +52,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 		return newMap;
 	}
 
+	@Override
 	public void put(@NonNull String key, @Nullable String val) throws NullPointerException {
 		requireNonNull(key, "key cannot be null");
 
@@ -70,6 +70,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 		}
 	}
 
+	@Override
 	public void remove(@Nullable String key) {
 		if (key == null) {
 			return;
@@ -91,11 +92,13 @@ class ArrayMDCAdapter implements MDCAdapter {
 		}
 	}
 
+	@Override
 	public void clear() {
 		lastOperation.set(WRITE_OPERATION);
 		copyOnThreadLocal.remove();
 	}
 
+	@Override
 	public @Nullable String get(String key) {
 		if (Objects.isNull(key)) {
 			return null;
@@ -114,32 +117,32 @@ class ArrayMDCAdapter implements MDCAdapter {
 	 * internally.
 	 * @return mutable key values.
 	 */
-	public @Nullable MutableKeyValues getMutableKeyValues() {
+	public @Nullable MutableKeyValues mutableKeyValuesOrNull() {
 		lastOperation.set(MAP_COPY_OPERATION);
 		return copyOnThreadLocal.get();
 	}
 
-	/**
-	 * Returns the keys in the MDC as a {@link Set}. The returned value can be null.
-	 * @return keys.
-	 */
-
-	public @Nullable Set<String> getKeys() {
-		MutableKeyValues map = getMutableKeyValues();
-
-		if (map != null) {
-			return map.copyToMap().keySet();
-		}
-		else {
-			return null;
-		}
-	}
+	// /**
+	// * Returns the keys in the MDC as a {@link Set}. The returned value can be null.
+	// * @return keys.
+	// */
+	// public @Nullable Set<String> getKeys() {
+	// MutableKeyValues map = mutableKeyValuesOrNull();
+	//
+	// if (map != null) {
+	// return map.copyToMap().keySet();
+	// }
+	// else {
+	// return null;
+	// }
+	// }
 
 	/**
 	 * Return a copy of the current thread's context map. Returned value may be null.
 	 * @return map copy.
 	 */
 
+	@Override
 	public @Nullable Map<String, @Nullable String> getCopyOfContextMap() {
 		MutableKeyValues hashMap = copyOnThreadLocal.get();
 		if (hashMap == null) {
@@ -150,6 +153,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 		}
 	}
 
+	@Override
 	public void setContextMap(Map<String, @Nullable String> contextMap) {
 		lastOperation.set(WRITE_OPERATION);
 

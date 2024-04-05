@@ -6,7 +6,7 @@ import org.slf4j.Marker;
 /**
  * A logger that forwards calls to the {@link #delegate()} logger.
  */
-public interface ForwardingLogger extends Logger {
+public interface ForwardingLogger extends Logger, WrappingLogger {
 
 	/**
 	 * The downstream logger to forward calls to.

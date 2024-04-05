@@ -39,7 +39,7 @@ interface BaseLogger extends EventCreator<Level>, Logger {
 	@Override
 	default KeyValues keyValues() {
 		var mdc = mdc();
-		var m = mdc.getMutableKeyValues();
+		var m = mdc.mutableKeyValuesOrNull();
 		if (m != null) {
 			return m;
 		}

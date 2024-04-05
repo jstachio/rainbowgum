@@ -23,11 +23,13 @@ import io.jstach.rainbowgum.LogProperty.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter.RootPropertyGetter;
 import io.jstach.rainbowgum.LogProperty.RequiredResult;
 import io.jstach.rainbowgum.LogProperty.Result;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
  * A single property or value.
  */
-public interface LogProperty {
+@CaseChanging
+public sealed interface LogProperty {
 
 	/**
 	 * Builder
@@ -329,7 +331,7 @@ public interface LogProperty {
 	 * @see RequiredProperty
 	 * @see Result
 	 */
-	sealed interface Property<T> {
+	sealed interface Property<T> extends LogProperty {
 
 		/**
 		 * Gets the first key.
@@ -1002,6 +1004,10 @@ record DefaultRequiredProperty<T>(RequiredPropertyGetter<T> propertyGetter,
 			consumer.accept(key(), value);
 		}
 	}
+
+}
+
+enum NoProperty implements LogProperty {
 
 }
 

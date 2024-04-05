@@ -16,8 +16,9 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAware;
 
-class RainbowGumEventBuilder implements LoggingEventBuilder {
+class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAware {
 
 	private final BaseLogger logger;
 
@@ -41,6 +42,8 @@ class RainbowGumEventBuilder implements LoggingEventBuilder {
 
 	private static final int DEPTH = 5;
 
+	private int depth = 0;
+
 	public RainbowGumEventBuilder(BaseLogger logger, RainbowGumMDCAdapter mdc, Level level) {
 		this.logger = logger;
 		this.mdc = mdc;
@@ -48,10 +51,16 @@ class RainbowGumEventBuilder implements LoggingEventBuilder {
 		this.loggerName = logger.loggerName();
 	}
 
+	@Override
+	public void setDepth(int index, int endIndex) {
+		this.depth = index;
+
+	}
+
 	MutableKeyValues kvs() {
 		var kvs = this.mutableKeyValues;
 		if (kvs == null) {
-			var copy = mdc.getMutableKeyValues();
+			var copy = mdc.mutableKeyValuesOrNull();
 			if (copy == null) {
 				copy = MutableKeyValues.of();
 			}
@@ -122,18 +131,14 @@ class RainbowGumEventBuilder implements LoggingEventBuilder {
 		long threadId = thread.threadId();
 		KeyValues keyValues = this.mutableKeyValues;
 		if (keyValues == null) {
-			keyValues = mdc.getMutableKeyValues();
+			keyValues = mdc.mutableKeyValuesOrNull();
 			if (keyValues == null) {
 				keyValues = KeyValues.of();
 			}
 		}
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, this.args);
-		logger.handle(event, DEPTH);
-	}
-
-	protected Instant now() {
-		return Instant.now();
+		logger.handle(event, DEPTH + this.depth);
 	}
 
 	@Override
