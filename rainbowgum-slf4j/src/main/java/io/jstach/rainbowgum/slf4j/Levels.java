@@ -10,16 +10,12 @@ import org.slf4j.event.Level;
 
 class Levels {
 
-	static final int OFF_INT = -1;
-
-	static String toString(System.Logger.Level level) {
-		return toSlf4jLevel(level).name();
-	}
+	static final int OFF_INT = Integer.MIN_VALUE;
 
 	static int toSlf4jInt(System.Logger.Level level) {
 		return switch (level) {
 			case DEBUG -> DEBUG_INT;
-			case ALL -> ERROR_INT;
+			case ALL -> TRACE_INT;
 			case ERROR -> ERROR_INT;
 			case INFO -> INFO_INT;
 			case OFF -> OFF_INT;
@@ -31,7 +27,7 @@ class Levels {
 	static Level toSlf4jLevel(System.Logger.Level level) {
 		return switch (level) {
 			case DEBUG -> Level.DEBUG;
-			case ALL -> Level.ERROR;
+			case ALL -> Level.TRACE;
 			case ERROR -> Level.ERROR;
 			case INFO -> Level.INFO;
 			case OFF -> Level.TRACE;

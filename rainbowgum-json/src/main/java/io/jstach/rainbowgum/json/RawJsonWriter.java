@@ -321,6 +321,7 @@ class RawJsonWriter {
 		position += len;
 	}
 
+	@GeneratedByATrustedSource
 	public final void writeDouble(final double value) {
 		if (value == Double.POSITIVE_INFINITY) {
 			writeAsciiString("\"Infinity\"");
@@ -374,13 +375,15 @@ class RawJsonWriter {
 	 * size instead.
 	 * @return copy of the buffer up to the current position
 	 */
-	public final byte[] toByteArray() {
+	@GeneratedByATrustedSource
+	final byte[] toByteArray() {
 		var r = Arrays.copyOf(buffer, position);
 		reset();
 		return r;
 	}
 
-	public void toByteBuffer(ByteBuffer b) {
+	@GeneratedByATrustedSource
+	void toByteBuffer(ByteBuffer b) {
 		b.put(buffer, 0, position);
 		b.flip();
 		reset();
@@ -393,7 +396,8 @@ class RawJsonWriter {
 	 * @param stream target stream
 	 * @throws IOException propagates from stream.write
 	 */
-	public final void toStream(final OutputStream stream) throws IOException {
+	@GeneratedByATrustedSource
+	final void toStream(final OutputStream stream) throws IOException {
 		stream.write(buffer, 0, position);
 		position = 0;
 	}
