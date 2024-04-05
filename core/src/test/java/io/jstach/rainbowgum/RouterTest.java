@@ -57,7 +57,7 @@ class RouterTest {
 		String results2 = publisher2.events.toString();
 
 		assertEquals(
-				"[DefaultLogEvent[timestamp=1970-01-01T00:00:00Z, threadName=main, threadId=1, level=DEBUG, loggerName=test, formattedMessage=DEBUG, keyValues=INSTANCE, throwableOrNull=null]]",
+				"[DefaultLogEvent[timestamp=1970-01-01T00:00:00Z, threadName=main, threadId=1, level=DEBUG, loggerName=test, formattedMessage=DEBUG, keyValues={}, throwableOrNull=null]]",
 				results1);
 		assertEquals("[]", results2);
 

@@ -1,11 +1,9 @@
 package io.jstach.rainbowgum;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -35,15 +33,17 @@ public sealed interface KeyValues {
 	 * Low-level key access.
 	 * @param i index from {@link #start()} or {@link #next(int)}.
 	 * @return key.
+	 * @throws IndexOutOfBoundsException if the index is not valid for this key values.
 	 */
-	public String key(int i);
+	public String key(int i) throws IndexOutOfBoundsException;
 
 	/**
 	 * Low-level key access.
 	 * @param i index from {@link #start()} or {@link #next(int)}.
 	 * @return key.
+	 * @throws IndexOutOfBoundsException if the index is not valid for this key values.
 	 */
-	public @Nullable String valueOrNull(int i);
+	public @Nullable String valueOrNull(int i) throws IndexOutOfBoundsException;
 
 	/**
 	 * Returns the index of the first key.
@@ -182,8 +182,15 @@ public sealed interface KeyValues {
 		 */
 		void remove(String key);
 
+		/**
+		 * Same as {@link #putKeyValue(String, String)} but will ignore null keys from
+		 * sources that have null keys.
+		 */
 		@Override
-		default void accept(String t, @Nullable String u) {
+		default void accept(@Nullable String t, @Nullable String u) {
+			if (t == null) {
+				return;
+			}
 			putKeyValue(t, u);
 		}
 
@@ -243,12 +250,9 @@ public sealed interface KeyValues {
 	 * @param kvs second.
 	 * @return true if equal.
 	 */
-	static boolean equals(KeyValues self, @Nullable KeyValues kvs) {
+	static boolean equals(KeyValues self, KeyValues kvs) {
 		if (self == kvs)
 			return true;
-		if (kvs == null) {
-			return false;
-		}
 		if (kvs.size() != self.size()) {
 			return false;
 		}
@@ -264,9 +268,12 @@ public sealed interface KeyValues {
 
 }
 
-enum EmptyKeyValues implements KeyValues {
+final class EmptyKeyValues implements KeyValues {
 
-	INSTANCE;
+	static final EmptyKeyValues INSTANCE = new EmptyKeyValues();
+
+	private EmptyKeyValues() {
+	}
 
 	@Override
 	public @Nullable String getValueOrNull(String key) {
@@ -315,6 +322,24 @@ enum EmptyKeyValues implements KeyValues {
 	@Override
 	public KeyValues freeze() {
 		return this;
+	}
+
+	@Override
+	public boolean equals(@Nullable Object keyValues) {
+		if (keyValues instanceof KeyValues kvs) {
+			return kvs.isEmpty();
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return 1;
+	}
+
+	@Override
+	public String toString() {
+		return "{}";
 	}
 
 }
@@ -403,7 +428,10 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 	@Override
 	public @Nullable String getValueOrNull(String key) {
-		for (int i = 0; i < size * 2; i += 2) {
+		if (size == 0) {
+			return null;
+		}
+		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			/*
 			 * get
@@ -417,7 +445,10 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 	@Override
 	public void forEach(BiConsumer<? super String, ? super @Nullable String> action) {
-		for (int i = 0; i < size * 2; i += 2) {
+		if (size == 0) {
+			return;
+		}
+		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			var v = kvs[i + 1];
 			if (k == null) {
@@ -427,23 +458,12 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		}
 	}
 
-	public void forEachKey(Consumer<? super String> consumer) {
-		for (int i = 0; i < size * 2; i += 2) {
-			var k = kvs[i];
-			if (k == null) {
-				continue;
-			}
-			// if (kvs[i + 1] == null) {
-			// continue;
-			// }
-			consumer.accept(k);
-		}
-	}
-
 	@Override
 	public <V> int forEach(KeyValuesConsumer<V> action, int index, V storage) {
-
-		for (int i = 0; i < size * 2; i += 2) {
+		if (size == 0) {
+			return index;
+		}
+		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			var v = kvs[i + 1];
 			if (k == null) {
@@ -489,6 +509,26 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		return 1 << (BITS_PER_INT - Integer.numberOfLeadingZeros(x - 1));
 	}
 
+	@Override
+	public int hashCode() {
+		int result = 1;
+		for (int i = start(); i > -1; i = next(i)) {
+			var k = key(i);
+			var v = valueOrNull(i);
+			result = result + k.hashCode();
+			result = result + (v == null ? 0 : v.hashCode());
+		}
+		return result;
+	}
+
+	@Override
+	public boolean equals(@Nullable Object obj) {
+		if (obj instanceof KeyValues kvs) {
+			return KeyValues.equals(this, kvs);
+		}
+		return false;
+	}
+
 }
 
 final class ImmutableArrayKeyValues extends AbstractArrayKeyValues {
@@ -530,10 +570,13 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 
 	@Override
 	public MutableKeyValues copy() {
+		if (size == 0) {
+			return new ArrayKeyValues();
+		}
 		ArrayKeyValues orig = this;
 		@Nullable
 		String[] copyKvs = new @Nullable String[this.threshold];
-		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.size * 2);
+		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.threshold);
 		return new ArrayKeyValues(copyKvs, size, threshold);
 	}
 
@@ -545,7 +588,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		}
 		ArrayKeyValues orig = this;
 		String[] copyKvs = new String[this.threshold];
-		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.size * 2);
+		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.threshold);
 		return new ImmutableArrayKeyValues(copyKvs, size, threshold);
 	}
 
@@ -553,23 +596,17 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		return getValueOrNull(t);
 	}
 
-	@Override
-	public void accept(String t, @Nullable String u) {
-		putKeyValue(t, u);
-	}
-
 	/*
 	 * We implement BiConsumer to avoid garbage like entry set and iterators
 	 */
 	@Override
 	public void putKeyValue(String key, @Nullable String value) {
+		Objects.requireNonNull(key);
 		if (kvs == EMPTY) {
 			inflateTable(threshold);
 		}
-		if (Objects.isNull(key)) {
-			return;
-		}
-		for (int i = 0; i < size * 2; i += 2) {
+
+		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			/*
 			 * replacement
@@ -593,16 +630,11 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	}
 
 	@Override
-	public void putAll(Map<String, String> m) {
-		m.forEach(this);
-	}
-
-	@Override
 	public void remove(final String key) {
 		if (kvs == EMPTY) {
 			return;
 		}
-		for (int i = 0; i < size * 2; i += 2) {
+		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			/*
 			 * remove
@@ -637,27 +669,6 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	private void inflateTable(final int toSize) {
 		threshold = toSize;
 		kvs = new @Nullable String[toSize];
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + Arrays.hashCode(kvs);
-		result = prime * result + Objects.hash(size, threshold);
-		return result;
-	}
-
-	@Override
-	public boolean equals(@Nullable Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (obj instanceof KeyValues kvs) {
-			return KeyValues.equals(this, kvs);
-		}
-		return false;
 	}
 
 }
