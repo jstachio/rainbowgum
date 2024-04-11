@@ -19,6 +19,22 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
  * <p>
  * The observed order of the current default Key Value Pairs is insertion based ordering
  * but that should not be relied on as other implementations may change that.
+ * <p>
+ * The preferred way to get all or most of the key values out for formatting is to use
+ * {@link KeyValuesConsumer}.
+ *
+ * @apiNote The current key values implementation is a simple single String array as the
+ * assumption is that most MDC (and or addKeyValuePair) usage is for a couple values and
+ * that many formatting usages particularly JSON or headers are to retrieve
+ * <strong>all</strong> of the key values. Another assumption for the simplicity is to
+ * save memory as there is a potential for many KeyValues with the advent of virtual
+ * threads and key values cannot be escaped analysis or garbage collected quickly because
+ * they are passed all the way down to the output.
+ * <p>
+ * The unfortunate consequence of this is that ad-hoc single key lookup or removal is
+ * <code>O(n)</code> and not <code>O(1)</code>. If you find this unacceptable with
+ * benchmarking because of having many keys and only retrieving a few please file an issue
+ * and we may offer alternative map or binary tree implementations in the future.
  */
 public sealed interface KeyValues {
 
@@ -69,10 +85,11 @@ public sealed interface KeyValues {
 	 * Used to easily iterate over the key value pairs without using an iterator.
 	 * @param <V> storage type
 	 * @param action consumer.
-	 * @param counter zero based counter that unlike index will be in normal counter
-	 * order.
+	 * @param counter a pass through integer that can be used for counting purposes or
+	 * determining the start perhaps by passing <code>0</code> and then incrementing on
+	 * return.
 	 * @param storage an extra parameter to avoid unnecessary lambda creation.
-	 * @return total accumulated by the
+	 * @return new value for next counter to be passed to {@link KeyValuesConsumer}.
 	 * {@link KeyValuesConsumer#accept(KeyValues, String, String, int, Object)} return.
 	 */
 	<V> int forEach(KeyValues.KeyValuesConsumer<V> action, int counter, V storage);
