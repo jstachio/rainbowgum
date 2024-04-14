@@ -10,19 +10,19 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogProperties.FoundProperty;
 import io.jstach.rainbowgum.LogProperty.PropertyFunction;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter.ChildPropertyGetter;
-import io.jstach.rainbowgum.LogProperty.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter.RootPropertyGetter;
 import io.jstach.rainbowgum.LogProperty.RequiredResult;
 import io.jstach.rainbowgum.LogProperty.Result;
+import io.jstach.rainbowgum.LogProperty.Result.Success;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
@@ -133,6 +133,59 @@ public sealed interface LogProperty {
 	}
 
 	/**
+	 * Thrown if any {@link Result} is not successful for combined valitation of many
+	 * properties.
+	 */
+	final static class ResultsException extends RuntimeException implements PropertyProblem {
+
+		private static final long serialVersionUID = -8416817560218813225L;
+
+		ResultsException(String message, @Nullable Throwable cause) {
+			super(message, cause);
+		}
+
+		/**
+		 * Validates a list of results and throws {@link ResultsException} if any results
+		 * are not {@link Success}.
+		 * @param builder class to prefix to full message.
+		 * @param results list of results.
+		 * @throws ResultsException if any result in the supplied list is not successful.
+		 */
+		public static void validate(Class<?> builder, List<Result<?>> results) throws ResultsException {
+			StringBuilder sb = new StringBuilder().append("Validation failed for ")
+				.append(builder.getName())
+				.append(":");
+			Throwable cause = null;
+			boolean failed = false;
+			for (var r : results) {
+				switch (r) {
+					case Result.Success<?> s -> {
+						continue;
+					}
+					case Result.Missing<?> m -> {
+						sb.append("\n\t");
+						sb.append(m.message());
+						failed = true;
+					}
+					case Result.Error<?> e -> {
+						sb.append("\n\t");
+						sb.append(e.message());
+						if (cause == null) {
+							cause = e.cause();
+						}
+						failed = true;
+					}
+				}
+			}
+			if (failed) {
+				throw new ResultsException(sb.toString(), cause);
+			}
+
+		}
+
+	}
+
+	/**
 	 * The result of a property fetched from properties.
 	 *
 	 * @param <T> property type.
@@ -184,6 +237,14 @@ public sealed interface LogProperty {
 		}
 
 		/**
+		 * Returns the current result if fallback is null or returns fallback as a result
+		 * if this result is missing.
+		 * @param fallback maybe <code>null</code>.
+		 * @return value.
+		 */
+		public Result<T> or(@Nullable T fallback);
+
+		/**
 		 * Gets a value if there if not uses the fallback if not null otherwise throws an
 		 * exception.
 		 * @param fallback maybe <code>null</code>.
@@ -207,38 +268,101 @@ public sealed interface LogProperty {
 		 * A property that is present.
 		 *
 		 * @param <T> property type.
-		 * @param value actual value.
 		 */
-		public record Success<T>(T value) implements RequiredResult<T> {
-			/**
-			 * Successfully found property value.
-			 * @param value actual value should not be <code>null</code>.
-			 */
-			public Success {
-				if (value == null) {
-					throw new NullPointerException("value");
-				}
-			}
+		public sealed interface Success<T> extends RequiredResult<T> {
 
 			@Override
-			public @Nullable T valueOrNull() {
+			default @Nullable T valueOrNull() {
 				return value();
 			}
 
 			@Override
-			public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
+			default T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
 					throws NoSuchElementException {
-				return value;
+				return value();
 			}
+
+			@Override
+			default Result<T> or(@Nullable T fallback) {
+				return this;
+			}
+
+			/**
+			 * Original property key where the value was derived from or was passed a
+			 * fallback.
+			 * @return key.
+			 */
+			public String key();
+
+			/**
+			 * A property that was not found in properties but had a fallback value
+			 * supplied.
+			 *
+			 * @param <T> property type.
+			 * @param key original property key.
+			 * @param value actual value.
+			 */
+			public record ValueSuccess<T>(String key, T value) implements Success<T> {
+				/**
+				 * Successfully found property value.
+				 * @param key key of the original property.
+				 * @param value actual value should not be <code>null</code>.
+				 */
+				public ValueSuccess {
+					if (value == null) {
+						throw new NullPointerException("value");
+					}
+				}
+
+			}
+
+			/**
+			 * A property that is present.
+			 *
+			 * @param <T> property type.
+			 * @param value actual value.
+			 * @param property found property.
+			 */
+			public record PropertySuccess<T>(T value, FoundProperty property) implements Success<T> {
+				/**
+				 * Successfully found property value.
+				 * @param value actual value should not be <code>null</code>.
+				 * @param property found property.
+				 */
+				public PropertySuccess {
+					if (value == null) {
+						throw new NullPointerException("value");
+					}
+				}
+
+				@Override
+				public String key() {
+					return property.key();
+				}
+
+			}
+
 		}
 
 		/**
 		 * A property that is missing (<code>null</code>).
 		 *
 		 * @param <T> property type.
+		 * @param keys keys.
 		 * @param message description of where the property is missing.
 		 */
-		public record Missing<T>(String message) implements Result<T> {
+		public record Missing<T>(List<String> keys, String message) implements Result<T> {
+			/**
+			 * A property that is missing (<code>null</code>).
+			 * @param keys keys.
+			 * @param message description of where the property is missing.
+			 */
+			public Missing {
+				if (keys.isEmpty()) {
+					throw new IllegalArgumentException("one key is required");
+				}
+			}
+
 			@Override
 			public @Nullable T valueOrNull() {
 				return null;
@@ -257,6 +381,14 @@ public sealed interface LogProperty {
 					return v;
 				}
 				throw new PropertyMissingException(message);
+			}
+
+			@Override
+			public Result<T> or(@Nullable T fallback) {
+				if (fallback != null) {
+					return new Success.ValueSuccess<>(keys.get(0), fallback);
+				}
+				return this;
 			}
 
 			/**
@@ -300,6 +432,11 @@ public sealed interface LogProperty {
 				throw new PropertyConvertException(key, message, cause);
 			}
 
+			@Override
+			public Result<T> or(@Nullable T fallback) {
+				return this;
+			}
+
 			/**
 			 * Helper just to cast the result to a different parameterized type.
 			 * @param <R> parameterized type.
@@ -328,7 +465,6 @@ public sealed interface LogProperty {
 	 * value of the property!</em>.
 	 *
 	 * @param <T> property type.
-	 * @see RequiredProperty
 	 * @see Result
 	 */
 	sealed interface Property<T> extends LogProperty {
@@ -443,32 +579,6 @@ public sealed interface LogProperty {
 		public Property<T> build() {
 			return getter.build(keys.get(0), keys.subList(1, keys.size()).toArray(new String[] {}));
 		}
-
-	}
-
-	/**
-	 * A property that should never be missing usually because there is non-null fallback.
-	 *
-	 * @param <T> property type.
-	 */
-	sealed interface RequiredProperty<T> extends Property<T> {
-
-		/**
-		 * Gets a property value as a result.
-		 * @param properties key values.
-		 * @return result.
-		 */
-		@Override
-		public RequiredResult<T> get(LogProperties properties);
-
-		/**
-		 * Maps the property to another value type.
-		 * @param <U> value type.
-		 * @param mapper function to map.
-		 * @return property.
-		 */
-		@Override
-		public <U> RequiredProperty<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper);
 
 	}
 
@@ -635,42 +745,87 @@ public sealed interface LogProperty {
 		 * will call the LogProperties implementation of
 		 * {@link LogProperties#mapOrNull(String)}.
 		 *
-		 * @param prefix added to the key before looking up in {@link LogProperties}.
-		 * @param search if true will recursively search up the key path
 		 */
-		record RootPropertyGetter(String prefix, boolean search) implements PropertyGetter<String> {
+		public final class RootPropertyGetter implements PropertyGetter<String> {
 
-			// @Override
-			private @Nullable String valueOrNull(LogProperties props, String key) {
-				if (search) {
-					return props.findOrNull(prefix, key);
-				}
-				return props.valueOrNull(fullyQualifiedKey(key));
+			private final String prefix;
+
+			private final boolean search;
+
+			RootPropertyGetter(String prefix, boolean search) {
+				super();
+				this.prefix = prefix;
+				this.search = search;
 			}
 
-			private <T> @Nullable T valueOrNull(LogProperties props, String key,
-					BiFunction<LogProperties, String, @Nullable T> func) {
-				if (search) {
-					return props.findOrNull(prefix, key, func);
-				}
-				return func.apply(props, fullyQualifiedKey(key));
+			/**
+			 * Prefix added to the key before looking up in {@link LogProperties}.
+			 * @return prefix.
+			 */
+			String prefix() {
+				return this.prefix;
 			}
 
-			<T> Result<T> get(LogProperties props, String key, BiFunction<LogProperties, String, @Nullable T> func) {
-				var v = valueOrNull(props, key, func);
-				if (v == null) {
+			/**
+			 * Search if true will recursively search up the key path.
+			 * @return boolean.
+			 */
+			boolean search() {
+				return this.search;
+			}
+
+			private FoundProperty.@Nullable StringProperty stringOrNull(LogProperties props, String key) {
+				if (search) {
+					return props.findOrNull(prefix, key, (p, k) -> p.stringPropertyOrNull(k));
+				}
+				return props.stringPropertyOrNull(fullyQualifiedKey(key));
+			}
+
+			static <T, R> Success<R> convert(Success<T> success, R value) {
+				return switch (success) {
+					case Success.PropertySuccess<T> ps -> new Success.PropertySuccess<R>(value, ps.property);
+					case Success.ValueSuccess<T> vs -> new Success.ValueSuccess<R>(vs.key(), value);
+				};
+			}
+
+			@SuppressWarnings("null") // TODO eclipse null bug
+			Result<List<String>> getList(LogProperties props, String key) {
+				FoundProperty.@Nullable ListProperty prop;
+				if (search) {
+					prop = props.findOrNull(prefix, key, (p, k) -> p.listPropertyOrNull(k));
+				}
+				else {
+					prop = props.listPropertyOrNull(fullyQualifiedKey(key));
+				}
+				if (prop == null) {
 					return missingResult(props, List.of(key));
 				}
-				return new Result.Success<>(v);
+				return new Result.Success.PropertySuccess<>(prop.value(), prop);
 			}
 
+			@SuppressWarnings("null") // TODO eclipse null bug
+			Result<Map<String, String>> getMap(LogProperties props, String key) {
+				FoundProperty.@Nullable MapProperty prop;
+				if (search) {
+					prop = props.findOrNull(prefix, key, (p, k) -> p.mapPropertyOrNull(k));
+				}
+				else {
+					prop = props.mapPropertyOrNull(fullyQualifiedKey(key));
+				}
+				if (prop == null) {
+					return missingResult(props, List.of(key));
+				}
+				return new Result.Success.PropertySuccess<>(prop.value(), prop);
+			}
+
+			@SuppressWarnings("null") // TODO eclipse null bug
 			@Override
 			public Result<String> get(LogProperties props, String key) {
-				var v = valueOrNull(props, key);
+				var v = stringOrNull(props, key);
 				if (v == null) {
 					return missingResult(props, List.of(key));
 				}
-				return new Result.Success<>(v);
+				return new Result.Success.PropertySuccess<>(v.value(), v);
 			}
 
 			@Override
@@ -680,14 +835,37 @@ public sealed interface LogProperty {
 
 			<T> Result.Error<T> errorResult(LogProperties props, String key, Exception e) {
 				String resolvedKey = props.description(fullyQualifiedKey(key));
-				String message = "Error for property. key: '" + resolvedKey + "', " + e.getMessage();
+				String message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
+				return new Result.Error<>(resolvedKey, message, e);
+			}
+
+			<T> Result.Error<T> errorResult(LogProperties props, String key, Exception e, Success<?> previousResult) {
+				@SuppressWarnings("null")
+				FoundProperty fp = switch (previousResult) {
+					case Success.ValueSuccess<?> vs -> null;
+					case Success.PropertySuccess<?> ps -> ps.property();
+				};
+				if (fp == null) {
+					return errorResult(props, key, e);
+				}
+				var badProps = fp.properties();
+				String resolvedKey = badProps.description(fullyQualifiedKey(key));
+				String message;
+				if (e instanceof PropertyConvertException ce) {
+					message = "Error converting property. key: " + resolvedKey + ", value: '" + fp.valueDescription()
+							+ "' " + e.getMessage();
+				}
+				else {
+					message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
+				}
+				message += "\nTried: " + props.description(fullyQualifiedKey(key));
 				return new Result.Error<>(resolvedKey, message, e);
 			}
 
 			<T> Result.Missing<T> missingResult(LogProperties props, List<String> keys) {
 				List<String> resolvedKeys = describeKeys(props, keys);
 				String message = "Property missing. keys: " + resolvedKeys;
-				return new Result.Missing<>(message);
+				return new Result.Missing<>(keys, message);
 			}
 
 			List<String> describeKeys(LogProperties props, List<String> keys) {
@@ -722,7 +900,7 @@ public sealed interface LogProperty {
 			 * @return getter that will convert to integers.
 			 */
 			public PropertyGetter<Integer> toInt() {
-				return new FuncGetter<>(this, Integer::parseInt, String::valueOf);
+				return map(Integer::parseInt);
 			}
 
 			/**
@@ -730,7 +908,7 @@ public sealed interface LogProperty {
 			 * @return getter that will convert to boolean.
 			 */
 			public PropertyGetter<Boolean> toBoolean() {
-				return new FuncGetter<>(this, Boolean::parseBoolean, String::valueOf);
+				return map(Boolean::parseBoolean);
 			}
 
 			/**
@@ -750,21 +928,11 @@ public sealed interface LogProperty {
 			}
 
 			/**
-			 * An enum property getter using {@link Enum#valueOf(Class, String)}.
-			 * @param <T> enum type.
-			 * @param enumClass enum class.
-			 * @return getter that will convert to enum type.
-			 */
-			public <T extends Enum<T>> PropertyGetter<T> toEnum(Class<T> enumClass) {
-				return new FuncGetter<>(this, s -> Enum.valueOf(enumClass, s), String::valueOf);
-			}
-
-			/**
 			 * A URI property getter that parses URIs.
 			 * @return getter that will parse URIs.
 			 */
 			public PropertyGetter<URI> toURI() {
-				return new FuncGetter<>(this, URI::new, String::valueOf);
+				return map(URI::new);
 			}
 
 		}
@@ -806,7 +974,21 @@ public sealed interface LogProperty {
 		 * @return new property getter.
 		 */
 		default <U> PropertyGetter<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
-			return new FuncGetter<T, U>(this, mapper, null);
+			PropertyFunction<Result.Success<T>, ? extends U, ? super Exception> resultMapper = r -> mapper
+				.apply(r.value());
+			return mapResult(resultMapper);
+			// return new FuncGetter<T, U>(this, mapper, null);
+		}
+
+		/**
+		 * Sets up to converts a value.
+		 * @param <U> value type
+		 * @param mapper function.
+		 * @return new property getter.
+		 */
+		default <U> PropertyGetter<U> mapResult(
+				PropertyFunction<Result.Success<T>, ? extends U, ? super Exception> mapper) {
+			return new ResultFuncGetter<T, U>(this, mapper, null);
 		}
 
 		/**
@@ -814,7 +996,7 @@ public sealed interface LogProperty {
 		 * @param fallback fallback value.
 		 * @return new property getter.
 		 */
-		default RequiredPropertyGetter<T> orElse(T fallback) {
+		default PropertyGetter<T> orElse(T fallback) {
 			if (fallback == null) {
 				throw new NullPointerException();
 			}
@@ -826,96 +1008,9 @@ public sealed interface LogProperty {
 		 * @param fallback supplier.
 		 * @return new property getter.
 		 */
-		default RequiredPropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
+		default PropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
 			Objects.requireNonNull(fallback, "fallback");
 			return new FallbackGetter<T>(this, fallback);
-		}
-
-		/**
-		 * A property getter that guarantees the result will not be missing usually
-		 * because a non-null fallback is provided somewhere.
-		 *
-		 * @param <T> property type.
-		 */
-		public sealed interface RequiredPropertyGetter<T> extends ChildPropertyGetter<T> {
-
-			/**
-			 * This call unlike the parent returns a required result. {@inheritDoc}
-			 */
-			@Override
-			RequiredResult<T> get(LogProperties props, String key);
-
-			/**
-			 * Gets a result from properties by trying a list of keys.
-			 * @param props properties.
-			 * @param keys list of property keys usually dotted.
-			 * @return result.
-			 */
-			@Override
-			default RequiredResult<T> get(LogProperties props, List<String> keys) {
-				if (keys.isEmpty()) {
-					throw new IllegalArgumentException("Keys is empty");
-				}
-				String key = keys.getFirst();
-				return get(props, key);
-			}
-
-			/**
-			 * Sets up to converts a value.
-			 * @param <U> value type
-			 * @param mapper function.
-			 * @return new property getter.
-			 */
-			@Override
-			default <U> RequiredPropertyGetter<U> map(
-					PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
-				return new RequiredFuncGetter<T, U>(this, mapper, null);
-			}
-
-			/**
-			 * Creates a Property from the given key and this getter.
-			 * @param key key.
-			 * @return property.
-			 * @throws IllegalArgumentException if the key is malformed.
-			 */
-			@Override
-			default RequiredProperty<T> build(String key) throws IllegalArgumentException {
-				validateKey(key);
-				return new DefaultRequiredProperty<>(this, List.of(key));
-			}
-
-			/**
-			 * Creates a Property from the given key and its {@value LogProperties#NAME}
-			 * parameter.
-			 * @param key key.
-			 * @param name interpolates <code>{name}</code> in property name with this
-			 * value.
-			 * @return property.
-			 */
-			@Override
-			default RequiredProperty<T> buildWithName(String key, String name) {
-				var parameters = Map.of(LogProperties.NAME, name);
-				LogProperties.validateKeyParameters(key, parameters.keySet());
-				String fqn = LogProperties.interpolateKey(key, parameters);
-				return build(fqn);
-			}
-
-			/**
-			 * Creates a Property from the given key and this getter.
-			 * @param key key.
-			 * @param otherKeys other keys to try.
-			 * @return property.
-			 * @throws IllegalArgumentException if the key is malformed.
-			 */
-			@Override
-			default RequiredProperty<T> build(String key, String... otherKeys) throws IllegalArgumentException {
-				List<String> keys = combine(key, otherKeys);
-				for (var k : keys) {
-					validateKey(k);
-				}
-				return new DefaultRequiredProperty<>(this, keys);
-			}
-
 		}
 
 	}
@@ -964,55 +1059,11 @@ record DefaultProperty<T>(PropertyGetter<T> propertyGetter, List<String> keys) i
 
 }
 
-record DefaultRequiredProperty<T>(RequiredPropertyGetter<T> propertyGetter,
-		List<String> keys) implements LogProperty.RequiredProperty<T> {
-
-	public DefaultRequiredProperty {
-		Objects.requireNonNull(propertyGetter);
-		if (keys.isEmpty()) {
-			throw new IllegalArgumentException("should have at least one key");
-		}
-	}
-
-	/**
-	 * Gets the first key.
-	 * @return key.
-	 */
-	@Override
-	public String key() {
-		return keys.get(0);
-	}
-
-	@Override
-	public RequiredResult<T> get(LogProperties properties) {
-		return propertyGetter.get(properties, keys);
-	}
-
-	@Override
-	public <U> LogProperty.RequiredProperty<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper) {
-		return new DefaultRequiredProperty<>(propertyGetter.map(mapper), keys);
-	}
-
-	@Override
-	public String propertyString(T value) {
-		return propertyGetter.propertyString(value);
-	}
-
-	@Override
-	public void set(T value, BiConsumer<String, T> consumer) {
-		if (value != null) {
-			consumer.accept(key(), value);
-		}
-	}
-
-}
-
 enum NoProperty implements LogProperty {
 
 }
 
-record FallbackGetter<T>(PropertyGetter<T> parent,
-		Supplier<? extends T> fallback) implements RequiredPropertyGetter<T> {
+record FallbackGetter<T>(PropertyGetter<T> parent, Supplier<? extends T> fallback) implements ChildPropertyGetter<T> {
 
 	@SuppressWarnings("null") // TODO eclipse bug
 	@Override
@@ -1025,7 +1076,7 @@ record FallbackGetter<T>(PropertyGetter<T> parent,
 					yield PropertyGetter.findRoot(parent) //
 						.errorResult(props, key, new LogProperty.PropertyMissingException("fallback returned null"));
 				}
-				yield new Result.Success<>(f);
+				yield new Result.Success.ValueSuccess<>(key, f);
 			}
 			case Result.Success<T> s -> s;
 			case Result.Error<T> e -> e;
@@ -1044,7 +1095,7 @@ record MapGetter(RootPropertyGetter parent) implements ChildPropertyGetter<Map<S
 
 	@Override
 	public Result<Map<String, String>> get(LogProperties props, String key) {
-		return parent.get(props, key, (p, k) -> p.mapOrNull(k));
+		return parent.getMap(props, key);
 	}
 
 	@Override
@@ -1078,7 +1129,7 @@ record ListGetter(RootPropertyGetter parent) implements ChildPropertyGetter<List
 
 	@Override
 	public Result<List<String>> get(LogProperties props, String key) {
-		return parent.get(props, key, (p, k) -> p.listOrNull(k));
+		return parent.getList(props, key);
 	}
 
 	@Override
@@ -1103,30 +1154,37 @@ record ListGetter(RootPropertyGetter parent) implements ChildPropertyGetter<List
 
 }
 
-record FuncGetter<T, R>(PropertyGetter<T> parent, PropertyFunction<? super T, ? extends R, ? super Exception> mapper,
+record ResultFuncGetter<T, R>(PropertyGetter<T> parent,
+		PropertyFunction<Result.Success<T>, ? extends R, ? super Exception> mapper,
 		@Nullable PropertyFunction<? super R, ? extends String, ? super Exception> stringFunc)
 		implements
 			ChildPropertyGetter<R> {
 
 	@Override
+	@SuppressWarnings("nullness") // TODO checker seems to have issues with pattern
+									// matching.
 	public Result<R> get(LogProperties props, String key) {
 		var result = parent.get(props, key);
-		return switch (result) {
+		Result<R> rvalue = switch (result) {
 			case Result.Success<T> s -> {
 				try {
-					R r = mapper._apply(s.value());
+					R r = mapper._apply(s);
 					if (r == null) {
 						yield PropertyGetter.findRoot(parent).missingResult(props, List.of(key));
 					}
-					yield new Result.Success<>(r);
+					else {
+						yield RootPropertyGetter.convert(s, Objects.requireNonNull(r));
+					}
 				}
 				catch (Exception e) {
-					yield PropertyGetter.findRoot(parent).errorResult(props, key, e);
+					yield PropertyGetter.findRoot(parent).errorResult(props, key, e, s);
 				}
 			}
 			case Result.Error<T> e -> e.convert();
 			case Result.Missing<T> m -> m.convert();
+			case null -> throw new NullPointerException("bug");
 		};
+		return rvalue;
 	}
 
 	@Override
@@ -1136,44 +1194,6 @@ record FuncGetter<T, R>(PropertyGetter<T> parent, PropertyFunction<? super T, ? 
 			return f.apply(value);
 		}
 		return ChildPropertyGetter.super.propertyString(value);
-	}
-
-}
-
-record RequiredFuncGetter<T, R>(RequiredPropertyGetter<T> parent,
-		PropertyFunction<? super T, ? extends R, ? super Exception> mapper,
-		@Nullable PropertyFunction<? super R, ? extends String, ? super Exception> stringFunc)
-		implements
-			RequiredPropertyGetter<R> {
-
-	@Override
-	public RequiredResult<R> get(LogProperties props, String key) {
-		var result = parent.get(props, key);
-		return switch (result) {
-			case Result.Success<T> s -> {
-				try {
-					R r = mapper._apply(s.value());
-					if (r == null) {
-						throw new NullPointerException(
-								"The property function returned a null. props=" + props + ", key=" + key);
-					}
-					yield new Result.Success<>(r);
-				}
-				catch (Exception e) {
-					yield PropertyGetter.findRoot(parent).errorResult(props, key, e);
-				}
-			}
-			case Result.Error<T> e -> e.convert();
-		};
-	}
-
-	@Override
-	public String propertyString(R value) {
-		var f = stringFunc;
-		if (f != null) {
-			return f.apply(value);
-		}
-		return RequiredPropertyGetter.super.propertyString(value);
 	}
 
 }

@@ -45,7 +45,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 		Property<Provider<LogOutput>> output = Property.builder()
 			.map(URI::create)
-			.map(u -> LogOutput.of(u))
+			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
 			.orElse(LogOutput.ofStandardOut())
 			.build("logging.custom.output");
 

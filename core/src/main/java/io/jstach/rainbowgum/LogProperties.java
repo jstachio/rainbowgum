@@ -24,6 +24,9 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperties.Builder.AbstractLogProperties;
+import io.jstach.rainbowgum.LogProperties.FoundProperty.ListProperty;
+import io.jstach.rainbowgum.LogProperties.FoundProperty.MapProperty;
+import io.jstach.rainbowgum.LogProperties.FoundProperty.StringProperty;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -175,6 +178,11 @@ public interface LogProperties {
 	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansi.disable";
 
 	/**
+	 * IF true will provide additional output on errors.
+	 */
+	static final String GLOBAL_VERBOSE = ROOT_PREFIX + "global.verbose";
+
+	/**
 	 * Logging change properties prefix.
 	 */
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
@@ -302,15 +310,45 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Searches up a {@value #SEP} separated path using this properties to check for
-	 * values. The first value not missing (not <code>null</code>) will be returned.
-	 * @param root prefix.
-	 * @param key should start with prefix.
-	 * @return closest value or <code>null</code> if no value can be found.
-	 * @see #findUpPathOrNull(String, Function)
+	 * Find <strong>string</strong> property or <code>null</code>.
+	 * @param key property name.
+	 * @return found property or <code>null</code>
 	 */
-	default @Nullable String findOrNull(String root, String key) {
-		return findOrNull(root, key, (p, k) -> p.valueOrNull(k));
+	@SuppressWarnings("exports")
+	default FoundProperty.@Nullable StringProperty stringPropertyOrNull(String key) {
+		String v = valueOrNull(key);
+		if (v != null) {
+			return new FoundProperty.StringProperty(this, key, v);
+		}
+		return null;
+	}
+
+	/**
+	 * Find <strong>list</strong> property or <code>null</code>.
+	 * @param key property name.
+	 * @return found property or <code>null</code>
+	 */
+	@SuppressWarnings("exports")
+	default FoundProperty.@Nullable ListProperty listPropertyOrNull(String key) {
+		var v = listOrNull(key);
+		if (v != null) {
+			return new FoundProperty.ListProperty(this, key, v);
+		}
+		return null;
+	}
+
+	/**
+	 * Find <strong>map</strong> property or <code>null</code>.
+	 * @param key property name.
+	 * @return found property or <code>null</code>
+	 */
+	@SuppressWarnings("exports")
+	default FoundProperty.@Nullable MapProperty mapPropertyOrNull(String key) {
+		var v = mapOrNull(key);
+		if (v != null) {
+			return new FoundProperty.MapProperty(this, key, v);
+		}
+		return null;
 	}
 
 	/**
@@ -346,6 +384,87 @@ public interface LogProperties {
 	 */
 	default int order() {
 		return 0;
+	}
+
+	/**
+	 * Found property retrieved from {@link LogProperties}. This is a bridge and meta data
+	 * needed for the {@link LogProperty} fluent like monads. It includes the original
+	 * value before conversions.
+	 *
+	 * @apiNote This sealed class is purposely not generic parameterized but you are
+	 * allowed to pattern match as the subclasses represent the builtin types of
+	 * properties that are supported.
+	 */
+	public sealed interface FoundProperty {
+
+		/**
+		 * The originating <em>exact</em> properties that the value was found on.
+		 * @return properties.
+		 */
+		LogProperties properties();
+
+		/**
+		 * The key that was used to find this property.
+		 * @return key also known as property name.
+		 */
+		String key();
+
+		/**
+		 * A string representation of the value that this property has usually for error
+		 * descriptions.
+		 * @return description of value.
+		 */
+		String valueDescription();
+
+		/**
+		 * A found <strong>string</strong> property result which includes the
+		 * <strong>exact</strong> properties where a value was found.
+		 *
+		 * @param properties the <strong>exact</strong> properties where the value was
+		 * found.
+		 * @param key property key.
+		 * @param value property string value.
+		 */
+		public record StringProperty(LogProperties properties, String key, String value) implements FoundProperty {
+			@Override
+			public String valueDescription() {
+				return value;
+			}
+		}
+
+		/**
+		 * A found <strong>list</strong> property result which includes the
+		 * <strong>exact</strong> properties where a value was found.
+		 *
+		 * @param properties the <strong>exact</strong> properties where the value was
+		 * found.
+		 * @param key property key.
+		 * @param value property string value.
+		 */
+		public record ListProperty(LogProperties properties, String key, List<String> value) implements FoundProperty {
+			@Override
+			public String valueDescription() {
+				return "" + value;
+			}
+		}
+
+		/**
+		 * A found <strong>map</strong> property result which includes the
+		 * <strong>exact</strong> properties where a value was found.
+		 *
+		 * @param properties the <strong>exact</strong> properties where the value was
+		 * found.
+		 * @param key property key.
+		 * @param value property string value.
+		 */
+		public record MapProperty(LogProperties properties, String key,
+				Map<String, String> value) implements FoundProperty {
+			@Override
+			public String valueDescription() {
+				return "" + value;
+			}
+		}
+
 	}
 
 	/**
@@ -812,11 +931,30 @@ public interface LogProperties {
 	 * parameters.
 	 */
 	public static LogProperties of(URI uri, String prefix, LogProperties properties) {
-		String query = uri.getRawQuery();
-		query = query == null ? "" : query;
+		return of(uri, prefix, properties, null);
+	}
+
+	/**
+	 * Creates log properties from a URI query and provided properties. This is useful for
+	 * URI based providers where the URI query is contributing properties for the plugin.
+	 * @param uri query will be used to pull properties from using
+	 * {@link #parseUriQuery(String, BiConsumer)}.
+	 * @param prefix part of the key that will stripped before accessing the URI
+	 * properties.
+	 * @param properties usually this is the properties coming from {@link LogConfig}.
+	 * @param uriKey where the URI came from.
+	 * @return combined properties where properties is tried first than the URI query
+	 * parameters.
+	 */
+	public static LogProperties of(URI uri, String prefix, LogProperties properties, @Nullable String uriKey) {
+		/*
+		 * TODO this should be integrated with the whole providers and registries.
+		 */
+		String propDesc = uriKey != null ? "[" + uriKey + "]->" : "";
+		String description = propDesc + "URI(" + uri + ")";
 		var uriProperties = LogProperties.builder()
-			.description("URI(" + uri + ")")
-			.fromURIQuery(query)
+			.description(description)
+			.fromURIQuery(uri)
 			.renameKey(s -> LogProperties.removeKeyPrefix(s, prefix))
 			.build();
 		return LogProperties.of(List.of(properties, uriProperties));
@@ -1228,6 +1366,39 @@ interface ListLogProperties extends LogProperties {
 	default @Nullable String valueOrNull(String key) {
 		for (var props : properties()) {
 			var value = props.valueOrNull(key);
+			if (value != null) {
+				return value;
+			}
+		}
+		return null;
+	}
+
+	@Override
+	default @Nullable StringProperty stringPropertyOrNull(String key) {
+		for (var props : properties()) {
+			var value = props.stringPropertyOrNull(key);
+			if (value != null) {
+				return value;
+			}
+		}
+		return null;
+	}
+
+	@Override
+	default @Nullable ListProperty listPropertyOrNull(String key) {
+		for (var props : properties()) {
+			var value = props.listPropertyOrNull(key);
+			if (value != null) {
+				return value;
+			}
+		}
+		return null;
+	}
+
+	@Override
+	default @Nullable MapProperty mapPropertyOrNull(String key) {
+		for (var props : properties()) {
+			var value = props.mapPropertyOrNull(key);
 			if (value != null) {
 				return value;
 			}

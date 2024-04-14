@@ -18,7 +18,6 @@ import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter;
-import io.jstach.rainbowgum.LogProperty.PropertyGetter.RequiredPropertyGetter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
@@ -348,7 +347,7 @@ public sealed interface LogConfig {
 
 abstract class AbstractChangePublisher implements ChangePublisher {
 
-	static final RequiredPropertyGetter<Set<ChangeType>> changeSetting = PropertyGetter.of()
+	static final PropertyGetter<Set<ChangeType>> changeSetting = PropertyGetter.of()
 		.withSearch(LogProperties.CHANGE_PREFIX)
 		.toList()
 		.map(s -> ChangeType.parse(s))

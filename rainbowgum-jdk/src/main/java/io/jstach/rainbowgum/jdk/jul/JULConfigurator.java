@@ -5,7 +5,6 @@ import java.util.logging.Logger;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty.Property;
-import io.jstach.rainbowgum.LogProperty.RequiredProperty;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
@@ -27,12 +26,12 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	 */
 	public static final String JUL_LEVEL_DISABLE_PROPERTY = "logging.jul.level.disable";
 
-	static final RequiredProperty<Boolean> JUL_DISABLE_PROPERTY_ = Property.builder()
+	static final Property<Boolean> JUL_DISABLE_PROPERTY_ = Property.builder()
 		.toBoolean() //
 		.orElse(false) //
 		.build(JUL_DISABLE_PROPERTY);
 
-	static final RequiredProperty<Boolean> JUL_LEVEL_DISABLE_PROPERTY_ = Property.builder()
+	static final Property<Boolean> JUL_LEVEL_DISABLE_PROPERTY_ = Property.builder()
 		.toBoolean() //
 		.orElse(false) //
 		.build(JUL_LEVEL_DISABLE_PROPERTY);

@@ -110,10 +110,10 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		final String name = LogAppender.FILE_APPENDER_NAME;
 		Property<LogOutput> fileProperty = Property.builder() //
 			.toURI() //
+			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
 			.withKey(LogProperties.FILE_PROPERTY)
 			.addKeyWithName(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
 			.build()
-			.map(u -> LogOutput.of(u))
 			.map(p -> p.provide(name, config));
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 		return appender(name, config, fileProperty, encoderProperty);
@@ -185,7 +185,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	private static Property<LogOutput> outputProperty(String propertyName, String name, LogConfig config) {
 		return Property.builder() //
 			.toURI() //
-			.map(u -> LogOutput.of(u)) //
+			.mapResult(u -> LogOutput.of(LogProviderRef.of(u))) //
 			.map(p -> p.provide(name, config))
 			.buildWithName(propertyName, name);
 	}
