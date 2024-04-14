@@ -8,6 +8,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogConfig.Provider;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
@@ -25,7 +26,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 		Property<Provider<LogOutput>> output = Property.builder()
 			.map(URI::create)
-			.map(u -> LogOutput.of(u))
+			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
 			.orElse(LogOutput.ofStandardOut())
 			.build("logging.custom.output");
 

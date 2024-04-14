@@ -77,10 +77,12 @@ class FileOutputPropertiesTest {
 			@Nullable
 			String exceptionMessage() {
 				String uri = Paths.get(FILE_PATH).toUri().toString();
-				return "Error for property. key: ''logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name]', "
-						+ "Error for property. key: ''logging.output.file.bufferSize' from Properties String, 'logging.output.file.bufferSize' from ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], "
-						+ "'logging.output.file.bufferSize' from URI(%s?bufferSize=blah)[bufferSize]', For input string: \"blah\""
-							.formatted(uri);
+				String message = """
+						Error converting property. key: 'logging.file.name' from Properties String, value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah' Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], For input string: "blah"
+						Tried: 'logging.output.file.bufferSize' from Properties String, 'logging.output.file.bufferSize' from ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
+						Tried: 'logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name]""" //
+					.formatted(uri, uri);
+				return message;
 			}
 		},
 		BAD_URI("""
@@ -89,7 +91,10 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable
 			String exceptionMessage() {
-				return "Error for property. key: ''logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name]', Expected scheme name at index 0: :://";
+				String message = """
+						Error for property. key: 'logging.file.name' from Properties String, Expected scheme name at index 0: :://
+						Tried: 'logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name]""";
+				return message;
 			}
 		},
 		MISSING("""

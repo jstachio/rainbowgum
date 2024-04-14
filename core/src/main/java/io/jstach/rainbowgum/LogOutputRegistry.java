@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -126,22 +125,31 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		return uri;
 	}
 
+	private static LogProviderRef normalize(LogProviderRef ref) {
+		var uri = normalize(ref.uri());
+		return new DefaultLogProviderRef(uri, ref.keyOrNull());
+	}
+
 	@Override
-	public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
-		uri = normalize(uri);
+	public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
+		ref = normalize(ref);
+		var uri = ref.uri();
 		String scheme = Objects.requireNonNull(uri.getScheme());
 		OutputProvider customProvider = providers.get(scheme);
 		if (customProvider == null) {
-			throw new IOException("Output for uri: " + uri + " not found.");
+			throw new RuntimeException("Output for uri: " + uri + " not found.");
 		}
-		return _register(name, customProvider.provide(uri, name, properties));
+		var _ref = ref;
+		return (name, config) -> {
+			return _register(name, customProvider.provide(_ref).provide(name, config));
+		};
 	}
 
 	enum StandardLogOutputProvider implements LogOutput.OutputProvider {
 
 		STDOUT {
 			@Override
-			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
 				return new StdOutOutput();
 			}
 
@@ -153,7 +161,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		},
 		STDERR {
 			@Override
-			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
 				return new StdErrOutput();
 			}
 
@@ -165,7 +173,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		},
 		LIST {
 			@Override
-			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
 				return new ListLogOutput();
 			}
 
@@ -177,11 +185,12 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		},
 		FILE {
 			@Override
-			public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
+			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
 				FileOutputBuilder b = new FileOutputBuilder(name);
+				var uri = ref.uri();
 				LogProperties combined;
 				if (uri.getQuery() != null) {
-					combined = LogProperties.of(uri, b.propertyPrefix(), properties);
+					combined = LogProperties.of(uri, b.propertyPrefix(), properties, ref.keyOrNull());
 					String s = uri.toString();
 					int index = s.indexOf('?');
 					s = s.substring(0, index);
@@ -201,6 +210,25 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 				return LogOutput.FILE_SCHEME;
 			}
 		};
+
+		// @Override
+		// public LogOutput provide(
+		// URI uri,
+		// String name,
+		// LogProperties properties,
+		// @Nullable String uriKey)
+		// throws IOException {
+		// return provide(uri, name, properties);
+		// }
+
+		@Override
+		public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
+			return (s, c) -> {
+				return provide(ref, s, c.properties());
+			};
+		}
+
+		public abstract LogOutput provide(LogProviderRef ref, String name, LogProperties properties);
 
 		public abstract String scheme();
 

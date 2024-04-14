@@ -19,6 +19,7 @@ public record ExampleConfig(String name, Integer count, @Nullable URI uri) {
 	public static ExampleConfig of( //
 			@LogConfigurable.KeyParameter String name, //
 			@LogConfigurable.DefaultParameter("DEFAULT_COUNT") Integer count, //
+			String message, //
 			@Nullable URI uri) {
 		return new ExampleConfig(name, count, uri);
 	}

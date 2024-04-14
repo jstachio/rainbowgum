@@ -2,7 +2,6 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 
@@ -13,7 +12,6 @@ import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
-import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 class LogEncoderRegistryTest {
 
@@ -91,8 +89,8 @@ class LogEncoderRegistryTest {
 			OutputProvider provider = new OutputProvider() {
 
 				@Override
-				public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
-					return output;
+				public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
+					return LogConfig.Provider.of(output);
 				}
 			};
 			config.outputRegistry().register("custom", provider);

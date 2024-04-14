@@ -80,14 +80,19 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @return provider of output.
 	 * @apiNote the provider may throw an {@link UncheckedIOException}.
 	 */
-	public static LogConfig.Provider<LogOutput> of(URI uri) {
+	private static LogConfig.Provider<LogOutput> of(URI uri) {
+		return of(LogProviderRef.of(uri));
+	}
+
+	/**
+	 * Provides a lazy loaded output from a URI.
+	 * @param ref uri.
+	 * @return provider of output.
+	 * @apiNote the provider may throw an {@link UncheckedIOException}.
+	 */
+	public static LogConfig.Provider<LogOutput> of(LogProviderRef ref) {
 		return (s, c) -> {
-			try {
-				return c.outputRegistry().provide(uri, s, c.properties());
-			}
-			catch (IOException e) {
-				throw new UncheckedIOException(e);
-			}
+			return c.outputRegistry().provide(ref).provide(s, c);
 		};
 	}
 
@@ -114,18 +119,14 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	/**
 	 * Finds output based on URI.
 	 */
-	public interface OutputProvider extends PluginProvider<LogOutput, IOException> {
+	public interface OutputProvider {
 
 		/**
-		 * Loads an output from a URI.
-		 * @param uri uri.
-		 * @param name name of output.
-		 * @param properties key value config.
-		 * @return output.
-		 * @throws IOException if unable to use the URI.
+		 * Creates an output ready to be injected with config.
+		 * @param ref a URI reference to the output.
+		 * @return provider of output.
 		 */
-		@Override
-		LogOutput provide(URI uri, String name, LogProperties properties) throws IOException;
+		LogConfig.Provider<LogOutput> provide(LogProviderRef ref);
 
 	}
 

@@ -1,12 +1,9 @@
 package io.jstach.rainbowgum.rabbitmq;
 
-import java.io.IOException;
-import java.net.URI;
-
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
-import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
 
@@ -34,12 +31,16 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Configurat
 		INSTANCE;
 
 		@Override
-		public LogOutput provide(URI uri, String name, LogProperties properties) throws IOException {
-			name = name.equals("") ? "rabbitmq" : name;
-			RabbitMQOutputBuilder b = new RabbitMQOutputBuilder(name);
-			b.uri(uri);
-			b.fromProperties(properties);
-			return b.build();
+		public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
+			return (name, config) -> {
+				var uri = ref.uri();
+				var properties = config.properties();
+				name = name.equals("") ? "rabbitmq" : name;
+				RabbitMQOutputBuilder b = new RabbitMQOutputBuilder(name);
+				b.uri(uri);
+				b.fromProperties(properties);
+				return b.build();
+			};
 		}
 
 	}
