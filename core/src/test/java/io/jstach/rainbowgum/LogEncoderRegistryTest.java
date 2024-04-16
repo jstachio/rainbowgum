@@ -89,8 +89,8 @@ class LogEncoderRegistryTest {
 			OutputProvider provider = new OutputProvider() {
 
 				@Override
-				public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
-					return LogConfig.Provider.of(output);
+				public LogProvider<LogOutput> provide(LogProviderRef ref) {
+					return LogProvider.of(output);
 				}
 			};
 			config.outputRegistry().register("custom", provider);

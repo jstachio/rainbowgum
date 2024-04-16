@@ -18,7 +18,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
  *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
-public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogConfig.Provider<LogAppender> {
+public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogProvider<LogAppender> {
 
 	/**
 	 * Default Console appender name.
@@ -95,9 +95,9 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 	 */
 	public static final class Builder {
 
-		private LogConfig.@Nullable Provider<? extends LogOutput> output = null;
+		private @Nullable LogProvider<? extends LogOutput> output = null;
 
-		private LogConfig.@Nullable Provider<? extends LogEncoder> encoder = null;
+		private @Nullable LogProvider<? extends LogEncoder> encoder = null;
 
 		private final String name;
 
@@ -118,7 +118,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * @param output output.
 		 * @return builder.
 		 */
-		public Builder output(LogConfig.Provider<? extends LogOutput> output) {
+		public Builder output(LogProvider<? extends LogOutput> output) {
 			this.output = output;
 			return this;
 		}
@@ -129,7 +129,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * @return builder.
 		 */
 		public Builder output(LogOutput output) {
-			this.output = LogConfig.Provider.of(output);
+			this.output = LogProvider.of(output);
 			return this;
 		}
 
@@ -140,7 +140,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter formatter) {
-			this.encoder = LogConfig.Provider.of(LogEncoder.of(formatter));
+			this.encoder = LogProvider.of(LogEncoder.of(formatter));
 			return this;
 		}
 
@@ -151,7 +151,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter.EventFormatter formatter) {
-			this.encoder = LogConfig.Provider.of(LogEncoder.of(formatter));
+			this.encoder = LogProvider.of(LogEncoder.of(formatter));
 			return this;
 		}
 
@@ -160,7 +160,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * @param encoder encoder not <code>null</code>.
 		 * @return builder.
 		 */
-		public Builder encoder(LogConfig.Provider<? extends LogEncoder> encoder) {
+		public Builder encoder(LogProvider<? extends LogEncoder> encoder) {
 			this.encoder = encoder;
 			return this;
 		}
@@ -171,7 +171,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * @return builder.
 		 */
 		public Builder encoder(LogEncoder encoder) {
-			this.encoder = LogConfig.Provider.of(encoder);
+			this.encoder = LogProvider.of(encoder);
 			return this;
 		}
 
@@ -179,7 +179,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 		 * Builds.
 		 * @return an appender factory.
 		 */
-		public LogConfig.Provider<LogAppender> build() {
+		public LogProvider<LogAppender> build() {
 			/*
 			 * We need to capture parameters since appender creation needs to be lazy.
 			 */
@@ -190,8 +190,8 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogC
 			 * TODO should we use the parent name for resolution?
 			 */
 			return (n, config) -> {
-				AppenderConfig a = new AppenderConfig(_name, LogConfig.Provider.provideOrNull(_name, _output, config),
-						LogConfig.Provider.provideOrNull(_name, _encoder, config));
+				AppenderConfig a = new AppenderConfig(_name, LogProvider.provideOrNull(_name, _output, config),
+						LogProvider.provideOrNull(_name, _encoder, config));
 				return DefaultAppenderRegistry.appender(a, config);
 			};
 		}

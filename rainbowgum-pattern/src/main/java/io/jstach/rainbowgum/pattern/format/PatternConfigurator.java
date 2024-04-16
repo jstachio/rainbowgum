@@ -6,7 +6,7 @@ import java.time.ZoneId;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogConfig.Provider;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
@@ -60,7 +60,7 @@ public final class PatternConfigurator implements Configurator {
 	}
 
 	@LogConfigurable(name = "PatternEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX)
-	static Provider<LogEncoder> provideEncoder(@KeyParameter String name, String pattern,
+	static LogProvider<LogEncoder> provideEncoder(@KeyParameter String name, String pattern,
 			@PassThroughParameter @Nullable PatternCompiler patternCompiler) {
 		return (n, config) -> {
 			var compiler = patternCompiler;

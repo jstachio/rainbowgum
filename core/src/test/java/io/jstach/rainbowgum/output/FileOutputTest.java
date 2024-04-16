@@ -20,6 +20,7 @@ import io.jstach.rainbowgum.EnumCombinations;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.TestEventBuilder;
 
@@ -87,7 +88,7 @@ class FileOutputTest {
 		return s.repeat(count);
 	}
 
-	static RainbowGum makeGum(Events test, LogConfig.Provider<FileOutput> file, ListLogOutput list) {
+	static RainbowGum makeGum(Events test, LogProvider<FileOutput> file, ListLogOutput list) {
 		var config = LogConfig.builder() //
 			.level(test.level()) //
 			.build();

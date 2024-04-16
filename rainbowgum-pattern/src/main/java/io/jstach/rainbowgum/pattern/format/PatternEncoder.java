@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.pattern.format;
 
 import java.util.function.Consumer;
 
-import io.jstach.rainbowgum.LogConfig.Provider;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogEncoder;
 
 /**
@@ -27,7 +27,7 @@ public final class PatternEncoder {
 	 * @param builder pattern builder
 	 * @return provider of the encoder.
 	 */
-	public static Provider<LogEncoder> of(Consumer<PatternEncoderBuilder> builder) {
+	public static LogProvider<LogEncoder> of(Consumer<PatternEncoderBuilder> builder) {
 		return (name, config) -> {
 			PatternEncoderBuilder b = new PatternEncoderBuilder(name);
 			builder.accept(b);

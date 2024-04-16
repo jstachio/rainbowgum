@@ -75,7 +75,7 @@ public interface LogEncoder {
 	 * @param uri uri.
 	 * @return provider of encoder.
 	 */
-	public static LogConfig.Provider<LogEncoder> of(URI uri) {
+	public static LogProvider<LogEncoder> of(URI uri) {
 		return (s, c) -> {
 			return c.encoderRegistry().provide(uri, s, c.properties());
 		};

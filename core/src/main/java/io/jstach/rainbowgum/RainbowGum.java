@@ -43,7 +43,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.orElse(1024)
 			.build("logging.custom.async.bufferSize");
 
-		Property<Provider<LogOutput>> output = Property.builder()
+		Property<LogProvider<LogOutput>> output = Property.builder()
 			.map(URI::create)
 			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
 			.orElse(LogOutput.ofStandardOut())
@@ -296,7 +296,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		}
 
 		/**
-		 * For returning an optional for the Provider contract.
+		 * For returning an optional for the LogProvider contract.
 		 * @return optional that always has a rainbow gum.
 		 * @apiNote this method is for ergonomics.
 		 */
@@ -305,7 +305,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		}
 
 		/**
-		 * For returning an optional for the Provider contract.
+		 * For returning an optional for the LogProvider contract.
 		 * @param condition condition to check if this rainbow gum should be used.
 		 * @return optional rainbow gum.
 		 * @apiNote this method is for ergonomics.

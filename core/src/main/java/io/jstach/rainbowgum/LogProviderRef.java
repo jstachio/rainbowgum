@@ -7,7 +7,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogProperty.Result;
 
 /**
- * Log Provider Source.
+ * Log LogProvider Source.
  */
 public sealed interface LogProviderRef {
 

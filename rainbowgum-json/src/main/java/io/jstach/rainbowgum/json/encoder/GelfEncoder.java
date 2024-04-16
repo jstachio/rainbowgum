@@ -18,6 +18,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.json.JsonBuffer;
 import io.jstach.rainbowgum.json.JsonBuffer.ExtendedFieldPrefix;
@@ -56,7 +57,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * @param consumer lambda to configure builder.
 	 * @return GELF encoder provider.
 	 */
-	public static LogConfig.Provider<GelfEncoder> of(Consumer<GelfEncoderBuilder> consumer) {
+	public static LogProvider<GelfEncoder> of(Consumer<GelfEncoderBuilder> consumer) {
 		return (s, c) -> {
 			var b = new GelfEncoderBuilder(s);
 			consumer.accept(b);

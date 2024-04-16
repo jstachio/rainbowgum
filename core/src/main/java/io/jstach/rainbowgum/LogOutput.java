@@ -80,7 +80,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @return provider of output.
 	 * @apiNote the provider may throw an {@link UncheckedIOException}.
 	 */
-	private static LogConfig.Provider<LogOutput> of(URI uri) {
+	private static LogProvider<LogOutput> of(URI uri) {
 		return of(LogProviderRef.of(uri));
 	}
 
@@ -90,7 +90,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * @return provider of output.
 	 * @apiNote the provider may throw an {@link UncheckedIOException}.
 	 */
-	public static LogConfig.Provider<LogOutput> of(LogProviderRef ref) {
+	public static LogProvider<LogOutput> of(LogProviderRef ref) {
 		return (s, c) -> {
 			return c.outputRegistry().provide(ref).provide(s, c);
 		};
@@ -102,7 +102,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * the output will not be updated!</strong>
 	 * @return output.
 	 */
-	public static LogConfig.Provider<LogOutput> ofStandardOut() {
+	public static LogProvider<LogOutput> ofStandardOut() {
 		return of(LogOutput.STDOUT_URI);
 	}
 
@@ -112,7 +112,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * the output will not be updated!</strong>
 	 * @return output.
 	 */
-	public static LogConfig.Provider<LogOutput> ofStandardErr() {
+	public static LogProvider<LogOutput> ofStandardErr() {
 		return of(LogOutput.STDERR_URI);
 	}
 
@@ -126,7 +126,7 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		 * @param ref a URI reference to the output.
 		 * @return provider of output.
 		 */
-		LogConfig.Provider<LogOutput> provide(LogProviderRef ref);
+		LogProvider<LogOutput> provide(LogProviderRef ref);
 
 	}
 

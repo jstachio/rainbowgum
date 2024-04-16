@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.rabbitmq;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
@@ -31,7 +32,7 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Configurat
 		INSTANCE;
 
 		@Override
-		public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
+		public LogProvider<LogOutput> provide(LogProviderRef ref) {
 			return (name, config) -> {
 				var uri = ref.uri();
 				var properties = config.properties();

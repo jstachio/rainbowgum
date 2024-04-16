@@ -240,7 +240,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			private RouterFactory factory = (publisher, levelResolver, n, c) -> new SimpleRouter(n, publisher,
 					levelResolver);
 
-			private List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>();
+			private List<LogProvider<LogAppender>> appenders = new ArrayList<>();
 
 			private Builder(String name, LogConfig config) {
 				this.name = Objects.requireNonNull(name);
@@ -282,7 +282,7 @@ public sealed interface LogRouter extends LogLifecycle {
 			 * @param appender appender provider.
 			 * @return this builder.
 			 */
-			public Builder appender(LogConfig.Provider<LogAppender> appender) {
+			public Builder appender(LogProvider<LogAppender> appender) {
 				this.appenders.add(Objects.requireNonNull(appender));
 				return self();
 			}
@@ -358,7 +358,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				});
 				var publisher = this.publisher;
 
-				List<LogConfig.Provider<LogAppender>> appenders = new ArrayList<>(this.appenders);
+				List<LogProvider<LogAppender>> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
 
 					List<String> appenderNames = Property.builder() //

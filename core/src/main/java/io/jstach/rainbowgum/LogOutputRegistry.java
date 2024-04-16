@@ -131,7 +131,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 	}
 
 	@Override
-	public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
+	public LogProvider<LogOutput> provide(LogProviderRef ref) {
 		ref = normalize(ref);
 		var uri = ref.uri();
 		String scheme = Objects.requireNonNull(uri.getScheme());
@@ -222,7 +222,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		// }
 
 		@Override
-		public LogConfig.Provider<LogOutput> provide(LogProviderRef ref) {
+		public LogProvider<LogOutput> provide(LogProviderRef ref) {
 			return (s, c) -> {
 				return provide(ref, s, c.properties());
 			};

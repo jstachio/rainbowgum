@@ -5,7 +5,7 @@ import java.net.URI;
 import java.util.Optional;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogConfig.Provider;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProviderRef;
@@ -24,7 +24,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.orElse(1024)
 			.build("logging.custom.async.bufferSize");
 
-		Property<Provider<LogOutput>> output = Property.builder()
+		Property<LogProvider<LogOutput>> output = Property.builder()
 			.map(URI::create)
 			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
 			.orElse(LogOutput.ofStandardOut())
