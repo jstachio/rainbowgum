@@ -52,7 +52,7 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 
 final class DefaultEncoderRegistry implements LogEncoderRegistry {
 
-	protected final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
+	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();

@@ -153,7 +153,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		/**
 		 * The router name given if no router is explicitly declared.
 		 */
-		public static final String DEFAULT_ROUTER_NAME = "default";
+		public static final String DEFAULT_ROUTER_NAME = LogProperties.DEFAULT_NAME;
 
 		/**
 		 * Level resolver.

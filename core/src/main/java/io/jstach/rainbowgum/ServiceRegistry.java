@@ -12,9 +12,16 @@ import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * A simple service locator for initialization purposes and external services provided by
- * plugins.
+ * plugins. <strong> If there is no suitable <code>name</code> for the service use
+ * {@value #DEFAULT_SERVICE_NAME}. </strong>
  */
 public sealed interface ServiceRegistry extends AutoCloseable permits DefaultServiceRegistry {
+
+	/**
+	 * Services that do not have multiple options or need a default should use
+	 * {@value #DEFAULT_SERVICE_NAME}.
+	 */
+	static final String DEFAULT_SERVICE_NAME = LogProperties.DEFAULT_NAME;
 
 	/**
 	 * Creates an empty service registry.
@@ -28,29 +35,30 @@ public sealed interface ServiceRegistry extends AutoCloseable permits DefaultSer
 	 * Puts a service.
 	 * @param <T> service type.
 	 * @param type type.
-	 * @param service service instance.
 	 * @param name name of service.
+	 * @param service service instance.
 	 */
-	public <T> void put(Class<T> type, T service, String name);
+	public <T> void put(Class<T> type, String name, T service);
 
 	/**
 	 * Puts a service.
 	 * @param <T> service type.
 	 * @param type type.
-	 * @param supplier service instance.
-	 * @return service.
-	 */
-	public <T> T putIfAbsent(Class<T> type, Supplier<T> supplier);
-
-	/**
-	 * Puts a service with name "".
-	 * @param <T> service type.
-	 * @param type type.
 	 * @param service service instance.
 	 */
 	default <T> void put(Class<T> type, T service) {
-		put(type, service, "");
+		put(type, DEFAULT_SERVICE_NAME, service);
 	}
+
+	/**
+	 * Puts a service.
+	 * @param <T> service type.
+	 * @param type type.
+	 * @param name name of the service.
+	 * @param supplier service instance.
+	 * @return service.
+	 */
+	public <T> T putIfAbsent(Class<T> type, String name, Supplier<T> supplier);
 
 	/**
 	 * Finds a service or null.
@@ -61,17 +69,6 @@ public sealed interface ServiceRegistry extends AutoCloseable permits DefaultSer
 	 */
 	@SuppressWarnings("exports")
 	public <T> @Nullable T findOrNull(Class<T> type, String name);
-
-	/**
-	 * Finds a service or null.
-	 * @param <T> service type.
-	 * @param type service class.
-	 * @return service or <code>null</code>.
-	 */
-	@SuppressWarnings("exports")
-	default <T> @Nullable T findOrNull(Class<T> type) {
-		return findOrNull(type, "");
-	}
 
 	/**
 	 * Finds <strong>all</strong> services of a specific type.
@@ -122,7 +119,7 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 	private final CopyOnWriteArrayList<AutoCloseable> closeables = new CopyOnWriteArrayList<>();
 
 	@Override
-	public <T> void put(Class<T> type, T service, String name) {
+	public <T> void put(Class<T> type, String name, T service) {
 		if (service == null) {
 			throw new NullPointerException("service");
 		}
@@ -145,8 +142,8 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T> T putIfAbsent(Class<T> type, Supplier<T> supplier) {
-		var t = (T) services.computeIfAbsent(new ServiceKey(type, ""), k -> Objects.requireNonNull(supplier.get()));
+	public <T> T putIfAbsent(Class<T> type, String name, Supplier<T> supplier) {
+		var t = (T) services.computeIfAbsent(new ServiceKey(type, name), k -> Objects.requireNonNull(supplier.get()));
 		return t;
 	}
 

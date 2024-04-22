@@ -1,16 +1,24 @@
 package io.jstach.rainbowgum.pattern.format;
 
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.LogProvider;
+import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFactory;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 import io.jstach.rainbowgum.pattern.internal.Node;
-import io.jstach.rainbowgum.pattern.internal.Parser;
-import io.jstach.rainbowgum.pattern.internal.ScanException;
 import io.jstach.rainbowgum.pattern.internal.Node.CompositeNode;
 import io.jstach.rainbowgum.pattern.internal.Node.End;
 import io.jstach.rainbowgum.pattern.internal.Node.FormattingNode;
 import io.jstach.rainbowgum.pattern.internal.Node.KeywordNode;
 import io.jstach.rainbowgum.pattern.internal.Node.LiteralNode;
+import io.jstach.rainbowgum.pattern.internal.Parser;
+import io.jstach.rainbowgum.pattern.internal.ScanException;
 
 /**
  * Compiles a pattern into a formatter.
@@ -34,6 +42,43 @@ public sealed interface PatternCompiler {
 	}
 
 	/**
+	 * Creates a pattern compiler provider from a builder lambda.
+	 * @param consumer builder will be provided to the consumer.
+	 * @return provider of pattern compiler.
+	 */
+	public static LogProvider<PatternCompiler> of(Consumer<Builder> consumer) {
+		return (name, config) -> {
+			var services = config.serviceRegistry();
+			var registry = findService(services, PatternRegistry.class, name, LogProperties.DEFAULT_NAME)
+				.orElseGet(() -> PatternRegistry.of());
+			var patternConfig = findService(services, PatternConfig.class, name, LogProperties.DEFAULT_NAME)
+				.orElseGet(() -> {
+					boolean ansiDisable = LogProperty.Property.builder() //
+						.toBoolean() //
+						.orElse(false) //
+						.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
+						.get(config.properties()) //
+						.value();
+					var b = PatternConfig.builder().fromProperties(config.properties());
+					if (ansiDisable) {
+						b.ansiDisabled(true);
+					}
+					return b.build();
+				});
+			Builder b = builder();
+			b.patternRegistry(registry);
+			b.patternConfig(patternConfig);
+			consumer.accept(b);
+			return b.build();
+		};
+	}
+
+	private static <T> Optional<T> findService(ServiceRegistry services, Class<T> c, String... names) {
+		Stream<String> sn = Stream.of(names);
+		return sn.flatMap(s -> Stream.ofNullable(services.findOrNull(c, s))).findFirst();
+	}
+
+	/**
 	 * Builder for {@link PatternCompiler}.
 	 */
 	public final static class Builder {
@@ -43,7 +88,6 @@ public sealed interface PatternCompiler {
 		private PatternConfig patternConfig;
 
 		private Builder() {
-
 		}
 
 		/**

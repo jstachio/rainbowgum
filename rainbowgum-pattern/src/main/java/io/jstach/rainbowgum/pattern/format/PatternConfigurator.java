@@ -7,9 +7,9 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
+import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.KeyParameter;
@@ -34,29 +34,13 @@ public final class PatternConfigurator implements Configurator {
 
 	@Override
 	public boolean configure(LogConfig config) {
-		var compiler = compiler(config);
-		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider(compiler));
+		var services = config.serviceRegistry();
+		String n = ServiceRegistry.DEFAULT_SERVICE_NAME;
+		services.putIfAbsent(PatternRegistry.class, n, PatternRegistry::of);
+		services.putIfAbsent(PatternCompiler.class, n, () -> PatternCompiler.of(b -> {
+		}).provide(n, config));
+		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider());
 		return true;
-	}
-
-	static PatternCompiler compiler(LogConfig config) {
-		var registry = config.serviceRegistry().putIfAbsent(PatternRegistry.class, () -> PatternRegistry.of());
-		boolean ansiDisable = LogProperty.Property.builder() //
-			.toBoolean() //
-			.orElse(false) //
-			.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
-			.get(config.properties()) //
-			.value();
-		var patternConfig = config.serviceRegistry().putIfAbsent(PatternConfig.class, () -> {
-			var b = PatternConfig.builder().fromProperties(config.properties());
-			if (ansiDisable) {
-				b.ansiDisabled(true);
-			}
-			return b.build();
-		});
-		var compiler = config.serviceRegistry()
-			.putIfAbsent(PatternCompiler.class, () -> new Compiler(registry, patternConfig));
-		return compiler;
 	}
 
 	@LogConfigurable(name = "PatternEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX)
@@ -65,15 +49,17 @@ public final class PatternConfigurator implements Configurator {
 		return (n, config) -> {
 			var compiler = patternCompiler;
 			if (compiler == null) {
-				compiler = PatternConfigurator.compiler(config);
+				compiler = PatternCompiler.of(b -> {
+				}).provide(name, config);
 			}
 			return LogEncoder.of(compiler.compile(pattern));
 		};
 	}
 
 	@LogConfigurable(name = "PatternConfigBuilder", prefix = PatternConfig.PATTERN_CONFIG_PREFIX)
-	static PatternConfig provideFormatterConfig(@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId,
-			@Nullable String lineSeparator, @Nullable Boolean ansiDisabled) {
+	static PatternConfig provideFormatterConfig(@KeyParameter String name,
+			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, @Nullable String lineSeparator,
+			@Nullable Boolean ansiDisabled) {
 		PatternConfig dc = PatternConfig.of();
 		ansiDisabled = ansiDisabled == null ? dc.ansiDisabled() : ansiDisabled;
 		lineSeparator = lineSeparator == null ? dc.lineSeparator() : lineSeparator;
@@ -89,7 +75,7 @@ public final class PatternConfigurator implements Configurator {
 
 }
 
-record PatternEncoderProvider(PatternCompiler compiler) implements LogEncoder.EncoderProvider {
+record PatternEncoderProvider() implements LogEncoder.EncoderProvider {
 
 	@Override
 	public LogProvider<LogEncoder> provide(LogProviderRef ref) {

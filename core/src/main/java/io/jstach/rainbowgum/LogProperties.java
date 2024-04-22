@@ -198,6 +198,12 @@ public interface LogProperties {
 	static final String NAME = "name";
 
 	/**
+	 * For properties keys that are parameterized with {@value #NAME} the name often used
+	 * if not specified is: {@value #DEFAULT_NAME}.
+	 */
+	static final String DEFAULT_NAME = "default";
+
+	/**
 	 * Logging output prefix for configuration.
 	 */
 	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.{" + NAME + "}.";

@@ -5,6 +5,7 @@ import java.time.ZoneOffset;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 /**
@@ -23,7 +24,7 @@ public sealed interface PatternConfig extends Configurator {
 	/**
 	 * Formatter properties prefix
 	 */
-	public static final String PATTERN_CONFIG_PREFIX = LogProperties.ROOT_PREFIX + "pattern.config.";
+	public static final String PATTERN_CONFIG_PREFIX = LogProperties.ROOT_PREFIX + "pattern.config.{name}.";
 
 	/**
 	 * Default zoneId if not specified.
@@ -51,7 +52,18 @@ public sealed interface PatternConfig extends Configurator {
 	 * registered at config time easily.
 	 */
 	public static PatternConfigBuilder builder() {
-		return new PatternConfigBuilder();
+		return builder(LogProperties.DEFAULT_NAME);
+	}
+
+	/**
+	 * Creates a builder to create formatter config.
+	 * @param name for property resolution: {@value #PATTERN_CONFIG_PREFIX}.
+	 * @return builder.
+	 * @apiNote {@link PatternConfig} implements {@link Configurator} so it can be
+	 * registered at config time easily.
+	 */
+	public static PatternConfigBuilder builder(String name) {
+		return new PatternConfigBuilder(name);
 	}
 
 	/**
@@ -87,7 +99,7 @@ public sealed interface PatternConfig extends Configurator {
 
 	@Override
 	default boolean configure(LogConfig config) {
-		config.serviceRegistry().put(PatternConfig.class, this);
+		config.serviceRegistry().put(PatternConfig.class, ServiceRegistry.DEFAULT_SERVICE_NAME, this);
 		return true;
 	}
 
