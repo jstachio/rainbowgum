@@ -77,24 +77,21 @@ public interface LogEncoder {
 	 */
 	public static LogProvider<LogEncoder> of(URI uri) {
 		return (s, c) -> {
-			return c.encoderRegistry().provide(uri, s, c.properties());
+			return c.encoderRegistry().provide(LogProviderRef.of(uri)).provide(s, c);
 		};
 	}
 
 	/**
 	 * Finds output based on URI.
 	 */
-	public interface EncoderProvider extends PluginProvider<LogEncoder, RuntimeException> {
+	public interface EncoderProvider {
 
 		/**
 		 * Loads an encoder from a URI.
-		 * @param uri uri.
-		 * @param name name of encoder.
-		 * @param properties key value config.
+		 * @param ref reference to provider usually just a uri.
 		 * @return output.
 		 */
-		@Override
-		LogEncoder provide(URI uri, String name, LogProperties properties);
+		LogProvider<LogEncoder> provide(LogProviderRef ref);
 
 	}
 

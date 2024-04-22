@@ -6,6 +6,8 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProvider;
+import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
@@ -32,16 +34,19 @@ public class GelfEncoderConfigurator implements Configurator {
 	private static class GelfEncoderProvider implements EncoderProvider {
 
 		@Override
-		public LogEncoder provide(URI uri, String name, LogProperties properties) {
-			GelfEncoderBuilder b = new GelfEncoderBuilder(name);
-			String prefix = b.propertyPrefix();
-			LogProperties combined = LogProperties.of(uri, prefix, properties);
-			String host = uri.getHost();
-			if (host != null) {
-				b.host(host);
-			}
-			b.fromProperties(combined);
-			return b.build();
+		public LogProvider<LogEncoder> provide(LogProviderRef ref) {
+			return (name, c) -> {
+				var uri = ref.uri();
+				GelfEncoderBuilder b = new GelfEncoderBuilder(name);
+				String prefix = b.propertyPrefix();
+				LogProperties combined = LogProperties.of(uri, prefix, c.properties());
+				String host = uri.getHost();
+				if (host != null) {
+					b.host(host);
+				}
+				b.fromProperties(combined);
+				return b.build();
+			};
 		}
 
 	}

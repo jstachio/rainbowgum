@@ -31,7 +31,7 @@ import io.jstach.rainbowgum.LogProperty.Property;
  $$/properties$$
  * </table>
  */
-public final class $$builderName$$ {
+public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder {
 
 	/**
 	 * The properties to be retrieved from config will have

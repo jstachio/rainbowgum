@@ -3,7 +3,6 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.lang.System.Logger.Level;
-import java.net.URI;
 
 import org.junit.jupiter.api.Test;
 
@@ -69,8 +68,8 @@ class LogEncoderRegistryTest {
 			EncoderProvider provider = new EncoderProvider() {
 
 				@Override
-				public LogEncoder provide(URI uri, String name, LogProperties properties) {
-					return LogFormatter.builder().text("CUSTOM ").message().newline().encoder();
+				public LogProvider<LogEncoder> provide(LogProviderRef ref) {
+					return (n, c) -> LogFormatter.builder().text("CUSTOM ").message().newline().encoder();
 				}
 			};
 			config.encoderRegistry().register("custom", provider);

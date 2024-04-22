@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
-import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;

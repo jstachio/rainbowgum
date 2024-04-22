@@ -324,6 +324,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 final class RainbowGumHolder {
 
+	/*
+	 * TODO perhaps a StampedLock would be better performance wise.
+	 */
 	private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
 	private static Supplier<RainbowGum> supplier = RainbowGumServiceProvider::provide;

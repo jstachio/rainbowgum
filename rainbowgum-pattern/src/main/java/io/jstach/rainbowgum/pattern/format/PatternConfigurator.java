@@ -1,15 +1,15 @@
 package io.jstach.rainbowgum.pattern.format;
 
-import java.net.URI;
 import java.time.ZoneId;
 
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.LogProvider;
+import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.KeyParameter;
@@ -35,7 +35,7 @@ public final class PatternConfigurator implements Configurator {
 	@Override
 	public boolean configure(LogConfig config) {
 		var compiler = compiler(config);
-		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider(compiler, config));
+		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider(compiler));
 		return true;
 	}
 
@@ -89,15 +89,19 @@ public final class PatternConfigurator implements Configurator {
 
 }
 
-record PatternEncoderProvider(PatternCompiler compiler, LogConfig config) implements LogEncoder.EncoderProvider {
+record PatternEncoderProvider(PatternCompiler compiler) implements LogEncoder.EncoderProvider {
 
 	@Override
-	public LogEncoder provide(URI uri, String name, LogProperties properties) {
-		PatternEncoderBuilder b = new PatternEncoderBuilder(name);
-		String prefix = b.propertyPrefix();
-		LogProperties combined = LogProperties.of(uri, prefix, properties);
-		b.fromProperties(combined);
-		return b.build().provide(name, config);
+	public LogProvider<LogEncoder> provide(LogProviderRef ref) {
+		return (name, config) -> {
+			var uri = ref.uri();
+			var properties = config.properties();
+			PatternEncoderBuilder b = new PatternEncoderBuilder(name);
+			String prefix = b.propertyPrefix();
+			LogProperties combined = LogProperties.of(uri, prefix, properties);
+			b.fromProperties(combined);
+			return b.build().provide(name, config);
+		};
 	}
 
 }

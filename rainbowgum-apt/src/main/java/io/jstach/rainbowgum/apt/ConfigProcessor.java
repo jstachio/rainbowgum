@@ -115,7 +115,7 @@ public class ConfigProcessor extends AbstractProcessor {
 		}
 		String propertyPrefix = prism.prefix();
 		String packageName = h.getPackageString(enclosingType);
-		String targetType = ToStringTypeVisitor.toCodeSafeString(ee.getReturnType());
+		String targetType = ToStringTypeVisitor.toCodeNoAnnotations(ee.getReturnType());
 		String factoryMethod = enclosingType + "." + ee.getSimpleName();
 		List<BuilderModel.PropertyModel> properties = new ArrayList<>();
 

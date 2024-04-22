@@ -4,6 +4,7 @@ import java.util.function.Consumer;
 
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogEvent;
 
 /**
  * Factory for pattern encoders.
@@ -11,7 +12,7 @@ import io.jstach.rainbowgum.LogEncoder;
  * @apiNote This class is for API discoverability. Pattern Encoders do not actually extend
  * or implement this class.
  */
-public final class PatternEncoder {
+public final class PatternEncoder implements LogEncoder {
 
 	/**
 	 * Pattern encoder URI provider scheme.
@@ -43,8 +44,18 @@ public final class PatternEncoder {
 	 * @apiNote {@link #of(Consumer)} is easier to use at will inherit the name and set
 	 * the properties.
 	 */
-	public PatternEncoderBuilder builder(String name) {
+	public static PatternEncoderBuilder builder(String name) {
 		return new PatternEncoderBuilder(name);
+	}
+
+	@Override
+	public Buffer buffer(BufferHints hints) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void encode(LogEvent event, Buffer buffer) {
+		throw new UnsupportedOperationException();
 	}
 
 }

@@ -90,14 +90,6 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		return Optional.ofNullable(outputs.get(name));
 	}
 
-	// LogOutput provide(String name, LogProperties properties) throws IOException {
-	// var o = output(name).orElse(null);
-	// if (o != null) {
-	// return o;
-	// }
-	// return provide(URI.create(name + ":///"), name, properties);
-	// }
-
 	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
@@ -210,16 +202,6 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 				return LogOutput.FILE_SCHEME;
 			}
 		};
-
-		// @Override
-		// public LogOutput provide(
-		// URI uri,
-		// String name,
-		// LogProperties properties,
-		// @Nullable String uriKey)
-		// throws IOException {
-		// return provide(uri, name, properties);
-		// }
 
 		@Override
 		public LogProvider<LogOutput> provide(LogProviderRef ref) {

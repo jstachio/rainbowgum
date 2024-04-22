@@ -3,8 +3,10 @@ package io.jstach.rainbowgum;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.EnumMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
@@ -48,8 +50,9 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 
 }
 
-final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderProvider, LogEncoder, RuntimeException>
-		implements LogEncoderRegistry {
+final class DefaultEncoderRegistry implements LogEncoderRegistry {
+
+	protected final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();
@@ -74,8 +77,10 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 	}
 
 	@Override
-	public LogEncoder provide(URI uri, String name, LogProperties properties) {
+	public LogProvider<LogEncoder> provide(LogProviderRef ref) {
+		var uri = ref.uri();
 		uri = normalize(uri);
+		var _ref = new DefaultLogProviderRef(uri, ref.keyOrNull());
 		/*
 		 * TODO file bug with checker as it should have found scheme to be null.
 		 */
@@ -88,7 +93,16 @@ final class DefaultEncoderRegistry extends ProviderRegistry<LogEncoder.EncoderPr
 		if (provider == null) {
 			throw new NoSuchElementException("No encoder found. URI=" + uri);
 		}
-		return provider.provide(uri, name, properties);
+
+		return provider.provide(_ref);
+	}
+
+	@Override
+	public void register(String scheme, EncoderProvider encoder) {
+		/*
+		 * TODO maybe check if one is already registered and do something?
+		 */
+		providers.put(scheme, encoder);
 	}
 
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
