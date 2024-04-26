@@ -1,11 +1,8 @@
 package io.jstach.rainbowgum.json.encoder;
 
-import java.net.URI;
-
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
-import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -38,13 +35,11 @@ public class GelfEncoderConfigurator implements Configurator {
 			return (name, c) -> {
 				var uri = ref.uri();
 				GelfEncoderBuilder b = new GelfEncoderBuilder(name);
-				String prefix = b.propertyPrefix();
-				LogProperties combined = LogProperties.of(uri, prefix, c.properties());
 				String host = uri.getHost();
 				if (host != null) {
 					b.host(host);
 				}
-				b.fromProperties(combined);
+				b.fromProperties(c.properties(), ref);
 				return b.build();
 			};
 		}

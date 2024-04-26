@@ -80,12 +80,8 @@ record PatternEncoderProvider() implements LogEncoder.EncoderProvider {
 	@Override
 	public LogProvider<LogEncoder> provide(LogProviderRef ref) {
 		return (name, config) -> {
-			var uri = ref.uri();
-			var properties = config.properties();
 			PatternEncoderBuilder b = new PatternEncoderBuilder(name);
-			String prefix = b.propertyPrefix();
-			LogProperties combined = LogProperties.of(uri, prefix, properties);
-			b.fromProperties(combined);
+			b.fromProperties(config.properties(), ref);
 			return b.build().provide(name, config);
 		};
 	}

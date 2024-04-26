@@ -143,6 +143,10 @@ record BuilderModel( //
 			return required ? "value" : "valueOrNull";
 		}
 
+		public String validateMethod() {
+			return required ? "add" : "addIfError";
+		}
+
 		public boolean isNormal() {
 			return kind == PropertyKind.NORMAL;
 		}

@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogProperty.Result;
-import io.jstach.rainbowgum.LogProperty.ResultsException;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 class LogPropertyTest {
 
@@ -23,14 +23,14 @@ class LogPropertyTest {
 		var r2 = b.build("p2").get(properties);
 		var r3 = b.build("p3").get(properties).or("fallback");
 		@SuppressWarnings("null")
-		String actual = assertThrows(LogProperty.ResultsException.class,
-				() -> ResultsException.validate(LogPropertyTest.class, List.<Result<?>>of(r1, r2, r3)))
+		String actual = assertThrows(LogProperty.ValidationException.class,
+				() -> ValidationException.validate(LogPropertyTest.class, List.<Result<?>>of(r1, r2, r3)))
 			.getMessage();
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.LogPropertyTest:
-					Error for property. key: 'logging.p1' from custom mutable[p1], For input string: "v1"
+				Error for property. key: 'logging.p1' from custom mutable[p1], java.lang.NumberFormatException For input string: "v1"
 				Tried: 'logging.p1' from custom mutable[p1]
-					Property missing. keys: ['logging.p2' from custom mutable[p2]]""";
+				Property missing. keys: ['logging.p2' from custom mutable[p2]]""";
 		assertEquals(expected, actual);
 	}
 

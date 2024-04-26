@@ -39,7 +39,7 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Configurat
 				name = name.equals("") ? "rabbitmq" : name;
 				RabbitMQOutputBuilder b = new RabbitMQOutputBuilder(name);
 				b.uri(uri);
-				b.fromProperties(properties);
+				b.fromProperties(properties, ref);
 				return b.build();
 			};
 		}

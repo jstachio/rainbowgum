@@ -33,10 +33,9 @@ class LogPropertiesTest {
 			fail("expected exception");
 		}
 		catch (PropertyMissingException e) {
-			assertEquals(
-					"Property missing. keys: ['logging.some.ignoreMe' from SYSTEM_PROPERTIES, "
-							+ "'logging.some.ignoreMe' from ENVIRONMENT_VARIABLES[logging_some_ignoreMe]]",
-					e.getMessage());
+			String expected = """
+					Property missing. keys: ['logging.some.ignoreMe' from SYSTEM_PROPERTIES[logging.some.ignoreMe], ENVIRONMENT_VARIABLES[logging_some_ignoreMe]]""";
+			assertEquals(expected, e.getMessage());
 		}
 	}
 

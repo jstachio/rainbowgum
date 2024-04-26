@@ -44,6 +44,7 @@ class FileOutputPropertiesTest {
 
 		}
 		catch (LogProperty.PropertyConvertException | LogProperty.PropertyMissingException e) {
+			e.printStackTrace();
 			String expected = properties.exceptionMessage();
 			String actual = e.getMessage();
 			if (expected == null) {
@@ -63,13 +64,16 @@ class FileOutputPropertiesTest {
 
 		SPRING_FILE_NAME("""
 				logging.file.name=%s
-				"""), JUST_FILE("""
+				"""), //
+		JUST_FILE("""
 				logging.appenders=file
 				logging.file.name=%s
-				"""), URI_WITH_BUFFER_SIZE("""
+				"""), //
+		URI_WITH_BUFFER_SIZE("""
 				logging.appenders=file
 				logging.file.name=file:///%s?bufferSize=800
-				"""), URI_WITH_BAD_BUFFER_SIZE("""
+				"""), //
+		URI_WITH_BAD_BUFFER_SIZE("""
 				logging.appenders=file
 				logging.file.name=file:///%s?bufferSize=blah
 				""") {
@@ -78,9 +82,11 @@ class FileOutputPropertiesTest {
 			String exceptionMessage() {
 				String uri = Paths.get(FILE_PATH).toUri().toString();
 				String message = """
-						Error converting property. key: 'logging.file.name' from Properties String, value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah' Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], For input string: "blah"
-						Tried: 'logging.output.file.bufferSize' from Properties String, 'logging.output.file.bufferSize' from ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
-						Tried: 'logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name]""" //
+						Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah' cause:
+						Validation failed for io.jstach.rainbowgum.output.FileOutputBuilder:
+						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], java.lang.NumberFormatException For input string: "blah"
+						Tried: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
+						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""" //
 					.formatted(uri, uri);
 				return message;
 			}
@@ -92,8 +98,8 @@ class FileOutputPropertiesTest {
 			@Nullable
 			String exceptionMessage() {
 				String message = """
-						Error for property. key: 'logging.file.name' from Properties String, Expected scheme name at index 0: :://
-						Tried: 'logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name]""";
+						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.net.URISyntaxException Expected scheme name at index 0: :://
+						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""";
 				return message;
 			}
 		},
@@ -103,8 +109,8 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable
 			String exceptionMessage() {
-				return "Property missing. keys: ['logging.file.name' from Properties String, 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], "
-						+ "'logging.appender.file.output' from Properties String, 'logging.appender.file.output' from ENVIRONMENT_VARIABLES[logging_appender_file_output]]";
+				return """
+						Property missing. keys: ['logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name], 'logging.appender.file.output' from PROPERTIES_STRING[logging.appender.file.output], ENVIRONMENT_VARIABLES[logging_appender_file_output]]""";
 			}
 		}
 

@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -434,7 +435,24 @@ public interface LogProperties {
 		public record StringProperty(LogProperties properties, String key, String value) implements FoundProperty {
 			@Override
 			public String valueDescription() {
-				return value;
+				return maybeRedact(value);
+			}
+
+			private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
+
+			private static final String REDACTED_VALUE = "<REDACTED>";
+
+			private static final String maybeRedact(String input) {
+				String lower = input.toLowerCase(Locale.ROOT);
+				if (REDACTED_KEYS.contains(lower)) {
+					return REDACTED_VALUE;
+				}
+				for (var k : REDACTED_KEYS) {
+					if (input.contains(k)) {
+						return REDACTED_VALUE;
+					}
+				}
+				return input;
 			}
 		}
 
@@ -450,7 +468,7 @@ public interface LogProperties {
 		public record ListProperty(LogProperties properties, String key, List<String> value) implements FoundProperty {
 			@Override
 			public String valueDescription() {
-				return "" + value;
+				return StringProperty.maybeRedact("" + value);
 			}
 		}
 
@@ -467,7 +485,7 @@ public interface LogProperties {
 				Map<String, String> value) implements FoundProperty {
 			@Override
 			public String valueDescription() {
-				return "" + value;
+				return StringProperty.maybeRedact("" + value);
 			}
 		}
 
@@ -605,7 +623,7 @@ public interface LogProperties {
 		 */
 		public Builder fromProperties(String properties) {
 			if (description == null) {
-				description = "Properties String";
+				description = "PROPERTIES_STRING";
 			}
 			return fromFunction(PropertiesParser.readProperties(properties)::get);
 		}
@@ -693,11 +711,12 @@ public interface LogProperties {
 			@Override
 			public String description(String key) {
 				String rename = renameKey.apply(key);
-				String desc = "'" + key + "' from " + description;
-				if (!rename.equals(key)) {
-					desc += "[" + rename + "]";
-				}
-				return desc;
+				// String desc = "'" + key + "' from " + description;
+				// if (!rename.equals(key)) {
+				// desc += "[" + rename + "]";
+				// }
+				// return desc;
+				return description + "[" + rename + "]";
 			}
 
 			@Override
@@ -1140,11 +1159,11 @@ public interface LogProperties {
 		@Override
 		public String description(String key) {
 			String k = translateKey(key);
-			String description = "'" + key + "' from " + name();
-			if (!k.equals(key)) {
-				description += "[" + k + "]";
-			}
-			return description;
+			// String description = "'" + key + "' from " + name();
+			// if (!k.equals(key)) {
+			// description += "[" + k + "]";
+			// }
+			return name() + "[" + k + "]";
 		}
 
 		/**

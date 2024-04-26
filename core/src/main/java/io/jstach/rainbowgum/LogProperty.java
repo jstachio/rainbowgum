@@ -136,22 +136,22 @@ public sealed interface LogProperty {
 	 * Thrown if any {@link Result} is not successful for combined valitation of many
 	 * properties.
 	 */
-	final static class ResultsException extends RuntimeException implements PropertyProblem {
+	final static class ValidationException extends RuntimeException implements PropertyProblem {
 
 		private static final long serialVersionUID = -8416817560218813225L;
 
-		ResultsException(String message, @Nullable Throwable cause) {
+		ValidationException(String message, @Nullable Throwable cause) {
 			super(message, cause);
 		}
 
 		/**
-		 * Validates a list of results and throws {@link ResultsException} if any results
+		 * Validates a list of results and throws {@link ValidationException} if any results
 		 * are not {@link Success}.
 		 * @param builder class to prefix to full message.
 		 * @param results list of results.
-		 * @throws ResultsException if any result in the supplied list is not successful.
+		 * @throws ValidationException if any result in the supplied list is not successful.
 		 */
-		public static void validate(Class<?> builder, List<Result<?>> results) throws ResultsException {
+		public static void validate(Class<?> builder, List<Result<?>> results) throws ValidationException {
 			StringBuilder sb = new StringBuilder().append("Validation failed for ")
 				.append(builder.getName())
 				.append(":");
@@ -163,12 +163,12 @@ public sealed interface LogProperty {
 						continue;
 					}
 					case Result.Missing<?> m -> {
-						sb.append("\n\t");
+						sb.append("\n");
 						sb.append(m.message());
 						failed = true;
 					}
 					case Result.Error<?> e -> {
-						sb.append("\n\t");
+						sb.append("\n");
 						sb.append(e.message());
 						if (cause == null) {
 							cause = e.cause();
@@ -178,9 +178,64 @@ public sealed interface LogProperty {
 				}
 			}
 			if (failed) {
-				throw new ResultsException(sb.toString(), cause);
+				throw new ValidationException(sb.toString(), cause);
 			}
 
+		}
+
+	}
+
+	/**
+	 * A builder that Validates results.
+	 */
+	public static class Validator {
+
+		private final List<Result<?>> results = new ArrayList<>();
+
+		private final Class<?> builder;
+
+		/**
+		 * Creates a validator based on a builder.
+		 * @param builder builder class
+		 * @return newly created validator
+		 */
+		public static Validator of(Class<?> builder) {
+			return new Validator(builder);
+		}
+
+		private Validator(Class<?> builder) {
+			this.builder = builder;
+		}
+
+		/**
+		 * Adds a result to check.
+		 * @param result result to check.
+		 * @return this
+		 */
+		public Validator add(Result<?> result) {
+			results.add(result);
+			return this;
+		}
+
+		/**
+		 * Adds a result to check only if it is error.
+		 * @param result result to check.
+		 * @return this
+		 */
+		public Validator addIfError(Result<?> result) {
+			if (result instanceof Result.Error<?> e) {
+				results.add(e);
+			}
+			return this;
+		}
+
+		/**
+		 * Validates the currently added results and if any are error or missing an
+		 * exception will be thrown.
+		 * @throws ValidationException if validation fails.
+		 */
+		public void validate() throws ValidationException {
+			ValidationException.validate(builder, results);
 		}
 
 	}
@@ -849,16 +904,20 @@ public sealed interface LogProperty {
 					return errorResult(props, key, e);
 				}
 				var badProps = fp.properties();
-				String resolvedKey = badProps.description(fullyQualifiedKey(key));
+				String fqk = fullyQualifiedKey(key);
+				String resolvedKey = "'" + fqk + "' from " + badProps.description(fqk);
 				String message;
-				if (e instanceof PropertyConvertException ce) {
+				if (e instanceof PropertyConvertException || e instanceof ValidationException) {
 					message = "Error converting property. key: " + resolvedKey + ", value: '" + fp.valueDescription()
-							+ "' " + e.getMessage();
+							+ "' cause:\n" + e.getMessage();
 				}
 				else {
-					message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
+					message = "Error for property. key: " + resolvedKey + ", " + e.getClass().getName() + " "
+							+ e.getMessage();
 				}
-				message += "\nTried: " + props.description(fullyQualifiedKey(key));
+
+				message += "\nTried: '" + fqk + "' from " + props.description(fqk);
+
 				return new Result.Error<>(resolvedKey, message, e);
 			}
 
@@ -869,7 +928,10 @@ public sealed interface LogProperty {
 			}
 
 			List<String> describeKeys(LogProperties props, List<String> keys) {
-				return keys.stream().map(k -> props.description(fullyQualifiedKey(k))).toList();
+				return keys.stream().<String>map(k -> {
+					String fqk = fullyQualifiedKey(k);
+					return "'" + fqk + "' from " + props.description(fullyQualifiedKey(k));
+				}).toList();
 			}
 
 			/**

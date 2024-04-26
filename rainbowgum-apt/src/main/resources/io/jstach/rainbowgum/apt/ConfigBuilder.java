@@ -2,6 +2,7 @@
 package $$packageName$$;
 
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProperty.Property;
 
 /**
@@ -31,7 +32,7 @@ import io.jstach.rainbowgum.LogProperty.Property;
  $$/properties$$
  * </table>
  */
-public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder {
+public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$builderName$$,$$targetType$$> {
 
 	/**
 	 * The properties to be retrieved from config will have
@@ -147,15 +148,19 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder {
 				);
 	}
 	
-	/**
-	 * Fills the builder from properties.
-	 * @param properties not null.
-	 * @return this updated builder.
-	 */
+	@Override
 	public $$builderName$$ fromProperties(LogProperties properties) {
+		var __v = LogProperty.Validator.of(this.getClass());
 		$$#properties$$
 		$$#normal$$
-		this.$$name$$ = $$propertyVar$$.get(properties).$$valueMethod$$(this.$$name$$);
+		var _$$name$$ = $$propertyVar$$.get(properties).or(this.$$name$$);
+		__v.$$validateMethod$$(_$$name$$);
+		$$/normal$$
+		$$/properties$$
+		__v.validate();
+		$$#properties$$
+		$$#normal$$
+		this.$$name$$ = _$$name$$.$$valueMethod$$();
 		$$/normal$$
 		$$/properties$$
 		return this;
@@ -180,6 +185,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder {
 	 * The interpolated property prefix: {@value #PROPERTY_PREFIX}.
 	 * @return resolved prefix which should end with a "<code>.</code>".
 	 */
+	@Override
 	public String propertyPrefix() {
 		return this.propertyPrefix;
 	}
