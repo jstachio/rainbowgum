@@ -711,11 +711,6 @@ public interface LogProperties {
 			@Override
 			public String description(String key) {
 				String rename = renameKey.apply(key);
-				// String desc = "'" + key + "' from " + description;
-				// if (!rename.equals(key)) {
-				// desc += "[" + rename + "]";
-				// }
-				// return desc;
 				return description + "[" + rename + "]";
 			}
 
@@ -1159,10 +1154,6 @@ public interface LogProperties {
 		@Override
 		public String description(String key) {
 			String k = translateKey(key);
-			// String description = "'" + key + "' from " + name();
-			// if (!k.equals(key)) {
-			// description += "[" + k + "]";
-			// }
 			return name() + "[" + k + "]";
 		}
 
@@ -1353,19 +1344,6 @@ final class MultiMapProperties extends AbstractLogProperties {
 
 	@Override
 	public @Nullable Map<String, String> mapOrNull(String key) {
-		// var list = listOrNull(key);
-		//
-		// if (list != null) {
-		// LinkedHashMap<String, String> m = new LinkedHashMap<>();
-		// for (String k : list) {
-		// String v = _valueOrNull(k);
-		// if (v != null) {
-		// m.put(k, v);
-		// }
-		// }
-		// return m;
-		// }
-
 		/*
 		 * Now we check for dotted notation since key was not set. key.subkey=value
 		 */

@@ -71,6 +71,17 @@ public sealed interface ServiceRegistry extends AutoCloseable permits DefaultSer
 	public <T> @Nullable T findOrNull(Class<T> type, String name);
 
 	/**
+	 * Finds a service with the default name of {@value #DEFAULT_SERVICE_NAME} or null.
+	 * @param <T> service type
+	 * @param type service class.
+	 * @return service or <code>null</code>.
+	 */
+	@SuppressWarnings("exports")
+	default <T> @Nullable T findOrNull(Class<T> type) {
+		return findOrNull(type, DEFAULT_SERVICE_NAME);
+	}
+
+	/**
 	 * Finds <strong>all</strong> services of a specific type.
 	 * @param <T> service type.
 	 * @param type service class.

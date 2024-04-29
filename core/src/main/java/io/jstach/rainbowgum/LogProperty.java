@@ -1040,7 +1040,6 @@ public sealed interface LogProperty {
 			PropertyFunction<Result.Success<T>, ? extends U, ? super Exception> resultMapper = r -> mapper
 				.apply(r.value());
 			return mapResult(resultMapper);
-			// return new FuncGetter<T, U>(this, mapper, null);
 		}
 
 		/**

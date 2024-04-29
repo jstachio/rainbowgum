@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum.pattern.format.spi;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.pattern.format.PatternRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
@@ -21,8 +20,7 @@ public abstract class PatternKeywordProvider implements Configurator {
 
 	@Override
 	public boolean configure(LogConfig config) {
-		PatternRegistry patternRegistry = config.serviceRegistry()
-			.findOrNull(PatternRegistry.class, ServiceRegistry.DEFAULT_SERVICE_NAME);
+		PatternRegistry patternRegistry = config.serviceRegistry().findOrNull(PatternRegistry.class);
 		if (patternRegistry == null) {
 			return false;
 		}

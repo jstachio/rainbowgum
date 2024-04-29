@@ -35,7 +35,7 @@ public class AvajePropertiesProvider
 	@Override
 	public boolean configure(LogConfig config) {
 		var registry = config.serviceRegistry();
-		var props = registry.findOrNull(AvajeProperties.class, ServiceRegistry.DEFAULT_SERVICE_NAME);
+		var props = registry.findOrNull(AvajeProperties.class);
 		if (props != null) {
 			props.configuration.onChange(e -> {
 				config.changePublisher().publish();
