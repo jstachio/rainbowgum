@@ -145,11 +145,12 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Validates a list of results and throws {@link ValidationException} if any results
-		 * are not {@link Success}.
+		 * Validates a list of results and throws {@link ValidationException} if any
+		 * results are not {@link Success}.
 		 * @param builder class to prefix to full message.
 		 * @param results list of results.
-		 * @throws ValidationException if any result in the supplied list is not successful.
+		 * @throws ValidationException if any result in the supplied list is not
+		 * successful.
 		 */
 		public static void validate(Class<?> builder, List<Result<?>> results) throws ValidationException {
 			StringBuilder sb = new StringBuilder().append("Validation failed for ")
