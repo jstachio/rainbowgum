@@ -29,10 +29,10 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * </ul>
  * However if your application is fully modularized (has a <code>module-info.java</code>)
  * you will need to use the module-info syntax:
- * {@snippet : 
- * 
+ * {@snippet :
+ *
  * provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with com.mycompany.SomeService;
- * 
+ *
  * }
  * <strong>Initialization Order:</strong>
  * <ol>
@@ -41,7 +41,7 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * <li>{@link Configurator}</li>
  * <li>{@link RainbowGumProvider}</li>
  * </ol>
- * 
+ *
  */
 @SuppressWarnings("InvalidInlineTag")
 public sealed interface RainbowGumServiceProvider {
@@ -52,11 +52,8 @@ public sealed interface RainbowGumServiceProvider {
 	public non-sealed interface PropertiesProvider extends RainbowGumServiceProvider {
 
 		/**
-		 * Provides properties and or register services.
-		 * <em>If just registering services and not providing properies
-		 * an empty list can be returned.
-		 * </em>
-		 * 
+		 * Provides properties and or register services. <em>If just registering services
+		 * and not providing properies an empty list can be returned. </em>
 		 * @param registry registry is usually empty here.
 		 * @return list of properties.
 		 */
