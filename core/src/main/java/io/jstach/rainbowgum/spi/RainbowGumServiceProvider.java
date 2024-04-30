@@ -34,17 +34,29 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with com.mycompany.SomeService;
  * 
  * }
+ * <strong>Initialization Order:</strong>
+ * <ol>
+ * <li>{@link PropertiesProvider}</li>
+ * <li>{@link ConfigProvider}</li>
+ * <li>{@link Configurator}</li>
+ * <li>{@link RainbowGumProvider}</li>
+ * </ol>
+ * 
  */
 @SuppressWarnings("InvalidInlineTag")
 public sealed interface RainbowGumServiceProvider {
 
 	/**
-	 * Provides properties.
+	 * Provides properties and or register services.
 	 */
 	public non-sealed interface PropertiesProvider extends RainbowGumServiceProvider {
 
 		/**
-		 * Provides properties.
+		 * Provides properties and or register services.
+		 * <em>If just registering services and not providing properies
+		 * an empty list can be returned.
+		 * </em>
+		 * 
 		 * @param registry registry is usually empty here.
 		 * @return list of properties.
 		 */
