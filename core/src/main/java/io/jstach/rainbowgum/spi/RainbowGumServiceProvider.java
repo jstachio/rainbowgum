@@ -37,7 +37,6 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * <strong>Initialization Order:</strong>
  * <ol>
  * <li>{@link PropertiesProvider}</li>
- * <li>{@link ConfigProvider}</li>
  * <li>{@link Configurator}</li>
  * <li>{@link RainbowGumProvider}</li>
  * </ol>
@@ -62,19 +61,79 @@ public sealed interface RainbowGumServiceProvider {
 	}
 
 	/**
-	 * Provides config from registry and properties.
+	 * Providers sometimes need multiple passes to support dependencies without using true
+	 * dependency injection.
 	 */
-	public non-sealed interface ConfigProvider extends RainbowGumServiceProvider {
+	public enum Pass {
 
 		/**
-		 * Provide config from registry and properties.
-		 * @param registry registry.
-		 * @param properties properties.
-		 * @return config.
+		 * First pass.
 		 */
-		LogConfig provideConfig(ServiceRegistry registry, LogProperties properties);
+		FIRST,
+		/**
+		 * Second or greater pass but not the last pass.
+		 */
+		MIDDLE,
+		/**
+		 * The last pass to return true otherwise Rainbow Gum will fail to load. This
+		 * state is useful if a provider can provide a better error by throwing an
+		 * exception.
+		 */
+		LAST;
+
+		static Pass of(int pass, int total) {
+			if (pass >= (total - 1)) {
+				return LAST;
+			}
+			if (pass == 0) {
+				return FIRST;
+			}
+			return MIDDLE;
+		}
 
 	}
+
+	/**
+	 * The default amount of passes made to resolve registrators or configurators.
+	 */
+	public static int PASSES = 4;
+
+	/**
+	 * Called after {@link ServiceRegistry} has been loaded to do registering of services.
+	 * <p>
+	 * The registrator has the option to return <code>false</code> to indicate a retry
+	 * needs to be made. This is a simple way to handle dependency needs of one
+	 * registrator needing another to run prior.
+	 *
+	 * @see ServiceRegistry
+	 */
+	@FunctionalInterface
+	public non-sealed interface Registrator extends RainbowGumServiceProvider {
+
+		/**
+		 * Do registration of services before anything else is loaded.
+		 * @param registry registry.
+		 * @param pass info on what pass this is.
+		 * @return <code>true</code> if all dependencies were found.
+		 */
+		boolean register(ServiceRegistry registry, Pass pass);
+
+	}
+
+	// /**
+	// * Provides config from registry and properties.
+	// */
+	// public non-sealed interface ConfigProvider extends RainbowGumServiceProvider {
+	//
+	// /**
+	// * Provide config from registry and properties.
+	// * @param registry registry.
+	// * @param properties properties.
+	// * @return config.
+	// */
+	// LogConfig provideConfig(ServiceRegistry registry, LogProperties properties);
+	//
+	// }
 
 	/**
 	 * Called after {@link LogConfig} has been loaded to do various custom initialization
@@ -93,14 +152,15 @@ public sealed interface RainbowGumServiceProvider {
 		/**
 		 * Do ad-hoc initialization before RainbowGum is fully loaded.
 		 * @param config config.
+		 * @param pass info on what pass this is.
 		 * @return <code>true</code> if all dependencies were found.
 		 */
-		boolean configure(LogConfig config);
+		boolean configure(LogConfig config, Pass pass);
 
 		/**
 		 * The default amount of passes made to resolve configurators.
 		 */
-		public static int CONFIGURATOR_PASSES = 4;
+		public static int CONFIGURATOR_PASSES = PASSES;
 
 		/**
 		 * Runs configurators. If a configurator returns false then it will be retried.
@@ -123,14 +183,14 @@ public sealed interface RainbowGumServiceProvider {
 		 * @throws IllegalStateException if there are configurators still returning
 		 * <code>false</code>.
 		 */
-		public static void runConfigurators(Stream<? extends RainbowGumServiceProvider.Configurator> configurators,
+		private static void runConfigurators(Stream<? extends RainbowGumServiceProvider.Configurator> configurators,
 				LogConfig config, int passes) {
 			List<Configurator> unresolved = new ArrayList<>(configurators.toList());
 			for (int i = 0; i < passes; i++) {
 				var it = unresolved.iterator();
 				while (it.hasNext()) {
 					var c = it.next();
-					if (c.configure(config)) {
+					if (c.configure(config, Pass.of(i, passes))) {
 						it.remove();
 						if (c instanceof AutoCloseable ac) {
 							config.serviceRegistry().onClose(ac);

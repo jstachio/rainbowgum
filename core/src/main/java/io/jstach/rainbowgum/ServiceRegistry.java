@@ -51,7 +51,7 @@ public sealed interface ServiceRegistry extends AutoCloseable permits DefaultSer
 	}
 
 	/**
-	 * Puts a service.
+	 * Puts a service if absent.
 	 * @param <T> service type.
 	 * @param type type.
 	 * @param name name of the service.
@@ -59,6 +59,17 @@ public sealed interface ServiceRegistry extends AutoCloseable permits DefaultSer
 	 * @return service.
 	 */
 	public <T> T putIfAbsent(Class<T> type, String name, Supplier<T> supplier);
+
+	/**
+	 * Puts a service if absent.
+	 * @param <T> service type.
+	 * @param type type.
+	 * @param supplier service instance.
+	 * @return service.
+	 */
+	default <T> T putIfAbsent(Class<T> type, Supplier<T> supplier) {
+		return putIfAbsent(type, DEFAULT_SERVICE_NAME, supplier);
+	}
 
 	/**
 	 * Finds a service or null.

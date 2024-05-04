@@ -97,7 +97,7 @@ class RainbowGumServiceProviderTest {
 		}
 
 		@Override
-		public boolean configure(LogConfig config) {
+		public boolean configure(LogConfig config, Pass pass) {
 			if (count.incrementAndGet() == succeedAfter) {
 				return true;
 			}

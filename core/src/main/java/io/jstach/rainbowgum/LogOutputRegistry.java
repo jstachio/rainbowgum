@@ -129,7 +129,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		String scheme = Objects.requireNonNull(uri.getScheme());
 		OutputProvider customProvider = providers.get(scheme);
 		if (customProvider == null) {
-			throw new RuntimeException("Output for uri: " + uri + " not found.");
+			throw new RuntimeException("Output type for URI: '" + uri + "' not found.");
 		}
 		var _ref = ref;
 		return (name, config) -> {

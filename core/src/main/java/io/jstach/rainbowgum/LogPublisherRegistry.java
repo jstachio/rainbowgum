@@ -110,10 +110,9 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 		protected PublisherFactory provide(String name, LogProperties properties) {
 			int _bufferSize = Property.builder()
 				.toInt() //
-				.orElse(ASYNC_BUFFER_SIZE)
 				.buildWithName(BUFFER_SIZE_PROPERTY, name) //
 				.get(properties) //
-				.value();
+				.value(ASYNC_BUFFER_SIZE);
 			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders, _bufferSize);
 		}
 	};

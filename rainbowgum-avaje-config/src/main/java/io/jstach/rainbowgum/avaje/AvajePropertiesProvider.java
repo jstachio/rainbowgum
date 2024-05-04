@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.avaje;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -14,26 +15,39 @@ import io.jstach.svc.ServiceProvider;
 
 /**
  * Makes avaje provide properties to RainbowGum.
+ * <p>
+ * If {@link io.avaje.config.Configuration} is already bound in the
+ * {@link ServiceRegistry} it will be used instead of the Avaje's default static bound
+ * Configuration.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
-public class AvajePropertiesProvider
+public final class AvajePropertiesProvider
 		implements RainbowGumServiceProvider.PropertiesProvider, RainbowGumServiceProvider.Configurator {
+
+	private final Supplier<Configuration> configurationSupplier;
 
 	/**
 	 * For service loader.
 	 */
 	public AvajePropertiesProvider() {
+		this(() -> Config.asConfiguration());
+	}
+
+	AvajePropertiesProvider(Supplier<Configuration> configurationSupplier) {
+		super();
+		this.configurationSupplier = configurationSupplier;
 	}
 
 	@Override
 	public List<LogProperties> provideProperties(ServiceRegistry registry) {
-		var props = new AvajeProperties(Config.asConfiguration());
+		var config = registry.putIfAbsent(Configuration.class, configurationSupplier);
+		var props = new AvajeProperties(config);
 		registry.put(AvajeProperties.class, props);
 		return List.of(props);
 	}
 
 	@Override
-	public boolean configure(LogConfig config) {
+	public boolean configure(LogConfig config, Pass pass) {
 		var registry = config.serviceRegistry();
 		var props = registry.findOrNull(AvajeProperties.class);
 		if (props != null) {
@@ -62,7 +76,9 @@ class AvajeProperties implements LogProperties {
 
 	@Override
 	public String description(String key) {
-		return "AVAJE[" + key + "]";
+		var entry = configuration.entry(key).orElse(null);
+		String source = entry == null ? "AVAJE" : "AVAJE(" + entry.source() + ")";
+		return source + "[" + key + "]";
 	}
 
 }

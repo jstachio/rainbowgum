@@ -30,7 +30,7 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	}
 
 	@Override
-	public boolean configure(LogConfig config) {
+	public boolean configure(LogConfig config, Pass pass) {
 		boolean globalDisable = isGlobalAnsiDisabled(config);
 		if (!globalDisable && installJansi(config)) {
 			AnsiConsole.systemInstall();
@@ -66,10 +66,9 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	private boolean isGlobalAnsiDisabled(LogConfig config) {
 		boolean globalDisable = Property.builder() //
 			.toBoolean() //
-			.orElse(false) //
 			.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
-			.get(config.properties())
-			.value();
+			.get(config.properties()) //
+			.value(false);
 		return globalDisable;
 	}
 

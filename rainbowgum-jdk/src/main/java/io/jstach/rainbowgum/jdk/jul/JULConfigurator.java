@@ -28,12 +28,10 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 
 	static final Property<Boolean> JUL_DISABLE_PROPERTY_ = Property.builder()
 		.toBoolean() //
-		.orElse(false) //
 		.build(JUL_DISABLE_PROPERTY);
 
 	static final Property<Boolean> JUL_LEVEL_DISABLE_PROPERTY_ = Property.builder()
 		.toBoolean() //
-		.orElse(false) //
 		.build(JUL_LEVEL_DISABLE_PROPERTY);
 
 	/**
@@ -43,11 +41,11 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	}
 
 	@Override
-	public boolean configure(@SuppressWarnings("exports") LogConfig config) {
+	public boolean configure(@SuppressWarnings("exports") LogConfig config, @SuppressWarnings("exports") Pass pass) {
 		if (!install(config.properties())) {
 			return true;
 		}
-		var disableLevel = JUL_LEVEL_DISABLE_PROPERTY_.get(config.properties()).value();
+		var disableLevel = JUL_LEVEL_DISABLE_PROPERTY_.get(config.properties()).value(false);
 
 		if (!disableLevel) {
 			var logger = Logger.getLogger("");
@@ -75,7 +73,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	 * @hidden
 	 */
 	public static boolean install(@SuppressWarnings("exports") LogProperties properties) {
-		if (JUL_DISABLE_PROPERTY_.get(properties).value()) {
+		if (JUL_DISABLE_PROPERTY_.get(properties).value(false)) {
 			return false;
 		}
 

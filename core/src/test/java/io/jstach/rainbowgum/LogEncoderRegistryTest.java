@@ -64,7 +64,7 @@ class LogEncoderRegistryTest {
 	static class EncoderConfigurator implements RainbowGumServiceProvider.Configurator {
 
 		@Override
-		public boolean configure(LogConfig config) {
+		public boolean configure(LogConfig config, Pass pass) {
 			EncoderProvider provider = new EncoderProvider() {
 
 				@Override
@@ -84,7 +84,7 @@ class LogEncoderRegistryTest {
 	class OutputConfigurator implements RainbowGumServiceProvider.Configurator {
 
 		@Override
-		public boolean configure(LogConfig config) {
+		public boolean configure(LogConfig config, Pass pass) {
 			OutputProvider provider = new OutputProvider() {
 
 				@Override

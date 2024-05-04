@@ -55,10 +55,9 @@ public sealed interface PatternCompiler {
 				.orElseGet(() -> {
 					boolean ansiDisable = LogProperty.Property.builder() //
 						.toBoolean() //
-						.orElse(false) //
 						.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 						.get(config.properties()) //
-						.value();
+						.value(false);
 					var b = PatternConfig.builder().fromProperties(config.properties());
 					if (ansiDisable) {
 						b.ansiDisabled(true);

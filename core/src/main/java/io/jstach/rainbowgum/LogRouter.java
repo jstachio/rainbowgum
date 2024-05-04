@@ -360,15 +360,7 @@ public sealed interface LogRouter extends LogLifecycle {
 
 				List<LogProvider<LogAppender>> appenders = new ArrayList<>(this.appenders);
 				if (appenders.isEmpty()) {
-
-					List<String> appenderNames = Property.builder() //
-						.toList() //
-						.orElse(List.of())
-						.buildWithName(LogProperties.ROUTE_APPENDERS_PROPERTY, name)
-						.get(config.properties())
-						.value();
-
-					DefaultAppenderRegistry.defaultAppenders(config, appenderNames) //
+					DefaultAppenderRegistry.appenders(config, name) //
 						.stream() //
 						.forEach(appenders::add);
 				}

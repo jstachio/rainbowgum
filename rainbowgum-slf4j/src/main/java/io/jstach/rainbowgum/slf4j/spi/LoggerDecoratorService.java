@@ -34,7 +34,7 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 	}
 
 	@Override
-	public final boolean configure(LogConfig config) {
+	public final boolean configure(LogConfig config, Pass pass) {
 		config.serviceRegistry().put(LoggerDecoratorService.class, name(), this);
 		return true;
 	}

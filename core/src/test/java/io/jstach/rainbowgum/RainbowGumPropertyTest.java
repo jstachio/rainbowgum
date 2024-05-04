@@ -40,6 +40,7 @@ class RainbowGumPropertyTest {
 				logging.route.error.appenders=list
 				logging.route.error.level=ERROR
 				logging.route.debug.level=DEBUG
+				logging.route.debug.appenders=console
 				logging.appender.list.output=list
 				""", """
 				00:00:00.001 [main] ERROR com.pattern.test.Test - hello

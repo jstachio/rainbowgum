@@ -23,7 +23,7 @@ public class GelfEncoderConfigurator implements Configurator {
 	}
 
 	@Override
-	public boolean configure(LogConfig config) {
+	public boolean configure(LogConfig config, Pass pass) {
 		config.encoderRegistry().register(GelfEncoder.GELF_SCHEME, new GelfEncoderProvider());
 		return true;
 	}

@@ -22,7 +22,7 @@ public class RabbitMQInitializer implements RainbowGumServiceProvider.Configurat
 	}
 
 	@Override
-	public boolean configure(LogConfig config) {
+	public boolean configure(LogConfig config, Pass pass) {
 		config.outputRegistry().register(RabbitMQOutput.URI_SCHEME, RabbitMQOutputProvider.INSTANCE);
 		return true;
 	}

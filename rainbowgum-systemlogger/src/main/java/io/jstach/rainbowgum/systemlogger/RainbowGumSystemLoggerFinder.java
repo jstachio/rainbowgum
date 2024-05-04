@@ -93,10 +93,9 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	protected static InitOption initOption(LogProperties properties) {
 		return Property.builder() //
 			.map(InitOption::parse)
-			.orElse(InitOption.FALSE) //
 			.build(INTIALIZE_RAINBOW_GUM_PROPERTY) //
 			.get(properties) //
-			.value();
+			.value(InitOption.FALSE);
 	}
 
 	private interface RouterProvider {

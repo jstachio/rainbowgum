@@ -19,7 +19,7 @@ public abstract class PatternKeywordProvider implements Configurator {
 	}
 
 	@Override
-	public boolean configure(LogConfig config) {
+	public boolean configure(LogConfig config, Pass pass) {
 		PatternRegistry patternRegistry = config.serviceRegistry().findOrNull(PatternRegistry.class);
 		if (patternRegistry == null) {
 			return false;

@@ -171,6 +171,8 @@ public sealed interface LogConfig {
 
 		private final List<RainbowGumServiceProvider.Configurator> configurators = new ArrayList<>();
 
+		private final List<RainbowGumServiceProvider.PropertiesProvider> propertiesProviders = new ArrayList<>();
+
 		/**
 		 * Default constructor
 		 */
@@ -204,6 +206,16 @@ public sealed interface LogConfig {
 		 */
 		public Builder configurator(RainbowGumServiceProvider.Configurator configurator) {
 			configurators.add(configurator);
+			return this;
+		}
+
+		/**
+		 * Add properties.
+		 * @param propertiesProvider will run on build.
+		 * @return this.
+		 */
+		public Builder propertiesProvider(RainbowGumServiceProvider.PropertiesProvider propertiesProvider) {
+			propertiesProviders.add(propertiesProvider);
 			return this;
 		}
 
@@ -252,12 +264,15 @@ public sealed interface LogConfig {
 				serviceRegistry = ServiceRegistry.of();
 			}
 			if (logProperties == null) {
-				if (serviceLoader != null) {
-					logProperties = provideProperties(serviceRegistry, serviceLoader);
+				List<LogProperties> props = new ArrayList<>();
+				for (var pp : propertiesProviders) {
+					props.addAll(pp.provideProperties(serviceRegistry));
 				}
-				else {
-					logProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+				if (props.isEmpty() && serviceLoader != null) {
+					props.addAll(provideProperties(serviceRegistry, serviceLoader));
 				}
+				logProperties = LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+
 			}
 			var levelResolver = this.buildGlobalResolver(logProperties);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver);
@@ -279,12 +294,12 @@ public sealed interface LogConfig {
 			return levelResolver;
 		}
 
-		private static LogProperties provideProperties(ServiceRegistry registry,
+		private static List<LogProperties> provideProperties(ServiceRegistry registry,
 				ServiceLoader<RainbowGumServiceProvider> loader) {
 			List<LogProperties> props = findProviders(loader, PropertiesProvider.class)
 				.flatMap(s -> s.provideProperties(registry).stream())
 				.toList();
-			return LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+			return props;
 		}
 
 		@Override
@@ -301,8 +316,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	static final PropertyGetter<Set<ChangeType>> changeSetting = PropertyGetter.of()
 		.withSearch(LogProperties.CHANGE_PREFIX)
 		.toList()
-		.map(s -> ChangeType.parse(s))
-		.orElse(Set.of());
+		.map(s -> ChangeType.parse(s));
 
 	private final Collection<Consumer<? super LogConfig>> consumers = new CopyOnWriteArrayList<Consumer<? super LogConfig>>();
 
@@ -330,7 +344,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
-		return changeSetting.get(config().properties(), loggerName).value();
+		return changeSetting.get(config().properties(), loggerName).value(Set.of());
 	}
 
 }
@@ -383,10 +397,9 @@ final class DefaultLogConfig implements LogConfig {
 		this.levelResolver = levelResolver;
 		boolean changeable = Property.builder() //
 			.toBoolean()
-			.orElse(false)
 			.build(LogProperties.GLOBAL_CHANGE_PROPERTY)
 			.get(properties)
-			.value();
+			.value(false);
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		this.outputRegistry = LogOutputRegistry.of();
 		this.encoderRegistry = LogEncoderRegistry.of();

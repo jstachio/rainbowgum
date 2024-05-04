@@ -33,7 +33,7 @@ public final class PatternConfigurator implements Configurator {
 	}
 
 	@Override
-	public boolean configure(LogConfig config) {
+	public boolean configure(LogConfig config, Pass pass) {
 		var services = config.serviceRegistry();
 		String n = ServiceRegistry.DEFAULT_SERVICE_NAME;
 		services.putIfAbsent(PatternRegistry.class, n, PatternRegistry::of);

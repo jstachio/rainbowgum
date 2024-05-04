@@ -7,6 +7,7 @@ import java.util.List;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogProperty.Result;
 
 /**
  * Register appenders by name. TODO probably can remove this.
@@ -39,26 +40,31 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	static final Property<URI> fileProperty = Property.builder().toURI().build(LogProperties.FILE_PROPERTY);
 
-	static final Property<List<String>> appendersProperty = Property.builder()
-		.toList()
-		.orElse(List.of())
-		.build(LogProperties.APPENDERS_PROPERTY);
-
 	/*
 	 * TODO The shit in here is a mess because auto configuration of appenders based on
 	 * properties is complicated particularly because we want to support Spring Boots
 	 * configuration OOB.
 	 */
-	static List<LogAppender> defaultAppenders(LogConfig config, List<String> appenderNames) {
+	static List<LogAppender> appenders(LogConfig config, String routeName) {
+		var b = Property.builder() //
+			.toList() //
+			.withKey(LogProperties.ROUTE_APPENDERS_PROPERTY) //
+			.addNameParam(routeName);
+		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
+			b.addKey(LogProperties.APPENDERS_PROPERTY);
+		}
+		var appenderNames = b.build();
+
 		List<LogAppender> appenders = new ArrayList<>();
-		if (appenderNames.isEmpty()) {
-			appenderNames = appendersProperty.get(config.properties()).value(List.of());
+
+		Result<List<String>> result = appenderNames.get(config.properties());
+
+		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
+			result = result.or(() -> addDefaultAppenderNames(config));
 		}
-		if (appenderNames.isEmpty()) {
-			appenderNames = addDefaultAppenderNames(config);
-		}
-		appenderNames = appenderNames.stream().distinct().toList();
-		for (String appenderName : appenderNames) {
+
+		var _appenderNames = result.value().stream().distinct().toList();
+		for (String appenderName : _appenderNames) {
 			appenders.add(appender(appenderName, config));
 		}
 		return appenders;
@@ -122,7 +128,6 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	@SuppressWarnings("null") // TODO Eclipse Null bug.
 	private static final Property<Boolean> defaultsAppenderBufferProperty = Property.builder()
 		.map(s -> Boolean.parseBoolean(s))
-		.orElse(false)
 		.build(LogProperties.concatKey("defaults.appender.buffer"));
 
 	static LogAppender appender( //
@@ -158,7 +163,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			encoder = resolveEncoder(config, output, encoderProperty);
 		}
 
-		return defaultsAppenderBufferProperty.get(properties).value() ? new BufferLogAppender(output, encoder)
+		return defaultsAppenderBufferProperty.get(properties).value(false) ? new BufferLogAppender(output, encoder)
 				: new DefaultLogAppender(output, encoder);
 	}
 

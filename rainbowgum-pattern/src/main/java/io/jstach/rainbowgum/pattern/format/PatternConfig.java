@@ -98,7 +98,7 @@ public sealed interface PatternConfig extends Configurator {
 	}
 
 	@Override
-	default boolean configure(LogConfig config) {
+	default boolean configure(LogConfig config, Pass pass) {
 		config.serviceRegistry().put(PatternConfig.class, ServiceRegistry.DEFAULT_SERVICE_NAME, this);
 		return true;
 	}

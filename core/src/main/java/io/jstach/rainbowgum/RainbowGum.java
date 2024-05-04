@@ -40,20 +40,18 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 		Property<Integer> bufferSize = Property.builder()
 			.map(Integer::parseInt)
-			.orElse(1024)
 			.build("logging.custom.async.bufferSize");
 
 		Property<LogProvider<LogOutput>> output = Property.builder()
 			.map(URI::create)
 			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
-			.orElse(LogOutput.ofStandardOut())
 			.build("logging.custom.output");
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
-				r.publisher(PublisherFactory.async().bufferSize(bufferSize.get(config.properties()).value()).build());
+				r.publisher(PublisherFactory.async().bufferSize(bufferSize.get(config.properties()).value(1024)).build());
 				r.appender("console", a -> {
-					a.output(output.get(config.properties()).value());					
+					a.output(output.get(config.properties()).value(LogOutput.ofStandardOut()));					
 				});
 				r.level(Level.INFO);
 			})
@@ -260,10 +258,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 			if (routes.isEmpty()) {
 				List<String> routeNames = Property.builder() //
 					.toList()
-					.orElse(List.of())
 					.build(LogProperties.ROUTES_PROPERTY)
 					.get(config.properties())
-					.value();
+					.value(List.of());
 				if (routeNames.isEmpty()) {
 					routes = List.of(Router.builder(Router.DEFAULT_ROUTER_NAME, config).build());
 				}
