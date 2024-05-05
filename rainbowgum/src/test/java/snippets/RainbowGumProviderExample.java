@@ -30,8 +30,10 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
-				r.publisher(
-						PublisherFactory.async().bufferSize(bufferSize.get(config.properties()).value(1024)).build());
+				r.publisher(PublisherFactory //
+					.async() //
+					.bufferSize(bufferSize.get(config.properties()).value(1024)) //
+					.build());
 				r.appender("console", a -> {
 					a.output(output.get(config.properties()).value(LogOutput.ofStandardOut()));
 				});
