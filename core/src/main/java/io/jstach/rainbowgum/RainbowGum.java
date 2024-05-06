@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.lang.System.Logger.Level;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -17,11 +15,9 @@ import java.util.function.Supplier;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperty.Property;
-import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
-import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
 
 //@formatter:off
 /**
@@ -54,9 +50,9 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 		var gum = RainbowGum.builder() //
 			.route(r -> {
 				r.publisher(PublisherFactory //
-						.async() //
-						.bufferSize(bufferSize.get(config.properties()).value(1024)) //
-						.build());
+					.async() //
+					.bufferSize(bufferSize.get(config.properties()).value(1024)) //
+					.build());
 				r.appender("console", a -> {
 					a.output(output.get(config.properties()).value(LogOutput.ofStandardOut()));
 				});
