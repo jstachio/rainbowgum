@@ -18,7 +18,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
  *
  * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
  */
-public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogProvider<LogAppender> {
+public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 	/**
 	 * Default Console appender name.
@@ -51,11 +51,6 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogP
 
 	@Override
 	public void append(LogEvent event);
-
-	@Override
-	default LogAppender provide(String name, LogConfig config) {
-		return this;
-	}
 
 	/**
 	 * Creates a builder.
@@ -214,7 +209,8 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogP
 		 */
 		@SuppressWarnings({ "null", "resource" }) // TODO eclipse bugs.
 		public static ThreadSafeLogAppender of(LogAppender appender) {
-			return switch (appender) {
+			// TODO eclipse needs a local variable for some reason
+			ThreadSafeLogAppender rv = switch (appender) {
 				case DefaultLogAppender ta -> ta;
 				case CompositeThreadSafeLogAppender ca -> ca;
 				case BufferLogAppender b -> new DefaultLogAppender(b.output, b.encoder);
@@ -225,6 +221,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer, LogP
 					yield new CompositeThreadSafeLogAppender(array);
 				}
 			};
+			return rv;
 
 		}
 

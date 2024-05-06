@@ -621,6 +621,8 @@ public sealed interface LogProperty {
 
 		private List<KeyEntry> keys = new ArrayList<>();
 
+		private Map<String, String> params = new LinkedHashMap<>();
+
 		private record KeyEntry(String key, Map<String, String> params) {
 		}
 
@@ -638,6 +640,17 @@ public sealed interface LogProperty {
 		}
 
 		/**
+		 * Adds a fallback paramter that will be used on all keys.
+		 * @param name parameter name.
+		 * @param value value of parameter.
+		 * @return this
+		 */
+		public B addFallbackParam(String name, String value) {
+			params.put(name, value);
+			return self();
+		}
+
+		/**
 		 * Adds a key with a <code>{name}</code> parameter.
 		 * @param key key to be interpolated.
 		 * @param name name.
@@ -649,7 +662,7 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Adds a parameter to the last key
+		 * Adds a parameter to the last added key
 		 * @param name parameter name.
 		 * @param value value of parameter.
 		 * @return this.
@@ -661,7 +674,7 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Adds a a <code>{name}</code> parameter.
+		 * Adds a a <code>{name}</code> parameter the last added key.
 		 * @param value value of parameter.
 		 * @return this.
 		 */
@@ -674,14 +687,23 @@ public sealed interface LogProperty {
 			return keys.stream().map(e -> {
 				String key = e.key();
 				var parameters = e.params();
-				LogProperties.validateKeyParameters(key, parameters.keySet());
-				return LogProperties.interpolateKey(key, parameters);
+				return LogProperties.interpolateKey(key, fallback(parameters::get, params::get));
 			}).distinct().toList();
 
 		}
 
 		protected abstract B self();
 
+	}
+
+	private static Function<String, @Nullable String> fallback(Function<String, @Nullable String> a,
+			Function<String, @Nullable String> b) {
+		return k -> {
+			var v = a.apply(k);
+			if (v != null)
+				return v;
+			return b.apply(k);
+		};
 	}
 
 	/**

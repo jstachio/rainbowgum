@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.util.NoSuchElementException;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -50,6 +51,20 @@ public sealed interface LogProviderRef {
 	 */
 	public static LogProviderRef of(URI uri, @Nullable String key) {
 		return new DefaultLogProviderRef(uri, key);
+	}
+
+	/**
+	 * Thrown if a provider could not be found for the ref.
+	 */
+	public static class NotFoundException extends NoSuchElementException {
+
+		private static final long serialVersionUID = 5484668688480940159L;
+
+		NotFoundException(String s) {
+			super(s);
+			// TODO Auto-generated constructor stub
+		}
+
 	}
 
 }

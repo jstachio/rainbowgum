@@ -90,8 +90,9 @@ public interface LogEncoder {
 		 * Loads an encoder from a URI.
 		 * @param ref reference to provider usually just a uri.
 		 * @return output.
+		 * @throws LogProviderRef.NotFoundException if there is no registered provider.
 		 */
-		LogProvider<LogEncoder> provide(LogProviderRef ref);
+		LogProvider<LogEncoder> provide(LogProviderRef ref) throws LogProviderRef.NotFoundException;
 
 	}
 

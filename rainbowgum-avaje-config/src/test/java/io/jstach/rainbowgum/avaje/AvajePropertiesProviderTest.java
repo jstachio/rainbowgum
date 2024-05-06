@@ -30,8 +30,8 @@ class AvajePropertiesProviderTest {
 			}
 		});
 		String expected = """
-				Error for property. key: 'logging.appender.stuff.output' from AVAJE(initial)[logging.appender.stuff.output], java.lang.RuntimeException Output type for URI: 'blah:///' not found.
-				Tried: 'logging.appender.stuff.output' from AVAJE(initial)[logging.appender.stuff.output]""";
+				Error for property. key: 'logging.appender.stuff.output' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output], io.jstach.rainbowgum.LogProviderRef$NotFoundException No output found. Scheme not registered. scheme: 'blah',  URI: 'blah:///'
+				Tried: 'logging.appender.stuff.output' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output]""";
 		String actual = e.getMessage();
 		assertEquals(expected, actual);
 	}

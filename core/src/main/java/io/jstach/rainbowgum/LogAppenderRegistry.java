@@ -45,7 +45,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	 * properties is complicated particularly because we want to support Spring Boots
 	 * configuration OOB.
 	 */
-	static List<LogAppender> appenders(LogConfig config, String routeName) {
+	static List<LogProvider<LogAppender>> appenders(LogConfig config, String routeName) {
 		var b = Property.builder() //
 			.toList() //
 			.withKey(LogProperties.ROUTE_APPENDERS_PROPERTY) //
@@ -55,7 +55,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		}
 		var appenderNames = b.build();
 
-		List<LogAppender> appenders = new ArrayList<>();
+		List<LogProvider<LogAppender>> appenders = new ArrayList<>();
 
 		Result<List<String>> result = appenderNames.get(config.properties());
 
@@ -65,7 +65,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 		var _appenderNames = result.value().stream().distinct().toList();
 		for (String appenderName : _appenderNames) {
-			appenders.add(appender(appenderName, config));
+			appenders.add(appender(appenderName));
 		}
 		return appenders;
 	}
@@ -79,18 +79,19 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		return appenderNames;
 	}
 
-	static LogAppender appender( //
-			String name, LogConfig config) {
-		if (name.equals(LogAppender.FILE_APPENDER_NAME)) {
-			return fileAppender(config);
-		}
-		if (name.equals(LogAppender.CONSOLE_APPENDER_NAME)) {
-			return defaultConsoleAppender(config);
-		}
-		var builder = new AppenderConfig(name, null, null);
-		var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
-		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
-		return appender(builder, config, outputProperty, encoderProperty);
+	static LogProvider<LogAppender> appender(String name) {
+		return (_n, config) -> {
+			if (name.equals(LogAppender.FILE_APPENDER_NAME)) {
+				return fileAppender(config);
+			}
+			if (name.equals(LogAppender.CONSOLE_APPENDER_NAME)) {
+				return defaultConsoleAppender(config);
+			}
+			var builder = new AppenderConfig(name, null, null);
+			var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
+			var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
+			return appender(builder, config, outputProperty, encoderProperty);
+		};
 	}
 
 	private static LogAppender defaultConsoleAppender(LogConfig config) {

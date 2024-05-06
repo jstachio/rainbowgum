@@ -1244,12 +1244,40 @@ public interface LogProperties {
 	 * @param key property name.
 	 * @param parameters tokens to replace with entry values.
 	 * @return interpolated property key.
+	 * @see #interpolateKey(String, Function)
 	 */
 	static String interpolateKey(String key, Map<String, String> parameters) {
-		for (Map.Entry<String, String> entry : parameters.entrySet()) {
-			key = key.replace("{" + entry.getKey() + "}", entry.getValue());
+		return interpolateKey(key, parameters::get);
+	}
+
+	/**
+	 * Replaces property <strong>key</strong> parameters by using the lookup function.
+	 * Property keys are often parameterized usually by some name. The parameters are
+	 * surrounded by curly braces and replaced by the lookup function. An example of the
+	 * format is <code>a.{PARAM}</code> which has a parameter named <code>PARAM</code>. If
+	 * the lookup function has <code>PARAM->b</code> then the result will be
+	 * <code>a.b</code>. If a value for a parameter is null (indicates not found) an
+	 * exception is thrown.
+	 * @param key to be interpolated.
+	 * @param lookup function that may return null for a parameter.
+	 * @return interpolated key with all parameters replaced.
+	 * @throws IllegalArgumentException if the lookup function does not have a value for a
+	 * parameter.
+	 */
+	public static String interpolateKey(String key,
+			@SuppressWarnings("exports") Function<String, ? extends @Nullable String> lookup)
+			throws IllegalArgumentException {
+		var parameters = keyParameters(key);
+		String result = key;
+		for (String k : parameters) {
+			var v = lookup.apply(k);
+			if (v == null) {
+				throw new IllegalArgumentException(
+						"Keyed parameter missing. key: '" + key + "' parameter: '" + k + "'");
+			}
+			result = result.replace("{" + k + "}", v);
 		}
-		return key;
+		return result;
 	}
 
 	/**
@@ -1301,14 +1329,16 @@ public interface LogProperties {
 
 	/**
 	 * Validate key parameters.
-	 * @param key key to be interpolated with parameters
-	 * @param parameters names of parameters.
+	 * @param key key to be interpolated with parameters.
+	 * @param parameters names of parameters which must <strong>equal</strong> the set of
+	 * the found parameters. while the order obviously does not matter the set cannot have
+	 * more parameters than found in the key.
 	 */
 	static void validateKeyParameters(String key, Set<String> parameters) {
 		var keyParameters = keyParameters(key);
 		if (!parameters.equals(keyParameters)) {
-			throw new IllegalArgumentException("Keyed parameter mismatch. key is parameters: " + keyParameters
-					+ " provided parameters: " + parameters);
+			throw new IllegalArgumentException("Keyed parameter mismatch. key: '" + key + "' , key parameters: "
+					+ keyParameters + " provided parameters: " + parameters);
 		}
 	}
 

@@ -4,7 +4,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -91,7 +90,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 
 		var provider = providers.get(scheme);
 		if (provider == null) {
-			throw new NoSuchElementException("No encoder found. URI=" + uri);
+			throw new LogProviderRef.NotFoundException("No encoder found. URI=" + uri);
 		}
 
 		return provider.provide(_ref);
