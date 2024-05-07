@@ -683,7 +683,7 @@ public sealed interface LogProperty {
 
 		}
 
-		protected List<String> buildKeys() {
+		List<String> buildKeys() {
 			return keys.stream().map(e -> {
 				String key = e.key();
 				var parameters = e.params();
@@ -692,7 +692,7 @@ public sealed interface LogProperty {
 
 		}
 
-		protected abstract B self();
+		abstract B self();
 
 	}
 
