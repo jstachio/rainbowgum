@@ -185,8 +185,8 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 			 * TODO should we use the parent name for resolution?
 			 */
 			return (n, config) -> {
-				AppenderConfig a = new AppenderConfig(_name, LogProvider.provideOrNull(_name, _output, config),
-						LogProvider.provideOrNull(_name, _encoder, config));
+				AppenderConfig a = new AppenderConfig(_name, LogProvider.provideOrNull(_output, _name, config),
+						LogProvider.provideOrNull(_encoder, _name, config));
 				return DefaultAppenderRegistry.appender(a, config);
 			};
 		}

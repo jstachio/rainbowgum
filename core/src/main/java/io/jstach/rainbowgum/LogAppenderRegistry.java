@@ -53,21 +53,30 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
 			b.addKey(LogProperties.APPENDERS_PROPERTY);
 		}
-		var appenderNames = b.build();
+		var appenderNamesProperty = b.build();
 
-		List<LogProvider<LogAppender>> appenders = new ArrayList<>();
-
-		Result<List<String>> result = appenderNames.get(config.properties());
+		Result<List<String>> result = appenderNamesProperty.get(config.properties());
 
 		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
 			result = result.or(() -> addDefaultAppenderNames(config));
 		}
+		// List<LogProvider<LogAppender>> appenders = new ArrayList<>();
 
-		var _appenderNames = result.value().stream().distinct().toList();
-		for (String appenderName : _appenderNames) {
-			appenders.add(appender(appenderName));
-		}
-		return appenders;
+		var _r = result;
+		return result.<List<LogProvider<LogAppender>>>map(appenderNames -> {
+			List<LogProvider<LogAppender>> appenders = new ArrayList<>();
+			for (String appenderName : appenderNames.stream().distinct().toList()) {
+				appenders.add(appender(appenderName)
+					.describe("Appender: '" + appenderName + "' from property: " + _r.describe()));
+			}
+			return appenders;
+		}).value();
+
+		// var _appenderNames = result.value().stream().distinct().toList();
+		// for (String appenderName : _appenderNames) {
+		// appenders.add(appender(appenderName));
+		// }
+		// return appenders;
 	}
 
 	private static List<String> addDefaultAppenderNames(LogConfig config) {

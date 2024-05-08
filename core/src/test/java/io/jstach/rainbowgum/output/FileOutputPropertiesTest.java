@@ -18,6 +18,7 @@ import io.jstach.rainbowgum.EnumCombinations;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.FileOutputTest.Events;
 
@@ -43,7 +44,8 @@ class FileOutputPropertiesTest {
 			assertEquals(expected, actual);
 
 		}
-		catch (LogProperty.PropertyConvertException | LogProperty.PropertyMissingException e) {
+		catch (LogProperty.PropertyConvertException | LogProperty.PropertyMissingException
+				| LogProvider.ProvisionException e) {
 			e.printStackTrace();
 			String expected = properties.exceptionMessage();
 			String actual = e.getMessage();
@@ -82,6 +84,8 @@ class FileOutputPropertiesTest {
 			String exceptionMessage() {
 				String uri = Paths.get(FILE_PATH).toUri().toString();
 				String message = """
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
 						Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah' cause:
 						Validation failed for io.jstach.rainbowgum.output.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], java.lang.NumberFormatException For input string: "blah"
@@ -110,6 +114,8 @@ class FileOutputPropertiesTest {
 			@Nullable
 			String exceptionMessage() {
 				return """
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
 						Property missing. keys: ['logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name], 'logging.appender.file.output' from PROPERTIES_STRING[logging.appender.file.output], ENVIRONMENT_VARIABLES[logging_appender_file_output]]""";
 			}
 		}

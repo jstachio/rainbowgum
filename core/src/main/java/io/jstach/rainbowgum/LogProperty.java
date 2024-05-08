@@ -309,6 +309,14 @@ public sealed interface LogProperty {
 		public Result<T> or(Supplier<T> fallback);
 
 		/**
+		 * Map a result
+		 * @param <U> result type
+		 * @param mapper mapping function.
+		 * @return mapped result.
+		 */
+		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
+
+		/**
 		 * Gets a value if there if not uses the fallback if not null otherwise throws an
 		 * exception.
 		 * @param fallback maybe <code>null</code>.
@@ -327,6 +335,12 @@ public sealed interface LogProperty {
 		default Optional<T> optional() {
 			return Optional.ofNullable(valueOrNull());
 		}
+
+		/**
+		 * A description of the result for error messages.
+		 * @return description.
+		 */
+		public String describe();
 
 		/**
 		 * A property that is present.
@@ -383,6 +397,22 @@ public sealed interface LogProperty {
 					}
 				}
 
+				@Override
+				public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
+					try {
+						U u = mapper._apply(value);
+						return new ValueSuccess<>(key, u);
+					}
+					catch (Exception e) {
+						return Error.of(key, e);
+					}
+				}
+
+				@Override
+				public String describe() {
+					return "Fallback[" + key + "]=" + value;
+				}
+
 			}
 
 			/**
@@ -392,7 +422,7 @@ public sealed interface LogProperty {
 			 * @param value actual value.
 			 * @param property found property.
 			 */
-			public record PropertySuccess<T>(T value, FoundProperty property) implements Success<T> {
+			public record PropertySuccess<T>(FoundProperty property, T value) implements Success<T> {
 				/**
 				 * Successfully found property value.
 				 * @param value actual value should not be <code>null</code>.
@@ -407,6 +437,22 @@ public sealed interface LogProperty {
 				@Override
 				public String key() {
 					return property.key();
+				}
+
+				@Override
+				public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
+					try {
+						U u = mapper._apply(value);
+						return new PropertySuccess<>(property, u);
+					}
+					catch (Exception e) {
+						return Error.of(property.key(), e);
+					}
+				}
+
+				@Override
+				public String describe() {
+					return "Property[" + property.key() + "]=" + property.valueDescription();
 				}
 
 			}
@@ -475,6 +521,16 @@ public sealed interface LogProperty {
 				return (Missing<R>) this;
 			}
 
+			@Override
+			public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
+				return convert();
+			}
+
+			@Override
+			public String describe() {
+				return "Missing[" + keys + "]";
+			}
+
 		}
 
 		/**
@@ -524,6 +580,21 @@ public sealed interface LogProperty {
 			@SuppressWarnings("unchecked")
 			public <R> Error<R> convert() {
 				return (Error<R>) this;
+			}
+
+			@Override
+			public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
+				return convert();
+			}
+
+			static <U> Error<U> of(String resolvedKey, Exception cause) {
+				String message = "Error for property. key: " + resolvedKey + ", " + cause.getMessage();
+				return new Error<U>(resolvedKey, message, cause);
+			}
+
+			@Override
+			public String describe() {
+				return "Error[" + key + "](" + message + ")";
 			}
 		}
 
@@ -933,7 +1004,7 @@ public sealed interface LogProperty {
 
 			static <T, R> Success<R> convert(Success<T> success, R value) {
 				return switch (success) {
-					case Success.PropertySuccess<T> ps -> new Success.PropertySuccess<R>(value, ps.property);
+					case Success.PropertySuccess<T> ps -> new Success.PropertySuccess<R>(ps.property, value);
 					case Success.ValueSuccess<T> vs -> new Success.ValueSuccess<R>(vs.key(), value);
 				};
 			}
@@ -950,7 +1021,7 @@ public sealed interface LogProperty {
 				if (prop == null) {
 					return missingResult(props, List.of(key));
 				}
-				return new Result.Success.PropertySuccess<>(prop.value(), prop);
+				return new Result.Success.PropertySuccess<>(prop, prop.value());
 			}
 
 			@SuppressWarnings("null") // TODO eclipse null bug
@@ -965,7 +1036,7 @@ public sealed interface LogProperty {
 				if (prop == null) {
 					return missingResult(props, List.of(key));
 				}
-				return new Result.Success.PropertySuccess<>(prop.value(), prop);
+				return new Result.Success.PropertySuccess<>(prop, prop.value());
 			}
 
 			@SuppressWarnings("null") // TODO eclipse null bug
@@ -975,7 +1046,7 @@ public sealed interface LogProperty {
 				if (v == null) {
 					return missingResult(props, List.of(key));
 				}
-				return new Result.Success.PropertySuccess<>(v.value(), v);
+				return new Result.Success.PropertySuccess<>(v, v.value());
 			}
 
 			@Override
@@ -983,10 +1054,9 @@ public sealed interface LogProperty {
 				return value;
 			}
 
-			<T> Result.Error<T> errorResult(LogProperties props, String key, Exception e) {
-				String resolvedKey = props.description(fullyQualifiedKey(key));
-				String message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
-				return new Result.Error<>(resolvedKey, message, e);
+			<T> Result.Error<T> errorResult(LogProperties props, String fqk, Exception e) {
+				String resolvedKey = props.description(fqk);
+				return Result.Error.of(resolvedKey, e);
 			}
 
 			<T> Result.Error<T> errorResult(LogProperties props, String key, Exception e, Success<?> previousResult) {
@@ -995,11 +1065,11 @@ public sealed interface LogProperty {
 					case Success.ValueSuccess<?> vs -> null;
 					case Success.PropertySuccess<?> ps -> ps.property();
 				};
+				String fqk = fullyQualifiedKey(key);
 				if (fp == null) {
-					return errorResult(props, key, e);
+					return errorResult(props, fqk, e);
 				}
 				var badProps = fp.properties();
-				String fqk = fullyQualifiedKey(key);
 				String resolvedKey = "'" + fqk + "' from " + badProps.description(fqk);
 				String message;
 				if (e instanceof PropertyConvertException || e instanceof ValidationException) {

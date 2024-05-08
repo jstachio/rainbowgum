@@ -374,7 +374,9 @@ public sealed interface LogRouter extends LogLifecycle {
 						.value(() -> LogPublisher.SyncLogPublisher.builder().build());
 				}
 
-				var apps = appenders.stream().map(a -> a.provide(name, config)).toList();
+				var apps = LogProvider.flatten(appenders)
+					.describe(n -> "Appenders for route: '" + n + "'")
+					.provide(name, config);
 				var pub = publisher.create(name, config, apps);
 
 				return factory.create(pub, levelResolver, name, config);

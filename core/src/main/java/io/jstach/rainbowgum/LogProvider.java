@@ -1,5 +1,10 @@
 package io.jstach.rainbowgum;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
@@ -26,13 +31,13 @@ public interface LogProvider<T> {
 	/**
 	 * Convenience for flattening nullable providers.
 	 * @param <U> component
-	 * @param name name of parent component and can be ignored if not needed.
 	 * @param provider nullable provider
+	 * @param name name of parent component and can be ignored if not needed.
 	 * @param config config used to provide if not null.
 	 * @return maybe null component.
 	 */
 	@SuppressWarnings("exports")
-	public static <U> @Nullable U provideOrNull(String name, @Nullable LogProvider<U> provider, LogConfig config) {
+	public static <U> @Nullable U provideOrNull(@Nullable LogProvider<U> provider, String name, LogConfig config) {
 		if (provider == null) {
 			return null;
 		}
@@ -47,6 +52,67 @@ public interface LogProvider<T> {
 	 */
 	public static <U> LogProvider<U> of(U instance) {
 		return (n, c) -> instance;
+	}
+
+	/**
+	 * Wraps with an error description.
+	 * @param description description function passed the name and returns description.
+	 * @return wrapped provider.
+	 */
+	default LogProvider<T> describe(String description) {
+		return wrap(this, (k, t) -> "Failure providing " + description + ". cause:\n" + t.getMessage());
+	}
+
+	/**
+	 * Wraps with an error description.
+	 * @param description description function passed the name and returns description.
+	 * @return wrapped provider.
+	 */
+	default LogProvider<T> describe(Function<String, String> description) {
+		return wrap(this, (k, t) -> "Failure providing " + description.apply(k) + ". cause:\n" + t.getMessage());
+	}
+
+	private static <U> LogProvider<U> wrap(LogProvider<U> provider, BiFunction<String, Throwable, String> description) {
+		return (n, c) -> {
+			try {
+				return provider.provide(n, c);
+			}
+			catch (Exception e) {
+				@SuppressWarnings("null")
+				String desc = description.apply(n, e);
+				throw new ProvisionException(desc, e);
+			}
+		};
+	}
+
+	/**
+	 * Flattens a list of providers to a single provider of a list.
+	 * @param <U> provider type.
+	 * @param providers list of providers.
+	 * @return provider of list.
+	 */
+	public static <U> LogProvider<List<U>> flatten(List<LogProvider<U>> providers) {
+		return (n, c) -> {
+			List<U> list = new ArrayList<>();
+			for (var p : providers) {
+				list.add(p.provide(n, c));
+			}
+			return list;
+		};
+	}
+
+	/**
+	 * Thrown if a provider fails and a description needs to be added.
+	 */
+	public static class ProvisionException extends RuntimeException {
+
+		private static final long serialVersionUID = -1666167238381090332L;
+
+		ProvisionException(String message, Throwable cause) {
+			super(message, cause);
+			// TODO Auto-generated constructor stub
+		}
+
 	}
 
 }
