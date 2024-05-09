@@ -99,43 +99,6 @@ public sealed interface RainbowGumServiceProvider {
 	public static int PASSES = 4;
 
 	/**
-	 * Called after {@link ServiceRegistry} has been loaded to do registering of services.
-	 * <p>
-	 * The registrator has the option to return <code>false</code> to indicate a retry
-	 * needs to be made. This is a simple way to handle dependency needs of one
-	 * registrator needing another to run prior.
-	 *
-	 * @see ServiceRegistry
-	 */
-	@FunctionalInterface
-	public non-sealed interface Registrator extends RainbowGumServiceProvider {
-
-		/**
-		 * Do registration of services before anything else is loaded.
-		 * @param registry registry.
-		 * @param pass info on what pass this is.
-		 * @return <code>true</code> if all dependencies were found.
-		 */
-		boolean register(ServiceRegistry registry, Pass pass);
-
-	}
-
-	// /**
-	// * Provides config from registry and properties.
-	// */
-	// public non-sealed interface ConfigProvider extends RainbowGumServiceProvider {
-	//
-	// /**
-	// * Provide config from registry and properties.
-	// * @param registry registry.
-	// * @param properties properties.
-	// * @return config.
-	// */
-	// LogConfig provideConfig(ServiceRegistry registry, LogProperties properties);
-	//
-	// }
-
-	/**
 	 * Called after {@link LogConfig} has been loaded to do various custom initialization
 	 * like registering {@link io.jstach.rainbowgum.LogOutput.OutputProvider}s.
 	 * <p>
