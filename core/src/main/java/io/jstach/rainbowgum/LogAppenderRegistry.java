@@ -38,7 +38,7 @@ record AppenderConfig(String name, @Nullable LogOutput output, @Nullable LogEnco
 
 final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
-	static final Property<URI> fileProperty = Property.builder().toURI().build(LogProperties.FILE_PROPERTY);
+	static final Property<URI> fileProperty = Property.builder().ofURI().build(LogProperties.FILE_PROPERTY);
 
 	/*
 	 * TODO The shit in here is a mess because auto configuration of appenders based on
@@ -47,7 +47,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	 */
 	static List<LogProvider<LogAppender>> appenders(LogConfig config, String routeName) {
 		var b = Property.builder() //
-			.toList() //
+			.ofList() //
 			.withKey(LogProperties.ROUTE_APPENDERS_PROPERTY) //
 			.addNameParam(routeName);
 		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
@@ -125,7 +125,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	static LogAppender fileAppender(LogConfig config) {
 		final String name = LogAppender.FILE_APPENDER_NAME;
 		Property<LogOutput> fileProperty = Property.builder() //
-			.toURI() //
+			.ofURI() //
 			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
 			.withKey(LogProperties.FILE_PROPERTY)
 			.addKeyWithName(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
@@ -199,7 +199,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	private static Property<LogOutput> outputProperty(String propertyName, String name, LogConfig config) {
 		return Property.builder() //
-			.toURI() //
+			.ofURI() //
 			.mapResult(u -> LogOutput.of(LogProviderRef.of(u))) //
 			.map(p -> p.provide(name, config))
 			.buildWithName(propertyName, name);
@@ -207,7 +207,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	private static Property<LogEncoder> encoderProperty(String propertyName, String name, LogConfig config) {
 		return Property.builder() //
-			.toURI() //
+			.ofURI() //
 			.map(u -> LogEncoder.of(u)) //
 			.map(p -> p.provide(name, config))
 			.buildWithName(propertyName, name);

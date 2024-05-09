@@ -367,7 +367,7 @@ public sealed interface LogRouter extends LogLifecycle {
 
 				if (publisher == null) {
 					publisher = Property.builder() //
-						.toURI() //
+						.ofURI() //
 						.map(u -> config.publisherRegistry().provide(u, name, config.properties()))
 						.buildWithName(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
 						.get(config.properties())

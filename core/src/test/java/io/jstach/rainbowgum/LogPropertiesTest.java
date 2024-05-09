@@ -261,7 +261,7 @@ class LogPropertiesTest {
 		assertEquals(expected, actual);
 		actual = LogProperty.builder()
 			.withPrefix(LogProperties.ROOT_PREFIX) //
-			.toMap()
+			.ofMap()
 			.build("a")
 			.get(props)
 			.value();

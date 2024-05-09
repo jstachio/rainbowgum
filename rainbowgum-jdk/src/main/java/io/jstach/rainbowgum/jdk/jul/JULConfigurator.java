@@ -27,11 +27,11 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	public static final String JUL_LEVEL_DISABLE_PROPERTY = "logging.jul.level.disable";
 
 	static final Property<Boolean> JUL_DISABLE_PROPERTY_ = Property.builder()
-		.toBoolean() //
+		.ofBoolean() //
 		.build(JUL_DISABLE_PROPERTY);
 
 	static final Property<Boolean> JUL_LEVEL_DISABLE_PROPERTY_ = Property.builder()
-		.toBoolean() //
+		.ofBoolean() //
 		.build(JUL_LEVEL_DISABLE_PROPERTY);
 
 	/**

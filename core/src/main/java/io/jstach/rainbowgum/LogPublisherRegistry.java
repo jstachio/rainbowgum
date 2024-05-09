@@ -109,7 +109,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 		@Override
 		protected PublisherFactory provide(String name, LogProperties properties) {
 			int _bufferSize = Property.builder()
-				.toInt() //
+				.ofInt() //
 				.buildWithName(BUFFER_SIZE_PROPERTY, name) //
 				.get(properties) //
 				.value(ASYNC_BUFFER_SIZE);

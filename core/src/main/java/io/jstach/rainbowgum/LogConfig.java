@@ -315,7 +315,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	static final PropertyGetter<Set<ChangeType>> changeSetting = PropertyGetter.of()
 		.withSearch(LogProperties.CHANGE_PREFIX)
-		.toList()
+		.ofList()
 		.map(s -> ChangeType.parse(s));
 
 	private final Collection<Consumer<? super LogConfig>> consumers = new CopyOnWriteArrayList<Consumer<? super LogConfig>>();
@@ -396,7 +396,7 @@ final class DefaultLogConfig implements LogConfig {
 		this.properties = properties;
 		this.levelResolver = levelResolver;
 		boolean changeable = Property.builder() //
-			.toBoolean()
+			.ofBoolean()
 			.build(LogProperties.GLOBAL_CHANGE_PROPERTY)
 			.get(properties)
 			.value(false);

@@ -260,7 +260,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 			var config = this.config;
 			if (routes.isEmpty()) {
 				List<String> routeNames = Property.builder() //
-					.toList()
+					.ofList()
 					.build(LogProperties.ROUTES_PROPERTY)
 					.get(config.properties())
 					.value(List.of());

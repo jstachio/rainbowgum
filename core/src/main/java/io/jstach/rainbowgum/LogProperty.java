@@ -763,18 +763,23 @@ public sealed interface LogProperty {
 
 		}
 
+		<T> Property<T> property(PropertyGetter<T> getter) {
+			var keys = buildKeys();
+			return getter.build(keys.get(0), keys.subList(1, keys.size()).toArray(new String[] {}));
+		}
+
+		private static Function<String, @Nullable String> fallback(Function<String, @Nullable String> a,
+				Function<String, @Nullable String> b) {
+			return k -> {
+				var v = a.apply(k);
+				if (v != null)
+					return v;
+				return b.apply(k);
+			};
+		}
+
 		abstract B self();
 
-	}
-
-	private static Function<String, @Nullable String> fallback(Function<String, @Nullable String> a,
-			Function<String, @Nullable String> b) {
-		return k -> {
-			var v = a.apply(k);
-			if (v != null)
-				return v;
-			return b.apply(k);
-		};
 	}
 
 	/**
@@ -782,11 +787,11 @@ public sealed interface LogProperty {
 	 *
 	 * @param <T> value type.
 	 */
-	final class PropertyBuilder<T> extends AbstractKeyBuilder<PropertyBuilder<T>> {
+	final class PropertyKeyBuilder<T> extends AbstractKeyBuilder<PropertyKeyBuilder<T>> {
 
 		private final PropertyGetter<T> getter;
 
-		private PropertyBuilder(PropertyGetter<T> getter) {
+		private PropertyKeyBuilder(PropertyGetter<T> getter) {
 			this.getter = getter;
 		}
 
@@ -800,7 +805,7 @@ public sealed interface LogProperty {
 		}
 
 		@Override
-		protected PropertyBuilder<T> self() {
+		protected PropertyKeyBuilder<T> self() {
 			return this;
 		}
 
@@ -884,8 +889,8 @@ public sealed interface LogProperty {
 		 * @param key first key to try.
 		 * @return builder to add more keys.
 		 */
-		default PropertyBuilder<T> withKey(String key) {
-			return new PropertyBuilder<>(this).addKey(key);
+		default PropertyKeyBuilder<T> withKey(String key) {
+			return new PropertyKeyBuilder<>(this).addKey(key);
 		}
 
 		/**
@@ -962,7 +967,7 @@ public sealed interface LogProperty {
 		 * While you can map the string properties with {@link #map(PropertyFunction)} it
 		 * is preferred to use the <code>to</code> methods on this class for basic types
 		 * especially for list or map types as the implementation will call the
-		 * implementation specific in LogProperties. An example is {@link #toMap()} which
+		 * implementation specific in LogProperties. An example is {@link #ofMap()} which
 		 * will call the LogProperties implementation of
 		 * {@link LogProperties#mapOrNull(String)}.
 		 *
@@ -1126,7 +1131,7 @@ public sealed interface LogProperty {
 			 * An integer property getter.
 			 * @return getter that will convert to integers.
 			 */
-			public PropertyGetter<Integer> toInt() {
+			public PropertyGetter<Integer> ofInt() {
 				return map(Integer::parseInt);
 			}
 
@@ -1134,7 +1139,7 @@ public sealed interface LogProperty {
 			 * A boolean property getter.
 			 * @return getter that will convert to boolean.
 			 */
-			public PropertyGetter<Boolean> toBoolean() {
+			public PropertyGetter<Boolean> ofBoolean() {
 				return map(Boolean::parseBoolean);
 			}
 
@@ -1142,7 +1147,7 @@ public sealed interface LogProperty {
 			 * A Map property that will use {@link LogProperties#mapOrNull(String)}.
 			 * @return getter that will convert string property to a Map.
 			 */
-			public PropertyGetter<Map<String, String>> toMap() {
+			public PropertyGetter<Map<String, String>> ofMap() {
 				return new MapGetter(this);
 			}
 
@@ -1150,7 +1155,7 @@ public sealed interface LogProperty {
 			 * A list property that will use {@link LogProperties#listOrNull(String)}.
 			 * @return getter that will convert string property to a List.
 			 */
-			public PropertyGetter<List<String>> toList() {
+			public PropertyGetter<List<String>> ofList() {
 				return new ListGetter(this);
 			}
 
@@ -1158,7 +1163,7 @@ public sealed interface LogProperty {
 			 * A URI property getter that parses URIs.
 			 * @return getter that will parse URIs.
 			 */
-			public PropertyGetter<URI> toURI() {
+			public PropertyGetter<URI> ofURI() {
 				return map(URI::new);
 			}
 

@@ -107,10 +107,10 @@ record BuilderModel( //
 				return ".map(_v -> " + converter.methodName + "(_v))";
 			}
 			return switch (type) {
-				case INTEGER_TYPE -> ".toInt()";
+				case INTEGER_TYPE -> ".ofInt()";
 				case STRING_TYPE -> null;
-				case URI_TYPE -> ".toURI()";
-				case BOOLEAN_TYPE -> ".toBoolean()";
+				case URI_TYPE -> ".ofURI()";
+				case BOOLEAN_TYPE -> ".ofBoolean()";
 				default -> throw new IllegalStateException(type + " is not supported");
 			};
 		}

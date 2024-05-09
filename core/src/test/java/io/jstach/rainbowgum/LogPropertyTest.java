@@ -19,7 +19,7 @@ class LogPropertyTest {
 			.build()
 			.put("p1", "v1");
 		var b = LogProperty.builder().withPrefix(LogProperties.ROOT_PREFIX);
-		var r1 = b.toInt().build("p1").get(properties).or(1);
+		var r1 = b.ofInt().build("p1").get(properties).or(1);
 		var r2 = b.build("p2").get(properties);
 		var r3 = b.build("p3").get(properties).or("fallback");
 		@SuppressWarnings("null")
