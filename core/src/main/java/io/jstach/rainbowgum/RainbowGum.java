@@ -39,13 +39,15 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 	public Optional<RainbowGum> provide(LogConfig config) {
 
 		Property<Integer> bufferSize = Property.builder()
-			.map(Integer::parseInt)
+			.ofInt()
 			.build("logging.custom.async.bufferSize");
 
-		Property<LogProvider<LogOutput>> output = Property.builder()
-			.map(URI::create)
-			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
-			.build("logging.custom.output");
+		LogProvider<LogOutput> output = Property.builder()
+			.ofProviderRef()
+			.map(LogOutput::of)
+			.orElse(LogOutput.ofStandardOut())
+			.withKey("logging.custom.output")
+			.provider(o -> o);
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
@@ -54,7 +56,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 					.bufferSize(bufferSize.get(config.properties()).value(1024)) //
 					.build());
 				r.appender("console", a -> {
-					a.output(output.get(config.properties()).value(LogOutput.ofStandardOut()));
+					a.output(output);
 				});
 				r.level(Level.INFO);
 			})

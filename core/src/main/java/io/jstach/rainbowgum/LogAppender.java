@@ -226,7 +226,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		}
 
 		/**
-		 * If thread safety is not needed because it is take care of through a publisher
+		 * If thread safety is not needed because it is taken care of through a publisher
 		 * this call will attempt to return the orginal non thread safe appender.
 		 * @return wrapped un-threadsafe appender.
 		 */

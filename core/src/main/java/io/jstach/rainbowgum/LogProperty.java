@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -354,19 +355,25 @@ public sealed interface LogProperty {
 				return value();
 			}
 
+			/**
+			 * Gets the value and will never fail for Success.
+			 * @return value.
+			 */
 			@Override
-			default T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
-					throws NoSuchElementException {
+			public T value();
+
+			@Override
+			default T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback) {
 				return value();
 			}
 
 			@Override
-			default Result<T> or(@Nullable T fallback) {
+			default Success<T> or(@Nullable T fallback) {
 				return this;
 			}
 
 			@Override
-			default Result<T> or(Supplier<T> fallback) {
+			default Success<T> or(Supplier<T> fallback) {
 				return this;
 			}
 
@@ -522,7 +529,7 @@ public sealed interface LogProperty {
 			}
 
 			@Override
-			public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
+			public <U> Missing<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
 				return convert();
 			}
 
@@ -552,23 +559,23 @@ public sealed interface LogProperty {
 			}
 
 			@Override
-			public T value() throws NoSuchElementException {
+			public T value() throws PropertyConvertException {
 				throw new PropertyConvertException(key, message, cause);
 			}
 
 			@Override
 			public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
-					throws NoSuchElementException {
+					throws PropertyConvertException {
 				throw new PropertyConvertException(key, message, cause);
 			}
 
 			@Override
-			public Result<T> or(@Nullable T fallback) {
+			public Error<T> or(@Nullable T fallback) {
 				return this;
 			}
 
 			@Override
-			public Result<T> or(Supplier<T> fallback) {
+			public Error<T> or(Supplier<T> fallback) {
 				return this;
 			}
 
@@ -583,7 +590,7 @@ public sealed interface LogProperty {
 			}
 
 			@Override
-			public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
+			public <U> Error<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
 				return convert();
 			}
 
@@ -640,6 +647,9 @@ public sealed interface LogProperty {
 		 */
 		public <U> Property<U> map(PropertyFunction<? super T, ? extends U, ? super Exception> mapper);
 
+		/*
+		 * TODO do we really need propertyString?
+		 */
 		/**
 		 * Converts the value into a String that can be parsed by the built-in properties
 		 * parsing of types. Supported types: String, Boolean, Integer, URI, Map, List.
@@ -688,16 +698,13 @@ public sealed interface LogProperty {
 	 *
 	 * @param <B> this.
 	 */
-	sealed abstract class AbstractKeyBuilder<B> {
+	sealed abstract class AbstractKeysBuilder<B> {
 
-		private List<KeyEntry> keys = new ArrayList<>();
+		private List<PartialKey> keys = new ArrayList<>();
 
 		private Map<String, String> params = new LinkedHashMap<>();
 
-		private record KeyEntry(String key, Map<String, String> params) {
-		}
-
-		AbstractKeyBuilder() {
+		AbstractKeysBuilder() {
 		}
 
 		/**
@@ -706,7 +713,7 @@ public sealed interface LogProperty {
 		 * @return this
 		 */
 		public B addKey(String key) {
-			keys.add(new KeyEntry(key, new LinkedHashMap<>()));
+			keys.add(new PartialKey(key, new LinkedHashMap<>()));
 			return self();
 		}
 
@@ -754,32 +761,52 @@ public sealed interface LogProperty {
 
 		}
 
-		List<String> buildKeys() {
-			return keys.stream().map(e -> {
-				String key = e.key();
-				var parameters = e.params();
-				return LogProperties.interpolateKey(key, fallback(parameters::get, params::get));
-			}).distinct().toList();
-
+		PartialKeys buildKeys() {
+			return new PartialKeys(keys, params);
 		}
 
-		<T> Property<T> property(PropertyGetter<T> getter) {
-			var keys = buildKeys();
-			return getter.build(keys.get(0), keys.subList(1, keys.size()).toArray(new String[] {}));
+		record PartialKey(String key, Map<String, String> params) {
+			PartialKey makeImmutable() {
+				return new PartialKey(key, Map.copyOf(params));
+			}
+
+			String interpolate(Function<String, @Nullable String> fallback) {
+				return LogProperties.interpolateKey(key, fallback(params::get, fallback));
+			}
 		}
 
-		private static Function<String, @Nullable String> fallback(Function<String, @Nullable String> a,
-				Function<String, @Nullable String> b) {
-			return k -> {
-				var v = a.apply(k);
-				if (v != null)
-					return v;
-				return b.apply(k);
-			};
+		record PartialKeys(List<PartialKey> keys, Map<String, String> params) {
+
+			PartialKeys {
+				keys = keys.stream().map(PartialKey::makeImmutable).toList();
+				params = Map.copyOf(params);
+			}
+
+			List<String> interpolate(Function<String, @Nullable String> paramFunction) {
+				return keys.stream().map(e -> {
+					return e.interpolate(fallback(paramFunction, params::get));
+				}).distinct().toList();
+			}
+
+			List<String> interpolate() {
+				return keys.stream().map(e -> {
+					return e.interpolate(params::get);
+				}).distinct().toList();
+			}
 		}
 
 		abstract B self();
 
+	}
+
+	private static Function<String, @Nullable String> fallback(Function<String, @Nullable String> a,
+			Function<String, @Nullable String> b) {
+		return k -> {
+			var v = a.apply(k);
+			if (v != null)
+				return v;
+			return b.apply(k);
+		};
 	}
 
 	/**
@@ -787,7 +814,7 @@ public sealed interface LogProperty {
 	 *
 	 * @param <T> value type.
 	 */
-	final class PropertyKeyBuilder<T> extends AbstractKeyBuilder<PropertyKeyBuilder<T>> {
+	final class PropertyKeyBuilder<T> extends AbstractKeysBuilder<PropertyKeyBuilder<T>> {
 
 		private final PropertyGetter<T> getter;
 
@@ -800,8 +827,28 @@ public sealed interface LogProperty {
 		 * @return property
 		 */
 		public Property<T> build() {
-			var keys = buildKeys();
+			return property(buildKeys().interpolate());
+		}
+
+		private Property<T> property(List<String> keys) {
 			return getter.build(keys.get(0), keys.subList(1, keys.size()).toArray(new String[] {}));
+		}
+
+		/**
+		 * Creates a provider that will replace <code>{name}</code> property key
+		 * parameters.
+		 * @param <U> provider type.
+		 * @param mapper function to maper property value to provider type.
+		 * @return provider.
+		 */
+		public <U> LogProvider<U> provider(PropertyFunction<T, LogProvider<U>, ? super Exception> mapper) {
+			return (n, c) -> {
+				Map<String, String> named = Map.of(LogProperties.NAME, n);
+				return property(buildKeys().interpolate(named::get)).get(c.properties())
+					.map(mapper)
+					.value()
+					.provide(n, c);
+			};
 		}
 
 		@Override
@@ -957,7 +1004,7 @@ public sealed interface LogProperty {
 		 * @return property getter.
 		 */
 		public static RootPropertyGetter of() {
-			return new RootPropertyGetter("", false);
+			return new RootPropertyGetter("");
 		}
 
 		/**
@@ -965,46 +1012,61 @@ public sealed interface LogProperty {
 		 * prefix the key and search recursively up the key path.
 		 * <p>
 		 * While you can map the string properties with {@link #map(PropertyFunction)} it
-		 * is preferred to use the <code>to</code> methods on this class for basic types
+		 * is preferred to use the <code>of</code> methods on this class for basic types
 		 * especially for list or map types as the implementation will call the
 		 * implementation specific in LogProperties. An example is {@link #ofMap()} which
 		 * will call the LogProperties implementation of
 		 * {@link LogProperties#mapOrNull(String)}.
 		 *
 		 */
-		public final class RootPropertyGetter implements PropertyGetter<String> {
+		public sealed class RootPropertyGetter implements PropertyGetter<String> {
 
-			private final String prefix;
+			protected final String prefix;
 
-			private final boolean search;
-
-			RootPropertyGetter(String prefix, boolean search) {
+			RootPropertyGetter(String prefix) {
 				super();
 				this.prefix = prefix;
-				this.search = search;
 			}
 
-			/**
-			 * Prefix added to the key before looking up in {@link LogProperties}.
-			 * @return prefix.
-			 */
-			String prefix() {
-				return this.prefix;
-			}
+			private final static class SearchPropertyGetter extends RootPropertyGetter {
 
-			/**
-			 * Search if true will recursively search up the key path.
-			 * @return boolean.
-			 */
-			boolean search() {
-				return this.search;
-			}
-
-			private FoundProperty.@Nullable StringProperty stringOrNull(LogProperties props, String key) {
-				if (search) {
-					return props.findOrNull(prefix, key, (p, k) -> p.stringPropertyOrNull(k));
+				SearchPropertyGetter(String prefix) {
+					super(prefix);
 				}
-				return props.stringPropertyOrNull(fullyQualifiedKey(key));
+
+				@Override
+				<T extends @Nullable Object> @Nullable T findOrNull(LogProperties props, String key,
+						BiFunction<LogProperties, String, @Nullable T> func) {
+					return props.findOrNull(prefix, key, func);
+				}
+
+				/**
+				 * Will prefix key.
+				 * @param prefix prefix.
+				 * @return new property getter.
+				 */
+				@Override
+				public SearchPropertyGetter withPrefix(String prefix) {
+					return new SearchPropertyGetter(prefix);
+				}
+
+			}
+
+			<T extends @Nullable Object> @Nullable T findOrNull(LogProperties props, String key,
+					BiFunction<LogProperties, String, @Nullable T> func) {
+				return func.apply(props, fullyQualifiedKey(key));
+			}
+
+			FoundProperty.@Nullable StringProperty stringOrNull(LogProperties props, String key) {
+				return findOrNull(props, key, LogProperties::stringPropertyOrNull);
+			}
+
+			FoundProperty.@Nullable ListProperty listOrNull(LogProperties props, String key) {
+				return findOrNull(props, key, LogProperties::listPropertyOrNull);
+			}
+
+			FoundProperty.@Nullable MapProperty mapOrNull(LogProperties props, String key) {
+				return findOrNull(props, key, LogProperties::mapPropertyOrNull);
 			}
 
 			static <T, R> Success<R> convert(Success<T> success, R value) {
@@ -1016,13 +1078,7 @@ public sealed interface LogProperty {
 
 			@SuppressWarnings("null") // TODO eclipse null bug
 			Result<List<String>> getList(LogProperties props, String key) {
-				FoundProperty.@Nullable ListProperty prop;
-				if (search) {
-					prop = props.findOrNull(prefix, key, (p, k) -> p.listPropertyOrNull(k));
-				}
-				else {
-					prop = props.listPropertyOrNull(fullyQualifiedKey(key));
-				}
+				FoundProperty.@Nullable ListProperty prop = listOrNull(props, key);
 				if (prop == null) {
 					return missingResult(props, List.of(key));
 				}
@@ -1031,13 +1087,7 @@ public sealed interface LogProperty {
 
 			@SuppressWarnings("null") // TODO eclipse null bug
 			Result<Map<String, String>> getMap(LogProperties props, String key) {
-				FoundProperty.@Nullable MapProperty prop;
-				if (search) {
-					prop = props.findOrNull(prefix, key, (p, k) -> p.mapPropertyOrNull(k));
-				}
-				else {
-					prop = props.mapPropertyOrNull(fullyQualifiedKey(key));
-				}
+				FoundProperty.@Nullable MapProperty prop = mapOrNull(props, key);
 				if (prop == null) {
 					return missingResult(props, List.of(key));
 				}
@@ -1110,7 +1160,7 @@ public sealed interface LogProperty {
 			 * @return new property getter.
 			 */
 			public RootPropertyGetter withSearch(String prefix) {
-				return new RootPropertyGetter(prefix, true);
+				return new SearchPropertyGetter(prefix);
 			}
 
 			/**
@@ -1119,7 +1169,7 @@ public sealed interface LogProperty {
 			 * @return new property getter.
 			 */
 			public RootPropertyGetter withPrefix(String prefix) {
-				return new RootPropertyGetter(prefix, search);
+				return new RootPropertyGetter(prefix);
 			}
 
 			@Override
@@ -1165,6 +1215,16 @@ public sealed interface LogProperty {
 			 */
 			public PropertyGetter<URI> ofURI() {
 				return map(URI::new);
+			}
+
+			/**
+			 * A URI based provider reference for component provision.
+			 * @return getter that will parse provider ref
+			 * @see LogOutput#of(LogProviderRef)
+			 */
+			@SuppressWarnings("null") // TODO eclipse bug
+			public PropertyGetter<LogProviderRef> ofProviderRef() {
+				return ofURI().mapResult(r -> LogProviderRef.of(r));
 			}
 
 		}
@@ -1222,6 +1282,28 @@ public sealed interface LogProperty {
 			return new ResultFuncGetter<T, U>(this, mapper, null);
 		}
 
+		/**
+		 * Fallback to value if property not found.
+		 * @param fallback fallback value.
+		 * @return new property getter.
+		 */
+		default PropertyGetter<T> orElse(T fallback) {
+			if (fallback == null) {
+				throw new NullPointerException();
+			}
+			return new FallbackGetter<T>(this, () -> fallback);
+		}
+
+		/**
+		 * Fallback to value if property not found.
+		 * @param fallback supplier.
+		 * @return new property getter.
+		 */
+		default PropertyGetter<T> orElseGet(Supplier<? extends T> fallback) {
+			Objects.requireNonNull(fallback, "fallback");
+			return new FallbackGetter<T>(this, fallback);
+		}
+
 	}
 
 }
@@ -1272,65 +1354,44 @@ enum NoProperty implements LogProperty {
 
 }
 
-// record FallbackGetter<T>(PropertyGetter<T> parent, Supplier<? extends T> fallback)
-// implements ChildPropertyGetter<T> {
-//
-//
-//
-//// @SuppressWarnings("null") // TODO eclipse bug
-//// @Override
-//// public RequiredResult<T> get(LogProperties props, String key) {
-//// var r = parent.get(props, key);
-//// RequiredResult<T> req = switch (r) {
-//// case Result.Missing<T> m -> {
-//// var f = fallback.get();
-//// if (f == null) {
-//// yield PropertyGetter.findRoot(parent) //
-//// .errorResult(props, key, new LogProperty.PropertyMissingException("fallback returned
-// null"));
-//// }
-//// yield new Result.Success.ValueSuccess<>(key, f);
-//// }
-//// case Result.Success<T> s -> s;
-//// case Result.Error<T> e -> e;
-//// };
-//// return req;
-//// }
-//
-// @Override
-// public Result<T> get(
-// LogProperties props,
-// String key) {
-//
-// }
-//
-// @Override
-// public Result<T> get(
-// LogProperties props,
-// List<String> keys) {
-// for (String key : keys) {
-// var r = get(props, key);
-//
-// Result<T> found = switch (r) {
-// case Result.Success<T> s -> s;
-// case Result.Error<T> s -> s;
-// case Result.Missing<T> s -> s.
-// };
-// if (found != null) {
-// return found;
-// }
-// }
-// return findRoot(this).missingResult(props, keys);
-// }
-//
-//
-//
-// @Override
-// public String propertyString(T value) {
-// return parent.propertyString(value);
-// }
-//
-// }
+record FallbackGetter<T>(PropertyGetter<T> parent, Supplier<? extends T> fallback) implements ChildPropertyGetter<T> {
+
+	@Override
+	public String propertyString(T value) {
+		return parent.propertyString(value);
+	}
+
+	@Override
+	public Result<T> get(LogProperties props, String key) {
+		return get(props, List.of(key));
+	}
+
+	@SuppressWarnings("null")
+	@Override
+	public Result<T> get(LogProperties props, List<String> keys) {
+
+		Result<T> r = parent.get(props, keys);
+		return switch (r) {
+			case Result.Success<T> s -> s;
+			case Result.Error<T> s -> s;
+			case Result.Missing<T> s -> {
+				if (keys.isEmpty()) {
+					yield s;
+				}
+				String key = keys.getFirst();
+				var f = fallback.get();
+				if (f == null) {
+					yield PropertyGetter.findRoot(parent) //
+						.errorResult(props, keys.get(0),
+								new LogProperty.PropertyMissingException("fallback returned null"));
+				}
+				yield new Result.Success.ValueSuccess<>(key, f);
+			}
+		};
+
+	}
+
+}
 
 record MapGetter(RootPropertyGetter parent) implements ChildPropertyGetter<Map<String, String>> {
 

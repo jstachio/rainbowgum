@@ -363,7 +363,7 @@ public interface LogProperties {
 	 * values. The first value not missing (not <code>null</code>) will be returned.
 	 * @param <T> result type
 	 * @param root prefix.
-	 * @param key should start with prefix.
+	 * @param key partial key that will have prefix concated on each try of func.
 	 * @param func convert function where <code>null</code> return means to keep
 	 * searching.
 	 * @return closest value or <code>null</code> if no value can be found.

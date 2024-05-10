@@ -101,6 +101,17 @@ public interface LogProvider<T> {
 		};
 	}
 
+	// /**
+	// * Flattens a property of a provider.
+	// * @param <U>
+	// * @param property
+	// * @return
+	// */
+	// public static <U> LogProvider<U> flatten(LogProperty.Property<LogProvider<U>>
+	// property) {
+	// return (n, c) -> property.get(c.properties()).value().provide(n, c);
+	// }
+
 	/**
 	 * Thrown if a provider fails and a description needs to be added.
 	 */

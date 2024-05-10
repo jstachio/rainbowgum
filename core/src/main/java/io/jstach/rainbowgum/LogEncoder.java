@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
 
 import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
@@ -76,8 +77,18 @@ public interface LogEncoder {
 	 * @return provider of encoder.
 	 */
 	public static LogProvider<LogEncoder> of(URI uri) {
+		return of(LogProviderRef.of(uri));
+	}
+
+	/**
+	 * Provides a lazy loaded encoder from a provider ref.
+	 * @param ref uri.
+	 * @return provider of output.
+	 * @apiNote the provider may throw an {@link UncheckedIOException}.
+	 */
+	public static LogProvider<LogEncoder> of(LogProviderRef ref) {
 		return (s, c) -> {
-			return c.encoderRegistry().provide(LogProviderRef.of(uri)).provide(s, c);
+			return c.encoderRegistry().provide(ref).provide(s, c);
 		};
 	}
 

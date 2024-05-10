@@ -60,7 +60,6 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
 			result = result.or(() -> addDefaultAppenderNames(config));
 		}
-		// List<LogProvider<LogAppender>> appenders = new ArrayList<>();
 
 		var _r = result;
 		return result.<List<LogProvider<LogAppender>>>map(appenderNames -> {
@@ -72,6 +71,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			return appenders;
 		}).value();
 
+		// List<LogProvider<LogAppender>> appenders = new ArrayList<>();
 		// var _appenderNames = result.value().stream().distinct().toList();
 		// for (String appenderName : _appenderNames) {
 		// appenders.add(appender(appenderName));
@@ -125,8 +125,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	static LogAppender fileAppender(LogConfig config) {
 		final String name = LogAppender.FILE_APPENDER_NAME;
 		Property<LogOutput> fileProperty = Property.builder() //
-			.ofURI() //
-			.mapResult(u -> LogOutput.of(LogProviderRef.of(u)))
+			.ofProviderRef()
+			.map(LogOutput::of)
 			.withKey(LogProperties.FILE_PROPERTY)
 			.addKeyWithName(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
 			.build()
@@ -134,11 +134,6 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 		return appender(name, config, fileProperty, encoderProperty);
 	}
-
-	@SuppressWarnings("null") // TODO Eclipse Null bug.
-	private static final Property<Boolean> defaultsAppenderBufferProperty = Property.builder()
-		.map(s -> Boolean.parseBoolean(s))
-		.build(LogProperties.concatKey("defaults.appender.buffer"));
 
 	static LogAppender appender( //
 			AppenderConfig appenderConfig, //
@@ -173,8 +168,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			encoder = resolveEncoder(config, output, encoderProperty);
 		}
 
-		return defaultsAppenderBufferProperty.get(properties).value(false) ? new BufferLogAppender(output, encoder)
-				: new DefaultLogAppender(output, encoder);
+		return new DefaultLogAppender(output, encoder);
 	}
 
 	private static LogEncoder resolveEncoder(LogConfig config, LogOutput output, Property<LogEncoder> encoderProperty) {
@@ -197,20 +191,20 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	}
 
-	private static Property<LogOutput> outputProperty(String propertyName, String name, LogConfig config) {
+	private static Property<LogOutput> outputProperty(String propertyKey, String name, LogConfig config) {
 		return Property.builder() //
-			.ofURI() //
-			.mapResult(u -> LogOutput.of(LogProviderRef.of(u))) //
+			.ofProviderRef()
+			.map(LogOutput::of)
 			.map(p -> p.provide(name, config))
-			.buildWithName(propertyName, name);
+			.buildWithName(propertyKey, name);
 	}
 
-	private static Property<LogEncoder> encoderProperty(String propertyName, String name, LogConfig config) {
+	private static Property<LogEncoder> encoderProperty(String propertyKey, String name, LogConfig config) {
 		return Property.builder() //
-			.ofURI() //
-			.map(u -> LogEncoder.of(u)) //
+			.ofProviderRef()
+			.map(LogEncoder::of)
 			.map(p -> p.provide(name, config))
-			.buildWithName(propertyName, name);
+			.buildWithName(propertyKey, name);
 	}
 
 }
