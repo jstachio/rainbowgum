@@ -1488,16 +1488,17 @@ final class MemoizingValue<T> implements LogProperty.PropertyValue<T> {
 
 	// "value" does not need to be volatile; visibility piggy-backs
 	// on volatile read of "initialized".
-	transient Result<T> value;
+	transient @Nullable Result<T> value = null;
 
-	@SuppressWarnings("null")
 	MemoizingValue(Supplier<Result<T>> delegate) {
 		this.delegate = delegate;
 	}
 
+	@SuppressWarnings({"nullness", "null"})
 	@Override
 	public Result<T> get() {
 		// A 2-field variant of Double Checked Locking.
+		
 		if (!initialized) {
 			synchronized (this) {
 				if (!initialized) {
