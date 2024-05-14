@@ -7,6 +7,7 @@ import java.util.List;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogProperty.PropertyValue;
 import io.jstach.rainbowgum.LogProperty.Result;
 
 /**
@@ -107,12 +108,12 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		String name = LogAppender.CONSOLE_APPENDER_NAME;
 
 		var output = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config) //
-			.get(config.properties()) //
+			.get() //
 			.value(() -> LogOutput.ofStandardOut().provide(name, config));
 
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 
-		var encoder = resolveEncoder(config, output, encoderProperty);
+		var encoder = resolveEncoder(config, output, encoderProperty).value();
 
 		var consoleAppender = LogAppender.builder(LogAppender.CONSOLE_APPENDER_NAME)
 			.output(output)
@@ -124,13 +125,13 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	static LogAppender fileAppender(LogConfig config) {
 		final String name = LogAppender.FILE_APPENDER_NAME;
-		Property<LogOutput> fileProperty = Property.builder() //
-			.ofProviderRef()
-			.map(LogOutput::of)
+		PropertyValue<LogOutput> fileProperty = Property.builder() //
+			.ofProvider(LogOutput::of)
+			.map(p -> p.provide(name, config))
 			.withKey(LogProperties.FILE_PROPERTY)
 			.addKeyWithName(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
 			.build()
-			.map(p -> p.provide(name, config));
+			.bind(config.properties());
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 		return appender(name, config, fileProperty, encoderProperty);
 	}
@@ -147,64 +148,53 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	static LogAppender appender( //
 			AppenderConfig appenderConfig, //
 			LogConfig config, //
-			Property<LogOutput> outputProperty, //
-			Property<LogEncoder> encoderProperty) {
+			PropertyValue<LogOutput> outputProperty, //
+			PropertyValue<LogEncoder> encoderProperty) {
 
-		@Nullable
-		LogOutput output = appenderConfig.output();
+		LogOutput output = outputProperty.override(appenderConfig.output());
+
 		@Nullable
 		LogEncoder encoder = appenderConfig.encoder();
-		var properties = config.properties();
-
-		if (output == null) {
-			output = outputProperty.get(properties).value();
-		}
 
 		if (output instanceof LogEncoder e) {
 			encoder = e;
 		}
-
-		if (encoder == null) {
-			encoder = resolveEncoder(config, output, encoderProperty);
-		}
+		encoder = resolveEncoder(config, output, encoderProperty).override(encoder);
 
 		return new DefaultLogAppender(output, encoder);
 	}
 
-	private static LogEncoder resolveEncoder(LogConfig config, LogOutput output, Property<LogEncoder> encoderProperty) {
-		@Nullable
-		LogEncoder encoder;
-		var _output = output;
-		encoder = encoderProperty.get(config.properties()).value(() -> {
+	private static PropertyValue<LogEncoder> resolveEncoder(LogConfig config, LogOutput output,
+			PropertyValue<LogEncoder> encoderProperty) {
+		return encoderProperty.or(() -> {
 			var encoderRegistry = config.encoderRegistry();
-			return encoderRegistry.encoderForOutputType(_output.type());
+			return encoderRegistry.encoderForOutputType(output.type());
 		});
-		return encoder;
 	}
 
 	static LogAppender appender( //
 			String name, //
 			LogConfig config, //
-			Property<LogOutput> outputProperty, Property<LogEncoder> encoderProperty) {
+			PropertyValue<LogOutput> outputProperty, PropertyValue<LogEncoder> encoderProperty) {
 		var builder = new AppenderConfig(name, null, null);
 		return appender(builder, config, outputProperty, encoderProperty);
 
 	}
 
-	private static Property<LogOutput> outputProperty(String propertyKey, String name, LogConfig config) {
+	private static PropertyValue<LogOutput> outputProperty(String propertyKey, String name, LogConfig config) {
 		return Property.builder() //
-			.ofProviderRef()
-			.map(LogOutput::of)
+			.ofProvider(LogOutput::of)
 			.map(p -> p.provide(name, config))
-			.buildWithName(propertyKey, name);
+			.buildWithName(propertyKey, name)
+			.bind(config.properties());
 	}
 
-	private static Property<LogEncoder> encoderProperty(String propertyKey, String name, LogConfig config) {
+	private static PropertyValue<LogEncoder> encoderProperty(String propertyKey, String name, LogConfig config) {
 		return Property.builder() //
-			.ofProviderRef()
-			.map(LogEncoder::of)
+			.ofProvider(LogEncoder::of)
 			.map(p -> p.provide(name, config))
-			.buildWithName(propertyKey, name);
+			.buildWithName(propertyKey, name)
+			.bind(config.properties());
 	}
 
 }

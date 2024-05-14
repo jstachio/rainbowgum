@@ -80,7 +80,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 
 	private LogOutput _register(String name, LogOutput output) {
 		if (outputs.putIfAbsent(name, output) != null) {
-			throw new IllegalArgumentException("Name is already in use. name = '%s'".formatted("name"));
+			throw new IllegalArgumentException("Name is already in use. name = '%s'".formatted(name));
 		}
 		return output;
 	}

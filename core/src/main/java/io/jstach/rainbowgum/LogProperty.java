@@ -22,6 +22,7 @@ import io.jstach.rainbowgum.LogProperty.PropertyFunction;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter.ChildPropertyGetter;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter.RootPropertyGetter;
+import io.jstach.rainbowgum.LogProperty.PropertyValue;
 import io.jstach.rainbowgum.LogProperty.Result;
 import io.jstach.rainbowgum.LogProperty.Result.Success;
 import io.jstach.rainbowgum.annotation.CaseChanging;
@@ -80,6 +81,29 @@ public sealed interface LogProperty {
 	 * Parent interface for property exceptions.
 	 */
 	sealed interface PropertyProblem {
+
+	}
+
+	/**
+	 * Property helper mixin.
+	 */
+	interface PropertySupport {
+
+		/**
+		 * String key value properties.
+		 * @return properties.
+		 */
+		public LogProperties properties();
+
+		/**
+		 * Gets the value for the property.
+		 * @param <T> property type.
+		 * @param property to use for lookup.
+		 * @return value.
+		 */
+		default <T> T value(Property<T> property) {
+			return property.get(properties()).value();
+		}
 
 	}
 
@@ -243,11 +267,84 @@ public sealed interface LogProperty {
 	}
 
 	/**
+	 * A supplier of a property result. Can be lazy but does not have to be. A non lazy
+	 * PropertyValue is {@link Result}.
+	 *
+	 * @param <T> property type.
+	 * @see Result
+	 * @see Property#bind(LogProperties)
+	 */
+	interface PropertyValue<T> {
+
+		/**
+		 * Gets result.
+		 * @return result.
+		 */
+		public Result<T> get();
+
+		/**
+		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
+		 * value.
+		 * @return value.
+		 * @throws PropertyMissingException if there is no value.
+		 * @throws PropertyConvertException if the property failed conversion.
+		 */
+		default T value() throws PropertyMissingException, PropertyConvertException {
+			return get().value();
+		}
+
+		/**
+		 * Returns the current result if fallback is null or returns fallback as a result
+		 * if this result is missing.
+		 * @param fallback maybe <code>null</code>.
+		 * @return value.
+		 */
+		public PropertyValue<T> or(@Nullable T fallback);
+
+		/**
+		 * Returns the current result if success or error otherwise fallback supplier is
+		 * used. If the supplier returns <code>null</code> then the result will be mising.
+		 * @param fallback may return <code>null</code> but not recommended.
+		 * @return value.
+		 */
+		public PropertyValue<T> or(Supplier<T> fallback);
+
+		/**
+		 * Overrides the result with a value if it is not <code>null</code> regardless if
+		 * the original Result is an error or not. <strong>This overrides even an error
+		 * result from {@link #get()}!</strong> This is equivalent to
+		 * <code>replacement == null ? value.value() : replacement;</code>.
+		 * @param replacement value to use to override.
+		 * @return result with replacement if it is not null.
+		 */
+		default T override(@Nullable T replacement) {
+			if (replacement != null) {
+				return replacement;
+			}
+			return value();
+		}
+
+		/**
+		 * Map a result
+		 * @param <U> result type
+		 * @param mapper mapping function.
+		 * @return mapped result.
+		 */
+		public <U> PropertyValue<U> map(PropertyFunction<T, U, ? super Exception> mapper);
+
+	}
+
+	/**
 	 * The result of a property fetched from properties.
 	 *
 	 * @param <T> property type.
 	 */
-	sealed interface Result<T> {
+	sealed interface Result<T> extends PropertyValue<T> {
+
+		@Override
+		default Result<T> get() {
+			return this;
+		}
 
 		/**
 		 * Gets the value.
@@ -275,6 +372,7 @@ public sealed interface LogProperty {
 		 * @throws PropertyMissingException if there is no value.
 		 * @throws PropertyConvertException if the property failed conversion.
 		 */
+		@Override
 		public T value() throws PropertyMissingException, PropertyConvertException;
 
 		/**
@@ -299,6 +397,7 @@ public sealed interface LogProperty {
 		 * @param fallback maybe <code>null</code>.
 		 * @return value.
 		 */
+		@Override
 		public Result<T> or(@Nullable T fallback);
 
 		/**
@@ -307,6 +406,7 @@ public sealed interface LogProperty {
 		 * @param fallback may return <code>null</code> but not recommended.
 		 * @return value.
 		 */
+		@Override
 		public Result<T> or(Supplier<T> fallback);
 
 		/**
@@ -315,6 +415,7 @@ public sealed interface LogProperty {
 		 * @param mapper mapping function.
 		 * @return mapped result.
 		 */
+		@Override
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
 
 		/**
@@ -691,6 +792,15 @@ public sealed interface LogProperty {
 			return PropertyGetter.of();
 		}
 
+		/**
+		 * Creates a memoized supplier for result from the properties.
+		 * @param properties properties
+		 * @return lazy supplier of result of property based on passed in properties.
+		 */
+		default PropertyValue<T> bind(LogProperties properties) {
+			return new MemoizingValue<>(() -> get(properties));
+		}
+
 	}
 
 	/**
@@ -1021,6 +1131,9 @@ public sealed interface LogProperty {
 		 */
 		public sealed class RootPropertyGetter implements PropertyGetter<String> {
 
+			/**
+			 * Prefix to be added to key.
+			 */
 			protected final String prefix;
 
 			RootPropertyGetter(String prefix) {
@@ -1227,6 +1340,19 @@ public sealed interface LogProperty {
 				return ofURI().mapResult(r -> LogProviderRef.of(r));
 			}
 
+			/**
+			 * A URI based provider reference for component provision.
+			 * @param <U> provider type
+			 * @param mapper function to map to provider.
+			 * @return getter that will parse provider ref
+			 * @see LogOutput#of(LogProviderRef)
+			 */
+			@SuppressWarnings("null") // TODO eclipse bug
+			public <U> PropertyGetter<LogProvider<U>> ofProvider(
+					PropertyFunction<? super LogProviderRef, LogProvider<U>, ? super Exception> mapper) {
+				return ofURI().mapResult(r -> LogProviderRef.of(r)).map(mapper);
+			}
+
 		}
 
 		/**
@@ -1351,6 +1477,59 @@ record DefaultProperty<T>(PropertyGetter<T> propertyGetter, List<String> keys) i
 }
 
 enum NoProperty implements LogProperty {
+
+}
+
+final class MemoizingValue<T> implements LogProperty.PropertyValue<T> {
+
+	final Supplier<Result<T>> delegate;
+
+	transient volatile boolean initialized;
+
+	// "value" does not need to be volatile; visibility piggy-backs
+	// on volatile read of "initialized".
+	transient Result<T> value;
+
+	@SuppressWarnings("null")
+	MemoizingValue(Supplier<Result<T>> delegate) {
+		this.delegate = delegate;
+	}
+
+	@Override
+	public Result<T> get() {
+		// A 2-field variant of Double Checked Locking.
+		if (!initialized) {
+			synchronized (this) {
+				if (!initialized) {
+					Result<T> t = Objects.requireNonNull(delegate.get());
+					value = t;
+					initialized = true;
+					return t;
+				}
+			}
+		}
+		return value;
+	}
+
+	@Override
+	public String toString() {
+		return "PropertyValue.memoize(" + delegate + ")";
+	}
+
+	@Override
+	public PropertyValue<T> or(@Nullable T fallback) {
+		return get().or(fallback);
+	}
+
+	@Override
+	public PropertyValue<T> or(Supplier<T> fallback) {
+		return get().or(fallback);
+	}
+
+	@Override
+	public <U> PropertyValue<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
+		return get().map(mapper);
+	}
 
 }
 

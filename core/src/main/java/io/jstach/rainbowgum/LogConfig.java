@@ -26,12 +26,13 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
  * The configuration of a RainbowGum. In some other logging implementations this is called
  * "context".
  */
-public sealed interface LogConfig {
+public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 	/**
 	 * String key value properties.
 	 * @return properties.
 	 */
+	@Override
 	public LogProperties properties();
 
 	/**
@@ -78,6 +79,24 @@ public sealed interface LogConfig {
 	 * @return registry.
 	 */
 	public ServiceRegistry serviceRegistry();
+
+	/**
+	 * Mixin for config support.
+	 */
+	interface ConfigSupport extends LogProperty.PropertySupport {
+
+		/**
+		 * Provides config.
+		 * @return config.
+		 */
+		public LogConfig config();
+
+		@Override
+		default LogProperties properties() {
+			return config().properties();
+		}
+
+	}
 
 	/**
 	 * Config Change Publisher. By default this is enabled with

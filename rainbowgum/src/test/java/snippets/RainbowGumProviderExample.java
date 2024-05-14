@@ -17,11 +17,13 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
 
-		Property<Integer> bufferSize = Property.builder().ofInt().build("logging.custom.async.bufferSize");
+		Property<Integer> bufferSize = Property.builder() //
+			.ofInt()
+			.orElse(1024)
+			.build("logging.custom.async.bufferSize");
 
 		LogProvider<LogOutput> output = Property.builder()
-			.ofProviderRef()
-			.map(LogOutput::of)
+			.ofProvider(LogOutput::of)
 			.orElse(LogOutput.ofStandardOut())
 			.withKey("logging.custom.output")
 			.provider(o -> o);
@@ -30,7 +32,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.route(r -> {
 				r.publisher(PublisherFactory //
 					.async() //
-					.bufferSize(bufferSize.get(config.properties()).value(1024)) //
+					.bufferSize(r.value(bufferSize)) //
 					.build());
 				r.appender("console", a -> {
 					a.output(output);

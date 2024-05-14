@@ -229,7 +229,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		/**
 		 * Router builder.
 		 */
-		public final class Builder extends LevelResolver.AbstractBuilder<Builder> {
+		public final class Builder extends LevelResolver.AbstractBuilder<Builder> implements LogConfig.ConfigSupport {
 
 			private final LogConfig config;
 
@@ -252,6 +252,15 @@ public sealed interface LogRouter extends LogLifecycle {
 			@Override
 			protected Builder self() {
 				return this;
+			}
+
+			/**
+			 * Gets the currently bound config.
+			 * @return config.
+			 */
+			@Override
+			public LogConfig config() {
+				return this.config;
 			}
 
 			/**

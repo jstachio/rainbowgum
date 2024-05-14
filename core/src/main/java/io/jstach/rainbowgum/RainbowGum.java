@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -15,9 +16,11 @@ import java.util.function.Supplier;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
 
 //@formatter:off
 /**
@@ -38,13 +41,13 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
 
-		Property<Integer> bufferSize = Property.builder()
+		Property<Integer> bufferSize = Property.builder() //
 			.ofInt()
+			.orElse(1024)
 			.build("logging.custom.async.bufferSize");
 
 		LogProvider<LogOutput> output = Property.builder()
-			.ofProviderRef()
-			.map(LogOutput::of)
+			.ofProvider(LogOutput::of)
 			.orElse(LogOutput.ofStandardOut())
 			.withKey("logging.custom.output")
 			.provider(o -> o);
@@ -53,7 +56,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.route(r -> {
 				r.publisher(PublisherFactory //
 					.async() //
-					.bufferSize(bufferSize.get(config.properties()).value(1024)) //
+					.bufferSize(r.value(bufferSize)) //
 					.build());
 				r.appender("console", a -> {
 					a.output(output);
