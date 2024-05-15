@@ -274,12 +274,13 @@ public sealed interface LogProperty {
 	 * @see Result
 	 * @see Property#bind(LogProperties)
 	 */
-	interface PropertyValue<T> {
+	interface PropertyValue<T> extends Supplier<Result<T>> {
 
 		/**
 		 * Gets result.
 		 * @return result.
 		 */
+		@Override
 		public Result<T> get();
 
 		/**
@@ -793,12 +794,13 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Creates a memoized supplier for result from the properties.
-		 * @param properties properties
+		 * Creates a lazy result from the properties.
+		 * @param properties properties used to retrieve a value when the supplier is
+		 * called.
 		 * @return lazy supplier of result of property based on passed in properties.
 		 */
 		default PropertyValue<T> bind(LogProperties properties) {
-			return new MemoizingValue<>(() -> get(properties));
+			return new DefaultPropertyValue<>(() -> get(properties));
 		}
 
 	}
@@ -1480,36 +1482,18 @@ enum NoProperty implements LogProperty {
 
 }
 
-final class MemoizingValue<T> implements LogProperty.PropertyValue<T> {
+final class DefaultPropertyValue<T> implements LogProperty.PropertyValue<T> {
 
 	final Supplier<Result<T>> delegate;
 
-	transient volatile boolean initialized;
-
-	// "value" does not need to be volatile; visibility piggy-backs
-	// on volatile read of "initialized".
-	transient @Nullable Result<T> value = null;
-
-	MemoizingValue(Supplier<Result<T>> delegate) {
+	DefaultPropertyValue(Supplier<Result<T>> delegate) {
 		this.delegate = delegate;
 	}
 
 	@SuppressWarnings({ "nullness", "null" })
 	@Override
 	public Result<T> get() {
-		// A 2-field variant of Double Checked Locking.
-
-		if (!initialized) {
-			synchronized (this) {
-				if (!initialized) {
-					Result<T> t = Objects.requireNonNull(delegate.get());
-					value = t;
-					initialized = true;
-					return t;
-				}
-			}
-		}
-		return value;
+		return delegate.get();
 	}
 
 	@Override
@@ -1519,17 +1503,17 @@ final class MemoizingValue<T> implements LogProperty.PropertyValue<T> {
 
 	@Override
 	public PropertyValue<T> or(@Nullable T fallback) {
-		return get().or(fallback);
+		return new DefaultPropertyValue<>(() -> Objects.requireNonNull(delegate.get()).or(fallback));
 	}
 
 	@Override
 	public PropertyValue<T> or(Supplier<T> fallback) {
-		return get().or(fallback);
+		return new DefaultPropertyValue<>(() -> Objects.requireNonNull(delegate.get()).or(fallback));
 	}
 
 	@Override
 	public <U> PropertyValue<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
-		return get().map(mapper);
+		return new DefaultPropertyValue<>(() -> Objects.requireNonNull(delegate.get()).map(mapper));
 	}
 
 }
