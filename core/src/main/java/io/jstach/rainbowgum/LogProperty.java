@@ -1494,11 +1494,11 @@ final class MemoizingValue<T> implements LogProperty.PropertyValue<T> {
 		this.delegate = delegate;
 	}
 
-	@SuppressWarnings({"nullness", "null"})
+	@SuppressWarnings({ "nullness", "null" })
 	@Override
 	public Result<T> get() {
 		// A 2-field variant of Double Checked Locking.
-		
+
 		if (!initialized) {
 			synchronized (this) {
 				if (!initialized) {
