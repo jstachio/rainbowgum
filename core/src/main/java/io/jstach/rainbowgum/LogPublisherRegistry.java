@@ -12,19 +12,7 @@ import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 /**
  * Registry of publishers
  */
-public interface LogPublisherRegistry extends LogPublisher.PublisherProvider {
-
-	/**
-	 * Creates a publisher registry instance.
-	 * @return publisher registry.
-	 */
-	public static LogPublisherRegistry of() {
-		var r = new DefaultPublisherRegistry();
-		for (var p : DefaultPublisherProviders.values()) {
-			r.register(p.scheme(), p);
-		}
-		return r;
-	}
+public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvider {
 
 	/**
 	 * Register a publisher provider by URI scheme.
@@ -68,6 +56,18 @@ final class DefaultPublisherRegistry
 		}
 		var provider = Optional.ofNullable(providers.get(scheme)).orElseThrow();
 		return provider.provide(uri, name, properties);
+	}
+
+	/**
+	 * Creates a publisher registry instance.
+	 * @return publisher registry.
+	 */
+	static LogPublisherRegistry of() {
+		var r = new DefaultPublisherRegistry();
+		for (var p : DefaultPublisherProviders.values()) {
+			r.register(p.scheme(), p);
+		}
+		return r;
 	}
 
 }

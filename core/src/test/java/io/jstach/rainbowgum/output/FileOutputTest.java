@@ -1,7 +1,9 @@
 package io.jstach.rainbowgum.output;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,36 +28,17 @@ import io.jstach.rainbowgum.TestEventBuilder;
 
 class FileOutputTest {
 
+	ListLogOutput list = new ListLogOutput();
+
 	@ParameterizedTest
 	@MethodSource("provideArgs")
 	void test(FileArg fileArg, RunCount runCount, Events test, BufferArg buffer, PrudentArg prudentArg,
 			AppendArg appendArg) throws IOException {
 		String fileName = FILE_PATH;
-		Integer bufferSize = BufferArg.NULL == buffer ? null : buffer.bufferSize;
-		Boolean prudent = prudentArg.prudent();
+
 		try {
-			var list = new ListLogOutput();
 			for (int i = 0; i < runCount.count; i++) {
-				int run = i;
-				var file = FileOutput.of(b -> {
-					fileArg.set(b);
-					if (bufferSize != null) {
-						b.bufferSize(bufferSize);
-					}
-					if (prudent != null) {
-						b.prudent(prudent);
-					}
-					if (appendArg != AppendArg.NOT_SET) {
-						b.append(appendArg.append(run));
-					}
-					b.fromProperties(test.fileProperties());
-				});
-				var gum = makeGum(test, file, list);
-				try (var rg = gum.start()) {
-					for (var e : test.events()) {
-						rg.log(e);
-					}
-				}
+				run(fileArg, test, buffer, prudentArg, appendArg);
 			}
 			String actual = Files.readString(Path.of(fileName));
 			int duplicateCount = switch (appendArg) {
@@ -69,6 +52,117 @@ class FileOutputTest {
 		finally {
 			Files.deleteIfExists(Path.of(fileName));
 		}
+	}
+
+	@ParameterizedTest
+	@MethodSource("provideArgsNoRunCount")
+	void testReopen(FileArg fileArg, Events test, BufferArg buffer, PrudentArg prudentArg, AppendArg appendArg)
+			throws IOException {
+		String fileName = FILE_PATH;
+
+		int count = 2;
+		Files.deleteIfExists(Path.of(fileName));
+		for (int i = 0; i < count; i++) {
+			String newFile = fileName + "." + i;
+			Files.deleteIfExists(Path.of(newFile));
+		}
+		try {
+
+			var file = file(fileArg, test, buffer, prudentArg, appendArg);
+			var gum = makeGum(test, file, list);
+			try (var rg = gum.start()) {
+				assertTrue(Files.exists(Path.of(fileName)));
+				for (var e : test.events()) {
+					rg.log(e);
+				}
+				/*
+				 * Now we signal flush.
+				 */
+				rg.config().outputRegistry().flush();
+				{
+					String actual = Files.readString(Path.of(fileName));
+					String expected = test.expected;
+					assertEquals(expected, actual);
+				}
+				String newFile = fileName + "." + 0;
+				/*
+				 * We move the to simulate rotation.
+				 */
+				Files.move(Path.of(fileName), Path.of(newFile));
+				/*
+				 * We will delete the original file.
+				 */
+				Files.deleteIfExists(Path.of(fileName));
+				assertFalse(Files.exists(Path.of(fileName)));
+
+				/*
+				 * Now we signal reopen.
+				 */
+				var response = rg.config().outputRegistry().reopen();
+				{
+					String actual = Files.readString(Path.of(newFile));
+					String expected = test.expected;
+					assertEquals(expected, actual);
+				}
+				assertEquals("""
+						[Response[name=file, status=OK]]
+						""".trim(), response.toString());
+				assertTrue(Files.exists(Path.of(fileName)));
+				for (var e : test.events()) {
+					rg.log(e);
+				}
+				/*
+				 * Now we signal flush otherwise there maybe buffering and we cannot test
+				 * till flushed.
+				 */
+				rg.config().outputRegistry().flush();
+				{
+					String actual = Files.readString(Path.of(fileName));
+					String expected = test.expected;
+					assertEquals(expected, actual);
+				}
+				{
+					String actual = Files.readString(Path.of(newFile));
+					String expected = test.expected;
+					assertEquals(expected, actual);
+				}
+
+			}
+
+		}
+		finally {
+			Files.deleteIfExists(Path.of(fileName));
+		}
+	}
+
+	private void run(FileArg fileArg, Events test, BufferArg buffer, PrudentArg prudentArg, AppendArg appendArg) {
+		var file = file(fileArg, test, buffer, prudentArg, appendArg);
+		var gum = makeGum(test, file, list);
+		try (var rg = gum.start()) {
+			for (var e : test.events()) {
+				rg.log(e);
+			}
+		}
+	}
+
+	private LogProvider<FileOutput> file(FileArg fileArg, Events test, BufferArg buffer, PrudentArg prudentArg,
+			AppendArg appendArg) {
+		Integer bufferSize = BufferArg.NULL == buffer ? null : buffer.bufferSize;
+		Boolean prudent = prudentArg.prudent();
+		var file = FileOutput.of(b -> {
+			fileArg.set(b);
+			if (bufferSize != null) {
+				b.bufferSize(bufferSize);
+			}
+			if (prudent != null) {
+				b.prudent(prudent);
+			}
+			if (appendArg != AppendArg.NOT_SET) {
+				b.append(appendArg.append());
+			}
+			b.fromProperties(test.fileProperties());
+		});
+		return file;
 	}
 
 	@Test
@@ -211,7 +305,7 @@ class FileOutputTest {
 
 		NOT_SET, FALSE, TRUE;
 
-		public boolean append(int run) {
+		public boolean append() {
 			return switch (this) {
 				case NOT_SET -> true;
 				case FALSE -> false;
@@ -246,6 +340,10 @@ class FileOutputTest {
 	private static Stream<Arguments> provideArgs() {
 		return EnumCombinations.args(FileArg.class, RunCount.class, Events.class, BufferArg.class, PrudentArg.class,
 				AppendArg.class);
+	}
+
+	private static Stream<Arguments> provideArgsNoRunCount() {
+		return EnumCombinations.args(FileArg.class, Events.class, BufferArg.class, PrudentArg.class, AppendArg.class);
 	}
 
 }

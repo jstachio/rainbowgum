@@ -18,6 +18,17 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 	 */
 	public boolean synchronous();
 
+	// /**
+	// * The publisher simply forwards this call to the appenders.
+	// * TODO maybe we only need the appender call.
+	// * An appender can act on actions. One of the key
+	// * actions is reopening files.
+	// * @param action action to run.
+	// * @return responses.
+	// */
+	// @Override
+	// public List<LogAction.Response> act(LogAction action);
+
 	/**
 	 * A factory for a publisher from config and appenders.
 	 */

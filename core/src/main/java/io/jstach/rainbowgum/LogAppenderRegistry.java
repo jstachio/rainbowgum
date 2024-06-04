@@ -160,8 +160,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			encoder = e;
 		}
 		encoder = resolveEncoder(config, output, encoderProperty).override(encoder);
-
-		return new DefaultLogAppender(output, encoder);
+		String name = appenderConfig.name();
+		return new DefaultLogAppender(name, output, encoder);
 	}
 
 	private static PropertyValue<LogEncoder> resolveEncoder(LogConfig config, LogOutput output,

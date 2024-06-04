@@ -39,6 +39,12 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 	 */
 	public void setEncoderForOutputType(OutputType outputType, Supplier<? extends LogEncoder> formatter);
 
+}
+
+final class DefaultEncoderRegistry implements LogEncoderRegistry {
+
+	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
+
 	/**
 	 * Creates encoder registry
 	 * @return encoder registry
@@ -46,12 +52,6 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 	public static LogEncoderRegistry of() {
 		return new DefaultEncoderRegistry();
 	}
-
-}
-
-final class DefaultEncoderRegistry implements LogEncoderRegistry {
-
-	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	private static URI normalize(URI uri) {
 		String scheme = uri.getScheme();

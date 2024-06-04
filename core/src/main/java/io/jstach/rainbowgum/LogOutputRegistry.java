@@ -2,12 +2,13 @@ package io.jstach.rainbowgum;
 
 import java.net.URI;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
-import io.jstach.rainbowgum.DefaultOutputRegistry.StandardLogOutputProvider;
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.output.FileOutputBuilder;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -42,23 +43,21 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	Optional<LogOutput> output(String name);
 
 	/**
-	 * Registers an output by name for lookup.
-	 * @param name name assigned to output.
-	 * @param output for name.
+	 * Attempts to reopen all outputs of a certain type usually for log rotation. This
+	 * call will block if it attempts to reopen. If reopening is already happening an
+	 * empty list will be returned.
+	 * @return the output status of reopened outputs or an empty list if no outputs were
+	 * reopened.
 	 */
-	public void register(String name, LogOutput output);
+	public List<LogResponse> reopen();
 
 	/**
-	 * Default output provider.
-	 * @return default output provider.
+	 * Attempts to flush all outputs usually for log rotation. This call will block if it
+	 * attempts to flush. If flush is already happening an empty list will be returned.
+	 * @return the output status of reopened outputs or an empty list if no outputs were
+	 * reopened.
 	 */
-	public static LogOutputRegistry of() {
-		var r = new DefaultOutputRegistry();
-		for (var p : StandardLogOutputProvider.values()) {
-			r.register(p.scheme(), p);
-		}
-		return r;
-	}
+	public List<LogResponse> flush();
 
 }
 
@@ -68,14 +67,67 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 
 	private final Map<String, OutputProvider> providers = new ConcurrentHashMap<>();
 
-	@Override
-	public void register(String scheme, OutputProvider provider) {
-		providers.put(scheme, provider);
+	private final ServiceRegistry serviceRegistry;
+
+	private final ReentrantLock reopenLock = new ReentrantLock();
+
+	static LogOutputRegistry of(ServiceRegistry serviceRegistry) {
+		var r = new DefaultOutputRegistry(serviceRegistry);
+		for (var p : StandardLogOutputProvider.values()) {
+			r.register(p.scheme(), p);
+		}
+		return r;
+	}
+
+	public DefaultOutputRegistry(ServiceRegistry serviceRegistry) {
+		this.serviceRegistry = serviceRegistry;
 	}
 
 	@Override
-	public void register(String name, LogOutput output) {
-		_register(name, output);
+	public List<LogResponse> reopen() {
+		/*
+		 * TODO check rainbowgum is actually running.
+		 */
+		if (reopenLock.tryLock()) {
+
+			try {
+				return Actor.act(
+						serviceRegistry.find(LogAppender.class).stream().map(a -> InternalLogAppender.of(a)).toList(),
+						LogAction.StandardAction.REOPEN);
+			}
+			finally {
+				reopenLock.unlock();
+			}
+		}
+		else {
+			return List.of();
+		}
+	}
+
+	@Override
+	public List<LogResponse> flush() {
+		/*
+		 * TODO check rainbowgum is actually running.
+		 */
+		if (reopenLock.tryLock()) {
+
+			try {
+				return Actor.act(
+						serviceRegistry.find(LogAppender.class).stream().map(a -> InternalLogAppender.of(a)).toList(),
+						LogAction.StandardAction.FLUSH);
+			}
+			finally {
+				reopenLock.unlock();
+			}
+		}
+		else {
+			return List.of();
+		}
+	}
+
+	@Override
+	public void register(String scheme, OutputProvider provider) {
+		providers.put(scheme, provider);
 	}
 
 	private LogOutput _register(String name, LogOutput output) {

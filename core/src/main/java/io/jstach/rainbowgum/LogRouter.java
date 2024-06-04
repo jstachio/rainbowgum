@@ -383,12 +383,28 @@ public sealed interface LogRouter extends LogLifecycle {
 						.value(() -> LogPublisher.SyncLogPublisher.builder().build());
 				}
 
+				/*
+				 * We register the appenders with the service registry for lookup to call
+				 * actions. See InternalLogAppender.
+				 */
+				appenders = appenders.stream().map(ap -> register(ap, LogAppender.class)).toList();
+
 				var apps = LogProvider.flatten(appenders)
 					.describe(n -> "Appenders for route: '" + n + "'")
 					.provide(name, config);
 				var pub = publisher.create(name, config, apps);
-
 				return factory.create(pub, levelResolver, name, config);
+			}
+
+			/*
+			 * TODO maybe we make this public on LogProvider?
+			 */
+			private static <T> LogProvider<T> register(LogProvider<T> provider, Class<T> type) {
+				return (n, c) -> {
+					var result = provider.provide(n, c);
+					c.serviceRegistry().put(type, n, result);
+					return result;
+				};
 			}
 
 		}

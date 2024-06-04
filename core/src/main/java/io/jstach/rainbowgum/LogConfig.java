@@ -409,7 +409,7 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogPublisherRegistry publisherRegistry;
 
-	public DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver) {
+	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver) {
 		super();
 		this.registry = registry;
 		this.properties = properties;
@@ -420,9 +420,9 @@ final class DefaultLogConfig implements LogConfig {
 			.get(properties)
 			.value(false);
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
-		this.outputRegistry = LogOutputRegistry.of();
-		this.encoderRegistry = LogEncoderRegistry.of();
-		this.publisherRegistry = LogPublisherRegistry.of();
+		this.outputRegistry = DefaultOutputRegistry.of(registry);
+		this.encoderRegistry = DefaultEncoderRegistry.of();
+		this.publisherRegistry = DefaultPublisherRegistry.of();
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {

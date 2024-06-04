@@ -16,10 +16,13 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
+import io.jstach.rainbowgum.LogResponse.Status;
 import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
@@ -68,40 +71,44 @@ public interface FileOutput extends LogOutput {
 	public static FileOutput of(@LogConfigurable.KeyParameter String name, @Nullable URI uri, @Nullable String fileName,
 			@Nullable Boolean append, @Nullable Boolean prudent,
 			@DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize) throws UncheckedIOException {
-		prudent = prudent == null ? false : prudent;
-		append = append == null ? true : append;
+		boolean prudent_ = prudent == null ? false : prudent;
+		boolean append_ = append == null ? true : append;
+		IOSupplier<FileOutput> supplier = () -> {
+			File file;
+			URI uri_ = uri;
+			if (fileName != null) {
+				file = new File(fileName);
+				uri_ = file.toURI();
+			}
+			else if (uri_ != null) {
+				file = new File(uri_);
+			}
+			else {
+				throw new IOException("fileName and uri cannot both be unset.");
+			}
+			createMissingParentDirectories(file);
+			FileOutputStream stream;
+			try {
+				stream = new FileOutputStream(file, append_);
+			}
+			catch (FileNotFoundException e) {
+				throw new UncheckedIOException(e);
+			}
+			if (prudent_) {
+				return new FileChannelOutput(uri_, stream.getChannel());
+			}
+			OutputStream s;
+			Objects.requireNonNull(bufferSize);
+			if (bufferSize <= 0) {
+				s = stream;
+			}
+			else {
+				s = new BufferedOutputStream(stream, bufferSize);
+			}
+			return new FileOutputStreamOutput(uri_, s);
+		};
 
-		File file;
-		if (fileName != null) {
-			file = new File(fileName);
-			uri = file.toURI();
-		}
-		else if (uri != null) {
-			file = new File(uri);
-		}
-		else {
-			throw new RuntimeException("fileName and uri cannot both be unset.");
-		}
-		createMissingParentDirectories(file);
-		FileOutputStream stream;
-		try {
-			stream = new FileOutputStream(file, append);
-		}
-		catch (FileNotFoundException e) {
-			throw new UncheckedIOException(e);
-		}
-		if (prudent) {
-			return new FileChannelOutput(uri, stream.getChannel());
-		}
-		OutputStream s;
-		Objects.requireNonNull(bufferSize);
-		if (bufferSize <= 0) {
-			s = stream;
-		}
-		else {
-			s = new BufferedOutputStream(stream, bufferSize);
-		}
-		return new FileOutputStreamOutput(uri, s);
+		return new ReopenableFileOutput(supplier);
 	}
 
 	/**
@@ -123,6 +130,75 @@ public interface FileOutput extends LogOutput {
 		// already exist; and it's okay if they do.
 		parent.mkdirs();
 		return parent.exists();
+	}
+
+}
+
+@FunctionalInterface
+interface IOSupplier<T> {
+
+	T _get() throws IOException;
+
+	default T get() throws UncheckedIOException {
+		try {
+			return _get();
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+}
+
+class ReopenableFileOutput implements ForwardingOutput, FileOutput {
+
+	private volatile FileOutput fileOutput;
+
+	private @Nullable LogConfig config;
+
+	private final IOSupplier<FileOutput> supplier;
+
+	public ReopenableFileOutput(IOSupplier<FileOutput> supplier) {
+		super();
+		this.supplier = supplier;
+		this.fileOutput = supplier.get();
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		this.config = config;
+		fileOutput.start(config);
+	}
+
+	@Override
+	public @Nullable LogOutput delegate() {
+		return fileOutput;
+	}
+
+	@Override
+	public URI uri() throws UnsupportedOperationException {
+		return fileOutput.uri();
+	}
+
+	@Override
+	public OutputType type() {
+		return fileOutput.type();
+	}
+
+	@Override
+	public BufferHints bufferHints() {
+		return fileOutput.bufferHints();
+	}
+
+	@Override
+	public Status reopen() {
+		this.fileOutput.close();
+		this.fileOutput = supplier.get();
+		var config = this.config;
+		if (config != null) {
+			this.fileOutput.start(config);
+		}
+		return Status.StandardStatus.OK;
 	}
 
 }
