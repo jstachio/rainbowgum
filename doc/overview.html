@@ -541,6 +541,61 @@ Here are some of the supported outputs (not a complete listing):
   <li>{@link io.jstach.rainbowgum.rabbitmq.RabbitMQOutputBuilder} with URI scheme of "amqp"</li>
 </ul>
 
+<h3 id="rolling">Rolling Files</h3>
+
+Rainbow Gum currently does not support rolling of files on its own but does provide a mechanism
+to safely allow external programs such as 
+<a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a> to do the rolling. 
+How this typically works:
+
+<ol>
+<li>External program moves the current log file. Rainbow Gum will continue to log to the same file but the file name is effectively changed.</li>
+<li>Signals to the Java process with Rainbow Gum to reopen the files. This signal is usually done via HTTP or TCP socket since Java does not support Unix signals.</li>
+<li>The external program then typically compresses, delete or send the log files elsewhere.</li>
+</ol>
+
+
+The critical thing that is happening is that Rainbow Gum closes the moved log file and then reopens the original named log file
+thus releasing the moved log file descriptor allowing the external program to process it without dropped log events, contention or corruption.
+<p>
+(<em>The other method of rotating files without doing a move and reopen is called "copy truncate" but has the potential of losing events.
+  This method avoids that problem.
+</em>)
+</p>
+Unfortunately Rainbow Gum does not offer a way to receive the external signal as this can very greatly across applications.
+The following is an example of reopening outputs using HTTP for signaling.
+
+{@snippet class="snippets.RollingExample" region="rollingExample" }
+
+Let us assume the above code is bound to <code>http://localhost:8080/log/rotate</code> and we have configured our logging like
+
+{@snippet lang=properties :
+  logging.appenders=myappender
+  logging.appender.myappender.output=/var/log/app.log
+}
+
+We might have a logrotate script that looks like:
+
+{@snippet :
+/var/log/app.log
+{
+  rotate 4
+  weekly
+  missingok
+  notifempty
+  compress
+  delaycompress
+  sharedscripts
+  postrotate
+    /usr/bin/curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/log/rotate | {
+      read status
+      if [ "$status" -ne 200 ]; then
+          logger "logrotate: Error hitting endpoint, received HTTP status $status"
+      fi
+    }
+  endscript
+}
+}
 
 <h2 id="filter">Filtering</h2>
 
