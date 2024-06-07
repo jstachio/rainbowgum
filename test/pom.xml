@@ -20,7 +20,20 @@
   <module>rainbowgum-test-config</module>
   <module>rainbowgum-test-rabbitmq</module>
   <module>rainbowgum-test-jdk</module>
+  <module>rainbowgum-test-jlink</module>
   </modules>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jlink-plugin</artifactId>
+          <version>3.2.0</version>
+          <extensions>true</extensions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
   <dependencies>
   </dependencies>
 </project>

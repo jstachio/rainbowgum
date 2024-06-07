@@ -7,7 +7,7 @@
   </parent>
   <artifactId>rainbowgum-test-avaje</artifactId>
   <properties>
-    <exec.mainClass>${project.groupId}.log4j.Main</exec.mainClass>
+    <exec.mainClass>${project.groupId}.test.avaje.Main</exec.mainClass>
   </properties>
   <build>
     <plugins>

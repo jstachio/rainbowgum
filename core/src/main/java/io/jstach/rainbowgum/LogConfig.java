@@ -337,6 +337,14 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		.ofList()
 		.map(s -> ChangeType.parse(s));
 
+	/*
+	 * TODO Ideally this would be a concurrent weak hashmap. The reasoning is we may want
+	 * a configuration where SLF4J loggers are not stored in concurrent hash map but some
+	 * sort of GC friendly cache or not cached at all. If they subscribe to changes the
+	 * loggers will never be GCed.
+	 *
+	 * Consequently the functional Consumer interface might not be the best choice.
+	 */
 	private final Collection<Consumer<? super LogConfig>> consumers = new CopyOnWriteArrayList<Consumer<? super LogConfig>>();
 
 	protected abstract LogConfig reload();

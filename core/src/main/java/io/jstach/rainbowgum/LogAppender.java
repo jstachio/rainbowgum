@@ -219,6 +219,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 			// TODO eclipse needs a local variable for some reason
 			ThreadSafeLogAppender rv = switch (appender) {
 				case InternalLogAppender internal -> internal.wrap();
+				default -> throw new IllegalStateException(); // TODO eclipse bug
 			};
 			return rv;
 
@@ -294,13 +295,14 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	LogEncoder encoder();
 
 	default List<LogResponse> _request(LogAction action) {
-		return switch (action) {
+		List<LogResponse> r = switch (action) {
 			case LogAction.StandardAction a -> switch (a) {
 				case LogAction.StandardAction.REOPEN -> List.of(reopen());
 				case LogAction.StandardAction.FLUSH -> List.of(flush());
 			};
 			default -> throw new IllegalArgumentException(); // TODO fucking eclipse
 		};
+		return r;
 	}
 
 	default LogResponse reopen() {

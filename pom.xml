@@ -152,6 +152,7 @@
         <artifactId>org.eclipse.jdt.annotation</artifactId>
         <version>2.3.0</version>
         <optional>true</optional>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.samskivert</groupId>
