@@ -120,7 +120,7 @@ Currently Rainbow Gum does not provide support for:
 
 <ul>
   <li>External config - by design you will need to bring your own configuration lib or just use env/system properties.</li>
-  <li>Rolling of log files. Will be added in the future.</li>
+  <li>Rolling of log files without external tool - there is support for rolling without losing events using external tool such as logrotate.</li>
   <li>{@linkplain org.slf4j.Marker SLF4J Marker} support -  libraries and application rarely use it compared to MDC. </li>
  </ul>
 
@@ -562,7 +562,7 @@ thus releasing the moved log file descriptor allowing the external program to pr
   This method avoids that problem.
 </em>)
 </p>
-Unfortunately Rainbow Gum does not offer a way to receive the external signal as this can very greatly across applications.
+Unfortunately Rainbow Gum does not offer a way to receive the external signal as this can vary greatly across applications.
 The following is an example of reopening outputs using HTTP for signaling.
 
 {@snippet class="snippets.RollingExample" region="rollingExample" }
