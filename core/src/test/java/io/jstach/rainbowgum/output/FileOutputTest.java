@@ -105,7 +105,7 @@ class FileOutputTest {
 					assertEquals(expected, actual);
 				}
 				assertEquals("""
-						[Response[name=file, status=OK]]
+						[Response[name=file, status=OK], Response[name=list, status=IGNORED]]
 						""".trim(), response.toString());
 				assertTrue(Files.exists(Path.of(fileName)));
 				for (var e : test.events()) {

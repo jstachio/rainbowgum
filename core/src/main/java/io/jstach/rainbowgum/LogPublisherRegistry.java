@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 
-import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
@@ -82,8 +81,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 
 		@Override
 		protected PublisherFactory provide(String name, LogProperties properties) {
-			return (n, config,
-					appenders) -> new DefaultSyncLogPublisher(ThreadSafeLogAppender.of(LogAppender.of(appenders)));
+			return (n, config, appenders) -> new DefaultSyncLogPublisher(appenders.asSingle());
 		}
 	},
 	SYNC {
@@ -94,8 +92,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 
 		@Override
 		protected PublisherFactory provide(String name, LogProperties properties) {
-			return (n, config,
-					appenders) -> new DefaultSyncLogPublisher(ThreadSafeLogAppender.of(LogAppender.of(appenders)));
+			return (n, config, appenders) -> new DefaultSyncLogPublisher(appenders.asSingle());
 		}
 
 	},
@@ -113,7 +110,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 				.buildWithName(BUFFER_SIZE_PROPERTY, name) //
 				.get(properties) //
 				.value(ASYNC_BUFFER_SIZE);
-			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders, _bufferSize);
+			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize);
 		}
 	};
 

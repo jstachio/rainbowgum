@@ -27,7 +27,7 @@ class BlockingQueueAsyncLogPublisherTest {
 		ListLogOutput output = new ListLogOutput();
 		output.setConsumer((e, s) -> latch.countDown());
 		var appender = LogAppender.builder("blah").output(output).build().provide("blah", LogConfig.builder().build());
-		var b = BlockingQueueAsyncLogPublisher.of(List.of(appender), 10);
+		var b = BlockingQueueAsyncLogPublisher.of(appender, 10);
 		b.start(LogConfig.builder().build());
 
 		try (BlockingQueueAsyncLogPublisher pub = b) {

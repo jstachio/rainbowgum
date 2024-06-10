@@ -4,22 +4,20 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
-import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogResponse.Status;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
- * concurrency. To ensure this invariant call
- * {@link ThreadSafeLogAppender#of(LogAppender)}.
- *
- * The only exception is if an Appender implements {@link ThreadSafeLogAppender}.
+ * concurrency.
  */
 public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
@@ -62,27 +60,6 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 */
 	public static Builder builder(String name) {
 		return new Builder(name);
-	}
-
-	/**
-	 * Creates a composite log appender from many. The appenders will be appended
-	 * synchronously and are not thread safe.
-	 * @param appenders appenders.
-	 * @return appender.
-	 * @see ThreadSafeLogAppender#of(LogAppender)
-	 */
-	public static LogAppender of(List<? extends LogAppender> appenders) {
-		if (appenders.isEmpty()) {
-			throw new IllegalArgumentException("A single appender is required");
-		}
-		if (appenders.size() == 1) {
-			return Objects.requireNonNull(appenders.get(0));
-		}
-		@SuppressWarnings("null") // TODO Eclipse issue here
-		InternalLogAppender @NonNull [] array = appenders.stream()
-			.map(ThreadSafeLogAppender::unwrapIfThreadSafe)
-			.toArray(i -> new InternalLogAppender[i]);
-		return new CompositeLogAppender(array);
 	}
 
 	/**
@@ -196,55 +173,107 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 	}
 
-	@Override
-	public void close();
-
 	/**
-	 * An appender that can be used by a {@link LogPublisher.SyncLogPublisher}.
+	 * Provides appenders safely to the publisher. The providing calls of
+	 * <code>asXXX</code> can only be called once as they register the appenders.
 	 */
-	public sealed interface ThreadSafeLogAppender extends InternalLogAppender {
+	class Appenders {
 
-		/*
-		 * TODO maybe we make all appenders thread safe.
-		 */
+		private final AtomicBoolean created = new AtomicBoolean();
 
-		/**
-		 * Make an appender thread safe if is not already thread safe.
-		 * @param appender appender.
-		 * @return new thread safe appender if is not one or the passed in appender if it
-		 * thread safe.
-		 */
-		@SuppressWarnings({ "null", "resource" }) // TODO eclipse bugs.
-		public static ThreadSafeLogAppender of(LogAppender appender) {
-			// TODO eclipse needs a local variable for some reason
-			ThreadSafeLogAppender rv = switch (appender) {
-				case InternalLogAppender internal -> internal.wrap();
-				default -> throw new IllegalStateException(); // TODO eclipse bug
-			};
-			return rv;
+		private final String name;
 
+		private final LogConfig config;
+
+		private final List<LogProvider<LogAppender>> appenders;
+
+		Appenders(String name, LogConfig config, List<LogProvider<LogAppender>> appenders) {
+			super();
+			this.name = name;
+			this.config = config;
+			this.appenders = appenders;
 		}
 
 		/**
-		 * If thread safety is not needed because it is taken care of through a publisher
-		 * this call will attempt to return the orginal non thread safe appender.
-		 * @return wrapped un-threadsafe appender.
+		 * Return the appenders as a list.
+		 * @return list of appenders.
+		 * @throws IllegalStateException if appenders are already registered.
 		 */
-		public LogAppender unwrap();
-
-		@Override
-		default ThreadSafeLogAppender wrap() {
-			return this;
-		}
-
-		private static InternalLogAppender unwrapIfThreadSafe(LogAppender appender) {
-			if (appender instanceof ThreadSafeLogAppender ta) {
-				return InternalLogAppender.of(ta.unwrap());
+		public List<? extends LogAppender> asList() throws IllegalStateException {
+			if (created.compareAndSet(false, true)) {
+				var apps = appenders();
+				for (var a : apps) {
+					register(a);
+				}
+				return apps;
 			}
-			return InternalLogAppender.of(appender);
+			else {
+				throw new IllegalStateException("Appenders already provided.");
+			}
+
+		}
+
+		/**
+		 * Consolidate the appenders as a single appender. The appenders will be appended
+		 * synchronously and will share the same lock.
+		 * @return single appender.
+		 * @throws IllegalStateException if appenders are already registered.
+		 */
+		public LogAppender asSingle() throws IllegalStateException {
+			if (created.compareAndSet(false, true)) {
+				var apps = appenders();
+				var appender = single(apps);
+				register(appender);
+				return appender;
+			}
+			else {
+				throw new IllegalStateException("Appenders already provided.");
+			}
+		}
+
+		private void register(LogAppender appender) {
+			switch (appender) {
+				case DirectLogAppender ia -> {
+					config.serviceRegistry().put(LogAppender.class, name + "." + ia.name(), ia);
+				}
+				case CompositeLogAppender ca -> {
+					config.serviceRegistry().put(LogAppender.class, name, ca);
+				}
+				default -> {
+					throw new IllegalStateException();
+				}
+			}
+			;
+		}
+
+		private List<LogAppender> appenders() {
+			return LogProvider.flatten(appenders)
+				.describe(n -> "Appenders for route: '" + n + "'")
+				.provide(name, config);
+		}
+
+		/**
+		 * Creates a composite log appender from many. The appenders will be appended
+		 * synchronously and will share the same lock.
+		 * @param appenders appenders.
+		 * @return appender.
+		 */
+		private static LogAppender single(List<? extends LogAppender> appenders) {
+			if (appenders.isEmpty()) {
+				throw new IllegalArgumentException("A single appender is required");
+			}
+			if (appenders.size() == 1) {
+				return Objects.requireNonNull(appenders.get(0));
+			}
+			Lock lock = new ReentrantLock();
+			return CompositeLogAppender.of(appenders, lock);
+
 		}
 
 	}
+
+	@Override
+	public void close();
 
 }
 
@@ -274,7 +303,7 @@ sealed interface InternalLogAppender extends LogAppender, Actor {
 	 */
 	boolean visit(AppenderVisitor visitor);
 
-	ThreadSafeLogAppender wrap();
+	InternalLogAppender changeLock(Lock lock);
 
 	/**
 	 * An appender can act on actions. One of the key actions is reopening files.
@@ -401,32 +430,59 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 
 	T[] components();
 
+	Lock lock();
+
 	@Override
 	default void append(LogEvent[] event, int count) {
-		for (var appender : components()) {
-			appender.append(event, count);
+		lock().lock();
+		try {
+			for (var appender : components()) {
+				appender.append(event, count);
+			}
+		}
+		finally {
+			lock().unlock();
 		}
 	}
 
 	@Override
 	default void append(LogEvent event) {
-		for (var appender : components()) {
-			appender.append(event);
+		lock().lock();
+		try {
+			for (var appender : components()) {
+				appender.append(event);
+			}
+		}
+		finally {
+			lock().unlock();
 		}
 	}
 
 	@Override
 	default void close() {
-		for (var appender : components()) {
-			appender.close();
+		lock().lock();
+		try {
+			for (var appender : components()) {
+				appender.close();
+			}
+		}
+		finally {
+			lock().unlock();
 		}
 	}
 
 	@Override
 	default void start(LogConfig config) {
-		for (var appender : components()) {
-			appender.start(config);
+		lock().lock();
+		try {
+			for (var appender : components()) {
+				appender.start(config);
+			}
 		}
+		finally {
+			lock().unlock();
+		}
+
 	}
 
 	@Override
@@ -441,13 +497,28 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 
 	@Override
 	default List<LogResponse> act(LogAction action) {
-		return Actor.act(components(), action);
+		lock().lock();
+		try {
+			return Actor.act(components(), action);
+		}
+		finally {
+			lock().unlock();
+		}
 	}
 
 }
 
-record CompositeLogAppender(
-		InternalLogAppender[] appenders) implements BaseComposite<InternalLogAppender>, InternalLogAppender {
+record CompositeLogAppender(InternalLogAppender[] appenders,
+		Lock lock) implements BaseComposite<InternalLogAppender>, InternalLogAppender {
+
+	public static CompositeLogAppender of(List<? extends LogAppender> appenders, Lock lock) {
+		@SuppressWarnings("null") // TODO Eclipse issue here
+		InternalLogAppender @NonNull [] array = appenders.stream()
+			.map(InternalLogAppender::of)
+			.map(a -> a.changeLock(lock))
+			.toArray(i -> new InternalLogAppender[i]);
+		return (new CompositeLogAppender(array, lock));
+	}
 
 	@Override
 	public InternalLogAppender[] components() {
@@ -455,30 +526,44 @@ record CompositeLogAppender(
 	}
 
 	@Override
-	public ThreadSafeLogAppender wrap() {
-		ThreadSafeLogAppender[] array = Stream.of(appenders)
-			.map(a -> ThreadSafeLogAppender.of(a))
-			.toArray(i -> new @NonNull ThreadSafeLogAppender[i]);
-		return new CompositeThreadSafeLogAppender(array);
+	public InternalLogAppender changeLock(Lock lock) {
+		return of(List.of(appenders), lock);
 	}
 
 }
 
-record CompositeThreadSafeLogAppender(
-		ThreadSafeLogAppender[] appenders) implements BaseComposite<ThreadSafeLogAppender>, ThreadSafeLogAppender {
+enum FakeLock implements Lock {
+
+	FAKE_LOCK;
 
 	@Override
-	public ThreadSafeLogAppender[] components() {
-		return this.appenders;
+	public void lock() {
+
 	}
 
 	@Override
-	public LogAppender unwrap() {
-		@SuppressWarnings("null")
-		DirectLogAppender[] array = Stream.of(appenders)
-			.map(ThreadSafeLogAppender::unwrap)
-			.toArray(i -> new DirectLogAppender[i]);
-		return new CompositeLogAppender(array);
+	public void lockInterruptibly() throws InterruptedException {
+
+	}
+
+	@Override
+	public boolean tryLock() {
+		return true;
+	}
+
+	@Override
+	public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+		return true;
+	}
+
+	@Override
+	public void unlock() {
+
+	}
+
+	@Override
+	public Condition newCondition() {
+		throw new UnsupportedOperationException();
 	}
 
 }
@@ -486,12 +571,17 @@ record CompositeThreadSafeLogAppender(
 /*
  * The idea here is to have the virtual thread do the formatting outside of the lock
  */
-final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafeLogAppender {
+final class DefaultLogAppender extends AbstractLogAppender implements InternalLogAppender {
 
-	private final ReentrantLock lock = new ReentrantLock();
+	private final Lock lock;
+
+	public DefaultLogAppender(String name, LogOutput output, LogEncoder encoder, Lock lock) {
+		super(name, output, encoder);
+		this.lock = lock;
+	}
 
 	public DefaultLogAppender(String name, LogOutput output, LogEncoder encoder) {
-		super(name, output, encoder);
+		this(name, output, encoder, new ReentrantLock());
 	}
 
 	@Override
@@ -546,43 +636,8 @@ final class DefaultLogAppender extends AbstractLogAppender implements ThreadSafe
 	}
 
 	@Override
-	public LogAppender unwrap() {
-		return new BufferLogAppender(name, output, encoder);
-	}
-
-}
-
-final class BufferLogAppender extends AbstractLogAppender implements InternalLogAppender {
-
-	private final Buffer buffer;
-
-	public BufferLogAppender(String name, LogOutput output, LogEncoder encoder) {
-		super(name, output, encoder);
-		this.buffer = encoder.buffer(output.bufferHints());
-	}
-
-	@Override
-	public List<LogResponse> act(LogAction action) {
-		return _request(action);
-	}
-
-	@Override
-	public void append(LogEvent[] events, int count) {
-		buffer.clear();
-		output.write(events, count, encoder, buffer);
-		output.flush();
-	}
-
-	@Override
-	public void append(LogEvent event) {
-		buffer.clear();
-		output.write(event, buffer);
-		output.flush();
-	}
-
-	@Override
-	public ThreadSafeLogAppender wrap() {
-		return new DefaultLogAppender(name, output, encoder);
+	public InternalLogAppender changeLock(Lock lock) {
+		return new DefaultLogAppender(name, output, encoder, lock);
 	}
 
 }

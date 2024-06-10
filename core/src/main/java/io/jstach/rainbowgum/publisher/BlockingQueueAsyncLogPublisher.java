@@ -7,7 +7,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import io.jstach.rainbowgum.LogAppender;
-import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
@@ -20,7 +19,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 	private final BlockingQueue<LogEvent> queue;
 
-	private final ThreadSafeLogAppender appender;
+	private final LogAppender appender;
 
 	private volatile boolean running = false;
 
@@ -34,14 +33,12 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	 * @param bufferSize the queue size.
 	 * @return async publisher.
 	 */
-	public static BlockingQueueAsyncLogPublisher of(List<? extends LogAppender> appender, int bufferSize) {
+	public static BlockingQueueAsyncLogPublisher of(LogAppender appender, int bufferSize) {
 		BlockingQueue<LogEvent> queue = new ArrayBlockingQueue<>(bufferSize);
-		return new BlockingQueueAsyncLogPublisher(ThreadSafeLogAppender.of(LogAppender.of(appender)), queue,
-				bufferSize);
+		return new BlockingQueueAsyncLogPublisher(appender, queue, bufferSize);
 	}
 
-	private BlockingQueueAsyncLogPublisher(ThreadSafeLogAppender appender, BlockingQueue<LogEvent> queue,
-			int bufferSize) {
+	private BlockingQueueAsyncLogPublisher(LogAppender appender, BlockingQueue<LogEvent> queue, int bufferSize) {
 		super();
 		if (bufferSize <= 0) {
 			throw new IllegalArgumentException("buffer size should be greater than 0");

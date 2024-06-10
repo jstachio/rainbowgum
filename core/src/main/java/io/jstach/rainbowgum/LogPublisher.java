@@ -1,11 +1,10 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
-import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogAppender.ThreadSafeLogAppender;
+import io.jstach.rainbowgum.LogAppender.Appenders;
 
 /**
  * Publishers push logs to appenders either synchronously or asynchronously.
@@ -41,7 +40,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		 * @param appenders appenders.
 		 * @return publisher.
 		 */
-		LogPublisher create(String name, LogConfig config, List<? extends LogAppender> appenders);
+		LogPublisher create(String name, LogConfig config, Appenders appenders);
 
 		/**
 		 * Provides a publisher factory by URI.
@@ -267,9 +266,9 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
 final class DefaultSyncLogPublisher implements LogPublisher.SyncLogPublisher {
 
-	private final ThreadSafeLogAppender appender;
+	private final LogAppender appender;
 
-	public DefaultSyncLogPublisher(ThreadSafeLogAppender appender) {
+	public DefaultSyncLogPublisher(LogAppender appender) {
 		super();
 		this.appender = appender;
 	}

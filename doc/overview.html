@@ -585,7 +585,10 @@ We might have a logrotate script that looks like:
   notifempty
   compress
   delaycompress
+  # we only need one call to reopen all files
   sharedscripts
+  # in most cases it is best for rainbowgum recreate the file which wil happen after the postrotate
+  nocreate
   postrotate
     /usr/bin/curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/log/rotate | {
       read status
