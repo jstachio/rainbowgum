@@ -36,7 +36,12 @@
  * <p>
  * To disable installation of the java.util.logging handler set the property:
  * {@value io.jstach.rainbowgum.jdk.jul.JULConfigurator#JUL_DISABLE_PROPERTY}
- * to <code>true</code>.
+ * to <code>true</code>. Alternatively if in a custom modular environment using jlink and
+ * the module <code>java.logging</code> is not included the handler will not be installed.
+ * Furthermore
+ * <strong>the module <code>java.logging</code> is not required and thus
+ * jlink might not automatically include it as it is <code>requires static</code>.
+ * </strong>
  * </p>
  * 
  * <em> <strong>NOTE:</strong> While the JDK System.Logger is good for low level
@@ -63,7 +68,7 @@ module io.jstach.rainbowgum.jdk {
 	 * TODO perhaps a separate module for
 	 * the java.logging handler
 	 */
-	requires java.logging;
+	requires static java.logging;
 	requires static org.eclipse.jdt.annotation;
 	requires static io.jstach.svc;
 

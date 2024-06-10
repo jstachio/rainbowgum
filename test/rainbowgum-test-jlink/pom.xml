@@ -29,68 +29,23 @@
               <outputDirectory>${project.build.directory}/runtime</outputDirectory>
               <launcher>jlink-test=io.jstach.rainbowgum.test.avaje/${exec.mainClass}</launcher>
               <stripDebug>true</stripDebug>
-              <compress>2</compress>
               <noHeaderFiles>true</noHeaderFiles>
               <noManPages>true</noManPages>
             </configuration>
           </execution>
         </executions>
       </plugin>
-      <!--
-      <plugin>
-        <groupId>org.moditect</groupId>
-        <artifactId>moditect-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>create-runtime-image</id>
-            <phase>package</phase>
-            <goals>
-              <goal>create-runtime-image</goal>
-            </goals>
-            <configuration>
-              <modules>
-                <module>java.logging</module>
-              </modules>
-              <jarInclusionPolicy>APP_WITH_DEPENDENCIES</jarInclusionPolicy>
-              <launcher>
-                <name>rainbowgum</name>
-                <mainClass>io.jstach.rainbowgum.test.jlink.Main</mainClass>
-              </launcher>
-              <outputDirectory>${project.build.directory}/jlink-image</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      -->
     </plugins>
   </build>
   <dependencies>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.eclipse.jdt</groupId>
-          <artifactId>org.eclipse.jdt.annotation</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-test-avaje</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.eclipse.jdt</groupId>
-          <artifactId>org.eclipse.jdt.annotation</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jdt</groupId>
-      <artifactId>org.eclipse.jdt.annotation</artifactId>
-      <scope>provided</scope>
-      <optional>true</optional>
     </dependency>
   </dependencies>
 </project>

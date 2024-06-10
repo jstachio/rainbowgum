@@ -10,7 +10,8 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
 
 /**
- * Will install the JUL handler if it is not already set and the level of the loggers.
+ * Will install the JUL handler if the <code>java.logging</code> module is available and
+ * is not alreadyi installed.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class JULConfigurator implements Configurator, AutoCloseable {
@@ -34,6 +35,8 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 		.ofBoolean() //
 		.build(JUL_LEVEL_DISABLE_PROPERTY);
 
+	private volatile boolean installed = false;
+
 	/**
 	 * For service laoder.
 	 */
@@ -44,6 +47,9 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	public boolean configure(@SuppressWarnings("exports") LogConfig config, @SuppressWarnings("exports") Pass pass) {
 		if (!install(config.properties())) {
 			return true;
+		}
+		else {
+			installed = true;
 		}
 		var disableLevel = JUL_LEVEL_DISABLE_PROPERTY_.get(config.properties()).value(false);
 
@@ -76,12 +82,19 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 		if (JUL_DISABLE_PROPERTY_.get(properties).value(false)) {
 			return false;
 		}
-
+		if (!isLoggingModuleAvailable()) {
+			return false;
+		}
 		if (!SystemLoggerQueueJULHandler.isInstalled()) {
 			SystemLoggerQueueJULHandler.install();
 		}
 		return true;
 
+	}
+
+	private static boolean isLoggingModuleAvailable() {
+		ModuleLayer bootLayer = ModuleLayer.boot();
+		return bootLayer.findModule("java.logging").isPresent();
 	}
 
 	/**
@@ -95,9 +108,11 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 
 	@Override
 	public void close() {
-		var logger = Logger.getLogger("");
-		if (logger != null) {
-			logger.setLevel(java.util.logging.Level.INFO);
+		if (installed) {
+			var logger = Logger.getLogger("");
+			if (logger != null) {
+				logger.setLevel(java.util.logging.Level.INFO);
+			}
 		}
 
 	}
