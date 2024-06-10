@@ -4,9 +4,7 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -517,7 +515,7 @@ record CompositeLogAppender(InternalLogAppender[] appenders,
 			.map(InternalLogAppender::of)
 			.map(a -> a.changeLock(lock))
 			.toArray(i -> new InternalLogAppender[i]);
-		return (new CompositeLogAppender(array, lock));
+		return new CompositeLogAppender(array, lock);
 	}
 
 	@Override
@@ -528,42 +526,6 @@ record CompositeLogAppender(InternalLogAppender[] appenders,
 	@Override
 	public InternalLogAppender changeLock(Lock lock) {
 		return of(List.of(appenders), lock);
-	}
-
-}
-
-enum FakeLock implements Lock {
-
-	FAKE_LOCK;
-
-	@Override
-	public void lock() {
-
-	}
-
-	@Override
-	public void lockInterruptibly() throws InterruptedException {
-
-	}
-
-	@Override
-	public boolean tryLock() {
-		return true;
-	}
-
-	@Override
-	public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-		return true;
-	}
-
-	@Override
-	public void unlock() {
-
-	}
-
-	@Override
-	public Condition newCondition() {
-		throw new UnsupportedOperationException();
 	}
 
 }
