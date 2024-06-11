@@ -39,7 +39,7 @@ public final class RabbitMQOutput implements LogOutput {
 
 	private volatile Channel channel;
 
-	private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
 	private final @Nullable String appId;
 
