@@ -85,6 +85,9 @@ public sealed interface LogEvent {
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
 		long threadId = currentThread.threadId();
+		if (arg1 instanceof Throwable t) {
+			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, t);
+		}
 		return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
 				messageFormatter, null, arg1);
 	}
@@ -109,6 +112,10 @@ public sealed interface LogEvent {
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
 		long threadId = currentThread.threadId();
+		if (arg2 instanceof Throwable t) {
+			return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
+					messageFormatter, t, arg1);
+		}
 		return new TwoArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
 				messageFormatter, null, arg1, arg2);
 	}
@@ -133,8 +140,8 @@ public sealed interface LogEvent {
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
 		long threadId = currentThread.threadId();
-		return new ArrayArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
-				messageFormatter, null, args);
+		return ofAll(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null, messageFormatter,
+				args);
 	}
 
 	/**
@@ -163,8 +170,12 @@ public sealed interface LogEvent {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					throwable);
 		}
-		int size = args.size();
-		return switch (size) {
+		int length = args.size();
+		if (throwable == null && length > 0 && args.get(length - 1) instanceof Throwable t) {
+			throwable = t;
+			length = length - 1;
+		}
+		return switch (length) {
 			case 0 ->
 				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
 			case 1 -> new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
@@ -172,7 +183,7 @@ public sealed interface LogEvent {
 			case 2 -> new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, throwable, args.get(0), args.get(1));
 			default -> new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					messageFormatter, throwable, args.toArray());
+					messageFormatter, throwable, args.toArray(), length);
 		};
 	}
 
@@ -202,8 +213,12 @@ public sealed interface LogEvent {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					throwable);
 		}
-		int size = args == null ? 0 : args.length;
-		return switch (size) {
+		int length = args.length;
+		if (throwable == null && length > 0 && args[length - 1] instanceof Throwable t) {
+			throwable = t;
+			length = length - 1;
+		}
+		return switch (length) {
 			case 0 ->
 				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
 			case 1 -> new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
@@ -211,7 +226,7 @@ public sealed interface LogEvent {
 			case 2 -> new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, throwable, args[0], args[1]);
 			default -> new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					messageFormatter, throwable, args);
+					messageFormatter, throwable, args, length);
 		};
 	}
 
@@ -747,11 +762,11 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
-		@Nullable Throwable throwableOrNull, @Nullable Object[] args) implements LogEvent {
+		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) implements LogEvent {
 
 	@Override
 	public void formattedMessage(StringBuilder sb) {
-		messageFormatter.formatArray(sb, message, args);
+		messageFormatter.formatArray(sb, message, args, length);
 	}
 
 	public int argCount() {

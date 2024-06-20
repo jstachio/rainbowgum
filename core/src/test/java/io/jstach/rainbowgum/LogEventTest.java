@@ -119,7 +119,7 @@ class LogEventTest {
 		String v = event.keyValues().getValueOrNull("k1");
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
-		assertInstanceOf(ArrayArgLogEvent.class, event);
+		assertInstanceOf(DefaultLogEvent.class, event);
 		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello!", sb.toString());
@@ -142,7 +142,7 @@ class LogEventTest {
 		String v = event.keyValues().getValueOrNull("k1");
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
-		assertInstanceOf(ArrayArgLogEvent.class, event);
+		assertInstanceOf(OneArgLogEvent.class, event);
 		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1!", sb.toString());
@@ -166,7 +166,7 @@ class LogEventTest {
 		String v = event.keyValues().getValueOrNull("k1");
 		assertEquals("v1", v);
 		assertEquals(Level.INFO, event.level());
-		assertInstanceOf(ArrayArgLogEvent.class, event);
+		assertInstanceOf(TwoArgLogEvent.class, event);
 		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1 null!", sb.toString());

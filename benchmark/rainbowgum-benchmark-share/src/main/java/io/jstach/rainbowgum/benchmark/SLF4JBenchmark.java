@@ -61,6 +61,13 @@ public class SLF4JBenchmark {
 			log.error("message");
 			log.error("message {}", "one");
 			log.error("message {} {}", "one", "two");
+			IllegalStateException e = new IllegalStateException();
+			log.error("message ex 1 {}", (Object) e);
+
+			log.error("message ex 2 {} {}", null, e);
+
+			log.error("message ex 3 {} {}", "one", "two", e);
+			log.error("message ex 3 {} {} {}", "one", "two", e);
 
 			// log.trace("message");
 			// log.trace("message {}", "one");

@@ -39,7 +39,18 @@ public sealed interface LogMessageFormatter {
 	 * @param message message usually with formatting delimiters for replacement.
 	 * @param args array of args.
 	 */
-	void formatArray(StringBuilder builder, String message, @Nullable Object[] args);
+	default void formatArray(StringBuilder builder, String message, @Nullable Object[] args) {
+		formatArray(builder, message, args, args.length);
+	}
+
+	/**
+	 * Formats and appends the result.
+	 * @param builder output.
+	 * @param message message usually with formatting delimiters for replacement.
+	 * @param args array of args.
+	 * @param length of args array which will be used even if args is larger.
+	 */
+	void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length);
 
 	/**
 	 * Built-in message formatters.
@@ -63,8 +74,8 @@ public sealed interface LogMessageFormatter {
 			}
 
 			@Override
-			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args) {
-				SLF4JMessageFormatter.format(builder, message, args);
+			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length) {
+				SLF4JMessageFormatter.format(builder, message, args, length);
 			}
 		},
 		/**
@@ -104,7 +115,7 @@ public sealed interface LogMessageFormatter {
 			}
 
 			@Override
-			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args) {
+			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length) {
 				try {
 					String result = MessageFormat.format(message, args);
 					builder.append(result);
@@ -143,21 +154,21 @@ final class SLF4JMessageFormatter {
 	}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
-			final @Nullable Object @Nullable [] args) {
-		if (args == null || args.length == 0) {
+			final @Nullable Object @Nullable [] args, int length) {
+		if (args == null || length == 0) {
 			format(sbuf, messagePattern, null, null, null, 0);
 			return;
 		}
-		else if (args.length == 1) {
+		else if (length == 1) {
 			format(sbuf, messagePattern, args[0], null, null, 1);
 			return;
 		}
-		else if (args.length == 2) {
+		else if (length == 2) {
 			format(sbuf, messagePattern, args[0], args[1], null, 2);
 			return;
 		}
 		else {
-			format(sbuf, messagePattern, null, null, args, args.length);
+			format(sbuf, messagePattern, null, null, args, length);
 		}
 	}
 
