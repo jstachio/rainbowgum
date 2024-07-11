@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ class RainbowGumPropertyTest {
 			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.toString();
 			assertEquals(test.expected, actual);
+			test.assertOther(r);
 		}
 	}
 
@@ -67,6 +69,24 @@ class RainbowGumPropertyTest {
 				});
 			}
 
+		},
+		REUSE_BUFFER_APPENDER("""
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.level=ERROR
+				logging.appender.list.flags=reuse_buffer
+				""", """
+				00:00:00.001 [main] ERROR com.pattern.test.Test - hello
+				""") {
+
+			@Override
+			void assertOther(RainbowGum gum) {
+				SingleSyncRootRouter rootRouter = (SingleSyncRootRouter) gum.router();
+				var router = rootRouter.router();
+				DefaultSyncLogPublisher publisher = (DefaultSyncLogPublisher) router.publisher();
+				assertInstanceOf(ReuseBufferLogAppender.class, publisher.appender());
+			}
+
 		};
 
 		private final String properties;
@@ -93,6 +113,10 @@ class RainbowGumPropertyTest {
 				events.add(e);
 			}
 			return events;
+		}
+
+		void assertOther(RainbowGum gum) {
+
 		}
 
 		RainbowGum.Builder config(RainbowGum.Builder builder) {

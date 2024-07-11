@@ -135,8 +135,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.ofList() //
 			.map(AppenderFlag::parse) //
 			.buildWithName(LogAppender.APPENDER_FLAGS_PROPERTY, name) //
-			.require(EnumSet.noneOf(AppenderFlag.class));
-
+			.get(config.properties())
+			.value(EnumSet.noneOf(LogAppender.AppenderFlag.class));
 	}
 
 	static LogAppender fileAppender(LogConfig config) {
