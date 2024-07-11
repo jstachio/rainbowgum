@@ -75,7 +75,14 @@ class CompilerTest {
 
 	enum PatternTest {
 
-		BARE("%BARE", ""), DATE(List.of("%d", "%date"), "1970-01-01 00:00:00,000") {
+		BARE("%BARE", ""), //
+		DATE(List.of("%d", "%date"), "1970-01-01 00:00:00,000") {
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				assertInstanceOf(TimestampFormatter.class, formatter);
+			}
+		},
+		DATE_PARAMETER("%date{yyyy-MM-dd HH:mm:ss}", "1970-01-01 00:00:00") {
 			@Override
 			protected void assertFormatter(LogFormatter formatter) {
 				assertInstanceOf(TimestampFormatter.class, formatter);

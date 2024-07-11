@@ -63,6 +63,7 @@ public final class PatternConfigurator implements Configurator {
 		PatternConfig dc = PatternConfig.of();
 		ansiDisabled = ansiDisabled == null ? dc.ansiDisabled() : ansiDisabled;
 		lineSeparator = lineSeparator == null ? dc.lineSeparator() : lineSeparator;
+		zoneId = zoneId == null ? dc.zoneId() : zoneId;
 		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled);
 
 	}

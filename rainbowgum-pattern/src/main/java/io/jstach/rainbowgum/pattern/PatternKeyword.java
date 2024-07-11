@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.pattern;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -40,7 +41,7 @@ public interface PatternKeyword {
 	default <T> T opt(int index, T fallback, Function<String, T> f) {
 		var v = optOrNull(index, f);
 		if (v == null) {
-			return fallback;
+			return Objects.requireNonNull(fallback);
 		}
 		return v;
 	}
