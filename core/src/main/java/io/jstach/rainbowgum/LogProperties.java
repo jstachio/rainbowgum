@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperties.Builder.AbstractLogProperties;
 import io.jstach.rainbowgum.LogProperties.FoundProperty.ListProperty;
@@ -234,6 +235,12 @@ public interface LogProperties {
 	 * Encoder appender property.
 	 */
 	static final String APPENDER_ENCODER_PROPERTY = LogProperties.APPENDER_PREFIX + "encoder";
+
+	/**
+	 * Appender flags. A list of flags (usually comma separated).
+	 * @see AppenderFlag
+	 */
+	static final String APPENDER_FLAGS_PROPERTY = LogProperties.APPENDER_PREFIX + "flags";
 
 	/**
 	 * Logging publisher prefix for configuration.
