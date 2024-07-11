@@ -178,12 +178,16 @@ public interface LogEncoder {
 	}
 
 	/**
-	 * Hints the writer can pass to the encoder for creating buffers like max size and
+	 * Hints the output can pass to the encoder for creating buffers like max size and
 	 * storage style of the buffer etc.
 	 *
 	 * @apiNote There is no guarantees the encoder/buffer will honor these hints.
 	 */
 	public interface BufferHints {
+
+		/*
+		 * TODO should we seal this?
+		 */
 
 		/**
 		 * The preferred write style of the output.
