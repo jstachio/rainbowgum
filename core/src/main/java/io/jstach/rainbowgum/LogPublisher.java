@@ -288,6 +288,13 @@ final class DefaultSyncLogPublisher implements LogPublisher.SyncLogPublisher {
 		appender.close();
 	}
 
+	/*
+	 * Exposed for unit test.
+	 */
+	LogAppender appender() {
+		return this.appender;
+	}
+
 	@Override
 	public String toString() {
 		return "DefaultSyncLogPublisher[appender=" + appender + "]";
