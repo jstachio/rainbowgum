@@ -4,9 +4,10 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 
 /**
- * An abstract formatter that has the semi-standard layout of <strong>TTLL - Time, Thread,
- * Level, Logger</strong> but allows changing the format of time, thread, level, logger,
- * etc. The formatters get called in the following order.
+ * An abstract formatter where the actual full layout of the event is not a concern of the
+ * user and by default usually has the semi-standard layout of <strong>TTLL - Time,
+ * Thread, Level, Logger</strong>. It allows changing the format of time, thread, level,
+ * logger, etc. Typically the formatters get called in the following order.
  * <ol>
  * <li>Timestamp</li>
  * <li>Thread</li>
@@ -16,6 +17,10 @@ import io.jstach.rainbowgum.LogFormatter;
  * <li>Formatted Message</li>
  * <li>Throwable if not null</li>
  * </ol>
+ * If plugins would like to provide some sort of standard formatter they should extend
+ * this class as well as the {@link AbstractBuilder}.
+ *
+ * @see AbstractBuilder
  */
 public class AbstractStandardEventFormatter implements LogFormatter.EventFormatter {
 
@@ -85,6 +90,36 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		this.throwableFormatter = throwableFormatter;
 		this.keyValuesFormatter = keyValuesFormatter;
 		this.threadFormatter = threadFormatter;
+
+		this.eventFormatter = build( //
+				timestampFormatter, //
+				threadFormatter, //
+				levelFormatter, //
+				nameFormatter, //
+				messageFormatter, //
+				throwableFormatter, //
+				keyValuesFormatter);
+
+	}
+
+	/**
+	 * Creates the standard default TTLL layout.
+	 * @param timestampFormatter not <code>null</code>.
+	 * @param threadFormatter not <code>null</code>.
+	 * @param levelFormatter not <code>null</code>.
+	 * @param nameFormatter not <code>null</code>.
+	 * @param messageFormatter not <code>null</code>.
+	 * @param throwableFormatter not <code>null</code>.
+	 * @param keyValuesFormatter not <code>null</code>.
+	 * @return formatter.
+	 */
+	public static LogFormatter build(LogFormatter timestampFormatter, //
+			LogFormatter threadFormatter, //
+			LogFormatter levelFormatter, //
+			LogFormatter nameFormatter, //
+			LogFormatter messageFormatter, //
+			LogFormatter throwableFormatter, //
+			LogFormatter keyValuesFormatter) {
 		var b = LogFormatter.builder();
 		if (!timestampFormatter.isNoop()) {
 			b.add(timestampFormatter);
@@ -113,8 +148,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		if (!throwableFormatter.isNoop()) {
 			b.add(throwableFormatter);
 		}
-		this.eventFormatter = b.build();
-
+		return b.build();
 	}
 
 	/**

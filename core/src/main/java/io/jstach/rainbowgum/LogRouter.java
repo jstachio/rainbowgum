@@ -449,12 +449,12 @@ public sealed interface LogRouter extends LogLifecycle {
 		}
 
 		@Override
-		public void start(LogConfig config) {
+		public final void start(LogConfig config) {
 			publisher.start(config);
 		}
 
 		@Override
-		public void close() {
+		public final void close() {
 			publisher.close();
 
 		}

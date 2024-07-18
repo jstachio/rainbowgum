@@ -1,63 +1,18 @@
 package io.jstach.rainbowgum.slf4j;
 
-import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
 import org.slf4j.spi.NOPLoggingEventBuilder;
 
-import io.jstach.rainbowgum.KeyValues;
-import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
-interface BaseLogger extends EventCreator<Level>, Logger {
+interface BaseLogger extends DepthAwareLogger {
 
-	@Override
-	default java.lang.System.Logger.Level translateLevel(Level level) {
-		return Levels.toSystemLevel(level);
-	}
-
-	default void handle(Level level, String msg) {
-		handle(event0(level, msg));
-	}
-
-	default void handle(Level level, String format, Throwable throwable) {
-		handle(event(level, format, throwable));
-	}
-
-	default void handle(Level level, String format, Object arg) {
-		handle(event1(level, format, arg));
-	}
-
-	default void handle(Level level, String format, Object arg1, Object arg2) {
-		handle(event2(level, format, arg1, arg2));
-	}
-
-	default void handleArray(Level level, String format, Object[] args) {
-		handle(eventArray(level, format, args));
-	}
+	public String loggerName();
 
 	@Override
-	default KeyValues keyValues() {
-		var mdc = mdc();
-		var m = mdc.mutableKeyValuesOrNull();
-		if (m != null) {
-			return m;
-		}
-		return KeyValues.of();
-	}
-
-	public RainbowGumMDCAdapter mdc();
-
-	void handle(LogEvent event);
-
-	default void handle(LogEvent event, int depth) {
-		handle(event);
-	}
-
-	@Override
-	default LoggingEventBuilder makeLoggingEventBuilder(Level level) {
-		return new RainbowGumEventBuilder(this, mdc(), translateLevel(level));
-	}
+	public LoggingEventBuilder makeLoggingEventBuilder(Level level);
 
 	@Override
 	default String getName() {

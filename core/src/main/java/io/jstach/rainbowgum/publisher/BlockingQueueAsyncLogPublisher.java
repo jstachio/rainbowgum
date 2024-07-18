@@ -2,7 +2,6 @@ package io.jstach.rainbowgum.publisher;
 
 import java.util.AbstractCollection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -115,6 +114,10 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 					var event = queue.take();
 					fake.add(event);
 					drain();
+					// int added = drain();
+					// if (added == 0) {
+					// pauseStrategy.pause();
+					// }
 				}
 				catch (InterruptedException e) {
 					break;
@@ -128,11 +131,12 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 		}
 
-		private void drain() {
+		private int drain() {
 			try {
 				int size = fake.size;
-				queue.drainTo(fake, bufferSize - size);
+				int added = queue.drainTo(fake, bufferSize - size);
 				append(buffer, fake.size);
+				return added;
 			}
 			finally {
 				fake.reset();

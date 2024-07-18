@@ -1,19 +1,25 @@
 package io.jstach.rainbowgum.disruptor;
 
+import java.util.EnumSet;
 import java.util.concurrent.ThreadFactory;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.ExceptionHandler;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
+import com.lmax.disruptor.dsl.ProducerType;
+import com.lmax.disruptor.util.DaemonThreadFactory;
 
-import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
+import io.jstach.rainbowgum.MetaLog;
+import io.jstach.rainbowgum.LogAppender.Appenders;
 
 /**
  * Disruptor async publisher.
@@ -25,6 +31,21 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	private final RingBuffer<LogEventCell> ringBuffer;
 
 	/**
+	 * Creates a factory of disruptor log publishers.
+	 * @param bufferSize ring buffer size.
+	 * @return factory to generate this class.
+	 */
+	public static PublisherFactory of(int bufferSize) {
+		return new PublisherFactory() {
+			@Override
+			public LogPublisher create(String name, LogConfig config, Appenders appenders) {
+				return of(appenders.flags(EnumSet.of(LogAppender.AppenderFlag.REUSE_BUFFER)).asList(),
+						DaemonThreadFactory.INSTANCE, bufferSize);
+			}
+		};
+	}
+
+	/**
 	 * Creates.
 	 * @param appenders appenders.
 	 * @param threadFactory thread factory to create writer thread.
@@ -34,7 +55,8 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	public static DisruptorLogPublisher of(Iterable<? extends LogAppender> appenders, ThreadFactory threadFactory,
 			int bufferSize) {
 
-		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory);
+		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory,
+				ProducerType.MULTI, new BlockingWaitStrategy());
 		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown));
 
 		boolean found = false;
@@ -105,7 +127,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 		@Override
 		public void handleEventException(Throwable ex, long sequence, Object event) {
-			if (ex instanceof InterruptedException ie) {
+			if (ex instanceof InterruptedException) {
 				shutdownHook.run();
 			}
 			else {

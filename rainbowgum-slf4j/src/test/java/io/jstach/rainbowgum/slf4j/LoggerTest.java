@@ -14,7 +14,8 @@ public class LoggerTest {
 			e.formattedMessage(sb);
 			System.out.append(sb);
 		};
-		var logger = LevelLogger.of(Level.ERROR, "stuff", appender, new RainbowGumMDCAdapter());
+		var handler = LogEventHandler.of("stuff", appender, new RainbowGumMDCAdapter());
+		var logger = LevelLogger.of(Level.ERROR, handler);
 
 		logger.error("Crap {} {} {}", "1", "2", "3");
 

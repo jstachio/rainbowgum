@@ -485,6 +485,22 @@ public sealed interface LogEvent {
 		 */
 		public Caller freeze();
 
+		/**
+		 * Convenience toString for caller.
+		 * @param caller if caller is <code>null</code> the string "null" will be
+		 * returned.
+		 * @return string representation.
+		 */
+		public static String toString(@Nullable Caller caller) {
+			/*
+			 * TODO maybe move this to formatters?
+			 */
+			if (caller == null)
+				return "null";
+			return caller.fileNameOrNull() + ":" + caller.lineNumber() + "/" + caller.className() + "."
+					+ caller.methodName();
+		}
+
 	}
 
 }

@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
 import org.slf4j.spi.LoggingEventBuilder;
 import org.slf4j.spi.MDCAdapter;
 
@@ -31,14 +32,18 @@ class RainbowGumEventBuilderTest {
 			formatter.format(sb, e);
 		};
 
-		BaseLogger logger = test.logger(mdc, appender, level);
-		RainbowGumEventBuilder builder = new RainbowGumEventBuilder(logger, mdc, level);
-		test.build(builder);
-		test.log(builder);
-
-		String expected = test.expected;
-		String actual = sb.toString();
-		assertEquals(expected, actual);
+		var logger = test.logger(mdc, appender, level);
+		var _b = logger.makeLoggingEventBuilder(Levels.toSlf4jLevel(level));
+		test.build(_b);
+		test.log(_b);
+		if (_b instanceof RainbowGumEventBuilder) {
+			String expected = test.expected;
+			String actual = sb.toString();
+			assertEquals(expected, actual);
+		}
+		else {
+			assertEquals("", sb.toString());
+		}
 
 	}
 
@@ -50,15 +55,23 @@ class RainbowGumEventBuilderTest {
 
 		LEVEL_LOGGER("logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]\n") {
 		},
-		CHANGE_LOGGER("""
-				logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]
+		REPLACEABLE_LOGGER("""
+				ERROR logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]
 				io.jstach.rainbowgum.slf4j.RainbowGumEventBuilderTest$_Test.log
 				""") {
 
 			@Override
-			BaseLogger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, Level level) {
-				return new ChangeableLogger(loggerName(), appender, mdc, Levels.toSlf4jInt(level), true);
+			Logger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, Level level) {
+				var handler = LogEventHandler.ofCallerInfo(loggerName(), appender, mdc, 0);
+				var logger = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
+				logger.setLevel(org.slf4j.event.Level.ERROR);
+				return logger;
+			}
 
+			@Override
+			LogFormatter formatter() {
+				var formatter = super.formatter();
+				return LogFormatter.builder().level().space().add(formatter).build();
 			}
 		},
 		OVERRIDE_MDC("logger {mdcKey1=value2&key1=value1} - hello [arg0]\n") {
@@ -156,6 +169,25 @@ class RainbowGumEventBuilderTest {
 				super.build(builder);
 				builder.setCause(new RuntimeException("fail"));
 			}
+		},
+		CALLER_INFO("""
+				logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]
+				io.jstach.rainbowgum.slf4j.RainbowGumEventBuilderTest$_Test$13.callerLog
+								""") {
+			@Override
+			LevelLogger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, System.Logger.Level level) {
+				var handler = LogEventHandler.ofCallerInfo(loggerName(), appender, mdc, 0);
+				return LevelLogger.of(Levels.toSlf4jLevel(level), handler);
+			}
+
+			@Override
+			protected void log(LoggingEventBuilder builder) {
+				callerLog(builder);
+			}
+
+			private void callerLog(LoggingEventBuilder builder) {
+				builder.log();
+			}
 		};
 
 		final String expected;
@@ -168,8 +200,9 @@ class RainbowGumEventBuilderTest {
 			return "logger";
 		}
 
-		BaseLogger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, System.Logger.Level level) {
-			return LevelLogger.of(Levels.toSlf4jLevel(level), loggerName(), appender, mdc);
+		Logger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, System.Logger.Level level) {
+			var handler = LogEventHandler.of(loggerName(), appender, mdc);
+			return LevelLogger.of(Levels.toSlf4jLevel(level), handler);
 		}
 
 		Level level() {

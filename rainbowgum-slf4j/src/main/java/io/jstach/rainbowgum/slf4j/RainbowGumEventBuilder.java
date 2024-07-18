@@ -14,13 +14,15 @@ import org.slf4j.spi.LoggingEventBuilder;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
-import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAware;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
 
-class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAware {
+class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuilder {
 
-	private final BaseLogger logger;
+	private final LogEventHandler handler;
 
 	private final RainbowGumMDCAdapter mdc;
 
@@ -40,20 +42,24 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAware {
 
 	private static final LogMessageFormatter messageFormatter = StandardMessageFormatter.SLF4J;
 
-	private static final int DEPTH = 5;
+	private static final int DEPTH_DELTA = 2;
 
 	private int depth = 0;
 
-	public RainbowGumEventBuilder(BaseLogger logger, RainbowGumMDCAdapter mdc, Level level) {
-		this.logger = logger;
+	private LogEventLogger logger;
+
+	public RainbowGumEventBuilder(LogEventHandler handler, RainbowGumMDCAdapter mdc, Level level) {
+		this.handler = handler;
 		this.mdc = mdc;
 		this.level = level;
-		this.loggerName = logger.loggerName();
+		this.loggerName = handler.loggerName();
+		this.logger = handler;
 	}
 
 	@Override
-	public void setDepth(int index, int endIndex) {
-		this.depth = index;
+	public RainbowGumEventBuilder setDepth(int depth) {
+		this.depth = depth;
+		return this;
 
 	}
 
@@ -124,6 +130,12 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAware {
 		return setMessage(messageSupplier.get());
 	}
 
+	@Override
+	public LoggingEventBuilder setLogger(LogEventLogger logger) {
+		this.logger = logger;
+		return this;
+	}
+
 	private void _log() {
 		Instant timestamp = Instant.now();
 		var thread = Thread.currentThread();
@@ -138,7 +150,13 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAware {
 		}
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, this.args);
-		logger.handle(event, DEPTH + this.depth);
+		Caller caller = null;
+		if (handler.isCallerAware()) {
+			caller = LogEventHandler.stackWalker
+				.walk(s -> s.skip(depth + DEPTH_DELTA).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
+			event = LogEvent.withCaller(event, caller);
+		}
+		logger.log(event);
 	}
 
 	@Override

@@ -3,18 +3,20 @@ package io.jstach.rainbowgum.slf4j;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
+import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
-import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAware;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
 class RainbowGumLoggerFactory implements ILoggerFactory {
 
@@ -44,21 +46,21 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			var router = this.rainbowGum.router();
 			var changePublisher = this.rainbowGum.config().changePublisher();
 
-			Logger newLogger;
+			DepthAwareLogger newLogger;
 			var level = router.levelResolver().resolveLevel(name);
 			var allowedChanges = changePublisher.allowedChanges(name);
-			if (!allowedChanges.isEmpty()) {
+			if (allowedChanges.contains(ChangeType.LEVEL)) {
 				/*
 				 * We get a logger that can log everything.
 				 */
 				LogEventLogger logger = router.route(name, System.Logger.Level.ERROR);
-				boolean callerInfo = allowedChanges.contains(ChangeType.CALLER);
-				ChangeableLogger changeable = new ChangeableLogger(name, logger, mdc, Levels.toSlf4jInt(level),
-						callerInfo);
-				changePublisher.subscribe(c -> {
-					var slf4jLevel = Levels.toSlf4jLevel(router.levelResolver().resolveLevel(name));
-					changeable.setLevel(slf4jLevel.toInt());
-				});
+				// boolean callerInfo = allowedChanges.contains(ChangeType.CALLER);
+				// ChangeableLogger changeable = new ChangeableLogger(name, logger, mdc,
+				// Levels.toSlf4jInt(level),
+				// callerInfo);
+				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
+				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
+				subscribe(name, router, changePublisher, changeable);
 				newLogger = changeable;
 			}
 			else {
@@ -68,13 +70,34 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				}
 				else {
 					var slf4jLevel = Levels.toSlf4jLevel(level);
-					newLogger = LevelLogger.of(slf4jLevel, name, logger, mdc);
+					LogEventHandler handler = maybeAddCallerInfo(name, allowedChanges, logger, 0);
+					newLogger = LevelLogger.of(slf4jLevel, handler);
 				}
 			}
 			Logger decorated = decorator.decorate(rainbowGum, newLogger);
 			Logger oldInstance = loggerMap.putIfAbsent(name, decorated);
 			return oldInstance == null ? decorated : oldInstance;
 		}
+	}
+
+	private void subscribe(String name, RootRouter router, ChangePublisher changePublisher,
+			LevelChangeable changeable) {
+		changePublisher.subscribe(c -> {
+			var slf4jLevel = Levels.toSlf4jLevel(router.levelResolver().resolveLevel(name));
+			changeable.setLevel(slf4jLevel);
+		});
+	}
+
+	private LogEventHandler maybeAddCallerInfo(String loggerName, Set<ChangeType> allowedChanges, LogEventLogger logger,
+			int depth) {
+		LogEventHandler _logger;
+		if (allowedChanges.contains(ChangeType.CALLER)) {
+			_logger = LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth);
+		}
+		else {
+			_logger = LogEventHandler.of(loggerName, logger, mdc);
+		}
+		return _logger;
 	}
 
 	sealed interface LoggerDecorator {
@@ -109,39 +132,19 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 			@Override
 			public Logger decorate(RainbowGum gum, Logger logger) {
-				for (var p : services) {
-					logger = Objects.requireNonNull(p.decorate(gum, logger));
-				}
-				int count = 0;
-				for (var current = logger; current != null; current = getWrapping(current)) {
-					count++;
-				}
-				int endIndex = count - 1;
+
 				int i = 0;
-				if (endIndex > 0) {
-					for (var current = logger; current != null; current = getWrapping(current)) {
-						setDepth(current, i, endIndex);
-						if (i >= endIndex) {
-							break;
-						}
+				for (var p : services) {
+					if (!(logger instanceof DepthAwareLogger da)) {
+						return logger;
+					}
+					var next = Objects.requireNonNull(p.decorate(gum, da, i));
+					if (next != logger) {
 						i++;
 					}
+					logger = next;
 				}
 				return logger;
-			}
-
-		}
-
-		private static @Nullable Logger getWrapping(Logger logger) {
-			if (logger instanceof WrappingLogger wl) {
-				return wl.delegate();
-			}
-			return null;
-		}
-
-		static void setDepth(Logger logger, int index, int endIndex) {
-			if (logger instanceof DepthAware da) {
-				da.setDepth(index, endIndex);
 			}
 
 		}

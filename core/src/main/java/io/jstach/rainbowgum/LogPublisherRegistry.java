@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 
@@ -110,7 +111,8 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 				.buildWithName(BUFFER_SIZE_PROPERTY, name) //
 				.get(properties) //
 				.value(ASYNC_BUFFER_SIZE);
-			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize);
+			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher
+				.of(appenders.flags(EnumSet.of(LogAppender.AppenderFlag.REUSE_BUFFER)).asSingle(), _bufferSize);
 		}
 	};
 

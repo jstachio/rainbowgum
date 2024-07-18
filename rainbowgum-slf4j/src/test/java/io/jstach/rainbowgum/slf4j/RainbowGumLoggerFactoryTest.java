@@ -90,7 +90,7 @@ class RainbowGumLoggerFactoryTest {
 
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("mychange");
-		assertInstanceOf(ChangeableLogger.class, logger);
+		assertInstanceOf(LevelChangeable.class, logger);
 		assertTrue(logger.isErrorEnabled());
 		assertFalse(logger.isDebugEnabled());
 		assertFalse(factory.getLogger("mychange.one").isDebugEnabled());
@@ -119,9 +119,46 @@ class RainbowGumLoggerFactoryTest {
 				""";
 		assertEquals(expected, actual);
 
-		assertInstanceOf(ChangeableLogger.class, logger);
+		assertInstanceOf(LevelChangeable.class, logger);
 		logger = factory.getLogger("static");
 		assertInstanceOf(LevelLogger.class, logger);
+	}
+
+	@Test
+	void testCallerInfoLogger() {
+		String global = """
+				logging.global.change=true
+				logging.change.mychange=caller
+				""";
+		Map<String, String> m = new LinkedHashMap<>();
+		m.put("logging.level.mychange", "ERROR");
+		m.put("logging.level.mychange.two", "INFO");
+
+		LogProperties props = LogProperties.builder() //
+			.fromFunction(m::get) //
+			.with(LogProperties.builder().fromProperties(global).build())
+			.build();
+		var rainbowgum = gum(props);
+
+		assertTrue(rainbowgum.config().changePublisher().isEnabled("mychange"));
+
+		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
+		var logger = factory.getLogger("mychange");
+		assertTrue(logger.isErrorEnabled());
+		assertFalse(logger.isDebugEnabled());
+		assertFalse(factory.getLogger("mychange.one").isDebugEnabled());
+
+		logger.error("after change info");
+
+		String actual = list.toString();
+
+		String expected = """
+				ERROR after change info <caller>io.jstach.rainbowgum.slf4j.RainbowGumLoggerFactoryTest.testCallerInfoLogger</caller>
+				""";
+		assertEquals(expected, actual);
+
+		assertInstanceOf(LevelLogger.class, logger);
+
 	}
 
 	@Test
@@ -134,7 +171,7 @@ class RainbowGumLoggerFactoryTest {
 		var rainbowgum = gum(props);
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("anything");
-		assertInstanceOf(ChangeableLogger.class, logger);
+		assertInstanceOf(LevelChangeable.class, logger);
 	}
 
 	private RainbowGum gum(LogProperties props) {

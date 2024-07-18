@@ -4,38 +4,58 @@ import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
+import org.slf4j.spi.NOPLoggingEventBuilder;
 
 @SuppressWarnings("exports")
 sealed interface LevelLogger extends BaseLogger, Logger {
 
-	record OffLogger(String loggerName) implements LevelLogger {
-		@Override
-		public void handle(io.jstach.rainbowgum.LogEvent event) {
-		}
+	LogEventHandler handler();
 
-		@Override
-		public io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc() {
-			return null;
+	Level level();
+
+	public LevelLogger withDepth(int depth);
+
+	@Override
+	default LoggingEventBuilder makeLoggingEventBuilder(Level level) {
+		if (level().toInt() <= level.toInt()) {
+			return handler().eventBuilder(level);
 		}
+		return NOPLoggingEventBuilder.singleton();
 	}
 
-	public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
-			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) {
+	public static LevelLogger of(Level level, LogEventHandler handler) {
 		return switch (level) {
-			case ERROR -> new ErrorLogger(loggerName, appender, mdc);
-			case WARN -> new WarnLogger(loggerName, appender, mdc);
-			case INFO -> new InfoLogger(loggerName, appender, mdc);
-			case DEBUG -> new DebugLogger(loggerName, appender, mdc);
-			case TRACE -> new TraceLogger(loggerName, appender, mdc);
+			case ERROR -> new ErrorLogger(handler.loggerName(), handler);
+			case WARN -> new WarnLogger(handler.loggerName(), handler);
+			case INFO -> new InfoLogger(handler.loggerName(), handler);
+			case DEBUG -> new DebugLogger(handler.loggerName(), handler);
+			case TRACE -> new TraceLogger(handler.loggerName(), handler);
 		};
 	}
 
-	record ErrorLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
-			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
+	record OffLogger(String loggerName) implements BaseLogger {
+		@Override
+		public LoggingEventBuilder makeLoggingEventBuilder(Level level) {
+			return NOPLoggingEventBuilder.singleton();
+		}
 
 		@Override
-		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.log(event);
+		public Logger withDepth(int depth) {
+			return this;
+		}
+
+	}
+
+	record ErrorLogger(String loggerName, LogEventHandler handler) implements LevelLogger {
+
+		@Override
+		public Level level() {
+			return Level.ERROR;
+		}
+
+		@Override
+		public LevelLogger withDepth(int depth) {
+			return new ErrorLogger(loggerName, handler.withDepth(depth));
 		}
 
 		@Override
@@ -50,27 +70,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(String format, Object... arguments) {
-			handleArray(Level.ERROR, format, arguments);
+			handler().handleArray(Level.ERROR, format, arguments);
 		}
 
 		@Override
 		public void error(String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -80,27 +100,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(Marker marker, String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object... argArray) {
-			handleArray(Level.ERROR, format, argArray);
+			handler().handleArray(Level.ERROR, format, argArray);
 		}
 
 		@Override
 		public void error(Marker marker, String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -304,12 +324,16 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record WarnLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
-			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
+	record WarnLogger(String loggerName, LogEventHandler handler) implements LevelLogger {
 
 		@Override
-		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.log(event);
+		public Level level() {
+			return Level.WARN;
+		}
+
+		@Override
+		public LevelLogger withDepth(int depth) {
+			return new WarnLogger(loggerName, handler.withDepth(depth));
 		}
 
 		@Override
@@ -324,27 +348,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(String format, Object... arguments) {
-			handleArray(Level.ERROR, format, arguments);
+			handler().handleArray(Level.ERROR, format, arguments);
 		}
 
 		@Override
 		public void error(String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -354,27 +378,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(Marker marker, String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object... argArray) {
-			handleArray(Level.ERROR, format, argArray);
+			handler().handleArray(Level.ERROR, format, argArray);
 		}
 
 		@Override
 		public void error(Marker marker, String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -389,27 +413,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(String format, Object... arguments) {
-			handleArray(Level.WARN, format, arguments);
+			handler().handleArray(Level.WARN, format, arguments);
 		}
 
 		@Override
 		public void warn(String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -419,27 +443,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(Marker marker, String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object... argArray) {
-			handleArray(Level.WARN, format, argArray);
+			handler().handleArray(Level.WARN, format, argArray);
 		}
 
 		@Override
 		public void warn(Marker marker, String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -593,12 +617,16 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record InfoLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
-			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
+	record InfoLogger(String loggerName, LogEventHandler handler) implements LevelLogger {
 
 		@Override
-		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.log(event);
+		public Level level() {
+			return Level.INFO;
+		}
+
+		@Override
+		public LevelLogger withDepth(int depth) {
+			return new InfoLogger(loggerName, handler.withDepth(depth));
 		}
 
 		@Override
@@ -613,27 +641,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(String format, Object... arguments) {
-			handleArray(Level.ERROR, format, arguments);
+			handler().handleArray(Level.ERROR, format, arguments);
 		}
 
 		@Override
 		public void error(String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -643,27 +671,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(Marker marker, String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object... argArray) {
-			handleArray(Level.ERROR, format, argArray);
+			handler().handleArray(Level.ERROR, format, argArray);
 		}
 
 		@Override
 		public void error(Marker marker, String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -678,27 +706,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(String format, Object... arguments) {
-			handleArray(Level.WARN, format, arguments);
+			handler().handleArray(Level.WARN, format, arguments);
 		}
 
 		@Override
 		public void warn(String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -708,27 +736,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(Marker marker, String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object... argArray) {
-			handleArray(Level.WARN, format, argArray);
+			handler().handleArray(Level.WARN, format, argArray);
 		}
 
 		@Override
 		public void warn(Marker marker, String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -743,27 +771,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(String msg) {
-			handle(Level.INFO, msg);
+			handler().handle(Level.INFO, msg);
 		}
 
 		@Override
 		public void info(String format, Object arg) {
-			handle(Level.INFO, format, arg);
+			handler().handle(Level.INFO, format, arg);
 		}
 
 		@Override
 		public void info(String format, Object arg1, Object arg2) {
-			handle(Level.INFO, format, arg1, arg2);
+			handler().handle(Level.INFO, format, arg1, arg2);
 		}
 
 		@Override
 		public void info(String format, Object... arguments) {
-			handleArray(Level.INFO, format, arguments);
+			handler().handleArray(Level.INFO, format, arguments);
 		}
 
 		@Override
 		public void info(String msg, Throwable t) {
-			handle(Level.INFO, msg, t);
+			handler().handle(Level.INFO, msg, t);
 		}
 
 		@Override
@@ -773,27 +801,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(Marker marker, String msg) {
-			handle(Level.INFO, msg);
+			handler().handle(Level.INFO, msg);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object arg) {
-			handle(Level.INFO, format, arg);
+			handler().handle(Level.INFO, format, arg);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.INFO, format, arg1, arg2);
+			handler().handle(Level.INFO, format, arg1, arg2);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object... argArray) {
-			handleArray(Level.INFO, format, argArray);
+			handler().handleArray(Level.INFO, format, argArray);
 		}
 
 		@Override
 		public void info(Marker marker, String msg, Throwable t) {
-			handle(Level.INFO, msg, t);
+			handler().handle(Level.INFO, msg, t);
 		}
 
 		@Override
@@ -897,12 +925,16 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record DebugLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
-			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
+	record DebugLogger(String loggerName, LogEventHandler handler) implements LevelLogger {
 
 		@Override
-		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.log(event);
+		public Level level() {
+			return Level.DEBUG;
+		}
+
+		@Override
+		public LevelLogger withDepth(int depth) {
+			return new DebugLogger(loggerName, handler.withDepth(depth));
 		}
 
 		@Override
@@ -917,27 +949,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(String format, Object... arguments) {
-			handleArray(Level.ERROR, format, arguments);
+			handler().handleArray(Level.ERROR, format, arguments);
 		}
 
 		@Override
 		public void error(String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -947,27 +979,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(Marker marker, String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object... argArray) {
-			handleArray(Level.ERROR, format, argArray);
+			handler().handleArray(Level.ERROR, format, argArray);
 		}
 
 		@Override
 		public void error(Marker marker, String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -982,27 +1014,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(String format, Object... arguments) {
-			handleArray(Level.WARN, format, arguments);
+			handler().handleArray(Level.WARN, format, arguments);
 		}
 
 		@Override
 		public void warn(String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -1012,27 +1044,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(Marker marker, String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object... argArray) {
-			handleArray(Level.WARN, format, argArray);
+			handler().handleArray(Level.WARN, format, argArray);
 		}
 
 		@Override
 		public void warn(Marker marker, String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -1047,27 +1079,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(String msg) {
-			handle(Level.INFO, msg);
+			handler().handle(Level.INFO, msg);
 		}
 
 		@Override
 		public void info(String format, Object arg) {
-			handle(Level.INFO, format, arg);
+			handler().handle(Level.INFO, format, arg);
 		}
 
 		@Override
 		public void info(String format, Object arg1, Object arg2) {
-			handle(Level.INFO, format, arg1, arg2);
+			handler().handle(Level.INFO, format, arg1, arg2);
 		}
 
 		@Override
 		public void info(String format, Object... arguments) {
-			handleArray(Level.INFO, format, arguments);
+			handler().handleArray(Level.INFO, format, arguments);
 		}
 
 		@Override
 		public void info(String msg, Throwable t) {
-			handle(Level.INFO, msg, t);
+			handler().handle(Level.INFO, msg, t);
 		}
 
 		@Override
@@ -1077,27 +1109,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(Marker marker, String msg) {
-			handle(Level.INFO, msg);
+			handler().handle(Level.INFO, msg);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object arg) {
-			handle(Level.INFO, format, arg);
+			handler().handle(Level.INFO, format, arg);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.INFO, format, arg1, arg2);
+			handler().handle(Level.INFO, format, arg1, arg2);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object... argArray) {
-			handleArray(Level.INFO, format, argArray);
+			handler().handleArray(Level.INFO, format, argArray);
 		}
 
 		@Override
 		public void info(Marker marker, String msg, Throwable t) {
-			handle(Level.INFO, msg, t);
+			handler().handle(Level.INFO, msg, t);
 		}
 
 		@Override
@@ -1112,27 +1144,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void debug(String msg) {
-			handle(Level.DEBUG, msg);
+			handler().handle(Level.DEBUG, msg);
 		}
 
 		@Override
 		public void debug(String format, Object arg) {
-			handle(Level.DEBUG, format, arg);
+			handler().handle(Level.DEBUG, format, arg);
 		}
 
 		@Override
 		public void debug(String format, Object arg1, Object arg2) {
-			handle(Level.DEBUG, format, arg1, arg2);
+			handler().handle(Level.DEBUG, format, arg1, arg2);
 		}
 
 		@Override
 		public void debug(String format, Object... arguments) {
-			handleArray(Level.DEBUG, format, arguments);
+			handler().handleArray(Level.DEBUG, format, arguments);
 		}
 
 		@Override
 		public void debug(String msg, Throwable t) {
-			handle(Level.DEBUG, msg, t);
+			handler().handle(Level.DEBUG, msg, t);
 		}
 
 		@Override
@@ -1142,27 +1174,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void debug(Marker marker, String msg) {
-			handle(Level.DEBUG, msg);
+			handler().handle(Level.DEBUG, msg);
 		}
 
 		@Override
 		public void debug(Marker marker, String format, Object arg) {
-			handle(Level.DEBUG, format, arg);
+			handler().handle(Level.DEBUG, format, arg);
 		}
 
 		@Override
 		public void debug(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.DEBUG, format, arg1, arg2);
+			handler().handle(Level.DEBUG, format, arg1, arg2);
 		}
 
 		@Override
 		public void debug(Marker marker, String format, Object... argArray) {
-			handleArray(Level.DEBUG, format, argArray);
+			handler().handleArray(Level.DEBUG, format, argArray);
 		}
 
 		@Override
 		public void debug(Marker marker, String msg, Throwable t) {
-			handle(Level.DEBUG, msg, t);
+			handler().handle(Level.DEBUG, msg, t);
 		}
 
 		@Override
@@ -1216,12 +1248,16 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 		}
 	}
 
-	record TraceLogger(String loggerName, io.jstach.rainbowgum.LogEventLogger appender,
-			io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
+	record TraceLogger(String loggerName, LogEventHandler handler) implements LevelLogger {
 
 		@Override
-		public void handle(io.jstach.rainbowgum.LogEvent event) {
-			appender.log(event);
+		public Level level() {
+			return Level.TRACE;
+		}
+
+		@Override
+		public LevelLogger withDepth(int depth) {
+			return new TraceLogger(loggerName, handler.withDepth(depth));
 		}
 
 		@Override
@@ -1236,27 +1272,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(String format, Object... arguments) {
-			handleArray(Level.ERROR, format, arguments);
+			handler().handleArray(Level.ERROR, format, arguments);
 		}
 
 		@Override
 		public void error(String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -1266,27 +1302,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void error(Marker marker, String msg) {
-			handle(Level.ERROR, msg);
+			handler().handle(Level.ERROR, msg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg) {
-			handle(Level.ERROR, format, arg);
+			handler().handle(Level.ERROR, format, arg);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.ERROR, format, arg1, arg2);
+			handler().handle(Level.ERROR, format, arg1, arg2);
 		}
 
 		@Override
 		public void error(Marker marker, String format, Object... argArray) {
-			handleArray(Level.ERROR, format, argArray);
+			handler().handleArray(Level.ERROR, format, argArray);
 		}
 
 		@Override
 		public void error(Marker marker, String msg, Throwable t) {
-			handle(Level.ERROR, msg, t);
+			handler().handle(Level.ERROR, msg, t);
 		}
 
 		@Override
@@ -1301,27 +1337,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(String format, Object... arguments) {
-			handleArray(Level.WARN, format, arguments);
+			handler().handleArray(Level.WARN, format, arguments);
 		}
 
 		@Override
 		public void warn(String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -1331,27 +1367,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void warn(Marker marker, String msg) {
-			handle(Level.WARN, msg);
+			handler().handle(Level.WARN, msg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg) {
-			handle(Level.WARN, format, arg);
+			handler().handle(Level.WARN, format, arg);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.WARN, format, arg1, arg2);
+			handler().handle(Level.WARN, format, arg1, arg2);
 		}
 
 		@Override
 		public void warn(Marker marker, String format, Object... argArray) {
-			handleArray(Level.WARN, format, argArray);
+			handler().handleArray(Level.WARN, format, argArray);
 		}
 
 		@Override
 		public void warn(Marker marker, String msg, Throwable t) {
-			handle(Level.WARN, msg, t);
+			handler().handle(Level.WARN, msg, t);
 		}
 
 		@Override
@@ -1366,27 +1402,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(String msg) {
-			handle(Level.INFO, msg);
+			handler().handle(Level.INFO, msg);
 		}
 
 		@Override
 		public void info(String format, Object arg) {
-			handle(Level.INFO, format, arg);
+			handler().handle(Level.INFO, format, arg);
 		}
 
 		@Override
 		public void info(String format, Object arg1, Object arg2) {
-			handle(Level.INFO, format, arg1, arg2);
+			handler().handle(Level.INFO, format, arg1, arg2);
 		}
 
 		@Override
 		public void info(String format, Object... arguments) {
-			handleArray(Level.INFO, format, arguments);
+			handler().handleArray(Level.INFO, format, arguments);
 		}
 
 		@Override
 		public void info(String msg, Throwable t) {
-			handle(Level.INFO, msg, t);
+			handler().handle(Level.INFO, msg, t);
 		}
 
 		@Override
@@ -1396,27 +1432,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void info(Marker marker, String msg) {
-			handle(Level.INFO, msg);
+			handler().handle(Level.INFO, msg);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object arg) {
-			handle(Level.INFO, format, arg);
+			handler().handle(Level.INFO, format, arg);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.INFO, format, arg1, arg2);
+			handler().handle(Level.INFO, format, arg1, arg2);
 		}
 
 		@Override
 		public void info(Marker marker, String format, Object... argArray) {
-			handleArray(Level.INFO, format, argArray);
+			handler().handleArray(Level.INFO, format, argArray);
 		}
 
 		@Override
 		public void info(Marker marker, String msg, Throwable t) {
-			handle(Level.INFO, msg, t);
+			handler().handle(Level.INFO, msg, t);
 		}
 
 		@Override
@@ -1431,27 +1467,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void debug(String msg) {
-			handle(Level.DEBUG, msg);
+			handler().handle(Level.DEBUG, msg);
 		}
 
 		@Override
 		public void debug(String format, Object arg) {
-			handle(Level.DEBUG, format, arg);
+			handler().handle(Level.DEBUG, format, arg);
 		}
 
 		@Override
 		public void debug(String format, Object arg1, Object arg2) {
-			handle(Level.DEBUG, format, arg1, arg2);
+			handler().handle(Level.DEBUG, format, arg1, arg2);
 		}
 
 		@Override
 		public void debug(String format, Object... arguments) {
-			handleArray(Level.DEBUG, format, arguments);
+			handler().handleArray(Level.DEBUG, format, arguments);
 		}
 
 		@Override
 		public void debug(String msg, Throwable t) {
-			handle(Level.DEBUG, msg, t);
+			handler().handle(Level.DEBUG, msg, t);
 		}
 
 		@Override
@@ -1461,27 +1497,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void debug(Marker marker, String msg) {
-			handle(Level.DEBUG, msg);
+			handler().handle(Level.DEBUG, msg);
 		}
 
 		@Override
 		public void debug(Marker marker, String format, Object arg) {
-			handle(Level.DEBUG, format, arg);
+			handler().handle(Level.DEBUG, format, arg);
 		}
 
 		@Override
 		public void debug(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.DEBUG, format, arg1, arg2);
+			handler().handle(Level.DEBUG, format, arg1, arg2);
 		}
 
 		@Override
 		public void debug(Marker marker, String format, Object... argArray) {
-			handleArray(Level.DEBUG, format, argArray);
+			handler().handleArray(Level.DEBUG, format, argArray);
 		}
 
 		@Override
 		public void debug(Marker marker, String msg, Throwable t) {
-			handle(Level.DEBUG, msg, t);
+			handler().handle(Level.DEBUG, msg, t);
 		}
 
 		@Override
@@ -1496,27 +1532,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(String msg) {
-			handle(Level.TRACE, msg);
+			handler().handle(Level.TRACE, msg);
 		}
 
 		@Override
 		public void trace(String format, Object arg) {
-			handle(Level.TRACE, format, arg);
+			handler().handle(Level.TRACE, format, arg);
 		}
 
 		@Override
 		public void trace(String format, Object arg1, Object arg2) {
-			handle(Level.TRACE, format, arg1, arg2);
+			handler().handle(Level.TRACE, format, arg1, arg2);
 		}
 
 		@Override
 		public void trace(String format, Object... arguments) {
-			handleArray(Level.TRACE, format, arguments);
+			handler().handleArray(Level.TRACE, format, arguments);
 		}
 
 		@Override
 		public void trace(String msg, Throwable t) {
-			handle(Level.TRACE, msg, t);
+			handler().handle(Level.TRACE, msg, t);
 		}
 
 		@Override
@@ -1526,27 +1562,27 @@ sealed interface LevelLogger extends BaseLogger, Logger {
 
 		@Override
 		public void trace(Marker marker, String msg) {
-			handle(Level.TRACE, msg);
+			handler().handle(Level.TRACE, msg);
 		}
 
 		@Override
 		public void trace(Marker marker, String format, Object arg) {
-			handle(Level.TRACE, format, arg);
+			handler().handle(Level.TRACE, format, arg);
 		}
 
 		@Override
 		public void trace(Marker marker, String format, Object arg1, Object arg2) {
-			handle(Level.TRACE, format, arg1, arg2);
+			handler().handle(Level.TRACE, format, arg1, arg2);
 		}
 
 		@Override
 		public void trace(Marker marker, String format, Object... argArray) {
-			handleArray(Level.TRACE, format, argArray);
+			handler().handleArray(Level.TRACE, format, argArray);
 		}
 
 		@Override
 		public void trace(Marker marker, String msg, Throwable t) {
-			handle(Level.TRACE, msg, t);
+			handler().handle(Level.TRACE, msg, t);
 		}
 	}
 

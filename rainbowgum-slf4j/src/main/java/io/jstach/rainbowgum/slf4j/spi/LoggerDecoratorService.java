@@ -1,8 +1,10 @@
 package io.jstach.rainbowgum.slf4j.spi;
 
 import org.slf4j.Logger;
+import org.slf4j.spi.LoggingEventBuilder;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.slf4j.ForwardingLogger;
 import io.jstach.rainbowgum.slf4j.WrappingLogger;
@@ -15,7 +17,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * <p>
  * If there are multiple registrations {@link #order()} and then {@link #name()} will be
  * used to sort where the lower order number and name will
- * {@linkplain #decorate(RainbowGum, Logger) decorate} first. See
+ * {@linkplain #decorate(RainbowGum, DepthAwareLogger, int) decorate} first. See
  * {@link RainbowGumServiceProvider} for details on how to register.
  * <p>
  * <strong>IMPORTANT implementation detail</strong> is that you should not call the SLF4J
@@ -59,26 +61,73 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 	 * Decorate a logger. To not decorate simply return the previous logger.
 	 * @param rainbowGum rainbow gum passed to the slf4j factory.
 	 * @param previousLogger the previous logger in the chain.
+	 * @param depth amount of times the logger has been wrapped. If the inputted logger is
+	 * returned this number does not increase.
 	 * @return decorated logger and if decorated ideally one that implements
 	 * {@link WrappingLogger} so that caller info depth is retained.
 	 */
-	public abstract Logger decorate(RainbowGum rainbowGum, Logger previousLogger);
+	public abstract Logger decorate(RainbowGum rainbowGum, DepthAwareLogger previousLogger, int depth);
 
 	/**
 	 * Because wrapping can change the depth of the logger in the callstack this interface
-	 * allows loggers to be notified their depth has changed because of
-	 * {@link LoggerDecoratorService#decorate(RainbowGum, Logger)}. This is determined by
-	 * checking loggers that implement {@link WrappingLogger} in the decorate phase to
-	 * determine their depth in the chain.
+	 * allows loggers to recreate themselves with the proper depth if they support it.
 	 */
-	public interface DepthAware {
+	public interface DepthAwareLogger extends Logger {
 
 		/**
-		 * Sets the depth information.
-		 * @param index current index. <code>0</code> would be the outer most logger.
-		 * @param endIndex index of last logger which is inclusive.
+		 * Will recreate the logger with desired depth.
+		 * @param depth new depth.
+		 * @return logger with new depth.
 		 */
-		public void setDepth(int index, int endIndex);
+		public Logger withDepth(int depth);
+
+		/**
+		 * Will recreate the logger with desired depth if possible.
+		 * @param logger to check.
+		 * @param depth new depth.
+		 * @return logger with new depth or the same logger if not possible.
+		 */
+		public static Logger withDepth(Logger logger, int depth) {
+			if (logger instanceof DepthAwareLogger da) {
+				return da.withDepth(depth);
+			}
+			return logger;
+		}
+
+	}
+
+	/**
+	 * Because wrapping can change the depth of the logger in the callstack this interface
+	 * allows implementations to change the depth of the event builder.
+	 */
+	public interface DepthAwareEventBuilder extends LoggingEventBuilder {
+
+		/**
+		 * Sets the depth of an event builder.
+		 * @param depth sets depth for caller info.
+		 * @return this.
+		 */
+		public LoggingEventBuilder setDepth(int depth);
+
+		/**
+		 * Will recreate the logger with desired depth if possible.
+		 * @param eventBuilder event builder to check.
+		 * @param depth new depth.
+		 * @return logger with new depth or the same logger if not possible.
+		 */
+		public static LoggingEventBuilder setDepth(LoggingEventBuilder eventBuilder, int depth) {
+			if (eventBuilder instanceof DepthAwareEventBuilder da) {
+				return da.setDepth(depth);
+			}
+			return eventBuilder;
+		}
+
+		/**
+		 * Redirects the output.
+		 * @param logger logger.
+		 * @return this.
+		 */
+		LoggingEventBuilder setLogger(LogEventLogger logger);
 
 	}
 

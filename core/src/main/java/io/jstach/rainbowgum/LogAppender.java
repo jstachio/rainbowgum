@@ -20,7 +20,14 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
  * Appenders are guaranteed to be written synchronously much like an actor in actor
- * concurrency.
+ * concurrency. They safely hold onto and communicate with the encoder and output.
+ * Appenders largely deal with correct locking, buffer reuse and flushing.
+ * {@linkplain LogAppender.AppenderFlag Flags } can be set to control the behavior the
+ * appenders and publishers can request different appender behavior through the flags.
+ *
+ * @see LogAppender.AppenderFlag
+ * @apiNote because appenders require complicated implementation and to guarantee
+ * integrity the implementations are encapsulated (sealed).
  */
 public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
@@ -63,7 +70,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 	public void append(LogEvent event);
 
 	/**
-	 * Boolean like flags for appender.
+	 * Boolean like flags for appender that can be set with
+	 * {@link LogAppender#APPENDER_FLAGS_PROPERTY}. Publisher may choose to add flags to
+	 * the appenders and will be added if no flags are set on the appenders. Consequently
+	 * great care should be taken when setting flags as performance maybe greatly impacted
+	 * if a publisher is not designed for the flag.
 	 */
 	@CaseChanging
 	public enum AppenderFlag {
@@ -72,7 +83,12 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * The appender will create a single buffer that will be reused and will be
 		 * protected by the appenders locking.
 		 */
-		REUSE_BUFFER;
+		REUSE_BUFFER,
+		/**
+		 * The appender will call flush on each item appended or if in async batch mode
+		 * for each batch.
+		 */
+		IMMEDIATE_FLUSH;
 
 		static Set<AppenderFlag> parse(Collection<String> value) {
 			if (value.isEmpty()) {
@@ -113,7 +129,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 		private @Nullable LogProvider<? extends LogEncoder> encoder = null;
 
-		private @Nullable Set<AppenderFlag> flags = null;
+		private @Nullable EnumSet<AppenderFlag> flags = null;
 
 		private final String name;
 
@@ -197,12 +213,25 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * @return this.
 		 */
 		public Builder flags(Collection<AppenderFlag> flags) {
-			if (flags.isEmpty()) {
-				this.flags = EnumSet.noneOf(AppenderFlag.class);
+			_flags().addAll(flags);
+			return this;
+		}
+
+		private EnumSet<AppenderFlag> _flags() {
+			EnumSet<AppenderFlag> flags = this.flags;
+			if (flags == null) {
+				this.flags = flags = EnumSet.noneOf(AppenderFlag.class);
 			}
-			else {
-				this.flags = EnumSet.copyOf(flags);
-			}
+			return flags;
+		}
+
+		/**
+		 * Adds a flag.
+		 * @param flag flag.
+		 * @return this.
+		 */
+		public Builder flag(AppenderFlag flag) {
+			_flags().add(flag);
 			return this;
 		}
 
@@ -244,11 +273,23 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 		private final List<LogProvider<LogAppender>> appenders;
 
+		private Set<LogAppender.AppenderFlag> flags = EnumSet.noneOf(LogAppender.AppenderFlag.class);
+
 		Appenders(String name, LogConfig config, List<LogProvider<LogAppender>> appenders) {
 			super();
 			this.name = name;
 			this.config = config;
 			this.appenders = appenders;
+		}
+
+		/**
+		 * Sets flags for the appenders which should be done prior to <code>asXXX</code>.
+		 * @param flags appender flags.
+		 * @return this;
+		 */
+		public Appenders flags(Set<LogAppender.AppenderFlag> flags) {
+			this.flags = flags;
+			return this;
 		}
 
 		/**
@@ -259,10 +300,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		public List<? extends LogAppender> asList() throws IllegalStateException {
 			if (created.compareAndSet(false, true)) {
 				var apps = appenders();
+				List<LogAppender> appenders = new ArrayList<>();
 				for (var a : apps) {
-					register(a);
+					appenders.add(register(a));
 				}
-				return apps;
+				return appenders;
 			}
 			else {
 				throw new IllegalStateException("Appenders already provided.");
@@ -280,27 +322,29 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 			if (created.compareAndSet(false, true)) {
 				var apps = appenders();
 				var appender = single(apps);
-				register(appender);
-				return appender;
+				return register(appender);
 			}
 			else {
 				throw new IllegalStateException("Appenders already provided.");
 			}
 		}
 
-		private void register(LogAppender appender) {
-			switch (appender) {
+		private LogAppender register(LogAppender appender) {
+			return switch (appender) {
 				case DirectLogAppender ia -> {
-					config.serviceRegistry().put(LogAppender.class, name + "." + ia.name(), ia);
+					var _a = ia.withFlags(flags);
+					config.serviceRegistry().put(LogAppender.class, name + "." + _a.name(), _a);
+					yield _a;
 				}
 				case CompositeLogAppender ca -> {
-					config.serviceRegistry().put(LogAppender.class, name, ca);
+					var _a = ca.withFlags(flags);
+					config.serviceRegistry().put(LogAppender.class, name, _a);
+					yield _a;
 				}
 				default -> {
 					throw new IllegalStateException();
 				}
-			}
-			;
+			};
 		}
 
 		private List<LogAppender> appenders() {
@@ -323,7 +367,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 				return Objects.requireNonNull(appenders.get(0));
 			}
 			Lock lock = new ReentrantLock();
-			return CompositeLogAppender.of(appenders, lock);
+			return CompositeLogAppender.of(appenders, lock, Set.of());
 
 		}
 
@@ -361,6 +405,8 @@ sealed interface InternalLogAppender extends LogAppender, Actor {
 	boolean visit(AppenderVisitor visitor);
 
 	InternalLogAppender changeLock(Lock lock);
+
+	InternalLogAppender withFlags(Set<LogAppender.AppenderFlag> flags);
 
 	/**
 	 * An appender can act on actions. One of the key actions is reopening files.
@@ -414,10 +460,16 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder,
 			Set<LogAppender.AppenderFlag> flags) {
 		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
-			return new ReuseBufferLogAppender(name, output, encoder);
+			return new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
 		}
-		return new DefaultLogAppender(name, output, encoder);
+		return new DefaultLogAppender(name, output, encoder, flags, new ReentrantLock());
 	}
+
+	@Override
+	DirectLogAppender withFlags(Set<LogAppender.AppenderFlag> flags);
+
+	@Override
+	DirectLogAppender changeLock(Lock lock);
 
 }
 
@@ -441,17 +493,24 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 */
 	protected final LogEncoder encoder;
 
+	protected final Set<LogAppender.AppenderFlag> flags;
+
+	protected final boolean immediateFlush;
+
 	/**
 	 * Creates an appender from an output and encoder.
 	 * @param output set the output field and will be started and closed with the
 	 * appender.
 	 * @param encoder set the encoder field.
 	 */
-	protected AbstractLogAppender(String name, LogOutput output, LogEncoder encoder) {
+	protected AbstractLogAppender(String name, LogOutput output, LogEncoder encoder,
+			Set<LogAppender.AppenderFlag> flags) {
 		super();
 		this.name = name;
 		this.output = output;
 		this.encoder = encoder;
+		this.flags = flags;
+		this.immediateFlush = flags.contains(LogAppender.AppenderFlag.IMMEDIATE_FLUSH);
 	}
 
 	@Override
@@ -466,7 +525,8 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 
 	@Override
 	public String toString() {
-		return getClass().getName() + "[name=" + name + " encoder=" + encoder + ", " + "output=" + output + "]";
+		return getClass().getName() + "[name=" + name + " encoder=" + encoder + ", " + "output=" + output + ", flags="
+				+ flags + "]";
 	}
 
 	@Override
@@ -576,11 +636,12 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 record CompositeLogAppender(InternalLogAppender[] appenders,
 		Lock lock) implements BaseComposite<InternalLogAppender>, InternalLogAppender {
 
-	public static CompositeLogAppender of(List<? extends LogAppender> appenders, Lock lock) {
+	public static CompositeLogAppender of(List<? extends LogAppender> appenders, Lock lock,
+			Set<LogAppender.AppenderFlag> flags) {
 		@SuppressWarnings("null") // TODO Eclipse issue here
 		InternalLogAppender @NonNull [] array = appenders.stream()
 			.map(InternalLogAppender::of)
-			.map(a -> a.changeLock(lock))
+			.map(a -> a.changeLock(lock).withFlags(flags))
 			.toArray(i -> new InternalLogAppender[i]);
 		return new CompositeLogAppender(array, lock);
 	}
@@ -591,8 +652,16 @@ record CompositeLogAppender(InternalLogAppender[] appenders,
 	}
 
 	@Override
-	public InternalLogAppender changeLock(Lock lock) {
-		return of(List.of(appenders), lock);
+	public CompositeLogAppender changeLock(Lock lock) {
+		return of(List.of(appenders), lock, EnumSet.noneOf(LogAppender.AppenderFlag.class));
+	}
+
+	@Override
+	public CompositeLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
+		if (flags.isEmpty()) {
+			return this;
+		}
+		return of(List.of(appenders), lock, flags);
 	}
 
 }
@@ -601,8 +670,9 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 
 	protected final Lock lock;
 
-	public LockLogAppender(String name, LogOutput output, LogEncoder encoder, Lock lock) {
-		super(name, output, encoder);
+	public LockLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
+			Lock lock) {
+		super(name, output, encoder, flags);
 		this.lock = lock;
 	}
 
@@ -631,6 +701,22 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 		}
 	}
 
+	@Override
+	public DirectLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
+		if (flags.isEmpty()) {
+			return this;
+		}
+		if (this.flags.containsAll(flags)) {
+			return this;
+		}
+		flags = EnumSet.copyOf(flags);
+		flags.addAll(this.flags);
+		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
+			return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
+		}
+		return new DefaultLogAppender(name, output, encoder, flags, lock);
+	}
+
 }
 
 /*
@@ -638,12 +724,9 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
  */
 final class DefaultLogAppender extends LockLogAppender implements InternalLogAppender {
 
-	DefaultLogAppender(String name, LogOutput output, LogEncoder encoder, Lock lock) {
-		super(name, output, encoder, lock);
-	}
-
-	DefaultLogAppender(String name, LogOutput output, LogEncoder encoder) {
-		this(name, output, encoder, new ReentrantLock());
+	DefaultLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
+			Lock lock) {
+		super(name, output, encoder, flags, lock);
 	}
 
 	@Override
@@ -653,6 +736,9 @@ final class DefaultLogAppender extends LockLogAppender implements InternalLogApp
 			lock.lock();
 			try {
 				output.write(event, buffer);
+				if (immediateFlush) {
+					output.flush();
+				}
 			}
 			finally {
 				lock.unlock();
@@ -665,7 +751,9 @@ final class DefaultLogAppender extends LockLogAppender implements InternalLogApp
 		lock.lock();
 		try {
 			output.write(events, count, encoder);
-			output.flush();
+			if (immediateFlush) {
+				output.flush();
+			}
 		}
 		finally {
 			lock.unlock();
@@ -673,8 +761,8 @@ final class DefaultLogAppender extends LockLogAppender implements InternalLogApp
 	}
 
 	@Override
-	public InternalLogAppender changeLock(Lock lock) {
-		return new DefaultLogAppender(name, output, encoder, lock);
+	public DirectLogAppender changeLock(Lock lock) {
+		return new DefaultLogAppender(name, output, encoder, flags, lock);
 	}
 
 }
@@ -686,14 +774,16 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 
 	private final LogEncoder.Buffer buffer;
 
-	ReuseBufferLogAppender(String name, LogOutput output, LogEncoder encoder, Lock lock) {
-		super(name, output, encoder, lock);
+	ReuseBufferLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
+			Lock lock) {
+		super(name, output, encoder, flags, lock);
 		this.buffer = encoder.buffer(output.bufferHints());
 	}
 
-	ReuseBufferLogAppender(String name, LogOutput output, LogEncoder encoder) {
-		this(name, output, encoder, new ReentrantLock());
-	}
+	// ReuseBufferLogAppender(String name, LogOutput output, LogEncoder encoder) {
+	// this(name, output, encoder, EnumSet.noneOf(LogAppender.AppenderFlag.class), new
+	// ReentrantLock());
+	// }
 
 	@Override
 	public final void append(LogEvent event) {
@@ -702,6 +792,9 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 			buffer.clear();
 			encoder.encode(event, buffer);
 			output.write(event, buffer);
+			if (immediateFlush) {
+				output.flush();
+			}
 		}
 		finally {
 			lock.unlock();
@@ -713,7 +806,9 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 		lock.lock();
 		try {
 			output.write(events, count, encoder, buffer);
-			output.flush();
+			if (immediateFlush) {
+				output.flush();
+			}
 		}
 		finally {
 			lock.unlock();
@@ -733,8 +828,8 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 	}
 
 	@Override
-	public InternalLogAppender changeLock(Lock lock) {
-		return new ReuseBufferLogAppender(name, output, encoder, lock);
+	public DirectLogAppender changeLock(Lock lock) {
+		return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
 	}
 
 }

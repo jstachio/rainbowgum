@@ -2,6 +2,8 @@ package io.jstach.rainbowgum.slf4j;
 
 import org.slf4j.Logger;
 import org.slf4j.Marker;
+import org.slf4j.event.Level;
+import org.slf4j.spi.LoggingEventBuilder;
 
 /**
  * A logger that forwards calls to the {@link #delegate()} logger.
@@ -17,6 +19,21 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	@Override
 	default String getName() {
 		return delegate().getName();
+	}
+
+	@Override
+	default LoggingEventBuilder makeLoggingEventBuilder(Level level) {
+		return delegate().makeLoggingEventBuilder(level);
+	}
+
+	@Override
+	default boolean isEnabledForLevel(Level level) {
+		return delegate().isEnabledForLevel(level);
+	}
+
+	@Override
+	default LoggingEventBuilder atError() {
+		return delegate().atError();
 	}
 
 	@Override
@@ -80,6 +97,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	}
 
 	@Override
+	default LoggingEventBuilder atWarn() {
+		return delegate().atWarn();
+	}
+
+	@Override
 	default boolean isWarnEnabled() {
 		return delegate().isWarnEnabled();
 	}
@@ -137,6 +159,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	@Override
 	default void warn(Marker marker, String msg, Throwable t) {
 		delegate().warn(marker, msg, t);
+	}
+
+	@Override
+	default LoggingEventBuilder atInfo() {
+		return delegate().atInfo();
 	}
 
 	@Override
@@ -200,6 +227,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	}
 
 	@Override
+	default LoggingEventBuilder atDebug() {
+		return delegate().atDebug();
+	}
+
+	@Override
 	default boolean isDebugEnabled() {
 		return delegate().isDebugEnabled();
 	}
@@ -257,6 +289,11 @@ public interface ForwardingLogger extends Logger, WrappingLogger {
 	@Override
 	default void debug(Marker marker, String msg, Throwable t) {
 		delegate().debug(marker, msg, t);
+	}
+
+	@Override
+	default LoggingEventBuilder atTrace() {
+		return delegate().atTrace();
 	}
 
 	@Override

@@ -15,41 +15,60 @@ import io.jstach.jstache.JStacheType;
 @JStacheConfig(type = JStacheType.STACHE)
 public class CodeTemplates {
 
-	@JStache(
-			template = """
-					package io.jstach.rainbowgum.slf4j;
+	@JStache(template = """
+			package io.jstach.rainbowgum.slf4j;
 
-					import org.slf4j.Logger;
-					import org.slf4j.Marker;
-					import org.slf4j.event.Level;
-					import org.slf4j.spi.LoggingEventBuilder;
+			import org.slf4j.Logger;
+			import org.slf4j.Marker;
+			import org.slf4j.event.Level;
+			import org.slf4j.spi.LoggingEventBuilder;
+			import org.slf4j.spi.NOPLoggingEventBuilder;
 
-					@SuppressWarnings("exports")
-					sealed interface LevelLogger extends BaseLogger, Logger {
+			@SuppressWarnings("exports")
+			sealed interface LevelLogger extends BaseLogger, Logger {
 
-						record OffLogger(String loggerName) implements LevelLogger {
-							@Override
-							public void handle(io.jstach.rainbowgum.LogEvent event) {
-							}
-							@Override
-							public io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc() {
-								return null;
-							}
-						}
+				LogEventHandler handler();
 
-						public static LevelLogger of(Level level, String loggerName, io.jstach.rainbowgum.LogEventLogger appender, io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) {
-							return switch(level) {
-								{{#loggers}}
-								case {{level.name}} -> new {{className}}(loggerName, appender, mdc);
-								{{/loggers}}
-							};
-						}
+				Level level();
 
-						{{#loggers}}
-						{{> logger }}
-						{{/loggers}}
+				public LevelLogger withDepth(int depth);
+
+				@Override
+				default LoggingEventBuilder makeLoggingEventBuilder(
+						Level level) {
+					if (level().toInt() <= level.toInt()) {
+						return handler().eventBuilder(level);
 					}
-					""")
+					return NOPLoggingEventBuilder.singleton();
+				}
+
+				public static LevelLogger of(Level level, LogEventHandler handler) {
+					return switch(level) {
+						{{#loggers}}
+						case {{level.name}} -> new {{className}}(handler.loggerName(), handler);
+						{{/loggers}}
+					};
+				}
+
+				record OffLogger(String loggerName) implements BaseLogger {
+					@Override
+					public LoggingEventBuilder makeLoggingEventBuilder(
+							Level level) {
+						return NOPLoggingEventBuilder.singleton();
+					}
+
+					@Override
+					public Logger withDepth(int depth) {
+						return this;
+					}
+
+				}
+
+				{{#loggers}}
+				{{> logger }}
+				{{/loggers}}
+			}
+			""")
 	@JStachePartials(@JStachePartial(name = "logger", template = levelLoggerTemplate))
 	public record ClassModel() {
 		public List<LoggerModel> loggers() {
@@ -106,13 +125,17 @@ public class CodeTemplates {
 	}
 
 	public static final String levelLoggerTemplate = """
-			record {{className}}(String loggerName, io.jstach.rainbowgum.LogEventLogger appender, io.jstach.rainbowgum.slf4j.RainbowGumMDCAdapter mdc) implements LevelLogger {
+			record {{className}}(String loggerName, LogEventHandler handler) implements LevelLogger {
 
 				@Override
-				public void handle(io.jstach.rainbowgum.LogEvent event) {
-					appender.log(event);
+				public Level level() {
+					return Level.{{level.name}};
 				}
 
+				@Override
+				public LevelLogger withDepth(int depth) {
+					return new {{className}}(loggerName, handler.withDepth(depth));
+				}
 				{{#levels}}
 
 				{{#isEnabled}}
@@ -135,35 +158,35 @@ public class CodeTemplates {
 				@Override
 				public void {{methodName}}(String msg) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, msg);
+					handler().handle(Level.{{name}}, msg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String format, Object arg) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, format, arg);
+					handler().handle(Level.{{name}}, format, arg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String format, Object arg1, Object arg2) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, format, arg1, arg2);
+					handler().handle(Level.{{name}}, format, arg1, arg2);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String format, Object... arguments) {
 					{{#isEnabled}}
-					handleArray(Level.{{name}}, format, arguments);
+					handler().handleArray(Level.{{name}}, format, arguments);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String msg, Throwable t) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, msg, t);
+					handler().handle(Level.{{name}}, msg, t);
 					{{/isEnabled}}
 				}
 
@@ -180,35 +203,35 @@ public class CodeTemplates {
 				@Override
 				public void {{methodName}}(Marker marker, String msg) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, msg);
+					handler().handle(Level.{{name}}, msg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String format, Object arg) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, format, arg);
+					handler().handle(Level.{{name}}, format, arg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String format, Object arg1, Object arg2) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, format, arg1, arg2);
+					handler().handle(Level.{{name}}, format, arg1, arg2);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String format, Object... argArray) {
 					{{#isEnabled}}
-					handleArray(Level.{{name}}, format, argArray);
+					handler().handleArray(Level.{{name}}, format, argArray);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String msg, Throwable t) {
 					{{#isEnabled}}
-					handle(Level.{{name}}, msg, t);
+					handler().handle(Level.{{name}}, msg, t);
 					{{/isEnabled}}
 				}
 				{{/levels}}
@@ -466,11 +489,13 @@ public class CodeTemplates {
 
 			import org.slf4j.Logger;
 			import org.slf4j.Marker;
+			import org.slf4j.event.Level;
+			import org.slf4j.spi.LoggingEventBuilder;
 
 			/**
 			 * A logger that forwards calls to the {@link #delegate()} logger.
 			 */
-			public interface ForwardingLogger extends Logger {
+			public interface ForwardingLogger extends Logger, WrappingLogger {
 
 				/**
 				 * The downstream logger to forward calls to.
@@ -483,7 +508,21 @@ public class CodeTemplates {
 					return {{delegate}}.getName();
 				}
 
+				@Override
+				default LoggingEventBuilder makeLoggingEventBuilder(Level level) {
+					return {{delegate}}.makeLoggingEventBuilder(level);
+				}
+
+				@Override
+				default boolean isEnabledForLevel(Level level) {
+					return {{delegate}}.isEnabledForLevel(level);
+				}
 				{{#levels}}
+
+				@Override
+				default LoggingEventBuilder {{atName}}() {
+					return {{delegate}}.{{atName}}();
+				}
 
 				@Override
 				default boolean {{enabledMethodName}}() {
@@ -545,6 +584,7 @@ public class CodeTemplates {
 					{{delegate}}.{{methodName}}(marker, msg, t);
 				}
 				{{/levels}}
+
 			}
 			""";
 
