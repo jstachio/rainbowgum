@@ -4,9 +4,11 @@ import java.net.URI;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
+import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 /**
@@ -42,20 +44,42 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	 */
 	public static String DEFAULT_SCHEME = "default";
 
+	/**
+	 * Default async buffer size.
+	 */
+	public static final int ASYNC_BUFFER_SIZE = 1024;
+
+	/**
+	 * Buffer Size property name.
+	 */
+	public static final String BUFFER_SIZE_NAME = "bufferSize";
+
+	/**
+	 * Buffer Size Property for Async publishers.
+	 */
+	public static final String BUFFER_SIZE_PROPERTY = LogProperties.PUBLISHER_PREFIX + BUFFER_SIZE_NAME;
+
 }
 
-final class DefaultPublisherRegistry
-		extends ProviderRegistry<LogPublisher.PublisherProvider, PublisherFactory, RuntimeException>
-		implements LogPublisherRegistry {
+final class DefaultPublisherRegistry implements LogPublisherRegistry {
+
+	ConcurrentHashMap<String, PublisherProvider> providers = new ConcurrentHashMap<String, LogPublisher.PublisherProvider>();
 
 	@Override
-	public PublisherFactory provide(URI uri, String name, LogProperties properties) {
+	public PublisherFactory provide(LogProviderRef ref) {
+		ref = DefaultLogProviderRef.normalize(ref);
+		var uri = ref.uri();
 		String scheme = uri.getScheme();
 		if (scheme == null) {
 			throw new IllegalArgumentException("URI is missing scheme. uri: " + uri);
 		}
 		var provider = Optional.ofNullable(providers.get(scheme)).orElseThrow();
-		return provider.provide(uri, name, properties);
+		return provider.provide(ref);
+	}
+
+	@Override
+	public void register(String scheme, LogPublisher.PublisherProvider publisherProvider) {
+		providers.put(scheme, publisherProvider);
 	}
 
 	/**
@@ -108,35 +132,27 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 		protected PublisherFactory provide(String name, LogProperties properties) {
 			int _bufferSize = Property.builder()
 				.ofInt() //
-				.buildWithName(BUFFER_SIZE_PROPERTY, name) //
+				.buildWithName(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name) //
 				.get(properties) //
-				.value(ASYNC_BUFFER_SIZE);
+				.value(LogPublisherRegistry.ASYNC_BUFFER_SIZE);
 			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher
 				.of(appenders.flags(EnumSet.of(LogAppender.AppenderFlag.REUSE_BUFFER)).asSingle(), _bufferSize);
 		}
 	};
 
+	@Override
+	public PublisherFactory provide(LogProviderRef ref) {
+		return (n, config, appenders) -> provide(ref.uri(), n, config.properties()).create(n, config, appenders);
+	}
+
 	public abstract String scheme();
 
 	protected abstract PublisherFactory provide(String name, LogProperties properties);
 
-	@Override
 	public PublisherFactory provide(URI uri, String name, LogProperties properties) {
 		String prefix = LogProperties.interpolateKey(LogProperties.PUBLISHER_PREFIX, Map.of(LogProperties.NAME, name));
 		LogProperties combined = LogProperties.of(uri, prefix, properties);
 		return provide(name, combined);
 	}
-
-	/**
-	 * Default async buffer size.
-	 */
-	public static final int ASYNC_BUFFER_SIZE = 1024;
-
-	public static final String BUFFER_SIZE_NAME = "bufferSize";
-
-	/**
-	 * Buffer Size Property for Async publishers.
-	 */
-	public static final String BUFFER_SIZE_PROPERTY = LogProperties.PUBLISHER_PREFIX + BUFFER_SIZE_NAME;
 
 }

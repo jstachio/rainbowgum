@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -61,14 +62,22 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		}
 
 		/**
+		 * Provides a lazy loaded publisher from a URI.
+		 * @param ref uri.
+		 * @return provider of output.
+		 * @apiNote the provider may throw an {@link UncheckedIOException}.
+		 */
+		public static PublisherFactory of(LogProviderRef ref) {
+			return (name, config, appenders) -> config.publisherRegistry().provide(ref).create(name, config, appenders);
+		}
+
+		/**
 		 * Provides a publisher factory by URI.
 		 * @param uri uri whose scheme will be used to resolve publisher factory.
 		 * @return publisher factory.
 		 */
 		static PublisherFactory of(URI uri) {
-			return (name, config, appenders) -> config.publisherRegistry()
-				.provide(uri, name, config.properties())
-				.create(name, config, appenders);
+			return of(LogProviderRef.of(uri));
 		}
 
 		/**
@@ -78,8 +87,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 		 * @return async publisher.
 		 */
 		static PublisherFactory ofAsync(@Nullable Integer bufferSize) {
-			String query = bufferSize == null ? ""
-					: "?" + DefaultPublisherProviders.BUFFER_SIZE_NAME + "=" + bufferSize;
+			String query = bufferSize == null ? "" : "?" + LogPublisherRegistry.BUFFER_SIZE_NAME + "=" + bufferSize;
 			URI uri = URI.create(LogPublisherRegistry.ASYNC_SCHEME + ":///" + query);
 			return of(uri);
 		}
@@ -113,17 +121,14 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 	/**
 	 * SPI for custom publishers.
 	 */
-	public interface PublisherProvider extends PluginProvider<PublisherFactory, RuntimeException> {
+	public interface PublisherProvider {
 
 		/**
 		 * Provides a publisher factory by properties and uri.
-		 * @param uri uri configuration of publisher
-		 * @param name name to use for config finding.
-		 * @param properties configuration properties
+		 * @param ref reference to provider usually just a uri
 		 * @return publisher factory.
 		 */
-		@Override
-		PublisherFactory provide(URI uri, String name, LogProperties properties);
+		PublisherFactory provide(LogProviderRef ref);
 
 	}
 
@@ -181,7 +186,7 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 			/**
 			 * Buffer Size Property for Async publishers.
 			 */
-			public static final String BUFFER_SIZE_PROPERTY = DefaultPublisherProviders.BUFFER_SIZE_PROPERTY;
+			public static final String BUFFER_SIZE_PROPERTY = LogPublisherRegistry.BUFFER_SIZE_PROPERTY;
 
 			private @Nullable Integer bufferSize;
 

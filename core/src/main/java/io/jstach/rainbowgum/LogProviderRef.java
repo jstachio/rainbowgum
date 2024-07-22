@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.NoSuchElementException;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -70,4 +71,31 @@ public sealed interface LogProviderRef {
 }
 
 record DefaultLogProviderRef(URI uri, @Nullable String keyOrNull) implements LogProviderRef {
+	static URI normalize(URI uri) {
+		String scheme = uri.getScheme();
+		String path = uri.getPath();
+		try {
+			if (scheme == null) {
+				if (path == null) {
+					throw new IllegalArgumentException("URI is not proper: " + uri);
+				}
+				if (path.startsWith("./") || path.startsWith("/")) {
+					uri = new URI("name://" + path);
+				}
+				else {
+					uri = new URI(path + ":///");
+				}
+			}
+		}
+		catch (URISyntaxException e) {
+			throw new IllegalArgumentException("URI is not proper: " + uri);
+		}
+		return uri;
+	}
+
+	static LogProviderRef normalize(LogProviderRef ref) {
+		var uri = ref.uri();
+		uri = DefaultLogProviderRef.normalize(uri);
+		return new DefaultLogProviderRef(uri, ref.keyOrNull());
+	}
 }

@@ -53,33 +53,10 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 		return new DefaultEncoderRegistry();
 	}
 
-	private static URI normalize(URI uri) {
-		String scheme = uri.getScheme();
-		String path = uri.getPath();
-		try {
-			if (scheme == null) {
-				if (path == null) {
-					throw new IllegalArgumentException("URI is not proper: " + uri);
-				}
-				if (path.startsWith("./") || path.startsWith("/")) {
-					uri = new URI("name://" + path);
-				}
-				else {
-					uri = new URI(path + ":///");
-				}
-			}
-		}
-		catch (URISyntaxException e) {
-			throw new IllegalArgumentException("URI is not proper: " + uri);
-		}
-		return uri;
-	}
-
 	@Override
 	public LogProvider<LogEncoder> provide(LogProviderRef ref) {
-		var uri = ref.uri();
-		uri = normalize(uri);
-		var _ref = new DefaultLogProviderRef(uri, ref.keyOrNull());
+		var _ref = DefaultLogProviderRef.normalize(ref);
+		var uri = _ref.uri();
 		/*
 		 * TODO file bug with checker as it should have found scheme to be null.
 		 */

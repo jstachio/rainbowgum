@@ -118,22 +118,6 @@ record ServiceKey(Class<?> type, String name) {
 	}
 }
 
-interface PluginProvider<T, E extends Exception> {
-
-	public T provide(URI uri, String name, LogProperties properties) throws E;
-
-}
-
-abstract class ProviderRegistry<T extends PluginProvider<U, E>, U, E extends Exception> {
-
-	protected final Map<String, T> providers = new ConcurrentHashMap<>();
-
-	public void register(String scheme, T provider) {
-		providers.put(scheme, provider);
-	}
-
-}
-
 final class DefaultServiceRegistry implements ServiceRegistry {
 
 	private final Map<ServiceKey, Object> services = new ConcurrentHashMap<>();
