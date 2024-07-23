@@ -1,5 +1,7 @@
 /**
  * <strong>EXPERIMENTAL</strong> Disruptor async publisher.
+ * This optional module will install Disruptor as the default
+ * async publisher provider.
  */
 
 module io.jstach.rainbowgum.disruptor {

@@ -10,9 +10,21 @@ import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
- * Registry of publishers
+ * Registry of publishers. Rainbow Gum registers default publishers with the following
+ * schemes:
+ * <ul>
+ * <li>{@value #SYNC_SCHEME} - default sync publisher</li>
+ * <li>{@value #ASYNC_SCHEME} - default async publisher</li>
+ * <li>{@value #DEFAULT_SCHEME} - by default this is the same as
+ * {@link #SYNC_SCHEME}.</li>
+ * </ul>
+ * Plugins may override the above so that the above is automatically replaced with other
+ * providers via the service loader.
+ *
+ * @see RainbowGumServiceProvider
  */
 public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvider {
 
@@ -43,6 +55,14 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	 * this scheme to replace the default publisher.
 	 */
 	public static String DEFAULT_SCHEME = "default";
+
+	/**
+	 * Because publisher configurators through service provider discovery can replace the
+	 * default schemes of {@link #ASYNC_SCHEME}, {@link #SYNC_SCHEME} all the builtin core
+	 * providers are prefixed with this value so that they can still be used even if
+	 * overriden.
+	 */
+	public static String BUILTIN_SCHEME_PREFIX = "core.";
 
 	/**
 	 * Default async buffer size.
@@ -90,6 +110,7 @@ final class DefaultPublisherRegistry implements LogPublisherRegistry {
 		var r = new DefaultPublisherRegistry();
 		for (var p : DefaultPublisherProviders.values()) {
 			r.register(p.scheme(), p);
+			r.register(BUILTIN_SCHEME_PREFIX + p.scheme(), p);
 		}
 		return r;
 	}

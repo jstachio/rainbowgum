@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum.disruptor;
 
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.concurrent.ThreadFactory;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -30,6 +32,8 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	private final RingBuffer<LogEventCell> ringBuffer;
 
+	private final Iterable<? extends LogAppender> appenders;
+
 	/**
 	 * Creates a factory of disruptor log publishers.
 	 * @param bufferSize ring buffer size.
@@ -52,7 +56,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	 * @param bufferSize maximum queue elements.
 	 * @return publisher.
 	 */
-	public static DisruptorLogPublisher of(Iterable<? extends LogAppender> appenders, ThreadFactory threadFactory,
+	public static DisruptorLogPublisher of(Collection<? extends LogAppender> appenders, ThreadFactory threadFactory,
 			int bufferSize) {
 
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory,
@@ -69,7 +73,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 		}
 		var ringBuffer = disruptor.getRingBuffer();
 
-		var router = new DisruptorLogPublisher(disruptor, ringBuffer);
+		var router = new DisruptorLogPublisher(disruptor, ringBuffer, List.copyOf(appenders));
 		return router;
 	}
 
@@ -79,10 +83,12 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	}
 
-	DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer) {
+	DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer,
+			Iterable<? extends LogAppender> appenders) {
 		super();
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
+		this.appenders = appenders;
 	}
 
 	@Override
@@ -101,6 +107,11 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	@Override
 	public void close() {
 		this.disruptor.halt();
+	}
+
+	@Override
+	public String toString() {
+		return super.toString() + "[appenders=" + this.appenders + "]";
 	}
 
 	private static class LogEventCell {
