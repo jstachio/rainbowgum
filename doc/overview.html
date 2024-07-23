@@ -191,6 +191,16 @@ In the next sections we will cover
 and 
 <a href="#outputs">Outputs</a>.
 
+<p>
+
+Roughly the hiearchy (through composition) of components is: 
+
+<ol>
+  <li>Routes have a single publisher a level resolver and a list of appenders.</li>
+  <li>Publishers {@linkplain io.jstach.rainbowgum.LogPublisher.PublisherFactory are given the list of appenders} from the route on start.</li>
+  <li>Appenders have a single encoder and output.</li>
+</ol>
+
 For most <a href="#level_resolvers">level resolving</a>, <a href="#formatters">formatters</a> (which are simplified encoders),
 and <a href="outputs">Outputs</a> are the main points of interest in customizing and configuring.
 
@@ -407,12 +417,32 @@ that might fan-out and other exotic strategies.
   <strong>NOTE:</strong> If you want some appenders to be async and others sync you just create multiple routes. 
 </p>
 
+Rainbow Gum has an experimental async publisher that uses the LMAX Disruptor ringbuffer: {@link io.jstach.rainbowgum.disruptor/ }.
+If the jar is found on start it will replace the default async publisher.
+
 <h2 id="appenders">Appenders</h2>
 
 An {@linkplain io.jstach.rainbowgum.LogAppender appender} contains an {@linkplain io.jstach.rainbowgum.LogEncoder Encoder} 
 and an {@link io.jstach.rainbowgum.LogOutput Output}.
-Unlike other logging frameworks it is rare to have custom Appenders as most of the work is done by the encoder and output.
-That is an appender can be mostly thought of as a tuple of encoder and output.
+Unlike other logging frameworks  there are no customer Appenders as most of the work is done by the encoder and output.
+That is an appender can be mostly thought of as a tuple of encoder and output. 
+<p>
+Appenders are associated to the previously mentioned route. Like previously mentioned when a route is not given a
+name it is automatically named {@value io.jstach.rainbowgum.LogRouter.Router#DEFAULT_ROUTER_NAME}.
+Thus to register appenders to the default route one can use:
+
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.flags=reuse_buffer # an example config of appender
+}
+
+If the route is named say "example" then configuration of the appenders can be done like:
+
+{@snippet lang=properties :
+logging.route.example.appenders=myappender
+logging.appender.myappender.flags=reuse_buffer # an example config of appender
+}
+
 
 <h2 id="encoders">Encoders</h2>
 
