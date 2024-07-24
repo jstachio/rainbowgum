@@ -210,7 +210,7 @@ A defining characteristic of Rainbow Gum is that it does not have a special conf
 like Logback, Log4j2, and Reload4j (all three use XML as the default). The expectation
 is that for simple configuration {@linkplain io.jstach.rainbowgum.LogProperties simple properties interface} analogous to 
 <code>Function&lt;String,String&gt;</code> is good enough. For more complicated configuration
-programmatic configuration using the builders and service loader should be used.
+programmatic configuration using the {@linkplain io.jstach.rainbowgum.LogBuilder builders} and service loader should be used.
 <p>
   For implementers of plugins {@link io.jstach.rainbowgum.LogConfig } allows registering of services
   and plugins (it also contains the global {@link io.jstach.rainbowgum.LogProperties} ) however
@@ -218,7 +218,8 @@ programmatic configuration using the builders and service loader should be used.
   {@link io.jstach.rainbowgum.LogConfig } is analogous to what Logback calls "Context".
 </p>
 
-<p>
+<h3 id="config_properties">Properties based</h3>
+
 Rainbow Gum out of the box uses System properties for {@link io.jstach.rainbowgum.LogProperties}
 but an optional module {@link io.jstach.rainbowgum.avaje/ } will allow using <a href="https://avaje.io/config/">Avaje Config</a>
 as the properties provider. Other configuration systems will be added in the future but an 
@@ -230,7 +231,6 @@ turned off, intercepted or blocked.
   That is the responsibility of the {@link io.jstach.rainbowgum.LogProperties}
   backing implementation and the values retrieved should already be interpolated.
 </strong>
-</p>
 <p>
   <strong>NOTE:</strong>
   <em>
@@ -275,6 +275,15 @@ is used for plugin lookup as well as single line configuration. This follows
 <a href="https://12factor.net/">12 factor</a> recommendation of resources and configuration.
 
 </p>
+
+<h3 id="config_builder">Builder based</h3>
+
+Rainbow Gum can be configured programmatically through builders. The builders normally 
+will ignore whatever properties (key values) are set externally but most builders can be
+configured by properties through 
+{@link io.jstach.rainbowgum.LogBuilder#fromProperties(io.jstach.rainbowgum.LogProperties)}
+and thus a combination of properties and builders can be used.
+
 
 <h3 id="config_change">Config Change during runtime</h3>
 
@@ -325,6 +334,7 @@ name is assumed to be {@value io.jstach.rainbowgum.LogRouter.Router#DEFAULT_ROUT
 Notice that routes can contain their own level configuration and thus a route is a way
 to group appenders with the same level resolving.
 
+
 <h3 id="level_resolvers">Level Resolvers</h3>
 
 As mentioned previously routers have a level resolver. A level resolver simply resolves
@@ -363,6 +373,47 @@ Below is an example of configuring to allow <em>"changing" loggers</em>
 logging.global.change=true          # this is required to turn on level changing. 
 logging.change.com.mycompany=level  # only logger names starting with com.mycompany can have their levels changed.
 }
+
+<h4 id="Additivity">Additivity</h4>
+
+Those familiar with Logback and Log4j2/1 "additivity" may wonder how that is achieved.
+Additivity is associated with a logger name in those frameworks and means that the logger level
+settings will apply to other appenders associated with logger ancestors. If false the
+settings only apply to the associated appenders.
+<p>
+In rainbowgum the configuration including logger name to level is done on the route 
+and rainbowgum allows multiple appenders on a route and multiple routes. 
+</p>
+
+For example let us assume we want logger name <code>com.mycompany</code> (and descendants)
+at 
+<code>DEBUG</code> or greater to go to a file called <code>mycompany.log</code> and 
+<code>INFO</code> for console <code>com.mycompany</code> (and everything else).
+In Logback and others this is achieved by setting the appenders 
+on <code>com.mycompany</code> and <code>additivity=false</code> but in rainbowgum this is done
+by configuring separate routes:
+
+
+{@snippet lang=properties :
+logging.routes=console,mycompany
+logging.route.mycompany.appenders=mycompany
+logging.route.mycompany.level.com.mycompany=DEBUG
+logging.route.console.level=INFO
+logging.route.console.appenders=console
+logging.appender.mycompany.output=file:///./mycompany.log
+logging.appender.console.output=stdout
+}
+
+IF we only want <code>mycompany.log</code> to have <code>com.mycompany</code> and descendants logger name entries
+with <code>DEBUG</code> or greater than we turn off all other logger names. 
+To do this we add to the above configuration:
+
+{@snippet lang=properties :
+logging.route.mycompany.level=OFF
+}
+
+Even more sophisticated level resolution can be done programmatically with builder based configuration and custom
+Level Resolvers.
 
 <h3 id="caller_info">Caller Information</h3>
 
@@ -424,7 +475,7 @@ If the jar is found on start it will replace the default async publisher.
 
 An {@linkplain io.jstach.rainbowgum.LogAppender appender} contains an {@linkplain io.jstach.rainbowgum.LogEncoder Encoder} 
 and an {@link io.jstach.rainbowgum.LogOutput Output}.
-Unlike other logging frameworks  there are no customer Appenders as most of the work is done by the encoder and output.
+Unlike other logging frameworks  there are no custom Appenders as most of the work is done by the encoder and output.
 That is an appender can be mostly thought of as a tuple of encoder and output. 
 <p>
 Appenders are associated to the previously mentioned route. Like previously mentioned when a route is not given a
@@ -442,6 +493,25 @@ If the route is named say "example" then configuration of the appenders can be d
 logging.route.example.appenders=myappender
 logging.appender.myappender.flags=reuse_buffer # an example config of appender
 }
+
+<h3 id="appender_config">Appender Configuration</h3>
+
+Appenders can be configured either programmatically through the {@link io.jstach.rainbowgum.LogAppender.Builder builder}
+or through properties.
+
+<dl class="notes">
+  <dt><a href="#outputs">Output</a></dt>
+  <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_OUTPUT_PROPERTY} = URI</dd>
+  <dt><a href="#encoder">Encoder</a></dt>
+  <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_ENCODER_PROPERTY} = URI</dd>
+  <dt>{@linkplain io.jstach.rainbowgum.LogAppender.AppenderFlag Flags}</dt>
+  <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_FLAGS_PROPERTY} = List of {@link io.jstach.rainbowgum.LogAppender.AppenderFlag}</dd>
+</dl>
+
+An important Appender Flag is {@link io.jstach.rainbowgum.LogAppender.AppenderFlag#IMMEDIATE_FLUSH} which
+will tell the output to flush after each event. This flag is disabled by default for performance reasons
+however if one would like to follow <a href="https://12factor.net/logs">12 Factors requirements of events written unbuffered</a> 
+synchronously this flag should be used.
 
 
 <h2 id="encoders">Encoders</h2>

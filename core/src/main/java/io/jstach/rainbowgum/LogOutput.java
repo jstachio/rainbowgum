@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
+import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.annotation.CaseChanging;
@@ -21,17 +22,20 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
  * will be written synchronously by the appender either through locks or some other
  * mechanism so other than output external specific locking (e.g file locking or db
  * transaction) the output does not have to deal with that. <strong> In other words there
- * will be no overlapping write calls as the appender and publisher combo promises that.
- * </strong>
+ * will be no overlapping write/flush/close calls as the appender and publisher combo
+ * promises that. </strong>
  * <p>
  * To simplyfy flushing and corruption prevention each call to the write methods MUST be
- * the contents of the entire event!
+ * the contents of the entire event! However the output should not flush unless
+ * {@link #flush()} is called by the appender. That is the appender
+ * <strong>usually</strong> decides when to flush.
  * <p>
  * The write methods do not throw {@link IOException} on purpose as it is implementations
  * responsibility to handle errors and to be resilient on their own.
  *
  * @see LogOutput.OutputProvider
  * @see Buffer
+ * @see AppenderFlag#IMMEDIATE_FLUSH
  * @apiNote if for some reason the output needs to share events with other threads call
  * {@link LogEvent#freeze()} which will return an immutable event.
  */
@@ -286,6 +290,12 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		write(event, arr, contentType);
 	}
 
+	/**
+	 * Flushes if the output is maintaining a buffer. An appender will call this after
+	 * each event in synchronous mode or after a batched group of events if in
+	 * asynchronous mode if {@link LogAppender.AppenderFlag#IMMEDIATE_FLUSH} is set.
+	 * @see LogAppender.AppenderFlag#IMMEDIATE_FLUSH
+	 */
 	@Override
 	public void flush();
 
@@ -372,6 +382,9 @@ public interface LogOutput extends LogLifecycle, Flushable {
 
 	}
 
+	/**
+	 * Will close the output and should only be called by the owning appender.
+	 */
 	@Override
 	void close();
 
