@@ -29,6 +29,7 @@
     <ecj.version>3.38.0</ecj.version>
     <plexus-compiler-eclipse.version>2.15.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.28.0</error-prone.version>
+    <nullaway.version>0.11.0</nullaway.version>
     <checkerframework.version>3.42.0</checkerframework.version>
     
     <pistachio.version>0.1.2</pistachio.version>
@@ -936,7 +937,7 @@
               <fork>true</fork>
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
-                <arg>-Xplugin:ErrorProne</arg>
+                <arg>-Xplugin:ErrorProne -XepOpt:NullAway:AnnotatedPackages=io.jstach -XepOpt:NullAway:JSpecifyMode=true</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -958,6 +959,11 @@
                   <groupId>com.google.errorprone</groupId>
                   <artifactId>error_prone_core</artifactId>
                   <version>${error-prone.version}</version>
+                </path>
+                <path>
+                  <groupId>com.uber.nullaway</groupId>
+                  <artifactId>nullaway</artifactId>
+                  <version>${nullaway.version}</version>
                 </path>
               </annotationProcessorPaths>
             </configuration>

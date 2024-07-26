@@ -286,6 +286,7 @@ final class SLF4JMessageFormatter {
 	 */
 	// special treatment of array values was suggested by 'lizongbo'
 	private static void deeplyAppendParameter(StringBuilder sbuf, @Nullable Object o,
+			@SuppressWarnings("NullAway") // TODO NullAway bug
 			@Nullable IdentityHashMap<@Nullable Object[], @Nullable Object> seenMap) {
 		if (o == null) {
 			sbuf.append("null");
@@ -344,6 +345,7 @@ final class SLF4JMessageFormatter {
 	}
 
 	private static void objectArrayAppend(StringBuilder sbuf, @Nullable Object[] a,
+			@SuppressWarnings("NullAway") // TODO NullAway bug
 			IdentityHashMap<@Nullable Object[], @Nullable Object> seenMap) {
 		sbuf.append('[');
 		if (!seenMap.containsKey(a)) {

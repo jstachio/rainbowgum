@@ -164,7 +164,9 @@ public sealed interface LogEvent {
 	 */
 	public static LogEvent ofAll(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 			String loggerName, String message, KeyValues keyValues, @Nullable Throwable throwable,
-			LogMessageFormatter messageFormatter, @SuppressWarnings("exports") @Nullable List<@Nullable Object> args) {
+			LogMessageFormatter messageFormatter,
+			//TODO NullAway bug
+			@SuppressWarnings({"exports", "NullAway"}) @Nullable List<@Nullable Object> args) {
 
 		if (args == null) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
@@ -359,6 +361,7 @@ public sealed interface LogEvent {
 		 * @param arg maybe null.
 		 * @return this.
 		 */
+		@SuppressWarnings("NullAway") // TODO NullAway bug
 		Builder arg(@Nullable Object arg);
 
 		/**
@@ -567,6 +570,7 @@ final class LogEventBuilder implements LogEvent.Builder {
 
 	private KeyValues keyValues = KeyValues.of();
 
+	@SuppressWarnings("NullAway") // TODO NullAway bug
 	private @Nullable List<@Nullable Object> args = null;
 
 	private LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;

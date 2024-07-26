@@ -378,6 +378,7 @@ public interface LogProperties {
 	 */
 	@SuppressWarnings("exports")
 	default <T extends @Nullable Object> @Nullable T findOrNull(String root, String key,
+			@SuppressWarnings("NullAway") // TODO NullAway bug
 			BiFunction<LogProperties, String, @Nullable T> func) {
 		return findUpPathOrNull(key, k -> func.apply(this, concatKey(root, k)));
 	}
@@ -999,7 +1000,8 @@ public interface LogProperties {
 	 * accept will be passed <code>null</code>.
 	 */
 	public static void parseUriQuery(String query,
-			@SuppressWarnings("exports") BiConsumer<String, @Nullable String> consumer) {
+			// TODO NullAway bug
+			@SuppressWarnings({"exports", "NullAway"}) BiConsumer<String, @Nullable String> consumer) {
 		parseUriQuery(query, true, consumer);
 	}
 
@@ -1034,6 +1036,7 @@ public interface LogProperties {
 	 */
 	public static Map<String, List<String>> parseMultiMap(String query) {
 		Map<String, List<String>> m = new LinkedHashMap<>();
+		@SuppressWarnings("NullAway") // TODO NullAway bug
 		BiConsumer<String, @Nullable String> f = (k, v) -> {
 			List<String> list = Objects.requireNonNull(m.computeIfAbsent(k, _k -> new ArrayList<String>()));
 			if (v != null) {
@@ -1064,11 +1067,14 @@ public interface LogProperties {
 		return list;
 	}
 
-	private static void parseUriQuery(String query, boolean decode, BiConsumer<String, @Nullable String> consumer) {
+	private static void parseUriQuery(String query, boolean decode, 
+			@SuppressWarnings("NullAway") // TODO NullAway bug
+			BiConsumer<String, @Nullable String> consumer) {
 		parseUriQuery(query, decode, "[&,]", consumer);
 	}
 
 	private static void parseUriQuery(String query, boolean decode, String sep,
+			@SuppressWarnings("NullAway") // TODO NullAway bug
 			BiConsumer<String, @Nullable String> consumer) {
 		/*
 		 * TODO default java split has issues but is very fast

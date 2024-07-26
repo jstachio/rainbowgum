@@ -1151,6 +1151,7 @@ public sealed interface LogProperty {
 
 				@Override
 				<T extends @Nullable Object> @Nullable T findOrNull(LogProperties props, String key,
+						@SuppressWarnings("NullAway") // TODO NullAway bug
 						BiFunction<LogProperties, String, @Nullable T> func) {
 					return props.findOrNull(prefix, key, func);
 				}
@@ -1168,6 +1169,7 @@ public sealed interface LogProperty {
 			}
 
 			<T extends @Nullable Object> @Nullable T findOrNull(LogProperties props, String key,
+					@SuppressWarnings("NullAway") // TODO NullAway bug
 					BiFunction<LogProperties, String, @Nullable T> func) {
 				return func.apply(props, fullyQualifiedKey(key));
 			}

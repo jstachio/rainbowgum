@@ -18,7 +18,7 @@ _CLEAN="clean"
 #if [[ "eclipse" == "$profile" ]]; then
 #  _CLEAN=""
 #fi
-./mvnw $MAVEN_CLI_OPTS ${_CLEAN} verify -pl core -P${profile},show-profiles,${_ignored_profiles} -Dmaven.javadoc.skip -DskipTests -Dmaven.source.skip=true
+./mvnw $MAVEN_CLI_OPTS ${_CLEAN} verify -pl core -P${profile},show-profiles,${_ignored_profiles} -Dmaven.javadoc.skip -DskipTests -Dmaven.source.skip=true -X
 done
 
 # Checker or the maven compiler leaves these files around
