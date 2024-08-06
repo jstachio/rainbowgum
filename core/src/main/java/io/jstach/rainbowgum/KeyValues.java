@@ -154,7 +154,7 @@ public sealed interface KeyValues {
 	 * Copies the KeyValues to a Map. This should be used sparingly.
 	 * @return map of kvs.
 	 */
-	@SuppressWarnings({"exports", "NullAway"}) //TODO NullAway bug
+	@SuppressWarnings({ "exports", "NullAway" }) // TODO NullAway bug
 	Map<String, @Nullable String> copyToMap();
 
 	/**

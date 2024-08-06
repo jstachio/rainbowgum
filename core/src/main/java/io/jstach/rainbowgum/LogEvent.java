@@ -165,8 +165,8 @@ public sealed interface LogEvent {
 	public static LogEvent ofAll(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 			String loggerName, String message, KeyValues keyValues, @Nullable Throwable throwable,
 			LogMessageFormatter messageFormatter,
-			//TODO NullAway bug
-			@SuppressWarnings({"exports", "NullAway"}) @Nullable List<@Nullable Object> args) {
+			// TODO NullAway bug
+			@SuppressWarnings({ "exports", "NullAway" }) @Nullable List<@Nullable Object> args) {
 
 		if (args == null) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,

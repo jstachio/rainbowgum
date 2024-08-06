@@ -377,9 +377,10 @@ public interface LogProperties {
 	 * @see #findUpPathOrNull(String, Function)
 	 */
 	@SuppressWarnings("exports")
-	default <T extends @Nullable Object> @Nullable T findOrNull(String root, String key,
-			@SuppressWarnings("NullAway") // TODO NullAway bug
-			BiFunction<LogProperties, String, @Nullable T> func) {
+	default <T extends @Nullable Object> @Nullable T findOrNull(String root, String key, @SuppressWarnings("NullAway") // TODO
+																														// NullAway
+																														// bug
+	BiFunction<LogProperties, String, @Nullable T> func) {
 		return findUpPathOrNull(key, k -> func.apply(this, concatKey(root, k)));
 	}
 
@@ -1001,7 +1002,7 @@ public interface LogProperties {
 	 */
 	public static void parseUriQuery(String query,
 			// TODO NullAway bug
-			@SuppressWarnings({"exports", "NullAway"}) BiConsumer<String, @Nullable String> consumer) {
+			@SuppressWarnings({ "exports", "NullAway" }) BiConsumer<String, @Nullable String> consumer) {
 		parseUriQuery(query, true, consumer);
 	}
 
@@ -1067,15 +1068,17 @@ public interface LogProperties {
 		return list;
 	}
 
-	private static void parseUriQuery(String query, boolean decode, 
-			@SuppressWarnings("NullAway") // TODO NullAway bug
-			BiConsumer<String, @Nullable String> consumer) {
+	private static void parseUriQuery(String query, boolean decode, @SuppressWarnings("NullAway") // TODO
+																									// NullAway
+																									// bug
+	BiConsumer<String, @Nullable String> consumer) {
 		parseUriQuery(query, decode, "[&,]", consumer);
 	}
 
-	private static void parseUriQuery(String query, boolean decode, String sep,
-			@SuppressWarnings("NullAway") // TODO NullAway bug
-			BiConsumer<String, @Nullable String> consumer) {
+	private static void parseUriQuery(String query, boolean decode, String sep, @SuppressWarnings("NullAway") // TODO
+																												// NullAway
+																												// bug
+	BiConsumer<String, @Nullable String> consumer) {
 		/*
 		 * TODO default java split has issues but is very fast
 		 */
