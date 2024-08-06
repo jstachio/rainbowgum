@@ -154,7 +154,7 @@ public sealed interface KeyValues {
 	 * Copies the KeyValues to a Map. This should be used sparingly.
 	 * @return map of kvs.
 	 */
-	@SuppressWarnings("exports")
+	@SuppressWarnings({ "exports", "NullAway" }) // TODO NullAway bug
 	Map<String, @Nullable String> copyToMap();
 
 	/**
@@ -167,6 +167,7 @@ public sealed interface KeyValues {
 	/**
 	 * KeyValues that can be updated.
 	 */
+	@SuppressWarnings("NullAway") // TODO NullAway bug
 	public sealed interface MutableKeyValues extends KeyValues, BiConsumer<String, @Nullable String> {
 
 		/**
@@ -332,6 +333,7 @@ final class EmptyKeyValues implements KeyValues {
 	}
 
 	@Override
+	@SuppressWarnings("NullAway") // TODO NullAway bug
 	public Map<String, @Nullable String> copyToMap() {
 		return Map.of();
 	}
@@ -494,6 +496,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
+	@SuppressWarnings("NullAway") // TODO NullAway bug
 	public Map<String, @Nullable String> copyToMap() {
 		final Map<String, @Nullable String> result = new HashMap<>(size);
 		forEach(result::put);
