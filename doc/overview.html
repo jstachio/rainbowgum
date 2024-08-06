@@ -276,10 +276,28 @@ is used for plugin lookup as well as single line configuration. This follows
 
 </p>
 
+<h4 id="config_plural">Plural keys for enabling/disabling</h4>
+
+Because Rainbow Gum's property config model is a lookup of key to value 
+and not a Map like collection special plural keys are used to indicate what is activated. 
+These keys canonical end in <code>"s"</code> and are comma separated.
+
+{@snippet lang=properties :
+logging.appenders=appender1,appender2 # appenders that are enabled.
+logging.appender1.encoder=...
+logging.appender2.output=...
+logging.appender3.output=.... 
+}
+
+In the above the configuration of <code>appender3</code> will not be used
+and will not produce a configuration error if incorrect. This pattern
+allows large groups of configuration to be turned on or off similar to
+profiles in other systems.
+
 <h3 id="config_builder">Builder based</h3>
 
-Rainbow Gum can be configured programmatically through builders. The builders normally 
-will ignore whatever properties (key values) are set externally but most builders can be
+Rainbow Gum can be configured programmatically through {@linkplain io.jstach.rainbowgum.LogBuilder builders}. 
+The builders normally will ignore whatever properties (key values) are set externally but most builders can be
 configured by properties through 
 {@link io.jstach.rainbowgum.LogBuilder#fromProperties(io.jstach.rainbowgum.LogProperties)}
 and thus a combination of properties and builders can be used.
@@ -301,7 +319,7 @@ exceptions including custom components.
 
 <h2 id="router">Router</h2>
 
-A Router has a {@link io.jstach.rainbowgum.LevelResolver} and a {@linkplain io.jstach.rainbowgum.LogPublisher Publisher}.
+A Router has a {@link io.jstach.rainbowgum.LevelResolver}, appenders and a {@linkplain io.jstach.rainbowgum.LogPublisher Publisher}.
 A Level Resolver takes a logger name and produces a {@link java.lang.System.Logger.Level level}.
 The logging facade implementation than decides based on the level whether or not to construct an event.
 It then passes the event to the router which in turn uses the publisher to schedule the event.
@@ -313,10 +331,10 @@ For those familiar with other logging frameworks
   When configuring routers you are configuring
   {@link io.jstach.rainbowgum.LevelResolver Level Resolvers} which are logger names to levels,
   which publisher to use and which appenders should be associated with the publisher. 
-  We call this configuration a "route". As discussed later on
+  We call this configuration a <em>"route"</em>. As discussed later on
   a publisher has appenders and appenders have outputs thus 
   an important consequnce of this is if you want outputs to have different level thresholds
-  (e.g. a debug.log and an error.log) you will need multiple routers. 
+  (e.g. a debug.log and an error.log) you will need multiple routes. 
 </p>
 
 Example configuring router with properties using {@value io.jstach.rainbowgum.LogProperties#ROUTE_PREFIX}
@@ -352,10 +370,15 @@ logging.level.com.mycompany=INFO
 logging.level=ERROR
 }
 
+{@linkplain io.jstach.rainbowgum.LevelResolver#parseLevel(String) Parsing of levels from property values} allows SLF4J, JUL, and System.Logger format 
+and case is ignored.
+
+<p>
 Although not required most level resolvers including the global follow an inheritance or prefix model where 
 <code>com.mycompany.stuff.foo</code> will resolve to <code>DEBUG</code>
 and <code>com.mycompany.bar</code> will resolve to <code>INFO</code>
 and anything not prefixed with <code>com.mycompany</code> will resolve to <code>ERROR</code>.
+</p>
 <p>
   An important consideration is that Rainbow Gum
   <strong>
@@ -378,8 +401,8 @@ logging.change.com.mycompany=level  # only logger names starting with com.mycomp
 
 Those familiar with Logback and Log4j2/1 "additivity" may wonder how that is achieved.
 Additivity is associated with a logger name in those frameworks and means that the logger level
-settings will apply to other appenders associated with logger ancestors. If false the
-settings only apply to the associated appenders.
+settings will apply to other appenders associated with logger (name) and its ancestors. If false the
+settings only apply to the associated appenders at that logger and descendants.
 <p>
 In rainbowgum the configuration including logger name to level is done on the route 
 and rainbowgum allows multiple appenders on a route and multiple routes. 
@@ -388,25 +411,36 @@ and rainbowgum allows multiple appenders on a route and multiple routes.
 For example let us assume we want logger name <code>com.mycompany</code> (and descendants)
 at 
 <code>DEBUG</code> or greater to go to a file called <code>mycompany.log</code> and 
-<code>INFO</code> for console <code>com.mycompany</code> (and everything else).
+<code>WARN</code> for console <code>com.mycompany</code> (and everything else).
 In Logback and others this is achieved by setting the appenders 
 on <code>com.mycompany</code> and <code>additivity=false</code> but in rainbowgum this is done
 by configuring separate routes:
 
 
 {@snippet lang=properties :
+logging.level=INFO
 logging.routes=console,mycompany
 logging.route.mycompany.appenders=mycompany
 logging.route.mycompany.level.com.mycompany=DEBUG
-logging.route.console.level=INFO
+logging.route.console.level=WARN
 logging.route.console.appenders=console
 logging.appender.mycompany.output=file:///./mycompany.log
 logging.appender.console.output=stdout
 }
 
+In the above the route <em>"console"</em> will output log entries that
+will only have <code>WARN</code> or greater (<code>ERROR</code>)
+to  <code>stdout</code> (terminal/console output). 
+The route my <em>"mycompany"</em> will log <code>DEBUG</code> and greater but less than or equal
+of <code>INFO</code> for
+<code>com.mycompany</code> (and descedants like <code>com.mycompany.something</code>)
+to the file <code>mycompany.log</code>.
+
+<p>
 IF we only want <code>mycompany.log</code> to have <code>com.mycompany</code> and descendants logger name entries
 with <code>DEBUG</code> or greater than we turn off all other logger names. 
 To do this we add to the above configuration:
+</p>
 
 {@snippet lang=properties :
 logging.route.mycompany.level=OFF
