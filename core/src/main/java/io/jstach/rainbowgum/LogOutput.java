@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -59,24 +58,12 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	/**
 	 * Standard OUT URI.
 	 */
-	static final URI STDOUT_URI = uri(STDOUT_SCHEME + ":///");
+	static final URI STDOUT_URI = URI.create(STDOUT_SCHEME + ":///");
 
 	/**
 	 * Standard ERR URI
 	 */
-	static final URI STDERR_URI = uri(STDERR_SCHEME + ":///");
-
-	/*
-	 * This is because URI create is nullable.
-	 */
-	private static URI uri(String s) {
-		try {
-			return new URI(s);
-		}
-		catch (URISyntaxException e) {
-			throw new RuntimeException(e);
-		}
-	}
+	static final URI STDERR_URI = URI.create(STDERR_SCHEME + ":///");
 
 	/**
 	 * Provides a lazy loaded output from a URI.
@@ -182,6 +169,19 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 *
 	 */
 	public URI uri() throws UnsupportedOperationException;
+
+	/**
+	 * Requests the health of this output. If no exception is thrown the returned value is
+	 * used. If an exception is thrown the status is considered to be error. This call
+	 * follows the write rules where there will never be overlapping calls. The default
+	 * implementation will return {@link LogResponse.Status.StandardStatus#OK}. which will
+	 * check previous meta log error entries.
+	 * @return status of this output.
+	 * @throws Exception if status check fails which will be an error status.
+	 */
+	default LogResponse.Status status() throws Exception {
+		return LogResponse.Status.StandardStatus.OK;
+	}
 
 	@Override
 	default void start(LogConfig config) {

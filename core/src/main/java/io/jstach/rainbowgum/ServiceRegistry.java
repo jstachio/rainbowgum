@@ -1,11 +1,11 @@
 package io.jstach.rainbowgum;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -101,6 +101,14 @@ public sealed interface ServiceRegistry extends AutoCloseable permits DefaultSer
 	public <T> List<T> find(Class<T> type);
 
 	/**
+	 * Finds <strong>all</strong> services of a specific type.
+	 * @param <T> service type.
+	 * @param type service class.
+	 * @param consumer called on each entry with string parameter being the name.
+	 */
+	public <T> void forEach(Class<T> type, BiConsumer<String, T> consumer);
+
+	/**
 	 * Add a closeable to close on close in LIFO order.
 	 * @param closeable closeable.
 	 */
@@ -144,6 +152,15 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 	@Override
 	public <T> List<T> find(Class<T> type) {
 		return services.entrySet().stream().filter(e -> e.getKey().type() == type).map(e -> (T) e.getValue()).toList();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T> void forEach(Class<T> type, BiConsumer<String, T> consumer) {
+		services.entrySet()
+			.stream()
+			.filter(e -> e.getKey().type() == type)
+			.forEach(e -> consumer.accept(e.getKey().name(), (T) e.getValue()));
 	}
 
 	@SuppressWarnings("unchecked")

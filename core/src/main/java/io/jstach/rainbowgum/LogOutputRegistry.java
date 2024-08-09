@@ -59,6 +59,12 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	 */
 	public List<LogResponse> flush();
 
+	/**
+	 * Will retrieve the status of all outputs usually for health checking.
+	 * @return list of status of outputs.
+	 */
+	public List<LogResponse> status();
+
 }
 
 final class DefaultOutputRegistry implements LogOutputRegistry {
@@ -85,15 +91,26 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 
 	@Override
 	public List<LogResponse> reopen() {
-		/*
-		 * TODO check rainbowgum is actually running.
-		 */
-		if (reopenLock.tryLock()) {
+		return requestIO(LogAction.StandardAction.REOPEN);
+	}
 
+	@Override
+	public List<LogResponse> flush() {
+		return requestIO(LogAction.StandardAction.FLUSH);
+	}
+
+	@Override
+	public List<LogResponse> status() {
+		/*
+		 * TODO should we queue status requests with a lock? Probably not.
+		 */
+		return _request(LogAction.StandardAction.STATUS);
+	}
+
+	private List<LogResponse> requestIO(LogAction action) {
+		if (reopenLock.tryLock()) {
 			try {
-				return Actor.act(
-						serviceRegistry.find(LogAppender.class).stream().map(a -> InternalLogAppender.of(a)).toList(),
-						LogAction.StandardAction.REOPEN);
+				return _request(action);
 			}
 			finally {
 				reopenLock.unlock();
@@ -104,25 +121,12 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		}
 	}
 
-	@Override
-	public List<LogResponse> flush() {
+	private List<LogResponse> _request(LogAction action) {
 		/*
 		 * TODO check rainbowgum is actually running.
 		 */
-		if (reopenLock.tryLock()) {
-
-			try {
-				return Actor.act(
-						serviceRegistry.find(LogAppender.class).stream().map(a -> InternalLogAppender.of(a)).toList(),
-						LogAction.StandardAction.FLUSH);
-			}
-			finally {
-				reopenLock.unlock();
-			}
-		}
-		else {
-			return List.of();
-		}
+		return Actor.act(serviceRegistry.find(LogAppender.class).stream().map(a -> InternalLogAppender.of(a)).toList(),
+				action);
 	}
 
 	@Override

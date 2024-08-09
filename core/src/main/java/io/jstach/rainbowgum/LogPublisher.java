@@ -9,6 +9,9 @@ import io.jstach.rainbowgum.LogAppender.Appenders;
 
 /**
  * Publishers push logs to appenders either synchronously or asynchronously.
+ * Implementations are required to be threadsafe and <strong>overlapping calls are
+ * expected!</strong> The publisher may report health issues such as metrics of dropped
+ * events with {@link #status()}.
  */
 public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
@@ -18,16 +21,17 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 	 */
 	public boolean synchronous();
 
-	// /**
-	// * The publisher simply forwards this call to the appenders.
-	// * TODO maybe we only need the appender call.
-	// * An appender can act on actions. One of the key
-	// * actions is reopening files.
-	// * @param action action to run.
-	// * @return responses.
-	// */
-	// @Override
-	// public List<LogAction.Response> act(LogAction action);
+	/**
+	 * Requests the health of this publisher. If no exception is thrown the returned value
+	 * is used. If an exception is thrown the status is considered to be error. The
+	 * default implementation will return {@link LogResponse.Status.StandardStatus#OK}.
+	 * which will check previous meta log error entries.
+	 * @return status of this output.
+	 * @throws Exception if status check fails which will be an error status.
+	 */
+	default LogResponse.Status status() throws Exception {
+		return LogResponse.Status.StandardStatus.OK;
+	}
 
 	/**
 	 * A factory for a publisher from config and appenders.

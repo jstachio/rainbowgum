@@ -431,6 +431,7 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 			case LogAction.StandardAction a -> switch (a) {
 				case LogAction.StandardAction.REOPEN -> List.of(reopen());
 				case LogAction.StandardAction.FLUSH -> List.of(flush());
+				case LogAction.StandardAction.STATUS -> List.of(status());
 			};
 			default -> throw new IllegalArgumentException(); // TODO fucking eclipse
 		};
@@ -445,6 +446,17 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	default LogResponse flush() {
 		output().flush();
 		return new Response(name(), LogResponse.Status.StandardStatus.OK);
+	}
+
+	default LogResponse status() {
+		Status status;
+		try {
+			status = output().status();
+		}
+		catch (Exception e) {
+			status = LogResponse.Status.ofError(e);
+		}
+		return new Response(name(), status);
 	}
 
 	static List<DirectLogAppender> findAppenders(ServiceRegistry registry) {

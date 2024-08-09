@@ -1,7 +1,9 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
+import io.jstach.rainbowgum.LogResponse.Status;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
@@ -34,6 +37,12 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	 * @param publisherProvider provider.
 	 */
 	public void register(String scheme, LogPublisher.PublisherProvider publisherProvider);
+
+	/**
+	 * Will retrieve the status of all publishers usually for health checking.
+	 * @return list of status of publishers.
+	 */
+	public List<LogResponse> status();
 
 	/**
 	 * This is URI scheme for the async publisher used by the publisher builder. Call
@@ -83,7 +92,14 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 
 final class DefaultPublisherRegistry implements LogPublisherRegistry {
 
-	ConcurrentHashMap<String, PublisherProvider> providers = new ConcurrentHashMap<String, LogPublisher.PublisherProvider>();
+	private final ServiceRegistry serviceRegistry;
+
+	private final ConcurrentHashMap<String, PublisherProvider> providers = new ConcurrentHashMap<String, LogPublisher.PublisherProvider>();
+
+	public DefaultPublisherRegistry(ServiceRegistry serviceRegistry) {
+		super();
+		this.serviceRegistry = serviceRegistry;
+	}
 
 	@Override
 	public PublisherFactory provide(LogProviderRef ref) {
@@ -106,13 +122,29 @@ final class DefaultPublisherRegistry implements LogPublisherRegistry {
 	 * Creates a publisher registry instance.
 	 * @return publisher registry.
 	 */
-	static LogPublisherRegistry of() {
-		var r = new DefaultPublisherRegistry();
+	static LogPublisherRegistry of(ServiceRegistry serviceRegistry) {
+		var r = new DefaultPublisherRegistry(serviceRegistry);
 		for (var p : DefaultPublisherProviders.values()) {
 			r.register(p.scheme(), p);
 			r.register(BUILTIN_SCHEME_PREFIX + p.scheme(), p);
 		}
 		return r;
+	}
+
+	@Override
+	public List<LogResponse> status() {
+		List<LogResponse> responses = new ArrayList<>();
+		serviceRegistry.forEach(LogPublisher.class, (name, pub) -> {
+			Status status;
+			try {
+				status = pub.status();
+			}
+			catch (Exception e) {
+				status = LogResponse.Status.ofError(e);
+			}
+			responses.add(new Response(name, status));
+		});
+		return responses;
 	}
 
 }
