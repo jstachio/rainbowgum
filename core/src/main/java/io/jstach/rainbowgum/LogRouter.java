@@ -385,6 +385,10 @@ public sealed interface LogRouter extends LogLifecycle {
 
 				var apps = new LogAppender.Appenders(name, config, appenders);
 				var pub = publisher.create(name, config, apps);
+				/*
+				 * Register the publisher for lookup like status checks.
+				 */
+				config.serviceRegistry().put(LogPublisher.class, name, pub);
 				return factory.create(pub, levelResolver, name, config);
 			}
 

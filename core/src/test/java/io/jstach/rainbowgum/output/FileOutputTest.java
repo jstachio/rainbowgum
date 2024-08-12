@@ -104,9 +104,12 @@ class FileOutputTest {
 					String expected = test.expected;
 					assertEquals(expected, actual);
 				}
-				assertEquals("""
-						[Response[name=file, status=OK], Response[name=list, status=IGNORED]]
-						""".trim(), response.toString());
+				assertEquals(
+						"""
+								[Response[type=interface io.jstach.rainbowgum.LogOutput, name=file, status=OK], Response[type=interface io.jstach.rainbowgum.LogOutput, name=list, status=IGNORED]]
+								"""
+							.trim(),
+						response.toString());
 				assertTrue(Files.exists(Path.of(fileName)));
 				for (var e : test.events()) {
 					rg.log(e);

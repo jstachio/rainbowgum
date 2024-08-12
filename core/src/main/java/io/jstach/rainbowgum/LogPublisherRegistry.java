@@ -142,7 +142,7 @@ final class DefaultPublisherRegistry implements LogPublisherRegistry {
 			catch (Exception e) {
 				status = LogResponse.Status.ofError(e);
 			}
-			responses.add(new Response(name, status));
+			responses.add(new Response(LogPublisher.class, name, status));
 		});
 		return responses;
 	}

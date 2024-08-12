@@ -29,6 +29,12 @@ public sealed interface LogResponse {
 	public Status status();
 
 	/**
+	 * Component type.
+	 * @return interface class.
+	 */
+	public Class<?> type();
+
+	/**
 	 * Log component status check. Note that trees or aggregates can be created with
 	 * {@link AggregateStatus}.
 	 */
@@ -101,22 +107,32 @@ public sealed interface LogResponse {
 		}
 
 		/**
-		 * A Status of Statuses. The severity is the status with the highest severity.
+		 * A Status of Statuses. The severity is the status with the highest severity if
+		 * severity is not provided.
 		 *
 		 * @param status a list of statuses.
+		 * @param level severity.
 		 */
-		record AggregateStatus(List<Status> status) implements Status {
+		record AggregateStatus(List<Status> status, Level level) implements Status {
 
 			/**
-			 * A Status of Statuses. The severity is the status with the highest severity.
+			 * A Status of Statuses.
 			 * @param status a list of statuses.
+			 * @param level severity.
 			 */
 			public AggregateStatus {
 				status = List.copyOf(status);
 			}
 
-			@Override
-			public Level level() {
+			/**
+			 * A Status of Statuses. The severity is the status with the highest severity.
+			 * @param status a list of statuses.
+			 */
+			public AggregateStatus(List<Status> status) {
+				this(status, level(status));
+			}
+
+			private static Level level(List<Status> status) {
 				Level level = Level.ALL;
 				for (var stat : status) {
 					var current = stat.level();
@@ -144,15 +160,42 @@ public sealed interface LogResponse {
 		 * A queue status for publishers.
 		 *
 		 * @param count current amount in queue.
-		 * @param max the maximum size of the que.
+		 * @param max the maximum size of the queue.
+		 * @param level severity
 		 */
-		record QueueStatus(long count, long max) implements MetricStatus {
+		record QueueStatus(long count, long max, Level level) implements MetricStatus {
+
+			/**
+			 * A queue status for publishers. The severity will be warning if queue count
+			 * is greater or equal to max.
+			 * @param count current amount in queue.
+			 * @param max the maximum size of the queue.
+			 */
+			public QueueStatus(long count, long max) {
+				this(count, max, level(count, max));
+			}
+
+			private static Level level(long count, long max) {
+				if (count >= max) {
+					return Level.WARNING;
+				}
+				return Level.INFO;
+			}
 		}
 
 	}
 
 }
 
-record Response(String name, LogResponse.Status status) implements LogResponse {
+/**
+ * A marker interface for pluggable components in the logging system.
+ *
+ * @apiNote this interface is an internal detail.
+ */
+interface LogComponent {
+
+}
+
+record Response(Class<? extends LogComponent> type, String name, LogResponse.Status status) implements LogResponse {
 
 }

@@ -17,4 +17,18 @@ public interface LogEventLogger {
 	 */
 	public void log(LogEvent event);
 
+	// /**
+	// * Logs events usually without filtering. Just like {@link #log(LogEvent)}
+	// * but the consumer will be called when this sink is done with the event.
+	// * This is for asynchronous loggers but calling this method does not guarantee
+	// * non-blocking. The default implementation assume synchronous behavior
+	// * of {@link #log(LogEvent)}.
+	// * @param event event.
+	// * @param onComplete
+	// */
+	// default void log(LogEvent event, Consumer<? super LogEvent> onComplete) {
+	// log(event);
+	// onComplete.accept(event);
+	// }
+
 }

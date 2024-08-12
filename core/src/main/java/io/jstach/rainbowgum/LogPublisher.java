@@ -13,7 +13,7 @@ import io.jstach.rainbowgum.LogAppender.Appenders;
  * expected!</strong> The publisher may report health issues such as metrics of dropped
  * events with {@link #status()}.
  */
-public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
+public sealed interface LogPublisher extends LogEventLogger, LogLifecycle, LogComponent {
 
 	/**
 	 * If the publisher is synchronous.

@@ -440,12 +440,12 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	default LogResponse reopen() {
 		var status = output().reopen();
-		return new Response(name(), status);
+		return new Response(LogOutput.class, name(), status);
 	}
 
 	default LogResponse flush() {
 		output().flush();
-		return new Response(name(), LogResponse.Status.StandardStatus.OK);
+		return new Response(LogOutput.class, name(), LogResponse.Status.StandardStatus.OK);
 	}
 
 	default LogResponse status() {
@@ -456,7 +456,7 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 		catch (Exception e) {
 			status = LogResponse.Status.ofError(e);
 		}
-		return new Response(name(), status);
+		return new Response(LogOutput.class, name(), status);
 	}
 
 	static List<DirectLogAppender> findAppenders(ServiceRegistry registry) {
@@ -695,7 +695,7 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 			return _request(action);
 		}
 		catch (UncheckedIOException ioe) {
-			return List.of(new Response(name, Status.ErrorStatus.of(ioe)));
+			return List.of(new Response(LogOutput.class, name, Status.ErrorStatus.of(ioe)));
 		}
 		finally {
 			lock.unlock();

@@ -38,7 +38,7 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
  * @apiNote if for some reason the output needs to share events with other threads call
  * {@link LogEvent#freeze()} which will return an immutable event.
  */
-public interface LogOutput extends LogLifecycle, Flushable {
+public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 	/**
 	 * {@link FileDescriptor#err} URI scheme.

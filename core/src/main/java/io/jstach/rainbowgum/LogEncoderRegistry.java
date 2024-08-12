@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;

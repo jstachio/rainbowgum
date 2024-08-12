@@ -4,6 +4,7 @@ import java.util.AbstractCollection;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.Consumer;
 
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
