@@ -29,7 +29,10 @@ class LevelResolverTest {
 			.description("test_props")
 			.build()
 			.put("logging.global.change", "true")
-			.put("logging.level.com.stuff", loggerLevel.toString());
+			.put("logging.level.com.stuff", loggerLevel.toString())
+			.put("logging.groups", "sql")
+			.put("logging.group.sql", "com.sql")
+			.put("logging.level.sql", loggerLevel.toString());
 		LogConfig config = LogConfig.builder().properties(props).build();
 		ListLogOutput output = new ListLogOutput();
 		var gum = RainbowGum.builder(config).route(r -> {
@@ -61,8 +64,22 @@ class LevelResolverTest {
 										order=0
 									]
 								],
+								GroupLevelResolver[
+									groupLevelPrefix=logging.route.default.level,
+									properties=MapLogProperties[
+										description='test_props',
+										order=0
+									]
+								],
 								ConfigLevelResolver[
 									prefix=logging.level,
+									properties=MapLogProperties[
+										description='test_props',
+										order=0
+									]
+								],
+								GroupLevelResolver[
+									groupLevelPrefix=logging.level,
 									properties=MapLogProperties[
 										description='test_props',
 										order=0
@@ -78,6 +95,12 @@ class LevelResolverTest {
 			props.put(LogProperties.LEVEL_PREFIX, "OFF");
 			props.put(LogProperties.concatKey(LogProperties.LEVEL_PREFIX, "com.stuff.foo"), "OFF");
 			assertEquals(Level.OFF, config.levelResolver().defaultLevel());
+
+			/*
+			 * We check our group level settings
+			 */
+			assertEquals(LevelResolver.normalizeLevel(loggerLevel),
+					config.levelResolver().resolveLevel("com.sql.blah"));
 
 			/*
 			 * Assuming the level is enabled we expect the next statement per the level
@@ -157,8 +180,22 @@ class LevelResolverTest {
 												order=0
 											]
 										],
+										GroupLevelResolver[
+											groupLevelPrefix=logging.route.default.level,
+											properties=MapLogProperties[
+												description='test_props',
+												order=0
+											]
+										],
 										ConfigLevelResolver[
 											prefix=logging.level,
+											properties=MapLogProperties[
+												description='test_props',
+												order=0
+											]
+										],
+										GroupLevelResolver[
+											groupLevelPrefix=logging.level,
 											properties=MapLogProperties[
 												description='test_props',
 												order=0
@@ -172,6 +209,13 @@ class LevelResolverTest {
 										%s,
 										ConfigLevelResolver[
 											prefix=logging.route.second.level,
+											properties=MapLogProperties[
+												description='test_props',
+												order=0
+											]
+										],
+										GroupLevelResolver[
+											groupLevelPrefix=logging.route.second.level,
 											properties=MapLogProperties[
 												description='test_props',
 												order=0

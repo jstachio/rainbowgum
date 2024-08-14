@@ -124,3 +124,13 @@ body.module-index-page main {
 }
 
 }
+
+@media screen and (min-width: 2000px) {
+
+
+body.module-index-page main {
+  padding-left: calc((100% - 1200px) / 2);
+  padding-right: calc((100% - 1200px) / 2);
+}
+
+}

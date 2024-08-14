@@ -169,6 +169,26 @@ public interface LogProperties {
 	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
 
 	/**
+	 * Enabled level groups. The value should be a list of group names used on
+	 * {@link #GROUP_PROPERTY}. This is to enable <a href=
+	 * "https://docs.spring.io/spring-boot/3.3.2/reference/features/logging.html#features.logging.log-groups">
+	 * Spring Boot like Log Groups </a>. <em>Note that unlike Spring Boot groups are not
+	 * enabled unless this property contains the group.</em>
+	 */
+	static final String GROUPS_PROPERTY = ROOT_PREFIX + "groups";
+
+	/**
+	 * Group property with list of logger names. The level of the group is set with
+	 * <code>{@value #LEVEL_PREFIX} + .{name} = Level</code> or on the router itself with
+	 * <code>{@value #ROUTE_LEVEL_PREFIX} + .{name} = Level</code>. This is largely
+	 * compatible with <a href=
+	 * "https://docs.spring.io/spring-boot/3.3.2/reference/features/logging.html#features.logging.log-groups">
+	 * Spring Boot Log Groups </a>.
+	 * @see LevelResolver#parseLevel(String)
+	 */
+	static final String GROUP_PROPERTY = ROOT_PREFIX + "group.{name}";
+
+	/**
 	 * Logging change configuration allowed property.
 	 */
 	static final String GLOBAL_CHANGE_PROPERTY = ROOT_PREFIX + "global.change";

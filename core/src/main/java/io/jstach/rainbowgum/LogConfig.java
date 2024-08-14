@@ -305,7 +305,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		}
 
 		LevelConfig buildGlobalResolver(LogProperties logProperties) {
-			LevelConfig levelResolver = ConfigLevelResolver.of(logProperties);
+			LevelConfig levelResolver = LevelConfig
+				.of(List.of(ConfigLevelResolver.of(logProperties), GroupLevelResolver.of(logProperties)));
 			var config = buildLevelConfigOrNull();
 			if (config != null) {
 				return LevelConfig.of(List.<LevelConfig>of(config, levelResolver));

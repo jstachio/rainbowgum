@@ -365,20 +365,26 @@ is the global level resolver. These levels can be configured with
 Below is an example:
 
 {@snippet lang=properties :
-logging.level.com.mycompany.stuff=DEBUG
-logging.level.com.mycompany=INFO
+logging.level.com.mycompany.stuff=DEBUG  # Descedant of "com.mycompany"
+logging.level.com.mycompany=INFO         # Ancestor to "com.mycompany.stuff"
 logging.level=ERROR
 }
 
 {@linkplain io.jstach.rainbowgum.LevelResolver#parseLevel(String) Parsing of levels from property values} allows SLF4J, JUL, and System.Logger format 
-and case is ignored.
+and case is ignored. However the logger name is case sensitive.
 
 <p>
 Although not required most level resolvers including the global follow an inheritance or prefix model where 
 <code>com.mycompany.stuff.foo</code> will resolve to <code>DEBUG</code>
 and <code>com.mycompany.bar</code> will resolve to <code>INFO</code>
 and anything not prefixed with <code>com.mycompany</code> will resolve to <code>ERROR</code>.
+An analog is to think of the "<code>.</code>" as directory path separators like in filesystems
+and resolution happens by going up the directories.
+This behavior is stated more formally in 
+<a href="https://logback.qos.ch/manual/architecture.html#effectiveLevel">Logback's Effective Level</a>
+which is what Rainbow Gum follows as well.
 </p>
+
 <p>
   An important consideration is that Rainbow Gum
   <strong>
@@ -396,6 +402,34 @@ Below is an example of configuring to allow <em>"changing" loggers</em>
 logging.global.change=true          # this is required to turn on level changing. 
 logging.change.com.mycompany=level  # only logger names starting with com.mycompany can have their levels changed.
 }
+
+<h4 id="level_groups">Level Groups</h4>
+
+Rainbow Gum out of the box supports
+<a href="https://docs.spring.io/spring-boot/3.3.2/reference/features/logging.html#features.logging.log-groups"> 
+	  Spring Boot like Log Groups
+</a>. 
+
+However unlike Spring Boot groups are not enabled unless 
+{@value io.jstach.rainbowgum.LogProperties#GROUPS_PROPERTY} contains the group.
+(<em>this is largely because Spring Boots configuration model is like a Map and Rainbow Gums a Function.</em>)
+
+<p>
+Furthermore group levels but not group definitons can be assigned on the router itself.
+Using Spring Boots example:
+
+{@snippet lang=properties :
+logging.groups=tomcat    # This is required otherwise the tomcat group will not be resolved
+logging.group.tomcat=org.apache.catalina,org.apache.coyote,org.apache.tomcat
+logging.level.tomcat=trace
+logging.route.myroute.level.tomcat=info
+}
+
+In the above <code>org.apache.catalina</code>, <code>org.apache.coyote</code>, and <code>org.apache.tomcat</code>
+and their descedants
+will resolve to <code>INFO</code> for "<code>myroute</code>" but <code>TRACE</code> for other routes.
+Note that just like logger names groups are case sensitive.
+
 
 <h4 id="Additivity">Additivity</h4>
 

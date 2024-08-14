@@ -18,6 +18,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
+import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.PropertyGetter;
 
 /**
@@ -68,7 +69,9 @@ public interface LevelResolver {
 		Level levelOrNull(String name);
 
 		/**
-		 * The default level if no level is found.
+		 * The default level if no level is found. By default if not overridden this is
+		 * calculated by calling {@link #levelOrNull(String)} with an empty String and if
+		 * it returns <code>null</code> ALL is returned.
 		 * @return level
 		 */
 		default Level defaultLevel() {
@@ -79,6 +82,12 @@ public interface LevelResolver {
 			return root;
 		}
 
+		/**
+		 * Resolves a level by walking up the dotted path by calling
+		 * {@link #levelOrNull(String)} which follows <a href=
+		 * "https://logback.qos.ch/manual/architecture.html#effectiveLevel">Logbacks
+		 * Effective Level</a>. {@inheritDoc}
+		 */
 		@Override
 		default Level resolveLevel(String name) {
 			return resolveLevel(this, name);
@@ -262,7 +271,8 @@ public interface LevelResolver {
 		 * @return this.
 		 */
 		public T config(LogProperties properties, String prefix) {
-			return config(ConfigLevelResolver.of(properties, prefix));
+			config(ConfigLevelResolver.of(properties, prefix));
+			return config(GroupLevelResolver.of(properties, prefix));
 		}
 
 		/**
@@ -556,6 +566,94 @@ final class CachedLevelResolver implements LevelResolver {
 
 }
 
+final class GroupLevelResolver implements LevelConfig {
+
+	private final LogProperties properties;
+
+	private final String groupLevelPrefix;
+
+	private volatile LevelConfig levelResolver;
+
+	public static GroupLevelResolver of(LogProperties properties) {
+		return new GroupLevelResolver(properties, LogProperties.LEVEL_PREFIX);
+	}
+
+	public static GroupLevelResolver of(LogProperties properties, String groupLevelPrefix) {
+		return new GroupLevelResolver(properties, groupLevelPrefix);
+	}
+
+	GroupLevelResolver(LogProperties properties, String groupLevelPrefix) {
+		super();
+		this.properties = properties;
+		this.groupLevelPrefix = groupLevelPrefix;
+		this.levelResolver = populate(properties, this.groupLevelPrefix);
+	}
+
+	static final String GROUPS_PROPERTY = LogProperties.GROUPS_PROPERTY;
+	static final String GROUP_PROPERTY = LogProperties.GROUP_PROPERTY;
+
+	@Override
+	public Level resolveLevel(String name) {
+		return levelResolver.resolveLevel(name);
+	}
+
+	@Override
+	public @Nullable Level levelOrNull(String name) {
+		return levelResolver.levelOrNull(name);
+	}
+
+	@Override
+	public void clear() {
+		this.levelResolver = populate(properties, this.groupLevelPrefix);
+	}
+
+	static LevelConfig populate(LogProperties properties, String groupLevelPrefix) {
+
+		Map<String, List<String>> groupToLoggers = Property.builder().ofList().build(GROUPS_PROPERTY).map(_groups -> {
+			Map<String, List<String>> m = new LinkedHashMap<>();
+			for (String g : _groups) {
+				Property.builder()
+					.ofList() //
+					.buildWithName(GROUP_PROPERTY, g) //
+					.get(properties) //
+					.optional() //
+					.filter(loggers -> !loggers.isEmpty()) //
+					.ifPresent(loggers -> m.put(g, loggers));
+			}
+			return m;
+		}).get(properties).value(Map.of());
+
+		Map<String, Level> groupToLevels = new LinkedHashMap<>();
+		for (var e : groupToLoggers.entrySet()) {
+			String group = e.getKey();
+			Property.builder()
+				.withPrefix(groupLevelPrefix)
+				.map(LevelResolver::parseLevel) //
+				.build(group)
+				.get(properties) //
+				.optional() //
+				.ifPresent(level -> groupToLevels.put(group, level));
+		}
+		Map<String, Level> loggerToLevels = new LinkedHashMap<>();
+		for (var e : groupToLevels.entrySet()) {
+			List<String> loggers = groupToLoggers.get(e.getKey());
+			if (loggers == null || loggers.isEmpty()) {
+				continue;
+			}
+			for (var logger : loggers) {
+				loggerToLevels.put(logger, e.getValue());
+			}
+		}
+		return new MapLevelResolver(Map.copyOf(loggerToLevels));
+	}
+
+	@Override
+	public String toString() {
+		return "GroupLevelResolver[groupLevelPrefix=" + groupLevelPrefix + ", properties=" + properties + "]";
+	}
+
+}
+
 final class ConfigLevelResolver implements LevelConfig {
 
 	private final LogProperties properties;
@@ -569,10 +667,7 @@ final class ConfigLevelResolver implements LevelConfig {
 	}
 
 	public static ConfigLevelResolver of(LogProperties properties, String prefix) {
-		var levelExtractor = PropertyGetter.of()
-			.withPrefix(prefix)
-			.map(s -> s.toUpperCase(Locale.ROOT))
-			.map(LevelResolver::parseLevel);
+		var levelExtractor = PropertyGetter.of().withPrefix(prefix).map(LevelResolver::parseLevel);
 		return new ConfigLevelResolver(properties, prefix, levelExtractor);
 	}
 
