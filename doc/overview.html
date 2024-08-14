@@ -510,7 +510,7 @@ If the jar is found on start it will replace the default async publisher.
 An {@linkplain io.jstach.rainbowgum.LogAppender appender} contains an {@linkplain io.jstach.rainbowgum.LogEncoder Encoder} 
 and an {@link io.jstach.rainbowgum.LogOutput Output}.
 Unlike other logging frameworks  there are no custom Appenders as most of the work is done by the encoder and output.
-That is an appender can be mostly thought of as a tuple of encoder and output. 
+That is an appender can be mostly thought of as a tuple of encoder and output as well as it supervises both. 
 <p>
 Appenders are associated to the previously mentioned route. Like previously mentioned when a route is not given a
 name it is automatically named {@value io.jstach.rainbowgum.LogRouter.Router#DEFAULT_ROUTER_NAME}.
@@ -547,6 +547,25 @@ will tell the output to flush after each event. This flag is disabled by default
 however if one would like to follow <a href="https://12factor.net/logs">12 Factors requirements of events written unbuffered</a> 
 synchronously this flag should be used.
 
+<h3 id="appender_reentry">Appender Reentry Protection</h3>
+
+A problem that can occur in any logging framework is if an output, appender, or encoder does logging which if
+synchronous will usually cause a stackoverflow and if asynchronous an infinite stream of events. Let us create
+a hypothetical example where we have an Output that uses a message queue client. The message queue client uses
+SLF4J for logging. If an event is sent that causes the message queue client to log an event and that event is not discarded
+and the output client then logs the event it created you get reentry in a synchronous publisher. 
+With asynchronous it is far worse as there will be less immediate evidence that something is broken and instead a never ending supply of log entries.
+
+<p>
+
+Some logging frameworks like <a href="https://logback.qos.ch/manual/appenders.html#AppenderBase">logback provide reentry protection</a>
+usually through threadlocals but one must understand this only works if logging is synchronous (synchronous publisher), hurts performance, 
+and is just a misleading bandaid over a potential serious problem if the events are being dropped (which logback does by default).
+<strong>That is why Rainbow Gum does not provide reentry protection unless requested!</strong> 
+However the flags {@link io.jstach.rainbowgum.LogAppender.AppenderFlag#REENTRY_DROP} and {@link io.jstach.rainbowgum.LogAppender.AppenderFlag#REENTRY_LOG}
+can be used to provide similar and arguably better protection than logback.
+<p>
+<strong>Overall the real solution is to fix the output so that it filters events that would cause such behavior or ideally not do any logging.</strong>
 
 <h2 id="encoders">Encoders</h2>
 

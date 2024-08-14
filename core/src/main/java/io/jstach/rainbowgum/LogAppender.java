@@ -99,12 +99,16 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * flag!</strong>
 		 * <p>
 		 * This flag is to allow outputs that do logging themselves. For performance
-		 * reasons it is recommended that you fix the output code such that it does not do
-		 * logging. This flag is ignored if {@link #REENTRY_LOG} is set.
+		 * reasons and to allow async publishers it is recommended that you fix the output
+		 * code such that it does not do logging. This flag is ignored if
+		 * {@link #REENTRY_LOG} is set.
+		 * <p>
+		 * <strong>This flag will not fix outputs causing lool like logging if an async
+		 * publisher is used!</strong> That is why it is recommended you fix the output by
+		 * dropping events that would cause infinite loop like logging.
 		 * @see #REENTRY_LOG
 		 */
 		REENTRY_DROP,
-
 		/**
 		 * The appender will log events as errors to std error on reentry which happens if
 		 * an appender during its append causes recursive appending in the same thread.
@@ -116,7 +120,6 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * logging.
 		 * <p>
 		 * This flag takes precedence over {@link #REENTRY_DROP}.
-		 *
 		 */
 		REENTRY_LOG;
 

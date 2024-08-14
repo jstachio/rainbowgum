@@ -23,6 +23,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.MetaLog;
+import io.jstach.rainbowgum.annotation.GeneratedByATrustedSource;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
@@ -192,6 +193,9 @@ public final class RabbitMQOutput implements LogOutput {
 
 	@Override
 	public void write(LogEvent event, byte[] bytes, ContentType contentType) {
+		if (checkReentry(event)) {
+			return;
+		}
 		BasicProperties props = properties(event, contentType);
 		byte[] body = bytes;
 		try {
@@ -208,6 +212,20 @@ public final class RabbitMQOutput implements LogOutput {
 				lock.writeLock().unlock();
 			}
 		}
+	}
+
+	// This is to exclude this code from code coverage as it is not possible with current
+	// RabbitMQ client.
+	@GeneratedByATrustedSource
+	// TODO make this generic and add to MetaLog.
+	private static boolean checkReentry(LogEvent event) {
+		if (event.loggerName().startsWith("com.rabbitmq.client")) {
+			StringBuilder sb = new StringBuilder();
+			event.formattedMessage(sb);
+			MetaLog.error(RabbitMQOutput.class, "RabbitMQ attempted to recursively log.", new Exception(sb.toString()));
+			return true;
+		}
+		return false;
 	}
 
 	private BasicProperties properties(LogEvent event, ContentType contentType) {
