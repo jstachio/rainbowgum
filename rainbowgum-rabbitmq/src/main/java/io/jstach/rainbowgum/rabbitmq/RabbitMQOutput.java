@@ -222,7 +222,9 @@ public final class RabbitMQOutput implements LogOutput {
 		if (event.loggerName().startsWith("com.rabbitmq.client")) {
 			StringBuilder sb = new StringBuilder();
 			event.formattedMessage(sb);
-			MetaLog.error(RabbitMQOutput.class, "RabbitMQ attempted to recursively log.", new Exception(sb.toString()));
+			String docUrl = MetaLog.documentBaseUrl() + "/#appender_reentry";
+			MetaLog.error(RabbitMQOutput.class, "RabbitMQ attempted to recursively log. File a bug. See: " + docUrl,
+					new Exception(sb.toString()));
 			return true;
 		}
 		return false;

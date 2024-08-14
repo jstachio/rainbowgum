@@ -7,6 +7,8 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.annotation.RainbowGumVersion;
+
 /**
  * Logging about logging. Currently not really public API.
  *
@@ -46,6 +48,19 @@ public final class MetaLog {
 	public static void error(Class<?> loggerName, String message, Throwable throwable) {
 		var event = LogEvent.of(Level.ERROR, loggerName.getName(), message, throwable);
 		error(event);
+	}
+
+	/**
+	 * Resolves the Rainbow Gum documentation URL based on static version information.
+	 * @return URL <strong>with no trailing slash!</strong>
+	 */
+	public static String documentBaseUrl() {
+		String version = RainbowGumVersion.VERSION;
+		if (version.endsWith("-SNAPSHOT")) {
+			return "https://jstach.io/rainbowgum";
+		}
+		return "https://jstach.io/doc/rainbowgum/" + version + "/apidocs";
+
 	}
 
 	static Supplier<? extends @Nullable PrintStream> output = () -> System.err;
