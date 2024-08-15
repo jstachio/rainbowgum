@@ -21,6 +21,7 @@
   <module>rainbowgum-test-rabbitmq</module>
   <module>rainbowgum-test-jdk</module>
   <module>rainbowgum-test-jlink</module>
+  <module>rainbowgum-test-spring-boot</module>
   </modules>
   <build>
     <pluginManagement>

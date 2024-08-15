@@ -112,6 +112,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-tomcat</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-jansi</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1109,5 +1114,6 @@
     <module>rainbowgum-annotation</module>
     <module>rainbowgum-pattern</module>
     <module>rainbowgum-systemlogger</module>
+    <module>rainbowgum-tomcat</module>
   </modules>
 </project>
