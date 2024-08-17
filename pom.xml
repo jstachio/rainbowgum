@@ -1115,5 +1115,6 @@
     <module>rainbowgum-pattern</module>
     <module>rainbowgum-systemlogger</module>
     <module>rainbowgum-tomcat</module>
+    <module>spring</module>
   </modules>
 </project>

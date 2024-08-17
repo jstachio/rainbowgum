@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -16,11 +15,9 @@ import java.util.function.Supplier;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperty.Property;
-import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
-import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
 
 //@formatter:off
 /**
@@ -103,6 +100,15 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 */
 	public static RainbowGum defaults() {
 		return RainbowGumServiceProvider.provide();
+	}
+
+	/**
+	 * Creates a RainbowGum that will <strong>ALWAYS</strong> use the global router.
+	 * @param config config.
+	 * @return rainbow gum that always uses global router.
+	 */
+	public static RainbowGum queued(LogConfig config) {
+		return new SimpleRainbowGum(config, LogRouter.global(), UUID.randomUUID());
 	}
 
 	/**

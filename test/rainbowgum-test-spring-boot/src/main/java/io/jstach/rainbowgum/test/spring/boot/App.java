@@ -15,8 +15,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class App {
 
-	private static final Logger log = LoggerFactory.getLogger(App.class);
-
 	/**
 	 * To placate JDK 18 javadoc.
 	 */
@@ -28,13 +26,12 @@ public class App {
 	 * @param args the command line args
 	 */
 	public static void main(String[] args) {
-		Logger log = LoggerFactory.getLogger(App.class);
-		java.util.logging.Logger jul = java.util.logging.Logger.getLogger("blah");
-		jul.log(Level.INFO, "hello jul");
 
 		SpringApplication.run(App.class, args);
+		java.util.logging.Logger jul = java.util.logging.Logger.getLogger("blah");
+		jul.log(Level.INFO, "hello jul");
 		jul.log(Level.INFO, "hello again jul");
-
+		Logger log = LoggerFactory.getLogger("blah");
 		log.info("Hello Spring Boot");
 	}
 

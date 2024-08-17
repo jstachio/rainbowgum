@@ -66,6 +66,11 @@
           <groupId>io.jstach.rainbowgum</groupId>
           <artifactId>rainbowgum</artifactId>
         </dependency>
+         <dependency>
+          <groupId>io.jstach.rainbowgum</groupId>
+          <artifactId>rainbowgum-spring-boot</artifactId>
+          <version>${project.version}</version>
+        </dependency>
         <dependency>
           <groupId>io.jstach.rainbowgum</groupId>
           <artifactId>rainbowgum-tomcat</artifactId>
