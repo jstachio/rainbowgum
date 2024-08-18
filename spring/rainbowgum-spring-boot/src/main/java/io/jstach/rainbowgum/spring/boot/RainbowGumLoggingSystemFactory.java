@@ -69,7 +69,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			if (gum != null) {
 				if (gum.config().serviceRegistry().findOrNull(PreBootRainbowGumProvider.BootFlag.class) == null) {
 					gum.router()
-						.eventBuilder(getClass().getName(), Level.ERROR)
+						.eventBuilder(getClass().getName(), Level.INFO)
 						.message("Rainbow Gum already loaded! Config will not be driven by Spring.")
 						.log();
 					return;
@@ -84,10 +84,13 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 		@Override
 		public void cleanUp() {
-			// var gum = rainbowGum;
-			// if (gum != null) {
-			// gum.close();
-			// }
+			/*
+			 * TODO hmm is it a good idea to close here or rather use shutdown handler.
+			 */
+			var gum = rainbowGum;
+			if (gum != null) {
+				gum.close();
+			}
 		}
 
 		@Override
@@ -98,8 +101,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 		@Override
 		public Set<LogLevel> getSupportedLogLevels() {
-			// TODO Auto-generated method stub
-			return super.getSupportedLogLevels();
+			return LogLevels.SUPPORTED;
 		}
 
 		@Override
@@ -118,6 +120,29 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		public LoggerConfiguration getLoggerConfiguration(String loggerName) {
 			// TODO Auto-generated method stub
 			return super.getLoggerConfiguration(loggerName);
+		}
+
+	}
+
+	enum LogLevels {
+
+		;
+		public static final Set<LogLevel> SUPPORTED = supported();
+
+		private static Set<LogLevel> supported() {
+			return Set.of(LogLevel.TRACE, LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR, LogLevel.OFF);
+		}
+
+		public static LogLevel fromSystem(Level level) {
+			return switch (level) {
+				case ALL -> LogLevel.TRACE;
+				case TRACE -> LogLevel.TRACE;
+				case DEBUG -> LogLevel.DEBUG;
+				case INFO -> LogLevel.INFO;
+				case WARNING -> LogLevel.WARN;
+				case ERROR -> LogLevel.ERROR;
+				case OFF -> LogLevel.OFF;
+			};
 		}
 
 	}

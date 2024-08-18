@@ -6,11 +6,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
 
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
-import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
@@ -60,7 +60,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				// callerInfo);
 				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
 				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
-				subscribe(name, router, changePublisher, changeable);
+				subscribe(name, router, changeable);
 				newLogger = changeable;
 			}
 			else {
@@ -80,12 +80,21 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		}
 	}
 
-	private void subscribe(String name, RootRouter router, ChangePublisher changePublisher,
-			LevelChangeable changeable) {
-		changePublisher.subscribe(c -> {
-			var slf4jLevel = Levels.toSlf4jLevel(router.levelResolver().resolveLevel(name));
-			changeable.setLevel(slf4jLevel);
-		});
+	private void subscribe(String name, RootRouter router, LevelChangeable changeable) {
+		record Slf4JOnChange(String name, LevelChangeable changeable) implements Consumer<RootRouter> {
+
+			@Override
+			public void accept(RootRouter r) {
+				var slf4jLevel = Levels.toSlf4jLevel(r.levelResolver().resolveLevel(name));
+				changeable.setLevel(slf4jLevel);
+			}
+
+		}
+		router.onChange(new Slf4JOnChange(name, changeable));
+		// router.onChange(r -> {
+		// var slf4jLevel = Levels.toSlf4jLevel(r.levelResolver().resolveLevel(name));
+		// changeable.setLevel(slf4jLevel);
+		// });
 	}
 
 	private LogEventHandler maybeAddCallerInfo(String loggerName, Set<ChangeType> allowedChanges, LogEventLogger logger,

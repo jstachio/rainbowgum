@@ -34,4 +34,9 @@ class ReplaceableLogger implements ForwardingLogger, LevelChangeable, DepthAware
 		return new ReplaceableLogger(logger.withDepth(depth));
 	}
 
+	@Override
+	public String toString() {
+		return "ReplaceableLogger [logger=" + logger + "]";
+	}
+
 }

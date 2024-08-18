@@ -282,7 +282,10 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 					routes = routeNames.stream().map(n -> Router.builder(n, config).build()).toList();
 				}
 			}
-			var root = InternalRootRouter.of(routes, config.levelResolver());
+			var root = InternalRootRouter.of(routes);
+			config.changePublisher().subscribe(c -> {
+				root.changePublisher().publish(root);
+			});
 			return new SimpleRainbowGum(config, root, instanceId);
 		}
 

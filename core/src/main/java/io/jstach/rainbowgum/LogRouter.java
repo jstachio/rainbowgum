@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -142,6 +144,15 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * @return level resolver.
 		 */
 		public LevelResolver levelResolver();
+
+		/**
+		 * Register for a router changes usually involving the level resolver being
+		 * updated by config.
+		 * @param router consumer that will be called with the updated router.
+		 * @apiNote its best to use the router in the consumer accept argument and not
+		 * this router even if they are usually the same.
+		 */
+		public void onChange(Consumer<? super RootRouter> router);
 
 	}
 
@@ -556,7 +567,7 @@ sealed interface InternalRootRouter extends RootRouter {
 		GlobalLogRouter.INSTANCE.drain((InternalRootRouter) router);
 	}
 
-	static InternalRootRouter of(List<? extends Router> routes, LevelResolver levelResolver) {
+	static InternalRootRouter of(List<? extends Router> routes) {
 
 		if (routes.isEmpty()) {
 			throw new IllegalArgumentException("atleast one route is required");
@@ -603,9 +614,41 @@ sealed interface InternalRootRouter extends RootRouter {
 
 	}
 
+	@Override
+	default void onChange(Consumer<? super RootRouter> router) {
+		changePublisher().add(router);
+	}
+
+	public RouteChangePublisher changePublisher();
+
+	final class RouteChangePublisher {
+
+		private final Collection<Consumer<? super RootRouter>> consumers = new CopyOnWriteArrayList<Consumer<? super RootRouter>>();
+
+		void add(Consumer<? super RootRouter> consumer) {
+			consumers.add(consumer);
+		}
+
+		void publish(RootRouter router) {
+			for (var c : consumers) {
+				c.accept(router);
+			}
+		}
+
+		void transferTo(RouteChangePublisher changePublisher) {
+			changePublisher.consumers.addAll(consumers);
+			this.consumers.clear();
+		}
+
+	}
+
 }
 
-record SingleSyncRootRouter(Router router) implements InternalRootRouter {
+record SingleSyncRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
+
+	public SingleSyncRootRouter(Router router) {
+		this(router, new RouteChangePublisher());
+	}
 
 	@Override
 	public void start(LogConfig config) {
@@ -629,7 +672,11 @@ record SingleSyncRootRouter(Router router) implements InternalRootRouter {
 
 }
 
-record SingleAsyncRootRouter(Router router) implements InternalRootRouter {
+record SingleAsyncRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
+
+	public SingleAsyncRootRouter(Router router) {
+		this(router, new RouteChangePublisher());
+	}
 
 	@Override
 	public void start(LogConfig config) {
@@ -653,7 +700,12 @@ record SingleAsyncRootRouter(Router router) implements InternalRootRouter {
 
 }
 
-record CompositeLogRouter(Router[] routers, LevelResolver levelResolver) implements InternalRootRouter, Route {
+record CompositeLogRouter(Router[] routers, LevelResolver levelResolver,
+		RouteChangePublisher changePublisher) implements InternalRootRouter, Route {
+
+	public CompositeLogRouter(Router[] routers, LevelResolver levelResolver) {
+		this(routers, levelResolver, new RouteChangePublisher());
+	}
 
 	@Override
 	public Route route(String loggerName, Level level) {
@@ -715,6 +767,8 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private static final LevelResolver INFO_RESOLVER = StaticLevelResolver.of(Level.INFO);
 
+	private final RouteChangePublisher changePublisher = new RouteChangePublisher();
+
 	@Override
 	public LevelResolver levelResolver() {
 		return INFO_RESOLVER;
@@ -757,6 +811,11 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	@Override
 	public boolean isEnabled() {
 		return true;
+	}
+
+	@Override
+	public RouteChangePublisher changePublisher() {
+		return this.changePublisher;
 	}
 
 }
@@ -815,14 +874,26 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 	}
 
 	@Override
+	public RouteChangePublisher changePublisher() {
+		return this.delegate.changePublisher();
+	}
+
+	@Override
 	public void drain(InternalRootRouter delegate) {
 		_drain(delegate);
 	}
 
 	private InternalRootRouter _drain(InternalRootRouter delegate) {
+		if (delegate == this) {
+			throw new IllegalStateException("bug");
+		}
 		drainLock.lock();
 		try {
 			var original = this.delegate;
+			if (original instanceof QueueEventsRouter q) {
+				q.changePublisher().transferTo(delegate.changePublisher());
+				delegate.changePublisher().publish(delegate);
+			}
 			this.delegate = Objects.requireNonNull(delegate);
 			original.drain(delegate);
 			return original;

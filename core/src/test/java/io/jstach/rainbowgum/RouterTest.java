@@ -43,7 +43,7 @@ class RouterTest {
 		var publisher2 = new TestSyncPublisher();
 		var router2 = new SimpleRouter("2", publisher2, resolver2);
 
-		var root = InternalRootRouter.of(List.of(router1, router2), StaticLevelResolver.of(Level.ERROR));
+		var root = InternalRootRouter.of(List.of(router1, router2));
 
 		var route = root.route("stuff", Level.DEBUG);
 

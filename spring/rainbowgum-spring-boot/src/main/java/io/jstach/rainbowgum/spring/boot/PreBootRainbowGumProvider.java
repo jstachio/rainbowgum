@@ -23,9 +23,15 @@ public class PreBootRainbowGumProvider implements RainbowGumProvider {
 
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
+		String changeProperties = """
+				logging.global.change=true
+				logging.change=level
+				""";
+
 		var properties = LogProperties.builder()
-			.fromFunction(System::getProperty)
-			.removeKeyPrefix("boot.logging.")
+			// .fromFunction(System::getProperty)
+			// .removeKeyPrefix("boot.logging.")
+			.fromProperties(changeProperties)
 			.description("PreBoot properties")
 			.build();
 		var newConfig = LogConfig.builder().properties(properties).build();
