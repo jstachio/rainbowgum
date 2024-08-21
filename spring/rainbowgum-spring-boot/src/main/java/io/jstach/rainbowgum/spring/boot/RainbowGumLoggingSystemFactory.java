@@ -37,8 +37,20 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 	}
 
 	record SpringLogProperties(Environment environment) implements LogProperties {
+		/*
+		 * Rainbow Gum uses logging.level as the root but strangely probably because of
+		 * binding boot uses the below.
+		 */
+		private static final String ROOT_LEVEL = "logging.level.root";
+
 		@Override
 		public @Nullable String valueOrNull(String key) {
+			if (key.equals("logging.level")) {
+				String value = environment.getProperty(ROOT_LEVEL);
+				if (value != null) {
+					return value;
+				}
+			}
 			return environment.getProperty(key);
 		}
 	}

@@ -11,8 +11,8 @@
   <packaging>pom</packaging>
   <properties>
     <spring-boot.version>3.3.2</spring-boot.version>
-    <doc.resources>../../</doc.resources>
-    <parent.root>${basedir}/../..</parent.root>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
   </properties>
   <dependencyManagement>
     <dependencies>
