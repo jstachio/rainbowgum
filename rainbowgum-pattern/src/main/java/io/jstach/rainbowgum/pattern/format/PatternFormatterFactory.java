@@ -10,6 +10,7 @@ import static io.jstach.rainbowgum.pattern.format.ANSIConstants.MAGENTA_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.RED_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.WHITE_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.YELLOW_FG;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.FAINT;
 
 import java.lang.System.Logger.Level;
 import java.time.ZoneId;
@@ -176,6 +177,23 @@ enum StandardKeywordFactory implements KeywordFactory {
 
 		}
 
+	},
+	PROPERTY() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			String key = node.optOrNull(0);
+			if (key == null) {
+				return LogFormatter.builder().text("Property_HAS_NO_KEY").build();
+			}
+			var f = config.propertyFunction();
+			var v = f.apply(key);
+			if (v == null) {
+				return LogFormatter.noop();
+			}
+			return LogFormatter.builder().text(v).build();
+		}
+
 	};
 
 	static final String ISO8601_STR = "ISO8601";
@@ -235,6 +253,8 @@ final class ANSIConstants {
 
 	final static String BOLD = "1;";
 
+	final static String FAINT = "2;";
+
 	final static String RESET = "0;";
 
 	final static String BLACK_FG = "30";
@@ -288,7 +308,53 @@ record HighlightFormatter(@Nullable LogFormatter child) implements LogFormatter.
 
 }
 
-enum HightlightCompositeFactory implements CompositeFactory {
+record ClrLevelFormatter(@Nullable LogFormatter child) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		/*
+		 * TODO should a null child be a noop? Need to see what logback does for compat.
+		 */
+		var level = event.level();
+		String code = levelToANSI(level);
+		output.append(ANSIConstants.ESC_START);
+		output.append(code);
+		output.append(ANSIConstants.ESC_END);
+		if (child != null) {
+			child.format(output, event);
+		}
+		output.append(ANSIConstants.SET_DEFAULT_COLOR);
+	}
+
+	private static String levelToANSI(Level level) {
+		return switch (level) {
+			case ERROR -> RED_FG;
+			case WARNING -> YELLOW_FG;
+			case INFO -> GREEN_FG;
+			case DEBUG -> GREEN_FG;
+			case TRACE -> GREEN_FG;
+			default -> DEFAULT_FG;
+		};
+	}
+
+}
+
+record ClrStaticFormatter(@Nullable LogFormatter child, String code) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		output.append(ANSIConstants.ESC_START);
+		output.append(code);
+		output.append(ANSIConstants.ESC_END);
+		if (child != null) {
+			child.format(output, event);
+		}
+		output.append(ANSIConstants.SET_DEFAULT_COLOR);
+	}
+
+}
+
+enum HighlightCompositeFactory implements CompositeFactory {
 
 	HIGHTLIGHT() {
 
@@ -303,6 +369,39 @@ enum HightlightCompositeFactory implements CompositeFactory {
 			return new HighlightFormatter(child);
 		}
 
+	},
+
+	CLR() {
+
+		@Override
+		public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
+			if (config.ansiDisabled()) {
+				if (child == null) {
+					return LogFormatter.noop();
+				}
+				return child;
+			}
+			String color = node.optOrNull(0, HighlightCompositeFactory::parseColor);
+			if (color == null) {
+				return new ClrLevelFormatter(child);
+			}
+			return new ClrStaticFormatter(child, color);
+		}
+
+	};
+
+	static String parseColor(String color) {
+		color = color.toLowerCase(Locale.ROOT);
+		return switch (color) {
+			case "blue" -> BLACK_FG;
+			case "cyan" -> CYAN_FG;
+			case "faint" -> FAINT + DEFAULT_FG;
+			case "green" -> GREEN_FG;
+			case "magenta" -> MAGENTA_FG;
+			case "red" -> RED_FG;
+			case "yellow" -> YELLOW_FG;
+			default -> throw new IllegalArgumentException("Bad color:" + color);
+		};
 	}
 
 }

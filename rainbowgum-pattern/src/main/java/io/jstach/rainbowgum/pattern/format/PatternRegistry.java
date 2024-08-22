@@ -146,6 +146,11 @@ public sealed interface PatternRegistry {
 		 */
 		MDC("X", "mdc"), //
 		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#mdc">Property keywords</a>
+		 * @see PatternConfig#propertyFunction()
+		 */
+		PROPERTY("property"), //
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#ex">Throwable keywords</a>
 		 */
 		THROWABLE("ex", "exception", "throwable"), //
@@ -263,6 +268,47 @@ public sealed interface PatternRegistry {
 
 	}
 
+	// config.conversionRule("clr", ColorConverter.class);
+	// config.conversionRule("correlationId", CorrelationIdConverter.class);
+	// config.conversionRule("esb", EnclosedInSquareBracketsConverter.class);
+	// config.conversionRule("wex", WhitespaceThrowableProxyConverter.class);
+	// config.conversionRule("wEx", ExtendedWhitespaceThrowableProxyConverter.class)
+
+	/**
+	 * Spring Boot patterns.
+	 */
+	@CaseChanging
+	enum SpringBootKey implements PatternKey {
+
+		/*
+		 * TODO maybe this should be in the spring boot module only?
+		 */
+
+		/**
+		 * <a href=
+		 * "https://docs.spring.io/spring-boot/reference/features/logging.html#features.logging.console-output.color-coded">
+		 * Spring Boot color pattern key</a>
+		 *
+		 */
+		CLR("clr");
+
+		private final List<String> aliases;
+
+		private SpringBootKey(List<String> aliases) {
+			this.aliases = aliases;
+		}
+
+		private SpringBootKey(String... others) {
+			this(List.of(others));
+		}
+
+		@Override
+		public List<String> aliases() {
+			return this.aliases;
+		}
+
+	}
+
 }
 
 final class DefaultPatternRegistry implements PatternRegistry {
@@ -325,7 +371,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case FILE -> KeywordFactory.of(CallerInfoFormatter.FILE);
 				case LINE -> KeywordFactory.of(CallerInfoFormatter.LINE);
 				case METHOD -> KeywordFactory.of(CallerInfoFormatter.METHOD);
-				default -> throw new IllegalArgumentException("Unexpected value: " + c);
+				case PROPERTY -> StandardKeywordFactory.PROPERTY;
 			};
 
 			registry.register(c, keyword);
@@ -349,9 +395,16 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case BOLD_RED -> ColorCompositeFactory.BOLD_RED;
 				case BOLD_WHITE -> ColorCompositeFactory.BOLD_WHITE;
 				case BOLD_YELLOW -> ColorCompositeFactory.BOLD_YELLOW;
-				case HIGHLIGHT -> HightlightCompositeFactory.HIGHTLIGHT;
+				case HIGHLIGHT -> HighlightCompositeFactory.HIGHTLIGHT;
 			};
 			registry.register(c, factory);
+		}
+
+		for (SpringBootKey sk : SpringBootKey.values()) {
+			var factory = switch (sk) {
+				case CLR -> HighlightCompositeFactory.CLR;
+			};
+			registry.register(sk, factory);
 		}
 
 		registry.register(BareKey.BARE, BareCompositeFactory.BARE);

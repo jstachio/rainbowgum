@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.pattern.format;
 
 import java.time.ZoneId;
+import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -14,6 +15,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.KeyParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.PassThroughParameter;
+import io.jstach.rainbowgum.pattern.format.DefaultFormatterConfig.StandardPropertyFunction;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
@@ -57,14 +59,17 @@ public final class PatternConfigurator implements Configurator {
 	}
 
 	@LogConfigurable(name = "PatternConfigBuilder", prefix = PatternConfig.PATTERN_CONFIG_PREFIX)
-	static PatternConfig provideFormatterConfig(@KeyParameter String name,
-			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, @Nullable String lineSeparator,
-			@Nullable Boolean ansiDisabled) {
+	static PatternConfig provideFormatterConfig(@KeyParameter String name, //
+			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, //
+			@Nullable String lineSeparator, //
+			@Nullable Boolean ansiDisabled, //
+			@PassThroughParameter @Nullable Function<String, @Nullable String> propertyFunction) {
 		PatternConfig dc = PatternConfig.of();
 		ansiDisabled = ansiDisabled == null ? dc.ansiDisabled() : ansiDisabled;
 		lineSeparator = lineSeparator == null ? dc.lineSeparator() : lineSeparator;
 		zoneId = zoneId == null ? dc.zoneId() : zoneId;
-		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled);
+		propertyFunction = propertyFunction == null ? StandardPropertyFunction.INSTANCE : propertyFunction;
+		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled, propertyFunction);
 
 	}
 

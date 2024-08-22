@@ -58,10 +58,14 @@ public sealed interface PatternCompiler {
 						.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 						.get(config.properties()) //
 						.value(false);
-					var b = PatternConfig.builder().fromProperties(config.properties());
+					var b = PatternConfig.builder()
+						.propertyFunction(PatternConfig.propertyFunction(config.properties(),
+								PatternConfig.PATTERN_PROPERY_PREFIX))
+						.fromProperties(config.properties());
 					if (ansiDisable) {
 						b.ansiDisabled(true);
 					}
+
 					return b.build();
 				});
 			Builder b = builder();

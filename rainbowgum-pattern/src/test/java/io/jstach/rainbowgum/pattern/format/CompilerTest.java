@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -128,6 +129,17 @@ class CompilerTest {
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);
 				return LogEvent.withCaller(super.event(), caller);
+			}
+		},
+		PROPERTY(List.of("%property"), "Property_HAS_NO_KEY") {
+		},
+		PROPERTY_KEY(List.of("%property{mykey}"), "hello") {
+			@Override
+			protected PatternConfig patternConfig() {
+				Map<String, String> props = Map.of("mykey", "hello");
+				return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal())
+					.propertyFunction(props::get)
+					.build();
 			}
 		},
 		THREAD(List.of("%t", "%thread"), "main") {

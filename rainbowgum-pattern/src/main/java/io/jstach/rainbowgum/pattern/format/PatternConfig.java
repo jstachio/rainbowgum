@@ -2,6 +2,9 @@ package io.jstach.rainbowgum.pattern.format;
 
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.function.Function;
+
+import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
@@ -27,6 +30,11 @@ public sealed interface PatternConfig extends Configurator {
 	public static final String PATTERN_CONFIG_PREFIX = LogProperties.ROOT_PREFIX + "pattern.config.{name}.";
 
 	/**
+	 * Key Values that can be retrieved by various patterns.
+	 */
+	public static final String PATTERN_PROPERY_PREFIX = LogProperties.ROOT_PREFIX + "pattern.property.";
+
+	/**
 	 * Default zoneId if not specified.
 	 * @return zone id.
 	 */
@@ -44,6 +52,14 @@ public sealed interface PatternConfig extends Configurator {
 	 * @return false if ANSI escape sequences can be outputted.
 	 */
 	public boolean ansiDisabled();
+
+	/**
+	 * Key Value function for ad-hoc property replacements and lookup in various patterns.
+	 * @return function.
+	 * @see #PATTERN_PROPERY_PREFIX
+	 */
+	@SuppressWarnings("exports")
+	public Function<String, @Nullable String> propertyFunction();
 
 	/**
 	 * Creates a builder to create formatter config.
@@ -76,6 +92,7 @@ public sealed interface PatternConfig extends Configurator {
 		builder.ansiDisabled(config.ansiDisabled());
 		builder.lineSeparator(config.lineSeparator());
 		builder.zoneId(config.zoneId());
+		builder.propertyFunction(config.propertyFunction());
 		return builder;
 	}
 
@@ -95,6 +112,27 @@ public sealed interface PatternConfig extends Configurator {
 	 */
 	public static PatternConfig ofUniversal() {
 		return StandardFormatterConfig.UNIVERSAL_FORMATTER_CONFIG;
+	}
+
+	/**
+	 * Creates a property function.
+	 * @param properties log properties.
+	 * @param prefix prefix keys before asking LogProperties.
+	 * @return function.
+	 */
+	@SuppressWarnings("exports")
+	public static Function<String, @Nullable String> propertyFunction(LogProperties properties, String prefix) {
+		record LogPropertiesPatternKeyValues(String prefix,
+				LogProperties properties) implements Function<String, @Nullable String> {
+
+			@Override
+			public @Nullable String apply(String t) {
+				String key = LogProperties.concatKey(prefix, t);
+				return properties.valueOrNull(key);
+			}
+
+		}
+		return new LogPropertiesPatternKeyValues(prefix, properties);
 	}
 
 	@Override
@@ -132,11 +170,28 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 		return false;
 	}
 
+	@Override
+	default Function<String, @Nullable String> propertyFunction() {
+		return StandardPropertyFunction.INSTANCE;
+	}
+
+	enum StandardPropertyFunction implements Function<String, @Nullable String> {
+
+		INSTANCE;
+
+		@Override
+		public @Nullable String apply(String t) {
+			return null;
+		}
+
+	}
+
 }
 
 enum StandardFormatterConfig implements DefaultFormatterConfig {
 
-	DEFAULT_FORMATTER_CONFIG(), UNIVERSAL_FORMATTER_CONFIG {
+	DEFAULT_FORMATTER_CONFIG(), //
+	UNIVERSAL_FORMATTER_CONFIG {
 		@Override
 		public String lineSeparator() {
 			return "\n";
@@ -155,6 +210,7 @@ enum StandardFormatterConfig implements DefaultFormatterConfig {
 
 }
 
-record SimpleFormatterConfig(ZoneId zoneId, String lineSeparator, boolean ansiDisabled) implements PatternConfig {
+record SimpleFormatterConfig(ZoneId zoneId, String lineSeparator, boolean ansiDisabled,
+		Function<String, @Nullable String> propertyFunction) implements PatternConfig {
 
 }
