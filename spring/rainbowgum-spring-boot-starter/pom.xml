@@ -14,6 +14,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum</artifactId>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>

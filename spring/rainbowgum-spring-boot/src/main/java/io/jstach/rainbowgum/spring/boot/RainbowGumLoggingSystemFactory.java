@@ -15,6 +15,8 @@ import org.springframework.boot.logging.LoggerConfiguration;
 import org.springframework.boot.logging.LoggingInitializationContext;
 import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.logging.LoggingSystemFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 
 import io.jstach.rainbowgum.LogConfig;
@@ -28,6 +30,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * Creates the RainbowGum LoggingSystem that gets called by Spring Boot initializing its
  * logging.
  */
+@Order(value = Ordered.HIGHEST_PRECEDENCE)
 public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 	/**

@@ -54,6 +54,11 @@
         </property>
       </activation>
       <dependencies>
+         <dependency>
+          <groupId>io.jstach.rainbowgum</groupId>
+          <artifactId>rainbowgum-spring-boot-starter</artifactId>
+          <version>${project.version}</version>
+        </dependency>
         <dependency>
           <groupId>org.springframework.boot</groupId>
           <artifactId>spring-boot-starter-web</artifactId>
@@ -63,15 +68,6 @@
               <artifactId>spring-boot-starter-logging</artifactId>
             </exclusion>
           </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum-spring-boot-starter</artifactId>
-          <version>${project.version}</version>
         </dependency>
       </dependencies>
     </profile>
