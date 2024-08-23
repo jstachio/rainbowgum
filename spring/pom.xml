@@ -38,5 +38,6 @@
   </build>
   <modules>
     <module>rainbowgum-spring-boot</module>
+    <module>rainbowgum-spring-boot-starter</module>
   </modules>
 </project>

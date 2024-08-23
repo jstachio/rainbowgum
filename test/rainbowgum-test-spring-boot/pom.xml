@@ -49,7 +49,9 @@
     <profile>
       <id>rainbowgum</id>
       <activation>
-        <property><name>!rainbowgum.disable</name></property>
+        <property>
+          <name>!rainbowgum.disable</name>
+        </property>
       </activation>
       <dependencies>
         <dependency>
@@ -66,17 +68,11 @@
           <groupId>io.jstach.rainbowgum</groupId>
           <artifactId>rainbowgum</artifactId>
         </dependency>
-         <dependency>
-          <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum-spring-boot</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-        <!--
         <dependency>
           <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum-tomcat</artifactId>
+          <artifactId>rainbowgum-spring-boot-starter</artifactId>
+          <version>${project.version}</version>
         </dependency>
-        -->
       </dependencies>
     </profile>
   </profiles>
