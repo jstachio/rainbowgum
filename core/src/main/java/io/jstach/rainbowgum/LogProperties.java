@@ -306,6 +306,22 @@ public interface LogProperties {
 	public @Nullable String valueOrNull(String key);
 
 	/**
+	 * Analogous to {@link System#getProperty(String, String)} with the exception that the
+	 * fallback cannot be null and the return cannot be null.
+	 * @param key property name.
+	 * @param fallback returned if the value is not found and may not be null.
+	 * @return value found or fallback.
+	 */
+	default String value(String key, String fallback) {
+		Objects.requireNonNull(fallback);
+		String v = valueOrNull(key);
+		if (v != null) {
+			return v;
+		}
+		return fallback;
+	}
+
+	/**
 	 * Gets a list or null if the key is missing and by default uses
 	 * {@link #parseList(String)}. The default implementation will parse the string value
 	 * as a list using {@link LogProperties#parseList(String)} but custom implementations

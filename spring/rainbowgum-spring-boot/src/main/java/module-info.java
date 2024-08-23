@@ -3,6 +3,7 @@
  */
 module io.jstach.rainbowgum.spring.boot {
 	requires io.jstach.rainbowgum;
+	requires io.jstach.rainbowgum.pattern;
 	requires spring.boot;
 	requires spring.core;
 	requires static org.eclipse.jdt.annotation;

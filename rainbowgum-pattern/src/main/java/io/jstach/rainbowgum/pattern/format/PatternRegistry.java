@@ -19,6 +19,10 @@ import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactor
  */
 public sealed interface PatternRegistry {
 
+	/*
+	 * TODO this is a mutable component!
+	 */
+
 	/**
 	 * Gets the formatter factory for the pattern key.
 	 * @param key keyword.
@@ -34,6 +38,17 @@ public sealed interface PatternRegistry {
 	 * @param factory factory to create formatters from pattern keywords.
 	 */
 	public void register(PatternKey key, PatternFormatterFactory factory);
+
+	/**
+	 * Convenience to register factories that have keys associated with them by
+	 * implementing {@link PatternKeyProvider}.
+	 * @param <P> pattern formatter that has keys associated with it.
+	 * @param factory factory that also has a key.
+	 * @see #register(PatternKey, PatternFormatterFactory)
+	 */
+	default <P extends PatternKeyProvider & PatternFormatterFactory> void register(P factory) {
+		register(factory.key(), factory);
+	}
 
 	/**
 	 * Convenience function for {@link #register(PatternKey, PatternFormatterFactory)} as
@@ -90,6 +105,21 @@ public sealed interface PatternRegistry {
 			}
 			return new CustomConverterKey(List.copyOf(keys));
 		}
+
+	}
+
+	/**
+	 * Implement this interface along with the formatter for easier registration.
+	 *
+	 * @see PatternRegistry#register(PatternKeyProvider)
+	 */
+	public interface PatternKeyProvider {
+
+		/**
+		 * Key
+		 * @return key.
+		 */
+		PatternKey key();
 
 	}
 
@@ -290,7 +320,11 @@ public sealed interface PatternRegistry {
 		 * Spring Boot color pattern key</a>
 		 *
 		 */
-		CLR("clr");
+		CLR("clr"),
+		/**
+		 * Spring Boot converter that surrounds property in square brackets.
+		 */
+		ESB("esb");
 
 		private final List<String> aliases;
 
@@ -403,6 +437,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 		for (SpringBootKey sk : SpringBootKey.values()) {
 			var factory = switch (sk) {
 				case CLR -> HighlightCompositeFactory.CLR;
+				case ESB -> StandardKeywordFactory.ENCLOSED_SQUARE_BRACKET;
 			};
 			registry.register(sk, factory);
 		}

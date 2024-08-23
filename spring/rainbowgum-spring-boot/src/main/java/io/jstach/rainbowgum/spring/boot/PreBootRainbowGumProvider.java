@@ -1,8 +1,6 @@
 package io.jstach.rainbowgum.spring.boot;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import java.util.UUID;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;

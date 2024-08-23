@@ -194,6 +194,23 @@ enum StandardKeywordFactory implements KeywordFactory {
 			return LogFormatter.builder().text(v).build();
 		}
 
+	},
+	ENCLOSED_SQUARE_BRACKET() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			String key = node.optOrNull(0);
+			if (key == null) {
+				return LogFormatter.noop();
+			}
+			var f = config.propertyFunction();
+			var v = f.apply(key);
+			if (v == null || v.isEmpty()) {
+				return LogFormatter.noop();
+			}
+			return LogFormatter.builder().text("[").text(v).text("]").build();
+		}
+
 	};
 
 	static final String ISO8601_STR = "ISO8601";

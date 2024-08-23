@@ -2,10 +2,13 @@ package io.jstach.rainbowgum.spring.boot;
 
 import java.lang.System.Logger.Level;
 import java.util.List;
+import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.Nullable;
+import org.springframework.boot.ansi.AnsiColor;
+import org.springframework.boot.ansi.AnsiStyle;
 import org.springframework.boot.logging.LogFile;
 import org.springframework.boot.logging.LogLevel;
 import org.springframework.boot.logging.LoggerConfiguration;
@@ -15,8 +18,10 @@ import org.springframework.boot.logging.LoggingSystemFactory;
 import org.springframework.core.env.Environment;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
@@ -55,6 +60,90 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		}
 	}
 
+	final static class Patterns {
+
+		static final String NAME_AND_GROUP = "%esb(){APPLICATION_NAME}%esb{APPLICATION_GROUP}";
+
+		@Nullable
+		String CONSOLE_LOG_PATTERN;
+
+		@Nullable
+		String FILE_LOG_PATTERN;
+
+		String LOG_DATEFORMAT_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
+
+		String LOG_LEVEL_PATTERN = "%5p";
+
+		String PID = "";
+
+		String LOG_CORRELATION_PATTERN = "";
+
+		String LOG_EXCEPTION_CONVERSION_WORD = "%wEx";
+
+		Patterns(LogProperties properties) {
+			CONSOLE_LOG_PATTERN = properties.valueOrNull("CONSOLE_LOG_PATTERN");
+			FILE_LOG_PATTERN = properties.valueOrNull("FILE_LOG_PATTERN");
+			LOG_DATEFORMAT_PATTERN = properties.value("LOG_DATEFORMAT_PATTERN", LOG_DATEFORMAT_PATTERN);
+			LOG_LEVEL_PATTERN = properties.value("LOG_LEVEL_PATTERN", LOG_LEVEL_PATTERN);
+			PID = properties.value("PID", PID);
+			LOG_CORRELATION_PATTERN = properties.value("LOG_CORRELATION_PATTERN", LOG_CORRELATION_PATTERN);
+			LOG_EXCEPTION_CONVERSION_WORD = properties.value("LOG_EXCEPTION_CONVERSION_WORD",
+					LOG_EXCEPTION_CONVERSION_WORD);
+		}
+
+		String consolePattern() {
+			if (CONSOLE_LOG_PATTERN != null) {
+				return CONSOLE_LOG_PATTERN;
+			}
+			return //
+			faint(datetime()) + //
+					" " + //
+					colorByLevel(LOG_LEVEL_PATTERN) + //
+					" " + //
+					magenta(PID) + //
+					" " + //
+					faint("--- " + NAME_AND_GROUP + "[%15.15t]" + " " + LOG_CORRELATION_PATTERN) + //
+					cyan("%-40.40logger{39}") + //
+					" " + faint(":") + //
+					" %m%n" + //
+					LOG_EXCEPTION_CONVERSION_WORD;
+		}
+
+		String filePattern() {
+			if (FILE_LOG_PATTERN != null) {
+				return FILE_LOG_PATTERN;
+			}
+			return datetime() + " " + LOG_LEVEL_PATTERN + " " + PID + " --- " + //
+					NAME_AND_GROUP + "[%t]" + " " + LOG_CORRELATION_PATTERN + //
+					"%-40.40logger{39} : %m%n" + LOG_EXCEPTION_CONVERSION_WORD;
+		}
+
+		String datetime() {
+			return "%d{" + LOG_DATEFORMAT_PATTERN + "}";
+		}
+
+		private static String faint(String value) {
+			return color(value, AnsiStyle.FAINT.name().toLowerCase(Locale.ROOT));
+		}
+
+		private static String cyan(String value) {
+			return color(value, AnsiColor.CYAN.name().toLowerCase(Locale.ROOT));
+		}
+
+		private static String magenta(String value) {
+			return color(value, AnsiColor.MAGENTA.name().toLowerCase(Locale.ROOT));
+		}
+
+		private static String colorByLevel(String value) {
+			return "%clr(" + value + "){}";
+		}
+
+		private static String color(String value, String color) {
+			return "%clr(" + value + "){" + color + "}";
+		}
+
+	}
+
 	final static class RainbowGumLoggingSystem extends LoggingSystem {
 
 		/*
@@ -90,7 +179,20 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			LogConfig config = LogConfig.builder()
 				.properties(new SpringLogProperties(initializationContext.getEnvironment()))
 				.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class, classLoader))
+				.configurator(new SpringBootPatternKeywordProvider())
 				.build();
+			LogProperties patternProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+			Patterns patterns = new Patterns(patternProperties);
+			var consoleEncoder = new PatternEncoderBuilder("console").pattern(patterns.consolePattern())
+				.build()
+				.provide("console", config);
+
+			var fileEncoder = new PatternEncoderBuilder("file").pattern(patterns.filePattern())
+				.build()
+				.provide("file", config);
+
+			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, () -> consoleEncoder);
+			config.encoderRegistry().setEncoderForOutputType(OutputType.FILE, () -> fileEncoder);
 			rainbowGum = RainbowGum.builder(config).set();
 		}
 

@@ -295,8 +295,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			}
 			var levelResolver = this.buildGlobalResolver(logProperties);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver);
-			if (configurators.isEmpty() && serviceLoader != null) {
-				configurators = findProviders(serviceLoader, Configurator.class).toList();
+			if (serviceLoader != null) {
+				configurators = new ArrayList<>(configurators);
+				findProviders(serviceLoader, Configurator.class).forEach(configurators::add);
 			}
 			if (!configurators.isEmpty()) {
 				RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);

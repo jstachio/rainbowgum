@@ -33,6 +33,7 @@ public class App {
 		jul.log(Level.INFO, "hello again jul");
 		Logger log = LoggerFactory.getLogger("blah");
 		log.info("Hello Spring Boot");
+		log.info("Logger: {}", log.getClass().getPackage());
 	}
 
 }
