@@ -18,6 +18,7 @@ import org.springframework.boot.logging.LoggingSystemFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.support.SpringFactoriesLoader;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput.OutputType;
@@ -25,6 +26,7 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
+import io.jstach.rainbowgum.spring.boot.spi.SpringRainbowGumServiceProvider;
 
 /**
  * Creates the RainbowGum LoggingSystem that gets called by Spring Boot initializing its
@@ -196,7 +198,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, () -> consoleEncoder);
 			config.encoderRegistry().setEncoderForOutputType(OutputType.FILE, () -> fileEncoder);
-			rainbowGum = RainbowGum.builder(config).set();
+			rainbowGum = findAndSet(config, classLoader, initializationContext.getEnvironment());
 		}
 
 		@Override
@@ -237,6 +239,17 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		public LoggerConfiguration getLoggerConfiguration(String loggerName) {
 			// TODO Auto-generated method stub
 			return super.getLoggerConfiguration(loggerName);
+		}
+
+		public static RainbowGum findAndSet(LogConfig config, ClassLoader classLoader, Environment environment) {
+			var gum = SpringFactoriesLoader.loadFactories(SpringRainbowGumServiceProvider.class, classLoader)
+				.stream()
+				.flatMap(p -> p.provide(config, classLoader, environment).stream())
+				.findFirst()
+				.orElseGet(() -> {
+					return RainbowGum.builder(config).build();
+				});
+			return RainbowGum.set(gum).get();
 		}
 
 	}

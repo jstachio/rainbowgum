@@ -122,6 +122,29 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	}
 
 	/**
+	 * Sets a Rainbow Gum and provides a supplier that will start it globally.
+	 * @param gum that will be set immediatly.
+	 * @return supplier that will set, get and start the supplied gum and if it is not the
+	 * same will throw {@link IllegalStateException}.
+	 */
+	public static Supplier<? extends RainbowGum> set(RainbowGum gum) {
+		UUID instanceId = gum.instanceId();
+		RainbowGum.set(() -> gum);
+		return () -> {
+			var of = RainbowGum.of();
+			/*
+			 * TODO this is a hack. The holder lock should be used to make this not
+			 * happen.
+			 */
+			if (!instanceId.equals(of.instanceId())) {
+				throw new IllegalStateException("Another rainbow gum registered itself as the global. "
+						+ "This is rare reace condition and probably a bug");
+			}
+			return of;
+		};
+	}
+
+	/**
 	 * The config associated with this instance.
 	 * @return config.
 	 */

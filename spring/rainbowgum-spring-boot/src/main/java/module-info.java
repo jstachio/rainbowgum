@@ -2,8 +2,14 @@
  * Rainbow Gum Spring Boot integration.
  */
 module io.jstach.rainbowgum.spring.boot {
-	requires io.jstach.rainbowgum;
+	exports io.jstach.rainbowgum.spring.boot.spi;
+	requires transitive io.jstach.rainbowgum;
 	requires io.jstach.rainbowgum.pattern;
+	
+	/*
+	 * Note that we never require transitive of spring stuff
+	 * as it is an automatic module.
+	 */
 	requires spring.boot;
 	requires spring.core;
 	requires static org.eclipse.jdt.annotation;
@@ -19,4 +25,6 @@ module io.jstach.rainbowgum.spring.boot {
 	
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
 		with io.jstach.rainbowgum.spring.boot.PreBootRainbowGumProvider;
+	
+	uses io.jstach.rainbowgum.spring.boot.spi.SpringRainbowGumServiceProvider;
 }

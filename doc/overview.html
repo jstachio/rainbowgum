@@ -976,7 +976,9 @@ and you will not be able to figure out what happened otherwise.
   </em>
 </p>
 
-<h3 id="springframework">Spring Boot</h3>
+<h3 id="spring-boot">Spring Boot</h3>
+
+Rainbow Gum provides Spring Boot 3 or greater support that is maintained by the Rainbow Gum project.
 
 <p>
 Spring Boot allows configuration through simple properties for logging that tries to be logging framework agnostic.
@@ -986,24 +988,45 @@ because both of those frameworks were not designed well for programmatic configu
 </p>
 
 <p>
-Rainbow Gum at the moment does not require special integration because it largely follows
-the Spring Boot property patterns.
+<strong>Rainbow Gum key value configuration is purposely very similar and largely compatible with
+  Spring Boot's</strong> <em>however</em> Spring Boot still requires special integration if you would like
+to use its configuration system (for example <code>application.properties</code>). 
+This is because Spring Boot uses/needs logging for initialization of its configuration system.
+</p>
 
-For example configuring levels to logger name with properties in Spring Boot is exactly
-the same as it is in Rainbow Gum:
+The recommended setup of Spring Boot with Maven is:
 
-{@snippet lang=properties :
-logging.level.com.mypackage=INFO
+{@snippet lang=xml :
+      <dependencies>
+         <dependency>
+          <groupId>io.jstach.rainbowgum</groupId>
+          <artifactId>rainbowgum-spring-boot-starter</artifactId>
+          <version>_VERSION_</version>
+        </dependency>
+        <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-web</artifactId>
+          <exclusions>
+            <!-- 
+              This is the important part as logback will be used otherwise 
+              regardless if rainbow gum spring boot integration is used.
+            -->
+            <exclusion>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-logging</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
 }
 
-</p>
+Note that if one chooses to not use <code>rainbowgum-spring-boot-starter</code> 
+or <code>rainbowgum-spring-boot</code> Spring will re-initialize 
+<code>java.util.logging</code> and take over it so again the integration is recommended.
 
 <p>
-At some point Spring Boot will likely diverge enough on its property keys that
-special integration will be needed. Rainbow Gum will have a solution for that 
-in the future.
-</p>
 
+See {@link io.jstach.rainbowgum.spring.boot/ }.
 
 
 <h3 id="plugin_guide">Extension development guide</h3>
