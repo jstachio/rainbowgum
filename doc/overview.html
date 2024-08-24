@@ -1000,27 +1000,27 @@ This is because Spring Boot uses/needs logging for initialization of its configu
 The recommended setup of Spring Boot with Maven is:
 
 {@snippet lang=xml :
-      <dependencies>
-         <dependency>
-          <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum-spring-boot-starter</artifactId>
-          <version>_VERSION_</version>
-        </dependency>
-        <dependency>
+  <dependencies>
+     <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-spring-boot-starter</artifactId>
+      <version>_VERSION_</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <exclusions>
+        <!-- 
+          This is the important part as logback will be used otherwise 
+          regardless if rainbow gum spring boot integration is used.
+        -->
+        <exclusion>
           <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-web</artifactId>
-          <exclusions>
-            <!-- 
-              This is the important part as logback will be used otherwise 
-              regardless if rainbow gum spring boot integration is used.
-            -->
-            <exclusion>
-              <groupId>org.springframework.boot</groupId>
-              <artifactId>spring-boot-starter-logging</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-      </dependencies>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
 }
 
 Note that if one chooses to not use <code>rainbowgum-spring-boot-starter</code> 
