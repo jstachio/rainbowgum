@@ -3,7 +3,7 @@
   <parent>
     <groupId>io.jstach.rainbowgum</groupId>
     <artifactId>rainbowgum-maven-parent</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>0.8.0-SNAPSHOT</version>
   </parent>
   <properties>
     <doc.resources>../</doc.resources>
