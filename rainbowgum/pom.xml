@@ -54,26 +54,6 @@
       <scope>runtime</scope>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-rabbitmq</artifactId>
-      <scope>runtime</scope>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-test-jdk</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-      <optional>true</optional>
-    </dependency> 
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-test-rabbitmq</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-      <optional>true</optional>
-    </dependency>
   </dependencies>
   <profiles>
     <profile>
