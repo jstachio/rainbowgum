@@ -1,10 +1,8 @@
-import javax.annotation.processing.Processor;
-
 /**
  * Rainbow Gum annotation processors.
  * @provides Processor with config processor.
  */
 module io.jstach.rainbowgum.apt {
 	requires jdk.compiler;
-	provides Processor with io.jstach.rainbowgum.apt.ConfigProcessor;
+	provides javax.annotation.processing.Processor with io.jstach.rainbowgum.apt.ConfigProcessor;
 }
