@@ -16,8 +16,9 @@ public class JavadocJavascript {
 	static PrintStream out = System.out;
 	static final String VERSION_TOKEN = "_VERSION_";
 	static String version = VERSION_TOKEN;
+
 	final static String DOC_ROOT = "../";
-	
+
 	public static void main(String[] args) {
 		try {
 			if (args.length > 0) {
@@ -32,9 +33,12 @@ public class JavadocJavascript {
 	}
 
 	static void findFiles() throws Exception {
-		String path = DOC_ROOT + "target/site/apidocs";
+		// final String API_DOCS = "target/site/apidocs";
+		final String API_DOCS = "target/reports/apidocs";
+
+		String path = DOC_ROOT + API_DOCS;
 		// Path resourcesPath = Path.of("../doc/target/site/apidocs/resources");
-		Path resourcesPath = Path.of(DOC_ROOT + "target/site/apidocs/resources");
+		Path resourcesPath = Path.of(DOC_ROOT + API_DOCS + "/resources");
 
 		var p = Path.of(path);
 		int maxDepth = 100;
@@ -48,11 +52,11 @@ public class JavadocJavascript {
 				addJavascript(_p, relativeResourcesPath);
 			}
 		}
-		addToc(Path.of(DOC_ROOT + "target/site/apidocs/index.html"));
-		removeSearchFocus(Path.of(DOC_ROOT + "target/site/apidocs/search.js"));
+		addToc(Path.of(DOC_ROOT + API_DOCS + "/index.html"));
+		removeSearchFocus(Path.of(DOC_ROOT + API_DOCS + "/search.js"));
 
 	}
-	
+
 	static void addToc(Path htmlPath) throws IOException {
 		List<String> lines = Files.readAllLines(htmlPath);
 		List<String> processed = new ArrayList<>();
@@ -72,9 +76,9 @@ public class JavadocJavascript {
 		}
 		else {
 			out.println("header not found for: " + htmlPath);
-		}	
+		}
 	}
-	
+
 	static void removeSearchFocus(Path searchJs) throws IOException {
 		List<String> lines = Files.readAllLines(searchJs);
 		List<String> processed = new ArrayList<>();
@@ -93,8 +97,8 @@ public class JavadocJavascript {
 		}
 		else {
 			throw new IOException("search.focus not found");
-			//out.println("header not found for: " + searchJs);
-		}	
+			// out.println("header not found for: " + searchJs);
+		}
 	}
 
 	static void addJavascript(Path htmlPath, Path resourcesPath) throws IOException {
