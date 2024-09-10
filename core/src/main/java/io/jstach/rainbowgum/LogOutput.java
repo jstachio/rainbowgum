@@ -72,6 +72,9 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 	 * @apiNote the provider may throw an {@link UncheckedIOException}.
 	 */
 	private static LogProvider<LogOutput> of(URI uri) {
+		/*
+		 * TODO this should probably be public.
+		 */
 		return of(LogProviderRef.of(uri));
 	}
 
@@ -134,6 +137,10 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 		/**
 		 * Builtin content types.
+		 *
+		 * @apiNote additional "standard" content types maybe added in the future before
+		 * 1.0 thus one should expect the number of enum symbols to change and is not safe
+		 * to pattern match on without a default.
 		 */
 		@CaseChanging
 		public enum StandardContentType implements ContentType {
