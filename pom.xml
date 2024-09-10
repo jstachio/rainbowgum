@@ -26,7 +26,7 @@
     <maven.core.version>3.9.9</maven.core.version>
     <jdk.release.version>21.0.2</jdk.release.version>
 
-    <ecj.version>3.38.0</ecj.version>
+    <ecj.version>3.39.0</ecj.version>
     <plexus-compiler-eclipse.version>2.15.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.30.0</error-prone.version>
     <checkerframework.version>3.42.0</checkerframework.version>
