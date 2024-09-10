@@ -3,8 +3,11 @@ package io.jstach.rainbowgum.spi;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.WeakHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -203,6 +206,33 @@ public sealed interface RainbowGumServiceProvider {
 	}
 
 	/**
+	 * This is a marker interface that indicates that a facade implementation will do the
+	 * eager loading of RainbowGum. This is used to determine if another facade that has
+	 * the option to queue should queue and not load rainbowgum if any implementations are
+	 * found of this interface.
+	 *
+	 * @apiNote Only facade implementers need concern themselves with this interface and
+	 * for others it is an internal detail.
+	 * @see #exists()
+	 */
+	public non-sealed interface RainbowGumEagerLoad extends RainbowGumServiceProvider {
+
+		/**
+		 * Without loading service providers will carefully check for the existence of any
+		 * {@link RainbowGumEagerLoad} implementations.
+		 * @return true if something is marked as eager.
+		 */
+		public static boolean exists() {
+			var sl = ServiceLoaderCache.SERVICE_LOADER_CACHE.findServiceLoader(defaultClassLoader());
+			return sl.stream()
+				.filter(p -> RainbowGumEagerLoad.class.isAssignableFrom(p.type()))
+				.findFirst()
+				.isPresent();
+		}
+
+	}
+
+	/**
 	 * Finds service providers based on type.
 	 * @param <T> provider interface type.
 	 * @param loader service loader to use.
@@ -231,10 +261,10 @@ public sealed interface RainbowGumServiceProvider {
 
 	/**
 	 * Will load all RainbowGum SPI to create a RainbowGum powered from the ServiceLoader.
+	 * @param loader service loader to use.
 	 * @return Rainbow Gum.
 	 */
-	public static RainbowGum provide() {
-		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
+	public static RainbowGum provide(ServiceLoader<RainbowGumServiceProvider> loader) {
 		var config = provideConfig(loader);
 		@Nullable
 		RainbowGum gum = findProviders(loader, RainbowGumProvider.class)
@@ -247,6 +277,75 @@ public sealed interface RainbowGumServiceProvider {
 			gum = RainbowGum.builder(config).build();
 		}
 		return gum;
+	}
+
+	/**
+	 * Will load all RainbowGum SPI to create a RainbowGum powered from the ServiceLoader
+	 * using the current thread context class loader if avaiable otherwise the system
+	 * classloader.
+	 * @return Rainbow Gum.
+	 */
+	public static RainbowGum provide() {
+		// TODO perhaps we should use RainbowGum.class classloader
+		return provide(cachedServiceLoader(Thread.currentThread().getContextClassLoader()));
+	}
+
+	private static ServiceLoader<RainbowGumServiceProvider> cachedServiceLoader(@Nullable ClassLoader classLoader) {
+		if (classLoader == null) {
+			classLoader = defaultClassLoader();
+		}
+		return ServiceLoaderCache.SERVICE_LOADER_CACHE.serviceLoader(classLoader);
+	}
+
+	private static ClassLoader defaultClassLoader() {
+		// TODO perhaps we should use RainbowGum.class classloader
+		return ClassLoader.getSystemClassLoader();
+	}
+
+}
+
+enum ServiceLoaderCache {
+
+	SERVICE_LOADER_CACHE;
+
+	private WeakHashMap<ClassLoader, ServiceLoader<RainbowGumServiceProvider>> serviceLoaderCache = new WeakHashMap<>();
+
+	private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+
+	ServiceLoader<RainbowGumServiceProvider> serviceLoader(ClassLoader classLoader) {
+		lock.writeLock().lock();
+		try {
+			var sl = serviceLoaderCache.computeIfAbsent(classLoader, cl -> {
+				return ServiceLoader.load(RainbowGumServiceProvider.class, classLoader);
+			});
+			return Objects.requireNonNull(sl);
+		}
+		finally {
+			lock.writeLock().unlock();
+		}
+	}
+
+	ServiceLoader<RainbowGumServiceProvider> findServiceLoader(ClassLoader fallback) {
+		lock.readLock().lock();
+		try {
+			@Nullable
+			ServiceLoader<RainbowGumServiceProvider> loader = null;
+			@Nullable
+			ClassLoader[] classLoaders = new @Nullable ClassLoader[] { Thread.currentThread().getContextClassLoader() };
+			for (var cl : classLoaders) {
+				if (cl != null) {
+					loader = serviceLoader(cl);
+				}
+			}
+			if (loader == null) {
+				return serviceLoader(fallback);
+			}
+			return loader;
+
+		}
+		finally {
+			lock.readLock().unlock();
+		}
 	}
 
 }

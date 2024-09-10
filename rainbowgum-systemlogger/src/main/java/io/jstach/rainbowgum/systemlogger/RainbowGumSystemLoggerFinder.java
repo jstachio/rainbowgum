@@ -9,6 +9,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.LogProperty.Property;
 
 /**
@@ -42,6 +43,12 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 		 */
 		TRUE,
 		/**
+		 * (default) Will check if there are implementations of
+		 * {@link RainbowGumServiceProvider.RainbowGumEagerLoad} and if there are not will
+		 * load rainbow gum.
+		 */
+		CHECK,
+		/**
 		 * Will reuse an existing rainbow gum or fail.
 		 */
 		REUSE;
@@ -67,6 +74,12 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 		this.routerProvider = switch (opt) {
 			case FALSE -> n -> LogRouter.global();
 			case TRUE -> new InitRouterProvider(RainbowGum::of);
+			case CHECK -> {
+				if (RainbowGumServiceProvider.RainbowGumEagerLoad.exists()) {
+					yield n -> LogRouter.global();
+				}
+				yield new InitRouterProvider(RainbowGum::of);
+			}
 			case REUSE -> new InitRouterProvider(() -> {
 				var gum = RainbowGum.getOrNull();
 				if (gum == null) {
@@ -95,7 +108,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 			.map(InitOption::parse)
 			.build(INTIALIZE_RAINBOW_GUM_PROPERTY) //
 			.get(properties) //
-			.value(InitOption.FALSE);
+			.value(InitOption.CHECK);
 	}
 
 	private interface RouterProvider {

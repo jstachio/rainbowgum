@@ -49,4 +49,5 @@ module io.jstach.rainbowgum.slf4j {
 	requires transitive io.jstach.rainbowgum;
 	
 	provides org.slf4j.spi.SLF4JServiceProvider with RainbowGumSLF4JServiceProvider;
+	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.slf4j.SLF4JRainbowGumEagerLoad;
 }
