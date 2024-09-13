@@ -95,6 +95,10 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	@Override
 	public Logger getLogger(String name, Module module) {
 		var router = routerProvider.router(name);
+		if (!router.isChangeable(name)) {
+			var level = router.levelResolver().resolveLevel(name);
+			return LevelSystemLogger.of(name, level, router.route(name, level));
+		}
 		return RainbowGumSystemLogger.of(name, router);
 	}
 
@@ -113,7 +117,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	private interface RouterProvider {
 
-		LogRouter router(String loggerName);
+		LogRouter.RootRouter router(String loggerName);
 
 	}
 
@@ -129,8 +133,8 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 		}
 
 		@Override
-		public LogRouter router(String loggerName) {
-			LogRouter router;
+		public LogRouter.RootRouter router(String loggerName) {
+			LogRouter.RootRouter router;
 			RainbowGum gum = this.gum;
 			if (gum == null) {
 				gum = this.gum = supplier.get();
@@ -139,11 +143,12 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 				router = LogRouter.global();
 			}
 			else {
-				var rootRouter = gum.router();
-				var levelResolver = rootRouter.levelResolver();
-				var level = levelResolver.resolveLevel(loggerName);
-				var logger = rootRouter.route(loggerName, level);
-				router = LogRouter.ofLevel(logger, level);
+				// var rootRouter = gum.router();
+				// var levelResolver = rootRouter.levelResolver();
+				// var level = levelResolver.resolveLevel(loggerName);
+				// var logger = rootRouter.route(loggerName, level);
+				// router = LogRouter.ofLevel(logger, level);
+				router = gum.router();
 			}
 			return router;
 		}

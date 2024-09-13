@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.spi;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -223,7 +224,7 @@ public sealed interface RainbowGumServiceProvider {
 		 * @return true if something is marked as eager.
 		 */
 		public static boolean exists() {
-			var sl = ServiceLoaderCache.SERVICE_LOADER_CACHE.findServiceLoader(defaultClassLoader());
+			var sl = ServiceLoaderCache.SERVICE_LOADER_CACHE.findServiceLoader();
 			return sl.stream()
 				.filter(p -> RainbowGumEagerLoad.class.isAssignableFrom(p.type()))
 				.findFirst()
@@ -292,25 +293,26 @@ public sealed interface RainbowGumServiceProvider {
 
 	private static ServiceLoader<RainbowGumServiceProvider> cachedServiceLoader(@Nullable ClassLoader classLoader) {
 		if (classLoader == null) {
-			classLoader = defaultClassLoader();
+			return ServiceLoaderCache.SERVICE_LOADER_CACHE.findServiceLoader();
 		}
 		return ServiceLoaderCache.SERVICE_LOADER_CACHE.serviceLoader(classLoader);
 	}
 
-	private static ClassLoader defaultClassLoader() {
-		// TODO perhaps we should use RainbowGum.class classloader
-		return ClassLoader.getSystemClassLoader();
-	}
-
 }
 
+@SuppressWarnings("ImmutableEnumChecker")
 enum ServiceLoaderCache {
 
 	SERVICE_LOADER_CACHE;
 
-	private WeakHashMap<ClassLoader, ServiceLoader<RainbowGumServiceProvider>> serviceLoaderCache = new WeakHashMap<>();
+	private final Map<ClassLoader, ServiceLoader<RainbowGumServiceProvider>> serviceLoaderCache = new WeakHashMap<>();
 
-	private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+
+	static ClassLoader defaultClassLoader() {
+		// TODO perhaps we should use RainbowGum.class classloader
+		return ClassLoader.getSystemClassLoader();
+	}
 
 	ServiceLoader<RainbowGumServiceProvider> serviceLoader(ClassLoader classLoader) {
 		lock.writeLock().lock();
@@ -325,27 +327,36 @@ enum ServiceLoaderCache {
 		}
 	}
 
-	ServiceLoader<RainbowGumServiceProvider> findServiceLoader(ClassLoader fallback) {
-		lock.readLock().lock();
-		try {
-			@Nullable
-			ServiceLoader<RainbowGumServiceProvider> loader = null;
-			@Nullable
-			ClassLoader[] classLoaders = new @Nullable ClassLoader[] { Thread.currentThread().getContextClassLoader() };
-			for (var cl : classLoaders) {
-				if (cl != null) {
-					loader = serviceLoader(cl);
+	private @Nullable ServiceLoader<RainbowGumServiceProvider> _findServiceLoader(
+			@Nullable ClassLoader[] classLoaders) {
+		for (var cl : classLoaders) {
+			if (cl != null) {
+				var sl = serviceLoaderCache.get(cl);
+				if (sl != null) {
+					return sl;
 				}
 			}
-			if (loader == null) {
-				return serviceLoader(fallback);
-			}
-			return loader;
+		}
+		return null;
+	}
 
+	ServiceLoader<RainbowGumServiceProvider> findServiceLoader() {
+		@Nullable
+		ServiceLoader<RainbowGumServiceProvider> loader = null;
+		@Nullable
+		ClassLoader[] classLoaders = new @Nullable ClassLoader[] { Thread.currentThread().getContextClassLoader(),
+				ServiceLoaderCache.class.getClassLoader(), defaultClassLoader() };
+		lock.readLock().lock();
+		try {
+			loader = _findServiceLoader(classLoaders);
 		}
 		finally {
 			lock.readLock().unlock();
 		}
+		if (loader != null) {
+			return loader;
+		}
+		return serviceLoader(defaultClassLoader());
 	}
 
 }

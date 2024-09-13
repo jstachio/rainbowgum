@@ -32,6 +32,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.LevelResolver;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperties;
@@ -39,6 +40,7 @@ import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.jdk.jul.JULConfigurator;
 import io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption;
 
 @TestMethodOrder(OrderAnnotation.class)
 class JDKSetupTest {
@@ -185,6 +187,32 @@ class JDKSetupTest {
 		});
 	}
 
+	@Order(13)
+	@Test
+	void testCheckDefault() throws InterruptedException {
+		/*
+		 * We do the default of checking if something like SLF4J facade exists. This needs
+		 * to be last as it will load the true System.Logger
+		 */
+		System.clearProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY);
+		ListLogOutput output = new ListLogOutput();
+		try (var gum = RainbowGum.builder().route(r -> {
+			r.appender("list", a -> {
+				a.output(output);
+				a.formatter(LogFormatter.builder().level().space().loggerName().space().message().newline().build());
+			});
+		}).set()) {
+			// var logger = System.getLogger("test");
+			var logger = new SystemLoggingFactory().getLogger("check.default", null);
+			logger.log(Level.INFO, "Hello {0} from JUL Logger!", "Gum");
+			String expected = """
+					INFO check.default Hello Gum from JUL Logger!
+					""";
+			String actual = output.toString();
+			assertEquals(expected, actual);
+		}
+	}
+
 	interface LoggerProvider<T> {
 
 		T logger(String loggerName);
@@ -305,7 +333,13 @@ class JDKSetupTest {
 		STATIC_GUM_SYSTEM_LOGGER() {
 			@Override
 			public java.lang.System.Logger logger(String loggerName) {
-				return new SystemLoggingFactory().getLogger(loggerName, null);
+				var logger = new SystemLoggingFactory().getLogger(loggerName, null);
+				/*
+				 * Check for static logger.
+				 */
+				assertTrue(
+						logger.getClass().getName().startsWith("io.jstach.rainbowgum.systemlogger.LevelSystemLogger"));
+				return logger;
 			}
 
 			@Override
@@ -323,7 +357,13 @@ class JDKSetupTest {
 		REUSE_GUM_SYSTEM_LOGGER() {
 			@Override
 			public java.lang.System.Logger logger(String loggerName) {
-				return new SystemLoggingFactory().getLogger(loggerName, null);
+				var logger = new SystemLoggingFactory().getLogger(loggerName, null);
+				/*
+				 * Check for static logger.
+				 */
+				assertTrue(
+						logger.getClass().getName().startsWith("io.jstach.rainbowgum.systemlogger.LevelSystemLogger"));
+				return logger;
 			}
 
 			@Override
@@ -341,7 +381,12 @@ class JDKSetupTest {
 		CHANGEABLE_GUM_SYSTEM_LOGGER() {
 			@Override
 			public java.lang.System.Logger logger(String loggerName) {
-				return new SystemLoggingFactory().getLogger(loggerName, null);
+				var logger = new SystemLoggingFactory().getLogger(loggerName, null);
+				/*
+				 * Check for changeable logger.
+				 */
+				assertEquals("io.jstach.rainbowgum.systemlogger.RainbowGumSystemLogger", logger.getClass().getName());
+				return logger;
 			}
 
 			@Override
@@ -715,6 +760,8 @@ class JDKSetupTest {
 	}
 
 	private void _systemLoggingFactory() {
+
+		System.setProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, InitOption.FALSE.name());
 
 		assertNull(RainbowGum.getOrNull(), "Rainbow Gum should not be loaded yet.");
 		System.setProperty(JULConfigurator.JUL_DISABLE_PROPERTY, "true");

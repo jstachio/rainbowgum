@@ -305,7 +305,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 					routes = routeNames.stream().map(n -> Router.builder(n, config).build()).toList();
 				}
 			}
-			var root = InternalRootRouter.of(routes);
+			var root = InternalRootRouter.of(routes, config);
 			config.changePublisher().subscribe(c -> {
 				root.changePublisher().publish(root);
 			});
@@ -330,6 +330,17 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 						+ "This is rare reace condition and probably a bug");
 			}
 			return gum;
+		}
+
+		/**
+		 * Removes the currently set Rainbow Gum which will close it if one exists and
+		 * will be replaced by the default provision process if {@link RainbowGum#of()} is
+		 * called before {@link #set()}.
+		 * @apiNote This is largely an internal detail for unit testing the provision
+		 * process.
+		 */
+		public void unset() {
+			RainbowGumHolder.remove(null);
 		}
 
 		/**
@@ -415,17 +426,21 @@ final class RainbowGumHolder {
 
 	}
 
-	static boolean remove(RainbowGum gum) {
+	static boolean remove(@Nullable RainbowGum gum) {
 		lock.writeLock().lock();
 		try {
 			var original = rainbowGum;
-			if (original != gum) {
-				return false;
+			if (gum != null) {
+				if (original != gum) {
+					return false;
+				}
 			}
 			/*
 			 * Reset the global router
 			 */
-			LogRouter.global().close();
+			if (original != null) {
+				LogRouter.global().close();
+			}
 			rainbowGum = null;
 			supplier = RainbowGumServiceProvider::provide;
 			return true;
