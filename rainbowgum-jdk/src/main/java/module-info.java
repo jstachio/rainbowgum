@@ -9,14 +9,19 @@
  * <p>
  * The integration will make sure that neither the System.Logger or
  * java.util.logging will initialize Rainbow Gum too early by queueing the
- * events. When a Rainbow Gum initializes and
+ * events if a 
+ * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumEagerLoad} 
+ * implementation is found (SLF4J facade implements this to indicate it will load Rainbow Gum). 
+ * When a Rainbow Gum initializes and
  * {@linkplain io.jstach.rainbowgum.RainbowGum#set(Supplier) set as global} the
  * events will be replayed. If the events level are equal to
  * {@link java.lang.System.Logger.Level#ERROR} and a normal Rainbow Gum has not
  * been bound the messages will be printed to <code>System.err</code>. The idea
  * is something catastrophic has happened that will probably cause Rainbow Gum
  * to never load and thus never replay the events and you will not be able to
- * figure out what happened.
+ * figure out what happened. If no
+ * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumEagerLoad} 
+ * is found the SystemLogger will initialize Rainbow Gum.
  * </p>
  * <p>
  * SLF4J does <a href="https://www.slf4j.org/manual.html#jep264">provide an

@@ -17,6 +17,7 @@ import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
@@ -153,6 +154,13 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * this router even if they are usually the same.
 		 */
 		public void onChange(Consumer<? super RootRouter> router);
+
+		/**
+		 * If a logger name configuration is changeable.
+		 * @param loggerName logger name.
+		 * @return true if config changes are allowed.
+		 */
+		public boolean isChangeable(String loggerName);
 
 	}
 
@@ -567,7 +575,7 @@ sealed interface InternalRootRouter extends RootRouter {
 		GlobalLogRouter.INSTANCE.drain((InternalRootRouter) router);
 	}
 
-	static InternalRootRouter of(List<? extends Router> routes) {
+	static InternalRootRouter of(List<? extends Router> routes, LogConfig config) {
 
 		if (routes.isEmpty()) {
 			throw new IllegalArgumentException("atleast one route is required");
@@ -598,11 +606,14 @@ sealed interface InternalRootRouter extends RootRouter {
 
 		Router[] array = routes.toArray(new Router[] {});
 
+		RouteChangePublisher changePublisher = new RouteChangePublisher(
+				s -> config.changePublisher().allowedChanges(s).contains(ChangeType.LEVEL));
 		if (array.length == 1) {
 			var r = array[0];
-			return r.synchronous() ? new SingleSyncRootRouter(r) : new SingleAsyncRootRouter(r);
+			return r.synchronous() ? new SingleSyncRootRouter(r, changePublisher)
+					: new SingleAsyncRootRouter(r, changePublisher);
 		}
-		return new CompositeLogRouter(array, globalLevelResolver);
+		return new CompositeLogRouter(array, globalLevelResolver, changePublisher);
 	}
 
 	default boolean isEnabled(String loggerName, java.lang.System.Logger.Level level) {
@@ -621,9 +632,21 @@ sealed interface InternalRootRouter extends RootRouter {
 
 	public RouteChangePublisher changePublisher();
 
+	@Override
+	default boolean isChangeable(String loggerName) {
+		return changePublisher().loggerChangeable.apply(loggerName);
+	}
+
 	final class RouteChangePublisher {
 
 		private final Collection<Consumer<? super RootRouter>> consumers = new CopyOnWriteArrayList<Consumer<? super RootRouter>>();
+
+		private final Function<String, Boolean> loggerChangeable;
+
+		RouteChangePublisher(Function<String, Boolean> loggerChangeable) {
+			super();
+			this.loggerChangeable = loggerChangeable;
+		}
 
 		void add(Consumer<? super RootRouter> consumer) {
 			consumers.add(consumer);
@@ -645,10 +668,6 @@ sealed interface InternalRootRouter extends RootRouter {
 }
 
 record SingleSyncRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
-
-	public SingleSyncRootRouter(Router router) {
-		this(router, new RouteChangePublisher());
-	}
 
 	@Override
 	public void start(LogConfig config) {
@@ -674,10 +693,6 @@ record SingleSyncRootRouter(Router router, RouteChangePublisher changePublisher)
 
 record SingleAsyncRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
 
-	public SingleAsyncRootRouter(Router router) {
-		this(router, new RouteChangePublisher());
-	}
-
 	@Override
 	public void start(LogConfig config) {
 		router.start(config);
@@ -702,10 +717,6 @@ record SingleAsyncRootRouter(Router router, RouteChangePublisher changePublisher
 
 record CompositeLogRouter(Router[] routers, LevelResolver levelResolver,
 		RouteChangePublisher changePublisher) implements InternalRootRouter, Route {
-
-	public CompositeLogRouter(Router[] routers, LevelResolver levelResolver) {
-		this(routers, levelResolver, new RouteChangePublisher());
-	}
 
 	@Override
 	public Route route(String loggerName, Level level) {
@@ -767,7 +778,7 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private static final LevelResolver INFO_RESOLVER = StaticLevelResolver.of(Level.INFO);
 
-	private final RouteChangePublisher changePublisher = new RouteChangePublisher();
+	private final RouteChangePublisher changePublisher = new RouteChangePublisher(s -> true);
 
 	@Override
 	public LevelResolver levelResolver() {

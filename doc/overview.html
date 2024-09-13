@@ -950,12 +950,18 @@ logging has fully initialized. The default rainbow gum dependency has this integ
 
 <p>
 The integration will make sure that neither the System.Logger or java.util.logging initialize
-Rainbow Gum too early by queueing the events. When a Rainbow Gum initializes and 
+Rainbow Gum too early by queueing the events if some other facade is detected like SLF4J. When a Rainbow Gum initializes and 
 {@linkplain io.jstach.rainbowgum.RainbowGum#set(Supplier) set as global} the events will be replayed.
 If the events level are equal to {@link java.lang.System.Logger.Level#ERROR} and a normal Rainbow Gum has not been bound
 the messages will be printed to <code>System.err</code>. 
 The idea is something catastrophic has happened that will probably cause Rainbow Gum to never load and thus never replay the events
 and you will not be able to figure out what happened otherwise.
+</p>
+<p>
+The exception of the above is if {@linkplain io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumEagerLoad no other facade is detected} 
+the module will initialize Rainbow Gum. The idea is that your application only uses the JDK logging facilities 
+(the Rainbow Gum SLF4J implementation is not found in the module/classpath). Thus only having the dependencies 
+<code>rainbowgum-core</code>, and <code>rainbowgum-jdk</code> will work as normal.  
 </p>
 <p>
   SLF4J does 
@@ -969,7 +975,6 @@ and you will not be able to figure out what happened otherwise.
       (the SLF4J adapter will initialize Rainbow Gum on System.Logger usage if using {@link io.jstach.rainbowgum.slf4j/ })
     </li>
   </ul>
-  In the future Rainbow Gum may include a System.Logger provider module that does eager initialization. 
 <p>
   <em>
     <strong>NOTE:</strong>
