@@ -4,14 +4,20 @@
 
 # Rainbow Gum
 
-An opinionated small JDK 21+ logging framework that offers implementations for multiple facades
-like SLF4J and does mostly what you want out of the box.
+A modern modular JDK 21+ logging framework that offers implementations for multiple facades
+like SLF4J / System.Logger and does mostly what you want out of the box.
 
 It is called **rainbow gum** after 
 [Eucalyptus Deglupta](https://en.wikipedia.org/wiki/Eucalyptus_deglupta) a beautiful tree native
 to Hawaii that has colorful bark (*colorful logs*).
 
-In Rainbow gum you do all your logging configuration in Java and can choose to leverage your existing configuration framework (like [avaje-config](https://avaje.io/config/)). You write a single service provider using a discoverable API of builders and then package it up in a Jar. It will be graal vm native friendly, initialize hella fast and no configuration drift.
+In Rainbow gum you can do all your logging configuration in Java and or can choose to leverage your existing configuration/application framework 
+(like [avaje-config](https://avaje.io/config/) or Spring `Environment`). 
+
+Instead of you using a specific framework you can write a single service provider using a discoverable API of builders and then package it up in a Jar. 
+Rainbow Gum is easy to configure with Java code if you prefer that path.
+
+Regardless of which configuration option you choose it is GraalVM native friendly, Jlinkable, and initialize hella fast.
 
 
 ## Documentation
@@ -30,6 +36,9 @@ For previous releases:
 Where `VERSION` is the version you want.
 
 ## Comparison to other frameworks
+
+**This section is being rewritten and is a work in progress.** 
+Rainbow Gum is ready for production but the marketing is not.
 
 In terms of features and complexity Rainbow Gum aims to be slightly more complicated than
 `slf4j-simple` but massively more simple than Log4J 2. 
@@ -51,6 +60,16 @@ For example in ascending order of complexity/features:
 | reload4j        | 1.2.25   |  325 + 10        | 335 KB  | JDK 1.5 uses synchronized on IO          |
 | logback         | 1.4.11   |  583 + 276       | 859 KB  | Slightly complicated to configure        |
 | log4j2          | 2.20.0   |  305 + 1847 + 23 | 2.1 MB! | Kitchen sink of features. log4jshell     | 
+
+**Of all the major general purpose logging implementations including Tiny Log, Rainbow Gum is the only one that requires JUST java.base!**
+
+(core and not extensions)
+
+* Tiny Log requires the `java.sql` module.
+* Log4J2, Reload4J, and Logback require `java.xml` module.
+* slf4j-simple requires `SLF4J` a non JDK module.
+
+What this means is Rainbow Gum can deliver a much smaller executable if packaged with Graal or JLink.
 
 ## Primary Goals
 
