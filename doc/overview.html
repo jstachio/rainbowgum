@@ -55,8 +55,8 @@ can plugin in your own properties system easily.
 
 <h3 id="simple_example_builder">Using RainbowGum Builders</h3>
 
-For organizations that have many projects it is recommended to use the programmatic builder approach and make a standardized jar (module)
-shared between all your projects so that logging configuration is consistent.
+For technical organizations that have many projects it is recommended to use the programmatic builder approach and make a standardized jar (module)
+shared between all your projects so that logging initialization and configuration is consistent.
 
 Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
 Java directly and the {@link java.util.ServiceLoader} is below. 
@@ -122,9 +122,28 @@ The only module needed during runtime is
 Currently Rainbow Gum does not provide support for:
 
 <ul>
-  <li>External config - by design you will need to bring your own configuration lib or just use env/system properties.</li>
+  <li>Default external config file (e.g. log4j2.xml) - by design but do not worry because Rainbow Gum provides lots of extensions to use 
+    your applications configuration system. Out of the box system properties are supported.</li>
   <li>Rolling of log files without external tool - there is support for rolling without losing events using external tool such as logrotate.</li>
   <li>{@linkplain org.slf4j.Marker SLF4J Marker} support -  libraries and application rarely use it compared to MDC. </li>
+ </ul>
+
+ The reason Rainbow Gum does not provide a default logging configuration file is:
+
+ <ul>
+  <li>
+    It is actually fairly expensive to load resources from the module/classpath on initialization. If your configuration system
+    is already loading a resource it should be used instead.
+  </li>
+  <li>
+    In GraalVM native and in some cases modular environment loading module/classpath resources is more complicated.
+    We do not want an OOB experience where it works in normal HotSpot but not in GraalVM native.
+  </li>
+  <li>
+    It increases the security surface and Rainbow Gum aims to have security and integrity by default.
+    Implicit loading of resources we feel is against this and if done should be a chosen opt-in which
+    you can have with various extensions.
+  </li>
  </ul>
 
  If any of these limitations (or others not listed) are a show stopper please let us know by filing an issue.
@@ -137,8 +156,8 @@ Rainbow Gum is configuration of output and formatting. Rainbow Gum provides thre
 out of the box:
 
 <ul>
-  <li>Programmatic Java configuration using builders.</li>
   <li>Simple String key/value properties often derived from System properties / env variables</li>
+  <li>Programmatic Java configuration using builders.</li>
   <li>Dependency driven configuration where including a jar as dependency changes behavior automatically</li>
 </ul>
 
