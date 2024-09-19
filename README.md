@@ -11,13 +11,23 @@ It is called **rainbow gum** after
 [Eucalyptus Deglupta](https://en.wikipedia.org/wiki/Eucalyptus_deglupta) a beautiful tree native
 to Hawaii that has colorful bark (*colorful logs*).
 
-In Rainbow gum you can do all your logging configuration in Java and or can choose to leverage your existing configuration/application framework 
-(like [avaje-config](https://avaje.io/config/) or Spring `Environment`). 
+In Rainbow Gum you can: 
 
-Instead of you using a specific framework you can write a single service provider using a discoverable API of builders and then package it up in a Jar. 
-Rainbow Gum is easy to configure with Java code if you prefer that path.
+* Leverage your existing configuration/application framework (like [avaje-config](https://avaje.io/config/) or Spring Boot `Environment`). 
+* Do all your logging configuration in Java with a discoverable API of builders
+* Only use System Properties and no loading of resources for a ultimate minimal experience
+* Or various combinations of the above
 
-Regardless of which configuration option you choose it is GraalVM native friendly, Jlinkable, and initialize hella fast.
+Because Rainbow Gum is very modular it can provide a more "choose your own" experience where you can scale down and only use the JDK `System.Logger`
+with minimal dependencies or scale up with fully loaded ANSI SLF4J experience. 
+In some cases just adding modules will provide automatic configuration.
+
+Rainbow Gum's default property configuration follows Spring Boot's patterns so if you are familiar with `logging.level...`
+than you will feel at home with Rainbow Gum whether you use Spring or not.
+
+Regardless of which configuration option you choose it is GraalVM native friendly, Jlinkable, and initializes hella fast.
+
+The long term goal of Rainbow Gum is to be a logging framework **for all** with the only requirement being a modern JDK.
 
 
 ## Documentation
@@ -66,8 +76,9 @@ For example in ascending order of complexity/features:
 (core and not extensions)
 
 * Tiny Log requires the `java.sql` module.
-* Log4J2, Reload4J, and Logback require `java.xml` module.
-* slf4j-simple requires `SLF4J` a non JDK module.
+* Log4J2, Reload4J, and Logback require `java.xml` module. Logback requires it transitively!
+* slf4j-simple and Logback classic requires `SLF4J` a non JDK module.
+* Log4J2 and Tiny Log have their own logging facade API that cannot be removed
 
 What this means is Rainbow Gum can deliver a much smaller executable if packaged with Graal or JLink.
 
