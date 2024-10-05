@@ -8,7 +8,13 @@ public class Main {
 		var logger = LoggerFactory.getLogger(Main.class);
 		logger.info("Hello from Avaje");
 		logger.debug("Debug from Avaje");
+		logger.info("java.util.logging loaded: {}", isJulModuleAvailable());
 
+	}
+
+	private static boolean isJulModuleAvailable() {
+		ModuleLayer bootLayer = ModuleLayer.boot();
+		return bootLayer.findModule("java.logging").isPresent();
 	}
 
 }
