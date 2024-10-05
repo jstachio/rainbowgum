@@ -21,8 +21,13 @@
  * to never load and thus never replay the events and you will not be able to
  * figure out what happened. If no
  * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumEagerLoad} 
- * is found the SystemLogger will initialize Rainbow Gum.
+ * is found the SystemLogger will initialize Rainbow Gum. You can change the queuing
+ * threshold and error level outputting with System properties:
  * </p>
+ * <ul>
+ * <li>{@value io.jstach.rainbowgum.LogProperties#GLOBAL_QUEUE_LEVEL_PROPERTY} = level</li>
+ * <li>{@value io.jstach.rainbowgum.LogProperties#GLOBAL_QUEUE_ERROR_PROPERTY} = level</li>
+ * </ul>
  * <p>
  * SLF4J does <a href="https://www.slf4j.org/manual.html#jep264">provide an
  * adapter/bridge for the System.Logger
@@ -35,7 +40,8 @@
  * </ul>
  * An alternative to using the SLF4J bridge if eager initialization is desired is
  * to set a System property with 
- * {@value io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory#INTIALIZE_RAINBOW_GUM_PROPERTY} to
+ * <code>{@value io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory#INTIALIZE_RAINBOW_GUM_PROPERTY}</code> 
+ * to
  * the values in {@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption}.
  * however that maybe difficult if one cannot set system properties before loading logging.
  * <p>

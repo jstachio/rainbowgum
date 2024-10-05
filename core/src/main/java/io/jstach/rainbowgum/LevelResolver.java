@@ -396,7 +396,8 @@ public interface LevelResolver {
 enum StaticLevelResolver implements LevelConfig {
 
 	ALL(Level.ALL), //
-	TRACE(Level.TRACE), INFO(Level.INFO), //
+	TRACE(Level.TRACE), //
+	INFO(Level.INFO), //
 	DEBUG(Level.DEBUG), //
 	ERROR(Level.ERROR), //
 	WARNING(Level.WARNING), //

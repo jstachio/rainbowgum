@@ -776,18 +776,46 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
 
-	private static final LevelResolver INFO_RESOLVER = StaticLevelResolver.of(Level.INFO);
+	private final LevelResolver levelResolver;
+
+	private final LevelResolver errorLevelResolver;
 
 	private final RouteChangePublisher changePublisher = new RouteChangePublisher(s -> true);
 
+	static QueueEventsRouter of() {
+		return new QueueEventsRouter(StaticLevelResolver.of(queueLevel()), StaticLevelResolver.of(errorLevel()));
+	}
+
+	private static Level queueLevel() {
+		return LogProperty.builder()
+			.build(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY)
+			.map(LevelResolver::parseLevel)
+			.get(LogProperties.StandardProperties.SYSTEM_PROPERTIES)
+			.value(Level.INFO);
+	}
+
+	private static final Level errorLevel() {
+		return LogProperty.builder()
+			.build(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY)
+			.map(LevelResolver::parseLevel)
+			.get(LogProperties.StandardProperties.SYSTEM_PROPERTIES)
+			.value(Level.ERROR);
+	}
+
+	private QueueEventsRouter(LevelResolver levelResolver, LevelResolver errorLevelResolver) {
+		super();
+		this.levelResolver = levelResolver;
+		this.errorLevelResolver = errorLevelResolver;
+	}
+
 	@Override
 	public LevelResolver levelResolver() {
-		return INFO_RESOLVER;
+		return levelResolver;
 	}
 
 	@Override
 	public Route route(String loggerName, Level level) {
-		if (INFO_RESOLVER.isEnabled(loggerName, level)) {
+		if (levelResolver.isEnabled(loggerName, level)) {
 			return this;
 		}
 		return Routes.NotFound;
@@ -805,10 +833,9 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	@Override
 	public void log(LogEvent event) {
 		events.add(event);
-		if (event.level() == Level.ERROR) {
+		if (errorLevelResolver.isEnabled(event.loggerName(), event.level())) {
 			MetaLog.error(event);
 		}
-
 	}
 
 	@Override
@@ -836,7 +863,7 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	INSTANCE;
 
-	private volatile InternalRootRouter delegate = new QueueEventsRouter();
+	private volatile InternalRootRouter delegate = QueueEventsRouter.of();
 
 	private final ReentrantLock drainLock = new ReentrantLock();
 
@@ -920,7 +947,7 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	@Override
 	public void close() {
-		var d = _drain(new QueueEventsRouter());
+		var d = _drain(QueueEventsRouter.of());
 		d.close();
 	}
 
