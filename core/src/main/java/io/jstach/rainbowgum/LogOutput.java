@@ -324,7 +324,7 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 	/**
 	 * Attempts to reopen the output if supported and <strong>SHOULD only be called by the
-	 * appender!</strong> This call is mainly used for external log rotation systems such
+	 * appender</strong>! This call is mainly used for external log rotation systems such
 	 * as logrotate or an aggregator agent.
 	 * @return status and the default implementation will return
 	 * {@link LogResponse.Status.StandardStatus#IGNORED}.
