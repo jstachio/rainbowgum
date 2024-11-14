@@ -19,7 +19,7 @@ public final class SystemLoggingFactory extends RainbowGumSystemLoggerFinder {
 	 * Initialization flag.
 	 * @see RainbowGumSystemLoggerFinder.InitOption
 	 */
-	public static final String INTIALIZE_RAINBOW_GUM_PROPERTY = RainbowGumSystemLoggerFinder.INTIALIZE_RAINBOW_GUM_PROPERTY;
+	public static final String INTIALIZE_RAINBOW_GUM_PROPERTY = RainbowGumSystemLoggerFinder.INITIALIZE_RAINBOW_GUM_PROPERTY;
 
 	/**
 	 * No-Arg for Service Loader.

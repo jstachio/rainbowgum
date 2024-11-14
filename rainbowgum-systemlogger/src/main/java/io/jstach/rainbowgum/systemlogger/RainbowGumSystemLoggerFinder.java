@@ -25,12 +25,12 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	 * Initialization flag.
 	 * @see InitOption
 	 */
-	public static final String INTIALIZE_RAINBOW_GUM_PROPERTY = LogProperties.ROOT_PREFIX + "systemlogger.intialize";
+	public static final String INITIALIZE_RAINBOW_GUM_PROPERTY = LogProperties.ROOT_PREFIX + "systemlogger.initialize";
 
 	private final RouterProvider routerProvider;
 
 	/**
-	 * Values (case is ignored) for {@value #INTIALIZE_RAINBOW_GUM_PROPERTY}.
+	 * Values (case is ignored) for {@value #INITIALIZE_RAINBOW_GUM_PROPERTY}.
 	 */
 	public enum InitOption {
 
@@ -85,7 +85,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 				if (gum == null) {
 					throw new IllegalStateException(
 							"SystemLogging was configured to reuse a loaded Rainbow Gum but none was found. "
-									+ INTIALIZE_RAINBOW_GUM_PROPERTY + "=" + opt);
+									+ INITIALIZE_RAINBOW_GUM_PROPERTY + "=" + opt);
 				}
 				return gum;
 			});
@@ -110,7 +110,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	protected static InitOption initOption(LogProperties properties) {
 		return Property.builder() //
 			.map(InitOption::parse)
-			.build(INTIALIZE_RAINBOW_GUM_PROPERTY) //
+			.build(INITIALIZE_RAINBOW_GUM_PROPERTY) //
 			.get(properties) //
 			.value(InitOption.CHECK);
 	}
