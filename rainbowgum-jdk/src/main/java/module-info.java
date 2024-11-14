@@ -40,7 +40,7 @@
  * </ul>
  * An alternative to using the SLF4J bridge if eager initialization is desired is
  * to set a System property with 
- * <code>{@value io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory#INTIALIZE_RAINBOW_GUM_PROPERTY}</code> 
+ * <code>{@value io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory#INITIALIZE_RAINBOW_GUM_PROPERTY}</code> 
  * to
  * the values in {@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption}.
  * however that maybe difficult if one cannot set system properties before loading logging.

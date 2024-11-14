@@ -69,16 +69,16 @@ class JDKSetupTest {
 	@Test
 	void testReuseFail() throws InterruptedException {
 		try {
-			System.setProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "reuse");
+			System.setProperty(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY, "reuse");
 			var e = assertThrows(IllegalStateException.class, () -> {
 				new SystemLoggingFactory().getLogger("fail", null);
 			});
 			String actual = e.getMessage();
-			String expected = "SystemLogging was configured to reuse a loaded Rainbow Gum but none was found. logging.systemlogger.intialize=REUSE";
+			String expected = "SystemLogging was configured to reuse a loaded Rainbow Gum but none was found. logging.systemlogger.initialize=REUSE";
 			assertEquals(expected, actual);
 		}
 		finally {
-			System.clearProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY);
+			System.clearProperty(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY);
 		}
 	}
 
@@ -194,7 +194,7 @@ class JDKSetupTest {
 		 * We do the default of checking if something like SLF4J facade exists. This needs
 		 * to be last as it will load the true System.Logger
 		 */
-		System.clearProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY);
+		System.clearProperty(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY);
 		ListLogOutput output = new ListLogOutput();
 		try (var gum = RainbowGum.builder().route(r -> {
 			r.appender("list", a -> {
@@ -351,7 +351,7 @@ class JDKSetupTest {
 			public LogProperties properties() {
 				return MutableLogProperties.builder()
 					.build()
-					.put(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "true");
+					.put(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY, "true");
 			}
 		},
 		REUSE_GUM_SYSTEM_LOGGER() {
@@ -375,7 +375,7 @@ class JDKSetupTest {
 			public LogProperties properties() {
 				return MutableLogProperties.builder()
 					.build()
-					.put(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "reuse");
+					.put(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY, "reuse");
 			}
 		},
 		CHANGEABLE_GUM_SYSTEM_LOGGER() {
@@ -400,7 +400,7 @@ class JDKSetupTest {
 					.build()
 					.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true")
 					.put(LogProperties.CHANGE_PREFIX + "." + "after", "true")
-					.put(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, "true");
+					.put(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY, "true");
 			}
 		},;
 
@@ -761,7 +761,7 @@ class JDKSetupTest {
 
 	private void _systemLoggingFactory() {
 
-		System.setProperty(SystemLoggingFactory.INTIALIZE_RAINBOW_GUM_PROPERTY, InitOption.FALSE.name());
+		System.setProperty(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY, InitOption.FALSE.name());
 
 		assertNull(RainbowGum.getOrNull(), "Rainbow Gum should not be loaded yet.");
 		System.setProperty(JULConfigurator.JUL_DISABLE_PROPERTY, "true");

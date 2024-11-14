@@ -8,6 +8,7 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter;
+import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.LogProperty.Property;
@@ -17,7 +18,7 @@ import io.jstach.rainbowgum.LogProperty.Property;
  * System.LoggerFinder. <strong>This implementation does not cache System Loggers</strong>
  * by name!
  *
- * @see #INTIALIZE_RAINBOW_GUM_PROPERTY
+ * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */
 public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
@@ -68,28 +69,38 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	/**
 	 * Creates the logger inder based on init option.
-	 * @param opt can be resolved with {@link #initOption(LogProperties)}.
+	 * @param optSupplier can be resolved with {@link #initOption(LogProperties)}.
 	 */
-	protected RainbowGumSystemLoggerFinder(InitOption opt) {
-		this.routerProvider = switch (opt) {
-			case FALSE -> n -> LogRouter.global();
-			case TRUE -> new InitRouterProvider(RainbowGum::of);
-			case CHECK -> {
-				if (RainbowGumServiceProvider.RainbowGumEagerLoad.exists()) {
-					yield n -> LogRouter.global();
+	protected RainbowGumSystemLoggerFinder(Supplier<? extends InitOption> optSupplier) {
+		try {
+			var opt = optSupplier.get();
+			this.routerProvider = switch (opt) {
+				case FALSE -> n -> LogRouter.global();
+				case TRUE -> new InitRouterProvider(RainbowGum::of);
+				case CHECK -> {
+					if (RainbowGumServiceProvider.RainbowGumEagerLoad.exists()) {
+						yield n -> LogRouter.global();
+					}
+					yield new InitRouterProvider(RainbowGum::of);
 				}
-				yield new InitRouterProvider(RainbowGum::of);
-			}
-			case REUSE -> new InitRouterProvider(() -> {
-				var gum = RainbowGum.getOrNull();
-				if (gum == null) {
-					throw new IllegalStateException(
-							"SystemLogging was configured to reuse a loaded Rainbow Gum but none was found. "
-									+ INITIALIZE_RAINBOW_GUM_PROPERTY + "=" + opt);
-				}
-				return gum;
-			});
-		};
+				case REUSE -> new InitRouterProvider(() -> {
+					var gum = RainbowGum.getOrNull();
+					if (gum == null) {
+						throw new IllegalStateException(
+								"SystemLogging was configured to reuse a loaded Rainbow Gum but none was found. "
+										+ INITIALIZE_RAINBOW_GUM_PROPERTY + "=" + opt);
+					}
+					return gum;
+				});
+			};
+		}
+		catch (Exception e) {
+			// We have to do this because it because very difficult
+			// to determine why the System Logging fails as it does not even print the
+			// exception.
+			MetaLog.error(getClass(), "Failed to create System.LoggerFinder", e);
+			throw e;
+		}
 	}
 
 	@Override
@@ -105,7 +116,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	/**
 	 * Gets the init option from properties.
 	 * @param properties usually system properties.
-	 * @return intialization option.
+	 * @return initialization option.
 	 */
 	protected static InitOption initOption(LogProperties properties) {
 		return Property.builder() //
