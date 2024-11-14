@@ -776,6 +776,7 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 }
 
+@SuppressWarnings("ArrayRecordComponent")
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
 		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) implements LogEvent {

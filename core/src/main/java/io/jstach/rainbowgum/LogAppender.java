@@ -775,6 +775,7 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 
 }
 
+@SuppressWarnings("ArrayRecordComponent")
 record CompositeLogAppender(DirectLogAppender[] appenders,
 		AppenderLock lock) implements BaseComposite<DirectLogAppender>, InternalLogAppender {
 

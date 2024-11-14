@@ -715,6 +715,7 @@ record SingleAsyncRootRouter(Router router, RouteChangePublisher changePublisher
 
 }
 
+@SuppressWarnings("ArrayRecordComponent") // TODO revisit perf
 record CompositeLogRouter(Router[] routers, LevelResolver levelResolver,
 		RouteChangePublisher changePublisher) implements InternalRootRouter, Route {
 

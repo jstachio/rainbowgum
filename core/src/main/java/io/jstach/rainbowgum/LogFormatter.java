@@ -649,6 +649,7 @@ public sealed interface LogFormatter {
 
 }
 
+@SuppressWarnings("ArrayRecordComponent")
 record CompositeFormatter(LogFormatter[] formatters) implements EventFormatter {
 
 	static String[] SPACES = { " ", "  ", "    ", "        ", // 1,2,4,8 spaces
