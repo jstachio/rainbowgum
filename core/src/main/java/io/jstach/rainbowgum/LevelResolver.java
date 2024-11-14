@@ -454,6 +454,7 @@ record MapLevelResolver(Map<String, Level> levels) implements LevelConfig {
 		return levels.get(name);
 	}
 }
+
 @SuppressWarnings("ArrayRecordComponent")
 record CompositeLevelConfig(LevelConfig[] levelConfigs) implements LevelConfig {
 

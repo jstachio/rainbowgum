@@ -1521,7 +1521,8 @@ interface ListLogProperties extends LogProperties {
 
 }
 
-@SuppressWarnings("ArrayRecordComponent") // TODO we did this originall because it was hot path but not anymore
+@SuppressWarnings("ArrayRecordComponent") // TODO we did this originall because it was hot
+											// path but not anymore
 record CompositeMutableLogProperties(LogProperties[] properties) implements ListLogProperties, MutableLogProperties {
 
 	@Override
@@ -1542,7 +1543,8 @@ record CompositeMutableLogProperties(LogProperties[] properties) implements List
 
 }
 
-@SuppressWarnings("ArrayRecordComponent") // TODO we did this originall because it was hot path but not anymore
+@SuppressWarnings("ArrayRecordComponent") // TODO we did this originall because it was hot
+											// path but not anymore
 record CompositeLogProperties(LogProperties[] properties) implements ListLogProperties {
 	@Override
 	public String toString() {
