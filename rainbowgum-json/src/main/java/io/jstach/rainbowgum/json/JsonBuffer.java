@@ -229,14 +229,21 @@ public final class JsonBuffer implements Buffer {
 		}
 		if (prettyPrint) {
 			jsonWriter.writeByte(LF);
-		}
-		if (prettyPrint) {
 			jsonWriter.writeByte(SPACE);
 		}
 		if ((flag & EXTENDED_F) == EXTENDED_F) {
+			/*
+			 * TODO on minor version offer a prefix suffix write as this is probably less
+			 * efficient. https://github.com/jstachio/rainbowgum/issues/208
+			 */
+			jsonWriter.writeByte(RawJsonWriter.QUOTE);
 			jsonWriter.writeByte(extendedFieldPrefix.raw);
+			jsonWriter.writeAscii(k);
+			jsonWriter.writeByte(RawJsonWriter.QUOTE);
 		}
-		jsonWriter.writeAsciiString(k);
+		else {
+			jsonWriter.writeAsciiString(k);
+		}
 		jsonWriter.writeByte(SEMI);
 	}
 

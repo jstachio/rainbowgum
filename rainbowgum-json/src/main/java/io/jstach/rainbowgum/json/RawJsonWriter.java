@@ -10,6 +10,11 @@ import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.annotation.GeneratedByATrustedSource;
 
+/*
+ * This code was largely inspired a long time ago
+ * by DSL platform JSON writer.
+ * https://github.com/ngs-doo/dsl-json
+ */
 class RawJsonWriter {
 
 	private int position;

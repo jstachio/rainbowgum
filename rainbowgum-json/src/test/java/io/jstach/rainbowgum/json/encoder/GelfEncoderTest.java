@@ -66,7 +66,7 @@ class GelfEncoderTest {
 				 "_logger":"gelf",
 				 "_thread_name":"main",
 				 "_thread_id":"1",
-				 _"header1":"1",
+				 "_header1":"1",
 				 "version":"1.1"
 				}
 				""";
@@ -285,8 +285,8 @@ class GelfEncoderTest {
 				 "_logger":"gelf",
 				 "_thread_name":"main",
 				 "_thread_id":"1",
-				 _"k1":"v1",
-				 _"k2":"v2",
+				 "_k1":"v1",
+				 "_k2":"v2",
 				 "version":"1.1"
 				}
 				""")
