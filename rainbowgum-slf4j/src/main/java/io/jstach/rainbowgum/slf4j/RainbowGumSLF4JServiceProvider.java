@@ -25,7 +25,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	@Nullable
 	private ILoggerFactory loggerFactory;
 
-	private IMarkerFactory markerFactory;
+	private final IMarkerFactory markerFactory;
 
 	private final RainbowGumMDCAdapter mdcAdapter;
 
