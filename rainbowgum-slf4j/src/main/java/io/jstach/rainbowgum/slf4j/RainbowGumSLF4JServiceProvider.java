@@ -25,16 +25,16 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	@Nullable
 	private ILoggerFactory loggerFactory;
 
-	@Nullable
 	private IMarkerFactory markerFactory;
 
-	@Nullable
-	private MDCAdapter mdcAdapter;
+	private final RainbowGumMDCAdapter mdcAdapter;
 
 	/**
 	 * No Arg for service laoder.
 	 */
 	public RainbowGumSLF4JServiceProvider() {
+		mdcAdapter = new RainbowGumMDCAdapter();
+		markerFactory = new BasicMarkerFactory();
 	}
 
 	@Override
@@ -44,12 +44,12 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 
 	@Override
 	public IMarkerFactory getMarkerFactory() {
-		return require(markerFactory);
+		return markerFactory;
 	}
 
 	@Override
 	public MDCAdapter getMDCAdapter() {
-		return require(mdcAdapter);
+		return mdcAdapter;
 	}
 
 	@Override
@@ -82,10 +82,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	 * @param rainbowGum which gum to use for logger factory.
 	 */
 	public void initialize(RainbowGum rainbowGum) {
-		var mdc = new RainbowGumMDCAdapter();
-		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdc);
-		markerFactory = new BasicMarkerFactory();
-		mdcAdapter = mdc;
+		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdcAdapter);
 	}
 
 }
