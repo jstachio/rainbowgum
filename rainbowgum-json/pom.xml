@@ -10,6 +10,7 @@
     <parent.root>${basedir}/..</parent.root>
   </properties>
   <artifactId>rainbowgum-json</artifactId>
+  <name>rainbowgum-json</name>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>

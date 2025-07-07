@@ -6,6 +6,7 @@
     <version>0.9.0-SNAPSHOT</version>
   </parent>
   <artifactId>rainbowgum-etc</artifactId>
+  <name>rainbowgum-etc</name>
   <packaging>pom</packaging>
   <dependencies>
     <dependency>

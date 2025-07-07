@@ -15,7 +15,7 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <metainf-services.version>1.11</metainf-services.version>
-    <project.build.outputTimestamp>1731611923</project.build.outputTimestamp>
+    <project.build.outputTimestamp>1751910369</project.build.outputTimestamp>
     <doc.resources>../</doc.resources>
     <doc.snippets>rainbowgum/src/test/java</doc.snippets>
     <deploy>snapshot</deploy>
@@ -852,7 +852,7 @@
             <extensions>true</extensions>
             <configuration>
               <serverId>ossrh</serverId>
-              <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+              <nexusUrl>https://ossrh-staging-api.central.sonatype.com</nexusUrl>
               <autoReleaseAfterClose>true</autoReleaseAfterClose>
             </configuration>
           </plugin>

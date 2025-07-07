@@ -8,6 +8,7 @@
     <version>0.9.0-SNAPSHOT</version>
   </parent>
   <artifactId>rainbowgum-slf4j</artifactId>
+  <name>rainbowgum-slf4j</name>
   <properties>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>

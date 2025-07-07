@@ -8,6 +8,7 @@
     <version>0.9.0-SNAPSHOT</version>
   </parent>
   <artifactId>rainbowgum</artifactId>
+  <name>rainbowgum</name>
   <properties>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>

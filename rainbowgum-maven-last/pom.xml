@@ -6,6 +6,7 @@
     <version>0.9.0-SNAPSHOT</version>
   </parent>
   <artifactId>rainbowgum-maven-last</artifactId>
+  <name>rainbowgum-maven-last</name>
   <packaging>pom</packaging>
   <!--
     This POM and artifact is a hack for reliable maven reactor order.
