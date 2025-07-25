@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.avaje.spi.Service;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
@@ -46,6 +47,7 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * </ol>
  *
  */
+@Service
 @SuppressWarnings("InvalidInlineTag")
 public sealed interface RainbowGumServiceProvider {
 
