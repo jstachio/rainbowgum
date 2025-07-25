@@ -29,10 +29,8 @@ import io.jstach.rainbowgum.ServiceRegistry;
  *
  * <ul>
  * <li><a href="https://avaje.io/spi/">Avaje SPI's</a> <code>@ServiceProvider</code>
- * <li><a href="https://github.com/kohsuke/metainf-services">metainf-services</a> <code>
- *
-
-@ServiceProvider(RainbowGumServiceProvider.class)</code>
+ * <li><a href="https://github.com/kohsuke/metainf-services">metainf-services</a>
+ * <code>@ServiceProvider(RainbowGumServiceProvider.class)</code>
  * <li><a href="https://github.com/jstachio/pistachio#serviceloader-helper">Pistachio
  * SVC's</a> <code>@ServiceProvider(RainbowGumServiceProvider.class)</code>
  * </ul>
