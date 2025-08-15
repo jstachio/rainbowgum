@@ -6,8 +6,10 @@ import io.jstach.rainbowgum.LogFormatter;
 /**
  * An abstract formatter where the actual full layout of the event is not a concern of the
  * user and by default usually has the semi-standard layout of <strong>TTLL - Time,
- * Thread, Level, Logger</strong>. It allows changing the format of time, thread, level,
- * logger, etc. Typically the formatters get called in the following order.
+ * Thread, Level, Logger</strong>.
+ *
+ * It allows changing the format of time, thread, level, logger, etc. Typically the
+ * formatters get called in the following order.
  * <ol>
  * <li>Timestamp</li>
  * <li>Thread</li>
@@ -84,12 +86,12 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 			LogFormatter keyValuesFormatter) {
 		super();
 		this.levelFormatter = levelFormatter;
+		this.threadFormatter = threadFormatter;
 		this.timestampFormatter = timestampFormatter;
 		this.nameFormatter = nameFormatter;
 		this.messageFormatter = messageFormatter;
 		this.throwableFormatter = throwableFormatter;
 		this.keyValuesFormatter = keyValuesFormatter;
-		this.threadFormatter = threadFormatter;
 
 		this.eventFormatter = build( //
 				timestampFormatter, //
@@ -103,7 +105,15 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	}
 
 	/**
-	 * Creates the standard default TTLL layout.
+	 * Creates the standard default TTLL layout. This is largely the default of Log4J2 and
+	 * Logback if no formatting is picked. An example of what the default roughly looks
+	 * like:
+	 *
+	 * <pre>
+	 * 17:47:33.163 [main] WARN  com.my.MyLogger - Hello Warn Message {k1=v1}
+	 * 17:47:33.167 [main] DEBUG com.my.MyLogger - Hello Debug Message {k1=v1}
+	 *
+	 * </pre>
 	 * @param timestampFormatter not <code>null</code>.
 	 * @param threadFormatter not <code>null</code>.
 	 * @param levelFormatter not <code>null</code>.
@@ -161,12 +171,17 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		/**
 		 * mutable field
 		 */
-		protected LogFormatter levelFormatter = LevelFormatter.of();
+		protected LogFormatter levelFormatter = LevelFormatter.ofRightPadded();
 
 		/**
 		 * mutable field
 		 */
 		protected LogFormatter timestampFormatter = TimestampFormatter.of();
+
+		/**
+		 * mutable field
+		 */
+		protected LogFormatter threadFormatter = LogFormatter.builder().threadName().build();
 
 		/**
 		 * mutable field
@@ -187,11 +202,6 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		 * mutable field
 		 */
 		protected LogFormatter keyValuesFormatter = LogFormatter.noop();
-
-		/**
-		 * mutable field
-		 */
-		protected LogFormatter threadFormatter = LogFormatter.builder().threadName().build();
 
 		/**
 		 * For builder
@@ -230,7 +240,8 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 
 		/**
 		 * Sets the level formatter. If not set
-		 * {@link io.jstach.rainbowgum.LogFormatter.LevelFormatter#of()} will be used.
+		 * {@link io.jstach.rainbowgum.LogFormatter.LevelFormatter#ofRightPadded()} will
+		 * be used.
 		 * @param levelFormatter formatter to use for rendering level information.
 		 * @return this builder.
 		 */

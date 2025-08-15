@@ -472,7 +472,7 @@ class JDKSetupTest {
 		try (var gum = tester.run(output, loggerLevel)) {
 			logger = tester.afterLoad(logger);
 			tester.message(logger, level, message);
-			var levelString = LevelFormatter.of().formatLevel(level);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
@@ -500,7 +500,7 @@ class JDKSetupTest {
 		try (var gum = tester.run(output, loggerLevel)) {
 			logger = tester.afterLoad(logger);
 			tester.messageSupplier(logger, level, message);
-			var levelString = LevelFormatter.of().formatLevel(level);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			int expectedCount;
 			if (isEnabled(level, loggerLevel)) {
@@ -543,7 +543,7 @@ class JDKSetupTest {
 			else {
 				tester.object(logger, level, arg);
 			}
-			var levelString = LevelFormatter.of().formatLevel(level);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
@@ -568,7 +568,7 @@ class JDKSetupTest {
 		try (var gum = tester.run(output, loggerLevel)) {
 			logger = tester.afterLoad(logger);
 			tester.oneArg(logger, level, message, arg);
-			var levelString = LevelFormatter.of().formatLevel(level);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				if (arg == Arg.BAD) {
@@ -604,7 +604,7 @@ class JDKSetupTest {
 		try (var gum = tester.run(output, loggerLevel)) {
 			logger = tester.afterLoad(logger);
 			tester.twoArgs(logger, level, message, arg1, arg2);
-			var levelString = LevelFormatter.of().formatLevel(level);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				if (arg1 == Arg.BAD || arg2 == Arg.BAD) {
@@ -642,7 +642,7 @@ class JDKSetupTest {
 		try (var gum = tester.run(output, loggerLevel)) {
 			logger = tester.afterLoad(logger);
 			tester.threeArgs(logger, level, message, arg1, arg2, arg3);
-			var levelString = LevelFormatter.of().formatLevel(level);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				if (arg1 == Arg.BAD || arg2 == Arg.BAD) {
@@ -676,7 +676,7 @@ class JDKSetupTest {
 			logger = tester.afterLoad(logger);
 			var throwable = new RuntimeException("expected");
 			tester.throwable(logger, level, message, throwable);
-			var levelString = LevelFormatter.of().formatLevel(level);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
@@ -781,8 +781,8 @@ class JDKSetupTest {
 			assertNotNull(RainbowGum.getOrNull());
 			String actual = output.toString();
 			String expected = """
-					00:00:00.000 [main] INFO before.load - Hello Gum from System.Logger!
-					00:00:00.000 [main] INFO before.load - Hello Gum from JUL Logger!
+					00:00:00.000 [main] INFO  before.load - Hello Gum from System.Logger!
+					00:00:00.000 [main] INFO  before.load - Hello Gum from JUL Logger!
 					""";
 			assertEquals(expected, actual);
 		}

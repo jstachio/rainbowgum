@@ -219,16 +219,16 @@ class FileOutputTest {
 
 		ZERO("", 0), //
 		ONE("""
-				00:00:00.000 [main] INFO test - test 0
+				00:00:00.000 [main] INFO  test - test 0
 					"""), //
 		TWO("""
-				00:00:00.000 [main] INFO test - test 0
-				00:00:00.000 [main] INFO test - test 1
+				00:00:00.000 [main] INFO  test - test 0
+				00:00:00.000 [main] INFO  test - test 1
 									""", 2), //
 		THREE("""
-				00:00:00.000 [main] INFO test - test 0
-				00:00:00.000 [main] INFO test - test 1
-				00:00:00.000 [main] INFO test - test 2
+				00:00:00.000 [main] INFO  test - test 0
+				00:00:00.000 [main] INFO  test - test 1
+				00:00:00.000 [main] INFO  test - test 2
 									""", 3),;
 
 		final String expected;
