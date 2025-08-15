@@ -1064,6 +1064,40 @@ or <code>rainbowgum-spring-boot</code> Spring will re-initialize
 
 See {@link io.jstach.rainbowgum.spring.boot/ }.
 
+<h3 id="jboss_logging">JBoss Logging</h3>
+
+<a href="https://github.com/jboss-logging/jboss-logging">JBoss Logging</a> is sadly another logging facade. 
+It is supported by forcing JBoss to use its builtin SLF4J bridge 
+which should use Rainbow Gum's SLF4J implementation. When Rainbow Gum initializes its SLF4J implementation the following 
+will happen to encourage JBoss Logging to use SLF4J.
+
+{@snippet :
+if (System.getProperty("org.jboss.logging.provider") == null) {
+	System.setProperty("org.jboss.logging.provider", "slf4j");
+}
+}
+
+At the moment there are no plans to implement a true JBoss Logging implementation as it is not widely used.
+File an issue if you are interested an implementation.
+
+<h3 id="commons_logging">Commons Logging (jcl)</h3>
+
+Commons Logging support can be had by using:
+
+<ul>
+  <li><a href="https://www.slf4j.org/legacy.html#jclRecursion">jcl-over-slf4j</a> - if not using Spring. </li>
+  <li><a href="https://docs.spring.io/spring-framework/reference/core/spring-jcl.html">spring-jcl</a> - if using Spring.</li>
+</ul>
+
+Both of these are drop in replacements to commons-logging library.
+If you are using Rainbow Gum's Spring Boot integration it will use <code>spring-jcl</code>. That being said
+if one does not want Spring "sniffing" around by reflection and not using Spring Boot <code>jcl-over-slf4j</code> is preferred
+but requires excluding <code>spring-jcl</code>.
+
+<p>
+
+Regardless the original <a href="https://commons.apache.org/proper/commons-logging/">commons-logging</a> should generally not be used
+and should be excluded from dependencies that need it.
 
 <h3 id="plugin_guide">Extension development guide</h3>
 
