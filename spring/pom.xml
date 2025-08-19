@@ -11,7 +11,7 @@
   <name>rainbowgum-spring-parent</name>
   <packaging>pom</packaging>
   <properties>
-    <spring-boot.version>3.3.3</spring-boot.version>
+    <spring-boot.version>3.5.4</spring-boot.version>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>
   </properties>
