@@ -29,7 +29,7 @@
     <ecj.version>3.39.0</ecj.version>
     <plexus-compiler-eclipse.version>2.15.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.35.1</error-prone.version>
-    <checkerframework.version>3.42.0</checkerframework.version>
+    <checkerframework.version>3.50.0</checkerframework.version>
     
     <pistachio.version>0.1.2</pistachio.version>
     <jstachio.version>1.3.7</jstachio.version>
