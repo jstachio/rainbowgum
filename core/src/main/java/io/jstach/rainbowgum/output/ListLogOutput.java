@@ -16,7 +16,7 @@ import io.jstach.rainbowgum.LogOutput;
 /**
  * An output for debugging.
  */
-public final class ListLogOutput implements LogOutput {
+public class ListLogOutput implements LogOutput {
 
 	private List<Entry<LogEvent, String>> events;
 

@@ -120,7 +120,7 @@ public sealed interface RainbowGumServiceProvider {
 	 * @see LogConfig#outputRegistry()
 	 * @see ServiceRegistry
 	 */
-	@FunctionalInterface
+	@FunctionalInterface // TODO remove and make the builder take a function
 	public non-sealed interface Configurator extends RainbowGumServiceProvider {
 
 		/**
@@ -159,7 +159,8 @@ public sealed interface RainbowGumServiceProvider {
 		 */
 		private static void runConfigurators(Stream<? extends RainbowGumServiceProvider.Configurator> configurators,
 				LogConfig config, int passes) {
-			List<Configurator> unresolved = new ArrayList<>(configurators.toList());
+			List<Configurator> unresolved = new ArrayList<>(
+					configurators.sorted(Comparator.comparing(Configurator::priority).reversed()).toList());
 			for (int i = 0; i < passes; i++) {
 				var it = unresolved.iterator();
 				while (it.hasNext()) {
@@ -180,6 +181,14 @@ public sealed interface RainbowGumServiceProvider {
 						+ passes + " passes. configurators = " + unresolved);
 			}
 
+		}
+
+		/**
+		 * Priority of configurators.
+		 * @return priority order where higher number means it will be tried earlier.
+		 */
+		default int priority() {
+			return 0;
 		}
 
 	}

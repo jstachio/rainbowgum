@@ -8,6 +8,7 @@ import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty.Property;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
 
@@ -30,6 +31,11 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	}
 
 	@Override
+	public int priority() {
+		return -1 << 1; // internal group 1
+	}
+
+	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		boolean globalDisable = isGlobalAnsiDisabled(config);
 		if (!globalDisable && installJansi(config)) {
@@ -43,9 +49,13 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	}
 
 	void installJansiLogFormatter(LogConfig config, boolean disableAnsi) {
+		/*
+		 * TODO probably get rid of this. Most will be using the pattern formatter anyway
+		 * if they want colors.
+		 */
+		var jansiFormatter = JansiLogFormatter.builder().disableAnsi(disableAnsi).build();
 		config.encoderRegistry()
-			.setEncoderForOutputType(OutputType.CONSOLE_OUT,
-					() -> LogEncoder.of(JansiLogFormatter.builder().disableAnsi(disableAnsi).build()));
+			.setEncoderForOutputType(OutputType.CONSOLE_OUT, LogProvider.of(LogEncoder.of(jansiFormatter)));
 	}
 
 	boolean installJansi(LogConfig config) {

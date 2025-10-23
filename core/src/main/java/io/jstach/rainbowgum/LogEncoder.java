@@ -6,6 +6,7 @@ import java.net.URI;
 import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
+import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
 
 /**
  * Encodes a {@link LogEvent} into a buffer of its choosing. While the {@link Buffer} does
@@ -81,6 +82,14 @@ public interface LogEncoder {
 	}
 
 	/**
+	 * Provides the standard TTLL encoder.
+	 * @return provider of encoder.
+	 */
+	public static LogProvider<LogEncoder> ofTTLL() {
+		return of(LogProviderRef.of(URI.create(AbstractStandardEventFormatter.SCHEMA)));
+	}
+
+	/**
 	 * Provides a lazy loaded encoder from a provider ref.
 	 * @param ref uri.
 	 * @return provider of output.
@@ -104,6 +113,15 @@ public interface LogEncoder {
 		 * @throws LogProviderRef.NotFoundException if there is no registered provider.
 		 */
 		LogProvider<LogEncoder> provide(LogProviderRef ref) throws LogProviderRef.NotFoundException;
+
+		/**
+		 * Convenience method to register encoders that require no configuration.
+		 * @param encoder already configured encoder.
+		 * @return encoder provider.
+		 */
+		static EncoderProvider of(LogEncoder encoder) {
+			return ref -> LogProvider.of(encoder);
+		}
 
 	}
 
