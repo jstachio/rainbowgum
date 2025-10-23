@@ -7,7 +7,9 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.ServiceRegistry;
@@ -35,6 +37,14 @@ public final class PatternConfigurator implements Configurator {
 	}
 
 	@Override
+	public int priority() {
+		return -1 << 2; // internal group 2
+	}
+
+	private static final String DEFAULT_PATTERN = """
+			%cyan(%date{HH:mm:ss.SSS}) %clr([%thread]){faint} %highlight(%-5level){ERROR=red bold, INFO=blue bold, WARN=red} %magenta(%logger{36}) - %msg%n%ex""";
+
+	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		var services = config.serviceRegistry();
 		String n = ServiceRegistry.DEFAULT_SERVICE_NAME;
@@ -42,6 +52,19 @@ public final class PatternConfigurator implements Configurator {
 		services.putIfAbsent(PatternCompiler.class, n, () -> PatternCompiler.of(b -> {
 		}).provide(n, config));
 		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider());
+		var disable = LogProperty.builder()
+			.ofBoolean()
+			.build("logging.pattern.disable")
+			.get(config.properties())
+			.value(false);
+		if (!disable) {
+			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, (name, c) -> {
+				PatternEncoderBuilder b = new PatternEncoderBuilder(name);
+				b.pattern(DEFAULT_PATTERN);
+				b.fromProperties(c.properties());
+				return b.build().provide(name, config);
+			});
+		}
 		return true;
 	}
 

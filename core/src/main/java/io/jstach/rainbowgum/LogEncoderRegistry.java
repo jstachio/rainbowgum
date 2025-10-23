@@ -5,14 +5,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
+import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 /**
- * Encoder registry
+ * Encoder registry. Only one encoder is registered by default which has the URI schema of
+ * {@value AbstractStandardEventFormatter#SCHEMA} and is used if no encoder is found for
+ * the {@link OutputType} of the resolved output.
  */
 public sealed interface LogEncoderRegistry extends EncoderProvider {
 
@@ -24,18 +26,18 @@ public sealed interface LogEncoderRegistry extends EncoderProvider {
 	public void register(String scheme, EncoderProvider encoder);
 
 	/**
-	 * Associates a default formatter with a specific output type
+	 * Associates a default formatter with a specific output type.
 	 * @param outputType output type to use for finding best default formatter.
 	 * @return formatter for output type.
 	 */
-	public LogEncoder encoderForOutputType(OutputType outputType);
+	public LogProvider<? extends LogEncoder> encoderForOutputType(OutputType outputType);
 
 	/**
 	 * Sets a default formatter for a specific output type.
 	 * @param outputType output type.
 	 * @param formatter formatter.
 	 */
-	public void setEncoderForOutputType(OutputType outputType, Supplier<? extends LogEncoder> formatter);
+	public void setEncoderForOutputType(OutputType outputType, LogProvider<? extends LogEncoder> formatter);
 
 }
 
@@ -48,7 +50,9 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 * @return encoder registry
 	 */
 	public static LogEncoderRegistry of() {
-		return new DefaultEncoderRegistry();
+		var registry = new DefaultEncoderRegistry();
+		StandardEventFormatter.builder().build().register(registry);
+		return registry;
 	}
 
 	@Override
@@ -81,7 +85,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-	private final EnumMap<OutputType, Supplier<? extends LogEncoder>> formatters = new EnumMap<>(OutputType.class);
+	private final EnumMap<OutputType, LogProvider<? extends LogEncoder>> formatters = new EnumMap<>(OutputType.class);
 
 	/**
 	 * Associates a default formatter with a specific output type
@@ -89,14 +93,14 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 * @return encoder for output type.
 	 */
 	@Override
-	public LogEncoder encoderForOutputType(OutputType outputType) {
+	public LogProvider<? extends LogEncoder> encoderForOutputType(OutputType outputType) {
 		lock.readLock().lock();
 		try {
 			var formatter = formatters.get(outputType);
 			if (formatter == null) {
-				return LogEncoder.of(StandardEventFormatter.builder().build());
+				return LogEncoder.ofTTLL();
 			}
-			return Objects.requireNonNull(formatter.get());
+			return Objects.requireNonNull(formatter);
 		}
 		finally {
 			lock.readLock().unlock();
@@ -109,7 +113,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 * @param formatter formatter.
 	 */
 	@Override
-	public void setEncoderForOutputType(OutputType outputType, Supplier<? extends LogEncoder> formatter) {
+	public void setEncoderForOutputType(OutputType outputType, LogProvider<? extends LogEncoder> formatter) {
 		lock.writeLock().lock();
 		try {
 			formatters.put(outputType, formatter);

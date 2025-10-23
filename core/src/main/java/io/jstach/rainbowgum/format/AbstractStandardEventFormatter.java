@@ -1,5 +1,8 @@
 package io.jstach.rainbowgum.format;
 
+import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
+import io.jstach.rainbowgum.LogEncoderRegistry;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 
@@ -25,6 +28,13 @@ import io.jstach.rainbowgum.LogFormatter;
  * @see AbstractBuilder
  */
 public class AbstractStandardEventFormatter implements LogFormatter.EventFormatter {
+
+	/**
+	 * Recommended URI schema for this type of encoder.
+	 * @see LogEncoderRegistry#register(String,
+	 * io.jstach.rainbowgum.LogEncoder.EncoderProvider)
+	 */
+	public static final String SCHEMA = "ttll";
 
 	/**
 	 * immutable field
@@ -296,6 +306,24 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 			return self();
 		}
 
+	}
+
+	/**
+	 * Convenience to register the encoder.
+	 * @return encoder provider.
+	 * @see AbstractStandardEventFormatter#SCHEMA
+	 */
+	public EncoderProvider toEncoderProvider() {
+		return EncoderProvider.of(LogEncoder.of(eventFormatter));
+	}
+
+	/**
+	 * Will register this TTLL like encoder with the uri schema {@value #SCHEMA} and will
+	 * be used as the default encoder if other encoders are not found.
+	 * @param registry encoder registry.
+	 */
+	public void register(LogEncoderRegistry registry) {
+		registry.register(SCHEMA, toEncoderProvider());
 	}
 
 	@Override

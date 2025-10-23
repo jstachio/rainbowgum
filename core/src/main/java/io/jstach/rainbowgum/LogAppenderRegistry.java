@@ -117,7 +117,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 
-		var encoder = resolveEncoder(config, output, encoderProperty).value();
+		var encoder = resolveEncoder(name, config, output, encoderProperty).value();
 
 		var flags = resolveFlags(config, name);
 
@@ -175,9 +175,9 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		if (output instanceof LogEncoder e) {
 			encoder = e;
 		}
-		encoder = resolveEncoder(config, output, encoderProperty).override(encoder);
-
 		String name = appenderConfig.name();
+
+		encoder = resolveEncoder(name, config, output, encoderProperty).override(encoder);
 
 		@Nullable
 		Set<LogAppender.AppenderFlag> flags = appenderConfig.flags();
@@ -188,11 +188,11 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		return DirectLogAppender.of(name, output, encoder, flags);
 	}
 
-	private static PropertyValue<LogEncoder> resolveEncoder(LogConfig config, LogOutput output,
+	private static PropertyValue<LogEncoder> resolveEncoder(String name, LogConfig config, LogOutput output,
 			PropertyValue<LogEncoder> encoderProperty) {
 		return encoderProperty.or(() -> {
 			var encoderRegistry = config.encoderRegistry();
-			return encoderRegistry.encoderForOutputType(output.type());
+			return encoderRegistry.encoderForOutputType(output.type()).provide(name, config);
 		});
 	}
 
