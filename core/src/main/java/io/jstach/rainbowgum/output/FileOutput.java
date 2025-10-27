@@ -11,6 +11,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -22,6 +23,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
+import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.LogResponse.Status;
 import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -43,7 +45,8 @@ public interface FileOutput extends LogOutput {
 	}
 
 	/**
-	 * Creates a file output provider from lambda builder.
+	 * Creates a file output provider from lambda builder and uses the config properties
+	 * from the returned log provider.
 	 * @param consumer builder lambda.
 	 * @return provider.
 	 */
@@ -51,8 +54,40 @@ public interface FileOutput extends LogOutput {
 		return (s, c) -> {
 			var builder = new FileOutputBuilder(s);
 			consumer.accept(builder);
+			builder.fromProperties(c.properties());
 			return builder.build();
 		};
+	}
+
+	/**
+	 * Create output from provider ref. This is mostly an internal call.
+	 * @param ref file provider ref.
+	 * @return provider.
+	 */
+	public static LogProvider<LogOutput> of(LogProviderRef ref) {
+		return (s, c) -> {
+			return provide(ref, s, c.properties());
+		};
+	}
+
+	private static LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
+		FileOutputBuilder b = new FileOutputBuilder(name);
+		var uri = ref.uri();
+		LogProperties combined;
+		if (uri.getQuery() != null) {
+			combined = LogProperties.of(uri, b.propertyPrefix(), properties, ref.keyOrNull());
+			String s = uri.toString();
+			int index = s.indexOf('?');
+			s = s.substring(0, index);
+			uri = URI.create(s);
+			uri = Paths.get(uri).toUri();
+		}
+		else {
+			combined = properties;
+		}
+		b.uri(uri);
+		b.fromProperties(combined);
+		return b.build();
 	}
 
 	/**
