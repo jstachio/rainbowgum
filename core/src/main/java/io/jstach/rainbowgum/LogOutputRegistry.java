@@ -8,6 +8,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.output.FileOutput;
@@ -33,11 +35,26 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	 * @param scheme URI scheme to match for.
 	 * @param provider provider for scheme.
 	 */
-	public void register(String scheme, OutputProvider provider);
+	void register(String scheme, OutputProvider provider);
 
 	/**
-	 * Finds an output by name.
-	 * @param name output name.
+	 * Allows you to perform a safe operation on the {@link LogOutput} corresponding to
+	 * the named appender by calling the function within the appender locking mechanism.
+	 * The output will not get any write calls through the publisher/appender while the
+	 * passed in function is being called.
+	 * @param <R> return type.
+	 * @param name the appender name.
+	 * @param action function to perform the operation. <strong>The function not share the
+	 * output outside.</strong> If the function returns <code>null</code> the returned
+	 * optional will always be empty but the function may have been applied so it is
+	 * recommend you do not do this.
+	 * @return user desired return if an appender is found.
+	 */
+	<R> Optional<? extends R> useOutput(String name, Function<? super LogOutput, ? extends R> action);
+
+	/**
+	 * Finds an output by name of the appender.
+	 * @param name of appender that owns output (and not the configuration name).
 	 * @return maybe an output.
 	 */
 	Optional<LogOutput> output(String name);
@@ -49,7 +66,7 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	 * @return the output status of reopened outputs or an empty list if no outputs were
 	 * reopened.
 	 */
-	public List<LogResponse> reopen();
+	List<LogResponse> reopen();
 
 	/**
 	 * Attempts to flush all outputs usually for log rotation. This call will block if it
@@ -57,13 +74,13 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	 * @return the output status of reopened outputs or an empty list if no outputs were
 	 * reopened.
 	 */
-	public List<LogResponse> flush();
+	List<LogResponse> flush();
 
 	/**
 	 * Will retrieve the status of all outputs usually for health checking.
 	 * @return list of status of outputs.
 	 */
-	public List<LogResponse> status();
+	List<LogResponse> status();
 
 }
 
@@ -107,6 +124,15 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		return _request(LogAction.StandardAction.STATUS);
 	}
 
+	@Override
+	public <R> Optional<? extends R> useOutput(String name, Function<? super LogOutput, ? extends R> action) {
+		return findAppenders().map(a -> a.useOutput(name, action)).flatMap(o -> o.stream()).findFirst();
+	}
+
+	private Stream<InternalLogAppender> findAppenders() {
+		return serviceRegistry.find(LogAppender.class).stream().map(a -> InternalLogAppender.of(a));
+	}
+
 	private List<LogResponse> requestIO(LogAction action) {
 		if (reopenLock.tryLock()) {
 			try {
@@ -125,8 +151,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		/*
 		 * TODO check rainbowgum is actually running.
 		 */
-		return Actor.act(serviceRegistry.find(LogAppender.class).stream().map(a -> InternalLogAppender.of(a)).toList(),
-				action);
+		return Actor.act(findAppenders().toList(), action);
 	}
 
 	@Override
