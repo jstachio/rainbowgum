@@ -19,7 +19,6 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogProperty.Property;
-import io.jstach.rainbowgum.LogProperty.PropertyGetter;
 
 /**
  * Resolves levels from logger names.
@@ -663,27 +662,28 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	private final String prefix;
 
-	private final PropertyGetter<Level> levelExtractor;
-
 	public static ConfigLevelResolver of(LogProperties properties) {
 		return of(properties, LogProperties.LEVEL_PREFIX);
 	}
 
 	public static ConfigLevelResolver of(LogProperties properties, String prefix) {
-		var levelExtractor = PropertyGetter.of().withPrefix(prefix).map(LevelResolver::parseLevel);
-		return new ConfigLevelResolver(properties, prefix, levelExtractor);
+		return new ConfigLevelResolver(properties, prefix);
 	}
 
-	private ConfigLevelResolver(LogProperties properties, String prefix, PropertyGetter<Level> levelExtractor) {
+	private ConfigLevelResolver(LogProperties properties, String prefix) {
 		super();
 		this.properties = properties;
 		this.prefix = prefix;
-		this.levelExtractor = levelExtractor;
 	}
 
 	@Override
 	public @Nullable Level levelOrNull(String name) {
-		return levelExtractor.build(name).get(properties).valueOrNull();
+		String key = LogProperties.concatKey(prefix, name);
+		String rawLevel = properties.valueOrNull(key);
+		if (rawLevel == null) {
+			return null;
+		}
+		return LevelResolver.parseLevel(rawLevel);
 	}
 
 	@Override
