@@ -1159,27 +1159,27 @@ an annotation processor that helps create builders
 {@link io.jstach.rainbowgum.annotation/}.
 
 {@snippet lang=xml :
-  <properties>
-      <rainbowgum.version>_VERSION_</rainbowgum.version>
-  </properties>
-  ...
-  <dependencies>
-      <dependency>
-          <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum-core</artifactId>
-          <version>${rainbowgum.version}</version>
-          <scope>compile</scope>
-      </dependency>
-      <!-- This is the annotation processor -->
-      <dependency>
-          <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum-apt</artifactId>
-          <version>${rainbowgum.version}</version>
-          <!-- the following maven config is important as the annotation processor should never be a transitive dep -->
-          <scope>provided</scope>
-          <optional>true</optional>
-      </dependency>
-  </dependencies>
+<properties>
+    <rainbowgum.version>_VERSION_</rainbowgum.version>
+</properties>
+...
+<dependencies>
+    <dependency>
+        <groupId>io.jstach.rainbowgum</groupId>
+        <artifactId>rainbowgum-core</artifactId>
+        <version>${rainbowgum.version}</version>
+        <scope>compile</scope>
+    </dependency>
+    <!-- This is the annotation processor -->
+    <dependency>
+        <groupId>io.jstach.rainbowgum</groupId>
+        <artifactId>rainbowgum-apt</artifactId>
+        <version>${rainbowgum.version}</version>
+        <!-- the following maven config is important as the annotation processor should never be a transitive dep -->
+        <scope>provided</scope>
+        <optional>true</optional>
+    </dependency>
+</dependencies>
 }
 
 Once the annotation processor is enabled one can create a properties aware builder with a
