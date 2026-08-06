@@ -188,6 +188,22 @@ class RainbowGumEventBuilderTest {
 			private void callerLog(LoggingEventBuilder builder) {
 				builder.log();
 			}
+		},
+		NULL_KEY_VALUE("logger {mdcKey1=mdcValue1&key1=null} - hello [arg0]\n") {
+			@Override
+			protected void build(LoggingEventBuilder builder) {
+				builder.setMessage("hello {}");
+				builder.addArgument("[arg0]");
+				builder.addKeyValue("key1", (Object) null);
+			}
+		},
+		NULL_KEY_VALUE_SUPPLIER("logger {mdcKey1=mdcValue1&key1=null} - hello [arg0]\n") {
+			@Override
+			protected void build(LoggingEventBuilder builder) {
+				builder.setMessage("hello {}");
+				builder.addArgument("[arg0]");
+				builder.addKeyValue("key1", () -> null);
+			}
 		};
 
 		final String expected;
