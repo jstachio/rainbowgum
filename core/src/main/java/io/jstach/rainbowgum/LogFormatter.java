@@ -245,7 +245,9 @@ public sealed interface LogFormatter {
 		/**
 		 * Creates a formatter that will print <strong>ALL</strong> of the key values by
 		 * percent encoding (RFC 3986 URI aka the format usually used in
-		 * {@link URI#getQuery()}).
+		 * {@link URI#getQuery()}). Keys that are mapped to <code>null</code> will only
+		 * have the key printed and no separating equal sign (<code>=</code>). This is to
+		 * differentiate empty string and <code>null</code>.
 		 * @return formatter.
 		 */
 		public Builder keyValues() {
