@@ -109,8 +109,8 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 	}
 
 	@Override
-	public LoggingEventBuilder addKeyValue(String key, Object value) {
-		kvs().putKeyValue(key, value.toString());
+	public LoggingEventBuilder addKeyValue(String key, @Nullable Object value) {
+		kvs().putKeyValue(key, value == null ? null : value.toString());
 		return this;
 	}
 
