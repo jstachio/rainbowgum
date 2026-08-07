@@ -49,45 +49,6 @@ public class LoggerMethodTest {
 		assertEquals(expected, output.toString());
 	}
 
-	// @ParameterizedTest
-	// @MethodSource("provideParameters")
-	// void testChangeLoggerNoCallerInfo(LoggerMethod method, Level level, @Nullable Level
-	// loggerLevel) {
-	// if (loggerLevel == null) {
-	// return;
-	// }
-	// var logger = new ChangeableLogger(loggerName, appender, mdc, loggerLevel.toInt(),
-	// false);
-	// String expected = method.test(level, logger);
-	// if (level.toInt() < loggerLevel.toInt()) {
-	// expected = "";
-	// }
-	// assertEquals(expected, output.toString());
-	// }
-	//
-	// @ParameterizedTest
-	// @MethodSource("provideParameters")
-	// void testForwardingLogger(LoggerMethod method, Level level, @Nullable Level
-	// loggerLevel) {
-	// if (loggerLevel == null) {
-	// return;
-	// }
-	// var _logger = new ChangeableLogger(loggerName, appender, mdc, loggerLevel.toInt(),
-	// false);
-	// ForwardingLogger logger = new ForwardingLogger() {
-	// @Override
-	// public Logger delegate() {
-	// return _logger;
-	// }
-	// };
-	//
-	// String expected = method.test(level, logger);
-	// if (level.toInt() < loggerLevel.toInt()) {
-	// expected = "";
-	// }
-	// assertEquals(expected, output.toString());
-	// }
-
 	sealed interface LoggerMethod {
 
 		String test(Level level, Logger logger);
@@ -120,6 +81,35 @@ public class LoggerMethodTest {
 
 		static LoggerMethod wrap(MarkerLoggerMethod m) {
 			return new LoggerMethodWrapper(m);
+		}
+
+	}
+
+	sealed interface LoggingLoggerMethod extends MarkerLoggerMethod {
+
+		void nullMessageTest(Level level, Logger logger);
+
+	}
+
+	record NullMessageLoggerMethodWrapper(LoggingLoggerMethod method) implements LoggerMethod {
+
+		@Override
+		public String test(Level level, Logger logger) {
+			method.nullMessageTest(level, logger);
+			return "";
+		}
+
+		static LoggerMethod wrap(LoggingLoggerMethod m) {
+			return new NullMessageLoggerMethodWrapper(m);
+		}
+
+		static <T extends Enum<T> & LoggingLoggerMethod> List<LoggerMethod> wrap(Class<T> type) {
+			return EnumSet.allOf(type).stream().map(NullMessageLoggerMethodWrapper::wrap).toList();
+		}
+
+		@Override
+		public final String toString() {
+			return "NULL_MESSAGE_" + method;
 		}
 
 	}
@@ -235,7 +225,7 @@ public class LoggerMethodTest {
 
 	}
 
-	enum FormatMsg implements MarkerLoggerMethod, NoArg {
+	enum FormatMsg implements LoggingLoggerMethod, NoArg {
 
 		DEFAULT;
 
@@ -264,13 +254,25 @@ public class LoggerMethodTest {
 		}
 
 		@Override
+		public void nullMessageTest(Level level, Logger logger) {
+			switch (level) {
+				case DEBUG -> logger.debug(null);
+				case ERROR -> logger.error(null);
+				case INFO -> logger.info(null);
+				case TRACE -> logger.trace(null);
+				case WARN -> logger.warn(null);
+			}
+
+		}
+
+		@Override
 		public String toString() {
 			return this.getClass().getSimpleName() + "_" + name();
 		}
 
 	}
 
-	enum FormatArg1 implements MarkerLoggerMethod, Arg1 {
+	enum FormatArg1 implements LoggingLoggerMethod, Arg1 {
 
 		DEFAULT;
 
@@ -299,13 +301,25 @@ public class LoggerMethodTest {
 		}
 
 		@Override
+		public void nullMessageTest(Level level, Logger logger) {
+
+			switch (level) {
+				case DEBUG -> logger.debug(null, arg1());
+				case ERROR -> logger.error(null, arg1());
+				case INFO -> logger.info(null, arg1());
+				case TRACE -> logger.trace(null, arg1());
+				case WARN -> logger.warn(null, arg1());
+			}
+		}
+
+		@Override
 		public String toString() {
 			return this.getClass().getSimpleName();
 		}
 
 	}
 
-	enum FormatArg1Arg2 implements MarkerLoggerMethod, Arg1Arg2 {
+	enum FormatArg1Arg2 implements LoggingLoggerMethod, Arg1Arg2 {
 
 		DEFAULT;
 
@@ -338,9 +352,20 @@ public class LoggerMethodTest {
 			return this.getClass().getSimpleName() + "_" + name();
 		}
 
+		@Override
+		public void nullMessageTest(Level level, Logger logger) {
+			switch (level) {
+				case DEBUG -> logger.debug(null, arg1(), arg2());
+				case ERROR -> logger.error(null, arg1(), arg2());
+				case INFO -> logger.info(null, arg1(), arg2());
+				case TRACE -> logger.trace(null, arg1(), arg2());
+				case WARN -> logger.warn(null, arg1(), arg2());
+			}
+		}
+
 	}
 
-	enum FormatArgArray implements MarkerLoggerMethod, ArgArray {
+	enum FormatArgArray implements LoggingLoggerMethod, ArgArray {
 
 		DEFAULT;
 
@@ -369,13 +394,24 @@ public class LoggerMethodTest {
 		}
 
 		@Override
+		public void nullMessageTest(Level level, Logger logger) {
+			switch (level) {
+				case DEBUG -> logger.debug(null, args());
+				case ERROR -> logger.error(null, args());
+				case INFO -> logger.info(null, args());
+				case TRACE -> logger.trace(null, args());
+				case WARN -> logger.warn(null, args());
+			}
+		}
+
+		@Override
 		public String toString() {
 			return this.getClass().getSimpleName() + "_" + name();
 		}
 
 	}
 
-	enum FormatMessageThrowable implements MarkerLoggerMethod, NoArg {
+	enum FormatMessageThrowable implements LoggingLoggerMethod, NoArg {
 
 		DEFAULT;
 
@@ -405,6 +441,18 @@ public class LoggerMethodTest {
 				case WARN -> logger.warn(marker, format(), throwable());
 			}
 			return expected();
+		}
+
+		@Override
+		public void nullMessageTest(Level level, Logger logger) {
+			switch (level) {
+				case DEBUG -> logger.debug(null, throwable());
+				case ERROR -> logger.error(null, throwable());
+				case INFO -> logger.info(null, throwable());
+				case TRACE -> logger.trace(null, throwable());
+				case WARN -> logger.warn(null, throwable());
+			}
+
 		}
 
 		@Override
@@ -514,8 +562,15 @@ public class LoggerMethodTest {
 		AT_LEVEL(AT_LEVEL.class), //
 		IS_ENABLED_FOR_LEVEL(IS_ENABLED_FOR_LEVEL.class), //
 		IS_Level_ENABLED(IS_Level_ENABLED.class), //
-		level_msg(FormatMsg.class), level_format_arg(FormatArg1.class), level_format_arg1_arg2(FormatArg1Arg2.class), //
-		level_format_arguments(FormatArgArray.class), level_msg_t(FormatMessageThrowable.class), //
+		level_msg(FormatMsg.class), //
+		level_format_arg(FormatArg1.class), //
+		level_format_arg1_arg2(FormatArg1Arg2.class), //
+		level_format_arguments(FormatArgArray.class), //
+		level_msg_t(FormatMessageThrowable.class), //
+		level_null_arg(NullMessageLoggerMethodWrapper.wrap(FormatArg1.class)), //
+		level_null_arg1_arg2(NullMessageLoggerMethodWrapper.wrap(FormatArg1Arg2.class)), //
+		level_null_arguments(NullMessageLoggerMethodWrapper.wrap(FormatArgArray.class)), //
+		level_null_t(NullMessageLoggerMethodWrapper.wrap(FormatMessageThrowable.class)), //
 		at_level(AT__level.class), //
 		level_marker_msg(MarkerLoggerMethod.wrap(FormatMsg.class)),
 		level_marker_format_arg(MarkerLoggerMethod.wrap(FormatArg1.class)), //
