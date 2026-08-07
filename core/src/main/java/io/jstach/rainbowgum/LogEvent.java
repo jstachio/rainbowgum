@@ -6,6 +6,7 @@ import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -733,6 +734,16 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
 		@Nullable Object arg1) implements LogEvent {
 
+	OneArgLogEvent {
+		timestamp = Objects.requireNonNull(timestamp, "timestamp");
+		threadName = Objects.requireNonNull(threadName, "threadName");
+		level = Objects.requireNonNull(level, "level");
+		loggerName = Objects.requireNonNull(loggerName, "loggerName");
+		message = Objects.requireNonNull(message, "message");
+		keyValues = Objects.requireNonNull(keyValues, "keyValues");
+		messageFormatter = Objects.requireNonNull(messageFormatter, "messageFormatter");
+	}
+
 	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.format(sb, message, arg1);
@@ -757,6 +768,16 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
 		@Nullable Object arg1, @Nullable Object arg2) implements LogEvent {
 
+	TwoArgLogEvent {
+		timestamp = Objects.requireNonNull(timestamp, "timestamp");
+		threadName = Objects.requireNonNull(threadName, "threadName");
+		level = Objects.requireNonNull(level, "level");
+		loggerName = Objects.requireNonNull(loggerName, "loggerName");
+		message = Objects.requireNonNull(message, "message");
+		keyValues = Objects.requireNonNull(keyValues, "keyValues");
+		messageFormatter = Objects.requireNonNull(messageFormatter, "messageFormatter");
+	}
+
 	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.format(sb, message, arg1, arg2);
@@ -780,6 +801,16 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
 		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) implements LogEvent {
+
+	ArrayArgLogEvent {
+		timestamp = Objects.requireNonNull(timestamp, "timestamp");
+		threadName = Objects.requireNonNull(threadName, "threadName");
+		level = Objects.requireNonNull(level, "level");
+		loggerName = Objects.requireNonNull(loggerName, "loggerName");
+		message = Objects.requireNonNull(message, "message");
+		keyValues = Objects.requireNonNull(keyValues, "keyValues");
+		messageFormatter = Objects.requireNonNull(messageFormatter, "messageFormatter");
+	}
 
 	@Override
 	public void formattedMessage(StringBuilder sb) {
@@ -808,6 +839,15 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 record DefaultLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String formattedMessage, KeyValues keyValues,
 		@Nullable Throwable throwableOrNull) implements LogEvent {
+
+	DefaultLogEvent {
+		timestamp = Objects.requireNonNull(timestamp, "timestamp");
+		threadName = Objects.requireNonNull(threadName, "threadName");
+		level = Objects.requireNonNull(level, "level");
+		loggerName = Objects.requireNonNull(loggerName, "loggerName");
+		formattedMessage = Objects.requireNonNull(formattedMessage, "formattedMessage");
+		keyValues = Objects.requireNonNull(keyValues, "keyValues");
+	}
 
 	@Override
 	public void formattedMessage(StringBuilder sb) {
