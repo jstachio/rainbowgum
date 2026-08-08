@@ -96,7 +96,7 @@ public class LoggerMethodTest {
 		@Override
 		public String test(Level level, Logger logger) {
 			method.nullMessageTest(level, logger);
-			return "";
+			return "null";
 		}
 
 		static LoggerMethod wrap(LoggingLoggerMethod m) {

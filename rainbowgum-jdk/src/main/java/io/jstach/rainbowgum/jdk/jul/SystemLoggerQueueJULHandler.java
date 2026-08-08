@@ -3,7 +3,6 @@ package io.jstach.rainbowgum.jdk.jul;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.MissingResourceException;
-import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.logging.Handler;
 import java.util.logging.LogManager;
@@ -81,7 +80,7 @@ final class SystemLoggerQueueJULHandler extends Handler {
 				args = null;
 			}
 			else {
-				msg = Objects.requireNonNullElse(rec.getMessage(), "");
+				msg = rec.getMessage();
 				args = rec.getParameters();
 			}
 

@@ -96,10 +96,10 @@ class JDKSetupTest {
 	@Order(5)
 	@ParameterizedTest
 	@MethodSource("provideLevels")
-	void testMessage(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel)
-			throws InterruptedException {
+	void testMessage(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Message message) throws InterruptedException {
 		doInLock(() -> {
-			_testMessage(tester, level, loggerLevel);
+			_testMessage(tester, level, loggerLevel, message);
 		});
 
 	}
@@ -116,7 +116,7 @@ class JDKSetupTest {
 
 	@Order(7)
 	@ParameterizedTest
-	@MethodSource("provideOneArg")
+	@MethodSource("provideObject")
 	void testObject(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
 			throws InterruptedException {
 		doInLock(() -> {
@@ -263,6 +263,8 @@ class JDKSetupTest {
 			return false;
 		}
 
+		public boolean supportsObject();
+
 	}
 
 	enum JULLoggerTester implements LoggerTester<java.util.logging.Logger> {
@@ -290,6 +292,11 @@ class JDKSetupTest {
 
 		public void object(java.util.logging.Logger logger, System.Logger.Level level, Arg arg) {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean supportsObject() {
+			return false;
 		}
 
 		public void oneArg(java.util.logging.Logger logger, System.Logger.Level level, String message, Arg arg) {
@@ -427,7 +434,11 @@ class JDKSetupTest {
 		@Override
 		public void object(java.lang.System.Logger logger, Level level, Arg message) {
 			logger.log(level, message.arg);
+		}
 
+		@Override
+		public boolean supportsObject() {
+			return true;
 		}
 
 		@Override
@@ -464,9 +475,10 @@ class JDKSetupTest {
 		}
 	}
 
-	<T> void _testMessage(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel) {
+	<T> void _testMessage(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Message mess) {
 		ListLogOutput output = new ListLogOutput();
-		String message = "Hello!";
+		String message = mess.value();
 
 		var logger = tester.beforeLoad();
 		try (var gum = tester.run(output, loggerLevel)) {
@@ -476,8 +488,8 @@ class JDKSetupTest {
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
-						00:00:00.000 [main] %s after.load - Hello!
-						""".formatted(levelString);
+						00:00:00.000 [main] %s after.load - %s
+						""".formatted(levelString, message);
 			}
 			else {
 				expected = "";
@@ -528,6 +540,10 @@ class JDKSetupTest {
 	}
 
 	<T> void _testObject(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg) {
+		if (!tester.supportsObject()) {
+			abort("no supported");
+			return;
+		}
 		ListLogOutput output = new ListLogOutput();
 		Object message = arg.arg;
 
@@ -536,6 +552,13 @@ class JDKSetupTest {
 			var _logger = logger = tester.afterLoad(logger);
 			if (arg == Arg.BAD && isEnabled(level, loggerLevel)) {
 				assertThrows(RuntimeException.class, () -> {
+					tester.object(_logger, level, arg);
+					fail("fuck");
+				});
+				return;
+			}
+			if (arg == Arg.NULL) {
+				assertThrows(NullPointerException.class, () -> {
 					tester.object(_logger, level, arg);
 				});
 				return;
@@ -711,7 +734,9 @@ class JDKSetupTest {
 		for (var tester : provideTesters()) {
 			for (var level : System.Logger.Level.values()) {
 				for (var loggerLevel : System.Logger.Level.values()) {
-					args.add(Arguments.of(tester, level, loggerLevel));
+					for (var message : Message.values()) {
+						args.add(Arguments.of(tester, level, loggerLevel, message));
+					}
 				}
 			}
 		}
@@ -721,6 +746,23 @@ class JDKSetupTest {
 	private static Stream<Arguments> provideOneArg() {
 		List<Arguments> args = new ArrayList<>();
 		for (var tester : provideTesters()) {
+			for (var level : System.Logger.Level.values()) {
+				for (var loggerLevel : System.Logger.Level.values()) {
+					for (var arg : Arg.values()) {
+						args.add(Arguments.of(tester, level, loggerLevel, arg));
+					}
+				}
+			}
+		}
+		return args.stream();
+	}
+
+	private static Stream<Arguments> provideObject() {
+		List<Arguments> args = new ArrayList<>();
+		for (var tester : provideTesters()) {
+			if (!tester.supportsObject()) {
+				continue;
+			}
 			for (var level : System.Logger.Level.values()) {
 				for (var loggerLevel : System.Logger.Level.values()) {
 					for (var arg : Arg.values()) {
@@ -798,11 +840,30 @@ class JDKSetupTest {
 
 	}
 
+	enum Message {
+
+		HELLO("Hello", "Hello"), NULL(null, "null");
+
+		private final @Nullable String value;
+
+		private final String expected;
+
+		private Message(@Nullable String value, String expected) {
+			this.value = value;
+			this.expected = expected;
+		}
+
+		public String value() {
+			return this.value;
+		}
+
+	}
+
 	@SuppressWarnings("ImmutableEnumChecker")
 	enum Arg {
 
 		BAD("[MessageFormat failed: expected]", new BadToString()), //
-		STRING("hello", "hello"), //
+		NULL("null", null), STRING("hello", "hello"), //
 		INTEGER("1", 1), //
 		;
 
