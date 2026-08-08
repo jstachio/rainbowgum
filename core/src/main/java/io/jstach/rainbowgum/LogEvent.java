@@ -40,7 +40,7 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
 	 */
-	public static LogEvent of(System.Logger.Level level, String loggerName, String formattedMessage,
+	public static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String formattedMessage,
 			KeyValues keyValues, @Nullable Throwable throwable) {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
@@ -62,7 +62,7 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
 	 */
-	static LogEvent of(System.Logger.Level level, String loggerName, String formattedMessage,
+	static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String formattedMessage,
 			@Nullable Throwable throwable) {
 		return of(level, loggerName, formattedMessage, KeyValues.of(), throwable);
 	}
@@ -80,14 +80,18 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
 	 */
-	public static LogEvent of(System.Logger.Level level, String loggerName, String message, KeyValues keyValues,
-			LogMessageFormatter messageFormatter, @Nullable Object arg1) {
+	public static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String message,
+			KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Object arg1) {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
 		long threadId = currentThread.threadId();
 		if (arg1 instanceof Throwable t) {
 			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, t);
+		}
+		if (message == null) {
+			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null);
+
 		}
 		return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
 				messageFormatter, null, arg1);
@@ -107,12 +111,15 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
 	 */
-	public static LogEvent of(System.Logger.Level level, String loggerName, String message, KeyValues keyValues,
-			LogMessageFormatter messageFormatter, @Nullable Object arg1, @Nullable Object arg2) {
+	public static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String message,
+			KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Object arg1, @Nullable Object arg2) {
 		Instant timeStamp = Instant.now();
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
 		long threadId = currentThread.threadId();
+		if (message == null) {
+			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null);
+		}
 		if (arg2 instanceof Throwable t) {
 			return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, t, arg1);
@@ -164,7 +171,7 @@ public sealed interface LogEvent {
 	 * @see LogMessageFormatter
 	 */
 	public static LogEvent ofAll(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
-			String loggerName, String message, KeyValues keyValues, @Nullable Throwable throwable,
+			String loggerName, @Nullable String message, KeyValues keyValues, @Nullable Throwable throwable,
 			LogMessageFormatter messageFormatter, @SuppressWarnings("exports") @Nullable List<@Nullable Object> args) {
 
 		if (args == null) {
@@ -176,6 +183,11 @@ public sealed interface LogEvent {
 			throwable = t;
 			length = length - 1;
 		}
+		if (message == null) {
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					throwable);
+		}
+
 		return switch (length) {
 			case 0 ->
 				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
@@ -207,7 +219,7 @@ public sealed interface LogEvent {
 	 * @see LogMessageFormatter
 	 */
 	public static LogEvent ofAll(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
-			String loggerName, String message, KeyValues keyValues, @Nullable Throwable throwable,
+			String loggerName, @Nullable String message, KeyValues keyValues, @Nullable Throwable throwable,
 			LogMessageFormatter messageFormatter, @SuppressWarnings("exports") @Nullable Object @Nullable [] args) {
 
 		if (args == null) {
@@ -219,6 +231,11 @@ public sealed interface LogEvent {
 			throwable = t;
 			length = length - 1;
 		}
+		if (message == null) {
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					throwable);
+		}
+
 		return switch (length) {
 			case 0 ->
 				new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable);
@@ -281,6 +298,15 @@ public sealed interface LogEvent {
 	 * @see #formattedMessage(StringBuilder)
 	 */
 	public String message();
+
+	/**
+	 * If the event has a message or not. Because the return of {@link #message()} is non
+	 * null there is no way to detect that a message is missing.
+	 * @return <code>true</code> if this event has a message.
+	 */
+	default public boolean hasMessage() {
+		return true;
+	}
 
 	/**
 	 * Appends the formatted message.
@@ -735,13 +761,13 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		@Nullable Object arg1) implements LogEvent {
 
 	OneArgLogEvent {
-		timestamp = Objects.requireNonNull(timestamp, "timestamp");
-		threadName = Objects.requireNonNull(threadName, "threadName");
-		level = Objects.requireNonNull(level, "level");
-		loggerName = Objects.requireNonNull(loggerName, "loggerName");
-		message = Objects.requireNonNull(message, "message");
-		keyValues = Objects.requireNonNull(keyValues, "keyValues");
-		messageFormatter = Objects.requireNonNull(messageFormatter, "messageFormatter");
+		Objects.requireNonNull(timestamp, "timestamp");
+		Objects.requireNonNull(threadName, "threadName");
+		Objects.requireNonNull(level, "level");
+		Objects.requireNonNull(loggerName, "loggerName");
+		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(keyValues, "keyValues");
+		Objects.requireNonNull(messageFormatter, "messageFormatter");
 	}
 
 	@Override
@@ -769,13 +795,13 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		@Nullable Object arg1, @Nullable Object arg2) implements LogEvent {
 
 	TwoArgLogEvent {
-		timestamp = Objects.requireNonNull(timestamp, "timestamp");
-		threadName = Objects.requireNonNull(threadName, "threadName");
-		level = Objects.requireNonNull(level, "level");
-		loggerName = Objects.requireNonNull(loggerName, "loggerName");
-		message = Objects.requireNonNull(message, "message");
-		keyValues = Objects.requireNonNull(keyValues, "keyValues");
-		messageFormatter = Objects.requireNonNull(messageFormatter, "messageFormatter");
+		Objects.requireNonNull(timestamp, "timestamp");
+		Objects.requireNonNull(threadName, "threadName");
+		Objects.requireNonNull(level, "level");
+		Objects.requireNonNull(loggerName, "loggerName");
+		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(keyValues, "keyValues");
+		Objects.requireNonNull(messageFormatter, "messageFormatter");
 	}
 
 	@Override
@@ -803,13 +829,13 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) implements LogEvent {
 
 	ArrayArgLogEvent {
-		timestamp = Objects.requireNonNull(timestamp, "timestamp");
-		threadName = Objects.requireNonNull(threadName, "threadName");
-		level = Objects.requireNonNull(level, "level");
-		loggerName = Objects.requireNonNull(loggerName, "loggerName");
-		message = Objects.requireNonNull(message, "message");
-		keyValues = Objects.requireNonNull(keyValues, "keyValues");
-		messageFormatter = Objects.requireNonNull(messageFormatter, "messageFormatter");
+		Objects.requireNonNull(timestamp, "timestamp");
+		Objects.requireNonNull(threadName, "threadName");
+		Objects.requireNonNull(level, "level");
+		Objects.requireNonNull(loggerName, "loggerName");
+		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(keyValues, "keyValues");
+		Objects.requireNonNull(messageFormatter, "messageFormatter");
 	}
 
 	@Override
@@ -837,16 +863,15 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 }
 
 record DefaultLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
-		String loggerName, String formattedMessage, KeyValues keyValues,
+		String loggerName, @Nullable String formattedMessage, KeyValues keyValues,
 		@Nullable Throwable throwableOrNull) implements LogEvent {
 
 	DefaultLogEvent {
-		timestamp = Objects.requireNonNull(timestamp, "timestamp");
-		threadName = Objects.requireNonNull(threadName, "threadName");
-		level = Objects.requireNonNull(level, "level");
-		loggerName = Objects.requireNonNull(loggerName, "loggerName");
-		formattedMessage = Objects.requireNonNull(formattedMessage, "formattedMessage");
-		keyValues = Objects.requireNonNull(keyValues, "keyValues");
+		Objects.requireNonNull(timestamp, "timestamp");
+		Objects.requireNonNull(threadName, "threadName");
+		Objects.requireNonNull(level, "level");
+		Objects.requireNonNull(loggerName, "loggerName");
+		Objects.requireNonNull(keyValues, "keyValues");
 	}
 
 	@Override
@@ -856,7 +881,12 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 
 	@Override
 	public String message() {
-		return this.formattedMessage;
+		return "" + this.formattedMessage;
+	}
+
+	@Override
+	public boolean hasMessage() {
+		return this.formattedMessage != null;
 	}
 
 	@Override

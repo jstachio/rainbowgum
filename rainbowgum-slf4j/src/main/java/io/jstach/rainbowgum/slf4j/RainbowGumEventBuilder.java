@@ -35,7 +35,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	private final Level level;
 
-	private String message = "";
+	private @Nullable String message;
 
 	@Nullable
 	private Throwable throwable;
@@ -121,7 +121,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	@Override
 	public LoggingEventBuilder setMessage(String message) {
-		this.message = Objects.requireNonNullElse(message, "");
+		this.message = message;
 		return this;
 	}
 

@@ -1,8 +1,7 @@
 package io.jstach.rainbowgum.systemlogger;
 
-import static java.util.Objects.requireNonNullElse;
-
 import java.time.Instant;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
 
@@ -72,6 +71,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, Object obj) {
+		Objects.requireNonNull(obj, "obj");
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
@@ -86,8 +86,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			String formattedMessage = requireNonNullElse(msg, "");
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, throwable);
+			LogEvent event = LogEvent.of(level, loggerName, msg, throwable);
 			route.log(event);
 		}
 	}
@@ -98,7 +97,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			String formattedMessage = requireNonNullElse(msgSupplier.get(), "");
+			String formattedMessage = msgSupplier.get();
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, throwable);
 			route.log(event);
 		}
@@ -123,7 +122,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 			Instant timestamp = Instant.now();
 			String threadName = Thread.currentThread().getName();
 			long threadId = Thread.currentThread().threadId();
-			String message = requireNonNullElse(format, "");
+			String message = format;
 			Throwable throwable = null;
 			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
 					throwable, StandardMessageFormatter.JUL, args);

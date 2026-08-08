@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.systemlogger;
 import static java.util.Objects.requireNonNullElse;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
 
@@ -67,7 +68,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, @Nullable String msg) {
 		if (isLoggable(level)) {
-			String formattedMessage = msg == null ? "" : msg;
+			String formattedMessage = msg;
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
 			logger.log(event);
 		}
@@ -83,9 +84,11 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	}
 
 	@Override
-	public void log(Level level, @Nullable Object obj) {
+	public void log(Level level, Object obj) {
+		// Technically we should check if obj is null first.
+		Objects.requireNonNull(obj, "obj");
 		if (isLoggable(level)) {
-			String formattedMessage = obj == null ? "" : obj.toString();
+			String formattedMessage = obj.toString();
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
 			logger.log(event);
 		}
@@ -94,7 +97,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, @Nullable String msg, @Nullable Throwable thrown) {
 		if (isLoggable(level)) {
-			String formattedMessage = requireNonNullElse(msg, "");
+			String formattedMessage = msg;
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, thrown);
 			logger.log(event);
 		}
@@ -103,7 +106,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, Supplier<String> msgSupplier, Throwable thrown) {
 		if (isLoggable(level)) {
-			String formattedMessage = requireNonNullElse(msgSupplier.get(), "");
+			String formattedMessage = msgSupplier.get();
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, thrown);
 			logger.log(event);
 		}
@@ -116,7 +119,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 			Instant timestamp = Instant.now();
 			String threadName = currentThread.getName();
 			long threadId = currentThread.threadId();
-			String message = requireNonNullElse(format, "");
+			String message = format;
 			Throwable throwable = null;
 			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
 					throwable, StandardMessageFormatter.JUL, params);
@@ -127,7 +130,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Throwable thrown) {
 		if (isLoggable(level)) {
-			String formattedMessage = requireNonNullElse(msg, "");
+			String formattedMessage = msg;
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, thrown);
 			logger.log(event);
 		}
@@ -140,7 +143,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 			Instant timestamp = Instant.now();
 			String threadName = currentThread.getName();
 			long threadId = currentThread.threadId();
-			String message = requireNonNullElse(format, "");
+			String message = format;
 			Throwable throwable = null;
 			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
 					throwable, StandardMessageFormatter.JUL, params);
