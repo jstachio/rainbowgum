@@ -18,6 +18,7 @@ import org.slf4j.event.Level;
 import org.slf4j.helpers.BasicMarkerFactory;
 
 import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogFormatter;
 
 public class LoggerMethodTest {
 
@@ -27,8 +28,16 @@ public class LoggerMethodTest {
 
 	StringBuilder output = new StringBuilder();
 
+	LogFormatter _formatter = LogFormatter.builder().message().event((b, e) -> {
+		var t = e.throwableOrNull();
+		if (t != null) {
+			b.append(" THROWN ");
+			b.append(t.getMessage());
+		}
+	}).build();
+
 	LogEventLogger appender = e -> {
-		e.formattedMessage(output);
+		_formatter.format(output, e);
 	};
 
 	@ParameterizedTest
@@ -86,31 +95,6 @@ public class LoggerMethodTest {
 	}
 
 	sealed interface LoggingLoggerMethod extends MarkerLoggerMethod {
-
-		void nullMessageTest(Level level, Logger logger);
-
-	}
-
-	record NullMessageLoggerMethodWrapper(LoggingLoggerMethod method) implements LoggerMethod {
-
-		@Override
-		public String test(Level level, Logger logger) {
-			method.nullMessageTest(level, logger);
-			return "null";
-		}
-
-		static LoggerMethod wrap(LoggingLoggerMethod m) {
-			return new NullMessageLoggerMethodWrapper(m);
-		}
-
-		static <T extends Enum<T> & LoggingLoggerMethod> List<LoggerMethod> wrap(Class<T> type) {
-			return EnumSet.allOf(type).stream().map(NullMessageLoggerMethodWrapper::wrap).toList();
-		}
-
-		@Override
-		public final String toString() {
-			return "NULL_MESSAGE_" + method;
-		}
 
 	}
 
@@ -227,7 +211,17 @@ public class LoggerMethodTest {
 
 	enum FormatMsg implements LoggingLoggerMethod, NoArg {
 
-		DEFAULT;
+		DEFAULT, NULL() {
+			@Override
+			public String format() {
+				return null;
+			}
+
+			@Override
+			public String expected() {
+				return "null";
+			}
+		};
 
 		@Override
 		public String test(Level level, Logger logger) {
@@ -254,27 +248,37 @@ public class LoggerMethodTest {
 		}
 
 		@Override
-		public void nullMessageTest(Level level, Logger logger) {
-			switch (level) {
-				case DEBUG -> logger.debug(null);
-				case ERROR -> logger.error(null);
-				case INFO -> logger.info(null);
-				case TRACE -> logger.trace(null);
-				case WARN -> logger.warn(null);
-			}
-
-		}
-
-		@Override
 		public String toString() {
-			return this.getClass().getSimpleName() + "_" + name();
+			return "LogNoArg" + "_" + name();
 		}
 
 	}
 
 	enum FormatArg1 implements LoggingLoggerMethod, Arg1 {
 
-		DEFAULT;
+		DEFAULT, NULL() {
+
+			@Override
+			public String format() {
+				return null;
+			}
+
+			@Override
+			public String expected() {
+				return "null";
+			}
+		},
+		THROWABLE() {
+			@Override
+			public Object arg1() {
+				return new RuntimeException("EXPECTED");
+			}
+
+			@Override
+			public String expected() {
+				return "Hello {}! THROWN EXPECTED";
+			}
+		};
 
 		@Override
 		public String test(Level level, Logger logger) {
@@ -301,27 +305,63 @@ public class LoggerMethodTest {
 		}
 
 		@Override
-		public void nullMessageTest(Level level, Logger logger) {
-
-			switch (level) {
-				case DEBUG -> logger.debug(null, arg1());
-				case ERROR -> logger.error(null, arg1());
-				case INFO -> logger.info(null, arg1());
-				case TRACE -> logger.trace(null, arg1());
-				case WARN -> logger.warn(null, arg1());
-			}
-		}
-
-		@Override
 		public String toString() {
-			return this.getClass().getSimpleName();
+			return "FormatArg1" + "_" + name();
 		}
 
 	}
 
 	enum FormatArg1Arg2 implements LoggingLoggerMethod, Arg1Arg2 {
 
-		DEFAULT;
+		DEFAULT, NULL_MSG() {
+			@Override
+			public String format() {
+				return null;
+			}
+
+			@Override
+			public String expected() {
+				return "null";
+			}
+		},
+		NULL_MSG_THROWABLE_ARG2() {
+			@Override
+			public String format() {
+				return null;
+			}
+
+			@Override
+			public Object arg2() {
+				return new RuntimeException("(arg2)");
+			}
+
+			@Override
+			public String expected() {
+				return "null THROWN (arg2)";
+			}
+		},
+		THROWABLE_ARG1() {
+			@Override
+			public Object arg1() {
+				return new RuntimeException("(arg1)");
+			}
+
+			@Override
+			public String expected() {
+				return "Hello java.lang.RuntimeException: (arg1) arg2!";
+			}
+		},
+		THROWABLE_ARG2() {
+			@Override
+			public Object arg2() {
+				return new RuntimeException("(arg2)");
+			}
+
+			@Override
+			public String expected() {
+				return "Hello arg1 {}! THROWN (arg2)";
+			}
+		};
 
 		@Override
 		public String test(Level level, Logger logger) {
@@ -349,25 +389,97 @@ public class LoggerMethodTest {
 
 		@Override
 		public String toString() {
-			return this.getClass().getSimpleName() + "_" + name();
-		}
-
-		@Override
-		public void nullMessageTest(Level level, Logger logger) {
-			switch (level) {
-				case DEBUG -> logger.debug(null, arg1(), arg2());
-				case ERROR -> logger.error(null, arg1(), arg2());
-				case INFO -> logger.info(null, arg1(), arg2());
-				case TRACE -> logger.trace(null, arg1(), arg2());
-				case WARN -> logger.warn(null, arg1(), arg2());
-			}
+			return "FormatArg1Arg2" + "_" + name();
 		}
 
 	}
 
 	enum FormatArgArray implements LoggingLoggerMethod, ArgArray {
 
-		DEFAULT;
+		DEFAULT, NULL_MSG() {
+			@Override
+			public String format() {
+				return null;
+			}
+
+			@Override
+			public String expected() {
+				return "null";
+			}
+		},
+		NULL_MSG_BUT_THROWABLE {
+			@Override
+			public String format() {
+				return null;
+			}
+
+			@Override
+			public Object[] args() {
+				return new Object[] { "arg1", "arg2", "arg3", new RuntimeException("EXPECTED") };
+			}
+
+			@Override
+			public String expected() {
+				return "null THROWN EXPECTED";
+			}
+		},
+		NULL_ARGS() {
+			@Override
+			public Object[] args() {
+				return null;
+			}
+
+			@Override
+			public String expected() {
+				return "Hello {} {} {}!";
+			}
+		},
+		EMPTY_ARGS() {
+			@Override
+			public Object[] args() {
+				return new Object[] {};
+			}
+
+			@Override
+			public String expected() {
+				return "Hello {} {} {}!";
+			}
+		},
+		ONE_ARG() {
+			@Override
+			public Object[] args() {
+				return new Object[] { "arg1" };
+			}
+
+			@Override
+			public String expected() {
+				return "Hello arg1 {} {}!";
+
+			}
+		},
+		TWO_ARGS() {
+			@Override
+			public Object[] args() {
+				return new Object[] { "arg1", "arg2" };
+			}
+
+			@Override
+			public String expected() {
+				return "Hello arg1 arg2 {}!";
+
+			}
+		},
+		THROWABLE() {
+			@Override
+			public Object[] args() {
+				return new Object[] { "arg1", "arg2", "arg3", new RuntimeException("EXPECTED") };
+			}
+
+			@Override
+			public String expected() {
+				return "Hello arg1 arg2 arg3! THROWN EXPECTED";
+			}
+		};
 
 		@Override
 		public String test(Level level, Logger logger) {
@@ -394,29 +506,34 @@ public class LoggerMethodTest {
 		}
 
 		@Override
-		public void nullMessageTest(Level level, Logger logger) {
-			switch (level) {
-				case DEBUG -> logger.debug(null, args());
-				case ERROR -> logger.error(null, args());
-				case INFO -> logger.info(null, args());
-				case TRACE -> logger.trace(null, args());
-				case WARN -> logger.warn(null, args());
-			}
-		}
-
-		@Override
 		public String toString() {
-			return this.getClass().getSimpleName() + "_" + name();
+			return "FormatArgArray" + "_" + name();
 		}
 
 	}
 
 	enum FormatMessageThrowable implements LoggingLoggerMethod, NoArg {
 
-		DEFAULT;
+		DEFAULT {
+			@Override
+			public String expected() {
+				return "Hello! THROWN EXPECTED";
+			}
+		},
+		NULL() {
+			@Override
+			public String format() {
+				return null;
+			}
+
+			@Override
+			public String expected() {
+				return "null THROWN EXPECTED";
+			}
+		};
 
 		public Throwable throwable() {
-			return new RuntimeException("expected");
+			return new RuntimeException("EXPECTED");
 		}
 
 		@Override
@@ -444,20 +561,8 @@ public class LoggerMethodTest {
 		}
 
 		@Override
-		public void nullMessageTest(Level level, Logger logger) {
-			switch (level) {
-				case DEBUG -> logger.debug(null, throwable());
-				case ERROR -> logger.error(null, throwable());
-				case INFO -> logger.info(null, throwable());
-				case TRACE -> logger.trace(null, throwable());
-				case WARN -> logger.warn(null, throwable());
-			}
-
-		}
-
-		@Override
 		public String toString() {
-			return this.getClass().getSimpleName();
+			return "FormatMessageThrowable" + "_" + name();
 		}
 
 	}
@@ -567,10 +672,6 @@ public class LoggerMethodTest {
 		level_format_arg1_arg2(FormatArg1Arg2.class), //
 		level_format_arguments(FormatArgArray.class), //
 		level_msg_t(FormatMessageThrowable.class), //
-		level_null_arg(NullMessageLoggerMethodWrapper.wrap(FormatArg1.class)), //
-		level_null_arg1_arg2(NullMessageLoggerMethodWrapper.wrap(FormatArg1Arg2.class)), //
-		level_null_arguments(NullMessageLoggerMethodWrapper.wrap(FormatArgArray.class)), //
-		level_null_t(NullMessageLoggerMethodWrapper.wrap(FormatMessageThrowable.class)), //
 		at_level(AT__level.class), //
 		level_marker_msg(MarkerLoggerMethod.wrap(FormatMsg.class)),
 		level_marker_format_arg(MarkerLoggerMethod.wrap(FormatArg1.class)), //
