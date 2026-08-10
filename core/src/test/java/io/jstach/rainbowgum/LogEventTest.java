@@ -34,16 +34,57 @@ class LogEventTest {
 		assertNotNull(event);
 		assertNull(event.throwableOrNull());
 		assertTrue(event.keyValues().isEmpty());
+		assertTrue(event.hasMessage());
 		assertEquals(Level.INFO, event.level());
 		assertInstanceOf(DefaultLogEvent.class, event);
 		StringBuilder sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello!", sb.toString());
+		sb.setLength(0);
+		event.formattedMessage(sb, "NOT EXPECTED");
+		assertEquals("Hello!", sb.toString());
+		assertFreeze(event);
+	}
+
+	@Test
+	void testOfLevelLoggerNameFormattedMessageNullKeyValuesThrowable() {
+		Level level = Level.INFO;
+		String loggerName = "logger";
+		String formattedMessage = null;
+		KeyValues keyValues = KeyValues.of();
+		Throwable throwable = null;
+		var event = LogEvent.of(level, loggerName, formattedMessage, keyValues, throwable);
+		assertFalse(event.hasMessage());
+		assertNull(event.messageOrNull());
+		assertEquals("null", event.message());
+		assertInstanceOf(DefaultLogEvent.class, event);
 		assertFreeze(event);
 	}
 
 	@Test
 	void testOfLevelLoggerNameFormattedMessageThrowable() {
+		Level level = Level.INFO;
+		String loggerName = "logger";
+		String formattedMessage = "Hello!";
+		Throwable throwable = null;
+		var event = LogEvent.of(level, loggerName, formattedMessage, throwable);
+		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
+		assertNull(event.throwableOrNull());
+		assertTrue(event.keyValues().isEmpty());
+		assertEquals(Level.INFO, event.level());
+		assertInstanceOf(DefaultLogEvent.class, event);
+		StringBuilder sb = new StringBuilder();
+		event.formattedMessage(sb);
+		assertEquals("Hello!", sb.toString());
+		sb.setLength(0);
+		event.formattedMessage(sb, "NOT EXPECTED");
+		assertFreeze(event);
+	}
+
+	@Test
+	void testOfLevelLoggerNameFormattedMessageNullThrowable() {
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String formattedMessage = "Hello!";
@@ -57,6 +98,8 @@ class LogEventTest {
 		StringBuilder sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello!", sb.toString());
+		sb.setLength(0);
+		event.formattedMessage(sb, "NOT EXPECTED");
 		assertFreeze(event);
 	}
 
@@ -70,6 +113,8 @@ class LogEventTest {
 		Integer arg1 = 1;
 		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1);
 		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
 		assertNull(event.throwableOrNull());
 		assertFalse(event.keyValues().isEmpty());
 		String v = event.keyValues().getValueOrNull("k1");
@@ -79,6 +124,33 @@ class LogEventTest {
 		var sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("Hello 1!", sb.toString());
+		assertFreeze(event);
+	}
+
+	@Test
+	void testOfLevelLoggerNameMessageNullKeyValuesMessageFormatterArg1() {
+		Level level = Level.INFO;
+		String loggerName = "logger";
+		String message = null;
+		KeyValues keyValues = KeyValues.of(Map.of("k1", "v1"));
+		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
+		Integer arg1 = 1;
+		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1);
+
+		assertNotNull(event);
+		assertFalse(event.hasMessage());
+		assertNull(event.messageOrNull());
+		assertEquals("null", event.message());
+		assertInstanceOf(DefaultLogEvent.class, event);
+		assertFalse(event.keyValues().isEmpty());
+		String v = event.keyValues().getValueOrNull("k1");
+		assertEquals("v1", v);
+		assertEquals(Level.INFO, event.level());
+		// We expect the args to be ignored because message was null
+		assertInstanceOf(DefaultLogEvent.class, event);
+		var sb = new StringBuilder();
+		event.formattedMessage(sb, "MISSING EXPECTED");
+		assertEquals("MISSING EXPECTED", sb.toString());
 		assertFreeze(event);
 	}
 
@@ -93,6 +165,8 @@ class LogEventTest {
 		URI arg2 = URI.create("https://jstach.io");
 		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1, arg2);
 		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
 		assertNull(event.throwableOrNull());
 		assertFalse(event.keyValues().isEmpty());
 		String v = event.keyValues().getValueOrNull("k1");
@@ -106,6 +180,31 @@ class LogEventTest {
 	}
 
 	@Test
+	void testOfLevelLoggerNameMessageNullKeyValuesMessageFormatterArg1Arg2() {
+		Level level = Level.INFO;
+		String loggerName = "logger";
+		String message = null;
+		KeyValues keyValues = KeyValues.of(Map.of("k1", "v1"));
+		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
+		Integer arg1 = 1;
+		URI arg2 = URI.create("https://jstach.io");
+		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1, arg2);
+		assertNotNull(event);
+		assertFalse(event.hasMessage());
+		assertNull(event.messageOrNull());
+		assertNull(event.throwableOrNull());
+		assertFalse(event.keyValues().isEmpty());
+		String v = event.keyValues().getValueOrNull("k1");
+		assertEquals("v1", v);
+		assertEquals(Level.INFO, event.level());
+		assertInstanceOf(DefaultLogEvent.class, event);
+		var sb = new StringBuilder();
+		event.formattedMessage(sb);
+		assertEquals("null", sb.toString());
+		assertFreeze(event);
+	}
+
+	@Test
 	void testOfArgsZero() {
 		Level level = Level.INFO;
 		String loggerName = "logger";
@@ -114,6 +213,8 @@ class LogEventTest {
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter, new @Nullable Object[] {});
 		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
 		assertNull(event.throwableOrNull());
 		assertFalse(event.keyValues().isEmpty());
 		String v = event.keyValues().getValueOrNull("k1");
@@ -137,6 +238,8 @@ class LogEventTest {
 		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter,
 				new @Nullable Object[] { arg1 });
 		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
 		assertNull(event.throwableOrNull());
 		assertFalse(event.keyValues().isEmpty());
 		String v = event.keyValues().getValueOrNull("k1");
@@ -161,6 +264,8 @@ class LogEventTest {
 		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter,
 				new @Nullable Object[] { arg1, arg2 });
 		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
 		assertNull(event.throwableOrNull());
 		assertFalse(event.keyValues().isEmpty());
 		String v = event.keyValues().getValueOrNull("k1");
@@ -186,6 +291,8 @@ class LogEventTest {
 		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter,
 				new @Nullable Object[] { arg1, arg2, arg3 });
 		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
 		assertNull(event.throwableOrNull());
 		assertFalse(event.keyValues().isEmpty());
 		String v = event.keyValues().getValueOrNull("k1");
@@ -216,6 +323,8 @@ class LogEventTest {
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, args);
 		assertNotNull(event);
+		assertTrue(event.hasMessage());
+		assertNotNull(event.messageOrNull());
 		if (event.throwableOrNull() == null) {
 			fail("throwable should not be null");
 		}
@@ -320,6 +429,13 @@ class LogEventTest {
 		assertFreeze(event);
 	}
 
+	// Checker has junit stub inccorrect
+	private static void assertNotNull(@Nullable Object o) {
+		if (o == null) {
+			fail("o should not be null");
+		}
+	}
+
 	void assertFreeze(LogEvent event) {
 		var e = event.freeze(Instant.EPOCH);
 		if (e.keyValues() instanceof MutableKeyValues) {
@@ -330,6 +446,8 @@ class LogEventTest {
 		StringBuilder sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals(message, sb.toString(), "message should be formatted when frozen");
+		assertEquals(e.hasMessage(), event.hasMessage(), "event should retain message nullability");
+
 		assertCaller(event);
 	}
 

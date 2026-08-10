@@ -117,12 +117,15 @@ public sealed interface LogEvent {
 		Thread currentThread = Thread.currentThread();
 		String threadName = currentThread.getName();
 		long threadId = currentThread.threadId();
-		if (message == null) {
-			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null);
-		}
 		if (arg2 instanceof Throwable t) {
+			if (message == null) {
+				return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, t);
+			}
 			return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, t, arg1);
+		}
+		if (message == null) {
+			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null);
 		}
 		return new TwoArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
 				messageFormatter, null, arg1, arg2);
@@ -300,6 +303,18 @@ public sealed interface LogEvent {
 	public String message();
 
 	/**
+	 * Unformatted message or <code>null</code> if no message was passed into the event.
+	 * @return unformatted message or <code>null</code>.
+	 * @see #formattedMessage(StringBuilder)
+	 */
+	default @Nullable String messageOrNull() {
+		if (hasMessage()) {
+			return message();
+		}
+		return null;
+	}
+
+	/**
 	 * If the event has a message or not. Because the return of {@link #message()} is non
 	 * null there is no way to detect that a message is missing.
 	 * @return <code>true</code> if this event has a message.
@@ -314,6 +329,22 @@ public sealed interface LogEvent {
 	 * @see LogMessageFormatter
 	 */
 	public void formattedMessage(StringBuilder sb);
+
+	/**
+	 * Appends the formatted message.
+	 * @param sb string builder to use.
+	 * @param fallbackMessage string to use if the message was never set.
+	 * @see LogMessageFormatter
+	 * @see #hasMessage()
+	 */
+	default void formattedMessage(StringBuilder sb, String fallbackMessage) {
+		if (hasMessage()) {
+			formattedMessage(sb);
+		}
+		else {
+			sb.append(fallbackMessage);
+		}
+	}
 
 	/**
 	 * Throwable at the time of the event passed from the logger.
@@ -882,6 +913,11 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 	@Override
 	public String message() {
 		return "" + this.formattedMessage;
+	}
+
+	@Override
+	public @Nullable String messageOrNull() {
+		return this.formattedMessage;
 	}
 
 	@Override
