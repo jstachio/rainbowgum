@@ -28,6 +28,8 @@ public class LoggerMethodTest {
 
 	StringBuilder output = new StringBuilder();
 
+	boolean callerInfo = false;
+
 	LogFormatter _formatter = LogFormatter.builder().message().event((b, e) -> {
 		var t = e.throwableOrNull();
 		if (t != null) {
@@ -37,7 +39,13 @@ public class LoggerMethodTest {
 	}).build();
 
 	LogEventLogger appender = e -> {
-		_formatter.format(output, e);
+		if (callerInfo) {
+			var caller = e.callerOrNull();
+			output.append(caller.methodName());
+		}
+		else {
+			_formatter.format(output, e);
+		}
 	};
 
 	@ParameterizedTest
@@ -58,9 +66,33 @@ public class LoggerMethodTest {
 		assertEquals(expected, output.toString());
 	}
 
+	@ParameterizedTest
+	@MethodSource("provideParameters")
+	void testCallerInfo(LoggerMethod method, Level level, @Nullable Level loggerLevel) {
+		callerInfo = true;
+		if (loggerLevel == null) {
+			var logger = new LevelLogger.OffLogger(loggerName);
+			method.test(level, logger);
+			assertEquals("", output.toString());
+			return;
+		}
+		var handler = LogEventHandler.ofCallerInfo(loggerName, appender, mdc, 0);
+		var logger = LevelLogger.of(loggerLevel, handler);
+		method.test(level, logger);
+		String expected = method.expectedCaller();
+		if (level.toInt() < loggerLevel.toInt()) {
+			expected = "";
+		}
+		assertEquals(expected, output.toString());
+	}
+
 	sealed interface LoggerMethod {
 
 		String test(Level level, Logger logger);
+
+		default String expectedCaller() {
+			return "test";
+		}
 
 	}
 
