@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum.systemlogger;
 
-import static java.util.Objects.requireNonNullElse;
-
 import java.time.Instant;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -77,7 +75,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, Supplier<String> msgSupplier) {
 		if (isLoggable(level)) {
-			String formattedMessage = requireNonNullElse(msgSupplier.get(), "");
+			String formattedMessage = msgSupplier.get();
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
 			logger.log(event);
 		}
