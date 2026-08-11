@@ -1011,6 +1011,12 @@ the module will initialize Rainbow Gum. The idea is that your application only u
     For applications and frameworks that do a lot of logging the SLF4J facade is the preferred choice.
   </em>
 </p>
+<p>
+<p>
+Because java.util.logging (JUL) and System.Logger can be used very early on currently MDC (set by SLF4J) and caller info diagnostics is not provided at this time.
+Caller info maybe provided later as it is agnostic of SLF4J and if you would like that please file an issue. Support for changeable logging levels is provided for
+the System Logger provided the loggers are created after Rainbow Gum initializes.
+</p>
 
 <h3 id="spring_boot">Spring Boot</h3>
 

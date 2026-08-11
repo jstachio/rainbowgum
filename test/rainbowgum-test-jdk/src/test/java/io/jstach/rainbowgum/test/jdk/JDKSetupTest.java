@@ -11,8 +11,12 @@ import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.lang.System.Logger.Level;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -34,8 +38,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
-import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.jdk.jul.JULConfigurator;
 import io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;
@@ -107,14 +111,24 @@ class JDKSetupTest {
 	@Order(6)
 	@ParameterizedTest
 	@MethodSource("provideLevels")
-	void testMessageSupplier(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel)
-			throws InterruptedException {
+	void testMessageSupplier(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Message message) throws InterruptedException {
 		doInLock(() -> {
-			_testMessageSupplier(tester, level, loggerLevel);
+			_testMessageSupplier(tester, level, loggerLevel, message, null);
 		});
 	}
 
 	@Order(7)
+	@ParameterizedTest
+	@MethodSource("provideThrown")
+	void testMessageSupplierThrown(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Message message, Thrown thrown) throws InterruptedException {
+		doInLock(() -> {
+			_testMessageSupplier(tester, level, loggerLevel, message, thrown);
+		});
+	}
+
+	@Order(8)
 	@ParameterizedTest
 	@MethodSource("provideObject")
 	void testObject(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
@@ -125,7 +139,7 @@ class JDKSetupTest {
 
 	}
 
-	@Order(8)
+	@Order(9)
 	@ParameterizedTest
 	@MethodSource("provideOneArg")
 	void testOneArg(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
@@ -136,7 +150,7 @@ class JDKSetupTest {
 
 	}
 
-	@Order(9)
+	@Order(10)
 	@ParameterizedTest
 	@MethodSource("provideOneArg")
 	void testTwoArgs(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
@@ -147,7 +161,7 @@ class JDKSetupTest {
 
 	}
 
-	@Order(10)
+	@Order(11)
 	@ParameterizedTest
 	@MethodSource("provideOneArg")
 	void testThreeArgs(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel, Arg arg)
@@ -158,7 +172,7 @@ class JDKSetupTest {
 
 	}
 
-	@Order(11)
+	@Order(12)
 	@ParameterizedTest
 	@MethodSource("provideLevels")
 	void testThrowable(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel)
@@ -168,7 +182,27 @@ class JDKSetupTest {
 		});
 	}
 
-	@Order(12)
+	@Order(13)
+	@ParameterizedTest
+	@MethodSource("provideBundles")
+	void testBundleThrowable(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Bundle bundle) throws InterruptedException {
+		doInLock(() -> {
+			_testBundleThrowable(tester, level, loggerLevel, bundle);
+		});
+	}
+
+	@Order(13)
+	@ParameterizedTest
+	@MethodSource("provideBundles")
+	void testBundleArgs(LoggerTester<?> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Bundle bundle) throws InterruptedException {
+		doInLock(() -> {
+			_testBundleArgs(tester, level, loggerLevel, bundle, Arg.STRING);
+		});
+	}
+
+	@Order(15)
 	@ParameterizedTest
 	@EnumSource(System.Logger.Level.class)
 	void testNullRecord(System.Logger.Level loggerLevel) throws InterruptedException {
@@ -187,7 +221,7 @@ class JDKSetupTest {
 		});
 	}
 
-	@Order(13)
+	@Order(16)
 	@Test
 	void testCheckDefault() throws InterruptedException {
 		/*
@@ -227,6 +261,13 @@ class JDKSetupTest {
 
 		public void messageSupplier(T logger, System.Logger.Level level, Supplier<String> message);
 
+		public void messageSupplierThrown(T logger, System.Logger.Level level, Supplier<String> message,
+				Throwable thrown);
+
+		default boolean supportsMessageSupplierThrown() {
+			return true;
+		}
+
 		public void object(T logger, System.Logger.Level level, Arg arg);
 
 		public void oneArg(T logger, System.Logger.Level level, String message, Arg arg);
@@ -236,6 +277,11 @@ class JDKSetupTest {
 		public void threeArgs(T logger, System.Logger.Level level, String message, Arg arg1, Arg arg2, Arg arg3);
 
 		public void throwable(T logger, System.Logger.Level level, String message, Throwable throwable);
+
+		public void bundleThrowable(T logger, System.Logger.Level level, ResourceBundle bundle, String message,
+				Throwable throwable);
+
+		public void bundleArgs(T logger, System.Logger.Level level, ResourceBundle bundle, String message, Arg arg);
 
 		default RainbowGum run(ListLogOutput output, System.Logger.Level level) {
 			return JDKSetup.run(output, level, properties());
@@ -287,7 +333,11 @@ class JDKSetupTest {
 		@Override
 		public void messageSupplier(Logger logger, Level level, Supplier<String> message) {
 			logger.log(julLevel(level), message);
+		}
 
+		@Override
+		public void messageSupplierThrown(Logger logger, Level level, Supplier<String> message, Throwable thrown) {
+			logger.log(julLevel(level), thrown, message);
 		}
 
 		public void object(java.util.logging.Logger logger, System.Logger.Level level, Arg arg) {
@@ -296,6 +346,11 @@ class JDKSetupTest {
 
 		@Override
 		public boolean supportsObject() {
+			return false;
+		}
+
+		@Override
+		public boolean supportsMessageSupplierThrown() {
 			return false;
 		}
 
@@ -313,9 +368,21 @@ class JDKSetupTest {
 			logger.log(julLevel(level), message, new Object[] { arg1.arg, arg2.arg, arg3.arg });
 		}
 
+		@Override
 		public void throwable(java.util.logging.Logger logger, System.Logger.Level level, String message,
 				Throwable throwable) {
 			logger.log(julLevel(level), message, throwable);
+		}
+
+		@Override
+		public void bundleThrowable(Logger logger, Level level, ResourceBundle bundle, String message,
+				Throwable throwable) {
+			logger.logrb(julLevel(level), bundle, message, throwable);
+		}
+
+		@Override
+		public void bundleArgs(Logger logger, Level level, ResourceBundle bundle, String message, Arg arg) {
+			logger.logrb(julLevel(level), bundle, message, arg.arg);
 
 		}
 
@@ -432,6 +499,12 @@ class JDKSetupTest {
 		}
 
 		@Override
+		public void messageSupplierThrown(java.lang.System.Logger logger, Level level, Supplier<String> message,
+				Throwable thrown) {
+			logger.log(level, message, thrown);
+		}
+
+		@Override
 		public void object(java.lang.System.Logger logger, Level level, Arg message) {
 			logger.log(level, message.arg);
 		}
@@ -460,6 +533,19 @@ class JDKSetupTest {
 		@Override
 		public void throwable(java.lang.System.Logger logger, Level level, String message, Throwable throwable) {
 			logger.log(level, message, throwable);
+		}
+
+		@Override
+		public void bundleThrowable(java.lang.System.Logger logger, Level level, ResourceBundle bundle, String message,
+				Throwable throwable) {
+			logger.log(level, bundle, message, throwable);
+
+		}
+
+		@Override
+		public void bundleArgs(java.lang.System.Logger logger, Level level, ResourceBundle bundle, String message,
+				Arg arg) {
+			logger.log(level, bundle, message, new Object[] { arg.arg });
 		}
 
 	}
@@ -500,26 +586,36 @@ class JDKSetupTest {
 
 	}
 
-	<T> void _testMessageSupplier(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel) {
+	<T> void _testMessageSupplier(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Message mess, @Nullable Thrown thrown) {
 		ListLogOutput output = new ListLogOutput();
 		AtomicInteger count = new AtomicInteger();
 		Supplier<String> message = () -> {
 			count.incrementAndGet();
-			return "Hello!";
+			return mess.value();
 		};
 
 		var logger = tester.beforeLoad();
 		try (var gum = tester.run(output, loggerLevel)) {
 			logger = tester.afterLoad(logger);
-			tester.messageSupplier(logger, level, message);
+			if (thrown == null) {
+				tester.messageSupplier(logger, level, message);
+			}
+			else {
+				tester.messageSupplierThrown(logger, level, message, thrown.thrown());
+			}
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
 			String expected;
 			int expectedCount;
 			if (isEnabled(level, loggerLevel)) {
+				String exception = "";
+				if (thrown == Thrown.EXCEPTION) {
+					exception = "java.lang.RuntimeException: EXPECTED";
+				}
 				expectedCount = 1;
 				expected = """
-						00:00:00.000 [main] %s after.load - Hello!
-						""".formatted(levelString);
+						00:00:00.000 [main] %s after.load - %s
+						""".formatted(levelString, mess.expected) + exception;
 			}
 			else {
 				expectedCount = 0;
@@ -532,7 +628,7 @@ class JDKSetupTest {
 				}
 				expected = "";
 			}
-			String actual = output.toString();
+			String actual = firstTwoLines(output);
 			assertEquals(expected, actual);
 			assertEquals(expectedCount, count.get());
 		}
@@ -709,12 +805,79 @@ class JDKSetupTest {
 			else {
 				expected = "";
 			}
-			String actual = Stream.of(output.toString().split("\n", 3)).limit(2).collect(Collectors.joining("\n"));
+			String actual = firstTwoLines(output);
 
 			assertEquals(expected, actual);
 
 		}
+	}
 
+	<T> void _testBundleThrowable(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Bundle bundle) {
+		ListLogOutput output = new ListLogOutput();
+
+		String message = "key1";
+
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
+			var throwable = new RuntimeException("expected");
+			tester.bundleThrowable(logger, level, bundle.bundle(), message, throwable);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String expected;
+			if (isEnabled(level, loggerLevel)) {
+				expected = """
+						00:00:00.000 [main] %s after.load - %s
+						java.lang.RuntimeException: expected""".formatted(levelString, bundle.expected(message, null));
+			}
+			else {
+				expected = "";
+			}
+			String actual = firstTwoLines(output);
+
+			assertEquals(expected, actual);
+
+		}
+	}
+
+	<T> void _testBundleArgs(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
+			Bundle bundle, Arg arg) {
+		ListLogOutput output = new ListLogOutput();
+
+		String message = "key1";
+
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, loggerLevel)) {
+			logger = tester.afterLoad(logger);
+			tester.bundleArgs(logger, level, bundle.bundle(), message, arg);
+			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String expected;
+			if (isEnabled(level, loggerLevel)) {
+				if (arg == Arg.BAD) {
+					expected = """
+							00:00:00.000 [main] %s after.load - Hello {0}! %s
+							""".formatted(levelString, arg.expected);
+				}
+				else {
+					String expectedBundle = bundle.expected("key1", arg.expected);
+					expected = """
+							00:00:00.000 [main] %s after.load - %s
+							""".formatted(levelString, expectedBundle);
+				}
+			}
+			else {
+				expected = "";
+			}
+			String actual = output.toString();
+			assertEquals(expected, actual);
+
+		}
+
+	}
+
+	private static String firstTwoLines(ListLogOutput output) {
+		String actual = Stream.of(output.toString().split("\n", 3)).limit(2).collect(Collectors.joining("\n"));
+		return actual;
 	}
 
 	private static boolean isEnabled(System.Logger.Level level, System.Logger.Level loggerLevel) {
@@ -736,6 +899,22 @@ class JDKSetupTest {
 				for (var loggerLevel : System.Logger.Level.values()) {
 					for (var message : Message.values()) {
 						args.add(Arguments.of(tester, level, loggerLevel, message));
+					}
+				}
+			}
+		}
+		return args.stream();
+	}
+
+	private static Stream<Arguments> provideThrown() {
+		List<Arguments> args = new ArrayList<>();
+		for (var tester : provideTesters()) {
+			for (var level : System.Logger.Level.values()) {
+				for (var loggerLevel : System.Logger.Level.values()) {
+					for (var message : Message.values()) {
+						for (var thrown : Thrown.values()) {
+							args.add(Arguments.of(tester, level, loggerLevel, message, thrown));
+						}
 					}
 				}
 			}
@@ -767,6 +946,20 @@ class JDKSetupTest {
 				for (var loggerLevel : System.Logger.Level.values()) {
 					for (var arg : Arg.values()) {
 						args.add(Arguments.of(tester, level, loggerLevel, arg));
+					}
+				}
+			}
+		}
+		return args.stream();
+	}
+
+	private static Stream<Arguments> provideBundles() {
+		List<Arguments> args = new ArrayList<>();
+		for (var tester : provideTesters()) {
+			for (var level : System.Logger.Level.values()) {
+				for (var loggerLevel : System.Logger.Level.values()) {
+					for (var bundle : Bundle.values()) {
+						args.add(Arguments.of(tester, level, loggerLevel, bundle));
 					}
 				}
 			}
@@ -842,7 +1035,8 @@ class JDKSetupTest {
 
 	enum Message {
 
-		HELLO("Hello", "Hello"), NULL(null, "null");
+		HELLO("Hello", "Hello"), //
+		NULL(null, "null");
 
 		private final @Nullable String value;
 
@@ -863,7 +1057,8 @@ class JDKSetupTest {
 	enum Arg {
 
 		BAD("[MessageFormat failed: expected]", new BadToString()), //
-		NULL("null", null), STRING("hello", "hello"), //
+		NULL("null", null), //
+		STRING("hello", "hello"), //
 		INTEGER("1", 1), //
 		;
 
@@ -875,6 +1070,72 @@ class JDKSetupTest {
 			this.expected = expected;
 			this.arg = arg;
 		}
+
+	}
+
+	enum Thrown {
+
+		NULL() {
+			@Override
+			public @Nullable Throwable thrown() {
+				return null;
+			}
+		},
+		EXCEPTION() {
+			@Override
+			public @Nullable Throwable thrown() {
+				return new RuntimeException("EXPECTED");
+			}
+		};
+
+		public abstract @Nullable Throwable thrown();
+
+	}
+
+	enum Bundle {
+
+		NULL() {
+			@Override
+			public @Nullable ResourceBundle bundle() {
+				return null;
+			}
+
+			@Override
+			public String expected(String message, String arg) {
+				return message;
+			}
+		},
+		BUNDLE() {
+			@Override
+			public String expected(String message, @Nullable String arg) {
+				if ("key1".equals(message)) {
+					return "key1 bundle " + (arg == null ? "{0}" : arg);
+				}
+				return message;
+			}
+
+			@Override
+			public ResourceBundle bundle() {
+				Map<String, String> map = Map.of("key1", "key1 bundle {0}");
+				return new ResourceBundle() {
+
+					@Override
+					protected Object handleGetObject(String key) {
+						return map.get(key);
+					}
+
+					@Override
+					public Enumeration<String> getKeys() {
+						return Collections.enumeration(map.keySet());
+					}
+				};
+			}
+
+		};
+
+		public abstract String expected(String message, String arg);
+
+		public abstract ResourceBundle bundle();
 
 	}
 

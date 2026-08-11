@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.systemlogger;
 
 import java.time.Instant;
+import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
@@ -48,6 +49,21 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 			return Level.TRACE;
 		}
 		return level;
+	}
+
+	final static @Nullable String getMessage(@Nullable ResourceBundle bundle, String msg) {
+		if (bundle == null || msg == null) {
+			return msg;
+		}
+		try {
+			return bundle.getString(msg);
+		}
+		catch (MissingResourceException ex) {
+			return msg;
+		}
+		catch (ClassCastException ex) {
+			return bundle.getObject(msg).toString();
+		}
 	}
 
 	@Override
@@ -128,7 +144,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Throwable thrown) {
 		if (isLoggable(level)) {
-			String formattedMessage = msg;
+			String formattedMessage = getMessage(bundle, msg);
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, thrown);
 			logger.log(event);
 		}
@@ -141,7 +157,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 			Instant timestamp = Instant.now();
 			String threadName = currentThread.getName();
 			long threadId = currentThread.threadId();
-			String message = format;
+			String message = getMessage(bundle, format);
 			Throwable throwable = null;
 			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
 					throwable, StandardMessageFormatter.JUL, params);

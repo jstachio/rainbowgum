@@ -41,7 +41,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		this.router = router;
 	}
 
-	private static Level fixLevel(Level level) {
+	private final static Level fixLevel(Level level) {
 		if (level == Level.ALL) {
 			return Level.TRACE;
 		}
@@ -60,13 +60,13 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, @Nullable String msg) {
-		this.log(level, msg, (Throwable) null);
+		this._log(level, msg, (Throwable) null);
 	}
 
 	@SuppressWarnings("exports")
 	@Override
 	public void log(Level level, Supplier<@Nullable String> msgSupplier) {
-		this.log(level, msgSupplier, (Throwable) null);
+		this._log(level, msgSupplier, (Throwable) null);
 	}
 
 	@Override
@@ -83,6 +83,11 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, @Nullable String msg, @Nullable Throwable throwable) {
+		this._log(level, msg, throwable);
+	}
+
+	// To keep call depth consistent
+	private void _log(Level level, @Nullable String msg, @Nullable Throwable throwable) {
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
@@ -94,6 +99,11 @@ public final class RainbowGumSystemLogger implements System.Logger {
 	@SuppressWarnings("exports")
 	@Override
 	public void log(Level level, Supplier<@Nullable String> msgSupplier, @Nullable Throwable throwable) {
+		this._log(level, msgSupplier, throwable);
+	}
+
+	// To keep call depth consistent
+	private void _log(Level level, Supplier<@Nullable String> msgSupplier, @Nullable Throwable throwable) {
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
@@ -105,24 +115,34 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	@Override
 	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Throwable throwable) {
-		/*
-		 * TODO handle resource bundle
-		 */
-		this.log(level, msg, throwable);
+		_log(level, bundle, msg, throwable);
+	}
+
+	private void _log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg,
+			@Nullable Throwable throwable) {
+		level = fixLevel(level);
+		var route = router.route(loggerName, level);
+		if (route.isEnabled()) {
+			String formattedMessage = LevelSystemLogger.getMessage(bundle, msg);
+			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, throwable);
+			route.log(event);
+		}
 	}
 
 	@Override
 	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format, @Nullable Object... args) {
-		/*
-		 * TODO handle resource bundle
-		 */
+		this._log(level, bundle, format, args);
+	}
+
+	// To keep call depth consistent.
+	private void _log(Level level, @Nullable ResourceBundle bundle, @Nullable String format, @Nullable Object... args) {
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			Instant timestamp = Instant.now();
 			String threadName = Thread.currentThread().getName();
 			long threadId = Thread.currentThread().threadId();
-			String message = format;
+			String message = LevelSystemLogger.getMessage(bundle, format);
 			Throwable throwable = null;
 			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
 					throwable, StandardMessageFormatter.JUL, args);

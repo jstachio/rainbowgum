@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
@@ -41,6 +42,9 @@ public class LoggerMethodTest {
 	LogEventLogger appender = e -> {
 		if (callerInfo) {
 			var caller = e.callerOrNull();
+			assertEquals("LoggerMethodTest.java", caller.fileNameOrNull());
+			assertTrue(caller.className().contains("LoggerMethodTest"));
+			assertTrue(caller.lineNumber() > 0);
 			output.append(caller.methodName());
 		}
 		else {

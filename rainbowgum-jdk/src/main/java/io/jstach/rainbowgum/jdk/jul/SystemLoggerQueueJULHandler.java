@@ -74,15 +74,8 @@ final class SystemLoggerQueueJULHandler extends Handler {
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			@Nullable
-			String msg = alreadyFormattedOrNull(rec);
-			Object[] args;
-			if (msg != null) {
-				args = null;
-			}
-			else {
-				msg = rec.getMessage();
-				args = rec.getParameters();
-			}
+			String msg = getMessage(rec);
+			var args = rec.getParameters();
 
 			Instant timestamp = rec.getInstant();
 			long threadId = rec.getLongThreadID();
@@ -91,6 +84,8 @@ final class SystemLoggerQueueJULHandler extends Handler {
 			if (currentThreadId == threadId) {
 				threadName = Thread.currentThread().getName();
 			}
+			// TODO fix key values aka MDC
+			// TODO fix caller info
 			var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, msg, KeyValues.of(), cause,
 					StandardMessageFormatter.JUL, args);
 			route.log(event);
@@ -108,7 +103,7 @@ final class SystemLoggerQueueJULHandler extends Handler {
 
 	}
 
-	private static @Nullable String alreadyFormattedOrNull(LogRecord record) {
+	private static @Nullable String getMessage(LogRecord record) {
 		String message = record.getMessage();
 		if (message == null) {
 			return null;
@@ -121,7 +116,7 @@ final class SystemLoggerQueueJULHandler extends Handler {
 			catch (MissingResourceException e) {
 			}
 		}
-		return null;
+		return message;
 	}
 
 	/**
