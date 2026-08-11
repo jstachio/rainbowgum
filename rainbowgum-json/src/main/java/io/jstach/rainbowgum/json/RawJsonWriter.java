@@ -299,8 +299,15 @@ class RawJsonWriter {
 					_result[cur++] = (byte) (0x80 | (cp & 0x3F));
 				}
 				else {
-					throw new IllegalArgumentException(
-							"Unknown unicode codepoint in string! " + Integer.toHexString(cp));
+					/*
+					 * An unpaired UTF-16 surrogate (e.g. malformed input reaching a log
+					 * message or MDC value). A logging encoder must not throw on
+					 * adversarial/malformed input, so emit the Unicode replacement
+					 * character (U+FFFD) instead of a real codepoint for it.
+					 */
+					_result[cur++] = (byte) 0xEF;
+					_result[cur++] = (byte) 0xBF;
+					_result[cur++] = (byte) 0xBD;
 				}
 			}
 		}
