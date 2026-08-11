@@ -72,6 +72,29 @@ public class LoggerMethodTest {
 
 	@ParameterizedTest
 	@MethodSource("provideParameters")
+	void testForwardingLogger(LoggerMethod method, Level level, @Nullable Level loggerLevel) {
+		record MyForwardingLogger(Logger delegate) implements ForwardingLogger {
+
+		}
+		;
+		if (loggerLevel == null) {
+			var logger = new LevelLogger.OffLogger(loggerName);
+			method.test(level, logger);
+			assertEquals("", output.toString());
+			return;
+		}
+		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc);
+		var logger = new MyForwardingLogger(LevelLogger.of(loggerLevel, handler));
+		assertEquals(loggerName, logger.getName());
+		String expected = method.test(level, logger);
+		if (level.toInt() < loggerLevel.toInt()) {
+			expected = "";
+		}
+		assertEquals(expected, output.toString());
+	}
+
+	@ParameterizedTest
+	@MethodSource("provideParameters")
 	void testCallerInfo(LoggerMethod method, Level level, @Nullable Level loggerLevel) {
 		callerInfo = true;
 		if (loggerLevel == null) {
