@@ -150,6 +150,43 @@ class GelfEncoderTest {
 		}
 	}
 
+	@Test
+	void testMdcKeyIsEscaped() throws Exception {
+		var config = LogConfig.builder().build();
+		ListLogOutput output = new ListLogOutput();
+		try (var g = RainbowGum.builder(config).route(rb -> rb.appender("list", a -> {
+			a.encoder(GelfEncoder.of(gelf -> gelf.host("somehost")));
+			a.output(output);
+		})).build().start()) {
+			Instant instant = Instant.ofEpochMilli(1);
+			var kvs = MutableKeyValues.of().add("k\"1", "v1");
+			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", kvs, null).freeze(instant);
+			g.log(e);
+			String actual = output.events().get(0).getValue();
+			assertTrue(actual.contains("\"_k\\\"1\":\"v1\""),
+					"MDC key containing a quote must be escaped, not break out of the field name. Got: " + actual);
+		}
+	}
+
+	@Test
+	void testUnpairedSurrogateDoesNotThrow() throws Exception {
+		var config = LogConfig.builder().build();
+		ListLogOutput output = new ListLogOutput();
+		try (var g = RainbowGum.builder(config).route(rb -> rb.appender("list", a -> {
+			a.encoder(GelfEncoder.of(gelf -> gelf.host("somehost")));
+			a.output(output);
+		})).build().start()) {
+			Instant instant = Instant.ofEpochMilli(1);
+			// lone high surrogate with no matching low surrogate.
+			String malformed = "bad\uD800end";
+			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", malformed, null).freeze(instant);
+			g.log(e);
+			String actual = output.events().get(0).getValue();
+			// U+FFFD replacement character encoded as UTF-8.
+			assertTrue(actual.contains("bad�end"), "Got: " + actual);
+		}
+	}
+
 	@ParameterizedTest
 	@EnumSource(GelfTest.class)
 	void test(GelfTest test) throws Exception {

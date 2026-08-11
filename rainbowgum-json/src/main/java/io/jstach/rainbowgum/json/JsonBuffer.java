@@ -233,16 +233,15 @@ public final class JsonBuffer implements Buffer {
 		}
 		if ((flag & EXTENDED_F) == EXTENDED_F) {
 			/*
-			 * TODO on minor version offer a prefix suffix write as this is probably less
-			 * efficient. https://github.com/jstachio/rainbowgum/issues/208
+			 * Field names come from application controlled data (e.g. MDC keys) and must
+			 * be JSON escaped just like values otherwise a key containing a quote can
+			 * break out of the field name and forge sibling fields.
+			 * https://github.com/jstachio/rainbowgum/issues/208
 			 */
-			jsonWriter.writeByte(RawJsonWriter.QUOTE);
-			jsonWriter.writeByte(extendedFieldPrefix.raw);
-			jsonWriter.writeAscii(k);
-			jsonWriter.writeByte(RawJsonWriter.QUOTE);
+			jsonWriter.writeString(((char) extendedFieldPrefix.raw) + k);
 		}
 		else {
-			jsonWriter.writeAsciiString(k);
+			jsonWriter.writeString(k);
 		}
 		jsonWriter.writeByte(SEMI);
 	}
