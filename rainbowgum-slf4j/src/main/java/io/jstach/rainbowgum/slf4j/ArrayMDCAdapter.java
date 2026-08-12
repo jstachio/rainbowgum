@@ -39,11 +39,13 @@ class ArrayMDCAdapter implements MDCAdapter {
 		MutableKeyValues newMap;
 
 		if (oldMap != null) {
-			// we don't want the parent thread modifying oldMap while we are
-			// iterating over it
-			synchronized (oldMap) {
-				newMap = oldMap.copy();
-			}
+			/*
+			 * No synchronization needed here: copyOnThreadLocal is a plain (not
+			 * inheritable) ThreadLocal, so oldMap is never shared with another thread,
+			 * and nothing that reads a KeyValues elsewhere in the codebase synchronizes
+			 * on it either.
+			 */
+			newMap = oldMap.copy();
 		}
 		else {
 			newMap = MutableKeyValues.of();
@@ -65,9 +67,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 			newMap.accept(key, val);
 		}
 		else {
-			synchronized (oldMap) {
-				oldMap.accept(key, val);
-			}
+			oldMap.accept(key, val);
 		}
 	}
 
@@ -87,9 +87,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 			newMap.remove(key);
 		}
 		else {
-			synchronized (oldMap) {
-				oldMap.remove(key);
-			}
+			oldMap.remove(key);
 		}
 	}
 
@@ -140,9 +138,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 		if (oldMap == null) {
 			return MutableKeyValues.of();
 		}
-		synchronized (oldMap) {
-			return oldMap.copy();
-		}
+		return oldMap.copy();
 	}
 
 	// /**
