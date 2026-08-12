@@ -35,8 +35,8 @@ public class LoggerTest {
 		 * The plain (non fluent builder) logging path hands out the live,
 		 * ThreadLocal-owned MDC container as-is - no copy at this layer. What keeps a
 		 * previously handed-out reference safe from a later MDC.put/remove on the same
-		 * thread is ArrayMDCAdapter's own copy-on-write tracking: keyValuesOrNull() marks
-		 * the container as "just exposed", and the next put/remove clones before mutating
+		 * thread is ArrayMDCAdapter's own copy-on-write tracking: keyValues() marks the
+		 * container as "just exposed", and the next put/remove clones before mutating
 		 * instead of mutating in place. This test is really exercising that COW behavior
 		 * through the handler, not a copy made here.
 		 */

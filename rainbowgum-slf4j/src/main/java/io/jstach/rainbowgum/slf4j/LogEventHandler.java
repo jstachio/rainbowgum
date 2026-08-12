@@ -60,12 +60,7 @@ interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
 		 * key values - only when the route is actually asynchronous, i.e. only when a
 		 * copy is ever needed at all.
 		 */
-		var mdc = mdc();
-		var m = mdc.keyValuesOrNull();
-		if (m != null) {
-			return m;
-		}
-		return KeyValues.of();
+		return mdc().keyValues();
 	}
 
 	public RainbowGumMDCAdapter mdc();
