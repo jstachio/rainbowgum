@@ -26,10 +26,7 @@ class RainbowGumMDCAdapterTest {
 		mdc.put("k1", "v1");
 		test.run(mdc);
 		String expected = test.expected;
-		KeyValues kvs = mdc.keyValuesOrNull();
-		if (kvs == null) {
-			kvs = KeyValues.of();
-		}
+		KeyValues kvs = mdc.keyValues();
 		LogEvent event = LogEvent.of(System.Logger.Level.INFO, "test", "test", kvs, null);
 		StringBuilder sb = new StringBuilder();
 		formatter.format(sb, event);

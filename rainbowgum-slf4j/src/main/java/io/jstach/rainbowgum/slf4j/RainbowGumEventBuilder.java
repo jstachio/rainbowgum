@@ -136,10 +136,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 		long threadId = thread.threadId();
 		KeyValues keyValues = this.mutableKeyValues;
 		if (keyValues == null) {
-			keyValues = mdc.keyValuesOrNull();
-			if (keyValues == null) {
-				keyValues = KeyValues.of();
-			}
+			keyValues = mdc.keyValues();
 		}
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, this.args);

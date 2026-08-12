@@ -114,16 +114,18 @@ class ArrayMDCAdapter implements MDCAdapter {
 	}
 
 	/**
-	 * Get the current thread's MDC. This method is intended to be used internally and the
-	 * returned value <strong>should not be mutated by the caller</strong>. Calling this
-	 * marks the returned instance (if any) as exposed so that the next
+	 * Get the current thread's MDC, or an empty {@link KeyValues} if nothing has been put
+	 * yet. This method is intended to be used internally and the returned value
+	 * <strong>should not be mutated by the caller</strong>. Calling this marks the
+	 * returned instance (if not empty) as exposed so that the next
 	 * {@link #put(String, String)} or {@link #remove(String)} on this thread will
 	 * defensively copy before mutating instead of mutating in place.
-	 * @return key values or <code>null</code> if nothing has been put yet.
+	 * @return key values, never <code>null</code>.
 	 */
-	public @Nullable KeyValues keyValuesOrNull() {
+	public KeyValues keyValues() {
 		lastOperation.set(MAP_COPY_OPERATION);
-		return copyOnThreadLocal.get();
+		var m = copyOnThreadLocal.get();
+		return m == null ? KeyValues.of() : m;
 	}
 
 	/**
@@ -148,7 +150,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 	// * @return keys.
 	// */
 	// public @Nullable Set<String> getKeys() {
-	// MutableKeyValues map = keyValuesOrNull();
+	// MutableKeyValues map = keyValues();
 	//
 	// if (map != null) {
 	// return map.copyToMap().keySet();
