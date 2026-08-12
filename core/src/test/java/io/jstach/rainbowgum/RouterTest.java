@@ -172,4 +172,36 @@ class RouterTest {
 		}
 	}
 
+	@Test
+	void testRouteLevelChangePropagatesAndInvalidatesCache() throws Exception {
+		/*
+		 * The route's own level resolver is wrapped in its own CachedLevelResolver (see
+		 * PriorityLevelResolver / Router.Builder.build()). Level resolvers are documented
+		 * as cached/static by default, so a property change alone does nothing until
+		 * ChangePublisher.publish() is called - this is a regression test that publish()
+		 * actually reaches down and invalidates the route-level cache too, not just the
+		 * global one.
+		 */
+		var props = LogProperties.MutableLogProperties.builder()
+			.build()
+			.put("logging.global.change", "true")
+			.put("logging.route.errors.level.com.mycompany", "ERROR");
+		var config = LogConfig.builder().properties(props).build();
+
+		var gum = RainbowGum.builder(config).route("errors", r -> {
+			r.appender("out", a -> a.output(LogOutput.ofStandardOut()));
+		}).build();
+
+		try (var g = gum) {
+			assertFalse(g.router().route("com.mycompany.OrderService", Level.WARNING).isEnabled(),
+					"route configured to ERROR should not let WARNING through before the change");
+
+			props.put("logging.route.errors.level.com.mycompany", "WARNING");
+			config.changePublisher().publish();
+
+			assertTrue(g.router().route("com.mycompany.OrderService", Level.WARNING).isEnabled(),
+					"route level cache should have been invalidated by publish() and re-resolved to WARNING");
+		}
+	}
+
 }
