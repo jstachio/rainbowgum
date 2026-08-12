@@ -30,13 +30,15 @@ public class LoggerTest {
 	}
 
 	@Test
-	public void testKeyValuesAreCopiedNotLive() {
+	public void testKeyValuesUnaffectedByLaterMdcMutation() {
 		/*
-		 * The plain (non fluent builder) logging path must not hand out the live,
-		 * ThreadLocal-owned MDC container. An async publisher can still be formatting a
-		 * queued event on a worker thread while the calling thread moves on and mutates
-		 * MDC again - if the event held a reference to the live container, that later
-		 * mutation would leak into (or race with) the earlier event's rendering.
+		 * The plain (non fluent builder) logging path hands out the live,
+		 * ThreadLocal-owned MDC container as-is - no copy at this layer. What keeps a
+		 * previously handed-out reference safe from a later MDC.put/remove on the same
+		 * thread is ArrayMDCAdapter's own copy-on-write tracking:
+		 * mutableKeyValuesOrNull() marks the container as "just exposed", and the next
+		 * put/remove clones before mutating instead of mutating in place. This test is
+		 * really exercising that COW behavior through the handler, not a copy made here.
 		 */
 		var mdc = new RainbowGumMDCAdapter();
 		mdc.put("phase", "A");

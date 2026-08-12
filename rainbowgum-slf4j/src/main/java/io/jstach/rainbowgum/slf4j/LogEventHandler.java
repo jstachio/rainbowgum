@@ -52,20 +52,18 @@ interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
 
 	@Override
 	default KeyValues keyValues() {
+		/*
+		 * Do not copy here. The overwhelming majority of log calls use a synchronous
+		 * publisher, especially now that virtual threads make blocking IO cheap, and a
+		 * copy on every MDC-bearing log call would be pure garbage for that common case.
+		 * Router.log() (LogRouter.java) freezes the event - which defensively copies the
+		 * key values - only when the route is actually asynchronous, i.e. only when a
+		 * copy is ever needed at all.
+		 */
 		var mdc = mdc();
 		var m = mdc.mutableKeyValuesOrNull();
 		if (m != null) {
-			/*
-			 * Must copy and not return the live MDC container directly. This is the
-			 * default (non fluent builder) logging path, and the resulting LogEvent can
-			 * be handed to an async publisher without being frozen first (only
-			 * CompositeLogRouter freezes before async dispatch). Returning the live,
-			 * ThreadLocal-owned container would let the calling thread's subsequent
-			 * MDC.put/remove calls race with (or simply outrun) a worker thread still
-			 * formatting this event, silently corrupting or losing the MDC snapshot that
-			 * was supposed to belong to this specific log statement.
-			 */
-			return m.copy();
+			return m;
 		}
 		return KeyValues.of();
 	}
