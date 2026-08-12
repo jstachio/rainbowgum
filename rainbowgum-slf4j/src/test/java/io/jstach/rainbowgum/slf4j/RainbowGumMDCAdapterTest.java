@@ -26,7 +26,7 @@ class RainbowGumMDCAdapterTest {
 		mdc.put("k1", "v1");
 		test.run(mdc);
 		String expected = test.expected;
-		KeyValues kvs = mdc.mutableKeyValuesOrNull();
+		KeyValues kvs = mdc.keyValuesOrNull();
 		if (kvs == null) {
 			kvs = KeyValues.of();
 		}

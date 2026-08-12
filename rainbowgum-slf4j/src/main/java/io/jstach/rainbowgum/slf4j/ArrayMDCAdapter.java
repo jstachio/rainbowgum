@@ -10,6 +10,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.spi.MDCAdapter;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
 class ArrayMDCAdapter implements MDCAdapter {
@@ -113,13 +114,33 @@ class ArrayMDCAdapter implements MDCAdapter {
 	}
 
 	/**
-	 * Get the current thread's MDC as a map. This method is intended to be used
-	 * internally.
-	 * @return mutable key values.
+	 * Get the current thread's MDC. This method is intended to be used internally and the
+	 * returned value <strong>should not be mutated by the caller</strong>. Calling this
+	 * marks the returned instance (if any) as exposed so that the next
+	 * {@link #put(String, String)} or {@link #remove(String)} on this thread will
+	 * defensively copy before mutating instead of mutating in place.
+	 * @return key values or <code>null</code> if nothing has been put yet.
 	 */
-	public @Nullable MutableKeyValues mutableKeyValuesOrNull() {
+	public @Nullable KeyValues keyValuesOrNull() {
 		lastOperation.set(MAP_COPY_OPERATION);
 		return copyOnThreadLocal.get();
+	}
+
+	/**
+	 * Copies the current thread's MDC into a new, independent mutable buffer, or creates
+	 * an empty one if nothing has been put yet. The returned instance is never shared
+	 * with what MDC currently holds so it is safe for the caller to mutate it freely
+	 * (e.g. to seed a builder that will add more key values on top of a snapshot of MDC).
+	 * @return a new mutable key values, never <code>null</code>.
+	 */
+	public MutableKeyValues copyMutableKeyValues() {
+		MutableKeyValues oldMap = copyOnThreadLocal.get();
+		if (oldMap == null) {
+			return MutableKeyValues.of();
+		}
+		synchronized (oldMap) {
+			return oldMap.copy();
+		}
 	}
 
 	// /**
@@ -127,7 +148,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 	// * @return keys.
 	// */
 	// public @Nullable Set<String> getKeys() {
-	// MutableKeyValues map = mutableKeyValuesOrNull();
+	// MutableKeyValues map = keyValuesOrNull();
 	//
 	// if (map != null) {
 	// return map.copyToMap().keySet();
