@@ -109,6 +109,18 @@ class OptionTokenizer {
 					break;
 			}
 
+			/*
+			 * The switch above (specifically the QUOTED_COLLECTING_STATE escape handling)
+			 * can advance tokenStream.pointer past what the loop guard above already
+			 * validated, e.g. when the escaped character is the last character in the
+			 * whole pattern. Re-check bounds here instead of blindly fetching, otherwise
+			 * a truncated escape sequence throws an uncaught
+			 * StringIndexOutOfBoundsException instead of the intended ScanException
+			 * below.
+			 */
+			if (tokenStream.pointer >= patternLength) {
+				break;
+			}
 			c = pattern.charAt(tokenStream.pointer);
 			tokenStream.pointer++;
 		}
