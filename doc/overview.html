@@ -402,9 +402,35 @@ and <code>com.mycompany.bar</code> will resolve to <code>INFO</code>
 and anything not prefixed with <code>com.mycompany</code> will resolve to <code>ERROR</code>.
 An analog is to think of the "<code>.</code>" as directory path separators like in filesystems
 and resolution happens by going up the directories.
-This behavior is stated more formally in 
+This behavior is stated more formally in
 <a href="https://logback.qos.ch/manual/architecture.html#effectiveLevel">Logback's Effective Level</a>
 which is what Rainbow Gum follows as well.
+</p>
+
+<h4 id="route_level_priority">Route Level Priority</h4>
+
+<p>
+A router's {@linkplain io.jstach.rainbowgum.LevelResolver level resolver} is actually a chain: the
+route's <em>own</em> level configuration is checked first, and only if the route has no opinion for a
+particular logger name does resolution fall through to the global level resolver. This means a route's
+level configuration always takes priority over the global configuration for any logger name the route
+has configured — regardless of whether the global resolver has a deeper/more specific prefix match for
+that same name.
+</p>
+
+{@snippet lang=properties :
+logging.level.com.mycompany.orders=DEBUG   # global: specific override
+logging.route.errors.level=ERROR           # route "errors": broad override
+}
+
+<p>
+Without this priority rule a naive merge of the two resolvers into one combined prefix walk would let the
+more specific global entry (<code>com.mycompany.orders=DEBUG</code>) win, silently defeating the route's
+intent to restrict itself to <code>ERROR</code> and above. Because the route's resolver is consulted
+first and independently of the global one, the <em>"errors"</em> route above correctly resolves
+<code>com.mycompany.orders</code> to <code>ERROR</code> no matter what the global resolver says about
+that name. A route only falls back to the global resolver for logger names it has not configured an
+opinion about itself.
 </p>
 
 <p>
