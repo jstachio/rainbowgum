@@ -197,6 +197,17 @@ public sealed interface LogRouter extends LogLifecycle {
 
 		@Override
 		default void log(LogEvent event) {
+			/*
+			 * Only async publishers need a frozen (immutable, defensively copied) event.
+			 * A synchronous publisher fully encodes and writes the event on the calling
+			 * thread before this call returns, so there is no other thread that could
+			 * observe or race with further mutation (e.g. MDC.put/remove) of the live
+			 * event data - freezing there would just be wasted allocation on the hot
+			 * path. Freeze is a noop if the event is already frozen.
+			 */
+			if (!synchronous()) {
+				event = event.freeze();
+			}
 			publisher().log(event);
 		}
 
