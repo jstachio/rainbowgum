@@ -1070,6 +1070,113 @@ built-in {@code Marker} support otherwise):
 </p>
 
 
+<h2 id="example_configuration">Example Configuration</h2>
+
+Everything above introduced routes, level resolvers, publishers, appenders, encoders, and outputs
+one at a time. This section puts them together into one <strong>non-trivial</strong> configuration,
+first as properties and then the equivalent using builders, so the full shape of a realistic
+setup is visible in one place rather than spread across many small snippets.
+<p>
+Assume a hypothetical service <code>com.mycompany.orders</code> that wants:
+</p>
+<ul>
+  <li>A human readable, synchronous console appender for local development.</li>
+  <li>A structured (JSON) file appender for log aggregation, using an async publisher so encoding
+    and file IO do not block request threads.</li>
+  <li>A separate <code>errors</code> only file, independent of the two routes above, following the
+    <a href="#Additivity">multiple routes pattern</a> discussed earlier.</li>
+  <li>Noisy third party packages (<code>org.apache.http</code>, <code>io.netty</code>,
+    <code>com.zaxxer.hikari</code>) turned down to <code>WARN</code> everywhere via a
+    <a href="#level_groups">level group</a>.</li>
+</ul>
+
+<h3 id="example_configuration_properties">Properties</h3>
+
+{@snippet lang=properties :
+logging.level=INFO
+logging.level.com.mycompany.orders=DEBUG
+logging.groups=noisy
+logging.group.noisy=org.apache.http,io.netty,com.zaxxer.hikari
+logging.level.noisy=WARN
+
+logging.routes=console,structured,errors
+
+logging.route.console.appenders=console
+logging.route.console.level=INFO
+
+logging.route.structured.appenders=jsonfile
+logging.route.structured.publisher=async
+logging.route.structured.level=DEBUG
+
+logging.route.errors.appenders=errorfile
+logging.route.errors.level=ERROR
+logging.route.errors.level.com.mycompany.orders=ERROR
+
+logging.publisher.structured.bufferSize=2048
+
+logging.appender.console.output=stdout
+logging.appender.console.encoder=pattern
+
+logging.appender.jsonfile.output=./logs/orders.json.log
+logging.appender.jsonfile.encoder=gelf
+logging.appender.jsonfile.flags=reuse_buffer
+
+logging.appender.errorfile.output=./logs/orders-error.log
+logging.appender.errorfile.encoder=pattern
+logging.appender.errorfile.flags=immediate_flush
+
+logging.encoder.console.pattern=[%thread] %-5level %logger{36} - %msg%n
+
+logging.encoder.jsonfile.host=orders-service
+logging.encoder.jsonfile.prettyPrint=false
+
+logging.encoder.errorfile.pattern=%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n%ex
+}
+
+Two things worth calling out, both confirmed by actually running the above (not just written by hand):
+
+<p>
+<strong>Encoder configuration is keyed by appender name, but lives under a completely
+different property prefix than the appender itself.</strong> The <code>console</code> appender's
+own settings are under <code>logging.appender.console.*</code>, but its encoder's settings are under
+<code>logging.encoder.console.*</code> &mdash; a sibling prefix, not a child of the appender's.
+The same is true for <code>jsonfile</code> and <code>errorfile</code>. Conceptually the encoder
+belongs to the appender; in the property key space it is just another top level component that
+happens to share the appender's name.
+</p>
+
+<p>
+<strong>A route level threshold does not act as a hard ceiling &mdash; it merges with the global
+level resolver by prefix specificity, not by route priority.</strong> Without the line
+<code>logging.route.errors.level.com.mycompany.orders=ERROR</code>, the <code>errors</code> route
+would <em>still emit <code>DEBUG</code> and <code>INFO</code> events</em> for
+<code>com.mycompany.orders</code> despite <code>logging.route.errors.level=ERROR</code>, because
+the global <code>logging.level.com.mycompany.orders=DEBUG</code> is a <em>more specific</em>
+prefix match than the route's bare (root) <code>ERROR</code> setting, and specificity wins
+regardless of which resolver (route or global) the match came from. To make a route strictly
+<em>more restrictive</em> than the global baseline for a given logger name prefix, that same
+prefix has to be overridden again at the route level &mdash; setting a coarser route level alone is
+not enough once a more specific global override exists for names under it.
+</p>
+
+<h3 id="example_configuration_builder">Builder</h3>
+
+The same configuration (minus the JSON encoder, see the note below) using builders:
+
+{@snippet class="snippets.FullConfigurationExample" region="fullConfiguration" }
+
+<p>
+Notice the <code>structured</code> route above uses a plain text pattern encoder instead of the
+JSON module's <code>gelf</code> encoder used in the properties version. A URI scheme based encoder
+like <code>gelf</code> is resolved through the service loader at runtime, which is precisely why it
+is comfortable to reference from properties without the aggregate <code>rainbowgum</code> module
+needing to <code>requires</code> the JSON module at compile time. Referencing
+{@link io.jstach.rainbowgum.json.encoder.GelfEncoder} directly from a builder the way the rest of
+this example is written would require adding <code>rainbowgum-json</code> as an explicit compile
+dependency of whatever module the builder code lives in &mdash; illustrating a real trade-off between
+the two configuration styles rather than only a stylistic one.
+</p>
+
 <h2 id="installation">Installation</h2>
 
 For most simply including the dependency <code>io.jstach.rainbowgum:rainbowgum</code>
