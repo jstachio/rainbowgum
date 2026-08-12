@@ -61,7 +61,7 @@ interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
 		 * copy is ever needed at all.
 		 */
 		var mdc = mdc();
-		var m = mdc.mutableKeyValuesOrNull();
+		var m = mdc.keyValuesOrNull();
 		if (m != null) {
 			return m;
 		}

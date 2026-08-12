@@ -66,14 +66,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 	MutableKeyValues kvs() {
 		var kvs = this.mutableKeyValues;
 		if (kvs == null) {
-			var copy = mdc.mutableKeyValuesOrNull();
-			if (copy == null) {
-				copy = MutableKeyValues.of();
-			}
-			else {
-				copy = copy.copy();
-			}
-			kvs = this.mutableKeyValues = copy;
+			kvs = this.mutableKeyValues = mdc.copyMutableKeyValues();
 		}
 		return kvs;
 	}
@@ -143,7 +136,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 		long threadId = thread.threadId();
 		KeyValues keyValues = this.mutableKeyValues;
 		if (keyValues == null) {
-			keyValues = mdc.mutableKeyValuesOrNull();
+			keyValues = mdc.keyValuesOrNull();
 			if (keyValues == null) {
 				keyValues = KeyValues.of();
 			}
