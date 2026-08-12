@@ -47,6 +47,23 @@ class ParserTest {
 				actual);
 	}
 
+	@Test
+	void testTruncatedEscapeInQuotedOptionThrowsScanException() {
+		/*
+		 * A quoted %keyword{'...'} option whose content ends in a two character escape
+		 * sequence (backslash + one char) that is also the very last thing in the whole
+		 * pattern string. This previously threw an uncaught
+		 * StringIndexOutOfBoundsException from OptionTokenizer instead of the intended
+		 * ScanException.
+		 */
+		Throwable e = assertThrows(ScanException.class, () -> {
+			String input = "%d{'\\c";
+			Parser parser = new Parser(input);
+			parser.parse();
+		});
+		assertEquals("Unexpected end of pattern string in OptionTokenizer", e.getMessage());
+	}
+
 }
 
 // @formatter:off
