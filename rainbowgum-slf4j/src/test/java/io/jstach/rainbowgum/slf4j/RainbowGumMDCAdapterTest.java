@@ -3,8 +3,10 @@ package io.jstach.rainbowgum.slf4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.spi.MDCAdapter;
@@ -35,17 +37,37 @@ class RainbowGumMDCAdapterTest {
 		assertEquals(expected, actual);
 	}
 
+	@Test
+	void testMDCEmpty() {
+		var mdc = new RainbowGumMDCAdapter();
+		assertNull(mdc.getCopyOfContextMap());
+	}
+
 	enum MdcTest {
 
-		put("k1=v1&k2=v2", a -> a.put("k2", "v2")), remove("", a -> a.remove("k1")), clear("", a -> a.clear()),
+		put("k1=v1&k2=v2", a -> a.put("k2", "v2")), //
+		remove("", a -> a.remove("k1")), //
+		clear("", a -> a.clear()), //
 		get("k1=v1", a -> {
 			String v = a.get("k1");
 			assertEquals("v1", v);
-		}), pushByKey("k1=v1", a -> a.pushByKey("k1", "v2")), popByKey("k1=v1", a -> {
+		}), //
+		getCopyOfContext("k1=v2", a -> {
+			var map = a.getCopyOfContextMap();
+			assertEquals(Map.of("k1", "v1"), map, "should be k1=v1");
+			a.put("k1", "v2");
+			assertEquals(Map.of("k1", "v1"), map);
+			map = a.getCopyOfContextMap();
+			assertEquals(Map.of("k1", "v2"), map, "should be k1=v2");
+		}), //
+		pushByKey("k1=v1", a -> a.pushByKey("k1", "v2")), //
+		popByKey("k1=v1", a -> {
 			assertNull(a.popByKey("k1"));
-		}), getCopyOfDequeByKey("k1=v1", a -> {
+		}), //
+		getCopyOfDequeByKey("k1=v1", a -> {
 			assertNull(a.getCopyOfDequeByKey("k1"));
-		}), clearDequeByKey("k1=v1", a -> {
+		}), //
+		clearDequeByKey("k1=v1", a -> {
 			a.clearDequeByKey("k1");
 		}),;
 
