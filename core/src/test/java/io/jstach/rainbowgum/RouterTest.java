@@ -118,4 +118,58 @@ class RouterTest {
 		assertEquals("A", captured.keyValues().getValueOrNull("phase"));
 	}
 
+	@Test
+	void testRouteLevelTakesPriorityOverGlobalForCoveredNames() throws Exception {
+		/*
+		 * The global resolver has a MORE specific override for com.mycompany.orders
+		 * (DEBUG) than the route's bare root override (ERROR). Before route-level
+		 * priority, the more specific global match would win during the merged prefix
+		 * walk despite the route being meant to restrict to ERROR. Now the route's own
+		 * resolver is tried first and wins for any name it has an opinion about.
+		 */
+		var props = LogProperties.MutableLogProperties.builder()
+			.build()
+			.put("logging.level.com.mycompany.orders", "DEBUG");
+		var config = LogConfig.builder().properties(props).build();
+
+		var gum = RainbowGum.builder(config).route("errors", r -> {
+			r.level(Level.ERROR);
+			r.appender("out", a -> a.output(LogOutput.ofStandardOut()));
+		}).build();
+
+		try (var g = gum) {
+			var route = g.router().route("com.mycompany.orders.OrderService", Level.DEBUG);
+			assertFalse(route.isEnabled(), "route level ERROR should win over the more specific global DEBUG override");
+
+			assertTrue(g.router().route("com.mycompany.orders.OrderService", Level.ERROR).isEnabled());
+		}
+	}
+
+	@Test
+	void testRouteLevelFallsThroughToGlobalForUncoveredNames() throws Exception {
+		/*
+		 * A route with only a narrow override must not shadow global for every other name
+		 * too - only the names it actually has an opinion about.
+		 */
+		var props = LogProperties.MutableLogProperties.builder()
+			.build()
+			.put("logging.level.com.mycompany.orders", "DEBUG");
+		var config = LogConfig.builder().properties(props).build();
+
+		var gum = RainbowGum.builder(config).route("errors", r -> {
+			r.level(Level.ERROR, "com.mycompany.orders");
+			r.appender("out", a -> a.output(LogOutput.ofStandardOut()));
+		}).build();
+
+		try (var g = gum) {
+			// covered name: route's own ERROR override wins over global's DEBUG.
+			assertFalse(g.router().route("com.mycompany.orders.OrderService", Level.DEBUG).isEnabled());
+
+			// uncovered name: route has no opinion, falls through to whatever global
+			// resolves (unset here, so the framework default applies) rather than
+			// being silently shadowed by the route having some unrelated config.
+			assertTrue(g.router().route("com.other.thing", Level.INFO).isEnabled());
+		}
+	}
+
 }

@@ -56,36 +56,46 @@ class LevelResolverTest {
 				String actual = reformatToString(lr.toString());
 				String expected = """
 						CachedLevelResolver[
-							CompositeLevelConfig[
-								ConfigLevelResolver[
-									prefix=logging.route.default.level,
-									properties=MapLogProperties[
-										description='test_props',
-										order=0
+							PriorityLevelResolver[
+								primary=CachedLevelResolver[
+									PriorityLevelResolver[
+										primary=CachedLevelResolver[
+											CompositeLevelConfig[
+												ConfigLevelResolver[
+													prefix=logging.route.default.level,
+													properties=MapLogProperties[
+														description='test_props',
+														order=0
+													]
+												],
+												GroupLevelResolver[
+													groupLevelPrefix=logging.route.default.level,
+													properties=MapLogProperties[
+														description='test_props',
+														order=0
+													]
+												]
+											]
+										],
+										fallback=CompositeLevelConfig[
+											ConfigLevelResolver[
+												prefix=logging.level,
+												properties=MapLogProperties[
+													description='test_props',
+													order=0
+												]
+											],
+											GroupLevelResolver[
+												groupLevelPrefix=logging.level,
+												properties=MapLogProperties[
+													description='test_props',
+													order=0
+												]
+											]
+										]
 									]
 								],
-								GroupLevelResolver[
-									groupLevelPrefix=logging.route.default.level,
-									properties=MapLogProperties[
-										description='test_props',
-										order=0
-									]
-								],
-								ConfigLevelResolver[
-									prefix=logging.level,
-									properties=MapLogProperties[
-										description='test_props',
-										order=0
-									]
-								],
-								GroupLevelResolver[
-									groupLevelPrefix=logging.level,
-									properties=MapLogProperties[
-										description='test_props',
-										order=0
-									]
-								],
-								INFO
+								fallback=INFO
 							]
 						]""";
 				assertEquals(expected, actual);
@@ -172,36 +182,46 @@ class LevelResolverTest {
 						CachedLevelResolver[
 							CompositeLevelResolver[
 								CachedLevelResolver[
-									CompositeLevelConfig[
-										ConfigLevelResolver[
-											prefix=logging.route.default.level,
-											properties=MapLogProperties[
-												description='test_props',
-												order=0
+									PriorityLevelResolver[
+										primary=CachedLevelResolver[
+											PriorityLevelResolver[
+												primary=CachedLevelResolver[
+													CompositeLevelConfig[
+														ConfigLevelResolver[
+															prefix=logging.route.default.level,
+															properties=MapLogProperties[
+																description='test_props',
+																order=0
+															]
+														],
+														GroupLevelResolver[
+															groupLevelPrefix=logging.route.default.level,
+															properties=MapLogProperties[
+																description='test_props',
+																order=0
+															]
+														]
+													]
+												],
+												fallback=CompositeLevelConfig[
+													ConfigLevelResolver[
+														prefix=logging.level,
+														properties=MapLogProperties[
+															description='test_props',
+															order=0
+														]
+													],
+													GroupLevelResolver[
+														groupLevelPrefix=logging.level,
+														properties=MapLogProperties[
+															description='test_props',
+															order=0
+														]
+													]
+												]
 											]
 										],
-										GroupLevelResolver[
-											groupLevelPrefix=logging.route.default.level,
-											properties=MapLogProperties[
-												description='test_props',
-												order=0
-											]
-										],
-										ConfigLevelResolver[
-											prefix=logging.level,
-											properties=MapLogProperties[
-												description='test_props',
-												order=0
-											]
-										],
-										GroupLevelResolver[
-											groupLevelPrefix=logging.level,
-											properties=MapLogProperties[
-												description='test_props',
-												order=0
-											]
-										],
-										INFO
+										fallback=INFO
 									]
 								],
 								CachedLevelResolver[

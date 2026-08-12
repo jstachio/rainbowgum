@@ -358,16 +358,44 @@ public sealed interface LogRouter extends LogLifecycle {
 			Router build(RouterFactory factory) {
 				String name = this.name;
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
-				var levelResolverBuilder = LevelResolver.builder();
+
+				/*
+				 * The route's own level config is resolved in isolation from the global
+				 * level resolver so that a route level override takes priority per logger
+				 * name instead of merging with global by prefix specificity (a more
+				 * specific global override would otherwise win over a coarser route
+				 * override even though the route is meant to take precedence). If the
+				 * route has no opinion at all for a given name (resolves to Level.ALL)
+				 * resolution falls through to the global resolver for that name, unless
+				 * IGNORE_GLOBAL_LEVEL_RESOLVER is set in which case global is never
+				 * consulted.
+				 */
+				var routeLevelResolverBuilder = LevelResolver.builder();
 				var currentConfig = buildLevelConfigOrNull();
 				if (currentConfig != null) {
-					levelResolverBuilder.config(currentConfig);
+					routeLevelResolverBuilder.config(currentConfig);
 				}
-				levelResolverBuilder.config(config.properties(), routerLevelPrefix);
-				if (!flags.contains(RouteFlag.IGNORE_GLOBAL_LEVEL_RESOLVER)) {
-					levelResolverBuilder.config(config.levelResolver());
+				routeLevelResolverBuilder.config(config.properties(), routerLevelPrefix);
+				var routeLevelResolver = routeLevelResolverBuilder.build();
+
+				LevelResolver levelResolver;
+				if (flags.contains(RouteFlag.IGNORE_GLOBAL_LEVEL_RESOLVER)) {
+					levelResolver = routeLevelResolver;
 				}
-				var levelResolver = levelResolverBuilder.build();
+				else {
+					/*
+					 * config.levelResolver() (the global resolver) has no caching of its
+					 * own - the previous single merged CompositeLevelConfig relied on
+					 * being wrapped in one outer cache for the whole route+global
+					 * composition. Since route and global are now resolved as two
+					 * separate steps, that same guarantee (level resolvers are cached /
+					 * static, see LevelResolver's class documentation) has to be restored
+					 * explicitly here.
+					 */
+					levelResolver = new CachedLevelResolver(
+							new PriorityLevelResolver(routeLevelResolver, config.levelResolver()));
+				}
+
 				if (currentConfig == null) {
 					/*
 					 * If no config is provided in this route the global level might not
@@ -377,12 +405,12 @@ public sealed interface LogRouter extends LogLifecycle {
 					Objects.requireNonNull(level);
 					if (level == System.Logger.Level.ALL) {
 						/*
-						 * The global root level was not set or set to ALL. This is a bug
-						 * if this happens as the builders and other places will turn ALL
-						 * -> TRACE.
+						 * Neither the route nor the global level resolver have anything
+						 * configured. This is a bug if this happens as the builders and
+						 * other places will turn ALL -> TRACE.
 						 */
-						levelResolverBuilder.config(StaticLevelResolver.INFO);
-						levelResolver = levelResolverBuilder.build();
+						levelResolver = new CachedLevelResolver(
+								new PriorityLevelResolver(levelResolver, StaticLevelResolver.INFO));
 						// throw new IllegalStateException("Global Level Resolver should
 						// not resolve to Level.ALL");
 					}

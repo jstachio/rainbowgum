@@ -540,6 +540,37 @@ record CompositeLevelResolver(LevelResolver[] resolvers, Level defaultLevel) imp
  * Luckily level resolution is only called when a logger is created and the loggers are
  * cached.
  */
+/*
+ * Resolves against primary first; only consults fallback for a given name if primary has
+ * no opinion at all for it (resolves to Level.ALL). This gives primary priority per
+ * logger name rather than merging primary and fallback into one combined prefix walk,
+ * where a more specific match in fallback could otherwise win over a coarser match in
+ * primary regardless of which one is meant to take precedence.
+ */
+record PriorityLevelResolver(LevelResolver primary, LevelResolver fallback) implements LevelResolver {
+
+	@Override
+	public Level resolveLevel(String name) {
+		var level = primary.resolveLevel(name);
+		if (level == Level.ALL) {
+			return fallback.resolveLevel(name);
+		}
+		return level;
+	}
+
+	@Override
+	public void clear() {
+		primary.clear();
+		fallback.clear();
+	}
+
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + "[primary=" + primary + ", fallback=" + fallback + "]";
+	}
+
+}
+
 final class CachedLevelResolver implements LevelResolver {
 
 	private final LevelResolver levelResolver;
