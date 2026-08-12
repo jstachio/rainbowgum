@@ -897,19 +897,40 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 	@Override
 	public void log(LogEvent event) {
 		InternalRootRouter d = delegate;
-		if (d instanceof QueueEventsRouter q) {
-			q.log(event);
+		if (d instanceof QueueEventsRouter) {
+			/*
+			 * A drain (triggered by startup finishing config load, or by close()) can
+			 * swap delegate and fully drain the old queue in between our unsynchronized
+			 * read above and the enqueue below. Without synchronizing against drainLock
+			 * here, an event could be added to a queue that has already been drained for
+			 * the one and only time it ever will be - silently lost forever. Re-check
+			 * delegate under the lock: either drain finishes first and we route directly
+			 * through the new delegate, or our enqueue happens first and is guaranteed to
+			 * be seen by drain's poll loop. This only affects the narrow bootstrap window
+			 * before the real delegate is installed; once d stops being a
+			 * QueueEventsRouter this branch is never reached again and no lock is ever
+			 * taken.
+			 */
+			drainLock.lock();
+			try {
+				d = delegate;
+				if (d instanceof QueueEventsRouter q) {
+					q.log(event);
+					return;
+				}
+			}
+			finally {
+				drainLock.unlock();
+			}
 		}
-		else {
-			String loggerName = event.loggerName();
-			var level = event.level();
-			var route = d.route(event.loggerName(), event.level());
-			if (route.isEnabled()) {
-				route.log(event);
-			}
-			if (isShutdownEvent(loggerName, level)) {
-				d.close();
-			}
+		String loggerName = event.loggerName();
+		var level = event.level();
+		var route = d.route(event.loggerName(), event.level());
+		if (route.isEnabled()) {
+			route.log(event);
+		}
+		if (isShutdownEvent(loggerName, level)) {
+			d.close();
 		}
 	}
 
