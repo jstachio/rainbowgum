@@ -55,7 +55,17 @@ interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
 		var mdc = mdc();
 		var m = mdc.mutableKeyValuesOrNull();
 		if (m != null) {
-			return m;
+			/*
+			 * Must copy and not return the live MDC container directly. This is the
+			 * default (non fluent builder) logging path, and the resulting LogEvent can
+			 * be handed to an async publisher without being frozen first (only
+			 * CompositeLogRouter freezes before async dispatch). Returning the live,
+			 * ThreadLocal-owned container would let the calling thread's subsequent
+			 * MDC.put/remove calls race with (or simply outrun) a worker thread still
+			 * formatting this event, silently corrupting or losing the MDC snapshot that
+			 * was supposed to belong to this specific log statement.
+			 */
+			return m.copy();
 		}
 		return KeyValues.of();
 	}
