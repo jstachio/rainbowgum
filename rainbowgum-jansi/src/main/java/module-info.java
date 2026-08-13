@@ -16,9 +16,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 module io.jstach.rainbowgum.jansi {
 	
 	exports io.jstach.rainbowgum.jansi;
-	
+
 	requires transitive io.jstach.rainbowgum;
-	requires org.fusesource.jansi;
+	requires org.jline.jansi.core;
 	
 	requires static io.jstach.svc;
 	requires static org.eclipse.jdt.annotation;

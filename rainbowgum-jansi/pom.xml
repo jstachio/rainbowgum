@@ -18,7 +18,7 @@
     </dependency>
     <dependency>
       <groupId>org.jline</groupId>
-      <artifactId>jline-terminal-jansi</artifactId>
+      <artifactId>jansi-core</artifactId>
     </dependency>
     <dependency>
       <groupId>io.jstach.pistachio</groupId>
