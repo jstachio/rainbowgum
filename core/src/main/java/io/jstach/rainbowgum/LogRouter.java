@@ -376,25 +376,18 @@ public sealed interface LogRouter extends LogLifecycle {
 					routeLevelResolverBuilder.config(currentConfig);
 				}
 				routeLevelResolverBuilder.config(config.properties(), routerLevelPrefix);
-				var routeLevelResolver = routeLevelResolverBuilder.build();
-
-				LevelResolver levelResolver;
-				if (flags.contains(RouteFlag.IGNORE_GLOBAL_LEVEL_RESOLVER)) {
-					levelResolver = routeLevelResolver;
+				/*
+				 * config.levelResolver() (the global resolver) has no caching of its own
+				 * - the previous single merged CompositeLevelConfig relied on being
+				 * wrapped in one outer cache for the whole route+global composition.
+				 * LevelResolver.Builder.build() restores that guarantee (level resolvers
+				 * are cached / static, see LevelResolver's class documentation) for the
+				 * combined route+global resolver below.
+				 */
+				if (!flags.contains(RouteFlag.IGNORE_GLOBAL_LEVEL_RESOLVER)) {
+					routeLevelResolverBuilder.fallback(config.levelResolver());
 				}
-				else {
-					/*
-					 * config.levelResolver() (the global resolver) has no caching of its
-					 * own - the previous single merged CompositeLevelConfig relied on
-					 * being wrapped in one outer cache for the whole route+global
-					 * composition. Since route and global are now resolved as two
-					 * separate steps, that same guarantee (level resolvers are cached /
-					 * static, see LevelResolver's class documentation) has to be restored
-					 * explicitly here.
-					 */
-					levelResolver = new CachedLevelResolver(
-							new PriorityLevelResolver(routeLevelResolver, config.levelResolver()));
-				}
+				var levelResolver = routeLevelResolverBuilder.build();
 
 				if (currentConfig == null) {
 					/*
@@ -409,8 +402,10 @@ public sealed interface LogRouter extends LogLifecycle {
 						 * configured. This is a bug if this happens as the builders and
 						 * other places will turn ALL -> TRACE.
 						 */
-						levelResolver = new CachedLevelResolver(
-								new PriorityLevelResolver(levelResolver, StaticLevelResolver.INFO));
+						levelResolver = LevelResolver.builder()
+							.resolver(levelResolver)
+							.fallback(StaticLevelResolver.INFO)
+							.build();
 						// throw new IllegalStateException("Global Level Resolver should
 						// not resolve to Level.ALL");
 					}
