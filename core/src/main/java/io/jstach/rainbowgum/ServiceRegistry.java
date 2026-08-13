@@ -166,7 +166,13 @@ final class DefaultServiceRegistry implements ServiceRegistry {
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T> T putIfAbsent(Class<T> type, String name, Supplier<T> supplier) {
-		var t = (T) services.computeIfAbsent(new ServiceKey(type, name), k -> Objects.requireNonNull(supplier.get()));
+		var t = (T) services.computeIfAbsent(new ServiceKey(type, name), k -> {
+			T v = supplier.get();
+			if (v == null) {
+				throw new NullPointerException("supplier returned null. type: " + type);
+			}
+			return v;
+		});
 		return t;
 	}
 

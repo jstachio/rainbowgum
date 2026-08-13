@@ -600,7 +600,7 @@ public sealed interface LogProperty {
 			@Override
 			public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
 					throws NoSuchElementException {
-				var v = fallback.get();
+				T v = fallback.get();
 				if (v != null) {
 					return v;
 				}
@@ -1543,7 +1543,7 @@ record FallbackGetter<T>(PropertyGetter<T> parent, Supplier<? extends T> fallbac
 					yield s;
 				}
 				String key = keys.getFirst();
-				var f = fallback.get();
+				T f = fallback.get();
 				if (f == null) {
 					yield PropertyGetter.findRoot(parent) //
 						.errorResult(props, keys.get(0),
