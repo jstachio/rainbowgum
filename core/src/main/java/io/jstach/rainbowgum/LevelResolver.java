@@ -311,11 +311,22 @@ public interface LevelResolver {
 		 */
 		private final List<LevelResolver> levelResolvers = new ArrayList<>();
 
+		/**
+		 * lower priority fallback resolvers.
+		 */
+		private final List<LevelResolver> fallbacks = new ArrayList<>();
+
 		private Builder() {
 		}
 
 		/**
-		 * Builds a cached level resolver.
+		 * Builds a level resolver combining {@link #config(LevelConfig)},
+		 * {@link #level(Level, String)}, and {@link #resolver(LevelResolver)} into a
+		 * single resolver of equal priority (the highest severity/most restrictive level
+		 * found for a logger name wins), and, if any {@link #fallback(LevelResolver)
+		 * fallbacks} were added, wrapping that in a priority chain where the fallbacks
+		 * are only consulted for logger names the combined resolver above has no opinion
+		 * on (resolves to {@link Level#ALL}). The result is cached.
 		 * @return level resolver.
 		 */
 		public LevelResolver build() {
@@ -325,16 +336,43 @@ public interface LevelResolver {
 				copy.add(config);
 			}
 			copy.addAll(levelResolvers);
-			return cached(ofResolvers(copy));
+			LevelResolver resolver = ofResolvers(copy);
+			if (!fallbacks.isEmpty()) {
+				List<LevelResolver> priority = new ArrayList<>();
+				priority.add(resolver);
+				priority.addAll(fallbacks);
+				resolver = PriorityLevelResolver.of(priority);
+			}
+			return cached(resolver);
 		}
 
 		/**
-		 * Adds a level resolver to the end of the resolve list.
+		 * Adds a level resolver to the end of the resolve list. Resolvers added this way
+		 * are combined with equal priority: for a given logger name the most restrictive
+		 * level found across all of them (including {@link #config(LevelConfig)} /
+		 * {@link #level(Level, String)}) wins.
 		 * @param resolver level resolver.
 		 * @return this
 		 */
 		public Builder resolver(LevelResolver resolver) {
 			this.levelResolvers.add(resolver);
+			return this;
+		}
+
+		/**
+		 * Adds a lower priority fallback level resolver. Fallbacks are tried in the order
+		 * added and only consulted for a logger name if every resolver ahead of it
+		 * (everything from {@link #config(LevelConfig)}, {@link #level(Level, String)},
+		 * {@link #resolver(LevelResolver)}, and any earlier added fallback) has no
+		 * opinion for that name, i.e. resolves to {@link Level#ALL}. This is useful for
+		 * e.g. giving a route's own level configuration priority over a global level
+		 * resolver without a more specific match in the global resolver being able to
+		 * win.
+		 * @param resolver fallback level resolver.
+		 * @return this
+		 */
+		public Builder fallback(LevelResolver resolver) {
+			this.fallbacks.add(resolver);
 			return this;
 		}
 
@@ -542,32 +580,59 @@ record CompositeLevelResolver(LevelResolver[] resolvers, Level defaultLevel) imp
  * cached.
  */
 /*
- * Resolves against primary first; only consults fallback for a given name if primary has
- * no opinion at all for it (resolves to Level.ALL). This gives primary priority per
- * logger name rather than merging primary and fallback into one combined prefix walk,
- * where a more specific match in fallback could otherwise win over a coarser match in
- * primary regardless of which one is meant to take precedence.
+ * Resolves against resolvers in order and returns the first non ALL result. This gives
+ * earlier resolvers priority per logger name rather than merging all resolvers into one
+ * combined prefix walk, where a more specific match in a lower priority resolver could
+ * otherwise win over a coarser match in a higher priority one regardless of which is
+ * meant to take precedence.
  */
-record PriorityLevelResolver(LevelResolver primary, LevelResolver fallback) implements LevelResolver {
+@SuppressWarnings("ArrayRecordComponent")
+record PriorityLevelResolver(LevelResolver[] resolvers) implements LevelResolver {
+
+	public static LevelResolver of(Collection<? extends LevelResolver> resolvers) {
+		List<LevelResolver> resolved = new ArrayList<>();
+		for (var r : resolvers) {
+			if (r instanceof PriorityLevelResolver pr) {
+				for (var j : pr.resolvers()) {
+					resolved.add(j);
+				}
+			}
+			else {
+				resolved.add(r);
+			}
+		}
+		if (resolved.isEmpty()) {
+			return StaticLevelResolver.ALL;
+		}
+		if (resolved.size() == 1) {
+			return resolved.get(0);
+		}
+		@SuppressWarnings("null") // TODO eclipse bug
+		LevelResolver @NonNull [] array = resolved.toArray(new LevelResolver[] {});
+		return new PriorityLevelResolver(array);
+	}
 
 	@Override
 	public Level resolveLevel(String name) {
-		var level = primary.resolveLevel(name);
-		if (level == Level.ALL) {
-			return fallback.resolveLevel(name);
+		for (var resolver : resolvers) {
+			var level = resolver.resolveLevel(name);
+			if (level != Level.ALL) {
+				return level;
+			}
 		}
-		return level;
+		return Level.ALL;
 	}
 
 	@Override
 	public void clear() {
-		primary.clear();
-		fallback.clear();
+		for (var resolver : resolvers) {
+			resolver.clear();
+		}
 	}
 
 	@Override
 	public String toString() {
-		return this.getClass().getSimpleName() + "[primary=" + primary + ", fallback=" + fallback + "]";
+		return this.getClass().getSimpleName() + Arrays.asList(resolvers);
 	}
 
 }
