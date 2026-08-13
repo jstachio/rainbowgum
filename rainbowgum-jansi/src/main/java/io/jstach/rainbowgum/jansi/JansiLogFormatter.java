@@ -1,7 +1,7 @@
 package io.jstach.rainbowgum.jansi;
 
-import org.fusesource.jansi.Ansi.Attribute;
-import org.fusesource.jansi.Ansi.Color;
+import org.jline.jansi.Ansi.Attribute;
+import org.jline.jansi.Ansi.Color;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;

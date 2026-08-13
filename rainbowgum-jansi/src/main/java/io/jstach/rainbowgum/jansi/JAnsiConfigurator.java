@@ -1,7 +1,7 @@
 package io.jstach.rainbowgum.jansi;
 
-import org.fusesource.jansi.AnsiConsole;
-import org.fusesource.jansi.AnsiMode;
+import org.jline.jansi.AnsiConsole;
+import org.jline.jansi.AnsiMode;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;

@@ -241,8 +241,8 @@
       </dependency>
       <dependency>
         <groupId>org.jline</groupId>
-        <artifactId>jline-terminal-jansi</artifactId>
-        <version>3.30.16</version>
+        <artifactId>jansi-core</artifactId>
+        <version>4.3.1</version>
         <scope>compile</scope>
       </dependency>
       <dependency>
