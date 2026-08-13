@@ -119,7 +119,6 @@ public sealed interface LogFormatter {
 			StaticFormatter current = null;
 			for (var f : flattened) {
 				if (f.isNoop()) {
-					continue;
 				}
 				else if (current == null && f instanceof StaticFormatter sf) {
 					current = sf;
