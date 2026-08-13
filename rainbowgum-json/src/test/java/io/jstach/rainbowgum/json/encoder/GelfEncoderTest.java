@@ -14,9 +14,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.PropertiesParser;
@@ -49,7 +51,11 @@ class GelfEncoderTest {
 		GelfEncoder encoder = b.build();
 
 		Instant instant = Instant.ofEpochMilli(1);
-		LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
+		LogEvent e = LogEvent
+			.ofAll(instant, "main", 1L, Level.INFO, "gelf", "hello", KeyValues.of(), null,
+					StandardMessageFormatter.SLF4J, List.of())
+			.freeze(instant);
+
 		var buffer = encoder.buffer(WriteMethod.STRING);
 		encoder.encode(e, buffer);
 		ListLogOutput out = new ListLogOutput();
@@ -88,7 +94,10 @@ class GelfEncoderTest {
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
+			LogEvent e = LogEvent
+				.ofAll(instant, "main", 1L, Level.INFO, "gelf", "hello", KeyValues.of(), null,
+						StandardMessageFormatter.SLF4J, List.of())
+				.freeze(instant);
 			r.log(e);
 		}
 	}
@@ -106,8 +115,18 @@ class GelfEncoderTest {
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
-			r.log(e);
+			// LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello",
+			// null).freeze(instant);
+			// LogEvent e = LogEvent.ofAll(instant, "main", 1L, Level.INFO, "gelf",
+			// "hello", KeyValues.of(), throwable(), StandardMessageFormatter.SLF4J,
+			// List.of()).freeze(instant);
+			r.router()
+				.eventBuilder("gelf", System.Logger.Level.INFO)
+				.message("hello")
+				.threadId(1)
+				.timestamp(instant)
+				.log();
+			// r.log(e);
 			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.events().get(0).getValue();
 			String expected = "{\"host\":\"somehost\",\"short_message\":\"hello\","
@@ -129,8 +148,12 @@ class GelfEncoderTest {
 			a.output(output);
 		})).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", null).freeze(instant);
-			g.log(e);
+			g.router()
+				.eventBuilder("gelf", System.Logger.Level.INFO)
+				.message("hello")
+				.threadId(1)
+				.timestamp(instant)
+				.log();
 			String actual = output.events().get(0).getValue();
 			String expected = """
 					{
@@ -295,7 +318,11 @@ class GelfEncoderTest {
 			@Override
 			List<LogEvent> events() {
 				var kvs = MutableKeyValues.of().add("k1", "v1").add("k2", "v2");
-				return List.of(LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", kvs, null).freeze(instant));
+				LogEvent e = LogEvent
+					.ofAll(instant, "main", 1L, level(), "gelf", message(), kvs, throwable(),
+							StandardMessageFormatter.SLF4J, List.of())
+					.freeze(instant);
+				return List.of(e);
 
 			}
 		},
@@ -345,7 +372,11 @@ class GelfEncoderTest {
 		}
 
 		List<LogEvent> events() {
-			return List.of(LogEvent.of(level(), "gelf", message(), throwable()).freeze(instant));
+			LogEvent e = LogEvent
+				.ofAll(instant, "main", 1L, level(), "gelf", message(), KeyValues.of(), throwable(),
+						StandardMessageFormatter.SLF4J, List.of())
+				.freeze(instant);
+			return List.of(e);
 		}
 
 		@Nullable

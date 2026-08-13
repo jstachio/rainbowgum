@@ -50,7 +50,9 @@ public final class TestEventBuilder {
 	 * @return event builder.
 	 */
 	public LogEvent.Builder event() {
-		return new LogEventBuilder(logger, level, loggerName).timestamp(Instant.EPOCH).message("testMessage");
+		return new LogEventBuilder(logger, level, loggerName).threadId(1L)
+			.timestamp(Instant.EPOCH)
+			.message("testMessage");
 	}
 
 	/**
