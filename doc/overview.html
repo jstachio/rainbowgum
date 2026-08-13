@@ -407,6 +407,29 @@ This behavior is stated more formally in
 which is what Rainbow Gum follows as well.
 </p>
 
+<h4 id="changing_reesolving">Changing Levels</h4>
+
+<p>
+  Rainbow Gum
+  <strong>
+    by default assumes Level Resolvers are cached or static and will never change.
+  </strong>
+  This is a critical feature of Rainbow Gum as it <em>allows facade loggers like in SLF4J to be 
+  lower overhead than almost all other logging frameworks!</em>
+  That being said RainbowGum allows levels to be changed if the backing configuration framework
+  supports reloading and the logger name is allowed to be changed.
+</p>
+
+Below is an example of configuring to allow <em>"changing" loggers</em>
+
+{@snippet lang=properties :
+logging.global.change=true          # this is required to turn on level changing. 
+logging.change.com.mycompany=level  # only logger names starting with com.mycompany can have their levels changed.
+}
+
+To fire off that configuration has changed the {@link io.jstach.rainbowgum.LogConfig.ChangePublisher}
+is used and depending on configuration backend may require a manual {@link io.jstach.rainbowgum.LogConfig.ChangePublisher publish call}.
+
 <h4 id="route_level_priority">Route Level Priority</h4>
 
 <p>
@@ -414,7 +437,7 @@ A router's {@linkplain io.jstach.rainbowgum.LevelResolver level resolver} is act
 route's <em>own</em> level configuration is checked first, and only if the route has no opinion for a
 particular logger name does resolution fall through to the global level resolver. This means a route's
 level configuration always takes priority over the global configuration for any logger name the route
-has configured — regardless of whether the global resolver has a deeper/more specific prefix match for
+has configured regardless of whether the global resolver has a deeper/more specific prefix match for
 that same name.
 </p>
 
@@ -432,24 +455,6 @@ first and independently of the global one, the <em>"errors"</em> route above cor
 that name. A route only falls back to the global resolver for logger names it has not configured an
 opinion about itself.
 </p>
-
-<p>
-  An important consideration is that Rainbow Gum
-  <strong>
-    by default assumes Level Resolvers are cached or static and will never change.
-  </strong>
-  This is a critical feature of Rainbow Gum as it <em>allows facade loggers like in SLF4J to be 
-  lower overhead than almost all other logging frameworks!</em>
-  That being said RainbowGum allows levels to be changed if the backing configuration framework
-  supports reloading and the logger name is allowed to be changed.
-</p>
-
-Below is an example of configuring to allow <em>"changing" loggers</em>
-
-{@snippet lang=properties :
-logging.global.change=true          # this is required to turn on level changing. 
-logging.change.com.mycompany=level  # only logger names starting with com.mycompany can have their levels changed.
-}
 
 <h4 id="level_groups">Level Groups</h4>
 

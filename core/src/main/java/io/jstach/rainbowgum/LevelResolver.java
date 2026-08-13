@@ -29,9 +29,10 @@ import io.jstach.rainbowgum.LogProperty.PropertyGetter;
 public interface LevelResolver {
 
 	/**
-	 * Determines what level the logger should be at.
+	 * Determines what level the logger should be at. {@linkplain Level#ALL} is to signal
+	 * that nothing was resolved.
 	 * @param name logger name.
-	 * @return level.
+	 * @return resolved level or {@link Level#ALL} if unable to resolve.
 	 */
 	public Level resolveLevel(String name);
 
