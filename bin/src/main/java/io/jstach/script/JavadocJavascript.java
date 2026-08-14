@@ -80,6 +80,9 @@ public class JavadocJavascript {
 	}
 
 	static void removeSearchFocus(Path searchJs) throws IOException {
+		if (! searchJs.toFile().exists()) {
+			return;
+		}
 		List<String> lines = Files.readAllLines(searchJs);
 		List<String> processed = new ArrayList<>();
 		boolean found = false;
