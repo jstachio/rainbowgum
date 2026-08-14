@@ -10,7 +10,12 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -326,6 +331,18 @@ public sealed interface LogFormatter {
 		}
 
 		/**
+		 * Appends the events throwable stack trace using a custom
+		 * {@link ThrowableFormatter} (e.g. one created with
+		 * {@link ThrowableFormatter#of(int, List)}).
+		 * @param throwableFormatter formatter to use.
+		 * @return this.
+		 */
+		public Builder throwable(ThrowableFormatter throwableFormatter) {
+			formatters.add(throwableFormatter);
+			return this;
+		}
+
+		/**
 		 * Will create a generic log formatter that has the inner formatters coalesced if
 		 * possible and will noop if there are no formatters.
 		 * @return flattened formatter.
@@ -535,10 +552,43 @@ public sealed interface LogFormatter {
 
 		/**
 		 * Default implementation uses {@link Throwable#printStackTrace(PrintWriter)}.
+		 * This formatter is equivalent to {@code of(Integer.MAX_VALUE, List.of())} except
+		 * that it defers entirely to {@link Throwable#printStackTrace()} and thus will
+		 * respect any override of that method a particular {@link Throwable} subclass
+		 * might have.
 		 * @return formatter.
 		 */
 		public static ThrowableFormatter of() {
 			return DefaultThrowableFormatter.INSTANT;
+		}
+
+		/**
+		 * Creates a throwable formatter that limits the number of stack frame lines shown
+		 * for each throwable in the cause/suppressed chain and can exclude frames
+		 * matching regular expressions. The output is otherwise formatted like
+		 * {@link Throwable#printStackTrace()}: common frames shared with the enclosing
+		 * throwable are elided the same way (e.g. <code>"... 6 more"</code>) as long as
+		 * the depth limit was not what stopped printing; if the depth limit is what
+		 * stopped printing a <code>"... N frames truncated"</code> line is emitted
+		 * instead.
+		 * @param maxLines maximum number of stack frame ("at ...") lines printed per
+		 * throwable in the chain. Use {@link Integer#MAX_VALUE} for no limit (matches
+		 * {@link #of()} for well behaved throwables). {@code 0} prints just the throwable
+		 * header lines (class and message) for the whole chain with no frames at all.
+		 * @param excludes regular expressions matched with {@link Matcher#find()} against
+		 * each frame's {@link StackTraceElement#toString()}. A frame matching any of
+		 * these is omitted entirely and does not count against {@code maxLines}. May be
+		 * empty for no filtering.
+		 * @return formatter.
+		 * @apiNote unlike {@link #of()} this implementation walks
+		 * {@link Throwable#getCause()}/{@link Throwable#getSuppressed()}/
+		 * {@link Throwable#getStackTrace()} directly instead of calling
+		 * {@link Throwable#printStackTrace()} and thus will not honor a custom override
+		 * of that method.
+		 */
+		public static ThrowableFormatter of(int maxLines, List<String> excludes) {
+			List<Pattern> compiled = excludes.isEmpty() ? List.of() : excludes.stream().map(Pattern::compile).toList();
+			return new StandardThrowableFormatter(maxLines, compiled);
 		}
 
 		/**
@@ -804,6 +854,125 @@ enum DefaultThrowableFormatter implements ThrowableFormatter {
 	@Override
 	public void formatThrowable(StringBuilder output, Throwable throwable) {
 		ThrowableFormatter.appendThrowable(output, throwable);
+	}
+
+}
+
+/**
+ * Reimplements {@link Throwable#printStackTrace()}'s algorithm (header line, frames,
+ * common-frame elision against the enclosing trace, "Caused by:"/"Suppressed:" sections,
+ * circular reference guard) so that a max line count and frame exclusion patterns can be
+ * applied while printing.
+ */
+final class StandardThrowableFormatter implements ThrowableFormatter {
+
+	private static final String CAUSE_CAPTION = "Caused by: ";
+
+	private static final String SUPPRESSED_CAPTION = "Suppressed: ";
+
+	private final int maxLines;
+
+	private final List<Pattern> excludes;
+
+	StandardThrowableFormatter(int maxLines, List<Pattern> excludes) {
+		this.maxLines = maxLines;
+		this.excludes = excludes;
+	}
+
+	@Override
+	public void formatThrowable(StringBuilder output, Throwable throwable) {
+		Set<Throwable> dejaVu = Collections.newSetFromMap(new IdentityHashMap<>());
+		dejaVu.add(throwable);
+		var trace = throwable.getStackTrace();
+		output.append(throwable).append(System.lineSeparator());
+		printFrames(output, trace, trace.length, "");
+		for (var suppressed : throwable.getSuppressed()) {
+			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, "\t", dejaVu);
+		}
+		var cause = throwable.getCause();
+		if (cause != null) {
+			printEnclosed(output, cause, trace, CAUSE_CAPTION, "", dejaVu);
+		}
+	}
+
+	private void printEnclosed(StringBuilder output, Throwable throwable, StackTraceElement[] enclosingTrace,
+			String caption, String prefix, Set<Throwable> dejaVu) {
+		if (!dejaVu.add(throwable)) {
+			output.append(prefix)
+				.append("[CIRCULAR REFERENCE: ")
+				.append(throwable)
+				.append(']')
+				.append(System.lineSeparator());
+			return;
+		}
+		var trace = throwable.getStackTrace();
+		int m = trace.length - 1;
+		int n = enclosingTrace.length - 1;
+		while (m >= 0 && n >= 0 && trace[m].equals(enclosingTrace[n])) {
+			m--;
+			n--;
+		}
+		int framesInCommon = trace.length - 1 - m;
+		output.append(prefix).append(caption).append(throwable).append(System.lineSeparator());
+		boolean truncated = printFrames(output, trace, m + 1, prefix);
+		if (!truncated && framesInCommon > 0) {
+			output.append(prefix)
+				.append("\t... ")
+				.append(framesInCommon)
+				.append(" more")
+				.append(System.lineSeparator());
+		}
+		for (var suppressed : throwable.getSuppressed()) {
+			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, prefix + "\t", dejaVu);
+		}
+		var cause = throwable.getCause();
+		if (cause != null) {
+			printEnclosed(output, cause, trace, CAUSE_CAPTION, prefix, dejaVu);
+		}
+	}
+
+	/*
+	 * Prints frames trace[0..count) filtered by excludes and capped at maxLines. Returns
+	 * true if there were excluded-filtered frames beyond maxLines (i.e. the output was
+	 * cut short because of maxLines rather than ending naturally).
+	 */
+	private boolean printFrames(StringBuilder output, StackTraceElement[] trace, int count, String prefix) {
+		int printed = 0;
+		int available = 0;
+		for (int i = 0; i < count; i++) {
+			var element = trace[i];
+			if (isExcluded(element)) {
+				continue;
+			}
+			available++;
+			if (printed < maxLines) {
+				output.append(prefix).append("\tat ").append(element).append(System.lineSeparator());
+				printed++;
+			}
+		}
+		if (available > maxLines) {
+			output.append(prefix)
+				.append("\t... ")
+				.append(available - maxLines)
+				.append(" frames truncated")
+				.append(System.lineSeparator());
+			return true;
+		}
+		return false;
+	}
+
+	private boolean isExcluded(StackTraceElement element) {
+		if (excludes.isEmpty()) {
+			return false;
+		}
+		String s = element.toString();
+		for (var p : excludes) {
+			Matcher matcher = p.matcher(s);
+			if (matcher.find()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 }

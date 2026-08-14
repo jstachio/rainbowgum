@@ -25,6 +25,7 @@ import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_WHITE;
 import java.lang.System.Logger.Level;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -33,6 +34,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
+import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.pattern.Padding;
 import io.jstach.rainbowgum.pattern.PatternKeyword;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFactory;
@@ -225,6 +227,31 @@ enum StandardKeywordFactory implements KeywordFactory {
 				return LogFormatter.noop();
 			}
 			return LogFormatter.builder().text("[").text(v).text("]").build();
+		}
+
+	},
+	/**
+	 * <code>%ex</code>, <code>%ex{full}</code>, <code>%ex{short}</code>,
+	 * <code>%ex{N}</code>, <code>%ex{N, regex1, regex2, ...}</code>.
+	 */
+	THROWABLE() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			String depth = node.optOrNull(0);
+			int maxLines;
+			if (depth == null || depth.equalsIgnoreCase("full")) {
+				maxLines = Integer.MAX_VALUE;
+			}
+			else if (depth.equalsIgnoreCase("short")) {
+				maxLines = 0;
+			}
+			else {
+				maxLines = Integer.parseInt(depth);
+			}
+			var options = node.optionList();
+			List<String> excludes = options.size() > 1 ? options.subList(1, options.size()) : List.of();
+			return ThrowableFormatter.of(maxLines, excludes);
 		}
 
 	};

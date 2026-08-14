@@ -400,7 +400,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case MDC -> StandardKeywordFactory.MDC;
 				case MICROS -> KeywordFactory.of(LogFormatter.TimestampFormatter.ofMicros());
 				case THREAD -> KeywordFactory.of(LogFormatter.builder().threadName().build());
-				case THROWABLE -> KeywordFactory.of(LogFormatter.ThrowableFormatter.of());
+				case THROWABLE -> StandardKeywordFactory.THROWABLE;
 				case CLASS -> KeywordFactory.of(CallerInfoFormatter.CLASS);
 				case FILE -> KeywordFactory.of(CallerInfoFormatter.FILE);
 				case LINE -> KeywordFactory.of(CallerInfoFormatter.LINE);
