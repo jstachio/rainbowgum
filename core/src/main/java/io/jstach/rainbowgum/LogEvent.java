@@ -995,6 +995,7 @@ record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEve
 	}
 
 	@Override
+	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
 		var e = event.freeze();
 		var info = callerOrNull.freeze();
@@ -1006,6 +1007,7 @@ record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEve
 	}
 
 	@Override
+	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze(Instant timestamp) {
 		var e = event.freeze(timestamp);
 		var info = callerOrNull.freeze();

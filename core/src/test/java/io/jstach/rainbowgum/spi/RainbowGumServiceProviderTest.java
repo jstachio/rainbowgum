@@ -90,7 +90,7 @@ class RainbowGumServiceProviderTest {
 
 		int succeedAfter = 1;
 
-		public FakeConfigurator(String name, int succeedAfter) {
+		FakeConfigurator(String name, int succeedAfter) {
 			super();
 			this.name = name;
 			this.succeedAfter = succeedAfter;
