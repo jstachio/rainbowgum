@@ -267,6 +267,7 @@ public sealed interface KeyValues {
 	 * @param kvs second.
 	 * @return true if equal.
 	 */
+	@SuppressWarnings("ReferenceEquality")
 	static boolean equals(KeyValues self, KeyValues kvs) {
 		if (self == kvs)
 			return true;
@@ -617,6 +618,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	 * We implement BiConsumer to avoid garbage like entry set and iterators
 	 */
 	@Override
+	@SuppressWarnings("ReferenceEquality")
 	public void putKeyValue(String key, @Nullable String value) {
 		Objects.requireNonNull(key);
 		if (kvs == EMPTY) {
@@ -647,6 +649,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	}
 
 	@Override
+	@SuppressWarnings("ReferenceEquality")
 	public void remove(final String key) {
 		if (kvs == EMPTY) {
 			return;

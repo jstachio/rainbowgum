@@ -61,6 +61,7 @@ final class ShutdownManager {
 		}
 	}
 
+	@SuppressWarnings("ReferenceEquality")
 	static void removeShutdownHook(AutoCloseable hook) {
 		staticLock.writeLock().lock();
 		try {

@@ -297,29 +297,29 @@ final class SLF4JMessageFormatter {
 		else {
 			// check for primitive array types because they
 			// unfortunately cannot be cast to Object[]
-			if (o instanceof boolean[]) {
-				booleanArrayAppend(sbuf, (boolean[]) o);
+			if (o instanceof boolean[] array) {
+				booleanArrayAppend(sbuf, array);
 			}
-			else if (o instanceof byte[]) {
-				byteArrayAppend(sbuf, (byte[]) o);
+			else if (o instanceof byte[] array) {
+				byteArrayAppend(sbuf, array);
 			}
-			else if (o instanceof char[]) {
-				charArrayAppend(sbuf, (char[]) o);
+			else if (o instanceof char[] array) {
+				charArrayAppend(sbuf, array);
 			}
-			else if (o instanceof short[]) {
-				shortArrayAppend(sbuf, (short[]) o);
+			else if (o instanceof short[] array) {
+				shortArrayAppend(sbuf, array);
 			}
-			else if (o instanceof int[]) {
-				intArrayAppend(sbuf, (int[]) o);
+			else if (o instanceof int[] array) {
+				intArrayAppend(sbuf, array);
 			}
-			else if (o instanceof long[]) {
-				longArrayAppend(sbuf, (long[]) o);
+			else if (o instanceof long[] array) {
+				longArrayAppend(sbuf, array);
 			}
-			else if (o instanceof float[]) {
-				floatArrayAppend(sbuf, (float[]) o);
+			else if (o instanceof float[] array) {
+				floatArrayAppend(sbuf, array);
 			}
-			else if (o instanceof double[]) {
-				doubleArrayAppend(sbuf, (double[]) o);
+			else if (o instanceof double[] array) {
+				doubleArrayAppend(sbuf, array);
 			}
 			else {
 				if (seenMap == null) {

@@ -781,7 +781,7 @@ public interface LogProperties {
 
 			private final Function<String, @Nullable String> func;
 
-			public DefaultLogProperties(Function<String, @Nullable String> func, String description,
+			DefaultLogProperties(Function<String, @Nullable String> func, String description,
 					Function<String, String> renameKey, int order) {
 				super(description, renameKey, order);
 				this.func = func;
@@ -890,7 +890,7 @@ public interface LogProperties {
 
 				private final Map<String, String> map;
 
-				public MapLogProperties(Map<String, String> map, String description, Function<String, String> renameKey,
+				MapLogProperties(Map<String, String> map, String description, Function<String, String> renameKey,
 						int order) {
 					super(description, renameKey, order);
 					this.map = map;
