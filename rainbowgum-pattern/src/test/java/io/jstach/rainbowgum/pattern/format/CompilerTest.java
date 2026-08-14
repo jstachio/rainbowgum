@@ -165,6 +165,34 @@ class CompilerTest {
 				return Stream.of(output.split("\n")).limit(1).findFirst().orElse("FAIL");
 			}
 		},
+		THROWABLE_MAX_LINES(List.of("%ex{2}"),
+				"java.lang.RuntimeException: boom\n" + "\tat com.example.App.a(App.java:1)\n"
+						+ "\tat com.example.App.b(App.java:2)\n" + "\t... 2 frames truncated\n") {
+			LogEvent event() {
+				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+		},
+		THROWABLE_SHORT(List.of("%ex{short}"), "java.lang.RuntimeException: boom\n\t... 2 frames truncated\n") {
+			LogEvent event() {
+				Throwable throwable = throwableWithFrames("boom", "a", "b");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+		},
+		THROWABLE_FULL(List.of("%ex{full}"), "java.lang.RuntimeException: boom\n"
+				+ "\tat com.example.App.a(App.java:1)\n" + "\tat com.example.App.b(App.java:2)\n") {
+			LogEvent event() {
+				Throwable throwable = throwableWithFrames("boom", "a", "b");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+		},
+		THROWABLE_EXCLUDE(List.of("%ex{full, noisyReflect}"), "java.lang.RuntimeException: boom\n"
+				+ "\tat com.example.App.keepA(App.java:1)\n" + "\tat com.example.App.keepB(App.java:3)\n") {
+			LogEvent event() {
+				Throwable throwable = throwableWithFrames("boom", "keepA", "noisyReflect", "keepB");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+		},
 		LINESEP("%n", "\n") {
 		},
 		LOGGER_LEFT_PAD("%20logger", "    io.jstach.logger") {
@@ -400,6 +428,16 @@ class CompilerTest {
 
 		LogEvent event() {
 			return LogEvent.of(level(), logger(), message(), keyValues(), null).freeze(Instant.EPOCH);
+		}
+
+		static Throwable throwableWithFrames(String message, String... methodNames) {
+			var throwable = new RuntimeException(message);
+			var frames = new StackTraceElement[methodNames.length];
+			for (int i = 0; i < methodNames.length; i++) {
+				frames[i] = new StackTraceElement("com.example.App", methodNames[i], "App.java", i + 1);
+			}
+			throwable.setStackTrace(frames);
+			return throwable;
 		}
 
 	}
