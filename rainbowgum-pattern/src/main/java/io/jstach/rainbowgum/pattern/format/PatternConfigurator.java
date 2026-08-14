@@ -25,9 +25,19 @@ import io.jstach.svc.ServiceProvider;
 /**
  * Configures Logback style pattern encoders and offers provision with the URI scheme
  * {@value PatternEncoder#PATTERN_SCHEME}.
+ *
+ * @see PatternEncoderBuilder
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class PatternConfigurator implements Configurator {
+
+	/**
+	 * Property that will disable this configurator from replacing the default encoder
+	 * with the pattern encoder. The default encoder is normally the TTLL encoder but if
+	 * this configurator is loaded the pattern encoder will be used and if a no pattern is
+	 * provided a default one is picked.
+	 */
+	public static final String LOGGING_PATTERN_DISABLE_PROPERTY = LogProperties.ROOT_PREFIX + "pattern.disable";
 
 	/**
 	 * For service loader to call.
@@ -54,7 +64,7 @@ public final class PatternConfigurator implements Configurator {
 		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider());
 		var disable = LogProperty.builder()
 			.ofBoolean()
-			.build("logging.pattern.disable")
+			.build(LOGGING_PATTERN_DISABLE_PROPERTY)
 			.get(config.properties())
 			.value(false);
 		if (!disable) {
