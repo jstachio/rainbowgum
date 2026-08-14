@@ -188,16 +188,13 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 				.build();
 			LogProperties patternProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			Patterns patterns = new Patterns(patternProperties);
-			var consoleEncoder = new PatternEncoderBuilder("console").pattern(patterns.consolePattern())
-				.build()
-				.provide("console", config);
 
-			var fileEncoder = new PatternEncoderBuilder("file").pattern(patterns.filePattern())
-				.build()
-				.provide("file", config);
+			var consoleEncoder = new PatternEncoderBuilder("console").pattern(patterns.consolePattern()).build();
 
-			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, () -> consoleEncoder);
-			config.encoderRegistry().setEncoderForOutputType(OutputType.FILE, () -> fileEncoder);
+			var fileEncoder = new PatternEncoderBuilder("file").pattern(patterns.filePattern()).build();
+
+			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, consoleEncoder);
+			config.encoderRegistry().setEncoderForOutputType(OutputType.FILE, fileEncoder);
 			rainbowGum = findAndSet(config, classLoader, initializationContext.getEnvironment());
 		}
 

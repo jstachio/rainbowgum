@@ -8,6 +8,7 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 
+// TODO deprecate
 /**
  * Jansi TTLL formater.
  */

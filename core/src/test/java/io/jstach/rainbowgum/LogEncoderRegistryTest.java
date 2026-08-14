@@ -75,7 +75,7 @@ class LogEncoderRegistryTest {
 			config.encoderRegistry().register("custom", provider);
 			config.encoderRegistry()
 				.setEncoderForOutputType(OutputType.MEMORY,
-						() -> LogFormatter.builder().text("OUTPUT_TYPE ").message().newline().encoder());
+						(name, c) -> LogFormatter.builder().text("OUTPUT_TYPE ").message().newline().encoder());
 			return true;
 		}
 
