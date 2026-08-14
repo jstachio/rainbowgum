@@ -407,16 +407,16 @@ This behavior is stated more formally in
 which is what Rainbow Gum follows as well.
 </p>
 
-<h4 id="changing_reesolving">Changing Levels</h4>
+<h4 id="changing_resolving">Changing Levels at Runtime</h4>
 
 <p>
   Rainbow Gum
   <strong>
-    by default assumes Level Resolvers are cached or static and will never change.
+    by default assumes Level Resolvers are cached or static and will never change at runtime.
   </strong>
   This is a critical feature of Rainbow Gum as it <em>allows facade loggers like in SLF4J to be 
   lower overhead than almost all other logging frameworks!</em>
-  That being said RainbowGum allows levels to be changed if the backing configuration framework
+  That being said RainbowGum allows levels to be changed at runtime if the backing configuration framework
   supports reloading and the logger name is allowed to be changed.
 </p>
 
