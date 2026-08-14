@@ -31,6 +31,11 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	}
 
 	@Override
+	public int priority() {
+		return -1 << 1; // internal group 1
+	}
+
+	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		boolean globalDisable = isGlobalAnsiDisabled(config);
 		if (!globalDisable && installJansi(config)) {

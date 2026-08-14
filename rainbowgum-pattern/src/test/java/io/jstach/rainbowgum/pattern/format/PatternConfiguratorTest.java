@@ -11,6 +11,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogConfig.Builder;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -30,8 +31,7 @@ class PatternConfiguratorTest {
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			test.events(r.router());
-			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
-			String actual = output.toString();
+			String actual = test.actual(config);
 			assertEquals(test.expected, actual);
 		}
 	}
@@ -88,12 +88,56 @@ class PatternConfiguratorTest {
 					}
 				});
 			}
+		},
+		/*
+		 * Test the default behavior by replacing the console output.
+		 */
+		DEFAULT("""
+				[36m00:00:00.001[0;39m [2;39m[main][0;39m [34mINFO [0;39m [35mcom.pattern.test.Test[0;39m - hello
+				[36m00:00:00.001[0;39m [2;39m[main][0;39m [1;31mWARN [0;39m [35mcom.pattern.test.Test[0;39m - hello
+				[36m00:00:00.001[0;39m [2;39m[main][0;39m [1;31mERROR[0;39m [35mcom.pattern.test.Test[0;39m - hello
+								""") {
+
+			@Override
+			String properties() {
+				return """
+						logging.pattern.config.console.zoneId=UTC
+						""";
+			}
+
+			@Override
+			void config(Builder builder) {
+				builder.configurator((c, p) -> {
+					c.outputRegistry().register("stdout", ref -> LogProvider.of(new FakeConsoleOutput()));
+					return true;
+				});
+			}
+
+			String actual(LogConfig config) {
+				ListLogOutput output = (ListLogOutput) config.outputRegistry().output("console").orElseThrow();
+				System.out.print(output);
+				return output.toString();
+			}
 		};
+
+		static class FakeConsoleOutput extends ListLogOutput {
+
+			@Override
+			public OutputType type() {
+				return OutputType.CONSOLE_OUT;
+			}
+
+		}
 
 		private final String expected;
 
 		private _Test(String expected) {
 			this.expected = expected;
+		}
+
+		String actual(LogConfig config) {
+			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
+			return output.toString();
 		}
 
 		String properties() {
