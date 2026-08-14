@@ -58,7 +58,7 @@ public sealed interface PatternCompiler {
 						.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 						.get(config.properties()) //
 						.value(false);
-					var b = PatternConfig.builder()
+					var b = PatternConfig.builder(name)
 						.propertyFunction(PatternConfig.propertyFunction(config.properties(),
 								PatternConfig.PATTERN_PROPERY_PREFIX))
 						.fromProperties(config.properties());
@@ -173,6 +173,7 @@ final class Compiler implements PatternCompiler {
 				case FormattingNode fn -> {
 					PatternFormatterFactory f = registry.getOrNull(fn.keyword());
 					if (f == null) {
+						// TODO better error message
 						throw new IllegalStateException("Missing formatter for key: " + fn.keyword());
 					}
 
