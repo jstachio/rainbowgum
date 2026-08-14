@@ -5,12 +5,22 @@ import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BLUE_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BOLD;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.CYAN_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.DEFAULT_FG;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.GRAY_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.GREEN_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.MAGENTA_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.RED_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.WHITE_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.YELLOW_FG;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.FAINT;
+
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_BLACK;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_RED;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_GREEN;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_YELLOW;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_BLUE;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_MAGENTA;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_CYAN;
+import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_WHITE;
 
 import java.lang.System.Logger.Level;
 import java.time.ZoneId;
@@ -154,6 +164,9 @@ enum StandardKeywordFactory implements KeywordFactory {
 		}
 
 	},
+	/**
+	 * This is logbacks MDC style
+	 */
 	MDC() {
 
 		@Override
@@ -195,6 +208,9 @@ enum StandardKeywordFactory implements KeywordFactory {
 		}
 
 	},
+	/**
+	 * This comes from Spring Boot %esb
+	 */
 	ENCLOSED_SQUARE_BRACKET() {
 
 		@Override
@@ -292,7 +308,28 @@ final class ANSIConstants {
 
 	final static String DEFAULT_FG = "39";
 
+	final static String GRAY_FG = BOLD + BLACK_FG; // Logback is a little weird about gray
+
 	final static String SET_DEFAULT_COLOR = ESC_START + RESET + DEFAULT_FG + ESC_END;
+
+	/*
+	 * Spring Boot colors
+	 */
+	final static String BRIGHT_BLACK = "90";
+
+	final static String BRIGHT_RED = "91";
+
+	final static String BRIGHT_GREEN = "92";
+
+	final static String BRIGHT_YELLOW = "93";
+
+	final static String BRIGHT_BLUE = "94";
+
+	final static String BRIGHT_MAGENTA = "95";
+
+	final static String BRIGHT_CYAN = "96";
+
+	final static String BRIGHT_WHITE = "97";
 
 }
 
@@ -325,6 +362,9 @@ record HighlightFormatter(@Nullable LogFormatter child) implements LogFormatter.
 
 }
 
+/*
+ * From Spring Boot
+ */
 record ClrLevelFormatter(@Nullable LogFormatter child) implements LogFormatter.EventFormatter {
 
 	@Override
@@ -388,6 +428,9 @@ enum HighlightCompositeFactory implements CompositeFactory {
 
 	},
 
+	/**
+	 * This style come from Spring Boot.
+	 */
 	CLR() {
 
 		@Override
@@ -398,7 +441,7 @@ enum HighlightCompositeFactory implements CompositeFactory {
 				}
 				return child;
 			}
-			String color = node.optOrNull(0, HighlightCompositeFactory::parseColor);
+			String color = node.optOrNull(0, HighlightCompositeFactory::clrParseColor);
 			if (color == null) {
 				return new ClrLevelFormatter(child);
 			}
@@ -407,7 +450,7 @@ enum HighlightCompositeFactory implements CompositeFactory {
 
 	};
 
-	static String parseColor(String color) {
+	static String clrParseColor(String color) {
 		color = color.toLowerCase(Locale.ROOT);
 		return switch (color) {
 			case "blue" -> BLACK_FG;
@@ -417,12 +460,23 @@ enum HighlightCompositeFactory implements CompositeFactory {
 			case "magenta" -> MAGENTA_FG;
 			case "red" -> RED_FG;
 			case "yellow" -> YELLOW_FG;
+			case "bright_black" -> BRIGHT_BLACK;
+			case "bright_red" -> BRIGHT_RED;
+			case "bright_green" -> BRIGHT_GREEN;
+			case "bright_yellow" -> BRIGHT_YELLOW;
+			case "bright_blue" -> BRIGHT_BLUE;
+			case "bright_magenta" -> BRIGHT_MAGENTA;
+			case "bright_cyan" -> BRIGHT_CYAN;
+			case "bright_white" -> BRIGHT_WHITE;
 			default -> throw new IllegalArgumentException("Bad color:" + color);
 		};
 	}
 
 }
 
+/**
+ * This style of colors largely comes from logback
+ */
 enum ColorCompositeFactory implements CompositeFactory {
 
 	BLACK(BLACK_FG, "black"), //
@@ -433,7 +487,7 @@ enum ColorCompositeFactory implements CompositeFactory {
 	MAGENTA(MAGENTA_FG, "magenta"), //
 	CYAN(CYAN_FG, "cyan"), //
 	WHITE(WHITE_FG, "white"), //
-	GRAY(DEFAULT_FG, "gray"), //
+	GRAY(GRAY_FG, "gray"), //
 	BOLD_RED(BOLD + RED_FG, "boldRed"), //
 	BOLD_GREEN(BOLD + GREEN_FG, "boldGreen"), //
 	BOLD_YELLOW(BOLD + YELLOW_FG, "boldYellow"), //
