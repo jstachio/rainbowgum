@@ -23,7 +23,7 @@
     This property is to pin the build to a specific version of maven for reproducible builds
     as well as let dependabot check for maven updates. 
     -->
-    <maven.core.version>3.9.9</maven.core.version>
+    <maven.core.version>3.9.16</maven.core.version>
     <jdk.release.version>21.0.2</jdk.release.version>
 
     <ecj.version>3.39.0</ecj.version>
@@ -266,7 +266,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-wrapper-plugin</artifactId>
-          <version>3.3.2</version>
+          <version>3.3.4</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
