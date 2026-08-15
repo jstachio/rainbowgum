@@ -185,6 +185,12 @@ public sealed interface PatternRegistry {
 		 */
 		THROWABLE("ex", "exception", "throwable"), //
 		/**
+		 * <a href= "https://logback.qos.ch/manual/layouts.html#xThrowable">Extended
+		 * throwable keywords</a>. Same options as {@link #THROWABLE} but also appends
+		 * packaging data (jar/module and version) after each frame.
+		 */
+		EXTENDED_THROWABLE("xEx", "xException", "xThrowable"), //
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#newline">Newline
 		 * keywords</a>
 		 */
@@ -401,6 +407,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case MICROS -> KeywordFactory.of(LogFormatter.TimestampFormatter.ofMicros());
 				case THREAD -> KeywordFactory.of(LogFormatter.builder().threadName().build());
 				case THROWABLE -> StandardKeywordFactory.THROWABLE;
+				case EXTENDED_THROWABLE -> StandardKeywordFactory.EXTENDED_THROWABLE;
 				case CLASS -> KeywordFactory.of(CallerInfoFormatter.CLASS);
 				case FILE -> KeywordFactory.of(CallerInfoFormatter.FILE);
 				case LINE -> KeywordFactory.of(CallerInfoFormatter.LINE);
@@ -495,12 +502,6 @@ final class DefaultPatternRegistry implements PatternRegistry {
 	// RootCauseFirstThrowableProxyConverter.class.getName());
 	// DEFAULT_CONVERTER_MAP.put("rootException",
 	// RootCauseFirstThrowableProxyConverter.class.getName());
-	//
-	// DEFAULT_CONVERTER_MAP.put("xEx", ExtendedThrowableProxyConverter.class.getName());
-	// DEFAULT_CONVERTER_MAP.put("xException",
-	// ExtendedThrowableProxyConverter.class.getName());
-	// DEFAULT_CONVERTER_MAP.put("xThrowable",
-	// ExtendedThrowableProxyConverter.class.getName());
 	//
 	// DEFAULT_CONVERTER_MAP.put("nopex",
 	// NopThrowableInformationConverter.class.getName());
