@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -38,6 +39,14 @@ class LogFormatterTest {
 		return sb.toString();
 	}
 
+	private static ThrowableFormatter of(int maxLines, List<String> excludes) {
+		return ThrowableFormatter.builder().maxLines(maxLines).excludes(excludes).build();
+	}
+
+	private static ThrowableFormatter of(int maxLines, List<String> excludes, boolean packagingData) {
+		return ThrowableFormatter.builder().maxLines(maxLines).excludes(excludes).packagingData(packagingData).build();
+	}
+
 	@SuppressWarnings("StringSplitter")
 	private static String[] lines(String s) {
 		return s.split(System.lineSeparator());
@@ -48,7 +57,7 @@ class LogFormatterTest {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame("a", 1), frame("b", 2), frame("c", 3), frame("d", 4) });
 
-		String actual = format(t, ThrowableFormatter.of(2, List.of()));
+		String actual = format(t, of(2, List.of()));
 		String[] lines = lines(actual);
 
 		assertEquals("java.lang.RuntimeException: boom", lines[0]);
@@ -64,7 +73,7 @@ class LogFormatterTest {
 		var frames = new StackTraceElement[] { frame("a", 1), frame("b", 2), frame("c", 3) };
 		t.setStackTrace(frames);
 
-		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of()));
+		String actual = format(t, of(Integer.MAX_VALUE, List.of()));
 		String[] lines = lines(actual);
 
 		assertEquals(1 + frames.length, lines.length);
@@ -78,7 +87,7 @@ class LogFormatterTest {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame("a", 1), frame("b", 2) });
 
-		String actual = format(t, ThrowableFormatter.of(0, List.of()));
+		String actual = format(t, of(0, List.of()));
 		String[] lines = lines(actual);
 
 		assertEquals("java.lang.RuntimeException: boom", lines[0]);
@@ -91,7 +100,7 @@ class LogFormatterTest {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame("keepA", 1), frame("noisyReflect", 2), frame("keepB", 3) });
 
-		String actual = format(t, ThrowableFormatter.of(2, List.of("noisyReflect")));
+		String actual = format(t, of(2, List.of("noisyReflect")));
 		String[] lines = lines(actual);
 
 		assertEquals("java.lang.RuntimeException: boom", lines[0]);
@@ -111,7 +120,7 @@ class LogFormatterTest {
 		var outer = new RuntimeException("wrapper", cause);
 		outer.setStackTrace(outerFrames);
 
-		String actual = format(outer, ThrowableFormatter.of(Integer.MAX_VALUE, List.of()));
+		String actual = format(outer, of(Integer.MAX_VALUE, List.of()));
 		String[] lines = lines(actual);
 
 		assertEquals("java.lang.RuntimeException: wrapper", lines[0]);
@@ -135,7 +144,7 @@ class LogFormatterTest {
 		var outer = new RuntimeException("wrapper", cause);
 		outer.setStackTrace(outerFrames);
 
-		String actual = format(outer, ThrowableFormatter.of(1, List.of()));
+		String actual = format(outer, of(1, List.of()));
 		String[] lines = lines(actual);
 
 		assertEquals("Caused by: java.lang.RuntimeException: root cause", lines[3]);
@@ -175,8 +184,14 @@ class LogFormatterTest {
 		a.setCauseUnsafe(b);
 		b.setCauseUnsafe(a);
 
-		String actual = format(a, ThrowableFormatter.of(Integer.MAX_VALUE, List.of()));
+		String actual = format(a, of(Integer.MAX_VALUE, List.of()));
 		assertTrue(actual.contains("CIRCULAR REFERENCE"), "expected circular reference guard to trigger:\n" + actual);
+	}
+
+	@Test
+	void testBuilderWithNoCustomizationReturnsDefaultFormatter() {
+		assertSame(ThrowableFormatter.of(), ThrowableFormatter.builder().build(),
+				"a builder left at its defaults should not construct a StandardThrowableFormatter");
 	}
 
 	@Test
@@ -184,7 +199,7 @@ class LogFormatterTest {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame("a", 1) });
 
-		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of()));
+		String actual = format(t, of(Integer.MAX_VALUE, List.of()));
 		String[] lines = lines(actual);
 		assertEquals("\tat com.example.App.a(App.java:1)", lines[1]);
 	}
@@ -194,7 +209,7 @@ class LogFormatterTest {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame("com.example.DoesNotExist", "a", 1) });
 
-		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of(), true));
+		String actual = format(t, of(Integer.MAX_VALUE, List.of(), true));
 		String[] lines = lines(actual);
 		assertEquals("\tat com.example.DoesNotExist.a(App.java:1) [na:na]", lines[1]);
 	}
@@ -204,7 +219,7 @@ class LogFormatterTest {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame("java.lang.String", "valueOf", 1) });
 
-		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of(), true));
+		String actual = format(t, of(Integer.MAX_VALUE, List.of(), true));
 		String[] lines = lines(actual);
 		assertTrue(lines[1].startsWith("\tat java.lang.String.valueOf(App.java:1) [java.base:"),
 				"expected java.base module packaging data:\n" + actual);
@@ -215,7 +230,7 @@ class LogFormatterTest {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame(LogFormatterTest.class.getName(), "test", 1) });
 
-		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of(), true));
+		String actual = format(t, of(Integer.MAX_VALUE, List.of(), true));
 		String[] lines = lines(actual);
 		assertFalse(lines[1].endsWith("[na:na]"), "expected this test's own class to be resolvable:\n" + actual);
 	}
