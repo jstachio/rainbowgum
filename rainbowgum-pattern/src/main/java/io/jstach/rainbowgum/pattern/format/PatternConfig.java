@@ -72,6 +72,12 @@ public sealed interface PatternConfig extends Configurator {
 	public Instant startTime();
 
 	/**
+	 * The first value returned by <code>%lsn</code>. Defaults to <code>0</code>.
+	 * @return sequence number start.
+	 */
+	public long sequenceNumberStart();
+
+	/**
 	 * Creates a builder to create formatter config.
 	 * @return builder.
 	 * @apiNote {@link PatternConfig} implements {@link Configurator} so it can be
@@ -104,6 +110,7 @@ public sealed interface PatternConfig extends Configurator {
 		builder.zoneId(config.zoneId());
 		builder.propertyFunction(config.propertyFunction());
 		builder.startTime(config.startTime());
+		builder.sequenceNumberStart(config.sequenceNumberStart());
 		return builder;
 	}
 
@@ -197,6 +204,11 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 		return DEFAULT_START_TIME;
 	}
 
+	@Override
+	default long sequenceNumberStart() {
+		return 0L;
+	}
+
 	enum StandardPropertyFunction implements Function<String, @Nullable String> {
 
 		INSTANCE;
@@ -238,6 +250,7 @@ enum StandardFormatterConfig implements DefaultFormatterConfig {
 }
 
 record SimpleFormatterConfig(ZoneId zoneId, String lineSeparator, boolean ansiDisabled,
-		Function<String, @Nullable String> propertyFunction, Instant startTime) implements PatternConfig {
+		Function<String, @Nullable String> propertyFunction, Instant startTime,
+		long sequenceNumberStart) implements PatternConfig {
 
 }
