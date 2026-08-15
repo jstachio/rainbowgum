@@ -14,6 +14,8 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -587,8 +589,29 @@ public sealed interface LogFormatter {
 		 * of that method.
 		 */
 		public static ThrowableFormatter of(int maxLines, List<String> excludes) {
+			return of(maxLines, excludes, false);
+		}
+
+		/**
+		 * Like {@link #of(int, List)} but can additionally append packaging data (the jar
+		 * or module a frame's class was loaded from, and its version) after each frame
+		 * line, e.g. <code>[myapp-1.0.jar:1.0]</code> or <code>[java.base:na]</code>.
+		 * This mirrors (but does not byte-for-byte match) logback's
+		 * <code>ExtendedThrowableProxyConverter</code> output.
+		 * @param maxLines see {@link #of(int, List)}.
+		 * @param excludes see {@link #of(int, List)}.
+		 * @param packagingData if true each printed frame is looked up (and cached) to
+		 * determine which jar/module/classes-directory its class was loaded from and what
+		 * version that code source reports. Resolution requires loading the frame's class
+		 * (without initializing it) and can fail silently to <code>[na:na]</code> for
+		 * frames whose class cannot be loaded (e.g. dynamically generated classes). This
+		 * has a real per-frame cost so it is off by default.
+		 * @return formatter.
+		 */
+		public static ThrowableFormatter of(int maxLines, List<String> excludes, boolean packagingData) {
 			List<Pattern> compiled = excludes.isEmpty() ? List.of() : excludes.stream().map(Pattern::compile).toList();
-			return new StandardThrowableFormatter(maxLines, compiled);
+			var resolver = packagingData ? new PackagingDataResolver() : null;
+			return new StandardThrowableFormatter(maxLines, compiled, resolver);
 		}
 
 		/**
@@ -874,9 +897,12 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 
 	private final List<Pattern> excludes;
 
-	StandardThrowableFormatter(int maxLines, List<Pattern> excludes) {
+	private final @Nullable PackagingDataResolver packagingData;
+
+	StandardThrowableFormatter(int maxLines, List<Pattern> excludes, @Nullable PackagingDataResolver packagingData) {
 		this.maxLines = maxLines;
 		this.excludes = excludes;
+		this.packagingData = packagingData;
 	}
 
 	@Override
@@ -946,7 +972,11 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 			}
 			available++;
 			if (printed < maxLines) {
-				output.append(prefix).append("\tat ").append(element).append(System.lineSeparator());
+				output.append(prefix).append("\tat ").append(element);
+				if (packagingData != null) {
+					output.append(' ').append(packagingData.resolve(element));
+				}
+				output.append(System.lineSeparator());
 				printed++;
 			}
 		}
@@ -973,6 +1003,94 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 			}
 		}
 		return false;
+	}
+
+}
+
+/**
+ * Resolves and caches which jar/module/directory a stack frame's class was loaded from
+ * and its reported version, formatted as <code>[location:version]</code>. Named modules
+ * (including JDK frames) are resolved for free from the frame itself or the loaded
+ * class's {@link Module} without touching a {@link java.security.CodeSource}. Classpath
+ * (unnamed module) frames fall back to the class's {@link java.security.CodeSource} and
+ * {@link Package#getImplementationVersion()}. Either "location" or "version" is
+ * <code>na</code> when unknown, and the whole result is <code>[na:na]</code> when the
+ * frame's class cannot be loaded at all (e.g. dynamically generated classes).
+ */
+final class PackagingDataResolver {
+
+	private final ConcurrentMap<String, String> cache = new ConcurrentHashMap<>();
+
+	String resolve(StackTraceElement element) {
+		String className = element.getClassName();
+		String cached = cache.get(className);
+		if (cached != null) {
+			return cached;
+		}
+		String computed = compute(element);
+		cache.put(className, computed);
+		return computed;
+	}
+
+	private static String compute(StackTraceElement element) {
+		String moduleName = element.getModuleName();
+		if (moduleName != null) {
+			return format(moduleName, element.getModuleVersion());
+		}
+		Class<?> type = load(element.getClassName());
+		if (type == null) {
+			return "[na:na]";
+		}
+		Module module = type.getModule();
+		if (module.isNamed()) {
+			var descriptor = module.getDescriptor();
+			String version = descriptor == null ? null : descriptor.rawVersion().orElse(null);
+			return format(module.getName(), version);
+		}
+		var codeSource = type.getProtectionDomain().getCodeSource();
+		if (codeSource == null) {
+			return "[na:na]";
+		}
+		var location = codeSource.getLocation();
+		if (location == null) {
+			return "[na:na]";
+		}
+		String path = location.getPath();
+		if (path == null || path.isEmpty()) {
+			path = location.toString();
+		}
+		if (path.endsWith("/")) {
+			path = path.substring(0, path.length() - 1);
+		}
+		int slash = path.lastIndexOf('/');
+		String name = slash >= 0 && slash < path.length() - 1 ? path.substring(slash + 1) : path;
+		var pkg = type.getPackage();
+		String version = pkg == null ? null : pkg.getImplementationVersion();
+		return format(name, version);
+	}
+
+	private static String format(String location, @Nullable String version) {
+		return "[" + location + ":" + (version == null || version.isEmpty() ? "na" : version) + "]";
+	}
+
+	private static @Nullable Class<?> load(String className) {
+		var contextLoader = Thread.currentThread().getContextClassLoader();
+		if (contextLoader != null) {
+			var type = loadOrNull(className, contextLoader);
+			if (type != null) {
+				return type;
+			}
+		}
+		return loadOrNull(className, PackagingDataResolver.class.getClassLoader());
+	}
+
+	private static @Nullable Class<?> loadOrNull(String className, @Nullable ClassLoader loader) {
+		try {
+			return Class.forName(className, false, loader);
+		}
+		catch (ClassNotFoundException | LinkageError | SecurityException e) {
+			return null;
+		}
 	}
 
 }

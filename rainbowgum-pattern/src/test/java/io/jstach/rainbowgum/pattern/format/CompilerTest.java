@@ -193,6 +193,21 @@ class CompilerTest {
 				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
 			}
 		},
+		EXTENDED_THROWABLE(List.of("%xEx", "%xException", "%xThrowable"), "java.lang.RuntimeException: boom\n"
+				+ "\tat com.example.App.a(App.java:1) [na:na]\n" + "\tat com.example.App.b(App.java:2) [na:na]\n") {
+			LogEvent event() {
+				Throwable throwable = throwableWithFrames("boom", "a", "b");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+		},
+		EXTENDED_THROWABLE_MAX_LINES(List.of("%xEx{2}"),
+				"java.lang.RuntimeException: boom\n" + "\tat com.example.App.a(App.java:1) [na:na]\n"
+						+ "\tat com.example.App.b(App.java:2) [na:na]\n" + "\t... 2 frames truncated\n") {
+			LogEvent event() {
+				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+		},
 		LINESEP("%n", "\n") {
 		},
 		LOGGER_LEFT_PAD("%20logger", "    io.jstach.logger") {

@@ -25,7 +25,11 @@ class LogFormatterTest {
 	}
 
 	private static StackTraceElement frame(String method, int line) {
-		return new StackTraceElement("com.example.App", method, "App.java", line);
+		return frame("com.example.App", method, line);
+	}
+
+	private static StackTraceElement frame(String className, String method, int line) {
+		return new StackTraceElement(className, method, "App.java", line);
 	}
 
 	private static String format(Throwable t, ThrowableFormatter formatter) {
@@ -173,6 +177,47 @@ class LogFormatterTest {
 
 		String actual = format(a, ThrowableFormatter.of(Integer.MAX_VALUE, List.of()));
 		assertTrue(actual.contains("CIRCULAR REFERENCE"), "expected circular reference guard to trigger:\n" + actual);
+	}
+
+	@Test
+	void testPackagingDataOffByDefault() {
+		var t = new RuntimeException("boom");
+		t.setStackTrace(new StackTraceElement[] { frame("a", 1) });
+
+		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of()));
+		String[] lines = lines(actual);
+		assertEquals("\tat com.example.App.a(App.java:1)", lines[1]);
+	}
+
+	@Test
+	void testPackagingDataIsNaForUnresolvableClass() {
+		var t = new RuntimeException("boom");
+		t.setStackTrace(new StackTraceElement[] { frame("com.example.DoesNotExist", "a", 1) });
+
+		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of(), true));
+		String[] lines = lines(actual);
+		assertEquals("\tat com.example.DoesNotExist.a(App.java:1) [na:na]", lines[1]);
+	}
+
+	@Test
+	void testPackagingDataResolvesJdkNamedModule() {
+		var t = new RuntimeException("boom");
+		t.setStackTrace(new StackTraceElement[] { frame("java.lang.String", "valueOf", 1) });
+
+		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of(), true));
+		String[] lines = lines(actual);
+		assertTrue(lines[1].startsWith("\tat java.lang.String.valueOf(App.java:1) [java.base:"),
+				"expected java.base module packaging data:\n" + actual);
+	}
+
+	@Test
+	void testPackagingDataResolvesClasspathClass() {
+		var t = new RuntimeException("boom");
+		t.setStackTrace(new StackTraceElement[] { frame(LogFormatterTest.class.getName(), "test", 1) });
+
+		String actual = format(t, ThrowableFormatter.of(Integer.MAX_VALUE, List.of(), true));
+		String[] lines = lines(actual);
+		assertFalse(lines[1].endsWith("[na:na]"), "expected this test's own class to be resolvable:\n" + actual);
 	}
 
 }

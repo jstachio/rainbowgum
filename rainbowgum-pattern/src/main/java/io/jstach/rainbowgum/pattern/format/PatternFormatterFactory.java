@@ -88,6 +88,33 @@ public sealed interface PatternFormatterFactory {
 
 	}
 
+	/**
+	 * Parses the depth (<code>full</code>/<code>short</code>/a number) and exclude regex
+	 * options shared by throwable keywords such as <code>%ex</code>/<code>%xEx</code> and
+	 * Spring Boot's <code>%wEx</code>.
+	 * @param node keyword node holding the option list.
+	 * @param packagingData whether the resulting formatter should also append packaging
+	 * data (jar/module and version) after each frame; see
+	 * {@link ThrowableFormatter#of(int, List, boolean)}.
+	 * @return throwable formatter configured from the options.
+	 */
+	public static ThrowableFormatter throwableFormatter(PatternKeyword node, boolean packagingData) {
+		String depth = node.optOrNull(0);
+		int maxLines;
+		if (depth == null || depth.equalsIgnoreCase("full")) {
+			maxLines = Integer.MAX_VALUE;
+		}
+		else if (depth.equalsIgnoreCase("short")) {
+			maxLines = 0;
+		}
+		else {
+			maxLines = Integer.parseInt(depth);
+		}
+		var options = node.optionList();
+		List<String> excludes = options.size() > 1 ? options.subList(1, options.size()) : List.of();
+		return ThrowableFormatter.of(maxLines, excludes, packagingData);
+	}
+
 }
 
 enum CallerInfoFormatter implements EventFormatter {
@@ -238,20 +265,21 @@ enum StandardKeywordFactory implements KeywordFactory {
 
 		@Override
 		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
-			String depth = node.optOrNull(0);
-			int maxLines;
-			if (depth == null || depth.equalsIgnoreCase("full")) {
-				maxLines = Integer.MAX_VALUE;
-			}
-			else if (depth.equalsIgnoreCase("short")) {
-				maxLines = 0;
-			}
-			else {
-				maxLines = Integer.parseInt(depth);
-			}
-			var options = node.optionList();
-			List<String> excludes = options.size() > 1 ? options.subList(1, options.size()) : List.of();
-			return ThrowableFormatter.of(maxLines, excludes);
+			return PatternFormatterFactory.throwableFormatter(node, false);
+		}
+
+	},
+	/**
+	 * <code>%xEx</code>, <code>%xEx{full}</code>, <code>%xEx{short}</code>,
+	 * <code>%xEx{N}</code>, <code>%xEx{N, regex1, regex2, ...}</code>. Same options as
+	 * {@link #THROWABLE} but also appends packaging data (jar/module and version) after
+	 * each frame, similar to logback's <code>ExtendedThrowableProxyConverter</code>.
+	 */
+	EXTENDED_THROWABLE() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			return PatternFormatterFactory.throwableFormatter(node, true);
 		}
 
 	};
