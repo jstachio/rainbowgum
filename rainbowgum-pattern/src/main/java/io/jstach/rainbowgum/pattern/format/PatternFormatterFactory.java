@@ -95,7 +95,7 @@ public sealed interface PatternFormatterFactory {
 	 * @param node keyword node holding the option list.
 	 * @param packagingData whether the resulting formatter should also append packaging
 	 * data (jar/module and version) after each frame; see
-	 * {@link ThrowableFormatter#of(int, List, boolean)}.
+	 * {@link ThrowableFormatter.Builder#packagingData(boolean)}.
 	 * @return throwable formatter configured from the options.
 	 */
 	public static ThrowableFormatter throwableFormatter(PatternKeyword node, boolean packagingData) {
@@ -112,7 +112,7 @@ public sealed interface PatternFormatterFactory {
 		}
 		var options = node.optionList();
 		List<String> excludes = options.size() > 1 ? options.subList(1, options.size()) : List.of();
-		return ThrowableFormatter.of(maxLines, excludes, packagingData);
+		return ThrowableFormatter.builder().maxLines(maxLines).excludes(excludes).packagingData(packagingData).build();
 	}
 
 }

@@ -335,7 +335,7 @@ public sealed interface LogFormatter {
 		/**
 		 * Appends the events throwable stack trace using a custom
 		 * {@link ThrowableFormatter} (e.g. one created with
-		 * {@link ThrowableFormatter#of(int, List)}).
+		 * {@link ThrowableFormatter#builder()}).
 		 * @param throwableFormatter formatter to use.
 		 * @return this.
 		 */
@@ -565,53 +565,24 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Creates a throwable formatter that limits the number of stack frame lines shown
-		 * for each throwable in the cause/suppressed chain and can exclude frames
-		 * matching regular expressions. The output is otherwise formatted like
-		 * {@link Throwable#printStackTrace()}: common frames shared with the enclosing
-		 * throwable are elided the same way (e.g. <code>"... 6 more"</code>) as long as
-		 * the depth limit was not what stopped printing; if the depth limit is what
-		 * stopped printing a <code>"... N frames truncated"</code> line is emitted
-		 * instead.
-		 * @param maxLines maximum number of stack frame ("at ...") lines printed per
-		 * throwable in the chain. Use {@link Integer#MAX_VALUE} for no limit (matches
-		 * {@link #of()} for well behaved throwables). {@code 0} prints just the throwable
-		 * header lines (class and message) for the whole chain with no frames at all.
-		 * @param excludes regular expressions matched with {@link Matcher#find()} against
-		 * each frame's {@link StackTraceElement#toString()}. A frame matching any of
-		 * these is omitted entirely and does not count against {@code maxLines}. May be
-		 * empty for no filtering.
-		 * @return formatter.
-		 * @apiNote unlike {@link #of()} this implementation walks
+		 * Creates a builder for a throwable formatter that can limit the number of stack
+		 * frame lines shown for each throwable in the cause/suppressed chain, exclude
+		 * frames matching regular expressions, and append packaging data. The output is
+		 * otherwise formatted like {@link Throwable#printStackTrace()}: common frames
+		 * shared with the enclosing throwable are elided the same way (e.g.
+		 * <code>"... 6 more"</code>) as long as the depth limit was not what stopped
+		 * printing; if the depth limit is what stopped printing a
+		 * <code>"... N frames truncated"</code> line is emitted instead.
+		 * @return builder.
+		 * @apiNote a builder left at its defaults (no max lines, exclusions, or packaging
+		 * data) builds {@link #of()} itself; otherwise the built formatter walks
 		 * {@link Throwable#getCause()}/{@link Throwable#getSuppressed()}/
 		 * {@link Throwable#getStackTrace()} directly instead of calling
 		 * {@link Throwable#printStackTrace()} and thus will not honor a custom override
 		 * of that method.
 		 */
-		public static ThrowableFormatter of(int maxLines, List<String> excludes) {
-			return of(maxLines, excludes, false);
-		}
-
-		/**
-		 * Like {@link #of(int, List)} but can additionally append packaging data (the jar
-		 * or module a frame's class was loaded from, and its version) after each frame
-		 * line, e.g. <code>[myapp-1.0.jar:1.0]</code> or <code>[java.base:na]</code>.
-		 * This mirrors (but does not byte-for-byte match) logback's
-		 * <code>ExtendedThrowableProxyConverter</code> output.
-		 * @param maxLines see {@link #of(int, List)}.
-		 * @param excludes see {@link #of(int, List)}.
-		 * @param packagingData if true each printed frame is looked up (and cached) to
-		 * determine which jar/module/classes-directory its class was loaded from and what
-		 * version that code source reports. Resolution requires loading the frame's class
-		 * (without initializing it) and can fail silently to <code>[na:na]</code> for
-		 * frames whose class cannot be loaded (e.g. dynamically generated classes). This
-		 * has a real per-frame cost so it is off by default.
-		 * @return formatter.
-		 */
-		public static ThrowableFormatter of(int maxLines, List<String> excludes, boolean packagingData) {
-			List<Pattern> compiled = excludes.isEmpty() ? List.of() : excludes.stream().map(Pattern::compile).toList();
-			var resolver = packagingData ? new PackagingDataResolver() : null;
-			return new StandardThrowableFormatter(maxLines, compiled, resolver);
+		public static Builder builder() {
+			return new Builder();
 		}
 
 		/**
@@ -625,6 +596,87 @@ public sealed interface LogFormatter {
 			 * TODO optimize
 			 */
 			t.printStackTrace(Internal.StringBuilderPrintWriter.of(b));
+		}
+
+		/**
+		 * Builds a configurable {@link ThrowableFormatter}.
+		 *
+		 * @see ThrowableFormatter#builder()
+		 */
+		public final class Builder {
+
+			private int maxLines = Integer.MAX_VALUE;
+
+			private List<String> excludes = List.of();
+
+			private boolean packagingData = false;
+
+			private Builder() {
+			}
+
+			/**
+			 * Maximum number of stack frame ("at ...") lines printed per throwable in the
+			 * chain. Use {@link Integer#MAX_VALUE} for no limit (the default, and matches
+			 * {@link ThrowableFormatter#of()} for well behaved throwables). {@code 0}
+			 * prints just the throwable header lines (class and message) for the whole
+			 * chain with no frames at all.
+			 * @param maxLines maximum stack frame lines per throwable.
+			 * @return this builder.
+			 */
+			public Builder maxLines(int maxLines) {
+				this.maxLines = maxLines;
+				return this;
+			}
+
+			/**
+			 * Regular expressions matched with {@link Matcher#find()} against each
+			 * frame's {@link StackTraceElement#toString()}. A frame matching any of these
+			 * is omitted entirely and does not count against {@link #maxLines(int)}.
+			 * Defaults to empty (no filtering).
+			 * @param excludes exclude patterns.
+			 * @return this builder.
+			 */
+			public Builder excludes(List<String> excludes) {
+				this.excludes = excludes;
+				return this;
+			}
+
+			/**
+			 * Whether to append packaging data (the jar or module a frame's class was
+			 * loaded from, and its version) after each frame line, e.g.
+			 * <code>[myapp-1.0.jar:1.0]</code> or <code>[java.base:na]</code>. This
+			 * mirrors (but does not byte-for-byte match) logback's
+			 * <code>ExtendedThrowableProxyConverter</code> output. Resolution requires
+			 * loading the frame's class (without initializing it) and can fail silently
+			 * to <code>[na:na]</code> for frames whose class cannot be loaded (e.g.
+			 * dynamically generated classes). This has a real per-frame cost so it
+			 * defaults to <code>false</code>.
+			 * @param packagingData true to append packaging data.
+			 * @return this builder.
+			 */
+			public Builder packagingData(boolean packagingData) {
+				this.packagingData = packagingData;
+				return this;
+			}
+
+			/**
+			 * Builds the formatter. If none of {@link #maxLines(int)},
+			 * {@link #excludes(List)}, or {@link #packagingData(boolean)} were set away
+			 * from their defaults, returns {@link ThrowableFormatter#of()} (i.e. plain
+			 * {@link Throwable#printStackTrace()} behavior) instead of constructing a
+			 * formatter that walks the throwable manually for no reason.
+			 * @return formatter.
+			 */
+			public ThrowableFormatter build() {
+				if (maxLines == Integer.MAX_VALUE && excludes.isEmpty() && !packagingData) {
+					return ThrowableFormatter.of();
+				}
+				List<Pattern> compiled = excludes.isEmpty() ? List.of()
+						: excludes.stream().map(Pattern::compile).toList();
+				var resolver = packagingData ? new PackagingDataResolver() : null;
+				return new StandardThrowableFormatter(maxLines, compiled, resolver);
+			}
+
 		}
 
 	}
