@@ -98,15 +98,22 @@ public final class PatternConfigurator implements Configurator {
 			@Nullable String lineSeparator, //
 			@Nullable Boolean ansiDisabled, //
 			@PassThroughParameter @Nullable Function<String, @Nullable String> propertyFunction, //
-			@PassThroughParameter @Nullable Instant startTime) {
+			@PassThroughParameter @Nullable Instant startTime, //
+			@ConvertParameter("convertSequenceNumberStart") @Nullable Long sequenceNumberStart) {
 		PatternConfig dc = PatternConfig.of();
 		ansiDisabled = ansiDisabled == null ? dc.ansiDisabled() : ansiDisabled;
 		lineSeparator = lineSeparator == null ? dc.lineSeparator() : lineSeparator;
 		zoneId = zoneId == null ? dc.zoneId() : zoneId;
 		propertyFunction = propertyFunction == null ? StandardPropertyFunction.INSTANCE : propertyFunction;
 		startTime = startTime == null ? Instant.now() : startTime;
-		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled, propertyFunction, startTime);
+		long sequenceNumberStart_ = sequenceNumberStart == null ? dc.sequenceNumberStart() : sequenceNumberStart;
+		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled, propertyFunction, startTime,
+				sequenceNumberStart_);
 
+	}
+
+	static @Nullable Long convertSequenceNumberStart(@Nullable String s) {
+		return s == null ? null : Long.valueOf(s);
 	}
 
 	static ZoneId convertZoneId(@Nullable String zoneId) {

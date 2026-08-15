@@ -79,6 +79,19 @@ class CompilerTest {
 		assertEquals("Pattern is invalid: %missing", message);
 	}
 
+	@Test
+	void testLocalSequenceNumberIncrementsPerEvent() {
+		var c = PatternCompiler.builder().patternConfig(PatternConfig.ofUniversal()).build();
+		var formatter = c.compile("%lsn");
+		var event = LogEvent.of(Level.INFO, "io.jstach.logger", "hello", MutableKeyValues.of().freeze(), null)
+			.freeze(Instant.EPOCH);
+		StringBuilder sb = new StringBuilder();
+		formatter.format(sb, event);
+		formatter.format(sb, event);
+		formatter.format(sb, event);
+		assertEquals("012", sb.toString());
+	}
+
 	public static final boolean OUTPUT = true;
 
 	enum PatternTest {
@@ -120,6 +133,16 @@ class CompilerTest {
 			protected PatternConfig patternConfig() {
 				return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal())
 					.startTime(Instant.EPOCH.minusMillis(5000))
+					.build();
+			}
+		},
+		LOCAL_SEQUENCE_NUMBER(List.of("%lsn"), "0") {
+		},
+		LOCAL_SEQUENCE_NUMBER_START(List.of("%lsn"), "5") {
+			@Override
+			protected PatternConfig patternConfig() {
+				return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal())
+					.sequenceNumberStart(5L)
 					.build();
 			}
 		},

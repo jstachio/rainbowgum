@@ -209,6 +209,16 @@ public sealed interface PatternRegistry {
 		 */
 		NO_EXCEPTION("nopex", "nopexception"), //
 		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#lsn">Local sequence number
+		 * keywords</a>. Unlike logback's <code>%sn</code>/ <code>%sequenceNumber</code>
+		 * (which requires configuring a context-wide
+		 * <code>SequenceNumberGenerator</code>, a feature not implemented here) this is a
+		 * simple counter local to each compiled use of <code>%lsn</code>, starting at
+		 * {@link PatternConfig#sequenceNumberStart()} and incrementing once per event
+		 * formatted.
+		 */
+		LOCAL_SEQUENCE_NUMBER("lsn"), //
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#newline">Newline
 		 * keywords</a>
 		 */
@@ -420,6 +430,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case DATE -> StandardKeywordFactory.DATE;
 				case LEVEL -> KeywordFactory.of(LogFormatter.LevelFormatter.of());
 				case LINESEP -> (fc, n) -> new LogFormatter.StaticFormatter(fc.lineSeparator());
+				case LOCAL_SEQUENCE_NUMBER -> StandardKeywordFactory.LOCAL_SEQUENCE_NUMBER;
 				case LOGGER -> StandardKeywordFactory.LOGGER;
 				case MDC -> StandardKeywordFactory.MDC;
 				case ENCODED_MDC -> StandardKeywordFactory.ENCODED_MDC;
@@ -542,10 +553,6 @@ final class DefaultPatternRegistry implements PatternRegistry {
 	//
 	//
 
-	//
-	// DEFAULT_CONVERTER_MAP.put("lsn", LocalSequenceNumberConverter.class.getName());
-	// CONVERTER_CLASS_TO_KEY_MAP.put(LocalSequenceNumberConverter.class.getName(),
-	// "lsn");
 	//
 	// DEFAULT_CONVERTER_MAP.put("sn", SequenceNumberConverter.class.getName());
 	// DEFAULT_CONVERTER_MAP.put("sequenceNumber",

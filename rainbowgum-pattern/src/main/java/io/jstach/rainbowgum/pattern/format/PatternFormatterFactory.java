@@ -29,6 +29,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -230,6 +231,19 @@ enum StandardKeywordFactory implements KeywordFactory {
 		@Override
 		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			return new RelativeTimeFormatter(config.startTime());
+		}
+
+	},
+	/**
+	 * <code>%lsn</code>: a counter local to this compiled keyword occurrence, starting at
+	 * {@link PatternConfig#sequenceNumberStart()} and incrementing once per event
+	 * formatted.
+	 */
+	LOCAL_SEQUENCE_NUMBER() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			return new LocalSequenceNumberFormatter(new AtomicLong(config.sequenceNumberStart()));
 		}
 
 	},
@@ -447,6 +461,15 @@ enum StandardKeywordFactory implements KeywordFactory {
 		public void format(StringBuilder output, LogEvent event) {
 			long millis = Duration.between(startTime, event.timestamp()).toMillis();
 			output.append(millis);
+		}
+
+	}
+
+	record LocalSequenceNumberFormatter(AtomicLong counter) implements LogFormatter.EventFormatter {
+
+		@Override
+		public void format(StringBuilder output, LogEvent event) {
+			output.append(counter.getAndIncrement());
 		}
 
 	}
