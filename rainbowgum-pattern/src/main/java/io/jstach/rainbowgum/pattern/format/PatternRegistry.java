@@ -138,6 +138,11 @@ public sealed interface PatternRegistry {
 		 */
 		MICROS("ms", "micros"), //
 		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#relative">Relative time
+		 * keywords</a>. Milliseconds elapsed since {@link PatternConfig#startTime()}.
+		 */
+		RELATIVE("r", "relative"), //
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#file">File</a>
 		 */
 		FILE("f", "file"),
@@ -154,8 +159,7 @@ public sealed interface PatternRegistry {
 		 */
 		METHOD("M", "method"),
 		/**
-		 * <a href="https://logback.qos.ch/manual/layouts.html#relative">Thread
-		 * keywords</a>
+		 * <a href="https://logback.qos.ch/manual/layouts.html#thread">Thread keywords</a>
 		 */
 		THREAD("t", "thread"), //
 		/**
@@ -405,6 +409,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case LOGGER -> StandardKeywordFactory.LOGGER;
 				case MDC -> StandardKeywordFactory.MDC;
 				case MICROS -> KeywordFactory.of(LogFormatter.TimestampFormatter.ofMicros());
+				case RELATIVE -> StandardKeywordFactory.RELATIVE;
 				case THREAD -> KeywordFactory.of(LogFormatter.builder().threadName().build());
 				case THROWABLE -> StandardKeywordFactory.THROWABLE;
 				case EXTENDED_THROWABLE -> StandardKeywordFactory.EXTENDED_THROWABLE;
@@ -470,11 +475,6 @@ final class DefaultPatternRegistry implements PatternRegistry {
 	}
 
 	// DEFAULT_CONVERTER_MAP.putAll(Parser.DEFAULT_COMPOSITE_CONVERTER_MAP);
-	//
-	//
-	// DEFAULT_CONVERTER_MAP.put("r", RelativeTimeConverter.class.getName());
-	// DEFAULT_CONVERTER_MAP.put("relative", RelativeTimeConverter.class.getName());
-	// CONVERTER_CLASS_TO_KEY_MAP.put(RelativeTimeConverter.class.getName(), "relative");
 	//
 	//
 

@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.pattern.format;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.function.Function;
@@ -62,6 +63,15 @@ public sealed interface PatternConfig extends Configurator {
 	public Function<String, @Nullable String> propertyFunction();
 
 	/**
+	 * The baseline instant used by <code>%r</code>/<code>%relative</code> to compute
+	 * elapsed milliseconds. Captured once (e.g. when this config is built) rather than
+	 * recomputed, the same way logback's <code>RelativeTimeConverter</code> captures its
+	 * start time once when constructed.
+	 * @return start time.
+	 */
+	public Instant startTime();
+
+	/**
 	 * Creates a builder to create formatter config.
 	 * @return builder.
 	 * @apiNote {@link PatternConfig} implements {@link Configurator} so it can be
@@ -93,6 +103,7 @@ public sealed interface PatternConfig extends Configurator {
 		builder.lineSeparator(config.lineSeparator());
 		builder.zoneId(config.zoneId());
 		builder.propertyFunction(config.propertyFunction());
+		builder.startTime(config.startTime());
 		return builder;
 	}
 
@@ -175,6 +186,17 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 		return StandardPropertyFunction.INSTANCE;
 	}
 
+	/**
+	 * Captured once when this interface is first loaded so all default configs share a
+	 * single start time approximating application/logging startup.
+	 */
+	Instant DEFAULT_START_TIME = Instant.now();
+
+	@Override
+	default Instant startTime() {
+		return DEFAULT_START_TIME;
+	}
+
 	enum StandardPropertyFunction implements Function<String, @Nullable String> {
 
 		INSTANCE;
@@ -206,11 +228,16 @@ enum StandardFormatterConfig implements DefaultFormatterConfig {
 		public boolean ansiDisabled() {
 			return true;
 		}
+
+		@Override
+		public Instant startTime() {
+			return Instant.EPOCH;
+		}
 	};
 
 }
 
 record SimpleFormatterConfig(ZoneId zoneId, String lineSeparator, boolean ansiDisabled,
-		Function<String, @Nullable String> propertyFunction) implements PatternConfig {
+		Function<String, @Nullable String> propertyFunction, Instant startTime) implements PatternConfig {
 
 }

@@ -95,6 +95,16 @@ class CompilerTest {
 				assertInstanceOf(TimestampFormatter.class, formatter);
 			}
 		},
+		RELATIVE(List.of("%r", "%relative"), "0") {
+		},
+		RELATIVE_ELAPSED(List.of("%r"), "5000") {
+			@Override
+			protected PatternConfig patternConfig() {
+				return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal())
+					.startTime(Instant.EPOCH.minusMillis(5000))
+					.build();
+			}
+		},
 		FILE(List.of("%f", "%file"), "CompilerTest.java") {
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);

@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.pattern.format;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.function.Function;
 
@@ -96,13 +97,15 @@ public final class PatternConfigurator implements Configurator {
 			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, //
 			@Nullable String lineSeparator, //
 			@Nullable Boolean ansiDisabled, //
-			@PassThroughParameter @Nullable Function<String, @Nullable String> propertyFunction) {
+			@PassThroughParameter @Nullable Function<String, @Nullable String> propertyFunction, //
+			@PassThroughParameter @Nullable Instant startTime) {
 		PatternConfig dc = PatternConfig.of();
 		ansiDisabled = ansiDisabled == null ? dc.ansiDisabled() : ansiDisabled;
 		lineSeparator = lineSeparator == null ? dc.lineSeparator() : lineSeparator;
 		zoneId = zoneId == null ? dc.zoneId() : zoneId;
 		propertyFunction = propertyFunction == null ? StandardPropertyFunction.INSTANCE : propertyFunction;
-		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled, propertyFunction);
+		startTime = startTime == null ? Instant.now() : startTime;
+		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled, propertyFunction, startTime);
 
 	}
 

@@ -23,6 +23,8 @@ import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_CYAN;
 import static io.jstach.rainbowgum.pattern.format.ANSIConstants.BRIGHT_WHITE;
 
 import java.lang.System.Logger.Level;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -181,6 +183,18 @@ enum StandardKeywordFactory implements KeywordFactory {
 			return LogFormatter.TimestampFormatter.of(dtf);
 		}
 	},
+	/**
+	 * <code>%r</code>, <code>%relative</code>: milliseconds elapsed since
+	 * {@link PatternConfig#startTime()}.
+	 */
+	RELATIVE() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			return new RelativeTimeFormatter(config.startTime());
+		}
+
+	},
 	LOGGER() {
 
 		@Override
@@ -313,6 +327,16 @@ enum StandardKeywordFactory implements KeywordFactory {
 			String out = abbreviator.abbreviate(event.loggerName());
 			output.append(out);
 
+		}
+
+	}
+
+	record RelativeTimeFormatter(Instant startTime) implements LogFormatter.EventFormatter {
+
+		@Override
+		public void format(StringBuilder output, LogEvent event) {
+			long millis = Duration.between(startTime, event.timestamp()).toMillis();
+			output.append(millis);
 		}
 
 	}
