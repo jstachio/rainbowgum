@@ -2,9 +2,11 @@ package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
+import org.slf4j.Marker;
 import org.slf4j.spi.LoggingEventBuilder;
 
 import io.jstach.rainbowgum.LogConfig;
@@ -70,7 +72,7 @@ class LoggerDecoratorTest {
 		}
 
 		@Override
-		protected boolean decorate(LoggingEventBuilder builder) {
+		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 			String message = DepthAwareEventBuilder.message(builder);
 			builder.setMessage(PREFIX + (message == null ? "" : message));
 			return true;

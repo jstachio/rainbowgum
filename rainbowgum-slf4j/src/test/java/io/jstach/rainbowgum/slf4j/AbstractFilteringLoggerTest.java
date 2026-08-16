@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.Function;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
@@ -60,6 +61,17 @@ class AbstractFilteringLoggerTest {
 	}
 
 	@Test
+	void markerIsPassedToDecorate() {
+		Logger logger = newLogger(MarkerCapturingLogger::new);
+		logger.info("no marker");
+		logger.info(MarkerFactory.getMarker("M"), "with marker");
+		String[] lines = list.toString().split("\n");
+		assertEquals(2, lines.length);
+		assertTrue(!lines[0].contains("_marker="), lines[0]);
+		assertTrue(lines[1].contains("with marker") && lines[1].contains("_marker=M"), lines[1]);
+	}
+
+	@Test
 	void selfLogHelperHasCorrectDepth() {
 		Logger logger = newLogger(SelfLoggingLogger::new);
 		logger.info("self logged");
@@ -96,6 +108,10 @@ class AbstractFilteringLoggerTest {
 						output.append(caller.methodName());
 						output.append("</caller>");
 					}
+					String marker = event.keyValues().getValueOrNull("_marker");
+					if (marker != null) {
+						output.append(" _marker=").append(marker);
+					}
 					output.append("\n");
 				});
 				a.output(list);
@@ -122,7 +138,7 @@ class AbstractFilteringLoggerTest {
 		}
 
 		@Override
-		protected boolean isEnabled(Level level) {
+		protected boolean isEnabled(Level level, @Nullable Marker marker) {
 			return level.toInt() >= minLevel.toInt();
 		}
 
@@ -135,9 +151,25 @@ class AbstractFilteringLoggerTest {
 		}
 
 		@Override
-		protected boolean decorate(LoggingEventBuilder builder) {
+		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 			log(builder);
 			return false;
+		}
+
+	}
+
+	static class MarkerCapturingLogger extends AbstractFilteringLogger {
+
+		MarkerCapturingLogger(DepthAwareLogger delegate) {
+			super(delegate);
+		}
+
+		@Override
+		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
+			if (marker != null) {
+				builder.addKeyValue("_marker", marker.toString());
+			}
+			return true;
 		}
 
 	}
