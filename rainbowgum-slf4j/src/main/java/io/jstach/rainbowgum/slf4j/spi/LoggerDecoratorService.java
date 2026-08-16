@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.slf4j.spi;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.spi.LoggingEventBuilder;
 
@@ -128,6 +129,27 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 		 * @return this.
 		 */
 		LoggingEventBuilder setLogger(LogEventLogger logger);
+
+		/**
+		 * The message set on this builder so far, if any. Plain
+		 * {@link LoggingEventBuilder} has no such accessor, which makes read-modify-write
+		 * use cases (e.g. prefixing) impossible without this.
+		 * @return message or null if not set.
+		 */
+		@Nullable
+		String message();
+
+		/**
+		 * The message set on the builder so far, if possible.
+		 * @param eventBuilder event builder to check.
+		 * @return message, or null if not set or not a {@link DepthAwareEventBuilder}.
+		 */
+		public static @Nullable String message(LoggingEventBuilder eventBuilder) {
+			if (eventBuilder instanceof DepthAwareEventBuilder da) {
+				return da.message();
+			}
+			return null;
+		}
 
 	}
 

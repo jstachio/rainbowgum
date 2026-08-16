@@ -2,21 +2,17 @@ package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
-import org.slf4j.Marker;
-import org.slf4j.event.Level;
-import org.slf4j.helpers.AbstractLogger;
 import org.slf4j.spi.LoggingEventBuilder;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
@@ -60,78 +56,24 @@ class LoggerDecoratorTest {
 
 	}
 
-	static class MyLogger extends AbstractLogger implements ForwardingLogger {
+	/**
+	 * Demonstrates a filtering decorator that prefixes every message. Note there is no
+	 * DEPTH constant to get wrong here: {@link AbstractFilteringLogger} owns and tests
+	 * its own caller-info depth accounting.
+	 */
+	static class MyLogger extends AbstractFilteringLogger {
 
-		private static final long serialVersionUID = 1L;
+		static final String PREFIX = "MY_PREFIX ";
 
-		private final DepthAwareLogger logger;
-
-		String prefix = "MY_PREFIX ";
-
-		/*
-		 * Frames between here and the real call site for any AbstractLogger convenience
-		 * method (info(msg), info(msg,arg), error(msg), trace(msg), ...): this handle()
-		 * method, handleNormalizedLoggingCall(), AbstractLogger's arity-specific
-		 * handleNArgsCall()/handleArgArrayCall() dispatcher, and the public
-		 * info()/error()/ etc. method itself. That is constant across arities because
-		 * handleNormalizedLoggingCall() is SLF4J's single normalization point.
-		 */
-		private static int DEPTH = 4;
-
-		public MyLogger(DepthAwareLogger logger) {
-			super();
-			this.logger = logger;
+		MyLogger(DepthAwareLogger delegate) {
+			super(delegate);
 		}
 
 		@Override
-		public Logger delegate() {
-			return logger;
-		}
-
-		// @Override
-		// protected String getFullyQualifiedCallerName() {
-		// throw new UnsupportedOperationException();
-		// }
-		//
-		@Override
-		protected void handleNormalizedLoggingCall(Level level, Marker marker, String messagePattern,
-				@Nullable Object @Nullable [] arguments, @Nullable Throwable throwable) {
-			handle(level, messagePattern, arguments, throwable);
-		}
-
-		@Override
-		public LoggingEventBuilder makeLoggingEventBuilder(Level level) {
-			var builder = logger.makeLoggingEventBuilder(level);
-			if (builder instanceof DepthAwareEventBuilder b) {
-				b.setLogger(this::handle);
-			}
-			return builder;
-		}
-
-		protected void handle(LogEvent event) {
-
-		}
-
-		protected void handle(Level level, String messagePattern, @Nullable Object @Nullable [] arguments,
-				@Nullable Throwable throwable) {
-			var builder = DepthAwareEventBuilder.setDepth(logger.makeLoggingEventBuilder(level), DEPTH);
-
-			builder.setMessage(prefix + messagePattern);
-			if (arguments != null) {
-				for (var arg : arguments) {
-					builder.addArgument(arg);
-				}
-			}
-			if (throwable != null) {
-				builder.setCause(throwable);
-			}
-			builder.log();
-		}
-
-		@Override
-		protected String getFullyQualifiedCallerName() {
-			// TODO Auto-generated method stub
-			return null;
+		protected boolean decorate(LoggingEventBuilder builder) {
+			String message = DepthAwareEventBuilder.message(builder);
+			builder.setMessage(PREFIX + (message == null ? "" : message));
+			return true;
 		}
 
 	}
