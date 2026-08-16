@@ -129,6 +129,11 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 		return this;
 	}
 
+	@Override
+	public @Nullable String message() {
+		return this.message;
+	}
+
 	private void _log() {
 		Instant timestamp = Instant.now();
 		var thread = Thread.currentThread();
