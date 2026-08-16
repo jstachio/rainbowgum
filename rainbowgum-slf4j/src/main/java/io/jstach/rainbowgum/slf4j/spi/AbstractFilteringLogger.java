@@ -19,13 +19,15 @@ import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
  * <p>
  * Every convenience method ({@code info(String)}, {@code error(String,Object)}, marker
  * variants, ...) funnels through exactly one internal dispatch method before
- * {@link #isEnabled(Level)} and {@link #decorate(LoggingEventBuilder)} run, so the frame
- * count from any convenience method to caller-info capture is fixed and verified once by
- * this class's own tests. Subclasses never need to reason about stack depth.
+ * {@link #isEnabled(Level, Marker)} and {@link #decorate(LoggingEventBuilder, Marker)}
+ * run, so the frame count from any convenience method to caller-info capture is fixed and
+ * verified once by this class's own tests. Subclasses never need to reason about stack
+ * depth. Non-marker convenience methods pass a {@code null} marker to both hooks.
  * <p>
  * The fluent {@code atInfo()} style API ({@link #makeLoggingEventBuilder(Level)}) is a
  * transparent pass-through to {@link #delegate()} and does <strong>not</strong> invoke
- * either hook, since there is no populated event to filter or decorate yet at that point.
+ * either hook, since there is no populated event (or marker) to filter or decorate yet at
+ * that point.
  */
 public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogger {
 
@@ -58,19 +60,26 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 
 	/**
 	 * Cheap pre-check run before any {@link LoggingEventBuilder} is built, analogous to
-	 * {@code isInfoEnabled()}. Override to filter out events (sampling, per-logger
-	 * overrides, ...) without paying for message formatting or key-value collection.
+	 * {@code isInfoEnabled()}/{@code isInfoEnabled(Marker)}. Override to filter out
+	 * events (sampling, per-logger overrides, per-marker rules, ...) without paying for
+	 * message formatting or key-value collection.
 	 * @param level level of the event.
-	 * @return true if enabled and {@link #decorate(LoggingEventBuilder)} may run.
+	 * @param marker marker passed to the convenience method that was called, or null if a
+	 * non-marker overload was used.
+	 * @return true if enabled and {@link #decorate(LoggingEventBuilder, Marker)} may run.
 	 */
-	protected boolean isEnabled(Level level) {
+	protected boolean isEnabled(Level level, @Nullable Marker marker) {
 		return true;
 	}
 
 	/**
 	 * Called with the already-populated builder (message, arguments and cause already set
 	 * from whatever convenience method arity the caller used). Override to add key
-	 * values, rewrite the message, etc.
+	 * values, rewrite the message, etc. The marker is passed here rather than added to
+	 * the builder automatically, since there is no default meaningful behavior for it
+	 * (e.g. a decorator can call
+	 * {@code builder.addKeyValue("_marker", marker.toString())} if it wants markers
+	 * surfaced at all).
 	 * <p>
 	 * <strong>Do not call {@code builder.log()} directly from this method</strong> -
 	 * doing so adds an untracked stack frame and caller info will point at the wrong
@@ -80,21 +89,24 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 	 * {@code false} so this class does not log it again. To drop the event entirely, do
 	 * neither and return {@code false}.
 	 * @param builder builder about to be logged.
+	 * @param marker marker passed to the convenience method that was called, or null if a
+	 * non-marker overload was used.
 	 * @return true to have this class call {@code builder.log()} after this method
 	 * returns; false if you called {@link #log(LoggingEventBuilder)} yourself or want to
 	 * drop the event.
 	 */
-	protected boolean decorate(LoggingEventBuilder builder) {
+	protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 		return true;
 	}
 
 	/**
-	 * Logs a builder obtained from a {@link #decorate(LoggingEventBuilder)} override that
-	 * returned {@code false}, with caller-info depth adjusted for the extra frames both
-	 * {@link #decorate(LoggingEventBuilder)} and this method itself add. Never call
-	 * {@code builder.log()} directly from {@link #decorate(LoggingEventBuilder)}.
+	 * Logs a builder obtained from a {@link #decorate(LoggingEventBuilder, Marker)}
+	 * override that returned {@code false}, with caller-info depth adjusted for the extra
+	 * frames both {@link #decorate(LoggingEventBuilder, Marker)} and this method itself
+	 * add. Never call {@code builder.log()} directly from
+	 * {@link #decorate(LoggingEventBuilder, Marker)}.
 	 * @param builder builder to log, previously handed to
-	 * {@link #decorate(LoggingEventBuilder)}.
+	 * {@link #decorate(LoggingEventBuilder, Marker)}.
 	 */
 	protected final void log(LoggingEventBuilder builder) {
 		/*
@@ -127,7 +139,11 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 
 	@Override
 	public boolean isEnabledForLevel(Level level) {
-		return delegate.isEnabledForLevel(level) && isEnabled(level);
+		return isEnabledForLevel(level, null);
+	}
+
+	private boolean isEnabledForLevel(Level level, @Nullable Marker marker) {
+		return delegate.isEnabledForLevel(level) && isEnabled(level, marker);
 	}
 
 	@Override
@@ -138,9 +154,9 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 		return delegate.makeLoggingEventBuilder(level);
 	}
 
-	private void normalizedLog(Level level, @Nullable String message, @Nullable Object arg1, @Nullable Object arg2,
-			@Nullable Object @Nullable [] argArray, @Nullable Throwable throwable) {
-		if (!delegate.isEnabledForLevel(level) || !isEnabled(level)) {
+	private void normalizedLog(Level level, @Nullable Marker marker, @Nullable String message, @Nullable Object arg1,
+			@Nullable Object arg2, @Nullable Object @Nullable [] argArray, @Nullable Throwable throwable) {
+		if (!isEnabledForLevel(level, marker)) {
 			return;
 		}
 		var builder = DepthAwareEventBuilder.setDepth(delegate.makeLoggingEventBuilder(level), DEPTH);
@@ -161,7 +177,7 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 		if (throwable != null) {
 			builder.setCause(throwable);
 		}
-		if (decorate(builder)) {
+		if (decorate(builder, marker)) {
 			builder.log();
 		}
 	}
@@ -173,57 +189,57 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 
 	@Override
 	public boolean isTraceEnabled(Marker marker) {
-		return isTraceEnabled();
+		return isEnabledForLevel(Level.TRACE, marker);
 	}
 
 	@Override
 	public void trace(String msg) {
-		normalizedLog(Level.TRACE, msg, null, null, null, null);
+		normalizedLog(Level.TRACE, null, msg, null, null, null, null);
 	}
 
 	@Override
 	public void trace(String format, Object arg) {
-		normalizedLog(Level.TRACE, format, arg, null, null, null);
+		normalizedLog(Level.TRACE, null, format, arg, null, null, null);
 	}
 
 	@Override
 	public void trace(String format, Object arg1, Object arg2) {
-		normalizedLog(Level.TRACE, format, arg1, arg2, null, null);
+		normalizedLog(Level.TRACE, null, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void trace(String format, Object... arguments) {
-		normalizedLog(Level.TRACE, format, null, null, arguments, null);
+		normalizedLog(Level.TRACE, null, format, null, null, arguments, null);
 	}
 
 	@Override
 	public void trace(String msg, Throwable t) {
-		normalizedLog(Level.TRACE, msg, null, null, null, t);
+		normalizedLog(Level.TRACE, null, msg, null, null, null, t);
 	}
 
 	@Override
 	public void trace(Marker marker, String msg) {
-		normalizedLog(Level.TRACE, msg, null, null, null, null);
+		normalizedLog(Level.TRACE, marker, msg, null, null, null, null);
 	}
 
 	@Override
 	public void trace(Marker marker, String format, Object arg) {
-		normalizedLog(Level.TRACE, format, arg, null, null, null);
+		normalizedLog(Level.TRACE, marker, format, arg, null, null, null);
 	}
 
 	@Override
 	public void trace(Marker marker, String format, Object arg1, Object arg2) {
-		normalizedLog(Level.TRACE, format, arg1, arg2, null, null);
+		normalizedLog(Level.TRACE, marker, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void trace(Marker marker, String format, Object... argArray) {
-		normalizedLog(Level.TRACE, format, null, null, argArray, null);
+		normalizedLog(Level.TRACE, marker, format, null, null, argArray, null);
 	}
 
 	@Override
 	public void trace(Marker marker, String msg, Throwable t) {
-		normalizedLog(Level.TRACE, msg, null, null, null, t);
+		normalizedLog(Level.TRACE, marker, msg, null, null, null, t);
 	}
 
 	@Override
@@ -238,57 +254,57 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 
 	@Override
 	public boolean isDebugEnabled(Marker marker) {
-		return isDebugEnabled();
+		return isEnabledForLevel(Level.DEBUG, marker);
 	}
 
 	@Override
 	public void debug(String msg) {
-		normalizedLog(Level.DEBUG, msg, null, null, null, null);
+		normalizedLog(Level.DEBUG, null, msg, null, null, null, null);
 	}
 
 	@Override
 	public void debug(String format, Object arg) {
-		normalizedLog(Level.DEBUG, format, arg, null, null, null);
+		normalizedLog(Level.DEBUG, null, format, arg, null, null, null);
 	}
 
 	@Override
 	public void debug(String format, Object arg1, Object arg2) {
-		normalizedLog(Level.DEBUG, format, arg1, arg2, null, null);
+		normalizedLog(Level.DEBUG, null, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void debug(String format, Object... arguments) {
-		normalizedLog(Level.DEBUG, format, null, null, arguments, null);
+		normalizedLog(Level.DEBUG, null, format, null, null, arguments, null);
 	}
 
 	@Override
 	public void debug(String msg, Throwable t) {
-		normalizedLog(Level.DEBUG, msg, null, null, null, t);
+		normalizedLog(Level.DEBUG, null, msg, null, null, null, t);
 	}
 
 	@Override
 	public void debug(Marker marker, String msg) {
-		normalizedLog(Level.DEBUG, msg, null, null, null, null);
+		normalizedLog(Level.DEBUG, marker, msg, null, null, null, null);
 	}
 
 	@Override
 	public void debug(Marker marker, String format, Object arg) {
-		normalizedLog(Level.DEBUG, format, arg, null, null, null);
+		normalizedLog(Level.DEBUG, marker, format, arg, null, null, null);
 	}
 
 	@Override
 	public void debug(Marker marker, String format, Object arg1, Object arg2) {
-		normalizedLog(Level.DEBUG, format, arg1, arg2, null, null);
+		normalizedLog(Level.DEBUG, marker, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void debug(Marker marker, String format, Object... argArray) {
-		normalizedLog(Level.DEBUG, format, null, null, argArray, null);
+		normalizedLog(Level.DEBUG, marker, format, null, null, argArray, null);
 	}
 
 	@Override
 	public void debug(Marker marker, String msg, Throwable t) {
-		normalizedLog(Level.DEBUG, msg, null, null, null, t);
+		normalizedLog(Level.DEBUG, marker, msg, null, null, null, t);
 	}
 
 	@Override
@@ -303,57 +319,57 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 
 	@Override
 	public boolean isInfoEnabled(Marker marker) {
-		return isInfoEnabled();
+		return isEnabledForLevel(Level.INFO, marker);
 	}
 
 	@Override
 	public void info(String msg) {
-		normalizedLog(Level.INFO, msg, null, null, null, null);
+		normalizedLog(Level.INFO, null, msg, null, null, null, null);
 	}
 
 	@Override
 	public void info(String format, Object arg) {
-		normalizedLog(Level.INFO, format, arg, null, null, null);
+		normalizedLog(Level.INFO, null, format, arg, null, null, null);
 	}
 
 	@Override
 	public void info(String format, Object arg1, Object arg2) {
-		normalizedLog(Level.INFO, format, arg1, arg2, null, null);
+		normalizedLog(Level.INFO, null, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void info(String format, Object... arguments) {
-		normalizedLog(Level.INFO, format, null, null, arguments, null);
+		normalizedLog(Level.INFO, null, format, null, null, arguments, null);
 	}
 
 	@Override
 	public void info(String msg, Throwable t) {
-		normalizedLog(Level.INFO, msg, null, null, null, t);
+		normalizedLog(Level.INFO, null, msg, null, null, null, t);
 	}
 
 	@Override
 	public void info(Marker marker, String msg) {
-		normalizedLog(Level.INFO, msg, null, null, null, null);
+		normalizedLog(Level.INFO, marker, msg, null, null, null, null);
 	}
 
 	@Override
 	public void info(Marker marker, String format, Object arg) {
-		normalizedLog(Level.INFO, format, arg, null, null, null);
+		normalizedLog(Level.INFO, marker, format, arg, null, null, null);
 	}
 
 	@Override
 	public void info(Marker marker, String format, Object arg1, Object arg2) {
-		normalizedLog(Level.INFO, format, arg1, arg2, null, null);
+		normalizedLog(Level.INFO, marker, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void info(Marker marker, String format, Object... argArray) {
-		normalizedLog(Level.INFO, format, null, null, argArray, null);
+		normalizedLog(Level.INFO, marker, format, null, null, argArray, null);
 	}
 
 	@Override
 	public void info(Marker marker, String msg, Throwable t) {
-		normalizedLog(Level.INFO, msg, null, null, null, t);
+		normalizedLog(Level.INFO, marker, msg, null, null, null, t);
 	}
 
 	@Override
@@ -368,57 +384,57 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 
 	@Override
 	public boolean isWarnEnabled(Marker marker) {
-		return isWarnEnabled();
+		return isEnabledForLevel(Level.WARN, marker);
 	}
 
 	@Override
 	public void warn(String msg) {
-		normalizedLog(Level.WARN, msg, null, null, null, null);
+		normalizedLog(Level.WARN, null, msg, null, null, null, null);
 	}
 
 	@Override
 	public void warn(String format, Object arg) {
-		normalizedLog(Level.WARN, format, arg, null, null, null);
+		normalizedLog(Level.WARN, null, format, arg, null, null, null);
 	}
 
 	@Override
 	public void warn(String format, Object arg1, Object arg2) {
-		normalizedLog(Level.WARN, format, arg1, arg2, null, null);
+		normalizedLog(Level.WARN, null, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void warn(String format, Object... arguments) {
-		normalizedLog(Level.WARN, format, null, null, arguments, null);
+		normalizedLog(Level.WARN, null, format, null, null, arguments, null);
 	}
 
 	@Override
 	public void warn(String msg, Throwable t) {
-		normalizedLog(Level.WARN, msg, null, null, null, t);
+		normalizedLog(Level.WARN, null, msg, null, null, null, t);
 	}
 
 	@Override
 	public void warn(Marker marker, String msg) {
-		normalizedLog(Level.WARN, msg, null, null, null, null);
+		normalizedLog(Level.WARN, marker, msg, null, null, null, null);
 	}
 
 	@Override
 	public void warn(Marker marker, String format, Object arg) {
-		normalizedLog(Level.WARN, format, arg, null, null, null);
+		normalizedLog(Level.WARN, marker, format, arg, null, null, null);
 	}
 
 	@Override
 	public void warn(Marker marker, String format, Object arg1, Object arg2) {
-		normalizedLog(Level.WARN, format, arg1, arg2, null, null);
+		normalizedLog(Level.WARN, marker, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void warn(Marker marker, String format, Object... argArray) {
-		normalizedLog(Level.WARN, format, null, null, argArray, null);
+		normalizedLog(Level.WARN, marker, format, null, null, argArray, null);
 	}
 
 	@Override
 	public void warn(Marker marker, String msg, Throwable t) {
-		normalizedLog(Level.WARN, msg, null, null, null, t);
+		normalizedLog(Level.WARN, marker, msg, null, null, null, t);
 	}
 
 	@Override
@@ -433,57 +449,57 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 
 	@Override
 	public boolean isErrorEnabled(Marker marker) {
-		return isErrorEnabled();
+		return isEnabledForLevel(Level.ERROR, marker);
 	}
 
 	@Override
 	public void error(String msg) {
-		normalizedLog(Level.ERROR, msg, null, null, null, null);
+		normalizedLog(Level.ERROR, null, msg, null, null, null, null);
 	}
 
 	@Override
 	public void error(String format, Object arg) {
-		normalizedLog(Level.ERROR, format, arg, null, null, null);
+		normalizedLog(Level.ERROR, null, format, arg, null, null, null);
 	}
 
 	@Override
 	public void error(String format, Object arg1, Object arg2) {
-		normalizedLog(Level.ERROR, format, arg1, arg2, null, null);
+		normalizedLog(Level.ERROR, null, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void error(String format, Object... arguments) {
-		normalizedLog(Level.ERROR, format, null, null, arguments, null);
+		normalizedLog(Level.ERROR, null, format, null, null, arguments, null);
 	}
 
 	@Override
 	public void error(String msg, Throwable t) {
-		normalizedLog(Level.ERROR, msg, null, null, null, t);
+		normalizedLog(Level.ERROR, null, msg, null, null, null, t);
 	}
 
 	@Override
 	public void error(Marker marker, String msg) {
-		normalizedLog(Level.ERROR, msg, null, null, null, null);
+		normalizedLog(Level.ERROR, marker, msg, null, null, null, null);
 	}
 
 	@Override
 	public void error(Marker marker, String format, Object arg) {
-		normalizedLog(Level.ERROR, format, arg, null, null, null);
+		normalizedLog(Level.ERROR, marker, format, arg, null, null, null);
 	}
 
 	@Override
 	public void error(Marker marker, String format, Object arg1, Object arg2) {
-		normalizedLog(Level.ERROR, format, arg1, arg2, null, null);
+		normalizedLog(Level.ERROR, marker, format, arg1, arg2, null, null);
 	}
 
 	@Override
 	public void error(Marker marker, String format, Object... argArray) {
-		normalizedLog(Level.ERROR, format, null, null, argArray, null);
+		normalizedLog(Level.ERROR, marker, format, null, null, argArray, null);
 	}
 
 	@Override
 	public void error(Marker marker, String msg, Throwable t) {
-		normalizedLog(Level.ERROR, msg, null, null, null, t);
+		normalizedLog(Level.ERROR, marker, msg, null, null, null, t);
 	}
 
 	@Override
