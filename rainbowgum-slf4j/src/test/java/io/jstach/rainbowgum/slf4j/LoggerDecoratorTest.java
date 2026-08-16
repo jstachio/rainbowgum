@@ -3,7 +3,6 @@ package io.jstach.rainbowgum.slf4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.eclipse.jdt.annotation.Nullable;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
@@ -22,7 +21,6 @@ import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
-@Disabled
 class LoggerDecoratorTest {
 
 	ListLogOutput list = new ListLogOutput();
@@ -40,7 +38,7 @@ class LoggerDecoratorTest {
 		try (var g = gum.start()) {
 			var factory = new RainbowGumLoggerFactory(gum, mdc);
 			var logger = factory.getLogger("test");
-			logger.makeLoggingEventBuilder(Level.INFO).setMessage("hello").log();
+			logger.info("hello");
 		}
 		String actual = list.toString();
 		String expected = test.expected;
@@ -70,7 +68,15 @@ class LoggerDecoratorTest {
 
 		String prefix = "MY_PREFIX ";
 
-		private static int DEPTH = 1;
+		/*
+		 * Frames between here and the real call site for any AbstractLogger convenience
+		 * method (info(msg), info(msg,arg), error(msg), trace(msg), ...): this handle()
+		 * method, handleNormalizedLoggingCall(), AbstractLogger's arity-specific
+		 * handleNArgsCall()/handleArgArrayCall() dispatcher, and the public
+		 * info()/error()/ etc. method itself. That is constant across arities because
+		 * handleNormalizedLoggingCall() is SLF4J's single normalization point.
+		 */
+		private static int DEPTH = 4;
 
 		public MyLogger(DepthAwareLogger logger) {
 			super();
