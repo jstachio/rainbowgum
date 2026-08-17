@@ -1,5 +1,5 @@
 /**
- * Common JSON encoders like GELF, ECS, and Logstash's format.
+ * Common JSON encoders like GELF, ECS, Logstash's, and Logback's own JSON format.
  * <p>
  * The Service Loaded configurators add:
  * <ul>
@@ -14,6 +14,9 @@
  * "https://github.com/logfellow/logstash-logback-encoder">logstash-logback-encoder</a>
  * style Encoder to encoder registry with {@value LogstashEncoder#LOGSTASH_SCHEME} URI
  * scheme.</li>
+ * <li><a href="https://logback.qos.ch/manual/encoders.html#JsonEncoder">Logback style
+ * JSON</a> Encoder to encoder registry with {@value LogbackJsonEncoder#LOGBACK_SCHEME}
+ * URI scheme.</li>
  * </ul>
  */
 @org.eclipse.jdt.annotation.NonNullByDefault

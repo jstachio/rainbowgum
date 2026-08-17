@@ -710,6 +710,16 @@ logging.appender.myappender.encoder=logstash
 logging.encoder.myappender.zoneId=UTC
     }
   </li>
+  <li>{@link io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder} - resembles
+    <a href="https://logback.qos.ch/manual/encoders.html#JsonEncoder">Logback's own opinionated JSON encoder</a>,
+    URI scheme {@value io.jstach.rainbowgum.json.encoder.LogbackJsonEncoder#LOGBACK_SCHEME}. Nests key values
+    under a <code>mdc</code> object and, for throwables, a <code>throwable</code> object with a
+    <code>stepArray</code> of stack frames (recursing into <code>cause</code>):
+    {@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.encoder=logback
+    }
+  </li>
   <li>{@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}</li>
 </ul>
 
