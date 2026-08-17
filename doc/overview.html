@@ -697,6 +697,19 @@ logging.appender.myappender.encoder=ecs
 logging.encoder.myappender.serviceName=myapp
     }
   </li>
+  <li>{@link io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder} - format produced by
+    <a href="https://github.com/logfellow/logstash-logback-encoder">logstash-logback-encoder</a>'s
+    <code>LogstashEncoder</code>, URI scheme
+    {@value io.jstach.rainbowgum.json.encoder.LogstashEncoder#LOGSTASH_SCHEME}. Key values are flattened
+    top-level fields (matching the reference implementation) and <code>@timestamp</code> is rendered with
+    an offset using {@linkplain io.jstach.rainbowgum.json.encoder.LogstashEncoder#zoneId() a configurable zone}
+    (defaults to the system default zone):
+    {@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.encoder=logstash
+logging.encoder.myappender.zoneId=UTC
+    }
+  </li>
   <li>{@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}</li>
 </ul>
 
