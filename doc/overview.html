@@ -684,6 +684,19 @@ Here are some of the supported encoders (not a complete listing):
 
 <ul>
   <li>{@link io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder}</li>
+  <li>{@link io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder} -
+    <a href="https://www.elastic.co/guide/en/ecs-logging/java/current/index.html">Elastic Common Schema (ECS)</a>
+    JSON, URI scheme {@value io.jstach.rainbowgum.json.encoder.EcsEncoder#ECS_SCHEME}. Field names are the
+    flattened, dotted ECS names (e.g. <code>"log.level"</code>) as the reference
+    <a href="https://github.com/elastic/ecs-logging-java">ecs-logging-java</a> implementation writes them, not
+    nested JSON objects. MDC / key values have no reserved ECS field so, matching the reference implementation,
+    they are written as top-level fields using their own key name:
+    {@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.encoder=ecs
+logging.encoder.myappender.serviceName=myapp
+    }
+  </li>
   <li>{@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}</li>
 </ul>
 
