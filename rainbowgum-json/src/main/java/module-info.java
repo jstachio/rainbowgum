@@ -5,16 +5,18 @@
  * @see io.jstach.rainbowgum.json.encoder
  * @see io.jstach.rainbowgum.json.JsonBuffer
  * @see io.jstach.rainbowgum.json.encoder.GelfEncoder
+ * @see io.jstach.rainbowgum.json.encoder.EcsEncoder
  */
 module io.jstach.rainbowgum.json {
 	exports io.jstach.rainbowgum.json;
 	exports io.jstach.rainbowgum.json.encoder;
 	requires transitive io.jstach.rainbowgum;
-	
+
 	requires static io.jstach.rainbowgum.annotation;
 	requires static io.jstach.svc;
 	requires static org.eclipse.jdt.annotation;
-	
-	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider 
-		with io.jstach.rainbowgum.json.encoder.GelfEncoderConfigurator;
+
+	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
+		with io.jstach.rainbowgum.json.encoder.GelfEncoderConfigurator,
+			io.jstach.rainbowgum.json.encoder.EcsEncoderConfigurator;
 }
