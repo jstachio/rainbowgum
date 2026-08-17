@@ -28,6 +28,9 @@ import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
  * transparent pass-through to {@link #delegate()} and does <strong>not</strong> invoke
  * either hook, since there is no populated event (or marker) to filter or decorate yet at
  * that point.
+ *
+ * @see LoggerDecoratorService LoggerDecoratorService for a full example and how to
+ * register a decorator.
  */
 public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogger {
 

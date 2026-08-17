@@ -10,8 +10,10 @@ import io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider;
  * <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService Decorating loggers}</li>
  * <li>{@linkplain io.jstach.rainbowgum.LogEvent.Caller Caller Information}</li>
  * </ul>
- * However there is currently no {@link org.slf4j.Marker}
- * support. 
+ * There is no built-in {@link org.slf4j.Marker} support (it is not stored on the event
+ * or used for routing/filtering by default), but a
+ * {@linkplain io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger decorator} can
+ * observe markers and act on them, e.g. surface one as a key value or filter on it.
  * <p>
  * Rainbow Gum supports key value pairs
  * in {@link org.slf4j.spi.LoggingEventBuilder} by overlaying on top
