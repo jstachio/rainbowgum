@@ -697,16 +697,15 @@ encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogF
 
 <h4 id="pattern">Pattern Formatter</h4>
 
-  For those coming from Logback or Log4j2 
-  Rainbow Gum has an {@linkplain io.jstach.rainbowgum.pattern/ optional module} for 
-  <a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">Logback style based pattern</a> formatters. 
-  This allows describing an output format using 
+  For those coming from Logback or Log4j2
+  Rainbow Gum has an {@linkplain io.jstach.rainbowgum.pattern/ optional module} for
+  <a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">Logback style based pattern</a> formatters.
+  This allows describing an output format using
   <code>String.format</code> percent style syntax. Rainbow Gum implements most of the builtin Logback
-  pattern keywords with far less overhead. 
-  <p>
-Like Logback you can even add your own pattern keywords which is covered in {@link io.jstach.rainbowgum.pattern/ } module.
-  </p>
-  <strong>The pattern module is pulled in by default with the aggregate rainbow gum dependency.</strong> 
+  pattern keywords with far less overhead.
+  <strong>The pattern module is pulled in by default with the aggregate rainbow gum dependency.</strong>
+  See the dedicated <a href="#pattern_module">Pattern Module</a> section for configuration and how to add
+  your own keywords.
 <p>
   <strong>NOTE:</strong> <em>If you plan on using the <strong>color </strong> pattern keywords it is generally a good idea (for now) to use
     the {@link io.jstach.rainbowgum.jansi/ } module which is covered next.</em> Regardless ANSI escape can be
@@ -742,8 +741,66 @@ or {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} bool
 <p>
   A major reason to disable Jansi is because it may <em>accidentally strip ANSI escape characters for terminals that
   do support ANSI but Jansi cannot determine they do</em>. The most notable case of this problem are IDE terminals/consoles particularly
-  <a href="https://youtrack.jetbrains.com/issue/IDEA-132822"><strong>IntelliJ's</strong></a>. 
+  <a href="https://youtrack.jetbrains.com/issue/IDEA-132822"><strong>IntelliJ's</strong></a>.
 </p>
+
+<h2 id="pattern_module">Pattern Module</h2>
+
+The {@linkplain io.jstach.rainbowgum.pattern/ pattern module} provides
+<a href="https://logback.qos.ch/manual/layouts.html#ClassicPatternLayout">Logback style pattern</a> formatters
+so an output format can be described with <code>String.format</code> percent style syntax, e.g.
+<code>"%-5level %logger - %msg%n"</code>. The builtin keywords are listed in
+{@link io.jstach.rainbowgum.pattern.format.PatternRegistry.KeywordKey} and
+{@link io.jstach.rainbowgum.pattern.format.PatternRegistry.ColorKey}.
+<strong>The pattern module is pulled in by default with the aggregate rainbow gum dependency</strong> and is
+already the default encoder for console output.
+
+<h3 id="pattern_encoder_config">Selecting and Configuring the Pattern Encoder</h3>
+
+The pattern encoder's URI scheme is {@value io.jstach.rainbowgum.pattern.format.PatternEncoder#PATTERN_SCHEME}.
+Because it is already the default for console output, setting a pattern on an appender is often all that is
+needed:
+
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.encoder=pattern
+logging.encoder.myappender.pattern=[%thread] %-5level %logger{15} - %msg%n
+}
+
+To stop the pattern encoder from being used as the default for console output (falling back to the plain TTLL
+encoder) set {@value io.jstach.rainbowgum.pattern.format.PatternConfigurator#LOGGING_PATTERN_DISABLE_PROPERTY}
+to <code>true</code>.
+
+<h3 id="pattern_config">Configuring PatternConfig with Properties</h3>
+
+{@link io.jstach.rainbowgum.pattern.format.PatternConfig} carries the platform specific settings that keywords
+need: time zone (for {@code %d}/{@code %date}), line separator (for {@code %n}), whether ANSI is disabled, and
+the start time used by {@code %r}/{@code %relative}. It is resolved <em>per encoder name</em> through
+{@value io.jstach.rainbowgum.pattern.format.PatternConfig#PATTERN_CONFIG_PREFIX}, so different appenders can
+each have their own:
+
+{@snippet lang=properties :
+logging.appender.myappender.encoder=pattern
+logging.pattern.config.myappender.zoneId=UTC
+logging.pattern.config.myappender.lineSeparator=\n
+logging.pattern.config.myappender.ansiDisabled=true
+}
+
+<code>%property{key}</code> is different: it looks up ad-hoc key values that are not tied to a particular
+encoder, through {@value io.jstach.rainbowgum.pattern.format.PatternConfig#PATTERN_PROPERY_PREFIX}:
+
+{@snippet lang=properties :
+logging.pattern.property.app=myapp
+}
+
+With the above, <code>%property{app}</code> anywhere in a pattern outputs <code>myapp</code>.
+
+<h3 id="pattern_extend">Custom Keywords and Programmatic Configuration</h3>
+
+Like Logback you can add your own pattern keywords, and {@link io.jstach.rainbowgum.pattern.format.PatternConfig}
+can instead be set programmatically as a single default shared by every encoder that has no more specific
+property configuration. Both - with full code examples - are covered in the
+{@link io.jstach.rainbowgum.pattern/ } module javadoc.
 
 <h2 id="outputs">Outputs</h2>
 
