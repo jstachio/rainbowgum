@@ -6,6 +6,7 @@
  * @see io.jstach.rainbowgum.json.JsonBuffer
  * @see io.jstach.rainbowgum.json.encoder.GelfEncoder
  * @see io.jstach.rainbowgum.json.encoder.EcsEncoder
+ * @see io.jstach.rainbowgum.json.encoder.LogstashEncoder
  */
 module io.jstach.rainbowgum.json {
 	exports io.jstach.rainbowgum.json;
@@ -18,5 +19,6 @@ module io.jstach.rainbowgum.json {
 
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
 		with io.jstach.rainbowgum.json.encoder.GelfEncoderConfigurator,
-			io.jstach.rainbowgum.json.encoder.EcsEncoderConfigurator;
+			io.jstach.rainbowgum.json.encoder.EcsEncoderConfigurator,
+			io.jstach.rainbowgum.json.encoder.LogstashEncoderConfigurator;
 }
