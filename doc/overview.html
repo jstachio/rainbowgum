@@ -888,6 +888,19 @@ There is not really an analog in Logback or Log4j but as usual <em>with great po
 These filters are usually loaded with the ServiceLoader so manually using the Rainbow Gum builder is not required
 like router based filtering.
 </p>
+<p>
+Do not implement the decorated {@link org.slf4j.Logger} by extending
+{@link org.slf4j.helpers.AbstractLogger} directly - getting SLF4J caller-info depth right
+means depending on that class's internal dispatch shape, which is an unversioned
+implementation detail and easy to get subtly wrong. Extend
+{@linkplain io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger AbstractFilteringLogger}
+instead, which owns and tests its own depth accounting. A decorator that samples DEBUG
+level events and surfaces any {@link org.slf4j.Marker} as a key value (there is no
+built-in {@code Marker} support otherwise):
+
+{@snippet class="snippets.DecoratorExample" region="decoratorExample" }
+
+</p>
 
 
 <h2 id="installation">Installation</h2>
@@ -969,7 +982,10 @@ Rainbow Gum SLF4J module {@link io.jstach.rainbowgum.slf4j/} supports:
 <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService Decorating loggers}</li>
 <li>{@linkplain io.jstach.rainbowgum.LogEvent.Caller Caller Information}</li>
 </ul>
-However there is currently no {@link org.slf4j.Marker} support. 
+There is no built-in {@link org.slf4j.Marker} support (it is not stored on the event
+or used for routing/filtering by default), but a
+{@linkplain io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger decorator} can
+observe markers and act on them, e.g. surface one as a key value or filter on it.
 <p>
 Rainbow Gum supports key value pairs
 in {@link org.slf4j.spi.LoggingEventBuilder} by overlaying on top

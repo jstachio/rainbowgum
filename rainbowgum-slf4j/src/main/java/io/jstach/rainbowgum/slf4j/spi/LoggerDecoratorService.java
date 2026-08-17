@@ -24,8 +24,33 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * <strong>IMPORTANT implementation detail</strong> is that you should not call the SLF4J
  * logger factory otherwise a stackoverflow or similar will happen.
  *
+ * <h2>Writing a decorator</h2>
+ *
+ * Do not extend {@link org.slf4j.helpers.AbstractLogger} directly to implement the
+ * returned {@link Logger}: getting caller-info depth right means depending on that
+ * class's internal multi-arity dispatch shape, which is an unversioned SLF4J
+ * implementation detail rather than a contract, and is easy to get subtly wrong. Extend
+ * {@link AbstractFilteringLogger} instead - it owns and tests its own depth accounting so
+ * a decorator author never has to reason about stack frames.
+ * <p>
+ * A decorator that samples DEBUG level events and surfaces any {@link org.slf4j.Marker}
+ * as a key value (Rainbow Gum core has no built-in {@code Marker} support, so this is how
+ * a decorator can still make use of one):
+ *
+ * {@snippet class = "snippets.DecoratorExample" region = "decoratorExample" }
+ *
+ * Once built, register it like any other {@link RainbowGumServiceProvider}. If your
+ * application is modularized:
+ *
+ * {@snippet :
+ *
+ * provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with com.mycompany.DecoratorExample;
+ *
+ * }
+ *
  * @see ForwardingLogger
  * @see RainbowGumServiceProvider
+ * @see AbstractFilteringLogger
  */
 public abstract class LoggerDecoratorService implements RainbowGumServiceProvider.Configurator {
 
