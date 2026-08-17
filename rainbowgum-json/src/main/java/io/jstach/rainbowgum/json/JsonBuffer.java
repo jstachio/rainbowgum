@@ -223,7 +223,90 @@ public final class JsonBuffer implements Buffer {
 		return index + 1;
 	}
 
-	private final void _writeStartField(String k, int index, int flag) {
+	/**
+	 * Writes a long field.
+	 * @param k field name
+	 * @param v value
+	 * @param index the current index for comma determination
+	 * @param flag see {@link #EXTENDED_F}
+	 * @return index + 1
+	 */
+	public final int writeLong(String k, long v, int index, int flag) {
+		_writeStartField(k, index, flag);
+		jsonWriter.writeAscii(Long.toString(v));
+		_writeEndField(flag);
+		return index + 1;
+	}
+
+	/**
+	 * Starts a nested JSON object as a field value, e.g. <code>"key":{</code>. Fields
+	 * written after this and before the matching {@link #writeObjectEnd()} should use the
+	 * returned index (a fresh comma-counter local to the nested object) rather than the
+	 * outer index.
+	 * @param k field name
+	 * @param index the current index (of the enclosing object) for comma determination
+	 * @param flag see {@link #EXTENDED_F}
+	 * @return 0, the starting index for fields inside the nested object
+	 */
+	public final int writeObjectStart(String k, int index, int flag) {
+		_writeStartField(k, index, flag);
+		jsonWriter.writeByte(RawJsonWriter.OBJECT_START);
+		return 0;
+	}
+
+	/**
+	 * Ends a nested JSON object previously started with
+	 * {@link #writeObjectStart(String, int, int)}.
+	 */
+	public final void writeObjectEnd() {
+		jsonWriter.writeByte(RawJsonWriter.OBJECT_END);
+	}
+
+	/**
+	 * Starts a nested JSON array as a field value, e.g. <code>"key":[</code>. Elements
+	 * written after this and before the matching {@link #writeArrayEnd()} should use
+	 * {@link #writeArrayElementObjectStart(int)} (with a fresh, local index) rather than
+	 * the outer index.
+	 * @param k field name
+	 * @param index the current index (of the enclosing object) for comma determination
+	 * @param flag see {@link #EXTENDED_F}
+	 * @return 0, the starting index for elements inside the nested array
+	 */
+	public final int writeArrayStart(String k, int index, int flag) {
+		_writeStartField(k, index, flag);
+		jsonWriter.writeByte(RawJsonWriter.ARRAY_START);
+		return 0;
+	}
+
+	/**
+	 * Ends a nested JSON array previously started with
+	 * {@link #writeArrayStart(String, int, int)}.
+	 */
+	public final void writeArrayEnd() {
+		jsonWriter.writeByte(RawJsonWriter.ARRAY_END);
+	}
+
+	/**
+	 * Starts an anonymous JSON object as an array element (no field name), e.g. the
+	 * <code>{</code> in <code>[{...},{...}]</code>.
+	 * @param index the current index (within the array) for comma determination
+	 * @return 0, the starting index for fields inside the element object
+	 */
+	public final int writeArrayElementObjectStart(int index) {
+		_writeStartElement(index);
+		jsonWriter.writeByte(RawJsonWriter.OBJECT_START);
+		return 0;
+	}
+
+	/**
+	 * Ends an array element object previously started with
+	 * {@link #writeArrayElementObjectStart(int)}.
+	 */
+	public final void writeArrayElementObjectEnd() {
+		jsonWriter.writeByte(RawJsonWriter.OBJECT_END);
+	}
+
+	private final void _writeStartElement(int index) {
 		if (index > 0) {
 			jsonWriter.writeByte(COMMA);
 		}
@@ -231,6 +314,10 @@ public final class JsonBuffer implements Buffer {
 			jsonWriter.writeByte(LF);
 			jsonWriter.writeByte(SPACE);
 		}
+	}
+
+	private final void _writeStartField(String k, int index, int flag) {
+		_writeStartElement(index);
 		if ((flag & EXTENDED_F) == EXTENDED_F) {
 			/*
 			 * Field names come from application controlled data (e.g. MDC keys) and must
