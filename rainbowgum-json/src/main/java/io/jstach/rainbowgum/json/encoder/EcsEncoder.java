@@ -19,15 +19,25 @@ import io.jstach.rainbowgum.json.JsonBuffer.JSONToken;
 /**
  * A JSON encoder in
  * <a href="https://www.elastic.co/guide/en/ecs-logging/java/current/index.html">Elastic
- * Common Schema (ECS) logging format</a> as produced by
- * <a href="https://github.com/elastic/ecs-logging-java">ecs-logging-java</a>. Field names
- * are the flattened, dotted ECS field names (e.g. <code>"log.level"</code>) rather than
- * nested JSON objects, matching how the reference implementation serializes them.
+ * Common Schema (ECS) logging format</a>.
  * <p>
- * MDC / key values have no reserved ECS field, so - like the reference implementation -
- * they are written as top-level fields using their own key name. This means a key value
- * whose name collides with a reserved ECS field name (e.g. <code>message</code>) will
- * overwrite it; that footgun exists in the reference implementation too.
+ * Two shapes are supported, controlled by {@link #structured()}:
+ * <ul>
+ * <li><strong>Flattened (default)</strong>: field names are the flattened, dotted ECS
+ * field names (e.g. <code>"log.level"</code>) rather than nested JSON objects, matching
+ * how the reference <a href="https://github.com/elastic/ecs-logging-java">
+ * ecs-logging-java</a> implementation serializes them.</li>
+ * <li><strong>Structured</strong> ({@link EcsEncoderBuilder#structured(Boolean)
+ * structured=true}): fields are nested JSON objects (e.g.
+ * <code>"log":{"level":...}</code>), matching
+ * <a href="https://docs.spring.io/spring-boot/reference/features/logging.html">Spring
+ * Boot's ECS structured logging format</a>.</li>
+ * </ul>
+ * MDC / key values have no reserved ECS field in either shape, so - like both reference
+ * implementations - they are written as top-level fields using their own key name. This
+ * means a key value whose name collides with a reserved ECS field name (e.g.
+ * <code>message</code>) will overwrite it; that footgun exists in the reference
+ * implementations too.
  */
 public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
@@ -51,19 +61,31 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final @Nullable String eventDataset;
 
+	private final boolean structured;
+
 	private final boolean prettyprint;
 
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
 	EcsEncoder(@Nullable String serviceName, @Nullable String serviceVersion, @Nullable String serviceEnvironment,
-			@Nullable String serviceNodeName, @Nullable String eventDataset, boolean prettyprint) {
+			@Nullable String serviceNodeName, @Nullable String eventDataset, boolean structured, boolean prettyprint) {
 		super();
 		this.serviceName = serviceName;
 		this.serviceVersion = serviceVersion;
 		this.serviceEnvironment = serviceEnvironment;
 		this.serviceNodeName = serviceNodeName;
 		this.eventDataset = eventDataset;
+		this.structured = structured;
 		this.prettyprint = prettyprint;
+	}
+
+	/**
+	 * Whether fields are nested JSON objects (Spring Boot's ECS shape) instead of the
+	 * default flattened, dotted field names (the reference ecs-logging-java shape).
+	 * @return true if fields are nested.
+	 */
+	public boolean structured() {
+		return this.structured;
 	}
 
 	/**
@@ -88,16 +110,19 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * @param serviceEnvironment <code>service.environment</code> field, or null to omit.
 	 * @param serviceNodeName <code>service.node.name</code> field, or null to omit.
 	 * @param eventDataset <code>event.dataset</code> field, or null to omit.
+	 * @param structured <code>true</code> nests fields as JSON objects (Spring Boot's ECS
+	 * shape) instead of flattened dotted field names, default is false.
 	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	static EcsEncoder of(@LogConfigurable.KeyParameter String name, @Nullable String serviceName,
 			@Nullable String serviceVersion, @Nullable String serviceEnvironment, @Nullable String serviceNodeName,
-			@Nullable String eventDataset, @Nullable Boolean prettyPrint) {
+			@Nullable String eventDataset, @Nullable Boolean structured, @Nullable Boolean prettyPrint) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
+		structured = structured == null ? false : structured;
 		return new EcsEncoder(serviceName, serviceVersion, serviceEnvironment, serviceNodeName, eventDataset,
-				prettyPrint);
+				structured, prettyPrint);
 	}
 
 	@Override
@@ -110,6 +135,18 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		buffer.clear();
 		var formattedMessage = buffer.getFormattedMessageBuilder();
 		event.formattedMessage(formattedMessage);
+
+		int index = structured ? encodeStructured(event, buffer, formattedMessage)
+				: encodeFlattened(event, buffer, formattedMessage);
+
+		if (index > 0 && prettyprint) {
+			buffer.writeLineFeed();
+		}
+		buffer.write(JSONToken.OBJECT_END);
+		buffer.writeLineFeed();
+	}
+
+	private int encodeFlattened(LogEvent event, JsonBuffer buffer, StringBuilder formattedMessage) {
 		var now = event.timestamp();
 		var t = event.throwableOrNull();
 
@@ -135,18 +172,84 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 			index = buffer.write("error.stack_trace", stackTrace.toString(), index);
 		}
 
+		index = writeKeyValues(event, buffer, index);
+		return index;
+	}
+
+	private int encodeStructured(LogEvent event, JsonBuffer buffer, StringBuilder formattedMessage) {
+		var now = event.timestamp();
+		var t = event.throwableOrNull();
+
+		buffer.write(JSONToken.OBJECT_START);
+		int index = 0;
+		index = buffer.write("@timestamp", timeFormatter.format(now), index);
+
+		int logIndex = buffer.writeObjectStart("log", index, 0);
+		logIndex = buffer.write("level", LevelFormatter.toString(event.level()), logIndex, 0);
+		logIndex = buffer.write("logger", event.loggerName(), logIndex, 0);
+		buffer.writeObjectEnd();
+		index++;
+
+		index = buffer.write("message", formattedMessage.toString(), index);
+
+		int ecsIndex = buffer.writeObjectStart("ecs", index, 0);
+		buffer.write("version", ECS_VERSION, ecsIndex, 0);
+		buffer.writeObjectEnd();
+		index++;
+
+		boolean hasService = serviceName != null || serviceVersion != null || serviceEnvironment != null
+				|| serviceNodeName != null;
+		if (hasService) {
+			int serviceIndex = buffer.writeObjectStart("service", index, 0);
+			serviceIndex = buffer.write("name", serviceName, serviceIndex, 0);
+			serviceIndex = buffer.write("version", serviceVersion, serviceIndex, 0);
+			serviceIndex = buffer.write("environment", serviceEnvironment, serviceIndex, 0);
+			if (serviceNodeName != null) {
+				int nodeIndex = buffer.writeObjectStart("node", serviceIndex, 0);
+				buffer.write("name", serviceNodeName, nodeIndex, 0);
+				buffer.writeObjectEnd();
+			}
+			buffer.writeObjectEnd();
+			index++;
+		}
+
+		if (eventDataset != null) {
+			int eventIndex = buffer.writeObjectStart("event", index, 0);
+			buffer.write("dataset", eventDataset, eventIndex, 0);
+			buffer.writeObjectEnd();
+			index++;
+		}
+
+		int processIndex = buffer.writeObjectStart("process", index, 0);
+		int threadIndex = buffer.writeObjectStart("thread", processIndex, 0);
+		buffer.write("name", event.threadName(), threadIndex, 0);
+		buffer.writeObjectEnd();
+		buffer.writeObjectEnd();
+		index++;
+
+		if (t != null) {
+			int errorIndex = buffer.writeObjectStart("error", index, 0);
+			errorIndex = buffer.write("type", t.getClass().getName(), errorIndex, 0);
+			errorIndex = buffer.write("message", t.getMessage(), errorIndex, 0);
+			var stackTrace = new StringBuilder();
+			ThrowableFormatter.appendThrowable(stackTrace, t);
+			buffer.write("stack_trace", stackTrace.toString(), errorIndex, 0);
+			buffer.writeObjectEnd();
+			index++;
+		}
+
+		index = writeKeyValues(event, buffer, index);
+		return index;
+	}
+
+	private static int writeKeyValues(LogEvent event, JsonBuffer buffer, int index) {
 		var kvs = event.keyValues();
 		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
 			String k = kvs.key(i);
 			String v = kvs.valueOrNull(i);
 			index = buffer.write(k, v, index);
 		}
-
-		if (index > 0 && prettyprint) {
-			buffer.writeLineFeed();
-		}
-		buffer.write(JSONToken.OBJECT_END);
-		buffer.writeLineFeed();
+		return index;
 	}
 
 }
