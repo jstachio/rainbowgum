@@ -1123,6 +1123,34 @@ See {@link io.jstach.rainbowgum.file.FileOutputBuilder} for the full list of sup
 properties (e.g. <code>append</code>, <code>prudent</code>, <code>bufferSize</code>) and
 their defaults.
 
+<h3 id="jfr">JDK Flight Recorder (JFR)</h3>
+
+The optional {@linkplain io.jstach.rainbowgum.jfr/ JFR module} (inspired by
+<a href="https://github.com/mbien/JFRLog">JFRLog</a>) commits each log event as a JFR event instead of writing
+bytes anywhere, with one event type per level ({@code io.jstach.rainbowgum.Trace}/{@code Debug}/{@code Info}/
+{@code Warn}/{@code Error}) so each can be independently enabled, thresholded, or given a stack trace setting
+through a Flight Recorder configuration (<code>.jfc</code> file or <code>-XX:StartFlightRecording</code>) the
+same way as any other JFR event - not through Rainbow Gum properties. If no recording is active (or the
+relevant event type is disabled in it) writing is a cheap noop.
+
+<p>
+The JFR output prefers string writes, so the configured appender encoder's formatted
+message is recorded directly without first converting it to bytes:
+</p>
+
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.output=jfr:///
+}
+
+{@snippet :
+java -XX:StartFlightRecording:filename=recording.jfr,dumponexit=true,settings=profile -jar myapp.jar
+}
+
+<code>jfr print --events "io.jstach.rainbowgum.*" recording.jfr</code> then shows the recorded events. TRACE and
+DEBUG default to disabled (JFR events are opt-in per type and those two are usually too high volume to want on
+by default) so enable them explicitly in a custom <code>.jfc</code> settings file if needed.
+
 <h3 id="rolling">Rolling Files</h3>
 
 <h4 id="rolling_builtin">Built-in Rolling</h4>
