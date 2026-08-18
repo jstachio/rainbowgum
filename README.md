@@ -2,6 +2,8 @@
 [![Github](https://github.com/jstachio/rainbowgum/actions/workflows/maven.yml/badge.svg)](https://github.com/jstachio/rainbowgum/actions)
 [![Code Coverage](https://codecov.io/gh/jstachio/rainbowgum/branch/main/graph/badge.svg)](https://app.codecov.io/gh/jstachio/rainbowgum)
 
+<img src="etc/logo/rainbowgum-logo.svg" alt="Rainbow Gum Logo">
+
 # Rainbow Gum
 
 A modern modular JDK 21+ logging framework that offers implementations for multiple facades

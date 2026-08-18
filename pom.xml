@@ -602,8 +602,16 @@
               <show>protected</show>
               <overview>doc/overview.html</overview>
               <docfilessubdirs>true</docfilessubdirs>
-              <doctitle>rainbowgum API ${project.version}</doctitle>
-              <windowtitle>rainbowgum API ${project.version}</windowtitle>
+              <doctitle>Rainbow Gum ${project.version}</doctitle>
+              <doctitle>
+              <![CDATA[
+	      <img src ="resources/rainbowgum-logo.svg" alt="Rainbow Gum logo" title="Rainbow Gum" width="70%" />
+              <div class="rainbowgum-title">
+	      Rainbow Gum ${project.version}
+              </div>
+              ]]>
+              </doctitle>
+              <windowtitle>Rainbow Gum ${project.version}</windowtitle>
               <linksource>true</linksource>
             </configuration>
             <executions>
