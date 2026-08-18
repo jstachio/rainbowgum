@@ -1,28 +1,19 @@
-
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500" role="img" aria-label="Rainbow Gum Tree">
-  <title>Rainbow Gum Tree</title>
-
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 452 515" width="452" height="515" role="img" aria-label="Rainbow Gum">
+  <title>Rainbow Gum</title>
 
   <style>
     svg {
-      /* foliage */
+      /* canopy: foliage */
       --green: limegreen;
       --vein: green;
 
-      /* coffee beans, three roasts */
+      /* canopy: coffee beans, three roasts */
       --bean-light: #8c5e3c;  --bean-light-edge: #56391f;
       --bean-mid:   #6f4e37;  --bean-mid-edge:   #443021;
       --bean-dark:  #4a2c17;  --bean-dark-edge:  #2e1b0e;
-    }
-    #canopy use { stroke-width: 3; }
-    .leaf      { fill: var(--green);      stroke: var(--vein); }
-    .bean-light{ fill: var(--bean-light); stroke: var(--bean-light-edge); }
-    .bean-mid  { fill: var(--bean-mid);   stroke: var(--bean-mid-edge); }
-    .bean-dark { fill: var(--bean-dark);  stroke: var(--bean-dark-edge); }
 
-
-    svg {
-      --green: #3fae5a;
+      /* trunk: bark, one colour per strand (green renamed from --green) */
+      --bark-green: #3fae5a;
       --teal: #22a0a8;
       --blue: #2f7fd1;
       --violet: #6b5bd6;
@@ -30,29 +21,42 @@
       --orange: #e35a3a;
       --gold: #f0a92c;
     }
+
+    /* canopy */
+    #canopy use { stroke-width: 3; }
+    .leaf       { fill: var(--green);      stroke: var(--vein); }
+    .bean-light { fill: var(--bean-light); stroke: var(--bean-light-edge); }
+    .bean-mid   { fill: var(--bean-mid);   stroke: var(--bean-mid-edge); }
+    .bean-dark  { fill: var(--bean-dark);  stroke: var(--bean-dark-edge); }
+
+    /* trunk */
     #trunk use { stroke-width: 24; stroke-linecap: butt; }
-
-    .green { stroke: var(--green); }
-    .teal { stroke: var(--teal); }
-    .blue { stroke: var(--blue); }
-    .violet { stroke: var(--violet); }
+    .green   { stroke: var(--bark-green); }
+    .teal    { stroke: var(--teal); }
+    .blue    { stroke: var(--blue); }
+    .violet  { stroke: var(--violet); }
     .magenta { stroke: var(--magenta); }
-    .orange { stroke: var(--orange); }
-    .gold { stroke: var(--gold); }
+    .orange  { stroke: var(--orange); }
+    .gold    { stroke: var(--gold); }
+  </style>
 
-   </style>
-
-  <!-- Trunk -->
   <defs>
-    <!-- the single diagonal every stripe is a copy of -->
+    <!-- canopy: one leaf, lying flat; the <use> rotates it -->
+    <g id="leaf">
+      <ellipse rx="35" ry="17"/>
+      <path d="M-30 0 H30" fill="none"/>
+    </g>
+
+    <!-- trunk: the single diagonal every stripe is a copy of -->
     <line id="stripe" x1="-30" y1="420" x2="150" y2="330"/>
 
-    <!-- square off the trunk -->
+    <!-- trunk: square off its rectangle before it's moved into place -->
     <clipPath id="edges">
-      <rect x="0" y="0" width="120" height="400"/>
+      <rect x="0" y="0" width="120" height="355"/>
     </clipPath>
   </defs>
-  <g id="trunk" clip-path="url(#edges)">
+
+  <g id="trunk" clip-path="url(#edges)" transform="translate(166,115)">
     <use href="#stripe" class="green"/>
     <use href="#stripe" class="teal" transform="translate(0,-22)"/>
     <use href="#stripe" class="blue" transform="translate(0,-44)"/>
@@ -80,28 +84,6 @@
     <use href="#stripe" class="violet" transform="translate(0,-528)"/>
   </g>
 
-
-  <!-- Canopy -->
-
-    <!--
-    ONE leaf shape, used 33 times. Each <use> is placed with
-    translate(x,y) and turned with rotate(-45) or rotate(45); those two
-    angles are the only orientations in the block.
-
-    The leaf is an ellipse plus a straight midrib. Neither carries a
-    colour of its own; they inherit fill and stroke from the <use>,
-    which is why the same shape can be a leaf or a coffee bean.
-
-    3 rows of 11, stepped 36 across and 34 down, alternate rows nudged
-    9 sideways so the gaps close up.
-  -->
-  <defs>
-    <!-- one leaf, lying flat; the <use> rotates it -->
-    <g id="leaf">
-      <ellipse rx="35" ry="17"/>
-      <path d="M-30 0 H30" fill="none"/>
-    </g>
-  </defs>
   <g id="canopy">
     <!-- row 1 -->
     <use href="#leaf" class="leaf" transform="translate(37,46) rotate(-45)"/>
@@ -140,4 +122,5 @@
     <use href="#leaf" class="leaf" transform="translate(361,114) rotate(45)"/>
     <use href="#leaf" class="bean-light" transform="translate(397,114) rotate(-45)"/>
   </g>
+
 </svg>
