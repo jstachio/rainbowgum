@@ -865,7 +865,38 @@ Here are some of the supported outputs (not a complete listing):
   <li>stdout and stderr</li>
   <li>{@link io.jstach.rainbowgum.output.FileOutputBuilder} with URI scheme of "file"</li>
   <li>{@link io.jstach.rainbowgum.rabbitmq.RabbitMQOutputBuilder} with URI scheme of "amqp"</li>
+  <li>{@link io.jstach.rainbowgum.jfr.JfrLogOutput} with URI scheme of "jfr" - see below.</li>
 </ul>
+
+<h3 id="jfr">JDK Flight Recorder (JFR)</h3>
+
+The optional {@linkplain io.jstach.rainbowgum.jfr/ JFR module} (inspired by
+<a href="https://github.com/mbien/JFRLog">JFRLog</a>) commits each log event as a JFR event instead of writing
+bytes anywhere, with one event type per level ({@code io.jstach.rainbowgum.Trace}/{@code Debug}/{@code Info}/
+{@code Warn}/{@code Error}) so each can be independently enabled, thresholded, or given a stack trace setting
+through a Flight Recorder configuration (<code>.jfc</code> file or <code>-XX:StartFlightRecording</code>) the
+same way as any other JFR event - not through Rainbow Gum properties. If no recording is active (or the
+relevant event type is disabled in it) writing is a cheap noop.
+
+<p>
+Because an output is always paired with an encoder, and this output never looks at the encoded bytes (it reads
+the fields it needs straight off the event), pair it with the near zero-cost encoder registered under the same
+scheme to avoid wasting time formatting bytes that are thrown away:
+</p>
+
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.output=jfr:///
+logging.appender.myappender.encoder=jfr:///
+}
+
+{@snippet :
+java -XX:StartFlightRecording:filename=recording.jfr,dumponexit=true,settings=profile -jar myapp.jar
+}
+
+<code>jfr print --events "io.jstach.rainbowgum.*" recording.jfr</code> then shows the recorded events. TRACE and
+DEBUG default to disabled (JFR events are opt-in per type and those two are usually too high volume to want on
+by default) so enable them explicitly in a custom <code>.jfc</code> settings file if needed.
 
 <h3 id="rolling">Rolling Files</h3>
 

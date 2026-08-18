@@ -1139,6 +1139,7 @@
     <module>rainbowgum</module>
     <module>rainbowgum-disruptor</module>
     <module>rainbowgum-jansi</module>
+    <module>rainbowgum-jfr</module>
     <module>benchmark</module>
     <module>rainbowgum-avaje-config</module>
     <module>test</module>
