@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 452 160" width="452" height="160" role="img" aria-label="Rainbow Gum canopy">
+  <title>Rainbow Gum canopy</title>
+
+    <!--
+    ONE leaf shape, used 33 times. Each <use> is placed with
+    translate(x,y) and turned with rotate(-45) or rotate(45); those two
+    angles are the only orientations in the block.
+
+    The leaf is an ellipse plus a straight midrib. Neither carries a
+    colour of its own; they inherit fill and stroke from the <use>,
+    which is why the same shape can be a leaf or a coffee bean.
+
+    3 rows of 11, stepped 36 across and 34 down, alternate rows nudged
+    9 sideways so the gaps close up.
+  -->
+
+  <style>
+    svg {
+      /* foliage */
+      --green: limegreen;
+      --vein: green;
+
+      /* coffee beans, three roasts */
+      --bean-light: #8c5e3c;  --bean-light-edge: #56391f;
+      --bean-mid:   #6f4e37;  --bean-mid-edge:   #443021;
+      --bean-dark:  #4a2c17;  --bean-dark-edge:  #2e1b0e;
+    }
+    #canopy use { stroke-width: 3; }
+    .leaf      { fill: var(--green);      stroke: var(--vein); }
+    .bean-light{ fill: var(--bean-light); stroke: var(--bean-light-edge); }
+    .bean-mid  { fill: var(--bean-mid);   stroke: var(--bean-mid-edge); }
+    .bean-dark { fill: var(--bean-dark);  stroke: var(--bean-dark-edge); }
+  </style>
+
+  <defs>
+    <!-- one leaf, lying flat; the <use> rotates it -->
+    <g id="leaf">
+      <ellipse rx="35" ry="17"/>
+      <path d="M-30 0 H30" fill="none"/>
+    </g>
+  </defs>
+
+  <g id="canopy">
+    <!-- row 1 -->
+    <use href="#leaf" class="leaf" transform="translate(37,46) rotate(-45)"/>
+    <use href="#leaf" class="bean-dark" transform="translate(73,46) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(109,46) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(145,46) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(181,46) rotate(-45)"/>
+    <use href="#leaf" class="bean-light" transform="translate(217,46) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(253,46) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(289,46) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(325,46) rotate(-45)"/>
+    <use href="#leaf" class="bean-mid" transform="translate(361,46) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(397,46) rotate(-45)"/>
+    <!-- row 2 -->
+    <use href="#leaf" class="bean-light" transform="translate(55,80) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(91,80) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(127,80) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(163,80) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(199,80) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(235,80) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(271,80) rotate(45)"/>
+    <use href="#leaf" class="bean-dark" transform="translate(307,80) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(343,80) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(379,80) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(415,80) rotate(45)"/>
+    <!-- row 3 -->
+    <use href="#leaf" class="leaf" transform="translate(37,114) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(73,114) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(109,114) rotate(-45)"/>
+    <use href="#leaf" class="bean-mid" transform="translate(145,114) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(181,114) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(217,114) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(253,114) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(289,114) rotate(45)"/>
+    <use href="#leaf" class="leaf" transform="translate(325,114) rotate(-45)"/>
+    <use href="#leaf" class="leaf" transform="translate(361,114) rotate(45)"/>
+    <use href="#leaf" class="bean-light" transform="translate(397,114) rotate(-45)"/>
+  </g>
+</svg>
