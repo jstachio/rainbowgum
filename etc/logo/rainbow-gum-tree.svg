@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 452 515" width="452" height="515" role="img" aria-label="Rainbow Gum">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 452 480" width="452" height="515" role="img" aria-label="Rainbow Gum">
   <title>Rainbow Gum</title>
 
   <style>
@@ -56,7 +56,7 @@
     </clipPath>
   </defs>
 
-  <g id="trunk" clip-path="url(#edges)" transform="translate(166,115)">
+  <g id="trunk" clip-path="url(#edges)" transform="translate(160,115)">
     <use href="#stripe" class="green"/>
     <use href="#stripe" class="teal" transform="translate(0,-22)"/>
     <use href="#stripe" class="blue" transform="translate(0,-44)"/>
