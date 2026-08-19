@@ -6,8 +6,16 @@
 #
 # LOG_LEVEL (optional, e.g. LOG_LEVEL=ERROR): overrides logging.level.root on the app's
 # command line, for isolating disabled-logging-call overhead (the "mostly noop" case) from
-# the normal (INFO, everything fires) case. Included in the CSV label and the per-app
-# stdout/jfr filenames so different LOG_LEVEL runs don't clobber each other's output.
+# the normal (INFO, everything fires) case.
+#
+# STRUCTURED_FORMAT (optional, currently only "gelf" is wired up): overrides
+# logging.structured.format.file on the app's command line. Logback/Log4j2 honor this via
+# Spring Boot's own built-in structured logging support; RainbowGum has no such property
+# support yet, so rainbowgum-benchmark-webapp-rainbowgum's GelfSpringRainbowGumServiceProvider
+# checks the same property key and swaps in rainbowgum-json's GelfEncoder to match.
+#
+# Both are included in the CSV label and the per-app stdout/jfr filenames so different runs
+# don't clobber each other's output.
 set -eu
 cd "$(dirname "$0")"
 
@@ -15,9 +23,10 @@ WARMUP_SECONDS=${WARMUP_SECONDS:-10}
 DURATION_SECONDS=${DURATION_SECONDS:-30}
 CONCURRENCY=${CONCURRENCY:-50}
 LOG_LEVEL=${LOG_LEVEL:-}
+STRUCTURED_FORMAT=${STRUCTURED_FORMAT:-}
 URL_PATH="/api/greet/world"
 PORT=8080
-SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}
+SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}
 
 echo "Building..."
 ( cd ../.. && ./mvnw -q -pl benchmark/webapp -am install -DskipTests )
@@ -32,7 +41,10 @@ run_one() {
 
 	echo "=== $label ==="
 	rm -f "$app_dir/target/app.jfr" "$app_dir"/benchmark.log
-	(cd "$app_dir" && exec ./run.sh ${LOG_LEVEL:+--logging.level.root=$LOG_LEVEL}) \
+	(cd "$app_dir" && exec ./run.sh \
+		${LOG_LEVEL:+--logging.level.root=$LOG_LEVEL} \
+		${STRUCTURED_FORMAT:+--logging.structured.format.file=$STRUCTURED_FORMAT} \
+		${STRUCTURED_FORMAT:+--logging.structured.gelf.host=benchmark-host}) \
 		>"$RESULTS_DIR/$label-stdout.log" 2>&1 &
 	pid=$!
 

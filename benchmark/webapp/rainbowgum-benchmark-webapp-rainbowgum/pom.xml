@@ -61,5 +61,25 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-benchmark-webapp-share</artifactId>
     </dependency>
+    <!--
+      rainbowgum-spring-boot4-starter only exposes these at runtime scope (a starter's
+      consumers normally don't need compile-time access to its internals), but
+      GelfSpringRainbowGumServiceProvider needs LogConfig/RainbowGum/OutputType,
+      SpringRainbowGumServiceProvider, and GelfEncoder at compile time. All three are
+      already on the runtime classpath transitively; this just adds compile-time visibility.
+    -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-spring-spi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-json</artifactId>
+    </dependency>
   </dependencies>
 </project>

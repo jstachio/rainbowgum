@@ -193,3 +193,64 @@ run; superseded by the run above for anything about relative performance at real
 | logback    | 140670   | 17,583.75 | 0.41   | 0.76   | 1.16   | 11.74  | 0.45    | 574.7 / 593.1 / 584.3 |
 | log4j2     | 143224   | 17,903.00 | 0.40   | 0.75   | 1.11   | 10.40  | 0.45    | 579.4 / 597.8 / 584.8 |
 | rainbowgum | 124011   | 15,501.38 | 0.47   | 0.82   | 1.23   | 10.39  | 0.52    | 561.4 / 576.9 / 574.5 |
+
+## GELF/JSON test: the picture reverses
+
+Adam: the pattern-based comparison above outputs different amounts of text per framework
+(RainbowGum's `%X{requestId}` renders longer than Logback/Log4j2's), which is a bigger
+suspect than MDC lookup cost for the differences seen. Wanted a JSON comparison, GELF as
+"probably the safest" common format, expecting no byte-for-byte match.
+
+**Setup:** Spring Boot 4.1 has built-in structured logging support for Logback and Log4j2 -
+`logging.structured.format.file=gelf` (confirmed the string literal `"gelf"` in
+`CommonStructuredLogFormat.class`), no extra dependency needed. RainbowGum's Spring
+integration has no equivalent property support yet, so added
+`GelfSpringRainbowGumServiceProvider` (`rainbowgum-benchmark-webapp-rainbowgum`, registered
+via `META-INF/spring.factories`) using the `SpringRainbowGumServiceProvider` SPI exactly as
+designed - it checks the *same* `logging.structured.format.file` property and swaps in
+`rainbowgum-json`'s `GelfEncoder` for file output when it's `gelf`, so one env var
+(`STRUCTURED_FORMAT=gelf`) now toggles all three apps identically. Also had to align the
+GELF `host` field (`logging.structured.gelf.host=benchmark-host`, same key for all three -
+confirmed empirically since Spring Boot's own formatter omits `host` unless it's set,
+despite GELF nominally requiring it).
+
+**Content isn't byte-for-byte, as expected**, but isn't a smoking gun in either direction:
+Logback/Log4j2 include `_process_pid`, `_process_thread_name`, `_service_version`,
+`_log_logger`; RainbowGum includes `_time` (an ISO-8601 string *in addition to* the numeric
+epoch `timestamp` both formats share - genuinely more work per line, not less) and
+`_thread_id`. Net average line length: Logback/Log4j2 349.3 bytes, RainbowGum 331.2 bytes -
+RainbowGum's shorter despite the extra timestamp field, because the other two's field names
+(`_process_thread_name` etc.) are longer. Roughly a wash on "who's writing less."
+
+**Results (full-length, default settings, same as the run above but GELF instead of the
+text pattern):**
+
+| label      | requests | req/s     | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|------------|---------:|----------:|-------:|-------:|-------:|-------:|--------:|--------------------|
+| logback    | 648,824  | 21,627.47 | 2.07   | 4.13   | 6.99   | 18.88  | 2.31    | 650.6 / 656.9 / 654.1 |
+| log4j2     | 487,874  | 16,262.47 | 2.66   | 6.06   | 10.15  | 28.30  | 3.07    | 667.3 / 673.0 / 670.4 |
+| rainbowgum | 450,671  | 15,022.37 | 3.54   | 6.17   | 10.33  | 25.96  | 3.33    | 670.1 / 675.2 / 671.7 |
+
+**The ranking flips.** Log4j2 goes from clearly fastest at the text pattern (34,374 req/s)
+to clearly *slowest but one* at GELF (16,262 req/s, a 53% drop) - while Logback barely moves
+(21,443 -> 21,627 req/s, essentially flat) and RainbowGum drops moderately (23,537 -> 15,022,
+-36%) to land just behind Log4j2. This lines up with Adam's suspicion that Log4j2's edge in
+the text-pattern run was specifically about its date-handling/formatting fast path for that
+one code path, not a general architectural advantage - it clearly doesn't carry over to the
+JSON formatting path.
+
+**Important caveat before reading too much into the JSON numbers themselves:** this measures
+each framework through *Spring Boot's* structured-logging abstraction
+(`StructuredLogFormatter`/`GraylogExtendedLogFormatStructuredLogFormatter`) for Logback and
+Log4j2, not necessarily each framework's own most-optimized native JSON path - Log4j2 in
+particular is known for its garbage-free `JsonTemplateLayout`, which this test doesn't
+exercise (that would need bypassing Spring Boot's built-in structured logging and configuring
+a native `log4j2.xml` layout directly). So this result says "Spring Boot's built-in GELF
+formatter is much cheaper for Logback than for Log4j2," which is still a genuinely useful
+data point, but isn't necessarily the ceiling of what Log4j2 can do with JSON.
+
+No errors in any of the three apps' stdout during this run (checked via
+`grep -ci "exception\|error"` on each `*-gelf-stdout.log` - all zero).
+
+Reproduce: `STRUCTURED_FORMAT=gelf ./run-all.sh` (combine with `LOG_LEVEL=ERROR` too, for a
+JSON-noop-case comparable to the ERROR-level finding above - not yet run).
