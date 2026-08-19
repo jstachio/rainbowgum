@@ -314,3 +314,44 @@ No errors in any of the three apps' stdout during this run.
 
 Reproduce: `VIRTUAL_THREADS=true ./run-all.sh` (combine with `LOG_LEVEL`/`STRUCTURED_FORMAT`
 for the fuller combinatoric matrix - not yet run).
+
+## Notes for the later micro-benchmark + JFR session
+
+Adam's theories on the mechanism behind the differences above (recorded here as notes for
+that later session, not yet independently verified end-to-end):
+
+- **Logback may be eager on formatting/encoding**, and may simply rely on the console
+  already being synchronized rather than adding its own lock around the append path.
+- **RainbowGum likely pays for two locks on the console path**: its own `AppenderLock`
+  (a `ReentrantLock`) around the write, *and* the JDK's own `synchronized` on
+  `PrintStream` methods once the write actually reaches `System.out`. Log4j2/Logback may
+  avoid the first of these by relying on the second alone.
+- **`LogAppender`'s buffer-reuse path trades allocation for contention.** RainbowGum's
+  default path (`DefaultLogAppender`) allocates a fresh buffer per call and encodes
+  *outside* the lock (explicitly: "the idea here is to have the virtual thread do the
+  formatting outside of the lock" per its own code comment) - only the write itself is
+  locked. A `ReuseBufferLogAppender` also exists in `core/.../LogAppender.java`, but reusing
+  a single shared buffer means the *encode* step must move inside the lock too (the buffer
+  itself isn't thread-safe), so it trades less GC pressure for more lock contention - and
+  it isn't the one used by default. Thread-local buffers (reuse without shared-mutable-state
+  contention) were floated as an alternative worth trying, on the suspicion Log4j2 already
+  does something like this.
+- **Async output is believed low-priority** and hasn't been tested here, on 12-factor-app
+  grounds (logging should just be a synchronous write to stdout/a file; let the platform
+  handle buffering/shipping) rather than a performance argument against it.
+
+**Quick verification done so far (source-level, not profiling):** confirmed via
+`core/src/main/java/io/jstach/rainbowgum/LogAppender.java` that `DefaultLogAppender` (not
+`ReuseBufferLogAppender`) is what's actually in play for this benchmark, and confirmed
+`StdOutOutput` (`LogOutput.java`) wraps `System.out` directly - so the "two locks" theory
+does plausibly apply to this benchmark's *console* output path specifically. Worth noting:
+RainbowGum's Spring integration keeps both `file` and `console` appenders active by default
+(`Fallback[logging.route.default.appenders]=[file, console]`, seen earlier when debugging
+the `logging.file.name` URI issue), so every log call in every run so far - including the
+"file" comparisons - has also been paying for the console/stdout write and whatever locking
+that involves. **Checked whether this is a RainbowGum-only handicap: it isn't.** Logback's
+`*-stdout.log` from an earlier run has the identical 15,350 `BenchController` lines as its
+file output - Spring Boot's default Logback/Log4j2 config also keeps console *and* file
+appenders both active when `logging.file.name` is set, same as RainbowGum. So the double-
+appender cost (and any locking that goes with it on the console side) is a level playing
+field across all three frameworks in every run so far, not a variable unique to RainbowGum.
