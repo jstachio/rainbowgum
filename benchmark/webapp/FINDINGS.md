@@ -303,6 +303,37 @@ consistent with (though doesn't yet prove) Adam's thread-local-cache-going-cold 
 Log4j2's optimizations for the platform-thread case may be actively counterproductive once
 every request gets a fresh virtual thread with no warm cache to reuse.
 
+**Reproducibility check:** Adam was surprised Logback held up so well and suspected virtual
+threads might make results more chaotic run-to-run, so re-ran the same
+`VIRTUAL_THREADS=true` scenario a second time:
+
+| label      | run 1 req/s | run 2 req/s | delta |
+|------------|------------:|------------:|------:|
+| logback    | 24,041.03   | 24,840.30   | +3.3% |
+| log4j2     | 19,129.30   | 19,057.03   | -0.4% |
+| rainbowgum | 20,159.07   | 19,822.93   | -1.7% |
+
+Stable, not noise - both runs land within ~3% of each other with the identical ranking
+(logback > rainbowgum > log4j2) and the same latency shape. Whatever's driving Log4j2's
+regression and Logback's improvement under virtual threads, it's a consistent effect, not a
+one-off fluke from a single run. No errors in either run's stdout.
+
+Claude's theories on *why* Logback specifically holds up well (unverified, offered for the
+later profiling session to check, not conclusions):
+1. If Logback's critical section (whatever serializes the actual write) is already short -
+   formatting done outside the lock, similar to RainbowGum's `DefaultLogAppender` - then
+   it's exactly the shape that benefits from how virtual-thread contention is handled versus
+   platform-thread OS-level blocking, rather than being hurt by the carrier-pool model.
+2. This may be the mirror image of the ERROR-level finding: Log4j2's enabled-path
+   optimizations pay off big when their assumptions hold (platform thread, warm thread-local
+   cache) and cost more than they save when violated (fresh virtual thread every request).
+   Logback doing comparatively little clever machinery means there's less for the new
+   threading model to break.
+3. Some of the effect might not be logging-specific at all - virtual threads change how
+   Tomcat dispatches connections (no bounded worker pool, cheaper context switches, no
+   queueing once past pool capacity), which could lift whichever framework isn't
+   independently fighting that change.
+
 **Not yet done, per Adam - saving for later:** a micro-benchmark (not the full webapp) that
 isolates specifically where Log4j2 is spending its time, plus JFR profiling of that
 micro-benchmark, to actually confirm (rather than just correlate) that thread-local cache
