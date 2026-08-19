@@ -45,7 +45,7 @@ PORT=8080
 SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}${VIRTUAL_THREADS:+-vt}${RG_IMMEDIATE_FLUSH:+-flush}
 
 echo "Building..."
-( cd ../.. && ./mvnw -q -pl benchmark/webapp -am install -DskipTests )
+( cd ../.. && ./mvnw -q -pl benchmark/webapp,benchmark/webapp/rainbowgum-benchmark-webapp-share,benchmark/webapp/rainbowgum-benchmark-webapp-logback,benchmark/webapp/rainbowgum-benchmark-webapp-log4j2,benchmark/webapp/rainbowgum-benchmark-webapp-rainbowgum,benchmark/webapp/rainbowgum-benchmark-webapp-driver -am install -DskipTests )
 
 RESULTS_DIR="$(pwd)/results"
 mkdir -p "$RESULTS_DIR"
