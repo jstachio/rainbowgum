@@ -73,18 +73,36 @@ just appends literal ANSI escape bytes into a `StringBuilder`), so the escape co
 ordinary characters in the formatted line by the time it reaches the (buffered) output stream -
 no stream-level ANSI processor, no per-byte parsing, no overhead.
 
-## Latest run
+## Latest run (full-length, default settings)
 
-Short validation-length runs (`WARMUP_SECONDS=3 DURATION_SECONDS=8 CONCURRENCY=8`), single
-machine, single trial each - useful for sanity-checking the harness and the jansi fix above,
-**not** a final/rigorous benchmark result (no repeated trials, no longer duration, no higher
-concurrency). Re-run with the defaults (10s warmup / 30s duration / 50 concurrency, or
-higher) for anything meant to be load-bearing.
+`./run-all.sh` with defaults: 10s warmup / 30s measurement / 50 concurrency, single machine,
+single trial per app (still not repeated-trial rigorous - treat as a first real data point,
+not a final number). This run has the jansi exclusion fix from the finding above applied.
+
+| label      | requests | req/s     | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|------------|---------:|----------:|-------:|-------:|-------:|-------:|--------:|--------------------|
+| logback    | 643,284  | 21,442.80 | 2.03   | 4.71   | 8.00   | 22.62  | 2.33    | 613.7 / 618.1 / 616.1 |
+| log4j2     | 1,031,229| 34,374.30 | 1.29   | 2.71   | 4.88   | 21.13  | 1.45    | 639.1 / 645.5 / 642.9 |
+| rainbowgum | 706,123  | 23,537.43 | 2.12   | 4.00   | 6.68   | 25.78  | 2.12    | 662.6 / 669.4 / 665.5 |
+
+At real concurrency (50, vs the 8 used in the short validation run below), RainbowGum
+outperforms Logback on throughput (23,537 vs 21,443 req/s) and p99 (6.68 vs 8.00ms), landing
+between Logback and Log4j2 on every latency percentile - Log4j2 is clearly fastest of the
+three here. RSS is highest for RainbowGum this time (665.5MB avg vs 616.1/642.9), the
+opposite ordering from the short run below - worth another trial or two before reading much
+into the memory ordering specifically, since a single sample at each concurrency level isn't
+enough to call that a stable difference vs run-to-run/GC-timing noise.
+
+Raw data: `results/results.csv` (gitignored - regenerated per run, not committed).
+
+## Earlier run (short validation length)
+
+`WARMUP_SECONDS=3 DURATION_SECONDS=8 CONCURRENCY=8`, single machine, single trial each - this
+was purely to sanity-check the harness and the jansi fix before committing to a full-length
+run; superseded by the run above for anything about relative performance at realistic load.
 
 | label      | requests | req/s     | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
 |------------|---------:|----------:|-------:|-------:|-------:|-------:|--------:|--------------------|
 | logback    | 140670   | 17,583.75 | 0.41   | 0.76   | 1.16   | 11.74  | 0.45    | 574.7 / 593.1 / 584.3 |
 | log4j2     | 143224   | 17,903.00 | 0.40   | 0.75   | 1.11   | 10.40  | 0.45    | 579.4 / 597.8 / 584.8 |
 | rainbowgum | 124011   | 15,501.38 | 0.47   | 0.82   | 1.23   | 10.39  | 0.52    | 561.4 / 576.9 / 574.5 |
-
-Raw data: `results/results.csv` (gitignored - regenerated per run, not committed).
