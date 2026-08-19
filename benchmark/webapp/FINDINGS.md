@@ -53,6 +53,26 @@ real perf trap for any real app that pulls in the full `rainbowgum` artifact wit
 output enabled - not just this benchmark. Since jansi is being dropped from the default set
 of dependencies anyway, this is probably moot, but noting it here in case that plan changes.
 
+**Is this fixed upstream?** No. Checked both the exact jar in use (`org.jline:jansi-core:4.3.1`,
+also the latest on Maven Central, decompiled locally) and the current `master` of
+[jline/jline3](https://github.com/jline/jline3/blob/master/jansi-core/src/main/java/org/jline/jansi/io/AnsiOutputStream.java)
+on GitHub: `AnsiOutputStream` still only overrides `write(int)`, never `write(byte[], int, int)`,
+so it inherits `FilterOutputStream`'s byte-at-a-time default unconditionally. It does now have
+a proper `AnsiType` enum (`Native`/`VirtualTerminal`/`Emulation`/`Redirected`/`Unsupported`) that
+correctly detects when a terminal understands ANSI natively - but that field is only consulted
+in `uninstall()` (whether to emit a reset code), never to skip the per-byte parse even when the
+type is `Native` and there's nothing to strip or emulate. No open upstream issue found tracking
+this specifically (two related closed issues, #137 and #143 on `jline/jline3`, are about
+Windows console attribute-call batching from 2017, not this).
+
+**How do Logback/Log4j2 avoid this?** They don't use jansi at all for Spring Boot's default
+colored console output - confirmed both apps' dependency trees have zero `org.jline`/
+`org.fusesource.jansi` artifacts. Their `%clr` pattern converters go through Spring Boot's own
+`org.springframework.boot.ansi.AnsiOutput` (decompiled and confirmed: `toString(Object...)`
+just appends literal ANSI escape bytes into a `StringBuilder`), so the escape codes are just
+ordinary characters in the formatted line by the time it reaches the (buffered) output stream -
+no stream-level ANSI processor, no per-byte parsing, no overhead.
+
 ## Latest run
 
 Short validation-length runs (`WARMUP_SECONDS=3 DURATION_SECONDS=8 CONCURRENCY=8`), single
