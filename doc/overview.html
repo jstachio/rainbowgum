@@ -1152,7 +1152,26 @@ the System Logger provided the loggers are created after Rainbow Gum initializes
 
 <h3 id="spring_boot">Spring Boot</h3>
 
-Rainbow Gum provides Spring Boot 3 or greater support that is maintained by the Rainbow Gum project.
+Rainbow Gum provides Spring Boot 3 and 4 support that is maintained by the Rainbow Gum project, as two separate
+modules/artifacts - one per Spring Boot major version. Rainbow Gum cannot compete with Spring Boot's own bundled
+Logback/Log4j2 integration on "we maintain this forever regardless of what Spring Boot does next", so rather than
+bet on one major version staying source-compatible with the next (they usually are not), each supported major gets
+its own artifact:
+
+<ul>
+  <li>{@link io.jstach.rainbowgum.spring.boot4/ } / <code>rainbowgum-spring-boot4-starter</code> - for Spring Boot 4
+    <strong>(recommended for new projects)</strong>.</li>
+  <li>{@link io.jstach.rainbowgum.spring.boot3/ } / <code>rainbowgum-spring-boot3-starter</code> - for Spring Boot 3.</li>
+</ul>
+
+The two are otherwise identical: same properties, same behavior. Their own internal implementation packages
+({@code io.jstach.rainbowgum.spring.boot3}/{@code boot4}) are not exported and never imported by consumers - Spring
+Boot discovers them itself through {@code META-INF/spring.factories} and the Java service loader - so those packages
+are duplicated per major version rather than shared. The one package you might actually import,
+{@link io.jstach.rainbowgum.spring.boot.spi}, lives in its own genuinely shared module (<code>rainbowgum-spring-spi</code>,
+pulled in transitively by both starters) because it only depends on {@code org.springframework.core.env.Environment},
+which is expected to remain stable across Spring Boot major versions - so if you have implemented
+{@code SpringRainbowGumServiceProvider} yourself, that import never needs to change when you bump major versions.
 
 <p>
 Spring Boot allows configuration through simple properties for logging that tries to be logging framework agnostic.
@@ -1164,25 +1183,25 @@ because both of those frameworks were not designed well for programmatic configu
 <p>
 <strong>Rainbow Gum key value configuration is purposely very similar and largely compatible with
   Spring Boot's</strong> <em>however</em> Spring Boot still requires special integration if you would like
-to use its configuration system (for example <code>application.properties</code>). 
+to use its configuration system (for example <code>application.properties</code>).
 This is because Spring Boot uses/needs logging for initialization of its configuration system.
 </p>
 
-The recommended setup of Spring Boot with Maven is:
+The recommended setup of Spring Boot 4 with Maven is:
 
 {@snippet lang=xml :
   <dependencies>
      <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum-spring-boot-starter</artifactId>
+      <artifactId>rainbowgum-spring-boot4-starter</artifactId>
       <version>_VERSION_</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
       <exclusions>
-        <!-- 
-          This is the important part as logback will be used otherwise 
+        <!--
+          This is the important part as logback will be used otherwise
           regardless if rainbow gum spring boot integration is used.
         -->
         <exclusion>
@@ -1194,13 +1213,12 @@ The recommended setup of Spring Boot with Maven is:
   </dependencies>
 }
 
-Note that if one chooses to not use <code>rainbowgum-spring-boot-starter</code> 
-or <code>rainbowgum-spring-boot</code> Spring will re-initialize 
-<code>java.util.logging</code> and take over it so again the integration is recommended.
+For Spring Boot 3 substitute <code>rainbowgum-spring-boot4-starter</code> with
+<code>rainbowgum-spring-boot3-starter</code> above - everything else is identical.
 
-<p>
-
-See {@link io.jstach.rainbowgum.spring.boot/ }.
+Note that if one chooses to not use one of the <code>rainbowgum-spring-boot*-starter</code> artifacts
+or the underlying <code>rainbowgum-spring-boot3</code>/<code>rainbowgum-spring-boot4</code> module directly,
+Spring will re-initialize <code>java.util.logging</code> and take over it so again the integration is recommended.
 
 <h3 id="jboss_logging">JBoss Logging</h3>
 
