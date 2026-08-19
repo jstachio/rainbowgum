@@ -143,6 +143,43 @@ No sign of any framework taking a shortcut. Numbers at concurrency 1 for referen
 really informative on their own - too low concurrency to say much beyond "nothing's on
 fire"): Logback 875.7 req/s, Log4j2 868.0 req/s, RainbowGum 765.0 req/s.
 
+## Important caveat: the `%X{requestId}` pattern plays to RainbowGum's *weakest* MDC access pattern
+
+Per Adam: RainbowGum's MDC isn't designed for repeated single-key lookup - it's designed
+for the common production case of dumping the whole context to JSON in one pass. Verified
+the three frameworks' actual backing structures and single-key lookup complexity directly
+(bytecode/source, not just going by docs):
+
+- **RainbowGum** (`core/.../KeyValues.java`, `AbstractArrayKeyValues`): a flat `String[]`
+  (the class's own apiNote literally says "a simple single String array"). `getValueOrNull(key)`
+  is a linear scan with `Objects.equals` per entry - **O(n)**.
+- **Logback** (`LogbackMDCAdapter`): `ThreadLocal<Map<String,String>>`, a real `HashMap` -
+  **O(1)** average per-key lookup.
+- **Log4j2** (`SortedArrayStringMap`): `indexOfKey` calls `java.util.Arrays.binarySearch(...)`
+  directly (confirmed in bytecode) - sorted array + binary search, **O(log n)**.
+
+Our `%X{requestId}` pattern converter does exactly the access RainbowGum's array is *not*
+optimized for: a single-key-by-name lookup, evaluated once per log line (5x per request).
+That's the opposite of RainbowGum's intended sweet spot (iterate the whole array once, dump
+every key to JSON - cheap for an array, no hashing/comparator overhead, and likely faster
+than both alternatives for *that* access pattern).
+
+**Why this hasn't skewed the numbers above (yet):** with only one MDC key currently in play,
+the "array" being scanned has one entry - there's nothing to scan past, so the O(n) vs O(1)
+vs O(log n) distinction is moot at n=1. The results above aren't actually exercising this
+design tradeoff in either direction.
+
+**Follow-ups worth running before drawing conclusions about MDC-related overhead:**
+1. Add several more MDC keys (a handful of realistic context fields: tenant id, user id,
+   trace id, etc.) with the same `%X{key}`-style text-pattern lookups, to see where/whether
+   RainbowGum's linear scan becomes material as n grows relative to Logback's hashmap and
+   Log4j2's binary search.
+2. Compare against RainbowGum's actual designed-for case: a JSON/structured encoder
+   (`rainbowgum-json`) that dumps the whole `KeyValues` array in one iteration, instead of
+   the text-pattern single-key lookup - likely a very different, more favorable picture for
+   RainbowGum, and arguably a fairer "real prod app" comparison than a Logback-style text
+   pattern, given how much production logging is structured/JSON today.
+
 Raw data: `results/results.csv` (gitignored - regenerated per run, not committed).
 
 ## Earlier run (short validation length)
