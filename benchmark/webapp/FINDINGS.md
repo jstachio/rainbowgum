@@ -386,3 +386,58 @@ file output - Spring Boot's default Logback/Log4j2 config also keeps console *an
 appenders both active when `logging.file.name` is set, same as RainbowGum. So the double-
 appender cost (and any locking that goes with it on the console side) is a level playing
 field across all three frameworks in every run so far, not a variable unique to RainbowGum.
+
+## Finding: RainbowGum's earlier edge over Logback was partly an unequal-durability artifact
+
+Adam: Logback flushes on every event by default; RainbowGum's `LogAppender` doesn't ("sort
+of a mistake" he's been meaning to document - flushing every event is safer but generally
+not needed). Suspected this mattered for file output specifically (not console, which he
+expects flushes every time regardless). Suggested testing with
+`logging.appender.file.flags=immediate_flush`.
+
+**Verified both defaults directly:**
+- Logback's `OutputStreamAppender` constructor sets `immediateFlush = true` (confirmed in
+  bytecode) - flushes after every single event, always, by default.
+- RainbowGum's `DefaultLogAppender.immediateFlush` is `flags.contains(IMMEDIATE_FLUSH)` -
+  `false` unless that `AppenderFlag` is explicitly set (`core/.../LogAppender.java`).
+- The suggested property is exactly right: `LogProperties.APPENDER_FLAGS_PROPERTY` resolves
+  to `logging.appender.{name}.flags`, and `AppenderFlag.parse` uppercases the value before
+  matching the enum, so `immediate_flush` -> `IMMEDIATE_FLUSH` works as given.
+- Aside: Logback's constructor also sets up its own `streamWriteLock` (a `ReentrantLock`) -
+  so it isn't lock-free either, contrary to one framing of the earlier "two locks" theory;
+  it flushes every time *and* locks.
+
+**Setup:** added `RG_IMMEDIATE_FLUSH=true` to `run-all.sh` - RainbowGum-only (Logback/Log4j2
+need no change, they already flush by default), passes
+`--logging.appender.file.flags=immediate_flush` to just that app.
+
+**Results (full-length, default settings otherwise - text pattern, INFO, platform threads):**
+
+| label      | requests | req/s     | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|------------|---------:|----------:|-------:|-------:|-------:|-------:|--------:|--------------------|
+| logback    | 648,213  | 21,607.10 | 2.01   | 4.65   | 8.03   | 21.40  | 2.31    | 643.4 / 649.8 / 646.5 |
+| log4j2     | 988,226  | 32,940.87 | 1.33   | 2.91   | 5.28   | 20.10  | 1.52    | 636.5 / 640.4 / 639.2 |
+| rainbowgum | 539,330  | 17,977.67 | 2.91   | 5.20   | 8.65   | 22.85  | 2.78    | 655.1 / 658.9 / 656.5 |
+
+(Logback/Log4j2 numbers here are just reruns under the unrelated `-flush` label suffix - the
+flag only applies to RainbowGum - included for an apples-to-apples same-run comparison
+rather than reusing numbers from a different run.)
+
+**RainbowGum drops from 23,537 to 17,978 req/s (-24%) and falls behind Logback too, not just
+Log4j2** - reversing the earlier platform-thread result where RainbowGum beat Logback
+(23,537 vs 21,443). That earlier "win" looks like it was at least partly an artifact of
+comparing unequal durability guarantees (buffered vs flush-every-line), not a clean
+architectural advantage. With flush behavior equalized to match Logback's actual default,
+RainbowGum is now the slowest of the three in this scenario.
+
+One benign aside: a `java.io.IOException: Stream Closed` appeared in
+`SpringApplicationShutdownHook` in both the quick and full runs - RainbowGum's file stream
+gets closed before Spring's own shutdown-time WARN log call tries to flush through it. Pure
+shutdown-ordering race, happens after all measurements complete, doesn't affect the numbers
+above, but worth Adam knowing about independent of this benchmark.
+
+**Not yet tried:** the same flag combined with virtual threads or GELF, or checking whether
+Logback's `immediateFlush=false` (matching RainbowGum's default instead of the other way
+around) closes the gap from the other direction.
+
+Reproduce: `RG_IMMEDIATE_FLUSH=true ./run-all.sh`.

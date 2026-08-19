@@ -20,8 +20,16 @@
 # Tomcat property, honored identically by all three apps - no per-app code needed, unlike
 # STRUCTURED_FORMAT.
 #
-# All three are included in the CSV label and the per-app stdout/jfr filenames so different
-# runs don't clobber each other's output.
+# RG_IMMEDIATE_FLUSH (optional, e.g. RG_IMMEDIATE_FLUSH=true): RainbowGum-only. Logback's
+# OutputStreamAppender defaults immediateFlush=true (confirmed in bytecode); RainbowGum's
+# DefaultLogAppender defaults it false unless the IMMEDIATE_FLUSH AppenderFlag is set. This
+# passes --logging.appender.file.flags=immediate_flush to the RainbowGum app only, to check
+# how much of the gap to Logback is this flush-on-every-write difference rather than
+# anything architectural. No equivalent needed for Logback/Log4j2 - they already flush by
+# default.
+#
+# All are included in the CSV label and the per-app stdout/jfr filenames so different runs
+# don't clobber each other's output.
 set -eu
 cd "$(dirname "$0")"
 
@@ -31,9 +39,10 @@ CONCURRENCY=${CONCURRENCY:-50}
 LOG_LEVEL=${LOG_LEVEL:-}
 STRUCTURED_FORMAT=${STRUCTURED_FORMAT:-}
 VIRTUAL_THREADS=${VIRTUAL_THREADS:-}
+RG_IMMEDIATE_FLUSH=${RG_IMMEDIATE_FLUSH:-}
 URL_PATH="/api/greet/world"
 PORT=8080
-SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}${VIRTUAL_THREADS:+-vt}
+SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}${VIRTUAL_THREADS:+-vt}${RG_IMMEDIATE_FLUSH:+-flush}
 
 echo "Building..."
 ( cd ../.. && ./mvnw -q -pl benchmark/webapp -am install -DskipTests )
@@ -48,11 +57,16 @@ run_one() {
 
 	echo "=== $label ==="
 	rm -f "$app_dir/target/app.jfr" "$app_dir"/benchmark.log
+	rg_flush_arg=""
+	if [ "$name" = "rainbowgum" ] && [ -n "$RG_IMMEDIATE_FLUSH" ]; then
+		rg_flush_arg="--logging.appender.file.flags=immediate_flush"
+	fi
 	(cd "$app_dir" && exec ./run.sh \
 		${LOG_LEVEL:+--logging.level.root=$LOG_LEVEL} \
 		${STRUCTURED_FORMAT:+--logging.structured.format.file=$STRUCTURED_FORMAT} \
 		${STRUCTURED_FORMAT:+--logging.structured.gelf.host=benchmark-host} \
-		${VIRTUAL_THREADS:+--spring.threads.virtual.enabled=$VIRTUAL_THREADS}) \
+		${VIRTUAL_THREADS:+--spring.threads.virtual.enabled=$VIRTUAL_THREADS} \
+		$rg_flush_arg) \
 		>"$RESULTS_DIR/$label-stdout.log" 2>&1 &
 	pid=$!
 
