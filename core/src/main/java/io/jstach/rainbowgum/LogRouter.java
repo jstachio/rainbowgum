@@ -902,11 +902,6 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	private final ReentrantLock drainLock = new ReentrantLock();
 
-	static boolean isShutdownEvent(String loggerName, java.lang.System.Logger.Level level) {
-		return loggerName.equals(LogLifecycle.SHUTDOWN)
-				&& Boolean.parseBoolean(System.getProperty(LogLifecycle.SHUTDOWN));
-	}
-
 	@Override
 	public LevelResolver levelResolver() {
 		return delegate.levelResolver();
@@ -924,14 +919,9 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 			q.log(event);
 		}
 		else {
-			String loggerName = event.loggerName();
-			var level = event.level();
 			var route = d.route(event.loggerName(), event.level());
 			if (route.isEnabled()) {
 				route.log(event);
-			}
-			if (isShutdownEvent(loggerName, level)) {
-				d.close();
 			}
 		}
 	}
