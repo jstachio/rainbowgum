@@ -112,7 +112,7 @@ class LogEventBuilderTest {
 
 		EVERYTHING(
 				"""
-						threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k1=v1&k2=v2&k3=v3},RuntimeException:expected
+						threadName,1,1970-01-01T00:00:00.000Z,INFO,test,'hello arg argSupplier',{k1=v1&k2=v2&k3=v3},RuntimeException:expected
 						""") {
 			@Override
 			@Nullable
@@ -121,7 +121,7 @@ class LogEventBuilderTest {
 			}
 		},
 		SINGLE_KEY_VALUE("""
-				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k2=v2},null
+				threadName,1,1970-01-01T00:00:00.000Z,INFO,test,'hello arg argSupplier',{k2=v2},null
 				""") {
 			@Override
 			LogFormatter keyValuesFormatter() {
@@ -129,7 +129,7 @@ class LogEventBuilderTest {
 			}
 		},
 		SELECT_KEY_VALUES("""
-				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k2=v2&k3=v3},null
+				threadName,1,1970-01-01T00:00:00.000Z,INFO,test,'hello arg argSupplier',{k2=v2&k3=v3},null
 				""") {
 			@Override
 			LogFormatter keyValuesFormatter() {
@@ -137,7 +137,7 @@ class LogEventBuilderTest {
 			}
 		},
 		NO_KEY_VALUES_SELECTED("""
-				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{},null
+				threadName,1,1970-01-01T00:00:00.000Z,INFO,test,'hello arg argSupplier',{},null
 				""") {
 			@Override
 			LogFormatter keyValuesFormatter() {
@@ -145,7 +145,7 @@ class LogEventBuilderTest {
 			}
 		},
 		CALLER("""
-				threadName,1,1970-01-01T00:00:00Z,INFO,test,'hello arg argSupplier',{k1=v1&k2=v2&k3=v3},null,io.jstach.rainbowgum.LogEventBuilderTest:testBuilder
+				threadName,1,1970-01-01T00:00:00.000Z,INFO,test,'hello arg argSupplier',{k1=v1&k2=v2&k3=v3},null,io.jstach.rainbowgum.LogEventBuilderTest:testBuilder
 				""") {
 			@Override
 			@Nullable
