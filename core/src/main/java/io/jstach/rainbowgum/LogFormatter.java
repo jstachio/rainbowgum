@@ -523,7 +523,7 @@ public sealed interface LogFormatter {
 		 * @return microseconds zero padded.
 		 */
 		public static TimestampFormatter ofMicros() {
-			return DefaultInstantFormatter.MICROS;
+			return MicrosInstantFormatter.INSTANCE;
 		}
 
 		/**
@@ -903,47 +903,77 @@ enum DefaultThreadFormatter implements LogFormatter {
 
 }
 
-enum DefaultInstantFormatter implements TimestampFormatter {
+/**
+ * Not an enum: error-prone's immutable-enum check flags enums holding mutable state, and
+ * {@link #cache} is mutable (an {@link java.util.concurrent.atomic.AtomicReference}).
+ * {@link #description} exists solely to give each instance a stable identity for
+ * {@link #toString()}.
+ */
+final class DefaultInstantFormatter implements TimestampFormatter {
 
-	TTLL(DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC))),
+	static final DefaultInstantFormatter TTLL = new DefaultInstantFormatter("TTLL",
+			DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC)));
+
 	/*
 	 * appendInstant(3) renders a fixed-width 3-digit millisecond fraction (unlike
 	 * DateTimeFormatter.ISO_DATE_TIME, which renders a variable-width fraction of 0-9
 	 * digits based on the instant's actual sub-millisecond value) - fixed width matches
 	 * Logback/Log4j2's ISO output and is what makes this safe to millis-cache.
 	 */
-	ISO(new DateTimeFormatterBuilder().appendInstant(3).toFormatter()), MICROS(DateTimeFormatter.ISO_DATE_TIME) {
-		@Override
-		@SuppressWarnings("JavaInstantGetSecondsGetNano")
-		public void formatTimestamp(StringBuilder output, Instant instant) {
-			int nanos = instant.getNano();
+	static final DefaultInstantFormatter ISO = new DefaultInstantFormatter("ISO",
+			new DateTimeFormatterBuilder().appendInstant(3).toFormatter());
 
-			int millis_and_micros = nanos / 1000;
-			int micros = millis_and_micros % 1000;
+	private final String description;
 
-			if (micros >= 100) {
-				output.append(micros);
-			}
-			else if (micros >= 10) {
-				output.append("0").append(micros);
-			}
-			else {
-				output.append("00").append(micros);
-			}
-		}
-	};
-
-	final DateTimeFormatter formatter;
+	private final DateTimeFormatter formatter;
 
 	private final MillisCache cache = new MillisCache();
 
-	DefaultInstantFormatter(DateTimeFormatter formatter) {
+	private DefaultInstantFormatter(String description, DateTimeFormatter formatter) {
+		this.description = description;
 		this.formatter = formatter;
 	}
 
 	@Override
 	public void formatTimestamp(StringBuilder output, Instant instant) {
 		cache.formatTimestamp(output, instant, formatter);
+	}
+
+	@Override
+	public String toString() {
+		return description;
+	}
+
+}
+
+/**
+ * Micro seconds over the events last second, for Logback compatibility - meant to be
+ * composed after a millisecond-precision timestamp (see
+ * {@link TimestampFormatter#ofISO()}). Stateless, so a singleton enum works cleanly here
+ * (unlike {@link DefaultInstantFormatter}, nothing here trips error-prone's
+ * immutable-enum check).
+ */
+enum MicrosInstantFormatter implements TimestampFormatter {
+
+	INSTANCE;
+
+	@Override
+	@SuppressWarnings("JavaInstantGetSecondsGetNano")
+	public void formatTimestamp(StringBuilder output, Instant instant) {
+		int nanos = instant.getNano();
+
+		int millis_and_micros = nanos / 1000;
+		int micros = millis_and_micros % 1000;
+
+		if (micros >= 100) {
+			output.append(micros);
+		}
+		else if (micros >= 10) {
+			output.append("0").append(micros);
+		}
+		else {
+			output.append("00").append(micros);
+		}
 	}
 
 }
