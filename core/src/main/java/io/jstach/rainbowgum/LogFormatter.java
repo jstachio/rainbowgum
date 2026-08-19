@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -507,7 +508,10 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Formats a timestamp using ISO format.
+		 * Formats a timestamp using ISO format at fixed millisecond precision (e.g.
+		 * {@code 2023-11-14T22:13:20.123Z}, always exactly 3 fractional digits). Pair
+		 * with {@link #ofMicros()} to append additional sub-millisecond digits, similar
+		 * to Logback's {@code %d{ISO8601}%microsecond}.
 		 * @return formatter.
 		 */
 		public static TimestampFormatter ofISO() {
@@ -901,16 +905,14 @@ enum DefaultThreadFormatter implements LogFormatter {
 
 enum DefaultInstantFormatter implements TimestampFormatter {
 
-	TTLL(DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC))) {
-		private final MillisCache cache = new MillisCache();
-
-		@Override
-		public void formatTimestamp(StringBuilder output, Instant instant) {
-			cache.formatTimestamp(output, instant, formatter);
-		}
-	},
-	ISO(DateTimeFormatter.ISO_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))),
-	MICROS(DateTimeFormatter.ISO_DATE_TIME) {
+	TTLL(DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC))),
+	/*
+	 * appendInstant(3) renders a fixed-width 3-digit millisecond fraction (unlike
+	 * DateTimeFormatter.ISO_DATE_TIME, which renders a variable-width fraction of 0-9
+	 * digits based on the instant's actual sub-millisecond value) - fixed width matches
+	 * Logback/Log4j2's ISO output and is what makes this safe to millis-cache.
+	 */
+	ISO(new DateTimeFormatterBuilder().appendInstant(3).toFormatter()), MICROS(DateTimeFormatter.ISO_DATE_TIME) {
 		@Override
 		@SuppressWarnings("JavaInstantGetSecondsGetNano")
 		public void formatTimestamp(StringBuilder output, Instant instant) {
@@ -933,13 +935,15 @@ enum DefaultInstantFormatter implements TimestampFormatter {
 
 	final DateTimeFormatter formatter;
 
+	private final MillisCache cache = new MillisCache();
+
 	DefaultInstantFormatter(DateTimeFormatter formatter) {
 		this.formatter = formatter;
 	}
 
 	@Override
 	public void formatTimestamp(StringBuilder output, Instant instant) {
-		formatter.formatTo(instant, output);
+		cache.formatTimestamp(output, instant, formatter);
 	}
 
 }
