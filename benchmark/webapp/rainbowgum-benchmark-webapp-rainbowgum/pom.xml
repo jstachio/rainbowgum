@@ -41,6 +41,21 @@
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-spring-boot4-starter</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <!--
+          rainbowgum-jansi (pulled in transitively via the rainbowgum umbrella artifact)
+          wraps System.out in org.jline's AnsiOutputStream for colored console output,
+          whose write() path processes bytes one at a time - confirmed via JFR to cost
+          single-digit milliseconds per log line and dominate this app's request latency.
+          Excluded here both to keep the comparison to Logback/Log4j2 (whose Spring Boot
+          console coloring embeds escape codes directly, no stream wrapper) apples-to-apples,
+          and because it's not on by default anyway going forward.
+        -->
+        <exclusion>
+          <groupId>io.jstach.rainbowgum</groupId>
+          <artifactId>rainbowgum-jansi</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
