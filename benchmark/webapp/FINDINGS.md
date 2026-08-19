@@ -573,3 +573,50 @@ Reproduce: `jcmd <pid> JFR.dump filename=out.jfr` on a running benchmark app mid
 dependency change, always confirm no stale app is still holding port 8080 from a previous
 run first (`ps aux | grep rainbowgum-benchmark-webapp`) - a stale process silently
 invalidates the next test's isolation, as happened once during this investigation.
+
+## Isolating just the application's own logging work (excluding Tomcat's internal noise)
+
+Filtered the same two JFR captures (Logback/RainbowGum, same run as above) down to only
+samples whose stack contains `BenchController` - i.e. genuinely from the app's own 5 log
+statements per request, not Tomcat's internal chatter. For the two runs compared (throughput
+was similar: 881,803 Logback requests vs 952,943 RainbowGum requests over the same 40s):
+
+**Logback: 1,017 of 3,916 total samples (26%) rooted in `BenchController`.**
+**RainbowGum: 576 of 3,714 total samples (15.5%) rooted in `BenchController`.**
+
+Normalized for request count, **RainbowGum's own logging pipeline is doing proportionally
+less than half the sampled work per request that Logback's is** - a genuinely positive
+signal for RainbowGum's core logging path specifically (separate from all the Tomcat/JUL
+stuff above).
+
+Top leaves within just the `BenchController`-rooted samples:
+
+| Logback (1,017 samples) | RainbowGum (576 samples) |
+|---|---|
+| `FormattingConverter.write` + `PatternLayoutBase.writeLoopOnConverters`: 162 (converter dispatch) | `CompositeFormatter.format`: 62 (converter dispatch equivalent) |
+| `BufferedOutputStream.flushBuffer()`: 71 (**the `immediateFlush=true` cost, directly visible**) | `FileOutputStream.traceWriteBytes`/`writeBytes`: 72 (fewer, bigger buffered writes instead) |
+| HashMap/ConcurrentHashMap lookups: 135 | `HashMap.getNode`/`Objects.equals`: 33 |
+| Date formatting (`DateConverter`, `DateTimeFormatterBuilder`, `DateTimePrintContext.adjust`): ~51 | Date formatting (`DateTimeFormatterBuilder`, `LocalDate.get0`): ~46 |
+| `ColorConverter.transform`: 24 (console pattern still colors by default) | `ClrStaticFormatter.format`: 16 (same console-coloring cost) |
+| `MessageFormatter.deeplyAppendParameter`: 15 (SLF4J's own lightweight `{}` substitution) | `SLF4JMessageFormatter.safeObjectAppend`: 22 (its own lightweight `{}` substitution) |
+| `AbstractQueuedSynchronizer.acquire`: 14 (real contention on `streamWriteLock`) | `AbstractQueuedSynchronizer.acquire`: 12 (comparable contention on `AppenderLock`) |
+
+Takeaways:
+- **Date formatting costs are essentially the same magnitude between RainbowGum and
+  Logback** - a real data point against "RainbowGum's `Instant` usage makes it slower,"
+  at least relative to Logback specifically. (Log4j2 wasn't in this isolated comparison -
+  the pivot to Logback vs RainbowGum happened before capturing it cleanly - so this doesn't
+  speak to why Log4j2 was faster in the original text-pattern run.)
+- **Lock contention is comparable too** (12 vs 14 samples) - the "two locks" theory doesn't
+  show up as a large gap in this specific metric, at least at this concurrency/load level.
+- **The standout difference is Logback's mandatory per-line flush** (`flushBuffer()`, 71
+  samples, nothing analogous in RainbowGum's list) - directly corroborates the earlier
+  `RG_IMMEDIATE_FLUSH` finding: this is a real, visible, first-order cost specific to
+  Logback's `immediateFlush=true` default that RainbowGum simply doesn't pay by default.
+- Both frameworks color their console output by default via cheap inline escape-code
+  embedding (`ColorConverter`/`ClrStaticFormatter`) at comparable cost - neither is using a
+  stream-wrapping approach here (RainbowGum's `rainbowgum-jansi`, which does exactly that
+  expensively, is excluded from this benchmark app - see the jansi finding above).
+- Confirms `java.text.MessageFormat` truly is Tomcat-internal-only noise, not part of either
+  framework's real application-message formatting - both use their own lightweight `{}`
+  parameter substitution at comparable cost.
