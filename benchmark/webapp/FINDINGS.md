@@ -93,6 +93,34 @@ opposite ordering from the short run below - worth another trial or two before r
 into the memory ordering specifically, since a single sample at each concurrency level isn't
 enough to call that a stable difference vs run-to-run/GC-timing noise.
 
+## Finding: at ERROR level (mostly-noop logging), all three frameworks converge
+
+Adam's hypothesis for Log4j2's ~50% throughput edge above: its own date-handling (rather
+than going through `Instant`) and its lock strategy for the append path (`synchronized`
+rather than a `Lock`, previously bad under virtual threads pre-pinning-fix, reportedly fixed
+in current JDKs). To isolate whether the gap is in the *enabled* (format+write) path or the
+*disabled* (level-check/dispatch) path, re-ran with `logging.level.root=ERROR`
+(`LOG_LEVEL=ERROR ./run-all.sh` - see below), which turns every one of the controller's 5
+INFO + 1 DEBUG statements into a no-op level check with nothing formatted or written.
+
+| label      | requests  | req/s     | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|------------|----------:|----------:|-------:|-------:|-------:|-------:|--------:|--------------------|
+| logback    | 2,440,995 | 81,366.50 | 0.52   | 0.91   | 2.35   | 7.42   | 0.61    | 663.5 / 665.2 / 664.5 |
+| log4j2     | 2,434,370 | 81,145.67 | 0.52   | 0.91   | 2.42   | 7.57   | 0.62    | 643.8 / 645.6 / 644.9 |
+| rainbowgum | 2,429,237 | 80,974.57 | 0.52   | 0.93   | 2.37   | 7.39   | 0.62    | 629.2 / 635.1 / 633.6 |
+
+All three land within ~0.5% of each other on throughput and identically on p50 - i.e. noise,
+not signal. That's a clean confirmation of the hypothesis above: whatever gives Log4j2 its
+edge at INFO level is entirely in the *enabled* path (formatting a timestamp, building the
+line, writing it), not in the cost of checking whether a level is enabled or dispatching
+through each framework's SLF4J binding - those are already effectively equal. Worth actually
+profiling the enabled path next (JFR execution samples, comparing time spent in date
+formatting specifically) to confirm the date-handling guess rather than assume it.
+
+Reproduce: `LOG_LEVEL=ERROR ./run-all.sh` (see `run-all.sh` for other env vars). Rows land in
+the same `results/results.csv` as the default-level run, distinguished by an `-ERROR` label
+suffix, so both scenarios accumulate in one file across runs rather than overwriting.
+
 Raw data: `results/results.csv` (gitignored - regenerated per run, not committed).
 
 ## Earlier run (short validation length)
