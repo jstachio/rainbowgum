@@ -121,6 +121,28 @@ Reproduce: `LOG_LEVEL=ERROR ./run-all.sh` (see `run-all.sh` for other env vars).
 the same `results/results.csv` as the default-level run, distinguished by an `-ERROR` label
 suffix, so both scenarios accumulate in one file across runs rather than overwriting.
 
+## Sanity check: is any framework doing less work than the others?
+
+Before trusting throughput numbers, worth confirming none of the three is "winning" by
+silently producing smaller/incomplete output. Ran `WARMUP_SECONDS=1 DURATION_SECONDS=3
+CONCURRENCY=1 ./run-all.sh` (single client thread, so the actual `benchmark.log` content per
+app is small enough to inspect directly) and diffed the three apps' log files:
+
+- Every request produces exactly 5 `BenchController` lines in all three logs, and the 5
+  message types (`received`/`validating`/`step=1`/`step=2`/`returning`) each appear exactly
+  once per request with no drops or duplicates - counts divide evenly by 5 in every file.
+- The computed values (`step1=3512882862`, `step2=3512882859`) are byte-identical across all
+  three, as expected (deterministic given the same input).
+- DEBUG line count is 0 in all three files - level filtering behaves identically everywhere.
+- Average bytes/line: Logback 116.4, Log4j2 116.4, **RainbowGum 126.4** - RainbowGum's
+  `%X{requestId}` renders as `requestId=2700` vs the other two's bare `2700`, so it's
+  actually writing *more* bytes per line, not fewer. Whatever explains RainbowGum landing
+  between Logback and Log4j2 in the full-length run above, it isn't doing less work.
+
+No sign of any framework taking a shortcut. Numbers at concurrency 1 for reference (not
+really informative on their own - too low concurrency to say much beyond "nothing's on
+fire"): Logback 875.7 req/s, Log4j2 868.0 req/s, RainbowGum 765.0 req/s.
+
 Raw data: `results/results.csv` (gitignored - regenerated per run, not committed).
 
 ## Earlier run (short validation length)
