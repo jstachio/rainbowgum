@@ -14,8 +14,14 @@
 # support yet, so rainbowgum-benchmark-webapp-rainbowgum's GelfSpringRainbowGumServiceProvider
 # checks the same property key and swaps in rainbowgum-json's GelfEncoder to match.
 #
-# Both are included in the CSV label and the per-app stdout/jfr filenames so different runs
-# don't clobber each other's output.
+# VIRTUAL_THREADS (optional, e.g. VIRTUAL_THREADS=true): overrides
+# spring.threads.virtual.enabled, switching the embedded Tomcat's request-handling threads
+# (and other Spring-managed executors) from platform to virtual threads. Pure Spring Boot/
+# Tomcat property, honored identically by all three apps - no per-app code needed, unlike
+# STRUCTURED_FORMAT.
+#
+# All three are included in the CSV label and the per-app stdout/jfr filenames so different
+# runs don't clobber each other's output.
 set -eu
 cd "$(dirname "$0")"
 
@@ -24,9 +30,10 @@ DURATION_SECONDS=${DURATION_SECONDS:-30}
 CONCURRENCY=${CONCURRENCY:-50}
 LOG_LEVEL=${LOG_LEVEL:-}
 STRUCTURED_FORMAT=${STRUCTURED_FORMAT:-}
+VIRTUAL_THREADS=${VIRTUAL_THREADS:-}
 URL_PATH="/api/greet/world"
 PORT=8080
-SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}
+SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}${VIRTUAL_THREADS:+-vt}
 
 echo "Building..."
 ( cd ../.. && ./mvnw -q -pl benchmark/webapp -am install -DskipTests )
@@ -44,7 +51,8 @@ run_one() {
 	(cd "$app_dir" && exec ./run.sh \
 		${LOG_LEVEL:+--logging.level.root=$LOG_LEVEL} \
 		${STRUCTURED_FORMAT:+--logging.structured.format.file=$STRUCTURED_FORMAT} \
-		${STRUCTURED_FORMAT:+--logging.structured.gelf.host=benchmark-host}) \
+		${STRUCTURED_FORMAT:+--logging.structured.gelf.host=benchmark-host} \
+		${VIRTUAL_THREADS:+--spring.threads.virtual.enabled=$VIRTUAL_THREADS}) \
 		>"$RESULTS_DIR/$label-stdout.log" 2>&1 &
 	pid=$!
 

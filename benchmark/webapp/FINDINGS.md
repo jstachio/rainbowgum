@@ -254,3 +254,63 @@ No errors in any of the three apps' stdout during this run (checked via
 
 Reproduce: `STRUCTURED_FORMAT=gelf ./run-all.sh` (combine with `LOG_LEVEL=ERROR` too, for a
 JSON-noop-case comparable to the ERROR-level finding above - not yet run).
+
+## Virtual threads: Log4j2 goes from fastest to slowest
+
+Adam's expectation going in: garbage-free techniques (like Log4j2's) rely on reusing
+mutable state across calls (thread-local caches, buffers) to avoid allocation - a strategy
+whose payoff depends on the *same thread* sticking around long enough to amortize the setup
+cost across many calls. Virtual threads break that assumption: Tomcat with
+`spring.threads.virtual.enabled=true` spins up a *new* virtual thread per request, so any
+thread-local cache starts cold on every single request instead of staying warm across
+thousands of requests on a small platform-thread pool. Adam's bet is this matters less (or
+reverses) under virtual threads, and eventually under Valhalla - which is part of why
+RainbowGum sticks with `Instant` rather than its own optimized/mutable clock type, betting
+flattened-immutable will beat garbage-free-via-mutation once value types land.
+
+**Setup:** added `VIRTUAL_THREADS=true` to `run-all.sh`, which passes
+`--spring.threads.virtual.enabled=true` (Spring Boot 4.1's standard property, confirmed via
+`spring-configuration-metadata.json` - `spring.threads.virtual.enabled`, default `false`) to
+all three apps identically - pure Spring Boot/Tomcat property, no per-framework code needed.
+
+**Verified virtual threads were actually active** (not just "the flag was silently ignored")
+via a live `jcmd <pid> Thread.dump_to_file -format=json`: no `http-nio-8080-exec-N` platform
+pool threads at all (present in every prior non-VT run), a `ForkJoinPool-1` container
+present (the default virtual-thread carrier pool), and Tomcat's executor container showing
+0 live threads between requests (expected for a virtual-thread-per-task executor, which has
+no idle pooled workers to show in a snapshot).
+
+**Results (full-length, default settings, text pattern + INFO, virtual threads on):**
+
+| label      | requests | req/s     | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|------------|---------:|----------:|-------:|-------:|-------:|-------:|--------:|--------------------|
+| logback    | 721,231  | 24,041.03 | 2.07   | 2.85   | 3.50   | 13.63  | 2.08    | 635.7 / 642.2 / 638.9 |
+| log4j2     | 573,879  | 19,129.30 | 2.43   | 5.11   | 7.81   | 22.34  | 2.61    | 629.8 / 633.8 / 631.1 |
+| rainbowgum | 604,772  | 20,159.07 | 2.50   | 4.10   | 5.63   | 17.30  | 2.48    | 631.1 / 635.9 / 632.6 |
+
+**vs the platform-thread run at the top of this file:**
+
+| label      | platform req/s | virtual req/s | change |
+|------------|----------------:|---------------:|-------:|
+| logback    | 21,442.80       | 24,041.03      | **+12%** |
+| log4j2     | 34,374.30       | 19,129.30      | **-44%** |
+| rainbowgum | 23,537.43       | 20,159.07      | -14% |
+
+Log4j2 goes from clearly fastest to clearly *slowest* of the three under virtual threads -
+a dramatic reversal, not just "loses its edge" like the GELF case. Logback actually
+*improves*. RainbowGum drops but lands ahead of Log4j2, closer to Logback. This is
+consistent with (though doesn't yet prove) Adam's thread-local-cache-going-cold hypothesis -
+Log4j2's optimizations for the platform-thread case may be actively counterproductive once
+every request gets a fresh virtual thread with no warm cache to reuse.
+
+**Not yet done, per Adam - saving for later:** a micro-benchmark (not the full webapp) that
+isolates specifically where Log4j2 is spending its time, plus JFR profiling of that
+micro-benchmark, to actually confirm (rather than just correlate) that thread-local cache
+cold-starts are the mechanism. This full-webapp run establishes *that* something changes
+dramatically for Log4j2 under virtual threads; it doesn't yet establish *why* at the
+mechanism level.
+
+No errors in any of the three apps' stdout during this run.
+
+Reproduce: `VIRTUAL_THREADS=true ./run-all.sh` (combine with `LOG_LEVEL`/`STRUCTURED_FORMAT`
+for the fuller combinatoric matrix - not yet run).
