@@ -1,0 +1,51 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-spring-parent</artifactId>
+    <version>0.10.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-spring-boot4-starter</artifactId>
+  <name>rainbowgum-spring-boot4-starter</name>
+  <properties>
+    <doc.resources>../../</doc.resources>
+    <parent.root>${basedir}/../..</parent.root>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!--
+            The module name is deliberately suffixed with the Spring Boot major version
+            (see module-info.java) so this specific, well-understood lint warning is
+            suppressed rather than uglifying the name - it only matters for jars with no
+            explicit module-info.java (automatic module name inference), which we never
+            rely on.
+          -->
+          <compilerArgs combine.children="append">
+            <arg>-Xlint:-module</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-spring-boot4</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+  </dependencies>
+</project>

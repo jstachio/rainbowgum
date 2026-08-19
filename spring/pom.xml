@@ -11,34 +11,21 @@
   <name>rainbowgum-spring-parent</name>
   <packaging>pom</packaging>
   <properties>
-    <spring-boot.version>3.3.3</spring-boot.version>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>
   </properties>
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>${spring-boot.version}</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-  <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-maven-plugin</artifactId>
-          <version>${spring-boot.version}</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
+  <!--
+    Deliberately no shared spring-boot.version property, dependencyManagement, or
+    spring-boot-maven-plugin pluginManagement here: rainbowgum-spring-boot3 and
+    rainbowgum-spring-boot4 (and their starters) each pin their own Spring Boot major
+    version independently and must never share one, otherwise bumping one would
+    silently bump the other.
+  -->
   <modules>
-    <module>rainbowgum-spring-boot</module>
-    <module>rainbowgum-spring-boot-starter</module>
+    <module>rainbowgum-spring-spi</module>
+    <module>rainbowgum-spring-boot3</module>
+    <module>rainbowgum-spring-boot3-starter</module>
+    <module>rainbowgum-spring-boot4</module>
+    <module>rainbowgum-spring-boot4-starter</module>
   </modules>
 </project>

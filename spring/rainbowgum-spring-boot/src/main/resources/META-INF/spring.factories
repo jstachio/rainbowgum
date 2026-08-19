@@ -1,1 +1,0 @@
-org.springframework.boot.logging.LoggingSystemFactory=io.jstach.rainbowgum.spring.boot.RainbowGumLoggingSystemFactory
