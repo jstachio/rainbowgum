@@ -20,6 +20,7 @@
     <module>rainbowgum-benchmark-rainbowgum</module>
     <module>rainbowgum-benchmark-share</module>
     <module>rainbowgum-benchmark-log4j</module>
+    <module>webapp</module>
   </modules>
   <dependencyManagement>
     <dependencies>
@@ -28,16 +29,15 @@
         <artifactId>rainbowgum-benchmark-share</artifactId>
         <version>${project.version}</version>
       </dependency>
-      <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
-        <version>1.5.12</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j2-impl</artifactId>
-        <version>3.0.0-beta2</version>
-      </dependency>
+      <!--
+        Deliberately NOT managed here (moved into rainbowgum-benchmark-logback /
+        rainbowgum-benchmark-log4j directly): dependencyManagement is inherited by every
+        module under this parent, including webapp/, whose apps import the Spring Boot 4
+        BOM and need its coordinated logback/log4j2 versions - an explicit pin here would
+        silently override just the one artifact the BOM also manages (e.g. logback-classic)
+        while leaving its transitive siblings (e.g. logback-core) on the BOM's newer
+        version, causing a NoSuchMethodError from the resulting mismatch.
+      -->
     </dependencies>
   </dependencyManagement>
   <dependencies>

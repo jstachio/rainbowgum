@@ -1,0 +1,56 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-benchmark-parent</artifactId>
+    <version>0.10.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-benchmark-webapp-parent</artifactId>
+  <packaging>pom</packaging>
+  <properties>
+    <parent.root>${basedir}/../..</parent.root>
+    <!--
+      All three apps below deliberately pin the SAME Spring Boot version (unlike
+      spring/rainbowgum-spring-boot3 vs boot4, which intentionally differ): the point of
+      this benchmark is to compare logging backends, not Spring Boot versions, so this BOM
+      is imported once here for every child to share.
+    -->
+    <spring-boot.version>4.1.0</spring-boot.version>
+  </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot.version}</version>
+        <scope>import</scope>
+        <type>pom</type>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-benchmark-webapp-share</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+          <version>${spring-boot.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+  <modules>
+    <module>rainbowgum-benchmark-webapp-share</module>
+    <module>rainbowgum-benchmark-webapp-logback</module>
+    <module>rainbowgum-benchmark-webapp-log4j2</module>
+    <module>rainbowgum-benchmark-webapp-rainbowgum</module>
+    <module>rainbowgum-benchmark-webapp-driver</module>
+  </modules>
+</project>
