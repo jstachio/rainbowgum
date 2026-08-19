@@ -180,7 +180,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 			if (locale != null) {
 				dtf = dtf.withLocale(locale);
 			}
-			return LogFormatter.TimestampFormatter.of(dtf);
+			return LogFormatter.TimestampFormatter.of(dtf, isMillisOrCoarserPrecision(pattern));
 		}
 	},
 	/**
@@ -301,6 +301,42 @@ enum StandardKeywordFactory implements KeywordFactory {
 	static final String ISO8601_STR = "ISO8601";
 
 	static final String ISO8601_PATTERN = "yyyy-MM-dd HH:mm:ss,SSS";
+
+	/**
+	 * Whether a {@link DateTimeFormatter} pattern's finest resolution is milliseconds or
+	 * coarser, i.e. it never renders sub-millisecond digits. Used to decide whether the
+	 * formatted string can be safely cached and reused for events landing in the same
+	 * millisecond (see
+	 * {@link LogFormatter.TimestampFormatter#of(DateTimeFormatter, boolean)}).
+	 */
+	static boolean isMillisOrCoarserPrecision(String pattern) {
+		boolean literal = false;
+		int consecutiveS = 0;
+		for (int i = 0; i < pattern.length(); i++) {
+			char c = pattern.charAt(i);
+			if (c == '\'') {
+				literal = !literal;
+				consecutiveS = 0;
+				continue;
+			}
+			if (literal) {
+				continue;
+			}
+			if (c == 'n' || c == 'N') {
+				return false;
+			}
+			if (c == 'S') {
+				consecutiveS++;
+				if (consecutiveS > 3) {
+					return false;
+				}
+			}
+			else {
+				consecutiveS = 0;
+			}
+		}
+		return true;
+	}
 
 	// MICROS, //
 	// THREAD, //

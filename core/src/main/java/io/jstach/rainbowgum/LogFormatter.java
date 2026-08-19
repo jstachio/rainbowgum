@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -204,7 +205,7 @@ public sealed interface LogFormatter {
 		 * @return this builder.
 		 */
 		public Builder timeStamp(DateTimeFormatter dateTimeFormatter) {
-			formatters.add(new DateTimeFormatterInstantFormatter(dateTimeFormatter));
+			formatters.add(TimestampFormatter.of(dateTimeFormatter));
 			return this;
 		}
 
@@ -527,7 +528,29 @@ public sealed interface LogFormatter {
 		 * @return timestamp formatter.
 		 */
 		public static TimestampFormatter of(DateTimeFormatter dateTimeFormatter) {
-			return new DateTimeFormatterInstantFormatter(dateTimeFormatter);
+			return of(dateTimeFormatter, false);
+		}
+
+		/**
+		 * Formats a timestamp using standard JDK date time formatter.
+		 * <p>
+		 * Formatting with {@link DateTimeFormatter} is comparatively expensive to do on
+		 * every event, so if the caller knows the formatter's finest resolution is
+		 * milliseconds (e.g. a pattern using at most {@code SSS}, never
+		 * {@code n}/{@code N} nanosecond fields), {@code cacheMillisecondPrecision} can
+		 * be set to {@code true} to reuse the previously formatted string whenever
+		 * consecutive events land in the same millisecond - the same trick Logback's
+		 * {@code CachingDateFormatter} and Log4j2's {@code FixedDateFormat} use. Passing
+		 * {@code true} for a formatter that can actually render sub-millisecond precision
+		 * will silently truncate that precision, so only pass {@code true} when the
+		 * pattern is known to not exceed millisecond resolution.
+		 * @param dateTimeFormatter date time formatter.
+		 * @param cacheMillisecondPrecision {@code true} if the formatter's output is
+		 * fully determined by the instant's millisecond value.
+		 * @return timestamp formatter.
+		 */
+		public static TimestampFormatter of(DateTimeFormatter dateTimeFormatter, boolean cacheMillisecondPrecision) {
+			return new DateTimeFormatterInstantFormatter(dateTimeFormatter, cacheMillisecondPrecision);
 		}
 
 	}
@@ -878,7 +901,14 @@ enum DefaultThreadFormatter implements LogFormatter {
 
 enum DefaultInstantFormatter implements TimestampFormatter {
 
-	TTLL(DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC))),
+	TTLL(DateTimeFormatter.ofPattern(TTLL_TIME_FORMAT).withZone(ZoneId.from(ZoneOffset.UTC))) {
+		private final MillisCache cache = new MillisCache();
+
+		@Override
+		public void formatTimestamp(StringBuilder output, Instant instant) {
+			cache.formatTimestamp(output, instant, formatter);
+		}
+	},
 	ISO(DateTimeFormatter.ISO_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))),
 	MICROS(DateTimeFormatter.ISO_DATE_TIME) {
 		@Override
@@ -901,7 +931,7 @@ enum DefaultInstantFormatter implements TimestampFormatter {
 		}
 	};
 
-	private final DateTimeFormatter formatter;
+	final DateTimeFormatter formatter;
 
 	DefaultInstantFormatter(DateTimeFormatter formatter) {
 		this.formatter = formatter;
@@ -914,12 +944,59 @@ enum DefaultInstantFormatter implements TimestampFormatter {
 
 }
 
-record DateTimeFormatterInstantFormatter(DateTimeFormatter dateTimeFormatter) implements TimestampFormatter {
+final class DateTimeFormatterInstantFormatter implements TimestampFormatter {
+
+	private final DateTimeFormatter dateTimeFormatter;
+
+	private final @Nullable MillisCache cache;
+
+	DateTimeFormatterInstantFormatter(DateTimeFormatter dateTimeFormatter, boolean cacheMillisecondPrecision) {
+		this.dateTimeFormatter = dateTimeFormatter;
+		this.cache = cacheMillisecondPrecision ? new MillisCache() : null;
+	}
 
 	@Override
 	public void formatTimestamp(StringBuilder output, Instant instant) {
-		dateTimeFormatter.formatTo(instant, output);
+		var c = cache;
+		if (c == null) {
+			dateTimeFormatter.formatTo(instant, output);
+			return;
+		}
+		c.formatTimestamp(output, instant, dateTimeFormatter);
 	}
+
+}
+
+/**
+ * Caches a formatted timestamp string keyed by the instant's millisecond value, the same
+ * trick Logback's {@code CachingDateFormatter} and Log4j2's {@code FixedDateFormat} use -
+ * reformatting only happens when consecutive events land in different milliseconds. Only
+ * correct for formatters whose output is fully determined by millisecond precision
+ * (callers are responsible for that guarantee).
+ */
+final class MillisCache {
+
+	private record Entry(long millis, String formatted) {
+	}
+
+	private static final Entry EMPTY = new Entry(Long.MIN_VALUE, "");
+
+	private final AtomicReference<Entry> ref = new AtomicReference<>(EMPTY);
+
+	void formatTimestamp(StringBuilder output, Instant instant, DateTimeFormatter formatter) {
+		long millis = instant.toEpochMilli();
+		Entry cached = ref.get();
+		if (cached.millis() == millis) {
+			output.append(cached.formatted());
+			return;
+		}
+		StringBuilder sb = new StringBuilder(32);
+		formatter.formatTo(instant, sb);
+		String formatted = sb.toString();
+		ref.set(new Entry(millis, formatted));
+		output.append(formatted);
+	}
+
 }
 
 enum DefaultThrowableFormatter implements ThrowableFormatter {
