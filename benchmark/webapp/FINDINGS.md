@@ -441,3 +441,135 @@ Logback's `immediateFlush=false` (matching RainbowGum's default instead of the o
 around) closes the gap from the other direction.
 
 Reproduce: `RG_IMMEDIATE_FLUSH=true ./run-all.sh`.
+
+## First JFR profiling pass: Tomcat's own internal logging is the biggest surprise
+
+Captured real `jdk.ExecutionSample` profiles for Logback and RainbowGum under identical
+load (default settings, platform threads, text pattern, 40s at concurrency 50) via
+`jcmd <pid> JFR.dump` mid-run, then `jfr print --events jdk.ExecutionSample --stack-depth 128`
+and aggregated leaf/stack frames in Python. (Log4j2 was captured too per the original plan,
+but Adam redirected to Logback vs RainbowGum specifically - more familiar with that
+codebase, and closer in design to RainbowGum - so that's the comparison below; the Log4j2
+capture was lost to a JFR-dump-timing mistake and not worth re-doing given the redirect.)
+
+**The single biggest, cleanest difference found:** `org.apache.juli.logging.DirectJDKLog`
+(Tomcat's own internal JUL-based logging facade, used for Tomcat's *own* diagnostics, not
+application code) showed up in **566 of ~3,700 RainbowGum samples vs 6 of ~3,900 Logback
+samples** - about 94x more. Full chain for a representative sample:
+
+```
+java.lang.Module.getLayer()
+java.lang.StackTraceElement.isHashedInJavaBase(Module)
+java.lang.StackTraceElement.computeFormat()
+java.lang.StackTraceElement.of(StackTraceElement[])
+java.lang.StackTraceElement.of(Object, int)
+java.lang.Throwable.getOurStackTrace()
+java.lang.Throwable.getStackTrace()
+org.apache.juli.logging.DirectJDKLog.log(Level, String, Throwable)
+org.apache.juli.logging.DirectJDKLog.trace(Object)
+org.apache.tomcat.util.net.SocketWrapperBase.populateReadBuffer(ByteBuffer)
+... (NIO socket read -> HTTP11 processing -> Tomcat worker thread)
+```
+
+Decompiled `DirectJDKLog.log()`: it calls `logger.isLoggable(level)` first and only pays
+the expensive cost (`new Throwable().getStackTrace()`, to determine caller class/method for
+the log record) when that check passes. So the finding is: **Tomcat's own internal
+FINER/TRACE-level diagnostic logging (normally a no-op) is effectively "enabled" and doing
+real work on every socket read, under RainbowGum's setup but not Logback's.** A related leaf,
+`java.text.MessageFormat.subformat`, traces back to the same underlying cause via a
+different mechanism than first guessed (corrected by Adam - not JUL's own `Formatter`): the
+actual chain is `NioEndpoint$NioSocketWrapper.registerReadInterest()` ->
+`StringManager.getString(key, args)` -> `MessageFormat.format(...)`. `StringManager` is
+Tomcat's *own* i18n resource-bundle string builder, used to build a trace message's text
+*before* it's ever handed to a logging call - Tomcat doesn't rely on the logging framework
+to format anything. Tomcat's own call sites for this are normally guarded by a level check
+before bothering to build the message at all, so seeing this actually execute means whatever
+guards it believed tracing was enabled - same underlying mystery as the `DirectJDKLog`
+stack-walk, just encountered via a different Tomcat code path.
+
+**Ruled out:** RainbowGum's `JULConfigurator`, which sets the root `java.util.logging`
+logger's level from `config.levelResolver().resolveLevel("")` (see the immediate-flush
+section above for other `LogAppender` internals). Tested `logging.jul.level.disable=true`
+(skips just that level-setting, keeps the JUL bridge installed) - `DirectJDKLog` samples
+stayed the same (554 vs 566) and throughput didn't move. So it isn't the JUL root logger's
+*level* specifically, at least not via that code path.
+
+**Adam recalled a purpose-built fix already exists:** `rainbowgum-tomcat` (a module that
+apparently predates this benchmark investigation, whose original motivation he'd forgotten
+until this profiling surfaced it) - `RainbowGumTomcatLog` implements Tomcat's own
+`org.apache.juli.logging.Log` facade directly, registered via `@ServiceProvider(Log.class)`
+so Tomcat's own service-loader discovery uses it instead of falling back to `DirectJDKLog`/
+real JUL. It routes straight through `LogRouter.global()` (a static/global accessor
+specifically because Tomcat starts logging before Spring's context - and RainbowGum's real
+config - is ready) with a proper `isEnabled()` gate and no stack-walking. Added it as a
+dependency to `rainbowgum-benchmark-webapp-rainbowgum`.
+
+**Result: mixed, and the full isolation test overturned the first read of it.**
+- `DirectJDKLog` samples: 566 -> **0** with `rainbowgum-tomcat` added. The specific
+  stack-walk cost is genuinely eliminated by it, confirmed.
+- Throughput with `rainbowgum-tomcat` added: baseline ~23,570-23,824 req/s ->
+  **21,377-21,547 req/s, reproducibly worse (~9-10%) across two separate runs.**
+
+First read: assumed `rainbowgum-tomcat`'s own routing overhead must be more expensive than
+`DirectJDKLog`'s occasional stack-walk. Adam asked to double check how Spring Boot actually
+sets up Logback's JUL bridging, which overturned that:
+
+- Decompiled `org.slf4j.bridge.SLF4JBridgeHandler.install()` (what Spring Boot's
+  `LogbackLoggingSystem` uses): it only calls `Logger.addHandler(...)` on the JUL root
+  logger - it **never touches the root logger's level**. So under Logback, JUL's root level
+  stays at the JDK's own default (`INFO`), and Tomcat's FINER-level internal trace calls get
+  correctly rejected for free, before `DirectJDKLog` does any real work.
+- RainbowGum's `JULConfigurator` (see above) *does* explicitly set the JUL root level from
+  `config.levelResolver().resolveLevel("")` - looked like the smoking gun.
+- But testing `logging.jul.disable=true` (disables RainbowGum's JUL bridge *entirely* - no
+  handler installed, no level ever touched, `main()`) **with `rainbowgum-tomcat` removed**
+  for a clean isolation (my first attempt at this test still had `rainbowgum-tomcat` in the
+  pom, which invalidated it - Tomcat wasn't touching JUL at all either way, so the flag
+  couldn't have shown anything): throughput came back to baseline (**23,325 req/s**), but
+  `DirectJDKLog` samples were **still there, basically unchanged (545)**.
+
+So `DirectJDKLog`'s sample count doesn't actually track with throughput at all - it's ~545
+whether RainbowGum's JUL bridge is fully enabled, fully disabled, and (apparently) whether
+or not it's even RainbowGum's bridge causing it. Throughput only drops when
+`rainbowgum-tomcat` is *added*. That means the real cost isn't "Tomcat's JUL-bridged calls
+are expensive" (real, but apparently not the throughput-determining factor) - it's something
+specific to routing Tomcat's own high-frequency internal log attempts through
+`RainbowGumTomcatLog` into RainbowGum's *own* pipeline.
+
+**Leading (unconfirmed) theory:** lock contention. `io.jstach.rainbowgum.LogRouter$Router.log`/
+`GlobalLogRouter.route` accounted for ~590 of ~3,500 samples in the rainbowgum-tomcat run,
+despite only 5 Tomcat-related lines ever appearing in `benchmark.log` (one-time INFO startup
+lines, not the high-frequency socket-level chatter) - so Tomcat's very frequent internal log
+attempts are reaching RainbowGum's router machinery constantly without writing anything.
+Adam's own earlier "two locks" note is relevant here: `DefaultLogAppender.append()` takes a
+shared `AppenderLock` (`ReentrantLock`) around every write - the *same* lock the
+application's own real log calls (`BenchController`'s 5 statements/request) also take.
+`DirectJDKLog`/real JUL is a completely separate, independent pipeline with its own handler
+and no shared lock with RainbowGum at all - expensive per call, but never contends with
+anything. `RainbowGumTomcatLog` funnels Tomcat's much-higher-frequency internal log
+*attempts* into the *same* router/lock the application's real logging uses, so even if each
+individual attempt is cheap, the aggregate contention on that shared lock between two very
+different call-frequency sources could plausibly explain a net throughput loss despite the
+per-call `DirectJDKLog` cost being eliminated. Not confirmed - would need lock-specific JFR
+events (`jdk.JavaMonitorEnter`/`ReentrantLock` wait events) captured with a lower threshold
+than the default "profile" settings use, to actually see contention on `AppenderLock`
+directly rather than infer it.
+
+**Still genuinely unresolved:** why Tomcat's internal FINER/TRACE logging passes its level
+check at all under this setup (~545 `DirectJDKLog` samples represents real work happening,
+regardless of whether it's the throughput bottleneck) - `logging.jul.disable=true` proves
+it's not specifically RainbowGum's JUL bridge doing this, so the cause is something else
+entirely (possibly just this JVM/Tomcat/Spring Boot combination's own default JUL
+configuration, independent of the logging backend choice - worth checking whether Logback's
+run shows the *same* effective JUL root level and Tomcat still stays quiet for a different
+reason, e.g. per-logger rather than root-level configuration).
+
+**Current state:** `rainbowgum-tomcat` is *not* a dependency of
+`rainbowgum-benchmark-webapp-rainbowgum` (removed after this test), so the default numbers
+elsewhere in this document reflect what most real users would actually have.
+
+Reproduce: `jcmd <pid> JFR.dump filename=out.jfr` on a running benchmark app mid-load, then
+`jfr print --events jdk.ExecutionSample --stack-depth 128 out.jfr`. When testing a flag or
+dependency change, always confirm no stale app is still holding port 8080 from a previous
+run first (`ps aux | grep rainbowgum-benchmark-webapp`) - a stale process silently
+invalidates the next test's isolation, as happened once during this investigation.
