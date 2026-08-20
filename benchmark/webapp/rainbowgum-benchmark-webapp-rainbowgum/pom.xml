@@ -1,0 +1,89 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-benchmark-webapp-parent</artifactId>
+    <version>0.10.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-benchmark-webapp-rainbowgum</artifactId>
+  <properties>
+    <parent.root>${basedir}/../../..</parent.root>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-spring-boot4-starter</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-benchmark-webapp-share</artifactId>
+    </dependency>
+    <!--
+      rainbowgum-spring-boot4-starter only exposes these at runtime scope (a starter's
+      consumers normally don't need compile-time access to its internals), but
+      GelfSpringRainbowGumServiceProvider needs LogConfig/RainbowGum/OutputType,
+      SpringRainbowGumServiceProvider, and GelfEncoder at compile time. All three are
+      already on the runtime classpath transitively; this just adds compile-time visibility.
+    -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-spring-spi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-json</artifactId>
+    </dependency>
+  </dependencies>
+  <profiles>
+    <!--
+      rainbowgum-tomcat replaces Tomcat's internal org.apache.juli.logging.Log facade with
+      one routed straight through RainbowGum's LogRouter, bypassing java.util.logging
+      entirely for Tomcat's own internal logging (catalina/coyote/etc). Spring Boot does not
+      pull this in on its own. Kept as an opt-in profile (-Ptomcat) rather than an
+      unconditional dependency so run-tomcat-jul.sh can build the app both with and without
+      it for a clean isolated comparison.
+    -->
+    <profile>
+      <id>tomcat</id>
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>rainbowgum-tomcat</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+</project>
