@@ -629,10 +629,10 @@ or through properties.
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_FLAGS_PROPERTY} = List of {@link io.jstach.rainbowgum.LogAppender.AppenderFlag}</dd>
 </dl>
 
-An important Appender Flag is {@link io.jstach.rainbowgum.LogAppender.AppenderFlag#IMMEDIATE_FLUSH} which
-will tell the output to flush after each event. This flag is disabled by default for performance reasons
-however if one would like to follow <a href="https://12factor.net/logs">12 Factors requirements of events written unbuffered</a> 
-synchronously this flag should be used.
+An important Appender Flag is {@link io.jstach.rainbowgum.LogAppender.AppenderFlag#DISABLE_IMMEDIATE_FLUSH} which
+will tell the output to not flush after each event. Flushing after each event is enabled by default to follow
+<a href="https://12factor.net/logs">12 Factors requirements of events written unbuffered</a> synchronously;
+this flag should be used to opt out of that for performance reasons.
 
 <h3 id="appender_reentry">Appender Reentry Protection</h3>
 
