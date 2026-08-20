@@ -4,12 +4,12 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import io.jstach.rainbowgum.AnsiSupport;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.ServiceRegistry;
+import io.jstach.rainbowgum.format.AnsiSupport;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFactory;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 import io.jstach.rainbowgum.pattern.internal.Node;
