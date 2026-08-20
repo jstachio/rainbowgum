@@ -34,7 +34,7 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
  *
  * @see LogOutput.OutputProvider
  * @see Buffer
- * @see AppenderFlag#IMMEDIATE_FLUSH
+ * @see AppenderFlag#DISABLE_IMMEDIATE_FLUSH
  * @apiNote if for some reason the output needs to share events with other threads call
  * {@link LogEvent#freeze()} which will return an immutable event.
  */
@@ -298,10 +298,11 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 	}
 
 	/**
-	 * Flushes if the output is maintaining a buffer. An appender will call this after
-	 * each event in synchronous mode or after a batched group of events if in
-	 * asynchronous mode if {@link LogAppender.AppenderFlag#IMMEDIATE_FLUSH} is set.
-	 * @see LogAppender.AppenderFlag#IMMEDIATE_FLUSH
+	 * Flushes if the output is maintaining a buffer. By default an appender will call
+	 * this after each event in synchronous mode or after a batched group of events if in
+	 * asynchronous mode unless {@link LogAppender.AppenderFlag#DISABLE_IMMEDIATE_FLUSH}
+	 * is set.
+	 * @see LogAppender.AppenderFlag#DISABLE_IMMEDIATE_FLUSH
 	 */
 	@Override
 	public void flush();
