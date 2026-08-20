@@ -32,7 +32,17 @@ public final class RainbowGumTomcatLog implements ForwardingTomcatLog {
 	 * @param loggerName logger name.
 	 */
 	public RainbowGumTomcatLog(String loggerName) {
-		var router = LogRouter.global();
+		this(loggerName, LogRouter.global());
+	}
+
+	/**
+	 * Allows a specific router to be used instead of the {@linkplain LogRouter#global()
+	 * global router} - mainly so tests are not coupled to (and do not have to synchronize
+	 * around) the global router's static, JVM-wide state.
+	 * @param loggerName logger name.
+	 * @param router router to use instead of the global router.
+	 */
+	public RainbowGumTomcatLog(String loggerName, LogRouter.RootRouter router) {
 		var level = router.levelResolver().resolveLevel(loggerName);
 		boolean changeable = router.isChangeable(loggerName);
 		if (changeable) {
