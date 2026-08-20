@@ -659,3 +659,66 @@ benchmark is actually trying to compare).
   unaffected by any of these fixes, a separate, not-yet-investigated gap.
 
 Reproduce: `RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh`.
+
+## GELF and virtual-threads rerun after the same fixes - a flush-confound lesson
+
+Reran both the GELF and virtual-threads scenarios too, to check whether the timestamp/MDC/
+GELF fixes plus `EXCLUDE_JUL` helped there as well. First attempt combined them with
+`RG_IMMEDIATE_FLUSH=true` (matching the default-scenario rerun above) and looked like a
+*regression* for RainbowGum in both cases:
+
+| label | req/s (old baseline, no flush) | req/s (`EXCLUDE_JUL` + flush) | looks like |
+|---|---:|---:|---|
+| rainbowgum-gelf | 15,022.4 | 13,717.9 | -8.7% |
+| rainbowgum-vt | 20,159.1 | 17,698.9 | -12.2% |
+
+That's misleading, not a real regression: unlike the default text-pattern scenario (which
+already had a prior `RG_IMMEDIATE_FLUSH` baseline to compare against cleanly), GELF and
+virtual-threads had no such baseline - the only prior numbers used RainbowGum's *default*
+(buffered, non-immediate-flush) behavior. `RG_IMMEDIATE_FLUSH` is a real, additive cost
+specific to RainbowGum (Logback/Log4j2 already flush by default, so it's a no-op for them),
+so comparing "old, unflushed RainbowGum" against "new, flushed RainbowGum" conflates two
+independent changes and makes a genuine improvement look like a regression.
+
+**Reran both without `RG_IMMEDIATE_FLUSH`** (`EXCLUDE_JUL=true` only, matching the old
+baselines' flush settings exactly) for a clean, apples-to-apples comparison:
+
+| label | old baseline | `EXCLUDE_JUL`, no flush | Δ |
+|---|---:|---:|---:|
+| rainbowgum-gelf | 15,022.4 | 16,173.1 | **+7.7%** |
+| rainbowgum-vt | 20,159.1 | 20,869.3 | **+3.5%** |
+
+Both are real, positive gains, consistent with the default-scenario rerun above:
+
+**GELF** (`STRUCTURED_FORMAT=gelf EXCLUDE_JUL=true`):
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback-gelf-nojul | 673,984 | 22,466.1 | 2.02 | 3.90 | 6.45 | 18.13 | 2.23 | 642.3 / 646.4 / 644.6 |
+| log4j2-gelf-nojul | 504,235 | 16,807.8 | 2.58 | 5.83 | 9.73 | 28.11 | 2.97 | 622.7 / 628.9 / 625.6 |
+| rainbowgum-gelf-nojul | 485,194 | 16,173.1 | 3.29 | 5.66 | 9.48 | 31.93 | 3.09 | 652.5 / 656.0 / 654.1 |
+
+RainbowGum now nearly ties Log4j2 (16,173.1 vs 16,807.8, ~3.8% behind, down from ~8% behind
+in the old GELF baseline) - the GELF `_time` caching fix specifically targeted this code
+path, and it shows.
+
+**Virtual threads** (`VIRTUAL_THREADS=true EXCLUDE_JUL=true`):
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback-vt-nojul | 788,218 | 26,273.9 | 1.91 | 2.57 | 3.07 | 12.62 | 1.90 | 651.3 / 653.8 / 652.8 |
+| log4j2-vt-nojul | 579,777 | 19,325.9 | 2.42 | 5.04 | 7.68 | 21.68 | 2.59 | 625.4 / 629.7 / 628.1 |
+| rainbowgum-vt-nojul | 626,080 | 20,869.3 | 2.41 | 3.98 | 5.45 | 16.39 | 2.40 | 630.3 / 635.3 / 631.9 |
+
+RainbowGum keeps its lead over Log4j2 under virtual threads (20,869.3 vs 19,325.9), same
+ranking as the original virtual-threads finding (logback > rainbowgum > log4j2), with a
+modest additional gain from the fixes.
+
+**Takeaway for future reruns:** `RG_IMMEDIATE_FLUSH` and any fix/config comparison should
+never be combined casually when the *baseline* being compared against didn't also use
+`RG_IMMEDIATE_FLUSH` - always match flush settings on both sides of a before/after
+comparison, or the flush cost (a real, first-order effect - see the original
+`RG_IMMEDIATE_FLUSH` finding) will dominate and mask whatever else is being measured.
+
+Reproduce: `STRUCTURED_FORMAT=gelf EXCLUDE_JUL=true ./run-all.sh` and
+`VIRTUAL_THREADS=true EXCLUDE_JUL=true ./run-all.sh`.
