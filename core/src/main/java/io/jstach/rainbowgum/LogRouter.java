@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -125,13 +126,42 @@ public sealed interface LogRouter extends LogLifecycle {
 	/**
 	 * Router flags for adhoc router customization.
 	 */
+	@CaseChanging
 	public enum RouteFlag {
 
 		/**
 		 * The route will not use the global level resolver and will only use the level
 		 * config directly on the router.
 		 */
-		IGNORE_GLOBAL_LEVEL_RESOLVER;
+		IGNORE_GLOBAL_LEVEL_RESOLVER,
+		/**
+		 * When a route combines more than one appender, this makes them share a single
+		 * lock (via {@link LogAppender.Appenders#asSingleSharedLock()}) instead of each
+		 * appender keeping its own independent lock (the default, via
+		 * {@link LogAppender.Appenders#asSingle()}). A shared lock guarantees that all
+		 * appenders on the route observe events in the same relative order (e.g. a
+		 * console appender and a file appender on the same route never disagree on which
+		 * of two concurrent events came first) at the cost of unrelated appenders
+		 * contending on the same lock even when their outputs have nothing to do with
+		 * each other.
+		 */
+		SHARED_APPENDER_LOCK;
+
+		static Set<RouteFlag> parse(Collection<String> value) {
+			if (value.isEmpty()) {
+				return EnumSet.noneOf(RouteFlag.class);
+			}
+			var s = EnumSet.noneOf(RouteFlag.class);
+			for (var v : value) {
+				s.add(parse(v));
+			}
+			return s;
+		}
+
+		static RouteFlag parse(String value) {
+			String v = value.toUpperCase(Locale.ROOT);
+			return RouteFlag.valueOf(v);
+		}
 
 	}
 
@@ -357,6 +387,12 @@ public sealed interface LogRouter extends LogLifecycle {
 			 */
 			Router build(RouterFactory factory) {
 				String name = this.name;
+				flags.addAll(Property.builder()
+					.ofList()
+					.map(RouteFlag::parse)
+					.buildWithName(LogProperties.ROUTE_FLAGS_PROPERTY, name)
+					.get(config.properties())
+					.value(EnumSet.noneOf(RouteFlag.class)));
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
 
 				/*
@@ -436,7 +472,7 @@ public sealed interface LogRouter extends LogLifecycle {
 						.value(() -> LogPublisher.SyncLogPublisher.builder().build());
 				}
 
-				var apps = new LogAppender.Appenders(name, config, appenders);
+				var apps = new LogAppender.Appenders(name, config, appenders).routeFlags(flags);
 				var pub = publisher.create(name, config, apps);
 				/*
 				 * Register the publisher for lookup like status checks.

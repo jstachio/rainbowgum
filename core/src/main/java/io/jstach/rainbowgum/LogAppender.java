@@ -298,17 +298,6 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 */
 	class Appenders {
 
-		/**
-		 * EXPERIMENTAL raw system property (not part of the normal LogProperties config
-		 * system - just for quickly A/B testing this against a benchmark before
-		 * committing to any permanent design). When {@code true}, {@link #asSingle()}
-		 * uses {@link IndependentLockCompositeLogAppender} instead of
-		 * {@link CompositeLogAppender} whenever more than one appender is combined under
-		 * a route, so e.g. a console appender and a file appender on the same route no
-		 * longer contend on one shared lock.
-		 */
-		static final String SINGLE_LOCK_SYSTEM_PROPERTY = "rainbowgum.appender.independentLocks";
-
 		private final AtomicBoolean created = new AtomicBoolean();
 
 		private final String name;
@@ -318,6 +307,8 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		private final List<LogProvider<LogAppender>> appenders;
 
 		private Set<LogAppender.AppenderFlag> flags = EnumSet.noneOf(LogAppender.AppenderFlag.class);
+
+		private Set<LogRouter.RouteFlag> routeFlags = EnumSet.noneOf(LogRouter.RouteFlag.class);
 
 		Appenders(String name, LogConfig config, List<LogProvider<LogAppender>> appenders) {
 			super();
@@ -333,6 +324,18 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 */
 		public Appenders flags(Set<LogAppender.AppenderFlag> flags) {
 			this.flags = flags;
+			return this;
+		}
+
+		/**
+		 * Sets the route's flags, which should be done prior to <code>asXXX</code>.
+		 * {@link #asSingle()} consults {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK}
+		 * to decide which locking strategy to use when combining more than one appender.
+		 * @param routeFlags route flags.
+		 * @return this.
+		 */
+		public Appenders routeFlags(Set<LogRouter.RouteFlag> routeFlags) {
+			this.routeFlags = routeFlags;
 			return this;
 		}
 
@@ -357,15 +360,41 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		}
 
 		/**
-		 * Consolidate the appenders as a single appender. The appenders will be appended
-		 * synchronously and will share the same lock.
+		 * Consolidate the appenders as a single appender, appended synchronously. If more
+		 * than one appender is combined, each keeps its own independent lock - unless
+		 * {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} is set (see
+		 * {@link #routeFlags(Set)}), in which case this delegates to
+		 * {@link #asSingleSharedLock()}.
 		 * @return single appender.
 		 * @throws IllegalStateException if appenders are already registered.
 		 */
 		public LogAppender asSingle() throws IllegalStateException {
+			if (routeFlags.contains(LogRouter.RouteFlag.SHARED_APPENDER_LOCK)) {
+				return asSingleSharedLock();
+			}
 			if (created.compareAndSet(false, true)) {
 				var apps = appenders();
-				var appender = single(apps);
+				var appender = independentLock(apps);
+				return register(appender);
+			}
+			else {
+				throw new IllegalStateException("Appenders already provided.");
+			}
+		}
+
+		/**
+		 * Consolidate the appenders as a single appender, appended synchronously. If more
+		 * than one appender is combined, they share one lock, so appending to one of them
+		 * blocks appending to any of the others - see
+		 * {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} for why you might want that
+		 * (or might not).
+		 * @return single appender.
+		 * @throws IllegalStateException if appenders are already registered.
+		 */
+		public LogAppender asSingleSharedLock() throws IllegalStateException {
+			if (created.compareAndSet(false, true)) {
+				var apps = appenders();
+				var appender = sharedLock(apps);
 				return register(appender);
 			}
 			else {
@@ -403,24 +432,34 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		}
 
 		/**
-		 * Creates a composite log appender from many. By default the appenders will be
-		 * appended synchronously and will share the same lock - see
-		 * {@link #SINGLE_LOCK_SYSTEM_PROPERTY} for an experimental opt-out.
+		 * Creates a composite log appender from many, each keeping its own independent
+		 * lock.
 		 * @param appenders appenders.
 		 * @return appender.
 		 */
-		private static LogAppender single(List<? extends LogAppender> appenders) {
+		private static LogAppender independentLock(List<? extends LogAppender> appenders) {
 			if (appenders.isEmpty()) {
 				throw new IllegalArgumentException("A single appender is required");
 			}
 			if (appenders.size() == 1) {
 				return Objects.requireNonNull(appenders.get(0));
 			}
-			if (Boolean.getBoolean(SINGLE_LOCK_SYSTEM_PROPERTY)) {
-				return IndependentLockCompositeLogAppender.of(appenders, Set.of());
+			return IndependentLockCompositeLogAppender.of(appenders, Set.of());
+		}
+
+		/**
+		 * Creates a composite log appender from many that share a single lock.
+		 * @param appenders appenders.
+		 * @return appender.
+		 */
+		private static LogAppender sharedLock(List<? extends LogAppender> appenders) {
+			if (appenders.isEmpty()) {
+				throw new IllegalArgumentException("A single appender is required");
+			}
+			if (appenders.size() == 1) {
+				return Objects.requireNonNull(appenders.get(0));
 			}
 			return CompositeLogAppender.of(appenders, Set.of());
-
 		}
 
 	}
@@ -795,6 +834,12 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 
 }
 
+/**
+ * The {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} strategy for combining more than
+ * one appender on a route: pushes one shared {@link AppenderLock} down into every
+ * appender, so all of them are appended to as one atomic unit relative to other threads.
+ * See {@link IndependentLockCompositeLogAppender} for the default strategy instead.
+ */
 @SuppressWarnings("ArrayRecordComponent")
 record CompositeLogAppender(DirectLogAppender[] appenders,
 		AppenderLock lock) implements BaseComposite<DirectLogAppender>, InternalLogAppender {
@@ -836,7 +881,8 @@ record CompositeLogAppender(DirectLogAppender[] appenders,
 }
 
 /**
- * EXPERIMENTAL - see {@link LogAppender.Appenders#SINGLE_LOCK_SYSTEM_PROPERTY}. Unlike
+ * The default (see {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} for the opt-out)
+ * strategy for combining more than one appender on a route. Unlike
  * {@link CompositeLogAppender}, does not push one shared {@link AppenderLock} down into
  * every appender: each appender keeps the independent lock it was already constructed
  * with, and {@link #append(LogEvent)}/{@link #append(LogEvent[], int)} skip locking at
