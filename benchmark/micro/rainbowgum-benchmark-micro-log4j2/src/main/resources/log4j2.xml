@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+	<Appenders>
+		<!-- immediateFlush is true by default anyway; set explicitly for the record. -->
+		<Console name="CONSOLE" target="SYSTEM_OUT" immediateFlush="true">
+			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n" />
+		</Console>
+	</Appenders>
+	<Loggers>
+		<Root level="INFO">
+			<AppenderRef ref="CONSOLE" />
+		</Root>
+	</Loggers>
+</Configuration>

@@ -1,0 +1,60 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-benchmark-micro-parent</artifactId>
+    <version>0.10.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-benchmark-micro-rainbowgum</artifactId>
+  <properties>
+    <exec.mainClass>${project.groupId}.benchmark.micro.rainbowgum.Main</exec.mainClass>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <configuration>
+              <archive>
+                <manifest>
+                  <addClasspath>true</addClasspath>
+                  <mainClass>${exec.mainClass}</mainClass>
+                  <classpathPrefix>${exec.classpathPrefix}</classpathPrefix>
+                  <classpathLayoutType>repository</classpathLayoutType>
+                  <useUniqueVersions>false</useUniqueVersions>
+                </manifest>
+              </archive>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-slf4j</artifactId>
+    </dependency>
+    <!--
+      Deliberately included even though RainbowGum has a purpose-built native "ttll"
+      encoder that would be faster: this benchmark is meant to compare the pattern engines
+      of all three frameworks fairly, since Logback/Log4j2 have no equivalent shortcut and
+      must always go through pattern parsing. Configured via logging.appender.console.encoder
+      =pattern / logging.encoder.console.pattern in run.sh, using the identical literal
+      pattern string as the other two.
+    -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-pattern</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-benchmark-micro-share</artifactId>
+    </dependency>
+  </dependencies>
+</project>
