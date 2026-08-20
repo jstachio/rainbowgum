@@ -722,3 +722,35 @@ comparison, or the flush cost (a real, first-order effect - see the original
 
 Reproduce: `STRUCTURED_FORMAT=gelf EXCLUDE_JUL=true ./run-all.sh` and
 `VIRTUAL_THREADS=true EXCLUDE_JUL=true ./run-all.sh`.
+
+## RainbowGum overtakes Logback after the independent-appender-lock fix
+
+Rebased onto `main` again after a much bigger fix landed: `LogAppender.Appenders.asSingle()`
+previously combined every appender on a route (here, "console" + "file", both active by
+default) under one shared lock - so a console write and a file write for the same event, and
+every concurrent request's appends across *both* outputs, all contended on that single lock.
+Root-caused via Adam's suspicion that this was a design mistake, not intentional; confirmed
+with a targeted single-app test showing +30-32% throughput before this was even wired up as a
+permanent option (see the micro-benchmark session's notes). Independent per-appender locks
+are now the default (`LogRouter.RouteFlag.SHARED_APPENDER_LOCK` opts back into the old shared
+-lock behavior if ever needed).
+
+Reran the same default scenario (text pattern, `INFO`, platform threads, `RG_IMMEDIATE_FLUSH`,
+`EXCLUDE_JUL`) as the two reruns above, to see it land in the full webapp benchmark, not just
+the isolated single-app test:
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback-flush-nojul | 654,451 | 21,815.0 | 2.03 | 4.54 | 7.60 | 20.59 | 2.29 | 680.1 / 683.3 / 681.9 |
+| log4j2-flush-nojul | 1,037,488 | 34,582.9 | 1.28 | 2.71 | 4.79 | 19.49 | 1.45 | 649.0 / 673.7 / 659.2 |
+| rainbowgum-flush-nojul | 854,873 | 28,495.8 | 1.67 | 2.92 | 4.86 | 20.62 | 1.75 | 661.2 / 662.8 / 662.1 |
+
+**RainbowGum: 20,853.9 -> 28,495.8 req/s (+36.6%)** - logback and log4j2 barely moved
+(+1.6%/+2.1%, noise), confirming this is entirely the lock fix, not something else drifting.
+
+**RainbowGum now clearly beats Logback** (28,495.8 vs 21,815.0, ~31% ahead - previously ~2.9%
+*behind*) and has closed most of the remaining gap to Log4j2 (17.6% behind, down from 38.4%
+behind). Log4j2 is still fastest here, but the gap that opened the whole investigation (17%
+behind Logback, before any of this session's fixes) has fully inverted.
+
+Reproduce: `RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh`.
