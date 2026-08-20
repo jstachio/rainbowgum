@@ -36,7 +36,8 @@ final class ChangeableRainbowGumTomcatLog implements Log {
 		level = LevelResolver.normalizeLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			String formattedMessage = obj == null ? "" : obj.toString();
+			@Nullable
+			String formattedMessage = obj == null ? null : obj.toString();
 			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, t);
 			route.log(event);
 		}
