@@ -928,3 +928,40 @@ run (it shouldn't, if Tomcat's internal logging is fully going through
 `RainbowGumTomcatLog` instead).
 
 Reproduce: `./run-tomcat-jul.sh`.
+
+### Follow-up: both leading theories ruled out by instrumentation
+
+Checked Adam's "Tomcat calls raw JUL somewhere" theory directly: patched
+`SystemLoggerQueueJULHandler.publish()` (in `rainbowgum-jdk`, reverted after - not
+committed) to print the logger name and a stack trace the first time each distinct logger
+was seen, rebuilt, and drove 200 requests against the `tomcat` config. **Zero hits.** No
+raw `java.util.logging` calls reach RainbowGum's JUL bridge during request handling -
+Tomcat's own `org.apache.juli.logging.Log` abstraction is not being bypassed. (It did
+confirm the separate defaults-gap finding from above: `Http11NioProtocol`'s two
+startup-time INFO lines print unsilenced, since RainbowGum has no equivalent to Logback/
+Log4j2's baked-in `Http11NioProtocol=WARN` etc. - but that's two lines at boot, not
+ongoing.)
+
+Also profiled the `tomcat` config with `-XX:StartFlightRecording=settings=profile` under
+the same load (correcting for a PID-tracking issue in this sandbox's shell where `$!`
+after `(exec java ...) &` didn't reliably match the real process - several early throughput
+numbers during this investigation were accidentally measuring a stale orphaned process
+from a prior attempt still bound to nothing; using the PID actually holding port 8080 via
+`ss -ltnp` instead of `$!` fixed it, and gave a consistent 23,315-23,761 req/s, matching
+the isolated-test number). Neither `jdk.ExecutionSample` (1,501 samples) nor
+`jdk.ObjectAllocationSample` (6,158 samples) contain **a single frame** in
+`io.jstach.rainbowgum.tomcat` or `org.apache.juli` - Tomcat's internal logging, through
+either mechanism, isn't invoked often enough during steady-state request handling to be
+CPU- or allocation-visible at all. `jdk.JavaMonitorEnter` was 0 (RainbowGum's
+`AppenderLock` is a `ReentrantLock`, which JFR's monitor events don't cover anyway - not
+informative either way).
+
+Net: both hypotheses for *why* `rainbowgum-tomcat` regresses throughput are now ruled out.
+It isn't Tomcat calling raw JUL, and it isn't per-call cost in
+`RainbowGumTomcatLog`/`TomcatLevelLog` - that code path is barely exercised during the
+actual load window. The ~15-17% drop is real and reproduces consistently, but its cause
+isn't visible in per-request CPU/allocation profiling, so it's likely something structural
+(classpath/JIT-shape difference, GC behavior, or a startup/init-time cost that isn't
+amortizing the way `-tomcat`'s design assumes) rather than a hot-path logging cost.
+Unresolved - would need a cleaner (non-shared) benchmarking environment and probably a
+GC/heap diff between configs to chase further.
