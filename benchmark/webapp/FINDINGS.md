@@ -620,3 +620,42 @@ Takeaways:
 - Confirms `java.text.MessageFormat` truly is Tomcat-internal-only noise, not part of either
   framework's real application-message formatting - both use their own lightweight `{}`
   parameter substitution at comparable cost.
+
+## Rerun after the timestamp-caching/MDC/GELF fixes, with Tomcat's own JUL noise excluded
+
+Rebased this branch onto `main` after several fixes landed from the separate micro-benchmark
+investigation: millisecond-precision caching for `%d`/`ofISO()`/GELF's `_time` field
+(previously recomputed a fresh `DateTimeFormatter` string on every single event, uncached),
+`%X`/`%mdc` fixed to match Logback's actual output format, and the Spring Boot module split.
+Reran the default (text pattern, `INFO`, platform threads) scenario with
+`RG_IMMEDIATE_FLUSH=true` again to see where the gap to Logback stands now, plus a new
+`EXCLUDE_JUL=true` toggle (silences Tomcat's own `org.apache.tomcat`/`catalina`/`coyote` JUL
+loggers identically on all three apps - see `run-all.sh` for why: Tomcat's internal JUL
+noise was found earlier to behave inconsistently between frameworks, not something this
+benchmark is actually trying to compare).
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback (flush, JUL included) | 658,943 | 21,964.8 | 2.02 | 4.52 | 7.55 | 20.66 | 2.28 | - / - / 634.6 |
+| log4j2 (flush, JUL included) | 1,003,565 | 33,452.2 | 1.32 | 2.84 | 4.96 | 20.10 | 1.49 | - / - / 636.5 |
+| rainbowgum (flush, JUL included) | 599,215 | 19,973.8 | 2.58 | 4.69 | 7.72 | 21.26 | 2.50 | - / - / 678.2 |
+| logback-flush-nojul | 644,030 | 21,467.7 | 2.06 | 4.64 | 7.71 | 21.48 | 2.33 | 649.8 / 656.2 / 653.1 |
+| log4j2-flush-nojul | 1,015,999 | 33,866.6 | 1.31 | 2.78 | 4.91 | 23.88 | 1.48 | 670.3 / 675.5 / 673.9 |
+| rainbowgum-flush-nojul | 625,618 | 20,853.9 | 2.45 | 4.51 | 7.42 | 21.99 | 2.40 | 629.1 / 638.4 / 634.1 |
+
+**RainbowGum's throughput improved on both changes, independently:**
+- The timestamp/MDC/GELF fixes alone (JUL still included, comparing against the pre-fix
+  `RG_IMMEDIATE_FLUSH` baseline earlier in this file: 17,977.7 req/s) already accounted for
+  most of the earlier +11.1% gain seen in the micro-benchmark investigation.
+- Excluding Tomcat's JUL noise on top of that moved RainbowGum from 19,973.8 to 20,853.9
+  req/s (+4.4%), while Logback and Log4j2's numbers moved by only ~1-2% (noise) - confirming
+  the JUL noise really was disproportionately costing RainbowGum specifically, not a neutral
+  factor affecting all three equally.
+- **Net effect: RainbowGum's gap to Logback narrowed from ~17% (17,977.7 vs 21,607.1 in the
+  original `RG_IMMEDIATE_FLUSH` finding) to ~2.9% (20,853.9 vs 21,467.7 here)** - almost
+  entirely closed, without touching `Instant.now()` capture itself (the one piece explicitly
+  left alone as a last resort per Adam - see the micro-benchmark FINDINGS.md).
+- Log4j2 remains well ahead of both (33,866.6 req/s, ~62% higher than RainbowGum here) -
+  unaffected by any of these fixes, a separate, not-yet-investigated gap.
+
+Reproduce: `RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh`.

@@ -28,6 +28,15 @@
 # anything architectural. No equivalent needed for Logback/Log4j2 - they already flush by
 # default.
 #
+# EXCLUDE_JUL (optional, e.g. EXCLUDE_JUL=true): silences Tomcat's own internal JUL-routed
+# diagnostic logging (org.apache.tomcat/catalina/coyote, e.g. DirectJDKLog - see the JFR
+# profiling section of FINDINGS.md) by setting those three package levels to OFF, applied
+# identically to all three apps via the standard Spring Boot logging.level.<package>
+# property. Tomcat's own internal logging noise was found to behave inconsistently between
+# frameworks (RainbowGum's JULConfigurator sets the JUL root level; Logback's LoggingSystem
+# doesn't) and isn't part of what this benchmark is actually trying to compare (each
+# framework's own application-logging pipeline) - this isolates that.
+#
 # All are included in the CSV label and the per-app stdout/jfr filenames so different runs
 # don't clobber each other's output.
 set -eu
@@ -40,9 +49,10 @@ LOG_LEVEL=${LOG_LEVEL:-}
 STRUCTURED_FORMAT=${STRUCTURED_FORMAT:-}
 VIRTUAL_THREADS=${VIRTUAL_THREADS:-}
 RG_IMMEDIATE_FLUSH=${RG_IMMEDIATE_FLUSH:-}
+EXCLUDE_JUL=${EXCLUDE_JUL:-}
 URL_PATH="/api/greet/world"
 PORT=8080
-SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}${VIRTUAL_THREADS:+-vt}${RG_IMMEDIATE_FLUSH:+-flush}
+SUFFIX=${LOG_LEVEL:+-$LOG_LEVEL}${STRUCTURED_FORMAT:+-$STRUCTURED_FORMAT}${VIRTUAL_THREADS:+-vt}${RG_IMMEDIATE_FLUSH:+-flush}${EXCLUDE_JUL:+-nojul}
 
 echo "Building..."
 ( cd ../.. && ./mvnw -q -pl benchmark/webapp,benchmark/webapp/rainbowgum-benchmark-webapp-share,benchmark/webapp/rainbowgum-benchmark-webapp-logback,benchmark/webapp/rainbowgum-benchmark-webapp-log4j2,benchmark/webapp/rainbowgum-benchmark-webapp-rainbowgum,benchmark/webapp/rainbowgum-benchmark-webapp-driver -am install -DskipTests )
@@ -61,12 +71,16 @@ run_one() {
 	if [ "$name" = "rainbowgum" ] && [ -n "$RG_IMMEDIATE_FLUSH" ]; then
 		rg_flush_arg="--logging.appender.file.flags=immediate_flush"
 	fi
+	jul_args=""
+	if [ -n "$EXCLUDE_JUL" ]; then
+		jul_args="--logging.level.org.apache.tomcat=OFF --logging.level.org.apache.catalina=OFF --logging.level.org.apache.coyote=OFF"
+	fi
 	(cd "$app_dir" && exec ./run.sh \
 		${LOG_LEVEL:+--logging.level.root=$LOG_LEVEL} \
 		${STRUCTURED_FORMAT:+--logging.structured.format.file=$STRUCTURED_FORMAT} \
 		${STRUCTURED_FORMAT:+--logging.structured.gelf.host=benchmark-host} \
 		${VIRTUAL_THREADS:+--spring.threads.virtual.enabled=$VIRTUAL_THREADS} \
-		$rg_flush_arg) \
+		$rg_flush_arg $jul_args) \
 		>"$RESULTS_DIR/$label-stdout.log" 2>&1 &
 	pid=$!
 
