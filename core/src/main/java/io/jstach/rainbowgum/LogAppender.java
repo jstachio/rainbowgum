@@ -7,6 +7,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -469,9 +470,9 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 }
 
-interface AppenderVisitor {
+interface AppenderVisitor<R> {
 
-	boolean consume(DirectLogAppender appender);
+	Optional<R> apply(DirectLogAppender appender);
 
 }
 
@@ -583,10 +584,21 @@ sealed interface InternalLogAppender extends LogAppender, Actor {
 
 	/**
 	 * THIS IS A JAVADOC BUG.
+	 * @param <R> return type.
 	 * @param visitor ignore
 	 * @return true if stop.
 	 */
-	boolean visit(AppenderVisitor visitor);
+	<R> Optional<R> visit(AppenderVisitor<R> visitor);
+
+	default <R> Optional<R> useOutput(String name, Function<? super LogOutput, ? extends R> action) {
+		return visit(da -> {
+			if (name.equals(da.name())) {
+				return Optional.ofNullable(action.apply(da.output()));
+			}
+			return Optional.empty();
+
+		});
+	}
 
 	// InternalLogAppender changeLock(AppenderLock lock);
 	//
@@ -602,6 +614,7 @@ sealed interface InternalLogAppender extends LogAppender, Actor {
 
 }
 
+// This is super private because there is no locking protection
 sealed interface DirectLogAppender extends InternalLogAppender {
 
 	String name();
@@ -610,6 +623,7 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	LogEncoder encoder();
 
+	// Should be called within lock block.
 	default List<LogResponse> _request(LogAction action) {
 		List<LogResponse> r = switch (action) {
 			case LogAction.StandardAction a -> switch (a) {
@@ -622,17 +636,17 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 		return r;
 	}
 
-	default LogResponse reopen() {
+	private LogResponse reopen() {
 		var status = output().reopen();
 		return new Response(LogOutput.class, name(), status);
 	}
 
-	default LogResponse flush() {
+	private LogResponse flush() {
 		output().flush();
 		return new Response(LogOutput.class, name(), LogResponse.Status.StandardStatus.OK);
 	}
 
-	default LogResponse status() {
+	private LogResponse status() {
 		Status status;
 		try {
 			status = output().status();
@@ -643,16 +657,6 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 		return new Response(LogOutput.class, name(), status);
 	}
 
-	static List<DirectLogAppender> findAppenders(ServiceRegistry registry) {
-		List<DirectLogAppender> appenders = new ArrayList<>();
-		for (var a : registry.find(LogAppender.class)) {
-			if (a instanceof InternalLogAppender internal) {
-				internal.visit(appenders::add);
-			}
-		}
-		return appenders;
-	}
-
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder,
 			Set<LogAppender.AppenderFlag> flags) {
 		var lock = AppenderLock.of(flags);
@@ -661,6 +665,8 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 		}
 		return new DefaultLogAppender(name, output, encoder, flags, lock);
 	}
+
+	// <R> R execute(Function<? super LogOutput, ? extends R> action);
 
 	// @Override
 	DirectLogAppender withFlags(Set<LogAppender.AppenderFlag> flags);
@@ -726,10 +732,10 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 				+ flags + "]";
 	}
 
-	@Override
-	public boolean visit(AppenderVisitor visitor) {
-		return visitor.consume(this);
-	}
+	// @Override
+	// public <R> Optional<R> visit(AppenderVisitor<R> visitor) {
+	// return visitor.apply(this);
+	// }
 
 	@Override
 	public String name() {
@@ -812,13 +818,20 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 	}
 
 	@Override
-	default boolean visit(AppenderVisitor visitor) {
-		for (var appender : components()) {
-			if (appender.visit(visitor)) {
-				return true;
+	default <R> Optional<R> visit(AppenderVisitor<R> visitor) {
+		lock().lock();
+		try {
+			for (var appender : components()) {
+				var o = appender.visit(visitor);
+				if (o.isPresent()) {
+					return o;
+				}
 			}
+			return Optional.empty();
 		}
-		return false;
+		finally {
+			lock().unlock();
+		}
 	}
 
 	@Override
@@ -954,6 +967,17 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 		}
 		catch (UncheckedIOException ioe) {
 			return List.of(new Response(LogOutput.class, name, Status.ErrorStatus.of(ioe)));
+		}
+		finally {
+			lock.unlock();
+		}
+	}
+
+	@Override
+	public <R> Optional<R> visit(AppenderVisitor<R> visitor) {
+		lock.lock();
+		try {
+			return visitor.apply(this);
 		}
 		finally {
 			lock.unlock();
