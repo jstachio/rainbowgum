@@ -53,10 +53,10 @@ class RainbowGumEventBuilderTest {
 
 	enum _Test {
 
-		LEVEL_LOGGER("logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]\n") {
+		LEVEL_LOGGER("logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]\n") {
 		},
 		REPLACEABLE_LOGGER("""
-				ERROR logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]
+				ERROR logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]
 				io.jstach.rainbowgum.slf4j.RainbowGumEventBuilderTest$_Test.log
 				""") {
 
@@ -74,7 +74,7 @@ class RainbowGumEventBuilderTest {
 				return LogFormatter.builder().level().space().add(formatter).build();
 			}
 		},
-		OVERRIDE_MDC("logger {mdcKey1=value2&key1=value1} - hello [arg0]\n") {
+		OVERRIDE_MDC("logger {mdcKey1=value2, key1=value1} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				super.build(builder);
@@ -94,7 +94,7 @@ class RainbowGumEventBuilderTest {
 			}
 
 		},
-		TWO_ARG("logger {mdcKey1=mdcValue1&key1=value1} - hello two [arg0] [arg1]\n" + "") {
+		TWO_ARG("logger {mdcKey1=mdcValue1, key1=value1} - hello two [arg0] [arg1]\n" + "") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello two {} {}");
@@ -103,7 +103,7 @@ class RainbowGumEventBuilderTest {
 				builder.addKeyValue("key1", () -> "value1");
 			}
 		},
-		TWO_ARG_LOG("logger {mdcKey1=mdcValue1&key1=value1} - hello two [arg0] [arg1]\n" + "") {
+		TWO_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello two [arg0] [arg1]\n" + "") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -114,7 +114,7 @@ class RainbowGumEventBuilderTest {
 				builder.log("hello two {} {}", "[arg0]", "[arg1]");
 			}
 		},
-		ONE_ARG_LOG("logger {mdcKey1=mdcValue1&key1=value1} - hello one [arg0]\n" + "") {
+		ONE_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello one [arg0]\n" + "") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -125,7 +125,7 @@ class RainbowGumEventBuilderTest {
 				builder.log("hello one {}", "[arg0]");
 			}
 		},
-		THREE_ARG("logger {mdcKey1=mdcValue1&key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
+		THREE_ARG("logger {mdcKey1=mdcValue1, key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello three {} {} {}");
@@ -135,7 +135,7 @@ class RainbowGumEventBuilderTest {
 				builder.addKeyValue("key1", "value1");
 			}
 		},
-		THREE_ARG_LOG("logger {mdcKey1=mdcValue1&key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
+		THREE_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -146,7 +146,7 @@ class RainbowGumEventBuilderTest {
 				builder.log("hello three {} {} {}", "[arg0]", "[arg1]", "[arg2]");
 			}
 		},
-		SUPPLIER_MESSAGE_LOG("logger {mdcKey1=mdcValue1&key1=value1} - hello supplier\n") {
+		SUPPLIER_MESSAGE_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello supplier\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -163,7 +163,7 @@ class RainbowGumEventBuilderTest {
 				builder.setMessage("hello no arg");
 			}
 		},
-		THROWABLE("logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]\n" + "fail") {
+		THROWABLE("logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]\n" + "fail") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				super.build(builder);
@@ -171,7 +171,7 @@ class RainbowGumEventBuilderTest {
 			}
 		},
 		CALLER_INFO("""
-				logger {mdcKey1=mdcValue1&key1=value1} - hello [arg0]
+				logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]
 				io.jstach.rainbowgum.slf4j.RainbowGumEventBuilderTest$_Test$13.callerLog
 								""") {
 			@Override
@@ -189,7 +189,7 @@ class RainbowGumEventBuilderTest {
 				builder.log();
 			}
 		},
-		NULL_KEY_VALUE("logger {mdcKey1=mdcValue1&key1} - hello [arg0]\n") {
+		NULL_KEY_VALUE("logger {mdcKey1=mdcValue1, key1} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello {}");
@@ -197,7 +197,7 @@ class RainbowGumEventBuilderTest {
 				builder.addKeyValue("key1", (Object) null);
 			}
 		},
-		NULL_KEY_VALUE_SUPPLIER("logger {mdcKey1=mdcValue1&key1} - hello [arg0]\n") {
+		NULL_KEY_VALUE_SUPPLIER("logger {mdcKey1=mdcValue1, key1} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello {}");

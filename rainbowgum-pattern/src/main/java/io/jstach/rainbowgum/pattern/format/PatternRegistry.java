@@ -180,6 +180,12 @@ public sealed interface PatternRegistry {
 		 */
 		MDC("X", "mdc"), //
 		/**
+		 * RainbowGum's own percent-encoded (RFC 3986 URI query) MDC style, e.g.
+		 * <code>key1=value1&amp;key2=value2</code> - unlike {@link #MDC}, which matches
+		 * Logback/Log4j2's <code>%X</code> output exactly.
+		 */
+		ENCODED_MDC("encodedMdc"), //
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#mdc">Property keywords</a>
 		 * @see PatternConfig#propertyFunction()
 		 */
@@ -408,6 +414,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case LINESEP -> (fc, n) -> new LogFormatter.StaticFormatter(fc.lineSeparator());
 				case LOGGER -> StandardKeywordFactory.LOGGER;
 				case MDC -> StandardKeywordFactory.MDC;
+				case ENCODED_MDC -> StandardKeywordFactory.ENCODED_MDC;
 				case MICROS -> KeywordFactory.of(LogFormatter.TimestampFormatter.ofMicros());
 				case RELATIVE -> StandardKeywordFactory.RELATIVE;
 				case THREAD -> KeywordFactory.of(LogFormatter.builder().threadName().build());
