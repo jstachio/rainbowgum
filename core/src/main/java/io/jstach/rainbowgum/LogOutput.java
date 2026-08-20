@@ -238,10 +238,19 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 	 */
 	default void write(LogEvent[] events, int count, LogEncoder encoder, Buffer buffer) {
 		for (int i = 0; i < count; i++) {
-			buffer.clear();
 			var event = events[i];
-			encoder.encode(event, buffer);
-			write(event, buffer);
+			try {
+				buffer.clear();
+				encoder.encode(event, buffer);
+				write(event, buffer);
+			}
+			catch (Exception e) {
+				/*
+				 * One bad event (e.g. a value that fails encoding) should not take down
+				 * the rest of the batch.
+				 */
+				MetaLog.error(LogOutput.class, "failed to write event index=" + i + " of " + count + " in batch", e);
+			}
 		}
 	}
 

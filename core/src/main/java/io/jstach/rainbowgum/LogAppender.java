@@ -1001,20 +1001,31 @@ final class DefaultLogAppender extends LockLogAppender implements InternalLogApp
 
 	@Override
 	public final void append(LogEvent event) {
-		try (var buffer = encoder.buffer(output.bufferHints())) {
-			encoder.encode(event, buffer);
-			if (!lock.tryLock()) {
-				return;
-			}
-			try {
-				output.write(event, buffer);
-				if (immediateFlush) {
-					output.flush();
+		/*
+		 * A log call must never throw back into caller code. Encoding or writing a single
+		 * event can fail for reasons entirely out of the caller's control (a bad MDC
+		 * value, a full disk, a dropped socket) so failures here are reported out-of-band
+		 * via MetaLog instead of propagating.
+		 */
+		try {
+			try (var buffer = encoder.buffer(output.bufferHints())) {
+				encoder.encode(event, buffer);
+				if (!lock.tryLock()) {
+					return;
+				}
+				try {
+					output.write(event, buffer);
+					if (immediateFlush) {
+						output.flush();
+					}
+				}
+				finally {
+					lock.unlock();
 				}
 			}
-			finally {
-				lock.unlock();
-			}
+		}
+		catch (Exception e) {
+			MetaLog.error(getClass(), "appender '" + name + "' failed to append event", e);
 		}
 	}
 
@@ -1024,9 +1035,15 @@ final class DefaultLogAppender extends LockLogAppender implements InternalLogApp
 			return;
 		}
 		try {
-			output.write(events, count, encoder);
-			if (immediateFlush) {
-				output.flush();
+			try {
+				output.write(events, count, encoder);
+				if (immediateFlush) {
+					output.flush();
+				}
+			}
+			catch (Exception e) {
+				MetaLog.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)",
+						e);
 			}
 		}
 		finally {
@@ -1065,11 +1082,16 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 			return;
 		}
 		try {
-			buffer.clear();
-			encoder.encode(event, buffer);
-			output.write(event, buffer);
-			if (immediateFlush) {
-				output.flush();
+			try {
+				buffer.clear();
+				encoder.encode(event, buffer);
+				output.write(event, buffer);
+				if (immediateFlush) {
+					output.flush();
+				}
+			}
+			catch (Exception e) {
+				MetaLog.error(getClass(), "appender '" + name + "' failed to append event", e);
 			}
 		}
 		finally {
@@ -1083,9 +1105,15 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 			return;
 		}
 		try {
-			output.write(events, count, encoder, buffer);
-			if (immediateFlush) {
-				output.flush();
+			try {
+				output.write(events, count, encoder, buffer);
+				if (immediateFlush) {
+					output.flush();
+				}
+			}
+			catch (Exception e) {
+				MetaLog.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)",
+						e);
 			}
 		}
 		finally {
