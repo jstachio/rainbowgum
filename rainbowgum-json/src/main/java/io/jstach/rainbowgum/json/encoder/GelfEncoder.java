@@ -4,7 +4,7 @@ import static io.jstach.rainbowgum.json.JsonBuffer.EXTENDED_F;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -16,6 +16,7 @@ import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
+import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -41,13 +42,43 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final boolean prettyprint;
 
-	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
+	/**
+	 * Default number of fractional second digits the <code>_time</code> field is rendered
+	 * with, see {@link #of(String, String, Map, Boolean, Integer)}.
+	 */
+	public static final int DEFAULT_TIME_FRACTIONAL_DIGITS = 3;
 
-	GelfEncoder(String host, KeyValues headers, boolean prettyprint) {
+	private final TimestampFormatter timeFormatter;
+
+	GelfEncoder(String host, KeyValues headers, boolean prettyprint, int timeFractionalDigits) {
 		super();
 		this.host = host;
 		this.headers = headers;
 		this.prettyprint = prettyprint;
+		this.timeFormatter = timeFormatter(timeFractionalDigits);
+	}
+
+	/*
+	 * GELF's own "timestamp" field (a UNIX epoch double, see doEncode) is always
+	 * millisecond precision by construction (derived from Instant.toEpochMilli()), so it
+	 * needs no formatter and is unaffected by this. "_time" is a RainbowGum-only extra
+	 * field giving a human-readable ISO-8601 instant alongside it - unlike "timestamp",
+	 * Instant.now() on most JVMs has real nanosecond resolution, so formatting it with
+	 * DateTimeFormatter.ISO_INSTANT (variable-width, 0-9 fractional digits depending on
+	 * the actual instant) is both needlessly precise for a log timestamp and, because a
+	 * fresh format() call happens on every single event, needlessly expensive. Fixing the
+	 * width to timeFractionalDigits makes the output caching-safe the same way
+	 * DefaultInstantFormatter.ISO's fix did (see LogFormatter/PatternFormatterFactory) -
+	 * caching only kicks in at millisecond-or-coarser precision (<=3 digits), since finer
+	 * precision genuinely varies within the same millisecond.
+	 */
+	private static TimestampFormatter timeFormatter(int fractionalDigits) {
+		if (fractionalDigits < 0 || fractionalDigits > 9) {
+			throw new IllegalArgumentException(
+					"timeFractionalDigits must be between 0 and 9 inclusive: " + fractionalDigits);
+		}
+		var dtf = new DateTimeFormatterBuilder().appendInstant(fractionalDigits).toFormatter();
+		return TimestampFormatter.of(dtf, fractionalDigits <= 3);
 	}
 
 	/**
@@ -70,17 +101,26 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * @param host host field in GELF.
 	 * @param headers additional headers that will be prefix with "_".
 	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
+	 * @param timeFractionalDigits number of fractional second digits (0-9) the
+	 * non-standard <code>_time</code> field is rendered with, default
+	 * {@value #DEFAULT_TIME_FRACTIONAL_DIGITS} (milliseconds). Values above 3 render
+	 * genuine sub-millisecond precision (most JVMs' {@link Instant#now()} has real
+	 * nanosecond resolution) but cannot be cached the way millisecond-or-coarser
+	 * precision can, since it can legitimately differ between two events in the same
+	 * millisecond.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	static GelfEncoder of(@LogConfigurable.KeyParameter String name, String host, //
 			@LogConfigurable.ConvertParameter("convertHeaders") @Nullable Map<String, String> headers,
-			@Nullable Boolean prettyPrint) {
+			@Nullable Boolean prettyPrint, @Nullable Integer timeFractionalDigits) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		host = Objects.requireNonNull(host);
 		var _headers = KeyValues.of(headers == null ? Map.of() : headers);
+		int _timeFractionalDigits = timeFractionalDigits == null ? DEFAULT_TIME_FRACTIONAL_DIGITS
+				: timeFractionalDigits;
 
-		return new GelfEncoder(host, _headers, prettyPrint);
+		return new GelfEncoder(host, _headers, prettyPrint, _timeFractionalDigits);
 	}
 
 	static Map<String, String> convertHeaders(String headers) {
@@ -117,7 +157,9 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		index = buffer.write("full_message", fullMessage, index);
 		index = buffer.writeDouble("timestamp", timeStamp, index, 0);
 		index = buffer.writeInt("level", level, index, 0);
-		index = buffer.write("_time", timeFormatter.format(now), index);
+		StringBuilder timeBuilder = new StringBuilder(32);
+		timeFormatter.formatTimestamp(timeBuilder, now);
+		index = buffer.write("_time", timeBuilder.toString(), index);
 		index = buffer.write("_level", LevelFormatter.toString(event.level()), index);
 		index = buffer.write("_logger", event.loggerName(), index);
 		index = buffer.write("_thread_name", event.threadName(), index);

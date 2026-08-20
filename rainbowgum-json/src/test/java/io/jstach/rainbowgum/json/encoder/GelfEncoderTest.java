@@ -81,6 +81,54 @@ class GelfEncoderTest {
 	}
 
 	@Test
+	void testTimeSubMillisecondPrecisionIsTruncated() {
+		/*
+		 * Instant with a real sub-millisecond remainder (unlike the round-millisecond
+		 * Instant.ofEpochMilli(1) used elsewhere in this file) - confirms "_time" is
+		 * fixed at millisecond precision (DEFAULT_TIME_FRACTIONAL_DIGITS) rather than
+		 * DateTimeFormatter.ISO_INSTANT's old variable-width behavior, which would have
+		 * rendered ".001456789" here instead of ".001".
+		 */
+		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
+		b.host("localhost");
+		GelfEncoder encoder = b.build();
+
+		Instant instant = Instant.ofEpochMilli(1).plusNanos(456_789);
+		LogEvent e = LogEvent
+			.ofAll(instant, "main", 1L, Level.INFO, "gelf", "hello", KeyValues.of(), null,
+					StandardMessageFormatter.SLF4J, List.of())
+			.freeze(instant);
+
+		var buffer = encoder.buffer(WriteMethod.STRING);
+		encoder.encode(e, buffer);
+		ListLogOutput out = new ListLogOutput();
+		buffer.drain(out, e);
+		String message = out.events().get(0).getValue();
+		assertTrue(message.contains("\"_time\":\"1970-01-01T00:00:00.001Z\""), message);
+	}
+
+	@Test
+	void testTimeFractionalDigitsConfigurable() {
+		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
+		b.host("localhost");
+		b.timeFractionalDigits(6);
+		GelfEncoder encoder = b.build();
+
+		Instant instant = Instant.ofEpochMilli(1).plusNanos(456_789);
+		LogEvent e = LogEvent
+			.ofAll(instant, "main", 1L, Level.INFO, "gelf", "hello", KeyValues.of(), null,
+					StandardMessageFormatter.SLF4J, List.of())
+			.freeze(instant);
+
+		var buffer = encoder.buffer(WriteMethod.STRING);
+		encoder.encode(e, buffer);
+		ListLogOutput out = new ListLogOutput();
+		buffer.drain(out, e);
+		String message = out.events().get(0).getValue();
+		assertTrue(message.contains("\"_time\":\"1970-01-01T00:00:00.001456Z\""), message);
+	}
+
+	@Test
 	void testFullLoad() throws Exception {
 		String properties = """
 				logging.appender.console.encoder=gelf:///
