@@ -5,32 +5,30 @@ import java.lang.System.Logger.Level;
 import org.apache.juli.logging.Log;
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogRouter;
+import io.jstach.rainbowgum.LogEventLogger;
 
 interface TomcatLevelLog extends Log {
 
 	String loggerName();
 
-	LogRouter router();
+	LogEventLogger eventLogger();
 
 	default void log(Level level, @Nullable Object obj) {
 		log(level, obj, null);
 	}
 
 	default void log(Level level, @Nullable Object obj, @Nullable Throwable t) {
-		level = LevelResolver.normalizeLevel(level);
+		// We do not need to check if the route is enabled.
+		// We are assuming level logging mode.
 		String loggerName = loggerName();
-		var route = router().route(loggerName, level);
-		if (route.isEnabled()) {
-			String formattedMessage = obj == null ? "" : obj.toString();
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, t);
-			route.log(event);
-		}
+		@Nullable
+		String formattedMessage = obj == null ? null : obj.toString();
+		LogEvent event = LogEvent.of(level, loggerName, formattedMessage, t);
+		eventLogger().log(event);
 	}
 
-	record TraceLevelLog(String loggerName, LogRouter router) implements TomcatLevelLog {
+	record TraceLevelLog(String loggerName, LogEventLogger eventLogger) implements TomcatLevelLog {
 		@Override
 		public boolean isTraceEnabled() {
 			return true;
@@ -68,7 +66,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void trace(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.TRACE, message);
+			log(Level.TRACE, message, throwable);
 		}
 
 		@Override
@@ -78,7 +76,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void debug(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.DEBUG, message);
+			log(Level.DEBUG, message, throwable);
 		}
 
 		@Override
@@ -88,7 +86,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void info(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.INFO, message);
+			log(Level.INFO, message, throwable);
 		}
 
 		@Override
@@ -98,7 +96,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void warn(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.WARNING, message);
+			log(Level.WARNING, message, throwable);
 		}
 
 		@Override
@@ -108,7 +106,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void error(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.ERROR, message);
+			log(Level.ERROR, message, throwable);
 		}
 
 		@Override
@@ -124,7 +122,7 @@ interface TomcatLevelLog extends Log {
 
 	}
 
-	record DebugLevelLog(String loggerName, LogRouter router) implements TomcatLevelLog {
+	record DebugLevelLog(String loggerName, LogEventLogger eventLogger) implements TomcatLevelLog {
 		@Override
 		public boolean isTraceEnabled() {
 			return false;
@@ -170,7 +168,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void debug(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.DEBUG, message);
+			log(Level.DEBUG, message, throwable);
 		}
 
 		@Override
@@ -180,7 +178,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void info(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.INFO, message);
+			log(Level.INFO, message, throwable);
 		}
 
 		@Override
@@ -190,7 +188,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void warn(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.WARNING, message);
+			log(Level.WARNING, message, throwable);
 		}
 
 		@Override
@@ -200,7 +198,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void error(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.ERROR, message);
+			log(Level.ERROR, message, throwable);
 		}
 
 		@Override
@@ -216,7 +214,7 @@ interface TomcatLevelLog extends Log {
 
 	}
 
-	record InfoLevelLog(String loggerName, LogRouter router) implements TomcatLevelLog {
+	record InfoLevelLog(String loggerName, LogEventLogger eventLogger) implements TomcatLevelLog {
 		@Override
 		public boolean isTraceEnabled() {
 			return false;
@@ -270,7 +268,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void info(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.INFO, message);
+			log(Level.INFO, message, throwable);
 		}
 
 		@Override
@@ -280,7 +278,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void warn(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.WARNING, message);
+			log(Level.WARNING, message, throwable);
 		}
 
 		@Override
@@ -290,7 +288,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void error(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.ERROR, message);
+			log(Level.ERROR, message, throwable);
 		}
 
 		@Override
@@ -306,7 +304,7 @@ interface TomcatLevelLog extends Log {
 
 	}
 
-	record WarnLevelLog(String loggerName, LogRouter router) implements TomcatLevelLog {
+	record WarnLevelLog(String loggerName, LogEventLogger eventLogger) implements TomcatLevelLog {
 		@Override
 		public boolean isTraceEnabled() {
 			return false;
@@ -368,7 +366,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void warn(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.WARNING, message);
+			log(Level.WARNING, message, throwable);
 		}
 
 		@Override
@@ -378,7 +376,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void error(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.ERROR, message);
+			log(Level.ERROR, message, throwable);
 		}
 
 		@Override
@@ -394,7 +392,7 @@ interface TomcatLevelLog extends Log {
 
 	}
 
-	record ErrorLevelLog(String loggerName, LogRouter router) implements TomcatLevelLog {
+	record ErrorLevelLog(String loggerName, LogEventLogger eventLogger) implements TomcatLevelLog {
 		@Override
 		public boolean isTraceEnabled() {
 			return false;
@@ -464,7 +462,7 @@ interface TomcatLevelLog extends Log {
 
 		@Override
 		public void error(@Nullable Object message, @Nullable Throwable throwable) {
-			log(Level.ERROR, message);
+			log(Level.ERROR, message, throwable);
 		}
 
 		@Override
@@ -480,7 +478,7 @@ interface TomcatLevelLog extends Log {
 
 	}
 
-	record OffLevelLog(String loggerName, LogRouter router) implements TomcatLevelLog {
+	record OffLevelLog(String loggerName, LogEventLogger eventLogger) implements TomcatLevelLog {
 		@Override
 		public boolean isTraceEnabled() {
 			return false;
