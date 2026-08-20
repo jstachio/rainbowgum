@@ -102,6 +102,7 @@ class PatternConfiguratorTest {
 			String properties() {
 				return """
 						logging.pattern.config.console.zoneId=UTC
+						logging.global.ansi.disable=false
 						""";
 			}
 
