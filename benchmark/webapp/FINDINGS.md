@@ -796,3 +796,87 @@ anything found this session, well ahead of the timestamp-caching/MDC/GELF fixes 
 
 Reproduce: `STRUCTURED_FORMAT=gelf RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh` and
 `VIRTUAL_THREADS=true RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh`.
+
+## Rerun after jansi removal, rainbowgum-tomcat, and immediate-flush-by-default
+
+Rebased onto `main` again after three more fixes landed:
+
+- `rainbowgum-jansi` is no longer pulled in by the `rainbowgum` umbrella artifact at all (it
+  was the root cause of a separate stdout-redirect-bypass bug traced back to jline's
+  jansi-core fork building a full `Terminal` just to detect TTY-ness; ANSI support is now
+  auto-detected in core via `AnsiSupport`/`System.console()` with no runtime stream
+  wrapping). The `rainbowgum-jansi` exclusion in this app's `pom.xml` is gone - there is
+  nothing to exclude any more.
+- `LogAppender.AppenderFlag.IMMEDIATE_FLUSH` was renamed to `DISABLE_IMMEDIATE_FLUSH` and
+  flushing on every append/batch is now the *default* appender behavior (opt-out, not
+  opt-in). `RG_IMMEDIATE_FLUSH` is gone from `run-all.sh` - there is nothing left to toggle.
+- `rainbowgum-tomcat` (a Tomcat `org.apache.juli.logging.Log` facade routed straight through
+  RainbowGum's `LogRouter`, bypassing `java.util.logging` entirely for Tomcat's own internal
+  logging) is now a real dependency of this app instead of the previous `EXCLUDE_JUL`
+  workaround, which just silenced `org.apache.tomcat`/`catalina`/`coyote` at the Spring Boot
+  `logging.level.*` property level for all three apps. `EXCLUDE_JUL` is gone from
+  `run-all.sh`. Spring Boot does not pull `rainbowgum-tomcat` in on its own, hence this app
+  depends on it explicitly. Tomcat's internal logging is now **active, not silenced**, for
+  all three apps in every scenario below - a more realistic default-config comparison than
+  the previous reruns.
+
+Because both the silencing-vs-not and the flush-default change moved at once, and RainbowGum
+additionally switched *how* Tomcat-internal logging is handled (rainbowgum-tomcat's direct
+route vs the old JUL bridge), these numbers are not a clean single-variable comparison against
+the `-flush-nojul` rows above - they're the new baseline going forward.
+
+**Default** (text pattern, `INFO`, platform threads):
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback | 662,999 | 22,100.0 | 2.01 | 4.48 | 7.49 | 23.48 | 2.26 | 644.7 / 657.4 / 651.3 |
+| log4j2 | 1,005,963 | 33,532.1 | 1.33 | 2.77 | 4.90 | 18.83 | 1.49 | 650.9 / 658.0 / 656.6 |
+| rainbowgum | 707,929 | 23,597.6 | 1.87 | 4.18 | 7.28 | 20.19 | 2.12 | 639.2 / 647.7 / 643.5 |
+
+RainbowGum still beats Logback (+6.8%) and trails Log4j2 (-29.6%), but is down from the
+previous (silenced-Tomcat-logging) 28,495.8 req/s - a **-17.2%** move. Logback and Log4j2 both
+stayed flat (+1.3%/-3.0%, noise) between silenced and unsilenced Tomcat logging, which is the
+tell: for them, Tomcat's own internal log volume barely registers either way. For RainbowGum
+specifically it clearly does now that it's routed through `rainbowgum-tomcat` instead of
+being turned off.
+
+**GELF/JSON** (`STRUCTURED_FORMAT=gelf`):
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback-gelf | 689,560 | 22,985.3 | 1.98 | 3.76 | 6.35 | 22.39 | 2.18 | 669.7 / 675.4 / 672.6 |
+| log4j2-gelf | 508,596 | 16,953.2 | 2.57 | 5.73 | 9.51 | 24.30 | 2.95 | 624.0 / 636.4 / 627.1 |
+| rainbowgum-gelf | 556,671 | 18,555.7 | 2.39 | 5.38 | 8.85 | 26.52 | 2.69 | 646.0 / 652.2 / 648.2 |
+
+Same story, more pronounced: RainbowGum drops from 23,341.2 to 18,555.7 req/s (**-20.5%**),
+while Logback/Log4j2 stay flat (-1.4%/+1.2%, noise). RainbowGum now **trails Logback**
+(-19.3%, previously tied) though it still beats Log4j2 (+9.5%). This is the scenario most
+worth profiling further - GELF encoding plus unsilenced Tomcat-internal logging plus
+rainbowgum-tomcat's routing is the worst combination measured so far.
+
+**Virtual threads** (`VIRTUAL_THREADS=true`):
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback-vt | 782,644 | 26,088.1 | 1.92 | 2.59 | 3.07 | 13.17 | 1.92 | 642.4 / 648.9 / 645.9 |
+| log4j2-vt | 578,751 | 19,291.7 | 2.41 | 5.05 | 7.69 | 23.13 | 2.59 | 638.2 / 649.0 / 641.2 |
+| rainbowgum-vt | 836,082 | 27,869.4 | 1.81 | 2.40 | 2.79 | 13.32 | 1.79 | 621.4 / 623.6 / 622.7 |
+
+Opposite direction here: RainbowGum *improves*, 26,418.3 -> 27,869.4 req/s (**+5.5%**), and
+still **leads both frameworks** (+6.8% over Logback, +44.5% over Log4j2) - a bigger lead over
+Log4j2 than the previous silenced-Tomcat-logging run. Logback also moved more than noise this
+time (23,952.4 -> 26,088.1, +8.9%) which muddies a clean read on this one; worth a rerun to
+confirm it's not just run-to-run variance.
+
+**Net**: unsilencing Tomcat's own internal logging and routing RainbowGum's share of it
+through `rainbowgum-tomcat` costs real throughput in the default and GELF scenarios (-17.2%,
+-20.5%) but not in the virtual-threads scenario (+5.5%). RainbowGum still leads Logback in
+default and virtual-threads, but now trails it in GELF. Given Logback/Log4j2 are essentially
+unaffected by silencing-or-not, the earlier (unconfirmed) shared-lock-contention theory for
+why `rainbowgum-tomcat` measured worse doesn't fully explain this - independent per-appender
+locks are already the default and the regression is still there in two of three scenarios.
+Next step if pursued further: JFR profile the GELF scenario specifically (worst case) to see
+where the added time actually goes.
+
+Reproduce: `./run-all.sh`, `STRUCTURED_FORMAT=gelf ./run-all.sh`, and
+`VIRTUAL_THREADS=true ./run-all.sh`.

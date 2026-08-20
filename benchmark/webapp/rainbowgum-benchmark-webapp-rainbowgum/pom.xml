@@ -41,21 +41,6 @@
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-spring-boot4-starter</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <!--
-          rainbowgum-jansi (pulled in transitively via the rainbowgum umbrella artifact)
-          wraps System.out in org.jline's AnsiOutputStream for colored console output,
-          whose write() path processes bytes one at a time - confirmed via JFR to cost
-          single-digit milliseconds per log line and dominate this app's request latency.
-          Excluded here both to keep the comparison to Logback/Log4j2 (whose Spring Boot
-          console coloring embeds escape codes directly, no stream wrapper) apples-to-apples,
-          and because it's not on by default anyway going forward.
-        -->
-        <exclusion>
-          <groupId>io.jstach.rainbowgum</groupId>
-          <artifactId>rainbowgum-jansi</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -82,16 +67,14 @@
       <artifactId>rainbowgum-json</artifactId>
     </dependency>
     <!--
-      rainbowgum-tomcat (a Tomcat org.apache.juli.logging.Log facade routed straight
-      through RainbowGum's LogRouter, bypassing java.util.logging entirely for Tomcat's own
-      internal logging) is deliberately NOT a dependency here. Tried it during profiling:
-      it does eliminate real per-call overhead in Tomcat's JUL-bridged path, but throughput
-      measured reproducibly *worse* with it than without - see the JFR profiling section of
-      FINDINGS.md for the full investigation and the current leading (unconfirmed) theory,
-      lock contention on RainbowGum's shared AppenderLock between Tomcat's high-frequency
-      internal log attempts and the application's own real logging once both share one
-      pipeline. Left out here so the default numbers in FINDINGS.md reflect what most real
-      users would actually have (rainbowgum-tomcat isn't pulled in automatically).
+      rainbowgum-tomcat replaces Tomcat's internal org.apache.juli.logging.Log facade with
+      one routed straight through RainbowGum's LogRouter, bypassing java.util.logging
+      entirely for Tomcat's own internal logging (catalina/coyote/etc). Spring Boot does not
+      pull this in on its own, hence adding it explicitly here.
     -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-tomcat</artifactId>
+    </dependency>
   </dependencies>
 </project>
