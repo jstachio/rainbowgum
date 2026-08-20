@@ -208,7 +208,9 @@ public interface LogProperties {
 
 	/**
 	 * Will globally turn of any ANSI escape output as well disable extensions that do
-	 * things for ANSI escape like JANSI.
+	 * things for ANSI escape like JANSI. If not set this is derived automatically from
+	 * {@link io.jstach.rainbowgum.AnsiSupport#isAnsiSupported()} which checks whether the
+	 * process is attached to an ANSI capable terminal.
 	 */
 	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansi.disable";
 

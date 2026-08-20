@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import io.jstach.rainbowgum.AnsiSupport;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
@@ -57,7 +58,7 @@ public sealed interface PatternCompiler {
 						.ofBoolean() //
 						.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 						.get(config.properties()) //
-						.value(false);
+						.value(() -> !AnsiSupport.isAnsiSupported());
 					var b = PatternConfig.builder(name)
 						.propertyFunction(PatternConfig.propertyFunction(config.properties(),
 								PatternConfig.PATTERN_PROPERY_PREFIX))
