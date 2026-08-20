@@ -1186,6 +1186,8 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 			available++;
 			if (printed < maxLines) {
 				output.append(prefix).append("\tat ").append(element);
+				// Eclipse null analysis is too dumb about final fields.
+				var packagingData = this.packagingData;
 				if (packagingData != null) {
 					output.append(' ').append(packagingData.resolve(element));
 				}
