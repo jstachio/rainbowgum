@@ -42,7 +42,7 @@ public final class RainbowGumTomcatLog implements ForwardingTomcatLog {
 			// We want a logger that can handle all events.
 			// TODO this is a common need and perhaps a method on LogRouter like
 			// "eventLogger"
-			var eventLogger = router.route(loggerName, Level.TRACE);
+			var eventLogger = router.route(loggerName, Level.ERROR);
 			Log delegate = switch (level) {
 				case ALL -> new TomcatLevelLog.TraceLevelLog(loggerName, eventLogger);
 				case TRACE -> new TomcatLevelLog.TraceLevelLog(loggerName, eventLogger);
