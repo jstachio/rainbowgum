@@ -9,6 +9,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
@@ -420,6 +421,15 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 		 */
 		protected final OutputStream outputStream;
 
+		/*
+		 * A log call can still be in flight (e.g. routed through SLF4J from a shutdown
+		 * hook) after something outside the normal appender/publisher lifecycle - like
+		 * LoggingSystem.cleanUp() - has already closed this output directly. Once closed,
+		 * write/flush become no-ops instead of throwing so that race does not surface as
+		 * an uncaught exception on whatever thread is still trying to log.
+		 */
+		private final AtomicBoolean closed = new AtomicBoolean();
+
 		/**
 		 * Adapts an OutputStream to an Output.
 		 * @param uri usually comes from output registry.
@@ -438,6 +448,9 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 		@Override
 		public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
+			if (closed.get()) {
+				return;
+			}
 			try {
 				outputStream.write(bytes, off, len);
 			}
@@ -448,6 +461,9 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 		@Override
 		public void flush() {
+			if (closed.get()) {
+				return;
+			}
 			try {
 				outputStream.flush();
 			}
@@ -458,6 +474,9 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 		@Override
 		public void close() {
+			if (!closed.compareAndSet(false, true)) {
+				return;
+			}
 			try {
 				outputStream.close();
 			}
