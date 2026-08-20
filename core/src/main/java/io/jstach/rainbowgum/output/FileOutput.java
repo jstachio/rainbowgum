@@ -13,6 +13,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -252,6 +253,16 @@ class FileChannelOutput implements FileOutput {
 
 	protected final FileChannel channel;
 
+	/*
+	 * A log call can still be in flight (e.g. routed through SLF4J from a shutdown hook)
+	 * after something outside the normal appender/publisher lifecycle - like Spring
+	 * Boot's LoggingSystem.cleanUp() - has already closed this output directly. Once
+	 * closed, write/flush become no-ops instead of throwing so that race does not surface
+	 * as an uncaught exception on whatever thread is still trying to log. See the
+	 * analogous fix for LogOutput.AbstractOutputStreamOutput (issue #323).
+	 */
+	private final AtomicBoolean closed = new AtomicBoolean();
+
 	public FileChannelOutput(URI uri, FileChannel channel) {
 		super();
 		this.uri = uri;
@@ -270,6 +281,9 @@ class FileChannelOutput implements FileOutput {
 
 	@Override
 	public void write(LogEvent event, ByteBuffer buffer, ContentType contentType) {
+		if (closed.get()) {
+			return;
+		}
 		try {
 
 			// Clear any current interrupt (see LOGBACK-875)
@@ -305,6 +319,9 @@ class FileChannelOutput implements FileOutput {
 
 	@Override
 	public void close() {
+		if (!closed.compareAndSet(false, true)) {
+			return;
+		}
 		try {
 			channel.close();
 		}
@@ -315,6 +332,9 @@ class FileChannelOutput implements FileOutput {
 
 	@Override
 	public void flush() {
+		if (closed.get()) {
+			return;
+		}
 		try {
 			channel.force(false);
 		}
