@@ -68,6 +68,18 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot</artifactId>
     </dependency>
+    <!--
+      rainbowgum-tomcat routes Tomcat's own internal logging (org.apache.juli.logging.Log,
+      discovered via ServiceLoader) straight through RainbowGum's LogRouter instead of
+      java.util.logging. It is a small jar whose own dependency on tomcat-juli is provided
+      and optional, so pulling it in here costs almost nothing for users on a different
+      embedded web server (Jetty, Undertow) - the service provider simply never gets used.
+    -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-tomcat</artifactId>
+      <scope>runtime</scope>
+    </dependency>
     <dependency>
       <groupId>io.jstach.pistachio</groupId>
       <artifactId>pistachio-svc</artifactId>
