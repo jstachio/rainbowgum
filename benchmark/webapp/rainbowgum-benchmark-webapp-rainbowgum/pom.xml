@@ -66,15 +66,24 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-json</artifactId>
     </dependency>
+  </dependencies>
+  <profiles>
     <!--
       rainbowgum-tomcat replaces Tomcat's internal org.apache.juli.logging.Log facade with
       one routed straight through RainbowGum's LogRouter, bypassing java.util.logging
       entirely for Tomcat's own internal logging (catalina/coyote/etc). Spring Boot does not
-      pull this in on its own, hence adding it explicitly here.
+      pull this in on its own. Kept as an opt-in profile (-Ptomcat) rather than an
+      unconditional dependency so run-tomcat-jul.sh can build the app both with and without
+      it for a clean isolated comparison.
     -->
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-tomcat</artifactId>
-    </dependency>
-  </dependencies>
+    <profile>
+      <id>tomcat</id>
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>rainbowgum-tomcat</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

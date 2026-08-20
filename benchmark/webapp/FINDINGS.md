@@ -880,3 +880,51 @@ where the added time actually goes.
 
 Reproduce: `./run-all.sh`, `STRUCTURED_FORMAT=gelf ./run-all.sh`, and
 `VIRTUAL_THREADS=true ./run-all.sh`.
+
+## Isolating the rainbowgum-tomcat regression: clean 3-way test, single app
+
+The previous section's numbers came right after a rebase plus several config changes at
+once (jansi removal, immediate-flush-by-default, EXCLUDE_JUL replaced by rainbowgum-tomcat),
+raising a fair concern that the result could be an artifact of a messy history rather than a
+real effect. Isolated it with a dedicated script, `run-tomcat-jul.sh`, that only runs
+`rainbowgum-benchmark-webapp-rainbowgum` (no Logback/Log4j2, no JSON/GELF, no virtual
+threads) in three configurations, varying nothing except how Tomcat's own internal logging
+(catalina/coyote/tomcat packages) is handled:
+
+- **jul** - default build (no `rainbowgum-tomcat` dependency), RainbowGum's JUL bridge
+  installed and enabled as normal (unsilenced, INFO).
+- **nojul** - same build, but JUL completely disabled: `--logging.jul.disable=true` (so
+  RainbowGum never installs its JUL bridge handler) plus
+  `-Djava.util.logging.config.file=jul-disabled.properties` (`handlers=` empty, `.level=OFF`)
+  so JUL's own default `ConsoleHandler` doesn't pick up the slack and print uncoordinated
+  output straight to stderr. This is the zero-Tomcat-internal-logging-cost floor.
+- **tomcat** - built with `-Ptomcat` (adds the `rainbowgum-tomcat` dependency, now an opt-in
+  Maven profile on this app rather than an unconditional dependency, specifically so this
+  script can build it both ways), JUL left enabled as normal.
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| rainbowgum-jul | 833,561 | 27,785.4 | 1.70 | 3.08 | 5.22 | 19.57 | 1.80 | 661.6 / 665.1 / 663.7 |
+| rainbowgum-nojul | 855,218 | 28,507.3 | 1.67 | 2.97 | 4.98 | 18.41 | 1.75 | 674.9 / 678.2 / 676.8 |
+| rainbowgum-tomcat | 706,494 | 23,549.8 | 1.87 | 4.19 | 7.27 | 21.38 | 2.12 | 631.9 / 639.7 / 636.0 |
+
+`jul` vs `nojul` are within ~2.6% of each other - within noise. Tomcat's own internal
+JUL-routed logging volume, going through the normal bridge, barely registers either way.
+Swapping in `rainbowgum-tomcat` instead drops throughput ~15-17% versus both
+(-15.2% vs jul, -17.4% vs nojul) - and this number (23,549.8) lands almost exactly on the
+previous section's mixed-scenario "rainbowgum" default result (23,597.6), confirming that
+result was not a history artifact. The regression is real and reproduces in complete
+isolation.
+
+Adam's suspicion going in: Tomcat may call `java.util.logging.Logger` directly in a few
+places rather than going exclusively through its own `org.apache.juli.logging.Log`
+abstraction. If true, the `tomcat` scenario would pay for *both* paths at once -
+`RainbowGumTomcatLog`'s own overhead for whatever does go through juli, plus RainbowGum's
+JUL bridge overhead for whatever bypasses it and hits raw JUL directly (JUL is left enabled
+in this scenario) - which would explain why `tomcat` measures worse than even the plain
+`jul` baseline instead of just matching it. Not yet confirmed; next step if pursued is
+checking whether `SystemLoggerQueueJULHandler.publish()` still fires during the `tomcat`
+run (it shouldn't, if Tomcat's internal logging is fully going through
+`RainbowGumTomcatLog` instead).
+
+Reproduce: `./run-tomcat-jul.sh`.
