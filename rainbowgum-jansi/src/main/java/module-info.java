@@ -18,7 +18,7 @@ module io.jstach.rainbowgum.jansi {
 	exports io.jstach.rainbowgum.jansi;
 
 	requires transitive io.jstach.rainbowgum;
-	requires org.jline.jansi.core;
+	requires org.fusesource.jansi;
 	
 	requires static io.jstach.svc;
 	requires static org.eclipse.jdt.annotation;

@@ -242,9 +242,9 @@
         <scope>provided</scope>
       </dependency>
       <dependency>
-        <groupId>org.jline</groupId>
-        <artifactId>jansi-core</artifactId>
-        <version>4.3.1</version>
+        <groupId>org.fusesource.jansi</groupId>
+        <artifactId>jansi</artifactId>
+        <version>2.4.2</version>
         <scope>compile</scope>
       </dependency>
       <dependency>

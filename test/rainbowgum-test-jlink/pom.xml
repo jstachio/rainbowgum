@@ -31,6 +31,9 @@
               <stripDebug>true</stripDebug>
               <noHeaderFiles>true</noHeaderFiles>
               <noManPages>true</noManPages>
+              <addOptions>
+                <addOption>--enable-native-access=org.fusesource.jansi</addOption>
+              </addOptions>
             </configuration>
           </execution>
         </executions>
