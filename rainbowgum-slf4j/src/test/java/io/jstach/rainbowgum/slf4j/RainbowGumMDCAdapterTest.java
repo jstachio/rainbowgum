@@ -42,7 +42,7 @@ class RainbowGumMDCAdapterTest {
 
 	enum MdcTest {
 
-		put("k1=v1&k2=v2", a -> a.put("k2", "v2")), //
+		put("k1=v1, k2=v2", a -> a.put("k2", "v2")), //
 		remove("", a -> a.remove("k1")), //
 		clear("", a -> a.clear()), //
 		get("k1=v1", a -> {

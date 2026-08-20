@@ -160,9 +160,13 @@ class CompilerTest {
 		},
 		MESSAGE(List.of("%m", "%msg", "%message"), "hello") {
 		},
-		MDC(List.of("%X", "%mdc"), "k1=v1&k2=v2") {
+		MDC(List.of("%X", "%mdc"), "k1=v1, k2=v2") {
 		},
-		MDC_KEY(List.of("%X{k2}", "%mdc{k2}"), "k2=v2") {
+		MDC_KEY(List.of("%X{k2}", "%mdc{k2}"), "v2") {
+		},
+		ENCODED_MDC(List.of("%encodedMdc"), "k1=v1&k2=v2") {
+		},
+		ENCODED_MDC_KEY(List.of("%encodedMdc{k2}"), "k2=v2") {
 		},
 		THROWABLE(List.of("%ex", "%exception", "%throwable"), "java.lang.RuntimeException: test_throwable") {
 			LogEvent event() {

@@ -208,7 +208,10 @@ enum StandardKeywordFactory implements KeywordFactory {
 
 	},
 	/**
-	 * This is logbacks MDC style
+	 * Logback/Log4j2 <code>%X</code>/<code>%mdc</code> style - see
+	 * {@link LogFormatter.Builder#keyValues()} and
+	 * {@link LogFormatter.Builder#keyValue(String, String)} for the exact format. For
+	 * RainbowGum's own percent-encoded style instead, see {@link #ENCODED_MDC}.
 	 */
 	MDC() {
 
@@ -218,19 +221,27 @@ enum StandardKeywordFactory implements KeywordFactory {
 			if (key == null) {
 				return LogFormatter.builder().keyValues().build();
 			}
-			String[] s = key.split(":-");
-			String k;
-			String fallback;
-			if (s.length == 2) {
-				k = s[0];
-				fallback = s[1];
-			}
-			else {
-				k = key;
-				fallback = null;
-			}
-			return LogFormatter.builder().keyValue(k, fallback).build();
+			var kf = keyAndFallback(key);
+			return LogFormatter.builder().keyValue(kf.key(), kf.fallback()).build();
+		}
 
+	},
+	/**
+	 * RainbowGum's percent-encoded (RFC 3986 URI query) MDC style - see
+	 * {@link LogFormatter.Builder#encodedKeyValues()} and
+	 * {@link LogFormatter.Builder#encodedKeyValue(String, String)} for the exact format.
+	 * For Logback/Log4j2's <code>%X</code> style instead, see {@link #MDC}.
+	 */
+	ENCODED_MDC() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			String key = node.optOrNull(0);
+			if (key == null) {
+				return LogFormatter.builder().encodedKeyValues().build();
+			}
+			var kf = keyAndFallback(key);
+			return LogFormatter.builder().encodedKeyValue(kf.key(), kf.fallback()).build();
 		}
 
 	},
@@ -301,6 +312,21 @@ enum StandardKeywordFactory implements KeywordFactory {
 	static final String ISO8601_STR = "ISO8601";
 
 	static final String ISO8601_PATTERN = "yyyy-MM-dd HH:mm:ss,SSS";
+
+	record KeyAndFallback(String key, @Nullable String fallback) {
+	}
+
+	/**
+	 * Splits a <code>%X{key}</code>/<code>%mdc{key}</code> option on <code>:-</code>,
+	 * Logback's syntax for a default value (e.g. <code>%X{requestId:-none}</code>).
+	 */
+	static KeyAndFallback keyAndFallback(String option) {
+		String[] s = option.split(":-");
+		if (s.length == 2) {
+			return new KeyAndFallback(s[0], s[1]);
+		}
+		return new KeyAndFallback(option, null);
+	}
 
 	/**
 	 * Whether a {@link DateTimeFormatter} pattern's finest resolution is milliseconds or

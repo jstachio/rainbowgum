@@ -251,14 +251,61 @@ public sealed interface LogFormatter {
 		}
 
 		/**
+		 * Creates a formatter that will print <strong>ALL</strong> of the key values the
+		 * same way Logback's <code>%X</code>/<code>%mdc</code> does: comma-space
+		 * separated <code>key=value</code> pairs with no surrounding braces (unlike
+		 * Log4j2, which wraps the same pairs in <code>{}</code>), and no percent
+		 * encoding. An empty map renders as an empty string. Keys that are mapped to
+		 * <code>null</code> will only have the key printed and no separating equal sign
+		 * (<code>=</code>), to differentiate empty string and <code>null</code>. For the
+		 * percent-encoded RFC 3986 URI query style instead, see
+		 * {@link #encodedKeyValues()}.
+		 * @return formatter.
+		 */
+		public Builder keyValues() {
+			return add(LogbackKeyValuesFormatter.INSTANCE);
+		}
+
+		/**
+		 * Creates a formatter that will print the key values in order of the passed in
+		 * keys if they exist, Logback <code>%X</code> style (see {@link #keyValues()} for
+		 * the exact format). <strong>An empty list is considered a noop and no keys will
+		 * be ommitted!</strong> If you want all keys use {@link #keyValues()}. For the
+		 * percent-encoded style instead, see {@link #encodedKeyValues(List)}.
+		 * @param keys keys where order is important.
+		 * @return this.
+		 */
+		public Builder keyValues(List<String> keys) {
+			if (keys.isEmpty()) {
+				return this;
+			}
+			return add(new LogbackListKeyValuesFormatter(keys));
+		}
+
+		/**
+		 * Creates a formatter that will print a single key's value, Logback/Log4j2
+		 * <code>%X{key}</code> style: just the raw value (or the fallback, or an empty
+		 * string if neither is present) - no key prefix, no percent encoding. For the
+		 * percent-encoded <code>key=value</code> style instead, see
+		 * {@link #encodedKeyValue(String, String)}.
+		 * @param key key to select.
+		 * @param fallback if the value is null the fallback will be used.
+		 * @return this.
+		 */
+		public Builder keyValue(String key, @Nullable String fallback) {
+			return add(new LogbackSingleKeyValueFormatter(key, fallback));
+		}
+
+		/**
 		 * Creates a formatter that will print <strong>ALL</strong> of the key values by
 		 * percent encoding (RFC 3986 URI aka the format usually used in
 		 * {@link URI#getQuery()}). Keys that are mapped to <code>null</code> will only
 		 * have the key printed and no separating equal sign (<code>=</code>). This is to
-		 * differentiate empty string and <code>null</code>.
+		 * differentiate empty string and <code>null</code>. For Logback's <code>%X</code>
+		 * style instead, see {@link #keyValues()}.
 		 * @return formatter.
 		 */
-		public Builder keyValues() {
+		public Builder encodedKeyValues() {
 			return add(DefaultKeyValuesFormatter.INSTANCE);
 		}
 
@@ -267,11 +314,12 @@ public sealed interface LogFormatter {
 		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
 		 * used in {@link URI#getQuery()}). <strong>An empty list is considered a noop and
 		 * no keys will be ommitted!</strong> If you want to all keys use
-		 * {@link #keyValues()}.
+		 * {@link #encodedKeyValues()}. For Logback's <code>%X</code> style instead, see
+		 * {@link #keyValues(List)}.
 		 * @param keys keys where order is important.
 		 * @return this.
 		 */
-		public Builder keyValues(List<String> keys) {
+		public Builder encodedKeyValues(List<String> keys) {
 			if (keys.isEmpty()) {
 				return this;
 			}
@@ -280,12 +328,14 @@ public sealed interface LogFormatter {
 
 		/**
 		 * Creates a formatter that will print a single key value in percent encoding (RFC
-		 * 3986 URI aka the format usually used in {@link URI#getQuery()}).
+		 * 3986 URI aka the format usually used in {@link URI#getQuery()}). For Logback/
+		 * Log4j2's <code>%X{key}</code> style instead, see
+		 * {@link #keyValue(String, String)}.
 		 * @param key key to select.
 		 * @param fallback if the value is null the fallback will be used.
 		 * @return this.
 		 */
-		public Builder keyValue(String key, @Nullable String fallback) {
+		public Builder encodedKeyValue(String key, @Nullable String fallback) {
 			return add(new SingleKeyValueFormatter(key, fallback));
 		}
 
@@ -1335,6 +1385,94 @@ record SingleKeyValueFormatter(String key, @Nullable String fallback) implements
 			v = fallback;
 		}
 		DefaultKeyValuesFormatter.formatKeyValue(output, key, v);
+	}
+
+}
+
+/**
+ * Logback <code>%X</code> style: comma-space separated <code>key=value</code> pairs, no
+ * surrounding braces, no percent encoding. See {@link LogFormatter.Builder#keyValues()}.
+ */
+enum LogbackKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<StringBuilder> {
+
+	INSTANCE;
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		var keyValues = event.keyValues();
+		keyValues.forEach(this, 0, output);
+	}
+
+	static void formatKeyValue(StringBuilder output, String k, @Nullable String v) {
+		output.append(k);
+		if (v != null) {
+			output.append("=").append(v);
+		}
+	}
+
+	@Override
+	public int accept(KeyValues values, String key, @Nullable String value, int index, StringBuilder storage) {
+		if (index > 0) {
+			storage.append(", ");
+		}
+		formatKeyValue(storage, key, value);
+		return index + 1;
+	}
+
+}
+
+final class LogbackListKeyValuesFormatter implements LogFormatter {
+
+	private final String[] keys;
+
+	@SuppressWarnings("nullness")
+	LogbackListKeyValuesFormatter(List<String> keys) {
+		var ks = List.copyOf(keys);
+		this.keys = ks.toArray(new String[] {});
+	}
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		var kvs = event.keyValues();
+		formatKeyValues(output, kvs);
+	}
+
+	void formatKeyValues(StringBuilder output, KeyValues keyValues) {
+		boolean first = true;
+		for (String k : keys) {
+			String v = keyValues.getValueOrNull(k);
+			if (v == null) {
+				continue;
+			}
+			if (first) {
+				first = false;
+			}
+			else {
+				output.append(", ");
+			}
+			LogbackKeyValuesFormatter.formatKeyValue(output, k, v);
+		}
+	}
+
+}
+
+/**
+ * Logback/Log4j2 <code>%X{key}</code> style: just the raw value (or fallback, or empty
+ * string), no key prefix, no percent encoding. See
+ * {@link LogFormatter.Builder#keyValue(String, String)}.
+ */
+record LogbackSingleKeyValueFormatter(String key, @Nullable String fallback) implements LogFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		var kvs = event.keyValues();
+		String v = kvs.getValueOrNull(key);
+		if (v == null) {
+			v = fallback;
+		}
+		if (v != null) {
+			output.append(v);
+		}
 	}
 
 }
