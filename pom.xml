@@ -150,11 +150,6 @@
         <optional>true</optional>
         <scope>provided</scope>
       </dependency>
-       <dependency>
-        <groupId>${project.groupId}</groupId>
-        <artifactId>rainbowgum-rabbitmq</artifactId>
-        <version>${project.version}</version>
-      </dependency>
       <!-- to make dependabot check for latest maven version -->
       <dependency>
           <groupId>org.apache.maven</groupId>
@@ -251,11 +246,6 @@
         <groupId>com.lmax</groupId>
         <artifactId>disruptor</artifactId>
         <version>4.0.0</version>
-      </dependency>
-      <dependency>
-        <groupId>com.rabbitmq</groupId>
-        <artifactId>amqp-client</artifactId>
-        <version>5.26.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -1151,7 +1141,6 @@
     <module>rainbowgum-avaje-config</module>
     <module>test</module>
     <module>etc</module>
-    <module>rainbowgum-rabbitmq</module>
     <module>rainbowgum-apt</module>
     <module>rainbowgum-json</module>
     <module>rainbowgum-annotation</module>
