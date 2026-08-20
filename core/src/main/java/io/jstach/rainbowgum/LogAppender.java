@@ -85,10 +85,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 */
 		REUSE_BUFFER,
 		/**
-		 * The appender will call flush on each item appended or if in async batch mode
-		 * for each batch.
+		 * By default the appender will call flush on each item appended or if in async
+		 * batch mode for each batch. This flag disables that behavior so that flushing is
+		 * left up to the output (or an external mechanism) instead.
 		 */
-		IMMEDIATE_FLUSH,
+		DISABLE_IMMEDIATE_FLUSH,
 		/**
 		 * The appender will drop events on reentry which happens if an appender during
 		 * its append causes recursive appending in the same thread. This is an analog to
@@ -707,7 +708,7 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		this.output = output;
 		this.encoder = encoder;
 		this.flags = flags;
-		this.immediateFlush = flags.contains(LogAppender.AppenderFlag.IMMEDIATE_FLUSH);
+		this.immediateFlush = !flags.contains(LogAppender.AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
 	}
 
 	@Override
