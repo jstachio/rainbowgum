@@ -207,6 +207,36 @@ class FileOutputTest {
 		}
 	}
 
+	@Test
+	void writeAndFlushAfterCloseShouldNotThrowFileChannelOutput() throws IOException {
+		String fileName = "./target/FileOutputTest/writeAfterCloseChannel.log";
+		try {
+			var config = LogConfig.builder().build();
+			var output = FileOutput.of(b -> {
+				b.fileName(fileName);
+				b.prudent(true);
+			}).provide("file", config);
+			output.start(config);
+			var event = TestEventBuilder.of().build(b -> b.message("before close"));
+			output.write(event, "before close\n");
+			output.flush();
+			output.close();
+			/*
+			 * Simulates a log call still in flight (e.g. via a shutdown hook) after
+			 * something outside the normal appender/publisher lifecycle - like Spring
+			 * Boot's LoggingSystem.cleanUp() - has already closed the output directly.
+			 * Same race as issue #323, but for prudent mode's FileChannelOutput rather
+			 * than the OutputStream based FileOutputStreamOutput.
+			 */
+			assertDoesNotThrow(() -> output.write(event, "after close\n"));
+			assertDoesNotThrow(output::flush);
+			assertDoesNotThrow(output::close);
+		}
+		finally {
+			Files.deleteIfExists(Path.of(fileName));
+		}
+	}
+
 	private static String duplicate(String s, int count) {
 		return s.repeat(count);
 	}
