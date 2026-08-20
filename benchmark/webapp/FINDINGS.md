@@ -965,3 +965,31 @@ isn't visible in per-request CPU/allocation profiling, so it's likely something 
 amortizing the way `-tomcat`'s design assumes) rather than a hot-path logging cost.
 Unresolved - would need a cleaner (non-shared) benchmarking environment and probably a
 GC/heap diff between configs to chase further.
+
+### A third theory, also ruled out: reflective Log construction on every getLog() call
+
+`RainbowGumTomcatLog`'s own javadoc already notes Tomcat's `LogFactory` invokes the
+`RainbowGumTomcatLog(String)` constructor via reflection (not the no-arg one, despite the
+ServiceLoader contract technically only requiring that one) whenever it discovers a custom
+`org.apache.juli.logging.Log` implementation. Adam's follow-up theory: if Tomcat calls
+`LogFactory.getLog(...)` frequently rather than caching the result (e.g. per-request
+instead of once per class), that reflective construction - plus the real work the
+constructor does (`levelResolver().resolveLevel(...)`, `isChangeable(...)`,
+`route(...)`) - would be a real, continuous cost invisible to statistical sampling if each
+call is individually fast (JFR's execution/allocation sampling can easily under-count
+short, frequent operations spread across many threads).
+
+Tested exhaustively rather than by sampling: added an `AtomicLong`-per-name counter
+(`ConcurrentHashMap<String, LongAdder>`) directly in the constructor, dumped from a JVM
+shutdown hook (reverted after, not committed). Result over the same 357,868-request/
+15-second load window: **~76 total constructions, nearly all count 1** (max 5, for
+`ApplicationFilterConfig`), and **every one of them during Tomcat startup** - `Connector`,
+`NioEndpoint`, `Http11Processor`, `StandardEngine`, etc. **Zero constructions during the
+load window itself.** `LogFactory` does cache per class/name as expected; it is not
+re-invoking the reflective constructor per call or per request. The reflection tax is
+real but one-time (~76 calls at boot) and not a plausible source of a sustained ~15%
+throughput regression.
+
+All three theories investigated so far - raw JUL bypass, per-call `RainbowGumTomcatLog`
+cost, and repeated reflective construction - are now ruled out by direct instrumentation.
+The regression itself remains real and reproducible; its cause is still unidentified.
