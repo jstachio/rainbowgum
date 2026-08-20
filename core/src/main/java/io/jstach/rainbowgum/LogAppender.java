@@ -298,6 +298,17 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 */
 	class Appenders {
 
+		/**
+		 * EXPERIMENTAL raw system property (not part of the normal LogProperties config
+		 * system - just for quickly A/B testing this against a benchmark before
+		 * committing to any permanent design). When {@code true}, {@link #asSingle()}
+		 * uses {@link IndependentLockCompositeLogAppender} instead of
+		 * {@link CompositeLogAppender} whenever more than one appender is combined under
+		 * a route, so e.g. a console appender and a file appender on the same route no
+		 * longer contend on one shared lock.
+		 */
+		static final String SINGLE_LOCK_SYSTEM_PROPERTY = "rainbowgum.appender.independentLocks";
+
 		private final AtomicBoolean created = new AtomicBoolean();
 
 		private final String name;
@@ -374,6 +385,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 					config.serviceRegistry().put(LogAppender.class, name, _a);
 					yield _a;
 				}
+				case IndependentLockCompositeLogAppender ca -> {
+					var _a = ca.withFlags(flags);
+					config.serviceRegistry().put(LogAppender.class, name, _a);
+					yield _a;
+				}
 				default -> {
 					throw new IllegalStateException();
 				}
@@ -387,8 +403,9 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		}
 
 		/**
-		 * Creates a composite log appender from many. The appenders will be appended
-		 * synchronously and will share the same lock.
+		 * Creates a composite log appender from many. By default the appenders will be
+		 * appended synchronously and will share the same lock - see
+		 * {@link #SINGLE_LOCK_SYSTEM_PROPERTY} for an experimental opt-out.
 		 * @param appenders appenders.
 		 * @return appender.
 		 */
@@ -398,6 +415,9 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 			}
 			if (appenders.size() == 1) {
 				return Objects.requireNonNull(appenders.get(0));
+			}
+			if (Boolean.getBoolean(SINGLE_LOCK_SYSTEM_PROPERTY)) {
+				return IndependentLockCompositeLogAppender.of(appenders, Set.of());
 			}
 			return CompositeLogAppender.of(appenders, Set.of());
 
@@ -807,6 +827,61 @@ record CompositeLogAppender(DirectLogAppender[] appenders,
 
 	// @Override
 	public CompositeLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
+		if (flags.isEmpty()) {
+			return this;
+		}
+		return of(List.of(appenders), flags);
+	}
+
+}
+
+/**
+ * EXPERIMENTAL - see {@link LogAppender.Appenders#SINGLE_LOCK_SYSTEM_PROPERTY}. Unlike
+ * {@link CompositeLogAppender}, does not push one shared {@link AppenderLock} down into
+ * every appender: each appender keeps the independent lock it was already constructed
+ * with, and {@link #append(LogEvent)}/{@link #append(LogEvent[], int)} skip locking at
+ * the composite level entirely, so e.g. a console appender and a file appender under the
+ * same route no longer contend on the same lock for unrelated I/O.
+ */
+@SuppressWarnings("ArrayRecordComponent")
+record IndependentLockCompositeLogAppender(DirectLogAppender[] appenders,
+		AppenderLock lock) implements BaseComposite<DirectLogAppender>, InternalLogAppender {
+
+	public static IndependentLockCompositeLogAppender of(List<? extends LogAppender> appenders,
+			Set<LogAppender.AppenderFlag> flags) {
+		AppenderLock lock = AppenderLock.of(flags);
+		@SuppressWarnings("null") // TODO Eclipse issue here
+		DirectLogAppender @NonNull [] array = appenders.stream()
+			.map(IndependentLockCompositeLogAppender::cast)
+			.map(a -> a.withFlags(flags))
+			.toArray(i -> new DirectLogAppender[i]);
+		return new IndependentLockCompositeLogAppender(array, lock);
+	}
+
+	private static DirectLogAppender cast(LogAppender appender) {
+		return (DirectLogAppender) appender;
+	}
+
+	@Override
+	public DirectLogAppender[] components() {
+		return this.appenders;
+	}
+
+	@Override
+	public void append(LogEvent event) {
+		for (var appender : appenders) {
+			appender.append(event);
+		}
+	}
+
+	@Override
+	public void append(LogEvent[] event, int count) {
+		for (var appender : appenders) {
+			appender.append(event, count);
+		}
+	}
+
+	public IndependentLockCompositeLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
 		if (flags.isEmpty()) {
 			return this;
 		}
