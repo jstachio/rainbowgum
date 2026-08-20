@@ -21,29 +21,26 @@ class TomcatLevelLogGenTest {
 				import org.apache.juli.logging.Log;
 				import org.eclipse.jdt.annotation.Nullable;
 
-				import io.jstach.rainbowgum.LevelResolver;
 				import io.jstach.rainbowgum.LogEvent;
-				import io.jstach.rainbowgum.LogRouter;
+				import io.jstach.rainbowgum.LogEventLogger;
 
 				interface TomcatLevelLog extends Log {
 
 					String loggerName();
 
-					LogRouter router();
+					LogEventLogger eventLogger();
 
 					default void log(Level level, @Nullable Object obj) {
 						log(level, obj, null);
 					}
 
 					default void log(Level level, @Nullable Object obj, @Nullable Throwable t) {
-						level = LevelResolver.normalizeLevel(level);
+						// We do not need to check if the route is enabled.
+						// We are assuming level logging mode.
 						String loggerName = loggerName();
-						var route = router().route(loggerName, level);
-						if (route.isEnabled()) {
-							String formattedMessage = obj == null ? "" : obj.toString();
-							LogEvent event = LogEvent.of(level, loggerName, formattedMessage, t);
-							route.log(event);
-						}
+						@Nullable String formattedMessage = obj == null ? null : obj.toString();
+						LogEvent event = LogEvent.of(level, loggerName, formattedMessage, t);
+						eventLogger().log(event);
 					}
 				""");
 
@@ -53,7 +50,7 @@ class TomcatLevelLogGenTest {
 			}
 			sb.append("""
 
-					record {{Level}}LevelLog(String loggerName, LogRouter router) implements TomcatLevelLog {
+					record {{Level}}LevelLog(String loggerName, LogEventLogger eventLogger) implements TomcatLevelLog {
 					""".replace("{{Level}}", levelCapitalName(level)));
 			for (Level methodLevel : Level.values()) {
 				if (methodLevel == Level.OFF || methodLevel == Level.ALL) {
@@ -87,7 +84,7 @@ class TomcatLevelLogGenTest {
 
 							@Override
 							public void {{level}}(@Nullable Object message, @Nullable Throwable throwable) {
-								log(Level.{{LEVEL}}, message);
+								log(Level.{{LEVEL}}, message, throwable);
 							}
 
 							""".replace("{{level}}", logMethodName(methodLevel))
