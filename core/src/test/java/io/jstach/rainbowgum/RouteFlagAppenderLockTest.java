@@ -18,6 +18,9 @@ class RouteFlagAppenderLockTest {
 			r.appender("b", a -> a.output(new ListLogOutput()));
 		}).build().start()) {
 			var appender = config.serviceRegistry().findOrNull(LogAppender.class, Router.DEFAULT_ROUTER_NAME);
+			if (appender == null) {
+				throw new AssertionError("appender should not be null");
+			}
 			assertInstanceOf(IndependentLockCompositeLogAppender.class, appender);
 		}
 	}
@@ -31,6 +34,9 @@ class RouteFlagAppenderLockTest {
 			r.appender("b", a -> a.output(new ListLogOutput()));
 		}).build().start()) {
 			var appender = config.serviceRegistry().findOrNull(LogAppender.class, Router.DEFAULT_ROUTER_NAME);
+			if (appender == null) {
+				throw new AssertionError("appender should not be null");
+			}
 			assertInstanceOf(CompositeLogAppender.class, appender);
 		}
 	}
@@ -47,6 +53,9 @@ class RouteFlagAppenderLockTest {
 			r.appender("b", a -> a.output(new ListLogOutput()));
 		}).build().start()) {
 			var appender = config.serviceRegistry().findOrNull(LogAppender.class, Router.DEFAULT_ROUTER_NAME);
+			if (appender == null) {
+				throw new AssertionError("appender should not be null");
+			}
 			assertInstanceOf(CompositeLogAppender.class, appender);
 		}
 	}
