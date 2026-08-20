@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum;
+package io.jstach.rainbowgum.format;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -23,6 +23,7 @@ public final class AnsiSupport {
 	 * standard output.
 	 * @return true if ANSI output should be emitted.
 	 */
+	@SuppressWarnings("SystemConsoleNull")
 	public static boolean isAnsiSupported() {
 		if (System.console() == null) {
 			return false;

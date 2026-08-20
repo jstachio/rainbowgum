@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum;
+package io.jstach.rainbowgum.format;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
