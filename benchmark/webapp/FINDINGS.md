@@ -754,3 +754,45 @@ behind). Log4j2 is still fastest here, but the gap that opened the whole investi
 behind Logback, before any of this session's fixes) has fully inverted.
 
 Reproduce: `RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh`.
+
+## GELF and virtual-threads rerun after the independent-appender-lock fix
+
+Same fix, same settings (`RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true`) as the default-scenario
+rerun above, but for the GELF and virtual-threads scenarios this time - both console and file
+appenders are active in every scenario this benchmark runs, so the lock fix should show up
+everywhere, not just the default text-pattern case.
+
+**GELF** (`STRUCTURED_FORMAT=gelf RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true`):
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback-gelf-flush-nojul | 699,399 | 23,313.3 | 1.95 | 3.68 | 6.17 | 19.46 | 2.14 | 651.2 / 659.0 / 655.6 |
+| log4j2-gelf-flush-nojul | 502,632 | 16,754.4 | 2.60 | 5.82 | 9.72 | 27.66 | 2.98 | 653.9 / 667.0 / 657.1 |
+| rainbowgum-gelf-flush-nojul | 700,236 | 23,341.2 | 2.00 | 3.71 | 6.24 | 20.83 | 2.14 | 665.8 / 672.4 / 668.8 |
+
+**RainbowGum: 13,717.9 -> 23,341.2 req/s (+70.2%)** - logback/log4j2 essentially flat
+(-2.6%/-0.4%, noise). RainbowGum now **ties Logback** (23,341.2 vs 23,313.3, within noise) and
+is **39.3% ahead of Log4j2**. Previously RainbowGum was the slowest of the three here by a
+wide margin (13,717.9, well behind both) - this is the largest swing of any scenario rerun so
+far.
+
+**Virtual threads** (`VIRTUAL_THREADS=true RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true`):
+
+| label | requests | req/s | p50 ms | p90 ms | p99 ms | max ms | mean ms | RSS min/max/avg MB |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| logback-vt-flush-nojul | 718,571 | 23,952.4 | 2.07 | 2.87 | 3.49 | 14.13 | 2.09 | 630.2 / 636.3 / 633.4 |
+| log4j2-vt-flush-nojul | 569,894 | 18,996.5 | 2.46 | 5.13 | 7.76 | 22.92 | 2.63 | 625.7 / 628.6 / 627.5 |
+| rainbowgum-vt-flush-nojul | 792,550 | 26,418.3 | 1.91 | 2.52 | 3.19 | 14.76 | 1.89 | 625.8 / 628.7 / 627.4 |
+
+**RainbowGum: 17,698.9 -> 26,418.3 req/s (+49.3%)** - logback/log4j2 essentially flat
+(-2.2%/-0.8%, noise). RainbowGum now **leads all three frameworks** under virtual threads
+(10.3% ahead of Logback, 39.1% ahead of Log4j2) - previously it was the slowest of the three
+in this scenario.
+
+**Across every scenario this benchmark runs** (default, GELF, virtual-threads), RainbowGum
+now either leads or is within noise of the fastest framework, having started the investigation
+behind in all three. The independent-appender-lock fix is the single largest contributor of
+anything found this session, well ahead of the timestamp-caching/MDC/GELF fixes individually.
+
+Reproduce: `STRUCTURED_FORMAT=gelf RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh` and
+`VIRTUAL_THREADS=true RG_IMMEDIATE_FLUSH=true EXCLUDE_JUL=true ./run-all.sh`.
