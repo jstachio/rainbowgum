@@ -3,14 +3,29 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogAppenderTest {
+
+	final Function<Set<LogAppender.AppenderFlag>, AppenderLock> originalLockFactoryFunction = AppenderLock.lockFactoryFunction;
+
+	@AfterEach
+	void after() {
+		/*
+		 * test() below replaces this static factory but never restored it, silently
+		 * corrupting the real REENTRY_DROP/REENTRY_LOG factory logic for every other test
+		 * that runs afterward in the same JVM.
+		 */
+		AppenderLock.lockFactoryFunction = originalLockFactoryFunction;
+	}
 
 	@Test
 	void test() {
