@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -34,6 +35,8 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	private final Iterable<? extends LogAppender> appenders;
 
+	private final AtomicReference<@Nullable LogConfig> configRef;
+
 	/**
 	 * Creates a factory of disruptor log publishers.
 	 * @param bufferSize ring buffer size.
@@ -59,9 +62,10 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	public static DisruptorLogPublisher of(Collection<? extends LogAppender> appenders, ThreadFactory threadFactory,
 			int bufferSize) {
 
+		var configRef = new AtomicReference<@Nullable LogConfig>();
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory,
 				ProducerType.MULTI, new BlockingWaitStrategy());
-		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown));
+		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown, configRef));
 
 		boolean found = false;
 		for (var appender : appenders) {
@@ -73,22 +77,24 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 		}
 		var ringBuffer = disruptor.getRingBuffer();
 
-		var router = new DisruptorLogPublisher(disruptor, ringBuffer, List.copyOf(appenders));
+		var router = new DisruptorLogPublisher(disruptor, ringBuffer, List.copyOf(appenders), configRef);
 		return router;
 	}
 
 	@Override
 	public void start(LogConfig config) {
+		configRef.set(config);
 		disruptor.start();
 
 	}
 
 	DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer,
-			Iterable<? extends LogAppender> appenders) {
+			Iterable<? extends LogAppender> appenders, AtomicReference<@Nullable LogConfig> configRef) {
 		super();
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
 		this.appenders = appenders;
+		this.configRef = configRef;
 	}
 
 	@Override
@@ -134,7 +140,18 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	}
 
-	private record LogExceptionHandler(Runnable shutdownHook) implements ExceptionHandler<Object> {
+	private record LogExceptionHandler(Runnable shutdownHook,
+			AtomicReference<@Nullable LogConfig> configRef) implements ExceptionHandler<Object> {
+
+		private void error(Throwable ex) {
+			var config = configRef.get();
+			if (config != null) {
+				MetaLog.error(config, DisruptorLogPublisher.class, ex);
+			}
+			else {
+				MetaLog.error(DisruptorLogPublisher.class, ex);
+			}
+		}
 
 		@Override
 		public void handleEventException(Throwable ex, long sequence, Object event) {
@@ -142,19 +159,19 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 				shutdownHook.run();
 			}
 			else {
-				MetaLog.error(DisruptorLogPublisher.class, ex);
+				error(ex);
 				throw new RuntimeException(ex);
 			}
 		}
 
 		@Override
 		public void handleOnStartException(Throwable ex) {
-			MetaLog.error(DisruptorLogPublisher.class, ex);
+			error(ex);
 		}
 
 		@Override
 		public void handleOnShutdownException(Throwable ex) {
-			MetaLog.error(DisruptorLogPublisher.class, ex);
+			error(ex);
 		}
 
 	}

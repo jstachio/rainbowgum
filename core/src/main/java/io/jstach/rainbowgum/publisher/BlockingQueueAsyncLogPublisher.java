@@ -6,6 +6,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
@@ -27,6 +29,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	private final int bufferSize;
 
 	private final Worker worker;
+
+	private volatile @Nullable LogConfig config;
 
 	/**
 	 * Creates the publisher.
@@ -64,7 +68,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			queue.put(event);
 		}
 		catch (InterruptedException e) {
-			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+			error(e);
 			Thread.currentThread().interrupt();
 
 		}
@@ -80,7 +84,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			worker.join(1000);
 		}
 		catch (InterruptedException e) {
-			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+			error(e);
 		}
 		finally {
 			tool.unmaskInterruptFlag();
@@ -91,12 +95,22 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 		appender.close();
 	}
 
+	private void error(Throwable e) {
+		var c = config;
+		if (c != null) {
+			MetaLog.error(c, BlockingQueueAsyncLogPublisher.class, e);
+		}
+		else {
+			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+		}
+	}
+
 	@Override
 	public void start(LogConfig config) {
 		if (running) {
 			throw new IllegalStateException();
 		}
-
+		this.config = config;
 		worker.setDaemon(true);
 		worker.setName(BlockingQueueAsyncLogPublisher.class.getSimpleName());
 		running = true;
@@ -130,7 +144,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 					break;
 				}
 				catch (Exception e) {
-					MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+					error(e);
 				}
 			}
 			drain();
