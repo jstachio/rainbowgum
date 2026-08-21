@@ -176,8 +176,7 @@ public sealed interface LogFormatter {
 
 		/**
 		 * The key is omitted entirely (no key, no <code>=</code>) if its value is
-		 * <code>null</code>. This is the default, and matches
-		 * {@link Builder#encodedKeyValues(List)}'s original (pre-strategy) behavior.
+		 * <code>null</code>.
 		 */
 		SKIP,
 		/**
@@ -191,7 +190,10 @@ public sealed interface LogFormatter {
 		 * The <code>null</code>/empty-string distinction is preserved: a
 		 * <code>null</code> value prints just the key with no <code>=</code>, while an
 		 * empty string prints <code>key=</code>. This is the same behavior as
-		 * {@link Builder#encodedKeyValues()}.
+		 * {@link Builder#encodedKeyValues()} and is the default for
+		 * {@link Builder#encodedKeyValues(List)} - most key values (e.g. MDC) are never
+		 * actually mapped to <code>null</code> in practice, so {@link #SKIP} and
+		 * {@link #KEEP} behave identically until they are.
 		 */
 		KEEP;
 
@@ -354,17 +356,19 @@ public sealed interface LogFormatter {
 		/**
 		 * Creates a formatter that will print the key values in order of the passed in
 		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
-		 * used in {@link URI#getQuery()}), omitting a key entirely if its value is
-		 * <code>null</code> ({@link KeyValueNullStrategy#SKIP}). <strong>An empty
-		 * {@code keys} list is a noop - no formatter is added at all.</strong> If you
-		 * want all keys use {@link #encodedKeyValues()}. For Logback's <code>%X</code>
-		 * style instead, see {@link #keyValues(List)}.
+		 * used in {@link URI#getQuery()}), preserving the <code>null</code>/empty-string
+		 * distinction for a key whose value is <code>null</code>
+		 * ({@link KeyValueNullStrategy#KEEP} - most key values, e.g. MDC, are never
+		 * actually mapped to <code>null</code> in practice, so this only matters if yours
+		 * are). <strong>An empty {@code keys} list is a noop - no formatter is added at
+		 * all.</strong> If you want all keys use {@link #encodedKeyValues()}. For
+		 * Logback's <code>%X</code> style instead, see {@link #keyValues(List)}.
 		 * @param keys keys where order is important.
 		 * @return this.
 		 * @see #encodedKeyValues(List, KeyValueNullStrategy)
 		 */
 		public Builder encodedKeyValues(List<String> keys) {
-			return encodedKeyValues(keys, KeyValueNullStrategy.SKIP);
+			return encodedKeyValues(keys, KeyValueNullStrategy.KEEP);
 		}
 
 		/**
