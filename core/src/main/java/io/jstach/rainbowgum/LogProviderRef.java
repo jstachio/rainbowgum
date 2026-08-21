@@ -63,7 +63,6 @@ public sealed interface LogProviderRef {
 
 		NotFoundException(String s) {
 			super(s);
-			// TODO Auto-generated constructor stub
 		}
 
 	}

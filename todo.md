@@ -3,6 +3,9 @@
 The next release off this work is 0.10.0, not 1.0.0 - the items below are what's
 still outstanding before an eventual 1.0.0, not a blocker list for 0.10.0.
 
+See also `code-todos.md` for a themed survey of the `// TODO` comments still scattered
+through the codebase - several feed directly into the items below.
+
 ## 1. Improve status reporting
 
 A first pass exists on `feature/log-status-manager` (currently on hold, not merged):
