@@ -680,11 +680,36 @@ Encoders should have a builder as well to configure programmatically
 and the builders javadoc has the string properties that can configure it.
 </p>
 
-Here are some of the supported encoders (not a complete listing):
+A typical practice is to use a <a href="pattern_encoder">pattern encoder</a> that produces human readable logs for development 
+and a <a href="#json_encoders">JSON encoder</a> for production switched out based on configuration.
 
-<ul>
-  <li>{@link io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder}</li>
-  <li>{@link io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder} -
+<h3 id="json_encoders">JSON Encoders</h3>
+
+Rainbow Gum provides several JSON encoders in the {@link io.jstach.rainbowgum.json/ rainbowgum-json} module. Unless <code>prettyPrint</code> is enabled the JSON encoders
+included follow the <a href="https://jsonlines.org/">JSON Lines</a> standard as well as of course the JSON standard 
+<a href="https://datatracker.ietf.org/doc/html/rfc8259">RFC-8259</a>. However note that there is no standard on time format in JSON so the formatting of log event
+time can vary from JSON encoders depending on the formats specification. The module also can be used to create ones own custom JSON encoders.
+The following sections cover the various encoders.
+
+<h4 id="gelf">GELF JSON Encoder</h4>
+
+{@link io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder} -
+
+The GELF JSON encoder follows the 
+<a href="https://go2docs.graylog.org/current/getting_in_log_data/gelf_format.html">GELF JSON specification</a>
+with translations of levels that are roughly similar to syslog. Notice that although the GELF specification does not
+require <a href="https://jsonlines.org/">JSON Lines</a> this encoder will keep each event on its own line unless
+<code>prettyPrint</code> is enabled.
+
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.encoder=gelf
+logging.encoder.myappender.host=somehost
+}
+
+<h4 id="ecs">ECS JSON Encoder</h4>
+
+{@link io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder} -
     <a href="https://www.elastic.co/guide/en/ecs-logging/java/current/index.html">Elastic Common Schema (ECS)</a>
     JSON, URI scheme {@value io.jstach.rainbowgum.json.encoder.EcsEncoder#ECS_SCHEME}. Two shapes are supported:
     by default field names are the flattened, dotted ECS names (e.g. <code>"log.level"</code>) as the reference
@@ -700,8 +725,10 @@ logging.appender.myappender.encoder=ecs
 logging.encoder.myappender.serviceName=myapp
 logging.encoder.myappender.structured=true
     }
-  </li>
-  <li>{@link io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder} - format produced by
+
+<h4 id="logstash">Logstash JSON Encoder</h4>
+
+{@link io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder} - format produced by
     <a href="https://github.com/logfellow/logstash-logback-encoder">logstash-logback-encoder</a>'s
     <code>LogstashEncoder</code>, URI scheme
     {@value io.jstach.rainbowgum.json.encoder.LogstashEncoder#LOGSTASH_SCHEME}. Key values are flattened
@@ -713,19 +740,25 @@ logging.appenders=myappender
 logging.appender.myappender.encoder=logstash
 logging.encoder.myappender.zoneId=UTC
     }
-  </li>
-  <li>{@link io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder} - resembles
+
+<h4 id="logback_json">Logback JSON Encoder</h4>
+
+    {@link io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder} - resembles
     <a href="https://logback.qos.ch/manual/encoders.html#JsonEncoder">Logback's own opinionated JSON encoder</a>,
     URI scheme {@value io.jstach.rainbowgum.json.encoder.LogbackJsonEncoder#LOGBACK_SCHEME}. Nests key values
     under a <code>mdc</code> object and, for throwables, a <code>throwable</code> object with a
     <code>stepArray</code> of stack frames (recursing into <code>cause</code>):
+
     {@snippet lang=properties :
 logging.appenders=myappender
 logging.appender.myappender.encoder=logback
     }
-  </li>
-  <li>{@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}</li>
-</ul>
+
+<h4 id="pattern_encoder">Pattern Encoder</h4>
+
+Pattern Encoder is a mostly compatible to logback format encoder that renders logs as text based on a pattern.
+
+See <a href="#pattern">Pattern Formatter</a> section and {@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}
 
 
 <h2 id="formatters">Formatters</h2>
