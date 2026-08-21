@@ -112,7 +112,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	static GelfEncoder of(@LogConfigurable.KeyParameter String name, String host, //
-			@LogConfigurable.ConvertParameter("convertHeaders") @Nullable Map<String, String> headers,
+			@Nullable Map<String, String> headers, //
 			@Nullable Boolean prettyPrint, @Nullable Integer timeFractionalDigits) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		host = Objects.requireNonNull(host);
@@ -121,10 +121,6 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 				: timeFractionalDigits;
 
 		return new GelfEncoder(host, _headers, prettyPrint, _timeFractionalDigits);
-	}
-
-	static Map<String, String> convertHeaders(String headers) {
-		return LogProperties.parseMap(headers);
 	}
 
 	@Override

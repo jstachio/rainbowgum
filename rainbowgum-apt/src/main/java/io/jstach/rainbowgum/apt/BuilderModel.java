@@ -86,6 +86,8 @@ record BuilderModel( //
 
 		private static final String BOOLEAN_TYPE = "java.lang.Boolean";
 
+		private static final String MAP_TYPE = "java.util.Map";
+
 		public String propertyVar() {
 			return "property_" + name;
 		}
@@ -111,6 +113,7 @@ record BuilderModel( //
 				case STRING_TYPE -> null;
 				case URI_TYPE -> ".ofURI()";
 				case BOOLEAN_TYPE -> ".ofBoolean()";
+				case MAP_TYPE -> ".ofMap()";
 				default -> throw new IllegalStateException(type + " is not supported");
 			};
 		}
@@ -121,6 +124,7 @@ record BuilderModel( //
 				case STRING_TYPE -> "String";
 				case URI_TYPE -> "URI";
 				case BOOLEAN_TYPE -> "Boolean";
+				case MAP_TYPE -> "Map&lt;String,String&gt;";
 				default -> "String (converted)";
 			};
 		}
