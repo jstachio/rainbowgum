@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -147,9 +149,73 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.withKey(LogProperties.FILE_PROPERTY)
 			.addKeyWithName(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
 			.build()
-			.bind(config.properties());
+			.bind(fileProperties(config.properties()));
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 		return appender(name, config, fileProperty, encoderProperty);
+	}
+
+	/*
+	 * Unlike the generic appender output property (which falls back to here and is
+	 * genuinely ambiguous - a bare word could be a deliberate URI scheme like "stdout")
+	 * LogProperties.FILE_PROPERTY (Spring Boot's logging.file.name) is documented to
+	 * always be a file path. Rewrite its value to a resolved file URI before it reaches
+	 * the generic URI-scheme-sniffing property pipeline so callers do not need to know
+	 * about the "./" prefix workaround required for ordinary output properties.
+	 *
+	 * The original per-source LogProperties (and thus its description/diagnostics) is
+	 * preserved via FoundProperty.StringProperty so error messages still say which
+	 * underlying source (system properties, environment variables, etc.) the value came
+	 * from. Values that are already a proper URI with an explicit scheme (e.g.
+	 * file:///...) or that fail to parse as a URI at all are passed through untouched -
+	 * the former is already unambiguous and the latter should surface its original, well
+	 * understood URI syntax error rather than being silently reinterpreted as a literal
+	 * (almost certainly wrong) file name.
+	 */
+	private static LogProperties fileProperties(LogProperties properties) {
+		return new LogProperties() {
+			@Override
+			public @Nullable String valueOrNull(String key) {
+				String v = properties.valueOrNull(key);
+				if (v != null && key.equals(LogProperties.FILE_PROPERTY)) {
+					return normalizeFileValue(v);
+				}
+				return v;
+			}
+
+			@Override
+			public LogProperties.FoundProperty.@Nullable StringProperty stringPropertyOrNull(String key) {
+				var found = properties.stringPropertyOrNull(key);
+				if (found != null && key.equals(LogProperties.FILE_PROPERTY)) {
+					return new LogProperties.FoundProperty.StringProperty(found.properties(), key,
+							normalizeFileValue(found.value()));
+				}
+				return found;
+			}
+
+			@Override
+			public String description(String key) {
+				return properties.description(key);
+			}
+
+			@Override
+			public int order() {
+				return properties.order();
+			}
+		};
+	}
+
+	private static String normalizeFileValue(String value) {
+		URI uri;
+		try {
+			uri = new URI(value);
+		}
+		catch (URISyntaxException e) {
+			return value;
+		}
+		if (uri.getScheme() != null) {
+			return value;
+		}
+		return Paths.get(value).toUri().toString();
 	}
 
 	static LogAppender appender( //

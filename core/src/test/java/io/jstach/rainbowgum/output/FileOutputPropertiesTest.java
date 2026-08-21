@@ -1,21 +1,26 @@
 package io.jstach.rainbowgum.output;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
+import java.lang.System.Logger.Level;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.EnumCombinations;
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
@@ -23,6 +28,34 @@ import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.FileOutputTest.Events;
 
 class FileOutputPropertiesTest {
+
+	/*
+	 * This is the exact scenario Spring Boot users hit: logging.file.name set to a bare
+	 * relative filename with no "./" prefix and no scheme. Before the fix RainbowGum
+	 * would misinterpret "some.log" as a URI scheme (like "stdout") and fail with "No
+	 * output found. Scheme not registered."
+	 */
+	@Test
+	void testBareFilenameWithNoPrefixIsTreatedAsAFilePath() throws IOException {
+		Path file = Path.of("rainbowgum-bare-filename-test.log");
+		Files.deleteIfExists(file);
+		try {
+			var properties = LogProperties.builder().fromProperties("""
+					logging.file.name=%s
+					""".formatted(file)).build();
+			var config = LogConfig.builder().properties(properties).build();
+			var gum = RainbowGum.builder(config).build();
+			try (var rg = gum.start()) {
+				rg.log(LogEvent.of(Level.INFO, "test", "hello", KeyValues.of(), null));
+			}
+			assertTrue(Files.exists(file), "expected " + file + " to have been created");
+			String content = Files.readString(file);
+			assertTrue(content.contains("hello"), "expected file content to contain the logged message: " + content);
+		}
+		finally {
+			Files.deleteIfExists(file);
+		}
+	}
 
 	@ParameterizedTest
 	@MethodSource("provideArgs")
