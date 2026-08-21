@@ -453,11 +453,13 @@ class LogFormatterTest {
 	}
 
 	@Test
-	void testEncodedKeyValuesListOmitsKeysThatAreAbsentOrExplicitlyNull() {
+	void testEncodedKeyValuesListDefaultStrategyIsSkipOmittingAbsentOrExplicitlyNullKeys() {
 		StringBuilder sb = new StringBuilder();
 		// "missing" is never added at all; "explicitNull" is added but mapped to null -
-		// getValueOrNull() can't tell these apart, so ListKeyValuesFormatter (unlike
-		// DefaultKeyValuesFormatter's key-only-no-equals handling of forEach) skips both.
+		// getValueOrNull() can't tell these apart, so SelectedEncodedKeyValuesFormatter's
+		// default SKIP strategy (unlike DefaultKeyValuesFormatter's key-only-no-equals
+		// handling of forEach, which always sees the real entries) omits both the same
+		// way.
 		var kvs = KeyValues.MutableKeyValues.of().add("present", "v").add("explicitNull", null);
 		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
 		LogFormatter.builder()
@@ -468,10 +470,55 @@ class LogFormatterTest {
 	}
 
 	@Test
-	void testEncodedKeyValuesEmptyListIsNoop() {
+	void testEncodedKeyValuesSkipStrategyOmitsMissingKeyEntirely() {
+		StringBuilder sb = new StringBuilder();
+		var kvs = KeyValues.MutableKeyValues.of().add("present", "v");
+		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		LogFormatter.builder()
+			.encodedKeyValues(List.of("present", "missing"), LogFormatter.KeyValueNullStrategy.SKIP)
+			.build()
+			.format(sb, event);
+		assertEquals("present=v", sb.toString());
+	}
+
+	@Test
+	void testEncodedKeyValuesEmptyStrategyNormalizesNullToEmptyValue() {
+		StringBuilder sb = new StringBuilder();
+		var kvs = KeyValues.MutableKeyValues.of().add("present", "v");
+		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		LogFormatter.builder()
+			.encodedKeyValues(List.of("present", "missing"), LogFormatter.KeyValueNullStrategy.EMPTY)
+			.build()
+			.format(sb, event);
+		assertEquals("present=v&missing=", sb.toString());
+	}
+
+	@Test
+	void testEncodedKeyValuesKeepStrategyPreservesNullVersusEmptyStringDistinction() {
+		StringBuilder sb = new StringBuilder();
+		var kvs = KeyValues.MutableKeyValues.of().add("present", "v").add("emptyValued", "");
+		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		LogFormatter.builder()
+			.encodedKeyValues(List.of("present", "missing", "emptyValued"), LogFormatter.KeyValueNullStrategy.KEEP)
+			.build()
+			.format(sb, event);
+		// "missing" (null, indistinguishable from absent) prints key-only; "emptyValued"
+		// (an actual empty string) prints "key=" - the same distinction
+		// encodedKeyValues()
+		// makes for every real entry.
+		assertEquals("present=v&missing&emptyValued=", sb.toString());
+	}
+
+	@Test
+	void testEncodedKeyValuesEmptyListIsNoopRegardlessOfStrategy() {
 		StringBuilder sb = new StringBuilder();
 		var event = TestEventBuilder.of().build();
-		LogFormatter.builder().text("before:").encodedKeyValues(List.of()).text(":after").build().format(sb, event);
+		LogFormatter.builder()
+			.text("before:")
+			.encodedKeyValues(List.of(), LogFormatter.KeyValueNullStrategy.KEEP)
+			.text(":after")
+			.build()
+			.format(sb, event);
 		assertEquals("before::after", sb.toString());
 	}
 
