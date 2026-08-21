@@ -285,14 +285,16 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 	public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType);
 
 	/**
-	 * Write event with byte buffer.
+	 * Write event with byte buffer. The buffer is expected to be ready for reading in the
+	 * standard {@link ByteBuffer} idiom: <code>position</code> at the start of the
+	 * content and <code>limit</code> at its end (e.g. just {@linkplain ByteBuffer#flip()
+	 * flipped} after being filled, or created with {@link ByteBuffer#wrap(byte[])}).
 	 * @param event event.
-	 * @param buf byte buffer.
+	 * @param buf byte buffer ready for reading (flipped).
 	 * @param contentType content type of the buf
 	 */
 	default void write(LogEvent event, ByteBuffer buf, ContentType contentType) {
-		byte[] arr = new byte[buf.position()];
-		buf.rewind();
+		byte[] arr = new byte[buf.remaining()];
 		buf.get(arr);
 		write(event, arr, contentType);
 	}

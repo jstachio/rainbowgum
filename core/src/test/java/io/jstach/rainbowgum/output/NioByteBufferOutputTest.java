@@ -29,21 +29,25 @@ import io.jstach.rainbowgum.TestEventBuilder;
  * (the only BYTE_BUFFER-hinting output) overrides that method itself and never goes
  * through the default. This constructs a real NIO FileChannel output plus a real
  * ByteBuffer-backed encoder Buffer, driven through a full RainbowGum load (not a mock),
- * to check whether that default method's byte[]-sizing logic actually works for a
- * standard NIO-style output.
+ * to check that default method against the standard java.nio idiom: fill the buffer,
+ * flip() it (or hand over one built with ByteBuffer.wrap(byte[])), and let the reader
+ * consume from position to limit. The default used to size its array off buf.position()
+ * instead of buf.remaining(), which only worked for a non-standard "never flipped,
+ * position tracks written length" convention and silently wrote nothing for a properly
+ * flipped buffer - see git history on this file for that finding. Fixed to use
+ * buf.remaining()/buf.get(arr), so these now assert the standard idiom actually works.
  */
 class NioByteBufferOutputTest {
 
 	@Test
-	void unflippedPositionAsLengthConventionWritesFullContent(@org.junit.jupiter.api.io.TempDir Path dir)
-			throws IOException {
-		Path file = dir.resolve("unflipped.log");
+	void flippedBufferConventionWritesFullContent(@org.junit.jupiter.api.io.TempDir Path dir) throws IOException {
+		Path file = dir.resolve("flipped.log");
 		var output = new NioFileOutput(file);
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config).route(r -> {
 			r.appender("file", a -> {
 				a.output(output);
-				a.encoder(new UnflippedByteBufferEncoder());
+				a.encoder(new ByteBufferEncoder());
 			});
 		}).build();
 		try (var g = gum.start()) {
@@ -54,31 +58,16 @@ class NioByteBufferOutputTest {
 		}
 	}
 
-	/*
-	 * Standard java.nio idiom: write into the buffer, then flip() it before handing it
-	 * off to be read/written elsewhere (position=0, limit=written length). This is what a
-	 * real future NIO-based output would very plausibly do. LogOutput's default write
-	 * method sizes its array off buf.position() instead of buf.remaining(), so a freshly
-	 * flipped buffer (position=0) silently produces a zero-length write instead of the
-	 * actual content - a real, quiet data-loss bug, not a mock artifact.
-	 */
 	@Test
-	void standardFlippedBufferConventionSilentlyWritesNothing(@org.junit.jupiter.api.io.TempDir Path dir)
-			throws IOException {
-		Path file = dir.resolve("flipped.log");
-		var output = new NioFileOutput(file);
-		var config = LogConfig.builder().build();
-		var gum = RainbowGum.builder(config).route(r -> {
-			r.appender("file", a -> {
-				a.output(output);
-				a.encoder(new FlippedByteBufferEncoder());
-			});
-		}).build();
-		try (var g = gum.start()) {
-			g.log(TestEventBuilder.of().build(b -> b.message("hello world")));
+	void wrappedBufferAlsoWritesFullContent(@org.junit.jupiter.api.io.TempDir Path dir) throws IOException {
+		Path file = dir.resolve("wrapped.log");
+		try (var output = new NioFileOutput(file)) {
+			var event = TestEventBuilder.of().build(b -> b.message("hello world"));
+			var buf = ByteBuffer.wrap("hello world\n".getBytes(StandardCharsets.UTF_8));
+			output.write(event, buf, LogOutput.ContentType.StandardContentType.TEXT_PLAIN);
 			output.flush();
 			String actual = Files.readString(file, StandardCharsets.UTF_8);
-			assertEquals("", actual);
+			assertEquals("hello world\n", actual);
 		}
 	}
 
@@ -86,17 +75,9 @@ class NioByteBufferOutputTest {
 
 		final ByteBuffer byteBuffer = ByteBuffer.allocate(8192);
 
-		final boolean flipBeforeDrain;
-
-		ByteBufferBuffer(boolean flipBeforeDrain) {
-			this.flipBeforeDrain = flipBeforeDrain;
-		}
-
 		@Override
 		public void drain(LogOutput output, LogEvent event) {
-			if (flipBeforeDrain) {
-				byteBuffer.flip();
-			}
+			byteBuffer.flip();
 			output.write(event, byteBuffer, LogOutput.ContentType.StandardContentType.TEXT_PLAIN);
 		}
 
@@ -107,30 +88,11 @@ class NioByteBufferOutputTest {
 
 	}
 
-	static final class UnflippedByteBufferEncoder implements LogEncoder {
+	static final class ByteBufferEncoder implements LogEncoder {
 
 		@Override
 		public Buffer buffer(BufferHints hints) {
-			return new ByteBufferBuffer(false);
-		}
-
-		@Override
-		public void encode(LogEvent event, Buffer buffer) {
-			var b = (ByteBufferBuffer) buffer;
-			b.clear();
-			StringBuilder sb = new StringBuilder();
-			event.formattedMessage(sb);
-			sb.append('\n');
-			b.byteBuffer.put(sb.toString().getBytes(StandardCharsets.UTF_8));
-		}
-
-	}
-
-	static final class FlippedByteBufferEncoder implements LogEncoder {
-
-		@Override
-		public Buffer buffer(BufferHints hints) {
-			return new ByteBufferBuffer(true);
+			return new ByteBufferBuffer();
 		}
 
 		@Override
