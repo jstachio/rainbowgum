@@ -140,6 +140,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-nio</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-avaje-config</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1136,6 +1141,7 @@
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>
     <module>rainbowgum-disruptor</module>
+    <module>rainbowgum-nio</module>
     <module>rainbowgum-jansi</module>
     <module>benchmark</module>
     <module>rainbowgum-avaje-config</module>
