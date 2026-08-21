@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.disruptor;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -21,6 +22,8 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
+import io.jstach.rainbowgum.LogResponse.Status;
+import io.jstach.rainbowgum.LogStatusReporter.StatusEvent;
 import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.LogAppender.Appenders;
 
@@ -144,12 +147,13 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 			AtomicReference<@Nullable LogConfig> configRef) implements ExceptionHandler<Object> {
 
 		private void error(Throwable ex) {
+			MetaLog.error(DisruptorLogPublisher.class, ex);
 			var config = configRef.get();
 			if (config != null) {
-				MetaLog.error(config, DisruptorLogPublisher.class, ex);
-			}
-			else {
-				MetaLog.error(DisruptorLogPublisher.class, ex);
+				var status = Status.ofError(ex);
+				config.statusReporter()
+					.report(new StatusEvent(Instant.now(), DisruptorLogPublisher.class,
+							DisruptorLogPublisher.class.getName(), status));
 			}
 		}
 

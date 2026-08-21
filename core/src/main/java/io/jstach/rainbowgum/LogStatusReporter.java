@@ -6,26 +6,24 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Records a bounded history of {@link LogResponse.Status} events reported by
- * {@link MetaLog} and other components so that pull based health checks can see not just
- * whether the system is currently okay but how it has been degrading over time (for
- * example how many events have been dropped recently) rather than a single transient
- * {@link LogResponse.Status}.
+ * Records a bounded history of {@link LogResponse.Status} events so that pull based
+ * health checks can see not just whether the system is currently okay but how it has been
+ * degrading over time (for example how many events have been dropped recently) rather
+ * than a single transient {@link LogResponse.Status}.
  * <p>
  * The history is a fixed capacity, oldest-evicted-first buffer: once {@link #capacity()}
  * is reached the oldest {@link StatusEvent} is dropped to make room for the newest one.
  *
  * @apiNote This is currently an internal detail and not extension API.
- * @see MetaLog
  */
-public sealed interface LogStatusManager permits DefaultLogStatusManager {
+public sealed interface LogStatusReporter permits DefaultLogStatusReporter {
 
 	/**
 	 * Records a status event, possibly evicting the oldest recorded event if
 	 * {@link #capacity()} has been reached.
 	 * @param event event to record.
 	 */
-	public void add(StatusEvent event);
+	public void report(StatusEvent event);
 
 	/**
 	 * A snapshot of the currently retained events ordered oldest to newest.
@@ -41,12 +39,12 @@ public sealed interface LogStatusManager permits DefaultLogStatusManager {
 	public int capacity();
 
 	/**
-	 * Creates a status manager with the given capacity.
+	 * Creates a status reporter with the given capacity.
 	 * @param capacity maximum number of events to retain. Should be greater than zero.
-	 * @return status manager.
+	 * @return status reporter.
 	 */
-	static LogStatusManager of(int capacity) {
-		return new DefaultLogStatusManager(capacity);
+	static LogStatusReporter of(int capacity) {
+		return new DefaultLogStatusReporter(capacity);
 	}
 
 	/**
@@ -78,13 +76,13 @@ public sealed interface LogStatusManager permits DefaultLogStatusManager {
 
 }
 
-final class DefaultLogStatusManager implements LogStatusManager {
+final class DefaultLogStatusReporter implements LogStatusReporter {
 
 	private final int capacity;
 
-	private final ArrayDeque<LogStatusManager.StatusEvent> events;
+	private final ArrayDeque<LogStatusReporter.StatusEvent> events;
 
-	DefaultLogStatusManager(int capacity) {
+	DefaultLogStatusReporter(int capacity) {
 		if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity should be greater than 0");
 		}
@@ -93,7 +91,7 @@ final class DefaultLogStatusManager implements LogStatusManager {
 	}
 
 	@Override
-	public synchronized void add(LogStatusManager.StatusEvent event) {
+	public synchronized void report(LogStatusReporter.StatusEvent event) {
 		if (events.size() >= capacity) {
 			events.pollFirst();
 		}
@@ -101,7 +99,7 @@ final class DefaultLogStatusManager implements LogStatusManager {
 	}
 
 	@Override
-	public synchronized List<LogStatusManager.StatusEvent> recent() {
+	public synchronized List<LogStatusReporter.StatusEvent> recent() {
 		return List.copyOf(events);
 	}
 

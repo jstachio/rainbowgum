@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.publisher;
 
+import java.time.Instant;
 import java.util.AbstractCollection;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -12,6 +13,7 @@ import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
+import io.jstach.rainbowgum.LogStatusReporter.StatusEvent;
 import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.LogResponse.Status;
 
@@ -96,12 +98,13 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	}
 
 	private void error(Throwable e) {
+		MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
 		var c = config;
 		if (c != null) {
-			MetaLog.error(c, BlockingQueueAsyncLogPublisher.class, e);
-		}
-		else {
-			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+			var status = Status.ofError(e);
+			c.statusReporter()
+				.report(new StatusEvent(Instant.now(), BlockingQueueAsyncLogPublisher.class,
+						BlockingQueueAsyncLogPublisher.class.getName(), status));
 		}
 	}
 

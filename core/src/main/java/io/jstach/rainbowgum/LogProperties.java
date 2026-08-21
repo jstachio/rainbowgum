@@ -194,8 +194,9 @@ public interface LogProperties {
 	static final String GLOBAL_CHANGE_PROPERTY = ROOT_PREFIX + "global.change";
 
 	/**
-	 * The maximum number of {@link LogStatusManager.StatusEvent}s retained by
-	 * {@link LogConfig#statusManager()}. Oldest events are dropped once this is exceeded.
+	 * The maximum number of {@link LogStatusReporter.StatusEvent}s retained by
+	 * {@link LogConfig#statusReporter()}. Oldest events are dropped once this is
+	 * exceeded.
 	 */
 	static final String GLOBAL_STATUS_CAPACITY_PROPERTY = ROOT_PREFIX + "global.status.capacity";
 

@@ -81,11 +81,10 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	public ServiceRegistry serviceRegistry();
 
 	/**
-	 * A bounded history of status events (errors reported through {@link MetaLog} and
-	 * similar) for this configuration's Rainbow Gum instance.
-	 * @return status manager.
+	 * A bounded history of status events for this configuration's Rainbow Gum instance.
+	 * @return status reporter.
 	 */
-	public LogStatusManager statusManager();
+	public LogStatusReporter statusReporter();
 
 	/**
 	 * Mixin for config support.
@@ -426,7 +425,7 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogPublisherRegistry publisherRegistry;
 
-	private final LogStatusManager statusManager;
+	private final LogStatusReporter statusReporter;
 
 	static final int DEFAULT_STATUS_CAPACITY = 250;
 
@@ -449,7 +448,7 @@ final class DefaultLogConfig implements LogConfig {
 			.build(LogProperties.GLOBAL_STATUS_CAPACITY_PROPERTY)
 			.get(properties)
 			.value(DEFAULT_STATUS_CAPACITY);
-		this.statusManager = LogStatusManager.of(statusCapacity);
+		this.statusReporter = LogStatusReporter.of(statusCapacity);
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {
@@ -503,8 +502,8 @@ final class DefaultLogConfig implements LogConfig {
 	}
 
 	@Override
-	public LogStatusManager statusManager() {
-		return this.statusManager;
+	public LogStatusReporter statusReporter() {
+		return this.statusReporter;
 	}
 
 }
