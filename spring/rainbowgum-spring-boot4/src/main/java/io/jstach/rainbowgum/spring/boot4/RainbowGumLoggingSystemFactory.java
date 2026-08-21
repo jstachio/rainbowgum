@@ -211,7 +211,6 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 		@Override
 		public Runnable getShutdownHandler() {
-			// TODO Auto-generated method stub
 			return super.getShutdownHandler();
 		}
 
@@ -222,19 +221,16 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 		@Override
 		public void setLogLevel(String loggerName, LogLevel level) {
-			// TODO Auto-generated method stub
 			super.setLogLevel(loggerName, level);
 		}
 
 		@Override
 		public List<LoggerConfiguration> getLoggerConfigurations() {
-			// TODO Auto-generated method stub
 			return super.getLoggerConfigurations();
 		}
 
 		@Override
 		public LoggerConfiguration getLoggerConfiguration(String loggerName) {
-			// TODO Auto-generated method stub
 			return super.getLoggerConfiguration(loggerName);
 		}
 
