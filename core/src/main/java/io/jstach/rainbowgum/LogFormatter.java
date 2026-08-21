@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
@@ -154,6 +155,46 @@ public sealed interface LogFormatter {
 		public String toString() {
 			return "STATIC['" + content + "']";
 		}
+	}
+
+	/**
+	 * Controls how a <code>null</code> key value is handled by formatters that print a
+	 * <strong>selected</strong> subset of keys (e.g.
+	 * {@link Builder#encodedKeyValues(List, KeyValueNullStrategy)}), as opposed to
+	 * formatters that print whatever the underlying {@link KeyValues} actually contains
+	 * (e.g. {@link Builder#encodedKeyValues()}), which always {@link #KEEP} the
+	 * <code>null</code>/empty-string distinction since they have no "selection" step to
+	 * apply a strategy to.
+	 * <p>
+	 * A selected key is treated identically whether it is missing from the
+	 * {@link KeyValues} entirely or present but mapped to <code>null</code> -
+	 * {@link KeyValues#getValueOrNull(String)} cannot tell those two cases apart, so
+	 * neither can this.
+	 */
+	@CaseChanging
+	public enum KeyValueNullStrategy {
+
+		/**
+		 * The key is omitted entirely (no key, no <code>=</code>) if its value is
+		 * <code>null</code>. This is the default, and matches
+		 * {@link Builder#encodedKeyValues(List)}'s original (pre-strategy) behavior.
+		 */
+		SKIP,
+		/**
+		 * A <code>null</code> value is normalized to an empty string, so the key is
+		 * always printed as <code>key=</code> (with nothing after the <code>=</code>)
+		 * regardless of whether the underlying value was <code>null</code> or actually an
+		 * empty string.
+		 */
+		EMPTY,
+		/**
+		 * The <code>null</code>/empty-string distinction is preserved: a
+		 * <code>null</code> value prints just the key with no <code>=</code>, while an
+		 * empty string prints <code>key=</code>. This is the same behavior as
+		 * {@link Builder#encodedKeyValues()}.
+		 */
+		KEEP;
+
 	}
 
 	/**
@@ -301,8 +342,9 @@ public sealed interface LogFormatter {
 		 * percent encoding (RFC 3986 URI aka the format usually used in
 		 * {@link URI#getQuery()}). Keys that are mapped to <code>null</code> will only
 		 * have the key printed and no separating equal sign (<code>=</code>). This is to
-		 * differentiate empty string and <code>null</code>. For Logback's <code>%X</code>
-		 * style instead, see {@link #keyValues()}.
+		 * differentiate empty string and <code>null</code> - the same behavior as
+		 * {@link KeyValueNullStrategy#KEEP}. For Logback's <code>%X</code> style instead,
+		 * see {@link #keyValues()}.
 		 * @return formatter.
 		 */
 		public Builder encodedKeyValues() {
@@ -312,18 +354,38 @@ public sealed interface LogFormatter {
 		/**
 		 * Creates a formatter that will print the key values in order of the passed in
 		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
-		 * used in {@link URI#getQuery()}). <strong>An empty list is considered a noop and
-		 * no keys will be ommitted!</strong> If you want to all keys use
-		 * {@link #encodedKeyValues()}. For Logback's <code>%X</code> style instead, see
-		 * {@link #keyValues(List)}.
+		 * used in {@link URI#getQuery()}), omitting a key entirely if its value is
+		 * <code>null</code> ({@link KeyValueNullStrategy#SKIP}). <strong>An empty
+		 * {@code keys} list is a noop - no formatter is added at all.</strong> If you
+		 * want all keys use {@link #encodedKeyValues()}. For Logback's <code>%X</code>
+		 * style instead, see {@link #keyValues(List)}.
 		 * @param keys keys where order is important.
 		 * @return this.
+		 * @see #encodedKeyValues(List, KeyValueNullStrategy)
 		 */
 		public Builder encodedKeyValues(List<String> keys) {
+			return encodedKeyValues(keys, KeyValueNullStrategy.SKIP);
+		}
+
+		/**
+		 * Creates a formatter that will print the key values in order of the passed in
+		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
+		 * used in {@link URI#getQuery()}), handling keys whose value is <code>null</code>
+		 * (or simply absent - the two are indistinguishable, see
+		 * {@link KeyValueNullStrategy}) according to <code>nullStrategy</code>.
+		 * <strong>An empty {@code keys} list is a noop - no formatter is added at
+		 * all.</strong> If you want all keys use {@link #encodedKeyValues()}. For
+		 * Logback's <code>%X</code> style instead, see {@link #keyValues(List)}.
+		 * @param keys keys where order is important.
+		 * @param nullStrategy how to handle a key whose value is <code>null</code> or
+		 * absent.
+		 * @return this.
+		 */
+		public Builder encodedKeyValues(List<String> keys, KeyValueNullStrategy nullStrategy) {
 			if (keys.isEmpty()) {
 				return this;
 			}
-			return add(new ListKeyValuesFormatter(keys));
+			return add(new SelectedEncodedKeyValuesFormatter(keys, nullStrategy));
 		}
 
 		/**
@@ -1339,14 +1401,17 @@ enum DefaultKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<String
 
 }
 
-final class ListKeyValuesFormatter implements LogFormatter {
+final class SelectedEncodedKeyValuesFormatter implements LogFormatter {
 
 	private final String[] keys;
 
+	private final KeyValueNullStrategy nullStrategy;
+
 	@SuppressWarnings("nullness")
-	ListKeyValuesFormatter(List<String> keys) {
+	SelectedEncodedKeyValuesFormatter(List<String> keys, KeyValueNullStrategy nullStrategy) {
 		var ks = List.copyOf(keys);
 		this.keys = ks.toArray(new String[] {});
+		this.nullStrategy = nullStrategy;
 	}
 
 	@Override
@@ -1358,9 +1423,18 @@ final class ListKeyValuesFormatter implements LogFormatter {
 	void formatKeyValues(StringBuilder output, KeyValues keyValues) {
 		boolean first = true;
 		for (String k : keys) {
+			@Nullable
 			String v = keyValues.getValueOrNull(k);
 			if (v == null) {
-				continue;
+				switch (nullStrategy) {
+					case SKIP -> {
+						continue;
+					}
+					case EMPTY -> v = "";
+					case KEEP -> {
+						/* leave v null - formatKeyValue will print the key only. */
+					}
+				}
 			}
 			if (first) {
 				first = false;
