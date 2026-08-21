@@ -453,20 +453,19 @@ class LogFormatterTest {
 	}
 
 	@Test
-	void testEncodedKeyValuesListDefaultStrategyIsSkipOmittingAbsentOrExplicitlyNullKeys() {
+	void testEncodedKeyValuesListDefaultStrategyIsKeepPrintingAbsentOrExplicitlyNullKeysAlone() {
 		StringBuilder sb = new StringBuilder();
 		// "missing" is never added at all; "explicitNull" is added but mapped to null -
 		// getValueOrNull() can't tell these apart, so SelectedEncodedKeyValuesFormatter's
-		// default SKIP strategy (unlike DefaultKeyValuesFormatter's key-only-no-equals
-		// handling of forEach, which always sees the real entries) omits both the same
-		// way.
+		// default KEEP strategy prints both as a bare key (no "="), matching
+		// DefaultKeyValuesFormatter's key-only-no-equals handling of a real null entry.
 		var kvs = KeyValues.MutableKeyValues.of().add("present", "v").add("explicitNull", null);
 		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
 		LogFormatter.builder()
 			.encodedKeyValues(List.of("missing", "present", "explicitNull"))
 			.build()
 			.format(sb, event);
-		assertEquals("present=v", sb.toString());
+		assertEquals("missing&present=v&explicitNull", sb.toString());
 	}
 
 	@Test
