@@ -145,10 +145,10 @@ class ForwardingOutputTest {
 		var event = TestEventBuilder.of().build(b -> b.message("hello"));
 
 		/*
-		 * LogOutput's default write(LogEvent, ByteBuffer, ContentType) sizes the array
-		 * off buf.position() (expecting a just-written-into, not-yet-flipped buffer)
-		 * rather than buf.remaining(), so the buffer must be built with put(), not
-		 * wrap().
+		 * LogOutput's default write(LogEvent, ByteBuffer, ContentType) expects a buffer
+		 * ready for reading (position at content start, limit at content end) - the
+		 * standard java.nio idiom. ByteBuffer.wrap(byte[]) already produces one in that
+		 * state.
 		 */
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(event, freshByteBuffer(),
 				LogOutput.ContentType.StandardContentType.TEXT_PLAIN));
@@ -160,9 +160,7 @@ class ForwardingOutputTest {
 	}
 
 	private static ByteBuffer freshByteBuffer() {
-		ByteBuffer buf = ByteBuffer.allocate(5);
-		buf.put("hello".getBytes(StandardCharsets.UTF_8));
-		return buf;
+		return ByteBuffer.wrap("hello".getBytes(StandardCharsets.UTF_8));
 	}
 
 	static class TestForwardingOutput implements ForwardingOutput {
