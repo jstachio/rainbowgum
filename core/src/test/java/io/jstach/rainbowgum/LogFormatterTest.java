@@ -442,4 +442,67 @@ class LogFormatterTest {
 		assertEquals("custom", sb.toString());
 	}
 
+	@Test
+	void testEncodedKeyValuesListFiltersToRequestedKeysInRequestedOrder() {
+		StringBuilder sb = new StringBuilder();
+		var kvs = KeyValues.MutableKeyValues.of().add("a", "1").add("b", "2").add("c", "3");
+		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		// requested order (c, a) differs from insertion order (a, b, c); "b" is omitted.
+		LogFormatter.builder().encodedKeyValues(List.of("c", "a")).build().format(sb, event);
+		assertEquals("c=3&a=1", sb.toString());
+	}
+
+	@Test
+	void testEncodedKeyValuesListOmitsKeysThatAreAbsentOrExplicitlyNull() {
+		StringBuilder sb = new StringBuilder();
+		// "missing" is never added at all; "explicitNull" is added but mapped to null -
+		// getValueOrNull() can't tell these apart, so ListKeyValuesFormatter (unlike
+		// DefaultKeyValuesFormatter's key-only-no-equals handling of forEach) skips both.
+		var kvs = KeyValues.MutableKeyValues.of().add("present", "v").add("explicitNull", null);
+		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		LogFormatter.builder()
+			.encodedKeyValues(List.of("missing", "present", "explicitNull"))
+			.build()
+			.format(sb, event);
+		assertEquals("present=v", sb.toString());
+	}
+
+	@Test
+	void testEncodedKeyValuesEmptyListIsNoop() {
+		StringBuilder sb = new StringBuilder();
+		var event = TestEventBuilder.of().build();
+		LogFormatter.builder().text("before:").encodedKeyValues(List.of()).text(":after").build().format(sb, event);
+		assertEquals("before::after", sb.toString());
+	}
+
+	@Test
+	void testBuilderTimeStampWithDateTimeFormatterUsesGivenFormatter() {
+		StringBuilder sb = new StringBuilder();
+		Instant instant = Instant.parse("2023-11-14T22:13:20.100Z");
+		var event = TestEventBuilder.of().build(b -> b.timestamp(instant));
+		LogFormatter.builder().timeStamp(DateTimeFormatter.ISO_INSTANT).build().format(sb, event);
+		assertEquals(DateTimeFormatter.ISO_INSTANT.format(instant), sb.toString());
+	}
+
+	@Test
+	void testBuilderThrowableWithCustomFormatterUsesThatFormatterNotTheDefault() {
+		var t = new RuntimeException("boom");
+		t.setStackTrace(new StackTraceElement[] { frame("a", 1), frame("b", 2), frame("c", 3) });
+		var event = TestEventBuilder.of().build(b -> b.throwable(t));
+		var custom = ThrowableFormatter.builder().maxLines(1).build();
+
+		StringBuilder sb = new StringBuilder();
+		LogFormatter.builder().throwable(custom).build().format(sb, event);
+		String[] customLines = lines(sb.toString());
+
+		StringBuilder defaultSb = new StringBuilder();
+		LogFormatter.builder().throwable().build().format(defaultSb, event);
+		String[] defaultLines = lines(defaultSb.toString());
+
+		assertEquals(3, customLines.length, "custom maxLines(1) formatter should truncate to header + 1 frame + note");
+		assertTrue(customLines[2].contains("truncated"));
+		assertTrue(defaultLines.length > customLines.length,
+				"default .throwable() should print the full stack, proving the custom formatter (not the default) was used above");
+	}
+
 }
