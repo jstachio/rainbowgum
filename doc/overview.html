@@ -780,10 +780,14 @@ far less overhead. The builtin keywords are listed in
 <strong>The pattern module is pulled in by default with the aggregate rainbow gum dependency</strong> and is
 already the default encoder for console output.
 <p>
-  <strong>NOTE:</strong> <em>If you plan on using the <strong>color </strong> pattern keywords it is generally a good idea (for now) to use
-    the {@link io.jstach.rainbowgum.jansi/ } module which is covered next.</em> Regardless ANSI escape can be
-    globally disabled by setting {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} to
-    <code>true</code> which will disable Jansi and the <em>default</em> pattern formatter from omitting ANSI escape sequences.
+  <strong>NOTE:</strong> <em>The <strong>color</strong> pattern keywords work out of the box with no extra module.</em>
+    Rainbow Gum detects whether the process is attached to an ANSI capable terminal using only
+    {@link java.lang.System#console()} and well known environment variables ({@code NO_COLOR}, {@code TERM}) - see
+    {@link io.jstach.rainbowgum.format.AnsiSupport} - and simply does not emit ANSI escape sequences when it is not.
+    The separate JAnsi module <a href="#jansi">covered below</a> is no longer generally needed; it is now largely a
+    legacy option for a handful of edge cases. ANSI escape can also be globally disabled by setting
+    {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} to <code>true</code>, which disables
+    both the <em>default</em> pattern formatter's ANSI output and JAnsi if that module is in use.
 </p>
 
 <h4 id="pattern_encoder_config">Selecting and Configuring the Pattern Encoder</h4>
@@ -833,35 +837,49 @@ can instead be set programmatically as a single default shared by every encoder 
 property configuration. Both - with full code examples - are covered in the
 {@link io.jstach.rainbowgum.pattern/ } module javadoc.
 
-<h3 id="jansi">JAnsi support</h3>
+<h3 id="jansi">JAnsi support (largely legacy)</h3>
 <p>
-  Rainbow Gum also has support for proper cross platform {@linkplain io.jstach.rainbowgum.jansi/ ANSI output with JAnsi through an optional module}.
-  Unlike other frameworks where this is detected with reflection Rainbow Gum uses the
-  Service Loader which is GraalVM native friendly.
+  Rainbow Gum still has an optional {@linkplain io.jstach.rainbowgum.jansi/ JAnsi module} for cross platform ANSI
+  output, but it is <strong>essentially deprecated</strong> and should not be needed by most users. It predates
+  {@link io.jstach.rainbowgum.format.AnsiSupport}, the JDK-native ANSI detection <a href="#pattern">the pattern
+  module now uses by default</a>, and its original reasons for existing have mostly gone away:
 </p>
-  <strong>Why is JAnsi desirable?</strong>
   <ul>
-    <li>Support stripping ANSI characters on piping out which is desirable if you only use the console for output which
-      is often the case for kubernetes and other microservices.
+    <li>
+      <strong>Windows.</strong> JAnsi's original purpose was translating ANSI escapes into Win32 console calls for
+      the legacy Windows console, which did not understand ANSI at all. Modern Windows terminals (Windows 10+,
+      Windows Terminal) support ANSI/VT sequences natively, so this is largely a non-issue today.
     </li>
     <li>
-      Windows color output support.
+      <strong>Stripping ANSI on piping/redirection.</strong> JAnsi works by wrapping <code>System.out</code>/
+      <code>System.err</code> and stripping escape sequences at write time when it decides the destination is not a
+      real terminal - which requires JAnsi to correctly detect that in the first place. <code>AnsiSupport</code>
+      instead decides once, using {@link java.lang.System#console()}, whether to emit ANSI escapes <em>at all</em>,
+      which is both simpler and does not depend on a terminal-detection library getting it right. This matters
+      because terminal detection is a genuinely hard problem in practice: for example JLine's terminal detection -
+      used by a number of other tools for the same purpose - is known to not correctly detect piped/redirected
+      output in some cases, emitting escape codes into a pipe it should have recognized as non-interactive.
     </li>
   </ul>
 <p>
   <strong>NOTE:</strong>
   <em>
     <a href="https://openjdk.org/jeps/8307341">Future versions of the JDK may require command line arguments</a>
-    for using jars packaged with native libraries. Given that Rainbow Gum favors security
-    we strongly agree with the draft JEP and are exploring other options for the future.
+    for using jars packaged with native libraries, which JAnsi is. Given that Rainbow Gum favors security we
+    strongly agree with the draft JEP - this is one more reason <code>AnsiSupport</code>'s pure-JDK approach (no
+    native code, no reflection, no separate terminal library) is now the preferred path.
   </em>
 </p>
 Jansi can be disabled with {@value io.jstach.rainbowgum.jansi.JAnsiConfigurator#JANSI_DISABLE}
 or {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} boolean properties.
 <p>
-  A major reason to disable Jansi is because it may <em>accidentally strip ANSI escape characters for terminals that
+  A further reason to avoid Jansi is that it may <em>accidentally strip ANSI escape characters for terminals that
   do support ANSI but Jansi cannot determine they do</em>. The most notable case of this problem are IDE terminals/consoles particularly
   <a href="https://youtrack.jetbrains.com/issue/IDEA-132822"><strong>IntelliJ's</strong></a>.
+</p>
+<p>
+  The module is kept around for the remaining edge cases where its Win32 console translation is still relevant
+  (e.g. genuinely legacy Windows environments), but new users should not need to add it.
 </p>
 
 <h2 id="outputs">Outputs</h2>
