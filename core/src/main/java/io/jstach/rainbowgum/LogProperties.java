@@ -342,6 +342,17 @@ public interface LogProperties {
 	 * as a list using {@link LogProperties#parseList(String)} but custom implementations
 	 * may rely on their own parsing or the data type is built-in to the backing
 	 * configuration system.
+	 * <p>
+	 * The default format is a single property value that is comma or ampersand separated
+	 * and percent-encoded (<a href=
+	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
+	 * application/x-www-form-urlencoded</a>) for entries needing to contain the separator
+	 * or an equals sign, for example: <pre><code>
+	 * logging.appenders=console,file
+	 * </code></pre> resolves to <code>["console", "file"]</code>, and: <pre><code>
+	 * logging.appenders=one%20two,three%2Cfour
+	 * </code></pre> (a space and an escaped comma) resolves to
+	 * <code>["one two", "three,four"]</code>.
 	 * @param key property name.
 	 * @return list or <code>null</code>.
 	 * @apiNote the reason empty list is not returned for missing key is that it creates
@@ -361,6 +372,18 @@ public interface LogProperties {
 	 * as map using {@link LogProperties#parseMap(String)} but custom implementations may
 	 * rely on their own parsing or the data type is built-in to the backing configuration
 	 * system.
+	 * <p>
+	 * The default format is a single property value that is comma or ampersand separated
+	 * <code>key=value</code> pairs, percent-encoded (<a href=
+	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
+	 * application/x-www-form-urlencoded</a>) for entries needing to contain the separator
+	 * or an equals sign, for example: <pre><code>
+	 * logging.encoder.gelf.headers=environment=prod,region=us-east
+	 * </code></pre> resolves to
+	 * <code>{"environment": "prod", "region": "us-east"}</code>, and: <pre><code>
+	 * logging.encoder.gelf.headers=region=us%20east
+	 * </code></pre> (a percent-encoded space) resolves to
+	 * <code>{"region": "us east"}</code>.
 	 * @param key property name.
 	 * @return map or <code>null</code>.
 	 * @apiNote the reason empty map is not returned for missing key is that it creates

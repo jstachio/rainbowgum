@@ -127,8 +127,8 @@ record BuilderModel( //
 				case STRING_TYPE -> "String";
 				case URI_TYPE -> "URI";
 				case BOOLEAN_TYPE -> "Boolean";
-				case MAP_TYPE -> "Map&lt;String,String&gt;";
-				case LIST_TYPE -> "List&lt;String&gt;";
+				case MAP_TYPE -> "{@link LogProperties#mapOrNull(String) Map&lt;String,String&gt;}";
+				case LIST_TYPE -> "{@link LogProperties#listOrNull(String) List&lt;String&gt;}";
 				default -> "String (converted)";
 			};
 		}
