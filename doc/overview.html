@@ -905,8 +905,23 @@ the URI should be prefixed with <code>./</code>.
 
 The reason is that Rainbow Gum will think <code>app.log</code> is a URI scheme if it is not prefixed.
 Of course fully qualified file URI are supported as well like: <code>file:///./app.log</code>.
+<p>
 For Spring Boot compatibility {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} is also supported
-if custom routers and appenders are not configured.
+if custom routers and appenders are not configured. Unlike the generic <code>output</code> property above,
+{@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} is <strong>not</strong> subject to the <code>./</code>
+caveat - since it is documented to always be a file path (never a URI scheme reference) Rainbow Gum resolves
+it as one directly, so both of the following work as expected without needing a <code>./</code> prefix:
+</p>
+
+{@snippet lang=properties :
+logging.file.name=app.log
+}
+
+{@snippet lang=properties :
+logging.file.name=logs/app.log
+}
+
+An explicit file URI such as <code>file:///./app.log</code> is still honored as-is.
 
 <p>
 Here are some of the supported outputs (not a complete listing):
