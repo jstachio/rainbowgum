@@ -91,20 +91,6 @@ final class CallerInfoEventDecorator implements LogEventHandler {
 		handle(eventArray(level, format, args), caller);
 	}
 
-	// private static LogEvent addCallerInfo(LogEvent e, int depth) {
-	// var found = caller(depth);
-	// if (found != null) {
-	// return LogEvent.withCaller(e, found);
-	// }
-	// return e;
-	// }
-	//
-	// private static @Nullable Caller caller(int depth) {
-	// return stackWalker.walk(s -> s.skip(depth).limit(1).map(f ->
-	// Caller.of(f)).findFirst().orElse(null));
-	//
-	// }
-
 	@Override
 	public String toString() {
 		return "CallerInfoEventDecorator [depth=" + depth + ", logger=" + logger + "]";
