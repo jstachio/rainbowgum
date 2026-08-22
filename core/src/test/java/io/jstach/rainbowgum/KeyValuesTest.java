@@ -66,6 +66,15 @@ class KeyValuesTest {
 
 	}
 
+	@Test
+	void testImmutableOf() throws Exception {
+		var kvs = KeyValues.of(Map.of("A", "a"));
+		assertInstanceOf(ImmutableArrayKeyValues.class, kvs);
+		kvs = KeyValues.of(Map.of());
+		assertSame(KeyValues.of(), kvs);
+		assertFalse(kvs instanceof ArrayKeyValues, "Should not be mutable array key values");
+	}
+
 	KeyValues create(String k1, String v1, String k2, String v2) {
 		var m = new LinkedHashMap<String, String>();
 		m.put(k1, v1);

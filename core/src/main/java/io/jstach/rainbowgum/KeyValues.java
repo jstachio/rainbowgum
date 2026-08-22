@@ -141,13 +141,16 @@ public sealed interface KeyValues {
 	 * Creates an immutable key values by copying a Map.
 	 * @param m map.
 	 * @return immutable key values.
-	 * @apiNote Be careful when use {@link Map#of()} as its order is non deterministic and
-	 * thus the resulting key values may not be in the order you expect.
+	 * @apiNote Be careful when use {@link Map#of()} as its order is non deterministic
+	 * because most map implementations are and thus the resulting key values may not be
+	 * in the order you expect.
 	 */
 	public static KeyValues of(Map<String, String> m) {
+		if (m.isEmpty())
+			return of();
 		ArrayKeyValues mdc = new ArrayKeyValues(m.size());
 		mdc.putAll(m);
-		return mdc;
+		return mdc.freeze();
 	}
 
 	/**
