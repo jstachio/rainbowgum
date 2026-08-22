@@ -60,12 +60,14 @@ public class FullConfigurationExample implements RainbowGumProvider {
 			.route("errors", r -> {
 				r.level(Level.ERROR);
 				r.appender("errorfile", a -> {
+					// Appenders flush after every event by default (see
+					// AppenderFlag#DISABLE_IMMEDIATE_FLUSH), so no flag is needed
+					// here to get synchronous, unbuffered error writes.
 					a.output(new FileOutputBuilder("errorfile").fileName("./logs/orders-error.log").build());
 					a.encoder(new PatternEncoderBuilder("errorfile")
 						.pattern("%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n%ex")
 						.fromProperties(config.properties())
 						.build());
-					a.flags(EnumSet.of(AppenderFlag.IMMEDIATE_FLUSH));
 				});
 			});
 		// @end
