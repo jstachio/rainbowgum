@@ -1,9 +1,11 @@
 package io.jstach.rainbowgum.pattern.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.Instant;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -34,6 +36,15 @@ class PatternConfiguratorTest {
 			String actual = test.actual(config);
 			assertEquals(test.expected, actual);
 		}
+	}
+
+	@Test
+	void testConvertSequenceNumberStartOfNullIsNull() {
+		// The property pipeline never actually calls this with null (map() only
+		// invokes the conversion function on a successfully found String), but the
+		// method is defensively typed to accept null like its convertZoneId sibling,
+		// so it is tested directly here for completeness.
+		assertNull(PatternConfigurator.convertSequenceNumberStart(null));
 	}
 
 	enum _Test {
@@ -87,6 +98,28 @@ class PatternConfiguratorTest {
 								(c, n) -> LogFormatter.builder().text("blah").build());
 					}
 				});
+			}
+		},
+		/*
+		 * Exercises PatternConfigurator.convertSequenceNumberStart(String), which is only
+		 * invoked when the sequenceNumberStart property is actually present as a String
+		 * (CompilerTest's LOCAL_SEQUENCE_NUMBER_START case sets it via the builder
+		 * directly, bypassing property string conversion entirely).
+		 */
+		SEQUENCE_NUMBER_START_FROM_PROPERTY("""
+				5
+				6
+				7
+				""") {
+			@Override
+			String properties() {
+				return """
+						logging.appenders=list
+						logging.appender.list.output=list
+						logging.appender.list.encoder=pattern
+						logging.pattern.config.list.sequenceNumberStart=5
+						logging.encoder.list.pattern=%lsn%n
+						""";
 			}
 		},
 		/*
