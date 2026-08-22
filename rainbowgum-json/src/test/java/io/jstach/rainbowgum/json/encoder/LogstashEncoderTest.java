@@ -91,6 +91,42 @@ class LogstashEncoderTest {
 				e.getMessage());
 	}
 
+	/*
+	 * testMalformedZoneIdReportsErrorViaAddIfError above always fails before reaching
+	 * LogstashEncoderProvider.provide(ref)'s build() call, so the *successful* path
+	 * through the real ServiceLoader-registered URI-scheme resolution
+	 * (LogstashEncoderConfigurator -> LogstashEncoderProvider) was still only 47%
+	 * covered. This exercises it end to end, mirroring GelfEncoderTest/EcsEncoderTest's
+	 * testFullLoadUri.
+	 */
+	@Test
+	void testFullLoadUri() throws Exception {
+		String properties = """
+				logging.appenders=list
+				logging.appender.list.output=list:///
+				logging.appender.list.encoder=logstash:///?prettyPrint=true
+				logging.encoder.list.zoneId=UTC
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new LogstashEncoderConfigurator())
+			.build();
+		try (var r = RainbowGum.builder(config).build().start()) {
+			Instant instant = Instant.ofEpochMilli(1);
+			r.router()
+				.eventBuilder("logstash", System.Logger.Level.INFO)
+				.message("hello")
+				.threadId(1)
+				.timestamp(instant)
+				.log();
+			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
+			String actual = output.events().get(0).getValue();
+			assertTrue(actual.startsWith("{\n "),
+					"expected pretty-printed output from ?prettyPrint=true, got: " + actual);
+			assertTrue(actual.contains("\"message\":\"hello\""), "Got: " + actual);
+		}
+	}
+
 	@Test
 	void testMdcIsFlattenedTopLevel() throws Exception {
 		var config = LogConfig.builder().build();
