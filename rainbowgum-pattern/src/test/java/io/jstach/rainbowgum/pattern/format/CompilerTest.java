@@ -84,6 +84,7 @@ class CompilerTest {
 	enum PatternTest {
 
 		BARE("%BARE", ""), //
+		BARE_WITH_CHILD("%BARE(hello)", "hello"), //
 		DATE(List.of("%d", "%date"), "1970-01-01 00:00:00,000") {
 			@Override
 			protected void assertFormatter(LogFormatter formatter) {
@@ -95,6 +96,16 @@ class CompilerTest {
 			protected void assertFormatter(LogFormatter formatter) {
 				assertInstanceOf(TimestampFormatter.class, formatter);
 			}
+		},
+		DATE_ISO8601_LITERAL("%date{ISO8601}", "1970-01-01 00:00:00,000") {
+		},
+		/*
+		 * Third option is a locale - "MMM" renders the month abbreviation, which differs
+		 * by locale (unlike the numeric-only patterns the other DATE tests use), so this
+		 * is the only way to prove the locale option is actually wired up rather than
+		 * silently ignored.
+		 */
+		DATE_WITH_LOCALE("%date{MMM, UTC, fr-FR}", "janv.") {
 		},
 		MICROS(List.of("%ms", "%micros"), "000") {
 			@Override
@@ -136,6 +147,12 @@ class CompilerTest {
 				return LogEvent.withCaller(super.event(), caller);
 			}
 		},
+		/*
+		 * Uses the default event(), which has no caller info at all - confirms
+		 * CallerInfoFormatter is a noop rather than throwing when info is absent.
+		 */
+		LINE_WITHOUT_CALLER_INFO("%L", "") {
+		},
 		CLASS(List.of("%C", "%class"), CompilerTest.class.getName()) {
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);
@@ -159,6 +176,52 @@ class CompilerTest {
 					.build();
 			}
 		},
+		// default patternConfig()'s propertyFunction never has a value for any key.
+		PROPERTY_MISSING("%property{missingKey}", "") {
+		},
+		/*
+		 * Padding a keyword whose formatter turns out to be a plain, event-independent
+		 * StaticFormatter (a fixed property value here) takes a different, precomputed
+		 * path in PadFormatter.of than padding something dynamic like a logger name.
+		 */
+		PROPERTY_PADDED_IS_PRECOMPUTED_STATIC("%10property{mykey}", "     hello") {
+			@Override
+			protected PatternConfig patternConfig() {
+				Map<String, String> props = Map.of("mykey", "hello");
+				return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal())
+					.propertyFunction(props::get)
+					.build();
+			}
+
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				assertInstanceOf(LogFormatter.StaticFormatter.class, formatter);
+			}
+		},
+		// Spring Boot's %esb - bare, no key at all.
+		ESB_NO_KEY("%esb", "") {
+		},
+		// key given but patternConfig()'s propertyFunction has no value for it.
+		ESB_MISSING_VALUE("%esb{missingKey}", "") {
+		},
+		ESB_EMPTY_VALUE("%esb{emptyKey}", "") {
+			@Override
+			protected PatternConfig patternConfig() {
+				Map<String, String> props = Map.of("emptyKey", "");
+				return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal())
+					.propertyFunction(props::get)
+					.build();
+			}
+		},
+		ESB_WITH_VALUE("%esb{mykey}", "[hello]") {
+			@Override
+			protected PatternConfig patternConfig() {
+				Map<String, String> props = Map.of("mykey", "hello");
+				return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal())
+					.propertyFunction(props::get)
+					.build();
+			}
+		},
 		THREAD(List.of("%t", "%thread"), "main") {
 		},
 		LEVEL(List.of("%level", "%le", "%p"), "INFO") {
@@ -170,6 +233,9 @@ class CompilerTest {
 		MDC(List.of("%X", "%mdc"), "k1=v1, k2=v2") {
 		},
 		MDC_KEY(List.of("%X{k2}", "%mdc{k2}"), "v2") {
+		},
+		// Logback's %X{key:-fallback} default-value syntax, for a key that is absent.
+		MDC_FALLBACK("%X{missing:-none}", "none") {
 		},
 		ENCODED_MDC(List.of("%encodedMdc"), "k1=v1&k2=v2") {
 		},
@@ -455,6 +521,99 @@ class CompilerTest {
 				return Level.ERROR;
 			}
 
+			@Override
+			protected PatternConfig patternConfig() {
+				return PatternConfig.ofUniversal();
+			}
+		},
+		// Bare, no parens/child at all - just the ANSI wrap around nothing.
+		HIGHLIGHT_NO_CHILD("%highlight", ANSIConstants.ESC_START + ANSIConstants.BLUE_FG + ANSIConstants.ESC_END
+				+ ANSIConstants.SET_DEFAULT_COLOR) {
+		},
+		// ansiDisabled + no child at all: noop, same as CLR_ANSI_DISABLED_NO_CHILD.
+		HIGHLIGHT_ANSI_DISABLED_NO_CHILD("%highlight", "") {
+			@Override
+			protected PatternConfig patternConfig() {
+				return PatternConfig.ofUniversal();
+			}
+		},
+		// DEBUG/TRACE/ALL/OFF all fall through HighlightFormatter's levelToANSI default.
+		HIGHLIGHT_DEBUG_LEVEL("%highlight(%level)", ANSIConstants.ESC_START + ANSIConstants.DEFAULT_FG
+				+ ANSIConstants.ESC_END + "DEBUG" + ANSIConstants.SET_DEFAULT_COLOR) {
+			@Override
+			protected Level level() {
+				return Level.DEBUG;
+			}
+		},
+		// Bare color keyword, no child at all - just the ANSI wrap around nothing.
+		COLOR_BARE_NO_CHILD("%red", ANSIConstants.ESC_START + ANSIConstants.RED_FG + ANSIConstants.ESC_END
+				+ ANSIConstants.SET_DEFAULT_COLOR) {
+		},
+		// Spring Boot's %clr with no color option: level-based coloring (ERROR/red).
+		CLR_LEVEL_ERROR("%clr(%level)", ANSIConstants.ESC_START + ANSIConstants.RED_FG + ANSIConstants.ESC_END + "ERROR"
+				+ ANSIConstants.SET_DEFAULT_COLOR) {
+			@Override
+			protected Level level() {
+				return Level.ERROR;
+			}
+		},
+		CLR_LEVEL_WARNING("%clr(%level)", ANSIConstants.ESC_START + ANSIConstants.YELLOW_FG + ANSIConstants.ESC_END
+				+ "WARN" + ANSIConstants.SET_DEFAULT_COLOR) {
+			@Override
+			protected Level level() {
+				return Level.WARNING;
+			}
+		},
+		CLR_LEVEL_INFO("%clr(%level)", ANSIConstants.ESC_START + ANSIConstants.GREEN_FG + ANSIConstants.ESC_END + "INFO"
+				+ ANSIConstants.SET_DEFAULT_COLOR) {
+		},
+		CLR_LEVEL_DEBUG("%clr(%level)", ANSIConstants.ESC_START + ANSIConstants.GREEN_FG + ANSIConstants.ESC_END
+				+ "DEBUG" + ANSIConstants.SET_DEFAULT_COLOR) {
+			@Override
+			protected Level level() {
+				return Level.DEBUG;
+			}
+		},
+		CLR_LEVEL_TRACE("%clr(%level)", ANSIConstants.ESC_START + ANSIConstants.GREEN_FG + ANSIConstants.ESC_END
+				+ "TRACE" + ANSIConstants.SET_DEFAULT_COLOR) {
+			@Override
+			protected Level level() {
+				return Level.TRACE;
+			}
+		},
+		/*
+		 * ALL/OFF are not realistic event levels but exercise levelToANSI's default arm -
+		 * the %level formatter itself renders Level.ALL's text as "TRACE", which is
+		 * unrelated to (and doesn't affect) which color branch this is testing.
+		 */
+		CLR_LEVEL_DEFAULT_BRANCH("%clr(%level)", ANSIConstants.ESC_START + ANSIConstants.DEFAULT_FG
+				+ ANSIConstants.ESC_END + "TRACE" + ANSIConstants.SET_DEFAULT_COLOR) {
+			@Override
+			protected Level level() {
+				return Level.ALL;
+			}
+		},
+		// Bare %clr, no parens/option - level-based color around nothing.
+		CLR_NO_CHILD("%clr", ANSIConstants.ESC_START + ANSIConstants.GREEN_FG + ANSIConstants.ESC_END
+				+ ANSIConstants.SET_DEFAULT_COLOR) {
+		},
+		// Explicit color option overrides the level-based color entirely.
+		CLR_WITH_EXPLICIT_COLOR("%clr(%level){red}", ANSIConstants.ESC_START + ANSIConstants.RED_FG
+				+ ANSIConstants.ESC_END + "INFO" + ANSIConstants.SET_DEFAULT_COLOR) {
+		},
+		// The color option works without parens/a child too.
+		CLR_WITH_EXPLICIT_COLOR_NO_CHILD("%clr{red}", ANSIConstants.ESC_START + ANSIConstants.RED_FG
+				+ ANSIConstants.ESC_END + ANSIConstants.SET_DEFAULT_COLOR) {
+		},
+		// ansiDisabled + a child: passes the child through untouched, no escape codes.
+		CLR_ANSI_DISABLED_WITH_CHILD("%clr(%level)", "INFO") {
+			@Override
+			protected PatternConfig patternConfig() {
+				return PatternConfig.ofUniversal();
+			}
+		},
+		// ansiDisabled + no child at all: noop.
+		CLR_ANSI_DISABLED_NO_CHILD("%clr", "") {
 			@Override
 			protected PatternConfig patternConfig() {
 				return PatternConfig.ofUniversal();
