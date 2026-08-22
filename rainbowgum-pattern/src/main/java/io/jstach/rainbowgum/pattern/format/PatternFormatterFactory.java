@@ -642,7 +642,9 @@ enum HighlightCompositeFactory implements CompositeFactory {
 	static String clrParseColor(String color) {
 		color = color.toLowerCase(Locale.ROOT);
 		return switch (color) {
-			case "blue" -> BLACK_FG;
+			case "black" -> BLACK_FG;
+			case "white" -> WHITE_FG;
+			case "blue" -> BLUE_FG;
 			case "cyan" -> CYAN_FG;
 			case "faint" -> FAINT + DEFAULT_FG;
 			case "green" -> GREEN_FG;

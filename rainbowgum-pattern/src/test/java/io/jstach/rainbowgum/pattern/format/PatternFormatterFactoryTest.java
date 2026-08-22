@@ -59,9 +59,9 @@ class PatternFormatterFactoryTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { "blue", "cyan", "faint", "green", "magenta", "red", "yellow", "bright_black", "bright_red",
-			"bright_green", "bright_yellow", "bright_blue", "bright_magenta", "bright_cyan", "bright_white", "RED",
-			"Bright_Red" })
+	@ValueSource(strings = { "black", "white", "blue", "cyan", "faint", "green", "magenta", "red", "yellow",
+			"bright_black", "bright_red", "bright_green", "bright_yellow", "bright_blue", "bright_magenta",
+			"bright_cyan", "bright_white", "RED", "Bright_Red" })
 	void clrParseColorAcceptsAllKnownNamesCaseInsensitively(String color) {
 		// just confirming none of these throw and each maps to a non-blank ANSI code.
 		String code = HighlightCompositeFactory.clrParseColor(color);
@@ -76,10 +76,12 @@ class PatternFormatterFactoryTest {
 	}
 
 	@Test
-	void clrParseColorBlueIsActuallyBlackForegroundLikeSpringBoot() {
-		// Spring Boot's own %clr{blue} really is black (a known quirk of its
-		// converter), preserved here on purpose - not a typo.
-		assertEquals(ANSIConstants.BLACK_FG, HighlightCompositeFactory.clrParseColor("blue"));
+	void clrParseColorMatchesSpringBootAnsiColorCodes() {
+		// verified against Spring Boot's own ColorConverter/AnsiColor mapping
+		// (both current and 3.3.x) - blue really is blue, not black.
+		assertEquals(ANSIConstants.BLACK_FG, HighlightCompositeFactory.clrParseColor("black"));
+		assertEquals(ANSIConstants.WHITE_FG, HighlightCompositeFactory.clrParseColor("white"));
+		assertEquals(ANSIConstants.BLUE_FG, HighlightCompositeFactory.clrParseColor("blue"));
 	}
 
 }
