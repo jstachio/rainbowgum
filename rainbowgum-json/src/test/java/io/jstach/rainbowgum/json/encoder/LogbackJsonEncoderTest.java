@@ -15,10 +15,46 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogbackJsonEncoderTest {
+
+	/*
+	 * Every other test in this file builds LogbackJsonEncoder directly (either via
+	 * LogbackJsonEncoderBuilder or LogbackJsonEncoder.of(...)), bypassing
+	 * LogbackJsonEncoderConfigurator (the ServiceLoader-registered URI-scheme resolution
+	 * path) entirely - it had 0% coverage. This goes through the real pipeline:
+	 * logging.appender.list.encoder=logback resolves via the configurator's registered
+	 * scheme, same as GelfEncoderTest/EcsEncoderTest's testFullLoadUri.
+	 */
+	@Test
+	void testFullLoadUri() throws Exception {
+		String properties = """
+				logging.appenders=list
+				logging.appender.list.output=list:///
+				logging.appender.list.encoder=logback:///?prettyPrint=true
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new LogbackJsonEncoderConfigurator())
+			.build();
+		try (var r = RainbowGum.builder(config).build().start()) {
+			Instant instant = Instant.ofEpochMilli(1);
+			r.router()
+				.eventBuilder("logback", System.Logger.Level.INFO)
+				.message("hello")
+				.threadId(1)
+				.timestamp(instant)
+				.log();
+			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
+			String actual = output.events().get(0).getValue();
+			assertTrue(actual.startsWith("{\n "),
+					"expected pretty-printed output from ?prettyPrint=true, got: " + actual);
+			assertTrue(actual.contains("\"message\":\"hello\""), "Got: " + actual);
+		}
+	}
 
 	@Test
 	void testSimpleMessage() {
