@@ -1551,6 +1551,8 @@ interface ListLogProperties extends LogProperties {
 record CompositeMutableLogProperties(LogProperties[] properties) implements ListLogProperties, MutableLogProperties {
 
 	@Override
+	@SuppressWarnings("ReferenceEquality") // identity check to avoid self-recursion if a
+											// composite contains itself
 	public MutableLogProperties put(String key, @Nullable String value) {
 		for (var p : properties()) {
 			if (p instanceof MutableLogProperties mp && mp != this) {

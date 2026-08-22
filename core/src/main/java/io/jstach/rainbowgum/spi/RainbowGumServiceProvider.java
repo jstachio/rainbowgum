@@ -160,7 +160,7 @@ public sealed interface RainbowGumServiceProvider {
 		private static void runConfigurators(Stream<? extends RainbowGumServiceProvider.Configurator> configurators,
 				LogConfig config, int passes) {
 			List<Configurator> unresolved = new ArrayList<>(
-					configurators.sorted(Comparator.comparing(Configurator::priority).reversed()).toList());
+					configurators.sorted(Comparator.comparingInt(Configurator::priority).reversed()).toList());
 			for (int i = 0; i < passes; i++) {
 				var it = unresolved.iterator();
 				while (it.hasNext()) {
