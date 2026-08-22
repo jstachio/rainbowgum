@@ -85,6 +85,21 @@ used for a publisher or encoder. Worth auditing and unifying.
       in here is a mess because auto configuration of appenders based on properties is
       complicated." A focused cleanup pass is overdue, now that `fileAppender()` has
       already been simplified once this cycle via `mapResult`.
+- [ ] **Misleading error wrapper from the `logging.file.name` auto-configuration
+      shortcut**: `LogAppenderRegistry.fileAppender()` wraps the entire downstream
+      `FileOutputBuilder.build()`/`fromProperties()` call inside a `.map()` chained off
+      the `logging.file.name` property lookup. Any exception thrown deep inside -
+      including a `ValidationException` for a completely unrelated property like
+      `logging.output.file.uri` or `logging.output.file.bufferSize` - gets mislabeled
+      in the outer message as "Error converting property. key: 'logging.file.name'"
+      even though `logging.file.name` itself converted fine. Confirmed present in both
+      `FileOutputPropertiesTest.URI_WITH_BAD_BUFFER_SIZE` and `BAD_OUTPUT_URI`'s golden
+      strings. Adam's read: this is specifically a side effect of the
+      `logging.file.name` convenience/auto-configuration path - the same failure
+      configured the "non-default" way (e.g. `logging.appender.<name>.output=file:...`
+      directly, bypassing the shortcut) reads better since there's no such wrapping
+      `.map()` in the way. Worth fixing when `fileAppender()` gets its cleanup pass
+      above, rather than as a one-off.
 - [ ] The `Property`/`PropertyGetter`/`Result` monad (`map`, `mapResult`, `or`,
       `orElse`, multi-key fallback, etc.) has essentially no direct unit tests of its
       own composition/error-propagation/fallback-chain behavior - it's exercised only
