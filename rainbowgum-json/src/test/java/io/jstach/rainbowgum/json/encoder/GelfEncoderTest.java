@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.json.encoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
@@ -126,6 +127,38 @@ class GelfEncoderTest {
 		buffer.drain(out, e);
 		String message = out.events().get(0).getValue();
 		assertTrue(message.contains("\"_time\":\"1970-01-01T00:00:00.001456Z\""), message);
+	}
+
+	/*
+	 * timeFractionalDigits is an @Nullable (optional) property, so a malformed value goes
+	 * through Validator.addIfError() rather than add() - a branch that, until now, no
+	 * test anywhere in the suite exercised with a bad value (only ever with a missing or
+	 * a valid one).
+	 */
+	@Test
+	void testMalformedTimeFractionalDigitsReportsErrorViaAddIfError() {
+		String properties = """
+				logging.appenders=list
+				logging.appender.list.output=list:///
+				logging.appender.list.encoder=gelf
+				logging.encoder.list.host=localhost
+				logging.encoder.list.timeFractionalDigits=notanumber
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new GelfEncoderConfigurator())
+			.build();
+		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+		assertEquals(
+				"""
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
+						Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'gelf' cause:
+						Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder:
+						Error for property. key: 'logging.encoder.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits], java.lang.NumberFormatException For input string: "notanumber"
+						Tried: 'logging.encoder.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits], [logging.appender.list.encoder]->URI(gelf:///)[timeFractionalDigits]
+						Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]""",
+				e.getMessage());
 	}
 
 	@Test

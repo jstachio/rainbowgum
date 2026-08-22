@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.json.encoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
@@ -16,6 +17,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -56,6 +58,37 @@ class LogstashEncoderTest {
 		buffer.drain(out, e);
 		String actual = out.events().get(0).getValue();
 		assertTrue(actual.contains("\"@timestamp\":\"1969-12-31T19:00:00.001-05:00\""), "Got: " + actual);
+	}
+
+	/*
+	 * zoneId is an @Nullable (optional) property, so a malformed value goes through
+	 * Validator.addIfError() rather than add() - a branch that, until now, no test
+	 * anywhere in the suite exercised with a bad value (only ever with a missing or a
+	 * valid one).
+	 */
+	@Test
+	void testMalformedZoneIdReportsErrorViaAddIfError() {
+		String properties = """
+				logging.appenders=list
+				logging.appender.list.output=list:///
+				logging.appender.list.encoder=logstash
+				logging.encoder.list.zoneId=Not/AZone
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new LogstashEncoderConfigurator())
+			.build();
+		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+		assertEquals(
+				"""
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
+						Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash' cause:
+						Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder:
+						Error for property. key: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
+						Tried: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], [logging.appender.list.encoder]->URI(logstash:///)[zoneId]
+						Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]""",
+				e.getMessage());
 	}
 
 	@Test

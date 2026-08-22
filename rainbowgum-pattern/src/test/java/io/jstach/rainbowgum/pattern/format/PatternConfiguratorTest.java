@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.pattern.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
 
@@ -36,6 +37,64 @@ class PatternConfiguratorTest {
 			String actual = test.actual(config);
 			assertEquals(test.expected, actual);
 		}
+	}
+
+	/*
+	 * zoneId and sequenceNumberStart are both @Nullable (optional) properties, so a
+	 * malformed value goes through Validator.addIfError() rather than add() - a branch
+	 * that, until now, no test anywhere in the suite exercised with a bad value (only
+	 * ever with a missing or a valid one).
+	 */
+	@Test
+	void testMalformedZoneIdReportsErrorViaAddIfError() {
+		String properties = """
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.appender.list.encoder=pattern
+				logging.pattern.config.list.zoneId=Not/AZone
+				logging.encoder.list.pattern=%msg%n
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new PatternConfigurator())
+			.build();
+		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+		assertEquals(
+				"""
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
+						Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern' cause:
+						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
+						Error for property. key: 'logging.pattern.config.list.zoneId' from PROPERTIES_STRING[logging.pattern.config.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
+						Tried: 'logging.pattern.config.list.zoneId' from PROPERTIES_STRING[logging.pattern.config.list.zoneId]
+						Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]""",
+				e.getMessage());
+	}
+
+	@Test
+	void testMalformedSequenceNumberStartReportsErrorViaAddIfError() {
+		String properties = """
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.appender.list.encoder=pattern
+				logging.pattern.config.list.sequenceNumberStart=notanumber
+				logging.encoder.list.pattern=%lsn%n
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new PatternConfigurator())
+			.build();
+		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+		assertEquals(
+				"""
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
+						Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern' cause:
+						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
+						Error for property. key: 'logging.pattern.config.list.sequenceNumberStart' from PROPERTIES_STRING[logging.pattern.config.list.sequenceNumberStart], java.lang.NumberFormatException For input string: "notanumber"
+						Tried: 'logging.pattern.config.list.sequenceNumberStart' from PROPERTIES_STRING[logging.pattern.config.list.sequenceNumberStart]
+						Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]""",
+				e.getMessage());
 	}
 
 	@Test
