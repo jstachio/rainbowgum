@@ -70,6 +70,24 @@ class RainbowGumLoggerFactoryTest {
 		list.events().clear();
 	}
 
+	/*
+	 * Every other OffLogger in this suite is constructed manually (new
+	 * LevelLogger.OffLogger(name)) - this is the only place the real
+	 * RainbowGumLoggerFactory.getLogger() OFF-level branch itself runs, which only
+	 * happens when ChangeType.LEVEL is not allowed for the name (the default here, since
+	 * no logging.change property is set).
+	 */
+	@Test
+	void testGetLoggerAtOffLevelUsesOffLogger() {
+		var gum = RainbowGum.builder().route(route -> {
+			route.level(System.Logger.Level.OFF, "silent");
+			route.appender("list", a -> a.output(list));
+		}).build();
+		var factory = new RainbowGumLoggerFactory(gum, new RainbowGumMDCAdapter());
+		var logger = factory.getLogger("silent");
+		assertInstanceOf(LevelLogger.OffLogger.class, logger);
+	}
+
 	@Test
 	void testChangeableLogger() {
 		String global = """

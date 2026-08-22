@@ -1,8 +1,12 @@
 package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.eclipse.jdt.annotation.Nullable;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
@@ -42,6 +46,100 @@ class LoggerDecoratorTest {
 		String expected = test.expected;
 		assertEquals(expected, actual);
 
+	}
+
+	/*
+	 * CompositeLoggerDecorator.decorate() (which composes multiple registered
+	 * LoggerDecoratorServices) has two branches no other test reaches: a decorator that
+	 * returns the logger it was given unchanged (rather than always wrapping, the way
+	 * MyLoggerDecoratorService above does), and the early-return when a decorator wraps
+	 * in something that no longer implements DepthAwareLogger, stopping the chain before
+	 * the next decorator ever runs. Tested directly against CompositeLoggerDecorator
+	 * rather than through a full RainbowGum bootstrap, to avoid entangling this with
+	 * caller-info depth accounting (irrelevant here).
+	 */
+	static boolean neverCalledInvoked;
+
+	record PlainWrapper(Logger delegate) implements ForwardingLogger {
+
+	}
+
+	static class NoOpDecoratorService extends LoggerDecoratorService {
+
+		@Override
+		public String name() {
+			return "A_NoOp";
+		}
+
+		@Override
+		public int order() {
+			return 0;
+		}
+
+		@Override
+		public Logger decorate(RainbowGum rainbowGum, DepthAwareLogger previousLogger, int depth) {
+			return previousLogger;
+		}
+
+	}
+
+	static class BreakChainDecoratorService extends LoggerDecoratorService {
+
+		@Override
+		public String name() {
+			return "B_Break";
+		}
+
+		@Override
+		public int order() {
+			return 1;
+		}
+
+		@Override
+		public Logger decorate(RainbowGum rainbowGum, DepthAwareLogger previousLogger, int depth) {
+			return new PlainWrapper(previousLogger);
+		}
+
+	}
+
+	static class NeverCalledDecoratorService extends LoggerDecoratorService {
+
+		@Override
+		public String name() {
+			return "C_Never";
+		}
+
+		@Override
+		public int order() {
+			return 2;
+		}
+
+		@Override
+		public Logger decorate(RainbowGum rainbowGum, DepthAwareLogger previousLogger, int depth) {
+			neverCalledInvoked = true;
+			return previousLogger;
+		}
+
+	}
+
+	@Test
+	void testCompositeDecoratorSkipsUnchangedThenStopsAtNonDepthAwareWrapper() {
+		neverCalledInvoked = false;
+		var services = new LoggerDecoratorService[] { new NoOpDecoratorService(), new BreakChainDecoratorService(),
+				new NeverCalledDecoratorService() };
+		var composite = new RainbowGumLoggerFactory.LoggerDecorator.CompositeLoggerDecorator(services);
+
+		var handler = LogEventHandler.of("test", e -> {
+		}, new RainbowGumMDCAdapter());
+		DepthAwareLogger base = LevelLogger.of(org.slf4j.event.Level.INFO, handler);
+		RainbowGum rainbowGum = RainbowGum.builder().build();
+
+		Logger result = composite.decorate(rainbowGum, base);
+
+		assertInstanceOf(PlainWrapper.class, result);
+		assertSame(base, ((PlainWrapper) result).delegate());
+		assertFalse(neverCalledInvoked,
+				"third decorator must never run once the chain is broken by a non-DepthAware wrapper");
 	}
 
 	static class MyLoggerDecoratorService extends LoggerDecoratorService {

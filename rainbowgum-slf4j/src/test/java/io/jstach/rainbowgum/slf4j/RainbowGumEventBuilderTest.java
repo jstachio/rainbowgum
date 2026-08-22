@@ -1,10 +1,12 @@
 package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import java.lang.System.Logger.Level;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -15,8 +17,32 @@ import org.slf4j.spi.MDCAdapter;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 
 class RainbowGumEventBuilderTest {
+
+	/*
+	 * setLogger (part of the DepthAwareEventBuilder contract, used by decorator authors
+	 * to redirect where a built event ultimately goes) had no caller anywhere - nothing
+	 * redirects output today. Doesn't fit the shared enum-matrix harness below, since
+	 * that always expects output in the same StringBuilder the logger itself was
+	 * constructed with.
+	 */
+	@Test
+	void testSetLoggerRedirectsOutput() {
+		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
+		StringBuilder original = new StringBuilder();
+		StringBuilder redirected = new StringBuilder();
+		LogEventHandler handler = LogEventHandler.of("logger", e -> e.formattedMessage(original), mdc);
+		var builder = LevelLogger.of(org.slf4j.event.Level.INFO, handler)
+			.makeLoggingEventBuilder(org.slf4j.event.Level.INFO);
+		assertInstanceOf(LoggerDecoratorService.DepthAwareEventBuilder.class, builder);
+		var depthAware = (LoggerDecoratorService.DepthAwareEventBuilder) builder;
+		depthAware.setLogger(e -> e.formattedMessage(redirected));
+		builder.log("hello");
+		assertEquals("", original.toString());
+		assertEquals("hello", redirected.toString());
+	}
 
 	@ParameterizedTest
 	@MethodSource("args")
@@ -203,6 +229,35 @@ class RainbowGumEventBuilderTest {
 				builder.setMessage("hello {}");
 				builder.addArgument("[arg0]");
 				builder.addKeyValue("key1", () -> null);
+			}
+		},
+		/*
+		 * addMarker is a no-op that just returns this (RainbowGumEventBuilder has no
+		 * marker support of its own - see LoggerDecoratorService's javadoc example for
+		 * how a decorator can surface a marker as a key value instead), but the call
+		 * itself was never exercised anywhere.
+		 */
+		ADD_MARKER("logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]\n") {
+			@Override
+			protected void build(LoggingEventBuilder builder) {
+				super.build(builder);
+				builder.addMarker(org.slf4j.MarkerFactory.getMarker("M"));
+			}
+		},
+		/*
+		 * log(String, Object...) skips the arg-copy loop entirely when the varargs array
+		 * itself is null (as opposed to empty), e.g. logger.info(msg, (Object[]) null) -
+		 * distinct from the array simply having zero elements.
+		 */
+		NULL_ARGS_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello null args\n") {
+			@Override
+			protected void build(LoggingEventBuilder builder) {
+				builder.addKeyValue("key1", "value1");
+			}
+
+			@Override
+			protected void log(LoggingEventBuilder builder) {
+				builder.log("hello null args", (Object[]) null);
 			}
 		};
 

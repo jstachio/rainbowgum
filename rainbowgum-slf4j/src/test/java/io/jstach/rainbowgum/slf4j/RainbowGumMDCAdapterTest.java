@@ -40,6 +40,74 @@ class RainbowGumMDCAdapterTest {
 		assertNull(mdc.getCopyOfContextMap());
 	}
 
+	/*
+	 * The parameterized test() above always seeds with put("k1", "v1") first, so
+	 * copyOnThreadLocal is never null when the case under test runs, and the very first
+	 * put's "create the map" branch is the only one of the copy-on-write pair
+	 * (duplicateAndInsertNewMap vs mutate-in-place) it can exercise for most ops. These
+	 * fill in the map-still-null and consecutive-op combinations that arrangement can't
+	 * reach.
+	 */
+
+	@Test
+	void testGetWithNullKeyReturnsNull() {
+		var mdc = new RainbowGumMDCAdapter();
+		mdc.put("k1", "v1");
+		assertNull(mdc.get(null));
+	}
+
+	@Test
+	void testGetOnFreshAdapterWithNoMapYetReturnsNull() {
+		var mdc = new RainbowGumMDCAdapter();
+		assertNull(mdc.get("k1"));
+	}
+
+	@Test
+	void testRemoveWithNullKeyIsNoop() {
+		var mdc = new RainbowGumMDCAdapter();
+		mdc.put("k1", "v1");
+		mdc.remove(null);
+		assertEquals(Map.of("k1", "v1"), mdc.getCopyOfContextMap());
+	}
+
+	@Test
+	void testRemoveOnFreshAdapterWithNoMapYetIsNoop() {
+		var mdc = new RainbowGumMDCAdapter();
+		mdc.remove("k1");
+		assertNull(mdc.getCopyOfContextMap());
+	}
+
+	@Test
+	void testRemoveRightAfterAReadCopiesRatherThanMutatingTheSnapshot() {
+		// keyValues(), not getCopyOfContextMap(), is what actually marks
+		// lastOperation as a read (MAP_COPY_OPERATION) - getCopyOfContextMap()
+		// doesn't touch lastOperation at all.
+		var mdc = new RainbowGumMDCAdapter();
+		mdc.put("k1", "v1");
+		var snapshot = mdc.keyValues();
+		mdc.remove("k1");
+		assertEquals(Map.of("k1", "v1"), snapshot.copyToMap(),
+				"earlier snapshot must not be mutated by the later remove");
+		assertEquals(Map.of(), mdc.getCopyOfContextMap());
+	}
+
+	@Test
+	void testPutRightAfterClearCreatesAFreshMapRatherThanReusingTheClearedOne() {
+		var mdc = new RainbowGumMDCAdapter();
+		mdc.put("k1", "v1");
+		mdc.clear();
+		mdc.put("k2", "v2");
+		assertEquals(Map.of("k2", "v2"), mdc.getCopyOfContextMap());
+	}
+
+	@Test
+	void testSetContextMapReplacesWhateverWasThereBefore() {
+		var mdc = new RainbowGumMDCAdapter();
+		mdc.put("stale", "value");
+		mdc.setContextMap(Map.of("k1", "v1", "k2", "v2"));
+		assertEquals(Map.of("k1", "v1", "k2", "v2"), mdc.getCopyOfContextMap());
+	}
+
 	enum MdcTest {
 
 		put("k1=v1, k2=v2", a -> a.put("k2", "v2")), //

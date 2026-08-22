@@ -141,21 +141,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 		return oldMap.copy();
 	}
 
-	// /**
-	// * Returns the keys in the MDC as a {@link Set}. The returned value can be null.
-	// * @return keys.
-	// */
-	// public @Nullable Set<String> getKeys() {
-	// MutableKeyValues map = keyValues();
-	//
-	// if (map != null) {
-	// return map.copyToMap().keySet();
-	// }
-	// else {
-	// return null;
-	// }
-	// }
-
 	/**
 	 * Return a copy of the current thread's context map. Returned value may be null.
 	 * @return map copy.
