@@ -1635,7 +1635,7 @@ record MapGetter(RootPropertyGetter parent) implements ChildPropertyGetter<Map<S
 		boolean first = true;
 		for (var e : value.entrySet()) {
 			if (first) {
-				first = true;
+				first = false;
 			}
 			else {
 				sb.append("&");
@@ -1669,7 +1669,7 @@ record ListGetter(RootPropertyGetter parent) implements ChildPropertyGetter<List
 		boolean first = true;
 		for (var e : list) {
 			if (first) {
-				first = true;
+				first = false;
 			}
 			else {
 				sb.append(",");

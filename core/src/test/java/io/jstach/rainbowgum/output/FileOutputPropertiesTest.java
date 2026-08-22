@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum.output;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -54,6 +56,55 @@ class FileOutputPropertiesTest {
 		}
 		finally {
 			Files.deleteIfExists(file);
+		}
+	}
+
+	/*
+	 * ValidationException.validate() only ever kept the *first* Error's cause in every
+	 * other test in this file - each only has one malformed property. Here both uri and
+	 * bufferSize are malformed at once, producing two Result.Error entries in the same
+	 * Validator: uri (added first, via addIfError) becomes the reported cause, and
+	 * bufferSize's error (added last, via add) still shows up in the message but its
+	 * cause is discarded in favor of the first. Unlike the message text (which the
+	 * enum-based test() below checks and includes every error), the *cause* field is only
+	 * ever the first one - a distinction the message alone can't prove, so this checks
+	 * getCause() directly instead of going through the shared enum harness.
+	 */
+	@Test
+	void testValidationExceptionKeepsOnlyFirstErrorsCauseWhenMultiplePropertiesAreMalformed() throws IOException {
+		String fileName = FILE_PATH;
+		try {
+			String properties = """
+					logging.appenders=file
+					logging.file.name=%s
+					logging.output.file.uri=not a uri with spaces
+					logging.output.file.bufferSize=blah
+					""".formatted(fileName);
+			var config = LogConfig.builder()
+				.properties(LogProperties.builder().fromProperties(properties).build())
+				.build();
+			var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+			assertEquals(
+					"""
+							Failure providing Appenders for route: 'default'. cause:
+							Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
+							Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log' cause:
+							Validation failed for io.jstach.rainbowgum.output.FileOutputBuilder:
+							Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
+							Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri]
+							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], java.lang.NumberFormatException For input string: "blah"
+							Tried: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize]
+							Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]""",
+					e.getMessage());
+			Throwable cause = e;
+			while (cause.getCause() != null && cause.getCause() != cause) {
+				cause = cause.getCause();
+			}
+			assertInstanceOf(java.net.URISyntaxException.class, cause,
+					"the ValidationException's cause should be the *first* malformed property's (uri) exception, not bufferSize's, since ValidationException.validate() only keeps the first");
+		}
+		finally {
+			Files.deleteIfExists(Path.of(fileName));
 		}
 	}
 

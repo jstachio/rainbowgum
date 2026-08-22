@@ -22,11 +22,33 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.PropertiesParser;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class GelfEncoderTest {
+
+	/*
+	 * Regression test for a real bug found while investigating LogProperty coverage:
+	 * MapGetter._propertyString/ListGetter._propertyString had "if (first) { first =
+	 * true; }" instead of "first = false", so entries after the first were never
+	 * separated. Every existing headers test used a single-entry map, which can't reveal
+	 * this - "&" is only ever appended starting from the second entry.
+	 */
+	@Test
+	void testHeadersWithMultipleEntriesAreSeparated() {
+		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
+		var headers = new java.util.LinkedHashMap<String, String>();
+		headers.put("header1", "1");
+		headers.put("header2", "2");
+		headers.put("header3", "3");
+		b.headers(headers);
+		b.host("localhost");
+		Map<String, String> props = new LinkedHashMap<>();
+		b.toProperties(props::put);
+		assertEquals("header1=1&header2=2&header3=3", props.get("logging.encoder.gelf.headers"));
+	}
 
 	@Test
 	void testBuilder() {
@@ -106,6 +128,20 @@ class GelfEncoderTest {
 		buffer.drain(out, e);
 		String message = out.events().get(0).getValue();
 		assertTrue(message.contains("\"_time\":\"1970-01-01T00:00:00.001Z\""), message);
+	}
+
+	/*
+	 * host is a required property with no default value, so GelfEncoderBuilder's field
+	 * starts out null - if build() is called directly (bypassing fromProperties())
+	 * without ever calling .host(...), Property.require() throws. Every other test in
+	 * this file always sets host, so this branch of require() had no coverage anywhere
+	 * before this.
+	 */
+	@Test
+	void testBuildWithoutRequiredHostThrows() {
+		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
+		var e = assertThrows(LogProperty.PropertyMissingException.class, b::build);
+		assertEquals("Value is required not null. property key='logging.encoder.gelf.host'", e.getMessage());
 	}
 
 	@Test
