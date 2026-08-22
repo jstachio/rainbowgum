@@ -128,6 +128,33 @@ class FileOutputPropertiesTest {
 				return message;
 			}
 		},
+		/*
+		 * Unlike URI_WITH_BAD_BUFFER_SIZE (bufferSize is a required property, so a bad
+		 * value goes through Validator.add()), FileOutputBuilder's own "uri" property is
+		 * optional and goes through Validator.addIfError() - a branch with no test
+		 * coverage anywhere before this. logging.file.name supplies a valid uri that
+		 * FileOutputBuilder.uri(...) is pre-set with; logging.output.file.uri then
+		 * overrides it with a malformed value, which addIfError() must still catch and
+		 * report even though a fallback uri was already present.
+		 */
+		BAD_OUTPUT_URI("""
+				logging.appenders=file
+				logging.file.name=%s
+				logging.output.file.uri=not a uri with spaces
+				""") {
+			@Override
+			@Nullable
+			String exceptionMessage() {
+				return """
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
+						Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log' cause:
+						Validation failed for io.jstach.rainbowgum.output.FileOutputBuilder:
+						Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
+						Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], ENVIRONMENT_VARIABLES[logging_output_file_uri]
+						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""";
+			}
+		},
 		BAD_URI("""
 				logging.file.name=:://
 				""") {
