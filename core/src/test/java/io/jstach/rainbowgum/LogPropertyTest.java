@@ -12,6 +12,20 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 class LogPropertyTest {
 
+	/*
+	 * Regression test for a real bug found while investigating LogProperty coverage:
+	 * ListGetter._propertyString had "if (first) { first = true; }" instead of "first =
+	 * false", so entries after the first were never comma-separated. No production
+	 *
+	 * @LogConfigurable builder currently has a real List<String> property (only the
+	 * test/rainbowgum-test-config demo fixture does), so this calls the package-private
+	 * static method directly rather than through a real caller.
+	 */
+	@Test
+	void testListPropertyStringSeparatesMultipleEntriesWithComma() {
+		assertEquals("a,b,c", ListGetter._propertyString(List.of("a", "b", "c")));
+	}
+
 	@Test
 	void testValidation() {
 		LogProperties properties = LogProperties.MutableLogProperties.builder()
