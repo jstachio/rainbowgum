@@ -97,7 +97,7 @@ class FileOutputPropertiesTest {
 							Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]""",
 					e.getMessage());
 			Throwable cause = e;
-			while (cause.getCause() != null && cause.getCause() != cause) {
+			while (cause.getCause() != null) {
 				cause = cause.getCause();
 			}
 			assertInstanceOf(java.net.URISyntaxException.class, cause,
