@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -225,7 +226,7 @@ class MutableKeyValuesTest {
 		kvs.add("k1", "v1");
 		var expected = kvs.freeze();
 		var actual = expected.freeze();
-		assertTrue(actual == expected);
+		assertSame(expected, actual);
 		assertEquals(expected, actual);
 		assertInstanceOf(ImmutableArrayKeyValues.class, actual);
 	}
