@@ -1121,7 +1121,7 @@ logging.appender.jsonfile.output=./logs/orders.json.log
 logging.appender.jsonfile.encoder=gelf
 logging.appender.jsonfile.flags=reuse_buffer
 
-logging.appender.errorfile.output=./logs/orders-error.log
+logging.appender.errorfile.output=./logs/orders-error.log?bufferSize=10000
 logging.appender.errorfile.encoder=pattern
 
 logging.encoder.console.pattern=[%thread] %-5level %logger{36} - %msg%n
@@ -1132,7 +1132,7 @@ logging.encoder.jsonfile.prettyPrint=false
 logging.encoder.errorfile.pattern=%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n%ex
 }
 
-Two things worth calling out, both confirmed by actually running the above (not just written by hand):
+Three things worth calling out, all confirmed by actually running the above (not just written by hand):
 
 <p>
 <strong>Encoder configuration is keyed by appender name, but lives under a completely
@@ -1156,6 +1156,20 @@ regardless of which resolver (route or global) the match came from. To make a ro
 <em>more restrictive</em> than the global baseline for a given logger name prefix, that same
 prefix has to be overridden again at the route level &mdash; setting a coarser route level alone is
 not enough once a more specific global override exists for names under it.
+</p>
+
+<p>
+<strong>A property value that is itself a URI can carry its own query parameters, as an
+alternative to separate <code>logging.&#8203;&lt;component&gt;.&lt;name&gt;.&lt;param&gt;</code>
+properties.</strong> <code>logging.appender.errorfile.output</code> above is set to
+<code>./logs/orders-error.log?bufferSize=10000</code> rather than a bare path: the part before
+<code>?</code> is still resolved as the file path exactly as with a bare path, and everything
+after <code>?</code> is parsed the same way a query string would be and made available as
+properties scoped to that output &mdash; here, <code>bufferSize</code>, equivalent to also having
+written <code>logging.output.errorfile.bufferSize=10000</code> on its own line. This works for a
+relative, scheme-less path just as well as it does for an explicit <code>file://</code> URI; which
+style to use is purely a matter of preference for how compact versus explicit the properties file
+should read.
 </p>
 
 <h3 id="example_configuration_builder">Builder</h3>
