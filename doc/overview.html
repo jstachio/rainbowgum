@@ -837,6 +837,22 @@ can instead be set programmatically as a single default shared by every encoder 
 property configuration. Both - with full code examples - are covered in the
 {@link io.jstach.rainbowgum.pattern/ } module javadoc.
 
+<h4 id="pattern_exception">Automatic Exception Rendering</h4>
+
+Notice that none of the pattern examples above (e.g. <code>[%thread] %-5level %logger{15} - %msg%n</code>)
+mention an exception keyword at all. As with Logback, this is intentional and safe: if a pattern does not
+otherwise use <code>%ex</code>/<code>%xEx</code> (or their aliases), Rainbow Gum automatically appends a default
+exception formatter to the end of the compiled pattern, so a logged throwable is never silently dropped just
+because the pattern forgot to ask for it.
+
+To opt out and suppress exception rendering entirely, add <code>%nopex</code> (or <code>%nopexception</code>)
+anywhere in the pattern - like the other throwable keywords, its mere presence is enough to disable the
+automatic append, and it renders nothing itself:
+
+{@snippet lang=properties :
+logging.encoder.myappender.pattern=%msg%nopex
+}
+
 <h3 id="jansi">JAnsi support (largely legacy)</h3>
 <p>
   Rainbow Gum still has an optional {@linkplain io.jstach.rainbowgum.jansi/ JAnsi module} for cross platform ANSI

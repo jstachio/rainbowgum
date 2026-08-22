@@ -47,6 +47,11 @@ enum SpringBootKeywordFactory implements KeywordFactory, PatternKeyProvider {
 			return PatternKey.of("wex");
 		}
 
+		@Override
+		public boolean isExceptionFormatter() {
+			return true;
+		}
+
 	},
 	/**
 	 * Spring Boot's <code>%wEx</code>, backed by
@@ -66,6 +71,11 @@ enum SpringBootKeywordFactory implements KeywordFactory, PatternKeyProvider {
 		@Override
 		public PatternKey key() {
 			return PatternKey.of("wEx");
+		}
+
+		@Override
+		public boolean isExceptionFormatter() {
+			return true;
 		}
 
 	};

@@ -201,6 +201,14 @@ public sealed interface PatternRegistry {
 		 */
 		EXTENDED_THROWABLE("xEx", "xException", "xThrowable"), //
 		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#nopex">No exception
+		 * keywords</a>. Renders nothing but, like {@link #THROWABLE} and
+		 * {@link #EXTENDED_THROWABLE}, counts as the pattern having addressed exception
+		 * rendering - suppressing the automatic exception formatter that is otherwise
+		 * appended to any pattern that mentions none of these three keywords.
+		 */
+		NO_EXCEPTION("nopex", "nopexception"), //
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#newline">Newline
 		 * keywords</a>
 		 */
@@ -420,6 +428,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case THREAD -> KeywordFactory.of(LogFormatter.builder().threadName().build());
 				case THROWABLE -> StandardKeywordFactory.THROWABLE;
 				case EXTENDED_THROWABLE -> StandardKeywordFactory.EXTENDED_THROWABLE;
+				case NO_EXCEPTION -> KeywordFactory.of(LogFormatter.noop(), true);
 				case CLASS -> KeywordFactory.of(CallerInfoFormatter.CLASS);
 				case FILE -> KeywordFactory.of(CallerInfoFormatter.FILE);
 				case LINE -> KeywordFactory.of(CallerInfoFormatter.LINE);

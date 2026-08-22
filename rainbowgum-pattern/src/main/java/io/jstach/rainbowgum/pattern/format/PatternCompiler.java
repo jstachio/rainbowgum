@@ -147,9 +147,24 @@ final class Compiler implements PatternCompiler {
 
 	@Override
 	public LogFormatter compile(String pattern) {
+		return compile(pattern, true);
+	}
+
+	/*
+	 * autoAppendException exists as a seam for tests that want to check what a single
+	 * keyword compiles to in isolation, without the default exception formatter that
+	 * would otherwise always be appended (see below). Real callers only ever go through
+	 * the one-arg compile(String) above.
+	 */
+	LogFormatter compile(String pattern, boolean autoAppendException) {
 		try {
 			Parser p = new Parser(pattern);
-			return compile(p.parse());
+			Node parsed = p.parse();
+			LogFormatter formatter = compile(parsed);
+			if (autoAppendException && !containsExceptionKeyword(parsed)) {
+				formatter = LogFormatter.builder().add(formatter).throwable().build();
+			}
+			return formatter;
 		}
 		catch (ScanException | IllegalStateException e) {
 			throw new IllegalArgumentException("Pattern is invalid: " + pattern, e);
@@ -196,6 +211,42 @@ final class Compiler implements PatternCompiler {
 			};
 		}
 		return b.build();
+	}
+
+	/*
+	 * A separate, non-mutating pass (rather than tracking state during compile() itself)
+	 * so that compile(Node) keeps its original, simple recursive shape. Needs its own
+	 * recursion into composite children for the same reason compile(Node) does - a
+	 * keyword like %red(%ex) nests the exception keyword inside a child pattern.
+	 *
+	 * Checked via the resolved factory's isExceptionFormatter() rather than a fixed set
+	 * of known keyword strings, so custom-registered keywords (e.g. Spring Boot's
+	 * %wEx/%wex, registered entirely outside this module) are recognized too.
+	 */
+	private boolean containsExceptionKeyword(Node start) {
+		for (Node n = start; n != Node.end();) {
+			switch (n) {
+				case End e -> {
+					return false;
+				}
+				case LiteralNode ln -> n = ln.next();
+				case FormattingNode fn -> {
+					PatternFormatterFactory f = registry.getOrNull(fn.keyword());
+					if (f != null && f.isExceptionFormatter()) {
+						return true;
+					}
+					var child = switch (fn) {
+						case CompositeNode cn -> cn.childNode();
+						case KeywordNode kn -> null;
+					};
+					if (child != null && containsExceptionKeyword(child)) {
+						return true;
+					}
+					n = fn.next();
+				}
+			}
+		}
+		return false;
 	}
 
 }
