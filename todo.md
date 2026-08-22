@@ -92,6 +92,16 @@ used for a publisher or encoder. Worth auditing and unifying.
       `LogAppender`, and `RainbowGum`'s entry points got this cycle.
 - [ ] Old backlog item, still open: fix `LogProperties` search to use interpolated
       keys.
+- [ ] **Design critique worth revisiting before any deeper rework here**: the
+      current model spreads a property's lifecycle across a different class per
+      step - a type alone gets a `PropertyGetter`, a key plus type gets a
+      `Property`, and a key plus type plus value gets a `Result` (reached via
+      `PropertyValue`) - essentially a curried chain of types. A simpler
+      alternative worth considering: a single `Property`-like object that just
+      holds the config, the type, the key, *and* the last-retrieved value/result
+      together, instead of threading that state through several distinct types.
+      Not a quick fix - would touch every call site in this section - but should
+      be the starting point if `LogProperty` gets a real redesign pass.
 
 ## 5. Whatever else before 1.0.0
 
