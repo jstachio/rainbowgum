@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.slf4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
@@ -86,6 +87,55 @@ class RainbowGumLoggerFactoryTest {
 		var factory = new RainbowGumLoggerFactory(gum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("silent");
 		assertInstanceOf(LevelLogger.OffLogger.class, logger);
+	}
+
+	/*
+	 * getLogger()'s "if (allowedChanges.contains(ChangeType.LEVEL))" branch does a plain
+	 * (non-atomic w.r.t. the map) get()-then-putIfAbsent() when a name has never been
+	 * seen before; the loser of a genuine race gets the winner's instance back (the
+	 * oldInstance == null ? decorated : oldInstance ternary) instead of its own. A
+	 * CyclicBarrier releases several threads into getLogger() for the same
+	 * never-before-seen name at the same instant; there is real work (level resolution,
+	 * handler construction, decorator composition) between the get() check and the
+	 * putIfAbsent() call, so the race window is wide enough that this reliably lands more
+	 * than one thread inside it rather than relying on luck.
+	 */
+	@Test
+	void testGetLoggerConcurrentlyForANewNameReturnsTheSameInstanceToEveryThread() throws InterruptedException {
+		String global = """
+				logging.global.change=true
+				logging.change=true
+				""";
+		var rainbowgum = gum(LogProperties.builder().fromProperties(global).build());
+		var factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
+
+		int threadCount = 8;
+		var barrier = new java.util.concurrent.CyclicBarrier(threadCount);
+		Logger[] results = new Logger[threadCount];
+		Thread[] threads = new Thread[threadCount];
+		for (int i = 0; i < threadCount; i++) {
+			int index = i;
+			threads[i] = new Thread(() -> {
+				try {
+					barrier.await();
+				}
+				catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+				results[index] = factory.getLogger("racy-name");
+			});
+		}
+		for (var t : threads) {
+			t.start();
+		}
+		for (var t : threads) {
+			t.join();
+		}
+
+		for (int i = 1; i < threadCount; i++) {
+			assertSame(results[0], results[i],
+					"every thread racing to create the same never-before-seen logger name must end up with the exact same instance");
+		}
 	}
 
 	@Test
