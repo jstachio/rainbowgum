@@ -28,7 +28,16 @@ import io.jstach.rainbowgum.LogProperty.Result.Success;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
- * A single property or value.
+ * Sealed marker interface implemented by {@link Property}, the reusable, key-based
+ * description of a configuration property that can be resolved against a
+ * {@link LogProperties} instance. Start with {@link #builder()} (equivalently
+ * {@link Property#builder()}) to describe the key(s) a property should be looked up under
+ * and how its raw String value should be converted, and finish with
+ * {@link Property#get(LogProperties)} or {@link Property#bind(LogProperties)} to resolve
+ * it into a {@link Result}.
+ *
+ * @see Property
+ * @see LogProperties
  */
 @CaseChanging
 public sealed interface LogProperty {
@@ -158,8 +167,9 @@ public sealed interface LogProperty {
 	}
 
 	/**
-	 * Thrown if any {@link Result} is not successful for combined valitation of many
-	 * properties.
+	 * Thrown by {@link Validator#validate()} when one or more of the accumulated
+	 * {@link Result}s failed, reporting every failure in a single message instead of just
+	 * the first one encountered.
 	 */
 	final static class ValidationException extends RuntimeException implements PropertyProblem {
 
@@ -212,7 +222,27 @@ public sealed interface LogProperty {
 	}
 
 	/**
-	 * A builder that Validates results.
+	 * Accumulates {@link Result}s from one or more property lookups and validates them
+	 * together, so that a caller resolving several properties in sequence can report
+	 * every failure at once instead of failing fast on the first bad property.
+	 * <p>
+	 * This is the mechanism generated {@code fromProperties(LogProperties)} builder
+	 * implementations use: each property is looked up and its {@link Result} is added to
+	 * the validator as it is read; {@link #validate()} is then called once at the end,
+	 * after all properties have been read, so a user who misconfigured several properties
+	 * sees all of the problems together rather than fixing them one at a time across
+	 * repeated runs.
+	 * <p>
+	 * Use {@link #add(Result)} for a property that is required: a {@link Result.Missing}
+	 * is treated as a failure. Use {@link #addIfError(Result)} for an optional property
+	 * that already has a fallback applied (typically via {@link Result#or(Object)} with
+	 * the builder's current field value): a {@link Result.Missing} is expected in that
+	 * case and is silently ignored, but a {@link Result.Error} (the property was present
+	 * but failed to convert) is still a real problem and is reported.
+	 *
+	 * @apiNote a {@code Validator} is single-use: create one with {@link #of(Class)}, add
+	 * every result that should be checked, and call {@link #validate()} exactly once at
+	 * the end.
 	 */
 	public static class Validator {
 
@@ -221,9 +251,12 @@ public sealed interface LogProperty {
 		private final Class<?> builder;
 
 		/**
-		 * Creates a validator based on a builder.
-		 * @param builder builder class
-		 * @return newly created validator
+		 * Creates a validator whose {@link ValidationException} messages will be prefixed
+		 * with the name of the given class.
+		 * @param builder the class on whose behalf properties are being resolved -
+		 * typically the builder calling this method. It is only used to identify the
+		 * source of a failure in the exception message; no state is read from it.
+		 * @return newly created validator.
 		 */
 		public static Validator of(Class<?> builder) {
 			return new Validator(builder);
@@ -234,9 +267,13 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Adds a result to check.
+		 * Adds a result that must be present. Both {@link Result.Missing} and
+		 * {@link Result.Error} will cause {@link #validate()} to fail. Use this for a
+		 * required property; for an optional property that already has a fallback value
+		 * applied, use {@link #addIfError(Result)} instead so a missing value does not
+		 * itself trigger a failure.
 		 * @param result result to check.
-		 * @return this
+		 * @return this.
 		 */
 		public Validator add(Result<?> result) {
 			results.add(result);
@@ -244,9 +281,13 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Adds a result to check only if it is error.
+		 * Adds a result only if it is a {@link Result.Error}; a {@link Result.Missing}
+		 * result is silently ignored. Intended for an optional property that has already
+		 * had a fallback value applied (for example via {@link Result#or(Object)}): the
+		 * property being absent is expected and fine, but if it was present and failed to
+		 * convert that should not be swallowed.
 		 * @param result result to check.
-		 * @return this
+		 * @return this.
 		 */
 		public Validator addIfError(Result<?> result) {
 			if (result instanceof Result.Error<?> e) {
@@ -256,9 +297,12 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Validates the currently added results and if any are error or missing an
-		 * exception will be thrown.
-		 * @throws ValidationException if validation fails.
+		 * Validates every result added so far via {@link #add(Result)} or
+		 * {@link #addIfError(Result)}, throwing a single exception listing all failures
+		 * if one or more of them are not {@link Result.Success}.
+		 * @throws ValidationException if any added result is a {@link Result.Missing}
+		 * (added via {@link #add(Result)}) or a {@link Result.Error} (added via either
+		 * method).
 		 */
 		public void validate() throws ValidationException {
 			ValidationException.validate(builder, results);
@@ -922,7 +966,10 @@ public sealed interface LogProperty {
 	}
 
 	/**
-	 * Property Builder that can have keys added to try.
+	 * Builds a {@link Property} (or a {@link LogProvider} via {@link #provider}) that is
+	 * looked up under one or more keys tried in order: if the value is not found under
+	 * the first key added, the next key added is tried, and so on. Created via
+	 * {@link PropertyGetter#withKey(String)}.
 	 *
 	 * @param <T> value type.
 	 */
@@ -1358,15 +1405,21 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Mapped property getter.
+		 * A {@link PropertyGetter} that delegates to a {@link #parent()} getter and
+		 * transforms its result, rather than reading directly from {@link LogProperties}
+		 * itself. Getters returned by {@link PropertyGetter#map(PropertyFunction)},
+		 * {@link PropertyGetter#mapResult(PropertyFunction)},
+		 * {@link PropertyGetter#orElse(Object)}, and
+		 * {@link PropertyGetter#orElseGet(Supplier)} are all child getters chained onto
+		 * some ancestor {@link RootPropertyGetter}.
 		 *
-		 * @param <T> will convert to this type.
+		 * @param <T> value type this getter converts to.
 		 */
 		public sealed interface ChildPropertyGetter<T> extends PropertyGetter<T> {
 
 			/**
-			 * Parent.
-			 * @return parent.
+			 * The getter this one delegates to before applying its own conversion.
+			 * @return parent getter.
 			 */
 			PropertyGetter<?> parent();
 
@@ -1388,8 +1441,13 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Sets up to converts a value.
-		 * @param <U> value type
+		 * Creates a new getter that converts a successfully found value with the given
+		 * function. If the underlying lookup is missing or already failed to convert, the
+		 * mapper is not called and that {@link Result.Missing} or {@link Result.Error}
+		 * passes through unchanged. This is a convenience over
+		 * {@link #mapResult(PropertyFunction)} for mappers that only need the value
+		 * itself and not the surrounding {@link Result.Success}.
+		 * @param <U> value type.
 		 * @param mapper function.
 		 * @return new property getter.
 		 */
@@ -1400,8 +1458,11 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Sets up to converts a value.
-		 * @param <U> value type
+		 * Like {@link #map(PropertyFunction)} but the mapper receives the full
+		 * {@link Result.Success} rather than just the value, giving it access to
+		 * {@link Result.Success#key()} and other context about where the value came from.
+		 * {@link #map(PropertyFunction)} is implemented in terms of this method.
+		 * @param <U> value type.
 		 * @param mapper function.
 		 * @return new property getter.
 		 */
