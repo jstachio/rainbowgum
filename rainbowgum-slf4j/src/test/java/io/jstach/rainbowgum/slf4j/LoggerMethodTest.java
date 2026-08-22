@@ -17,9 +17,13 @@ import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.helpers.BasicMarkerFactory;
+import org.slf4j.spi.LoggingEventBuilder;
 
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
 public class LoggerMethodTest {
 
@@ -91,6 +95,68 @@ public class LoggerMethodTest {
 			expected = "";
 		}
 		assertEquals(expected, output.toString());
+	}
+
+	/*
+	 * AbstractFilteringLogger (the base class SPI decorators are meant to extend) was
+	 * only ~30% covered: LoggerDecoratorTest exercises it with exactly one call
+	 * (info("hello")), so almost every trace/debug/warn/error convenience-method overload
+	 * (marker vs non-marker, arg-count variants) was never dispatched. Wrapping a
+	 * decorator around the same LevelLogger + provideParameters() matrix already used by
+	 * testLevelLogger/testForwardingLogger above hits nearly all of them at once, the
+	 * same way those two tests already do for their respective logger implementations.
+	 */
+	@ParameterizedTest
+	@MethodSource("provideParameters")
+	void testDecoratorLogger(LoggerMethod method, Level level, @Nullable Level loggerLevel) {
+		if (loggerLevel == null) {
+			var logger = new LevelLogger.OffLogger(loggerName);
+			method.test(level, logger);
+			assertEquals("", output.toString());
+			return;
+		}
+		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc);
+		var delegate = LevelLogger.of(loggerLevel, handler);
+		var logger = new MethodTestDecoratingLogger(delegate);
+		assertEquals(loggerName, logger.getName());
+		assertEquals(delegate, logger.delegate());
+		// AbstractFilteringLogger's caller-info depth is a fixed internal constant,
+		// so withDepth() is a no-op that always returns itself - see its javadoc.
+		assertEquals(logger, logger.withDepth(5));
+		// DepthAwareLogger.withDepth(Logger, int) is a convenience for decorator
+		// authors, not called by the framework itself - exercise both branches
+		// directly since no built-in decorator needs it yet.
+		assertEquals(logger, DepthAwareLogger.withDepth(logger, 5));
+		assertEquals(org.slf4j.helpers.NOPLogger.NOP_LOGGER,
+				DepthAwareLogger.withDepth(org.slf4j.helpers.NOPLogger.NOP_LOGGER, 5));
+		String expected = method.test(level, logger);
+		if (level.toInt() < loggerLevel.toInt()) {
+			expected = "";
+		}
+		assertEquals(expected, output.toString());
+	}
+
+	/**
+	 * A read-only pass-through decorator: exercises the decorate() hook and the
+	 * DepthAwareEventBuilder#message() accessor across every message/arg/marker shape
+	 * provideParameters() produces, without changing the observed output, so
+	 * testDecoratorLogger can reuse the same expected-value logic as testForwardingLogger
+	 * rather than duplicating it per message shape (including the NULL cases, where the
+	 * underlying message is never set at all).
+	 */
+	static class MethodTestDecoratingLogger extends AbstractFilteringLogger {
+
+		MethodTestDecoratingLogger(DepthAwareLogger delegate) {
+			super(delegate);
+		}
+
+		@Override
+		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
+			DepthAwareEventBuilder.message(builder);
+			builder.addKeyValue("decorated", "true");
+			return true;
+		}
+
 	}
 
 	@ParameterizedTest
