@@ -49,6 +49,20 @@ import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactor
 public sealed interface PatternFormatterFactory {
 
 	/**
+	 * Whether this factory's formatter renders (or, like <code>%nopex</code>,
+	 * deliberately suppresses) a throwable, and thus counts as the pattern having
+	 * addressed exception rendering itself. {@link PatternCompiler} appends a default
+	 * exception formatter to any pattern where every keyword answers {@code false} here,
+	 * so a logged throwable is never silently dropped just because the pattern forgot to
+	 * ask for it - see the built-in throwable keywords and Spring Boot's
+	 * <code>%wEx</code>/<code>%wex</code> for the keywords that override this.
+	 * @return {@code false} by default.
+	 */
+	default boolean isExceptionFormatter() {
+		return false;
+	}
+
+	/**
 	 * A composite formatter factory expects possible children. For example
 	 * {@code %keyword(child) }.
 	 */
@@ -86,6 +100,30 @@ public sealed interface PatternFormatterFactory {
 		 */
 		static PatternFormatterFactory.KeywordFactory of(LogFormatter formatter) {
 			return (c, n) -> PadFormatter.of(formatter, n.padding());
+		}
+
+		/**
+		 * Creates a keyword factory from a formatter that only cares about padding info,
+		 * additionally marking it as {@link #isExceptionFormatter()}. Lambdas cannot
+		 * override default methods, hence this overload instead of a plain lambda for
+		 * keywords like <code>%nopex</code> that need to.
+		 * @param formatter existing formatter.
+		 * @param isExceptionFormatter value to return from
+		 * {@link #isExceptionFormatter()}.
+		 * @return factory.
+		 */
+		static PatternFormatterFactory.KeywordFactory of(LogFormatter formatter, boolean isExceptionFormatter) {
+			return new KeywordFactory() {
+				@Override
+				public LogFormatter create(PatternConfig config, PatternKeyword node) {
+					return PadFormatter.of(formatter, node.padding());
+				}
+
+				@Override
+				public boolean isExceptionFormatter() {
+					return isExceptionFormatter;
+				}
+			};
 		}
 
 	}
@@ -293,6 +331,11 @@ enum StandardKeywordFactory implements KeywordFactory {
 			return PatternFormatterFactory.throwableFormatter(node, false);
 		}
 
+		@Override
+		public boolean isExceptionFormatter() {
+			return true;
+		}
+
 	},
 	/**
 	 * <code>%xEx</code>, <code>%xEx{full}</code>, <code>%xEx{short}</code>,
@@ -305,6 +348,11 @@ enum StandardKeywordFactory implements KeywordFactory {
 		@Override
 		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			return PatternFormatterFactory.throwableFormatter(node, true);
+		}
+
+		@Override
+		public boolean isExceptionFormatter() {
+			return true;
 		}
 
 	};

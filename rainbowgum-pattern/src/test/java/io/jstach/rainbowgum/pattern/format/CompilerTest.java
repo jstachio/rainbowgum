@@ -30,7 +30,7 @@ class CompilerTest {
 	@ParameterizedTest
 	@EnumSource(value = PatternTest.class)
 	void test(PatternTest test) {
-		var c = PatternCompiler.builder()
+		var c = (Compiler) PatternCompiler.builder()
 			.patternRegistry(PatternRegistry.of())
 			.patternConfig(test.patternConfig())
 			.build();
@@ -43,7 +43,14 @@ class CompilerTest {
 			test.output(actual);
 			assertEquals(expected, test.filter(actual));
 			test.assertOutput(actual);
-			test.assertFormatter(formatter);
+			/*
+			 * Patterns that don't otherwise mention an exception keyword get a default
+			 * exception formatter appended automatically (see Compiler.compile), which
+			 * would otherwise mask what a single keyword like %L or %20logger actually
+			 * compiles to. assertFormatter checks are about that keyword-to-formatter
+			 * mapping, so they get the un-appended result instead.
+			 */
+			test.assertFormatter(c.compile(input, false));
 		}
 	}
 
@@ -222,6 +229,23 @@ class CompilerTest {
 				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
 			}
 		},
+		NO_EXCEPTION(List.of("%nopex", "%nopexception"), "") {
+			LogEvent event() {
+				Throwable throwable = new RuntimeException("should not appear");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+
+			@Override
+			protected void assertFormatter(LogFormatter formatter) {
+				assertTrue(LogFormatter.isNoopOrNull(formatter));
+			}
+		},
+		NO_EXCEPTION_SUPPRESSES_AUTO_APPEND("%msg%nopex", "hello") {
+			LogEvent event() {
+				Throwable throwable = new RuntimeException("should not appear");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+		},
 		LINESEP("%n", "\n") {
 		},
 		LOGGER_LEFT_PAD("%20logger", "    io.jstach.logger") {
@@ -338,6 +362,34 @@ class CompilerTest {
 			@Override
 			protected String logger() {
 				return "com.logback.TriviaMain";
+			}
+		},
+		/*
+		 * This is doc/overview.html's own first pattern example, verbatim - it mentions
+		 * no exception keyword at all, so this confirms the automatic exception formatter
+		 * kicks in rather than silently dropping the throwable, which is exactly the gap
+		 * that motivated adding it.
+		 */
+		FULL_INFO_SHOWS_EXCEPTION_WITHOUT_EXPLICIT_KEYWORD("[%thread] %-5level %logger{15} - %msg%n",
+				"[main] INFO  c.l.TriviaMain - hello\n") {
+			LogEvent event() {
+				Throwable throwable = new RuntimeException("boom");
+				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+			}
+
+			@Override
+			protected String logger() {
+				return "com.logback.TriviaMain";
+			}
+
+			@Override
+			protected String filter(String output) {
+				return output.lines().findFirst().orElse("FAIL") + "\n";
+			}
+
+			@Override
+			protected void assertOutput(String output) {
+				assertTrue(output.contains("java.lang.RuntimeException: boom"), output);
 			}
 		},
 		COLOR_INFO("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
