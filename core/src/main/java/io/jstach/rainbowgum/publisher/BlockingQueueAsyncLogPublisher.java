@@ -11,7 +11,6 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.MetaLog;
-import io.jstach.rainbowgum.LogResponse.Status;
 
 /**
  * An async publisher that uses a blocking queue and a single thread consumer.
@@ -48,11 +47,6 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 		this.queue = queue;
 		this.bufferSize = bufferSize;
 		this.worker = new Worker();
-	}
-
-	@Override
-	public Status status() throws Exception {
-		return new Status.QueueStatus(queue.size(), bufferSize);
 	}
 
 	@Override
