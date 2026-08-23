@@ -144,45 +144,6 @@ public sealed interface LogResponse {
 			}
 		}
 
-		/**
-		 * A status that has metric information.
-		 */
-		sealed interface MetricStatus extends Status {
-
-			@Override
-			default Level level() {
-				return Level.INFO;
-			}
-
-		}
-
-		/**
-		 * A queue status for publishers.
-		 *
-		 * @param count current amount in queue.
-		 * @param max the maximum size of the queue.
-		 * @param level severity
-		 */
-		record QueueStatus(long count, long max, Level level) implements MetricStatus {
-
-			/**
-			 * A queue status for publishers. The severity will be warning if queue count
-			 * is greater or equal to max.
-			 * @param count current amount in queue.
-			 * @param max the maximum size of the queue.
-			 */
-			public QueueStatus(long count, long max) {
-				this(count, max, level(count, max));
-			}
-
-			private static Level level(long count, long max) {
-				if (count >= max) {
-					return Level.WARNING;
-				}
-				return Level.INFO;
-			}
-		}
-
 	}
 
 }
