@@ -19,11 +19,6 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 public sealed interface LogOutputRegistry extends OutputProvider permits DefaultOutputRegistry {
 
 	/**
-	 * A meta URI scheme to reference outputs registered somewhere else.
-	 */
-	public static String NAMED_OUTPUT_SCHEME = "name";
-
-	/**
 	 * The URI scheme for list provider.
 	 */
 	public static String LIST_OUTPUT_SCHEME = "list";

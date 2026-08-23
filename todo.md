@@ -97,12 +97,29 @@ Concrete issue found this cycle, not yet fixed: there are **two different**
 URI-normalization implementations. `LogOutputRegistry`'s private `normalize(URI)` only
 special-cases `./`-prefixed relative paths; `DefaultLogProviderRef.normalize(URI)` (used
 by `LogPublisherRegistry` and `LogEncoderRegistry`, but *not* by `LogOutputRegistry`)
-also handles bare `/`-absolute paths via a `name://` trick. This means an absolute-path
-URI for a generic `output=` property may still behave inconsistently with the same value
-used for a publisher or encoder. Worth auditing and unifying.
+used to also handle bare `/`-absolute paths via a `name://` trick, letting a scheme-less
+value reference another named component's config (e.g.
+`logging.appender.default.encoder=name:///somename` pointing at
+`logging.encoder.somename.*`). That trick was removed - it was never actually wired up
+to look anything up (nothing registered a provider for the `name` scheme, so using it
+just traded one unresolvable-URI failure for another), and it read as confusing
+scaffolding, especially next to the unrelated `logging.file.name` property. See
+"Reuse-by-name config" below for whether it's worth building for real. The two
+normalize implementations otherwise still differ on `./`-relative paths - `LogOutputRegistry`
+converts those to real `file:` URIs (appropriate, since only outputs are file-like);
+`DefaultLogProviderRef` now just fails clearly instead of guessing. Worth auditing and
+unifying.
 
 - [ ] Reconcile `LogOutputRegistry.normalize()` and `DefaultLogProviderRef.normalize()`
       into one implementation (or a clearly documented reason they must differ).
+- [ ] **Reuse-by-name config**: decide whether `name:///somename`-style references
+      (letting one property block, e.g. `logging.encoder.somename.*`, be reused from
+      another, e.g. `logging.appender.default.encoder=name:///somename`) are actually
+      worth building. The scaffolding for this (`LogOutputRegistry.NAMED_OUTPUT_SCHEME`,
+      the `name://` normalization trick) was removed since it was never implemented -
+      using it would only ever throw `NotFoundException`. If revisited, needs a real
+      design (which registries support it, how it interacts with `{name}` key
+      parameters) rather than reintroducing dead scaffolding.
 - [ ] `LogAppenderRegistry` carries its own admission of guilt in a comment: "The shit
       in here is a mess because auto configuration of appenders based on properties is
       complicated." A focused cleanup pass is overdue, now that `fileAppender()` has
