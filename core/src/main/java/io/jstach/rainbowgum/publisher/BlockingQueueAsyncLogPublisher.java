@@ -34,15 +34,15 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	 * @return async publisher.
 	 */
 	public static BlockingQueueAsyncLogPublisher of(LogAppender appender, int bufferSize) {
+		if (bufferSize <= 0) {
+			throw new IllegalArgumentException("buffer size should be greater than 0");
+		}
 		BlockingQueue<LogEvent> queue = new ArrayBlockingQueue<>(bufferSize);
 		return new BlockingQueueAsyncLogPublisher(appender, queue, bufferSize);
 	}
 
 	private BlockingQueueAsyncLogPublisher(LogAppender appender, BlockingQueue<LogEvent> queue, int bufferSize) {
 		super();
-		if (bufferSize <= 0) {
-			throw new IllegalArgumentException("buffer size should be greater than 0");
-		}
 		this.appender = appender;
 		this.queue = queue;
 		this.bufferSize = bufferSize;
@@ -115,10 +115,6 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 					var event = queue.take();
 					fake.add(event);
 					drain();
-					// int added = drain();
-					// if (added == 0) {
-					// pauseStrategy.pause();
-					// }
 				}
 				catch (InterruptedException e) {
 					break;
