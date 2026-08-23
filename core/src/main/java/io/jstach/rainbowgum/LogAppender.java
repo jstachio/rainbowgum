@@ -616,7 +616,6 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 			case LogAction.StandardAction a -> switch (a) {
 				case LogAction.StandardAction.REOPEN -> List.of(reopen());
 				case LogAction.StandardAction.FLUSH -> List.of(flush());
-				case LogAction.StandardAction.STATUS -> List.of(status());
 			};
 			default -> throw new IllegalArgumentException(); // TODO fucking eclipse
 		};
@@ -630,12 +629,6 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	default LogResponse flush() {
 		output().flush();
-		return new Response(LogOutput.class, name(), LogResponse.Status.StandardStatus.OK);
-	}
-
-	default LogResponse status() {
-		// LogOutput no longer has its own status() to query - status reporting is
-		// being replaced with a pushed API next release.
 		return new Response(LogOutput.class, name(), LogResponse.Status.StandardStatus.OK);
 	}
 

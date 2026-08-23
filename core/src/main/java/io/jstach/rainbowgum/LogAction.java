@@ -7,7 +7,7 @@ sealed interface LogAction {
 
 	enum StandardAction implements LogAction {
 
-		REOPEN, FLUSH, STATUS;
+		REOPEN, FLUSH;
 
 	}
 

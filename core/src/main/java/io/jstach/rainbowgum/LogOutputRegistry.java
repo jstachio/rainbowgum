@@ -59,12 +59,6 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	 */
 	public List<LogResponse> flush();
 
-	/**
-	 * Will retrieve the status of all outputs usually for health checking.
-	 * @return list of status of outputs.
-	 */
-	public List<LogResponse> status();
-
 }
 
 final class DefaultOutputRegistry implements LogOutputRegistry {
@@ -97,14 +91,6 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 	@Override
 	public List<LogResponse> flush() {
 		return requestIO(LogAction.StandardAction.FLUSH);
-	}
-
-	@Override
-	public List<LogResponse> status() {
-		/*
-		 * TODO should we queue status requests with a lock? Probably not.
-		 */
-		return _request(LogAction.StandardAction.STATUS);
 	}
 
 	private List<LogResponse> requestIO(LogAction action) {
