@@ -78,11 +78,15 @@ record DefaultLogProviderRef(URI uri, @Nullable String keyOrNull) implements Log
 				if (path == null) {
 					throw new IllegalArgumentException("URI is not proper: " + uri);
 				}
-				if (path.startsWith("./") || path.startsWith("/")) {
-					uri = new URI("name://" + path);
-				}
-				else {
-					uri = new URI(path + ":///");
+				uri = new URI(path + ":///");
+				if (uri.getScheme() == null) {
+					/*
+					 * A leading "/" or "." keeps the URI parser from ever attempting
+					 * scheme detection, so appending ":///" above silently produces
+					 * another scheme-less URI instead of throwing. Fail clearly here
+					 * rather than letting an unresolvable URI reach a provider registry.
+					 */
+					throw new IllegalArgumentException("URI is not proper: " + uri);
 				}
 			}
 		}
