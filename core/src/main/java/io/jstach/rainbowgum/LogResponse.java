@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
@@ -35,8 +34,7 @@ public sealed interface LogResponse {
 	public Class<?> type();
 
 	/**
-	 * Log component status check. Note that trees or aggregates can be created with
-	 * {@link AggregateStatus}.
+	 * Log component status check.
 	 */
 	sealed interface Status {
 
@@ -103,44 +101,6 @@ public sealed interface LogResponse {
 			static ErrorStatus of(Throwable e) {
 				String message = Objects.requireNonNullElse(e.getMessage(), "unknown error");
 				return new Status.ErrorStatus(message);
-			}
-		}
-
-		/**
-		 * A Status of Statuses. The severity is the status with the highest severity if
-		 * severity is not provided.
-		 *
-		 * @param status a list of statuses.
-		 * @param level severity.
-		 */
-		record AggregateStatus(List<Status> status, Level level) implements Status {
-
-			/**
-			 * A Status of Statuses.
-			 * @param status a list of statuses.
-			 * @param level severity.
-			 */
-			public AggregateStatus {
-				status = List.copyOf(status);
-			}
-
-			/**
-			 * A Status of Statuses. The severity is the status with the highest severity.
-			 * @param status a list of statuses.
-			 */
-			public AggregateStatus(List<Status> status) {
-				this(status, level(status));
-			}
-
-			private static Level level(List<Status> status) {
-				Level level = Level.ALL;
-				for (var stat : status) {
-					var current = stat.level();
-					if (current.getSeverity() > level.getSeverity()) {
-						level = current;
-					}
-				}
-				return level;
 			}
 		}
 
