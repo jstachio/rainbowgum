@@ -736,10 +736,13 @@ final class GroupLevelResolver implements LevelConfig {
 		}
 		Map<String, Level> loggerToLevels = new LinkedHashMap<>();
 		for (var e : groupToLevels.entrySet()) {
-			List<String> loggers = groupToLoggers.get(e.getKey());
-			if (loggers == null || loggers.isEmpty()) {
-				continue;
-			}
+			/*
+			 * groupToLevels's keys are always a subset of groupToLoggers's own keys
+			 * (built by iterating groupToLoggers.entrySet() above), whose values are
+			 * already guaranteed non-empty by the filter() when groupToLoggers was
+			 * populated - so this lookup can never actually be null or empty.
+			 */
+			List<String> loggers = Objects.requireNonNull(groupToLoggers.get(e.getKey()));
 			for (var logger : loggers) {
 				loggerToLevels.put(logger, e.getValue());
 			}
