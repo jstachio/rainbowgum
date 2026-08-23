@@ -11,6 +11,7 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -118,6 +119,7 @@ class LogPropertyTest {
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testValueSuccessRejectsNullValueAndMap() {
 		assertThrows(NullPointerException.class, () -> new ValueSuccess<String>("key", null));
 		var success = new ValueSuccess<>("key", "5");
@@ -133,6 +135,7 @@ class LogPropertyTest {
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testPropertySuccessRejectsNullValueAndMap() {
 		LogProperties properties = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "5");
 		var found = new StringProperty(properties, "logging.p1", "5");
@@ -173,7 +176,7 @@ class LogPropertyTest {
 	void testErrorAlwaysThrowsOnValueAccessAndOrReturnsThis() {
 		var cause = new NumberFormatException("nope");
 		Error<String> error = new Error<>("key", "bad value", cause);
-		assertThrows(PropertyConvertException.class, error::valueOrNull);
+		assertThrows(PropertyConvertException.class, () -> error.valueOrNull());
 		assertThrows(PropertyConvertException.class, error::value);
 		assertThrows(PropertyConvertException.class, () -> error.value(() -> "fallback"));
 		assertEquals(error, error.or("fallback"));
@@ -262,6 +265,7 @@ class LogPropertyTest {
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testChildPropertyGetterDefaultPropertyStringBranches() {
 		var root = LogProperty.builder();
 
@@ -297,12 +301,14 @@ class LogPropertyTest {
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testOrElseNullFallbackThrows() {
 		var getter = LogProperty.builder();
 		assertThrows(NullPointerException.class, () -> getter.orElse(null));
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testResultFuncGetterNullMapperResultBecomesMissing() {
 		LogProperties properties = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "value");
 		var getter = LogProperty.builder().<String>map(s -> null);
@@ -437,7 +443,7 @@ class LogPropertyTest {
 		});
 		Result<String> result = getter.build("logging.p1").get(properties);
 		var e = assertThrows(PropertyConvertException.class, result::value);
-		assertTrue(e.getMessage().contains("Error converting property"));
+		assertTrue(Objects.requireNonNull(e.getMessage()).contains("Error converting property"));
 	}
 
 	@Test
@@ -447,6 +453,7 @@ class LogPropertyTest {
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testDefaultPropertySetOnlyCallsConsumerWhenValueNonNull() {
 		var property = Property.builder().build("logging.p1");
 		Map<String, String> captured = new LinkedHashMap<>();
