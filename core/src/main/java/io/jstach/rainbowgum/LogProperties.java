@@ -722,18 +722,6 @@ public interface LogProperties {
 					(b) -> queryToProperties(query, Objects.requireNonNullElse(description, "URI_QUERY(" + uri + ")")));
 		}
 
-		/**
-		 * Parses a string as a URI query string.
-		 * @param query uri percent encoded uri with separator as "<code>&amp;</code>" and
-		 * key value separator of "<code>=</code>".
-		 * @return this.
-		 */
-		public Builder fromURIQuery(String query) {
-			return provider((b) -> queryToProperties(query,
-					Objects.requireNonNullElse(description, "URI_QUERY(" + query + ")")));
-
-		}
-
 		private MultiMapProperties queryToProperties(@Nullable String query, String description) {
 			Map<String, List<String>> multiMap;
 			if (query == null) {
@@ -833,19 +821,6 @@ public interface LogProperties {
 		 * @return this.
 		 */
 		MutableLogProperties put(String key, @Nullable String value);
-
-		/**
-		 * Copy java.util {@link Properties} String useful for unit testing.
-		 * @param content string in {@link Properties} format (tip use multiline strings).
-		 * @return this.
-		 */
-		default MutableLogProperties copyProperties(String content) {
-			var m = PropertiesParser.readProperties(content);
-			for (var e : m.entrySet()) {
-				put(e.getKey(), e.getKey());
-			}
-			return this;
-		}
 
 		/**
 		 * Builder for MutableLogProperties.

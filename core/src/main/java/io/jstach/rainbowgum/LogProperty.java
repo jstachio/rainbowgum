@@ -874,17 +874,6 @@ public sealed interface LogProperty {
 		}
 
 		/**
-		 * Adds a fallback paramter that will be used on all keys.
-		 * @param name parameter name.
-		 * @param value value of parameter.
-		 * @return this
-		 */
-		public B addFallbackParam(String name, String value) {
-			params.put(name, value);
-			return self();
-		}
-
-		/**
 		 * Adds a key with a <code>{name}</code> parameter.
 		 * @param key key to be interpolated.
 		 * @param name name.
@@ -1536,10 +1525,6 @@ record DefaultProperty<T>(PropertyGetter<T> propertyGetter, List<String> keys) i
 			consumer.accept(key(), value);
 		}
 	}
-
-}
-
-enum NoProperty implements LogProperty {
 
 }
 
