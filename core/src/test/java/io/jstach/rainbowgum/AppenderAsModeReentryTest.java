@@ -23,23 +23,18 @@ import io.jstach.rainbowgum.LogAppender.Appenders;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
- * REENTRY_DROP/REENTRY_LOG behave identically for a single appender (see
- * {@link LogAppenderFlagTest}), but the three {@link Appenders} "as" modes wire the
- * reentry-checking lock at different scopes when more than one appender is combined,
- * which changes what a <em>sibling</em> appender sees during a reentrant call:
- * <ul>
- * <li>{@code asSingleSharedLock()} ({@link CompositeLogAppender}) enforces the check
- * <strong>once</strong>, at the composite level, using one lock shared by all appenders -
- * a reentrant call is dropped in its entirety before it reaches any appender.</li>
- * <li>{@code asSingle()}'s default ({@link IndependentLockCompositeLogAppender}) and
- * {@code asList()} (via {@link FanoutSyncLogPublisher}, which loops the same way) both
- * give every appender its own independent lock and do no locking at the fan-out level
- * itself - so a reentrant call only gets dropped for the specific appender that's
- * reentering its own lock; every other appender still receives it, nested ahead of the
- * event that triggered the reentry in the first place.</li>
- * </ul>
- * This is exactly the kind of surprising, easy-to-break-silently behavior worth pinning
- * down before a {@link LogAppender} refactor.
+ * Every appender always keeps its own independent lock (there used to also be a
+ * {@code SHARED_APPENDER_LOCK}/{@code asSingleSharedLock()} strategy that gave a
+ * composite one lock shared by all its appenders - removed after this test caught it
+ * behaving inconsistently with everything else: it rejected a reentrant call in its
+ * entirety before it reached any appender, while every other path only dropped it for the
+ * specific appender reentering its own lock). With only the independent-lock strategy
+ * left, {@link Appenders#asSingle()} and {@link Appenders#asList()} (via
+ * {@link FanoutSyncLogPublisher}, which loops the same way) now necessarily agree: a
+ * reentrant call only gets dropped for the specific appender that's reentering its own
+ * lock - every other appender still receives it, nested ahead of the event that triggered
+ * the reentry in the first place. This test pins that (still genuinely surprising)
+ * ordering down for both.
  */
 class AppenderAsModeReentryTest {
 
@@ -69,7 +64,7 @@ class AppenderAsModeReentryTest {
 
 	@ParameterizedTest
 	@MethodSource("modesAndReentryFlags")
-	void testReentryBehaviorDiffersByMode(AsMode mode, AppenderFlag reentryFlag) {
+	void testReentrantCallOnlyDropsForTheReenteringAppender(AsMode mode, AppenderFlag reentryFlag) {
 		LogConfig config = LogConfig.builder().build();
 		// naughty: logs a second event from within its own output write.
 		var outputA = new ListLogOutput();
@@ -84,25 +79,15 @@ class AppenderAsModeReentryTest {
 		});
 
 		/*
-		 * The reentry flag has to be set BOTH on each appender's own builder AND via
-		 * Appenders.flags(...) to actually take effect across all three modes - found the
-		 * hard way while writing this test, and worth pinning down since it is a
-		 * genuinely confusing inconsistency in how flags flow to the lock that actually
-		 * does the reentry check:
-		 *
-		 * - An individual DirectLogAppender's *lock* (as opposed to its flags field, used
-		 * only for immediateFlush/REUSE_BUFFER selection) is fixed once, from whatever
-		 * flags were on its builder at construction (LockLogAppender.withFlags always
-		 * reuses `this.lock` unchanged, no matter what flags are merged in later) - so
-		 * asSingle() (IndependentLockCompositeLogAppender, which merges flags
-		 * per-appender via withFlags but never calls changeLock) and asList() (which
-		 * never composites at all) only honor a REENTRY_DROP/REENTRY_LOG set on the
-		 * *appender builder*; Appenders.flags(...) alone does nothing for them. -
-		 * asSingleSharedLock() (CompositeLogAppender) does the opposite: it builds a
-		 * brand new outer lock from Appenders.flags(...) and unconditionally replaces
-		 * every inner appender's lock with an always-allow-reentry wrapper via
-		 * changeLock(directLock) - so a REENTRY_DROP/REENTRY_LOG set only on the appender
-		 * builder is silently discarded, and only Appenders.flags(...) works.
+		 * The reentry flag is set both on each appender's own builder and via
+		 * Appenders.flags(...). An individual DirectLogAppender's *lock* (as opposed to
+		 * its flags field, used only for immediateFlush/REUSE_BUFFER selection) is fixed
+		 * once, from whatever flags were on its builder at construction
+		 * (LockLogAppender.withFlags always reuses `this.lock` unchanged, no matter what
+		 * flags are merged in later) - so only a REENTRY_DROP/REENTRY_LOG set on the
+		 * *appender builder* actually matters for the reentry check; Appenders.flags(...)
+		 * alone would do nothing for it. Setting both keeps this test robust regardless
+		 * of which one turns out to matter.
 		 */
 		List<LogProvider<LogAppender>> providers = List.of(
 				LogAppender.builder("a")
@@ -119,7 +104,6 @@ class AppenderAsModeReentryTest {
 
 		LogPublisher publisher = switch (mode) {
 			case SINGLE -> new DefaultSyncLogPublisher(appenders.asSingle());
-			case SINGLE_SHARED_LOCK -> new DefaultSyncLogPublisher(appenders.asSingleSharedLock());
 			case LIST -> new FanoutSyncLogPublisher(appenders.asList());
 		};
 		publisherHolder[0] = publisher;
@@ -135,22 +119,13 @@ class AppenderAsModeReentryTest {
 		List<String> aMessages = outputA.events().stream().map(e -> e.getKey().message()).toList();
 		List<String> bMessages = outputB.events().stream().map(e -> e.getKey().message()).toList();
 
-		// A always only sees event1 - it drops its own reentrant call regardless of
-		// mode, since that check is about A's own lock either way.
+		// A only sees event1 - it drops its own reentrant call.
 		assertEquals(List.of("event1"), aMessages);
-
-		switch (mode) {
-			case SINGLE_SHARED_LOCK ->
-				// The shared composite lock rejects the reentrant call before it
-				// reaches any appender, so B never sees event2 at all.
-				assertEquals(List.of("event1"), bMessages);
-			case SINGLE, LIST ->
-				// B's lock is independent and not held, so the nested reentrant call
-				// (which happens *during* A's write, i.e. before the outer loop moves
-				// on to B) delivers event2 to B first, then the outer loop delivers
-				// event1 to B as normal.
-				assertEquals(List.of("event2", "event1"), bMessages);
-		}
+		// B's lock is independent and not held, so the nested reentrant call (which
+		// happens *during* A's write, i.e. before the outer loop moves on to B)
+		// delivers event2 to B first, then the outer loop delivers event1 to B as
+		// normal.
+		assertEquals(List.of("event2", "event1"), bMessages);
 
 		if (reentryFlag == AppenderFlag.REENTRY_LOG) {
 			String diagnostic = metaLogBytes.toString(StandardCharsets.UTF_8);

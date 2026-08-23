@@ -134,7 +134,7 @@ class LogAppenderFlagTest {
 	}
 
 	@Test
-	void appenderLevelFlagsMergeOntoSharedLockComposite() {
+	void appenderLevelFlagsMergeOntoMultiAppenderComposite() {
 		LogConfig config = LogConfig.builder().build();
 		var outputA = new CountingListLogOutput();
 		var outputB = new CountingListLogOutput();
@@ -142,7 +142,6 @@ class LogAppenderFlagTest {
 				LogAppender.builder("a").encoder(LogFormatter.builder().message().encoder()).output(outputA).build(),
 				LogAppender.builder("b").encoder(LogFormatter.builder().message().encoder()).output(outputB).build());
 		var appenders = new LogAppender.Appenders("test-route", config, providers)
-			.routeFlags(Set.of(LogRouter.RouteFlag.SHARED_APPENDER_LOCK))
 			.flags(Set.of(AppenderFlag.DISABLE_IMMEDIATE_FLUSH));
 		var result = appenders.asSingle();
 		result.start(config);
