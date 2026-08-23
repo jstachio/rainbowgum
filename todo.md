@@ -6,36 +6,48 @@ still outstanding before an eventual 1.0.0, not a blocker list for 0.10.0.
 See also `code-todos.md` for a themed survey of the `// TODO` comments still scattered
 through the codebase - several feed directly into the items below.
 
-## 1. Improve status reporting
+## 1. Replace pull-style status with separate alerts and metrics systems
 
-A first pass exists on `feature/log-status-manager` (currently on hold, not merged):
-`LogStatusReporter` - a bounded, drop-oldest ring buffer of `StatusEvent`s living on
-`LogConfig`, meant to bridge `MetaLog`'s push-style error logging with
-`LogResponse.Status`'s pull-style single-snapshot health checks. Rationale: a single
-`status()` per component can't express "this got a little worse over the last minute" -
-metrics beat a binary health check. To land before 1.0:
+The old design (`LogResponse.Status`, one `status()` snapshot per component) is being
+replaced by **two separate pushed systems**, not a single unified status API:
 
-- [ ] Decide bootstrap scope and finish wiring: only `BlockingQueueAsyncLogPublisher`
-      and `DisruptorLogPublisher` route through `statusReporter()` today.
+- An **alerts** system - event-driven, for the "this just broke" / "this got a little
+  worse" case `MetaLog`'s push-style error logging already covers informally. This is
+  the direction `feature/log-status-manager` (currently on hold, not merged) was
+  headed with `LogStatusReporter`, a bounded drop-oldest ring buffer of `StatusEvent`s
+  on `LogConfig`.
+- A **metrics** system - numeric/gauge-style data (queue depth vs capacity, dropped
+  event counts, etc.) that a snapshot-per-component `status()` call was a poor fit for
+  in the first place.
+
+`LogOutput.status()` and `LogPublisher.status()` (the old per-component pull-style
+health check) have already been removed, including `BlockingQueueAsyncLogPublisher`'s
+only real override (`QueueStatus` - queue depth vs capacity, exactly the kind of data
+the future metrics system should own). `LogAppender.status()`/
+`LogPublisherRegistry.status()` still exist but now always report `StandardStatus.OK`
+unconditionally, since there is nothing left to delegate to - not a regression, just
+scaffolding waiting on whichever of the two new systems replaces it.
+
+To land before 1.0:
+
+- [ ] Design the alerts system: finish or restart `feature/log-status-manager`'s
+      `LogStatusReporter` approach (bounded ring buffer bridging `MetaLog`'s push-style
+      errors), decide bootstrap scope (only `BlockingQueueAsyncLogPublisher` and
+      `DisruptorLogPublisher` routed through `statusReporter()` in that branch -
       `LogAppender`'s `LogReentryAppenderLock`, `ServiceRegistry`, and external modules
-      (RabbitMQ output, `RainbowGumSystemLoggerFinder`) still only ever reach stderr.
-- [ ] Design and expose an actual pull API for consumers (health checks, admin
-      endpoints) that surfaces `recent()` history alongside the existing instantaneous
-      `LogOutputRegistry.status()` snapshot, not as a separate, undiscoverable thing.
-- [ ] Sanity check the default capacity (currently 250, via
-      `logging.global.status.capacity`) against a real consumer instead of a guess.
-- [ ] Revisit whether coalescing repeated identical errors (a stuck queue dropping every
-      event) is needed - explicitly deferred out of the first pass.
-- [x] `LogOutput.status()` and `LogPublisher.status()` (the per-component pull-style
-      health check this item's rationale argues against) have been removed - along with
-      `BlockingQueueAsyncLogPublisher`'s only real override (`QueueStatus`, queue
-      depth vs capacity). `LogAppender.status()`/`LogPublisherRegistry.status()` still
-      exist but now always report `StandardStatus.OK` unconditionally, since there is
-      nothing left to delegate to. This is a deliberate step towards a pushed API
-      planned for the next release, not a regression to fix - but it does mean the
-      "pull API" this item's second bullet refers to needs a replacement source for
-      queue-depth-style metrics, not just a `recent()` history bolted onto the
-      existing snapshot.
+      like the RabbitMQ output and `RainbowGumSystemLoggerFinder` still only ever
+      reached stderr), and expose a real pull/subscribe API for consumers (health
+      checks, admin endpoints) instead of a separate, undiscoverable thing bolted onto
+      `LogOutputRegistry.status()`.
+- [ ] Design the metrics system: needs its own home for queue-depth-style gauges now
+      that `QueueStatus` is gone - not necessarily reusing `LogResponse.Status` at all,
+      since that type was built around single-snapshot health rather than metrics.
+- [ ] Sanity check the alerts ring buffer's default capacity (currently 250 in the
+      on-hold branch, via `logging.global.status.capacity`) against a real consumer
+      instead of a guess.
+- [ ] Revisit whether coalescing repeated identical alerts (a stuck queue dropping
+      every event) is needed - explicitly deferred out of the on-hold branch's first
+      pass.
 
 ## 2. Replace Eclipse JDT nullability annotations with JSpecify
 
