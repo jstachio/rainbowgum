@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SequencedMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -327,7 +328,7 @@ class LogPropertiesTest {
 	@Test
 	void testStringPropertyOrNull() {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "v1");
-		var found = props.stringPropertyOrNull("logging.p1");
+		var found = Objects.requireNonNull(props.stringPropertyOrNull("logging.p1"));
 		assertEquals("v1", found.value());
 		assertEquals("logging.p1", found.key());
 		assertNull(props.stringPropertyOrNull("logging.missing"));
@@ -337,19 +338,19 @@ class LogPropertiesTest {
 	@ValueSource(strings = { "password", "PASSWORD", "apikey", "secret", "token" })
 	void testStringPropertyValueDescriptionRedactsExactMatch(String value) {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", value);
-		assertEquals("<REDACTED>", props.stringPropertyOrNull("logging.p1").valueDescription());
+		assertEquals("<REDACTED>", Objects.requireNonNull(props.stringPropertyOrNull("logging.p1")).valueDescription());
 	}
 
 	@Test
 	void testStringPropertyValueDescriptionRedactsSubstringMatch() {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "my-password-123");
-		assertEquals("<REDACTED>", props.stringPropertyOrNull("logging.p1").valueDescription());
+		assertEquals("<REDACTED>", Objects.requireNonNull(props.stringPropertyOrNull("logging.p1")).valueDescription());
 	}
 
 	@Test
 	void testStringPropertyValueDescriptionPassesThroughOrdinaryValues() {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "hello");
-		assertEquals("hello", props.stringPropertyOrNull("logging.p1").valueDescription());
+		assertEquals("hello", Objects.requireNonNull(props.stringPropertyOrNull("logging.p1")).valueDescription());
 	}
 
 	@Test
@@ -357,7 +358,7 @@ class LogPropertiesTest {
 		var props = LogProperties.builder().fromProperties("""
 				logging.a=x,y
 				""").build();
-		assertEquals("[x, y]", props.listPropertyOrNull("logging.a").valueDescription());
+		assertEquals("[x, y]", Objects.requireNonNull(props.listPropertyOrNull("logging.a")).valueDescription());
 	}
 
 	@Test
@@ -365,7 +366,7 @@ class LogPropertiesTest {
 		var props = LogProperties.builder().fromProperties("""
 				logging.a=k=v
 				""").build();
-		assertEquals("{k=v}", props.mapPropertyOrNull("logging.a").valueDescription());
+		assertEquals("{k=v}", Objects.requireNonNull(props.mapPropertyOrNull("logging.a")).valueDescription());
 	}
 
 	@Test
