@@ -432,7 +432,7 @@ final class DefaultLogConfig implements LogConfig {
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
-		this.publisherRegistry = DefaultPublisherRegistry.of(registry);
+		this.publisherRegistry = DefaultPublisherRegistry.of();
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {
