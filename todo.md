@@ -26,6 +26,16 @@ metrics beat a binary health check. To land before 1.0:
       `logging.global.status.capacity`) against a real consumer instead of a guess.
 - [ ] Revisit whether coalescing repeated identical errors (a stuck queue dropping every
       event) is needed - explicitly deferred out of the first pass.
+- [x] `LogOutput.status()` and `LogPublisher.status()` (the per-component pull-style
+      health check this item's rationale argues against) have been removed - along with
+      `BlockingQueueAsyncLogPublisher`'s only real override (`QueueStatus`, queue
+      depth vs capacity). `LogAppender.status()`/`LogPublisherRegistry.status()` still
+      exist but now always report `StandardStatus.OK` unconditionally, since there is
+      nothing left to delegate to. This is a deliberate step towards a pushed API
+      planned for the next release, not a regression to fix - but it does mean the
+      "pull API" this item's second bullet refers to needs a replacement source for
+      queue-depth-style metrics, not just a `recent()` history bolted onto the
+      existing snapshot.
 
 ## 2. Replace Eclipse JDT nullability annotations with JSpecify
 

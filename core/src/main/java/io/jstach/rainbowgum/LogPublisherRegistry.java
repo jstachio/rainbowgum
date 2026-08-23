@@ -133,17 +133,11 @@ final class DefaultPublisherRegistry implements LogPublisherRegistry {
 
 	@Override
 	public List<LogResponse> status() {
+		// LogPublisher no longer has its own status() to query - status reporting is
+		// being replaced with a pushed API next release.
 		List<LogResponse> responses = new ArrayList<>();
-		serviceRegistry.forEach(LogPublisher.class, (name, pub) -> {
-			Status status;
-			try {
-				status = pub.status();
-			}
-			catch (Exception e) {
-				status = LogResponse.Status.ofError(e);
-			}
-			responses.add(new Response(LogPublisher.class, name, status));
-		});
+		serviceRegistry.forEach(LogPublisher.class,
+				(name, pub) -> responses.add(new Response(LogPublisher.class, name, Status.StandardStatus.OK)));
 		return responses;
 	}
 

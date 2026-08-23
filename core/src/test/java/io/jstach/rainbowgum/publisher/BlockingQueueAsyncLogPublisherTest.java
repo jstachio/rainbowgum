@@ -67,11 +67,13 @@ class BlockingQueueAsyncLogPublisherTest {
 			}
 			latch.await();
 			out.println("done");
+			// LogPublisher no longer reports its own status (e.g. queue depth) - status
+			// reporting is being replaced with a pushed API next release, so this is
+			// now always StandardStatus.OK regardless of the publisher's real state.
 			var responses = g.config().publisherRegistry().status();
 			String actual = """
-					[Response[type=interface io.jstach.rainbowgum.LogPublisher, name=default, status=QueueStatus[count=0, max=100, level=INFO]]]
-					"""
-				.trim();
+					[Response[type=interface io.jstach.rainbowgum.LogPublisher, name=default, status=OK]]
+					""".trim();
 			String expected = responses.toString();
 			assertEquals(expected, actual);
 		}

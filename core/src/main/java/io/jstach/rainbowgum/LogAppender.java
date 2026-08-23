@@ -634,14 +634,9 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	}
 
 	default LogResponse status() {
-		Status status;
-		try {
-			status = output().status();
-		}
-		catch (Exception e) {
-			status = LogResponse.Status.ofError(e);
-		}
-		return new Response(LogOutput.class, name(), status);
+		// LogOutput no longer has its own status() to query - status reporting is
+		// being replaced with a pushed API next release.
+		return new Response(LogOutput.class, name(), LogResponse.Status.StandardStatus.OK);
 	}
 
 	static List<DirectLogAppender> findAppenders(ServiceRegistry registry) {
