@@ -11,7 +11,6 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -293,6 +292,7 @@ class LogPropertyTest {
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testFallbackGetterFallbackReturningNullProducesError() {
 		LogProperties properties = LogProperties.MutableLogProperties.builder().build();
 		var getter = LogProperty.builder().orElseGet(() -> null);
@@ -348,6 +348,7 @@ class LogPropertyTest {
 	}
 
 	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testMapGetterPropertyStringHandlesMultipleEntriesAndNullValues() {
 		var map = new LinkedHashMap<String, String>();
 		map.put("a", "1");
@@ -443,7 +444,11 @@ class LogPropertyTest {
 		});
 		Result<String> result = getter.build("logging.p1").get(properties);
 		var e = assertThrows(PropertyConvertException.class, result::value);
-		assertTrue(Objects.requireNonNull(e.getMessage()).contains("Error converting property"));
+		var message = e.getMessage();
+		if (message == null) {
+			throw new AssertionError();
+		}
+		assertTrue(message.contains("Error converting property"));
 	}
 
 	@Test
