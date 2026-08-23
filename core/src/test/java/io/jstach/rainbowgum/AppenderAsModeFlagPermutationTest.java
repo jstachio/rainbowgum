@@ -20,27 +20,25 @@ import io.jstach.rainbowgum.LogAppenderFlagTest.CountingListLogOutput;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
- * End-to-end permutation coverage across every {@link AppenderFlag} combination and every
- * {@link Appenders} "as" mode ({@link Appenders#asSingle()},
- * {@link Appenders#asSingleSharedLock()}, {@link Appenders#asList()}) - a baseline safety
- * net ahead of a planned {@link LogAppender} refactor, so the refactor doesn't silently
- * change behavior for some flag/mode combination nobody happened to test.
+ * End-to-end permutation coverage across every {@link AppenderFlag} combination and both
+ * {@link Appenders} "as" modes ({@link Appenders#asSingle()}, {@link Appenders#asList()})
+ * - a baseline safety net that caught the {@code SHARED_APPENDER_LOCK}/
+ * {@code asSingleSharedLock()} reentry inconsistency documented in
+ * {@link AppenderAsModeReentryTest} before that whole shared-lock composite strategy was
+ * removed. Appenders always keep their own independent lock now.
  * <p>
- * {@code asList()} has no real production caller today - only {@code asSingle()}/
- * {@code asSingleSharedLock()} are used by the built-in DEFAULT/SYNC/ASYNC publisher
- * factories (see {@code LogPublisherRegistry.DefaultPublisherProviders}). It exists for a
- * future fanout-style publisher; {@link FanoutSyncLogPublisher} is a small synchronous
- * test publisher built to exercise it the way a real one eventually would - see that
- * class for details. Reentrant-append behavior (a naughty output that logs during its own
- * write) genuinely differs between the three modes and is covered separately in
- * {@link AppenderAsModeReentryTest}, rather than folded into this permutation, since it
- * needs a different kind of stimulus than a single plain event.
+ * {@code asList()} has no real production caller today - only {@code asSingle()} is used
+ * by the built-in DEFAULT/SYNC/ASYNC publisher factories (see
+ * {@code LogPublisherRegistry.DefaultPublisherProviders}). It exists for a future
+ * fanout-style publisher; {@link FanoutSyncLogPublisher} is a small synchronous test
+ * publisher built to exercise it the way a real one eventually would - see that class for
+ * details.
  */
 class AppenderAsModeFlagPermutationTest {
 
 	enum AsMode {
 
-		SINGLE, SINGLE_SHARED_LOCK, LIST;
+		SINGLE, LIST;
 
 	}
 
@@ -92,7 +90,6 @@ class AppenderAsModeFlagPermutationTest {
 
 		LogPublisher publisher = switch (mode) {
 			case SINGLE -> new DefaultSyncLogPublisher(appenders.asSingle());
-			case SINGLE_SHARED_LOCK -> new DefaultSyncLogPublisher(appenders.asSingleSharedLock());
 			case LIST -> new FanoutSyncLogPublisher(appenders.asList());
 		};
 
@@ -105,8 +102,8 @@ class AppenderAsModeFlagPermutationTest {
 		}
 
 		// Every appender in the group receives the event regardless of mode - that is
-		// the whole point of asList()'s fanout publisher matching what the composite
-		// modes already do internally.
+		// the whole point of asList()'s fanout publisher matching what asSingle()
+		// already does internally.
 		assertEquals(List.of("hello"), outputA.events().stream().map(e -> e.getValue()).toList());
 		assertEquals(List.of("hello"), outputB.events().stream().map(e -> e.getValue()).toList());
 
@@ -124,11 +121,6 @@ class AppenderAsModeFlagPermutationTest {
 	private static List<DirectLogAppender> directAppenders(AsMode mode, LogPublisher publisher) {
 		return switch (mode) {
 			case SINGLE -> switch (((DefaultSyncLogPublisher) publisher).appender()) {
-				case IndependentLockCompositeLogAppender c -> List.of(c.components());
-				case DirectLogAppender d -> List.of(d);
-				default -> throw new AssertionError("unexpected appender type");
-			};
-			case SINGLE_SHARED_LOCK -> switch (((DefaultSyncLogPublisher) publisher).appender()) {
 				case CompositeLogAppender c -> List.of(c.components());
 				case DirectLogAppender d -> List.of(d);
 				default -> throw new AssertionError("unexpected appender type");
@@ -140,7 +132,7 @@ class AppenderAsModeFlagPermutationTest {
 
 	/*
 	 * The rest of this file drives Appenders directly (matching LogAppenderFlagTest's
-	 * established style) rather than through a full RainbowGum route, since building 48
+	 * established style) rather than through a full RainbowGum route, since building 32
 	 * full RainbowGum instances would be needlessly slow and the "as" modes are an
 	 * Appenders-level concern anyway. This one test instead wires FanoutSyncLogPublisher
 	 * in through a real route's PublisherFactory - exactly how a real fanout publisher

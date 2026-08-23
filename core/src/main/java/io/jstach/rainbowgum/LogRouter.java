@@ -133,19 +133,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * The route will not use the global level resolver and will only use the level
 		 * config directly on the router.
 		 */
-		IGNORE_GLOBAL_LEVEL_RESOLVER,
-		/**
-		 * When a route combines more than one appender, this makes them share a single
-		 * lock (via {@link LogAppender.Appenders#asSingleSharedLock()}) instead of each
-		 * appender keeping its own independent lock (the default, via
-		 * {@link LogAppender.Appenders#asSingle()}). A shared lock guarantees that all
-		 * appenders on the route observe events in the same relative order (e.g. a
-		 * console appender and a file appender on the same route never disagree on which
-		 * of two concurrent events came first) at the cost of unrelated appenders
-		 * contending on the same lock even when their outputs have nothing to do with
-		 * each other.
-		 */
-		SHARED_APPENDER_LOCK;
+		IGNORE_GLOBAL_LEVEL_RESOLVER;
 
 		static Set<RouteFlag> parse(Collection<String> value) {
 			if (value.isEmpty()) {
@@ -472,7 +460,7 @@ public sealed interface LogRouter extends LogLifecycle {
 						.value(() -> LogPublisher.SyncLogPublisher.builder().build());
 				}
 
-				var apps = new LogAppender.Appenders(name, config, appenders).routeFlags(flags);
+				var apps = new LogAppender.Appenders(name, config, appenders);
 				var pub = publisher.create(name, config, apps);
 				/*
 				 * Register the publisher for lookup like status checks.

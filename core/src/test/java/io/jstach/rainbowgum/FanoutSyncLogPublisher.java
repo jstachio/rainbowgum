@@ -4,20 +4,19 @@ import java.util.List;
 
 /**
  * A synchronous publisher built to exercise {@link LogAppender.Appenders#asList()}, which
- * - unlike {@link LogAppender.Appenders#asSingle()}/
- * {@link LogAppender.Appenders#asSingleSharedLock()} - has no real production caller yet
+ * - unlike {@link LogAppender.Appenders#asSingle()} - has no real production caller yet
  * (see {@code LogPublisherRegistry.DefaultPublisherProviders}, which only ever calls
  * {@code asSingle()}). {@code asList()} exists for a future <em>fanout</em>-style
  * publisher: one that pushes each event to every appender independently rather than
  * combining them into one composite appender first.
  * <p>
- * This one is deliberately the simplest possible fanout: no composite wrapping, no shared
- * lock - each appender in the list keeps the independent lock it was built with, and is
- * appended to directly, in list order. Unlike {@link IndependentLockCompositeLogAppender}
- * (what {@code asSingle()} without {@code SHARED_APPENDER_LOCK} produces), there is no
- * single {@link LogAppender} object wrapping the list - the fan-out happens here, at the
- * publisher level, which is exactly what a real fanout publisher (e.g. one that pushes to
- * per-appender queues/threads instead of a synchronous loop) would also do.
+ * This one is deliberately the simplest possible fanout: no composite wrapping - each
+ * appender in the list keeps the independent lock it was built with, and is appended to
+ * directly, in list order. Unlike {@link CompositeLogAppender} (what {@code asSingle()}
+ * produces), there is no single {@link LogAppender} object wrapping the list - the
+ * fan-out happens here, at the publisher level, which is exactly what a real fanout
+ * publisher (e.g. one that pushes to per-appender queues/threads instead of a synchronous
+ * loop) would also do.
  */
 final class FanoutSyncLogPublisher implements LogPublisher.SyncLogPublisher {
 

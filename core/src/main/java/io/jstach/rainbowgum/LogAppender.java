@@ -309,8 +309,6 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 		private Set<LogAppender.AppenderFlag> flags = EnumSet.noneOf(LogAppender.AppenderFlag.class);
 
-		private Set<LogRouter.RouteFlag> routeFlags = EnumSet.noneOf(LogRouter.RouteFlag.class);
-
 		Appenders(String name, LogConfig config, List<LogProvider<LogAppender>> appenders) {
 			super();
 			this.name = name;
@@ -325,18 +323,6 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 */
 		public Appenders flags(Set<LogAppender.AppenderFlag> flags) {
 			this.flags = flags;
-			return this;
-		}
-
-		/**
-		 * Sets the route's flags, which should be done prior to <code>asXXX</code>.
-		 * {@link #asSingle()} consults {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK}
-		 * to decide which locking strategy to use when combining more than one appender.
-		 * @param routeFlags route flags.
-		 * @return this.
-		 */
-		public Appenders routeFlags(Set<LogRouter.RouteFlag> routeFlags) {
-			this.routeFlags = routeFlags;
 			return this;
 		}
 
@@ -362,40 +348,15 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 		/**
 		 * Consolidate the appenders as a single appender, appended synchronously. If more
-		 * than one appender is combined, each keeps its own independent lock - unless
-		 * {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} is set (see
-		 * {@link #routeFlags(Set)}), in which case this delegates to
-		 * {@link #asSingleSharedLock()}.
+		 * than one appender is combined, each keeps its own independent lock and is
+		 * appended to directly - see {@link CompositeLogAppender}.
 		 * @return single appender.
 		 * @throws IllegalStateException if appenders are already registered.
 		 */
 		public LogAppender asSingle() throws IllegalStateException {
-			if (routeFlags.contains(LogRouter.RouteFlag.SHARED_APPENDER_LOCK)) {
-				return asSingleSharedLock();
-			}
 			if (created.compareAndSet(false, true)) {
 				var apps = appenders();
-				var appender = independentLock(apps);
-				return register(appender);
-			}
-			else {
-				throw new IllegalStateException("Appenders already provided.");
-			}
-		}
-
-		/**
-		 * Consolidate the appenders as a single appender, appended synchronously. If more
-		 * than one appender is combined, they share one lock, so appending to one of them
-		 * blocks appending to any of the others - see
-		 * {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} for why you might want that
-		 * (or might not).
-		 * @return single appender.
-		 * @throws IllegalStateException if appenders are already registered.
-		 */
-		public LogAppender asSingleSharedLock() throws IllegalStateException {
-			if (created.compareAndSet(false, true)) {
-				var apps = appenders();
-				var appender = sharedLock(apps);
+				var appender = composite(apps);
 				return register(appender);
 			}
 			else {
@@ -411,11 +372,6 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 					yield _a;
 				}
 				case CompositeLogAppender ca -> {
-					var _a = ca.withFlags(flags);
-					config.serviceRegistry().put(LogAppender.class, name, _a);
-					yield _a;
-				}
-				case IndependentLockCompositeLogAppender ca -> {
 					var _a = ca.withFlags(flags);
 					config.serviceRegistry().put(LogAppender.class, name, _a);
 					yield _a;
@@ -438,22 +394,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * @param appenders appenders.
 		 * @return appender.
 		 */
-		private static LogAppender independentLock(List<? extends LogAppender> appenders) {
-			if (appenders.isEmpty()) {
-				throw new IllegalArgumentException("A single appender is required");
-			}
-			if (appenders.size() == 1) {
-				return Objects.requireNonNull(appenders.get(0));
-			}
-			return IndependentLockCompositeLogAppender.of(appenders, Set.of());
-		}
-
-		/**
-		 * Creates a composite log appender from many that share a single lock.
-		 * @param appenders appenders.
-		 * @return appender.
-		 */
-		private static LogAppender sharedLock(List<? extends LogAppender> appenders) {
+		private static LogAppender composite(List<? extends LogAppender> appenders) {
 			if (appenders.isEmpty()) {
 				throw new IllegalArgumentException("A single appender is required");
 			}
@@ -514,10 +455,6 @@ abstract class AppenderLock {
 		realLock.unlock();
 	}
 
-	AppenderLock withAllowRentry() {
-		return new RentryAppenderLock(realLock);
-	}
-
 	static final class DropReentryAppenderLock extends AppenderLock {
 
 		DropReentryAppenderLock(ReentrantLock realLock) {
@@ -558,11 +495,6 @@ abstract class AppenderLock {
 
 		RentryAppenderLock(ReentrantLock realLock) {
 			super(realLock);
-		}
-
-		@Override
-		AppenderLock withAllowRentry() {
-			return this;
 		}
 
 	}
@@ -654,9 +586,6 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	// @Override
 	DirectLogAppender withFlags(Set<LogAppender.AppenderFlag> flags);
 
-	// @Override
-	DirectLogAppender changeLock(AppenderLock lock);
-
 }
 
 /**
@@ -744,36 +673,6 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 	AppenderLock lock();
 
 	@Override
-	default void append(LogEvent[] event, int count) {
-		if (!lock().tryLock()) {
-			return;
-		}
-		try {
-			for (var appender : components()) {
-				appender.append(event, count);
-			}
-		}
-		finally {
-			lock().unlock();
-		}
-	}
-
-	@Override
-	default void append(LogEvent event) {
-		if (!lock().tryLock()) {
-			return;
-		}
-		try {
-			for (var appender : components()) {
-				appender.append(event);
-			}
-		}
-		finally {
-			lock().unlock();
-		}
-	}
-
-	@Override
 	default void close() {
 		lock().lock();
 		try {
@@ -824,10 +723,12 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 }
 
 /**
- * The {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} strategy for combining more than
- * one appender on a route: pushes one shared {@link AppenderLock} down into every
- * appender, so all of them are appended to as one atomic unit relative to other threads.
- * See {@link IndependentLockCompositeLogAppender} for the default strategy instead.
+ * Combines more than one appender on a route into one {@link LogAppender}. Each appender
+ * keeps the independent lock it was already constructed with, and
+ * {@link #append(LogEvent)}/{@link #append(LogEvent[], int)} skip locking at the
+ * composite level entirely and append to every component directly - so e.g. a console
+ * appender and a file appender under the same route never contend on the same lock for
+ * unrelated I/O.
  */
 @SuppressWarnings("ArrayRecordComponent")
 record CompositeLogAppender(DirectLogAppender[] appenders,
@@ -835,62 +736,12 @@ record CompositeLogAppender(DirectLogAppender[] appenders,
 
 	public static CompositeLogAppender of(List<? extends LogAppender> appenders, Set<LogAppender.AppenderFlag> flags) {
 		AppenderLock lock = AppenderLock.of(flags);
-		AppenderLock directLock = lock.withAllowRentry();
 		@SuppressWarnings("null") // TODO Eclipse issue here
 		DirectLogAppender @NonNull [] array = appenders.stream()
 			.map(CompositeLogAppender::cast)
-			.map(a -> a.withFlags(flags).changeLock(directLock))
-			.toArray(i -> new DirectLogAppender[i]);
-		return new CompositeLogAppender(array, lock);
-	}
-
-	private static DirectLogAppender cast(LogAppender appender) {
-		return (DirectLogAppender) appender;
-	}
-
-	@Override
-	public DirectLogAppender[] components() {
-		return this.appenders;
-	}
-
-	// @Override
-	// public CompositeLogAppender changeLock(AppenderLock lock) {
-	// return of(List.of(appenders), lock,
-	// EnumSet.noneOf(LogAppender.AppenderFlag.class));
-	// }
-
-	// @Override
-	public CompositeLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
-		if (flags.isEmpty()) {
-			return this;
-		}
-		return of(List.of(appenders), flags);
-	}
-
-}
-
-/**
- * The default (see {@link LogRouter.RouteFlag#SHARED_APPENDER_LOCK} for the opt-out)
- * strategy for combining more than one appender on a route. Unlike
- * {@link CompositeLogAppender}, does not push one shared {@link AppenderLock} down into
- * every appender: each appender keeps the independent lock it was already constructed
- * with, and {@link #append(LogEvent)}/{@link #append(LogEvent[], int)} skip locking at
- * the composite level entirely, so e.g. a console appender and a file appender under the
- * same route no longer contend on the same lock for unrelated I/O.
- */
-@SuppressWarnings("ArrayRecordComponent")
-record IndependentLockCompositeLogAppender(DirectLogAppender[] appenders,
-		AppenderLock lock) implements BaseComposite<DirectLogAppender>, InternalLogAppender {
-
-	public static IndependentLockCompositeLogAppender of(List<? extends LogAppender> appenders,
-			Set<LogAppender.AppenderFlag> flags) {
-		AppenderLock lock = AppenderLock.of(flags);
-		@SuppressWarnings("null") // TODO Eclipse issue here
-		DirectLogAppender @NonNull [] array = appenders.stream()
-			.map(IndependentLockCompositeLogAppender::cast)
 			.map(a -> a.withFlags(flags))
 			.toArray(i -> new DirectLogAppender[i]);
-		return new IndependentLockCompositeLogAppender(array, lock);
+		return new CompositeLogAppender(array, lock);
 	}
 
 	private static DirectLogAppender cast(LogAppender appender) {
@@ -916,7 +767,7 @@ record IndependentLockCompositeLogAppender(DirectLogAppender[] appenders,
 		}
 	}
 
-	public IndependentLockCompositeLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
+	public CompositeLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
 		if (flags.isEmpty()) {
 			return this;
 		}
@@ -1023,11 +874,6 @@ final class DefaultLogAppender extends LockLogAppender implements InternalLogApp
 		}
 	}
 
-	@Override
-	public DirectLogAppender changeLock(AppenderLock lock) {
-		return new DefaultLogAppender(name, output, encoder, flags, lock);
-	}
-
 }
 
 /*
@@ -1092,11 +938,6 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 		finally {
 			lock.unlock();
 		}
-	}
-
-	@Override
-	public DirectLogAppender changeLock(AppenderLock lock) {
-		return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
 	}
 
 }
