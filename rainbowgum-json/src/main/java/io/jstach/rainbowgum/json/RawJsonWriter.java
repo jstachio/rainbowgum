@@ -67,19 +67,14 @@ class RawJsonWriter {
 		this.buffer = new byte[capacity];
 	}
 
-	final byte[] ensureCapacity(final int free) {
-		if (position + free >= buffer.length) {
-			enlargeOrFlush(position, free);
-		}
-		return buffer;
-	}
-
-	void advance(int size) {
-		position += size;
-	}
-
 	private void enlargeOrFlush(final int size, final int padding) {
-		buffer = Arrays.copyOf(buffer, buffer.length + buffer.length / 2 + padding);
+		/*
+		 * buffer.length / 2 truncates to 0 for a buffer.length of 0 or 1, which would
+		 * otherwise leave the buffer at the same size (or, for length 0, still short of
+		 * padding) and trip an ArrayIndexOutOfBoundsException on the very next write.
+		 * Math.max(..., 1) guarantees growth even from a tiny starting capacity.
+		 */
+		buffer = Arrays.copyOf(buffer, buffer.length + Math.max(buffer.length / 2, 1) + padding);
 	}
 
 	/**
