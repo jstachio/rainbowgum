@@ -115,6 +115,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-jul</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-slf4j</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1139,6 +1144,7 @@
   <modules>
     <module>core</module>
     <module>rainbowgum-slf4j</module>
+    <module>rainbowgum-jul</module>
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>
     <module>rainbowgum-disruptor</module>

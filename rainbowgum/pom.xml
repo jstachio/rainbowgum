@@ -40,6 +40,11 @@
       <artifactId>rainbowgum-jdk</artifactId>
       <scope>runtime</scope>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-jul</artifactId>
+      <scope>runtime</scope>
+    </dependency>
     <!-- The below are just for code snippts and are not actual depedendencies -->
     <dependency>
       <groupId>${project.groupId}</groupId>
