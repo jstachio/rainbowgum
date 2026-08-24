@@ -167,6 +167,19 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 	 * worker.join(1000)) before interrupting it - deterministic rather than a sleep-based
 	 * guess, since there is real work (the worker draining and reaching its own close)
 	 * filling that window.
+	 *
+	 * The detection window itself is bounded above by worker.join(1000)'s own hardcoded
+	 * 1-second timeout in production code (once that elapses, close() moves on and closer
+	 * naturally terminates without ever being interrupted) - so the poll below needs to
+	 * actually observe TIMED_WAITING within roughly that first second after closer
+	 * starts, not just before some outer deadline. A busy spin-wait (Thread.onSpinWait())
+	 * burns a whole core doing so, which under contended/throttled CI runners can itself
+	 * starve the closer thread from ever getting scheduled in time - seen in practice as
+	 * this test failing with "closer thread never reached worker.join(1000) in time"
+	 * purely from CI slowness, not a real regression. Sleeping briefly between checks
+	 * instead yields the CPU rather than fighting the closer thread for it, and the outer
+	 * deadline is widened well past the 5 seconds that were apparently not always enough
+	 * on a loaded runner.
 	 */
 	@Test
 	void testCloseHandlesInterruptedExceptionFromWorkerJoin() throws Exception {
@@ -175,7 +188,7 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 			@Override
 			public void close() {
 				try {
-					assertTrue(releaseWorkerClose.await(5, TimeUnit.SECONDS), "test held the worker open too long");
+					assertTrue(releaseWorkerClose.await(30, TimeUnit.SECONDS), "test held the worker open too long");
 				}
 				catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
@@ -190,15 +203,15 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 		closer.setDaemon(true);
 		closer.start();
 		try {
-			long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+			long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
 			while (closer.getState() != Thread.State.TIMED_WAITING) {
 				if (System.nanoTime() > deadlineNanos) {
 					throw new AssertionError("closer thread never reached worker.join(1000) in time");
 				}
-				Thread.onSpinWait();
+				Thread.sleep(1);
 			}
 			closer.interrupt();
-			closer.join(5000);
+			closer.join(30_000);
 			assertFalse(closer.isAlive(), "close() must return once its own join() is interrupted, "
 					+ "rather than waiting for the full timeout");
 		}
