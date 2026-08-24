@@ -97,8 +97,10 @@ class FileOutputPropertiesTest {
 							Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]""",
 					e.getMessage());
 			Throwable cause = e;
-			while (cause.getCause() != null) {
-				cause = cause.getCause();
+			Throwable tmp = cause.getCause();
+			while (tmp != null) {
+				cause = tmp;
+				tmp = tmp.getCause();
 			}
 			assertInstanceOf(java.net.URISyntaxException.class, cause,
 					"the ValidationException's cause should be the *first* malformed property's (uri) exception, not bufferSize's, since ValidationException.validate() only keeps the first");
