@@ -89,7 +89,7 @@ class AbstractFilteringLoggerTest {
 		RainbowGum gum = gum(config);
 		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
 		gum.start();
-		var rawFactory = new RainbowGumLoggerFactory(gum, mdc);
+		var rawFactory = RainbowGumLoggerFactory.of(gum, mdc);
 		var previous = (DepthAwareLogger) rawFactory.getLogger("test");
 		return factory.apply(previous);
 	}
