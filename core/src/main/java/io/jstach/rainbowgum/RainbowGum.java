@@ -1,11 +1,14 @@
 package io.jstach.rainbowgum;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.ServiceLoader;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -119,6 +122,27 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 */
 	public static void set(Supplier<RainbowGum> supplier) {
 		RainbowGumHolder.set(supplier);
+	}
+
+	/**
+	 * Subscribes to notification of a new RainbowGum becoming the globally bound one (see
+	 * {@link #set(Supplier)}, {@link #set(RainbowGum)}, {@link Builder#set()}). This is
+	 * primarily for components like SLF4J's logger factory that are themselves
+	 * bootstrapped once (often before "the real" RainbowGum has loaded, e.g. a
+	 * framework's own pre-boot sequence) and otherwise have no way of finding out that a
+	 * different RainbowGum has since replaced the one they captured.
+	 * <p>
+	 * Only a {@linkplain java.lang.ref.WeakReference weak reference} to
+	 * <code>consumer</code> is retained, so subscribing does not by itself keep the
+	 * consumer (or whatever it is attached to) reachable - the caller is responsible for
+	 * keeping a strong reference to <code>consumer</code> for as long as it needs to keep
+	 * receiving notifications, otherwise it may silently stop being called once garbage
+	 * collected.
+	 * @param consumer called with the newly bound global RainbowGum. Never called while
+	 * any RainbowGum internal lock is held.
+	 */
+	public static void onGlobalChange(Consumer<RainbowGum> consumer) {
+		RainbowGumHolder.globalChangePublisher.add(consumer);
 	}
 
 	/**
@@ -381,6 +405,8 @@ final class RainbowGumHolder {
 
 	private static volatile @Nullable RainbowGum rainbowGum = null;
 
+	static final GlobalChangePublisher globalChangePublisher = new GlobalChangePublisher();
+
 	static @Nullable RainbowGum current() {
 		if (lock.readLock().tryLock()) {
 			try {
@@ -408,6 +434,7 @@ final class RainbowGumHolder {
 			throw new IllegalStateException("RainbowGum component tried to log too early. "
 					+ "This is usually caused by dependencies calling logging.");
 		}
+		RainbowGum newlyStarted = null;
 		lock.writeLock().lock();
 		try {
 			var r = rainbowGum;
@@ -417,11 +444,20 @@ final class RainbowGumHolder {
 			r = supplier.get();
 			start(r);
 			rainbowGum = r;
+			newlyStarted = r;
 			return r;
 
 		}
 		finally {
 			lock.writeLock().unlock();
+			/*
+			 * Published outside of the write lock so a subscriber can never deadlock or
+			 * trip the "tried to log too early" reentrancy guard above by, say, trying to
+			 * read a volatile field it owns - it is not calling back into this class.
+			 */
+			if (newlyStarted != null) {
+				globalChangePublisher.publish(newlyStarted);
+			}
 		}
 
 	}
@@ -471,6 +507,35 @@ final class RainbowGumHolder {
 		ShutdownManager.addShutdownHook(gum);
 		gum.start();
 		InternalRootRouter.setRouter(gum.router());
+	}
+
+}
+
+/*
+ * Unlike LogConfig.ChangePublisher/LogRouter.RouteChangePublisher (both scoped to a
+ * single RainbowGum/router instance and torn down with it) this is a JVM-lifetime static
+ * registry, so consumers are held only weakly - otherwise every SLF4J logger factory (or
+ * any other subscriber) ever created over the life of the JVM, e.g. across many
+ * short-lived RainbowGums in tests, would be pinned forever.
+ */
+final class GlobalChangePublisher {
+
+	private final Queue<WeakReference<Consumer<RainbowGum>>> consumers = new ConcurrentLinkedQueue<>();
+
+	void add(Consumer<RainbowGum> consumer) {
+		consumers.add(new WeakReference<>(consumer));
+	}
+
+	void publish(RainbowGum gum) {
+		for (var it = consumers.iterator(); it.hasNext();) {
+			var consumer = it.next().get();
+			if (consumer == null) {
+				it.remove();
+			}
+			else {
+				consumer.accept(gum);
+			}
+		}
 	}
 
 }
