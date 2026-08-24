@@ -154,11 +154,6 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 				router = LogRouter.global();
 			}
 			else {
-				// var rootRouter = gum.router();
-				// var levelResolver = rootRouter.levelResolver();
-				// var level = levelResolver.resolveLevel(loggerName);
-				// var logger = rootRouter.route(loggerName, level);
-				// router = LogRouter.ofLevel(logger, level);
 				router = gum.router();
 			}
 			return router;
