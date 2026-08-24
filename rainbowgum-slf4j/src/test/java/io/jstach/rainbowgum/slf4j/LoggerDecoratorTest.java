@@ -38,7 +38,7 @@ class LoggerDecoratorTest {
 		RainbowGum gum = gum(config);
 		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
 		try (var g = gum.start()) {
-			var factory = new RainbowGumLoggerFactory(gum, mdc);
+			var factory = RainbowGumLoggerFactory.of(gum, mdc);
 			var logger = factory.getLogger("test");
 			logger.info("hello");
 		}
