@@ -47,7 +47,7 @@ class RainbowGumLoggerFactoryTest {
 		System.out.println(lr);
 
 		var mdc = new RainbowGumMDCAdapter();
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, mdc);
+		RainbowGumLoggerFactory factory = RainbowGumLoggerFactory.of(rainbowgum, mdc);
 		Consumer<Logger> consumer = (logger) -> {
 			mdc.put("status", "alive");
 			logger.info("Eric");
@@ -84,7 +84,7 @@ class RainbowGumLoggerFactoryTest {
 			route.level(System.Logger.Level.OFF, "silent");
 			route.appender("list", a -> a.output(list));
 		}).build();
-		var factory = new RainbowGumLoggerFactory(gum, new RainbowGumMDCAdapter());
+		var factory = RainbowGumLoggerFactory.of(gum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("silent");
 		assertInstanceOf(LevelLogger.OffLogger.class, logger);
 	}
@@ -107,7 +107,7 @@ class RainbowGumLoggerFactoryTest {
 				logging.change=true
 				""";
 		var rainbowgum = gum(LogProperties.builder().fromProperties(global).build());
-		var factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
+		var factory = RainbowGumLoggerFactory.of(rainbowgum, new RainbowGumMDCAdapter());
 
 		int threadCount = 8;
 		var barrier = new java.util.concurrent.CyclicBarrier(threadCount);
@@ -156,7 +156,7 @@ class RainbowGumLoggerFactoryTest {
 
 		assertTrue(rainbowgum.config().changePublisher().isEnabled("mychange"));
 
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
+		RainbowGumLoggerFactory factory = RainbowGumLoggerFactory.of(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("mychange");
 		assertInstanceOf(LevelChangeable.class, logger);
 		assertTrue(logger.isErrorEnabled());
@@ -210,7 +210,7 @@ class RainbowGumLoggerFactoryTest {
 
 		assertTrue(rainbowgum.config().changePublisher().isEnabled("mychange"));
 
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
+		RainbowGumLoggerFactory factory = RainbowGumLoggerFactory.of(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("mychange");
 		assertTrue(logger.isErrorEnabled());
 		assertFalse(logger.isDebugEnabled());
@@ -237,7 +237,7 @@ class RainbowGumLoggerFactoryTest {
 				logging.level=WARNING
 				""").build();
 		var rainbowgum = gum(props);
-		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
+		RainbowGumLoggerFactory factory = RainbowGumLoggerFactory.of(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("anything");
 		assertInstanceOf(LevelChangeable.class, logger);
 	}

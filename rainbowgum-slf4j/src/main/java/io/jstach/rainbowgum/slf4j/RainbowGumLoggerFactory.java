@@ -5,14 +5,15 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
@@ -20,7 +21,7 @@ import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
 class RainbowGumLoggerFactory implements ILoggerFactory {
 
-	private final ConcurrentMap<String, Logger> loggerMap;
+	private final LoggerCache cache;
 
 	private final RainbowGum rainbowGum;
 
@@ -28,17 +29,28 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	private final RainbowGumMDCAdapter mdc;
 
-	public RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
+	static RainbowGumLoggerFactory of(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
+		boolean disableCacheProperty = LogProperty.builder()
+			.ofBoolean()
+			.build(RainbowGumSLF4JServiceProvider.DISABLE_LOGGER_CACHE)
+			.get(rainbowGum.config().properties())
+			.value(false);
+		LoggerCache cache = disableCacheProperty ? NoLoggerCache.INSTANCE
+				: new ConcurrentMapLoggerCache(new ConcurrentHashMap<>());
+		return new RainbowGumLoggerFactory(rainbowGum, mdc, cache);
+	}
+
+	RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc, LoggerCache cache) {
 		super();
-		this.loggerMap = new ConcurrentHashMap<>();
 		this.rainbowGum = rainbowGum;
 		this.decorator = LoggerDecorator.of(rainbowGum);
 		this.mdc = mdc;
+		this.cache = cache;
 	}
 
 	@Override
 	public Logger getLogger(String name) {
-		Logger simpleLogger = loggerMap.get(name);
+		Logger simpleLogger = cache.get(name);
 		if (simpleLogger != null) {
 			return simpleLogger;
 		}
@@ -75,7 +87,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				}
 			}
 			Logger decorated = decorator.decorate(rainbowGum, newLogger);
-			Logger oldInstance = loggerMap.putIfAbsent(name, decorated);
+			Logger oldInstance = cache.put(name, decorated);
 			return oldInstance == null ? decorated : oldInstance;
 		}
 	}
@@ -156,6 +168,54 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				return logger;
 			}
 
+		}
+
+	}
+
+	interface LoggerCache {
+
+		@Nullable
+		Logger get(String name);
+
+		@Nullable
+		Logger put(String name, Logger logger);
+
+	}
+
+	enum NoLoggerCache implements LoggerCache {
+
+		INSTANCE;
+
+		@Override
+		public @Nullable Logger get(String name) {
+			return null;
+		}
+
+		@Override
+		public @Nullable Logger put(String name, Logger logger) {
+			return null;
+		}
+
+	}
+
+	static final class ConcurrentMapLoggerCache implements LoggerCache {
+
+		private final ConcurrentHashMap<String, Logger> cache;
+
+		ConcurrentMapLoggerCache(ConcurrentHashMap<String, Logger> cache) {
+			super();
+			this.cache = cache;
+		}
+
+		@Override
+		public @Nullable Logger get(String name) {
+			return cache.get(name);
+		}
+
+		// putIfAbsent
+		@Override
+		public @Nullable Logger put(String name, Logger logger) {
+			return cache.putIfAbsent(name, logger);
 		}
 
 	}

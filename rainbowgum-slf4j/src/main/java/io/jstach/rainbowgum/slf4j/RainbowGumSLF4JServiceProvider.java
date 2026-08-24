@@ -7,6 +7,7 @@ import org.slf4j.helpers.BasicMarkerFactory;
 import org.slf4j.spi.MDCAdapter;
 import org.slf4j.spi.SLF4JServiceProvider;
 
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
 
@@ -15,6 +16,17 @@ import io.jstach.svc.ServiceProvider;
  */
 @ServiceProvider(SLF4JServiceProvider.class)
 public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
+
+	// static constant is here because this is the only class public
+	/**
+	 * Normally when {@link ILoggerFactory#getLogger(String)} is called the resulting
+	 * logger is cached. This flag will disable that and is a failsafe if you have code
+	 * base that creates loggers with names that change all the time (e.g.
+	 * <code>getLogger(requestId)</code>) which would cause a memory explosion in the
+	 * cache. However note that currently the level resolvers do cache so that would need
+	 * to be disabled as well with custom level resolvers.
+	 */
+	public static final String DISABLE_LOGGER_CACHE = LogProperties.ROOT_PREFIX + "slf4j.disableLoggerCache";
 
 	/**
 	 * Declare the version of the SLF4J API this implementation is compiled against. The
@@ -82,7 +94,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	 * @param rainbowGum which gum to use for logger factory.
 	 */
 	public void initialize(RainbowGum rainbowGum) {
-		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdcAdapter);
+		loggerFactory = RainbowGumLoggerFactory.of(rainbowGum, mdcAdapter);
 	}
 
 }
