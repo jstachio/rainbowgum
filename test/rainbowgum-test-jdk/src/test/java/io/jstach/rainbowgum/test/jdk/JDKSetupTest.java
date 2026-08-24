@@ -41,8 +41,8 @@ import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.jdk.jul.JULConfigurator;
 import io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;
+import io.jstach.rainbowgum.jul.JULConfigurator;
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption;
 
@@ -1005,15 +1005,24 @@ class JDKSetupTest {
 		assertFalse(JULConfigurator.isInstalled());
 
 		var logger = System.getLogger("before.load");
-		assertTrue(JULConfigurator.isInstalled());
+		/*
+		 * SystemLoggingFactory no longer eagerly installs the JUL handler itself - that
+		 * now only happens via the normal Configurator pass once a real rainbow gum loads
+		 * (see below). Unlike System.Logger events (which this class queues and replays),
+		 * a raw java.util.logging call made in this window would not be captured, so it
+		 * is deliberately not exercised here - only once a real rainbow gum has loaded
+		 * and installed the handler.
+		 */
+		assertFalse(JULConfigurator.isInstalled());
 
 		logger.log(Level.INFO, "Hello {0} from System.Logger!", "Gum");
-		var jul = Logger.getLogger("before.load");
-		jul.log(java.util.logging.Level.INFO, "Hello {0} from JUL Logger!", "Gum");
 		assertNull(RainbowGum.getOrNull(), "Rainbow Gum should not be loaded yet.");
 		ListLogOutput output = new ListLogOutput();
 		try (var gum = JDKSetup.run(output, System.Logger.Level.INFO, LogProperties.StandardProperties.EMPTY)) {
 			assertNotNull(RainbowGum.getOrNull());
+			assertTrue(JULConfigurator.isInstalled());
+			var jul = Logger.getLogger("before.load");
+			jul.log(java.util.logging.Level.INFO, "Hello {0} from JUL Logger!", "Gum");
 			String actual = output.toString();
 			String expected = """
 					00:00:00.000 [main] INFO  before.load - Hello Gum from System.Logger!

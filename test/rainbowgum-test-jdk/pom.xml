@@ -11,5 +11,9 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-jdk</artifactId>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-jul</artifactId>
+    </dependency>
   </dependencies>
 </project>
