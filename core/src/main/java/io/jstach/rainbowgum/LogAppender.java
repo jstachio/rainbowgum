@@ -507,23 +507,9 @@ abstract class AppenderLock {
 sealed interface InternalLogAppender extends LogAppender, Actor {
 
 	static InternalLogAppender of(LogAppender appender) {
-		// InternalLogAppender a = switch (appender) {
-		// case InternalLogAppender ia -> ia;
-		// };
 		return Objects.requireNonNull((InternalLogAppender) appender); // TODO eclipse
 																		// bug.
 	}
-
-	/**
-	 * THIS IS A JAVADOC BUG.
-	 * @param visitor ignore
-	 * @return true if stop.
-	 */
-	boolean visit(AppenderVisitor visitor);
-
-	// InternalLogAppender changeLock(AppenderLock lock);
-	//
-	// InternalLogAppender withFlags(Set<LogAppender.AppenderFlag> flags);
 
 	/**
 	 * An appender can act on actions. One of the key actions is reopening files.
@@ -549,7 +535,6 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 				case LogAction.StandardAction.REOPEN -> List.of(reopen());
 				case LogAction.StandardAction.FLUSH -> List.of(flush());
 			};
-			default -> throw new IllegalArgumentException(); // TODO fucking eclipse
 		};
 		return r;
 	}
@@ -562,16 +547,6 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	default LogResponse flush() {
 		output().flush();
 		return new Response(LogOutput.class, name(), LogResponse.Status.StandardStatus.OK);
-	}
-
-	static List<DirectLogAppender> findAppenders(ServiceRegistry registry) {
-		List<DirectLogAppender> appenders = new ArrayList<>();
-		for (var a : registry.find(LogAppender.class)) {
-			if (a instanceof InternalLogAppender internal) {
-				internal.visit(appenders::add);
-			}
-		}
-		return appenders;
 	}
 
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder,
@@ -645,11 +620,6 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	}
 
 	@Override
-	public boolean visit(AppenderVisitor visitor) {
-		return visitor.consume(this);
-	}
-
-	@Override
 	public String name() {
 		return this.name;
 	}
@@ -697,16 +667,6 @@ sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLo
 			lock().unlock();
 		}
 
-	}
-
-	@Override
-	default boolean visit(AppenderVisitor visitor) {
-		for (var appender : components()) {
-			if (appender.visit(visitor)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	@Override
@@ -888,11 +848,6 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 		super(name, output, encoder, flags, lock);
 		this.buffer = encoder.buffer(output.bufferHints());
 	}
-
-	// ReuseBufferLogAppender(String name, LogOutput output, LogEncoder encoder) {
-	// this(name, output, encoder, EnumSet.noneOf(LogAppender.AppenderFlag.class), new
-	// ReentrantLock());
-	// }
 
 	@Override
 	public final void append(LogEvent event) {
