@@ -242,6 +242,71 @@ class RainbowGumLoggerFactoryTest {
 		assertInstanceOf(LevelChangeable.class, logger);
 	}
 
+	/*
+	 * Reproduces the Spring Boot scenario: SLF4J's ServiceLoader-triggered initialize()
+	 * calls RainbowGum.of() once, very early, and captures whatever gum is bound at that
+	 * moment (Spring's own pre-boot bootstrap gum) into RainbowGumLoggerFactory forever -
+	 * or at least it used to, before rainbowGum became volatile and subscribed to
+	 * RainbowGum.onGlobalChange. Later, RainbowGum.builder(...).set() (as Spring's "real"
+	 * LoggingSystem does once fully configured) must be picked up by the *same* factory
+	 * instance for names looked up afterward, without anyone needing to construct a new
+	 * RainbowGumLoggerFactory.
+	 */
+	@Test
+	void testFactoryPicksUpANewGlobalRainbowGumForNamesLookedUpAfterTheSwap() {
+		// RainbowGumHolder is package-private to core and thus not visible here - an
+		// empty-config builder's unset() is the public equivalent used elsewhere
+		// (RainbowGumEntryPointTest) to force the global holder back to nothing, in
+		// case a prior test in this module's suite left it dirty.
+		RainbowGum.builder(LogConfig.builder().build()).unset();
+		try {
+			var bootstrapOutput = new ListLogOutput();
+			var bootstrapGum = gum(bootstrapOutput, LogProperties.StandardProperties.EMPTY);
+			var factory = new RainbowGumLoggerFactory(bootstrapGum, new RainbowGumMDCAdapter());
+			factory.getLogger("before.swap").info("via bootstrap gum");
+			assertEquals("INFO via bootstrap gum\n", bootstrapOutput.toString());
+			bootstrapOutput.events().clear();
+
+			var realOutput = new ListLogOutput();
+			try (var realGum = RainbowGum.builder(LogConfig.builder().build()).route(route -> {
+				route.appender("list", a -> {
+					a.formatter((output, event) -> {
+						output.append(event.level()).append(" ");
+						event.formattedMessage(output);
+						output.append("\n");
+					});
+					a.output(realOutput);
+				});
+			}).set()) {
+				// A name never looked up before the swap - this is the one factory
+				// instance created above, not a new one.
+				factory.getLogger("after.swap").info("via real gum");
+				assertEquals("", bootstrapOutput.toString(),
+						"the swap must not retroactively affect the bootstrap gum's own output");
+				assertEquals("INFO via real gum\n", realOutput.toString(),
+						"a logger name looked up after the swap must route through the newly-global gum");
+			}
+		}
+		finally {
+			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
+	private RainbowGum gum(ListLogOutput output, LogProperties props) {
+		LogConfig config = LogConfig.builder().properties(props).build();
+		var gum = RainbowGum.builder(config).route(route -> {
+			route.appender("list", a -> {
+				a.formatter((o, event) -> {
+					o.append(event.level()).append(" ");
+					event.formattedMessage(o);
+					o.append("\n");
+				});
+				a.output(output);
+			});
+		});
+		return gum.build();
+	}
+
 	private RainbowGum gum(LogProperties props) {
 		LogConfig config = LogConfig.builder().properties(props).build();
 		var gum = RainbowGum.builder(config).route(route -> {

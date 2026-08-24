@@ -22,11 +22,29 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	private final ConcurrentMap<String, Logger> loggerMap;
 
-	private final RainbowGum rainbowGum;
+	/*
+	 * Spring Boot (and anything else with its own pre-boot bootstrap sequence) can
+	 * install a bootstrap RainbowGum, have SLF4J's ServiceLoader-triggered initialize()
+	 * capture it here, and only later RainbowGum.set(...) the "real" one - this factory
+	 * would otherwise be stuck forever routing new getLogger(...) calls through the stale
+	 * bootstrap instance. onGlobalChange (below) keeps this current. Already-created
+	 * Logger instances in loggerMap are deliberately NOT rebound here - that is a
+	 * separate, lower-priority concern already partially covered by
+	 * ChangeableLogger/ReplaceableLogger's own per-logger level subscription.
+	 */
+	private volatile RainbowGum rainbowGum;
 
 	private final LoggerDecorator decorator;
 
 	private final RainbowGumMDCAdapter mdc;
+
+	/*
+	 * Held here (as opposed to inline at the subscribe call below) so this factory keeps
+	 * it strongly reachable - RainbowGum.onGlobalChange only holds a weak reference, so
+	 * an inline lambda with no other strong referrer could become eligible for GC almost
+	 * immediately after subscribing.
+	 */
+	private final Consumer<RainbowGum> onGlobalChange = gum -> this.rainbowGum = gum;
 
 	public RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
 		super();
@@ -34,6 +52,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		this.rainbowGum = rainbowGum;
 		this.decorator = LoggerDecorator.of(rainbowGum);
 		this.mdc = mdc;
+		RainbowGum.onGlobalChange(onGlobalChange);
 	}
 
 	@Override
@@ -43,8 +62,9 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			return simpleLogger;
 		}
 		else {
-			var router = this.rainbowGum.router();
-			var changePublisher = this.rainbowGum.config().changePublisher();
+			var currentRainbowGum = this.rainbowGum;
+			var router = currentRainbowGum.router();
+			var changePublisher = currentRainbowGum.config().changePublisher();
 
 			DepthAwareLogger newLogger;
 			var level = router.levelResolver().resolveLevel(name);
@@ -74,7 +94,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 					newLogger = LevelLogger.of(slf4jLevel, handler);
 				}
 			}
-			Logger decorated = decorator.decorate(rainbowGum, newLogger);
+			Logger decorated = decorator.decorate(currentRainbowGum, newLogger);
 			Logger oldInstance = loggerMap.putIfAbsent(name, decorated);
 			return oldInstance == null ? decorated : oldInstance;
 		}

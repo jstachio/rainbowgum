@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,7 +11,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.AfterEach;
@@ -274,6 +277,55 @@ class RainbowGumEntryPointTest {
 		var gum = RainbowGum.builder(LogConfig.builder().build()).build();
 		// Should not throw and should not register/require a shutdown hook removal.
 		gum.close();
+	}
+
+	/*
+	 * The main use case this exists for: SLF4J's logger factory (or anything else
+	 * bootstrapped once, early) finding out that a different RainbowGum has since become
+	 * the global one, without needing to be reconstructed.
+	 */
+	@Test
+	void onGlobalChangeNotifiesSubscribersWhenANewGumBecomesGlobal() {
+		var notified = new AtomicReference<RainbowGum>();
+		Consumer<RainbowGum> consumer = notified::set;
+		RainbowGum.onGlobalChange(consumer);
+		try (var gum = RainbowGum.builder(LogConfig.builder().build()).set()) {
+			assertSame(gum, notified.get());
+		}
+	}
+
+	/*
+	 * RainbowGumHolder.get()'s read-lock fast path (an already-resolved instance) must
+	 * not re-publish - only the write-lock path that actually resolves/starts a new
+	 * instance does.
+	 */
+	@Test
+	void onGlobalChangeIsNotFiredAgainWhenOfResolvesTheAlreadyBoundInstance() {
+		var callCount = new AtomicInteger();
+		Consumer<RainbowGum> consumer = gum -> callCount.incrementAndGet();
+		RainbowGum.onGlobalChange(consumer);
+		try (var gum = RainbowGum.builder(LogConfig.builder().build()).set()) {
+			assertEquals(1, callCount.get());
+			RainbowGum.of();
+			assertEquals(1, callCount.get());
+		}
+	}
+
+	@Test
+	void onGlobalChangeIsNotFiredWhenNothingEverResolvesTheSupplier() {
+		var callCount = new AtomicInteger();
+		Consumer<RainbowGum> consumer = gum -> callCount.incrementAndGet();
+		RainbowGum.onGlobalChange(consumer);
+		var gum = RainbowGum.builder(LogConfig.builder().build()).build();
+		try {
+			// set(RainbowGum) only registers a supplier - nothing has called
+			// RainbowGum.of() to actually resolve/start it yet.
+			RainbowGum.set(gum);
+			assertEquals(0, callCount.get());
+		}
+		finally {
+			gum.close();
+		}
 	}
 
 }
