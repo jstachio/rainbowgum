@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -481,6 +482,55 @@ class LevelResolverTest {
 			.put("logging.level.empty", "DEBUG");
 		var resolver = GroupLevelResolver.of(props);
 		assertEquals(Level.ALL, resolver.resolveLevel("com.anything"));
+	}
+
+	/*
+	 * testMultipleRouterLevels above only ever sets IGNORE_GLOBAL_LEVEL_RESOLVER via the
+	 * programmatic route builder's r.flag(RouteFlag...) - RouteFlag.parse(String)/
+	 * parse(Collection<String>), the code path a logging.route.<name>.flags property
+	 * value actually goes through, had no coverage anywhere.
+	 */
+	@Test
+	void testIgnoreGlobalLevelResolverSetViaProperty() {
+		var props = LogProperties.MutableLogProperties.builder()
+			.description("test_props")
+			.build()
+			.put("logging.level.com.stuff", "ERROR")
+			.put("logging.route.second.flags", "IGNORE_GLOBAL_LEVEL_RESOLVER");
+		LogConfig config = LogConfig.builder().properties(props).build();
+		var defaultOutput = new ListLogOutput();
+		var secondOutput = new ListLogOutput();
+		var gum = RainbowGum.builder(config).route(r -> {
+			r.appender("default",
+					a -> a.output(defaultOutput).encoder(LogFormatter.builder().message().newline().encoder()));
+		}).route("second", r -> {
+			r.appender("second",
+					a -> a.output(secondOutput).encoder(LogFormatter.builder().message().newline().encoder()));
+		}).build();
+		try (var g = gum) {
+			g.router().eventBuilder("com.stuff", Level.INFO).message("hello").log();
+		}
+		// The default route has no IGNORE_GLOBAL_LEVEL_RESOLVER flag, so it falls back
+		// to the global logging.level.com.stuff=ERROR and filters INFO out.
+		assertEquals("", defaultOutput.toString());
+		// The "second" route's logging.route.second.flags=IGNORE_GLOBAL_LEVEL_RESOLVER
+		// property makes it ignore the global resolver entirely - with nothing else
+		// configured for it, it resolves to Level.ALL (normalized to TRACE), so
+		// everything is enabled.
+		assertEquals("hello\n", secondOutput.toString());
+	}
+
+	/*
+	 * The above test only ever calls RouteFlag.parse(Collection) with a non-empty
+	 * collection (the property parses "IGNORE_GLOBAL_LEVEL_RESOLVER" into a one-element
+	 * list) - a route with no logging.route.<name>.flags property configured never
+	 * reaches parse(Collection) at all (the PropertyGetter is MISSING and its map()
+	 * short-circuits before calling the mapper), so the isEmpty() early return is only
+	 * reachable if the property is present but parses to zero elements.
+	 */
+	@Test
+	void testRouteFlagParseCollectionOfEmptyIsEmptySet() {
+		assertEquals(EnumSet.noneOf(RouteFlag.class), RouteFlag.parse(List.of()));
 	}
 
 }
