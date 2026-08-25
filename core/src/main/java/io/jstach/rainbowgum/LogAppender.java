@@ -103,6 +103,30 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 */
 		THREAD_LOCAL_BUFFER,
 		/**
+		 * Like {@link #THREAD_LOCAL_BUFFER} (a reused per-thread buffer, encoding done
+		 * outside any lock) except the final write to the output is protected by a plain
+		 * {@code synchronized} block (the JVM's intrinsic monitor) instead of the
+		 * {@link ReentrantLock}-based {@code AppenderLock} every other flag combination
+		 * uses.
+		 * <p>
+		 * The Java language has no way to acquire a monitor in one method call and
+		 * release it in another the way {@code AppenderLock.lock()}/{@code unlock()}
+		 * works, so this is not a pluggable lock strategy on top of the existing
+		 * appenders - it is a separate appender implementation with the critical section
+		 * written as a literal {@code synchronized} block. Consequently
+		 * {@link #REENTRY_DROP} and {@link #REENTRY_LOG} - which rely on
+		 * {@code AppenderLock}'s {@code ReentrantLock} for same-thread reentrancy
+		 * detection - are ignored if this flag is set.
+		 * <p>
+		 * Experimental: motivated by Log4j2's own garbage-free appenders using
+		 * {@code synchronized} rather than a {@code java.util.concurrent} lock around
+		 * their buffer-transfer step, and prior microbenchmarking suggesting the JVM's
+		 * intrinsic monitor can outperform {@link ReentrantLock} here. Takes precedence
+		 * over {@link #THREAD_LOCAL_BUFFER} (redundant if both are set) but not
+		 * {@link #REUSE_BUFFER}.
+		 */
+		SYNCHRONIZED_THREAD_LOCAL_BUFFER,
+		/**
 		 * By default the appender will call flush on each item appended or if in async
 		 * batch mode for each batch. This flag disables that behavior so that flushing is
 		 * left up to the output (or an external mechanism) instead.
@@ -573,6 +597,9 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
 			return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
 		}
+		if (flags.contains(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
+			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
+		}
 		if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
 			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, lock);
 		}
@@ -805,6 +832,9 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
 			return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
 		}
+		if (flags.contains(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
+			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
+		}
 		if (flags.contains(LogAppender.AppenderFlag.THREAD_LOCAL_BUFFER)) {
 			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, lock);
 		}
@@ -982,6 +1012,95 @@ final class ThreadLocalBufferLogAppender extends LockLogAppender implements Inte
 		finally {
 			lock.unlock();
 		}
+	}
+
+}
+
+/*
+ * Like ThreadLocalBufferLogAppender (per-thread reused buffer, encode outside any lock)
+ * but the final write is protected by a plain `synchronized` block on this appender's own
+ * monitor instead of AppenderLock/ReentrantLock. Does not extend LockLogAppender - there
+ * is no way to acquire a monitor in one method call and release it in another the way
+ * AppenderLock.lock()/unlock() works, so this appender's critical sections are written as
+ * literal synchronized blocks instead of going through that abstraction at all.
+ */
+final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender implements InternalLogAppender {
+
+	private final Object monitor = new Object();
+
+	// See ThreadLocalBufferLogAppender's identical field for why this suppression is
+	// needed.
+	@SuppressWarnings("nullness:type.argument")
+	private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal;
+
+	SynchronizedThreadLocalBufferLogAppender(String name, LogOutput output, LogEncoder encoder,
+			Set<LogAppender.AppenderFlag> flags) {
+		super(name, output, encoder, flags);
+		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
+	}
+
+	@Override
+	public void append(LogEvent event) {
+		var buffer = bufferThreadLocal.get();
+		buffer.clear();
+		encoder.encode(event, buffer);
+		synchronized (monitor) {
+			output.write(event, buffer);
+			if (immediateFlush) {
+				output.flush();
+			}
+		}
+	}
+
+	@Override
+	public void append(LogEvent[] events, int count) {
+		synchronized (monitor) {
+			output.write(events, count, encoder, bufferThreadLocal.get());
+			if (immediateFlush) {
+				output.flush();
+			}
+		}
+	}
+
+	@Override
+	public void close() {
+		synchronized (monitor) {
+			super.close();
+		}
+	}
+
+	@Override
+	public List<LogResponse> act(LogAction action) {
+		synchronized (monitor) {
+			try {
+				return _request(action);
+			}
+			catch (UncheckedIOException ioe) {
+				return List.of(new Response(LogOutput.class, name, Status.ErrorStatus.of(ioe)));
+			}
+		}
+	}
+
+	@Override
+	public DirectLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
+		if (flags.isEmpty()) {
+			return this;
+		}
+		if (this.flags.containsAll(flags)) {
+			return this;
+		}
+		flags = EnumSet.copyOf(flags);
+		flags.addAll(this.flags);
+		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
+			return new ReuseBufferLogAppender(name, output, encoder, flags, AppenderLock.of(flags));
+		}
+		if (flags.contains(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
+			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
+		}
+		if (flags.contains(LogAppender.AppenderFlag.THREAD_LOCAL_BUFFER)) {
+			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, AppenderLock.of(flags));
+		}
+		return new DefaultLogAppender(name, output, encoder, flags, AppenderLock.of(flags));
 	}
 
 }

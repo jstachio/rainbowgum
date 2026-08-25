@@ -115,6 +115,9 @@ class AppenderAsModeFlagPermutationTest {
 		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
 			expectedAppenderClass = ReuseBufferLogAppender.class;
 		}
+		else if (flags.contains(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
+			expectedAppenderClass = SynchronizedThreadLocalBufferLogAppender.class;
+		}
 		else if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
 			expectedAppenderClass = ThreadLocalBufferLogAppender.class;
 		}
