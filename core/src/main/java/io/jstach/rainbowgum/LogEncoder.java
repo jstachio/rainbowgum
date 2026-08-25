@@ -214,8 +214,7 @@ public interface LogEncoder {
 		 * The {@link CharsetEncoder} work happens in {@link #encodeToByteBuffer()},
 		 * called by the encoder's {@code encode(LogEvent, Buffer)} step - i.e. before
 		 * {@link #drain(LogOutput, LogEvent) drain}, which appenders that separate
-		 * formatting from writing ({@code DefaultLogAppender},
-		 * {@code ThreadLocalBufferLogAppender},
+		 * formatting from writing ({@code ThreadLocalBufferLogAppender},
 		 * {@code SynchronizedThreadLocalBufferLogAppender}) call outside their lock.
 		 * {@code drain} - called from inside the lock - therefore does nothing but write
 		 * the already-encoded bytes, matching how Log4j2 confines the actual
