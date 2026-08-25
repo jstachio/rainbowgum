@@ -80,7 +80,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				// callerInfo);
 				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
 				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
-				subscribe(name, router, changeable);
+				subscribe(name, router, changeable, allowedChanges);
 				newLogger = changeable;
 			}
 			else {
@@ -100,17 +100,21 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		}
 	}
 
-	private void subscribe(String name, RootRouter router, LevelChangeable changeable) {
-		record Slf4JOnChange(String name, LevelChangeable changeable) implements Consumer<RootRouter> {
+	private void  subscribe(String name, RootRouter router, ReplaceableLogger changeable, Set<ChangeType> allowedChanges) {
+		var consumer =  new Consumer<RootRouter> (){
 
 			@Override
 			public void accept(RootRouter r) {
-				var slf4jLevel = Levels.toSlf4jLevel(r.levelResolver().resolveLevel(name));
+				var level = r.levelResolver().resolveLevel(name);
+				var slf4jLevel = Levels.toSlf4jLevel(level);
 				changeable.setLevel(slf4jLevel);
+				var logger = r.route(name, level);
+				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
+				changeable.setEventHandler(handler);
 			}
 
-		}
-		router.onChange(new Slf4JOnChange(name, changeable));
+		};
+		router.onChange(consumer);
 		// router.onChange(r -> {
 		// var slf4jLevel = Levels.toSlf4jLevel(r.levelResolver().resolveLevel(name));
 		// changeable.setLevel(slf4jLevel);
