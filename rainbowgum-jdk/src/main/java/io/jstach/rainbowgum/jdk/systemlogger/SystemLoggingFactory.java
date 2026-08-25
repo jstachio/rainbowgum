@@ -40,6 +40,11 @@ public final class SystemLoggingFactory extends RainbowGumSystemLoggerFinder {
 
 	}
 
+	/**
+	 * For subclasses/testing that need to supply properties directly rather than through
+	 * the no-arg constructor's {@link LogProperties#findGlobalProperties()}.
+	 * @param properties properties to resolve the init option from.
+	 */
 	protected SystemLoggingFactory(LogProperties properties) {
 		super(() -> initOption(properties));
 	}
