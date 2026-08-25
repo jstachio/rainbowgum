@@ -10,7 +10,6 @@ import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 
-import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
 import io.jstach.rainbowgum.LogEncoder.Buffer.DirectByteBufferBuffer;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;

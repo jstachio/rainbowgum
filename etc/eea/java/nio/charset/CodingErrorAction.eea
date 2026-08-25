@@ -1,0 +1,10 @@
+class java/nio/charset/CodingErrorAction
+IGNORE
+ Ljava/nio/charset/CodingErrorAction;
+ L1java/nio/charset/CodingErrorAction;
+REPLACE
+ Ljava/nio/charset/CodingErrorAction;
+ L1java/nio/charset/CodingErrorAction;
+REPORT
+ Ljava/nio/charset/CodingErrorAction;
+ L1java/nio/charset/CodingErrorAction;
