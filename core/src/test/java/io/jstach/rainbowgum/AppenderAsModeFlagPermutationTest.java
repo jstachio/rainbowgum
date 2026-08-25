@@ -137,16 +137,11 @@ class AppenderAsModeFlagPermutationTest {
 		else if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
 			expectedAppenderClass = ThreadLocalBufferLogAppender.class;
 		}
-		else if (flags.contains(AppenderFlag.REENTRY_DROP) || flags.contains(AppenderFlag.REENTRY_LOG)) {
-			// No buffer-strategy flag: falls to the default appender selection, which
-			// defers to DefaultLogAppender when reentry detection was explicitly
-			// requested, since neither ThreadLocalBuffer appender supports it.
-			expectedAppenderClass = DefaultLogAppender.class;
-		}
 		else {
-			// No buffer-strategy or reentry flag: the default appender selection - forced
-			// to the modern-JDK branch above, so
-			// SynchronizedThreadLocalBufferLogAppender.
+			// No buffer-strategy flag (REENTRY_DROP/REENTRY_LOG alone included - both
+			// ThreadLocalBuffer appenders support reentry detection, so they no longer
+			// force DefaultLogAppender): the default appender selection - forced to the
+			// modern-JDK branch above, so SynchronizedThreadLocalBufferLogAppender.
 			expectedAppenderClass = SynchronizedThreadLocalBufferLogAppender.class;
 		}
 		for (var direct : directAppenders(mode, publisher)) {

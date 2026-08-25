@@ -119,10 +119,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * release it in another the way {@code AppenderLock.lock()}/{@code unlock()}
 		 * works, so this is not a pluggable lock strategy on top of the existing
 		 * appenders - it is a separate appender implementation with the critical section
-		 * written as a literal {@code synchronized} block. Consequently
-		 * {@link #REENTRY_DROP} and {@link #REENTRY_LOG} - which rely on
-		 * {@code AppenderLock}'s {@code ReentrantLock} for same-thread reentrancy
-		 * detection - are ignored if this flag is set.
+		 * written as a literal {@code synchronized} block. {@link #REENTRY_DROP} and
+		 * {@link #REENTRY_LOG} are still honored though -
+		 * {@link Thread#holdsLock(Object)} is the {@code synchronized} equivalent of
+		 * {@code ReentrantLock}'s {@code isHeldByCurrentThread()}, so reentrancy is
+		 * detected the same way without needing {@code AppenderLock}.
 		 * <p>
 		 * Motivated by Log4j2's own garbage-free appenders using {@code synchronized}
 		 * rather than a {@code java.util.concurrent} lock around their buffer-transfer
@@ -636,22 +637,21 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	/**
 	 * Picks the appender used when no {@link AppenderFlag} explicitly requests a
-	 * buffer/lock strategy. {@link AppenderFlag#REENTRY_DROP} or
-	 * {@link AppenderFlag#REENTRY_LOG} alone force the {@link ReentrantLock}-based
-	 * {@link DefaultLogAppender}, since neither {@code ThreadLocalBuffer} appender
-	 * supports reentry detection. Otherwise this defaults to the same trade-off a caller
-	 * gets from explicitly setting {@link AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER}
-	 * on {@link AppenderLock#SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION}+ (where
+	 * buffer/lock strategy: the same trade-off a caller gets from explicitly setting
+	 * {@link AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER} on
+	 * {@link AppenderLock#SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION}+ (where
 	 * {@code synchronized} no longer pins virtual threads - JEP 491) or
 	 * {@link AppenderFlag#THREAD_LOCAL_BUFFER} on older JDKs - measured faster than the
 	 * fresh-buffer-per-event {@link DefaultLogAppender} in real-workload benchmarking, so
-	 * it is the better default rather than only an opt-in.
+	 * it is the better default rather than only an opt-in. Both appenders support
+	 * {@link AppenderFlag#REENTRY_DROP}/{@link AppenderFlag#REENTRY_LOG} (the
+	 * {@code synchronized} one via {@link Thread#holdsLock(Object)} rather than
+	 * {@link AppenderLock}), so {@link DefaultLogAppender} is never selected here -
+	 * {@code AppenderLock.of(flags)} still resolving those two flags correctly into
+	 * {@code lock} only matters for {@link AppenderFlag#THREAD_LOCAL_BUFFER}'s branch.
 	 */
 	static DirectLogAppender defaultAppender(String name, LogOutput output, LogEncoder encoder,
 			Set<LogAppender.AppenderFlag> flags, AppenderLock lock) {
-		if (flags.contains(AppenderFlag.REENTRY_DROP) || flags.contains(AppenderFlag.REENTRY_LOG)) {
-			return new DefaultLogAppender(name, output, encoder, flags, lock);
-		}
 		if (AppenderLock.jdkFeatureVersionSupplier.getAsInt() >= AppenderLock.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION) {
 			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
 		}
@@ -1129,6 +1129,9 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 	}
 
 	private void writeSynchronized(LogEvent event, LogEncoder.Buffer buffer) {
+		if (shouldDropForReentry()) {
+			return;
+		}
 		synchronized (monitor) {
 			output.write(event, buffer);
 			if (immediateFlush) {
@@ -1139,12 +1142,37 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 
 	@Override
 	public void append(LogEvent[] events, int count) {
+		if (shouldDropForReentry()) {
+			return;
+		}
 		synchronized (monitor) {
 			output.write(events, count, encoder, bufferThreadLocal.get());
 			if (immediateFlush) {
 				output.flush();
 			}
 		}
+	}
+
+	/**
+	 * {@link Thread#holdsLock(Object)} is the {@code synchronized}-block equivalent of
+	 * {@link ReentrantLock#isHeldByCurrentThread()}, which is how
+	 * {@code DropReentryAppenderLock}/{@code LogReentryAppenderLock} detect reentrancy -
+	 * so this mirrors that logic without needing {@link AppenderLock} at all. With
+	 * neither {@link AppenderFlag#REENTRY_DROP} nor {@link AppenderFlag#REENTRY_LOG} set
+	 * this always returns {@code false}, and a reentrant call simply re-enters the
+	 * monitor (Java monitors are reentrant), matching the default
+	 * {@code RentryAppenderLock} behavior.
+	 */
+	private boolean shouldDropForReentry() {
+		if (!Thread.holdsLock(monitor)) {
+			return false;
+		}
+		if (flags.contains(LogAppender.AppenderFlag.REENTRY_LOG)) {
+			Exception exception = new Exception("reentrant appender");
+			MetaLog.error(LogAppender.class, exception);
+			return true;
+		}
+		return flags.contains(LogAppender.AppenderFlag.REENTRY_DROP);
 	}
 
 	@Override
