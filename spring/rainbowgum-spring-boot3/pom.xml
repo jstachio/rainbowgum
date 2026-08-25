@@ -15,7 +15,7 @@
       rainbowgum-spring-boot3 and rainbowgum-spring-boot4 each pin their own Spring Boot
       major version and must never share a dependencyManagement import.
     -->
-    <spring-boot.version>3.3.3</spring-boot.version>
+    <spring-boot.version>4.1.1</spring-boot.version>
     <doc.resources>../../</doc.resources>
     <parent.root>${basedir}/../..</parent.root>
   </properties>
