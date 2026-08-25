@@ -2,9 +2,18 @@ package io.jstach.rainbowgum;
 
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 
 import io.jstach.rainbowgum.LogEncoder.AbstractEncoder;
+import io.jstach.rainbowgum.LogEncoder.Buffer.DirectByteBufferBuffer;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
+import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
 
@@ -193,6 +202,147 @@ public interface LogEncoder {
 
 		}
 
+		/**
+		 * A buffer that formats into a reused {@link StringBuilder} (like
+		 * {@link StringBuilderBuffer}) but encodes directly into a reused
+		 * {@link ByteBuffer} via a {@link CharsetEncoder}, instead of going through an
+		 * intermediate {@code String} and {@code byte[]} the way
+		 * {@code LogOutput.write(LogEvent, String)}'s default implementation does. This
+		 * is the same technique
+		 * <a href="https://logging.apache.org/log4j/2.x/manual/garbagefree.html">Log4j2's
+		 * garbage-free logging</a> uses.
+		 * <p>
+		 * The {@link CharsetEncoder} work happens in {@link #encodeToByteBuffer()},
+		 * called by the encoder's {@code encode(LogEvent, Buffer)} step - i.e. before
+		 * {@link #drain(LogOutput, LogEvent) drain}, which appenders that separate
+		 * formatting from writing ({@code DefaultLogAppender},
+		 * {@code ThreadLocalBufferLogAppender},
+		 * {@code SynchronizedThreadLocalBufferLogAppender}) call outside their lock.
+		 * {@code drain} - called from inside the lock - therefore does nothing but write
+		 * the already-encoded bytes, matching how Log4j2 confines the actual
+		 * character-to-byte transcoding to a thread-local scratch buffer and synchronizes
+		 * only the final copy into the shared destination.
+		 * <p>
+		 * Constructed for a specific {@link LogOutput.WriteMethod} - either
+		 * {@link LogOutput.WriteMethod#BYTE_BUFFER}, in which case {@link #drain} calls
+		 * {@link LogOutput#write(LogEvent, ByteBuffer, LogOutput.ContentType)} directly,
+		 * or {@link LogOutput.WriteMethod#BYTES}, in which case {@link #drain} calls
+		 * {@link LogOutput#write(LogEvent, byte[], int, int, LogOutput.ContentType)}
+		 * using the backing array directly, rather than going through
+		 * {@code LogOutput#write(LogEvent, ByteBuffer, ContentType)}'s default
+		 * implementation (which would allocate a fresh {@code byte[]} copy every call for
+		 * an output that does not itself implement that overload).
+		 * <p>
+		 * Not thread-safe. Like all {@link Buffer}s it relies on the appender to
+		 * guarantee no overlapping use.
+		 */
+		public final class DirectByteBufferBuffer implements Buffer {
+
+			/**
+			 * Default initial byte buffer capacity, matching Log4j2's own
+			 * {@code log4j2.encoderByteBufferSize} default.
+			 */
+			public static final int DEFAULT_INITIAL_BYTE_CAPACITY = 8192;
+
+			/**
+			 * The buffer the formatter writes characters into.
+			 */
+			public final StringBuilder stringBuilder = new StringBuilder();
+
+			private final CharsetEncoder charsetEncoder;
+
+			private final LogOutput.WriteMethod writeMethod;
+
+			private ByteBuffer byteBuffer;
+
+			/**
+			 * Creates a buffer with the default initial byte capacity and
+			 * {@link StandardCharsets#UTF_8}.
+			 * @param writeMethod which {@link LogOutput#write} overload {@link #drain}
+			 * should call - {@link LogOutput.WriteMethod#BYTES} or
+			 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
+			 */
+			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod) {
+				this(writeMethod, DEFAULT_INITIAL_BYTE_CAPACITY, StandardCharsets.UTF_8);
+			}
+
+			/**
+			 * Creates a buffer with the given write method, initial byte capacity and
+			 * charset.
+			 * @param writeMethod which {@link LogOutput#write} overload {@link #drain}
+			 * should call - {@link LogOutput.WriteMethod#BYTES} or
+			 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
+			 * @param initialByteCapacity initial capacity of the byte buffer. It will
+			 * grow (doubling, or to whatever a single event needs if larger) as needed
+			 * and the grown capacity is kept for subsequent events.
+			 * @param charset charset to encode with.
+			 */
+			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset) {
+				this.writeMethod = writeMethod;
+				this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
+				this.charsetEncoder = charset.newEncoder()
+					.onMalformedInput(CodingErrorAction.REPLACE)
+					.onUnmappableCharacter(CodingErrorAction.REPLACE);
+			}
+
+			/**
+			 * Writes the already-encoded bytes to the output. Assumes
+			 * {@link #encodeToByteBuffer()} has already been called for this event - see
+			 * the class doc for why that step lives in the encoder instead of here.
+			 */
+			@Override
+			public void drain(LogOutput output, LogEvent event) {
+				switch (writeMethod) {
+					case BYTE_BUFFER -> output.write(event, byteBuffer, StandardContentType.TEXT_PLAIN);
+					case BYTES ->
+						output.write(event, byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(),
+								byteBuffer.remaining(), StandardContentType.TEXT_PLAIN);
+					case STRING ->
+						throw new IllegalStateException("DirectByteBufferBuffer does not support WriteMethod.STRING");
+				}
+			}
+
+			/**
+			 * Encodes the current contents of {@link #stringBuilder} into the reused
+			 * {@link ByteBuffer}, growing it first if needed. Deliberately not called
+			 * from {@link #drain(LogOutput, LogEvent)} - see the class doc.
+			 */
+			void encodeToByteBuffer() {
+				int maxBytes = (int) Math.ceil(stringBuilder.length() * (double) charsetEncoder.maxBytesPerChar());
+				if (byteBuffer.capacity() < maxBytes) {
+					byteBuffer = ByteBuffer.allocate(Math.max(maxBytes, byteBuffer.capacity() * 2));
+				}
+				byteBuffer.clear();
+				charsetEncoder.reset();
+				CharBuffer cb = CharBuffer.wrap(stringBuilder);
+				var result = charsetEncoder.encode(cb, byteBuffer, true);
+				if (result.isError()) {
+					try {
+						result.throwException();
+					}
+					catch (CharacterCodingException e) {
+						throw new UncheckedIOException(e);
+					}
+				}
+				/*
+				 * maxBytes above already sized the buffer to fit the worst case so flush
+				 * should never overflow, but check defensively rather than silently
+				 * truncate.
+				 */
+				var flushResult = charsetEncoder.flush(byteBuffer);
+				if (flushResult.isOverflow()) {
+					throw new IllegalStateException("CharsetEncoder flush overflowed despite pre-sized buffer");
+				}
+				byteBuffer.flip();
+			}
+
+			@Override
+			public void clear() {
+				stringBuilder.setLength(0);
+			}
+
+		}
+
 	}
 
 	/**
@@ -270,7 +420,11 @@ public interface LogEncoder {
 
 }
 
-final class FormatterEncoder extends AbstractEncoder<StringBuilderBuffer> {
+/*
+ * Not an AbstractEncoder since it needs to hand out either a StringBuilderBuffer or a
+ * DirectByteBufferBuffer depending on the output's WriteMethod hint - see buffer(hints).
+ */
+final class FormatterEncoder implements LogEncoder {
 
 	private final LogFormatter formatter;
 
@@ -280,15 +434,27 @@ final class FormatterEncoder extends AbstractEncoder<StringBuilderBuffer> {
 	}
 
 	@Override
-	protected void doEncode(LogEvent event, StringBuilderBuffer buffer) {
-		buffer.clear();
-		StringBuilder sb = buffer.stringBuilder;
-		formatter.format(sb, event);
+	public Buffer buffer(BufferHints hints) {
+		return switch (hints.writeMethod()) {
+			case STRING -> StringBuilderBuffer.of(new StringBuilder());
+			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod());
+		};
 	}
 
 	@Override
-	protected StringBuilderBuffer doBuffer(BufferHints hints) {
-		return StringBuilderBuffer.of(new StringBuilder());
+	public void encode(LogEvent event, Buffer buffer) {
+		switch (buffer) {
+			case StringBuilderBuffer sb -> {
+				sb.clear();
+				formatter.format(sb.stringBuilder, event);
+			}
+			case DirectByteBufferBuffer bb -> {
+				bb.clear();
+				formatter.format(bb.stringBuilder, event);
+				bb.encodeToByteBuffer();
+			}
+			default -> throw new IllegalStateException("Unsupported buffer: " + buffer.getClass());
+		}
 	}
 
 }

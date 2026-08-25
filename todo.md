@@ -165,9 +165,6 @@ unifying.
       construction counting) without a root cause. Needs a clean, non-shared benchmark
       environment to chase further - or, failing that, a documented known-issue before
       shipping 1.0 with Tomcat integration included.
-- [ ] **rainbowgum-nio** (`DirectByteBufferEncoder`) is explicitly experimental. Decide
-      before 1.0 whether it graduates to a real recommendation, stays clearly marked
-      experimental, or gets pulled if it hasn't earned its keep.
 - [ ] A few fixes from this cycle are sitting on branches that were never confirmed
       merged - worth a final check before release: `FileChannelOutput`'s
       closed-after-close guard, and `ForwardingOutputTest`'s post-`ByteBuffer`-default
