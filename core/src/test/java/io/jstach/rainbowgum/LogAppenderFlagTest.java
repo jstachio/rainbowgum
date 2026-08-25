@@ -27,20 +27,20 @@ class LogAppenderFlagTest {
 
 	PrintStream metaLogStream = new PrintStream(metaLogBytes);
 
-	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AppenderLock.jdkFeatureVersionSupplier;
+	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AbstractLogAppender.jdkFeatureVersionSupplier;
 
 	@BeforeEach
 	void before() {
 		MetaLog.output = () -> metaLogStream;
 		// Deterministic regardless of which JDK actually runs the build - see
 		// appenderLevelFlagsMergeOntoExistingAppenderWithoutReuseBuffer below.
-		AppenderLock.jdkFeatureVersionSupplier = () -> AppenderLock.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
+		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
 	}
 
 	@AfterEach
 	void after() {
 		MetaLog.output = () -> System.err;
-		AppenderLock.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
+		AbstractLogAppender.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
 	}
 
 	private static LogAppender appender(String name, ListLogOutput output, AppenderFlag... flags) {

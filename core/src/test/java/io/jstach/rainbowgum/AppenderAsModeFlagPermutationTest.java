@@ -38,18 +38,18 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  */
 class AppenderAsModeFlagPermutationTest {
 
-	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AppenderLock.jdkFeatureVersionSupplier;
+	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AbstractLogAppender.jdkFeatureVersionSupplier;
 
 	@BeforeEach
 	void before() {
 		// Deterministic regardless of which JDK actually runs the build - see
 		// testPermutation's expectedAppenderClass computation below.
-		AppenderLock.jdkFeatureVersionSupplier = () -> AppenderLock.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
+		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
 	}
 
 	@AfterEach
 	void after() {
-		AppenderLock.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
+		AbstractLogAppender.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
 	}
 
 	enum AsMode {
