@@ -292,6 +292,54 @@ class RainbowGumLoggerFactoryTest {
 		}
 	}
 
+	/*
+	 * Reproduces the other half of the Spring Boot scenario: RainbowGum.queued(config)
+	 * (what PreBootRainbowGumProvider actually hands SLF4J) uses LogRouter.global()
+	 * itself as its router, so a ReplaceableLogger obtained during this phase captures a
+	 * route resolved against whatever GlobalLogRouter's delegate currently is - the
+	 * initial QueueEventsRouter placeholder, which only buffers events rather than
+	 * writing them anywhere. RainbowGum.builder(...).set() below triggers
+	 * InternalRootRouter.setRouter(...), which transfers the queue's subscribers
+	 * (including this logger's subscribe() consumer) to the real router and publishes to
+	 * them - the same *logger instance* obtained above must then dispatch new log calls
+	 * through the real router, not keep writing into the now-abandoned queue.
+	 */
+	@Test
+	void testReplaceableLoggerObtainedDuringBootstrapDispatchesThroughTheRealRouterAfterSwap() {
+		RainbowGum.builder(LogConfig.builder().build()).unset();
+		try {
+			String preBootProperties = """
+					logging.global.change=true
+					logging.change=level
+					""";
+			var bootstrapConfig = LogConfig.builder()
+				.properties(LogProperties.builder().fromProperties(preBootProperties).build())
+				.build();
+			var bootstrapGum = RainbowGum.queued(bootstrapConfig);
+			var factory = new RainbowGumLoggerFactory(bootstrapGum, new RainbowGumMDCAdapter());
+			var logger = factory.getLogger("bootstrap.logger");
+			assertInstanceOf(LevelChangeable.class, logger,
+					"logging.change=level must make this a replaceable logger, same as Spring's pre-boot properties");
+
+			var realOutput = new ListLogOutput();
+			try (var realGum = RainbowGum.builder(LogConfig.builder().build()).route(route -> {
+				route.appender("list", a -> {
+					a.formatter((output, event) -> {
+						event.formattedMessage(output);
+						output.append("\n");
+					});
+					a.output(realOutput);
+				});
+			}).set()) {
+				logger.info("logged after real gum loads");
+				assertEquals("logged after real gum loads\n", realOutput.toString());
+			}
+		}
+		finally {
+			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
 	private RainbowGum gum(ListLogOutput output, LogProperties props) {
 		LogConfig config = LogConfig.builder().properties(props).build();
 		var gum = RainbowGum.builder(config).route(route -> {

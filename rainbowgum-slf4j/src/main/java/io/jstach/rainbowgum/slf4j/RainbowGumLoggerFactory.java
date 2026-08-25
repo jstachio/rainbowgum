@@ -27,10 +27,13 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * install a bootstrap RainbowGum, have SLF4J's ServiceLoader-triggered initialize()
 	 * capture it here, and only later RainbowGum.set(...) the "real" one - this factory
 	 * would otherwise be stuck forever routing new getLogger(...) calls through the stale
-	 * bootstrap instance. onGlobalChange (below) keeps this current. Already-created
-	 * Logger instances in loggerMap are deliberately NOT rebound here - that is a
-	 * separate, lower-priority concern already partially covered by
-	 * ChangeableLogger/ReplaceableLogger's own per-logger level subscription.
+	 * bootstrap instance's config/decorators. onGlobalChange (below) keeps this current
+	 * for names looked up after the swap. Already-created Logger instances in loggerMap
+	 * are a separate concern: ones allowed to change level (ReplaceableLogger, below) are
+	 * kept current independently via the router's own RouteChangePublisher, which is how
+	 * a bootstrap-era ReplaceableLogger stops pointing at the queued placeholder router
+	 * once a real router replaces it (see subscribe()). Loggers that were not allowed to
+	 * change (LevelLogger) are not, and never were, revisited after creation.
 	 */
 	private volatile RainbowGum rainbowGum;
 
@@ -74,10 +77,6 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				 * We get a logger that can log everything.
 				 */
 				LogEventLogger logger = router.route(name, System.Logger.Level.ERROR);
-				// boolean callerInfo = allowedChanges.contains(ChangeType.CALLER);
-				// ChangeableLogger changeable = new ChangeableLogger(name, logger, mdc,
-				// Levels.toSlf4jInt(level),
-				// callerInfo);
 				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
 				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
 				subscribe(name, router, changeable, allowedChanges);
@@ -100,25 +99,31 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		}
 	}
 
-	private void  subscribe(String name, RootRouter router, ReplaceableLogger changeable, Set<ChangeType> allowedChanges) {
-		var consumer =  new Consumer<RootRouter> (){
+	/*
+	 * router here is whatever RootRouter was current at getLogger() time - during Spring
+	 * Boot's pre-boot phase that is LogRouter.global() itself (the bootstrap RainbowGum's
+	 * router() literally is the global router facade), so this subscribes to the *same*
+	 * RouteChangePublisher that GlobalLogRouter transfers its queued subscribers into
+	 * once a real router replaces the placeholder queue (see
+	 * InternalRootRouter.setRouter/GlobalLogRouter._drain). r (below) is that replacement
+	 * router - re-resolving the route against it, not just the level, is what stops an
+	 * already-created ReplaceableLogger from continuing to dispatch into the
+	 * now-abandoned queue after the swap.
+	 */
+	private void subscribe(String name, RootRouter router, ReplaceableLogger changeable,
+			Set<ChangeType> allowedChanges) {
+		router.onChange(new Consumer<RootRouter>() {
 
 			@Override
 			public void accept(RootRouter r) {
 				var level = r.levelResolver().resolveLevel(name);
-				var slf4jLevel = Levels.toSlf4jLevel(level);
-				changeable.setLevel(slf4jLevel);
+				changeable.setLevel(Levels.toSlf4jLevel(level));
 				var logger = r.route(name, level);
 				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
 				changeable.setEventHandler(handler);
 			}
 
-		};
-		router.onChange(consumer);
-		// router.onChange(r -> {
-		// var slf4jLevel = Levels.toSlf4jLevel(r.levelResolver().resolveLevel(name));
-		// changeable.setLevel(slf4jLevel);
-		// });
+		});
 	}
 
 	private LogEventHandler maybeAddCallerInfo(String loggerName, Set<ChangeType> allowedChanges, LogEventLogger logger,
