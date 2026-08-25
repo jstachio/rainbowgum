@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -35,6 +37,20 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * details.
  */
 class AppenderAsModeFlagPermutationTest {
+
+	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AppenderLock.jdkFeatureVersionSupplier;
+
+	@BeforeEach
+	void before() {
+		// Deterministic regardless of which JDK actually runs the build - see
+		// testPermutation's expectedAppenderClass computation below.
+		AppenderLock.jdkFeatureVersionSupplier = () -> AppenderLock.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
+	}
+
+	@AfterEach
+	void after() {
+		AppenderLock.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
+	}
 
 	enum AsMode {
 
@@ -121,8 +137,17 @@ class AppenderAsModeFlagPermutationTest {
 		else if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
 			expectedAppenderClass = ThreadLocalBufferLogAppender.class;
 		}
-		else {
+		else if (flags.contains(AppenderFlag.REENTRY_DROP) || flags.contains(AppenderFlag.REENTRY_LOG)) {
+			// No buffer-strategy flag: falls to the default appender selection, which
+			// defers to DefaultLogAppender when reentry detection was explicitly
+			// requested, since neither ThreadLocalBuffer appender supports it.
 			expectedAppenderClass = DefaultLogAppender.class;
+		}
+		else {
+			// No buffer-strategy or reentry flag: the default appender selection - forced
+			// to the modern-JDK branch above, so
+			// SynchronizedThreadLocalBufferLogAppender.
+			expectedAppenderClass = SynchronizedThreadLocalBufferLogAppender.class;
 		}
 		for (var direct : directAppenders(mode, publisher)) {
 			assertInstanceOf(expectedAppenderClass, direct);

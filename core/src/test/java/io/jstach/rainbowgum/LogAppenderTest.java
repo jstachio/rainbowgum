@@ -17,6 +17,8 @@ class LogAppenderTest {
 
 	final Function<Set<LogAppender.AppenderFlag>, AppenderLock> originalLockFactoryFunction = AppenderLock.lockFactoryFunction;
 
+	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AppenderLock.jdkFeatureVersionSupplier;
+
 	@AfterEach
 	void after() {
 		/*
@@ -25,12 +27,22 @@ class LogAppenderTest {
 		 * that runs afterward in the same JVM.
 		 */
 		AppenderLock.lockFactoryFunction = originalLockFactoryFunction;
+		AppenderLock.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
 	}
 
 	@Test
 	void test() {
 		var out = Objects.requireNonNull(System.out);
 		ConcurrentLinkedQueue<String> messages = new ConcurrentLinkedQueue<>();
+		/*
+		 * No AppenderFlag is set below, so this exercises the default appender selection.
+		 * Force a pre-JDK-24 version so it resolves to the AppenderLock-based
+		 * ThreadLocalBufferLogAppender (which actually calls lock.tryLock()) rather than
+		 * SynchronizedThreadLocalBufferLogAppender (which does not use AppenderLock at
+		 * all, so the custom reentry-drop lock installed below would never be consulted
+		 * and the reentrant append() call two lines down would recurse forever).
+		 */
+		AppenderLock.jdkFeatureVersionSupplier = () -> 21;
 		AppenderLock.lockFactoryFunction = flags -> new AppenderLock(new ReentrantLock()) {
 			@Override
 			boolean tryLock() {
