@@ -19,7 +19,7 @@
       transitively at runtime by whichever of the two boot modules is actually on the
       classpath.
     -->
-    <spring-core.version>6.1.12</spring-core.version>
+    <spring-core.version>7.0.9</spring-core.version>
     <doc.resources>../../</doc.resources>
     <parent.root>${basedir}/../..</parent.root>
   </properties>
