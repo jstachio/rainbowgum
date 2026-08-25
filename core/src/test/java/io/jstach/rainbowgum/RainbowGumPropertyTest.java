@@ -87,6 +87,24 @@ class RainbowGumPropertyTest {
 				assertInstanceOf(ReuseBufferLogAppender.class, publisher.appender());
 			}
 
+		},
+		THREAD_LOCAL_BUFFER_APPENDER("""
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.level=ERROR
+				logging.appender.list.flags=thread_local_buffer
+				""", """
+				00:00:00.001 [main] ERROR com.pattern.test.Test - hello
+				""") {
+
+			@Override
+			void assertOther(RainbowGum gum) {
+				SingleSyncRootRouter rootRouter = (SingleSyncRootRouter) gum.router();
+				var router = rootRouter.router();
+				DefaultSyncLogPublisher publisher = (DefaultSyncLogPublisher) router.publisher();
+				assertInstanceOf(ThreadLocalBufferLogAppender.class, publisher.appender());
+			}
+
 		};
 
 		private final String properties;

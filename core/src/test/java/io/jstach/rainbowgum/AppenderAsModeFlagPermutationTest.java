@@ -111,8 +111,16 @@ class AppenderAsModeFlagPermutationTest {
 		assertEquals(expectedFlushes, outputA.flushCount, "outputA flush count");
 		assertEquals(expectedFlushes, outputB.flushCount, "outputB flush count");
 
-		Class<?> expectedAppenderClass = flags.contains(AppenderFlag.REUSE_BUFFER) ? ReuseBufferLogAppender.class
-				: DefaultLogAppender.class;
+		Class<?> expectedAppenderClass;
+		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
+			expectedAppenderClass = ReuseBufferLogAppender.class;
+		}
+		else if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
+			expectedAppenderClass = ThreadLocalBufferLogAppender.class;
+		}
+		else {
+			expectedAppenderClass = DefaultLogAppender.class;
+		}
 		for (var direct : directAppenders(mode, publisher)) {
 			assertInstanceOf(expectedAppenderClass, direct);
 		}

@@ -85,6 +85,24 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 */
 		REUSE_BUFFER,
 		/**
+		 * The appender will give each thread its own reusable buffer (a
+		 * {@link ThreadLocal}) instead of allocating a new buffer per event. Unlike
+		 * {@link #REUSE_BUFFER} the encoding is done <strong>outside</strong> the
+		 * appender's lock (the thread's buffer is only visited by that thread so no
+		 * protection is needed while encoding) with the lock only held for the final
+		 * write to the output, which is the same trade-off {@link #REUSE_BUFFER} makes
+		 * except without serializing the encoding step itself.
+		 * <p>
+		 * This flag is ignored if {@link #REUSE_BUFFER} is also set.
+		 * <p>
+		 * <strong>This is designed for a fixed, modestly sized pool of platform threads
+		 * doing the logging.</strong> With virtual threads the high cardinality and short
+		 * lifetime of the threads means buffers are rarely reused and instead pile up as
+		 * garbage, which is likely worse than just allocating a buffer per event as
+		 * {@link DefaultLogAppender} already does.
+		 */
+		THREAD_LOCAL_BUFFER,
+		/**
 		 * By default the appender will call flush on each item appended or if in async
 		 * batch mode for each batch. This flag disables that behavior so that flushing is
 		 * left up to the output (or an external mechanism) instead.
@@ -555,6 +573,9 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
 			return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
 		}
+		if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
+			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, lock);
+		}
 		return new DefaultLogAppender(name, output, encoder, flags, lock);
 	}
 
@@ -784,6 +805,9 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
 			return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
 		}
+		if (flags.contains(LogAppender.AppenderFlag.THREAD_LOCAL_BUFFER)) {
+			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, lock);
+		}
 		return new DefaultLogAppender(name, output, encoder, flags, lock);
 	}
 
@@ -889,6 +913,71 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 		try {
 			super.close();
 			buffer.close();
+		}
+		finally {
+			lock.unlock();
+		}
+	}
+
+}
+
+/*
+ * The idea here is like DefaultLogAppender: encode outside the lock. However instead of
+ * allocating a fresh buffer per event (DefaultLogAppender) or sharing (and thus
+ * serializing access to) a single buffer (ReuseBufferLogAppender) each thread gets its
+ * own buffer that only it will ever touch, so encoding never needs to be guarded by the
+ * lock at all - only the final write to the output does.
+ */
+final class ThreadLocalBufferLogAppender extends LockLogAppender implements InternalLogAppender {
+
+	/*
+	 * There is no way to enumerate every thread's buffer to close it on appender close so
+	 * we rely on Buffer implementations not holding onto real resources (today they are
+	 * all just wrapped in-memory builders) and let the ThreadLocal itself (and
+	 * consequently the per-thread entries) become collectible once this appender is
+	 * discarded.
+	 */
+	// CheckerFramework's ThreadLocal stub declares T as inherently @Nullable since get()
+	// can return null before initialValue() runs, but withInitial(...) below guarantees
+	// it never does here.
+	@SuppressWarnings("nullness:type.argument")
+	private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal;
+
+	ThreadLocalBufferLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
+			AppenderLock lock) {
+		super(name, output, encoder, flags, lock);
+		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
+	}
+
+	@Override
+	public final void append(LogEvent event) {
+		var buffer = bufferThreadLocal.get();
+		buffer.clear();
+		encoder.encode(event, buffer);
+		if (!lock.tryLock()) {
+			return;
+		}
+		try {
+			output.write(event, buffer);
+			if (immediateFlush) {
+				output.flush();
+			}
+		}
+		finally {
+			lock.unlock();
+		}
+	}
+
+	@Override
+	public void append(LogEvent[] events, int count) {
+		if (!lock.tryLock()) {
+			return;
+		}
+		try {
+			output.write(events, count, encoder, bufferThreadLocal.get());
+			if (immediateFlush) {
+				output.flush();
+			}
 		}
 		finally {
 			lock.unlock();
