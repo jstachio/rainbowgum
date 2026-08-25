@@ -36,23 +36,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum</artifactId>
       <scope>runtime</scope>
-      <exclusions>
-        <!--
-          Rainbow gum's own java.util.logging handler is currently slower than
-          desired under Spring Boot (embedded Tomcat is JUL-heavy). Note that
-          RainbowGumLoggingSystemFactory replaces Spring Boot's LoggingSystem entirely,
-          so Spring Boot's own Logback-specific jul-to-slf4j wiring
-          (LogbackLoggingSystem) never runs here either - excluding this artifact means
-          java.util.logging output (e.g. from embedded Tomcat) is not captured at all
-          for now, not redirected elsewhere. Excluding this artifact (rather than
-          rainbowgum-jdk) keeps io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory
-          (the System.Logger bridge) intact.
-        -->
-        <exclusion>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>rainbowgum-jul</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>

@@ -12,9 +12,18 @@ import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventLogger;
 
 interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
-	
+
+	/**
+	 * Implemented by loggers whose dispatch target can be swapped after creation
+	 * (currently only {@link ReplaceableLogger}), so a route change (e.g. the global
+	 * router being replaced once a real RainbowGum loads) can rebind an already-created
+	 * logger's handler instead of leaving it pointed at whatever it resolved to at
+	 * creation time - the queued placeholder router, in the common pre-boot case.
+	 */
 	interface EventHandlerChangeable {
-		void setEventHandler(@SuppressWarnings("exports") LogEventHandler eventHandler);
+
+		void setEventHandler(LogEventHandler eventHandler);
+
 	}
 
 	@Override

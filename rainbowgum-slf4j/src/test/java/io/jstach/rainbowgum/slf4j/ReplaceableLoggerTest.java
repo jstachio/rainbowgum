@@ -45,6 +45,21 @@ class ReplaceableLoggerTest {
 	}
 
 	@Test
+	void testSetEventHandlerChangesWhereLogCallsGo() {
+		var logger = ReplaceableLogger.of(Level.INFO, handler);
+		logger.info("via original handler");
+		assertEquals("test", lastEvent.loggerName());
+
+		LogEvent[] rebound = new LogEvent[1];
+		LogEventHandler newHandler = LogEventHandler.ofCallerInfo("rebound", e -> rebound[0] = e,
+				new RainbowGumMDCAdapter(), 1);
+		logger.setEventHandler(newHandler);
+		logger.info("via rebound handler");
+		assertEquals("via rebound handler", rebound[0].message());
+		assertEquals("rebound", rebound[0].loggerName());
+	}
+
+	@Test
 	void testWithDepthCompensatesForOneExtraWrappingLayer() {
 		// depth=1 here mirrors RainbowGumLoggerFactory's own ChangeType.LEVEL branch,
 		// which already compensates for ReplaceableLogger's own ForwardingLogger
