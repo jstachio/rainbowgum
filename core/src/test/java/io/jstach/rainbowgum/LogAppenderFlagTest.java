@@ -27,14 +27,20 @@ class LogAppenderFlagTest {
 
 	PrintStream metaLogStream = new PrintStream(metaLogBytes);
 
+	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AppenderLock.jdkFeatureVersionSupplier;
+
 	@BeforeEach
 	void before() {
 		MetaLog.output = () -> metaLogStream;
+		// Deterministic regardless of which JDK actually runs the build - see
+		// appenderLevelFlagsMergeOntoExistingAppenderWithoutReuseBuffer below.
+		AppenderLock.jdkFeatureVersionSupplier = () -> AppenderLock.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
 	}
 
 	@AfterEach
 	void after() {
 		MetaLog.output = () -> System.err;
+		AppenderLock.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
 	}
 
 	private static LogAppender appender(String name, ListLogOutput output, AppenderFlag... flags) {
@@ -152,7 +158,10 @@ class LogAppenderFlagTest {
 		var appenders = new LogAppender.Appenders("test-route", config, providers);
 		var result = appenders.flags(Set.of(AppenderFlag.DISABLE_IMMEDIATE_FLUSH)).asSingle();
 		result.start(config);
-		assertInstanceOf(DefaultLogAppender.class, result);
+		// No buffer-strategy flag set - resolves to the default appender selection,
+		// which on the (forced-deterministic) modern JDK above is
+		// SynchronizedThreadLocalBufferLogAppender, not DefaultLogAppender.
+		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, result);
 		result.append(TestEventBuilder.of().build(b -> b.message("hello")));
 		assertEquals(0, output.flushCount);
 	}
