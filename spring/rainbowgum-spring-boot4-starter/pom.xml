@@ -47,11 +47,11 @@
           for now, not redirected elsewhere. Excluding this artifact (rather than
           rainbowgum-jdk) keeps io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory
           (the System.Logger bridge) intact.
-        -->
         <exclusion>
           <groupId>${project.groupId}</groupId>
           <artifactId>rainbowgum-jul</artifactId>
         </exclusion>
+        -->
       </exclusions>
     </dependency>
     <dependency>
