@@ -12,6 +12,10 @@ import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventLogger;
 
 interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
+	
+	interface EventHandlerChangeable {
+		void setEventHandler(@SuppressWarnings("exports") LogEventHandler eventHandler);
+	}
 
 	@Override
 	default java.lang.System.Logger.Level translateLevel(Level level) {

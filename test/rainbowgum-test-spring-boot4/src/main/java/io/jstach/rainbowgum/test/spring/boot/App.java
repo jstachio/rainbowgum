@@ -27,13 +27,17 @@ public class App {
 	 */
 	public static void main(String[] args) {
 
+		// If created here it will be a replaceable logger.
+		//Logger log = LoggerFactory.getLogger("blah");
+		
 		SpringApplication.run(App.class, args);
+		// If created here it will be a level logger.
+		Logger log = LoggerFactory.getLogger("blah");
 		java.util.logging.Logger jul = java.util.logging.Logger.getLogger("blah");
 		jul.log(Level.INFO, "hello jul");
 		jul.log(Level.INFO, "hello again jul");
-		Logger log = LoggerFactory.getLogger("blah");
 		log.info("Hello Spring Boot");
-		log.info("Logger: {}", log.getClass().getPackage());
+		log.info("Logger: {}", log.getClass());
 	}
 
 }
