@@ -27,9 +27,9 @@
     <jdk.release.version>26.0.2</jdk.release.version>
 
     <ecj.version>3.46.0</ecj.version>
-    <plexus-compiler-eclipse.version>2.15.0</plexus-compiler-eclipse.version>
+    <plexus-compiler-eclipse.version>2.17.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.50.0</error-prone.version>
-    <nullaway.version>0.13.8</nullaway.version>
+    <nullaway.version>0.14.0</nullaway.version>
     <checkerframework.version>4.2.2</checkerframework.version>
 
 
@@ -286,7 +286,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>3.3.1</version>
+          <version>3.5.0</version>
           <configuration>
             <encoding>${project.build.sourceEncoding}</encoding>
           </configuration>
@@ -373,7 +373,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-help-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.5.2</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -383,7 +383,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>buildnumber-maven-plugin</artifactId>
-          <version>3.2.1</version>
+          <version>3.3.0</version>
           <executions>
             <execution>
               <phase>validate</phase>
@@ -416,12 +416,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-release-plugin</artifactId>
-          <version>3.1.1</version>
+          <version>3.3.1</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>3.5.1</version>
+          <version>3.6.3</version>
         </plugin>
         <plugin>
           <groupId>org.moditect</groupId>
