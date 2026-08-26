@@ -95,11 +95,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * <p>
 		 * This flag is ignored if {@link #REUSE_BUFFER} is also set.
 		 * <p>
-		 * <strong>Virtual-thread aware:</strong> a call from a virtual thread bypasses
-		 * the {@link ThreadLocal} and uses a fresh buffer for that one event instead
-		 * (allocated and discarded per call, with no reuse) - a per-thread buffer only
-		 * pays off across many events on the same thread, which a short-lived virtual
-		 * thread handling a single request typically is not.
+		 * The same {@link ThreadLocal} buffer is used regardless of whether the calling
+		 * thread is a platform or virtual thread. A virtual thread's entry becomes
+		 * collectible once the thread itself terminates, and a typical unit of work (e.g.
+		 * one HTTP request) logs several times on the same thread, so reusing the buffer
+		 * across those calls still pays off even for short-lived virtual threads.
 		 * <p>
 		 * This is one of the two flags (see also
 		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER}) an appender may end up using
@@ -109,9 +109,9 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		THREAD_LOCAL_BUFFER,
 		/**
 		 * Like {@link #THREAD_LOCAL_BUFFER} (a reused per-thread buffer, encoding done
-		 * outside any lock, virtual-thread aware) except the final write to the output is
-		 * protected by a plain {@code synchronized} block (the JVM's intrinsic monitor)
-		 * instead of a {@link ReentrantLock}.
+		 * outside any lock) except the final write to the output is protected by a plain
+		 * {@code synchronized} block (the JVM's intrinsic monitor) instead of a
+		 * {@link ReentrantLock}.
 		 * <p>
 		 * The Java language has no way to acquire a monitor in one method call and
 		 * release it in another, so this appender's critical sections are written as
@@ -924,19 +924,6 @@ final class ThreadLocalBufferLogAppender extends LockLogAppender implements Inte
 
 	@Override
 	public final void append(LogEvent event) {
-		if (Thread.currentThread().isVirtual()) {
-			/*
-			 * A per-thread buffer only pays off across many events on the same thread - a
-			 * short-lived virtual thread handling a single request typically logs a
-			 * handful of times and terminates, so fall back to a fresh buffer per event
-			 * instead of populating the ThreadLocal.
-			 */
-			try (var buffer = encoder.buffer(output.bufferHints())) {
-				encoder.encode(event, buffer);
-				writeLocked(event, buffer);
-			}
-			return;
-		}
 		var buffer = bufferThreadLocal.get();
 		buffer.clear();
 		encoder.encode(event, buffer);
@@ -1002,18 +989,6 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 
 	@Override
 	public void append(LogEvent event) {
-		if (Thread.currentThread().isVirtual()) {
-			/*
-			 * See ThreadLocalBufferLogAppender's identical branch: a per-thread buffer
-			 * only pays off across many events on the same thread, which a short-lived
-			 * virtual thread handling a single request typically is not.
-			 */
-			try (var buffer = encoder.buffer(output.bufferHints())) {
-				encoder.encode(event, buffer);
-				writeSynchronized(event, buffer);
-			}
-			return;
-		}
 		var buffer = bufferThreadLocal.get();
 		buffer.clear();
 		encoder.encode(event, buffer);
