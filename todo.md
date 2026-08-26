@@ -34,9 +34,10 @@ To land before 1.0:
       `LogStatusReporter` approach (bounded ring buffer bridging `MetaLog`'s push-style
       errors), decide bootstrap scope (only `BlockingQueueAsyncLogPublisher` and
       `DisruptorLogPublisher` routed through `statusReporter()` in that branch -
-      `LogAppender`'s `LogReentryAppenderLock`, `ServiceRegistry`, and external modules
-      like the RabbitMQ output and `RainbowGumSystemLoggerFinder` still only ever
-      reached stderr), and expose a real pull/subscribe API for consumers (health
+      `LogAppender`'s reentry diagnostic (`AbstractLogAppender.shouldDropForReentry`'s
+      `MetaLog.error(...)` call on `REENTRY_LOG`), `ServiceRegistry`, and external
+      modules like the RabbitMQ output and `RainbowGumSystemLoggerFinder` still only
+      ever reached stderr), and expose a real pull/subscribe API for consumers (health
       checks, admin endpoints) instead of a separate, undiscoverable thing bolted onto
       `LogOutputRegistry.status()`.
 - [ ] Design the metrics system: needs its own home for queue-depth-style gauges now
@@ -48,6 +49,21 @@ To land before 1.0:
 - [ ] Revisit whether coalescing repeated identical alerts (a stuck queue dropping
       every event) is needed - explicitly deferred out of the on-hold branch's first
       pass.
+- [ ] A third, still-unaddressed facet the old `status()` API used to partly cover:
+      a **static configuration report** - not alerts (event-driven) or metrics
+      (gauges), just "what actually got wired up." With `REUSE_BUFFER`/
+      `THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER`, the JDK-version-sniffed
+      default, and (possibly) a future Spring Boot virtual-thread sniff all in play,
+      there is no way today to tell *which concrete appender class* actually got
+      selected for a given route/output short of reading code or attaching a
+      debugger. The raw introspection already exists -
+      `ServiceRegistry.find(LogAppender.class)`/`forEach(...)` returns every
+      registered appender by name, and `CompositeLogAppender.components()` exposes
+      the per-output appenders under a route that resolved to a composite - what's
+      missing is a small utility that walks that and renders a human-readable
+      summary (name, concrete class, flags, output, encoder). Where this should live
+      (a plain utility method vs. a Spring actuator-style endpoint vs. something
+      printed at startup) is still undecided.
 
 ## 2. Replace Eclipse JDT nullability annotations with JSpecify
 
