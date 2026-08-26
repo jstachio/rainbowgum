@@ -1,0 +1,1 @@
+io.jstach.rainbowgum.spring.boot.spi.SpringRainbowGumServiceProvider=io.jstach.rainbowgum.benchmark.webapp.rainbowgum.GelfSpringRainbowGumServiceProvider
