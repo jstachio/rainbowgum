@@ -18,6 +18,7 @@ module io.jstach.rainbowgum.spring.boot4 {
 	requires transitive io.jstach.rainbowgum;
 	requires transitive io.jstach.rainbowgum.spring.boot.spi;
 	requires io.jstach.rainbowgum.pattern;
+	requires io.jstach.rainbowgum.json;
 
 	/*
 	 * Note that we never require transitive of spring stuff
