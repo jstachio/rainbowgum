@@ -31,22 +31,24 @@ class PatternsTest {
 
 	@Test
 	void applicationNameExcludedWhenDisabled() {
-		var patterns = new Patterns(EMPTY, environment(Map.of("logging.include-application-name", "false")));
+		var patterns = new Patterns(EMPTY,
+				environment(Map.of(SpringBootSupportedProperties.INCLUDE_APPLICATION_NAME, "false")));
 		assertFalse(patterns.NAME_AND_GROUP.contains("APPLICATION_NAME"));
 		assertTrue(patterns.NAME_AND_GROUP.contains("APPLICATION_GROUP"));
 	}
 
 	@Test
 	void applicationGroupExcludedWhenDisabled() {
-		var patterns = new Patterns(EMPTY, environment(Map.of("logging.include-application-group", "false")));
+		var patterns = new Patterns(EMPTY,
+				environment(Map.of(SpringBootSupportedProperties.INCLUDE_APPLICATION_GROUP, "false")));
 		assertTrue(patterns.NAME_AND_GROUP.contains("APPLICATION_NAME"));
 		assertFalse(patterns.NAME_AND_GROUP.contains("APPLICATION_GROUP"));
 	}
 
 	@Test
 	void bothExcludedWhenDisabled() {
-		var patterns = new Patterns(EMPTY, environment(
-				Map.of("logging.include-application-name", "false", "logging.include-application-group", "false")));
+		var patterns = new Patterns(EMPTY, environment(Map.of(SpringBootSupportedProperties.INCLUDE_APPLICATION_NAME,
+				"false", SpringBootSupportedProperties.INCLUDE_APPLICATION_GROUP, "false")));
 		assertFalse(patterns.consolePattern().contains("APPLICATION_NAME"));
 		assertFalse(patterns.consolePattern().contains("APPLICATION_GROUP"));
 	}

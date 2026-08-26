@@ -49,27 +49,11 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 	}
 
 	record SpringLogProperties(Environment environment) implements LogProperties {
-		/*
-		 * Rainbow Gum uses logging.level as the root but strangely probably because of
-		 * binding boot uses the below.
-		 */
-		private static final String ROOT_LEVEL = "logging.level.root";
-
-		/**
-		 * Spring Boot's directory-only file property - only consulted as a fallback when
-		 * {@link LogProperties#FILE_PROPERTY} (logging.file.name) itself is unset,
-		 * matching Spring Boot's own {@code LogFile.get(...)} precedence.
-		 */
-		private static final String FILE_PATH_PROPERTY = "logging.file.path";
-
-		private static final String CONSOLE_ENABLED_PROPERTY = "logging.console.enabled";
-
-		private static final String SPRING_OUTPUT_ANSI_ENABLED_PROPERTY = "spring.output.ansi.enabled";
 
 		@Override
 		public @Nullable String valueOrNull(String key) {
-			if (key.equals("logging.level")) {
-				String value = environment.getProperty(ROOT_LEVEL);
+			if (key.equals(SpringBootSupportedProperties.LOGGING_LEVEL)) {
+				String value = environment.getProperty(SpringBootSupportedProperties.LOGGING_LEVEL_ROOT);
 				if (value != null) {
 					return value;
 				}
@@ -79,7 +63,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 				if (name != null && !name.isBlank()) {
 					return name;
 				}
-				String path = environment.getProperty(FILE_PATH_PROPERTY);
+				String path = environment.getProperty(SpringBootSupportedProperties.FILE_PATH);
 				if (path != null && !path.isBlank()) {
 					// Spring Boot's own default file name when only the directory is
 					// given - see LogFile.get(...).
@@ -92,7 +76,8 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 				if (value != null) {
 					return value;
 				}
-				boolean consoleEnabled = environment.getProperty(CONSOLE_ENABLED_PROPERTY, Boolean.class, true);
+				boolean consoleEnabled = environment.getProperty(SpringBootSupportedProperties.CONSOLE_ENABLED,
+						Boolean.class, true);
 				// Only meaningful to restrict to just "file" if a file destination
 				// actually resolves - otherwise fall through to the normal default
 				// (console) rather than pointing at a nonexistent file appender.
@@ -102,7 +87,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 				return null;
 			}
 			else if (key.equals(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)) {
-				String ansiEnabled = environment.getProperty(SPRING_OUTPUT_ANSI_ENABLED_PROPERTY);
+				String ansiEnabled = environment.getProperty(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED);
 				if (ansiEnabled != null) {
 					String mapped = switch (ansiEnabled.toUpperCase(Locale.ROOT)) {
 						case "NEVER" -> "true";
@@ -121,10 +106,6 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 	}
 
 	final static class Patterns {
-
-		private static final String INCLUDE_APPLICATION_NAME_PROPERTY = "logging.include-application-name";
-
-		private static final String INCLUDE_APPLICATION_GROUP_PROPERTY = "logging.include-application-group";
 
 		final String NAME_AND_GROUP;
 
@@ -159,10 +140,10 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			 * from the Environment rather than through the system-property-backed
 			 * `properties` above.
 			 */
-			boolean includeApplicationName = environment.getProperty(INCLUDE_APPLICATION_NAME_PROPERTY, Boolean.class,
-					true);
-			boolean includeApplicationGroup = environment.getProperty(INCLUDE_APPLICATION_GROUP_PROPERTY, Boolean.class,
-					true);
+			boolean includeApplicationName = environment
+				.getProperty(SpringBootSupportedProperties.INCLUDE_APPLICATION_NAME, Boolean.class, true);
+			boolean includeApplicationGroup = environment
+				.getProperty(SpringBootSupportedProperties.INCLUDE_APPLICATION_GROUP, Boolean.class, true);
 			NAME_AND_GROUP = (includeApplicationName ? "%esb(){APPLICATION_NAME}" : "")
 					+ (includeApplicationGroup ? "%esb{APPLICATION_GROUP}" : "");
 		}

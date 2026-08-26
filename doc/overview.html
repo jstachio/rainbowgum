@@ -1365,10 +1365,14 @@ its own artifact:
   <li>{@link io.jstach.rainbowgum.spring.boot3/ } / <code>rainbowgum-spring-boot3-starter</code> - for Spring Boot 3.</li>
 </ul>
 
-The two are otherwise identical: same properties, same behavior. Their own internal implementation packages
-({@code io.jstach.rainbowgum.spring.boot3}/{@code boot4}) are not exported and never imported by consumers - Spring
-Boot discovers them itself through {@code META-INF/spring.factories} and the Java service loader - so those packages
-are duplicated per major version rather than shared. The one package you might actually import,
+Their own internal implementation packages ({@code io.jstach.rainbowgum.spring.boot3}/{@code boot4}) are not
+exported and never imported by consumers - Spring Boot discovers them itself through {@code META-INF/spring.factories}
+and the Java service loader - so those packages are duplicated per major version rather than shared, and are not
+necessarily identical in behavior; <strong>{@link io.jstach.rainbowgum.spring.boot4/ } is the one kept up to date
+with which Spring Boot logging properties (<code>logging.*</code>, <code>spring.output.ansi.enabled</code>, etc.) are
+supported</strong> - see that module's own javadoc for the full supported/not-supported property table, kept next to
+the code that implements it rather than duplicated here where it could drift out of sync. The one package you might
+actually import,
 {@link io.jstach.rainbowgum.spring.boot.spi}, lives in its own genuinely shared module (<code>rainbowgum-spring-spi</code>,
 pulled in transitively by both starters) because it only depends on {@code org.springframework.core.env.Environment},
 which is expected to remain stable across Spring Boot major versions - so if you have implemented

@@ -54,8 +54,8 @@ class StructuredLoggingTest {
 	@Test
 	void gelfOnConsoleOnlyLeavesFileAlone() {
 		var config = LogConfig.builder().build();
-		var environment = environment(
-				Map.of("logging.structured.format.console", "gelf", "spring.application.name", "my-app"));
+		var environment = environment(Map.of(SpringBootSupportedProperties.STRUCTURED_FORMAT_CONSOLE, "gelf",
+				"spring.application.name", "my-app"));
 		StructuredLogging.apply(config, environment);
 
 		var consoleEncoder = config.encoderRegistry().encoderForOutputType(OutputType.CONSOLE_OUT).provide("c", config);
@@ -68,8 +68,8 @@ class StructuredLoggingTest {
 	@Test
 	void gelfHostDefaultsToApplicationName() {
 		var config = LogConfig.builder().build();
-		var environment = environment(
-				Map.of("logging.structured.format.file", "gelf", "spring.application.name", "fallback-app"));
+		var environment = environment(Map.of(SpringBootSupportedProperties.STRUCTURED_FORMAT_FILE, "gelf",
+				"spring.application.name", "fallback-app"));
 		StructuredLogging.apply(config, environment);
 		String json = encodedMessage(config, OutputType.FILE);
 		assertTrue(json.contains("\"host\":\"fallback-app\""), json);
@@ -78,8 +78,9 @@ class StructuredLoggingTest {
 	@Test
 	void gelfServiceVersionBecomesUnderscoreHeader() {
 		var config = LogConfig.builder().build();
-		var environment = environment(Map.of("logging.structured.format.file", "gelf", "logging.structured.gelf.host",
-				"h", "logging.structured.gelf.service.version", "1.2.3"));
+		var environment = environment(Map.of(SpringBootSupportedProperties.STRUCTURED_FORMAT_FILE, "gelf",
+				SpringBootSupportedProperties.STRUCTURED_GELF_HOST, "h",
+				SpringBootSupportedProperties.STRUCTURED_GELF_SERVICE_VERSION, "1.2.3"));
 		StructuredLogging.apply(config, environment);
 		String json = encodedMessage(config, OutputType.FILE);
 		assertTrue(json.contains("\"_service_version\":\"1.2.3\""), json);
@@ -88,10 +89,11 @@ class StructuredLoggingTest {
 	@Test
 	void ecsFieldsAllThreadThrough() {
 		var config = LogConfig.builder().build();
-		var environment = environment(
-				Map.of("logging.structured.format.file", "ecs", "logging.structured.ecs.service.name", "svc",
-						"logging.structured.ecs.service.version", "2.0", "logging.structured.ecs.service.environment",
-						"prod", "logging.structured.ecs.service.node-name", "node-1"));
+		var environment = environment(Map.of(SpringBootSupportedProperties.STRUCTURED_FORMAT_FILE, "ecs",
+				SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_NAME, "svc",
+				SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_VERSION, "2.0",
+				SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_ENVIRONMENT, "prod",
+				SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_NODE_NAME, "node-1"));
 		StructuredLogging.apply(config, environment);
 		String json = encodedMessage(config, OutputType.FILE);
 		assertTrue(json.contains("\"service.name\":\"svc\""), json);
@@ -102,7 +104,7 @@ class StructuredLoggingTest {
 	@Test
 	void logstashFormatSelectsLogstashEncoder() {
 		var config = LogConfig.builder().build();
-		var environment = environment(Map.of("logging.structured.format.console", "logstash"));
+		var environment = environment(Map.of(SpringBootSupportedProperties.STRUCTURED_FORMAT_CONSOLE, "logstash"));
 		StructuredLogging.apply(config, environment);
 		var encoder = config.encoderRegistry().encoderForOutputType(OutputType.CONSOLE_OUT).provide("c", config);
 		assertInstanceOf(LogstashEncoder.class, encoder);
@@ -111,7 +113,8 @@ class StructuredLoggingTest {
 	@Test
 	void unrecognizedFormatIsIgnored() {
 		var config = LogConfig.builder().build();
-		var environment = environment(Map.of("logging.structured.format.console", "some.custom.FormatterClass"));
+		var environment = environment(
+				Map.of(SpringBootSupportedProperties.STRUCTURED_FORMAT_CONSOLE, "some.custom.FormatterClass"));
 		StructuredLogging.apply(config, environment);
 		var encoder = config.encoderRegistry().encoderForOutputType(OutputType.CONSOLE_OUT).provide("c", config);
 		assertEquals(false,
