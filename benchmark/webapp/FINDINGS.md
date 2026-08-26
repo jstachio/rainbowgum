@@ -1837,3 +1837,37 @@ buffering loses under VT" story).
 
 Reproduce: `STRUCTURED_FORMAT=gelf ./run-all.sh` and `VIRTUAL_THREADS=true ./run-all.sh`
 from `benchmark/webapp/`, after the `run-all.sh`/`benchmark/pom.xml` fixes above.
+
+## VT bypass in ThreadLocalBufferLogAppender/SynchronizedThreadLocalBufferLogAppender was backwards - removed
+
+The previous section's javadoc-cited reasoning ("reusing the buffer across the tiny
+number of events one short-lived virtual thread logs was never going to pay off") turned
+out to be the actual cause of the VT regression, not just an unhelped-by side effect of
+it. `BenchController` logs ~5 statements per request, all on the *same* virtual thread
+(Spring Boot doesn't hop threads mid-request under virtual threads) - so the bypass was
+allocating a fresh buffer for *every one* of those 5 calls instead of 1 (first call)
+reused for the rest. The `ThreadLocal` entry becomes collectible once the virtual thread
+itself terminates regardless, so per-request reuse never had a "buffers pile up as
+garbage" cost to begin with - it just wasn't being exercised.
+
+Removed the `Thread.currentThread().isVirtual()` branch entirely from both appenders
+(`fix/remove-vt-buffer-bypass`, always uses the `ThreadLocal` buffer now, VT or not).
+Re-ran the VT scenario for `rainbowgum` only (logback/log4j2 unaffected by this change):
+
+| label                     | req/s    | p50  | p90  | p99  | max   | GCHeapSummary events |
+|---------------------------|----------|------|------|------|-------|-----------------------|
+| rainbowgum-vt (bypass)    | 18,661.8 | 2.69 | 4.65 | 6.64 | 22.95 | 730                   |
+| rainbowgum-vt (no bypass) | 19,695.6 | 2.60 | 4.44 | 6.38 | 18.42 | 426                   |
+| log4j2-vt (unchanged)     | 18,879.7 | 2.47 | 5.19 | 7.92 | 18.61 | -                     |
+| logback-vt (unchanged)    | 25,464.9 | 1.97 | 2.65 | 3.16 | 13.02 | -                     |
+
++5.5% throughput, lower latency at every percentile, 42% fewer GC events, and RainbowGum
+now edges ahead of log4j2 under virtual threads instead of trailing it. Logback still
+leads by a wide margin - that gap is unrelated to this bypass (logback isn't doing
+per-thread buffer reuse in the first place) and remains open; see the still-valid
+"Net for this rerun" paragraph above for that part of the story, minus the now-fixed
+"per-appender fallback" framing.
+
+Reproduce: build `core` with `fix/remove-vt-buffer-bypass`, then
+`VIRTUAL_THREADS=true ./run-all.sh` (or isolate to just the rainbowgum app, as the driver
+script above did, since logback/log4j2 are untouched by this change).
