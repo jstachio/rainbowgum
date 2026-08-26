@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -37,20 +35,6 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * details.
  */
 class AppenderAsModeFlagPermutationTest {
-
-	final java.util.function.IntSupplier originalJdkFeatureVersionSupplier = AbstractLogAppender.jdkFeatureVersionSupplier;
-
-	@BeforeEach
-	void before() {
-		// Deterministic regardless of which JDK actually runs the build - see
-		// testPermutation's expectedAppenderClass computation below.
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
-	}
-
-	@AfterEach
-	void after() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
-	}
 
 	enum AsMode {
 
@@ -134,15 +118,14 @@ class AppenderAsModeFlagPermutationTest {
 		else if (flags.contains(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
 			expectedAppenderClass = SynchronizedThreadLocalBufferLogAppender.class;
 		}
-		else if (flags.contains(AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
-			expectedAppenderClass = LockThreadLocalBufferLogAppender.class;
-		}
 		else {
-			// No buffer-strategy flag (REENTRY_DROP/REENTRY_LOG alone included - both
-			// ThreadLocalBuffer appenders support reentry detection, so they no longer
-			// force DefaultLogAppender): the default appender selection - forced to the
-			// modern-JDK branch above, so SynchronizedThreadLocalBufferLogAppender.
-			expectedAppenderClass = SynchronizedThreadLocalBufferLogAppender.class;
+			// Either LOCK_THREAD_LOCAL_BUFFER explicitly, or no buffer-strategy flag at
+			// all (REENTRY_DROP/REENTRY_LOG alone included) - both resolve to
+			// LockThreadLocalBufferLogAppender, the default appender selection, since
+			// that's exactly what DirectLogAppender#defaultAppender picks. Both
+			// ThreadLocalBuffer appenders support reentry detection directly, so no
+			// third appender is ever needed for those flags alone.
+			expectedAppenderClass = LockThreadLocalBufferLogAppender.class;
 		}
 		for (var direct : directAppenders(mode, publisher)) {
 			assertInstanceOf(expectedAppenderClass, direct);

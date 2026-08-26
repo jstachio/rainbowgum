@@ -11,7 +11,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.IntSupplier;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
@@ -102,10 +101,10 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * one HTTP request) logs several times on the same thread, so reusing the buffer
 		 * across those calls still pays off even for short-lived virtual threads.
 		 * <p>
-		 * This is one of the two flags (see also
-		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER}) an appender may end up using
-		 * <strong>even when no flag is explicitly set</strong> - see
-		 * {@code DirectLogAppender#defaultAppender} for the default selection.
+		 * This is the strategy an appender uses <strong>even when no flag is explicitly
+		 * set</strong> - see {@code DirectLogAppender#defaultAppender} for the default
+		 * selection, and {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER} for the alternative
+		 * lock-kind opt-in.
 		 */
 		LOCK_THREAD_LOCAL_BUFFER,
 		/**
@@ -126,17 +125,19 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * Motivated by Log4j2's own garbage-free appenders using {@code synchronized}
 		 * rather than a {@code java.util.concurrent} lock around their buffer-transfer
 		 * step, and confirmed by real-workload benchmarking to outperform
-		 * {@link ReentrantLock} here on modern JDKs. Takes precedence over
-		 * {@link #LOCK_THREAD_LOCAL_BUFFER} (redundant if both are set) but not
-		 * {@link #REUSE_BUFFER}.
+		 * {@link ReentrantLock} under platform-thread contention - this was the default
+		 * for a time. Real-workload benchmarking under virtual threads found the
+		 * opposite, a large and reproducible loss versus {@link ReentrantLock} for
+		 * reasons not fully understood (classic JEP 491 pinning was checked and ruled
+		 * out), so {@link #LOCK_THREAD_LOCAL_BUFFER} is the default now and this flag is
+		 * an opt-in for platform-thread-heavy deployments that want the edge. Takes
+		 * precedence over {@link #LOCK_THREAD_LOCAL_BUFFER} (redundant if both are set)
+		 * but not {@link #REUSE_BUFFER}.
 		 * <p>
-		 * <strong>Explicitly setting this flag honors it</strong>, even on a JDK where
+		 * <strong>Explicitly setting this flag honors it</strong> even on a JDK where
 		 * {@code synchronized} still pins the carrier platform thread when called from a
 		 * virtual thread (before <a href="https://openjdk.org/jeps/491">JEP 491</a>,
-		 * finalized in JDK 24) - it is only the <strong>default selection</strong> (no
-		 * buffer-strategy flag set at all) that checks the running JDK's version and
-		 * falls back to {@link #LOCK_THREAD_LOCAL_BUFFER} below that version; see
-		 * {@code DirectLogAppender#defaultAppender}. The one exception is
+		 * finalized in JDK 24) - the one exception is
 		 * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}: when that global
 		 * property is active it downgrades even an explicit request for this flag to
 		 * {@link #LOCK_THREAD_LOCAL_BUFFER}, since its whole point is a hard guarantee
@@ -541,29 +542,24 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	/**
 	 * Picks the appender used when no {@link AppenderFlag} explicitly requests a
-	 * buffer/lock strategy: the same trade-off a caller gets from explicitly setting
-	 * {@link AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER} on
-	 * {@link AbstractLogAppender#SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION}+ (where
-	 * {@code synchronized} no longer pins virtual threads - JEP 491) or
-	 * {@link AppenderFlag#LOCK_THREAD_LOCAL_BUFFER} on older JDKs - measured faster than
-	 * always allocating a fresh buffer per event in real-workload benchmarking, so it is
-	 * the better default rather than only an opt-in. Both appenders support
+	 * buffer/lock strategy: {@link AppenderFlag#LOCK_THREAD_LOCAL_BUFFER}, the same
+	 * appender a caller gets from setting that flag explicitly. Supports
 	 * {@link AppenderFlag#REENTRY_DROP}/{@link AppenderFlag#REENTRY_LOG} directly (see
 	 * {@link AbstractLogAppender#shouldDropForReentry}), so no fallback to a third
 	 * appender is needed here for those flags.
 	 * <p>
-	 * {@link AbstractLogAppender#forceReentrantLockAppenders} (set from
-	 * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}) skips the
-	 * JDK-version check entirely and always picks
-	 * {@link AppenderFlag#LOCK_THREAD_LOCAL_BUFFER} when active, regardless of JDK
-	 * version.
+	 * {@link AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER} measured faster under
+	 * platform-thread contention in real-workload benchmarking and was the default for a
+	 * time, but real-workload benchmarking under virtual threads found the opposite - a
+	 * large, reproducible win for {@code LOCK_THREAD_LOCAL_BUFFER} there, for reasons not
+	 * fully understood (checked and ruled out classic JEP 491 pinning as the cause).
+	 * Given RainbowGum's own audience skews toward newer JDKs and virtual-thread
+	 * workloads, {@code LOCK_THREAD_LOCAL_BUFFER} is the safer default;
+	 * {@code synchronized} remains available as an explicit opt-in for
+	 * platform-thread-heavy deployments that want that edge.
 	 */
 	static DirectLogAppender defaultAppender(String name, LogOutput output, LogEncoder encoder,
 			Set<LogAppender.AppenderFlag> flags) {
-		if (!AbstractLogAppender.forceReentrantLockAppenders && AbstractLogAppender.jdkFeatureVersionSupplier
-			.getAsInt() >= AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION) {
-			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
-		}
 		return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
 	}
 
@@ -578,24 +574,12 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 sealed abstract class AbstractLogAppender implements DirectLogAppender {
 
 	/*
-	 * Testable seam for the JDK-version-gated default appender selection in
-	 * DirectLogAppender.defaultAppender(...) - overridden in tests to exercise both
-	 * branches without needing two different JDKs.
-	 */
-	static IntSupplier jdkFeatureVersionSupplier = () -> Runtime.version().feature();
-
-	/*
-	 * synchronized no longer pins the carrier platform thread when called from a virtual
-	 * thread as of this JDK feature version - JEP 491, finalized in JDK 24.
-	 */
-	static final int SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION = 24;
-
-	/*
 	 * Set once from LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY during
 	 * LogConfig construction (see DefaultLogConfig) - a global, process-wide guarantee
-	 * that no appender will ever use `synchronized`, for deployments that would rather
-	 * not rely on the JDK-version sniff above. Global (not per-route/per-appender) by
-	 * design, matching the property's own scope.
+	 * that no appender will ever use `synchronized`, for deployments that want that
+	 * guaranteed even when something explicitly requests
+	 * SYNCHRONIZED_THREAD_LOCAL_BUFFER. Global (not per-route/per-appender) by design,
+	 * matching the property's own scope.
 	 */
 	static volatile boolean forceReentrantLockAppenders = false;
 

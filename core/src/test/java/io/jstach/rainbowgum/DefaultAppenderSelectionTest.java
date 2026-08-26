@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.IntSupplier;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,20 +19,19 @@ import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
- * Exercises {@code DirectLogAppender#defaultAppender} directly - the JDK-version-gated
- * choice made when no {@link AppenderFlag} explicitly requests a buffer/lock strategy.
- * {@link AppenderAsModeFlagPermutationTest} covers the same dispatch as part of its full
- * flag-combination sweep, but forces a fixed JDK version throughout, so it never
- * exercises the pre-{@value AbstractLogAppender#SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION}
- * branch. This class covers both branches explicitly, plus that REENTRY_DROP/REENTRY_LOG
- * actually work on both - {@code SynchronizedThreadLocalBufferLogAppender} detects
- * reentrancy via {@link Thread#holdsLock(Object)} rather than a
- * {@code java.util.concurrent.locks.ReentrantLock}, so it needs its own behavioral
- * coverage, not just a class-type assertion.
+ * Exercises {@code DirectLogAppender#defaultAppender} directly (always
+ * {@code LockThreadLocalBufferLogAppender} - see that method's javadoc for why, after
+ * real-workload benchmarking under virtual threads found {@code synchronized} to be a
+ * large, reproducible loss there despite winning under platform threads), plus
+ * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}'s guarantee that even an
+ * explicit {@link AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER} request gets downgraded
+ * when that global property is active, and that
+ * {@code SynchronizedThreadLocalBufferLogAppender}'s reentry detection (via
+ * {@link Thread#holdsLock(Object)} rather than a
+ * {@code java.util.concurrent.locks.ReentrantLock}) still works when explicitly opted
+ * into.
  */
 class DefaultAppenderSelectionTest {
-
-	final IntSupplier originalJdkFeatureVersionSupplier = AbstractLogAppender.jdkFeatureVersionSupplier;
 
 	final boolean originalForceReentrantLockAppenders = AbstractLogAppender.forceReentrantLockAppenders;
 
@@ -48,59 +46,25 @@ class DefaultAppenderSelectionTest {
 
 	@AfterEach
 	void after() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = originalJdkFeatureVersionSupplier;
 		AbstractLogAppender.forceReentrantLockAppenders = originalForceReentrantLockAppenders;
 		MetaLog.output = () -> System.err;
 	}
 
 	@Test
-	void modernJdkNoFlagsSelectsSynchronizedThreadLocalBuffer() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
-		var appender = appender(Set.of());
-		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, appender);
-	}
-
-	@Test
-	void olderJdkNoFlagsSelectsThreadLocalBuffer() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION
-				- 1;
-		var appender = appender(Set.of());
-		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
-	}
-
-	@Test
-	void globalForceReentrantLockOverridesModernJdkDefaultSelection() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
-		AbstractLogAppender.forceReentrantLockAppenders = true;
+	void noFlagsSelectsLockThreadLocalBuffer() {
 		var appender = appender(Set.of());
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
 	void globalForceReentrantLockDowngradesExplicitSynchronizedFlag() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
 		AbstractLogAppender.forceReentrantLockAppenders = true;
 		var appender = appender(EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER));
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
-	void modernJdkReentryDropWithNoOtherFlagSelectsSynchronizedThreadLocalBuffer() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
-		var appender = appender(EnumSet.of(AppenderFlag.REENTRY_DROP));
-		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, appender);
-	}
-
-	@Test
-	void modernJdkReentryLogWithNoOtherFlagSelectsSynchronizedThreadLocalBuffer() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
-		var appender = appender(EnumSet.of(AppenderFlag.REENTRY_LOG));
-		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, appender);
-	}
-
-	@Test
 	void globalForceReentrantLockDowngradesExplicitSynchronizedFlagOnWithFlags() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
 		var appender = appender(Set.of());
 		AbstractLogAppender.forceReentrantLockAppenders = true;
 		var reflagged = ((DirectLogAppender) appender)
@@ -109,10 +73,22 @@ class DefaultAppenderSelectionTest {
 	}
 
 	@Test
+	void reentryDropWithNoOtherFlagSelectsLockThreadLocalBuffer() {
+		var appender = appender(EnumSet.of(AppenderFlag.REENTRY_DROP));
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void reentryLogWithNoOtherFlagSelectsLockThreadLocalBuffer() {
+		var appender = appender(EnumSet.of(AppenderFlag.REENTRY_LOG));
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
 	void synchronizedThreadLocalBufferReentryDropFlagDropsReentrantAppend() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
 		var output = new ListLogOutput();
-		var testAppender = appender(EnumSet.of(AppenderFlag.REENTRY_DROP), output);
+		var testAppender = appender(
+				EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER, AppenderFlag.REENTRY_DROP), output);
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, testAppender);
 		output.setConsumer((e, s) -> {
 			// A naughty output that logs during its own write - should be dropped.
@@ -124,9 +100,9 @@ class DefaultAppenderSelectionTest {
 
 	@Test
 	void synchronizedThreadLocalBufferReentryLogFlagDropsReentrantAppendAndLogsDiagnostic() {
-		AbstractLogAppender.jdkFeatureVersionSupplier = () -> AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION;
 		var output = new ListLogOutput();
-		var testAppender = appender(EnumSet.of(AppenderFlag.REENTRY_LOG), output);
+		var testAppender = appender(EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER, AppenderFlag.REENTRY_LOG),
+				output);
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, testAppender);
 		output.setConsumer((e, s) -> {
 			testAppender.append(TestEventBuilder.of().build(b -> b.message("reentrant")));
