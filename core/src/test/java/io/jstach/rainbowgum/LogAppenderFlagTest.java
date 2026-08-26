@@ -112,9 +112,9 @@ class LogAppenderFlagTest {
 	@Test
 	void immediateFlushFlagsRespectedWithThreadLocalBuffer() {
 		var output = new CountingListLogOutput();
-		var testAppender = appender("test", output, AppenderFlag.THREAD_LOCAL_BUFFER,
+		var testAppender = appender("test", output, AppenderFlag.LOCK_THREAD_LOCAL_BUFFER,
 				AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
-		assertInstanceOf(ThreadLocalBufferLogAppender.class, testAppender);
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, testAppender);
 		testAppender.append(TestEventBuilder.of().build(b -> b.message("single")));
 		testAppender.append(new LogEvent[] { TestEventBuilder.of().build(b -> b.message("batch")) }, 1);
 		assertEquals(0, output.flushCount);
@@ -123,7 +123,7 @@ class LogAppenderFlagTest {
 	@Test
 	void threadLocalBufferFlagReusesBufferPerThread() {
 		var output = new ListLogOutput();
-		var testAppender = appender("test", output, AppenderFlag.THREAD_LOCAL_BUFFER);
+		var testAppender = appender("test", output, AppenderFlag.LOCK_THREAD_LOCAL_BUFFER);
 		testAppender.append(TestEventBuilder.of().build(b -> b.message("one")));
 		testAppender.append(TestEventBuilder.of().build(b -> b.message("two")));
 		assertEquals(List.of("one", "two"), output.events().stream().map(e -> e.getKey().message()).toList());

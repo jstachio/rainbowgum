@@ -220,6 +220,22 @@ public interface LogProperties {
 	static final String GLOBAL_VERBOSE = ROOT_PREFIX + "global.verbose";
 
 	/**
+	 * If true guarantees no appender will use {@code synchronized} for its locking,
+	 * regardless of JDK version or an explicitly set
+	 * {@link LogAppender.AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER}: the JDK-version
+	 * sniffed default selection (see {@code DirectLogAppender#defaultAppender}) will not
+	 * pick the {@code synchronized}-based appender no matter how new the running JDK is,
+	 * and an explicit {@code SYNCHRONIZED_THREAD_LOCAL_BUFFER} flag is downgraded to
+	 * {@link LogAppender.AppenderFlag#LOCK_THREAD_LOCAL_BUFFER} instead of being honored.
+	 * Intended for deployments that want a hard guarantee independent of the JDK-version
+	 * heuristic - e.g. still running JDK versions before
+	 * <a href="https://openjdk.org/jeps/491">JEP 491</a> (JDK 24), where
+	 * {@code synchronized} pins the carrier platform thread when called from a virtual
+	 * thread, and that would rather not rely on runtime JDK detection to avoid it.
+	 */
+	static final String GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY = ROOT_PREFIX + "global.appender.reentrantLock";
+
+	/**
 	 * Logging change properties prefix.
 	 */
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";

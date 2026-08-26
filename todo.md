@@ -52,8 +52,9 @@ To land before 1.0:
 - [ ] A third, still-unaddressed facet the old `status()` API used to partly cover:
       a **static configuration report** - not alerts (event-driven) or metrics
       (gauges), just "what actually got wired up." With `REUSE_BUFFER`/
-      `THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER`, the JDK-version-sniffed
-      default, and (possibly) a future Spring Boot virtual-thread sniff all in play,
+      `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER`, the JDK-version-sniffed
+      default, the global `GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY` override, and
+      (possibly) a future Spring Boot virtual-thread sniff all in play,
       there is no way today to tell *which concrete appender class* actually got
       selected for a given route/output short of reading code or attaching a
       debugger. The raw introspection already exists -

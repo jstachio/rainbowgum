@@ -430,9 +430,26 @@ final class DefaultLogConfig implements LogConfig {
 			.get(properties)
 			.value(false);
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
+		applyGlobalAppenderReentrantLockProperty(properties);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
+	}
+
+	/*
+	 * Deliberately mutates process-wide static state (AbstractLogAppender's field) rather
+	 * than per-instance state - LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY is
+	 * a global guarantee by design (see its javadoc), not a per-LogConfig setting.
+	 * Last-writer-wins if multiple RainbowGum instances with different values coexist in
+	 * one JVM - an accepted tradeoff for a property whose whole point is a process-wide
+	 * guarantee independent of any single instance's configuration.
+	 */
+	private static void applyGlobalAppenderReentrantLockProperty(LogProperties properties) {
+		AbstractLogAppender.forceReentrantLockAppenders = Property.builder() //
+			.ofBoolean()
+			.build(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
+			.get(properties)
+			.value(false);
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {

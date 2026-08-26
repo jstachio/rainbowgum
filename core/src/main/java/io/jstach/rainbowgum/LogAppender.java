@@ -107,11 +107,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * <strong>even when no flag is explicitly set</strong> - see
 		 * {@code DirectLogAppender#defaultAppender} for the default selection.
 		 */
-		THREAD_LOCAL_BUFFER,
+		LOCK_THREAD_LOCAL_BUFFER,
 		/**
-		 * Like {@link #THREAD_LOCAL_BUFFER} (a reused per-thread buffer, encoding done
-		 * outside any lock) except the final write to the output is protected by a plain
-		 * {@code synchronized} block (the JVM's intrinsic monitor) instead of a
+		 * Like {@link #LOCK_THREAD_LOCAL_BUFFER} (a reused per-thread buffer, encoding
+		 * done outside any lock) except the final write to the output is protected by a
+		 * plain {@code synchronized} block (the JVM's intrinsic monitor) instead of a
 		 * {@link ReentrantLock}.
 		 * <p>
 		 * The Java language has no way to acquire a monitor in one method call and
@@ -127,16 +127,20 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * rather than a {@code java.util.concurrent} lock around their buffer-transfer
 		 * step, and confirmed by real-workload benchmarking to outperform
 		 * {@link ReentrantLock} here on modern JDKs. Takes precedence over
-		 * {@link #THREAD_LOCAL_BUFFER} (redundant if both are set) but not
+		 * {@link #LOCK_THREAD_LOCAL_BUFFER} (redundant if both are set) but not
 		 * {@link #REUSE_BUFFER}.
 		 * <p>
-		 * <strong>Explicitly setting this flag always honors it</strong>, even on a JDK
-		 * where {@code synchronized} still pins the carrier platform thread when called
-		 * from a virtual thread (before <a href="https://openjdk.org/jeps/491">JEP
-		 * 491</a>, finalized in JDK 24) - it is only the <strong>default
-		 * selection</strong> (no buffer-strategy flag set at all) that checks the running
-		 * JDK's version and falls back to {@link #THREAD_LOCAL_BUFFER} below that
-		 * version; see {@code DirectLogAppender#defaultAppender}.
+		 * <strong>Explicitly setting this flag honors it</strong>, even on a JDK where
+		 * {@code synchronized} still pins the carrier platform thread when called from a
+		 * virtual thread (before <a href="https://openjdk.org/jeps/491">JEP 491</a>,
+		 * finalized in JDK 24) - it is only the <strong>default selection</strong> (no
+		 * buffer-strategy flag set at all) that checks the running JDK's version and
+		 * falls back to {@link #LOCK_THREAD_LOCAL_BUFFER} below that version; see
+		 * {@code DirectLogAppender#defaultAppender}. The one exception is
+		 * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}: when that global
+		 * property is active it downgrades even an explicit request for this flag to
+		 * {@link #LOCK_THREAD_LOCAL_BUFFER}, since its whole point is a hard guarantee
+		 * independent of anything else in the configuration.
 		 */
 		SYNCHRONIZED_THREAD_LOCAL_BUFFER,
 		/**
@@ -522,14 +526,15 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder,
 			Set<LogAppender.AppenderFlag> flags) {
+		flags = AbstractLogAppender.guardSynchronizedFlag(flags);
 		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
 			return new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
 		}
 		if (flags.contains(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
 			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
 		}
-		if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
-			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
+		if (flags.contains(AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
+			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
 		}
 		return defaultAppender(name, output, encoder, flags);
 	}
@@ -540,20 +545,26 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	 * {@link AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER} on
 	 * {@link AbstractLogAppender#SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION}+ (where
 	 * {@code synchronized} no longer pins virtual threads - JEP 491) or
-	 * {@link AppenderFlag#THREAD_LOCAL_BUFFER} on older JDKs - measured faster than
+	 * {@link AppenderFlag#LOCK_THREAD_LOCAL_BUFFER} on older JDKs - measured faster than
 	 * always allocating a fresh buffer per event in real-workload benchmarking, so it is
 	 * the better default rather than only an opt-in. Both appenders support
 	 * {@link AppenderFlag#REENTRY_DROP}/{@link AppenderFlag#REENTRY_LOG} directly (see
 	 * {@link AbstractLogAppender#shouldDropForReentry}), so no fallback to a third
 	 * appender is needed here for those flags.
+	 * <p>
+	 * {@link AbstractLogAppender#forceReentrantLockAppenders} (set from
+	 * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}) skips the
+	 * JDK-version check entirely and always picks
+	 * {@link AppenderFlag#LOCK_THREAD_LOCAL_BUFFER} when active, regardless of JDK
+	 * version.
 	 */
 	static DirectLogAppender defaultAppender(String name, LogOutput output, LogEncoder encoder,
 			Set<LogAppender.AppenderFlag> flags) {
-		if (AbstractLogAppender.jdkFeatureVersionSupplier
+		if (!AbstractLogAppender.forceReentrantLockAppenders && AbstractLogAppender.jdkFeatureVersionSupplier
 			.getAsInt() >= AbstractLogAppender.SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION) {
 			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
 		}
-		return new ThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
+		return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
 	}
 
 	// @Override
@@ -578,6 +589,39 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * thread as of this JDK feature version - JEP 491, finalized in JDK 24.
 	 */
 	static final int SYNCHRONIZED_DEFAULT_MIN_JDK_VERSION = 24;
+
+	/*
+	 * Set once from LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY during
+	 * LogConfig construction (see DefaultLogConfig) - a global, process-wide guarantee
+	 * that no appender will ever use `synchronized`, for deployments that would rather
+	 * not rely on the JDK-version sniff above. Global (not per-route/per-appender) by
+	 * design, matching the property's own scope.
+	 */
+	static volatile boolean forceReentrantLockAppenders = false;
+
+	/**
+	 * Downgrades an explicit
+	 * {@link LogAppender.AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER} to
+	 * {@link LogAppender.AppenderFlag#LOCK_THREAD_LOCAL_BUFFER} if
+	 * {@link #forceReentrantLockAppenders} is active - the enforcement point that makes
+	 * the global no-synchronized guarantee a real guarantee rather than just a changed
+	 * default, since an explicit flag would otherwise bypass
+	 * {@link DirectLogAppender#defaultAppender} entirely.
+	 * @param flags flags as given to an appender factory method.
+	 * @return {@code flags} unchanged, unless the guarantee is active and
+	 * {@code SYNCHRONIZED_THREAD_LOCAL_BUFFER} was requested, in which case a copy with
+	 * that flag replaced by {@code LOCK_THREAD_LOCAL_BUFFER}.
+	 */
+	static Set<LogAppender.AppenderFlag> guardSynchronizedFlag(Set<LogAppender.AppenderFlag> flags) {
+		if (!forceReentrantLockAppenders
+				|| !flags.contains(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
+			return flags;
+		}
+		var copy = EnumSet.copyOf(flags);
+		copy.remove(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER);
+		copy.add(LogAppender.AppenderFlag.LOCK_THREAD_LOCAL_BUFFER);
+		return copy;
+	}
 
 	/**
 	 * Whether an appender should drop (or drop-and-log) an append call because it is
@@ -791,14 +835,15 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 		}
 		flags = EnumSet.copyOf(flags);
 		flags.addAll(this.flags);
+		flags = guardSynchronizedFlag(flags);
 		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
 			return new ReuseBufferLogAppender(name, output, encoder, flags, lock);
 		}
 		if (flags.contains(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
 			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
 		}
-		if (flags.contains(LogAppender.AppenderFlag.THREAD_LOCAL_BUFFER)) {
-			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, lock);
+		if (flags.contains(LogAppender.AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
+			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, lock);
 		}
 		return DirectLogAppender.defaultAppender(name, output, encoder, flags);
 	}
@@ -875,7 +920,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
  * so encoding never needs to be guarded by the lock at all - only the final write to the
  * output does.
  */
-final class ThreadLocalBufferLogAppender extends LockLogAppender implements InternalLogAppender {
+final class LockThreadLocalBufferLogAppender extends LockLogAppender implements InternalLogAppender {
 
 	/*
 	 * There is no way to enumerate every thread's buffer to close it on appender close so
@@ -890,8 +935,8 @@ final class ThreadLocalBufferLogAppender extends LockLogAppender implements Inte
 	@SuppressWarnings("nullness:type.argument")
 	private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal;
 
-	ThreadLocalBufferLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
-			ReentrantLock lock) {
+	LockThreadLocalBufferLogAppender(String name, LogOutput output, LogEncoder encoder,
+			Set<LogAppender.AppenderFlag> flags, ReentrantLock lock) {
 		super(name, output, encoder, flags, lock);
 		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
 	}
@@ -940,17 +985,17 @@ final class ThreadLocalBufferLogAppender extends LockLogAppender implements Inte
 }
 
 /*
- * Like ThreadLocalBufferLogAppender (per-thread reused buffer, encode outside any lock)
- * but the final write is protected by a plain `synchronized` block on this appender's own
- * monitor instead of a ReentrantLock. Does not extend LockLogAppender - there is no way
- * to acquire a monitor in one method call and release it in another, so this appender's
- * critical sections are written as literal synchronized blocks instead.
+ * Like LockThreadLocalBufferLogAppender (per-thread reused buffer, encode outside any
+ * lock) but the final write is protected by a plain `synchronized` block on this
+ * appender's own monitor instead of a ReentrantLock. Does not extend LockLogAppender -
+ * there is no way to acquire a monitor in one method call and release it in another, so
+ * this appender's critical sections are written as literal synchronized blocks instead.
  */
 final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender implements InternalLogAppender {
 
 	private final Object monitor = new Object();
 
-	// See ThreadLocalBufferLogAppender's identical field for why this suppression is
+	// See LockThreadLocalBufferLogAppender's identical field for why this suppression is
 	// needed.
 	@SuppressWarnings("nullness:type.argument")
 	private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal;
@@ -1023,14 +1068,15 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 		}
 		flags = EnumSet.copyOf(flags);
 		flags.addAll(this.flags);
+		flags = guardSynchronizedFlag(flags);
 		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
 			return new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
 		}
 		if (flags.contains(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
 			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags);
 		}
-		if (flags.contains(LogAppender.AppenderFlag.THREAD_LOCAL_BUFFER)) {
-			return new ThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
+		if (flags.contains(LogAppender.AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
+			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock());
 		}
 		return DirectLogAppender.defaultAppender(name, output, encoder, flags);
 	}
