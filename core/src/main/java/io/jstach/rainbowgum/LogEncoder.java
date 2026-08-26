@@ -72,12 +72,28 @@ public interface LogEncoder {
 	public void encode(LogEvent event, Buffer buffer);
 
 	/**
-	 * Creates an encoder from a formatter.
+	 * Creates an encoder from a formatter that encodes with
+	 * {@link StandardCharsets#UTF_8}.
 	 * @param formatter formatter.
 	 * @return encoder.
 	 */
 	public static LogEncoder of(LogFormatter formatter) {
-		return new FormatterEncoder(formatter);
+		return of(formatter, StandardCharsets.UTF_8);
+	}
+
+	/**
+	 * Creates an encoder from a formatter that encodes with the given charset.
+	 * @param formatter formatter.
+	 * @param charset charset to encode with. Only affects outputs whose
+	 * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
+	 * {@link WriteMethod#BYTE_BUFFER} - the {@link WriteMethod#STRING} path hands a plain
+	 * {@link String} to {@link LogOutput#write(LogEvent, String)}, whose own default
+	 * implementation is fixed to {@link StandardCharsets#UTF_8} regardless of this
+	 * parameter, but no built-in output actually uses that write method.
+	 * @return encoder.
+	 */
+	public static LogEncoder of(LogFormatter formatter, Charset charset) {
+		return new FormatterEncoder(formatter, charset);
 	}
 
 	/**
@@ -426,16 +442,20 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final LogFormatter formatter;
 
-	public FormatterEncoder(LogFormatter formatter) {
+	private final Charset charset;
+
+	public FormatterEncoder(LogFormatter formatter, Charset charset) {
 		super();
 		this.formatter = formatter;
+		this.charset = charset;
 	}
 
 	@Override
 	public Buffer buffer(BufferHints hints) {
 		return switch (hints.writeMethod()) {
 			case STRING -> StringBuilderBuffer.of(new StringBuilder());
-			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod());
+			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod(),
+					DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY, charset);
 		};
 	}
 
