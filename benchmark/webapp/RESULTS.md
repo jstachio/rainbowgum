@@ -144,3 +144,57 @@ Results land in `results/` (gitignored): `results.csv` (all numeric results, app
 across runs), `<label>-jfr.txt` (GC/allocation events), `<label>-stdout.log` (app
 console output), `<label>-config-report.txt` (rainbowgum only - the appender/logger dump
 above).
+
+## ReentrantLock retest (`LOCK_THREAD_LOCAL_BUFFER` / `GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY`)
+
+After renaming `THREAD_LOCAL_BUFFER` to `LOCK_THREAD_LOCAL_BUFFER` and adding a global
+`logging.global.appender.reentrantLock=true` property (see
+`refactor/remove-composite-appender-lock` @ `9cf48cd`, layered on `main` @ `2e88f94`),
+reran the rainbowgum app forcing the ReentrantLock-based appender everywhere, back-to-back
+against a freshly-rerun synchronized (default) baseline on the same machine state to
+control for the sandbox's run-to-run noise:
+
+| scenario | throughput | vs same-run synchronized baseline |
+|---|---:|---:|
+| plain, synchronized (default) | 29,495.8 req/s | - |
+| plain, ReentrantLock (forced) | 28,042.6 req/s | -4.9% |
+| VT, synchronized (default) | 19,735.2 req/s | - |
+| VT, ReentrantLock (forced) | **27,515.8 req/s** | **+39.4%** |
+
+Confirmed via the config-report endpoint that both runs actually used the intended
+appender class (`SynchronizedThreadLocalBufferLogAppender` vs `LockThreadLocalBufferLogAppender`)
+before trusting the numbers.
+
+**Plain/platform-thread result matches the existing understanding**: synchronized wins by
+a small margin, consistent with the earlier `SYNCHRONIZED_THREAD_LOCAL_BUFFER` finding
+this default was based on.
+
+**VT result is a genuine surprise**: ReentrantLock beats the synchronized default by
+~39% under virtual threads specifically - not a small effect, and in the *opposite*
+direction of what the JDK-version-sniffed default currently assumes (that
+`synchronized` is safe and preferable on any JDK past JEP 491/JDK 24, virtual threads or
+not). Checked whether classic VT pinning explains it: added an explicit
+`jdk.VirtualThreadPinned` recording (not part of the default `settings=profile` JFR
+preset used elsewhere in this benchmark, so this needed its own one-off run) to the
+synchronized+VT scenario under the same 50-concurrency load. Result: **one single pinning
+event in the entire run**, and its stack trace has nothing to do with RainbowGum -
+`ClassLoader.loadClass` inside Tomcat's `Http11Processor.isConnectionToken`, reason
+`"Freeze or preempt failed (2)"`. So pinning in the classic JEP-491 sense is ruled out as
+the explanation; whatever is making contended `synchronized` meaningfully worse than
+`ReentrantLock` specifically under heavy virtual-thread concurrency is still unidentified
+- a genuinely open question, not yet a confirmed mechanism, and worth flagging rather
+than guessing at further without more direct evidence (e.g. `jdk.JavaMonitorEnter`/wait
+event analysis under load, or a non-shared machine to rule out sandbox noise
+entirely - this result has not yet been reproduced outside this session's shared
+sandbox).
+
+**Open design question this raises**: the current default selection
+(`SYNCHRONIZED_THREAD_LOCAL_BUFFER` unconditionally on JDK 24+, regardless of virtual
+threads) may be actively wrong for virtual-thread-heavy deployments specifically, not
+just "not virtual-thread-optimized." Not acted on yet - this needs confirmation beyond
+one shared-sandbox session before changing a default that platform-thread users are
+already benefiting from.
+
+Reproduce: `--logging.global.appender.reentrantLock=true` (optionally with
+`--spring.threads.virtual.enabled=true`) on `rainbowgum-benchmark-webapp-rainbowgum`'s
+`run.sh`.
