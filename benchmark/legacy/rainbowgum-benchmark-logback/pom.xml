@@ -4,12 +4,13 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>io.jstach.rainbowgum</groupId>
-    <artifactId>rainbowgum-benchmark-parent</artifactId>
+    <artifactId>rainbowgum-benchmark-legacy-parent</artifactId>
     <version>0.11.0-SNAPSHOT</version>
   </parent>
-  <artifactId>rainbowgum-benchmark-log4j</artifactId>
+  <artifactId>rainbowgum-benchmark-logback</artifactId>
   <properties>
-    <exec.mainClass>${project.groupId}.log4j.Main</exec.mainClass>
+    <parent.root>${basedir}/../../..</parent.root>
+    <exec.mainClass>${project.groupId}.logback.Main</exec.mainClass>
   </properties>
   <build>
     <plugins>
@@ -37,9 +38,8 @@
   </build>
   <dependencies>
     <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j2-impl</artifactId>
-      <version>3.0.0-beta2</version>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>

@@ -15,32 +15,16 @@
     <maven.javadoc.skip>true</maven.javadoc.skip>
     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
   </properties>
+  <!--
+    legacy (the original hand-rolled micro-benchmarks) and webapp (real Spring Boot
+    apps) are deliberately siblings with no shared dependencyManagement at this level -
+    legacy's logback-classic/log4j-slf4j2-impl pins live in legacy/pom.xml now, scoped so
+    they can never again leak into and override webapp's Spring Boot BOM the way they
+    once did when everything shared this pom's dependencyManagement directly. See
+    legacy/pom.xml and benchmark/webapp/FINDINGS.md for that history.
+  -->
   <modules>
-    <module>rainbowgum-benchmark-logback</module>
-    <module>rainbowgum-benchmark-rainbowgum</module>
-    <module>rainbowgum-benchmark-share</module>
-    <module>rainbowgum-benchmark-log4j</module>
+    <module>legacy</module>
     <module>webapp</module>
   </modules>
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>${project.groupId}</groupId>
-        <artifactId>rainbowgum-benchmark-share</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <!--
-        logback-classic/log4j-slf4j2-impl versions moved down into the two
-        micro-benchmark modules that actually need them (rainbowgum-benchmark-logback,
-        rainbowgum-benchmark-log4j) instead of being pinned here. Pinning them at this
-        level meant they also applied to descendants like benchmark/webapp's Spring Boot
-        apps, which import Spring Boot's own BOM and need logback-classic/logback-core
-        (a separate artifact this pin never covered) to resolve to matching paired
-        versions from that BOM - a stale pin here silently won over the BOM's and broke
-        Spring Boot startup with a logback-core/logback-classic version mismatch.
-      -->
-    </dependencies>
-  </dependencyManagement>
-  <dependencies>
-  </dependencies>
 </project>
