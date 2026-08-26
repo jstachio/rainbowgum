@@ -152,7 +152,7 @@ class AppenderAsModeFlagPermutationTest {
 	private static List<DirectLogAppender> directAppenders(AsMode mode, LogPublisher publisher) {
 		return switch (mode) {
 			case SINGLE -> switch (((DefaultSyncLogPublisher) publisher).appender()) {
-				case CompositeLogAppender c -> List.of(c.components());
+				case CompositeLogAppender c -> List.of(c.appenders());
 				case DirectLogAppender d -> List.of(d);
 				default -> throw new AssertionError("unexpected appender type");
 			};
