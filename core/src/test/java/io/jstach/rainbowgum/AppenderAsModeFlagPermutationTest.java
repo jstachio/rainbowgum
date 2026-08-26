@@ -134,8 +134,8 @@ class AppenderAsModeFlagPermutationTest {
 		else if (flags.contains(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
 			expectedAppenderClass = SynchronizedThreadLocalBufferLogAppender.class;
 		}
-		else if (flags.contains(AppenderFlag.THREAD_LOCAL_BUFFER)) {
-			expectedAppenderClass = ThreadLocalBufferLogAppender.class;
+		else if (flags.contains(AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
+			expectedAppenderClass = LockThreadLocalBufferLogAppender.class;
 		}
 		else {
 			// No buffer-strategy flag (REENTRY_DROP/REENTRY_LOG alone included - both
