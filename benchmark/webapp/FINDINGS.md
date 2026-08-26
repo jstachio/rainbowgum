@@ -1871,3 +1871,57 @@ per-thread buffer reuse in the first place) and remains open; see the still-vali
 Reproduce: build `core` with `fix/remove-vt-buffer-bypass`, then
 `VIRTUAL_THREADS=true ./run-all.sh` (or isolate to just the rainbowgum app, as the driver
 script above did, since logback/log4j2 are untouched by this change).
+
+## Why logback still leads under VT: String.getBytes(), not the lock
+
+Confirmed by decompiling `logback-core`/`logback-classic` 1.5.34 (the version Spring Boot
+4.1's BOM pins, i.e. what this benchmark actually runs) and reading JDK `String`/
+`StringCoding` internals:
+
+- **Logback's encode path is bare `String.getBytes(charset)`.**
+  `LayoutWrappingEncoder.encode(E)` calls `layout.doLayout(event)` (returns a `String`
+  built from a **fresh `new StringBuilder(256)` allocated every call** in
+  `PatternLayoutBase.writeLoopOnConverters` - no buffer reuse at all) then
+  `convertToBytes(String)`, which is exactly `s.getBytes(charset)`. No `CharsetEncoder`,
+  no persistent buffer, no `ThreadLocal` - the opposite strategy from RainbowGum's
+  `THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` and from what the earlier
+  Log4j2 deep-dive found log4j2 doing.
+- **Locking was never the differentiator.** Logback uses a
+  `java.util.concurrent.locks.ReentrantLock streamWriteLock`, held only around the raw
+  `OutputStream.write()` + optional flush - encoding happens entirely outside the lock,
+  same shape as our `SYNCHRONIZED_THREAD_LOCAL_BUFFER` and log4j2's `synchronized`. Since
+  log4j2 already uses this same "encode outside lock, lock only guards the write" shape
+  and still trails logback by as much or more than we do, the lock primitive was never
+  a plausible explanation.
+- **`String.getBytes(UTF_8)` has a Latin1 fast path the whole string loses at once.**
+  When a `String`'s compact-string coder is `LATIN1` (0) - true for any all-Latin1
+  content, not just ASCII - `String.encodeUTF8` takes a cheap path (a straight
+  `countPositives()`+clone for pure ASCII, a light byte-pair loop otherwise). The moment
+  a `String` contains **any** character above U+00FF (an emoji, most CJK, etc.), Java's
+  compact-string representation flips the *entire* `String`'s coder to `UTF16`, and
+  `encodeUTF8` falls to a full char-by-char, surrogate-aware encoder for the **whole
+  line**, not just the non-Latin1 character.
+
+**Verified with the benchmark itself** - reran the VT scenario (post
+`fix/remove-vt-buffer-bypass`) hitting `/api/greet/<U+1F389>` (a single emoji in the
+`name` path variable, which flows into every `name={}` log line) instead of
+`/api/greet/world`:
+
+| label                    | req/s (ascii → unicode) | change  |
+|--------------------------|--------------------------|---------|
+| logback-vt               | 25,464.9 → 23,679.6      | -7.0%   |
+| log4j2-vt                | 18,879.7 → 18,851.1      | -0.15%  |
+| rainbowgum-vt (no bypass)| 19,695.6 → 19,534.2      | -0.8%   |
+
+Logback takes a real, measurable hit from a single emoji while log4j2 and RainbowGum -
+both doing CharsetEncoder/byte-buffer-based encoding that doesn't care about the
+string's internal coder - are essentially unaffected. The RainbowGum/logback gap under
+VT narrows from 77.3% to 82.5% on this change alone, just by the message content no
+longer being pure-Latin1. This doesn't fully close the remaining VT gap (logback's
+fresh-StringBuilder-per-call + JDK-intrinsic-getBytes() combination is still faster than
+our ThreadLocal-buffer + CharsetEncoder approach for pure-ASCII content), but it
+confirms the mechanism and shows the gap is content-dependent rather than fixed.
+
+Reproduce: `VIRTUAL_THREADS=true` against `/api/greet/%F0%9F%8E%89` instead of
+`/api/greet/world` (percent-encoded U+1F389 PARTY POPPER), same driver/JFR harness as
+`run-all.sh`.
