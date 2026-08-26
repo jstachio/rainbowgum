@@ -18,7 +18,12 @@
  * <a href="https://docs.spring.io/spring-boot/reference/features/logging.html">Spring
  * Boot's own logging documentation</a> for what each property means. This is a snapshot
  * of Boot 4 support specifically; the (separately maintained, not necessarily identical)
- * Boot 3 module is {@code io.jstach.rainbowgum.spring.boot3}.
+ * Boot 3 module is {@code io.jstach.rainbowgum.spring.boot3}. Every property key below
+ * is a {@code {@value}} reference into
+ * {@link io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties} (or, for
+ * the two properties RainbowGum core itself understands independent of Spring Boot,
+ * {@link io.jstach.rainbowgum.LogProperties}) rather than a literal string, so this
+ * table can't silently drift from what the code actually reads.
  * <table class="table">
  * <caption><strong>Supported</strong></caption>
  * <tr>
@@ -26,68 +31,77 @@
  * <th>Notes</th>
  * </tr>
  * <tr>
- * <td>{@code logging.level.*}, {@code logging.group.*}</td>
- * <td>Native - {@code logging.group.*} works because RainbowGum core's own
- * {@code GroupLevelResolver} already uses this exact property key, not anything
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#LOGGING_LEVEL_ROOT}, {@code
+ * logging.level.<logger>}, {@value io.jstach.rainbowgum.LogProperties#GROUP_PROPERTY}</td>
+ * <td>Native - the group property works because RainbowGum core's own {@code
+ * GroupLevelResolver} already uses this exact property key, not anything
  * Spring-specific.</td>
  * </tr>
  * <tr>
  * <td>{@code debug}, {@code trace}</td>
  * <td>Transitively - Spring's own {@code LoggingApplicationListener} converts these to
- * {@code logging.level.root} before any {@code LoggingSystem} is initialized.</td>
+ * {@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#LOGGING_LEVEL_ROOT} before any
+ * {@code LoggingSystem} is initialized.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.pattern.console}, {@code logging.pattern.file},
- * {@code logging.pattern.level}, {@code logging.pattern.dateformat},
- * {@code logging.exception-conversion-word}</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#PATTERN_CONSOLE}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#PATTERN_FILE}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#PATTERN_LEVEL}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#PATTERN_DATEFORMAT}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#EXCEPTION_CONVERSION_WORD}</td>
  * <td>Transitively - Spring Boot bridges these to system properties
  * ({@code CONSOLE_LOG_PATTERN}, etc.) before calling {@code initialize()}; this module's
  * {@code Patterns} class reads those system properties, the same mechanism a
  * hand-written {@code logback.xml} would rely on.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.include-application-name},
- * {@code logging.include-application-group}</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#INCLUDE_APPLICATION_NAME}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#INCLUDE_APPLICATION_GROUP}</td>
  * <td>Native - toggle whether the default pattern includes those segments.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.file.name}</td>
+ * <td>{@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY}</td>
  * <td>Native, but in {@code rainbowgum-core} itself (not this module) - works even
  * without Spring Boot on the classpath at all, kept there for that reason.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.file.path}</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#FILE_PATH}</td>
  * <td>Native - synthesizes {@code <path>/spring.log} when {@code logging.file.name}
  * itself is unset, matching Spring Boot's own {@code LogFile.get(...)} precedence.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.console.enabled}</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#CONSOLE_ENABLED}</td>
  * <td>Native - when {@code false}, restricts the route to just the file appender if one
  * resolves; otherwise left alone rather than pointing at nothing.</td>
  * </tr>
  * <tr>
- * <td>{@code spring.output.ansi.enabled} ({@code NEVER}/{@code ALWAYS}/{@code DETECT})</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#OUTPUT_ANSI_ENABLED} ({@code
+ * NEVER}/{@code ALWAYS}/{@code DETECT})</td>
  * <td>Native - bridged to RainbowGum's own existing
  * {@code logging.global.ansi.disable} property rather than a second ansi mechanism;
  * {@code DETECT} (or unset) leaves RainbowGum's own auto-detection in charge.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.structured.format.console}, {@code logging.structured.format.file}
- * ({@code ecs}/{@code gelf}/{@code logstash} only - not a custom
- * {@code StructuredLogFormatter} class name)</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_FORMAT_CONSOLE}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_FORMAT_FILE} ({@code
+ * ecs}/{@code gelf}/{@code logstash} only - not a custom {@code StructuredLogFormatter}
+ * class name)</td>
  * <td>Native - bridges to {@code rainbowgum-json}'s {@code EcsEncoder}/
  * {@code GelfEncoder}/{@code LogstashEncoder}. The two properties are independent,
  * matching Spring Boot's own behavior.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.structured.ecs.service.name}, {@code .service.version},
- * {@code .service.environment}, {@code .service.node-name}</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_ECS_SERVICE_NAME}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_ECS_SERVICE_VERSION}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_ECS_SERVICE_ENVIRONMENT}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_ECS_SERVICE_NODE_NAME}</td>
  * <td>Native - {@code .name}/{@code .version} default to
  * {@code spring.application.name}/{@code .version} the same way Spring Boot's own ECS
  * formatter does.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.structured.gelf.host}, {@code .service.version}</td>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_GELF_HOST}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#STRUCTURED_GELF_SERVICE_VERSION}</td>
  * <td>Native - {@code .host} defaults to {@code spring.application.name}. GELF has no
  * dedicated version field, so {@code .service.version} becomes an
  * underscore-prefixed {@code _service_version} additional field, matching Spring Boot's

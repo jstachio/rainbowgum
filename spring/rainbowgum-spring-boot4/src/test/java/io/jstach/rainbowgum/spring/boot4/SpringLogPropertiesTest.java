@@ -23,13 +23,14 @@ class SpringLogPropertiesTest {
 
 	@Test
 	void fileNameTakesPrecedenceOverFilePath() {
-		var p = properties(Map.of("logging.file.name", "explicit.log", "logging.file.path", "/var/log"));
+		var p = properties(Map.of(LogProperties.FILE_PROPERTY, "explicit.log", SpringBootSupportedProperties.FILE_PATH,
+				"/var/log"));
 		assertEquals("explicit.log", p.valueOrNull(LogProperties.FILE_PROPERTY));
 	}
 
 	@Test
 	void filePathSynthesizesSpringLogFilename() {
-		var p = properties(Map.of("logging.file.path", "/var/log"));
+		var p = properties(Map.of(SpringBootSupportedProperties.FILE_PATH, "/var/log"));
 		assertEquals("/var/log/spring.log", p.valueOrNull(LogProperties.FILE_PROPERTY));
 	}
 
@@ -41,57 +42,59 @@ class SpringLogPropertiesTest {
 
 	@Test
 	void consoleDisabledWithFileConfiguredRestrictsToFileAppender() {
-		var p = properties(Map.of("logging.console.enabled", "false", "logging.file.name", "app.log"));
+		var p = properties(
+				Map.of(SpringBootSupportedProperties.CONSOLE_ENABLED, "false", LogProperties.FILE_PROPERTY, "app.log"));
 		assertEquals(LogAppender.FILE_APPENDER_NAME, p.valueOrNull(LogProperties.APPENDERS_PROPERTY));
 	}
 
 	@Test
 	void consoleDisabledWithNoFileConfiguredDoesNotForceAppenders() {
-		var p = properties(Map.of("logging.console.enabled", "false"));
+		var p = properties(Map.of(SpringBootSupportedProperties.CONSOLE_ENABLED, "false"));
 		assertNull(p.valueOrNull(LogProperties.APPENDERS_PROPERTY));
 	}
 
 	@Test
 	void consoleEnabledDoesNotOverrideAppenders() {
-		var p = properties(Map.of("logging.console.enabled", "true", "logging.file.name", "app.log"));
+		var p = properties(
+				Map.of(SpringBootSupportedProperties.CONSOLE_ENABLED, "true", LogProperties.FILE_PROPERTY, "app.log"));
 		assertNull(p.valueOrNull(LogProperties.APPENDERS_PROPERTY));
 	}
 
 	@Test
 	void explicitAppendersPropertyIsNeverOverridden() {
-		var p = properties(Map.of("logging.console.enabled", "false", "logging.file.name", "app.log",
-				"logging.appenders", "console"));
+		var p = properties(Map.of(SpringBootSupportedProperties.CONSOLE_ENABLED, "false", LogProperties.FILE_PROPERTY,
+				"app.log", LogProperties.APPENDERS_PROPERTY, "console"));
 		assertEquals("console", p.valueOrNull(LogProperties.APPENDERS_PROPERTY));
 	}
 
 	@Test
 	void ansiNeverMapsToGlobalDisableTrue() {
-		var p = properties(Map.of("spring.output.ansi.enabled", "NEVER"));
+		var p = properties(Map.of(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED, "NEVER"));
 		assertEquals("true", p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
 	}
 
 	@Test
 	void ansiAlwaysMapsToGlobalDisableFalse() {
-		var p = properties(Map.of("spring.output.ansi.enabled", "ALWAYS"));
+		var p = properties(Map.of(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED, "ALWAYS"));
 		assertEquals("false", p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
 	}
 
 	@Test
 	void ansiDetectLeavesAutoDetectionAlone() {
-		var p = properties(Map.of("spring.output.ansi.enabled", "DETECT"));
+		var p = properties(Map.of(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED, "DETECT"));
 		assertNull(p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
 	}
 
 	@Test
 	void ansiUnsetFallsBackToDirectPropertyIfSet() {
-		var p = properties(Map.of("logging.global.ansi.disable", "true"));
+		var p = properties(Map.of(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY, "true"));
 		assertEquals("true", p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
 	}
 
 	@Test
 	void loggingLevelFallsBackToRootLevel() {
-		var p = properties(Map.of("logging.level.root", "DEBUG"));
-		assertEquals("DEBUG", p.valueOrNull("logging.level"));
+		var p = properties(Map.of(SpringBootSupportedProperties.LOGGING_LEVEL_ROOT, "DEBUG"));
+		assertEquals("DEBUG", p.valueOrNull(SpringBootSupportedProperties.LOGGING_LEVEL));
 	}
 
 }
