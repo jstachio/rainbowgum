@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -738,6 +739,11 @@ record CompositeLogAppender(DirectLogAppender[] appenders,
 			.map(a -> a.withFlags(flags))
 			.toArray(i -> new DirectLogAppender[i]);
 		return new CompositeLogAppender(array, lock);
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getName() + "[appenders=" + Arrays.toString(appenders) + ", lock=" + lock + "]";
 	}
 
 	private static DirectLogAppender cast(LogAppender appender) {
