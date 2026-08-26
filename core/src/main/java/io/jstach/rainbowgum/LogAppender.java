@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -672,81 +673,30 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 
 }
 
-sealed interface BaseComposite<T extends InternalLogAppender> extends InternalLogAppender {
-
-	T[] components();
-
-	ReentrantLock lock();
-
-	@Override
-	default void close() {
-		lock().lock();
-		try {
-			for (var appender : components()) {
-				appender.close();
-			}
-		}
-		finally {
-			lock().unlock();
-		}
-	}
-
-	@Override
-	default void start(LogConfig config) {
-		lock().lock();
-		try {
-			for (var appender : components()) {
-				appender.start(config);
-			}
-		}
-		finally {
-			lock().unlock();
-		}
-
-	}
-
-	@Override
-	default List<LogResponse> act(LogAction action) {
-		lock().lock();
-		try {
-			return Actor.act(components(), action);
-		}
-		finally {
-			lock().unlock();
-		}
-	}
-
-}
-
 /**
  * Combines more than one appender on a route into one {@link LogAppender}. Each appender
  * keeps the independent lock it was already constructed with, and
  * {@link #append(LogEvent)}/{@link #append(LogEvent[], int)} skip locking at the
  * composite level entirely and append to every component directly - so e.g. a console
  * appender and a file appender under the same route never contend on the same lock for
- * unrelated I/O.
+ * unrelated I/O. {@link #start(LogConfig)}/{@link #close()}/{@link #act(LogAction)} do
+ * the same - there is no composite-owned mutable state to protect, only a loop over
+ * components that already handle their own synchronization where it matters.
  */
 @SuppressWarnings("ArrayRecordComponent")
-record CompositeLogAppender(DirectLogAppender[] appenders,
-		ReentrantLock lock) implements BaseComposite<DirectLogAppender>, InternalLogAppender {
+record CompositeLogAppender(DirectLogAppender[] appenders) implements InternalLogAppender {
 
 	public static CompositeLogAppender of(List<? extends LogAppender> appenders, Set<LogAppender.AppenderFlag> flags) {
-		ReentrantLock lock = new ReentrantLock();
 		@SuppressWarnings("null") // TODO Eclipse issue here
 		DirectLogAppender @NonNull [] array = appenders.stream()
 			.map(CompositeLogAppender::cast)
 			.map(a -> a.withFlags(flags))
 			.toArray(i -> new DirectLogAppender[i]);
-		return new CompositeLogAppender(array, lock);
+		return new CompositeLogAppender(array);
 	}
 
 	private static DirectLogAppender cast(LogAppender appender) {
 		return (DirectLogAppender) appender;
-	}
-
-	@Override
-	public DirectLogAppender[] components() {
-		return this.appenders;
 	}
 
 	@Override
@@ -763,11 +713,35 @@ record CompositeLogAppender(DirectLogAppender[] appenders,
 		}
 	}
 
+	@Override
+	public void close() {
+		for (var appender : appenders) {
+			appender.close();
+		}
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		for (var appender : appenders) {
+			appender.start(config);
+		}
+	}
+
+	@Override
+	public List<LogResponse> act(LogAction action) {
+		return Actor.act(appenders, action);
+	}
+
 	public CompositeLogAppender withFlags(Set<LogAppender.AppenderFlag> flags) {
 		if (flags.isEmpty()) {
 			return this;
 		}
 		return of(List.of(appenders), flags);
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getName() + "[appenders=" + Arrays.toString(appenders) + "]";
 	}
 
 }
