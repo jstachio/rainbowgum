@@ -191,3 +191,16 @@ unifying.
 - [ ] Once items 1 and 2 above land, sweep `doc/overview.html` for consistency
       (status reporting section, nullability mentions) rather than patching it
       piecemeal per-PR the way this cycle did.
+- [ ] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
+      `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
+      buffer/lock strategies but are represented as three independent enum constants in
+      one flat `Set<AppenderFlag>`, alongside unrelated concerns
+      (`DISABLE_IMMEDIATE_FLUSH`, `REENTRY_DROP`/`REENTRY_LOG`) and a growing pile of
+      precedence rules between them (`AppenderFlag`'s own javadoc has to spell out which
+      flag wins if more than one buffer-strategy flag is set). Encoders and outputs get a
+      real shaped config (a distinct type per concern, resolved by property/builder)
+      instead of a bag of booleans - appenders arguably deserve the same eventually,
+      e.g. a single `bufferStrategy` choice instead of three flags that happen to be
+      exclusive. Deliberately not doing this before 0.10 - flags work, the redesign is
+      nontrivial, and there's no pressure to land it before the next release - but worth
+      a real design pass before 1.0 rather than continuing to enumerate more flags.
