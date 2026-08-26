@@ -1753,3 +1753,87 @@ default now does automatically.
 
 Reproduce: merge `feature/smart-appender-defaults`, run the plain single-app harness with
 no `--logging.appender.*.flags` arguments at all.
+
+## Full three-way rerun on current main - GELF and virtual threads, no tomcat, no adjustments
+
+First rerun of the full `run-all.sh` three-way comparison (logback/log4j2/rainbowgum, not
+the single-app isolation harness used throughout this file) since `main` picked up
+everything from this session - the byte-buffer encoder folded into core, smart appender
+defaults, `AppenderLock` removed. Per Adam: JUL should stay on (the default, no flags
+needed), no `-Ptomcat`, and the three apps' config should need no special adjustment
+relative to each other.
+
+**Two real bugs found and fixed before any numbers came out of this:**
+
+1. `run-all.sh`'s build step had `-Ptomcat` baked in unconditionally, at odds with every
+   other test in this file (which deliberately excludes `rainbowgum-tomcat`, still an
+   open, paused regression) and with this rerun's explicit ask. Removed it - the build
+   line no longer passes `-Ptomcat` at all.
+2. `rainbowgum-benchmark-webapp-logback` failed to start entirely with a
+   `NoSuchMethodError` on `LoggerContext.initCollisionMaps()` - a classic
+   logback-classic/logback-core version mismatch. Cause: `benchmark/pom.xml` (the shared
+   parent for both the old micro-benchmarks and the new `benchmark/webapp` tree) pinned
+   `logback-classic` to a stale `1.5.12` directly in its own `dependencyManagement`, which
+   silently overrides whatever paired version Spring Boot 4.1's BOM would otherwise manage
+   for `logback-classic`/`logback-core` in the webapp app specifically - stale pin
+   `1.5.12` vs. Spring's own `logback-core:1.5.34`. (This is exactly what the
+   `ch.qos.logback-logback-classic-1.6.3` Dependabot PR - deliberately excluded from the
+   recent build-tool-dependency bump commits as "not build tooling" - was trying to fix,
+   just not in the way that actually resolves it here.) Fixed by moving the
+   `logback-classic`/`log4j-slf4j2-impl` version pins down into the two old
+   micro-benchmark modules that actually need an explicit version (they had no version of
+   their own, relying entirely on the shared parent's pin) and removing them from the
+   shared parent entirely, so `benchmark/webapp`'s Spring Boot apps are free to use
+   whatever paired versions Spring's own BOM manages.
+
+**GELF (platform threads, structured JSON logging via `STRUCTURED_FORMAT=gelf`):**
+
+| label | requests | req/s | p50 ms | p99 ms | max ms | RSS avg MB | GC events |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| logback-gelf | 671,571 | 22,385.7 | 2.03 | 6.47 | 19.52 | 665.4 | 506 |
+| log4j2-gelf | 496,268 | 16,542.3 | 2.63 | 9.79 | 28.63 | 624.2 | 332 |
+| **rainbowgum-gelf** | 737,614 | **24,587.1** | 1.89 | 6.11 | 21.12 | 699.9 | 416 |
+
+**RainbowGum wins outright** - +9.8% over logback, +48.6% over log4j2 - with no flags, no
+properties, nothing app-specific beyond the existing `GelfSpringRainbowGumServiceProvider`
+(which every prior GELF test in this file already needed). GC events land between the
+other two despite the highest throughput, so this isn't won by skipping work. This is
+squarely the "out of the box at least as fast as the alternatives" goal from earlier in
+this file, now holding up in the actual three-way harness rather than just the
+single-app-vs-historical-baseline comparisons used to develop it.
+
+**Virtual threads (`VIRTUAL_THREADS=true`, same otherwise):**
+
+| label | requests | req/s | p50 ms | p99 ms | max ms | RSS avg MB | GC events |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| logback-vt | 763,947 | 25,464.9 | 1.97 | 3.16 | 13.02 | 636.4 | 246 |
+| log4j2-vt | 566,391 | 18,879.7 | 2.47 | 7.92 | 18.61 | 630.2 | 272 |
+| **rainbowgum-vt** | 559,853 | **18,661.8** | 2.69 | 6.64 | 22.95 | 637.8 | **730** |
+
+**Not a win here** - roughly tied with log4j2 (-1.2%) but -26.7% behind logback. GC events
+are the standout: 730, nearly 3x log4j2's 272 and logback's 246. This is the
+virtual-thread fallback path in `ThreadLocalBufferLogAppender`/
+`SynchronizedThreadLocalBufferLogAppender` doing exactly what it was designed to do -
+`Thread.isVirtual()` bypasses the `ThreadLocal` and allocates a fresh buffer for that one
+event - but Spring Boot's virtual-thread mode hands every request its own new virtual
+thread, so under real load that fresh-allocation path fires on *every single request, on
+both the file and console appenders* (the same "both appenders now pay the allocation
+cost, not just one" dynamic from the plain-default regression earlier in this file,
+except here it's inherent to the VT fallback design rather than a bug to fix - reusing
+the buffer across the tiny number of events one short-lived virtual thread logs was never
+going to pay off, per the flag's own javadoc, but apparently *not* reusing it costs more
+under this specific real workload than the earlier isolated VT test - THREAD_LOCAL_BUFFER
+alone, file appender only - suggested).
+
+**Net for this rerun**: platform-thread workloads (GELF here, the plain default and every
+flag test earlier in this file) are in a good place - RainbowGum wins or ties without any
+tuning. Virtual threads remain a genuine open gap the smart defaults have not closed;
+unlike the platform-thread story this isn't something a JDK-version sniff or a lock
+primitive choice can fix - it needs either a smarter VT-aware buffer strategy (something
+between "full per-thread reuse" and "fresh allocation every time," e.g. a small bounded
+pool) or a separate look at why logback in particular pulls so far ahead specifically
+under virtual threads (log4j2 does not, so it isn't purely a "any framework doing real
+buffering loses under VT" story).
+
+Reproduce: `STRUCTURED_FORMAT=gelf ./run-all.sh` and `VIRTUAL_THREADS=true ./run-all.sh`
+from `benchmark/webapp/`, after the `run-all.sh`/`benchmark/pom.xml` fixes above.
