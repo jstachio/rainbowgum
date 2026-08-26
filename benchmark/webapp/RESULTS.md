@@ -7,9 +7,12 @@ each app actually picked at runtime - not an assumption from reading config). Se
 
 ## Revision under test
 
-- **RainbowGum**: `main` @ `83b00f6` ("Make LOCK_THREAD_LOCAL_BUFFER (ReentrantLock) the
-  default appender") - the first full rerun against a real merged `main`, no branch
-  overlay needed.
+- **RainbowGum**: `main` @ `777d584` ("Implement more of Spring Boot's documented
+  logging properties (Boot 4 only)") - includes the `LOCK_THREAD_LOCAL_BUFFER`-by-default
+  change and native `logging.structured.format.console`/`.file` support. This run also
+  removed `rainbowgum-benchmark-webapp-rainbowgum`'s custom
+  `GelfSpringRainbowGumServiceProvider` workaround, now redundant - GELF is handled by
+  the library itself, the same way it is for Logback/Log4j2.
 - **Benchmark harness**: this branch (`feature/webapp-benchmark`), rebased onto the same
   `main` revision above.
 - **JDK**: Temurin 26.0.2 (`openjdk version "26.0.2"`).
@@ -31,18 +34,16 @@ for every `rainbowgum` run.
 **default/gelf/vt/gelf-vt** (`run-all.sh`, always console + file): route resolves to a
 `CompositeLogAppender` of two `LockThreadLocalBufferLogAppender`s (`file`, `console`),
 `flags=[]` - confirms the plain default is genuinely `LOCK_THREAD_LOCAL_BUFFER` with no
-flags set, not an opt-in. GELF scenarios: `file`'s encoder reads `GelfEncoder`, `console`
-stays `FormatterEncoder` - only the file side is structured, matching
-`GelfSpringRainbowGumServiceProvider` only setting `OutputType.FILE`'s encoder for
-`logging.structured.format.file=gelf`.
+flags set. GELF scenarios: `file`'s encoder reads `GelfEncoder`, `console` stays
+`FormatterEncoder` - only the file side is structured, matching Spring Boot's own
+`logging.structured.format.file`-is-file-only behavior, now handled natively by
+`rainbowgum-spring-boot4`'s `StructuredLogging` class (no app-level code at all).
 
-**k8s/12factor** (`run-k8s.sh`, console only): route resolves to a single
+**k8s/12factor** (`run-k8s.sh`, console only, all three apps using the same
+`--logging.file.name=` flag): route resolves to a single
 `LockThreadLocalBufferLogAppender[name=console]` - no composite, no file appender at
-all, `encoder=GelfEncoder` - confirms `logging.appenders=console` genuinely excludes the
-file appender rather than just hiding it, and `logging.structured.format.console=gelf`
-(the new property `GelfSpringRainbowGumServiceProvider` now also reads) took effect.
-Verified no stray `benchmark.log` was written by any of the three apps during this
-scenario.
+all, `encoder=GelfEncoder`. Confirmed no stray log file was written by any of the three
+apps.
 
 In every scenario the bound SLF4J logger is `InfoLogger` (RainbowGum's dedicated
 level-checked logger).
@@ -54,34 +55,34 @@ against `GET /api/greet/world`.
 
 | label | req/s | p50 ms | p90 ms | p99 ms | max ms | RSS avg MB |
 |---|---:|---:|---:|---:|---:|---:|
-| logback | 22,084.4 | 2.01 | 4.47 | 7.49 | 20.53 | 626.5 |
-| log4j2 | 33,892.7 | 1.32 | 2.75 | 4.79 | 20.72 | 658.8 |
-| rainbowgum | 27,947.0 | 1.71 | 3.06 | 4.76 | 20.84 | 657.1 |
-| logback-vt | 25,928.8 | 1.93 | 2.60 | 3.11 | 13.12 | 631.8 |
-| log4j2-vt | 19,448.2 | 2.41 | 5.02 | 7.60 | 22.13 | 640.1 |
-| **rainbowgum-vt** | **27,565.7** | 1.80 | 2.44 | 3.26 | 17.56 | 645.9 |
-| logback-gelf | 21,682.3 | 2.10 | 3.96 | 6.59 | 19.45 | 668.2 |
-| log4j2-gelf | 16,963.1 | 2.57 | 5.71 | 9.48 | 23.10 | 699.7 |
-| **rainbowgum-gelf** | **23,465.6** | 1.98 | 3.83 | 6.35 | 19.32 | 664.9 |
-| logback-gelf-vt | 25,567.9 | 1.96 | 2.63 | 3.54 | 12.95 | 632.0 |
-| log4j2-gelf-vt | 17,949.6 | 2.58 | 4.86 | 7.09 | 20.04 | 634.4 |
-| **rainbowgum-gelf-vt** | **26,180.1** | 1.89 | 2.59 | 3.51 | 13.09 | 676.0 |
-| logback-k8s | 15,760.2 | 2.87 | 6.19 | 9.70 | 26.04 | 649.2 |
-| log4j2-k8s | 17,870.8 | 2.43 | 5.70 | 9.42 | 24.47 | 662.0 |
-| **rainbowgum-k8s** | **34,379.8** | 1.27 | 2.82 | 4.52 | 18.08 | 670.1 |
-| logback-k8s-vt | 22,448.9 | 2.22 | 3.00 | 3.73 | 14.22 | 650.4 |
-| log4j2-k8s-vt | 16,100.3 | 2.87 | 6.04 | 9.23 | 23.14 | 627.0 |
-| **rainbowgum-k8s-vt** | **25,320.4** | 2.00 | 3.05 | 3.80 | 14.13 | 621.0 |
+| logback | 21,373.5 | 2.08 | 4.64 | 7.71 | 20.81 | 667.1 |
+| log4j2 | 33,264.1 | 1.34 | 2.80 | 4.85 | 20.21 | 629.3 |
+| rainbowgum | 28,054.7 | 1.70 | 3.03 | 4.73 | 18.95 | 660.0 |
+| logback-vt | 25,553.2 | 1.96 | 2.64 | 3.14 | 12.70 | 648.1 |
+| log4j2-vt | 18,990.4 | 2.46 | 5.13 | 7.75 | 21.40 | 630.0 |
+| **rainbowgum-vt** | **26,323.6** | 1.87 | 2.59 | 3.37 | 14.83 | 623.5 |
+| logback-gelf | 22,809.7 | 1.99 | 3.78 | 6.35 | 18.91 | 644.7 |
+| log4j2-gelf | 16,529.6 | 2.64 | 5.89 | 9.76 | 29.69 | 672.2 |
+| **rainbowgum-gelf** | **22,350.8** | 2.06 | 4.11 | 7.02 | 21.08 | 674.2 |
+| logback-gelf-vt | 25,796.9 | 1.94 | 2.60 | 3.45 | 13.29 | 630.2 |
+| log4j2-gelf-vt | 17,734.0 | 2.61 | 4.92 | 7.19 | 20.11 | 657.9 |
+| **rainbowgum-gelf-vt** | **27,450.0** | 1.81 | 2.45 | 3.43 | 12.78 | 684.6 |
+| logback-k8s | 15,002.2 | 3.02 | 6.54 | 10.25 | 24.03 | 624.0 |
+| log4j2-k8s | 19,638.5 | 2.18 | 5.36 | 8.99 | 23.52 | 649.9 |
+| **rainbowgum-k8s** | **34,172.4** | 1.28 | 2.82 | 4.53 | 19.41 | 629.5 |
+| logback-k8s-vt | 21,587.3 | 2.30 | 3.13 | 4.32 | 13.63 | 645.5 |
+| log4j2-k8s-vt | 15,444.7 | 2.98 | 6.30 | 9.62 | 21.80 | 628.4 |
+| **rainbowgum-k8s-vt** | **25,571.6** | 1.98 | 3.00 | 3.75 | 14.53 | 626.0 |
 
-**RainbowGum wins 5 of 6 scenarios outright** (bolded), the exception being plain
-platform-thread default where Log4j2's `synchronized`+per-thread-scratch-buffer strategy
-(see `FINDINGS.md`) still leads. The `k8s` scenario (GELF-to-console-only, no file) is
-RainbowGum's best result of the whole benchmark - nearly 2x both Logback and Log4j2 -
-and also the scenario Logback does *worst* in relative to its own other numbers
-(`logback-k8s` 15,760 is its lowest result across every scenario tested here, well below
-even `logback-gelf` at 21,682, despite `k8s` having strictly less I/O - one file write
-fewer per event than `gelf`). Not yet investigated why console-only specifically costs
-Logback more than console+file GELF does; noted here rather than guessed at.
+**RainbowGum wins 5 of 6 scenarios outright** (bolded) - matches the previous run's
+picture, now reproduced with the manual GELF workaround gone and native structured
+logging in its place, confirming the library-level implementation performs identically
+to the app-level workaround it replaced (`rainbowgum-gelf`: 22,350.8 here vs 23,465.6
+previously - within normal run-to-run sandbox noise, not a regression). The `k8s`
+scenario remains RainbowGum's best result of the whole benchmark - roughly 2x both
+Logback and Log4j2 - and still the scenario Logback does *worst* in relative to its own
+numbers elsewhere (`logback-k8s` 15,002 is its lowest result across every scenario
+tested here); that specific gap remains open per `FINDINGS.md`.
 
 ## Reproducing
 

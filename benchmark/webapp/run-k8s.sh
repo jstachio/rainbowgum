@@ -8,13 +8,9 @@
 # runs total). See run-all.sh for WARMUP_SECONDS/DURATION_SECONDS/CONCURRENCY env vars,
 # same defaults here.
 #
-# RainbowGum has no property-driven equivalent to Spring Boot's logging.file.name/
-# logging.structured.format.console yet (see GelfSpringRainbowGumServiceProvider) - file
-# output is suppressed here via the RainbowGum-specific logging.appenders=console
-# property instead of an empty logging.file.name (which crashes - RainbowGum's own file
-# path resolution mishandles an empty value, treating it as the current directory rather
-# than "no file"; tracked as a rough edge, not fixed here). Logback/Log4j2 use Spring
-# Boot's own logging.file.name= (empty) which cleanly disables file output.
+# File output is suppressed the same way for all three apps: an empty logging.file.name,
+# Spring Boot's own convention for "console only". RainbowGum's Spring Boot 4 integration
+# now honors this natively too (see rainbowgum-spring-boot4's SpringLogProperties).
 set -eu
 cd "$(dirname "$0")"
 
@@ -39,14 +35,8 @@ run_one() {
 	echo "=== $label ==="
 	rm -f "$app_dir/target/app.jfr" "$app_dir"/benchmark.log
 
-	if [ "$name" = "rainbowgum" ]; then
-		file_flag="--logging.appenders=console"
-	else
-		file_flag="--logging.file.name="
-	fi
-
 	(cd "$app_dir" && exec ./run.sh \
-		"$file_flag" \
+		--logging.file.name= \
 		--logging.structured.format.console=gelf \
 		--logging.structured.gelf.host=benchmark-host \
 		${vt:+--spring.threads.virtual.enabled=true}) \

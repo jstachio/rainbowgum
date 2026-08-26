@@ -9,16 +9,15 @@
 # the normal (INFO, everything fires) case.
 #
 # STRUCTURED_FORMAT (optional, currently only "gelf" is wired up): overrides
-# logging.structured.format.file on the app's command line. Logback/Log4j2 honor this via
-# Spring Boot's own built-in structured logging support; RainbowGum has no such property
-# support yet, so rainbowgum-benchmark-webapp-rainbowgum's GelfSpringRainbowGumServiceProvider
-# checks the same property key and swaps in rainbowgum-json's GelfEncoder to match.
+# logging.structured.format.file on the app's command line. Honored natively by all three
+# apps - RainbowGum's own Spring Boot 4 integration now reads this property directly (see
+# rainbowgum-spring-boot4's StructuredLogging class), same as Logback/Log4j2's built-in
+# structured logging support, so no per-app code is needed here anymore.
 #
 # VIRTUAL_THREADS (optional, e.g. VIRTUAL_THREADS=true): overrides
 # spring.threads.virtual.enabled, switching the embedded Tomcat's request-handling threads
 # (and other Spring-managed executors) from platform to virtual threads. Pure Spring Boot/
-# Tomcat property, honored identically by all three apps - no per-app code needed, unlike
-# STRUCTURED_FORMAT.
+# Tomcat property, honored identically by all three apps.
 #
 # All are included in the CSV label and the per-app stdout/jfr filenames so different runs
 # don't clobber each other's output.
