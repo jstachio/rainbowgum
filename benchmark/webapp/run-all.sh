@@ -67,6 +67,10 @@ run_one() {
 		sleep 1
 	done
 
+	if [ "$name" = "rainbowgum" ]; then
+		curl -s "http://localhost:$PORT/api/config-report" >"$RESULTS_DIR/$label-config-report.txt" || true
+	fi
+
 	./rainbowgum-benchmark-webapp-driver/run.sh \
 		--url "http://localhost:$PORT$URL_PATH" \
 		--warmup "$WARMUP_SECONDS" \
