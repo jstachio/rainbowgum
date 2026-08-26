@@ -61,6 +61,10 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-json</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-jdk</artifactId>
       <scope>runtime</scope>
     </dependency>
