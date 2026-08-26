@@ -191,6 +191,17 @@ unifying.
 - [ ] Once items 1 and 2 above land, sweep `doc/overview.html` for consistency
       (status reporting section, nullability mentions) rather than patching it
       piecemeal per-PR the way this cycle did.
+- [ ] **Question whether `LogOutput#write(LogEvent, String)` should exist at all**:
+      `bufferHints()`'s own default is `WriteMethod.BYTES`, and confirmed (while adding
+      charset support to `LogEncoder.of(LogFormatter, Charset)`) that not one built-in
+      output anywhere in the codebase overrides it to `WriteMethod.STRING` - not even
+      `ListLogOutput`, the simplest in-memory test double, which stores decoded `String`s
+      and would seem like the most natural fit for the `STRING` path if anything would
+      be. Every reference to `WriteMethod.STRING` in the whole tree is in test code
+      built specifically to exercise that one dispatch branch, never a real default. If
+      that holds up on a closer look, `write(LogEvent, String)` (and the `STRING` write
+      method) may be dead API surface worth removing rather than keeping "just in case" -
+      not investigated further or acted on yet.
 - [ ] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
       `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
       buffer/lock strategies but are represented as three independent enum constants in
