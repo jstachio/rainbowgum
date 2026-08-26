@@ -68,13 +68,29 @@ when messages are pure Latin1 and threads are cheap to spin up (virtual threads,
 there's no long-lived thread to amortize a reusable buffer against). Log4j2/RainbowGum's
 strategy (reuse a per-thread buffer, encode outside the lock) wins under platform threads
 regardless of content, and stays competitive under VT once content isn't pure ASCII.
-RainbowGum's current default appender (`SYNCHRONIZED_THREAD_LOCAL_BUFFER` on JDK 24+,
-`THREAD_LOCAL_BUFFER` below that) is Log4j2's strategy, not Logback's - deliberately, since
-platform threads are still the common case and the VT gap is content-dependent rather
-than fixed.
+
+**Update**: RainbowGum's default appender is now `LOCK_THREAD_LOCAL_BUFFER`
+(`ReentrantLock`) unconditionally, not JDK-version-sniffed to `synchronized` on JDK 24+
+as described above when this section was first written. Real-workload benchmarking under
+virtual threads found `synchronized` losing to `ReentrantLock` by ~39% there - the
+opposite of the ~5% platform-thread win that made it the default in the first place -
+for reasons not explained by classic JEP 491 pinning (checked directly, found only one
+unrelated pinning event in the whole run). See `RESULTS.md` for the numbers;
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` remains available as an explicit opt-in.
+
+## Open: console-only (no file) costs Logback more than console+file does
+
+The `k8s`/12factor scenario (GELF to console only, no file output - see `run-k8s.sh`)
+is RainbowGum's best result of the whole benchmark, but it's also the scenario Logback
+does *worst* in relative to its own numbers elsewhere: `logback-k8s` throughput is lower
+than `logback-gelf` (console+file GELF), despite `k8s` doing strictly less I/O - one
+fewer write per event. Log4j2 shows the same direction, less pronounced. Not yet
+investigated - noted rather than guessed at, see `RESULTS.md` for the numbers.
 
 ## How to run
 
 `./run-all.sh` from this directory (env vars: `LOG_LEVEL`, `STRUCTURED_FORMAT=gelf`,
-`VIRTUAL_THREADS=true`, combinable). `./run-tomcat-jul.sh` for the isolated Tomcat
-regression test. Results land in `results/` (gitignored).
+`VIRTUAL_THREADS=true`, combinable) for console+file scenarios. `./run-k8s.sh` for the
+console-only (no file) GELF scenario, both platform and virtual threads in one run.
+`./run-tomcat-jul.sh` for the isolated Tomcat regression test. Results land in `results/`
+(gitignored).
