@@ -202,6 +202,20 @@ unifying.
       that holds up on a closer look, `write(LogEvent, String)` (and the `STRING` write
       method) may be dead API surface worth removing rather than keeping "just in case" -
       not investigated further or acted on yet.
+- [ ] **Commons Logging (jcl) probably needs its own native Rainbow Gum
+      implementation, the same way `rainbowgum-tomcat` replaced bridging through
+      JUL**: currently the only path is `jcl-over-slf4j`/`spring-jcl`, both of which
+      are someone else's bridge rather than a Rainbow Gum-native `LogFactory`/`Log`.
+      The blocker is that depth-aware (caller info) and runtime-changeable (level,
+      event handler) logger facades are genuinely fiddly to get right - see
+      `rainbowgum-slf4j`'s `ReplaceableLogger`
+      (`LevelChangeable`/`LogEventHandler.EventHandlerChangeable`/
+      `LoggerDecoratorService.DepthAwareLogger`), `CallerInfoEventDecorator`, and
+      `AbstractFilteringLogger`. That logic is currently written once, coupled to
+      SLF4J's `Logger` shape. Before a `rainbowgum-jcl` module (or similar) is worth
+      starting, this shared depth/changeable-logger machinery should be extracted out
+      of `rainbowgum-slf4j` into something a second facade implementation (JCL, and
+      potentially others down the line) can reuse instead of re-deriving it.
 - [ ] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
       `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
       buffer/lock strategies but are represented as three independent enum constants in
