@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.spring.boot4;
 
 import java.lang.System.Logger.Level;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -242,9 +243,13 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			LogProperties patternProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			Patterns patterns = new Patterns(patternProperties, environment);
 
-			var consoleEncoder = new PatternEncoderBuilder("console").pattern(patterns.consolePattern()).build();
+			var consoleEncoder = new PatternEncoderBuilder("console").pattern(patterns.consolePattern())
+				.charset(environment.getProperty(SpringBootSupportedProperties.CHARSET_CONSOLE, Charset.class))
+				.build();
 
-			var fileEncoder = new PatternEncoderBuilder("file").pattern(patterns.filePattern()).build();
+			var fileEncoder = new PatternEncoderBuilder("file").pattern(patterns.filePattern())
+				.charset(environment.getProperty(SpringBootSupportedProperties.CHARSET_FILE, Charset.class))
+				.build();
 
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, consoleEncoder);
 			config.encoderRegistry().setEncoderForOutputType(OutputType.FILE, fileEncoder);

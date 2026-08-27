@@ -57,6 +57,18 @@ public final class SpringBootSupportedProperties {
 	public static final String OUTPUT_ANSI_ENABLED = "spring.output.ansi.enabled";
 
 	/**
+	 * Charset for console output - bridged to the console pattern encoder's own {@code
+	 * charset} builder property.
+	 */
+	public static final String CHARSET_CONSOLE = "logging.charset.console";
+
+	/**
+	 * Charset for file output - bridged to the file pattern encoder's own {@code
+	 * charset} builder property.
+	 */
+	public static final String CHARSET_FILE = "logging.charset.file";
+
+	/**
 	 * Supported transitively - Spring Boot bridges this to the {@code
 	 * CONSOLE_LOG_PATTERN} system property before any {@code LoggingSystem} is
 	 * initialized.

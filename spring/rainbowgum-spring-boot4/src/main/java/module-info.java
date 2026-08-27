@@ -107,17 +107,19 @@
  * underscore-prefixed {@code _service_version} additional field, matching Spring Boot's
  * own GELF formatter's naming.</td>
  * </tr>
+ * <tr>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#CHARSET_CONSOLE}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#CHARSET_FILE}</td>
+ * <td>Native - bridged to the pattern encoder's own {@code charset} builder property
+ * (a core {@code rainbowgum-pattern} capability, not Spring-specific); unset falls back
+ * to UTF-8 the same as when Spring Boot is not on the classpath at all.</td>
+ * </tr>
  * </table>
  * <table class="table">
  * <caption><strong>Not supported</strong></caption>
  * <tr>
  * <th>Property</th>
  * <th>Why</th>
- * </tr>
- * <tr>
- * <td>{@code logging.charset.console}, {@code logging.charset.file}</td>
- * <td>Would need a new core capability (configurable output charset - UTF-8 is
- * currently fixed), not just a property bridge at this layer.</td>
  * </tr>
  * <tr>
  * <td>{@code logging.threshold.console}, {@code logging.threshold.file}</td>
