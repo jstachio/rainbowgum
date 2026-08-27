@@ -267,6 +267,8 @@ public interface LogEncoder {
 
 			private final LogOutput.WriteMethod writeMethod;
 
+			private final LogOutput.ContentType contentType;
+
 			private ByteBuffer byteBuffer;
 
 			/**
@@ -297,6 +299,7 @@ public interface LogEncoder {
 				this.charsetEncoder = charset.newEncoder()
 					.onMalformedInput(CodingErrorAction.REPLACE)
 					.onUnmappableCharacter(CodingErrorAction.REPLACE);
+				this.contentType = LogOutput.ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset);
 			}
 
 			/**
@@ -307,10 +310,9 @@ public interface LogEncoder {
 			@Override
 			public void drain(LogOutput output, LogEvent event) {
 				switch (writeMethod) {
-					case BYTE_BUFFER -> output.write(event, byteBuffer, StandardContentType.TEXT_PLAIN);
-					case BYTES ->
-						output.write(event, byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(),
-								byteBuffer.remaining(), StandardContentType.TEXT_PLAIN);
+					case BYTE_BUFFER -> output.write(event, byteBuffer, contentType);
+					case BYTES -> output.write(event, byteBuffer.array(),
+							byteBuffer.arrayOffset() + byteBuffer.position(), byteBuffer.remaining(), contentType);
 					case STRING ->
 						throw new IllegalStateException("DirectByteBufferBuffer does not support WriteMethod.STRING");
 				}

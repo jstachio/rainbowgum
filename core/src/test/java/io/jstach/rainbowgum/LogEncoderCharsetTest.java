@@ -33,6 +33,7 @@ class LogEncoderCharsetTest {
 		var output = new CapturingOutput(WriteMethod.BYTES);
 		encodeInto(output, StandardCharsets.ISO_8859_1);
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.ISO_8859_1), output.capturedBytes());
+		assertEquals(StandardCharsets.ISO_8859_1, output.capturedContentType().charsetOrNull());
 	}
 
 	@Test
@@ -40,6 +41,7 @@ class LogEncoderCharsetTest {
 		var output = new CapturingOutput(WriteMethod.BYTE_BUFFER);
 		encodeInto(output, StandardCharsets.ISO_8859_1);
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.ISO_8859_1), output.capturedBytes());
+		assertEquals(StandardCharsets.ISO_8859_1, output.capturedContentType().charsetOrNull());
 	}
 
 	@Test
@@ -53,6 +55,7 @@ class LogEncoderCharsetTest {
 			g.log(event());
 		}
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.UTF_8), output.capturedBytes());
+		assertEquals(StandardCharsets.UTF_8, output.capturedContentType().charsetOrNull());
 	}
 
 	@Test
@@ -85,12 +88,18 @@ class LogEncoderCharsetTest {
 
 		private final List<byte[]> writes = new ArrayList<>();
 
+		private final List<ContentType> contentTypes = new ArrayList<>();
+
 		CapturingOutput(WriteMethod writeMethod) {
 			this.writeMethod = writeMethod;
 		}
 
 		byte[] capturedBytes() {
 			return writes.get(writes.size() - 1);
+		}
+
+		ContentType capturedContentType() {
+			return contentTypes.get(contentTypes.size() - 1);
 		}
 
 		@Override
@@ -111,6 +120,7 @@ class LogEncoderCharsetTest {
 		@Override
 		public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
 			writes.add(java.util.Arrays.copyOfRange(bytes, off, off + len));
+			contentTypes.add(contentType);
 		}
 
 		@Override
@@ -118,6 +128,7 @@ class LogEncoderCharsetTest {
 			byte[] arr = new byte[buf.remaining()];
 			buf.get(arr);
 			writes.add(arr);
+			contentTypes.add(contentType);
 		}
 
 		@Override
