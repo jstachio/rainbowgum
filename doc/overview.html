@@ -316,6 +316,51 @@ and will not produce a configuration error if incorrect. This pattern
 allows large groups of configuration to be turned on or off similar to
 profiles in other systems.
 
+<h4 id="config_defaults">Implicit default configuration</h4>
+
+Rainbow Gum will happily start with <em>zero</em> properties set because most of the
+properties described above have a built-in default when missing. Nothing here is
+hidden magic though - the defaults are just what get used when a property lookup falls
+through to code instead of a configured value, and that same "out of the box" setup can
+be reproduced explicitly with:
+
+{@snippet lang=properties :
+logging.level=INFO
+logging.routes=default
+logging.route.default.publisher=sync
+logging.appenders=console
+logging.appender.console.output=stdout
+logging.appender.console.encoder=ttll
+}
+
+A few things worth calling out about the above:
+
+<ul>
+  <li>
+    <code>logging.appenders</code> defaults to just <code>console</code> - <strong>not</strong>
+    <code>console,file</code>. A file appender is only ever added automatically, and only when
+    {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} (<code>logging.file.name</code>)
+    is itself set - in which case the implicit default becomes
+    <code>logging.appenders=file,console</code> (file first, console still included, not replaced).
+    Setting <code>logging.appenders</code> yourself to any value, including just <code>file</code>,
+    disables this auto-add behavior entirely since an explicit value always wins.
+  </li>
+  <li>
+    <code>stdout</code> and <code>ttll</code> above are {@link java.net.URI} schemes (see
+    the plain properties example earlier in this section) resolved through the same
+    {@link io.jstach.rainbowgum.LogOutputRegistry}/{@link io.jstach.rainbowgum.LogEncoderRegistry}
+    lookup any explicit <code>output</code>/<code>encoder</code> value goes through -
+    <code>ttll</code> is Rainbow Gum's built-in Logback-esque
+    "Time Thread Level Logger" line formatter, not a Spring Boot-ism.
+  </li>
+  <li>
+    <code>logging.route.default.publisher=sync</code> means every appender on the default
+    route runs synchronously on the calling thread by default (no background queue/thread) -
+    see {@link io.jstach.rainbowgum.LogPublisherRegistry} for the <code>async</code>
+    alternative and its own defaults/properties.
+  </li>
+</ul>
+
 <h3 id="config_builder">Builder based</h3>
 
 Rainbow Gum can be configured programmatically through {@linkplain io.jstach.rainbowgum.LogBuilder builders}. 
