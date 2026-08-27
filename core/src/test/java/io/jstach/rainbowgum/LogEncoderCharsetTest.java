@@ -12,6 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogOutput.ContentType;
+import io.jstach.rainbowgum.LogOutput.ContentType.DefaultContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 
 /*
@@ -56,6 +57,36 @@ class LogEncoderCharsetTest {
 		}
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.UTF_8), output.capturedBytes());
 		assertEquals(StandardCharsets.UTF_8, output.capturedContentType().charsetOrNull());
+	}
+
+	@Test
+	void ofContentTypeUsesTheGivenContentTypeAndItsCharset() {
+		var output = new CapturingOutput(WriteMethod.BYTES);
+		var contentType = new DefaultContentType("text/csv", StandardCharsets.ISO_8859_1);
+		var config = LogConfig.builder().build();
+		var gum = RainbowGum.builder(config)
+			.route(r -> r.appender("list", a -> a.output(output).encoder(LogEncoder.of(FORMATTER, contentType))))
+			.build();
+		try (var g = gum.start()) {
+			g.log(event());
+		}
+		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.ISO_8859_1), output.capturedBytes());
+		assertEquals(contentType, output.capturedContentType());
+	}
+
+	@Test
+	void ofContentTypeWithNoCharsetDefaultsToUtf8ForEncoding() {
+		var output = new CapturingOutput(WriteMethod.BYTES);
+		var contentType = new DefaultContentType("text/csv", null);
+		var config = LogConfig.builder().build();
+		var gum = RainbowGum.builder(config)
+			.route(r -> r.appender("list", a -> a.output(output).encoder(LogEncoder.of(FORMATTER, contentType))))
+			.build();
+		try (var g = gum.start()) {
+			g.log(event());
+		}
+		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.UTF_8), output.capturedBytes());
+		assertEquals(contentType, output.capturedContentType());
 	}
 
 	@Test

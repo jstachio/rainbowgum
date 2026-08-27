@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 
 import io.jstach.rainbowgum.LogEncoder.Buffer.DirectByteBufferBuffer;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
+import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
@@ -82,7 +83,8 @@ public interface LogEncoder {
 	}
 
 	/**
-	 * Creates an encoder from a formatter that encodes with the given charset.
+	 * Creates an encoder from a formatter that encodes with the given charset and reports
+	 * {@link StandardContentType#TEXT_PLAIN} with that charset to the output.
 	 * @param formatter formatter.
 	 * @param charset charset to encode with. Only affects outputs whose
 	 * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
@@ -93,7 +95,27 @@ public interface LogEncoder {
 	 * @return encoder.
 	 */
 	public static LogEncoder of(LogFormatter formatter, Charset charset) {
-		return new FormatterEncoder(formatter, charset);
+		return of(formatter, charset, ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset));
+	}
+
+	/**
+	 * Creates an encoder from a formatter that reports the given content type to the
+	 * output, encoding with {@link ContentType#charsetOrNull() its charset} if specified,
+	 * otherwise {@link StandardCharsets#UTF_8}. Use this instead of
+	 * {@link #of(LogFormatter, Charset)} when the formatter produces something other than
+	 * plain text (e.g. a custom {@link ContentType.DefaultContentType}).
+	 * @param formatter formatter.
+	 * @param contentType content type reported to the output. See
+	 * {@link #of(LogFormatter, Charset)} for the effect of its charset.
+	 * @return encoder.
+	 */
+	public static LogEncoder of(LogFormatter formatter, ContentType contentType) {
+		var charset = contentType.charsetOrNull();
+		return of(formatter, charset == null ? StandardCharsets.UTF_8 : charset, contentType);
+	}
+
+	private static LogEncoder of(LogFormatter formatter, Charset charset, ContentType contentType) {
+		return new FormatterEncoder(formatter, charset, contentType);
 	}
 
 	/**
@@ -294,12 +316,32 @@ public interface LogEncoder {
 			 * @param charset charset to encode with.
 			 */
 			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset) {
+				this(writeMethod, initialByteCapacity, charset,
+						LogOutput.ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset));
+			}
+
+			/**
+			 * Creates a buffer with the given write method, initial byte capacity,
+			 * charset and content type to report to the output.
+			 * @param writeMethod which {@link LogOutput#write} overload {@link #drain}
+			 * should call - {@link LogOutput.WriteMethod#BYTES} or
+			 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
+			 * @param initialByteCapacity initial capacity of the byte buffer. It will
+			 * grow (doubling, or to whatever a single event needs if larger) as needed
+			 * and the grown capacity is kept for subsequent events.
+			 * @param charset charset to encode with.
+			 * @param contentType content type reported to {@link LogOutput#write}. Its
+			 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
+			 * normally match {@code charset}.
+			 */
+			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
+					LogOutput.ContentType contentType) {
 				this.writeMethod = writeMethod;
 				this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
 				this.charsetEncoder = charset.newEncoder()
 					.onMalformedInput(CodingErrorAction.REPLACE)
 					.onUnmappableCharacter(CodingErrorAction.REPLACE);
-				this.contentType = LogOutput.ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset);
+				this.contentType = contentType;
 			}
 
 			/**
@@ -446,10 +488,13 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final Charset charset;
 
-	public FormatterEncoder(LogFormatter formatter, Charset charset) {
+	private final ContentType contentType;
+
+	public FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType) {
 		super();
 		this.formatter = formatter;
 		this.charset = charset;
+		this.contentType = contentType;
 	}
 
 	@Override
@@ -457,7 +502,7 @@ final class FormatterEncoder implements LogEncoder {
 		return switch (hints.writeMethod()) {
 			case STRING -> StringBuilderBuffer.of(new StringBuilder());
 			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod(),
-					DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY, charset);
+					DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY, charset, contentType);
 		};
 	}
 
