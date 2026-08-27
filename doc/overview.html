@@ -1446,19 +1446,27 @@ File an issue if you are interested an implementation.
 Commons Logging support can be had by using:
 
 <ul>
-  <li><a href="https://www.slf4j.org/legacy.html#jclRecursion">jcl-over-slf4j</a> - if not using Spring. </li>
-  <li><a href="https://docs.spring.io/spring-framework/reference/core/spring-jcl.html">spring-jcl</a> - if using Spring.</li>
+  <li><a href="https://www.slf4j.org/legacy.html#jclRecursion">jcl-over-slf4j</a> - if not using Spring, or using Spring Framework 6 / Spring Boot 3 (or earlier) and one does not want <code>spring-jcl</code>. </li>
+  <li><a href="https://docs.spring.io/spring-framework/reference/core/spring-jcl.html">spring-jcl</a> - if using Spring Framework 6 / Spring Boot 3 (or earlier).</li>
 </ul>
 
 Both of these are drop in replacements to commons-logging library.
-If you are using Rainbow Gum's Spring Boot integration it will use <code>spring-jcl</code>. That being said
+If you are using Rainbow Gum's Spring Boot 3 integration it will use <code>spring-jcl</code>. That being said
 if one does not want Spring "sniffing" around by reflection and not using Spring Boot <code>jcl-over-slf4j</code> is preferred
 but requires excluding <code>spring-jcl</code>.
 
 <p>
 
-Regardless the original <a href="https://commons.apache.org/proper/commons-logging/">commons-logging</a> should generally not be used
-and should be excluded from dependencies that need it.
+<b>Spring Framework 7 / Spring Boot 4 changed this</b>: <code>spring-jcl</code> was removed and Spring went back to depending
+directly on the real <a href="https://commons.apache.org/proper/commons-logging/">Apache Commons Logging</a> (1.3+), which as of
+that version added its own built-in SLF4J discovery. So with Rainbow Gum's Spring Boot 4 integration, <code>commons-logging</code>
+calls are routed to SLF4J (and therefore Rainbow Gum) automatically by commons-logging itself - no <code>jcl-over-slf4j</code>
+substitution or <code>spring-jcl</code>/<code>commons-logging</code> exclusion dance needed.
+
+<p>
+
+For anything other than Spring Framework 7 / Spring Boot 4, the original <a href="https://commons.apache.org/proper/commons-logging/">commons-logging</a>
+should generally not be used and should be excluded from dependencies that need it.
 
 <h3 id="plugin_guide">Extension development guide</h3>
 
