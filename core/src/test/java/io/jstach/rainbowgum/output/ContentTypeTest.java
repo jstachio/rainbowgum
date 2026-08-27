@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum.output;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.nio.charset.StandardCharsets;
@@ -15,8 +14,8 @@ import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 class ContentTypeTest {
 
 	@Test
-	void textPlainHasNoFixedCharset() {
-		assertNull(StandardContentType.TEXT_PLAIN.charsetOrNull());
+	void textPlainIsUtf8() {
+		assertEquals(StandardCharsets.UTF_8, StandardContentType.TEXT_PLAIN.charsetOrNull());
 	}
 
 	@Test
@@ -26,7 +25,7 @@ class ContentTypeTest {
 
 	@Test
 	void ofReturnsTheCanonicalStandardContentTypeWhenItMatches() {
-		assertSame(StandardContentType.TEXT_PLAIN, ContentType.of("text/plain", null));
+		assertSame(StandardContentType.TEXT_PLAIN, ContentType.of("text/plain", StandardCharsets.UTF_8));
 		assertSame(StandardContentType.APPLICATION_JSON, ContentType.of("application/json", StandardCharsets.UTF_8));
 	}
 

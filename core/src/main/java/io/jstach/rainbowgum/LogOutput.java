@@ -141,12 +141,15 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 		/**
 		 * The charset the bytes are encoded with, or <code>null</code> if there is no
-		 * single fixed charset for this content type.
-		 * {@link StandardContentType#TEXT_PLAIN} has no fixed charset - it depends
-		 * entirely on whatever charset the encoder that produced the bytes was configured
-		 * with (see {@link LogEncoder#of(LogFormatter, java.nio.charset.Charset)}) -
-		 * while {@link StandardContentType#APPLICATION_JSON} is always
-		 * {@link StandardCharsets#UTF_8} by spec.
+		 * single fixed charset for this content type. Both built-in
+		 * {@link StandardContentType} constants are always {@link StandardCharsets#UTF_8}
+		 * - {@link StandardContentType#APPLICATION_JSON} by spec, and
+		 * {@link StandardContentType#TEXT_PLAIN} because UTF-8 is standard enough on
+		 * modern Java (e.g. {@code String#getBytes()}'s no-charset overload) to treat as
+		 * the assumed default rather than "unspecified" - an encoder actually configured
+		 * with a different charset (see
+		 * {@link LogEncoder#of(LogFormatter, java.nio.charset.Charset)}) reports a
+		 * {@link DefaultContentType} instead, not {@link StandardContentType#TEXT_PLAIN}.
 		 * @return charset or <code>null</code> if not fixed/known.
 		 */
 		@Nullable
@@ -202,8 +205,8 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 				}
 
 				@Override
-				public @Nullable Charset charsetOrNull() {
-					return null;
+				public Charset charsetOrNull() {
+					return StandardCharsets.UTF_8;
 				}
 			},
 			/**
@@ -305,8 +308,7 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 	 * @param s string.
 	 */
 	default void write(LogEvent event, String s) {
-		write(event, s.getBytes(StandardCharsets.UTF_8),
-				ContentType.of(ContentType.StandardContentType.TEXT_PLAIN.contentType(), StandardCharsets.UTF_8));
+		write(event, s.getBytes(StandardCharsets.UTF_8), ContentType.StandardContentType.TEXT_PLAIN);
 	}
 
 	/**
