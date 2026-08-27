@@ -7,9 +7,12 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
@@ -137,6 +140,49 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 		String contentType();
 
 		/**
+		 * The charset the bytes are encoded with, or <code>null</code> if there is no
+		 * single fixed charset for this content type.
+		 * {@link StandardContentType#TEXT_PLAIN} has no fixed charset - it depends
+		 * entirely on whatever charset the encoder that produced the bytes was configured
+		 * with (see {@link LogEncoder#of(LogFormatter, java.nio.charset.Charset)}) -
+		 * while {@link StandardContentType#APPLICATION_JSON} is always
+		 * {@link StandardCharsets#UTF_8} by spec.
+		 * @return charset or <code>null</code> if not fixed/known.
+		 */
+		@Nullable
+		Charset charsetOrNull();
+
+		/**
+		 * Finds the matching {@link StandardContentType} for the given content type and
+		 * charset if one exists, otherwise creates a new {@link DefaultContentType}.
+		 * @param contentType content type, e.g. <code>text/plain</code>.
+		 * @param charsetOrNull charset or <code>null</code> if not fixed/known.
+		 * @return a {@link StandardContentType} if one matches, otherwise a
+		 * {@link DefaultContentType}.
+		 */
+		static ContentType of(String contentType, @Nullable Charset charsetOrNull) {
+			for (var standard : StandardContentType.values()) {
+				if (standard.contentType().equals(contentType)
+						&& Objects.equals(standard.charsetOrNull(), charsetOrNull)) {
+					return standard;
+				}
+			}
+			return new DefaultContentType(contentType, charsetOrNull);
+		}
+
+		/**
+		 * A plain {@link ContentType} for content types not covered by
+		 * {@link StandardContentType}. Use {@link ContentType#of(String, Charset)} to
+		 * create one (or reuse a matching {@link StandardContentType} instead if one
+		 * matches).
+		 *
+		 * @param contentType content type, e.g. <code>text/plain</code>.
+		 * @param charsetOrNull charset or <code>null</code> if not fixed/known.
+		 */
+		public record DefaultContentType(String contentType, @Nullable Charset charsetOrNull) implements ContentType {
+		}
+
+		/**
 		 * Builtin content types.
 		 *
 		 * @apiNote additional "standard" content types maybe added in the future before
@@ -154,6 +200,11 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 				public String contentType() {
 					return "text/plain";
 				}
+
+				@Override
+				public @Nullable Charset charsetOrNull() {
+					return null;
+				}
 			},
 			/**
 			 * application/json
@@ -162,6 +213,11 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 				@Override
 				public String contentType() {
 					return "application/json";
+				}
+
+				@Override
+				public Charset charsetOrNull() {
+					return StandardCharsets.UTF_8;
 				}
 			}
 
@@ -249,7 +305,8 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 	 * @param s string.
 	 */
 	default void write(LogEvent event, String s) {
-		write(event, s.getBytes(StandardCharsets.UTF_8), ContentType.StandardContentType.TEXT_PLAIN);
+		write(event, s.getBytes(StandardCharsets.UTF_8),
+				ContentType.of(ContentType.StandardContentType.TEXT_PLAIN.contentType(), StandardCharsets.UTF_8));
 	}
 
 	/**
