@@ -1368,10 +1368,11 @@ its own artifact:
 Their own internal implementation packages ({@code io.jstach.rainbowgum.spring.boot3}/{@code boot4}) are not
 exported and never imported by consumers - Spring Boot discovers them itself through {@code META-INF/spring.factories}
 and the Java service loader - so those packages are duplicated per major version rather than shared, and are not
-necessarily identical in behavior; <strong>{@link io.jstach.rainbowgum.spring.boot4/ } is the one kept up to date
-with which Spring Boot logging properties (<code>logging.*</code>, <code>spring.output.ansi.enabled</code>, etc.) are
-supported</strong> - see that module's own javadoc for the full supported/not-supported property table, kept next to
-the code that implements it rather than duplicated here where it could drift out of sync. The one package you might
+necessarily identical in behavior; each module's own javadoc has the authoritative full supported/not-supported
+property table for which Spring Boot logging properties (<code>logging.*</code>, <code>spring.output.ansi.enabled</code>,
+etc.) it supports, kept next to the code that implements it rather than duplicated here where it could drift out of
+sync -
+{@link io.jstach.rainbowgum.spring.boot4/ } and {@link io.jstach.rainbowgum.spring.boot3/ }. The one package you might
 actually import,
 {@link io.jstach.rainbowgum.spring.boot.spi}, lives in its own genuinely shared module (<code>rainbowgum-spring-spi</code>,
 pulled in transitively by both starters) because it only depends on {@code org.springframework.core.env.Environment},
