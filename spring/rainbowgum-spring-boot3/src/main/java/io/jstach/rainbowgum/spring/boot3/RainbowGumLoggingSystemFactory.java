@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum.spring.boot3;
 
 import java.lang.System.Logger.Level;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.ServiceLoader;
@@ -47,18 +49,41 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 	}
 
 	record SpringLogProperties(Environment environment) implements LogProperties {
-		/*
-		 * Rainbow Gum uses logging.level as the root but strangely probably because of
-		 * binding boot uses the below.
-		 */
-		private static final String ROOT_LEVEL = "logging.level.root";
 
 		@Override
 		public @Nullable String valueOrNull(String key) {
-			if (key.equals("logging.level")) {
-				String value = environment.getProperty(ROOT_LEVEL);
+			if (key.equals(SpringBootSupportedProperties.LOGGING_LEVEL)) {
+				String value = environment.getProperty(SpringBootSupportedProperties.LOGGING_LEVEL_ROOT);
 				if (value != null) {
 					return value;
+				}
+			}
+			else if (key.equals(LogProperties.FILE_PROPERTY)) {
+				String name = environment.getProperty(key);
+				if (name != null && !name.isBlank()) {
+					return name;
+				}
+				String path = environment.getProperty(SpringBootSupportedProperties.FILE_PATH);
+				if (path != null && !path.isBlank()) {
+					// Spring Boot's own default file name when only the directory is
+					// given - see LogFile.get(...).
+					return Path.of(path, "spring.log").toString();
+				}
+				return null;
+			}
+			else if (key.equals(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)) {
+				String ansiEnabled = environment.getProperty(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED);
+				if (ansiEnabled != null) {
+					String mapped = switch (ansiEnabled.toUpperCase(Locale.ROOT)) {
+						case "NEVER" -> "true";
+						case "ALWAYS" -> "false";
+						// DETECT or unrecognized - let RainbowGum's own auto-detection
+						// run rather than overriding it.
+						default -> null;
+					};
+					if (mapped != null) {
+						return mapped;
+					}
 				}
 			}
 			return environment.getProperty(key);
@@ -67,7 +92,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 	final static class Patterns {
 
-		static final String NAME_AND_GROUP = "%esb(){APPLICATION_NAME}%esb{APPLICATION_GROUP}";
+		final String NAME_AND_GROUP;
 
 		@Nullable
 		String CONSOLE_LOG_PATTERN;
@@ -85,7 +110,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 		String LOG_EXCEPTION_CONVERSION_WORD = "%wEx";
 
-		Patterns(LogProperties properties) {
+		Patterns(LogProperties properties, Environment environment) {
 			CONSOLE_LOG_PATTERN = properties.valueOrNull("CONSOLE_LOG_PATTERN");
 			FILE_LOG_PATTERN = properties.valueOrNull("FILE_LOG_PATTERN");
 			LOG_DATEFORMAT_PATTERN = properties.value("LOG_DATEFORMAT_PATTERN", LOG_DATEFORMAT_PATTERN);
@@ -94,6 +119,18 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			LOG_CORRELATION_PATTERN = properties.value("LOG_CORRELATION_PATTERN", LOG_CORRELATION_PATTERN);
 			LOG_EXCEPTION_CONVERSION_WORD = properties.value("LOG_EXCEPTION_CONVERSION_WORD",
 					LOG_EXCEPTION_CONVERSION_WORD);
+			/*
+			 * Spring Boot doesn't bridge these two toggles to system properties (unlike
+			 * APPLICATION_NAME/APPLICATION_GROUP themselves), so they're read straight
+			 * from the Environment rather than through the system-property-backed
+			 * `properties` above.
+			 */
+			boolean includeApplicationName = environment
+				.getProperty(SpringBootSupportedProperties.INCLUDE_APPLICATION_NAME, Boolean.class, true);
+			boolean includeApplicationGroup = environment
+				.getProperty(SpringBootSupportedProperties.INCLUDE_APPLICATION_GROUP, Boolean.class, true);
+			NAME_AND_GROUP = (includeApplicationName ? "%esb(){APPLICATION_NAME}" : "")
+					+ (includeApplicationGroup ? "%esb{APPLICATION_GROUP}" : "");
 		}
 
 		String consolePattern() {
@@ -186,16 +223,22 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 				.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class, classLoader))
 				.configurator(new SpringBootPatternKeywordProvider())
 				.build();
+			Environment environment = initializationContext.getEnvironment();
 			LogProperties patternProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
-			Patterns patterns = new Patterns(patternProperties);
+			Patterns patterns = new Patterns(patternProperties, environment);
 
-			var consoleEncoder = new PatternEncoderBuilder("console").pattern(patterns.consolePattern()).build();
+			var consoleEncoder = new PatternEncoderBuilder("console").pattern(patterns.consolePattern())
+				.charset(environment.getProperty(SpringBootSupportedProperties.CHARSET_CONSOLE, Charset.class))
+				.build();
 
-			var fileEncoder = new PatternEncoderBuilder("file").pattern(patterns.filePattern()).build();
+			var fileEncoder = new PatternEncoderBuilder("file").pattern(patterns.filePattern())
+				.charset(environment.getProperty(SpringBootSupportedProperties.CHARSET_FILE, Charset.class))
+				.build();
 
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, consoleEncoder);
 			config.encoderRegistry().setEncoderForOutputType(OutputType.FILE, fileEncoder);
-			rainbowGum = findAndSet(config, classLoader, initializationContext.getEnvironment());
+			StructuredLogging.apply(config, environment);
+			rainbowGum = findAndSet(config, classLoader, environment);
 		}
 
 		@Override
