@@ -306,9 +306,9 @@ These keys canonical end in <code>"s"</code> and are comma separated.
 
 {@snippet lang=properties :
 logging.appenders=appender1,appender2 # appenders that are enabled.
-logging.appender1.encoder=...
-logging.appender2.output=...
-logging.appender3.output=.... 
+logging.appender.appender1.encoder=...
+logging.appender.appender2.output=...
+logging.appender.appender3.output=....
 }
 
 In the above the configuration of <code>appender3</code> will not be used
@@ -328,6 +328,8 @@ be reproduced explicitly with:
 logging.level=INFO
 logging.routes=default
 logging.route.default.publisher=sync
+# logging.appenders is shorthand for logging.route.default.appenders - it only
+# works as a fallback for the "default" route, not any other route name.
 logging.appenders=console
 logging.appender.console.output=stdout
 logging.appender.console.encoder=ttll
