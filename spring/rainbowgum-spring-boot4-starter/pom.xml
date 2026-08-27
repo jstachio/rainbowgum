@@ -3,7 +3,7 @@
   <parent>
     <groupId>io.jstach.rainbowgum</groupId>
     <artifactId>rainbowgum-spring-parent</artifactId>
-    <version>0.10.0-SNAPSHOT</version>
+    <version>0.11.0-SNAPSHOT</version>
   </parent>
   <artifactId>rainbowgum-spring-boot4-starter</artifactId>
   <name>rainbowgum-spring-boot4-starter</name>
