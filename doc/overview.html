@@ -35,7 +35,14 @@ We will cover the major ways to do this in the following sub sections.
 
 <h3 id="simple_spring_boot">Using Spring Boot</h3>
 
-If using Spring Boot see <a href="#spring_boot">Rainbow Spring Boot Integration section</a>.
+If using Spring Boot see the <a href="#spring_boot">Rainbow Spring Boot Integration section</a>. The short version:
+swap <code>spring-boot-starter-logging</code> for the Rainbow Gum starter and keep going &mdash; Rainbow Gum
+natively understands almost all of Spring Boot's own documented logging properties (<code>logging.level.*</code>,
+log groups, <code>logging.file.*</code>, <code>logging.pattern.*</code>, <code>logging.charset.*</code>, ANSI
+control, and structured logging via <code>logging.structured.format.*</code> for ECS/GELF/Logstash), so existing
+<code>application.properties</code>/<code>application.yml</code> logging config generally keeps working as-is with
+no application code changes. That makes it a genuinely <strong>low-risk drop-in replacement for Logback</strong>:
+same properties, same behavior, a simpler and faster implementation underneath.
 
 <h3 id="simple_example">Using System properties</h3>
 
@@ -1157,7 +1164,6 @@ logging.route.structured.level=DEBUG
 
 logging.route.errors.appenders=errorfile
 logging.route.errors.level=ERROR
-logging.route.errors.level.com.mycompany.orders=ERROR
 
 logging.publisher.structured.bufferSize=2048
 
@@ -1192,17 +1198,15 @@ happens to share the appender's name.
 </p>
 
 <p>
-<strong>A route level threshold does not act as a hard ceiling &mdash; it merges with the global
-level resolver by prefix specificity, not by route priority.</strong> Without the line
-<code>logging.route.errors.level.com.mycompany.orders=ERROR</code>, the <code>errors</code> route
-would <em>still emit <code>DEBUG</code> and <code>INFO</code> events</em> for
-<code>com.mycompany.orders</code> despite <code>logging.route.errors.level=ERROR</code>, because
-the global <code>logging.level.com.mycompany.orders=DEBUG</code> is a <em>more specific</em>
-prefix match than the route's bare (root) <code>ERROR</code> setting, and specificity wins
-regardless of which resolver (route or global) the match came from. To make a route strictly
-<em>more restrictive</em> than the global baseline for a given logger name prefix, that same
-prefix has to be overridden again at the route level &mdash; setting a coarser route level alone is
-not enough once a more specific global override exists for names under it.
+<strong>A route level threshold does act as a hard ceiling.</strong> As covered in
+<a href="#route_level_priority">Route Level Priority</a>, a route's own level configuration is
+checked first and takes priority over the global resolver for any logger name the route has an
+opinion about, regardless of whether the global resolver has a more specific prefix match for that
+name. That is why the bare <code>logging.route.errors.level=ERROR</code> above is enough on its
+own: even though the global <code>logging.level.com.mycompany.orders=DEBUG</code> override applies
+everywhere else, the <code>errors</code> route's own <code>ERROR</code> threshold wins for that
+logger too, with no need for a separate <code>logging.route.errors.level.com.mycompany.orders</code>
+override to restate it.
 </p>
 
 <p>
