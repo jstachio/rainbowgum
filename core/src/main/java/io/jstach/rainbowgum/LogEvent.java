@@ -347,6 +347,36 @@ public sealed interface LogEvent {
 	}
 
 	/**
+	 * Appends the formatted message but stops appending once {@code maxSize} characters
+	 * have been appended to {@code sb} (counted from {@code sb}'s length when this call
+	 * started).
+	 * @param sb string builder to use.
+	 * @param maxSize maximum number of characters this call may append to {@code sb}, or
+	 * a non-positive value for unbounded (equivalent to
+	 * {@link #formattedMessage(StringBuilder)}).
+	 * @apiNote The default implementation here is a safe fallback for any
+	 * {@link LogEvent} that does not override it: it formats the message unbounded via
+	 * {@link #formattedMessage(StringBuilder)} and then truncates {@code sb} back down if
+	 * needed - it does <em>not</em> avoid the cost of formatting an oversized message, it
+	 * only bounds what ends up in {@code sb} afterward. {@link OneArgLogEvent},
+	 * {@link TwoArgLogEvent}, and {@link ArrayArgLogEvent} override this to stop early
+	 * instead, by threading {@code maxSize} into {@link LogMessageFormatter}, but even
+	 * there a single argument's own {@code toString()} is not itself bounded.
+	 * @see LogMessageFormatter
+	 */
+	default void formattedMessage(StringBuilder sb, int maxSize) {
+		if (maxSize <= 0) {
+			formattedMessage(sb);
+			return;
+		}
+		int start = sb.length();
+		formattedMessage(sb);
+		if (sb.length() - start > maxSize) {
+			sb.setLength(start + maxSize);
+		}
+	}
+
+	/**
 	 * Throwable at the time of the event passed from the logger.
 	 * @return if the event does not have a throwable <code>null</code> will be returned.
 	 */
@@ -807,6 +837,11 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 
 	@Override
+	public void formattedMessage(StringBuilder sb, int maxSize) {
+		messageFormatter.format(sb, message, arg1, maxSize);
+	}
+
+	@Override
 	public LogEvent freeze() {
 		return freeze(timestamp);
 	}
@@ -838,6 +873,11 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	@Override
 	public void formattedMessage(StringBuilder sb) {
 		messageFormatter.format(sb, message, arg1, arg2);
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb, int maxSize) {
+		messageFormatter.format(sb, message, arg1, arg2, maxSize);
 	}
 
 	@Override
@@ -874,6 +914,11 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		messageFormatter.formatArray(sb, message, args, length);
 	}
 
+	@Override
+	public void formattedMessage(StringBuilder sb, int maxSize) {
+		messageFormatter.formatArray(sb, message, args, length, maxSize);
+	}
+
 	public int argCount() {
 		return args.length;
 	}
@@ -908,6 +953,21 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 	@Override
 	public void formattedMessage(StringBuilder sb) {
 		sb.append(this.formattedMessage);
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb, int maxSize) {
+		String m = this.formattedMessage;
+		if (maxSize <= 0 || m == null) {
+			formattedMessage(sb);
+			return;
+		}
+		/*
+		 * Unlike the interface default (format unbounded then truncate) this only ever
+		 * copies up to maxSize characters in the first place, since the message here is
+		 * already a plain String with a known length - no formatting work to bound.
+		 */
+		sb.append(m, 0, Math.min(m.length(), maxSize));
 	}
 
 	@Override
@@ -982,6 +1042,16 @@ record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEve
 	public void formattedMessage(StringBuilder sb) {
 		event.formattedMessage(sb);
 
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb, int maxSize) {
+		/*
+		 * Delegate rather than fall through to the interface default - the wrapped event
+		 * may itself have an early-exit override (OneArgLogEvent etc.) that would
+		 * otherwise be silently lost behind the generic format-then-truncate fallback.
+		 */
+		event.formattedMessage(sb, maxSize);
 	}
 
 	@Override

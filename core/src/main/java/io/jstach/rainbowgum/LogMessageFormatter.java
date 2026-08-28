@@ -25,6 +25,29 @@ public sealed interface LogMessageFormatter {
 	void format(StringBuilder builder, String message, @Nullable Object arg1);
 
 	/**
+	 * Formats and appends the results, stopping early once {@code maxSize} characters
+	 * have been appended to {@code builder} (counted from {@code builder}'s length when
+	 * this call started).
+	 * @param builder output.
+	 * @param message message usually with formatting delimiters for replacement.
+	 * @param arg1 to use for replacement.
+	 * @param maxSize maximum number of characters this call may append to
+	 * {@code builder}, or a non-positive value for unbounded (equivalent to
+	 * {@link #format(StringBuilder, String, Object)}).
+	 * @apiNote The default implementation is a safe fallback that formats unbounded first
+	 * and truncates after - it does not avoid the cost of formatting an oversized
+	 * message. {@link StandardMessageFormatter#SLF4J} overrides this to stop appending as
+	 * soon as the cap is reached instead, though even there a single argument's own
+	 * {@code toString()} is not itself bounded - see {@code SLF4JMessageFormatter}'s own
+	 * javadoc for that limitation.
+	 */
+	default void format(StringBuilder builder, String message, @Nullable Object arg1, int maxSize) {
+		int start = builder.length();
+		format(builder, message, arg1);
+		capAfter(builder, start, maxSize);
+	}
+
+	/**
 	 * Formats and appends the results.
 	 * @param builder output.
 	 * @param message message usually with formatting delimiters for replacement.
@@ -32,6 +55,26 @@ public sealed interface LogMessageFormatter {
 	 * @param arg2 to use for replacement.
 	 */
 	void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2);
+
+	/**
+	 * Formats and appends the results, stopping early once {@code maxSize} characters
+	 * have been appended to {@code builder} (counted from {@code builder}'s length when
+	 * this call started).
+	 * @param builder output.
+	 * @param message message usually with formatting delimiters for replacement.
+	 * @param arg1 to use for replacement.
+	 * @param arg2 to use for replacement.
+	 * @param maxSize maximum number of characters this call may append to
+	 * {@code builder}, or a non-positive value for unbounded.
+	 * @apiNote see {@link #format(StringBuilder, String, Object, int)} for the fallback
+	 * vs early-exit distinction between formatters.
+	 */
+	default void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2,
+			int maxSize) {
+		int start = builder.length();
+		format(builder, message, arg1, arg2);
+		capAfter(builder, start, maxSize);
+	}
 
 	/**
 	 * Formats and appends the result.
@@ -53,6 +96,35 @@ public sealed interface LogMessageFormatter {
 	void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length);
 
 	/**
+	 * Formats and appends the result, stopping early once {@code maxSize} characters have
+	 * been appended to {@code builder} (counted from {@code builder}'s length when this
+	 * call started).
+	 * @param builder output.
+	 * @param message message usually with formatting delimiters for replacement.
+	 * @param args array of args.
+	 * @param length of args array which will be used even if args is larger.
+	 * @param maxSize maximum number of characters this call may append to
+	 * {@code builder}, or a non-positive value for unbounded.
+	 * @apiNote see {@link #format(StringBuilder, String, Object, int)} for the fallback
+	 * vs early-exit distinction between formatters.
+	 */
+	default void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length, int maxSize) {
+		int start = builder.length();
+		formatArray(builder, message, args, length);
+		capAfter(builder, start, maxSize);
+	}
+
+	/**
+	 * Truncates {@code builder} back to {@code start + maxSize} if it grew past that
+	 * while formatting, unless {@code maxSize} is non-positive (unbounded).
+	 */
+	private static void capAfter(StringBuilder builder, int start, int maxSize) {
+		if (maxSize > 0 && builder.length() - start > maxSize) {
+			builder.setLength(start + maxSize);
+		}
+	}
+
+	/**
 	 * Built-in message formatters.
 	 */
 	@CaseChanging
@@ -69,13 +141,30 @@ public sealed interface LogMessageFormatter {
 			}
 
 			@Override
+			public void format(StringBuilder builder, String message, @Nullable Object arg1, int maxSize) {
+				SLF4JMessageFormatter.format(builder, message, arg1, maxSize);
+			}
+
+			@Override
 			public void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2) {
 				SLF4JMessageFormatter.format(builder, message, arg1, arg2);
 			}
 
 			@Override
+			public void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2,
+					int maxSize) {
+				SLF4JMessageFormatter.format(builder, message, arg1, arg2, maxSize);
+			}
+
+			@Override
 			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length) {
 				SLF4JMessageFormatter.format(builder, message, args, length);
+			}
+
+			@Override
+			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length,
+					int maxSize) {
+				SLF4JMessageFormatter.format(builder, message, args, length, maxSize);
 			}
 		},
 		/**
@@ -140,36 +229,87 @@ final class SLF4JMessageFormatter {
 
 	private static final char ESCAPE_CHAR = '\\';
 
+	/**
+	 * Sentinel passed as the internal absolute {@code limit} to mean "unbounded" - not a
+	 * valid {@link StringBuilder#length()} value to target, so safe to distinguish from
+	 * every real (always {@code >= 0}) limit.
+	 */
+	private static final int UNBOUNDED = -1;
+
 	private SLF4JMessageFormatter() {
 	}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
 			final @Nullable Object arg1) {
-		format(sbuf, messagePattern, arg1, null, null, 1);
+		format(sbuf, messagePattern, arg1, null, null, 1, UNBOUNDED);
+	}
+
+	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
+			final @Nullable Object arg1, int maxSize) {
+		format(sbuf, messagePattern, arg1, null, null, 1, absoluteLimit(sbuf, maxSize));
 	}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
 			final @Nullable Object arg1, final @Nullable Object arg2) {
-		format(sbuf, messagePattern, arg1, arg2, null, 2);
+		format(sbuf, messagePattern, arg1, arg2, null, 2, UNBOUNDED);
+	}
+
+	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
+			final @Nullable Object arg1, final @Nullable Object arg2, int maxSize) {
+		format(sbuf, messagePattern, arg1, arg2, null, 2, absoluteLimit(sbuf, maxSize));
 	}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
 			final @Nullable Object @Nullable [] args, int length) {
+		formatArray(sbuf, messagePattern, args, length, UNBOUNDED);
+	}
+
+	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
+			final @Nullable Object @Nullable [] args, int length, int maxSize) {
+		formatArray(sbuf, messagePattern, args, length, absoluteLimit(sbuf, maxSize));
+	}
+
+	private static void formatArray(final StringBuilder sbuf, final @Nullable String messagePattern,
+			final @Nullable Object @Nullable [] args, int length, int limit) {
 		if (args == null || length == 0) {
-			format(sbuf, messagePattern, null, null, null, 0);
-			return;
+			format(sbuf, messagePattern, null, null, null, 0, limit);
 		}
 		else if (length == 1) {
-			format(sbuf, messagePattern, args[0], null, null, 1);
-			return;
+			format(sbuf, messagePattern, args[0], null, null, 1, limit);
 		}
 		else if (length == 2) {
-			format(sbuf, messagePattern, args[0], args[1], null, 2);
-			return;
+			format(sbuf, messagePattern, args[0], args[1], null, 2, limit);
 		}
 		else {
-			format(sbuf, messagePattern, null, null, args, length);
+			format(sbuf, messagePattern, null, null, args, length, limit);
 		}
+	}
+
+	/**
+	 * Converts a caller-supplied {@code maxSize} (max characters this call may append,
+	 * counted from {@code sbuf}'s length at the start of the call) into an absolute
+	 * target {@link StringBuilder#length()} to stop at, or {@link #UNBOUNDED}.
+	 */
+	private static int absoluteLimit(StringBuilder sbuf, int maxSize) {
+		return maxSize <= 0 ? UNBOUNDED : sbuf.length() + maxSize;
+	}
+
+	/**
+	 * If {@code sbuf} has reached or passed {@code limit}, truncates it to exactly
+	 * {@code limit} and reports that the caller should stop. A single call to
+	 * {@link #deeplyAppendParameter(StringBuilder, Object, IdentityHashMap)} can still
+	 * push {@code sbuf} arbitrarily far past {@code limit} in one step (an argument's own
+	 * {@code toString()} is not itself bounded) - this only guarantees the check runs
+	 * (and the loop stops) between segments/arguments, not that any single append is
+	 * capped mid-flight.
+	 * @return {@code true} if {@code sbuf} was capped and the caller should stop.
+	 */
+	private static boolean capped(StringBuilder sbuf, int limit) {
+		if (limit != UNBOUNDED && sbuf.length() >= limit) {
+			sbuf.setLength(limit);
+			return true;
+		}
+		return false;
 	}
 
 	private static void format(final StringBuilder sbuf, //
@@ -177,7 +317,8 @@ final class SLF4JMessageFormatter {
 			final @Nullable Object arg1, //
 			final @Nullable Object arg2, //
 			final @Nullable Object @Nullable [] args, //
-			final int argCount) {
+			final int argCount, //
+			final int limit) {
 
 		if (messagePattern == null) {
 			return;
@@ -185,6 +326,7 @@ final class SLF4JMessageFormatter {
 
 		if (argCount == 0) {
 			sbuf.append(messagePattern);
+			capped(sbuf, limit);
 			return;
 		}
 
@@ -199,11 +341,13 @@ final class SLF4JMessageFormatter {
 				// no more variables
 				if (i == 0) { // this is a simple string
 					sbuf.append(messagePattern);
+					capped(sbuf, limit);
 					return;
 				}
 				else { // add the tail string which contains no variables and return
 						// the result.
 					sbuf.append(messagePattern, i, messagePattern.length());
+					capped(sbuf, limit);
 					return;
 				}
 			}
@@ -213,6 +357,9 @@ final class SLF4JMessageFormatter {
 						L--; // DELIM_START was escaped, thus should not be incremented
 						sbuf.append(messagePattern, i, j - 1);
 						sbuf.append(DELIM_START);
+						if (capped(sbuf, limit)) {
+							return;
+						}
 						i = j + 1;
 					}
 					else {
@@ -222,6 +369,9 @@ final class SLF4JMessageFormatter {
 						sbuf.append(messagePattern, i, j - 1);
 						Object arg = resolveArg(L, arg1, arg2, args, argCount);
 						deeplyAppendParameter(sbuf, arg, null);
+						if (capped(sbuf, limit)) {
+							return;
+						}
 						i = j + 2;
 					}
 				}
@@ -230,12 +380,16 @@ final class SLF4JMessageFormatter {
 					sbuf.append(messagePattern, i, j);
 					Object arg = resolveArg(L, arg1, arg2, args, argCount);
 					deeplyAppendParameter(sbuf, arg, null);
+					if (capped(sbuf, limit)) {
+						return;
+					}
 					i = j + 2;
 				}
 			}
 		}
 		// append the characters following the last {} pair.
 		sbuf.append(messagePattern, i, messagePattern.length());
+		capped(sbuf, limit);
 	}
 
 	private static @Nullable Object resolveArg(int i, @Nullable Object arg1, @Nullable Object arg2,
