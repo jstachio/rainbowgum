@@ -216,6 +216,29 @@ unifying.
       starting, this shared depth/changeable-logger machinery should be extracted out
       of `rainbowgum-slf4j` into something a second facade implementation (JCL, and
       potentially others down the line) can reuse instead of re-deriving it.
+- [ ] **No message size limiting - `LogEvent#formattedMessage(StringBuilder)` appends
+      unbounded**: every `LogEvent` implementation (`OneArgLogEvent`, `TwoArgLogEvent`,
+      `ArrayArgLogEvent`, etc. in `LogEvent.java`) writes into the passed `StringBuilder`
+      via `LogMessageFormatter.format(...)` with no length check anywhere in the path.
+      This mostly seems like an encoder concern - a JSON/GELF-style encoder writing to an
+      external sink (a queue, a remote collector) could reasonably cap the *whole event*'s
+      size itself - but text encoders (`FormatterEncoder`'s `StringBuilderBuffer`/
+      `DirectByteBufferBuffer`) reuse a `StringBuilder` cached in a
+      `ThreadLocal<LogEncoder.Buffer>` (`LogAppender.java`) across events, only calling
+      `stringBuilder.setLength(0)` between them - which resets the *logical* length but
+      never shrinks the backing `char[]`. `StringBuilder` has no built-in max-capacity
+      concept, so one giant message (attacker-supplied or just a bug logging something
+      huge) permanently grows that thread's buffer, and on platform threads - a bounded,
+      long-lived, reused pool (e.g. Tomcat's request threads) unlike short-lived virtual
+      threads - that growth sticks around for the life of the thread, not just one
+      request. Actually bounding this isn't a one-line fix: it means threading a limit
+      through `formattedMessage`/`LogMessageFormatter.format` itself (truncating
+      mid-append, ideally without doing the full unbounded append first just to discard
+      it), not something that can be bolted on after the fact at the encoder/buffer
+      layer once the `StringBuilder` is already sized. Needs a real design pass before
+      1.0 - where the limit is configured, whether it's global or per-appender/encoder,
+      and what truncation should look like (hard cut vs. an indicator like Logback's
+      `...[truncated]`).
 - [ ] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
       `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
       buffer/lock strategies but are represented as three independent enum constants in
