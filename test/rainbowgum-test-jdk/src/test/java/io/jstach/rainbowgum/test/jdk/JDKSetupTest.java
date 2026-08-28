@@ -202,6 +202,44 @@ class JDKSetupTest {
 		});
 	}
 
+	/*
+	 * By default JUL's root level is only synced to rainbow gum's global default level,
+	 * not to any more specific per-package override - so a package configured more
+	 * verbose than the global default is silently dropped by JUL's own
+	 * Logger.isLoggable() gate before SystemLoggerQueueJULHandler.publish() (and its own
+	 * correct route.isEnabled() check) ever runs. logging.jul.root.level=ALL is the
+	 * documented escape hatch: it disables JUL's own gate entirely and lets rainbow gum's
+	 * router make the real decision.
+	 */
+	@Order(14)
+	@Test
+	void testJulRootLevelPropertyLetsMoreVerbosePackageOverrideThrough() throws InterruptedException {
+		doInLock(() -> {
+			String pkg = "root.level.pkg";
+
+			ListLogOutput droppedOutput = new ListLogOutput();
+			var droppedProps = LogProperties.MutableLogProperties.builder()
+				.build()
+				.put("logging.level." + pkg, "DEBUG");
+			try (var gum = JDKSetup.run(droppedOutput, Level.INFO, droppedProps)) {
+				Logger.getLogger(pkg).fine("hidden");
+			}
+			assertEquals("", droppedOutput.toString());
+
+			ListLogOutput visibleOutput = new ListLogOutput();
+			var visibleProps = LogProperties.MutableLogProperties.builder()
+				.build()
+				.put("logging.level." + pkg, "DEBUG")
+				.put(JULConfigurator.JUL_ROOT_LEVEL_PROPERTY, "ALL");
+			try (var gum = JDKSetup.run(visibleOutput, Level.INFO, visibleProps)) {
+				Logger.getLogger(pkg).fine("visible");
+			}
+			assertTrue(visibleOutput.toString().contains("visible"),
+					"logging.jul.root.level=ALL should let a more verbose per-package override reach rainbow gum's router: "
+							+ visibleOutput);
+		});
+	}
+
 	@Order(15)
 	@ParameterizedTest
 	@EnumSource(System.Logger.Level.class)
