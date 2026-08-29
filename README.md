@@ -37,9 +37,12 @@ The long term goal of Rainbow Gum is to be a logging framework **for all** with 
 * **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
 * **[Current released RainbowGum doc](https://jstach.io/doc/rainbowgum/current/apidocs)**
 
+> [!WARNING]
+> While this readme does contain some documentation the above is the preferred documentation and
+> more likely to be up to date and correct! The rest of this readme is mainly for ~~propaganda~~
+> marketing purposes.
+
 The doc is also on javadoc.io but is not aggregated like the above.
-The aggregated javadoc is the preferred documentation and the rest of this readme
-is mainly for ~~propaganda~~ marketing purposes.
 
 For previous releases:
 
