@@ -144,7 +144,7 @@ Currently Rainbow Gum does not provide support for:
   </li>
   <li>
     In GraalVM native and in some cases modular environment loading module/classpath resources is more complicated.
-    We do not want an OOB experience where it works in normal HotSpot but not in GraalVM native.
+    We do not want an out of the box experience where it works in normal HotSpot but not in GraalVM native.
   </li>
   <li>
     It increases the security surface and Rainbow Gum aims to have security and integrity by default.
@@ -446,7 +446,7 @@ logging.level.com.mycompany=INFO         # Ancestor to "com.mycompany.stuff"
 logging.level=ERROR
 }
 
-{@linkplain io.jstach.rainbowgum.LevelResolver#parseLevel(String) Parsing of levels from property values} allows SLF4J, JUL, and System.Logger format 
+{@linkplain io.jstach.rainbowgum.LevelResolver#parseLevel(String) Parsing of levels from property values} allows SLF4J, java.util.logging (JUL), and System.Logger format
 and case is ignored. However the logger name is case sensitive.
 
 <p>
@@ -749,8 +749,8 @@ The following sections cover the various encoders.
 
 {@link io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder} -
 
-The GELF JSON encoder follows the 
-<a href="https://go2docs.graylog.org/current/getting_in_log_data/gelf_format.html">GELF JSON specification</a>
+The <a href="https://go2docs.graylog.org/current/getting_in_log_data/gelf_format.html">Graylog Extended Log Format
+(GELF)</a> JSON encoder follows the GELF JSON specification linked above
 with translations of levels that are roughly similar to syslog. Notice that although the GELF specification does not
 require <a href="https://jsonlines.org/">JSON Lines</a> this encoder will keep each event on its own line unless
 <code>prettyPrint</code> is enabled.
@@ -936,7 +936,8 @@ logging.encoder.myappender.pattern=%msg%nopex
   <em>
     <a href="https://openjdk.org/jeps/8307341">Future versions of the JDK may require command line arguments</a>
     for using jars packaged with native libraries, which JAnsi is. Given that Rainbow Gum favors security we
-    strongly agree with the draft JEP - this is one more reason <code>AnsiSupport</code>'s pure-JDK approach (no
+    strongly agree with the draft JDK Enhancement Proposal (JEP) - this is one more reason
+    <code>AnsiSupport</code>'s pure-JDK approach (no
     native code, no reflection, no separate terminal library) is now the preferred path.
   </em>
 </p>
