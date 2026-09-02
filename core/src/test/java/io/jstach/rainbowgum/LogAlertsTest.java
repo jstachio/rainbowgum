@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
@@ -97,6 +98,55 @@ class LogAlertsTest {
 		var config = LogConfig.builder().build();
 		config.alerts().error(LogAlertsTest.class, "from config", new RuntimeException());
 		assertEquals(1, config.alerts().dump().size());
+	}
+
+	@Test
+	void listenerIsNotifiedSynchronouslyOnEachError() {
+		var alerts = LogAlerts.of();
+		List<String> seen = new ArrayList<>();
+		alerts.addListener(e -> seen.add(e.message()));
+
+		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
+		alerts.error(LogAlertsTest.class, "second", new RuntimeException());
+
+		assertEquals(List.of("first", "second"), seen);
+	}
+
+	@Test
+	void closingRegistrationStopsFurtherNotifications() {
+		var alerts = LogAlerts.of();
+		List<String> seen = new ArrayList<>();
+		var registration = alerts.addListener(e -> seen.add(e.message()));
+
+		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
+		try {
+			registration.close();
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		alerts.error(LogAlertsTest.class, "second", new RuntimeException());
+
+		assertEquals(List.of("first"), seen);
+	}
+
+	@Test
+	@SuppressWarnings("StringSplitter")
+	void aThrowingListenerDoesNotStopRecordingOrOtherListeners() {
+		var alerts = LogAlerts.of();
+		List<String> seen = new ArrayList<>();
+		alerts.addListener(e -> {
+			throw new RuntimeException("listener boom");
+		});
+		alerts.addListener(e -> seen.add(e.message()));
+
+		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
+
+		assertEquals(List.of("first"), seen);
+		assertEquals(1, alerts.dump().size());
+		String reported = outputStream.toString(StandardCharsets.UTF_8).split("\n")[0];
+		assertTrue(reported.contains("LogAlerts.Listener threw"),
+				() -> "expected listener failure to be reported, got: " + reported);
 	}
 
 }
