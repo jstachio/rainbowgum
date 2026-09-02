@@ -45,9 +45,12 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 
 	private final boolean prettyprint;
 
-	LogbackJsonEncoder(boolean prettyprint) {
+	private final int maxBufferSize;
+
+	LogbackJsonEncoder(boolean prettyprint, int maxBufferSize) {
 		super();
 		this.prettyprint = prettyprint;
+		this.maxBufferSize = maxBufferSize;
 	}
 
 	/**
@@ -68,17 +71,23 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 	 * Creates a Logback JSON encoder.
 	 * @param name property name prefix.
 	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
+	 * @param maxBufferSize maximum buffer size - a soft ceiling checked between events,
+	 * not a hard cap enforced on any single event (see
+	 * {@link LogEncoder.Buffer#isOversized()}). A negative value (the default) disables
+	 * this entirely.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
-	static LogbackJsonEncoder of(@LogConfigurable.KeyParameter String name, @Nullable Boolean prettyPrint) {
+	static LogbackJsonEncoder of(@LogConfigurable.KeyParameter String name, @Nullable Boolean prettyPrint,
+			@Nullable Integer maxBufferSize) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
-		return new LogbackJsonEncoder(prettyPrint);
+		int _maxBufferSize = maxBufferSize == null ? -1 : maxBufferSize;
+		return new LogbackJsonEncoder(prettyPrint, _maxBufferSize);
 	}
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE);
+		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE, maxBufferSize);
 	}
 
 	@Override

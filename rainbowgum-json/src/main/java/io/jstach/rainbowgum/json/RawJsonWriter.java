@@ -430,4 +430,23 @@ class RawJsonWriter {
 		position = 0;
 	}
 
+	/**
+	 * Current capacity of the backing byte array - not how much of it the last event
+	 * actually used (see {@link #size()} for that).
+	 * @return backing array length.
+	 */
+	final int capacity() {
+		return buffer.length;
+	}
+
+	/**
+	 * Reallocates the backing byte array to the given capacity, discarding its current
+	 * contents. Only meaningful right after {@link #reset()} - this does not preserve
+	 * {@code position} or copy any existing bytes.
+	 * @param capacity new backing array length.
+	 */
+	final void shrinkTo(int capacity) {
+		buffer = new byte[capacity];
+	}
+
 }

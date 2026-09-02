@@ -51,6 +51,32 @@ class RawJsonWriterTest {
 	}
 
 	@Test
+	void testCapacityMatchesInitialConstruction() {
+		var w = new RawJsonWriter(16);
+		assertEquals(16, w.capacity());
+	}
+
+	@Test
+	void testCapacityGrowsWithContent() {
+		var w = new RawJsonWriter(4);
+		w.writeString("a string long enough to force at least one enlargeOrFlush call");
+		assertTrue(w.capacity() > 4, "capacity must have grown past the tiny initial allocation");
+	}
+
+	@Test
+	void testShrinkToReplacesBackingArrayCapacity() {
+		var w = new RawJsonWriter(4);
+		w.writeString("a string long enough to force at least one enlargeOrFlush call");
+		w.reset();
+		w.shrinkTo(8);
+		assertEquals(8, w.capacity());
+		// the shrunk writer must still be fully usable afterward.
+		w.writeByte(RawJsonWriter.OBJECT_START);
+		w.writeByte(RawJsonWriter.OBJECT_END);
+		assertEquals("{}", toUtf8(w));
+	}
+
+	@Test
 	void testWriteStringFastPathNoEscaping() {
 		var w = new RawJsonWriter(16);
 		w.writeString("hello world");

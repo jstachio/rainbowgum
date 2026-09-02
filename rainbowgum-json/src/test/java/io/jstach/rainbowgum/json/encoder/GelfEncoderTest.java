@@ -131,6 +131,25 @@ class GelfEncoderTest {
 	}
 
 	/*
+	 * Confirms maxBufferSize threads all the way from GelfEncoderBuilder through to the
+	 * JsonBuffer's own isOversized() answer, the same way prettyPrint/host thread through
+	 * to actual encoding behavior elsewhere in this file.
+	 */
+	@Test
+	void testMaxBufferSizeThreadsThroughToBuffer() {
+		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
+		b.host("localhost");
+		b.maxBufferSize(20_000);
+		GelfEncoder encoder = b.build();
+
+		var buffer = encoder.buffer(WriteMethod.STRING);
+		LogEvent e = LogEvent.of(Level.INFO, "gelf", "x".repeat(30_000), KeyValues.of(), null);
+		encoder.encode(e, buffer);
+
+		assertTrue(buffer.isOversized());
+	}
+
+	/*
 	 * host is a required property with no default value, so GelfEncoderBuilder's field
 	 * starts out null - if build() is called directly (bypassing fromProperties())
 	 * without ever calling .host(...), Property.require() throws. Every other test in
