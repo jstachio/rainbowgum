@@ -15,13 +15,29 @@ import io.jstach.rainbowgum.LogOutput;
  */
 public final class JsonBuffer implements Buffer {
 
-	private final RawJsonWriter jsonWriter = new RawJsonWriter(1024 * 8);
+	/**
+	 * Default initial capacity of the raw JSON byte buffer, matching what this class has
+	 * always used - big enough that most events never need to grow it.
+	 */
+	public static final int DEFAULT_INITIAL_JSON_CAPACITY = 1024 * 8;
 
-	private final StringBuilder formattedMessageBuilder = new StringBuilder();
+	/**
+	 * Default initial capacity of {@link #getFormattedMessageBuilder()}. Bigger than
+	 * {@link StringBuilder}'s own default of 16 since most log messages exceed that
+	 * immediately, but still small relative to {@link #DEFAULT_INITIAL_JSON_CAPACITY}
+	 * since this buffer is just the formatted message, not the whole encoded event.
+	 */
+	public static final int DEFAULT_INITIAL_MESSAGE_CAPACITY = 128;
+
+	private final RawJsonWriter jsonWriter = new RawJsonWriter(DEFAULT_INITIAL_JSON_CAPACITY);
+
+	private final StringBuilder formattedMessageBuilder = new StringBuilder(DEFAULT_INITIAL_MESSAGE_CAPACITY);
 
 	private final boolean prettyPrint;
 
 	private final ExtendedFieldPrefix extendedFieldPrefix;
+
+	private final int maxBufferSize;
 
 	/**
 	 * A flag to indicate this field is extended which means it will be prefixed with
@@ -38,11 +54,16 @@ public final class JsonBuffer implements Buffer {
 	 * Create a JSON buffer.
 	 * @param prettyPrint whether or not to pretty print the JSON.
 	 * @param extendedFieldPrefix prefix for extended fields.
+	 * @param maxBufferSize a negative value disables {@link #isOversized()} entirely.
+	 * Applied, for simplicity, as a single combined threshold across both the raw JSON
+	 * byte buffer and {@link #getFormattedMessageBuilder()} rather than tracked
+	 * separately per buffer.
 	 */
-	public JsonBuffer(boolean prettyPrint, ExtendedFieldPrefix extendedFieldPrefix) {
+	public JsonBuffer(boolean prettyPrint, ExtendedFieldPrefix extendedFieldPrefix, int maxBufferSize) {
 		super();
 		this.prettyPrint = prettyPrint;
 		this.extendedFieldPrefix = extendedFieldPrefix;
+		this.maxBufferSize = maxBufferSize;
 	}
 
 	@Override
@@ -55,6 +76,15 @@ public final class JsonBuffer implements Buffer {
 	public void clear() {
 		jsonWriter.reset();
 		formattedMessageBuilder.setLength(0);
+		if (isOversized()) {
+			jsonWriter.shrinkTo(DEFAULT_INITIAL_JSON_CAPACITY);
+			formattedMessageBuilder.trimToSize();
+		}
+	}
+
+	@Override
+	public boolean isOversized() {
+		return maxBufferSize >= 0 && (jsonWriter.capacity() + formattedMessageBuilder.capacity()) > maxBufferSize;
 	}
 
 	/**

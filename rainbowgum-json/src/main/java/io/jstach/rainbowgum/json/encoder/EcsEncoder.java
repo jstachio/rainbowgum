@@ -65,10 +65,13 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final boolean prettyprint;
 
+	private final int maxBufferSize;
+
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
 	EcsEncoder(@Nullable String serviceName, @Nullable String serviceVersion, @Nullable String serviceEnvironment,
-			@Nullable String serviceNodeName, @Nullable String eventDataset, boolean structured, boolean prettyprint) {
+			@Nullable String serviceNodeName, @Nullable String eventDataset, boolean structured, boolean prettyprint,
+			int maxBufferSize) {
 		super();
 		this.serviceName = serviceName;
 		this.serviceVersion = serviceVersion;
@@ -77,6 +80,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		this.eventDataset = eventDataset;
 		this.structured = structured;
 		this.prettyprint = prettyprint;
+		this.maxBufferSize = maxBufferSize;
 	}
 
 	/**
@@ -113,21 +117,27 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * @param structured <code>true</code> nests fields as JSON objects (Spring Boot's ECS
 	 * shape) instead of flattened dotted field names, default is false.
 	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
+	 * @param maxBufferSize maximum buffer size - a soft ceiling checked between events,
+	 * not a hard cap enforced on any single event (see
+	 * {@link LogEncoder.Buffer#isOversized()}). A negative value (the default) disables
+	 * this entirely.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	static EcsEncoder of(@LogConfigurable.KeyParameter String name, @Nullable String serviceName,
 			@Nullable String serviceVersion, @Nullable String serviceEnvironment, @Nullable String serviceNodeName,
-			@Nullable String eventDataset, @Nullable Boolean structured, @Nullable Boolean prettyPrint) {
+			@Nullable String eventDataset, @Nullable Boolean structured, @Nullable Boolean prettyPrint,
+			@Nullable Integer maxBufferSize) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		structured = structured == null ? false : structured;
+		int _maxBufferSize = maxBufferSize == null ? -1 : maxBufferSize;
 		return new EcsEncoder(serviceName, serviceVersion, serviceEnvironment, serviceNodeName, eventDataset,
-				structured, prettyPrint);
+				structured, prettyPrint, _maxBufferSize);
 	}
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.AT);
+		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.AT, maxBufferSize);
 	}
 
 	@Override

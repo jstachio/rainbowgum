@@ -22,6 +22,21 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 class LogbackJsonEncoderTest {
 
 	/*
+	 * Confirms maxBufferSize threads all the way from LogbackJsonEncoderBuilder through
+	 * to the JsonBuffer's own isOversized() answer.
+	 */
+	@Test
+	void testMaxBufferSizeThreadsThroughToBuffer() {
+		var encoder = new LogbackJsonEncoderBuilder("logback").maxBufferSize(20_000).build();
+
+		var buffer = encoder.buffer(WriteMethod.STRING);
+		LogEvent e = LogEvent.of(Level.INFO, "logback", "x".repeat(30_000), KeyValues.of(), null);
+		encoder.encode(e, buffer);
+
+		assertTrue(buffer.isOversized());
+	}
+
+	/*
 	 * Every other test in this file builds LogbackJsonEncoder directly (either via
 	 * LogbackJsonEncoderBuilder or LogbackJsonEncoder.of(...)), bypassing
 	 * LogbackJsonEncoderConfigurator (the ServiceLoader-registered URI-scheme resolution

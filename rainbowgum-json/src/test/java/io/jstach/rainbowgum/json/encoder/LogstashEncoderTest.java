@@ -23,6 +23,21 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogstashEncoderTest {
 
+	/*
+	 * Confirms maxBufferSize threads all the way from LogstashEncoderBuilder through to
+	 * the JsonBuffer's own isOversized() answer.
+	 */
+	@Test
+	void testMaxBufferSizeThreadsThroughToBuffer() {
+		var encoder = new LogstashEncoderBuilder("logstash").maxBufferSize(20_000).build();
+
+		var buffer = encoder.buffer(WriteMethod.STRING);
+		LogEvent e = LogEvent.of(Level.INFO, "logstash", "x".repeat(30_000), KeyValues.of(), null);
+		encoder.encode(e, buffer);
+
+		assertTrue(buffer.isOversized());
+	}
+
 	@Test
 	void testSimpleMessage() {
 		var encoder = new LogstashEncoderBuilder("logstash").zoneId(java.time.ZoneOffset.UTC).build();

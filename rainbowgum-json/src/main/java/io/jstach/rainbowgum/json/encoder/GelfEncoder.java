@@ -44,18 +44,21 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	/**
 	 * Default number of fractional second digits the <code>_time</code> field is rendered
-	 * with, see {@link #of(String, String, Map, Boolean, Integer)}.
+	 * with, see {@link #of(String, String, Map, Boolean, Integer, Integer)}.
 	 */
 	public static final int DEFAULT_TIME_FRACTIONAL_DIGITS = 3;
 
 	private final TimestampFormatter timeFormatter;
 
-	GelfEncoder(String host, KeyValues headers, boolean prettyprint, int timeFractionalDigits) {
+	private final int maxBufferSize;
+
+	GelfEncoder(String host, KeyValues headers, boolean prettyprint, int timeFractionalDigits, int maxBufferSize) {
 		super();
 		this.host = host;
 		this.headers = headers;
 		this.prettyprint = prettyprint;
 		this.timeFormatter = timeFormatter(timeFractionalDigits);
+		this.maxBufferSize = maxBufferSize;
 	}
 
 	/*
@@ -108,24 +111,29 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * nanosecond resolution) but cannot be cached the way millisecond-or-coarser
 	 * precision can, since it can legitimately differ between two events in the same
 	 * millisecond.
+	 * @param maxBufferSize maximum buffer size - a soft ceiling checked between events,
+	 * not a hard cap enforced on any single event (see
+	 * {@link LogEncoder.Buffer#isOversized()}). A negative value (the default) disables
+	 * this entirely.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	static GelfEncoder of(@LogConfigurable.KeyParameter String name, String host, //
 			@Nullable Map<String, String> headers, //
-			@Nullable Boolean prettyPrint, @Nullable Integer timeFractionalDigits) {
+			@Nullable Boolean prettyPrint, @Nullable Integer timeFractionalDigits, @Nullable Integer maxBufferSize) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		host = Objects.requireNonNull(host);
 		var _headers = KeyValues.of(headers == null ? Map.of() : headers);
 		int _timeFractionalDigits = timeFractionalDigits == null ? DEFAULT_TIME_FRACTIONAL_DIGITS
 				: timeFractionalDigits;
+		int _maxBufferSize = maxBufferSize == null ? -1 : maxBufferSize;
 
-		return new GelfEncoder(host, _headers, prettyPrint, _timeFractionalDigits);
+		return new GelfEncoder(host, _headers, prettyPrint, _timeFractionalDigits, _maxBufferSize);
 	}
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE);
+		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE, maxBufferSize);
 	}
 
 	@Override

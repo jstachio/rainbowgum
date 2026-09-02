@@ -50,11 +50,14 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 
 	private final DateTimeFormatter timeFormatter;
 
-	LogstashEncoder(ZoneId zoneId, boolean prettyprint) {
+	private final int maxBufferSize;
+
+	LogstashEncoder(ZoneId zoneId, boolean prettyprint, int maxBufferSize) {
 		super();
 		this.zoneId = zoneId;
 		this.prettyprint = prettyprint;
 		this.timeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(zoneId);
+		this.maxBufferSize = maxBufferSize;
 	}
 
 	/**
@@ -85,14 +88,20 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	 * @param zoneId zone used for <code>@timestamp</code>, defaults to the system default
 	 * zone.
 	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
+	 * @param maxBufferSize maximum buffer size - a soft ceiling checked between events,
+	 * not a hard cap enforced on any single event (see
+	 * {@link LogEncoder.Buffer#isOversized()}). A negative value (the default) disables
+	 * this entirely.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	static LogstashEncoder of(@LogConfigurable.KeyParameter String name,
-			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, @Nullable Boolean prettyPrint) {
+			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, @Nullable Boolean prettyPrint,
+			@Nullable Integer maxBufferSize) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
 		zoneId = zoneId == null ? ZoneId.systemDefault() : zoneId;
-		return new LogstashEncoder(zoneId, prettyPrint);
+		int _maxBufferSize = maxBufferSize == null ? -1 : maxBufferSize;
+		return new LogstashEncoder(zoneId, prettyPrint, _maxBufferSize);
 	}
 
 	static ZoneId convertZoneId(@Nullable String zoneId) {
@@ -101,7 +110,7 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.AT);
+		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.AT, maxBufferSize);
 	}
 
 	@Override

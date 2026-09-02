@@ -26,6 +26,23 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 
 class EcsEncoderTest {
 
+	/*
+	 * Confirms maxBufferSize threads all the way from EcsEncoderBuilder through to the
+	 * JsonBuffer's own isOversized() answer.
+	 */
+	@Test
+	void testMaxBufferSizeThreadsThroughToBuffer() {
+		EcsEncoderBuilder b = new EcsEncoderBuilder("ecs");
+		b.maxBufferSize(20_000);
+		EcsEncoder encoder = b.build();
+
+		var buffer = encoder.buffer(WriteMethod.STRING);
+		LogEvent e = LogEvent.of(Level.INFO, "ecs", "x".repeat(30_000), KeyValues.of(), null);
+		encoder.encode(e, buffer);
+
+		assertTrue(buffer.isOversized());
+	}
+
 	@Test
 	void testBuilder() {
 		EcsEncoderBuilder b = new EcsEncoderBuilder("ecs");
