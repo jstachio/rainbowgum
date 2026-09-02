@@ -12,10 +12,23 @@ The old design (`LogResponse.Status`, one `status()` snapshot per component) is 
 replaced by **two separate pushed systems**, not a single unified status API:
 
 - An **alerts** system - event-driven, for the "this just broke" / "this got a little
-  worse" case `MetaLog`'s push-style error logging already covers informally. This is
-  the direction `feature/log-status-manager` (currently on hold, not merged) was
-  headed with `LogStatusReporter`, a bounded drop-oldest ring buffer of `StatusEvent`s
-  on `LogConfig`.
+  worse" case `MetaLog`'s push-style error logging used to only cover informally
+  (stderr, no history). **First cut landed on `feature/log-alerts` (not yet merged):**
+  `LogAlerts`, obtained per-instance via `LogConfig#alerts()` - a bounded drop-oldest
+  ring buffer (`dump()`/`stats()`/`clear()`) plus `addListener(Listener)` for push
+  subscribers (metrics bridges, ops/paging integrations), superseding the earlier
+  on-hold `feature/log-status-manager`/`LogStatusReporter` direction. `MetaLog` itself
+  is now package-private and forwards to the bound `RainbowGum`'s `LogAlerts` when one
+  exists, falling back to its old direct-stderr behavior otherwise. Deliberately
+  **error-only for now** (every entry is constructed at `Level.ERROR`) - both Log4j2's
+  `StatusLogger` and Logback's `StatusManager` carry the full level range (INFO/WARN/
+  ERROR), so widening `LogAlerts` the same way (using `System.Logger.Level` directly,
+  plus possibly some sort of small `Component`/category enum with a parent interface
+  so an alert can say *what kind of thing* broke, not just its level) is the planned
+  next step - **but stay disciplined about scope**: that's still just a tagged event
+  ring buffer, not an invitation to grow a full metrics system. Counters/gauges (queue
+  depth, buffer-resize counts, dropped-event counts) belong to the separate metrics
+  system below, not to `LogAlerts`.
 - A **metrics** system - numeric/gauge-style data (queue depth vs capacity, dropped
   event counts, etc.) that a snapshot-per-component `status()` call was a poor fit for
   in the first place.
@@ -30,25 +43,28 @@ scaffolding waiting on whichever of the two new systems replaces it.
 
 To land before 1.0:
 
-- [ ] Design the alerts system: finish or restart `feature/log-status-manager`'s
-      `LogStatusReporter` approach (bounded ring buffer bridging `MetaLog`'s push-style
-      errors), decide bootstrap scope (only `BlockingQueueAsyncLogPublisher` and
-      `DisruptorLogPublisher` routed through `statusReporter()` in that branch -
-      `LogAppender`'s reentry diagnostic (`AbstractLogAppender.shouldDropForReentry`'s
-      `MetaLog.error(...)` call on `REENTRY_LOG`), `ServiceRegistry`, and external
-      modules like the RabbitMQ output and `RainbowGumSystemLoggerFinder` still only
-      ever reached stderr), and expose a real pull/subscribe API for consumers (health
-      checks, admin endpoints) instead of a separate, undiscoverable thing bolted onto
-      `LogOutputRegistry.status()`.
+- [x] Design the alerts system: done, see `LogAlerts` on `feature/log-alerts` above.
+      Bootstrap scope actually landed: `FileChannelOutput`, `BlockingQueueAsyncLogPublisher`,
+      `DisruptorLogPublisher`, and `RainbowGumSystemLoggerFinder` (a Spring-independent
+      module) now capture `config.alerts()` at their existing `start(LogConfig)`/
+      lifecycle touchpoint instead of calling `MetaLog` directly. Deliberately left on
+      `MetaLog` (in-package, judged genuinely bootstrap-adjacent - no live config to
+      prefer, or premature to trust one): `ServiceRegistry.close()`, `LogRouter`'s
+      `QueueEventsRouter` (the pre-init event queue), and `LogAppender`'s reentry-lock
+      diagnostic. (The RabbitMQ output mentioned in an earlier draft of this item no
+      longer exists - that module was removed.)
 - [ ] Design the metrics system: needs its own home for queue-depth-style gauges now
       that `QueueStatus` is gone - not necessarily reusing `LogResponse.Status` at all,
       since that type was built around single-snapshot health rather than metrics.
-- [ ] Sanity check the alerts ring buffer's default capacity (currently 250 in the
-      on-hold branch, via `logging.global.status.capacity`) against a real consumer
+- [ ] Sanity check `LogAlerts.DEFAULT_CAPACITY` (currently 100) against a real consumer
       instead of a guess.
 - [ ] Revisit whether coalescing repeated identical alerts (a stuck queue dropping
-      every event) is needed - explicitly deferred out of the on-hold branch's first
-      pass.
+      every event) is needed - not addressed by the first `LogAlerts` cut.
+- [ ] `LogAlerts` currently has no listener-driven consumer of its own yet (the
+      `addListener` hook landed on `feature/log-alerts` but nothing calls it) - a buffer
+      resize/soft-limit-hit counter (see the soft-limiting `maxBufferSize` work on
+      `LogEncoder`/`JsonBuffer`) was floated as the first real candidate, once WARN/INFO
+      widening (above) makes a non-error signal like that appropriate.
 - [ ] A third, still-unaddressed facet the old `status()` API used to partly cover:
       a **static configuration report** - not alerts (event-driven) or metrics
       (gauges), just "what actually got wired up." With `REUSE_BUFFER`/
@@ -239,6 +255,68 @@ unifying.
       1.0 - where the limit is configured, whether it's global or per-appender/encoder,
       and what truncation should look like (hard cut vs. an indicator like Logback's
       `...[truncated]`).
+- [ ] **Draft GitHub issue for spring-projects/spring-boot: `LoggingSystem` has no
+      way to signal its own health, only logger level state.** Not filed yet - draft
+      below, written to match their issue template ("describe the problem you're
+      solving", no separate enhancement template, no Discussions tab so it goes in
+      as a normal issue). Checked prior art first: #43384 → #43575 → #43822 → #43931
+      already wired a `SystemStatusListener` (`OnConsoleStatusListener`) so Logback's
+      own internal status reliably reaches the console - genuine progress, but
+      Logback-only and console-only (nothing retained, nothing queryable via
+      `LoggingSystem` or Actuator). That gap is what this targets. Doubles as a
+      natural way to put RainbowGum in front of the Spring Boot maintainers, since
+      the "related prior art" section below is us.
+
+      > **Title:** No way to query/observe internal logging system health (only
+      > console output via #43575/#43931)
+      >
+      > **Problem**
+      >
+      > `LoggingSystem` (and the Actuator `LoggersEndpoint` built on top of it) only
+      > exposes *logger level* state - `getLoggerConfigurations()`/
+      > `getLoggerConfiguration()`/`setLogLevel()`. There's no way, at runtime or via
+      > Actuator, to find out whether the logging system itself is healthy: did an
+      > appender fail to write, did a rolling policy break, did an async queue start
+      > dropping events. If you depend on log delivery for anything (audit logging,
+      > log shipping to a collector, compliance), that's currently a blind spot - the
+      > only signal is whatever got printed to stderr at the moment it happened, and
+      > only if someone happened to be watching.
+      >
+      > #43384 → #43575 → #43822 → #43931 already made real progress here for Logback
+      > specifically, by wiring a `SystemStatusListener` (`OnConsoleStatusListener`)
+      > so Logback's own internal status events reliably reach the console. That's a
+      > genuine improvement, but it's:
+      > - Logback-only - Log4j2 has an equivalent mechanism (`StatusLogger`,
+      >   `ErrorHandler`) that isn't wired up the same way, and other `LoggingSystem`
+      >   implementations have no equivalent at all.
+      > - Console-only - nothing is retained after the fact, and nothing is queryable
+      >   through `LoggingSystem` or Actuator. If you weren't tailing stdout at the
+      >   exact moment, the information is gone.
+      >
+      > **Proposal (open to whatever shape maintainers prefer)**
+      >
+      > Could `LoggingSystem` grow a small, optional extension point for this -
+      > something like a bounded, recent history of internal logging errors
+      > (level/message/throwable/timestamp), default-implemented as empty so it's
+      > non-breaking? Each implementation could back it however fits its underlying
+      > framework (Logback's `StatusManager`, Log4j2's `StatusLogger`, etc.), and
+      > Actuator's `LoggersEndpoint` (or a small companion endpoint) could then expose
+      > it read-only, the same way it already exposes level configuration.
+      >
+      > **Related prior art from outside Spring Boot**
+      >
+      > For context: I maintain RainbowGum (a small SLF4J-compatible logging
+      > framework, github.com/jstachio/rainbowgum, with its own `LoggingSystem`
+      > integration for Spring Boot 3/4) and ran into exactly this gap building that
+      > integration. We ended up adding `LogAlerts` - an instance-scoped (not static)
+      > interface with a small ring buffer (`dump()`/`stats()`) plus listener
+      > registration, obtained from our own config object - explicitly modeled after
+      > comparing Logback's `StatusManager` (capped history + listener support) and
+      > Log4j2's `StatusLogger` (which actually deprecated its own pull-based history
+      > API in 2.23 in favor of listener registration). Happy to share more detail or
+      > help prototype if there's interest in something like this for `LoggingSystem`
+      > itself.
+
 - [ ] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
       `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
       buffer/lock strategies but are represented as three independent enum constants in
