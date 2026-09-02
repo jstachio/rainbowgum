@@ -8,7 +8,6 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter;
-import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.LogProperty.Property;
@@ -98,7 +97,14 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 			// We have to do this because it because very difficult
 			// to determine why the System Logging fails as it does not even print the
 			// exception.
-			MetaLog.error(getClass(), "Failed to create System.LoggerFinder", e);
+			var gum = RainbowGum.getOrNull();
+			if (gum != null) {
+				gum.config().alerts().error(getClass(), "Failed to create System.LoggerFinder", e);
+			}
+			else {
+				System.err.println("[ERROR] - RAINBOW_GUM Failed to create System.LoggerFinder");
+				e.printStackTrace();
+			}
 			throw e;
 		}
 	}

@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
@@ -26,7 +27,6 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.LogResponse.Status;
-import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
 
@@ -263,10 +263,17 @@ class FileChannelOutput implements FileOutput {
 	 */
 	private final AtomicBoolean closed = new AtomicBoolean();
 
+	private volatile LogAlerts alerts = LogAlerts.of();
+
 	public FileChannelOutput(URI uri, FileChannel channel) {
 		super();
 		this.uri = uri;
 		this.channel = channel;
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		this.alerts = config.alerts();
 	}
 
 	@Override
@@ -301,7 +308,7 @@ class FileChannelOutput implements FileOutput {
 
 			}
 			catch (IOException e) {
-				MetaLog.error(FileChannelOutput.class, e);
+				alerts.error(FileChannelOutput.class, e);
 			}
 			finally {
 				if (fileLock != null && fileLock.isValid()) {

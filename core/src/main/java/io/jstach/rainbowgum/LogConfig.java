@@ -81,6 +81,13 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	public ServiceRegistry serviceRegistry();
 
 	/**
+	 * Alerts about problems with the logging system itself (as opposed to application
+	 * logging routed through the {@link LogRouter}).
+	 * @return alerts.
+	 */
+	public LogAlerts alerts();
+
+	/**
 	 * Mixin for config support.
 	 */
 	interface ConfigSupport extends LogProperty.PropertySupport {
@@ -419,6 +426,8 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogPublisherRegistry publisherRegistry;
 
+	private final LogAlerts alerts;
+
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver) {
 		super();
 		this.registry = registry;
@@ -434,6 +443,7 @@ final class DefaultLogConfig implements LogConfig {
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
+		this.alerts = LogAlerts.of();
 	}
 
 	/*
@@ -500,6 +510,11 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogPublisherRegistry publisherRegistry() {
 		return this.publisherRegistry;
+	}
+
+	@Override
+	public LogAlerts alerts() {
+		return this.alerts;
 	}
 
 }
