@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -76,6 +77,40 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	public Stats stats();
 
 	/**
+	 * Registers a listener that is notified synchronously, in addition to the alert being
+	 * recorded in the ring buffer, every time {@link #error(LogEvent)} is called.
+	 * <p>
+	 * <strong>Listeners are held with a normal (strong) reference and are not
+	 * automatically removed.</strong> This is deliberate: alert listeners are expected to
+	 * be few and long lived - typically registered once (e.g. a metrics bridge or an
+	 * ops/paging integration) for as long as the owning {@link LogConfig} is - rather
+	 * than one per short lived object. A weak reference would risk silently dropping a
+	 * listener (a lambda with no other strong reference could be collected almost
+	 * immediately) which is the wrong failure mode for something whose entire job is not
+	 * losing alerts. Call {@link AutoCloseable#close()} on the returned registration to
+	 * unregister deterministically once the caller's own lifecycle ends.
+	 * @param listener listener to register.
+	 * @return registration; {@link AutoCloseable#close()} unregisters the listener.
+	 */
+	public AutoCloseable addListener(Listener listener);
+
+	/**
+	 * Notified of alerts as they happen. See {@link #addListener(Listener)}.
+	 */
+	@FunctionalInterface
+	interface Listener {
+
+		/**
+		 * Called synchronously every time an alert is recorded. Should not throw -
+		 * exceptions are caught and reported separately so a broken listener cannot
+		 * disrupt alert recording or other listeners.
+		 * @param event the alert.
+		 */
+		void onAlert(LogEvent event);
+
+	}
+
+	/**
 	 * Creates alerts backed by a ring buffer of the {@link #DEFAULT_CAPACITY default
 	 * capacity}.
 	 * @return alerts.
@@ -119,6 +154,8 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	private final ReentrantLock lock = new ReentrantLock();
 
+	private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
+
 	DefaultLogAlerts(int capacity) {
 		if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity should be greater than 0");
@@ -144,7 +181,22 @@ final class DefaultLogAlerts implements LogAlerts {
 		finally {
 			lock.unlock();
 		}
+		for (var listener : listeners) {
+			try {
+				listener.onAlert(frozen);
+			}
+			catch (Exception e) {
+				FailsafeAppender.INSTANCE
+					.log(LogEvent.of(Level.ERROR, DefaultLogAlerts.class.getName(), "LogAlerts.Listener threw", e));
+			}
+		}
 		FailsafeAppender.INSTANCE.log(frozen);
+	}
+
+	@Override
+	public AutoCloseable addListener(Listener listener) {
+		listeners.add(listener);
+		return () -> listeners.remove(listener);
 	}
 
 	@Override
