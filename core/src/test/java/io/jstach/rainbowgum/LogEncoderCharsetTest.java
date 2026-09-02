@@ -16,9 +16,10 @@ import io.jstach.rainbowgum.LogOutput.ContentType.DefaultContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 
 /*
- * LogEncoder.of(LogFormatter, Charset) - verified with raw captured bytes rather than
- * ListLogOutput (whose own write(byte[]...) overload always decodes as UTF-8 for
- * storage, which would defeat a test trying to confirm a *different* charset was used).
+ * LogEncoder.builder(LogFormatter).charset(...)/.contentType(...) - verified with raw
+ * captured bytes rather than ListLogOutput (whose own write(byte[]...) overload always
+ * decodes as UTF-8 for storage, which would defeat a test trying to confirm a
+ * *different* charset was used).
  */
 class LogEncoderCharsetTest {
 
@@ -65,7 +66,8 @@ class LogEncoderCharsetTest {
 		var contentType = new DefaultContentType("text/csv", StandardCharsets.ISO_8859_1);
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config)
-			.route(r -> r.appender("list", a -> a.output(output).encoder(LogEncoder.of(FORMATTER, contentType))))
+			.route(r -> r.appender("list",
+					a -> a.output(output).encoder(LogEncoder.builder(FORMATTER).contentType(contentType).build())))
 			.build();
 		try (var g = gum.start()) {
 			g.log(event());
@@ -80,7 +82,8 @@ class LogEncoderCharsetTest {
 		var contentType = new DefaultContentType("text/csv", null);
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config)
-			.route(r -> r.appender("list", a -> a.output(output).encoder(LogEncoder.of(FORMATTER, contentType))))
+			.route(r -> r.appender("list",
+					a -> a.output(output).encoder(LogEncoder.builder(FORMATTER).contentType(contentType).build())))
 			.build();
 		try (var g = gum.start()) {
 			g.log(event());
@@ -102,7 +105,8 @@ class LogEncoderCharsetTest {
 	private static void encodeInto(CapturingOutput output, java.nio.charset.Charset charset) {
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config)
-			.route(r -> r.appender("list", a -> a.output(output).encoder(LogEncoder.of(FORMATTER, charset))))
+			.route(r -> r.appender("list",
+					a -> a.output(output).encoder(LogEncoder.builder(FORMATTER).charset(charset).build())))
 			.build();
 		try (var g = gum.start()) {
 			g.log(event());

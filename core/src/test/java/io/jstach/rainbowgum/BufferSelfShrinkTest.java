@@ -42,7 +42,7 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void stringBuilderBufferShrinksAfterOversizedClear() {
-		LogEncoder encoder = LogEncoder.of(FORMATTER, StandardCharsets.UTF_8, 100);
+		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(100).build();
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
 		encoder.encode(event("x".repeat(2000)), buffer);
@@ -57,7 +57,7 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void stringBuilderBufferUnderThresholdIsLeftAlone() {
-		LogEncoder encoder = LogEncoder.of(FORMATTER, StandardCharsets.UTF_8, 100_000);
+		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(100_000).build();
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
 		encoder.encode(event("small"), buffer);
@@ -78,7 +78,7 @@ class BufferSelfShrinkTest {
 	 */
 	@Test
 	void directByteBufferBufferShrinksBothStoresAfterOversizedClear() {
-		LogEncoder encoder = LogEncoder.of(FORMATTER, StandardCharsets.UTF_8, 10_000);
+		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(10_000).build();
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -104,7 +104,7 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void directByteBufferBufferUnderThresholdIsLeftAlone() {
-		LogEncoder encoder = LogEncoder.of(FORMATTER, StandardCharsets.UTF_8, 100_000);
+		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(100_000).build();
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -137,7 +137,7 @@ class BufferSelfShrinkTest {
 	 */
 	@Test
 	void batchAppendPathAlsoShrinksOversizedBufferBetweenEventsInTheSameBatch() {
-		LogEncoder encoder = LogEncoder.of(FORMATTER, StandardCharsets.UTF_8, 10_000);
+		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(10_000).build();
 		var output = new CapturingOutput();
 		var appender = new LockThreadLocalBufferLogAppender("test", output, encoder, EnumSet.noneOf(AppenderFlag.class),
 				new ReentrantLock());

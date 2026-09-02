@@ -147,9 +147,9 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 		 * {@link StandardContentType#TEXT_PLAIN} because UTF-8 is standard enough on
 		 * modern Java (e.g. {@code String#getBytes()}'s no-charset overload) to treat as
 		 * the assumed default rather than "unspecified" - an encoder actually configured
-		 * with a different charset (see
-		 * {@link LogEncoder#of(LogFormatter, java.nio.charset.Charset)}) reports a
-		 * {@link DefaultContentType} instead, not {@link StandardContentType#TEXT_PLAIN}.
+		 * with a different charset (see {@link LogEncoder#builder(LogFormatter)}) reports
+		 * a {@link DefaultContentType} instead, not
+		 * {@link StandardContentType#TEXT_PLAIN}.
 		 * @return charset or <code>null</code> if not fixed/known.
 		 */
 		@Nullable
