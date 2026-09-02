@@ -119,7 +119,7 @@ public interface LogEncoder {
 
 		private @Nullable ContentType contentType;
 
-		private int maxSize = -1;
+		private int maxBufferSize = -1;
 
 		private int initialBufferSize = DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY;
 
@@ -161,17 +161,22 @@ public interface LogEncoder {
 		}
 
 		/**
-		 * Configures a maximum buffer size - see {@link Buffer#isOversized()}. This, like
-		 * charset, is a property of the encoder/buffer, not of whatever appender ends up
-		 * reusing the buffer - an appender that reuses a buffer across events (e.g. a
-		 * {@code ThreadLocal}-cached one) simply asks the buffer whether it has become
-		 * oversized and discards/replaces it if so; it has no threshold of its own.
-		 * @param maxSize a negative value disables {@link Buffer#isOversized()} entirely
-		 * (the default).
+		 * Configures a maximum buffer size - see {@link Buffer#isOversized()}. This is a
+		 * <strong>soft ceiling, not a hard cap</strong>: a single event can still grow
+		 * the buffer past this size while it is being encoded (nothing here truncates or
+		 * rejects an oversized event), it just means the buffer's backing storage gets
+		 * shrunk back down afterward instead of being kept at its grown size indefinitely
+		 * - a quota that gets reclaimed after the fact, not enforced during the write.
+		 * This, like charset, is a property of the encoder/buffer itself, not of whatever
+		 * ends up reusing the buffer (e.g. an appender's {@code ThreadLocal}-cached one)
+		 * - the buffer decides for itself, inside its own {@link Buffer#clear()}, whether
+		 * to shrink.
+		 * @param maxBufferSize a negative value disables {@link Buffer#isOversized()}
+		 * entirely (the default).
 		 * @return this.
 		 */
-		public Builder maxSize(int maxSize) {
-			this.maxSize = maxSize;
+		public Builder maxBufferSize(int maxBufferSize) {
+			this.maxBufferSize = maxBufferSize;
 			return this;
 		}
 
@@ -209,7 +214,7 @@ public interface LogEncoder {
 			if (ct == null) {
 				ct = ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), c);
 			}
-			return new FormatterEncoder(formatter, c, ct, maxSize, initialBufferSize);
+			return new FormatterEncoder(formatter, c, ct, maxBufferSize, initialBufferSize);
 		}
 
 	}
@@ -298,8 +303,11 @@ public interface LogEncoder {
 		 * capacity the last event actually used) that its backing storage is worth
 		 * shrinking back down rather than kept at its grown size indefinitely - reused
 		 * buffers only grow on their own, they never shrink back down without deliberate
-		 * help. Built-in implementations consult this themselves inside {@link #clear()}
-		 * to decide whether to shrink their own backing storage in place (e.g.
+		 * help. This is a soft ceiling checked between events, not a hard cap enforced
+		 * during one: nothing here stops a single event from growing the buffer past
+		 * whatever threshold it was configured with while that event is being encoded.
+		 * Built-in implementations consult this themselves inside {@link #clear()} to
+		 * decide whether to shrink their own backing storage in place (e.g.
 		 * {@link StringBuilder#trimToSize()}, or reallocating a smaller
 		 * {@link java.nio.ByteBuffer}) - most callers do not need to call this directly;
 		 * it remains here mainly for tests/observability and for a custom {@link Buffer}
@@ -339,7 +347,7 @@ public interface LogEncoder {
 			 */
 			public final StringBuilder stringBuilder;
 
-			private final int maxSize;
+			private final int maxBufferSize;
 
 			/**
 			 * Creates a StringBuilder based buffer that never reports
@@ -353,20 +361,20 @@ public interface LogEncoder {
 
 			/**
 			 * Creates a StringBuilder based buffer that reports {@link #isOversized()}
-			 * once {@code sb}'s capacity exceeds {@code maxSize}.
+			 * once {@code sb}'s capacity exceeds {@code maxBufferSize}.
 			 * @param sb string builder.
-			 * @param maxSize a negative value disables {@link #isOversized()} entirely
-			 * (always {@code false}).
+			 * @param maxBufferSize a negative value disables {@link #isOversized()}
+			 * entirely (always {@code false}).
 			 * @return buffer.
 			 */
-			public static StringBuilderBuffer of(StringBuilder sb, int maxSize) {
-				return new StringBuilderBuffer(sb, maxSize);
+			public static StringBuilderBuffer of(StringBuilder sb, int maxBufferSize) {
+				return new StringBuilderBuffer(sb, maxBufferSize);
 			}
 
-			private StringBuilderBuffer(StringBuilder stringBuilder, int maxSize) {
+			private StringBuilderBuffer(StringBuilder stringBuilder, int maxBufferSize) {
 				super();
 				this.stringBuilder = stringBuilder;
-				this.maxSize = maxSize;
+				this.maxBufferSize = maxBufferSize;
 			}
 
 			@Override
@@ -388,7 +396,7 @@ public interface LogEncoder {
 
 			@Override
 			public boolean isOversized() {
-				return maxSize >= 0 && stringBuilder.capacity() > maxSize;
+				return maxBufferSize >= 0 && stringBuilder.capacity() > maxBufferSize;
 			}
 
 		}
@@ -445,7 +453,7 @@ public interface LogEncoder {
 
 			private final LogOutput.ContentType contentType;
 
-			private final int maxSize;
+			private final int maxBufferSize;
 
 			private final int initialByteCapacity;
 
@@ -512,24 +520,24 @@ public interface LogEncoder {
 			 * @param contentType content type reported to {@link LogOutput#write}. Its
 			 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
 			 * normally match {@code charset}.
-			 * @param maxSize a negative value disables {@link #isOversized()} entirely
-			 * (always {@code false}). Since {@code initialByteCapacity} (commonly
-			 * {@value #DEFAULT_INITIAL_BYTE_CAPACITY}) is allocated up front and counted
-			 * by {@link #isOversized()} regardless of how much of it any event has
-			 * actually used, a {@code maxSize} at or below {@code initialByteCapacity}
-			 * makes {@link #isOversized()} unconditionally {@code true} from the very
-			 * first event - {@code maxSize} should normally be set well above whatever
-			 * initial capacity is in play.
+			 * @param maxBufferSize a negative value disables {@link #isOversized()}
+			 * entirely (always {@code false}). Since {@code initialByteCapacity}
+			 * (commonly {@value #DEFAULT_INITIAL_BYTE_CAPACITY}) is allocated up front
+			 * and counted by {@link #isOversized()} regardless of how much of it any
+			 * event has actually used, a {@code maxBufferSize} at or below
+			 * {@code initialByteCapacity} makes {@link #isOversized()} unconditionally
+			 * {@code true} from the very first event - {@code maxBufferSize} should
+			 * normally be set well above whatever initial capacity is in play.
 			 */
 			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
-					LogOutput.ContentType contentType, int maxSize) {
+					LogOutput.ContentType contentType, int maxBufferSize) {
 				this.writeMethod = writeMethod;
 				this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
 				this.charsetEncoder = charset.newEncoder()
 					.onMalformedInput(CodingErrorAction.REPLACE)
 					.onUnmappableCharacter(CodingErrorAction.REPLACE);
 				this.contentType = contentType;
-				this.maxSize = maxSize;
+				this.maxBufferSize = maxBufferSize;
 				this.initialByteCapacity = initialByteCapacity;
 			}
 
@@ -599,7 +607,7 @@ public interface LogEncoder {
 
 			@Override
 			public boolean isOversized() {
-				return maxSize >= 0 && (stringBuilder.capacity() + byteBuffer.capacity()) > maxSize;
+				return maxBufferSize >= 0 && (stringBuilder.capacity() + byteBuffer.capacity()) > maxBufferSize;
 			}
 
 		}
@@ -693,26 +701,26 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final ContentType contentType;
 
-	private final int maxSize;
+	private final int maxBufferSize;
 
 	private final int initialBufferSize;
 
-	FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxSize,
+	FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxBufferSize,
 			int initialBufferSize) {
 		super();
 		this.formatter = formatter;
 		this.charset = charset;
 		this.contentType = contentType;
-		this.maxSize = maxSize;
+		this.maxBufferSize = maxBufferSize;
 		this.initialBufferSize = initialBufferSize;
 	}
 
 	@Override
 	public Buffer buffer(BufferHints hints) {
 		return switch (hints.writeMethod()) {
-			case STRING -> StringBuilderBuffer.of(new StringBuilder(initialBufferSize), maxSize);
+			case STRING -> StringBuilderBuffer.of(new StringBuilder(initialBufferSize), maxBufferSize);
 			case BYTES, BYTE_BUFFER ->
-				new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset, contentType, maxSize);
+				new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset, contentType, maxBufferSize);
 		};
 	}
 

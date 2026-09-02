@@ -26,7 +26,7 @@ import io.jstach.rainbowgum.LogOutput.WriteMethod;
  * in favor of this: clear() itself - called once per event by every appender's write path,
  * including the default batch write(LogEvent[], int, LogEncoder, Buffer) loop in
  * LogOutput.java - shrinks a buffer's own backing storage back down once it has grown
- * past its configured maxSize, with no appender/encoder coordination needed at all.
+ * past its configured maxBufferSize, with no appender/encoder coordination needed at all.
  * <p>
  * These tests assert actual capacity() values before/after clear(), not just that
  * isOversized() flips back to false, to prove the backing storage genuinely shrank rather
@@ -42,7 +42,7 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void stringBuilderBufferShrinksAfterOversizedClear() {
-		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(100).build();
+		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxBufferSize(100).build();
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
 		encoder.encode(event("x".repeat(2000)), buffer);
@@ -57,7 +57,10 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void stringBuilderBufferUnderThresholdIsLeftAlone() {
-		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(100_000).build();
+		LogEncoder encoder = LogEncoder.builder(FORMATTER)
+			.charset(StandardCharsets.UTF_8)
+			.maxBufferSize(100_000)
+			.build();
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
 		encoder.encode(event("small"), buffer);
@@ -70,15 +73,18 @@ class BufferSelfShrinkTest {
 	}
 
 	/*
-	 * maxSize is deliberately set above
-	 * DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY (8192) here - a maxSize at or
-	 * below that makes the buffer unconditionally oversized from construction alone
+	 * maxBufferSize is deliberately set above
+	 * DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY (8192) here - a maxBufferSize
+	 * at or below that makes the buffer unconditionally oversized from construction alone
 	 * (documented on the buffer's own constructor), which would demonstrate that caveat
 	 * instead of genuine event-driven growth.
 	 */
 	@Test
 	void directByteBufferBufferShrinksBothStoresAfterOversizedClear() {
-		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(10_000).build();
+		LogEncoder encoder = LogEncoder.builder(FORMATTER)
+			.charset(StandardCharsets.UTF_8)
+			.maxBufferSize(10_000)
+			.build();
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -104,7 +110,10 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void directByteBufferBufferUnderThresholdIsLeftAlone() {
-		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(100_000).build();
+		LogEncoder encoder = LogEncoder.builder(FORMATTER)
+			.charset(StandardCharsets.UTF_8)
+			.maxBufferSize(100_000)
+			.build();
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -137,7 +146,10 @@ class BufferSelfShrinkTest {
 	 */
 	@Test
 	void batchAppendPathAlsoShrinksOversizedBufferBetweenEventsInTheSameBatch() {
-		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxSize(10_000).build();
+		LogEncoder encoder = LogEncoder.builder(FORMATTER)
+			.charset(StandardCharsets.UTF_8)
+			.maxBufferSize(10_000)
+			.build();
 		var output = new CapturingOutput();
 		var appender = new LockThreadLocalBufferLogAppender("test", output, encoder, EnumSet.noneOf(AppenderFlag.class),
 				new ReentrantLock());

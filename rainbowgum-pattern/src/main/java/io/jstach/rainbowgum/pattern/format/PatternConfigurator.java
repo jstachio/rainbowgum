@@ -83,7 +83,7 @@ public final class PatternConfigurator implements Configurator {
 	@LogConfigurable(name = "PatternEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX)
 	static LogProvider<LogEncoder> provideEncoder(@KeyParameter String name, String pattern,
 			@PassThroughParameter @Nullable PatternCompiler patternCompiler,
-			@ConvertParameter("convertCharset") @Nullable Charset charset, @Nullable Integer maxSize) {
+			@ConvertParameter("convertCharset") @Nullable Charset charset, @Nullable Integer maxBufferSize) {
 		return (n, config) -> {
 			var compiler = patternCompiler;
 			if (compiler == null) {
@@ -95,8 +95,8 @@ public final class PatternConfigurator implements Configurator {
 			if (charset != null) {
 				builder.charset(charset);
 			}
-			if (maxSize != null) {
-				builder.maxSize(maxSize);
+			if (maxBufferSize != null) {
+				builder.maxBufferSize(maxBufferSize);
 			}
 			return builder.build();
 		};
