@@ -13,7 +13,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
@@ -89,7 +88,12 @@ class ForwardingOutputTest {
 	void writeBufferForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
 		var event = TestEventBuilder.of().build(b -> b.message("hello"));
-		var buffer = StringBuilderBuffer.of(new StringBuilder("hello"));
+		// StringBuilderBuffer isn't public - go through the same public
+		// LogEncoder/LogFormatter pipeline every other test in this file uses to get a
+		// populated buffer instead of constructing one directly.
+		var encoder = io.jstach.rainbowgum.LogEncoder.of(io.jstach.rainbowgum.LogFormatter.builder().message().build());
+		var buffer = encoder.buffer(io.jstach.rainbowgum.LogOutput.WriteMethod.STRING);
+		encoder.encode(event, buffer);
 
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(event, buffer));
 		assertTrue(delegate.events().isEmpty());

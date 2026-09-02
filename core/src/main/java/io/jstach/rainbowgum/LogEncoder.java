@@ -13,8 +13,6 @@ import java.util.Objects;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogEncoder.Buffer.DirectByteBufferBuffer;
-import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
 import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
@@ -50,7 +48,6 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
  * @see LogFormatter
  * @see Buffer
  * @see LogAppender
- * @see StringBuilderBuffer
  */
 public interface LogEncoder {
 
@@ -334,284 +331,6 @@ public interface LogEncoder {
 			clear();
 		}
 
-		/**
-		 * A buffer that simply wraps a {@link StringBuilder}. Direct access to the
-		 * {@link StringBuilder} is available as the field {@link #stringBuilder}.
-		 *
-		 * @see AbstractEncoder
-		 */
-		public final class StringBuilderBuffer implements Buffer {
-
-			/**
-			 * Underlying StringBuilder.
-			 */
-			public final StringBuilder stringBuilder;
-
-			private final int maxBufferSize;
-
-			/**
-			 * Creates a StringBuilder based buffer that never reports
-			 * {@link #isOversized()}.
-			 * @param sb string builder.
-			 * @return buffer.
-			 */
-			public static StringBuilderBuffer of(StringBuilder sb) {
-				return of(sb, -1);
-			}
-
-			/**
-			 * Creates a StringBuilder based buffer that reports {@link #isOversized()}
-			 * once {@code sb}'s capacity exceeds {@code maxBufferSize}.
-			 * @param sb string builder.
-			 * @param maxBufferSize a negative value disables {@link #isOversized()}
-			 * entirely (always {@code false}).
-			 * @return buffer.
-			 */
-			public static StringBuilderBuffer of(StringBuilder sb, int maxBufferSize) {
-				return new StringBuilderBuffer(sb, maxBufferSize);
-			}
-
-			private StringBuilderBuffer(StringBuilder stringBuilder, int maxBufferSize) {
-				super();
-				this.stringBuilder = stringBuilder;
-				this.maxBufferSize = maxBufferSize;
-			}
-
-			@Override
-			public void drain(LogOutput output, LogEvent event) {
-				output.write(event, stringBuilder.toString());
-			}
-
-			@Override
-			public void clear() {
-				stringBuilder.setLength(0);
-				// setLength(0) never touches capacity, so isOversized() here still
-				// reflects growth from whatever was just written - trimToSize()
-				// mutates the StringBuilder in place, no reassignment needed (works
-				// fine through the public final field above).
-				if (isOversized()) {
-					stringBuilder.trimToSize();
-				}
-			}
-
-			@Override
-			public boolean isOversized() {
-				return maxBufferSize >= 0 && stringBuilder.capacity() > maxBufferSize;
-			}
-
-		}
-
-		/**
-		 * A buffer that formats into a reused {@link StringBuilder} (like
-		 * {@link StringBuilderBuffer}) but encodes directly into a reused
-		 * {@link ByteBuffer} via a {@link CharsetEncoder}, instead of going through an
-		 * intermediate {@code String} and {@code byte[]} the way
-		 * {@code LogOutput.write(LogEvent, String)}'s default implementation does. This
-		 * is the same technique
-		 * <a href="https://logging.apache.org/log4j/2.x/manual/garbagefree.html">Log4j2's
-		 * garbage-free logging</a> uses.
-		 * <p>
-		 * The {@link CharsetEncoder} work happens in {@link #encodeToByteBuffer()},
-		 * called by the encoder's {@code encode(LogEvent, Buffer)} step - i.e. before
-		 * {@link #drain(LogOutput, LogEvent) drain}, which appenders that separate
-		 * formatting from writing ({@code LockThreadLocalBufferLogAppender},
-		 * {@code SynchronizedThreadLocalBufferLogAppender}) call outside their lock.
-		 * {@code drain} - called from inside the lock - therefore does nothing but write
-		 * the already-encoded bytes, matching how Log4j2 confines the actual
-		 * character-to-byte transcoding to a thread-local scratch buffer and synchronizes
-		 * only the final copy into the shared destination.
-		 * <p>
-		 * Constructed for a specific {@link LogOutput.WriteMethod} - either
-		 * {@link LogOutput.WriteMethod#BYTE_BUFFER}, in which case {@link #drain} calls
-		 * {@link LogOutput#write(LogEvent, ByteBuffer, LogOutput.ContentType)} directly,
-		 * or {@link LogOutput.WriteMethod#BYTES}, in which case {@link #drain} calls
-		 * {@link LogOutput#write(LogEvent, byte[], int, int, LogOutput.ContentType)}
-		 * using the backing array directly, rather than going through
-		 * {@code LogOutput#write(LogEvent, ByteBuffer, ContentType)}'s default
-		 * implementation (which would allocate a fresh {@code byte[]} copy every call for
-		 * an output that does not itself implement that overload).
-		 * <p>
-		 * Not thread-safe. Like all {@link Buffer}s it relies on the appender to
-		 * guarantee no overlapping use.
-		 */
-		public final class DirectByteBufferBuffer implements Buffer {
-
-			/**
-			 * Default initial byte buffer capacity, matching Log4j2's own
-			 * {@code log4j2.encoderByteBufferSize} default.
-			 */
-			public static final int DEFAULT_INITIAL_BYTE_CAPACITY = 8192;
-
-			/**
-			 * The buffer the formatter writes characters into.
-			 */
-			public final StringBuilder stringBuilder = new StringBuilder();
-
-			private final CharsetEncoder charsetEncoder;
-
-			private final LogOutput.WriteMethod writeMethod;
-
-			private final LogOutput.ContentType contentType;
-
-			private final int maxBufferSize;
-
-			private final int initialByteCapacity;
-
-			private ByteBuffer byteBuffer;
-
-			/**
-			 * Creates a buffer with the default initial byte capacity and
-			 * {@link StandardCharsets#UTF_8}.
-			 * @param writeMethod which {@link LogOutput#write} overload {@link #drain}
-			 * should call - {@link LogOutput.WriteMethod#BYTES} or
-			 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
-			 */
-			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod) {
-				this(writeMethod, DEFAULT_INITIAL_BYTE_CAPACITY, StandardCharsets.UTF_8);
-			}
-
-			/**
-			 * Creates a buffer with the given write method, initial byte capacity and
-			 * charset.
-			 * @param writeMethod which {@link LogOutput#write} overload {@link #drain}
-			 * should call - {@link LogOutput.WriteMethod#BYTES} or
-			 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
-			 * @param initialByteCapacity initial capacity of the byte buffer. It will
-			 * grow (doubling, or to whatever a single event needs if larger) as needed
-			 * and the grown capacity is kept for subsequent events.
-			 * @param charset charset to encode with.
-			 */
-			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset) {
-				this(writeMethod, initialByteCapacity, charset,
-						LogOutput.ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset));
-			}
-
-			/**
-			 * Creates a buffer with the given write method, initial byte capacity,
-			 * charset and content type to report to the output. {@link #isOversized()} is
-			 * disabled (always {@code false}).
-			 * @param writeMethod which {@link LogOutput#write} overload {@link #drain}
-			 * should call - {@link LogOutput.WriteMethod#BYTES} or
-			 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
-			 * @param initialByteCapacity initial capacity of the byte buffer. It will
-			 * grow (doubling, or to whatever a single event needs if larger) as needed
-			 * and the grown capacity is kept for subsequent events.
-			 * @param charset charset to encode with.
-			 * @param contentType content type reported to {@link LogOutput#write}. Its
-			 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
-			 * normally match {@code charset}.
-			 */
-			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
-					LogOutput.ContentType contentType) {
-				this(writeMethod, initialByteCapacity, charset, contentType, -1);
-			}
-
-			/**
-			 * Creates a buffer with the given write method, initial byte capacity,
-			 * charset, content type to report to the output, and maximum combined size
-			 * (see {@link #isOversized()}).
-			 * @param writeMethod which {@link LogOutput#write} overload {@link #drain}
-			 * should call - {@link LogOutput.WriteMethod#BYTES} or
-			 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
-			 * @param initialByteCapacity initial capacity of the byte buffer. It will
-			 * grow (doubling, or to whatever a single event needs if larger) as needed
-			 * and the grown capacity is kept for subsequent events.
-			 * @param charset charset to encode with.
-			 * @param contentType content type reported to {@link LogOutput#write}. Its
-			 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
-			 * normally match {@code charset}.
-			 * @param maxBufferSize a negative value disables {@link #isOversized()}
-			 * entirely (always {@code false}). Since {@code initialByteCapacity}
-			 * (commonly {@value #DEFAULT_INITIAL_BYTE_CAPACITY}) is allocated up front
-			 * and counted by {@link #isOversized()} regardless of how much of it any
-			 * event has actually used, a {@code maxBufferSize} at or below
-			 * {@code initialByteCapacity} makes {@link #isOversized()} unconditionally
-			 * {@code true} from the very first event - {@code maxBufferSize} should
-			 * normally be set well above whatever initial capacity is in play.
-			 */
-			public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
-					LogOutput.ContentType contentType, int maxBufferSize) {
-				this.writeMethod = writeMethod;
-				this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
-				this.charsetEncoder = charset.newEncoder()
-					.onMalformedInput(CodingErrorAction.REPLACE)
-					.onUnmappableCharacter(CodingErrorAction.REPLACE);
-				this.contentType = contentType;
-				this.maxBufferSize = maxBufferSize;
-				this.initialByteCapacity = initialByteCapacity;
-			}
-
-			/**
-			 * Writes the already-encoded bytes to the output. Assumes
-			 * {@link #encodeToByteBuffer()} has already been called for this event - see
-			 * the class doc for why that step lives in the encoder instead of here.
-			 */
-			@Override
-			public void drain(LogOutput output, LogEvent event) {
-				switch (writeMethod) {
-					case BYTE_BUFFER -> output.write(event, byteBuffer, contentType);
-					case BYTES -> output.write(event, byteBuffer.array(),
-							byteBuffer.arrayOffset() + byteBuffer.position(), byteBuffer.remaining(), contentType);
-					case STRING ->
-						throw new IllegalStateException("DirectByteBufferBuffer does not support WriteMethod.STRING");
-				}
-			}
-
-			/**
-			 * Encodes the current contents of {@link #stringBuilder} into the reused
-			 * {@link ByteBuffer}, growing it first if needed. Deliberately not called
-			 * from {@link #drain(LogOutput, LogEvent)} - see the class doc.
-			 */
-			void encodeToByteBuffer() {
-				int maxBytes = (int) Math.ceil(stringBuilder.length() * (double) charsetEncoder.maxBytesPerChar());
-				if (byteBuffer.capacity() < maxBytes) {
-					byteBuffer = ByteBuffer.allocate(Math.max(maxBytes, byteBuffer.capacity() * 2));
-				}
-				byteBuffer.clear();
-				charsetEncoder.reset();
-				CharBuffer cb = CharBuffer.wrap(stringBuilder);
-				var result = charsetEncoder.encode(cb, byteBuffer, true);
-				if (result.isError()) {
-					try {
-						result.throwException();
-					}
-					catch (CharacterCodingException e) {
-						throw new UncheckedIOException(e);
-					}
-				}
-				/*
-				 * maxBytes above already sized the buffer to fit the worst case so flush
-				 * should never overflow, but check defensively rather than silently
-				 * truncate.
-				 */
-				var flushResult = charsetEncoder.flush(byteBuffer);
-				if (flushResult.isOverflow()) {
-					throw new IllegalStateException("CharsetEncoder flush overflowed despite pre-sized buffer");
-				}
-				byteBuffer.flip();
-			}
-
-			@Override
-			public void clear() {
-				stringBuilder.setLength(0);
-				// Checked before byteBuffer is touched below, so this still reflects
-				// growth from whatever was just drained. stringBuilder.trimToSize()
-				// mutates in place; byteBuffer isn't final (it's already reassigned
-				// during growth in encodeToByteBuffer()) so reallocating it back down
-				// here needs no new field-mutability changes either.
-				if (isOversized()) {
-					stringBuilder.trimToSize();
-					byteBuffer = ByteBuffer.allocate(initialByteCapacity);
-				}
-			}
-
-			@Override
-			public boolean isOversized() {
-				return maxBufferSize >= 0 && (stringBuilder.capacity() + byteBuffer.capacity()) > maxBufferSize;
-			}
-
-		}
-
 	}
 
 	/**
@@ -689,6 +408,312 @@ public interface LogEncoder {
 
 }
 
+/**
+ * A {@link LogEncoder.Buffer} that formats a {@link LogEvent} through a
+ * {@link LogFormatter} into some intermediate text representation before
+ * {@linkplain #drain(LogOutput, LogEvent) draining} it to the output - the common shape
+ * shared by {@link StringBuilderBuffer} and {@link DirectByteBufferBuffer}, letting
+ * {@link FormatterEncoder} dispatch to either without needing to know which concrete
+ * implementation it has.
+ */
+sealed interface TextBuffer extends LogEncoder.Buffer {
+
+	/**
+	 * Formats {@code event} with {@code formatter} into this buffer's own backing
+	 * storage, ready to be {@linkplain #drain(LogOutput, LogEvent) drained}. Does not
+	 * call {@link #clear()} first - the caller is expected to do that.
+	 * @param formatter formatter to format with.
+	 * @param event event to format.
+	 */
+	public void encodeToBuffer(LogFormatter formatter, LogEvent event);
+
+}
+
+/**
+ * A buffer that simply wraps a {@link StringBuilder}. Direct access to the
+ * {@link StringBuilder} is available as the field {@link #stringBuilder}.
+ *
+ * @see AbstractEncoder
+ */
+final class StringBuilderBuffer implements TextBuffer {
+
+	/**
+	 * Underlying StringBuilder.
+	 */
+	public final StringBuilder stringBuilder;
+
+	private final int maxBufferSize;
+
+	/**
+	 * Creates a StringBuilder based buffer that never reports {@link #isOversized()}.
+	 * @param sb string builder.
+	 * @return buffer.
+	 */
+	public static StringBuilderBuffer of(StringBuilder sb) {
+		return of(sb, -1);
+	}
+
+	/**
+	 * Creates a StringBuilder based buffer that reports {@link #isOversized()} once
+	 * {@code sb}'s capacity exceeds {@code maxBufferSize}.
+	 * @param sb string builder.
+	 * @param maxBufferSize a negative value disables {@link #isOversized()} entirely
+	 * (always {@code false}).
+	 * @return buffer.
+	 */
+	public static StringBuilderBuffer of(StringBuilder sb, int maxBufferSize) {
+		return new StringBuilderBuffer(sb, maxBufferSize);
+	}
+
+	private StringBuilderBuffer(StringBuilder stringBuilder, int maxBufferSize) {
+		super();
+		this.stringBuilder = stringBuilder;
+		this.maxBufferSize = maxBufferSize;
+	}
+
+	@Override
+	public void drain(LogOutput output, LogEvent event) {
+		output.write(event, stringBuilder.toString());
+	}
+
+	@Override
+	public void clear() {
+		stringBuilder.setLength(0);
+		// setLength(0) never touches capacity, so isOversized() here still
+		// reflects growth from whatever was just written - trimToSize()
+		// mutates the StringBuilder in place, no reassignment needed (works
+		// fine through the public final field above).
+		if (isOversized()) {
+			stringBuilder.trimToSize();
+		}
+	}
+
+	@Override
+	public boolean isOversized() {
+		return maxBufferSize >= 0 && stringBuilder.capacity() > maxBufferSize;
+	}
+
+	@Override
+	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
+		formatter.format(stringBuilder, event);
+	}
+
+}
+
+/**
+ * A buffer that formats into a reused {@link StringBuilder} (like
+ * {@link StringBuilderBuffer}) but encodes directly into a reused {@link ByteBuffer} via
+ * a {@link CharsetEncoder}, instead of going through an intermediate {@code String} and
+ * {@code byte[]} the way {@code LogOutput.write(LogEvent, String)}'s default
+ * implementation does. This is the same technique
+ * <a href="https://logging.apache.org/log4j/2.x/manual/garbagefree.html">Log4j2's
+ * garbage-free logging</a> uses.
+ * <p>
+ * The {@link CharsetEncoder} work happens in {@link #encodeToByteBuffer()}, called by
+ * {@link #encodeToBuffer(LogFormatter, LogEvent)} - i.e. before
+ * {@link #drain(LogOutput, LogEvent) drain}, which appenders that separate formatting
+ * from writing ({@code LockThreadLocalBufferLogAppender},
+ * {@code SynchronizedThreadLocalBufferLogAppender}) call outside their lock.
+ * {@code drain} - called from inside the lock - therefore does nothing but write the
+ * already-encoded bytes, matching how Log4j2 confines the actual character-to-byte
+ * transcoding to a thread-local scratch buffer and synchronizes only the final copy into
+ * the shared destination.
+ * <p>
+ * Constructed for a specific {@link LogOutput.WriteMethod} - either
+ * {@link LogOutput.WriteMethod#BYTE_BUFFER}, in which case {@link #drain} calls
+ * {@link LogOutput#write(LogEvent, ByteBuffer, LogOutput.ContentType)} directly, or
+ * {@link LogOutput.WriteMethod#BYTES}, in which case {@link #drain} calls
+ * {@link LogOutput#write(LogEvent, byte[], int, int, LogOutput.ContentType)} using the
+ * backing array directly, rather than going through
+ * {@code LogOutput#write(LogEvent, ByteBuffer, ContentType)}'s default implementation
+ * (which would allocate a fresh {@code byte[]} copy every call for an output that does
+ * not itself implement that overload).
+ * <p>
+ * Not thread-safe. Like all {@link LogEncoder.Buffer}s it relies on the appender to
+ * guarantee no overlapping use.
+ */
+final class DirectByteBufferBuffer implements TextBuffer {
+
+	/**
+	 * Default initial byte buffer capacity, matching Log4j2's own
+	 * {@code log4j2.encoderByteBufferSize} default.
+	 */
+	public static final int DEFAULT_INITIAL_BYTE_CAPACITY = 8192;
+
+	/**
+	 * The buffer the formatter writes characters into.
+	 */
+	public final StringBuilder stringBuilder = new StringBuilder();
+
+	private final CharsetEncoder charsetEncoder;
+
+	private final LogOutput.WriteMethod writeMethod;
+
+	private final LogOutput.ContentType contentType;
+
+	private final int maxBufferSize;
+
+	private final int initialByteCapacity;
+
+	private ByteBuffer byteBuffer;
+
+	/**
+	 * Creates a buffer with the default initial byte capacity and
+	 * {@link StandardCharsets#UTF_8}.
+	 * @param writeMethod which {@link LogOutput#write} overload {@link #drain} should
+	 * call - {@link LogOutput.WriteMethod#BYTES} or
+	 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
+	 */
+	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod) {
+		this(writeMethod, DEFAULT_INITIAL_BYTE_CAPACITY, StandardCharsets.UTF_8);
+	}
+
+	/**
+	 * Creates a buffer with the given write method, initial byte capacity and charset.
+	 * @param writeMethod which {@link LogOutput#write} overload {@link #drain} should
+	 * call - {@link LogOutput.WriteMethod#BYTES} or
+	 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
+	 * @param initialByteCapacity initial capacity of the byte buffer. It will grow
+	 * (doubling, or to whatever a single event needs if larger) as needed and the grown
+	 * capacity is kept for subsequent events.
+	 * @param charset charset to encode with.
+	 */
+	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset) {
+		this(writeMethod, initialByteCapacity, charset,
+				LogOutput.ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset));
+	}
+
+	/**
+	 * Creates a buffer with the given write method, initial byte capacity, charset and
+	 * content type to report to the output. {@link #isOversized()} is disabled (always
+	 * {@code false}).
+	 * @param writeMethod which {@link LogOutput#write} overload {@link #drain} should
+	 * call - {@link LogOutput.WriteMethod#BYTES} or
+	 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
+	 * @param initialByteCapacity initial capacity of the byte buffer. It will grow
+	 * (doubling, or to whatever a single event needs if larger) as needed and the grown
+	 * capacity is kept for subsequent events.
+	 * @param charset charset to encode with.
+	 * @param contentType content type reported to {@link LogOutput#write}. Its
+	 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
+	 * normally match {@code charset}.
+	 */
+	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
+			LogOutput.ContentType contentType) {
+		this(writeMethod, initialByteCapacity, charset, contentType, -1);
+	}
+
+	/**
+	 * Creates a buffer with the given write method, initial byte capacity, charset,
+	 * content type to report to the output, and maximum combined size (see
+	 * {@link #isOversized()}).
+	 * @param writeMethod which {@link LogOutput#write} overload {@link #drain} should
+	 * call - {@link LogOutput.WriteMethod#BYTES} or
+	 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
+	 * @param initialByteCapacity initial capacity of the byte buffer. It will grow
+	 * (doubling, or to whatever a single event needs if larger) as needed and the grown
+	 * capacity is kept for subsequent events.
+	 * @param charset charset to encode with.
+	 * @param contentType content type reported to {@link LogOutput#write}. Its
+	 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
+	 * normally match {@code charset}.
+	 * @param maxBufferSize a negative value disables {@link #isOversized()} entirely
+	 * (always {@code false}). Since {@code initialByteCapacity} (commonly
+	 * {@value #DEFAULT_INITIAL_BYTE_CAPACITY}) is allocated up front and counted by
+	 * {@link #isOversized()} regardless of how much of it any event has actually used, a
+	 * {@code maxBufferSize} at or below {@code initialByteCapacity} makes
+	 * {@link #isOversized()} unconditionally {@code true} from the very first event -
+	 * {@code maxBufferSize} should normally be set well above whatever initial capacity
+	 * is in play.
+	 */
+	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
+			LogOutput.ContentType contentType, int maxBufferSize) {
+		this.writeMethod = writeMethod;
+		this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
+		this.charsetEncoder = charset.newEncoder()
+			.onMalformedInput(CodingErrorAction.REPLACE)
+			.onUnmappableCharacter(CodingErrorAction.REPLACE);
+		this.contentType = contentType;
+		this.maxBufferSize = maxBufferSize;
+		this.initialByteCapacity = initialByteCapacity;
+	}
+
+	/**
+	 * Writes the already-encoded bytes to the output. Assumes
+	 * {@link #encodeToBuffer(LogFormatter, LogEvent)} has already been called for this
+	 * event - see the class doc for why that step happens there instead of here.
+	 */
+	@Override
+	public void drain(LogOutput output, LogEvent event) {
+		switch (writeMethod) {
+			case BYTE_BUFFER -> output.write(event, byteBuffer, contentType);
+			case BYTES -> output.write(event, byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(),
+					byteBuffer.remaining(), contentType);
+			case STRING ->
+				throw new IllegalStateException("DirectByteBufferBuffer does not support WriteMethod.STRING");
+		}
+	}
+
+	@Override
+	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
+		formatter.format(stringBuilder, event);
+		encodeToByteBuffer();
+	}
+
+	/**
+	 * Encodes the current contents of {@link #stringBuilder} into the reused
+	 * {@link ByteBuffer}, growing it first if needed. Deliberately not called from
+	 * {@link #drain(LogOutput, LogEvent)} - see the class doc.
+	 */
+	private void encodeToByteBuffer() {
+		int maxBytes = (int) Math.ceil(stringBuilder.length() * (double) charsetEncoder.maxBytesPerChar());
+		if (byteBuffer.capacity() < maxBytes) {
+			byteBuffer = ByteBuffer.allocate(Math.max(maxBytes, byteBuffer.capacity() * 2));
+		}
+		byteBuffer.clear();
+		charsetEncoder.reset();
+		CharBuffer cb = CharBuffer.wrap(stringBuilder);
+		var result = charsetEncoder.encode(cb, byteBuffer, true);
+		if (result.isError()) {
+			try {
+				result.throwException();
+			}
+			catch (CharacterCodingException e) {
+				throw new UncheckedIOException(e);
+			}
+		}
+		/*
+		 * maxBytes above already sized the buffer to fit the worst case so flush should
+		 * never overflow, but check defensively rather than silently truncate.
+		 */
+		var flushResult = charsetEncoder.flush(byteBuffer);
+		if (flushResult.isOverflow()) {
+			throw new IllegalStateException("CharsetEncoder flush overflowed despite pre-sized buffer");
+		}
+		byteBuffer.flip();
+	}
+
+	@Override
+	public void clear() {
+		stringBuilder.setLength(0);
+		// Checked before byteBuffer is touched below, so this still reflects
+		// growth from whatever was just drained. stringBuilder.trimToSize()
+		// mutates in place; byteBuffer isn't final (it's already reassigned
+		// during growth in encodeToByteBuffer()) so reallocating it back down
+		// here needs no new field-mutability changes either.
+		if (isOversized()) {
+			stringBuilder.trimToSize();
+			byteBuffer = ByteBuffer.allocate(initialByteCapacity);
+		}
+	}
+
+	@Override
+	public boolean isOversized() {
+		return maxBufferSize >= 0 && (stringBuilder.capacity() + byteBuffer.capacity()) > maxBufferSize;
+	}
+
+}
+
 /*
  * Not an AbstractEncoder since it needs to hand out either a StringBuilderBuffer or a
  * DirectByteBufferBuffer depending on the output's WriteMethod hint - see buffer(hints).
@@ -727,14 +752,9 @@ final class FormatterEncoder implements LogEncoder {
 	@Override
 	public void encode(LogEvent event, Buffer buffer) {
 		switch (buffer) {
-			case StringBuilderBuffer sb -> {
-				sb.clear();
-				formatter.format(sb.stringBuilder, event);
-			}
-			case DirectByteBufferBuffer bb -> {
-				bb.clear();
-				formatter.format(bb.stringBuilder, event);
-				bb.encodeToByteBuffer();
+			case TextBuffer tb -> {
+				tb.clear();
+				tb.encodeToBuffer(formatter, event);
 			}
 			default -> throw new IllegalStateException("Unsupported buffer: " + buffer.getClass());
 		}
