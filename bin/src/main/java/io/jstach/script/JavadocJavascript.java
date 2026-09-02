@@ -19,19 +19,6 @@ public class JavadocJavascript {
 
 	final static String DOC_ROOT = "../";
 
-	/*
-	 * pom.xml's slf4j.javadoc.link property points the javadoc-plugin's <links> config
-	 * at a mirror of just the small element-list index file (not the real javadoc
-	 * site) by default, since www.slf4j.org is sometimes unreachable from GitHub
-	 * Actions - see that property's comment for the full explanation. Any generated
-	 * cross-reference hrefs need to be pointed back at the real site before
-	 * publishing. deploy-release builds already use the real URL directly, so this is
-	 * a no-op safety net for them, not their primary fix.
-	 */
-	static final String SLF4J_MIRROR_LINK = "https://jstach.io/doc/mirrors/slf4j/api/";
-
-	static final String SLF4J_REAL_LINK = "https://www.slf4j.org/api/";
-
 	public static void main(String[] args) {
 		try {
 			if (args.length > 0) {
@@ -121,8 +108,7 @@ public class JavadocJavascript {
 		List<String> lines = Files.readAllLines(htmlPath);
 		List<String> processed = new ArrayList<>();
 		boolean found = false;
-		for (String rawLine : lines) {
-			String line = fixMirroredLinks(rawLine);
+		for (String line : lines) {
 			if (line.startsWith("</body>")) {
 				found = true;
 				processed.add(scriptTag("https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.18.2/tocbot.min.js"));
@@ -139,8 +125,8 @@ public class JavadocJavascript {
 		}
 		if (found) {
 			/*
-			 * TRUNCATE_EXISTING matters here specifically because fixMirroredLinks can
-			 * shrink a line (the mirror URL is longer than the real one) - WRITE alone
+			 * TRUNCATE_EXISTING matters here because replacing VERSION_TOKEN can shrink a
+			 * line (a real version string can be shorter than "_VERSION_") - WRITE alone
 			 * only overwrites from the start, leaving stale trailing bytes from the
 			 * previous (longer) version of the file if the new content is shorter.
 			 */
@@ -153,10 +139,6 @@ public class JavadocJavascript {
 
 	static String scriptTag(String src) {
 		return "<script src=\"" + src + "\"></script>";
-	}
-
-	static String fixMirroredLinks(String line) {
-		return line.replace(SLF4J_MIRROR_LINK, SLF4J_REAL_LINK);
 	}
 
 }
