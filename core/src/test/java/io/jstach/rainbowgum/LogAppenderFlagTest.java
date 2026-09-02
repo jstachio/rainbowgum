@@ -38,7 +38,9 @@ class LogAppenderFlagTest {
 	}
 
 	private static LogAppender appender(String name, ListLogOutput output, AppenderFlag... flags) {
-		var builder = LogAppender.builder(name).encoder(LogFormatter.builder().message().encoder()).output(output);
+		var builder = LogAppender.builder(name)
+			.encoder(LogFormatter.builder().message().encoder().build())
+			.output(output);
 		for (var flag : flags) {
 			builder.flag(flag);
 		}
@@ -147,8 +149,10 @@ class LogAppenderFlagTest {
 	void appenderLevelFlagsMergeOntoExistingAppenderWithoutReuseBuffer() {
 		LogConfig config = LogConfig.builder().build();
 		var output = new CountingListLogOutput();
-		List<LogProvider<LogAppender>> providers = List
-			.of(LogAppender.builder("test").encoder(LogFormatter.builder().message().encoder()).output(output).build());
+		List<LogProvider<LogAppender>> providers = List.of(LogAppender.builder("test")
+			.encoder(LogFormatter.builder().message().encoder().build())
+			.output(output)
+			.build());
 		var appenders = new LogAppender.Appenders("test-route", config, providers);
 		var result = appenders.flags(Set.of(AppenderFlag.DISABLE_IMMEDIATE_FLUSH)).asSingle();
 		result.start(config);
@@ -164,7 +168,7 @@ class LogAppenderFlagTest {
 		LogConfig config = LogConfig.builder().build();
 		var output = new CountingListLogOutput();
 		List<LogProvider<LogAppender>> providers = List.of(LogAppender.builder("test")
-			.encoder(LogFormatter.builder().message().encoder())
+			.encoder(LogFormatter.builder().message().encoder().build())
 			.output(output)
 			.flag(AppenderFlag.DISABLE_IMMEDIATE_FLUSH)
 			.build());
@@ -181,8 +185,14 @@ class LogAppenderFlagTest {
 		var outputA = new CountingListLogOutput();
 		var outputB = new CountingListLogOutput();
 		List<LogProvider<LogAppender>> providers = List.of(
-				LogAppender.builder("a").encoder(LogFormatter.builder().message().encoder()).output(outputA).build(),
-				LogAppender.builder("b").encoder(LogFormatter.builder().message().encoder()).output(outputB).build());
+				LogAppender.builder("a")
+					.encoder(LogFormatter.builder().message().encoder().build())
+					.output(outputA)
+					.build(),
+				LogAppender.builder("b")
+					.encoder(LogFormatter.builder().message().encoder().build())
+					.output(outputB)
+					.build());
 		var appenders = new LogAppender.Appenders("test-route", config, providers)
 			.flags(Set.of(AppenderFlag.DISABLE_IMMEDIATE_FLUSH));
 		var result = appenders.asSingle();

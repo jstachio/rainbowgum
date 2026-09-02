@@ -84,8 +84,14 @@ class AppenderAsModeFlagPermutationTest {
 		var outputA = new CountingListLogOutput();
 		var outputB = new CountingListLogOutput();
 		List<LogProvider<LogAppender>> providers = List.of(
-				LogAppender.builder("a").encoder(LogFormatter.builder().message().encoder()).output(outputA).build(),
-				LogAppender.builder("b").encoder(LogFormatter.builder().message().encoder()).output(outputB).build());
+				LogAppender.builder("a")
+					.encoder(LogFormatter.builder().message().encoder().build())
+					.output(outputA)
+					.build(),
+				LogAppender.builder("b")
+					.encoder(LogFormatter.builder().message().encoder().build())
+					.output(outputB)
+					.build());
 		var appenders = new Appenders("test-route", config, providers).flags(flags);
 
 		LogPublisher publisher = switch (mode) {
@@ -159,8 +165,10 @@ class AppenderAsModeFlagPermutationTest {
 		var outputB = new ListLogOutput();
 		LogConfig config = LogConfig.builder().build();
 		try (var gum = RainbowGum.builder(config).route(r -> {
-			r.appender("a", a -> a.output(outputA).encoder(LogFormatter.builder().message().newline().encoder()));
-			r.appender("b", a -> a.output(outputB).encoder(LogFormatter.builder().message().newline().encoder()));
+			r.appender("a",
+					a -> a.output(outputA).encoder(LogFormatter.builder().message().newline().encoder().build()));
+			r.appender("b",
+					a -> a.output(outputB).encoder(LogFormatter.builder().message().newline().encoder().build()));
 			r.publisher((name, cfg, appenders) -> new FanoutSyncLogPublisher(appenders.asList()));
 		}).build().start()) {
 			gum.router().eventBuilder("test", System.Logger.Level.INFO).message("fanned out").log();
