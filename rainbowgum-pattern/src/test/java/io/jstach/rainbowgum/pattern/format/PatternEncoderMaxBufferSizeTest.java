@@ -21,12 +21,12 @@ import io.jstach.rainbowgum.LogProperties;
  * BufferSelfShrinkTest (core) - the appender never sees maxBufferSize itself, only the
  * boolean isOversized() the buffer computes from it.
  * <p>
- * Uses {@link WriteMethod#STRING} (a plain {@link LogEncoder.Buffer.StringBuilderBuffer}
- * starting from a tiny default-capacity {@link StringBuilder}) rather than
- * {@link WriteMethod#BYTES}/{@link WriteMethod#BYTE_BUFFER}
- * ({@link LogEncoder.Buffer.DirectByteBufferBuffer}, which pre-allocates an 8192-byte
- * buffer up front) so small, easy-to-read {@code maxBufferSize} values in these tests aren't
- * swamped by that pre-allocation.
+ * Uses {@link WriteMethod#STRING} (core's package-private StringBuilderBuffer, starting
+ * from a tiny default-capacity {@link StringBuilder}) rather than
+ * {@link WriteMethod#BYTES}/{@link WriteMethod#BYTE_BUFFER} (core's package-private
+ * DirectByteBufferBuffer, which pre-allocates an 8192-byte buffer up front) so small,
+ * easy-to-read {@code maxBufferSize} values in these tests aren't swamped by that
+ * pre-allocation.
  */
 class PatternEncoderMaxBufferSizeTest {
 

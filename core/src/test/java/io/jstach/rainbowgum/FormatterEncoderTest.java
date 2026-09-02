@@ -9,7 +9,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
-import io.jstach.rainbowgum.LogEncoder.Buffer.DirectByteBufferBuffer;
 import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.output.ListLogOutput;
