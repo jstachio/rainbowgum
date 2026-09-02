@@ -479,12 +479,14 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Creates the formatter and converts it to an encoder.
-		 * @return encoder.
+		 * Creates the formatter and starts an encoder builder from it - call
+		 * {@link LogEncoder.Builder#build()} to finish, optionally configuring charset,
+		 * content type, max buffer size, or initial buffer size first.
+		 * @return encoder builder.
 		 * @apiNote for ergonomics
 		 */
-		public LogEncoder encoder() {
-			return LogEncoder.of(build());
+		public LogEncoder.Builder encoder() {
+			return LogEncoder.builder(build());
 		}
 
 	}

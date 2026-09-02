@@ -502,10 +502,10 @@ class LevelResolverTest {
 		var secondOutput = new ListLogOutput();
 		var gum = RainbowGum.builder(config).route(r -> {
 			r.appender("default",
-					a -> a.output(defaultOutput).encoder(LogFormatter.builder().message().newline().encoder()));
+					a -> a.output(defaultOutput).encoder(LogFormatter.builder().message().newline().encoder().build()));
 		}).route("second", r -> {
 			r.appender("second",
-					a -> a.output(secondOutput).encoder(LogFormatter.builder().message().newline().encoder()));
+					a -> a.output(secondOutput).encoder(LogFormatter.builder().message().newline().encoder().build()));
 		}).build();
 		try (var g = gum) {
 			g.router().eventBuilder("com.stuff", Level.INFO).message("hello").log();

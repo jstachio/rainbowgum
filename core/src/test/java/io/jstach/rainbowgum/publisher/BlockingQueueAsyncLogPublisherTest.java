@@ -50,14 +50,14 @@ class BlockingQueueAsyncLogPublisherTest {
 		var gum = RainbowGum.builder().route(b -> {
 			b.appender("console", a -> {
 				a.output(LogOutput.ofStandardOut());
-				a.encoder(LogFormatter.builder().message().newline().encoder());
+				a.encoder(LogFormatter.builder().message().newline().encoder().build());
 			});
 			/*
 			 * This has to be the second one so that it happens after the console output.
 			 */
 			b.appender("list", a -> {
 				a.output(output);
-				a.encoder(LogFormatter.builder().message().newline().encoder());
+				a.encoder(LogFormatter.builder().message().newline().encoder().build());
 			});
 			b.publisher(PublisherFactory.ofAsync(100));
 		}).build();

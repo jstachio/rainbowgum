@@ -91,12 +91,12 @@ class AppenderAsModeReentryTest {
 		 */
 		List<LogProvider<LogAppender>> providers = List.of(
 				LogAppender.builder("a")
-					.encoder(LogFormatter.builder().message().encoder())
+					.encoder(LogFormatter.builder().message().encoder().build())
 					.output(outputA)
 					.flag(reentryFlag)
 					.build(),
 				LogAppender.builder("b")
-					.encoder(LogFormatter.builder().message().encoder())
+					.encoder(LogFormatter.builder().message().encoder().build())
 					.output(outputB)
 					.flag(reentryFlag)
 					.build());
