@@ -145,8 +145,7 @@ public interface LogEncoder {
 
 		/**
 		 * Content type reported to the output. Use this when the formatter produces
-		 * something other than plain text (e.g. a custom
-		 * {@link ContentType.DefaultContentType}). Defaults to
+		 * something other than plain text. Defaults to
 		 * {@link StandardContentType#TEXT_PLAIN} with whatever charset is in effect (see
 		 * {@link #charset(Charset)}).
 		 * @param contentType content type reported to the output.
