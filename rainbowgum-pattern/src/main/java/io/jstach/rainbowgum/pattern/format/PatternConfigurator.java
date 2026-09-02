@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.pattern.format;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.function.Function;
@@ -83,7 +84,7 @@ public final class PatternConfigurator implements Configurator {
 	@LogConfigurable(name = "PatternEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX)
 	static LogProvider<LogEncoder> provideEncoder(@KeyParameter String name, String pattern,
 			@PassThroughParameter @Nullable PatternCompiler patternCompiler,
-			@ConvertParameter("convertCharset") @Nullable Charset charset) {
+			@ConvertParameter("convertCharset") @Nullable Charset charset, @Nullable Integer maxSize) {
 		return (n, config) -> {
 			var compiler = patternCompiler;
 			if (compiler == null) {
@@ -91,7 +92,9 @@ public final class PatternConfigurator implements Configurator {
 				}).provide(name, config);
 			}
 			var formatter = compiler.compile(pattern);
-			return charset == null ? LogEncoder.of(formatter) : LogEncoder.of(formatter, charset);
+			var charset_ = charset == null ? StandardCharsets.UTF_8 : charset;
+			var maxSize_ = maxSize == null ? -1 : maxSize;
+			return LogEncoder.of(formatter, charset_, maxSize_);
 		};
 	}
 
