@@ -9,6 +9,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+
+import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogEncoder.Buffer.DirectByteBufferBuffer;
 import io.jstach.rainbowgum.LogEncoder.Buffer.StringBuilderBuffer;
@@ -16,6 +19,7 @@ import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
+import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 /**
  * Encodes a {@link LogEvent} into a buffer of its choosing. While the {@link Buffer} does
@@ -74,81 +78,140 @@ public interface LogEncoder {
 
 	/**
 	 * Creates an encoder from a formatter that encodes with
-	 * {@link StandardCharsets#UTF_8}.
+	 * {@link StandardCharsets#UTF_8}. For anything more than the default charset/content
+	 * type/max buffer size use {@link #builder(LogFormatter)}.
 	 * @param formatter formatter.
 	 * @return encoder.
 	 */
 	public static LogEncoder of(LogFormatter formatter) {
-		return of(formatter, StandardCharsets.UTF_8);
+		return builder(formatter).build();
 	}
 
 	/**
-	 * Creates an encoder from a formatter that encodes with the given charset and reports
-	 * {@link StandardContentType#TEXT_PLAIN} with that charset to the output.
-	 * {@link Buffer#isOversized()} is disabled - see
-	 * {@link #of(LogFormatter, Charset, int)} to configure it.
+	 * Creates a builder for an encoder backed by the given formatter.
 	 * @param formatter formatter.
-	 * @param charset charset to encode with. Only affects outputs whose
-	 * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
-	 * {@link WriteMethod#BYTE_BUFFER} - the {@link WriteMethod#STRING} path hands a plain
-	 * {@link String} to {@link LogOutput#write(LogEvent, String)}, whose own default
-	 * implementation is fixed to {@link StandardCharsets#UTF_8} regardless of this
-	 * parameter, but no built-in output actually uses that write method.
-	 * @return encoder.
+	 * @return builder.
 	 */
-	public static LogEncoder of(LogFormatter formatter, Charset charset) {
-		return of(formatter, charset, -1);
+	public static Builder builder(LogFormatter formatter) {
+		return new Builder(formatter);
 	}
 
 	/**
-	 * Like {@link #of(LogFormatter, Charset)} but also configures a maximum buffer size -
-	 * see {@link Buffer#isOversized()}. This, like charset, is a property of the
-	 * encoder/buffer, not of whatever appender ends up reusing the buffer - an appender
-	 * that reuses a buffer across events (e.g. a {@code ThreadLocal}-cached one) simply
-	 * asks the buffer whether it has become oversized and discards/replaces it if so; it
-	 * has no threshold of its own.
-	 * @param formatter formatter.
-	 * @param charset charset to encode with. See {@link #of(LogFormatter, Charset)}.
-	 * @param maxSize a negative value disables {@link Buffer#isOversized()} entirely (the
-	 * same behavior as {@link #of(LogFormatter, Charset)}).
-	 * @return encoder.
+	 * Creates a builder for an encoder backed by the default TTLL
+	 * ({@link io.jstach.rainbowgum.format.StandardEventFormatter}) formatter.
+	 * @return builder.
 	 */
-	public static LogEncoder of(LogFormatter formatter, Charset charset, int maxSize) {
-		return of(formatter, charset, ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset), maxSize);
+	public static Builder builder() {
+		return new Builder(StandardEventFormatter.builder().build());
 	}
 
 	/**
-	 * Creates an encoder from a formatter that reports the given content type to the
-	 * output, encoding with {@link ContentType#charsetOrNull() its charset} if specified,
-	 * otherwise {@link StandardCharsets#UTF_8}. Use this instead of
-	 * {@link #of(LogFormatter, Charset)} when the formatter produces something other than
-	 * plain text (e.g. a custom {@link ContentType.DefaultContentType}).
-	 * {@link Buffer#isOversized()} is disabled - see
-	 * {@link #of(LogFormatter, ContentType, int)} to configure it.
-	 * @param formatter formatter.
-	 * @param contentType content type reported to the output. See
-	 * {@link #of(LogFormatter, Charset)} for the effect of its charset.
-	 * @return encoder.
+	 * Builds a {@link LogEncoder} out of a {@link LogFormatter}.
+	 *
+	 * @apiNote created with {@link LogEncoder#builder(LogFormatter)} or
+	 * {@link LogEncoder#builder()}.
 	 */
-	public static LogEncoder of(LogFormatter formatter, ContentType contentType) {
-		return of(formatter, contentType, -1);
-	}
+	public static final class Builder {
 
-	/**
-	 * Like {@link #of(LogFormatter, ContentType)} but also configures a maximum buffer
-	 * size - see {@link #of(LogFormatter, Charset, int)}.
-	 * @param formatter formatter.
-	 * @param contentType content type reported to the output.
-	 * @param maxSize a negative value disables {@link Buffer#isOversized()} entirely.
-	 * @return encoder.
-	 */
-	public static LogEncoder of(LogFormatter formatter, ContentType contentType, int maxSize) {
-		var charset = contentType.charsetOrNull();
-		return of(formatter, charset == null ? StandardCharsets.UTF_8 : charset, contentType, maxSize);
-	}
+		private final LogFormatter formatter;
 
-	private static LogEncoder of(LogFormatter formatter, Charset charset, ContentType contentType, int maxSize) {
-		return new FormatterEncoder(formatter, charset, contentType, maxSize);
+		private @Nullable Charset charset;
+
+		private @Nullable ContentType contentType;
+
+		private int maxSize = -1;
+
+		private int initialBufferSize = DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY;
+
+		private Builder(LogFormatter formatter) {
+			this.formatter = Objects.requireNonNull(formatter);
+		}
+
+		/**
+		 * Charset to encode with. Only affects outputs whose
+		 * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
+		 * {@link WriteMethod#BYTE_BUFFER} - the {@link WriteMethod#STRING} path hands a
+		 * plain {@link String} to {@link LogOutput#write(LogEvent, String)}, whose own
+		 * default implementation is fixed to {@link StandardCharsets#UTF_8} regardless of
+		 * this setting, but no built-in output actually uses that write method. Defaults
+		 * to {@link StandardCharsets#UTF_8}, or to {@link #contentType(ContentType)}'s
+		 * own charset if that was set and this was not. If both are set this charset is
+		 * what is actually used to encode; {@link #contentType(ContentType)} still
+		 * controls what is reported to the output.
+		 * @param charset charset to encode with.
+		 * @return this.
+		 */
+		public Builder charset(Charset charset) {
+			this.charset = Objects.requireNonNull(charset);
+			return this;
+		}
+
+		/**
+		 * Content type reported to the output. Use this when the formatter produces
+		 * something other than plain text (e.g. a custom
+		 * {@link ContentType.DefaultContentType}). Defaults to
+		 * {@link StandardContentType#TEXT_PLAIN} with whatever charset is in effect (see
+		 * {@link #charset(Charset)}).
+		 * @param contentType content type reported to the output.
+		 * @return this.
+		 */
+		public Builder contentType(ContentType contentType) {
+			this.contentType = Objects.requireNonNull(contentType);
+			return this;
+		}
+
+		/**
+		 * Configures a maximum buffer size - see {@link Buffer#isOversized()}. This, like
+		 * charset, is a property of the encoder/buffer, not of whatever appender ends up
+		 * reusing the buffer - an appender that reuses a buffer across events (e.g. a
+		 * {@code ThreadLocal}-cached one) simply asks the buffer whether it has become
+		 * oversized and discards/replaces it if so; it has no threshold of its own.
+		 * @param maxSize a negative value disables {@link Buffer#isOversized()} entirely
+		 * (the default).
+		 * @return this.
+		 */
+		public Builder maxSize(int maxSize) {
+			this.maxSize = maxSize;
+			return this;
+		}
+
+		/**
+		 * The capacity a fresh buffer is allocated with before any event has been encoded
+		 * into it. Defaults to
+		 * {@link DirectByteBufferBuffer#DEFAULT_INITIAL_BYTE_CAPACITY}.
+		 * @param initialBufferSize initial buffer capacity, must be positive.
+		 * @return this.
+		 * @throws IllegalArgumentException if not positive.
+		 */
+		public Builder initialBufferSize(int initialBufferSize) {
+			if (initialBufferSize <= 0) {
+				throw new IllegalArgumentException("initialBufferSize must be positive: " + initialBufferSize);
+			}
+			this.initialBufferSize = initialBufferSize;
+			return this;
+		}
+
+		/**
+		 * Builds the encoder.
+		 * @return encoder.
+		 */
+		public LogEncoder build() {
+			Charset c = charset;
+			ContentType ct = contentType;
+			if (ct != null) {
+				if (c == null) {
+					c = ct.charsetOrNull();
+				}
+			}
+			if (c == null) {
+				c = StandardCharsets.UTF_8;
+			}
+			if (ct == null) {
+				ct = ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), c);
+			}
+			return new FormatterEncoder(formatter, c, ct, maxSize, initialBufferSize);
+		}
+
 	}
 
 	/**
@@ -245,9 +308,9 @@ public interface LogEncoder {
 		 * What "large enough" means, and whether it means anything at all, is entirely up
 		 * to the buffer/encoder - the same way charset is an encoder concern rather than
 		 * something an appender configures (see
-		 * {@link LogEncoder#of(LogFormatter, java.nio.charset.Charset)}). The default
-		 * implementation returns {@code false} - a buffer implementation that does not
-		 * override this, or an encoder that never configured a threshold, never shrinks.
+		 * {@link LogEncoder#builder(LogFormatter)}). The default implementation returns
+		 * {@code false} - a buffer implementation that does not override this, or an
+		 * encoder that never configured a threshold, never shrinks.
 		 * @return {@code true} if this buffer's backing storage has grown past whatever
 		 * threshold it was configured with.
 		 */
@@ -632,20 +695,24 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final int maxSize;
 
-	public FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxSize) {
+	private final int initialBufferSize;
+
+	FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxSize,
+			int initialBufferSize) {
 		super();
 		this.formatter = formatter;
 		this.charset = charset;
 		this.contentType = contentType;
 		this.maxSize = maxSize;
+		this.initialBufferSize = initialBufferSize;
 	}
 
 	@Override
 	public Buffer buffer(BufferHints hints) {
 		return switch (hints.writeMethod()) {
-			case STRING -> StringBuilderBuffer.of(new StringBuilder(), maxSize);
-			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod(),
-					DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY, charset, contentType, maxSize);
+			case STRING -> StringBuilderBuffer.of(new StringBuilder(initialBufferSize), maxSize);
+			case BYTES, BYTE_BUFFER ->
+				new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset, contentType, maxSize);
 		};
 	}
 

@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum.pattern.format;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.function.Function;
@@ -92,9 +91,14 @@ public final class PatternConfigurator implements Configurator {
 				}).provide(name, config);
 			}
 			var formatter = compiler.compile(pattern);
-			var charset_ = charset == null ? StandardCharsets.UTF_8 : charset;
-			var maxSize_ = maxSize == null ? -1 : maxSize;
-			return LogEncoder.of(formatter, charset_, maxSize_);
+			var builder = LogEncoder.builder(formatter);
+			if (charset != null) {
+				builder.charset(charset);
+			}
+			if (maxSize != null) {
+				builder.maxSize(maxSize);
+			}
+			return builder.build();
 		};
 	}
 
