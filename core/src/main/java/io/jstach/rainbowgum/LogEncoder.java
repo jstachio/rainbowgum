@@ -557,52 +557,6 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	private ByteBuffer byteBuffer;
 
 	/**
-	 * Creates a buffer with the default initial byte capacity and
-	 * {@link StandardCharsets#UTF_8}.
-	 * @param writeMethod which {@link LogOutput#write} overload {@link #drain} should
-	 * call - {@link LogOutput.WriteMethod#BYTES} or
-	 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
-	 */
-	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod) {
-		this(writeMethod, DEFAULT_INITIAL_BYTE_CAPACITY, StandardCharsets.UTF_8);
-	}
-
-	/**
-	 * Creates a buffer with the given write method, initial byte capacity and charset.
-	 * @param writeMethod which {@link LogOutput#write} overload {@link #drain} should
-	 * call - {@link LogOutput.WriteMethod#BYTES} or
-	 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
-	 * @param initialByteCapacity initial capacity of the byte buffer. It will grow
-	 * (doubling, or to whatever a single event needs if larger) as needed and the grown
-	 * capacity is kept for subsequent events.
-	 * @param charset charset to encode with.
-	 */
-	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset) {
-		this(writeMethod, initialByteCapacity, charset,
-				LogOutput.ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), charset));
-	}
-
-	/**
-	 * Creates a buffer with the given write method, initial byte capacity, charset and
-	 * content type to report to the output. {@link #isOversized()} is disabled (always
-	 * {@code false}).
-	 * @param writeMethod which {@link LogOutput#write} overload {@link #drain} should
-	 * call - {@link LogOutput.WriteMethod#BYTES} or
-	 * {@link LogOutput.WriteMethod#BYTE_BUFFER}.
-	 * @param initialByteCapacity initial capacity of the byte buffer. It will grow
-	 * (doubling, or to whatever a single event needs if larger) as needed and the grown
-	 * capacity is kept for subsequent events.
-	 * @param charset charset to encode with.
-	 * @param contentType content type reported to {@link LogOutput#write}. Its
-	 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
-	 * normally match {@code charset}.
-	 */
-	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
-			LogOutput.ContentType contentType) {
-		this(writeMethod, initialByteCapacity, charset, contentType, -1);
-	}
-
-	/**
 	 * Creates a buffer with the given write method, initial byte capacity, charset,
 	 * content type to report to the output, and maximum combined size (see
 	 * {@link #isOversized()}).
@@ -625,7 +579,7 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	 * {@code maxBufferSize} should normally be set well above whatever initial capacity
 	 * is in play.
 	 */
-	public DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
+	DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
 			LogOutput.ContentType contentType, int maxBufferSize) {
 		this.writeMethod = writeMethod;
 		this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
