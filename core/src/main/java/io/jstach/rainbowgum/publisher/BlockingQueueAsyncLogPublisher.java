@@ -6,11 +6,11 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
-import io.jstach.rainbowgum.MetaLog;
 
 /**
  * An async publisher that uses a blocking queue and a single thread consumer.
@@ -26,6 +26,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	private final int bufferSize;
 
 	private final Worker worker;
+
+	private volatile LogAlerts alerts = LogAlerts.of();
 
 	/**
 	 * Creates the publisher.
@@ -58,7 +60,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			queue.put(event);
 		}
 		catch (InterruptedException e) {
-			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+			alerts.error(BlockingQueueAsyncLogPublisher.class, e);
 			Thread.currentThread().interrupt();
 
 		}
@@ -74,7 +76,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			worker.join(1000);
 		}
 		catch (InterruptedException e) {
-			MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+			alerts.error(BlockingQueueAsyncLogPublisher.class, e);
 		}
 		finally {
 			tool.unmaskInterruptFlag();
@@ -91,6 +93,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			throw new IllegalStateException();
 		}
 
+		this.alerts = config.alerts();
 		worker.setDaemon(true);
 		worker.setName(BlockingQueueAsyncLogPublisher.class.getSimpleName());
 		running = true;
@@ -120,7 +123,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 					break;
 				}
 				catch (Exception e) {
-					MetaLog.error(BlockingQueueAsyncLogPublisher.class, e);
+					alerts.error(BlockingQueueAsyncLogPublisher.class, e);
 				}
 			}
 			drain();

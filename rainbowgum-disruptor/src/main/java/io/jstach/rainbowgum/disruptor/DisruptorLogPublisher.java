@@ -15,12 +15,12 @@ import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import com.lmax.disruptor.util.DaemonThreadFactory;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
-import io.jstach.rainbowgum.MetaLog;
 import io.jstach.rainbowgum.LogAppender.Appenders;
 
 /**
@@ -33,6 +33,8 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	private final RingBuffer<LogEventCell> ringBuffer;
 
 	private final Iterable<? extends LogAppender> appenders;
+
+	private volatile LogAlerts alerts = LogAlerts.of();
 
 	/**
 	 * Creates a factory of disruptor log publishers.
@@ -61,7 +63,8 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory,
 				ProducerType.MULTI, new BlockingWaitStrategy());
-		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown));
+		var router = new DisruptorLogPublisher(disruptor, disruptor.getRingBuffer(), List.copyOf(appenders));
+		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown, router));
 
 		boolean found = false;
 		for (var appender : appenders) {
@@ -71,14 +74,13 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 		if (!found) {
 			throw new IllegalStateException();
 		}
-		var ringBuffer = disruptor.getRingBuffer();
 
-		var router = new DisruptorLogPublisher(disruptor, ringBuffer, List.copyOf(appenders));
 		return router;
 	}
 
 	@Override
 	public void start(LogConfig config) {
+		this.alerts = config.alerts();
 		disruptor.start();
 
 	}
@@ -134,7 +136,8 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	}
 
-	private record LogExceptionHandler(Runnable shutdownHook) implements ExceptionHandler<Object> {
+	private record LogExceptionHandler(Runnable shutdownHook,
+			DisruptorLogPublisher publisher) implements ExceptionHandler<Object> {
 
 		@Override
 		public void handleEventException(Throwable ex, long sequence, Object event) {
@@ -142,19 +145,19 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 				shutdownHook.run();
 			}
 			else {
-				MetaLog.error(DisruptorLogPublisher.class, ex);
+				publisher.alerts.error(DisruptorLogPublisher.class, ex);
 				throw new RuntimeException(ex);
 			}
 		}
 
 		@Override
 		public void handleOnStartException(Throwable ex) {
-			MetaLog.error(DisruptorLogPublisher.class, ex);
+			publisher.alerts.error(DisruptorLogPublisher.class, ex);
 		}
 
 		@Override
 		public void handleOnShutdownException(Throwable ex) {
-			MetaLog.error(DisruptorLogPublisher.class, ex);
+			publisher.alerts.error(DisruptorLogPublisher.class, ex);
 		}
 
 	}

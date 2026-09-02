@@ -7,16 +7,20 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.annotation.RainbowGumVersion;
-
 /**
- * Logging about logging. Currently not really public API.
+ * Logging about logging. This is the static, always-available entry point used by code
+ * that cannot easily reach a {@link LogConfig} (e.g. before a {@link RainbowGum} is
+ * bound). Where a live {@link RainbowGum} is bound this simply forwards to its
+ * {@link LogConfig#alerts()} so alerts still end up in that instance's ring buffer;
+ * otherwise it falls back to the same direct stderr reporting it has always done.
+ * <p>
+ * Components that already have (or can easily capture) a {@link LogConfig} - for example
+ * via {@link LogProvider} or {@link LogLifecycle#start(LogConfig)} - should prefer
+ * {@link LogConfig#alerts()} directly instead of this class.
  *
  * @author agentgt
- * @hidden
  */
-@SuppressWarnings("InvalidBlockTag")
-public final class MetaLog {
+final class MetaLog {
 
 	private MetaLog() {
 	}
@@ -26,6 +30,11 @@ public final class MetaLog {
 	 * @param event event to log.
 	 */
 	public static void error(LogEvent event) {
+		var gum = RainbowGum.getOrNull();
+		if (gum != null) {
+			gum.config().alerts().error(event);
+			return;
+		}
 		FailsafeAppender.INSTANCE.log(event);
 	}
 
@@ -48,19 +57,6 @@ public final class MetaLog {
 	public static void error(Class<?> loggerName, String message, Throwable throwable) {
 		var event = LogEvent.of(Level.ERROR, loggerName.getName(), message, throwable);
 		error(event);
-	}
-
-	/**
-	 * Resolves the Rainbow Gum documentation URL based on static version information.
-	 * @return URL <strong>with no trailing slash!</strong>
-	 */
-	public static String documentBaseUrl() {
-		String version = RainbowGumVersion.VERSION;
-		if (version.endsWith("-SNAPSHOT")) {
-			return "https://jstach.io/rainbowgum";
-		}
-		return "https://jstach.io/doc/rainbowgum/" + version + "/apidocs";
-
 	}
 
 	static Supplier<? extends @Nullable PrintStream> output = () -> System.err;
