@@ -148,8 +148,7 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 		 * modern Java (e.g. {@code String#getBytes()}'s no-charset overload) to treat as
 		 * the assumed default rather than "unspecified" - an encoder actually configured
 		 * with a different charset (see {@link LogEncoder#builder(LogFormatter)}) reports
-		 * a {@link DefaultContentType} instead, not
-		 * {@link StandardContentType#TEXT_PLAIN}.
+		 * a different content type instead, not {@link StandardContentType#TEXT_PLAIN}.
 		 * @return charset or <code>null</code> if not fixed/known.
 		 */
 		@Nullable
@@ -157,11 +156,11 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 		/**
 		 * Finds the matching {@link StandardContentType} for the given content type and
-		 * charset if one exists, otherwise creates a new {@link DefaultContentType}.
+		 * charset if one exists, otherwise creates a new plain {@link ContentType}.
 		 * @param contentType content type, e.g. <code>text/plain</code>.
 		 * @param charsetOrNull charset or <code>null</code> if not fixed/known.
-		 * @return a {@link StandardContentType} if one matches, otherwise a
-		 * {@link DefaultContentType}.
+		 * @return a {@link StandardContentType} if one matches, otherwise a plain
+		 * {@link ContentType}.
 		 */
 		static ContentType of(String contentType, @Nullable Charset charsetOrNull) {
 			for (var standard : StandardContentType.values()) {
@@ -170,19 +169,7 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 					return standard;
 				}
 			}
-			return new DefaultContentType(contentType, charsetOrNull);
-		}
-
-		/**
-		 * A plain {@link ContentType} for content types not covered by
-		 * {@link StandardContentType}. Use {@link ContentType#of(String, Charset)} to
-		 * create one (or reuse a matching {@link StandardContentType} instead if one
-		 * matches).
-		 *
-		 * @param contentType content type, e.g. <code>text/plain</code>.
-		 * @param charsetOrNull charset or <code>null</code> if not fixed/known.
-		 */
-		public record DefaultContentType(String contentType, @Nullable Charset charsetOrNull) implements ContentType {
+			return new SimpleContentType(contentType, charsetOrNull);
 		}
 
 		/**
@@ -538,6 +525,18 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 
 	}
 
+}
+
+/**
+ * A plain {@link LogOutput.ContentType} for content types not covered by
+ * {@link LogOutput.ContentType.StandardContentType}. Created via
+ * {@link LogOutput.ContentType#of(String, Charset)} (or reuses a matching
+ * {@link LogOutput.ContentType.StandardContentType} instead if one matches).
+ *
+ * @param contentType content type, e.g. <code>text/plain</code>.
+ * @param charsetOrNull charset or <code>null</code> if not fixed/known.
+ */
+record SimpleContentType(String contentType, @Nullable Charset charsetOrNull) implements LogOutput.ContentType {
 }
 
 class StdOutOutput extends LogOutput.AbstractOutputStreamOutput {
