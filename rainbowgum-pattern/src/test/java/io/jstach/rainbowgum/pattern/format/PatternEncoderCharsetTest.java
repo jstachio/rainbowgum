@@ -12,9 +12,11 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
@@ -49,7 +51,8 @@ class PatternEncoderCharsetTest {
 			.build();
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
 		try (var g = RainbowGum.builder(config).build().start()) {
-			g.router().eventBuilder("test", System.Logger.Level.INFO).message(MESSAGE).log();
+			g.log(LogEventFactory.of("test")
+				.event(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null));
 		}
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.ISO_8859_1), output.capturedBytes());
 	}
@@ -69,7 +72,8 @@ class PatternEncoderCharsetTest {
 			.build();
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
 		try (var g = RainbowGum.builder(config).build().start()) {
-			g.router().eventBuilder("test", System.Logger.Level.INFO).message(MESSAGE).log();
+			g.log(LogEventFactory.of("test")
+				.event(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null));
 		}
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.UTF_8), output.capturedBytes());
 	}

@@ -41,24 +41,6 @@ public sealed interface LogRouter extends LogLifecycle {
 	public Route route(String loggerName, java.lang.System.Logger.Level level);
 
 	/**
-	 * Creates (or reuses in the case of logging off) an event builder.
-	 * @param loggerName logger name of the event.
-	 * @param level level that the event should be set to.
-	 * @return builder.
-	 * @apiNote using the builder is slightly slower and possibly more garbage (if the
-	 * builder is not marked for escape analysis) than just manually checking
-	 * {@link Route#isEnabled()} and constructing the event using the LogEvent static
-	 * "<code>of</code>" factory methods.
-	 */
-	default LogEvent.Builder eventBuilder(String loggerName, Level level) {
-		var route = route(loggerName, level);
-		if (route.isEnabled()) {
-			return new LogEventBuilder(route, level, loggerName);
-		}
-		return NoOpLogEventBuilder.NOOP;
-	}
-
-	/**
 	 * Global router which is always available.
 	 * @return global root router.
 	 */
