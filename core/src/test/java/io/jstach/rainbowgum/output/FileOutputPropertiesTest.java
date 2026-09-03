@@ -28,7 +28,6 @@ import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.TestLogEventFactory;
-import io.jstach.rainbowgum.output.FileOutputTest.Events;
 
 class FileOutputPropertiesTest {
 

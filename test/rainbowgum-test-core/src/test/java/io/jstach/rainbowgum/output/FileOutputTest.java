@@ -9,8 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -21,8 +19,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.EnumCombinations;
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.TestLogEventFactory;
@@ -267,59 +263,6 @@ class FileOutputTest {
 				case FILE_NAME -> b.fileName(FILE_PATH);
 				case URI -> b.uri(Path.of(FILE_PATH).toUri());
 			}
-		}
-
-	}
-
-	enum Events {
-
-		ZERO("", 0), //
-		ONE("""
-				00:00:00.000 [main] INFO  test - test 0
-					"""), //
-		TWO("""
-				00:00:00.000 [main] INFO  test - test 0
-				00:00:00.000 [main] INFO  test - test 1
-									""", 2), //
-		THREE("""
-				00:00:00.000 [main] INFO  test - test 0
-				00:00:00.000 [main] INFO  test - test 1
-				00:00:00.000 [main] INFO  test - test 2
-									""", 3),;
-
-		final String expected;
-
-		private final int count;
-
-		private Events(String expected) {
-			this(expected, 1);
-		}
-
-		private Events(String expected, int count) {
-			this.expected = expected;
-			this.count = count;
-		}
-
-		LogProperties fileProperties() {
-			return LogProperties.StandardProperties.EMPTY;
-		}
-
-		System.Logger.Level level() {
-			return System.Logger.Level.INFO;
-		}
-
-		List<LogEvent> events() {
-			List<LogEvent> events = new ArrayList<>();
-			for (int i = 0; i < count; i++) {
-				var index = i;
-				events.add(TestLogEventFactory.of().event("test " + index));
-			}
-			return events;
-		}
-
-		@Override
-		public String toString() {
-			return "EVENTS_" + name();
 		}
 
 	}
