@@ -56,7 +56,7 @@ public interface FileOutput extends LogOutput {
 			var builder = new FileOutputBuilder(s);
 			consumer.accept(builder);
 			builder.fromProperties(c.properties());
-			return builder.build();
+			return builder.build().provide(s, c);
 		};
 	}
 
@@ -67,13 +67,14 @@ public interface FileOutput extends LogOutput {
 	 */
 	public static LogProvider<LogOutput> of(LogProviderRef ref) {
 		return (s, c) -> {
-			return provide(ref, s, c.properties());
+			return provide(ref, s, c);
 		};
 	}
 
-	private static LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
+	private static LogOutput provide(LogProviderRef ref, String name, LogConfig config) {
 		FileOutputBuilder b = new FileOutputBuilder(name);
 		var uri = ref.uri();
+		var properties = config.properties();
 		LogProperties combined;
 		if (uri.getQuery() != null) {
 			combined = LogProperties.of(uri, b.propertyPrefix(), properties, ref.keyOrNull());
@@ -88,63 +89,68 @@ public interface FileOutput extends LogOutput {
 		}
 		b.uri(uri);
 		b.fromProperties(combined);
-		return b.build();
+		return b.build().provide(name, config);
 	}
 
 	/**
-	 * Creates file output.
+	 * Creates a file output provider. Deferred as a <code>LogProvider</code> (rather than
+	 * building the file output directly) so that config - in particular the alerts config
+	 * offers - is available to pass into the concrete output's constructor instead of
+	 * only reaching it later through the output's start call.
 	 * @param name name of output not file name.
 	 * @param uri file uri.
 	 * @param fileName file name.
 	 * @param append whether or not to append to existing file.
 	 * @param prudent logback prudent mode where files are locked on each write.
 	 * @param bufferSize buffer size in bytes.
-	 * @return file output.
-	 * @throws UncheckedIOException if file not found.
+	 * @return file output provider whose <code>provide(...)</code> throws
+	 * {@link java.io.UncheckedIOException} if the file cannot be opened.
 	 */
 	@SuppressWarnings("resource")
-	@LogConfigurable(prefix = LogProperties.OUTPUT_PREFIX)
-	public static FileOutput of(@LogConfigurable.KeyParameter String name, @Nullable URI uri, @Nullable String fileName,
-			@Nullable Boolean append, @Nullable Boolean prudent,
-			@DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize) throws UncheckedIOException {
+	@LogConfigurable(name = "FileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	public static LogProvider<FileOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI uri,
+			@Nullable String fileName, @Nullable Boolean append, @Nullable Boolean prudent,
+			@DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize) {
 		boolean prudent_ = prudent == null ? false : prudent;
 		boolean append_ = append == null ? true : append;
-		IOSupplier<FileOutput> supplier = () -> {
-			File file;
-			URI uri_ = uri;
-			if (fileName != null) {
-				file = new File(fileName);
-				uri_ = file.toURI();
-			}
-			else if (uri_ != null) {
-				file = new File(uri_);
-			}
-			else {
-				throw new IOException("fileName and uri cannot both be unset.");
-			}
-			createMissingParentDirectories(file);
-			FileOutputStream stream;
-			try {
-				stream = new FileOutputStream(file, append_);
-			}
-			catch (FileNotFoundException e) {
-				throw new UncheckedIOException(e);
-			}
-			if (prudent_) {
-				return new FileChannelOutput(uri_, stream.getChannel());
-			}
-			OutputStream s;
-			Objects.requireNonNull(bufferSize);
-			if (bufferSize <= 0) {
-				s = stream;
-			}
-			else {
-				s = new BufferedOutputStream(stream, bufferSize);
-			}
-			return new FileOutputStreamOutput(uri_, s);
-		};
+		return (n, config) -> {
+			IOSupplier<FileOutput> supplier = () -> {
+				File file;
+				URI uri_ = uri;
+				if (fileName != null) {
+					file = new File(fileName);
+					uri_ = file.toURI();
+				}
+				else if (uri_ != null) {
+					file = new File(uri_);
+				}
+				else {
+					throw new IOException("fileName and uri cannot both be unset.");
+				}
+				createMissingParentDirectories(file);
+				FileOutputStream stream;
+				try {
+					stream = new FileOutputStream(file, append_);
+				}
+				catch (FileNotFoundException e) {
+					throw new UncheckedIOException(e);
+				}
+				if (prudent_) {
+					return new FileChannelOutput(uri_, stream.getChannel(), config.alerts());
+				}
+				OutputStream s;
+				Objects.requireNonNull(bufferSize);
+				if (bufferSize <= 0) {
+					s = stream;
+				}
+				else {
+					s = new BufferedOutputStream(stream, bufferSize);
+				}
+				return new FileOutputStreamOutput(uri_, s);
+			};
 
-		return new ReopenableFileOutput(supplier);
+			return new ReopenableFileOutput(supplier);
+		};
 	}
 
 	/**
@@ -263,17 +269,13 @@ class FileChannelOutput implements FileOutput {
 	 */
 	private final AtomicBoolean closed = new AtomicBoolean();
 
-	private volatile LogAlerts alerts = LogAlerts.of();
+	private final LogAlerts alerts;
 
-	public FileChannelOutput(URI uri, FileChannel channel) {
+	public FileChannelOutput(URI uri, FileChannel channel, LogAlerts alerts) {
 		super();
 		this.uri = uri;
 		this.channel = channel;
-	}
-
-	@Override
-	public void start(LogConfig config) {
-		this.alerts = config.alerts();
+		this.alerts = alerts;
 	}
 
 	@Override

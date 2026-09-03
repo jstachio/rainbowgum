@@ -27,28 +27,44 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 	private final Worker worker;
 
-	private volatile LogAlerts alerts = LogAlerts.of();
+	private final LogAlerts alerts;
 
 	/**
-	 * Creates the publisher.
+	 * Creates the publisher with its own standalone {@link LogAlerts} (not one shared
+	 * with the rest of a {@link LogConfig}) - mainly useful standalone/in tests. Prefer
+	 * {@link #of(LogAppender, int, LogAlerts)} when a {@link LogConfig} is available.
 	 * @param appender appenders.
 	 * @param bufferSize the queue size.
 	 * @return async publisher.
 	 */
 	public static BlockingQueueAsyncLogPublisher of(LogAppender appender, int bufferSize) {
+		return of(appender, bufferSize, LogAlerts.of());
+	}
+
+	/**
+	 * Creates the publisher.
+	 * @param appender appenders.
+	 * @param bufferSize the queue size.
+	 * @param alerts alerts for reporting internal errors (interrupted queue puts, worker
+	 * failures).
+	 * @return async publisher.
+	 */
+	public static BlockingQueueAsyncLogPublisher of(LogAppender appender, int bufferSize, LogAlerts alerts) {
 		if (bufferSize <= 0) {
 			throw new IllegalArgumentException("buffer size should be greater than 0");
 		}
 		BlockingQueue<LogEvent> queue = new ArrayBlockingQueue<>(bufferSize);
-		return new BlockingQueueAsyncLogPublisher(appender, queue, bufferSize);
+		return new BlockingQueueAsyncLogPublisher(appender, queue, bufferSize, alerts);
 	}
 
-	private BlockingQueueAsyncLogPublisher(LogAppender appender, BlockingQueue<LogEvent> queue, int bufferSize) {
+	private BlockingQueueAsyncLogPublisher(LogAppender appender, BlockingQueue<LogEvent> queue, int bufferSize,
+			LogAlerts alerts) {
 		super();
 		this.appender = appender;
 		this.queue = queue;
 		this.bufferSize = bufferSize;
 		this.worker = new Worker();
+		this.alerts = alerts;
 	}
 
 	@Override
@@ -93,7 +109,6 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			throw new IllegalStateException();
 		}
 
-		this.alerts = config.alerts();
 		worker.setDaemon(true);
 		worker.setName(BlockingQueueAsyncLogPublisher.class.getSimpleName());
 		running = true;
