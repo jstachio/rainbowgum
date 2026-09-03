@@ -31,6 +31,9 @@ public sealed interface LogEvent {
 
 	/**
 	 * Creates a log event.
+	 * @param timestamp time of event
+	 * @param threadName or empty string
+	 * @param threadId thread id or 0 if that cannot be resolved.
 	 * @param level the logging level.
 	 * @param loggerName the name of the logger which is usually a class name.
 	 * @param formattedMessage the unformatted message.
@@ -40,35 +43,17 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
 	 */
-	public static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String formattedMessage,
+	public static LogEvent of(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName, @Nullable String formattedMessage,
 			KeyValues keyValues, @Nullable Throwable throwable) {
-		Instant timeStamp = Instant.now();
-		Thread currentThread = Thread.currentThread();
-		String threadName = currentThread.getName();
-		long threadId = currentThread.threadId();
-
-		return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
+		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
 				throwable);
-
 	}
 
 	/**
 	 * Creates a log event.
-	 * @param level the logging level.
-	 * @param loggerName the name of the logger which is usually a class name.
-	 * @param formattedMessage the unformatted message.
-	 * @param throwable an exception if passed maybe <code>null</code>.
-	 * @return event
-	 * @see LevelResolver
-	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
-	 */
-	static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String formattedMessage,
-			@Nullable Throwable throwable) {
-		return of(level, loggerName, formattedMessage, KeyValues.of(), throwable);
-	}
-
-	/**
-	 * Creates a log event.
+	 * @param timestamp time of event
+	 * @param threadName or empty string
+	 * @param threadId thread id or 0 if that cannot be resolved.
 	 * @param level the logging level.
 	 * @param loggerName the name of the logger which is usually a class name.
 	 * @param message the unformatted message.
@@ -80,25 +65,24 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
 	 */
-	public static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String message,
+	public static LogEvent ofOneArg(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName, @Nullable String message,
 			KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Object arg1) {
-		Instant timeStamp = Instant.now();
-		Thread currentThread = Thread.currentThread();
-		String threadName = currentThread.getName();
-		long threadId = currentThread.threadId();
 		if (arg1 instanceof Throwable t) {
-			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, t);
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
 		}
 		if (message == null) {
-			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null);
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
 
 		}
-		return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
+		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 				messageFormatter, null, arg1);
 	}
 
 	/**
 	 * Creates a log event.
+	 * @param timestamp time of event
+	 * @param threadName or empty string
+	 * @param threadId thread id or 0 if that cannot be resolved.
 	 * @param level the logging level.
 	 * @param loggerName the name of the logger which is usually a class name.
 	 * @param message the unformatted message.
@@ -111,48 +95,20 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
 	 */
-	public static LogEvent of(System.Logger.Level level, String loggerName, @Nullable String message,
+	public static LogEvent ofTwoArgs(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName, @Nullable String message,
 			KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Object arg1, @Nullable Object arg2) {
-		Instant timeStamp = Instant.now();
-		Thread currentThread = Thread.currentThread();
-		String threadName = currentThread.getName();
-		long threadId = currentThread.threadId();
 		if (arg2 instanceof Throwable t) {
 			if (message == null) {
-				return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, t);
+				return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
 			}
-			return new OneArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
+			return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, t, arg1);
 		}
 		if (message == null) {
-			return new DefaultLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null);
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
 		}
-		return new TwoArgLogEvent(timeStamp, threadName, threadId, level, loggerName, message, keyValues,
+		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 				messageFormatter, null, arg1, arg2);
-	}
-
-	/**
-	 * Creates a log event.
-	 * @param level the logging level.
-	 * @param loggerName the name of the logger which is usually a class name.
-	 * @param message the unformatted message.
-	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
-	 * @param messageFormatter formatter to use for rendering a message when
-	 * #{@link LogEvent#formattedMessage(StringBuilder)} is called.
-	 * @param args an array of arguments that will be passed to messageFormatter. The
-	 * contents maybe null elements but the array itself should not be null.
-	 * @return event
-	 * @see LevelResolver
-	 * @see LogMessageFormatter
-	 */
-	public static LogEvent ofArgs(System.Logger.Level level, String loggerName, String message, KeyValues keyValues,
-			LogMessageFormatter messageFormatter, @Nullable Object[] args) {
-		Instant timeStamp = Instant.now();
-		Thread currentThread = Thread.currentThread();
-		String threadName = currentThread.getName();
-		long threadId = currentThread.threadId();
-		return ofAll(timeStamp, threadName, threadId, level, loggerName, message, keyValues, null, messageFormatter,
-				args);
 	}
 
 	/**
