@@ -25,12 +25,16 @@ class LogEventTest {
 
 	@Test
 	void testOfLevelLoggerNameFormattedMessageKeyValuesThrowable() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String formattedMessage = "Hello!";
 		KeyValues keyValues = KeyValues.of();
 		Throwable throwable = null;
-		var event = LogEvent.of(level, loggerName, formattedMessage, keyValues, throwable);
+		var event = LogEvent.of(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
+				throwable);
 		assertNotNull(event);
 		assertNull(event.throwableOrNull());
 		assertTrue(event.keyValues().isEmpty());
@@ -48,12 +52,16 @@ class LogEventTest {
 
 	@Test
 	void testOfLevelLoggerNameFormattedMessageNullKeyValuesThrowable() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String formattedMessage = null;
 		KeyValues keyValues = KeyValues.of();
 		Throwable throwable = null;
-		var event = LogEvent.of(level, loggerName, formattedMessage, keyValues, throwable);
+		var event = LogEvent.of(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
+				throwable);
 		assertFalse(event.hasMessage());
 		assertNull(event.messageOrNull());
 		assertEquals("null", event.message());
@@ -62,56 +70,18 @@ class LogEventTest {
 	}
 
 	@Test
-	void testOfLevelLoggerNameFormattedMessageThrowable() {
-		Level level = Level.INFO;
-		String loggerName = "logger";
-		String formattedMessage = "Hello!";
-		Throwable throwable = null;
-		var event = LogEvent.of(level, loggerName, formattedMessage, throwable);
-		assertNotNull(event);
-		assertTrue(event.hasMessage());
-		assertNotNull(event.messageOrNull());
-		assertNull(event.throwableOrNull());
-		assertTrue(event.keyValues().isEmpty());
-		assertEquals(Level.INFO, event.level());
-		assertInstanceOf(DefaultLogEvent.class, event);
-		StringBuilder sb = new StringBuilder();
-		event.formattedMessage(sb);
-		assertEquals("Hello!", sb.toString());
-		sb.setLength(0);
-		event.formattedMessage(sb, "NOT EXPECTED");
-		assertFreeze(event);
-	}
-
-	@Test
-	void testOfLevelLoggerNameFormattedMessageNullThrowable() {
-		Level level = Level.INFO;
-		String loggerName = "logger";
-		String formattedMessage = "Hello!";
-		Throwable throwable = null;
-		var event = LogEvent.of(level, loggerName, formattedMessage, throwable);
-		assertNotNull(event);
-		assertNull(event.throwableOrNull());
-		assertTrue(event.keyValues().isEmpty());
-		assertEquals(Level.INFO, event.level());
-		assertInstanceOf(DefaultLogEvent.class, event);
-		StringBuilder sb = new StringBuilder();
-		event.formattedMessage(sb);
-		assertEquals("Hello!", sb.toString());
-		sb.setLength(0);
-		event.formattedMessage(sb, "NOT EXPECTED");
-		assertFreeze(event);
-	}
-
-	@Test
 	void testOfLevelLoggerNameMessageKeyValuesMessageFormatterArg1() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = "Hello {}!";
 		KeyValues keyValues = KeyValues.of(Map.of("k1", "v1"));
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		Integer arg1 = 1;
-		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1);
+		var event = LogEvent.ofOneArg(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+				messageFormatter, arg1);
 		assertNotNull(event);
 		assertTrue(event.hasMessage());
 		assertNotNull(event.messageOrNull());
@@ -129,13 +99,17 @@ class LogEventTest {
 
 	@Test
 	void testOfLevelLoggerNameMessageNullKeyValuesMessageFormatterArg1() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = null;
 		KeyValues keyValues = KeyValues.of(Map.of("k1", "v1"));
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		Integer arg1 = 1;
-		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1);
+		var event = LogEvent.ofOneArg(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+				messageFormatter, arg1);
 
 		assertNotNull(event);
 		assertFalse(event.hasMessage());
@@ -156,6 +130,9 @@ class LogEventTest {
 
 	@Test
 	void testOfLevelLoggerNameMessageKeyValuesMessageFormatterArg1Arg2() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = "Hello {} {}!";
@@ -163,7 +140,8 @@ class LogEventTest {
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		Integer arg1 = 1;
 		URI arg2 = URI.create("https://jstach.io");
-		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1, arg2);
+		var event = LogEvent.ofTwoArgs(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+				messageFormatter, arg1, arg2);
 		assertNotNull(event);
 		assertTrue(event.hasMessage());
 		assertNotNull(event.messageOrNull());
@@ -181,6 +159,9 @@ class LogEventTest {
 
 	@Test
 	void testOfLevelLoggerNameMessageNullKeyValuesMessageFormatterArg1Arg2() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = null;
@@ -188,7 +169,8 @@ class LogEventTest {
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		Integer arg1 = 1;
 		URI arg2 = URI.create("https://jstach.io");
-		var event = LogEvent.of(level, loggerName, message, keyValues, messageFormatter, arg1, arg2);
+		var event = LogEvent.ofTwoArgs(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+				messageFormatter, arg1, arg2);
 		assertNotNull(event);
 		assertFalse(event.hasMessage());
 		assertNull(event.messageOrNull());
@@ -206,12 +188,16 @@ class LogEventTest {
 
 	@Test
 	void testOfArgsZero() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = "Hello!";
 		KeyValues keyValues = KeyValues.of(Map.of("k1", "v1"));
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
-		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter, new @Nullable Object[] {});
+		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, null,
+				messageFormatter, new @Nullable Object[] {});
 		assertNotNull(event);
 		assertTrue(event.hasMessage());
 		assertNotNull(event.messageOrNull());
@@ -229,14 +215,17 @@ class LogEventTest {
 
 	@Test
 	void testOfArgs1() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = "Hello {}!";
 		KeyValues keyValues = KeyValues.of(Map.of("k1", "v1"));
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		Integer arg1 = 1;
-		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter,
-				new @Nullable Object[] { arg1 });
+		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, null,
+				messageFormatter, new @Nullable Object[] { arg1 });
 		assertNotNull(event);
 		assertTrue(event.hasMessage());
 		assertNotNull(event.messageOrNull());
@@ -254,6 +243,9 @@ class LogEventTest {
 
 	@Test
 	void testOfArgs2() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = "Hello {} {}!";
@@ -261,8 +253,8 @@ class LogEventTest {
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		Integer arg1 = 1;
 		URI arg2 = null;
-		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter,
-				new @Nullable Object[] { arg1, arg2 });
+		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, null,
+				messageFormatter, new @Nullable Object[] { arg1, arg2 });
 		assertNotNull(event);
 		assertTrue(event.hasMessage());
 		assertNotNull(event.messageOrNull());
@@ -280,6 +272,9 @@ class LogEventTest {
 
 	@Test
 	void testOfArgs3() {
+		Instant timestamp = Instant.EPOCH;
+		String threadName = "main";
+		long threadId = 0;
 		Level level = Level.INFO;
 		String loggerName = "logger";
 		String message = "Hello {} {} {}!";
@@ -288,8 +283,8 @@ class LogEventTest {
 		Integer arg1 = 1;
 		URI arg2 = null;
 		String arg3 = "nonnull";
-		var event = LogEvent.ofArgs(level, loggerName, message, keyValues, messageFormatter,
-				new @Nullable Object[] { arg1, arg2, arg3 });
+		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, null,
+				messageFormatter, new @Nullable Object[] { arg1, arg2, arg3 });
 		assertNotNull(event);
 		assertTrue(event.hasMessage());
 		assertNotNull(event.messageOrNull());

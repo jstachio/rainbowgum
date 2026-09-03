@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.io.PrintStream;
 import java.lang.System.Logger.Level;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -55,7 +56,9 @@ final class MetaLog {
 	 * @param throwable error to log.
 	 */
 	public static void error(Class<?> loggerName, String message, Throwable throwable) {
-		var event = LogEvent.of(Level.ERROR, loggerName.getName(), message, throwable);
+		var currentThread = Thread.currentThread();
+		var event = LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), Level.ERROR,
+				loggerName.getName(), message, KeyValues.of(), throwable);
 		error(event);
 	}
 

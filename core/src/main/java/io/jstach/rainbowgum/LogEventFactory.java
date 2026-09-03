@@ -88,7 +88,13 @@ public abstract class LogEventFactory {
 	protected long threadId() {
 		return Thread.currentThread().threadId();
 	}
-	
+
+	/**
+	 * Key values to use for the next event created by this factory's arg-less
+	 * {@link #event(Level, String, Throwable)} overload. Default is
+	 * {@link KeyValues#of()}.
+	 * @return key values.
+	 */
 	protected KeyValues defaultKeyValues() {
 		return KeyValues.of();
 	}
@@ -107,14 +113,24 @@ public abstract class LogEventFactory {
 		return LogMessageFormatter.StandardMessageFormatter.SLF4J;
 	}
 
+	/**
+	 * Creates a log event whose message is already formatted (no arguments), using
+	 * {@link #defaultKeyValues()}.
+	 * @param level the logging level.
+	 * @param formattedMessage the unformatted message.
+	 * @param throwable an exception if passed maybe <code>null</code>.
+	 * @return event.
+	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
+	 */
 	public LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
 		return LogEvent.of(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage,
-				defaultKeyValues(), null);
+				defaultKeyValues(), throwable);
 	}
-	
+
 	/**
 	 * Creates a log event whose message is already formatted (no arguments). Corresponds
-	 * to {@link LogEvent#of(Level, String, String, KeyValues, Throwable)}.
+	 * to
+	 * {@link LogEvent#of(Instant, String, long, Level, String, String, KeyValues, Throwable)}.
 	 * @param level the logging level.
 	 * @param formattedMessage the unformatted message.
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
@@ -124,13 +140,13 @@ public abstract class LogEventFactory {
 	 */
 	public LogEvent event(Level level, @Nullable String formattedMessage, KeyValues keyValues,
 			@Nullable Throwable throwable) {
-		return LogEvent.of(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage,
-				keyValues, throwable);
+		return LogEvent.of(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage, keyValues,
+				throwable);
 	}
 
 	/**
 	 * Creates a log event with a single message argument. Corresponds to
-	 * {@link LogEvent#of(Level, String, String, KeyValues, LogMessageFormatter, Object)}.
+	 * {@link LogEvent#ofOneArg(Instant, String, long, Level, String, String, KeyValues, LogMessageFormatter, Object)}.
 	 * @param level the logging level.
 	 * @param message the unformatted message.
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
@@ -143,12 +159,13 @@ public abstract class LogEventFactory {
 		long threadId = threadId();
 		String loggerName = loggerName();
 		var messageFormatter = messageFormatter();
-		return LogEvent.ofOneArg(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, arg1);
+		return LogEvent.ofOneArg(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+				messageFormatter, arg1);
 	}
 
 	/**
 	 * Creates a log event with two message arguments. Corresponds to
-	 * {@link LogEvent#of(Level, String, String, KeyValues, LogMessageFormatter, Object, Object)}.
+	 * {@link LogEvent#ofTwoArgs(Instant, String, long, Level, String, String, KeyValues, LogMessageFormatter, Object, Object)}.
 	 * @param level the logging level.
 	 * @param message the unformatted message.
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
@@ -163,12 +180,13 @@ public abstract class LogEventFactory {
 		long threadId = threadId();
 		String loggerName = loggerName();
 		var messageFormatter = messageFormatter();
-		return LogEvent.ofTwoArgs(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, arg1, arg2);
+		return LogEvent.ofTwoArgs(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+				messageFormatter, arg1, arg2);
 	}
 
 	/**
 	 * Creates a log event with an array of message arguments. Corresponds to
-	 * {@link LogEvent#ofArgs(Level, String, String, KeyValues, LogMessageFormatter, Object[])}.
+	 * {@link LogEvent#ofAll(Instant, String, long, Level, String, String, KeyValues, Throwable, LogMessageFormatter, Object[])}.
 	 * @param level the logging level.
 	 * @param message the unformatted message.
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.

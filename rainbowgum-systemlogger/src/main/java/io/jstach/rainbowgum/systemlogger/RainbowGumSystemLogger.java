@@ -48,6 +48,12 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		return level;
 	}
 
+	private LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
+		var currentThread = Thread.currentThread();
+		return LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level, loggerName,
+				formattedMessage, KeyValues.of(), throwable);
+	}
+
 	@Override
 	public String getName() {
 		return this.loggerName;
@@ -76,7 +82,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = obj == null ? "" : obj.toString();
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
+			LogEvent event = event(level, formattedMessage, null);
 			route.log(event);
 		}
 	}
@@ -91,7 +97,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			LogEvent event = LogEvent.of(level, loggerName, msg, throwable);
+			LogEvent event = event(level, msg, throwable);
 			route.log(event);
 		}
 	}
@@ -108,7 +114,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = msgSupplier.get();
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, throwable);
+			LogEvent event = event(level, formattedMessage, throwable);
 			route.log(event);
 		}
 	}
@@ -124,7 +130,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = LevelSystemLogger.getMessage(bundle, msg);
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, throwable);
+			LogEvent event = event(level, formattedMessage, throwable);
 			route.log(event);
 		}
 	}
