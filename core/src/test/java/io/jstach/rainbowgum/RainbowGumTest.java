@@ -6,9 +6,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import java.lang.System.Logger.Level;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 
+/*
+ * Touches GlobalLogRouter.INSTANCE and RainbowGum's static current-instance holder, the
+ * same JVM-wide state RainbowGumEntryPointTest uses - @Isolated keeps this from racing it
+ * (or anything else) under the "fast" profile's parallel test execution; SAME_THREAD keeps
+ * this class's own methods from racing each other.
+ */
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class RainbowGumTest {
 
 	// @Test

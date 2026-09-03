@@ -21,6 +21,9 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -30,13 +33,19 @@ import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
 
+/*
+ * RainbowGumHolder is static, JVM-wide state (see RainbowGumEntryPointTest's own comment
+ * on this) - reset it around the findGlobalProperties() tests below so they do not depend
+ * on whatever other tests in this JVM fork left behind. RainbowGumTest and
+ * RainbowGumEntryPointTest touch the same holder, so under the "fast" profile's parallel
+ * test execution this class also needs @Isolated (confirmed by an intermittent failure in
+ * testFindGlobalPropertiesUsesBoundRainbowGum when it wasn't present), not just the
+ * @BeforeEach/@AfterEach reset.
+ */
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class LogPropertiesTest {
 
-	/*
-	 * RainbowGumHolder is static, JVM-wide state (see RainbowGumEntryPointTest's own
-	 * comment on this) - reset it around the findGlobalProperties() tests below so they
-	 * do not depend on whatever other tests in this JVM fork left behind.
-	 */
 	@BeforeEach
 	void beforeEachClearGlobalRainbowGum() {
 		RainbowGumHolder.remove(null);

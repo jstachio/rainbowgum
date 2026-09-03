@@ -130,8 +130,7 @@ class LogstashEncoderTest {
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
-			r.log(LogEvent.of(instant, Thread.currentThread().getName(), 1, System.Logger.Level.INFO, "logstash",
-					"hello", KeyValues.of(), null));
+			r.log(LogEvent.of(instant, "main", 1, System.Logger.Level.INFO, "logstash", "hello", KeyValues.of(), null));
 			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.events().get(0).getValue();
 			assertTrue(actual.startsWith("{\n "),

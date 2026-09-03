@@ -543,27 +543,55 @@
         it). See bin/build-fast.sh.
 
         JUnit 5's own parallel test execution (junit.jupiter.execution.parallel.*) was
-        tried here and deliberately left out: enabling it at all - even with every
+        originally tried and pulled back out: enabling it at all - even with every
         concurrency mode forced to same_thread - moves every test off a thread literally
         named "main" onto a JUnit-managed ForkJoinPool worker thread, since JUnit5 always
         dispatches through its parallel-capable executor once enabled, regardless of how
         conservatively it's configured. RainbowGum is a logging framework, so a lot of its
         suite (FileOutputTest's golden-string assertions in particular) embeds the literal
-        thread name (e.g. "[main]") in expected output - those all break the moment
-        parallel.enabled=true, independent of concurrency granularity. Confirmed by
-        actually running the full suite, not just reasoned about. A handful of test
-        classes were also found to share mutable static state across classes (MetaLog.output,
-        RainbowGum's static current-instance holder) and are now annotated with @Isolated/
-        @Execution(SAME_THREAD) regardless - inert today, but real prerequisites for
-        whenever JUnit 5 parallel execution is revisited (after fixing the thread-name
-        assertions, or switching to Surefire's process-fork-based parallelism instead,
-        which doesn't share this specific problem since each forked JVM's own thread
-        really is "main" for whatever it runs).
+        thread name (e.g. "[main]") in expected output - those all broke the moment
+        parallel.enabled=true, independent of concurrency granularity.
+
+        Fixed by giving every golden-string-asserting test a deterministic thread name/id
+        instead of relying on the real executing thread being literally "main":
+        TestLogEventFactory (core and rainbowgum-pattern each have their own) pins
+        threadName()/threadId() when building LogEvents directly, and the rainbowgum-json
+        encoder tests and JDKSetupTest (which logs through the real JUL/System.Logger
+        bridge, so there is no event-factory injection point) instead capture
+        Thread.currentThread().getName() at assertion time and format it into the expected
+        string - correct under any thread, not just "main".
+
+        Classes run concurrently (mode.classes.default=concurrent); methods within a class
+        stay same_thread by default, which is what the parallel.mode.default=same_thread
+        below means - the small number of classes that share mutable static state across
+        *classes* (MetaLog.output, RainbowGum's static current-instance holder) are
+        annotated with @Isolated to force full exclusion while they run; classes that only
+        need their own methods not to race each other use @Execution(SAME_THREAD) alone.
       -->
       <id>fast</id>
       <properties>
         <maven.javadoc.skip>true</maven.javadoc.skip>
       </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <configuration>
+                <properties>
+                  <configurationParameters>
+                    junit.jupiter.execution.parallel.enabled=true
+                    junit.jupiter.execution.parallel.mode.default=same_thread
+                    junit.jupiter.execution.parallel.mode.classes.default=concurrent
+                    junit.jupiter.execution.parallel.config.strategy=dynamic
+                  </configurationParameters>
+                </properties>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
     </profile>
     <profile>
       <!-- mvn -f doc clean package -Pjavadoc -->

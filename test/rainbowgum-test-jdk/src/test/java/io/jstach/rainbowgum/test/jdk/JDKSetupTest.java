@@ -582,11 +582,12 @@ class JDKSetupTest {
 			logger = tester.afterLoad(logger);
 			tester.message(logger, level, message);
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
-						00:00:00.000 [main] %s after.load - %s
-						""".formatted(levelString, message);
+						00:00:00.000 [%s] %s after.load - %s
+						""".formatted(threadName, levelString, message);
 			}
 			else {
 				expected = "";
@@ -616,6 +617,7 @@ class JDKSetupTest {
 				tester.messageSupplierThrown(logger, level, message, thrown.thrown());
 			}
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			int expectedCount;
 			if (isEnabled(level, loggerLevel)) {
@@ -625,8 +627,8 @@ class JDKSetupTest {
 				}
 				expectedCount = 1;
 				expected = """
-						00:00:00.000 [main] %s after.load - %s
-						""".formatted(levelString, mess.expected) + exception;
+						00:00:00.000 [%s] %s after.load - %s
+						""".formatted(threadName, levelString, mess.expected) + exception;
 			}
 			else {
 				expectedCount = 0;
@@ -674,11 +676,12 @@ class JDKSetupTest {
 				tester.object(logger, level, arg);
 			}
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
-						00:00:00.000 [main] %s after.load - %s
-						""".formatted(levelString, message);
+						00:00:00.000 [%s] %s after.load - %s
+						""".formatted(threadName, levelString, message);
 			}
 			else {
 				expected = "";
@@ -699,17 +702,18 @@ class JDKSetupTest {
 			logger = tester.afterLoad(logger);
 			tester.oneArg(logger, level, message, arg);
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				if (arg == Arg.BAD) {
 					expected = """
-							00:00:00.000 [main] %s after.load - Hello {0}! %s
-							""".formatted(levelString, arg.expected);
+							00:00:00.000 [%s] %s after.load - Hello {0}! %s
+							""".formatted(threadName, levelString, arg.expected);
 				}
 				else {
 					expected = """
-							00:00:00.000 [main] %s after.load - Hello %s!
-							""".formatted(levelString, arg.expected);
+							00:00:00.000 [%s] %s after.load - Hello %s!
+							""".formatted(threadName, levelString, arg.expected);
 				}
 			}
 			else {
@@ -735,17 +739,18 @@ class JDKSetupTest {
 			logger = tester.afterLoad(logger);
 			tester.twoArgs(logger, level, message, arg1, arg2);
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				if (arg1 == Arg.BAD || arg2 == Arg.BAD) {
 					expected = """
-							00:00:00.000 [main] %s after.load - Hello {0} {1}! %s
-							""".formatted(levelString, Arg.BAD.expected);
+							00:00:00.000 [%s] %s after.load - Hello {0} {1}! %s
+							""".formatted(threadName, levelString, Arg.BAD.expected);
 				}
 				else {
 					expected = """
-							00:00:00.000 [main] %s after.load - Hello %s %s!
-							""".formatted(levelString, arg1.expected, arg2.expected);
+							00:00:00.000 [%s] %s after.load - Hello %s %s!
+							""".formatted(threadName, levelString, arg1.expected, arg2.expected);
 				}
 			}
 			else {
@@ -773,17 +778,18 @@ class JDKSetupTest {
 			logger = tester.afterLoad(logger);
 			tester.threeArgs(logger, level, message, arg1, arg2, arg3);
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				if (arg1 == Arg.BAD || arg2 == Arg.BAD) {
 					expected = """
-							00:00:00.000 [main] %s after.load - Hello {0} {1} {2}! %s
-							""".formatted(levelString, Arg.BAD.expected);
+							00:00:00.000 [%s] %s after.load - Hello {0} {1} {2}! %s
+							""".formatted(threadName, levelString, Arg.BAD.expected);
 				}
 				else {
 					expected = """
-							00:00:00.000 [main] %s after.load - Hello %s %s %s!
-							""".formatted(levelString, arg1.expected, arg2.expected, arg3.expected);
+							00:00:00.000 [%s] %s after.load - Hello %s %s %s!
+							""".formatted(threadName, levelString, arg1.expected, arg2.expected, arg3.expected);
 				}
 			}
 			else {
@@ -807,11 +813,12 @@ class JDKSetupTest {
 			var throwable = new RuntimeException("expected");
 			tester.throwable(logger, level, message, throwable);
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
-						00:00:00.000 [main] %s after.load - Hello exception!
-						java.lang.RuntimeException: expected""".formatted(levelString);
+						00:00:00.000 [%s] %s after.load - Hello exception!
+						java.lang.RuntimeException: expected""".formatted(threadName, levelString);
 			}
 			else {
 				expected = "";
@@ -835,11 +842,13 @@ class JDKSetupTest {
 			var throwable = new RuntimeException("expected");
 			tester.bundleThrowable(logger, level, bundle.bundle(), message, throwable);
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				expected = """
-						00:00:00.000 [main] %s after.load - %s
-						java.lang.RuntimeException: expected""".formatted(levelString, bundle.expected(message, null));
+						00:00:00.000 [%s] %s after.load - %s
+						java.lang.RuntimeException: expected""".formatted(threadName, levelString,
+						bundle.expected(message, null));
 			}
 			else {
 				expected = "";
@@ -862,18 +871,19 @@ class JDKSetupTest {
 			logger = tester.afterLoad(logger);
 			tester.bundleArgs(logger, level, bundle.bundle(), message, arg);
 			var levelString = LevelFormatter.ofRightPadded().formatLevel(level);
+			String threadName = Thread.currentThread().getName();
 			String expected;
 			if (isEnabled(level, loggerLevel)) {
 				if (arg == Arg.BAD) {
 					expected = """
-							00:00:00.000 [main] %s after.load - Hello {0}! %s
-							""".formatted(levelString, arg.expected);
+							00:00:00.000 [%s] %s after.load - Hello {0}! %s
+							""".formatted(threadName, levelString, arg.expected);
 				}
 				else {
 					String expectedBundle = bundle.expected("key1", arg.expected);
 					expected = """
-							00:00:00.000 [main] %s after.load - %s
-							""".formatted(levelString, expectedBundle);
+							00:00:00.000 [%s] %s after.load - %s
+							""".formatted(threadName, levelString, expectedBundle);
 				}
 			}
 			else {
@@ -1035,10 +1045,11 @@ class JDKSetupTest {
 			var jul = Logger.getLogger("before.load");
 			jul.log(java.util.logging.Level.INFO, "Hello {0} from JUL Logger!", "Gum");
 			String actual = output.toString();
+			String threadName = Thread.currentThread().getName();
 			String expected = """
-					00:00:00.000 [main] INFO  before.load - Hello Gum from System.Logger!
-					00:00:00.000 [main] INFO  before.load - Hello Gum from JUL Logger!
-					""";
+					00:00:00.000 [%s] INFO  before.load - Hello Gum from System.Logger!
+					00:00:00.000 [%s] INFO  before.load - Hello Gum from JUL Logger!
+					""".formatted(threadName, threadName);
 			assertEquals(expected, actual);
 		}
 		assertNull(RainbowGum.getOrNull(), "Rainbow Gum should not be loaded anymore.");
