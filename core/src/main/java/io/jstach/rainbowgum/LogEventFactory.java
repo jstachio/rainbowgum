@@ -75,6 +75,20 @@ public class LogEventFactory {
 	}
 
 	/**
+	 * Formatter to use for rendering a message when
+	 * {@link LogEvent#formattedMessage(StringBuilder)} is called on events created by
+	 * this factory that take arguments. Default is
+	 * {@link LogMessageFormatter.StandardMessageFormatter#SLF4J}.
+	 * @return message formatter.
+	 * @apiNote a method rather than a parameter on the {@code event}/{@code eventArgs}
+	 * methods below since this rarely changes per event - override it instead if a
+	 * different formatter is needed.
+	 */
+	protected LogMessageFormatter messageFormatter() {
+		return LogMessageFormatter.StandardMessageFormatter.SLF4J;
+	}
+
+	/**
 	 * Creates a log event whose message is already formatted (no arguments). Corresponds
 	 * to {@link LogEvent#of(Level, String, String, KeyValues, Throwable)}.
 	 * @param level the logging level.
@@ -98,13 +112,11 @@ public class LogEventFactory {
 	 * @param loggerName the name of the logger which is usually a class name.
 	 * @param message the unformatted message.
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
-	 * @param messageFormatter formatter to use for rendering a message when
-	 * {@link LogEvent#formattedMessage(StringBuilder)} is called.
-	 * @param arg1 argument that will be passed to messageFormatter.
+	 * @param arg1 argument that will be passed to {@link #messageFormatter()}.
 	 * @return event.
 	 */
 	public LogEvent event(Level level, String loggerName, @Nullable String message, KeyValues keyValues,
-			LogMessageFormatter messageFormatter, @Nullable Object arg1) {
+			@Nullable Object arg1) {
 		Instant timestamp = timestamp();
 		String threadName = threadName();
 		long threadId = threadId();
@@ -115,7 +127,7 @@ public class LogEventFactory {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
 		}
 		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-				messageFormatter, null, arg1);
+				messageFormatter(), null, arg1);
 	}
 
 	/**
@@ -125,14 +137,12 @@ public class LogEventFactory {
 	 * @param loggerName the name of the logger which is usually a class name.
 	 * @param message the unformatted message.
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
-	 * @param messageFormatter formatter to use for rendering a message when
-	 * {@link LogEvent#formattedMessage(StringBuilder)} is called.
-	 * @param arg1 argument that will be passed to messageFormatter.
-	 * @param arg2 argument that will be passed to messageFormatter.
+	 * @param arg1 argument that will be passed to {@link #messageFormatter()}.
+	 * @param arg2 argument that will be passed to {@link #messageFormatter()}.
 	 * @return event.
 	 */
 	public LogEvent event(Level level, String loggerName, @Nullable String message, KeyValues keyValues,
-			LogMessageFormatter messageFormatter, @Nullable Object arg1, @Nullable Object arg2) {
+			@Nullable Object arg1, @Nullable Object arg2) {
 		Instant timestamp = timestamp();
 		String threadName = threadName();
 		long threadId = threadId();
@@ -141,13 +151,13 @@ public class LogEventFactory {
 				return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
 			}
 			return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					messageFormatter, t, arg1);
+					messageFormatter(), t, arg1);
 		}
 		if (message == null) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
 		}
 		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-				messageFormatter, null, arg1, arg2);
+				messageFormatter(), null, arg1, arg2);
 	}
 
 	/**
@@ -157,16 +167,15 @@ public class LogEventFactory {
 	 * @param loggerName the name of the logger which is usually a class name.
 	 * @param message the unformatted message.
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
-	 * @param messageFormatter formatter to use for rendering a message when
-	 * {@link LogEvent#formattedMessage(StringBuilder)} is called.
-	 * @param args an array of arguments that will be passed to messageFormatter. The
-	 * contents maybe null elements but the array itself should not be null.
+	 * @param args an array of arguments that will be passed to
+	 * {@link #messageFormatter()}. The contents maybe null elements but the array itself
+	 * should not be null.
 	 * @return event.
 	 */
 	public LogEvent eventArgs(Level level, String loggerName, String message, KeyValues keyValues,
-			LogMessageFormatter messageFormatter, @SuppressWarnings("exports") @Nullable Object @Nullable [] args) {
+			@SuppressWarnings("exports") @Nullable Object @Nullable [] args) {
 		return LogEvent.ofAll(timestamp(), threadName(), threadId(), level, loggerName, message, keyValues, null,
-				messageFormatter, args);
+				messageFormatter(), args);
 	}
 
 }
