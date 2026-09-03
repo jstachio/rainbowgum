@@ -30,6 +30,8 @@ import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -47,6 +49,15 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption;
 
 @TestMethodOrder(OrderAnnotation.class)
+/*
+ * Under the "fast" profile's parallel test execution, @TestMethodOrder alone would only
+ * guarantee dispatch order, not that one method fully finishes before the next starts -
+ * SAME_THREAD makes this class's tests genuinely sequential again, which the
+ * initialization-order dependency between them (see testSystemLoggingFactory's own
+ * comment) actually needs. No other test class in this module touches the same
+ * properties/global state, so @Isolated isn't needed on top of this.
+ */
+@Execution(ExecutionMode.SAME_THREAD)
 class JDKSetupTest {
 
 	/*

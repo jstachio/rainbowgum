@@ -537,6 +537,35 @@
       </build>
     </profile>
     <profile>
+      <!--
+        For a faster local dev loop: no javadoc generation (bin/doc.sh's aggregate
+        build is the real, comprehensive javadoc build - this is not a substitute for
+        it). See bin/build-fast.sh.
+
+        JUnit 5's own parallel test execution (junit.jupiter.execution.parallel.*) was
+        tried here and deliberately left out: enabling it at all - even with every
+        concurrency mode forced to same_thread - moves every test off a thread literally
+        named "main" onto a JUnit-managed ForkJoinPool worker thread, since JUnit5 always
+        dispatches through its parallel-capable executor once enabled, regardless of how
+        conservatively it's configured. RainbowGum is a logging framework, so a lot of its
+        suite (FileOutputTest's golden-string assertions in particular) embeds the literal
+        thread name (e.g. "[main]") in expected output - those all break the moment
+        parallel.enabled=true, independent of concurrency granularity. Confirmed by
+        actually running the full suite, not just reasoned about. A handful of test
+        classes were also found to share mutable static state across classes (MetaLog.output,
+        RainbowGum's static current-instance holder) and are now annotated with @Isolated/
+        @Execution(SAME_THREAD) regardless - inert today, but real prerequisites for
+        whenever JUnit 5 parallel execution is revisited (after fixing the thread-name
+        assertions, or switching to Surefire's process-fork-based parallelism instead,
+        which doesn't share this specific problem since each forked JVM's own thread
+        really is "main" for whatever it runs).
+      -->
+      <id>fast</id>
+      <properties>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+      </properties>
+    </profile>
+    <profile>
       <!-- mvn -f doc clean package -Pjavadoc -->
       <id>javadoc</id>
       <activation>

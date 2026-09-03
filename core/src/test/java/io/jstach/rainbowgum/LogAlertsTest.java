@@ -12,7 +12,17 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 
+/*
+ * Mutates the shared static MetaLog.output field - see MetaLogTest's identical note for
+ * why @Isolated/@Execution(SAME_THREAD) are needed under the "fast" profile's parallel
+ * test execution.
+ */
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class LogAlertsTest {
 
 	ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

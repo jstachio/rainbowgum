@@ -9,7 +9,19 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 
+/*
+ * Mutates the shared static MetaLog.output field, also mutated by several other test
+ * classes (LogAppenderFlagTest, DefaultAppenderSelectionTest, AppenderAsModeReentryTest,
+ * LogAlertsTest) - @Isolated keeps this from racing any of them under parallel test
+ * execution (see the "fast" Maven profile), and SAME_THREAD keeps this class's own
+ * methods from racing each other.
+ */
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class MetaLogTest {
 
 	ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
