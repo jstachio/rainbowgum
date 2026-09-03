@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -155,6 +156,8 @@ final class DefaultLogAlerts implements LogAlerts {
 	private final ReentrantLock lock = new ReentrantLock();
 
 	private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
+	
+	private final LogEventFactory eventFactory = LogEventFactory.of(DefaultLogAlerts.class.getName());
 
 	DefaultLogAlerts(int capacity) {
 		if (capacity <= 0) {
@@ -187,7 +190,7 @@ final class DefaultLogAlerts implements LogAlerts {
 			}
 			catch (Exception e) {
 				FailsafeAppender.INSTANCE
-					.log(LogEvent.of(Level.ERROR, DefaultLogAlerts.class.getName(), "LogAlerts.Listener threw", e));
+					.log(eventFactory.event(Level.ERROR,  "LogAlerts.Listener threw", e));
 			}
 		}
 		FailsafeAppender.INSTANCE.log(frozen);

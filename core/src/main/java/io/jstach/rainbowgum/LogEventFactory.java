@@ -88,6 +88,10 @@ public abstract class LogEventFactory {
 	protected long threadId() {
 		return Thread.currentThread().threadId();
 	}
+	
+	protected KeyValues defaultKeyValues() {
+		return KeyValues.of();
+	}
 
 	/**
 	 * Formatter to use for rendering a message when
@@ -103,6 +107,11 @@ public abstract class LogEventFactory {
 		return LogMessageFormatter.StandardMessageFormatter.SLF4J;
 	}
 
+	public LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
+		return LogEvent.of(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage,
+				defaultKeyValues(), null);
+	}
+	
 	/**
 	 * Creates a log event whose message is already formatted (no arguments). Corresponds
 	 * to {@link LogEvent#of(Level, String, String, KeyValues, Throwable)}.
@@ -115,7 +124,7 @@ public abstract class LogEventFactory {
 	 */
 	public LogEvent event(Level level, @Nullable String formattedMessage, KeyValues keyValues,
 			@Nullable Throwable throwable) {
-		return new DefaultLogEvent(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage,
+		return LogEvent.of(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage,
 				keyValues, throwable);
 	}
 
@@ -133,14 +142,8 @@ public abstract class LogEventFactory {
 		String threadName = threadName();
 		long threadId = threadId();
 		String loggerName = loggerName();
-		if (arg1 instanceof Throwable t) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
-		}
-		if (message == null) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
-		}
-		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-				messageFormatter(), null, arg1);
+		var messageFormatter = messageFormatter();
+		return LogEvent.ofOneArg(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, arg1);
 	}
 
 	/**
@@ -159,18 +162,8 @@ public abstract class LogEventFactory {
 		String threadName = threadName();
 		long threadId = threadId();
 		String loggerName = loggerName();
-		if (arg2 instanceof Throwable t) {
-			if (message == null) {
-				return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
-			}
-			return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-					messageFormatter(), t, arg1);
-		}
-		if (message == null) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
-		}
-		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-				messageFormatter(), null, arg1, arg2);
+		var messageFormatter = messageFormatter();
+		return LogEvent.ofTwoArgs(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, arg1, arg2);
 	}
 
 	/**
