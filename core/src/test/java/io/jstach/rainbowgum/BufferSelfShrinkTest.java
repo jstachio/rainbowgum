@@ -151,7 +151,7 @@ class BufferSelfShrinkTest {
 			.build();
 		var output = new CapturingOutput();
 		var appender = new LockThreadLocalBufferLogAppender("test", output, encoder, EnumSet.noneOf(AppenderFlag.class),
-				new ReentrantLock());
+				new ReentrantLock(), LogAlerts.of());
 
 		appender.append(new LogEvent[] { event("x".repeat(20_000)), event("small") }, 2);
 

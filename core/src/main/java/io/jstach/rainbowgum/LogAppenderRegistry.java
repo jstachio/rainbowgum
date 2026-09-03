@@ -209,7 +209,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			flags = resolveFlags(config, name);
 		}
 
-		return DirectLogAppender.of(name, output, encoder, flags);
+		return DirectLogAppender.of(name, output, encoder, flags, config.alerts());
 	}
 
 	private static PropertyValue<LogEncoder> resolveEncoder(String name, LogConfig config, LogOutput output,
