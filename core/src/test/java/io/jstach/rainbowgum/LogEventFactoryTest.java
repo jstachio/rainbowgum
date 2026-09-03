@@ -31,8 +31,7 @@ class LogEventFactoryTest {
 	@Test
 	void eventWithOneArgFormatsTheMessage() {
 		var factory = LogEventFactory.of();
-		var event = factory.event(Level.INFO, "logger", "hello {}", KeyValues.of(),
-				LogMessageFormatter.StandardMessageFormatter.SLF4J, "world");
+		var event = factory.event(Level.INFO, "logger", "hello {}", KeyValues.of(), "world");
 		assertInstanceOf(OneArgLogEvent.class, event);
 		StringBuilder sb = new StringBuilder();
 		event.formattedMessage(sb);
@@ -43,8 +42,7 @@ class LogEventFactoryTest {
 	void eventWithOneArgDetectsTrailingThrowable() {
 		var factory = LogEventFactory.of();
 		var throwable = new RuntimeException("boom");
-		var event = factory.event(Level.INFO, "logger", "hello", KeyValues.of(),
-				LogMessageFormatter.StandardMessageFormatter.SLF4J, throwable);
+		var event = factory.event(Level.INFO, "logger", "hello", KeyValues.of(), throwable);
 		assertInstanceOf(DefaultLogEvent.class, event);
 		assertEquals(throwable, event.throwableOrNull());
 	}
@@ -52,8 +50,7 @@ class LogEventFactoryTest {
 	@Test
 	void eventWithTwoArgsFormatsTheMessage() {
 		var factory = LogEventFactory.of();
-		var event = factory.event(Level.INFO, "logger", "{} {}", KeyValues.of(),
-				LogMessageFormatter.StandardMessageFormatter.SLF4J, "hello", "world");
+		var event = factory.event(Level.INFO, "logger", "{} {}", KeyValues.of(), "hello", "world");
 		assertInstanceOf(TwoArgLogEvent.class, event);
 		StringBuilder sb = new StringBuilder();
 		event.formattedMessage(sb);
@@ -64,8 +61,7 @@ class LogEventFactoryTest {
 	void eventWithTwoArgsDetectsTrailingThrowable() {
 		var factory = LogEventFactory.of();
 		var throwable = new RuntimeException("boom");
-		var event = factory.event(Level.INFO, "logger", "hello {}", KeyValues.of(),
-				LogMessageFormatter.StandardMessageFormatter.SLF4J, "world", throwable);
+		var event = factory.event(Level.INFO, "logger", "hello {}", KeyValues.of(), "world", throwable);
 		assertInstanceOf(OneArgLogEvent.class, event);
 		assertEquals(throwable, event.throwableOrNull());
 	}
@@ -73,12 +69,26 @@ class LogEventFactoryTest {
 	@Test
 	void eventArgsWithMoreThanTwoArgsUsesArrayArgLogEvent() {
 		var factory = LogEventFactory.of();
-		var event = factory.eventArgs(Level.INFO, "logger", "{} {} {}", KeyValues.of(),
-				LogMessageFormatter.StandardMessageFormatter.SLF4J, new Object[] { "a", "b", "c" });
+		var event = factory.eventArgs(Level.INFO, "logger", "{} {} {}", KeyValues.of(), new Object[] { "a", "b", "c" });
 		assertInstanceOf(ArrayArgLogEvent.class, event);
 		StringBuilder sb = new StringBuilder();
 		event.formattedMessage(sb);
 		assertEquals("a b c", sb.toString());
+	}
+
+	@Test
+	void subclassOverridingMessageFormatterAffectsAllArgTakingMethods() {
+		var factory = new LogEventFactory() {
+			@Override
+			protected LogMessageFormatter messageFormatter() {
+				return LogMessageFormatter.StandardMessageFormatter.JUL;
+			}
+		};
+
+		var event = factory.event(Level.INFO, "logger", "hello {0}", KeyValues.of(), "world");
+		StringBuilder sb = new StringBuilder();
+		event.formattedMessage(sb);
+		assertEquals("hello world", sb.toString());
 	}
 
 	@Test
@@ -106,8 +116,7 @@ class LogEventFactoryTest {
 		assertEquals("fixed-thread", event.threadName());
 		assertEquals(42L, event.threadId());
 
-		var argEvent = factory.event(Level.INFO, "logger", "hello {}", KeyValues.of(),
-				LogMessageFormatter.StandardMessageFormatter.SLF4J, "world");
+		var argEvent = factory.event(Level.INFO, "logger", "hello {}", KeyValues.of(), "world");
 		assertEquals(fixedInstant, argEvent.timestamp());
 		assertEquals("fixed-thread", argEvent.threadName());
 		assertEquals(42L, argEvent.threadId());
