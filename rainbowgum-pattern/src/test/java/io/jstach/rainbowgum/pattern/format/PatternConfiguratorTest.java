@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogConfig.Builder;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
@@ -248,7 +250,13 @@ class PatternConfiguratorTest {
 		void events(LogRouter router) {
 			Instant instant = Instant.ofEpochMilli(1);
 			for (var level : System.Logger.Level.values()) {
-				router.eventBuilder("com.pattern.test.Test", level).message("hello").timestamp(instant).log();
+				var route = router.route("com.pattern.test.Test", level);
+				if (route.isEnabled()) {
+					var event = LogEventFactory.of("com.pattern.test.Test")
+						.event(level, "hello", KeyValues.of(), (Throwable) null)
+						.freeze(instant);
+					route.log(event);
+				}
 			}
 		}
 

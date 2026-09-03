@@ -171,7 +171,8 @@ class AppenderAsModeFlagPermutationTest {
 					a -> a.output(outputB).encoder(LogFormatter.builder().message().newline().encoder().build()));
 			r.publisher((name, cfg, appenders) -> new FanoutSyncLogPublisher(appenders.asList()));
 		}).build().start()) {
-			gum.router().eventBuilder("test", System.Logger.Level.INFO).message("fanned out").log();
+			gum.log(LogEventFactory.of("test")
+				.event(System.Logger.Level.INFO, "fanned out", KeyValues.of(), (Throwable) null));
 		}
 		assertEquals("fanned out\n", outputA.toString());
 		assertEquals("fanned out\n", outputB.toString());

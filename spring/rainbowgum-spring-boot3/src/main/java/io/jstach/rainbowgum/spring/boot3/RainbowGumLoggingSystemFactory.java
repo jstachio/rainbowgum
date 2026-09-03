@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.spring.boot3;
 import java.lang.System.Logger.Level;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.ServiceLoader;
@@ -22,7 +23,9 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.support.SpringFactoriesLoader;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
@@ -211,10 +214,15 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			var gum = RainbowGum.getOrNull();
 			if (gum != null) {
 				if (gum.config().serviceRegistry().findOrNull(PreBootRainbowGumProvider.BootFlag.class) == null) {
-					gum.router()
-						.eventBuilder(getClass().getName(), Level.INFO)
-						.message("Rainbow Gum already loaded! Config will not be driven by Spring.")
-						.log();
+					var route = gum.router().route(getClass().getName(), Level.INFO);
+					if (route.isEnabled()) {
+						var currentThread = Thread.currentThread();
+						var event = LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(),
+								Level.INFO, getClass().getName(),
+								"Rainbow Gum already loaded! Config will not be driven by Spring.", KeyValues.of(),
+								null);
+						route.log(event);
+					}
 					return;
 				}
 			}

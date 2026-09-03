@@ -65,7 +65,12 @@ class RainbowGumTest {
 			.build();
 
 		// GlobalLogRouter.INSTANCE.log("stuff", Level.WARNING, "first");
-		GlobalLogRouter.INSTANCE.eventBuilder("stuff", Level.WARNING).message("first").log();
+		{
+			var route = GlobalLogRouter.INSTANCE.route("stuff", Level.WARNING);
+			if (route.isEnabled()) {
+				route.log(LogEventFactory.of("stuff").event(Level.WARNING, "first", KeyValues.of(), (Throwable) null));
+			}
+		}
 		try (var gum = RainbowGum.builder().route(r -> {
 			r.publisher(PublisherFactory.async().build());
 			r.appender(sysout);
@@ -75,13 +80,10 @@ class RainbowGumTest {
 			assertEquals(1, ShutdownManager.shutdownHooks().size());
 
 			var router = gum.router();
-			router.eventBuilder("stuff", Level.INFO).message("Stuff").log();
-			router.eventBuilder("stuff", Level.ERROR).message("bad").log();
+			gum.log(LogEventFactory.of("stuff").event(Level.INFO, "Stuff", KeyValues.of(), (Throwable) null));
+			gum.log(LogEventFactory.of("stuff").event(Level.ERROR, "bad", KeyValues.of(), (Throwable) null));
 
-			router.eventBuilder("stuff", Level.WARNING) //
-				.message("builder info - {}") //
-				.arg("hello") //
-				.log();
+			gum.log(LogEventFactory.of("stuff").event(Level.WARNING, "builder info - {}", KeyValues.of(), "hello"));
 
 			boolean enabled = router.route("stuff", Level.INFO).isEnabled();
 			assertFalse(enabled);
