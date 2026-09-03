@@ -18,7 +18,6 @@ import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
@@ -136,7 +135,7 @@ public interface FileOutput extends LogOutput {
 					throw new UncheckedIOException(e);
 				}
 				if (prudent_) {
-					return new FileChannelOutput(uri_, stream.getChannel(), config.alerts());
+					return new FileChannelOutput(uri_, stream.getChannel());
 				}
 				OutputStream s;
 				Objects.requireNonNull(bufferSize);
@@ -269,13 +268,10 @@ class FileChannelOutput implements FileOutput {
 	 */
 	private final AtomicBoolean closed = new AtomicBoolean();
 
-	private final LogAlerts alerts;
-
-	public FileChannelOutput(URI uri, FileChannel channel, LogAlerts alerts) {
+	public FileChannelOutput(URI uri, FileChannel channel) {
 		super();
 		this.uri = uri;
 		this.channel = channel;
-		this.alerts = alerts;
 	}
 
 	@Override
@@ -293,11 +289,9 @@ class FileChannelOutput implements FileOutput {
 		if (closed.get()) {
 			return;
 		}
+		// Clear any current interrupt (see LOGBACK-875)
+		boolean interrupted = Thread.interrupted();
 		try {
-
-			// Clear any current interrupt (see LOGBACK-875)
-			boolean interrupted = Thread.interrupted();
-
 			FileLock fileLock = null;
 			try {
 				fileLock = channel.lock();
@@ -309,20 +303,19 @@ class FileChannelOutput implements FileOutput {
 				channel.write(buffer);
 
 			}
-			catch (IOException e) {
-				alerts.error(FileChannelOutput.class, e);
-			}
 			finally {
 				if (fileLock != null && fileLock.isValid()) {
 					fileLock.release();
-				}
-				if (interrupted) {
-					Thread.currentThread().interrupt();
 				}
 			}
 		}
 		catch (IOException e) {
 			throw new UncheckedIOException(e);
+		}
+		finally {
+			if (interrupted) {
+				Thread.currentThread().interrupt();
+			}
 		}
 	}
 
