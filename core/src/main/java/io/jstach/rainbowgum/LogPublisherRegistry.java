@@ -156,8 +156,9 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 				.buildWithName(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name) //
 				.get(properties) //
 				.value(LogPublisherRegistry.ASYNC_BUFFER_SIZE);
-			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher
-				.of(appenders.flags(EnumSet.of(LogAppender.AppenderFlag.REUSE_BUFFER)).asSingle(), _bufferSize);
+			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(
+					appenders.flags(EnumSet.of(LogAppender.AppenderFlag.REUSE_BUFFER)).asSingle(), _bufferSize,
+					config.alerts());
 		}
 	};
 

@@ -34,7 +34,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	private final Iterable<? extends LogAppender> appenders;
 
-	private volatile LogAlerts alerts = LogAlerts.of();
+	private final LogAlerts alerts;
 
 	/**
 	 * Creates a factory of disruptor log publishers.
@@ -46,7 +46,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 			@Override
 			public LogPublisher create(String name, LogConfig config, Appenders appenders) {
 				return of(appenders.flags(EnumSet.of(LogAppender.AppenderFlag.REUSE_BUFFER)).asList(),
-						DaemonThreadFactory.INSTANCE, bufferSize);
+						DaemonThreadFactory.INSTANCE, bufferSize, config.alerts());
 			}
 		};
 	}
@@ -56,14 +56,16 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	 * @param appenders appenders.
 	 * @param threadFactory thread factory to create writer thread.
 	 * @param bufferSize maximum queue elements.
+	 * @param alerts alerts for reporting internal errors (disruptor exception handler
+	 * failures).
 	 * @return publisher.
 	 */
 	public static DisruptorLogPublisher of(Collection<? extends LogAppender> appenders, ThreadFactory threadFactory,
-			int bufferSize) {
+			int bufferSize, LogAlerts alerts) {
 
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory,
 				ProducerType.MULTI, new BlockingWaitStrategy());
-		var router = new DisruptorLogPublisher(disruptor, disruptor.getRingBuffer(), List.copyOf(appenders));
+		var router = new DisruptorLogPublisher(disruptor, disruptor.getRingBuffer(), List.copyOf(appenders), alerts);
 		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(disruptor::shutdown, router));
 
 		boolean found = false;
@@ -80,17 +82,16 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	@Override
 	public void start(LogConfig config) {
-		this.alerts = config.alerts();
 		disruptor.start();
-
 	}
 
 	DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer,
-			Iterable<? extends LogAppender> appenders) {
+			Iterable<? extends LogAppender> appenders, LogAlerts alerts) {
 		super();
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
 		this.appenders = appenders;
+		this.alerts = alerts;
 	}
 
 	@Override
