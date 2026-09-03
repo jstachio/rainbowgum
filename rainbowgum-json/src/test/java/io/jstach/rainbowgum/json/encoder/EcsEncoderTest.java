@@ -103,8 +103,7 @@ class EcsEncoderTest {
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
-			r.log(LogEvent.of(instant, Thread.currentThread().getName(), 1, System.Logger.Level.INFO, "ecs", "hello",
-					KeyValues.of(), null));
+			r.log(LogEvent.of(instant, "main", 1, System.Logger.Level.INFO, "ecs", "hello", KeyValues.of(), null));
 			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.events().get(0).getValue();
 			String expected = "{\"@timestamp\":\"1970-01-01T00:00:00.001Z\",\"log.level\":\"INFO\","

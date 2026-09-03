@@ -21,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 
 /*
  * RainbowGumHolder is static, JVM-wide state (the same concern JDKSetupTest in
@@ -33,9 +34,13 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
  * Spring integration modules (PreBootRainbowGumProvider, RainbowGumLoggingSystemFactory),
  * whose tests don't contribute to core's jacoco report.
  *
- * No other test class touches RainbowGumHolder, so unlike MetaLogTest and friends this
- * only needs SAME_THREAD (its own methods must not race each other), not @Isolated.
+ * RainbowGumTest also touches RainbowGumHolder/GlobalLogRouter.INSTANCE - confirmed by
+ * running the "fast" profile's parallel suite, which raced the two classes against each
+ * other (RainbowGumEntryPointTest saw a different instance than it just set, and a missed
+ * IllegalStateException; RainbowGumTest saw stray shutdown hooks). @Isolated is required,
+ * not just SAME_THREAD.
  */
+@Isolated
 @Execution(ExecutionMode.SAME_THREAD)
 class RainbowGumEntryPointTest {
 

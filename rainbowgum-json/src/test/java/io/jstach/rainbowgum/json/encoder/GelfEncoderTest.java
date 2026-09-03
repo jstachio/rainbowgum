@@ -257,8 +257,7 @@ class GelfEncoderTest {
 			// LogEvent e = LogEvent.ofAll(instant, "main", 1L, Level.INFO, "gelf",
 			// "hello", KeyValues.of(), throwable(), StandardMessageFormatter.SLF4J,
 			// List.of()).freeze(instant);
-			r.log(LogEvent.of(instant, Thread.currentThread().getName(), 1, System.Logger.Level.INFO, "gelf", "hello",
-					KeyValues.of(), null));
+			r.log(LogEvent.of(instant, "main", 1, System.Logger.Level.INFO, "gelf", "hello", KeyValues.of(), null));
 			// r.log(e);
 			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.events().get(0).getValue();
@@ -281,8 +280,7 @@ class GelfEncoderTest {
 			a.output(output);
 		})).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
-			g.log(LogEvent.of(instant, Thread.currentThread().getName(), 1, System.Logger.Level.INFO, "gelf", "hello",
-					KeyValues.of(), null));
+			g.log(LogEvent.of(instant, "main", 1, System.Logger.Level.INFO, "gelf", "hello", KeyValues.of(), null));
 			String actual = output.events().get(0).getValue();
 			String expected = """
 					{
