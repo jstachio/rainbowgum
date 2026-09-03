@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.slf4j;
 
+import java.time.Instant;
+
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
@@ -22,7 +24,9 @@ interface EventCreator<LEVEL> {
 		var sysLevel = translateLevel(level);
 		var loggerName = loggerName();
 		var keyValues = keyValues();
-		return LogEvent.of(sysLevel, loggerName, formattedMessage, keyValues, throwable);
+		var currentThread = Thread.currentThread();
+		return LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), sysLevel, loggerName,
+				formattedMessage, keyValues, throwable);
 	}
 
 	default LogEvent event0(LEVEL level, @Nullable String formattedMessage) {
@@ -33,21 +37,27 @@ interface EventCreator<LEVEL> {
 		var sysLevel = translateLevel(level);
 		var loggerName = loggerName();
 		var keyValues = keyValues();
-		return LogEvent.of(sysLevel, loggerName, message, keyValues, messageFormatter(), arg1);
+		var currentThread = Thread.currentThread();
+		return LogEvent.ofOneArg(Instant.now(), currentThread.getName(), currentThread.threadId(), sysLevel, loggerName,
+				message, keyValues, messageFormatter(), arg1);
 	}
 
 	default LogEvent event2(LEVEL level, @Nullable String message, Object arg1, Object arg2) {
 		var sysLevel = translateLevel(level);
 		var loggerName = loggerName();
 		var keyValues = keyValues();
-		return LogEvent.of(sysLevel, loggerName, message, keyValues, messageFormatter(), arg1, arg2);
+		var currentThread = Thread.currentThread();
+		return LogEvent.ofTwoArgs(Instant.now(), currentThread.getName(), currentThread.threadId(), sysLevel,
+				loggerName, message, keyValues, messageFormatter(), arg1, arg2);
 	}
 
 	default LogEvent eventArray(LEVEL level, @Nullable String message, Object[] args) {
 		var sysLevel = translateLevel(level);
 		var loggerName = loggerName();
 		var keyValues = keyValues();
-		return LogEvent.ofArgs(sysLevel, loggerName, message, keyValues, messageFormatter(), args);
+		var currentThread = Thread.currentThread();
+		return LogEvent.ofAll(Instant.now(), currentThread.getName(), currentThread.threadId(), sysLevel, loggerName,
+				message, keyValues, null, messageFormatter(), args);
 	}
 
 }

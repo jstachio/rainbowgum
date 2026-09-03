@@ -14,6 +14,7 @@ import org.springframework.core.env.StandardEnvironment;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.json.encoder.EcsEncoder;
@@ -43,8 +44,8 @@ class StructuredLoggingTest {
 			.route(rb -> rb.appender("test", a -> a.output(output).encoder(encoder)))
 			.build()
 			.start()) {
-			LogEvent e = LogEvent
-				.of(System.Logger.Level.INFO, "io.jstach.logger", "hello", MutableKeyValues.of().freeze(), null)
+			LogEvent e = LogEventFactory.of("io.jstach.logger")
+				.event(System.Logger.Level.INFO, "hello", MutableKeyValues.of().freeze(), null)
 				.freeze(Instant.EPOCH);
 			g.log(e);
 		}

@@ -56,7 +56,9 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	 * @param throwable cause of the alert.
 	 */
 	default void error(Class<?> loggerName, String message, Throwable throwable) {
-		error(LogEvent.of(Level.ERROR, loggerName.getName(), message, throwable));
+		var currentThread = Thread.currentThread();
+		error(LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), Level.ERROR,
+				loggerName.getName(), message, KeyValues.of(), throwable));
 	}
 
 	/**
@@ -156,7 +158,7 @@ final class DefaultLogAlerts implements LogAlerts {
 	private final ReentrantLock lock = new ReentrantLock();
 
 	private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
-	
+
 	private final LogEventFactory eventFactory = LogEventFactory.of(DefaultLogAlerts.class.getName());
 
 	DefaultLogAlerts(int capacity) {
@@ -189,8 +191,7 @@ final class DefaultLogAlerts implements LogAlerts {
 				listener.onAlert(frozen);
 			}
 			catch (Exception e) {
-				FailsafeAppender.INSTANCE
-					.log(eventFactory.event(Level.ERROR,  "LogAlerts.Listener threw", e));
+				FailsafeAppender.INSTANCE.log(eventFactory.event(Level.ERROR, "LogAlerts.Listener threw", e));
 			}
 		}
 		FailsafeAppender.INSTANCE.log(frozen);

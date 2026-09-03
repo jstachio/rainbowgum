@@ -1,10 +1,12 @@
 package io.jstach.rainbowgum.tomcat;
 
 import java.lang.System.Logger.Level;
+import java.time.Instant;
 
 import org.apache.juli.logging.Log;
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEventLogger;
 
@@ -21,10 +23,11 @@ interface TomcatLevelLog extends Log {
 	default void log(Level level, @Nullable Object obj, @Nullable Throwable t) {
 		// We do not need to check if the route is enabled.
 		// We are assuming level logging mode.
-		String loggerName = loggerName();
 		@Nullable
 		String formattedMessage = obj == null ? null : obj.toString();
-		LogEvent event = LogEvent.of(level, loggerName, formattedMessage, t);
+		var currentThread = Thread.currentThread();
+		LogEvent event = LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level,
+				loggerName(), formattedMessage, KeyValues.of(), t);
 		eventLogger().log(event);
 	}
 

@@ -43,8 +43,8 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
 	 */
-	public static LogEvent of(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName, @Nullable String formattedMessage,
-			KeyValues keyValues, @Nullable Throwable throwable) {
+	public static LogEvent of(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
+			String loggerName, @Nullable String formattedMessage, KeyValues keyValues, @Nullable Throwable throwable) {
 		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, formattedMessage, keyValues,
 				throwable);
 	}
@@ -65,8 +65,9 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
 	 */
-	public static LogEvent ofOneArg(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName, @Nullable String message,
-			KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Object arg1) {
+	public static LogEvent ofOneArg(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
+			String loggerName, @Nullable String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
+			@Nullable Object arg1) {
 		if (arg1 instanceof Throwable t) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
 		}
@@ -95,8 +96,9 @@ public sealed interface LogEvent {
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
 	 */
-	public static LogEvent ofTwoArgs(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName, @Nullable String message,
-			KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Object arg1, @Nullable Object arg2) {
+	public static LogEvent ofTwoArgs(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
+			String loggerName, @Nullable String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
+			@Nullable Object arg1, @Nullable Object arg2) {
 		if (arg2 instanceof Throwable t) {
 			if (message == null) {
 				return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);

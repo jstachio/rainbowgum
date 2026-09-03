@@ -7,7 +7,7 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
-import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.pattern.format.PatternCompiler;
 import io.jstach.rainbowgum.pattern.format.PatternConfig;
 import io.jstach.rainbowgum.pattern.format.PatternRegistry;
@@ -33,8 +33,8 @@ class SpringBootKeywordFactoryTest {
 	}
 
 	private static String format(String pattern, Throwable throwable) {
-		var event = LogEvent
-			.of(System.Logger.Level.INFO, "io.jstach.logger", "hello", MutableKeyValues.of().freeze(), throwable)
+		var event = LogEventFactory.of("io.jstach.logger")
+			.event(System.Logger.Level.INFO, "hello", MutableKeyValues.of().freeze(), throwable)
 			.freeze(Instant.EPOCH);
 		StringBuilder sb = new StringBuilder();
 		compiler().compile(pattern).format(sb, event);

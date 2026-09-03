@@ -79,11 +79,17 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 		return fixLevel(level).getSeverity() >= this.level;
 	}
 
+	private LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
+		var currentThread = Thread.currentThread();
+		return LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level, loggerName,
+				formattedMessage, KeyValues.of(), throwable);
+	}
+
 	@Override
 	public void log(Level level, @Nullable String msg) {
 		if (isLoggable(level)) {
 			String formattedMessage = msg;
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
+			LogEvent event = event(level, formattedMessage, null);
 			logger.log(event);
 		}
 	}
@@ -92,7 +98,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	public void log(Level level, Supplier<String> msgSupplier) {
 		if (isLoggable(level)) {
 			String formattedMessage = msgSupplier.get();
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
+			LogEvent event = event(level, formattedMessage, null);
 			logger.log(event);
 		}
 	}
@@ -103,7 +109,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 		Objects.requireNonNull(obj, "obj");
 		if (isLoggable(level)) {
 			String formattedMessage = obj.toString();
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, null);
+			LogEvent event = event(level, formattedMessage, null);
 			logger.log(event);
 		}
 	}
@@ -112,7 +118,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	public void log(Level level, @Nullable String msg, @Nullable Throwable thrown) {
 		if (isLoggable(level)) {
 			String formattedMessage = msg;
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, thrown);
+			LogEvent event = event(level, formattedMessage, thrown);
 			logger.log(event);
 		}
 	}
@@ -121,7 +127,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	public void log(Level level, Supplier<String> msgSupplier, Throwable thrown) {
 		if (isLoggable(level)) {
 			String formattedMessage = msgSupplier.get();
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, thrown);
+			LogEvent event = event(level, formattedMessage, thrown);
 			logger.log(event);
 		}
 	}
@@ -145,7 +151,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg, @Nullable Throwable thrown) {
 		if (isLoggable(level)) {
 			String formattedMessage = getMessage(bundle, msg);
-			LogEvent event = LogEvent.of(level, loggerName, formattedMessage, thrown);
+			LogEvent event = event(level, formattedMessage, thrown);
 			logger.log(event);
 		}
 	}
