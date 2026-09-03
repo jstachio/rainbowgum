@@ -13,6 +13,9 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -36,6 +39,13 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * the reentry in the first place. This test pins that (still genuinely surprising)
  * ordering down for both.
  */
+/*
+ * Mutates the shared static MetaLog.output field - see MetaLogTest's identical note for
+ * why @Isolated/@Execution(SAME_THREAD) are needed under the "fast" profile's parallel
+ * test execution.
+ */
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class AppenderAsModeReentryTest {
 
 	ByteArrayOutputStream metaLogBytes = new ByteArrayOutputStream();

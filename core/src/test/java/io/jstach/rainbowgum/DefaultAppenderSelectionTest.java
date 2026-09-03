@@ -14,6 +14,9 @@ import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -31,6 +34,14 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * {@code java.util.concurrent.locks.ReentrantLock}) still works when explicitly opted
  * into.
  */
+/*
+ * Mutates two shared static fields: MetaLog.output (see MetaLogTest's note - several
+ * other test classes touch it too) and AbstractLogAppender.forceReentrantLockAppenders
+ * (only this class touches that one, but its own methods still need to not race each
+ * other). @Isolated covers the former, SAME_THREAD covers both.
+ */
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class DefaultAppenderSelectionTest {
 
 	final boolean originalForceReentrantLockAppenders = AbstractLogAppender.forceReentrantLockAppenders;

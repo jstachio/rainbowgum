@@ -19,6 +19,8 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 /*
  * RainbowGumHolder is static, JVM-wide state (the same concern JDKSetupTest in
@@ -30,7 +32,11 @@ import org.junit.jupiter.api.Test;
  * unused from core's own coverage report, but are real - they're only called from the
  * Spring integration modules (PreBootRainbowGumProvider, RainbowGumLoggingSystemFactory),
  * whose tests don't contribute to core's jacoco report.
+ *
+ * No other test class touches RainbowGumHolder, so unlike MetaLogTest and friends this
+ * only needs SAME_THREAD (its own methods must not race each other), not @Isolated.
  */
+@Execution(ExecutionMode.SAME_THREAD)
 class RainbowGumEntryPointTest {
 
 	@BeforeEach

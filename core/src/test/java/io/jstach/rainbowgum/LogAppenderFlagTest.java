@@ -13,6 +13,9 @@ import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -21,6 +24,13 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * Exercises {@link LogAppender.AppenderFlag} end to end with real appenders/outputs (no
  * mocks) rather than just unit testing the enum in isolation.
  */
+/*
+ * Mutates the shared static MetaLog.output field - see MetaLogTest's identical note for
+ * why @Isolated/@Execution(SAME_THREAD) are needed under the "fast" profile's parallel
+ * test execution.
+ */
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
 class LogAppenderFlagTest {
 
 	ByteArrayOutputStream metaLogBytes = new ByteArrayOutputStream();

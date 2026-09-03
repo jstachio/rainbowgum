@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 /*
  * Abbreviator (and its TargetLengthBasedClassNameAbbreviator/StandardAbbreviator
@@ -23,7 +25,15 @@ import org.junit.jupiter.api.Test;
  * standalone Cache<K, V>. Logback has no dedicated unit test for that internal
  * cache, so the tests in the "cache" section below are original, written
  * directly against the ported algorithm.
+ *
+ * cacheIsBypassedWhenDisabledViaSystemProperty below sets/clears
+ * Abbreviator.DISABLE_CACHE_SYSTEM_PROPERTY around itself - SAME_THREAD keeps that from
+ * racing this class's own cache-hit assertions (e.g.
+ * cachedAbbreviatorReturnsSameStringInstanceOnRepeatCalls) under parallel test
+ * execution. No other class in this module touches that property, so @Isolated isn't
+ * needed.
  */
+@Execution(ExecutionMode.SAME_THREAD)
 class AbbreviatorTest {
 
 	// --- ported from Logback's TargetLengthBasedClassNameAbbreviatorTest ---
