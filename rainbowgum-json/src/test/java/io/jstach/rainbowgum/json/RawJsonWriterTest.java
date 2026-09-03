@@ -11,7 +11,9 @@ import java.time.Instant;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /*
@@ -264,7 +266,9 @@ class RawJsonWriterTest {
 		var w = new RawJsonWriter(16);
 		w.writeAscii("{}");
 		var output = new ListLogOutput();
-		LogEvent event = LogEvent.of(System.Logger.Level.INFO, "test", "hello", null).freeze(Instant.EPOCH);
+		LogEvent event = LogEventFactory.of("test")
+			.event(System.Logger.Level.INFO, "hello", KeyValues.of(), (Throwable) null)
+			.freeze(Instant.EPOCH);
 		w.write(output, event);
 		assertEquals(0, w.size());
 		assertEquals("{}", output.events().get(0).getValue());

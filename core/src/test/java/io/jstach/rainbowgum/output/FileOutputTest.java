@@ -25,7 +25,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.TestEventBuilder;
+import io.jstach.rainbowgum.TestLogEventFactory;
 
 class FileOutputTest {
 
@@ -189,7 +189,7 @@ class FileOutputTest {
 			var config = LogConfig.builder().build();
 			var output = FileOutput.of(b -> b.fileName(fileName)).provide("file", config);
 			output.start(config);
-			var event = TestEventBuilder.of().build(b -> b.message("before close"));
+			var event = TestLogEventFactory.of().event("before close");
 			output.write(event, "before close\n");
 			output.flush();
 			output.close();
@@ -217,7 +217,7 @@ class FileOutputTest {
 				b.prudent(true);
 			}).provide("file", config);
 			output.start(config);
-			var event = TestEventBuilder.of().build(b -> b.message("before close"));
+			var event = TestLogEventFactory.of().event("before close");
 			output.write(event, "before close\n");
 			output.flush();
 			output.close();
@@ -312,7 +312,7 @@ class FileOutputTest {
 			List<LogEvent> events = new ArrayList<>();
 			for (int i = 0; i < count; i++) {
 				var index = i;
-				events.add(TestEventBuilder.of().build(b -> b.message("test " + index)));
+				events.add(TestLogEventFactory.of().event("test " + index));
 			}
 			return events;
 		}

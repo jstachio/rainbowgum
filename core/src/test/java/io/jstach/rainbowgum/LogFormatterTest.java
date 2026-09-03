@@ -28,7 +28,7 @@ class LogFormatterTest {
 	void testThrowable() {
 		Throwable t = new RuntimeException("expected");
 		StringBuilder sb = new StringBuilder();
-		var event = TestEventBuilder.of().build(e -> e.throwable(t));
+		var event = TestLogEventFactory.of().event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, KeyValues.of(), t);
 		LogFormatter.builder().throwable().build().format(sb, event);
 		String actual = sb.toString().split("\n")[0];
 		assertEquals("java.lang.RuntimeException: expected", actual);
@@ -336,7 +336,7 @@ class LogFormatterTest {
 	@Test
 	void testLevelFormatterOfFormatsEvent() {
 		StringBuilder sb = new StringBuilder();
-		var event = TestEventBuilder.of().level(Level.WARNING).build();
+		var event = TestLogEventFactory.of().event(Level.WARNING);
 		LevelFormatter.of().format(sb, event);
 		assertEquals("WARN", sb.toString());
 	}
@@ -344,7 +344,7 @@ class LogFormatterTest {
 	@Test
 	void testLevelFormatterOfRightPaddedFormatsEvent() {
 		StringBuilder sb = new StringBuilder();
-		var event = TestEventBuilder.of().level(Level.INFO).build();
+		var event = TestLogEventFactory.of().event(Level.INFO);
 		LevelFormatter.ofRightPadded().format(sb, event);
 		assertEquals("INFO ", sb.toString());
 	}
@@ -353,7 +353,8 @@ class LogFormatterTest {
 	void testEncodedKeyValuesFormatsAllKeysPercentEncoded() {
 		StringBuilder sb = new StringBuilder();
 		var kvs = KeyValues.MutableKeyValues.of().add("a b", "c/d").add("nullValued", null);
-		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		var event = TestLogEventFactory.of()
+			.event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder().encodedKeyValues().build().format(sb, event);
 		assertEquals("a%20b=c%2Fd&nullValued", sb.toString());
 	}
@@ -361,7 +362,7 @@ class LogFormatterTest {
 	@Test
 	void testEncodedKeyValueUsesFallbackWhenKeyMissing() {
 		StringBuilder sb = new StringBuilder();
-		var event = TestEventBuilder.of().build();
+		var event = TestLogEventFactory.of().event();
 		LogFormatter.builder().encodedKeyValue("missing", "fallback value").build().format(sb, event);
 		assertEquals("missing=fallback%20value", sb.toString());
 	}
@@ -370,7 +371,8 @@ class LogFormatterTest {
 	void testEncodedKeyValueUsesActualValueWhenPresent() {
 		StringBuilder sb = new StringBuilder();
 		var kvs = KeyValues.of(Map.of("k", "v"));
-		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		var event = TestLogEventFactory.of()
+			.event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder().encodedKeyValue("k", "fallback").build().format(sb, event);
 		assertEquals("k=v", sb.toString());
 	}
@@ -438,7 +440,7 @@ class LogFormatterTest {
 		var formatter = LogFormatter.of(e);
 		assertSame(e, formatter);
 		StringBuilder sb = new StringBuilder();
-		formatter.format(sb, TestEventBuilder.of().build());
+		formatter.format(sb, TestLogEventFactory.of().event());
 		assertEquals("custom", sb.toString());
 	}
 
@@ -446,7 +448,8 @@ class LogFormatterTest {
 	void testEncodedKeyValuesListFiltersToRequestedKeysInRequestedOrder() {
 		StringBuilder sb = new StringBuilder();
 		var kvs = KeyValues.MutableKeyValues.of().add("a", "1").add("b", "2").add("c", "3");
-		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		var event = TestLogEventFactory.of()
+			.event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		// requested order (c, a) differs from insertion order (a, b, c); "b" is omitted.
 		LogFormatter.builder().encodedKeyValues(List.of("c", "a")).build().format(sb, event);
 		assertEquals("c=3&a=1", sb.toString());
@@ -460,7 +463,8 @@ class LogFormatterTest {
 		// default KEEP strategy prints both as a bare key (no "="), matching
 		// DefaultKeyValuesFormatter's key-only-no-equals handling of a real null entry.
 		var kvs = KeyValues.MutableKeyValues.of().add("present", "v").add("explicitNull", null);
-		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		var event = TestLogEventFactory.of()
+			.event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
 			.encodedKeyValues(List.of("missing", "present", "explicitNull"))
 			.build()
@@ -472,7 +476,8 @@ class LogFormatterTest {
 	void testEncodedKeyValuesSkipStrategyOmitsMissingKeyEntirely() {
 		StringBuilder sb = new StringBuilder();
 		var kvs = KeyValues.MutableKeyValues.of().add("present", "v");
-		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		var event = TestLogEventFactory.of()
+			.event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
 			.encodedKeyValues(List.of("present", "missing"), LogFormatter.KeyValueNullStrategy.SKIP)
 			.build()
@@ -484,7 +489,8 @@ class LogFormatterTest {
 	void testEncodedKeyValuesEmptyStrategyNormalizesNullToEmptyValue() {
 		StringBuilder sb = new StringBuilder();
 		var kvs = KeyValues.MutableKeyValues.of().add("present", "v");
-		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		var event = TestLogEventFactory.of()
+			.event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
 			.encodedKeyValues(List.of("present", "missing"), LogFormatter.KeyValueNullStrategy.EMPTY)
 			.build()
@@ -496,7 +502,8 @@ class LogFormatterTest {
 	void testEncodedKeyValuesKeepStrategyPreservesNullVersusEmptyStringDistinction() {
 		StringBuilder sb = new StringBuilder();
 		var kvs = KeyValues.MutableKeyValues.of().add("present", "v").add("emptyValued", "");
-		var event = TestEventBuilder.of().build(b -> b.keyValues(kvs));
+		var event = TestLogEventFactory.of()
+			.event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
 			.encodedKeyValues(List.of("present", "missing", "emptyValued"), LogFormatter.KeyValueNullStrategy.KEEP)
 			.build()
@@ -511,7 +518,7 @@ class LogFormatterTest {
 	@Test
 	void testEncodedKeyValuesEmptyListIsNoopRegardlessOfStrategy() {
 		StringBuilder sb = new StringBuilder();
-		var event = TestEventBuilder.of().build();
+		var event = TestLogEventFactory.of().event();
 		LogFormatter.builder()
 			.text("before:")
 			.encodedKeyValues(List.of(), LogFormatter.KeyValueNullStrategy.KEEP)
@@ -525,7 +532,7 @@ class LogFormatterTest {
 	void testBuilderTimeStampWithDateTimeFormatterUsesGivenFormatter() {
 		StringBuilder sb = new StringBuilder();
 		Instant instant = Instant.parse("2023-11-14T22:13:20.100Z");
-		var event = TestEventBuilder.of().build(b -> b.timestamp(instant));
+		var event = TestLogEventFactory.of().event().freeze(instant);
 		LogFormatter.builder().timeStamp(DateTimeFormatter.ISO_INSTANT).build().format(sb, event);
 		assertEquals(DateTimeFormatter.ISO_INSTANT.format(instant), sb.toString());
 	}
@@ -534,7 +541,7 @@ class LogFormatterTest {
 	void testBuilderThrowableWithCustomFormatterUsesThatFormatterNotTheDefault() {
 		var t = new RuntimeException("boom");
 		t.setStackTrace(new StackTraceElement[] { frame("a", 1), frame("b", 2), frame("c", 3) });
-		var event = TestEventBuilder.of().build(b -> b.throwable(t));
+		var event = TestLogEventFactory.of().event(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, KeyValues.of(), t);
 		var custom = ThrowableFormatter.builder().maxLines(1).build();
 
 		StringBuilder sb = new StringBuilder();

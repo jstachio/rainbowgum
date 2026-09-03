@@ -35,7 +35,8 @@ class BufferSelfShrinkTest {
 	private static final LogFormatter FORMATTER = LogFormatter.builder().message().build();
 
 	private static LogEvent event(String message) {
-		return LogEvent.of(System.Logger.Level.INFO, "test", message, KeyValues.of(), null);
+		return TestLogEventFactory.of("test")
+			.event(System.Logger.Level.INFO, message, KeyValues.of(), (Throwable) null);
 	}
 
 	@Test

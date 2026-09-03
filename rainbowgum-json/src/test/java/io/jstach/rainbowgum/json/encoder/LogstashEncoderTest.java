@@ -15,6 +15,7 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
@@ -32,7 +33,8 @@ class LogstashEncoderTest {
 		var encoder = new LogstashEncoderBuilder("logstash").maxBufferSize(20_000).build();
 
 		var buffer = encoder.buffer(WriteMethod.STRING);
-		LogEvent e = LogEvent.of(Level.INFO, "logstash", "x".repeat(30_000), KeyValues.of(), null);
+		LogEvent e = LogEventFactory.of("logstash")
+			.event(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
 		encoder.encode(e, buffer);
 
 		assertTrue(buffer.isOversized());
@@ -152,7 +154,9 @@ class LogstashEncoderTest {
 		})).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
 			var kvs = MutableKeyValues.of().add("requestId", "abc123");
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "logstash", "hello", kvs, null).freeze(instant);
+			LogEvent e = LogEventFactory.of("logstash")
+				.event(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
+				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
 			assertTrue(actual.contains("\"requestId\":\"abc123\""), "Got: " + actual);
@@ -169,7 +173,9 @@ class LogstashEncoderTest {
 		})).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
 			Throwable t = new RuntimeException("boom");
-			LogEvent e = LogEvent.of(System.Logger.Level.ERROR, "logstash", "hello", KeyValues.of(), t).freeze(instant);
+			LogEvent e = LogEventFactory.of("logstash")
+				.event(System.Logger.Level.ERROR, "hello", KeyValues.of(), t)
+				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
 			assertTrue(actual.contains("\"level_value\":40000"), "Got: " + actual);

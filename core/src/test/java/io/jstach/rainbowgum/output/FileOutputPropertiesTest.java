@@ -27,6 +27,7 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.TestLogEventFactory;
 import io.jstach.rainbowgum.output.FileOutputTest.Events;
 
 class FileOutputPropertiesTest {
@@ -48,7 +49,7 @@ class FileOutputPropertiesTest {
 			var config = LogConfig.builder().properties(properties).build();
 			var gum = RainbowGum.builder(config).build();
 			try (var rg = gum.start()) {
-				rg.log(LogEvent.of(Level.INFO, "test", "hello", KeyValues.of(), null));
+				rg.log(TestLogEventFactory.of("test").event(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
 			}
 			assertTrue(Files.exists(file), "expected " + file + " to have been created");
 			String content = Files.readString(file);

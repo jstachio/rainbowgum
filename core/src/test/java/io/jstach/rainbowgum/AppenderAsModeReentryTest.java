@@ -74,7 +74,7 @@ class AppenderAsModeReentryTest {
 		LogPublisher[] publisherHolder = new LogPublisher[1];
 		outputA.setConsumer((e, s) -> {
 			if (e.message().equals("event1")) {
-				publisherHolder[0].log(TestEventBuilder.of().build(b -> b.message("event2")));
+				publisherHolder[0].log(TestLogEventFactory.of().event("event2"));
 			}
 		});
 
@@ -110,7 +110,7 @@ class AppenderAsModeReentryTest {
 
 		publisher.start(config);
 		try {
-			publisher.log(TestEventBuilder.of().build(b -> b.message("event1")));
+			publisher.log(TestLogEventFactory.of().event("event1"));
 		}
 		finally {
 			publisher.close();

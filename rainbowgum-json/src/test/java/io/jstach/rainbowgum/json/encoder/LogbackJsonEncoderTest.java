@@ -13,6 +13,7 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
@@ -30,7 +31,8 @@ class LogbackJsonEncoderTest {
 		var encoder = new LogbackJsonEncoderBuilder("logback").maxBufferSize(20_000).build();
 
 		var buffer = encoder.buffer(WriteMethod.STRING);
-		LogEvent e = LogEvent.of(Level.INFO, "logback", "x".repeat(30_000), KeyValues.of(), null);
+		LogEvent e = LogEventFactory.of("logback")
+			.event(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
 		encoder.encode(e, buffer);
 
 		assertTrue(buffer.isOversized());
@@ -101,7 +103,9 @@ class LogbackJsonEncoderTest {
 		})).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
 			var kvs = MutableKeyValues.of().add("k1", "v1").add("k2", "v2");
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "logback", "hello", kvs, null).freeze(instant);
+			LogEvent e = LogEventFactory.of("logback")
+				.event(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
+				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
 			assertTrue(actual.contains("\"mdc\":{\"k1\":\"v1\",\"k2\":\"v2\"}"), "Got: " + actual);
@@ -120,7 +124,9 @@ class LogbackJsonEncoderTest {
 			Instant instant = Instant.ofEpochMilli(1);
 			Throwable cause = new IllegalStateException("root cause");
 			Throwable t = new RuntimeException("boom", cause);
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "logback", "hello", KeyValues.of(), t).freeze(instant);
+			LogEvent e = LogEventFactory.of("logback")
+				.event(System.Logger.Level.INFO, "hello", KeyValues.of(), t)
+				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
 			assertTrue(actual.contains("\"throwable\":{\"className\":\"java.lang.RuntimeException\","

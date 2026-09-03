@@ -156,7 +156,7 @@ class LogEventBuilderTest {
 		NOOP("") {
 			@Override
 			LogEvent.Builder builder(Level level) {
-				return TestEventBuilder.of().loggerName("test").level(level).noop();
+				return NoOpLogEventBuilder.NOOP;
 
 			}
 		};
@@ -205,7 +205,9 @@ class LogEventBuilderTest {
 		}
 
 		LogEvent.Builder builder(Level level) {
-			return TestEventBuilder.of().loggerName("test").level(level).event();
+			return new LogEventBuilder(e -> {
+				throw new UnsupportedOperationException();
+			}, level, "test");
 		}
 
 	}

@@ -92,9 +92,9 @@ class DefaultAppenderSelectionTest {
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, testAppender);
 		output.setConsumer((e, s) -> {
 			// A naughty output that logs during its own write - should be dropped.
-			testAppender.append(TestEventBuilder.of().build(b -> b.message("reentrant")));
+			testAppender.append(TestLogEventFactory.of().event("reentrant"));
 		});
-		testAppender.append(TestEventBuilder.of().build(b -> b.message("original")));
+		testAppender.append(TestLogEventFactory.of().event("original"));
 		assertEquals(List.of("original"), output.events().stream().map(e -> e.getKey().message()).toList());
 	}
 
@@ -105,9 +105,9 @@ class DefaultAppenderSelectionTest {
 				output);
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, testAppender);
 		output.setConsumer((e, s) -> {
-			testAppender.append(TestEventBuilder.of().build(b -> b.message("reentrant")));
+			testAppender.append(TestLogEventFactory.of().event("reentrant"));
 		});
-		testAppender.append(TestEventBuilder.of().build(b -> b.message("original")));
+		testAppender.append(TestLogEventFactory.of().event("original"));
 		assertEquals(List.of("original"), output.events().stream().map(e -> e.getKey().message()).toList());
 		String diagnostic = metaLogBytes.toString(StandardCharsets.UTF_8);
 		assertTrue(diagnostic.contains("reentrant appender"), () -> "expected reentry diagnostic, got: " + diagnostic);

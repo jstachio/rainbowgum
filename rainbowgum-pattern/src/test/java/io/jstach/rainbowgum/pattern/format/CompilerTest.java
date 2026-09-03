@@ -83,7 +83,8 @@ class CompilerTest {
 	void testLocalSequenceNumberIncrementsPerEvent() {
 		var c = PatternCompiler.builder().patternConfig(PatternConfig.ofUniversal()).build();
 		var formatter = c.compile("%lsn");
-		var event = LogEvent.of(Level.INFO, "io.jstach.logger", "hello", MutableKeyValues.of().freeze(), null)
+		var event = TestLogEventFactory.of("io.jstach.logger")
+			.event(Level.INFO, "hello", MutableKeyValues.of().freeze(), (Throwable) null)
 			.freeze(Instant.EPOCH);
 		StringBuilder sb = new StringBuilder();
 		formatter.format(sb, event);
@@ -267,7 +268,9 @@ class CompilerTest {
 		THROWABLE(List.of("%ex", "%exception", "%throwable"), "java.lang.RuntimeException: test_throwable") {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("test_throwable");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 
 			@Override
@@ -280,34 +283,44 @@ class CompilerTest {
 						+ "\tat com.example.App.b(App.java:2)\n" + "\t... 2 frames truncated\n") {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 		},
 		THROWABLE_SHORT(List.of("%ex{short}"), "java.lang.RuntimeException: boom\n\t... 2 frames truncated\n") {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 		},
 		THROWABLE_FULL(List.of("%ex{full}"), "java.lang.RuntimeException: boom\n"
 				+ "\tat com.example.App.a(App.java:1)\n" + "\tat com.example.App.b(App.java:2)\n") {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 		},
 		THROWABLE_EXCLUDE(List.of("%ex{full, noisyReflect}"), "java.lang.RuntimeException: boom\n"
 				+ "\tat com.example.App.keepA(App.java:1)\n" + "\tat com.example.App.keepB(App.java:3)\n") {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "keepA", "noisyReflect", "keepB");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 		},
 		EXTENDED_THROWABLE(List.of("%xEx", "%xException", "%xThrowable"), "java.lang.RuntimeException: boom\n"
 				+ "\tat com.example.App.a(App.java:1) [na:na]\n" + "\tat com.example.App.b(App.java:2) [na:na]\n") {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 		},
 		EXTENDED_THROWABLE_MAX_LINES(List.of("%xEx{2}"),
@@ -315,13 +328,17 @@ class CompilerTest {
 						+ "\tat com.example.App.b(App.java:2) [na:na]\n" + "\t... 2 frames truncated\n") {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 		},
 		NO_EXCEPTION(List.of("%nopex", "%nopexception"), "") {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("should not appear");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 
 			@Override
@@ -332,7 +349,9 @@ class CompilerTest {
 		NO_EXCEPTION_SUPPRESSES_AUTO_APPEND("%msg%nopex", "hello") {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("should not appear");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 		},
 		LINESEP("%n", "\n") {
@@ -463,7 +482,9 @@ class CompilerTest {
 				"[main] INFO  c.l.TriviaMain - hello\n") {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("boom");
-				return LogEvent.of(level(), logger(), message(), keyValues(), throwable).freeze(Instant.EPOCH);
+				return TestLogEventFactory.of(logger())
+					.event(level(), message(), keyValues(), throwable)
+					.freeze(Instant.EPOCH);
 			}
 
 			@Override
@@ -690,7 +711,9 @@ class CompilerTest {
 		}
 
 		LogEvent event() {
-			return LogEvent.of(level(), logger(), message(), keyValues(), null).freeze(Instant.EPOCH);
+			return TestLogEventFactory.of(logger())
+				.event(level(), message(), keyValues(), (Throwable) null)
+				.freeze(Instant.EPOCH);
 		}
 
 		static Throwable throwableWithFrames(String message, String... methodNames) {

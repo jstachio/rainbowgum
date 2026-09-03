@@ -17,7 +17,7 @@ import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogResponse.Status;
-import io.jstach.rainbowgum.TestEventBuilder;
+import io.jstach.rainbowgum.TestLogEventFactory;
 
 /*
  * LogOutput is protected from overlapping write/flush/close calls by the appender and
@@ -60,7 +60,7 @@ class ForwardingOutputTest {
 	@Test
 	void writeBatchForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
-		var event = TestEventBuilder.of().build(b -> b.message("hello"));
+		var event = TestLogEventFactory.of().event("hello");
 		var encoder = io.jstach.rainbowgum.LogEncoder.of(io.jstach.rainbowgum.LogFormatter.builder().message().build());
 
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(new LogEvent[] { event }, 1, encoder));
@@ -73,7 +73,7 @@ class ForwardingOutputTest {
 	@Test
 	void writeBatchWithBufferForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
-		var event = TestEventBuilder.of().build(b -> b.message("hello"));
+		var event = TestLogEventFactory.of().event("hello");
 		var encoder = io.jstach.rainbowgum.LogEncoder.of(io.jstach.rainbowgum.LogFormatter.builder().message().build());
 		var buffer = encoder.buffer(delegate.bufferHints());
 
@@ -87,7 +87,7 @@ class ForwardingOutputTest {
 	@Test
 	void writeBufferForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
-		var event = TestEventBuilder.of().build(b -> b.message("hello"));
+		var event = TestLogEventFactory.of().event("hello");
 		// StringBuilderBuffer isn't public - go through the same public
 		// LogEncoder/LogFormatter pipeline every other test in this file uses to get a
 		// populated buffer instead of constructing one directly.
@@ -105,7 +105,7 @@ class ForwardingOutputTest {
 	@Test
 	void writeStringForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
-		var event = TestEventBuilder.of().build(b -> b.message("hello"));
+		var event = TestLogEventFactory.of().event("hello");
 
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(event, "hello"));
 		assertTrue(delegate.events().isEmpty());
@@ -117,7 +117,7 @@ class ForwardingOutputTest {
 	@Test
 	void writeBytesForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
-		var event = TestEventBuilder.of().build(b -> b.message("hello"));
+		var event = TestLogEventFactory.of().event("hello");
 		byte[] bytes = "hello".getBytes(StandardCharsets.UTF_8);
 
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(event, bytes,
@@ -131,7 +131,7 @@ class ForwardingOutputTest {
 	@Test
 	void writeBytesOffsetLengthForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
-		var event = TestEventBuilder.of().build(b -> b.message("hello"));
+		var event = TestLogEventFactory.of().event("hello");
 		byte[] bytes = "__hello__".getBytes(StandardCharsets.UTF_8);
 
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(event, bytes, 2, 5,
@@ -146,7 +146,7 @@ class ForwardingOutputTest {
 	@Test
 	void writeByteBufferForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
-		var event = TestEventBuilder.of().build(b -> b.message("hello"));
+		var event = TestLogEventFactory.of().event("hello");
 
 		/*
 		 * LogOutput's default write(LogEvent, ByteBuffer, ContentType) expects a buffer
