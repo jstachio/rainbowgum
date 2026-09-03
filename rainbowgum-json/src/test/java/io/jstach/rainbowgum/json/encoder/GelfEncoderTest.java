@@ -19,6 +19,7 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
@@ -143,7 +144,7 @@ class GelfEncoderTest {
 		GelfEncoder encoder = b.build();
 
 		var buffer = encoder.buffer(WriteMethod.STRING);
-		LogEvent e = LogEvent.of(Level.INFO, "gelf", "x".repeat(30_000), KeyValues.of(), null);
+		LogEvent e = LogEventFactory.of("gelf").event(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
 		encoder.encode(e, buffer);
 
 		assertTrue(buffer.isOversized());
@@ -319,7 +320,9 @@ class GelfEncoderTest {
 		})).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
 			var kvs = MutableKeyValues.of().add("k\"1", "v1");
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", "hello", kvs, null).freeze(instant);
+			LogEvent e = LogEventFactory.of("gelf")
+				.event(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
+				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
 			assertTrue(actual.contains("\"_k\\\"1\":\"v1\""),
@@ -338,7 +341,9 @@ class GelfEncoderTest {
 			Instant instant = Instant.ofEpochMilli(1);
 			// lone high surrogate with no matching low surrogate.
 			String malformed = "bad\uD800end";
-			LogEvent e = LogEvent.of(System.Logger.Level.INFO, "gelf", malformed, null).freeze(instant);
+			LogEvent e = LogEventFactory.of("gelf")
+				.event(System.Logger.Level.INFO, malformed, KeyValues.of(), (Throwable) null)
+				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
 			// U+FFFD replacement character encoded as UTF-8.

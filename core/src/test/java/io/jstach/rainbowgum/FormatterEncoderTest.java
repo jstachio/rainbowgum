@@ -140,7 +140,8 @@ class FormatterEncoderTest {
 	}
 
 	private static LogEvent event(String message) {
-		return LogEvent.of(System.Logger.Level.INFO, "test", message, KeyValues.of(), null);
+		return TestLogEventFactory.of("test")
+			.event(System.Logger.Level.INFO, message, KeyValues.of(), (Throwable) null);
 	}
 
 	static class WriteMethodOutput extends ListLogOutput {

@@ -17,7 +17,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.TestEventBuilder;
+import io.jstach.rainbowgum.TestLogEventFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /*
@@ -45,7 +45,7 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 	@Test
 	void testLogBeforeStartThrows() {
 		var pub = BlockingQueueAsyncLogPublisher.of(appender(new ListLogOutput()), 10);
-		var event = TestEventBuilder.of().build();
+		var event = TestLogEventFactory.of().event();
 		assertThrows(IllegalStateException.class, () -> pub.log(event));
 	}
 
@@ -54,7 +54,7 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 		var pub = BlockingQueueAsyncLogPublisher.of(appender(new ListLogOutput()), 10);
 		pub.start(LogConfig.builder().build());
 		pub.close();
-		var event = TestEventBuilder.of().build();
+		var event = TestLogEventFactory.of().event();
 		assertThrows(IllegalStateException.class, () -> pub.log(event));
 	}
 
@@ -82,7 +82,7 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 		var pub = BlockingQueueAsyncLogPublisher.of(appender(new ListLogOutput()), 10);
 		pub.start(LogConfig.builder().build());
 		try {
-			var event = TestEventBuilder.of().build();
+			var event = TestLogEventFactory.of().event();
 			Thread.currentThread().interrupt();
 			pub.log(event); // must not throw - InterruptedException is caught internally
 			assertTrue(Thread.currentThread().isInterrupted(), "the interrupt flag must be restored, not swallowed");
@@ -143,14 +143,14 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 		var pub = BlockingQueueAsyncLogPublisher.of(appender(output), 10);
 		pub.start(LogConfig.builder().build());
 		try {
-			TestEventBuilder.of().to(pub).event().message("first (throws)").log();
+			pub.log(TestLogEventFactory.of().event("first (throws)"));
 			// Wait for the first event to actually be attempted before sending the
 			// second - otherwise both can land in the same drainTo()/append() batch,
 			// and the exception on the first aborts that whole batch before the
 			// second ever gets its own write() call, which would prove nothing about
 			// the worker surviving into a later, separate cycle.
 			assertTrue(firstAttempted.await(5, TimeUnit.SECONDS), "the first event must have been attempted");
-			TestEventBuilder.of().to(pub).event().message("second (should still be processed)").log();
+			pub.log(TestLogEventFactory.of().event("second (should still be processed)"));
 			assertTrue(secondEventHandled.await(5, TimeUnit.SECONDS),
 					"the worker thread must survive an exception from one event and keep processing later ones");
 		}

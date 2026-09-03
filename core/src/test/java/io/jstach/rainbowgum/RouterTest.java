@@ -55,7 +55,7 @@ class RouterTest {
 		assertTrue(route.isEnabled());
 
 		if (route.isEnabled()) {
-			TestEventBuilder.of().level(Level.DEBUG).to(route).event().message("DEBUG").log();
+			route.log(TestLogEventFactory.of().event(Level.DEBUG, "DEBUG"));
 		}
 
 		String results1 = publisher1.events.toString();
@@ -83,7 +83,7 @@ class RouterTest {
 		var route = router.route("stuff", Level.DEBUG);
 
 		var mkvs = MutableKeyValues.of().add("phase", "A");
-		TestEventBuilder.of().level(Level.DEBUG).to(route).event().keyValues(mkvs).message("msg").log();
+		route.log(TestLogEventFactory.of().event(Level.DEBUG, "msg", mkvs, (Throwable) null));
 
 		assertEquals(1, publisher.events.size());
 		var captured = publisher.events.getFirst();
@@ -105,7 +105,7 @@ class RouterTest {
 		var route = router.route("stuff", Level.DEBUG);
 
 		var mkvs = MutableKeyValues.of().add("phase", "A");
-		TestEventBuilder.of().level(Level.DEBUG).to(route).event().keyValues(mkvs).message("msg").log();
+		route.log(TestLogEventFactory.of().event(Level.DEBUG, "msg", mkvs, (Throwable) null));
 
 		assertEquals(1, publisher.events.size());
 		var captured = publisher.events.getFirst();

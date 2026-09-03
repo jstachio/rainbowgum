@@ -101,7 +101,7 @@ class AppenderAsModeFlagPermutationTest {
 
 		publisher.start(config);
 		try {
-			publisher.log(TestEventBuilder.of().build(b -> b.message("hello")));
+			publisher.log(TestLogEventFactory.of().event("hello"));
 		}
 		finally {
 			publisher.close();

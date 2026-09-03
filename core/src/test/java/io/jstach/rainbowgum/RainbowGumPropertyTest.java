@@ -145,7 +145,9 @@ class RainbowGumPropertyTest {
 				if (level == System.Logger.Level.OFF) {
 					continue;
 				}
-				var e = LogEvent.of(level, "com.pattern.test.Test", "hello", null).freeze(instant);
+				var e = TestLogEventFactory.of("com.pattern.test.Test")
+					.event(level, "hello", KeyValues.of(), (Throwable) null)
+					.freeze(instant);
 				events.add(e);
 			}
 			return events;

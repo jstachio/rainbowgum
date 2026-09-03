@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
-import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
@@ -37,7 +37,8 @@ class PatternEncoderMaxBufferSizeTest {
 		b.fromProperties(config.properties());
 		LogEncoder encoder = b.build().provide("list", config);
 		var buffer = encoder.buffer(WriteMethod.STRING);
-		var event = LogEvent.of(System.Logger.Level.INFO, "test", message, KeyValues.of(), null);
+		var event = LogEventFactory.of("test")
+			.event(System.Logger.Level.INFO, message, KeyValues.of(), (Throwable) null);
 		encoder.encode(event, buffer);
 		return buffer;
 	}
@@ -87,8 +88,8 @@ class PatternEncoderMaxBufferSizeTest {
 			.encoderForOutputType(OutputType.CONSOLE_OUT)
 			.provide("console", config);
 		var buffer = encoder.buffer(WriteMethod.STRING);
-		var event = LogEvent.of(System.Logger.Level.INFO, "test", "a message well past five characters", KeyValues.of(),
-				null);
+		var event = LogEventFactory.of("test")
+			.event(System.Logger.Level.INFO, "a message well past five characters", KeyValues.of(), (Throwable) null);
 		encoder.encode(event, buffer);
 		assertTrue(buffer.isOversized());
 	}

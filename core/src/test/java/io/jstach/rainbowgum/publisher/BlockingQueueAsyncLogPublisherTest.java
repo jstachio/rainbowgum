@@ -14,7 +14,7 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.TestEventBuilder;
+import io.jstach.rainbowgum.TestLogEventFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class BlockingQueueAsyncLogPublisherTest {
@@ -31,7 +31,7 @@ class BlockingQueueAsyncLogPublisherTest {
 
 		try (BlockingQueueAsyncLogPublisher pub = b) {
 			for (int i = 0; i < count; i++) {
-				TestEventBuilder.of().to(pub).event().message("hello").log();
+				pub.log(TestLogEventFactory.of().event("hello"));
 			}
 			latch.await();
 		}
@@ -63,7 +63,7 @@ class BlockingQueueAsyncLogPublisherTest {
 		}).build();
 		try (var g = gum.start()) {
 			for (int i = 0; i < count; i++) {
-				TestEventBuilder.of().to(gum).event().message("" + i).log();
+				gum.log(TestLogEventFactory.of().event("" + i));
 			}
 			latch.await();
 			out.println("done");

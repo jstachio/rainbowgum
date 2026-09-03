@@ -13,6 +13,7 @@ import org.slf4j.spi.MDCAdapter;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogFormatter;
 
 class RainbowGumMDCAdapterTest {
@@ -27,7 +28,7 @@ class RainbowGumMDCAdapterTest {
 		test.run(mdc);
 		String expected = test.expected;
 		KeyValues kvs = mdc.keyValues();
-		LogEvent event = LogEvent.of(System.Logger.Level.INFO, "test", "test", kvs, null);
+		LogEvent event = LogEventFactory.of("test").event(System.Logger.Level.INFO, "test", kvs, (Throwable) null);
 		StringBuilder sb = new StringBuilder();
 		formatter.format(sb, event);
 		String actual = sb.toString();

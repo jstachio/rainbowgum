@@ -21,7 +21,7 @@ import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.TestEventBuilder;
+import io.jstach.rainbowgum.TestLogEventFactory;
 
 /*
  * No output in the codebase today actually advertises WriteMethod.BYTE_BUFFER and relies
@@ -51,7 +51,7 @@ class NioByteBufferOutputTest {
 			});
 		}).build();
 		try (var g = gum.start()) {
-			g.log(TestEventBuilder.of().build(b -> b.message("hello world")));
+			g.log(TestLogEventFactory.of().event("hello world"));
 			output.flush();
 			String actual = Files.readString(file, StandardCharsets.UTF_8);
 			assertEquals("hello world\n", actual);
@@ -62,7 +62,7 @@ class NioByteBufferOutputTest {
 	void wrappedBufferAlsoWritesFullContent(@org.junit.jupiter.api.io.TempDir Path dir) throws IOException {
 		Path file = dir.resolve("wrapped.log");
 		try (var output = new NioFileOutput(file)) {
-			var event = TestEventBuilder.of().build(b -> b.message("hello world"));
+			var event = TestLogEventFactory.of().event("hello world");
 			var buf = ByteBuffer.wrap("hello world\n".getBytes(StandardCharsets.UTF_8));
 			output.write(event, buf, LogOutput.ContentType.StandardContentType.TEXT_PLAIN);
 			output.flush();
