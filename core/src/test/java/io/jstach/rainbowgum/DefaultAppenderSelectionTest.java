@@ -119,7 +119,7 @@ class DefaultAppenderSelectionTest {
 
 	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output) {
 		var encoder = LogEncoder.of(LogFormatter.builder().message().build());
-		return DirectLogAppender.of("test", output, encoder, flags);
+		return DirectLogAppender.of("test", output, encoder, flags, LogAlerts.of());
 	}
 
 }
