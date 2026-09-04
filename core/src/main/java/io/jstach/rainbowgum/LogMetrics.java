@@ -88,6 +88,56 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	}
 
 	/**
+	 * The fixed, well known set of counters RainbowGum itself records - as opposed to the
+	 * open ended, per logger name counters {@link LogAlerts#error(LogEvent)} also drives
+	 * into {@link #errorCounter(String, long)}. Enumerable on purpose: consumers that
+	 * want to bind every well known counter to something else (a Micrometer
+	 * {@code FunctionCounter} per constant, for example) can loop over {@link #values()}
+	 * instead of hand listing each {@code String}/{@link Level} pair themselves.
+	 */
+	enum StandardMetric {
+
+		/**
+		 * See {@link #EVENTS_DROPPED_METRIC}.
+		 */
+		EVENTS_DROPPED(EVENTS_DROPPED_METRIC, Level.ERROR),
+		/**
+		 * See {@link #BUFFER_TRIMMED_METRIC}.
+		 */
+		BUFFER_TRIMMED(BUFFER_TRIMMED_METRIC, Level.WARNING);
+
+		private final String metricName;
+
+		private final Level level;
+
+		StandardMetric(String metricName, Level level) {
+			this.metricName = metricName;
+			this.level = level;
+		}
+
+		/**
+		 * The counter name, as passed to {@link #errorCounter(String, long)}/
+		 * {@link #warnCounter(String, long)} and matched against {@link Counter#name()}.
+		 * @return counter name.
+		 */
+		public String metricName() {
+			return metricName;
+		}
+
+		/**
+		 * Which counter method this metric is recorded through - {@link Level#ERROR} for
+		 * {@link #errorCounter(String, long)}, {@link Level#WARNING} for
+		 * {@link #warnCounter(String, long)} - and so also which {@link Counter#level()}
+		 * it shows up under in {@link #counters()}.
+		 * @return level.
+		 */
+		public Level level() {
+			return level;
+		}
+
+	}
+
+	/**
 	 * Creates a new, empty metrics instance.
 	 * @return metrics.
 	 */
