@@ -44,7 +44,7 @@ class AppenderAlertReportingTest {
 		var appender = appender(flags, output, encoder(), alerts);
 		assertEquals(expectedType, appender.getClass());
 
-		assertDoesNotThrow(() -> appender.append(TestEventBuilder.of().build(b -> b.message("event"))));
+		assertDoesNotThrow(() -> appender.append(TestLogEventFactory.of().event("event")));
 
 		assertEquals(1, alerts.dump().size());
 		assertTrue(alerts.dump().get(0).message().contains("failed to append"));
@@ -61,7 +61,7 @@ class AppenderAlertReportingTest {
 		var appender = appender(flags, output, throwingEncoder, alerts);
 		assertEquals(expectedType, appender.getClass());
 
-		assertDoesNotThrow(() -> appender.append(TestEventBuilder.of().build(b -> b.message("event"))));
+		assertDoesNotThrow(() -> appender.append(TestLogEventFactory.of().event("event")));
 
 		assertEquals(1, alerts.dump().size());
 		assertTrue(alerts.dump().get(0).message().contains("failed to append"));
@@ -78,8 +78,7 @@ class AppenderAlertReportingTest {
 		var appender = appender(flags, output, encoder(), alerts);
 		assertEquals(expectedType, appender.getClass());
 
-		var events = new LogEvent[] { TestEventBuilder.of().build(b -> b.message("one")),
-				TestEventBuilder.of().build(b -> b.message("two")) };
+		var events = new LogEvent[] { TestLogEventFactory.of().event("one"), TestLogEventFactory.of().event("two") };
 
 		assertDoesNotThrow(() -> appender.append(events, events.length));
 
