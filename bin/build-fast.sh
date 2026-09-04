@@ -7,4 +7,5 @@
 # @Isolated on classes that share JVM-wide static state) - and note it buys little at the
 # full-reactor level, since -T1C already saturates available cores; it mainly helps
 # individual test-heavy modules like core.
-./mvnw --batch-mode --no-transfer-progress -T1C -Pfast -q clean install $*
+# -Pfast
+mvnd --batch-mode --no-transfer-progress -T2C -Dmaven.javadoc.skip=true -q clean install $*

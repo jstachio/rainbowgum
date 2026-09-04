@@ -568,6 +568,7 @@
         annotated with @Isolated to force full exclusion while they run; classes that only
         need their own methods not to race each other use @Execution(SAME_THREAD) alone.
       -->
+      <!-- Adam: This is not faster and javadoc seems to not be full disabled -->
       <id>fast</id>
       <properties>
         <maven.javadoc.skip>true</maven.javadoc.skip>
