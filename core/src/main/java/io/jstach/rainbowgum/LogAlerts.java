@@ -35,6 +35,15 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	static final int DEFAULT_CAPACITY = 100;
 
 	/**
+	 * Counter name (see {@link #errorCounter(String, long)}) for the global count of log
+	 * events dropped without ever being written anywhere - for example an appender
+	 * dropping events on reentry. Incremented whenever a drop happens regardless of
+	 * whether that particular drop is also logged/alerted, since counting and
+	 * alerting/logging are separate concerns.
+	 */
+	static final String EVENTS_DROPPED_METRIC = "events.dropped";
+
+	/**
 	 * Records an alert.
 	 * @param event event describing the alert. {@link Level#ERROR} or higher is expected
 	 * but not enforced.

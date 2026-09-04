@@ -88,6 +88,35 @@ class LogAppenderFlagTest {
 	}
 
 	@Test
+	void reentryDropOfABatchIncrementsCounterByCountNotOne() {
+		LogConfig config = LogConfig.builder().build();
+		var output = new ListLogOutput();
+		var testAppender = LogAppender.builder("test")
+			.encoder(LogFormatter.builder().message().encoder().build())
+			.output(output)
+			.flag(AppenderFlag.REENTRY_DROP)
+			.build()
+			.provide("test", config);
+		LogEvent[] reentrantBatch = { TestLogEventFactory.of().event("a"), TestLogEventFactory.of().event("b"),
+				TestLogEventFactory.of().event("c") };
+		output.setConsumer((e, s) -> {
+			// Reentrant batch append while already inside this appender's write - should
+			// be dropped in full, counted by its size (3), not just 1.
+			testAppender.append(reentrantBatch, reentrantBatch.length);
+		});
+		testAppender.append(TestLogEventFactory.of().event("original"));
+
+		assertEquals(List.of("original"), output.events().stream().map(e -> e.getKey().message()).toList());
+		long dropped = config.alerts()
+			.counters()
+			.stream()
+			.filter(c -> c.name().equals(LogAlerts.EVENTS_DROPPED_METRIC))
+			.mapToLong(LogAlerts.Counter::count)
+			.sum();
+		assertEquals(3, dropped);
+	}
+
+	@Test
 	void immediateFlushIsDefault() {
 		var output = new CountingListLogOutput();
 		var testAppender = appender("test", output);
