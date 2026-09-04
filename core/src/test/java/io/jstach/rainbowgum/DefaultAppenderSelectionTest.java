@@ -124,13 +124,26 @@ class DefaultAppenderSelectionTest {
 		assertTrue(diagnostic.contains("reentrant appender"), () -> "expected reentry diagnostic, got: " + diagnostic);
 	}
 
+	/*
+	 * Built once, at class load - not per call inside appender(...) below. Constructing a
+	 * LogConfig re-evaluates LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY and
+	 * resets AbstractLogAppender.forceReentrantLockAppenders as a side effect (see
+	 * LogConfig#applyGlobalAppenderReentrantLockProperty) - doing that on every
+	 * appender() call would wipe out a test's own direct override of that field before
+	 * DirectLogAppender.of gets a chance to read it.
+	 */
+	private static final LogEncoder ENCODER = LogFormatter.builder()
+		.message()
+		.encoder()
+		.build()
+		.provide("test", LogConfig.builder().build());
+
 	private static LogAppender appender(Set<AppenderFlag> flags) {
 		return appender(flags, new ListLogOutput());
 	}
 
 	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output) {
-		var encoder = LogEncoder.of(LogFormatter.builder().message().build());
-		return DirectLogAppender.of("test", output, encoder, flags, LogAlerts.of());
+		return DirectLogAppender.of("test", output, ENCODER, flags, LogAlerts.of());
 	}
 
 }

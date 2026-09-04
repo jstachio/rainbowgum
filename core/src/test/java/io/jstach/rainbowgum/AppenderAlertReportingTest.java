@@ -56,7 +56,7 @@ class AppenderAlertReportingTest {
 		var output = new ListLogOutput();
 		var throwingEncoder = LogEncoder.of((LogFormatter.EventFormatter) (sb, event) -> {
 			throw new RuntimeException("encode boom");
-		});
+		}).provide("test", LogConfig.builder().build());
 		var alerts = LogAlerts.of();
 		var appender = appender(flags, output, throwingEncoder, alerts);
 		assertEquals(expectedType, appender.getClass());
@@ -87,7 +87,7 @@ class AppenderAlertReportingTest {
 	}
 
 	private static LogEncoder encoder() {
-		return LogEncoder.of(LogFormatter.builder().message().build());
+		return LogFormatter.builder().message().encoder().build().provide("test", LogConfig.builder().build());
 	}
 
 	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output, LogEncoder encoder,

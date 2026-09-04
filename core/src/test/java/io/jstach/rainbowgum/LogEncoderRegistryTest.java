@@ -69,13 +69,25 @@ class LogEncoderRegistryTest {
 
 				@Override
 				public LogProvider<LogEncoder> provide(LogProviderRef ref) {
-					return (n, c) -> LogFormatter.builder().text("CUSTOM ").message().newline().encoder().build();
+					return (n, c) -> LogFormatter.builder()
+						.text("CUSTOM ")
+						.message()
+						.newline()
+						.encoder()
+						.build()
+						.provide(n, c);
 				}
 			};
 			config.encoderRegistry().register("custom", provider);
 			config.encoderRegistry()
 				.setEncoderForOutputType(OutputType.MEMORY,
-						(name, c) -> LogFormatter.builder().text("OUTPUT_TYPE ").message().newline().encoder().build());
+						(name, c) -> LogFormatter.builder()
+							.text("OUTPUT_TYPE ")
+							.message()
+							.newline()
+							.encoder()
+							.build()
+							.provide(name, c));
 			return true;
 		}
 

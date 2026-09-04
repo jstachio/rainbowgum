@@ -61,7 +61,8 @@ class ForwardingOutputTest {
 	void writeBatchForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
 		var event = TestLogEventFactory.of().event("hello");
-		var encoder = io.jstach.rainbowgum.LogEncoder.of(io.jstach.rainbowgum.LogFormatter.builder().message().build());
+		var config = LogConfig.builder().build();
+		var encoder = io.jstach.rainbowgum.LogFormatter.builder().message().encoder().build().provide("test", config);
 
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(new LogEvent[] { event }, 1, encoder));
 		assertTrue(delegate.events().isEmpty());
@@ -74,7 +75,8 @@ class ForwardingOutputTest {
 	void writeBatchWithBufferForwardsWhenDelegatePresentAndNoopsWhenAbsent() {
 		var delegate = new RecordingListLogOutput();
 		var event = TestLogEventFactory.of().event("hello");
-		var encoder = io.jstach.rainbowgum.LogEncoder.of(io.jstach.rainbowgum.LogFormatter.builder().message().build());
+		var config = LogConfig.builder().build();
+		var encoder = io.jstach.rainbowgum.LogFormatter.builder().message().encoder().build().provide("test", config);
 		var buffer = encoder.buffer(delegate.bufferHints());
 
 		assertDoesNotThrow(() -> new TestForwardingOutput(null).write(new LogEvent[] { event }, 1, encoder, buffer));
@@ -91,7 +93,8 @@ class ForwardingOutputTest {
 		// StringBuilderBuffer isn't public - go through the same public
 		// LogEncoder/LogFormatter pipeline every other test in this file uses to get a
 		// populated buffer instead of constructing one directly.
-		var encoder = io.jstach.rainbowgum.LogEncoder.of(io.jstach.rainbowgum.LogFormatter.builder().message().build());
+		var config = LogConfig.builder().build();
+		var encoder = io.jstach.rainbowgum.LogFormatter.builder().message().encoder().build().provide("test", config);
 		var buffer = encoder.buffer(io.jstach.rainbowgum.LogOutput.WriteMethod.STRING);
 		encoder.encode(event, buffer);
 

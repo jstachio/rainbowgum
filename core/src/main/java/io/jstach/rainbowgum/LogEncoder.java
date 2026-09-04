@@ -212,7 +212,8 @@ public interface LogEncoder {
 			}
 			var resolvedCharset = c;
 			var resolvedContentType = ct;
-			return (n, config) -> new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize, initialBufferSize);
+			return (n, config) -> new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
+					initialBufferSize);
 		}
 
 	}
