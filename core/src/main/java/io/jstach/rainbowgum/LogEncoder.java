@@ -213,7 +213,7 @@ public interface LogEncoder {
 			var resolvedCharset = c;
 			var resolvedContentType = ct;
 			return (n, config) -> new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
-					initialBufferSize);
+					initialBufferSize, config.alerts());
 		}
 
 	}
@@ -446,31 +446,28 @@ final class StringBuilderBuffer implements TextBuffer {
 
 	private final int maxBufferSize;
 
-	/**
-	 * Creates a StringBuilder based buffer that never reports {@link #isOversized()}.
-	 * @param sb string builder.
-	 * @return buffer.
-	 */
-	public static StringBuilderBuffer of(StringBuilder sb) {
-		return of(sb, -1);
-	}
+	private final LogAlerts alerts;
 
 	/**
 	 * Creates a StringBuilder based buffer that reports {@link #isOversized()} once
-	 * {@code sb}'s capacity exceeds {@code maxBufferSize}.
+	 * {@code sb}'s capacity exceeds {@code maxBufferSize}, reporting
+	 * {@link LogAlerts#BUFFER_TRIMMED_METRIC} to {@code alerts} each time
+	 * {@link #clear()} actually shrinks the backing storage.
 	 * @param sb string builder.
 	 * @param maxBufferSize a negative value disables {@link #isOversized()} entirely
 	 * (always {@code false}).
+	 * @param alerts where to report {@link LogAlerts#BUFFER_TRIMMED_METRIC}.
 	 * @return buffer.
 	 */
-	public static StringBuilderBuffer of(StringBuilder sb, int maxBufferSize) {
-		return new StringBuilderBuffer(sb, maxBufferSize);
+	public static StringBuilderBuffer of(StringBuilder sb, int maxBufferSize, LogAlerts alerts) {
+		return new StringBuilderBuffer(sb, maxBufferSize, alerts);
 	}
 
-	private StringBuilderBuffer(StringBuilder stringBuilder, int maxBufferSize) {
+	private StringBuilderBuffer(StringBuilder stringBuilder, int maxBufferSize, LogAlerts alerts) {
 		super();
 		this.stringBuilder = stringBuilder;
 		this.maxBufferSize = maxBufferSize;
+		this.alerts = alerts;
 	}
 
 	@Override
@@ -487,6 +484,7 @@ final class StringBuilderBuffer implements TextBuffer {
 		// fine through the public final field above).
 		if (isOversized()) {
 			stringBuilder.trimToSize();
+			alerts.warnCounter(LogAlerts.BUFFER_TRIMMED_METRIC, 1);
 		}
 	}
 
@@ -557,6 +555,8 @@ final class DirectByteBufferBuffer implements TextBuffer {
 
 	private final int initialByteCapacity;
 
+	private final LogAlerts alerts;
+
 	private ByteBuffer byteBuffer;
 
 	/**
@@ -581,9 +581,11 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	 * {@link #isOversized()} unconditionally {@code true} from the very first event -
 	 * {@code maxBufferSize} should normally be set well above whatever initial capacity
 	 * is in play.
+	 * @param alerts where to report {@link LogAlerts#BUFFER_TRIMMED_METRIC} each time
+	 * {@link #clear()} actually shrinks the backing storage.
 	 */
 	DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
-			LogOutput.ContentType contentType, int maxBufferSize) {
+			LogOutput.ContentType contentType, int maxBufferSize, LogAlerts alerts) {
 		this.writeMethod = writeMethod;
 		this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
 		this.charsetEncoder = charset.newEncoder()
@@ -592,6 +594,7 @@ final class DirectByteBufferBuffer implements TextBuffer {
 		this.contentType = contentType;
 		this.maxBufferSize = maxBufferSize;
 		this.initialByteCapacity = initialByteCapacity;
+		this.alerts = alerts;
 	}
 
 	/**
@@ -660,6 +663,7 @@ final class DirectByteBufferBuffer implements TextBuffer {
 		if (isOversized()) {
 			stringBuilder.trimToSize();
 			byteBuffer = ByteBuffer.allocate(initialByteCapacity);
+			alerts.warnCounter(LogAlerts.BUFFER_TRIMMED_METRIC, 1);
 		}
 	}
 
@@ -686,22 +690,25 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final int initialBufferSize;
 
+	private final LogAlerts alerts;
+
 	FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxBufferSize,
-			int initialBufferSize) {
+			int initialBufferSize, LogAlerts alerts) {
 		super();
 		this.formatter = formatter;
 		this.charset = charset;
 		this.contentType = contentType;
 		this.maxBufferSize = maxBufferSize;
 		this.initialBufferSize = initialBufferSize;
+		this.alerts = alerts;
 	}
 
 	@Override
 	public Buffer buffer(BufferHints hints) {
 		return switch (hints.writeMethod()) {
-			case STRING -> StringBuilderBuffer.of(new StringBuilder(initialBufferSize), maxBufferSize);
-			case BYTES, BYTE_BUFFER ->
-				new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset, contentType, maxBufferSize);
+			case STRING -> StringBuilderBuffer.of(new StringBuilder(initialBufferSize), maxBufferSize, alerts);
+			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset,
+					contentType, maxBufferSize, alerts);
 		};
 	}
 
