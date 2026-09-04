@@ -1,13 +1,16 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>io.jstach.rainbowgum</groupId>
-    <artifactId>rainbowgum-benchmark-parent</artifactId>
+    <artifactId>rainbowgum-benchmark-legacy-parent</artifactId>
     <version>0.11.0-SNAPSHOT</version>
   </parent>
-  <artifactId>rainbowgum-benchmark-rainbowgum</artifactId>
+  <artifactId>rainbowgum-benchmark-log4j</artifactId>
   <properties>
-    <exec.mainClass>${project.groupId}.rainbowgum.Main</exec.mainClass>
+    <parent.root>${basedir}/../../..</parent.root>
+    <exec.mainClass>${project.groupId}.log4j.Main</exec.mainClass>
   </properties>
   <build>
     <plugins>
@@ -35,8 +38,8 @@
   </build>
   <dependencies>
     <dependency>
-      <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum-slf4j</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
