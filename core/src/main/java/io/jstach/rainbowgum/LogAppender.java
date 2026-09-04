@@ -526,18 +526,19 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	}
 
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
-			LogAlerts alerts) {
+			LogAlerts alerts, LogMetrics metrics) {
 		flags = AbstractLogAppender.guardSynchronizedFlag(flags);
 		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
-			return new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts);
+			return new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
 		}
 		if (flags.contains(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
-			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags, alerts);
+			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags, alerts, metrics);
 		}
 		if (flags.contains(AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
-			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts);
+			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts,
+					metrics);
 		}
-		return defaultAppender(name, output, encoder, flags, alerts);
+		return defaultAppender(name, output, encoder, flags, alerts, metrics);
 	}
 
 	/**
@@ -559,8 +560,8 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	 * platform-thread-heavy deployments that want that edge.
 	 */
 	static DirectLogAppender defaultAppender(String name, LogOutput output, LogEncoder encoder,
-			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts) {
-		return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts);
+			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
+		return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
 	}
 
 	// @Override
@@ -615,20 +616,20 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * whether it does so via a {@link ReentrantLock} (
 	 * {@code lock.isHeldByCurrentThread()}) or a {@code synchronized} block (
 	 * {@link Thread#holdsLock(Object)}) - callers pass in whichever check applies to
-	 * them. Whenever this returns {@code true}, {@link LogAlerts#EVENTS_DROPPED_METRIC}
+	 * them. Whenever this returns {@code true}, {@link LogMetrics#EVENTS_DROPPED_METRIC}
 	 * is incremented by {@code count} regardless of whether
 	 * {@link AppenderFlag#REENTRY_LOG} is set - counting and logging/alerting are
 	 * separate concerns, so the count still happens even when the drop itself is silent.
 	 * @param reentrant whether the current thread already holds this appender's
 	 * lock/monitor.
 	 * @param flags the appender's flags.
-	 * @param alerts where to record {@link LogAlerts#EVENTS_DROPPED_METRIC} if events are
-	 * dropped.
+	 * @param metrics where to record {@link LogMetrics#EVENTS_DROPPED_METRIC} if events
+	 * are dropped.
 	 * @param count number of events that would be dropped - {@code 1} for a single event
 	 * append, or the batch size for a batch append.
 	 * @return {@code true} if the caller should drop the event(s) without appending.
 	 */
-	static boolean shouldDropForReentry(boolean reentrant, Set<LogAppender.AppenderFlag> flags, LogAlerts alerts,
+	static boolean shouldDropForReentry(boolean reentrant, Set<LogAppender.AppenderFlag> flags, LogMetrics metrics,
 			int count) {
 		if (!reentrant) {
 			return false;
@@ -636,11 +637,11 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		if (flags.contains(LogAppender.AppenderFlag.REENTRY_LOG)) {
 			Exception exception = new Exception("reentrant appender");
 			MetaLog.error(LogAppender.class, exception);
-			alerts.errorCounter(LogAlerts.EVENTS_DROPPED_METRIC, count);
+			metrics.errorCounter(LogMetrics.EVENTS_DROPPED_METRIC, count);
 			return true;
 		}
 		if (flags.contains(LogAppender.AppenderFlag.REENTRY_DROP)) {
-			alerts.errorCounter(LogAlerts.EVENTS_DROPPED_METRIC, count);
+			metrics.errorCounter(LogMetrics.EVENTS_DROPPED_METRIC, count);
 			return true;
 		}
 		return false;
@@ -672,14 +673,20 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	protected final LogAlerts alerts;
 
 	/**
+	 * metrics for recording counters like {@link LogMetrics#EVENTS_DROPPED_METRIC}.
+	 */
+	protected final LogMetrics metrics;
+
+	/**
 	 * Creates an appender from an output and encoder.
 	 * @param output set the output field and will be started and closed with the
 	 * appender.
 	 * @param encoder set the encoder field.
 	 * @param alerts alerts for reporting encode/write failures.
+	 * @param metrics metrics for recording counters.
 	 */
 	protected AbstractLogAppender(String name, LogOutput output, LogEncoder encoder,
-			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts) {
+			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
 		super();
 		this.name = name;
 		this.output = output;
@@ -687,6 +694,7 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		this.flags = flags;
 		this.immediateFlush = !flags.contains(LogAppender.AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
 		this.alerts = alerts;
+		this.metrics = metrics;
 	}
 
 	@Override
@@ -800,8 +808,8 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 	protected final ReentrantLock lock;
 
 	public LockLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
-			ReentrantLock lock, LogAlerts alerts) {
-		super(name, output, encoder, flags, alerts);
+			ReentrantLock lock, LogAlerts alerts, LogMetrics metrics) {
+		super(name, output, encoder, flags, alerts, metrics);
 		this.lock = lock;
 	}
 
@@ -842,15 +850,15 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 		flags.addAll(this.flags);
 		flags = guardSynchronizedFlag(flags);
 		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
-			return new ReuseBufferLogAppender(name, output, encoder, flags, lock, alerts);
+			return new ReuseBufferLogAppender(name, output, encoder, flags, lock, alerts, metrics);
 		}
 		if (flags.contains(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
-			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags, alerts);
+			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags, alerts, metrics);
 		}
 		if (flags.contains(LogAppender.AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
-			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, lock, alerts);
+			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, lock, alerts, metrics);
 		}
-		return DirectLogAppender.defaultAppender(name, output, encoder, flags, alerts);
+		return DirectLogAppender.defaultAppender(name, output, encoder, flags, alerts, metrics);
 	}
 
 }
@@ -863,14 +871,14 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 	private final LogEncoder.Buffer buffer;
 
 	ReuseBufferLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
-			ReentrantLock lock, LogAlerts alerts) {
-		super(name, output, encoder, flags, lock, alerts);
+			ReentrantLock lock, LogAlerts alerts, LogMetrics metrics) {
+		super(name, output, encoder, flags, lock, alerts, metrics);
 		this.buffer = encoder.buffer(output.bufferHints());
 	}
 
 	@Override
 	public final void append(LogEvent event) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, 1)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, metrics, 1)) {
 			return;
 		}
 		try {
@@ -894,7 +902,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, count)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, metrics, count)) {
 			return;
 		}
 		try {
@@ -951,8 +959,8 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 	private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal;
 
 	LockThreadLocalBufferLogAppender(String name, LogOutput output, LogEncoder encoder,
-			Set<LogAppender.AppenderFlag> flags, ReentrantLock lock, LogAlerts alerts) {
-		super(name, output, encoder, flags, lock, alerts);
+			Set<LogAppender.AppenderFlag> flags, ReentrantLock lock, LogAlerts alerts, LogMetrics metrics) {
+		super(name, output, encoder, flags, lock, alerts, metrics);
 		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
 	}
 
@@ -970,7 +978,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 	}
 
 	private void writeLocked(LogEvent event, LogEncoder.Buffer buffer) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, 1)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, metrics, 1)) {
 			return;
 		}
 		lock.lock();
@@ -987,7 +995,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, count)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, metrics, count)) {
 			return;
 		}
 		try {
@@ -1026,8 +1034,8 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 	private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal;
 
 	SynchronizedThreadLocalBufferLogAppender(String name, LogOutput output, LogEncoder encoder,
-			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts) {
-		super(name, output, encoder, flags, alerts);
+			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
+		super(name, output, encoder, flags, alerts, metrics);
 		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
 	}
 
@@ -1045,7 +1053,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 	}
 
 	private void writeSynchronized(LogEvent event, LogEncoder.Buffer buffer) {
-		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts, 1)) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, metrics, 1)) {
 			return;
 		}
 		synchronized (monitor) {
@@ -1058,7 +1066,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts, count)) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, metrics, count)) {
 			return;
 		}
 		try {
@@ -1105,15 +1113,16 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 		flags.addAll(this.flags);
 		flags = guardSynchronizedFlag(flags);
 		if (flags.contains(LogAppender.AppenderFlag.REUSE_BUFFER)) {
-			return new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts);
+			return new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
 		}
 		if (flags.contains(LogAppender.AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
-			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags, alerts);
+			return new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags, alerts, metrics);
 		}
 		if (flags.contains(LogAppender.AppenderFlag.LOCK_THREAD_LOCAL_BUFFER)) {
-			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts);
+			return new LockThreadLocalBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts,
+					metrics);
 		}
-		return DirectLogAppender.defaultAppender(name, output, encoder, flags, alerts);
+		return DirectLogAppender.defaultAppender(name, output, encoder, flags, alerts, metrics);
 	}
 
 }

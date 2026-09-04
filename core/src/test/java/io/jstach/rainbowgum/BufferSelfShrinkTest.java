@@ -29,8 +29,8 @@ import io.jstach.rainbowgum.LogOutput.WriteMethod;
  * These tests assert actual capacity() values before/after clear(), not just that
  * isOversized() flips back to false, to prove the backing storage genuinely shrank rather
  * than just re-deriving the same predicate under test. They also assert
- * LogAlerts.BUFFER_TRIMMED_METRIC via the LogConfig each encoder is provided from - the
- * encoder captures that LogConfig's alerts once at provide(...) time, so the same
+ * LogMetrics.BUFFER_TRIMMED_METRIC via the LogConfig each encoder is provided from - the
+ * encoder captures that LogConfig's metrics once at provide(...) time, so the same
  * LogConfig used to provide the encoder is what reads the counter back.
  */
 class BufferSelfShrinkTest {
@@ -43,11 +43,11 @@ class BufferSelfShrinkTest {
 	}
 
 	private static long trimmedCount(LogConfig config) {
-		return config.alerts()
+		return config.metrics()
 			.counters()
 			.stream()
-			.filter(c -> c.name().equals(LogAlerts.BUFFER_TRIMMED_METRIC))
-			.mapToLong(LogAlerts.Counter::count)
+			.filter(c -> c.name().equals(LogMetrics.BUFFER_TRIMMED_METRIC))
+			.mapToLong(LogMetrics.Counter::count)
 			.sum();
 	}
 
@@ -73,7 +73,7 @@ class BufferSelfShrinkTest {
 
 		assertTrue(buffer.stringBuilder.capacity() < grownCapacity,
 				"clear() must shrink the backing StringBuilder back down once oversized");
-		assertEquals(1, trimmedCount(config), "a shrink must report LogAlerts.BUFFER_TRIMMED_METRIC");
+		assertEquals(1, trimmedCount(config), "a shrink must report LogMetrics.BUFFER_TRIMMED_METRIC");
 	}
 
 	@Test
@@ -125,7 +125,7 @@ class BufferSelfShrinkTest {
 
 		assertTrue(buffer.stringBuilder.capacity() < grownStringCapacity,
 				"clear() must shrink the backing StringBuilder back down once oversized");
-		assertEquals(1, trimmedCount(config), "a shrink must report LogAlerts.BUFFER_TRIMMED_METRIC");
+		assertEquals(1, trimmedCount(config), "a shrink must report LogMetrics.BUFFER_TRIMMED_METRIC");
 
 		// Encode a small event so encodeToByteBuffer() doesn't need to regrow the
 		// now-shrunk ByteBuffer, then drain again to observe its new capacity.
@@ -184,7 +184,7 @@ class BufferSelfShrinkTest {
 			.provide("test", config);
 		var output = new CapturingOutput();
 		var appender = new LockThreadLocalBufferLogAppender("test", output, encoder, EnumSet.noneOf(AppenderFlag.class),
-				new ReentrantLock(), config.alerts());
+				new ReentrantLock(), config.alerts(), config.metrics());
 
 		appender.append(new LogEvent[] { event("x".repeat(20_000)), event("small") }, 2);
 
