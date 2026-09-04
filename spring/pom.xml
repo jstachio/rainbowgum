@@ -27,5 +27,6 @@
     <module>rainbowgum-spring-boot3-starter</module>
     <module>rainbowgum-spring-boot4</module>
     <module>rainbowgum-spring-boot4-starter</module>
+    <module>rainbowgum-spring-boot4-actuator</module>
   </modules>
 </project>
