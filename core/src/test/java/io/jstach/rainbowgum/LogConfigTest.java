@@ -22,4 +22,15 @@ class LogConfigTest {
 		assertEquals(Level.DEBUG, actual);
 	}
 
+	@Test
+	void alertsErrorAlsoIncrementsAMetricsCounterNamedAfterTheLoggerName() {
+		var config = LogConfig.builder().build();
+		config.alerts().error(LogConfigTest.class, "first", new RuntimeException());
+		config.alerts().error(LogConfigTest.class, "second", new RuntimeException());
+
+		var counters = config.metrics().counters();
+		assertEquals(1, counters.size());
+		assertEquals(new LogMetrics.Counter(LogConfigTest.class.getName(), Level.ERROR, 2), counters.get(0));
+	}
+
 }

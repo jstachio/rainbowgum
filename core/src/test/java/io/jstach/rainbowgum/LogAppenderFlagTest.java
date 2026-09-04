@@ -107,11 +107,11 @@ class LogAppenderFlagTest {
 		testAppender.append(TestLogEventFactory.of().event("original"));
 
 		assertEquals(List.of("original"), output.events().stream().map(e -> e.getKey().message()).toList());
-		long dropped = config.alerts()
+		long dropped = config.metrics()
 			.counters()
 			.stream()
-			.filter(c -> c.name().equals(LogAlerts.EVENTS_DROPPED_METRIC))
-			.mapToLong(LogAlerts.Counter::count)
+			.filter(c -> c.name().equals(LogMetrics.EVENTS_DROPPED_METRIC))
+			.mapToLong(LogMetrics.Counter::count)
 			.sum();
 		assertEquals(3, dropped);
 	}

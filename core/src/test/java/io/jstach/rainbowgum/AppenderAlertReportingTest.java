@@ -92,7 +92,7 @@ class AppenderAlertReportingTest {
 
 	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output, LogEncoder encoder,
 			LogAlerts alerts) {
-		return DirectLogAppender.of("test", output, encoder, flags, alerts);
+		return DirectLogAppender.of("test", output, encoder, flags, alerts, LogMetrics.of());
 	}
 
 }

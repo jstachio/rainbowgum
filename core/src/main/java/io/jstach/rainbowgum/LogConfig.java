@@ -88,6 +88,13 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	public LogAlerts alerts();
 
 	/**
+	 * Metrics about the logging system itself (as opposed to application logging routed
+	 * through the {@link LogRouter}).
+	 * @return metrics.
+	 */
+	public LogMetrics metrics();
+
+	/**
 	 * Mixin for config support.
 	 */
 	interface ConfigSupport extends LogProperty.PropertySupport {
@@ -428,6 +435,8 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogAlerts alerts;
 
+	private final LogMetrics metrics;
+
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver) {
 		super();
 		this.registry = registry;
@@ -444,6 +453,8 @@ final class DefaultLogConfig implements LogConfig {
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
 		this.alerts = LogAlerts.of();
+		this.metrics = LogMetrics.of();
+		this.alerts.addListener(event -> this.metrics.errorCounter(event.loggerName(), 1));
 	}
 
 	/*
@@ -515,6 +526,11 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogAlerts alerts() {
 		return this.alerts;
+	}
+
+	@Override
+	public LogMetrics metrics() {
+		return this.metrics;
 	}
 
 }

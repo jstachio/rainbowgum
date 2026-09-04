@@ -6,10 +6,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -33,26 +31,6 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	 * Default capacity of the alert ring buffer.
 	 */
 	static final int DEFAULT_CAPACITY = 100;
-
-	/**
-	 * Counter name (see {@link #errorCounter(String, long)}) for the global count of log
-	 * events dropped without ever being written anywhere - for example an appender
-	 * dropping events on reentry. Incremented whenever a drop happens regardless of
-	 * whether that particular drop is also logged/alerted, since counting and
-	 * alerting/logging are separate concerns.
-	 */
-	static final String EVENTS_DROPPED_METRIC = "events.dropped";
-
-	/**
-	 * Counter name (see {@link #warnCounter(String, long)}) for the global count of times
-	 * a reused encoder buffer had its backing storage shrunk back down after growing past
-	 * its configured max size (see {@link LogEncoder.Buffer#isOversized()}). An
-	 * occasional trim is normal and expected once in a while, but resizing <em>often</em>
-	 * is a sign the configured max size (or the initial size) doesn't match the actual
-	 * event sizes being logged - worth watching, not erroring on, hence
-	 * {@link #warnCounter(String, long)} rather than {@link #errorCounter(String, long)}.
-	 */
-	static final String BUFFER_TRIMMED_METRIC = "buffer.trimmed";
 
 	/**
 	 * Records an alert.
@@ -84,56 +62,6 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	}
 
 	/**
-	 * Increments a counter for something worth tracking as "this happens and it matters"
-	 * but too frequent to record as a discrete {@link #error(LogEvent) alert event} -
-	 * incrementing a counter is far cheaper than recording an event (no ring buffer
-	 * entry, no listener dispatch per call). Every {@link #error(LogEvent)} call (and
-	 * therefore the {@code error(Class, ...)} overloads too) also increments the counter
-	 * named after the event's {@link LogEvent#loggerName() logger name}, so counts stay
-	 * available even once older alerts have been evicted from the ring buffer. Read
-	 * current values back with {@link #counters()}.
-	 * <p>
-	 * This is intentionally minimal - a future dedicated metrics API is expected to take
-	 * over counters like this. Using this method now instead of hand rolling an ad hoc
-	 * counter keeps the eventual migration to one call site per counter.
-	 * @param name counter name, e.g. {@code "queue.dropped"} or a logger name.
-	 * @param increment amount to add, usually {@code 1}.
-	 */
-	public void errorCounter(String name, long increment);
-
-	/**
-	 * Like {@link #errorCounter(String, long)} but for something worth tracking yet less
-	 * significant than an error - a trend worth watching rather than something that, by
-	 * itself, indicates a problem. Kept as a separate counter namespace from
-	 * {@link #errorCounter(String, long)}: the same {@code name} passed to both is two
-	 * distinct counters, not one shared one.
-	 * @param name counter name, e.g. {@link #BUFFER_TRIMMED_METRIC}.
-	 * @param increment amount to add, usually {@code 1}.
-	 */
-	public void warnCounter(String name, long increment);
-
-	/**
-	 * A snapshot of every counter recorded via methods like
-	 * {@link #errorCounter(String, long)} and {@link #warnCounter(String, long)}.
-	 * @return immutable snapshot.
-	 */
-	public List<Counter> counters();
-
-	/**
-	 * A single named counter's current value, as returned by {@link #counters()}.
-	 *
-	 * @param name counter name, as passed to a counter method like
-	 * {@link #errorCounter(String, long)}.
-	 * @param level how much this counter matters - not a log level routing decision, just
-	 * a signal of significance, mirroring the counter method it came from (e.g.
-	 * {@link Level#ERROR} for {@link #errorCounter(String, long)}, {@link Level#WARNING}
-	 * for {@link #warnCounter(String, long)}).
-	 * @param count current value.
-	 */
-	record Counter(String name, Level level, long count) {
-	}
-
-	/**
 	 * A snapshot of the alerts currently held in the ring buffer, oldest first. Alerts
 	 * are evicted oldest first once the buffer is at {@link Stats#capacity()}.
 	 * @return immutable snapshot.
@@ -141,11 +69,10 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	public List<LogEvent> dump();
 
 	/**
-	 * Clears the ring buffer. Does not reset {@link Stats#total()} or any counter
-	 * recorded via {@link #errorCounter(String, long)}/{@link #warnCounter(String, long)}
-	 * - like a Prometheus/Micrometer counter, these are meant to be monotonically
-	 * increasing for the life of the process; a downstream metrics system computes rate
-	 * of change rather than relying on the counter itself being reset.
+	 * Clears the ring buffer. Does not reset {@link Stats#total()} - like a
+	 * Prometheus/Micrometer counter, that is meant to be monotonically increasing for the
+	 * life of the process; a downstream metrics system computes rate of change rather
+	 * than relying on the counter itself being reset.
 	 */
 	public void clear();
 
@@ -235,10 +162,6 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
 
-	private final ConcurrentHashMap<String, LongAdder> errorCounters = new ConcurrentHashMap<>();
-
-	private final ConcurrentHashMap<String, LongAdder> warnCounters = new ConcurrentHashMap<>();
-
 	private final LogEventFactory eventFactory = LogEventFactory.of(DefaultLogAlerts.class.getName());
 
 	DefaultLogAlerts(int capacity) {
@@ -252,7 +175,6 @@ final class DefaultLogAlerts implements LogAlerts {
 	public void error(LogEvent event) {
 		var frozen = event.freeze();
 		total.incrementAndGet();
-		errorCounter(frozen.loggerName(), 1);
 		lock.lock();
 		try {
 			if (size < ring.length) {
@@ -282,28 +204,6 @@ final class DefaultLogAlerts implements LogAlerts {
 	public AutoCloseable addListener(Listener listener) {
 		listeners.add(listener);
 		return () -> listeners.remove(listener);
-	}
-
-	@Override
-	public void errorCounter(String name, long increment) {
-		errorCounters.computeIfAbsent(name, k -> new LongAdder()).add(increment);
-	}
-
-	@Override
-	public void warnCounter(String name, long increment) {
-		warnCounters.computeIfAbsent(name, k -> new LongAdder()).add(increment);
-	}
-
-	@Override
-	public List<Counter> counters() {
-		List<Counter> list = new ArrayList<>(errorCounters.size() + warnCounters.size());
-		for (var e : errorCounters.entrySet()) {
-			list.add(new Counter(e.getKey(), Level.ERROR, e.getValue().sum()));
-		}
-		for (var e : warnCounters.entrySet()) {
-			list.add(new Counter(e.getKey(), Level.WARNING, e.getValue().sum()));
-		}
-		return List.copyOf(list);
 	}
 
 	@Override
