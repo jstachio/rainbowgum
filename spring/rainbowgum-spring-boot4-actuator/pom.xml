@@ -1,0 +1,88 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-spring-parent</artifactId>
+    <version>0.11.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-spring-boot4-actuator</artifactId>
+  <name>rainbowgum-spring-boot4-actuator</name>
+  <properties>
+    <!--
+      Deliberately self-contained (not inherited from rainbowgum-spring-parent):
+      rainbowgum-spring-boot3 and rainbowgum-spring-boot4 (and their satellite modules)
+      each pin their own Spring Boot major version and must never share a
+      dependencyManagement import.
+    -->
+    <spring-boot.version>4.1.0</spring-boot.version>
+    <doc.resources>../../</doc.resources>
+    <parent.root>${basedir}/../..</parent.root>
+  </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot.version}</version>
+        <scope>import</scope>
+        <type>pom</type>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!--
+            See rainbowgum-spring-boot4's module-info for why the module name is
+            suffixed with the Spring Boot major version while the packages are not.
+          -->
+          <compilerArgs combine.children="append">
+            <arg>-Xlint:-module</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+    </dependency>
+    <!--
+      spring-boot-autoconfigure is where @AutoConfiguration/@ConditionalOnClass
+      themselves live; spring-boot-micrometer-metrics does not re-export it (it depends
+      on it as `provided`, non-transitive), so both are needed explicitly even though
+      only spring-boot-micrometer-metrics is used directly by name in this module's code.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+    </dependency>
+    <!--
+      spring-boot-micrometer-metrics is the module Spring Boot itself uses for its own
+      logging binders (LogbackMetricsAutoConfiguration, Log4J2MetricsAutoConfiguration -
+      the direct precedent for this class), which lets @AutoConfiguration#after order us
+      the same way they order themselves, after
+      MetricsAutoConfiguration/CompositeMeterRegistryAutoConfiguration. Real consumer
+      applications bring this in via spring-boot-starter-micrometer-metrics (the Spring
+      Boot 4 starter - metrics moved out of spring-boot-starter-actuator into its own
+      starter in Boot 4); depending on it here (rather than the app supplying it) is what
+      this whole module is for, mirroring how micrometer-core below is also a hard,
+      non-optional dependency - opting into rainbowgum-spring-boot4-actuator at all is
+      already the opt in.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-metrics</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+    </dependency>
+  </dependencies>
+</project>
