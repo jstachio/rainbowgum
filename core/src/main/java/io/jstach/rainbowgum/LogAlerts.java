@@ -44,6 +44,17 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	static final String EVENTS_DROPPED_METRIC = "events.dropped";
 
 	/**
+	 * Counter name (see {@link #warnCounter(String, long)}) for the global count of times
+	 * a reused encoder buffer had its backing storage shrunk back down after growing past
+	 * its configured max size (see {@link LogEncoder.Buffer#isOversized()}). An
+	 * occasional trim is normal and expected once in a while, but resizing <em>often</em>
+	 * is a sign the configured max size (or the initial size) doesn't match the actual
+	 * event sizes being logged - worth watching, not erroring on, hence
+	 * {@link #warnCounter(String, long)} rather than {@link #errorCounter(String, long)}.
+	 */
+	static final String BUFFER_TRIMMED_METRIC = "buffer.trimmed";
+
+	/**
 	 * Records an alert.
 	 * @param event event describing the alert. {@link Level#ERROR} or higher is expected
 	 * but not enforced.
@@ -91,8 +102,19 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	public void errorCounter(String name, long increment);
 
 	/**
+	 * Like {@link #errorCounter(String, long)} but for something worth tracking yet less
+	 * significant than an error - a trend worth watching rather than something that, by
+	 * itself, indicates a problem. Kept as a separate counter namespace from
+	 * {@link #errorCounter(String, long)}: the same {@code name} passed to both is two
+	 * distinct counters, not one shared one.
+	 * @param name counter name, e.g. {@link #BUFFER_TRIMMED_METRIC}.
+	 * @param increment amount to add, usually {@code 1}.
+	 */
+	public void warnCounter(String name, long increment);
+
+	/**
 	 * A snapshot of every counter recorded via methods like
-	 * {@link #errorCounter(String, long)}.
+	 * {@link #errorCounter(String, long)} and {@link #warnCounter(String, long)}.
 	 * @return immutable snapshot.
 	 */
 	public List<Counter> counters();
@@ -104,7 +126,8 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	 * {@link #errorCounter(String, long)}.
 	 * @param level how much this counter matters - not a log level routing decision, just
 	 * a signal of significance, mirroring the counter method it came from (e.g.
-	 * {@link Level#ERROR} for {@link #errorCounter(String, long)}).
+	 * {@link Level#ERROR} for {@link #errorCounter(String, long)}, {@link Level#WARNING}
+	 * for {@link #warnCounter(String, long)}).
 	 * @param count current value.
 	 */
 	record Counter(String name, Level level, long count) {
@@ -119,10 +142,10 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 
 	/**
 	 * Clears the ring buffer. Does not reset {@link Stats#total()} or any counter
-	 * recorded via {@link #errorCounter(String, long)} - like a Prometheus/Micrometer
-	 * counter, these are meant to be monotonically increasing for the life of the
-	 * process; a downstream metrics system computes rate of change rather than relying on
-	 * the counter itself being reset.
+	 * recorded via {@link #errorCounter(String, long)}/{@link #warnCounter(String, long)}
+	 * - like a Prometheus/Micrometer counter, these are meant to be monotonically
+	 * increasing for the life of the process; a downstream metrics system computes rate
+	 * of change rather than relying on the counter itself being reset.
 	 */
 	public void clear();
 
@@ -214,6 +237,8 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	private final ConcurrentHashMap<String, LongAdder> errorCounters = new ConcurrentHashMap<>();
 
+	private final ConcurrentHashMap<String, LongAdder> warnCounters = new ConcurrentHashMap<>();
+
 	private final LogEventFactory eventFactory = LogEventFactory.of(DefaultLogAlerts.class.getName());
 
 	DefaultLogAlerts(int capacity) {
@@ -265,10 +290,18 @@ final class DefaultLogAlerts implements LogAlerts {
 	}
 
 	@Override
+	public void warnCounter(String name, long increment) {
+		warnCounters.computeIfAbsent(name, k -> new LongAdder()).add(increment);
+	}
+
+	@Override
 	public List<Counter> counters() {
-		List<Counter> list = new ArrayList<>(errorCounters.size());
+		List<Counter> list = new ArrayList<>(errorCounters.size() + warnCounters.size());
 		for (var e : errorCounters.entrySet()) {
 			list.add(new Counter(e.getKey(), Level.ERROR, e.getValue().sum()));
+		}
+		for (var e : warnCounters.entrySet()) {
+			list.add(new Counter(e.getKey(), Level.WARNING, e.getValue().sum()));
 		}
 		return List.copyOf(list);
 	}

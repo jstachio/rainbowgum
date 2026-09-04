@@ -28,7 +28,10 @@ import io.jstach.rainbowgum.LogOutput.WriteMethod;
  * <p>
  * These tests assert actual capacity() values before/after clear(), not just that
  * isOversized() flips back to false, to prove the backing storage genuinely shrank rather
- * than just re-deriving the same predicate under test.
+ * than just re-deriving the same predicate under test. They also assert
+ * LogAlerts.BUFFER_TRIMMED_METRIC via the LogConfig each encoder is provided from - the
+ * encoder captures that LogConfig's alerts once at provide(...) time, so the same
+ * LogConfig used to provide the encoder is what reads the counter back.
  */
 class BufferSelfShrinkTest {
 
@@ -39,32 +42,48 @@ class BufferSelfShrinkTest {
 			.event(System.Logger.Level.INFO, message, KeyValues.of(), (Throwable) null);
 	}
 
+	private static long trimmedCount(LogConfig config) {
+		return config.alerts()
+			.counters()
+			.stream()
+			.filter(c -> c.name().equals(LogAlerts.BUFFER_TRIMMED_METRIC))
+			.mapToLong(LogAlerts.Counter::count)
+			.sum();
+	}
+
 	@Test
 	void stringBuilderBufferShrinksAfterOversizedClear() {
+		// maxBufferSize deliberately above the default initial capacity (8192) - see
+		// directByteBufferBufferShrinksBothStoresAfterOversizedClear's comment for why
+		// (otherwise the buffer is unconditionally oversized from construction alone,
+		// double counting a trim: once from that, once from genuine growth below).
+		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
-			.maxBufferSize(100)
+			.maxBufferSize(10_000)
 			.build()
-			.provide("test", LogConfig.builder().build());
+			.provide("test", config);
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
-		encoder.encode(event("x".repeat(2000)), buffer);
+		encoder.encode(event("x".repeat(20_000)), buffer);
 		int grownCapacity = buffer.stringBuilder.capacity();
-		assertTrue(grownCapacity > 100, "sanity check: the big message must have actually grown the buffer");
+		assertTrue(grownCapacity > 10_000, "sanity check: the big message must have actually grown the buffer");
 
 		buffer.clear();
 
 		assertTrue(buffer.stringBuilder.capacity() < grownCapacity,
 				"clear() must shrink the backing StringBuilder back down once oversized");
+		assertEquals(1, trimmedCount(config), "a shrink must report LogAlerts.BUFFER_TRIMMED_METRIC");
 	}
 
 	@Test
 	void stringBuilderBufferUnderThresholdIsLeftAlone() {
+		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(100_000)
 			.build()
-			.provide("test", LogConfig.builder().build());
+			.provide("test", config);
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
 		encoder.encode(event("small"), buffer);
@@ -74,6 +93,7 @@ class BufferSelfShrinkTest {
 
 		assertEquals(capacityBeforeClear, buffer.stringBuilder.capacity(),
 				"a buffer well under the threshold must not be reallocated on every clear()");
+		assertEquals(0, trimmedCount(config), "no shrink happened, so nothing should be reported");
 	}
 
 	/*
@@ -85,11 +105,12 @@ class BufferSelfShrinkTest {
 	 */
 	@Test
 	void directByteBufferBufferShrinksBothStoresAfterOversizedClear() {
+		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(10_000)
 			.build()
-			.provide("test", LogConfig.builder().build());
+			.provide("test", config);
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -104,6 +125,7 @@ class BufferSelfShrinkTest {
 
 		assertTrue(buffer.stringBuilder.capacity() < grownStringCapacity,
 				"clear() must shrink the backing StringBuilder back down once oversized");
+		assertEquals(1, trimmedCount(config), "a shrink must report LogAlerts.BUFFER_TRIMMED_METRIC");
 
 		// Encode a small event so encodeToByteBuffer() doesn't need to regrow the
 		// now-shrunk ByteBuffer, then drain again to observe its new capacity.
@@ -115,11 +137,12 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void directByteBufferBufferUnderThresholdIsLeftAlone() {
+		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(100_000)
 			.build()
-			.provide("test", LogConfig.builder().build());
+			.provide("test", config);
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -136,6 +159,7 @@ class BufferSelfShrinkTest {
 				"a buffer well under the threshold must not have its StringBuilder reallocated");
 		assertEquals(byteCapacityBeforeClear, output.lastCapacity,
 				"a buffer well under the threshold must not have its ByteBuffer reallocated");
+		assertEquals(0, trimmedCount(config), "no shrink happened, so nothing should be reported");
 	}
 
 	/*
@@ -152,14 +176,15 @@ class BufferSelfShrinkTest {
 	 */
 	@Test
 	void batchAppendPathAlsoShrinksOversizedBufferBetweenEventsInTheSameBatch() {
+		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(10_000)
 			.build()
-			.provide("test", LogConfig.builder().build());
+			.provide("test", config);
 		var output = new CapturingOutput();
 		var appender = new LockThreadLocalBufferLogAppender("test", output, encoder, EnumSet.noneOf(AppenderFlag.class),
-				new ReentrantLock(), LogAlerts.of());
+				new ReentrantLock(), config.alerts());
 
 		appender.append(new LogEvent[] { event("x".repeat(20_000)), event("small") }, 2);
 
@@ -168,6 +193,8 @@ class BufferSelfShrinkTest {
 		assertTrue(output.capacities.get(1) < output.capacities.get(0),
 				"the second event in the same batch must already see the buffer shrunk back down, proving the "
 						+ "batch path is covered without any appender-level wiring");
+		assertEquals(1, trimmedCount(config),
+				"exactly one shrink happens in this batch (between the big and small event)");
 	}
 
 	static class CapturingOutput implements LogOutput {
