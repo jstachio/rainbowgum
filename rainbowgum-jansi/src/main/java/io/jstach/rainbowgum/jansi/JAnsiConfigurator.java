@@ -55,7 +55,7 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 		 */
 		var jansiFormatter = JansiLogFormatter.builder().disableAnsi(disableAnsi).build();
 		config.encoderRegistry()
-			.setEncoderForOutputType(OutputType.CONSOLE_OUT, LogProvider.of(LogEncoder.of(jansiFormatter)));
+			.setEncoderForOutputType(OutputType.CONSOLE_OUT, LogEncoder.of(jansiFormatter));
 	}
 
 	boolean installJansi(LogConfig config) {
