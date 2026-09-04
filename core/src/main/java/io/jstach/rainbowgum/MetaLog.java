@@ -30,7 +30,7 @@ final class MetaLog {
 	 * Logs an error in the logging system.
 	 * @param event event to log.
 	 */
-	public static void error(LogEvent event) {
+	static void error(LogEvent event) {
 		var gum = RainbowGum.getOrNull();
 		if (gum != null) {
 			gum.config().alerts().error(event);
@@ -44,7 +44,7 @@ final class MetaLog {
 	 * @param loggerName derived from class.
 	 * @param throwable error to log.
 	 */
-	public static void error(Class<?> loggerName, Throwable throwable) {
+	static void error(Class<?> loggerName, Throwable throwable) {
 		String m = Objects.requireNonNullElse(throwable.getMessage(), "exception");
 		error(loggerName, m, throwable);
 	}
@@ -55,7 +55,7 @@ final class MetaLog {
 	 * @param message error message.
 	 * @param throwable error to log.
 	 */
-	public static void error(Class<?> loggerName, String message, Throwable throwable) {
+	static void error(Class<?> loggerName, String message, Throwable throwable) {
 		var currentThread = Thread.currentThread();
 		var event = LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), Level.ERROR,
 				loggerName.getName(), message, KeyValues.of(), throwable);

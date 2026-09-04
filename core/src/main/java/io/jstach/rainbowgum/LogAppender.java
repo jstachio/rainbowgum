@@ -621,7 +621,7 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * @param flags the appender's flags.
 	 * @return {@code true} if the caller should drop the event without appending.
 	 */
-	static boolean shouldDropForReentry(boolean reentrant, Set<LogAppender.AppenderFlag> flags) {
+	static boolean shouldDropForReentry(boolean reentrant, Set<LogAppender.AppenderFlag> flags, LogAlerts alerts) {
 		if (!reentrant) {
 			return false;
 		}
@@ -857,7 +857,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 
 	@Override
 	public final void append(LogEvent event) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
 			return;
 		}
 		try {
@@ -881,7 +881,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
 			return;
 		}
 		try {
@@ -957,7 +957,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 	}
 
 	private void writeLocked(LogEvent event, LogEncoder.Buffer buffer) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
 			return;
 		}
 		lock.lock();
@@ -974,7 +974,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
 			return;
 		}
 		try {
@@ -1032,7 +1032,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 	}
 
 	private void writeSynchronized(LogEvent event, LogEncoder.Buffer buffer) {
-		if (shouldDropForReentry(Thread.holdsLock(monitor), flags)) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts)) {
 			return;
 		}
 		synchronized (monitor) {
@@ -1045,7 +1045,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(Thread.holdsLock(monitor), flags)) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts)) {
 			return;
 		}
 		try {
