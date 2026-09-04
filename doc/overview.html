@@ -212,12 +212,13 @@ is <em>very different</em>!
 <li>{@link io.jstach.rainbowgum.LogOutput}</li>
 </ol>
 
-In the next sections we will cover  
-<a href="#config">Config</a>, 
-<a href="#publishers">Publishers</a>, 
-<a href="#appenders">Appenders</a>, 
+In the next sections we will cover
+<a href="#config">Config</a>,
+<a href="#alerts_metrics">Alerts and Metrics</a>,
+<a href="#publishers">Publishers</a>,
+<a href="#appenders">Appenders</a>,
 <a href="#encoders">Encoders</a>,
-and 
+and
 <a href="#outputs">Outputs</a>.
 
 <p>
@@ -392,6 +393,62 @@ exceptions including custom components.
   Config change is by default off even on supporting configuration systems and can only be enabled by setting 
   {@value io.jstach.rainbowgum.LogProperties#GLOBAL_CHANGE_PROPERTY} to true.
 </p>
+
+<h2 id="alerts_metrics">Alerts and Metrics</h2>
+
+Rainbow Gum's own internal health - as opposed to the application events flowing through
+the {@link io.jstach.rainbowgum.LogRouter Router} - is exposed through two small, separate
+{@link io.jstach.rainbowgum.LogConfig} accessors:
+{@link io.jstach.rainbowgum.LogConfig#alerts()} and {@link io.jstach.rainbowgum.LogConfig#metrics()}.
+They are deliberately two different types rather than one combined API - an appender failing
+to write is a discrete event worth recording with a message (and possibly a throwable), while
+"how many times has this happened" is much cheaper to just keep as a running number - and each
+is meant to be independently replaceable later (a future Micrometer backed <code>LogMetrics</code>,
+say, without needing to also replace how alerts are recorded).
+
+<h3 id="alerts">Alerts</h3>
+
+{@link io.jstach.rainbowgum.LogAlerts} records problems with the logging system itself - an
+appender failing to write, or an async publisher's queue overflowing - rather than application
+logging. Because logging itself may be broken these are not routed back through the normal
+Router but are instead kept in a small in memory ring buffer
+({@link io.jstach.rainbowgum.LogAlerts#dump()} and {@link io.jstach.rainbowgum.LogAlerts#stats()})
+as well as immediately reported (currently to stderr).
+
+<p>
+You can also subscribe to alerts as they happen with
+{@link io.jstach.rainbowgum.LogAlerts#addListener(io.jstach.rainbowgum.LogAlerts.Listener)} -
+useful for bridging alerts to whatever alerting/paging system an application already has:
+</p>
+
+{@snippet class="snippets.AlertsMetricsExample" region="alertsExample" }
+
+<h3 id="metrics">Metrics</h3>
+
+{@link io.jstach.rainbowgum.LogMetrics} is for the cheap, high frequency counters that would be
+wasteful to record as discrete alert events - counters like
+{@value io.jstach.rainbowgum.LogMetrics#EVENTS_DROPPED_METRIC} (an appender dropping events on
+reentry, see <a href="#appender_reentry">Appender Reentry Protection</a>) and
+{@value io.jstach.rainbowgum.LogMetrics#BUFFER_TRIMMED_METRIC} (a reused encoder buffer growing
+past its configured max size and having to shrink itself back down) are both incremented this
+way rather than as alerts. Every alert also bumps a metrics counter named after the alert's
+logger name, so counts stay available even once older alerts have been evicted from the ring
+buffer.
+
+<p>
+{@link io.jstach.rainbowgum.LogMetrics#errorCounter(String, long)} and
+{@link io.jstach.rainbowgum.LogMetrics#warnCounter(String, long)} increment a named counter;
+{@link io.jstach.rainbowgum.LogMetrics#counters()} returns a snapshot of every counter recorded
+so far. Counters are monotonically increasing for the life of the process - like a
+Prometheus/Micrometer counter there is no reset method, a downstream metrics system is expected
+to compute the rate of change instead.
+</p>
+
+The fixed, well known set of counters Rainbow Gum itself records is enumerable through
+{@link io.jstach.rainbowgum.LogMetrics.StandardMetric} - useful for something wanting to bind
+every well known counter to an external metrics system without hand listing each name/level pair:
+
+{@snippet class="snippets.AlertsMetricsExample" region="metricsExample" }
 
 <h2 id="router">Router</h2>
 
