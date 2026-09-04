@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.lang.System.Logger.Level;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -157,6 +158,30 @@ class LogAlertsTest {
 		String reported = outputStream.toString(StandardCharsets.UTF_8).split("\n")[0];
 		assertTrue(reported.contains("LogAlerts.Listener threw"),
 				() -> "expected listener failure to be reported, got: " + reported);
+	}
+
+	@Test
+	void errorCounterAccumulatesByName() {
+		var alerts = LogAlerts.of();
+		alerts.errorCounter("queue.dropped", 1);
+		alerts.errorCounter("queue.dropped", 2);
+		alerts.errorCounter("queue.overflow", 1);
+
+		var counters = alerts.counters();
+		assertEquals(2, counters.size());
+		assertTrue(counters.contains(new LogAlerts.Counter("queue.dropped", Level.ERROR, 3)));
+		assertTrue(counters.contains(new LogAlerts.Counter("queue.overflow", Level.ERROR, 1)));
+	}
+
+	@Test
+	void errorAlsoIncrementsACounterNamedAfterTheLoggerName() {
+		var alerts = LogAlerts.of();
+		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
+		alerts.error(LogAlertsTest.class, "second", new RuntimeException());
+
+		var counters = alerts.counters();
+		assertEquals(1, counters.size());
+		assertEquals(new LogAlerts.Counter(LogAlertsTest.class.getName(), Level.ERROR, 2), counters.get(0));
 	}
 
 }

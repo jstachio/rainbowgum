@@ -11,9 +11,12 @@ import org.eclipse.jdt.annotation.Nullable;
 /**
  * Logging about logging. This is the static, always-available entry point used by code
  * that cannot easily reach a {@link LogConfig} (e.g. before a {@link RainbowGum} is
- * bound). Where a live {@link RainbowGum} is bound this simply forwards to its
- * {@link LogConfig#alerts()} so alerts still end up in that instance's ring buffer;
- * otherwise it falls back to the same direct stderr reporting it has always done.
+ * bound), and always reports directly (currently to stderr) rather than forwarding to a
+ * bound {@link RainbowGum}'s {@link LogConfig#alerts()} - alerts is a small bounded ring
+ * buffer meant to hold a curated, recent view of noteworthy logging-system problems, and
+ * {@link MetaLog} is used from enough different low level failure paths that routing it
+ * there risked flooding/evicting genuine alerts with whatever volume of things end up
+ * calling this class.
  * <p>
  * Components that already have (or can easily capture) a {@link LogConfig} - for example
  * via {@link LogProvider} or {@link LogLifecycle#start(LogConfig)} - should prefer
@@ -31,11 +34,6 @@ final class MetaLog {
 	 * @param event event to log.
 	 */
 	static void error(LogEvent event) {
-		var gum = RainbowGum.getOrNull();
-		if (gum != null) {
-			gum.config().alerts().error(event);
-			return;
-		}
 		FailsafeAppender.INSTANCE.log(event);
 	}
 
