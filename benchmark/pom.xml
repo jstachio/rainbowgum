@@ -15,31 +15,16 @@
     <maven.javadoc.skip>true</maven.javadoc.skip>
     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
   </properties>
+  <!--
+    legacy (the original hand-rolled micro-benchmarks) and webapp (real Spring Boot
+    apps) are deliberately siblings with no shared dependencyManagement at this level -
+    legacy's logback-classic/log4j-slf4j2-impl pins live in legacy/pom.xml now, scoped so
+    they can never again leak into and override webapp's Spring Boot BOM the way they
+    once did when everything shared this pom's dependencyManagement directly. See
+    legacy/pom.xml and benchmark/webapp/FINDINGS.md for that history.
+  -->
   <modules>
-    <module>rainbowgum-benchmark-logback</module>
-    <module>rainbowgum-benchmark-rainbowgum</module>
-    <module>rainbowgum-benchmark-share</module>
-    <module>rainbowgum-benchmark-log4j</module>
+    <module>legacy</module>
+    <module>webapp</module>
   </modules>
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>${project.groupId}</groupId>
-        <artifactId>rainbowgum-benchmark-share</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
-        <version>1.5.12</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j2-impl</artifactId>
-        <version>3.0.0-beta2</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-  <dependencies>
-  </dependencies>
 </project>
