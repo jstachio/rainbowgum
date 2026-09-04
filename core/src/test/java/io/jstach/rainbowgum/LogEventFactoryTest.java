@@ -81,12 +81,12 @@ class LogEventFactoryTest {
 	void subclassOverridingMessageFormatterAffectsAllArgTakingMethods() {
 		var factory = new LogEventFactory() {
 			@Override
-			protected String loggerName() {
+			public String loggerName() {
 				return "logger";
 			}
 
 			@Override
-			protected LogMessageFormatter messageFormatter() {
+			public LogMessageFormatter messageFormatter() {
 				return LogMessageFormatter.StandardMessageFormatter.JUL;
 			}
 		};
@@ -102,22 +102,22 @@ class LogEventFactoryTest {
 		var fixedInstant = Instant.EPOCH;
 		var factory = new LogEventFactory() {
 			@Override
-			protected String loggerName() {
+			public String loggerName() {
 				return "logger";
 			}
 
 			@Override
-			protected Instant timestamp() {
+			public Instant timestamp() {
 				return fixedInstant;
 			}
 
 			@Override
-			protected String threadName() {
+			public String threadName() {
 				return "fixed-thread";
 			}
 
 			@Override
-			protected long threadId() {
+			public long threadId() {
 				return 42L;
 			}
 		};

@@ -17,9 +17,9 @@ import org.eclipse.jdt.annotation.Nullable;
  * Not being able to override thread name/thread id/timestamp is a real limitation for
  * anything that needs deterministic events not tied to whichever real thread happens to
  * construct them - tests especially, but possibly other reasons later. A test-specific
- * subclass overriding those methods once gets an entire family of event-construction
- * methods that are deterministic, rather than needing to thread fixed values through
- * every call site.
+ * implementation overriding those methods once gets an entire family of
+ * event-construction methods that are deterministic, rather than needing to thread fixed
+ * values through every call site.
  * <p>
  * {@link #loggerName()} is abstract rather than defaulted, and
  * {@link #messageFormatter()} defaults but can be overridden, following the same shape as
@@ -27,21 +27,21 @@ import org.eclipse.jdt.annotation.Nullable;
  * scoped to one logger name and message formatter for its lifetime, the same way a real
  * SLF4J {@code Logger} is.
  * <p>
- * This class holds no mutable per-instance state - concrete subclasses are expected to be
- * immutable too - and is deliberately not {@code final}: extend it and override
- * individual methods to customize how events get constructed.
+ * This is an interface rather than an abstract class so that implementations are free to
+ * combine it with other interfaces or record state however they like - implementations
+ * are expected to be immutable (this interface itself holds no state). Implement it and
+ * override individual methods to customize how events get constructed.
  *
  * @apiNote a builder that in turn builds/configures a factory was considered but is not
  * included (yet) - inheritance covers today's need (mainly tests) with less machinery.
+ * Because this is an interface rather than an abstract class, the overridable resolver
+ * methods below ({@link #loggerName()}, {@link #timestamp()}, {@link #threadName()},
+ * {@link #threadId()}, {@link #defaultKeyValues()}, {@link #messageFormatter()}) are
+ * necessarily public - Java has no notion of a {@code protected} interface method. They
+ * are meant to be overridden by implementations, not called directly by callers of an
+ * already-constructed factory, even though nothing prevents it.
  */
-public abstract class LogEventFactory {
-
-	/**
-	 * For extending. Prefer {@link #of(String)} unless custom event construction is
-	 * needed.
-	 */
-	protected LogEventFactory() {
-	}
+public interface LogEventFactory {
 
 	/**
 	 * Creates a factory bound to the given logger name, otherwise using default behavior
@@ -59,14 +59,14 @@ public abstract class LogEventFactory {
 	 * Name of the logger every event created by this factory will have.
 	 * @return logger name.
 	 */
-	protected abstract String loggerName();
+	String loggerName();
 
 	/**
 	 * Timestamp to use for the next event created by this factory. Default is
 	 * {@link Instant#now()}.
 	 * @return timestamp.
 	 */
-	protected Instant timestamp() {
+	default Instant timestamp() {
 		return Instant.now();
 	}
 
@@ -76,7 +76,7 @@ public abstract class LogEventFactory {
 	 * @return thread name.
 	 * @apiNote this maybe empty and often is if virtual threads are used.
 	 */
-	protected String threadName() {
+	default String threadName() {
 		return Thread.currentThread().getName();
 	}
 
@@ -85,7 +85,7 @@ public abstract class LogEventFactory {
 	 * {@link Thread#threadId() Thread.currentThread().threadId()}.
 	 * @return thread id.
 	 */
-	protected long threadId() {
+	default long threadId() {
 		return Thread.currentThread().threadId();
 	}
 
@@ -95,7 +95,7 @@ public abstract class LogEventFactory {
 	 * {@link KeyValues#of()}.
 	 * @return key values.
 	 */
-	protected KeyValues defaultKeyValues() {
+	default KeyValues defaultKeyValues() {
 		return KeyValues.of();
 	}
 
@@ -109,7 +109,7 @@ public abstract class LogEventFactory {
 	 * methods below since this rarely changes per event - override it instead if a
 	 * different formatter is needed.
 	 */
-	protected LogMessageFormatter messageFormatter() {
+	default LogMessageFormatter messageFormatter() {
 		return LogMessageFormatter.StandardMessageFormatter.SLF4J;
 	}
 
@@ -122,7 +122,7 @@ public abstract class LogEventFactory {
 	 * @return event.
 	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
 	 */
-	public LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
+	default LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
 		return LogEvent.of(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage,
 				defaultKeyValues(), throwable);
 	}
@@ -138,7 +138,7 @@ public abstract class LogEventFactory {
 	 * @return event.
 	 * @apiNote the message is already assumed to be formatted as no arguments are passed.
 	 */
-	public LogEvent event(Level level, @Nullable String formattedMessage, KeyValues keyValues,
+	default LogEvent event(Level level, @Nullable String formattedMessage, KeyValues keyValues,
 			@Nullable Throwable throwable) {
 		return LogEvent.of(timestamp(), threadName(), threadId(), level, loggerName(), formattedMessage, keyValues,
 				throwable);
@@ -153,7 +153,7 @@ public abstract class LogEventFactory {
 	 * @param arg1 argument that will be passed to {@link #messageFormatter()}.
 	 * @return event.
 	 */
-	public LogEvent event(Level level, @Nullable String message, KeyValues keyValues, @Nullable Object arg1) {
+	default LogEvent event(Level level, @Nullable String message, KeyValues keyValues, @Nullable Object arg1) {
 		Instant timestamp = timestamp();
 		String threadName = threadName();
 		long threadId = threadId();
@@ -173,7 +173,7 @@ public abstract class LogEventFactory {
 	 * @param arg2 argument that will be passed to {@link #messageFormatter()}.
 	 * @return event.
 	 */
-	public LogEvent event(Level level, @Nullable String message, KeyValues keyValues, @Nullable Object arg1,
+	default LogEvent event(Level level, @Nullable String message, KeyValues keyValues, @Nullable Object arg1,
 			@Nullable Object arg2) {
 		Instant timestamp = timestamp();
 		String threadName = threadName();
@@ -195,7 +195,7 @@ public abstract class LogEventFactory {
 	 * should not be null.
 	 * @return event.
 	 */
-	public LogEvent eventArgs(Level level, String message, KeyValues keyValues,
+	default LogEvent eventArgs(Level level, String message, KeyValues keyValues,
 			@SuppressWarnings("exports") @Nullable Object @Nullable [] args) {
 		return LogEvent.ofAll(timestamp(), threadName(), threadId(), level, loggerName(), message, keyValues, null,
 				messageFormatter(), args);
@@ -203,17 +203,16 @@ public abstract class LogEventFactory {
 
 }
 
-final class DefaultLogEventFactory extends LogEventFactory {
+final class DefaultLogEventFactory implements LogEventFactory {
 
 	private final String loggerName;
 
 	DefaultLogEventFactory(String loggerName) {
-		super();
 		this.loggerName = loggerName;
 	}
 
 	@Override
-	protected String loggerName() {
+	public String loggerName() {
 		return loggerName;
 	}
 
