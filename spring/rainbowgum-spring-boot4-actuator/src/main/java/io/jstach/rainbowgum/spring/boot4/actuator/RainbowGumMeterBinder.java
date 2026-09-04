@@ -1,8 +1,7 @@
 package io.jstach.rainbowgum.spring.boot4.actuator;
 
-import java.lang.System.Logger.Level;
-
 import io.jstach.rainbowgum.LogMetrics;
+import io.jstach.rainbowgum.LogMetrics.StandardMetric;
 import io.jstach.rainbowgum.RainbowGum;
 import io.micrometer.core.instrument.FunctionCounter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -16,15 +15,16 @@ import io.micrometer.core.instrument.binder.MeterBinder;
  * rather than a push style {@link io.micrometer.core.instrument.Counter} that expects
  * Micrometer itself to own the increments.
  * <p>
- * Only binds the small, fixed set of well known counter names -
- * {@link LogMetrics#EVENTS_DROPPED_METRIC} and {@link LogMetrics#BUFFER_TRIMMED_METRIC} -
+ * Binds every {@link StandardMetric} by looping over {@link StandardMetric#values()},
  * <strong>not</strong> the per logger name counters that {@link LogMetrics} also
  * accumulates as a side effect of {@code LogAlerts#error(LogEvent)}. Logger names are
  * effectively unbounded (arbitrary class/category names, chosen by application code), so
  * turning each one into its own Micrometer meter would be an unbounded cardinality source
  * - exactly what Micrometer's own naming guidance warns against. Reporting that per
  * logger detail is left to a future, explicitly opt in mechanism rather than bound
- * automatically here.
+ * automatically here. Looping over {@link StandardMetric#values()} rather than binding
+ * each constant by hand also means a future new {@link StandardMetric} constant is bound
+ * here automatically, with no change needed in this class.
  */
 final class RainbowGumMeterBinder implements MeterBinder {
 
@@ -40,19 +40,20 @@ final class RainbowGumMeterBinder implements MeterBinder {
 			return;
 		}
 		var metrics = gum.config().metrics();
-		bind(registry, metrics, LogMetrics.EVENTS_DROPPED_METRIC, Level.ERROR);
-		bind(registry, metrics, LogMetrics.BUFFER_TRIMMED_METRIC, Level.WARNING);
+		for (var metric : StandardMetric.values()) {
+			bind(registry, metrics, metric);
+		}
 	}
 
-	private static void bind(MeterRegistry registry, LogMetrics metrics, String name, Level level) {
-		FunctionCounter.builder(METRIC_PREFIX + name, metrics, m -> currentValue(m, name, level))
-			.tag("level", level.toString())
+	private static void bind(MeterRegistry registry, LogMetrics metrics, StandardMetric metric) {
+		FunctionCounter.builder(METRIC_PREFIX + metric.metricName(), metrics, m -> currentValue(m, metric))
+			.tag("level", metric.level().toString())
 			.register(registry);
 	}
 
-	private static long currentValue(LogMetrics metrics, String name, Level level) {
+	private static long currentValue(LogMetrics metrics, StandardMetric metric) {
 		for (var counter : metrics.counters()) {
-			if (counter.name().equals(name) && counter.level() == level) {
+			if (counter.name().equals(metric.metricName()) && counter.level() == metric.level()) {
 				return counter.count();
 			}
 		}
