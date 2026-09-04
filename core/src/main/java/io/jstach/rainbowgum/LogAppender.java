@@ -266,7 +266,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter formatter) {
-			this.encoder = LogProvider.of(LogEncoder.of(formatter));
+			this.encoder = LogEncoder.of(formatter);
 			return this;
 		}
 
@@ -277,7 +277,7 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * @see LogEncoder#of(LogFormatter)
 		 */
 		public Builder formatter(LogFormatter.EventFormatter formatter) {
-			this.encoder = LogProvider.of(LogEncoder.of(formatter));
+			this.encoder = LogEncoder.of(formatter);
 			return this;
 		}
 

@@ -98,7 +98,7 @@ public final class PatternConfigurator implements Configurator {
 			if (maxBufferSize != null) {
 				builder.maxBufferSize(maxBufferSize);
 			}
-			return builder.build();
+			return builder.build().provide(n, config);
 		};
 	}
 

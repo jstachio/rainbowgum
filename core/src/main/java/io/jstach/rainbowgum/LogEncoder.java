@@ -80,7 +80,7 @@ public interface LogEncoder {
 	 * @param formatter formatter.
 	 * @return encoder.
 	 */
-	public static LogEncoder of(LogFormatter formatter) {
+	public static LogProvider<LogEncoder> of(LogFormatter formatter) {
 		return builder(formatter).build();
 	}
 
@@ -196,7 +196,7 @@ public interface LogEncoder {
 		 * Builds the encoder.
 		 * @return encoder.
 		 */
-		public LogEncoder build() {
+		public LogProvider<LogEncoder> build() {
 			Charset c = charset;
 			ContentType ct = contentType;
 			if (ct != null) {
@@ -210,7 +210,9 @@ public interface LogEncoder {
 			if (ct == null) {
 				ct = ContentType.of(StandardContentType.TEXT_PLAIN.contentType(), c);
 			}
-			return new FormatterEncoder(formatter, c, ct, maxBufferSize, initialBufferSize);
+			var resolvedCharset = c;
+			var resolvedContentType = ct;
+			return (n, config) -> new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize, initialBufferSize);
 		}
 
 	}
@@ -262,8 +264,8 @@ public interface LogEncoder {
 		 * @param encoder already configured encoder.
 		 * @return encoder provider.
 		 */
-		static EncoderProvider of(LogEncoder encoder) {
-			return ref -> LogProvider.of(encoder);
+		static EncoderProvider of(LogProvider<LogEncoder> encoder) {
+			return ref -> encoder;
 		}
 
 	}
