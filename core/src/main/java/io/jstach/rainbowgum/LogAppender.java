@@ -615,22 +615,35 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * whether it does so via a {@link ReentrantLock} (
 	 * {@code lock.isHeldByCurrentThread()}) or a {@code synchronized} block (
 	 * {@link Thread#holdsLock(Object)}) - callers pass in whichever check applies to
-	 * them.
+	 * them. Whenever this returns {@code true}, {@link LogAlerts#EVENTS_DROPPED_METRIC}
+	 * is incremented by {@code count} regardless of whether
+	 * {@link AppenderFlag#REENTRY_LOG} is set - counting and logging/alerting are
+	 * separate concerns, so the count still happens even when the drop itself is silent.
 	 * @param reentrant whether the current thread already holds this appender's
 	 * lock/monitor.
 	 * @param flags the appender's flags.
-	 * @return {@code true} if the caller should drop the event without appending.
+	 * @param alerts where to record {@link LogAlerts#EVENTS_DROPPED_METRIC} if events are
+	 * dropped.
+	 * @param count number of events that would be dropped - {@code 1} for a single event
+	 * append, or the batch size for a batch append.
+	 * @return {@code true} if the caller should drop the event(s) without appending.
 	 */
-	static boolean shouldDropForReentry(boolean reentrant, Set<LogAppender.AppenderFlag> flags, LogAlerts alerts) {
+	static boolean shouldDropForReentry(boolean reentrant, Set<LogAppender.AppenderFlag> flags, LogAlerts alerts,
+			int count) {
 		if (!reentrant) {
 			return false;
 		}
 		if (flags.contains(LogAppender.AppenderFlag.REENTRY_LOG)) {
 			Exception exception = new Exception("reentrant appender");
 			MetaLog.error(LogAppender.class, exception);
+			alerts.errorCounter(LogAlerts.EVENTS_DROPPED_METRIC, count);
 			return true;
 		}
-		return flags.contains(LogAppender.AppenderFlag.REENTRY_DROP);
+		if (flags.contains(LogAppender.AppenderFlag.REENTRY_DROP)) {
+			alerts.errorCounter(LogAlerts.EVENTS_DROPPED_METRIC, count);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -857,7 +870,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 
 	@Override
 	public final void append(LogEvent event) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, 1)) {
 			return;
 		}
 		try {
@@ -881,7 +894,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, count)) {
 			return;
 		}
 		try {
@@ -957,7 +970,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 	}
 
 	private void writeLocked(LogEvent event, LogEncoder.Buffer buffer) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, 1)) {
 			return;
 		}
 		lock.lock();
@@ -974,7 +987,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts)) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, alerts, count)) {
 			return;
 		}
 		try {
@@ -1032,7 +1045,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 	}
 
 	private void writeSynchronized(LogEvent event, LogEncoder.Buffer buffer) {
-		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts)) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts, 1)) {
 			return;
 		}
 		synchronized (monitor) {
@@ -1045,7 +1058,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts)) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, alerts, count)) {
 			return;
 		}
 		try {

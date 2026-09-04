@@ -137,6 +137,17 @@ class AppenderAsModeReentryTest {
 		// normal.
 		assertEquals(List.of("event2", "event1"), bMessages);
 
+		// The dropped-events counter is incremented for both flags - counting is
+		// separate from (and happens regardless of) whether the drop is also logged via
+		// REENTRY_LOG.
+		long dropped = config.alerts()
+			.counters()
+			.stream()
+			.filter(c -> c.name().equals(LogAlerts.EVENTS_DROPPED_METRIC))
+			.mapToLong(LogAlerts.Counter::count)
+			.sum();
+		assertEquals(1, dropped, () -> "expected exactly one dropped event for flag " + reentryFlag);
+
 		if (reentryFlag == AppenderFlag.REENTRY_LOG) {
 			String diagnostic = metaLogBytes.toString(StandardCharsets.UTF_8);
 			assertTrue(diagnostic.contains("reentrant appender"),
