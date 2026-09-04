@@ -41,7 +41,11 @@ class BufferSelfShrinkTest {
 
 	@Test
 	void stringBuilderBufferShrinksAfterOversizedClear() {
-		LogEncoder encoder = LogEncoder.builder(FORMATTER).charset(StandardCharsets.UTF_8).maxBufferSize(100).build();
+		LogEncoder encoder = LogEncoder.builder(FORMATTER)
+			.charset(StandardCharsets.UTF_8)
+			.maxBufferSize(100)
+			.build()
+			.provide("test", LogConfig.builder().build());
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
 		encoder.encode(event("x".repeat(2000)), buffer);
@@ -59,7 +63,8 @@ class BufferSelfShrinkTest {
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(100_000)
-			.build();
+			.build()
+			.provide("test", LogConfig.builder().build());
 		var buffer = (StringBuilderBuffer) encoder.buffer(WriteMethod.STRING);
 
 		encoder.encode(event("small"), buffer);
@@ -83,7 +88,8 @@ class BufferSelfShrinkTest {
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(10_000)
-			.build();
+			.build()
+			.provide("test", LogConfig.builder().build());
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -112,7 +118,8 @@ class BufferSelfShrinkTest {
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(100_000)
-			.build();
+			.build()
+			.provide("test", LogConfig.builder().build());
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
 		var output = new CapturingOutput();
 
@@ -148,7 +155,8 @@ class BufferSelfShrinkTest {
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
 			.maxBufferSize(10_000)
-			.build();
+			.build()
+			.provide("test", LogConfig.builder().build());
 		var output = new CapturingOutput();
 		var appender = new LockThreadLocalBufferLogAppender("test", output, encoder, EnumSet.noneOf(AppenderFlag.class),
 				new ReentrantLock(), LogAlerts.of());
