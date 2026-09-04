@@ -53,7 +53,7 @@ To land before 1.0:
       `QueueEventsRouter` (the pre-init event queue), and `LogAppender`'s reentry-lock
       diagnostic. (The RabbitMQ output mentioned in an earlier draft of this item no
       longer exists - that module was removed.)
-- [ ] Design the metrics system: needs its own home for queue-depth-style gauges now
+- [x] Design the metrics system: needs its own home for queue-depth-style gauges now
       that `QueueStatus` is gone - not necessarily reusing `LogResponse.Status` at all,
       since that type was built around single-snapshot health rather than metrics.
 - [ ] Sanity check `LogAlerts.DEFAULT_CAPACITY` (currently 100) against a real consumer
@@ -172,14 +172,14 @@ unifying.
       directly, bypassing the shortcut) reads better since there's no such wrapping
       `.map()` in the way. Worth fixing when `fileAppender()` gets its cleanup pass
       above, rather than as a one-off.
-- [ ] The `Property`/`PropertyGetter`/`Result` monad (`map`, `mapResult`, `or`,
+- [x] The `Property`/`PropertyGetter`/`Result` monad (`map`, `mapResult`, `or`,
       `orElse`, multi-key fallback, etc.) has essentially no direct unit tests of its
       own composition/error-propagation/fallback-chain behavior - it's exercised only
       indirectly through callers. Give it the same treatment `LogFormatter`,
       `LogAppender`, and `RainbowGum`'s entry points got this cycle.
 - [ ] Old backlog item, still open: fix `LogProperties` search to use interpolated
       keys.
-- [ ] **Design critique worth revisiting before any deeper rework here**: the
+- [x] **Design critique worth revisiting before any deeper rework here**: the
       current model spreads a property's lifecycle across a different class per
       step - a type alone gets a `PropertyGetter`, a key plus type gets a
       `Property`, and a key plus type plus value gets a `Result` (reached via
@@ -207,7 +207,7 @@ unifying.
 - [ ] Once items 1 and 2 above land, sweep `doc/overview.html` for consistency
       (status reporting section, nullability mentions) rather than patching it
       piecemeal per-PR the way this cycle did.
-- [ ] **Question whether `LogOutput#write(LogEvent, String)` should exist at all**:
+- [x] **Question whether `LogOutput#write(LogEvent, String)` should exist at all**:
       `bufferHints()`'s own default is `WriteMethod.BYTES`, and confirmed (while adding
       charset support to `LogEncoder.of(LogFormatter, Charset)`) that not one built-in
       output anywhere in the codebase overrides it to `WriteMethod.STRING` - not even
@@ -232,7 +232,7 @@ unifying.
       starting, this shared depth/changeable-logger machinery should be extracted out
       of `rainbowgum-slf4j` into something a second facade implementation (JCL, and
       potentially others down the line) can reuse instead of re-deriving it.
-- [ ] **No message size limiting - `LogEvent#formattedMessage(StringBuilder)` appends
+- [x] **No message size limiting - `LogEvent#formattedMessage(StringBuilder)` appends
       unbounded**: every `LogEvent` implementation (`OneArgLogEvent`, `TwoArgLogEvent`,
       `ArrayArgLogEvent`, etc. in `LogEvent.java`) writes into the passed `StringBuilder`
       via `LogMessageFormatter.format(...)` with no length check anywhere in the path.
