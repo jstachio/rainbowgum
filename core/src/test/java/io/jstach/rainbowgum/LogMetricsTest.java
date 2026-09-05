@@ -11,7 +11,7 @@ class LogMetricsTest {
 
 	@Test
 	void errorCounterAccumulatesByName() {
-		var metrics = LogMetrics.of();
+		var metrics = LogConfig.builder().build().metrics();
 		metrics.errorCounter("queue.dropped", 1);
 		metrics.errorCounter("queue.dropped", 2);
 		metrics.errorCounter("queue.overflow", 1);
@@ -24,7 +24,7 @@ class LogMetricsTest {
 
 	@Test
 	void warnCounterAccumulatesByNameSeparatelyFromErrorCounter() {
-		var metrics = LogMetrics.of();
+		var metrics = LogConfig.builder().build().metrics();
 		metrics.errorCounter("buffer.trimmed", 1);
 		metrics.warnCounter("buffer.trimmed", 2);
 
