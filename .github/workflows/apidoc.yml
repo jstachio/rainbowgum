@@ -39,7 +39,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       - name: mvn install
-        run: ./mvnw --batch-mode --no-transfer-progress -Pdoc clean install -DskipTests=true
+        # -T1: opt back out of the -T2C default in .mvn/maven.config for CI.
+        run: ./mvnw --batch-mode --no-transfer-progress -T1 -Pdoc clean install -DskipTests=true
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -13,7 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_NUMBER: "${{github.run_number}}"
-      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress"
+      # -T1: opt back out of the -T2C default in .mvn/maven.config for CI.
+      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1"
 
     steps:
       - uses: actions/checkout@v4
