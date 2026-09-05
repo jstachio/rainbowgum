@@ -20,9 +20,9 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * one - catches encoder and output failures instead of letting them propagate back to the
  * caller of {@link LogAppender#append(LogEvent)}/
  * {@link LogAppender#append(LogEvent[], int)}, and reports them through the appender's
- * own {@link LogAlerts} instead. Deliberately does not distinguish encoder vs output
- * failures in the alert itself - both land as one appender-level "failed to append"
- * alert.
+ * own {@link LogAlerts} as well as {@link LogMetrics#EVENTS_FAILED_METRIC}. Deliberately
+ * does not distinguish encoder vs output failures in either - both land as one
+ * appender-level "failed to append" alert and the same counter.
  */
 class AppenderAlertReportingTest {
 
@@ -48,6 +48,7 @@ class AppenderAlertReportingTest {
 
 		assertEquals(1, config.alerts().dump().size());
 		assertTrue(config.alerts().dump().get(0).message().contains("failed to append"));
+		assertEquals(1, failedEventsCount(config));
 	}
 
 	@ParameterizedTest
@@ -65,6 +66,7 @@ class AppenderAlertReportingTest {
 
 		assertEquals(1, config.alerts().dump().size());
 		assertTrue(config.alerts().dump().get(0).message().contains("failed to append"));
+		assertEquals(1, failedEventsCount(config));
 	}
 
 	@ParameterizedTest
@@ -84,6 +86,7 @@ class AppenderAlertReportingTest {
 
 		assertEquals(1, config.alerts().dump().size());
 		assertTrue(config.alerts().dump().get(0).message().contains("failed to append batch"));
+		assertEquals(events.length, failedEventsCount(config));
 	}
 
 	private static LogEncoder encoder() {
@@ -93,6 +96,15 @@ class AppenderAlertReportingTest {
 	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output, LogEncoder encoder,
 			LogConfig config) {
 		return DirectLogAppender.of("test", output, encoder, flags, config.alerts(), config.metrics());
+	}
+
+	private static long failedEventsCount(LogConfig config) {
+		return config.metrics()
+			.counters()
+			.stream()
+			.filter(c -> c.name().equals(LogMetrics.EVENTS_FAILED_METRIC))
+			.mapToLong(LogMetrics.Counter::count)
+			.sum();
 	}
 
 }

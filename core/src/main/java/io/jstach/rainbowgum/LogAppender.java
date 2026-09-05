@@ -897,6 +897,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
 		}
 	}
 
@@ -919,6 +920,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
 		}
 	}
 
@@ -974,6 +976,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
 		}
 	}
 
@@ -1012,6 +1015,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
 		}
 	}
 
@@ -1049,6 +1053,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
 		}
 	}
 
@@ -1079,6 +1084,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
 		}
 	}
 
