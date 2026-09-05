@@ -40,31 +40,31 @@ class AppenderAlertReportingTest {
 		output.setConsumer((e, s) -> {
 			throw new RuntimeException("output boom");
 		});
-		var alerts = LogAlerts.of();
-		var appender = appender(flags, output, encoder(), alerts);
+		var config = LogConfig.builder().build();
+		var appender = appender(flags, output, encoder(), config);
 		assertEquals(expectedType, appender.getClass());
 
 		assertDoesNotThrow(() -> appender.append(TestLogEventFactory.of().event("event")));
 
-		assertEquals(1, alerts.dump().size());
-		assertTrue(alerts.dump().get(0).message().contains("failed to append"));
+		assertEquals(1, config.alerts().dump().size());
+		assertTrue(config.alerts().dump().get(0).message().contains("failed to append"));
 	}
 
 	@ParameterizedTest
 	@MethodSource("appenderFlags")
 	void encoderFailureIsCaughtAndReported(Set<AppenderFlag> flags, Class<?> expectedType) {
 		var output = new ListLogOutput();
+		var config = LogConfig.builder().build();
 		var throwingEncoder = LogEncoder.of((LogFormatter.EventFormatter) (sb, event) -> {
 			throw new RuntimeException("encode boom");
-		}).provide("test", LogConfig.builder().build());
-		var alerts = LogAlerts.of();
-		var appender = appender(flags, output, throwingEncoder, alerts);
+		}).provide("test", config);
+		var appender = appender(flags, output, throwingEncoder, config);
 		assertEquals(expectedType, appender.getClass());
 
 		assertDoesNotThrow(() -> appender.append(TestLogEventFactory.of().event("event")));
 
-		assertEquals(1, alerts.dump().size());
-		assertTrue(alerts.dump().get(0).message().contains("failed to append"));
+		assertEquals(1, config.alerts().dump().size());
+		assertTrue(config.alerts().dump().get(0).message().contains("failed to append"));
 	}
 
 	@ParameterizedTest
@@ -74,16 +74,16 @@ class AppenderAlertReportingTest {
 		output.setConsumer((e, s) -> {
 			throw new RuntimeException("output boom");
 		});
-		var alerts = LogAlerts.of();
-		var appender = appender(flags, output, encoder(), alerts);
+		var config = LogConfig.builder().build();
+		var appender = appender(flags, output, encoder(), config);
 		assertEquals(expectedType, appender.getClass());
 
 		var events = new LogEvent[] { TestLogEventFactory.of().event("one"), TestLogEventFactory.of().event("two") };
 
 		assertDoesNotThrow(() -> appender.append(events, events.length));
 
-		assertEquals(1, alerts.dump().size());
-		assertTrue(alerts.dump().get(0).message().contains("failed to append batch"));
+		assertEquals(1, config.alerts().dump().size());
+		assertTrue(config.alerts().dump().get(0).message().contains("failed to append batch"));
 	}
 
 	private static LogEncoder encoder() {
@@ -91,8 +91,8 @@ class AppenderAlertReportingTest {
 	}
 
 	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output, LogEncoder encoder,
-			LogAlerts alerts) {
-		return DirectLogAppender.of("test", output, encoder, flags, alerts, LogMetrics.of());
+			LogConfig config) {
+		return DirectLogAppender.of("test", output, encoder, flags, config.alerts(), config.metrics());
 	}
 
 }
