@@ -36,7 +36,7 @@ We will cover the major ways to do this in the following sub sections.
 <h3 id="simple_spring_boot">Using Spring Boot</h3>
 
 If using Spring Boot see the <a href="#spring_boot">Rainbow Spring Boot Integration section</a>. The short version:
-swap <code>spring-boot-starter-logging</code> for the Rainbow Gum starter and keep going &mdash; Rainbow Gum
+swap <code>spring-boot-starter-logging</code> for the Rainbow Gum starter and keep going: Rainbow Gum
 natively understands almost all of Spring Boot's own documented logging properties (<code>logging.level.*</code>,
 log groups, <code>logging.file.*</code>, <code>logging.pattern.*</code>, <code>logging.charset.*</code>, ANSI
 control, and structured logging via <code>logging.structured.format.*</code> for ECS/GELF/Logstash), so existing
@@ -1249,7 +1249,7 @@ Three things worth calling out, all confirmed by actually running the above (not
 <strong>Encoder configuration is keyed by appender name, but lives under a completely
 different property prefix than the appender itself.</strong> The <code>console</code> appender's
 own settings are under <code>logging.appender.console.*</code>, but its encoder's settings are under
-<code>logging.encoder.console.*</code> &mdash; a sibling prefix, not a child of the appender's.
+<code>logging.encoder.console.*</code>: a sibling prefix, not a child of the appender's.
 The same is true for <code>jsonfile</code> and <code>errorfile</code>. Conceptually the encoder
 belongs to the appender; in the property key space it is just another top level component that
 happens to share the appender's name.
@@ -1274,7 +1274,7 @@ properties.</strong> <code>logging.appender.errorfile.output</code> above is set
 <code>./logs/orders-error.log?bufferSize=10000</code> rather than a bare path: the part before
 <code>?</code> is still resolved as the file path exactly as with a bare path, and everything
 after <code>?</code> is parsed the same way a query string would be and made available as
-properties scoped to that output &mdash; here, <code>bufferSize</code>, equivalent to also having
+properties scoped to that output: here, <code>bufferSize</code>, equivalent to also having
 written <code>logging.output.errorfile.bufferSize=10000</code> on its own line. This works for a
 relative, scheme-less path just as well as it does for an explicit <code>file://</code> URI; which
 style to use is purely a matter of preference for how compact versus explicit the properties file
@@ -1295,7 +1295,7 @@ is comfortable to reference from properties without the aggregate <code>rainbowg
 needing to <code>requires</code> the JSON module at compile time. Referencing
 {@link io.jstach.rainbowgum.json.encoder.GelfEncoder} directly from a builder the way the rest of
 this example is written would require adding <code>rainbowgum-json</code> as an explicit compile
-dependency of whatever module the builder code lives in &mdash; illustrating a real trade-off between
+dependency of whatever module the builder code lives in, illustrating a real trade-off between
 the two configuration styles rather than only a stylistic one.
 </p>
 
