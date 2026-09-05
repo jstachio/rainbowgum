@@ -452,8 +452,8 @@ final class DefaultLogConfig implements LogConfig {
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
-		this.alerts = LogAlerts.of();
-		this.metrics = LogMetrics.of();
+		this.alerts = new DefaultLogAlerts(LogAlerts.DEFAULT_CAPACITY);
+		this.metrics = new DefaultLogMetrics();
 		this.alerts.addListener(event -> this.metrics.errorCounter(event.loggerName(), 1));
 	}
 

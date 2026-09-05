@@ -21,6 +21,7 @@
   <module>rainbowgum-test-core</module>
   <module>rainbowgum-test-jdk</module>
   <module>rainbowgum-test-jlink</module>
+  <module>rainbowgum-test-rolling</module>
   <module>rainbowgum-test-spring-boot3</module>
   <module>rainbowgum-test-spring-boot4</module>
   </modules>

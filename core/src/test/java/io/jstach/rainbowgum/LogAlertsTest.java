@@ -42,7 +42,7 @@ class LogAlertsTest {
 	@Test
 	@SuppressWarnings("StringSplitter")
 	void errorRecordsIntoDumpAndStillReportsToStderr() {
-		var alerts = LogAlerts.of();
+		var alerts = alerts();
 		alerts.error(LogAlertsTest.class, new RuntimeException("expected"));
 
 		var dump = alerts.dump();
@@ -59,7 +59,7 @@ class LogAlertsTest {
 
 	@Test
 	void errorWithMessageOverload() {
-		var alerts = LogAlerts.of();
+		var alerts = alerts();
 		alerts.error(LogAlertsTest.class, "custom message", new RuntimeException("cause"));
 
 		var dump = alerts.dump();
@@ -69,7 +69,7 @@ class LogAlertsTest {
 
 	@Test
 	void ringBufferEvictsOldestFirstOnceAtCapacity() {
-		var alerts = LogAlerts.of(2);
+		var alerts = new DefaultLogAlerts(2);
 
 		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
 		alerts.error(LogAlertsTest.class, "second", new RuntimeException());
@@ -86,7 +86,7 @@ class LogAlertsTest {
 
 	@Test
 	void clearEmptiesRingBufferButKeepsTotal() {
-		var alerts = LogAlerts.of();
+		var alerts = alerts();
 		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
 		alerts.error(LogAlertsTest.class, "second", new RuntimeException());
 
@@ -99,8 +99,8 @@ class LogAlertsTest {
 	}
 
 	@Test
-	void ofRejectsNonPositiveCapacity() {
-		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> LogAlerts.of(0));
+	void constructorRejectsNonPositiveCapacity() {
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> new DefaultLogAlerts(0));
 	}
 
 	@Test
@@ -110,9 +110,13 @@ class LogAlertsTest {
 		assertEquals(1, config.alerts().dump().size());
 	}
 
+	private static LogAlerts alerts() {
+		return LogConfig.builder().build().alerts();
+	}
+
 	@Test
 	void listenerIsNotifiedSynchronouslyOnEachError() {
-		var alerts = LogAlerts.of();
+		var alerts = alerts();
 		List<String> seen = new ArrayList<>();
 		alerts.addListener(e -> seen.add(e.message()));
 
@@ -124,7 +128,7 @@ class LogAlertsTest {
 
 	@Test
 	void closingRegistrationStopsFurtherNotifications() {
-		var alerts = LogAlerts.of();
+		var alerts = alerts();
 		List<String> seen = new ArrayList<>();
 		var registration = alerts.addListener(e -> seen.add(e.message()));
 
@@ -143,7 +147,7 @@ class LogAlertsTest {
 	@Test
 	@SuppressWarnings("StringSplitter")
 	void aThrowingListenerDoesNotStopRecordingOrOtherListeners() {
-		var alerts = LogAlerts.of();
+		var alerts = alerts();
 		List<String> seen = new ArrayList<>();
 		alerts.addListener(e -> {
 			throw new RuntimeException("listener boom");

@@ -117,25 +117,6 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	}
 
 	/**
-	 * Creates alerts backed by a ring buffer of the {@link #DEFAULT_CAPACITY default
-	 * capacity}.
-	 * @return alerts.
-	 */
-	public static LogAlerts of() {
-		return of(DEFAULT_CAPACITY);
-	}
-
-	/**
-	 * Creates alerts backed by a ring buffer of the given capacity.
-	 * @param capacity maximum number of alerts to retain. Older alerts are evicted first
-	 * once capacity is reached.
-	 * @return alerts.
-	 */
-	public static LogAlerts of(int capacity) {
-		return new DefaultLogAlerts(capacity);
-	}
-
-	/**
 	 * Stats about alerts recorded.
 	 *
 	 * @param total total number of alerts ever recorded, including ones since evicted

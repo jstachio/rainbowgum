@@ -132,18 +132,20 @@ class DefaultAppenderSelectionTest {
 	 * appender() call would wipe out a test's own direct override of that field before
 	 * DirectLogAppender.of gets a chance to read it.
 	 */
+	private static final LogConfig CONFIG = LogConfig.builder().build();
+
 	private static final LogEncoder ENCODER = LogFormatter.builder()
 		.message()
 		.encoder()
 		.build()
-		.provide("test", LogConfig.builder().build());
+		.provide("test", CONFIG);
 
 	private static LogAppender appender(Set<AppenderFlag> flags) {
 		return appender(flags, new ListLogOutput());
 	}
 
 	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output) {
-		return DirectLogAppender.of("test", output, ENCODER, flags, LogAlerts.of(), LogMetrics.of());
+		return DirectLogAppender.of("test", output, ENCODER, flags, CONFIG.alerts(), CONFIG.metrics());
 	}
 
 }

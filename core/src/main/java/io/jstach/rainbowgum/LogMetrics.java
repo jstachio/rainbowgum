@@ -137,14 +137,6 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 
 	}
 
-	/**
-	 * Creates a new, empty metrics instance.
-	 * @return metrics.
-	 */
-	public static LogMetrics of() {
-		return new DefaultLogMetrics();
-	}
-
 }
 
 final class DefaultLogMetrics implements LogMetrics {

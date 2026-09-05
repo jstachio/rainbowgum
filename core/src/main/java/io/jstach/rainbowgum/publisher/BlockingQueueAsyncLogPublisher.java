@@ -30,15 +30,16 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	private final LogAlerts alerts;
 
 	/**
-	 * Creates the publisher with its own standalone {@link LogAlerts} (not one shared
-	 * with the rest of a {@link LogConfig}) - mainly useful standalone/in tests. Prefer
-	 * {@link #of(LogAppender, int, LogAlerts)} when a {@link LogConfig} is available.
+	 * Creates the publisher with its own standalone {@link LogConfig} (not one shared
+	 * with the rest of the application) for its {@link LogAlerts} - mainly useful
+	 * standalone/in tests. Prefer {@link #of(LogAppender, int, LogAlerts)} when a
+	 * {@link LogConfig} is already available.
 	 * @param appender appenders.
 	 * @param bufferSize the queue size.
 	 * @return async publisher.
 	 */
 	public static BlockingQueueAsyncLogPublisher of(LogAppender appender, int bufferSize) {
-		return of(appender, bufferSize, LogAlerts.of());
+		return of(appender, bufferSize, LogConfig.builder().build().alerts());
 	}
 
 	/**
