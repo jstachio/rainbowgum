@@ -854,6 +854,19 @@
                     <requireReleaseVersion>
                       <message>No Snapshots Allowed!</message>
                     </requireReleaseVersion>
+                    <evaluateBeanshell>
+                      <!--
+                        .mvn/maven.config sets -T2C as the everyday default (see
+                        bin/rebuild.sh's own explicit -T1) but a release run started
+                        some other way (a stray mvnd default, a manually typed -T)
+                        should still be caught here rather than silently producing a
+                        build whose module order/output isn't the usual sequential one.
+                      -->
+                      <condition>${session.request.degreeOfConcurrency} &lt;= 1</condition>
+                      <message>Release builds must be single-threaded (degree of concurrency was
+                        ${session.request.degreeOfConcurrency}) - do not pass -T/--threads and do not use mvnd for
+                        a release build.</message>
+                    </evaluateBeanshell>
                   </rules>
                   <fail>true</fail>
                 </configuration>
