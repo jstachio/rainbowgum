@@ -46,6 +46,16 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	static final String BUFFER_TRIMMED_METRIC = "buffer.trimmed";
 
 	/**
+	 * Counter name for the global count of log events an appender failed to write - the
+	 * encoder or output threw while appending, so the event was caught, alerted (see
+	 * {@link LogAlerts#error(Class, String, Throwable)}), and lost rather than retried.
+	 * Kept separate from {@link #EVENTS_DROPPED_METRIC}: a drop is a deliberate skip (the
+	 * appender chose not to write), while this is an unexpected failure partway through
+	 * actually trying to - different root causes worth distinguishing when triaging.
+	 */
+	static final String EVENTS_FAILED_METRIC = "events.failed";
+
+	/**
 	 * Increments a counter for something worth tracking as "this happens and it matters".
 	 * @param name counter name, e.g. {@link #EVENTS_DROPPED_METRIC} or a logger name.
 	 * @param increment amount to add, usually {@code 1}.
@@ -104,7 +114,11 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 		/**
 		 * See {@link #BUFFER_TRIMMED_METRIC}.
 		 */
-		BUFFER_TRIMMED(BUFFER_TRIMMED_METRIC, Level.WARNING);
+		BUFFER_TRIMMED(BUFFER_TRIMMED_METRIC, Level.WARNING),
+		/**
+		 * See {@link #EVENTS_FAILED_METRIC}.
+		 */
+		EVENTS_FAILED(EVENTS_FAILED_METRIC, Level.ERROR);
 
 		private final String metricName;
 
