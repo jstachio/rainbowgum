@@ -68,7 +68,8 @@ public final class PatternConfigurator implements Configurator {
 			.ofBoolean()
 			.build(LOGGING_PATTERN_DISABLE_PROPERTY)
 			.get(config.properties())
-			.value(false);
+			.or(false)
+			.value();
 		if (!disable) {
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, (name, c) -> {
 				PatternEncoderBuilder b = new PatternEncoderBuilder(name);

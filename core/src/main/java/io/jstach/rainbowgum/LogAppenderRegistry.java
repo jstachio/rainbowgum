@@ -115,7 +115,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 		var output = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config) //
 			.get() //
-			.value(() -> LogOutput.ofStandardOut().provide(name, config));
+			.or(() -> LogOutput.ofStandardOut().provide(name, config))
+			.value();
 
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 
@@ -138,7 +139,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.map(AppenderFlag::parse) //
 			.buildWithName(LogAppender.APPENDER_FLAGS_PROPERTY, name) //
 			.get(config.properties())
-			.value(EnumSet.noneOf(LogAppender.AppenderFlag.class));
+			.or(EnumSet.noneOf(LogAppender.AppenderFlag.class))
+			.value();
 	}
 
 	private static AppenderType resolveAppenderType(LogConfig config, String name) {
@@ -146,7 +148,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.map(AppenderType::parse) //
 			.buildWithName(LogAppender.APPENDER_TYPE_PROPERTY, name) //
 			.get(config.properties())
-			.value(AppenderType.LOCK_THREAD_LOCAL_BUFFER);
+			.or(AppenderType.LOCK_THREAD_LOCAL_BUFFER)
+			.value();
 	}
 
 	static LogAppender fileAppender(LogConfig config) {
