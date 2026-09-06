@@ -6,9 +6,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -53,8 +54,8 @@ class FormatterEncoderTest {
 	@Test
 	void reuseBufferAcrossEventsDoesNotLeakPreviousLongerMessage() {
 		var output = new WriteMethodOutput(WriteMethod.BYTE_BUFFER);
-		encodeInto(output, List.of(AppenderFlag.REUSE_BUFFER),
-				"this is a much longer first message that should not leak", "short");
+		encodeInto(output, AppenderType.REUSE_BUFFER, "this is a much longer first message that should not leak",
+				"short");
 		assertEquals(List.of("[INFO] this is a much longer first message that should not leak\n", "[INFO] short\n"),
 				output.events().stream().map(e -> e.getValue()).toList());
 	}
@@ -75,7 +76,7 @@ class FormatterEncoderTest {
 				write(event, new String(arr, java.nio.charset.StandardCharsets.UTF_8));
 			}
 		};
-		encodeInto(output, List.of(), "hello");
+		encodeInto(output, null, "hello");
 		assertEquals(List.of("[INFO] hello\n"), output.events().stream().map(e -> e.getValue()).toList());
 	}
 
@@ -88,7 +89,7 @@ class FormatterEncoderTest {
 						+ "not LogOutput's default ByteBuffer bridge");
 			}
 		};
-		encodeInto(output, List.of(), "hello");
+		encodeInto(output, null, "hello");
 		assertEquals(List.of("[INFO] hello\n"), output.events().stream().map(e -> e.getValue()).toList());
 	}
 
@@ -105,7 +106,7 @@ class FormatterEncoderTest {
 				fail("expected write(LogEvent, String) to be called for STRING, not the ByteBuffer overload");
 			}
 		};
-		encodeInto(output, List.of(), "hello");
+		encodeInto(output, null, "hello");
 		assertEquals(List.of("[INFO] hello\n"), output.events().stream().map(e -> e.getValue()).toList());
 	}
 
@@ -119,17 +120,19 @@ class FormatterEncoderTest {
 
 	private static String encodeWith(WriteMethod writeMethod, String message) {
 		var output = new WriteMethodOutput(writeMethod);
-		encodeInto(output, List.of(), message);
+		encodeInto(output, null, message);
 		return output.toString();
 	}
 
-	private static void encodeInto(WriteMethodOutput output, List<AppenderFlag> flags, String... messages) {
+	private static void encodeInto(WriteMethodOutput output, @Nullable AppenderType type, String... messages) {
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config).route(r -> {
 			r.appender("list", a -> {
 				a.output(output);
 				a.encoder(LogEncoder.of(FORMATTER));
-				a.flags(flags);
+				if (type != null) {
+					a.appenderType(type);
+				}
 			});
 		}).build();
 		try (var g = gum.start()) {

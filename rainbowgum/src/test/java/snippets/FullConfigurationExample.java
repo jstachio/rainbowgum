@@ -1,10 +1,9 @@
 package snippets;
 
 import java.lang.System.Logger.Level;
-import java.util.EnumSet;
 import java.util.Optional;
 
-import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
@@ -54,7 +53,7 @@ public class FullConfigurationExample implements RainbowGumProvider {
 						.pattern("%d{ISO8601} [%thread] %-5level %logger{50} - %msg%n")
 						.fromProperties(config.properties())
 						.build());
-					a.flags(EnumSet.of(AppenderFlag.REUSE_BUFFER));
+					a.appenderType(AppenderType.REUSE_BUFFER);
 				});
 			}) //
 			.route("errors", r -> {

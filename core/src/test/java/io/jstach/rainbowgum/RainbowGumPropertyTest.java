@@ -74,7 +74,7 @@ class RainbowGumPropertyTest {
 				logging.appenders=list
 				logging.appender.list.output=list
 				logging.level=ERROR
-				logging.appender.list.flags=reuse_buffer
+				logging.appender.list.type=reuse_buffer
 				""", """
 				00:00:00.001 [main] ERROR com.pattern.test.Test - hello
 				""") {
@@ -92,7 +92,7 @@ class RainbowGumPropertyTest {
 				logging.appenders=list
 				logging.appender.list.output=list
 				logging.level=ERROR
-				logging.appender.list.flags=lock_thread_local_buffer
+				logging.appender.list.type=lock_thread_local_buffer
 				""", """
 				00:00:00.001 [main] ERROR com.pattern.test.Test - hello
 				""") {
@@ -110,7 +110,7 @@ class RainbowGumPropertyTest {
 				logging.appenders=list
 				logging.appender.list.output=list
 				logging.level=ERROR
-				logging.appender.list.flags=synchronized_thread_local_buffer
+				logging.appender.list.type=synchronized_thread_local_buffer
 				""", """
 				00:00:00.001 [main] ERROR com.pattern.test.Test - hello
 				""") {

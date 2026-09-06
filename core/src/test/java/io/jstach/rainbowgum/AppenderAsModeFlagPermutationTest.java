@@ -15,17 +15,18 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.LogAppender.Appenders;
 import io.jstach.rainbowgum.LogAppenderFlagTest.CountingListLogOutput;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
- * End-to-end permutation coverage across every {@link AppenderFlag} combination and both
- * {@link Appenders} "as" modes ({@link Appenders#asSingle()}, {@link Appenders#asList()})
- * - a baseline safety net that caught the {@code SHARED_APPENDER_LOCK}/
- * {@code asSingleSharedLock()} reentry inconsistency documented in
- * {@link AppenderAsModeReentryTest} before that whole shared-lock composite strategy was
- * removed. Appenders always keep their own independent lock now.
+ * End-to-end permutation coverage across every {@link AppenderType}/{@link AppenderFlag}
+ * combination and both {@link Appenders} "as" modes ({@link Appenders#asSingle()},
+ * {@link Appenders#asList()}) - a baseline safety net that caught the
+ * {@code SHARED_APPENDER_LOCK}/{@code asSingleSharedLock()} reentry inconsistency
+ * documented in {@link AppenderAsModeReentryTest} before that whole shared-lock composite
+ * strategy was removed. Appenders always keep their own independent lock now.
  * <p>
  * {@code asList()} has no real production caller today - only {@code asSingle()} is used
  * by the built-in DEFAULT/SYNC/ASYNC publisher factories (see
@@ -42,18 +43,20 @@ class AppenderAsModeFlagPermutationTest {
 
 	}
 
-	record CombinationCase(AsMode mode, Set<AppenderFlag> flags) {
+	record CombinationCase(AsMode mode, AppenderType type, Set<AppenderFlag> flags) {
 		@Override
 		public String toString() {
-			return mode + " " + flags;
+			return mode + " " + type + " " + flags;
 		}
 	}
 
 	static Stream<Arguments> permutations() {
 		List<Arguments> args = new ArrayList<>();
-		for (var flags : powerSet(AppenderFlag.values())) {
-			for (var mode : AsMode.values()) {
-				args.add(Arguments.of(new CombinationCase(mode, flags)));
+		for (var type : AppenderType.values()) {
+			for (var flags : powerSet(AppenderFlag.values())) {
+				for (var mode : AsMode.values()) {
+					args.add(Arguments.of(new CombinationCase(mode, type, flags)));
+				}
 			}
 		}
 		return args.stream();
@@ -78,6 +81,7 @@ class AppenderAsModeFlagPermutationTest {
 	@MethodSource("permutations")
 	void testPermutation(CombinationCase testCase) {
 		var mode = testCase.mode();
+		var type = testCase.type();
 		var flags = testCase.flags();
 
 		LogConfig config = LogConfig.builder().build();
@@ -87,12 +91,16 @@ class AppenderAsModeFlagPermutationTest {
 				LogAppender.builder("a")
 					.encoder(LogFormatter.builder().message().encoder().build())
 					.output(outputA)
+					.appenderType(type)
+					.flags(flags)
 					.build(),
 				LogAppender.builder("b")
 					.encoder(LogFormatter.builder().message().encoder().build())
 					.output(outputB)
+					.appenderType(type)
+					.flags(flags)
 					.build());
-		var appenders = new Appenders("test-route", config, providers).flags(flags);
+		var appenders = new Appenders("test-route", config, providers);
 
 		LogPublisher publisher = switch (mode) {
 			case SINGLE -> new DefaultSyncLogPublisher(appenders.asSingle());
@@ -117,22 +125,11 @@ class AppenderAsModeFlagPermutationTest {
 		assertEquals(expectedFlushes, outputA.flushCount, "outputA flush count");
 		assertEquals(expectedFlushes, outputB.flushCount, "outputB flush count");
 
-		Class<?> expectedAppenderClass;
-		if (flags.contains(AppenderFlag.REUSE_BUFFER)) {
-			expectedAppenderClass = ReuseBufferLogAppender.class;
-		}
-		else if (flags.contains(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER)) {
-			expectedAppenderClass = SynchronizedThreadLocalBufferLogAppender.class;
-		}
-		else {
-			// Either LOCK_THREAD_LOCAL_BUFFER explicitly, or no buffer-strategy flag at
-			// all (REENTRY_DROP/REENTRY_LOG alone included) - both resolve to
-			// LockThreadLocalBufferLogAppender, the default appender selection, since
-			// that's exactly what DirectLogAppender#defaultAppender picks. Both
-			// ThreadLocalBuffer appenders support reentry detection directly, so no
-			// third appender is ever needed for those flags alone.
-			expectedAppenderClass = LockThreadLocalBufferLogAppender.class;
-		}
+		Class<?> expectedAppenderClass = switch (type) {
+			case REUSE_BUFFER -> ReuseBufferLogAppender.class;
+			case SYNCHRONIZED_THREAD_LOCAL_BUFFER -> SynchronizedThreadLocalBufferLogAppender.class;
+			case LOCK_THREAD_LOCAL_BUFFER -> LockThreadLocalBufferLogAppender.class;
+		};
 		for (var direct : directAppenders(mode, publisher)) {
 			assertInstanceOf(expectedAppenderClass, direct);
 		}

@@ -10,6 +10,7 @@ import java.util.Set;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.PropertyValue;
 import io.jstach.rainbowgum.LogProperty.Result;
@@ -22,7 +23,7 @@ sealed interface LogAppenderRegistry permits DefaultAppenderRegistry {
 }
 
 record AppenderConfig(String name, @Nullable LogOutput output, @Nullable LogEncoder encoder,
-		@Nullable Set<AppenderFlag> flags) {
+		@Nullable Set<AppenderFlag> flags, @Nullable AppenderType appenderType) {
 
 	AppenderConfig {
 		validateName(name);
@@ -102,7 +103,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			if (name.equals(LogAppender.CONSOLE_APPENDER_NAME)) {
 				return defaultConsoleAppender(config);
 			}
-			var builder = new AppenderConfig(name, null, null, null);
+			var builder = new AppenderConfig(name, null, null, null, null);
 			var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
 			var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 			return appender(builder, config, outputProperty, encoderProperty);
@@ -138,6 +139,14 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.buildWithName(LogAppender.APPENDER_FLAGS_PROPERTY, name) //
 			.get(config.properties())
 			.value(EnumSet.noneOf(LogAppender.AppenderFlag.class));
+	}
+
+	private static AppenderType resolveAppenderType(LogConfig config, String name) {
+		return Property.builder() //
+			.map(AppenderType::parse) //
+			.buildWithName(LogAppender.APPENDER_TYPE_PROPERTY, name) //
+			.get(config.properties())
+			.value(AppenderType.LOCK_THREAD_LOCAL_BUFFER);
 	}
 
 	static LogAppender fileAppender(LogConfig config) {
@@ -209,7 +218,13 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			flags = resolveFlags(config, name);
 		}
 
-		return DirectLogAppender.of(name, output, encoder, flags, config.alerts(), config.metrics());
+		@Nullable
+		AppenderType appenderType = appenderConfig.appenderType();
+		if (appenderType == null) {
+			appenderType = resolveAppenderType(config, name);
+		}
+
+		return DirectLogAppender.of(name, output, encoder, appenderType, flags, config.alerts(), config.metrics());
 	}
 
 	private static PropertyValue<LogEncoder> resolveEncoder(String name, LogConfig config, LogOutput output,
@@ -224,7 +239,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			String name, //
 			LogConfig config, //
 			PropertyValue<LogOutput> outputProperty, PropertyValue<LogEncoder> encoderProperty) {
-		var builder = new AppenderConfig(name, null, null, null);
+		var builder = new AppenderConfig(name, null, null, null, null);
 		return appender(builder, config, outputProperty, encoderProperty);
 
 	}

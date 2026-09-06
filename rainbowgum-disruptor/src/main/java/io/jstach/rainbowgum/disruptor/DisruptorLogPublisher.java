@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum.disruptor;
 
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
 
@@ -45,8 +44,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 		return new PublisherFactory() {
 			@Override
 			public LogPublisher create(String name, LogConfig config, Appenders appenders) {
-				return of(appenders.flags(EnumSet.of(LogAppender.AppenderFlag.REUSE_BUFFER)).asList(),
-						DaemonThreadFactory.INSTANCE, bufferSize, config.alerts());
+				return of(appenders.asList(), DaemonThreadFactory.INSTANCE, bufferSize, config.alerts());
 			}
 		};
 	}

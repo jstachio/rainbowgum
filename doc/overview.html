@@ -716,14 +716,14 @@ Thus to register appenders to the default route one can use:
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.flags=reuse_buffer # an example config of appender
+logging.appender.myappender.type=reuse_buffer # an example config of appender
 }
 
 If the route is named say "example" then configuration of the appenders can be done like:
 
 {@snippet lang=properties :
 logging.route.example.appenders=myappender
-logging.appender.myappender.flags=reuse_buffer # an example config of appender
+logging.appender.myappender.type=reuse_buffer # an example config of appender
 }
 
 <h3 id="appender_config">Appender Configuration</h3>
@@ -736,6 +736,8 @@ or through properties.
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_OUTPUT_PROPERTY} = URI</dd>
   <dt><a href="#encoder">Encoder</a></dt>
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_ENCODER_PROPERTY} = URI</dd>
+  <dt>{@linkplain io.jstach.rainbowgum.LogAppender.AppenderType Type}</dt>
+  <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_TYPE_PROPERTY} = a single {@link io.jstach.rainbowgum.LogAppender.AppenderType}</dd>
   <dt>{@linkplain io.jstach.rainbowgum.LogAppender.AppenderFlag Flags}</dt>
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_FLAGS_PROPERTY} = List of {@link io.jstach.rainbowgum.LogAppender.AppenderFlag}</dd>
 </dl>
@@ -1230,7 +1232,7 @@ logging.appender.console.encoder=pattern
 
 logging.appender.jsonfile.output=./logs/orders.json.log
 logging.appender.jsonfile.encoder=gelf
-logging.appender.jsonfile.flags=reuse_buffer
+logging.appender.jsonfile.type=reuse_buffer
 
 logging.appender.errorfile.output=./logs/orders-error.log?bufferSize=10000
 logging.appender.errorfile.encoder=pattern
