@@ -157,10 +157,11 @@ class LogPropertyTest {
 	}
 
 	@Test
-	void testMissingValueWithFallbackSupplier() {
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
+	void testMissingOrWithFallbackSupplier() {
 		Missing<String> missing = new Missing<>(List.of("key"), "Property missing. keys: [key]");
-		assertEquals("fallback", missing.value(() -> "fallback"));
-		assertThrows(PropertyMissingException.class, () -> missing.value(() -> null));
+		assertEquals("fallback", missing.or(() -> "fallback").value());
+		assertThrows(PropertyMissingException.class, () -> missing.or(() -> null).value());
 	}
 
 	@Test
@@ -177,7 +178,7 @@ class LogPropertyTest {
 		Error<String> error = new Error<>("key", "bad value", cause);
 		assertThrows(PropertyConvertException.class, () -> error.valueOrNull());
 		assertThrows(PropertyConvertException.class, error::value);
-		assertThrows(PropertyConvertException.class, () -> error.value(() -> "fallback"));
+		assertThrows(PropertyConvertException.class, () -> error.or(() -> "fallback").value());
 		assertEquals(error, error.or("fallback"));
 		assertEquals(error, error.or(() -> "fallback"));
 		assertEquals("Error[key](bad value)", error.describe());
@@ -195,10 +196,10 @@ class LogPropertyTest {
 	}
 
 	@Test
-	void testResultValueWithFallbackObject() {
+	void testResultOrWithFallbackObject() {
 		Result<String> missing = new Missing<>(List.of("key"), "missing");
-		assertEquals("fallback", missing.value("fallback"));
-		assertThrows(PropertyMissingException.class, () -> missing.value((String) null));
+		assertEquals("fallback", missing.or("fallback").value());
+		assertThrows(PropertyMissingException.class, () -> missing.or((String) null).value());
 	}
 
 	@Test

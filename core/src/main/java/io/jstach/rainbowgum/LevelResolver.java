@@ -721,7 +721,7 @@ final class GroupLevelResolver implements LevelConfig {
 					.ifPresent(loggers -> m.put(g, loggers));
 			}
 			return m;
-		}).get(properties).value(Map.of());
+		}).get(properties).or(Map.of()).value();
 
 		Map<String, Level> groupToLevels = new LinkedHashMap<>();
 		for (var e : groupToLoggers.entrySet()) {

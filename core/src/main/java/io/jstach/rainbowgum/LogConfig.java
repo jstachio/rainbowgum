@@ -387,7 +387,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
-		return changeSetting.get(config().properties(), loggerName).value(Set.of());
+		return changeSetting.get(config().properties(), loggerName).or(Set.of()).value();
 	}
 
 }
@@ -446,7 +446,8 @@ final class DefaultLogConfig implements LogConfig {
 			.ofBoolean()
 			.build(LogProperties.GLOBAL_CHANGE_PROPERTY)
 			.get(properties)
-			.value(false);
+			.or(false)
+			.value();
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		applyGlobalAppenderReentrantLockProperty(properties);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
@@ -470,7 +471,8 @@ final class DefaultLogConfig implements LogConfig {
 			.ofBoolean()
 			.build(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
 			.get(properties)
-			.value(false);
+			.or(false)
+			.value();
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {

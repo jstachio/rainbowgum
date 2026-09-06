@@ -51,7 +51,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 		else {
 			installed = true;
 		}
-		var disableLevel = JUL_LEVEL_DISABLE_PROPERTY_.get(config.properties()).value(false);
+		var disableLevel = JUL_LEVEL_DISABLE_PROPERTY_.get(config.properties()).or(false).value();
 
 		if (!disableLevel) {
 			var logger = Logger.getLogger("");
@@ -79,7 +79,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	 * @hidden
 	 */
 	public static boolean install(@SuppressWarnings("exports") LogProperties properties) {
-		if (JUL_DISABLE_PROPERTY_.get(properties).value(false)) {
+		if (JUL_DISABLE_PROPERTY_.get(properties).or(false).value()) {
 			return false;
 		}
 		if (!isLoggingModuleAvailable()) {

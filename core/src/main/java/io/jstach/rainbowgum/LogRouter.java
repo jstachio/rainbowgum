@@ -349,7 +349,8 @@ public sealed interface LogRouter extends LogLifecycle {
 					.map(RouteFlag::parse)
 					.buildWithName(LogProperties.ROUTE_FLAGS_PROPERTY, name)
 					.get(config.properties())
-					.value(EnumSet.noneOf(RouteFlag.class)));
+					.or(EnumSet.noneOf(RouteFlag.class))
+					.value());
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
 
 				/*
@@ -426,7 +427,8 @@ public sealed interface LogRouter extends LogLifecycle {
 						.map(r -> config.publisherRegistry().provide(r)) //
 						.buildWithName(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
 						.get(config.properties())
-						.value(() -> LogPublisher.SyncLogPublisher.builder().build());
+						.or(() -> LogPublisher.SyncLogPublisher.builder().build())
+						.value();
 				}
 
 				var apps = new LogAppender.Appenders(name, config, appenders);
@@ -790,7 +792,8 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 			.build(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY)
 			.map(LevelResolver::parseLevel)
 			.get(LogProperties.StandardProperties.SYSTEM_PROPERTIES)
-			.value(Level.INFO);
+			.or(Level.INFO)
+			.value();
 	}
 
 	private static final Level errorLevel() {
@@ -798,7 +801,8 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 			.build(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY)
 			.map(LevelResolver::parseLevel)
 			.get(LogProperties.StandardProperties.SYSTEM_PROPERTIES)
-			.value(Level.ERROR);
+			.or(Level.ERROR)
+			.value();
 	}
 
 	private QueueEventsRouter(LevelResolver levelResolver, LevelResolver errorLevelResolver) {

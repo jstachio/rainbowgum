@@ -421,22 +421,6 @@ public sealed interface LogProperty {
 		public T value() throws PropertyMissingException, PropertyConvertException;
 
 		/**
-		 * Gets a value if there if not uses the fallback if not null otherwise throws an
-		 * exception.
-		 * @param fallback maybe <code>null</code>.
-		 * @return value.
-		 * @throws PropertyMissingException if no property and fallback is
-		 * <code>null</code>.
-		 * @throws PropertyConvertException if the property failed conversion.
-		 */
-		default T value(@Nullable T fallback) throws PropertyMissingException, PropertyConvertException {
-			if (fallback == null) {
-				return value();
-			}
-			return value(() -> fallback);
-		}
-
-		/**
 		 * Returns the current result if fallback is null or returns fallback as a result
 		 * if this result is missing.
 		 * @param fallback maybe <code>null</code>.
@@ -462,18 +446,6 @@ public sealed interface LogProperty {
 		 */
 		@Override
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
-
-		/**
-		 * Gets a value if there if not uses the fallback if not null otherwise throws an
-		 * exception.
-		 * @param fallback maybe <code>null</code>.
-		 * @return value.
-		 * @throws PropertyMissingException if no property and fallback is
-		 * <code>null</code>.
-		 * @throws PropertyConvertException if the property failed conversion.
-		 */
-		public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
-				throws PropertyMissingException, PropertyConvertException;
 
 		/**
 		 * Convenience that turns a value into an optional.
@@ -507,11 +479,6 @@ public sealed interface LogProperty {
 			 */
 			@Override
 			public T value();
-
-			@Override
-			default T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback) {
-				return value();
-			}
 
 			@Override
 			default Success<T> or(@Nullable T fallback) {
@@ -642,16 +609,6 @@ public sealed interface LogProperty {
 			}
 
 			@Override
-			public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
-					throws NoSuchElementException {
-				T v = fallback.get();
-				if (v != null) {
-					return v;
-				}
-				throw new PropertyMissingException(message);
-			}
-
-			@Override
 			public Result<T> or(@Nullable T fallback) {
 				if (fallback != null) {
 					return new Success.ValueSuccess<>(keys.get(0), fallback);
@@ -706,12 +663,6 @@ public sealed interface LogProperty {
 
 			@Override
 			public T value() throws PropertyConvertException {
-				throw new PropertyConvertException(key, message, cause);
-			}
-
-			@Override
-			public T value(@SuppressWarnings("exports") Supplier<? extends @Nullable T> fallback)
-					throws PropertyConvertException {
 				throw new PropertyConvertException(key, message, cause);
 			}
 
