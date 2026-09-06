@@ -8,7 +8,6 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
@@ -88,17 +87,6 @@ class AppenderAsModeReentryTest {
 			}
 		});
 
-		/*
-		 * The reentry flag is set both on each appender's own builder and via
-		 * Appenders.flags(...). An individual DirectLogAppender's *lock* (as opposed to
-		 * its flags field, used only for immediateFlush/REUSE_BUFFER selection) is fixed
-		 * once, from whatever flags were on its builder at construction
-		 * (LockLogAppender.withFlags always reuses `this.lock` unchanged, no matter what
-		 * flags are merged in later) - so only a REENTRY_DROP/REENTRY_LOG set on the
-		 * *appender builder* actually matters for the reentry check; Appenders.flags(...)
-		 * alone would do nothing for it. Setting both keeps this test robust regardless
-		 * of which one turns out to matter.
-		 */
 		List<LogProvider<LogAppender>> providers = List.of(
 				LogAppender.builder("a")
 					.encoder(LogFormatter.builder().message().encoder().build())
@@ -110,7 +98,7 @@ class AppenderAsModeReentryTest {
 					.output(outputB)
 					.flag(reentryFlag)
 					.build());
-		var appenders = new Appenders("test-route", config, providers).flags(Set.of(reentryFlag));
+		var appenders = new Appenders("test-route", config, providers);
 
 		LogPublisher publisher = switch (mode) {
 			case SINGLE -> new DefaultSyncLogPublisher(appenders.asSingle());

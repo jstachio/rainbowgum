@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
@@ -48,9 +50,17 @@ class LogAppenderFlagTest {
 	}
 
 	private static LogAppender appender(String name, ListLogOutput output, AppenderFlag... flags) {
+		return appender(name, output, null, flags);
+	}
+
+	private static LogAppender appender(String name, ListLogOutput output, @Nullable AppenderType type,
+			AppenderFlag... flags) {
 		var builder = LogAppender.builder(name)
 			.encoder(LogFormatter.builder().message().encoder().build())
 			.output(output);
+		if (type != null) {
+			builder.appenderType(type);
+		}
 		for (var flag : flags) {
 			builder.flag(flag);
 		}
@@ -137,7 +147,7 @@ class LogAppenderFlagTest {
 	@Test
 	void immediateFlushFlagsRespectedWithReuseBuffer() {
 		var output = new CountingListLogOutput();
-		var testAppender = appender("test", output, AppenderFlag.REUSE_BUFFER, AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
+		var testAppender = appender("test", output, AppenderType.REUSE_BUFFER, AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
 		assertInstanceOf(ReuseBufferLogAppender.class, testAppender);
 		testAppender.append(TestLogEventFactory.of().event("single"));
 		testAppender.append(new LogEvent[] { TestLogEventFactory.of().event("batch") }, 1);
@@ -147,7 +157,7 @@ class LogAppenderFlagTest {
 	@Test
 	void immediateFlushFlagsRespectedWithThreadLocalBuffer() {
 		var output = new CountingListLogOutput();
-		var testAppender = appender("test", output, AppenderFlag.LOCK_THREAD_LOCAL_BUFFER,
+		var testAppender = appender("test", output, AppenderType.LOCK_THREAD_LOCAL_BUFFER,
 				AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, testAppender);
 		testAppender.append(TestLogEventFactory.of().event("single"));
@@ -158,7 +168,7 @@ class LogAppenderFlagTest {
 	@Test
 	void threadLocalBufferFlagReusesBufferPerThread() {
 		var output = new ListLogOutput();
-		var testAppender = appender("test", output, AppenderFlag.LOCK_THREAD_LOCAL_BUFFER);
+		var testAppender = appender("test", output, AppenderType.LOCK_THREAD_LOCAL_BUFFER);
 		testAppender.append(TestLogEventFactory.of().event("one"));
 		testAppender.append(TestLogEventFactory.of().event("two"));
 		assertEquals(List.of("one", "two"), output.events().stream().map(e -> e.getKey().message()).toList());
@@ -167,7 +177,7 @@ class LogAppenderFlagTest {
 	@Test
 	void immediateFlushFlagsRespectedWithSynchronizedThreadLocalBuffer() {
 		var output = new CountingListLogOutput();
-		var testAppender = appender("test", output, AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER,
+		var testAppender = appender("test", output, AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER,
 				AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, testAppender);
 		testAppender.append(TestLogEventFactory.of().event("single"));
@@ -178,68 +188,10 @@ class LogAppenderFlagTest {
 	@Test
 	void synchronizedThreadLocalBufferFlagReusesBufferPerThread() {
 		var output = new ListLogOutput();
-		var testAppender = appender("test", output, AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER);
+		var testAppender = appender("test", output, AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER);
 		testAppender.append(TestLogEventFactory.of().event("one"));
 		testAppender.append(TestLogEventFactory.of().event("two"));
 		assertEquals(List.of("one", "two"), output.events().stream().map(e -> e.getKey().message()).toList());
-	}
-
-	@Test
-	void appenderLevelFlagsMergeOntoExistingAppenderWithoutReuseBuffer() {
-		LogConfig config = LogConfig.builder().build();
-		var output = new CountingListLogOutput();
-		List<LogProvider<LogAppender>> providers = List.of(LogAppender.builder("test")
-			.encoder(LogFormatter.builder().message().encoder().build())
-			.output(output)
-			.build());
-		var appenders = new LogAppender.Appenders("test-route", config, providers);
-		var result = appenders.flags(Set.of(AppenderFlag.DISABLE_IMMEDIATE_FLUSH)).asSingle();
-		result.start(config);
-		// No buffer-strategy flag set - resolves to the default appender selection,
-		// LockThreadLocalBufferLogAppender.
-		assertInstanceOf(LockThreadLocalBufferLogAppender.class, result);
-		result.append(TestLogEventFactory.of().event("hello"));
-		assertEquals(0, output.flushCount);
-	}
-
-	@Test
-	void appenderLevelFlagsAlreadyPresentIsNoop() {
-		LogConfig config = LogConfig.builder().build();
-		var output = new CountingListLogOutput();
-		List<LogProvider<LogAppender>> providers = List.of(LogAppender.builder("test")
-			.encoder(LogFormatter.builder().message().encoder().build())
-			.output(output)
-			.flag(AppenderFlag.DISABLE_IMMEDIATE_FLUSH)
-			.build());
-		var appenders = new LogAppender.Appenders("test-route", config, providers);
-		var result = appenders.flags(Set.of(AppenderFlag.DISABLE_IMMEDIATE_FLUSH)).asSingle();
-		result.start(config);
-		result.append(TestLogEventFactory.of().event("hello"));
-		assertEquals(0, output.flushCount);
-	}
-
-	@Test
-	void appenderLevelFlagsMergeOntoMultiAppenderComposite() {
-		LogConfig config = LogConfig.builder().build();
-		var outputA = new CountingListLogOutput();
-		var outputB = new CountingListLogOutput();
-		List<LogProvider<LogAppender>> providers = List.of(
-				LogAppender.builder("a")
-					.encoder(LogFormatter.builder().message().encoder().build())
-					.output(outputA)
-					.build(),
-				LogAppender.builder("b")
-					.encoder(LogFormatter.builder().message().encoder().build())
-					.output(outputB)
-					.build());
-		var appenders = new LogAppender.Appenders("test-route", config, providers)
-			.flags(Set.of(AppenderFlag.DISABLE_IMMEDIATE_FLUSH));
-		var result = appenders.asSingle();
-		result.start(config);
-		assertInstanceOf(CompositeLogAppender.class, result);
-		result.append(TestLogEventFactory.of().event("hello"));
-		assertEquals(0, outputA.flushCount);
-		assertEquals(0, outputB.flushCount);
 	}
 
 	static class CountingListLogOutput extends ListLogOutput {

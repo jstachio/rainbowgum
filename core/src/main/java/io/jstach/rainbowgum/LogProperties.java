@@ -221,17 +221,15 @@ public interface LogProperties {
 
 	/**
 	 * If true guarantees no appender will use {@code synchronized} for its locking,
-	 * regardless of JDK version or an explicitly set
-	 * {@link LogAppender.AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER}: the JDK-version
-	 * sniffed default selection (see {@code DirectLogAppender#defaultAppender}) will not
-	 * pick the {@code synchronized}-based appender no matter how new the running JDK is,
-	 * and an explicit {@code SYNCHRONIZED_THREAD_LOCAL_BUFFER} flag is downgraded to
-	 * {@link LogAppender.AppenderFlag#LOCK_THREAD_LOCAL_BUFFER} instead of being honored.
-	 * Intended for deployments that want a hard guarantee independent of the JDK-version
-	 * heuristic - e.g. still running JDK versions before
+	 * regardless of an explicitly requested
+	 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER}: an explicit
+	 * request for that type is downgraded to
+	 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER} instead of being honored.
+	 * Intended for deployments that want a hard guarantee independent of per-appender
+	 * configuration - e.g. still running JDK versions before
 	 * <a href="https://openjdk.org/jeps/491">JEP 491</a> (JDK 24), where
 	 * {@code synchronized} pins the carrier platform thread when called from a virtual
-	 * thread, and that would rather not rely on runtime JDK detection to avoid it.
+	 * thread, and that would rather not rely on per-appender configuration to avoid it.
 	 */
 	static final String GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY = ROOT_PREFIX + "global.appender.reentrantLock";
 
@@ -292,6 +290,13 @@ public interface LogProperties {
 	 * @see AppenderFlag
 	 */
 	static final String APPENDER_FLAGS_PROPERTY = LogProperties.APPENDER_PREFIX + "flags";
+
+	/**
+	 * Appender type (buffer/locking strategy). Unlike {@value #APPENDER_FLAGS_PROPERTY}
+	 * this is a single value, not a list.
+	 * @see LogAppender.AppenderType
+	 */
+	static final String APPENDER_TYPE_PROPERTY = LogProperties.APPENDER_PREFIX + "type";
 
 	/**
 	 * Logging publisher prefix for configuration.

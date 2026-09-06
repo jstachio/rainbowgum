@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.EnumSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -12,7 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
@@ -26,22 +25,21 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  */
 class AppenderAlertReportingTest {
 
-	static Stream<Arguments> appenderFlags() {
-		return Stream.of(Arguments.of(EnumSet.noneOf(AppenderFlag.class), LockThreadLocalBufferLogAppender.class),
-				Arguments.of(EnumSet.of(AppenderFlag.REUSE_BUFFER), ReuseBufferLogAppender.class),
-				Arguments.of(EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER),
-						SynchronizedThreadLocalBufferLogAppender.class));
+	static Stream<Arguments> appenderTypes() {
+		return Stream.of(Arguments.of(AppenderType.LOCK_THREAD_LOCAL_BUFFER, LockThreadLocalBufferLogAppender.class),
+				Arguments.of(AppenderType.REUSE_BUFFER, ReuseBufferLogAppender.class), Arguments
+					.of(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, SynchronizedThreadLocalBufferLogAppender.class));
 	}
 
 	@ParameterizedTest
-	@MethodSource("appenderFlags")
-	void outputFailureIsCaughtAndReported(Set<AppenderFlag> flags, Class<?> expectedType) {
+	@MethodSource("appenderTypes")
+	void outputFailureIsCaughtAndReported(AppenderType type, Class<?> expectedType) {
 		var output = new ListLogOutput();
 		output.setConsumer((e, s) -> {
 			throw new RuntimeException("output boom");
 		});
 		var config = LogConfig.builder().build();
-		var appender = appender(flags, output, encoder(), config);
+		var appender = appender(type, output, encoder(), config);
 		assertEquals(expectedType, appender.getClass());
 
 		assertDoesNotThrow(() -> appender.append(TestLogEventFactory.of().event("event")));
@@ -52,14 +50,14 @@ class AppenderAlertReportingTest {
 	}
 
 	@ParameterizedTest
-	@MethodSource("appenderFlags")
-	void encoderFailureIsCaughtAndReported(Set<AppenderFlag> flags, Class<?> expectedType) {
+	@MethodSource("appenderTypes")
+	void encoderFailureIsCaughtAndReported(AppenderType type, Class<?> expectedType) {
 		var output = new ListLogOutput();
 		var config = LogConfig.builder().build();
 		var throwingEncoder = LogEncoder.of((LogFormatter.EventFormatter) (sb, event) -> {
 			throw new RuntimeException("encode boom");
 		}).provide("test", config);
-		var appender = appender(flags, output, throwingEncoder, config);
+		var appender = appender(type, output, throwingEncoder, config);
 		assertEquals(expectedType, appender.getClass());
 
 		assertDoesNotThrow(() -> appender.append(TestLogEventFactory.of().event("event")));
@@ -70,14 +68,14 @@ class AppenderAlertReportingTest {
 	}
 
 	@ParameterizedTest
-	@MethodSource("appenderFlags")
-	void batchOutputFailureIsCaughtAndReported(Set<AppenderFlag> flags, Class<?> expectedType) {
+	@MethodSource("appenderTypes")
+	void batchOutputFailureIsCaughtAndReported(AppenderType type, Class<?> expectedType) {
 		var output = new ListLogOutput();
 		output.setConsumer((e, s) -> {
 			throw new RuntimeException("output boom");
 		});
 		var config = LogConfig.builder().build();
-		var appender = appender(flags, output, encoder(), config);
+		var appender = appender(type, output, encoder(), config);
 		assertEquals(expectedType, appender.getClass());
 
 		var events = new LogEvent[] { TestLogEventFactory.of().event("one"), TestLogEventFactory.of().event("two") };
@@ -93,9 +91,8 @@ class AppenderAlertReportingTest {
 		return LogFormatter.builder().message().encoder().build().provide("test", LogConfig.builder().build());
 	}
 
-	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output, LogEncoder encoder,
-			LogConfig config) {
-		return DirectLogAppender.of("test", output, encoder, flags, config.alerts(), config.metrics());
+	private static LogAppender appender(AppenderType type, ListLogOutput output, LogEncoder encoder, LogConfig config) {
+		return DirectLogAppender.of("test", output, encoder, type, Set.of(), config.alerts(), config.metrics());
 	}
 
 	private static long failedEventsCount(LogConfig config) {

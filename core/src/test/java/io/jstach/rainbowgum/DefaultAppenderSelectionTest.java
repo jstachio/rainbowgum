@@ -19,15 +19,13 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
- * Exercises {@code DirectLogAppender#defaultAppender} directly (always
- * {@code LockThreadLocalBufferLogAppender} - see that method's javadoc for why, after
- * real-workload benchmarking under virtual threads found {@code synchronized} to be a
- * large, reproducible loss there despite winning under platform threads), plus
+ * Exercises {@link DirectLogAppender#of} directly for each {@link AppenderType}, plus
  * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}'s guarantee that even an
- * explicit {@link AppenderFlag#SYNCHRONIZED_THREAD_LOCAL_BUFFER} request gets downgraded
+ * explicit {@link AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} request gets downgraded
  * when that global property is active, and that
  * {@code SynchronizedThreadLocalBufferLogAppender}'s reentry detection (via
  * {@link Thread#holdsLock(Object)} rather than a
@@ -62,44 +60,35 @@ class DefaultAppenderSelectionTest {
 	}
 
 	@Test
-	void noFlagsSelectsLockThreadLocalBuffer() {
-		var appender = appender(Set.of());
+	void lockThreadLocalBufferTypeSelectsLockThreadLocalBuffer() {
+		var appender = appender(AppenderType.LOCK_THREAD_LOCAL_BUFFER, Set.of());
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
-	void globalForceReentrantLockDowngradesExplicitSynchronizedFlag() {
+	void globalForceReentrantLockDowngradesExplicitSynchronizedType() {
 		AbstractLogAppender.forceReentrantLockAppenders = true;
-		var appender = appender(EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER));
+		var appender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, Set.of());
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
-	void globalForceReentrantLockDowngradesExplicitSynchronizedFlagOnWithFlags() {
-		var appender = appender(Set.of());
-		AbstractLogAppender.forceReentrantLockAppenders = true;
-		var reflagged = ((DirectLogAppender) appender)
-			.withFlags(EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER));
-		assertInstanceOf(LockThreadLocalBufferLogAppender.class, reflagged);
-	}
-
-	@Test
-	void reentryDropWithNoOtherFlagSelectsLockThreadLocalBuffer() {
-		var appender = appender(EnumSet.of(AppenderFlag.REENTRY_DROP));
+	void reentryDropWithLockThreadLocalBufferType() {
+		var appender = appender(AppenderType.LOCK_THREAD_LOCAL_BUFFER, EnumSet.of(AppenderFlag.REENTRY_DROP));
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
-	void reentryLogWithNoOtherFlagSelectsLockThreadLocalBuffer() {
-		var appender = appender(EnumSet.of(AppenderFlag.REENTRY_LOG));
+	void reentryLogWithLockThreadLocalBufferType() {
+		var appender = appender(AppenderType.LOCK_THREAD_LOCAL_BUFFER, EnumSet.of(AppenderFlag.REENTRY_LOG));
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
 	void synchronizedThreadLocalBufferReentryDropFlagDropsReentrantAppend() {
 		var output = new ListLogOutput();
-		var testAppender = appender(
-				EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER, AppenderFlag.REENTRY_DROP), output);
+		var testAppender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER,
+				EnumSet.of(AppenderFlag.REENTRY_DROP), output);
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, testAppender);
 		output.setConsumer((e, s) -> {
 			// A naughty output that logs during its own write - should be dropped.
@@ -112,7 +101,7 @@ class DefaultAppenderSelectionTest {
 	@Test
 	void synchronizedThreadLocalBufferReentryLogFlagDropsReentrantAppendAndLogsDiagnostic() {
 		var output = new ListLogOutput();
-		var testAppender = appender(EnumSet.of(AppenderFlag.SYNCHRONIZED_THREAD_LOCAL_BUFFER, AppenderFlag.REENTRY_LOG),
+		var testAppender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, EnumSet.of(AppenderFlag.REENTRY_LOG),
 				output);
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, testAppender);
 		output.setConsumer((e, s) -> {
@@ -140,12 +129,12 @@ class DefaultAppenderSelectionTest {
 		.build()
 		.provide("test", CONFIG);
 
-	private static LogAppender appender(Set<AppenderFlag> flags) {
-		return appender(flags, new ListLogOutput());
+	private static LogAppender appender(AppenderType type, Set<AppenderFlag> flags) {
+		return appender(type, flags, new ListLogOutput());
 	}
 
-	private static LogAppender appender(Set<AppenderFlag> flags, ListLogOutput output) {
-		return DirectLogAppender.of("test", output, ENCODER, flags, CONFIG.alerts(), CONFIG.metrics());
+	private static LogAppender appender(AppenderType type, Set<AppenderFlag> flags, ListLogOutput output) {
+		return DirectLogAppender.of("test", output, ENCODER, type, flags, CONFIG.alerts(), CONFIG.metrics());
 	}
 
 }
