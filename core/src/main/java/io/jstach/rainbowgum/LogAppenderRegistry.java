@@ -54,7 +54,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			keyed = keyed.or(LogProperties.APPENDERS_PROPERTY);
 		}
 
-		Result<List<String>> result = keyed.list();
+		Result<List<String>> result = keyed.ofList();
 
 		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
 			result = result.or(() -> addDefaultAppenderNames(config));
@@ -122,7 +122,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	private static Set<AppenderFlag> resolveFlags(LogConfig config, String name) {
 		return config.properties()
 			.forKey(LogAppender.APPENDER_FLAGS_PROPERTY, name)
-			.list()
+			.ofList()
 			.map(AppenderFlag::parse)
 			.or(EnumSet.noneOf(LogAppender.AppenderFlag.class))
 			.value();
@@ -131,7 +131,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	private static AppenderType resolveAppenderType(LogConfig config, String name) {
 		return config.properties()
 			.forKey(LogAppender.APPENDER_TYPE_PROPERTY, name)
-			.string()
+			.ofString()
 			.map(AppenderType::parse)
 			.or(AppenderType.LOCK_THREAD_LOCAL_BUFFER)
 			.value();

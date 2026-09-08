@@ -116,15 +116,15 @@ record BuilderModel( //
 		 */
 		public String baseAccessor() {
 			if (converter != null) {
-				return "string";
+				return "ofString";
 			}
 			return switch (type) {
 				case INTEGER_TYPE -> "ofInt";
-				case STRING_TYPE -> "string";
+				case STRING_TYPE -> "ofString";
 				case URI_TYPE -> "ofURI";
 				case BOOLEAN_TYPE -> "ofBoolean";
-				case MAP_TYPE -> "keyValues";
-				case LIST_TYPE -> "list";
+				case MAP_TYPE -> "ofKeyValues";
+				case LIST_TYPE -> "ofList";
 				default -> throw new IllegalStateException(type + " is not supported");
 			};
 		}

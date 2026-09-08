@@ -24,22 +24,22 @@ public interface LogKeyed {
 
 	public LogProperties properties();
 
-	public Result<String> string();
+	public Result<String> ofString();
 
-	public Result<List<String>> list();
+	public Result<List<String>> ofList();
 
-	public Result<Map<String, String>> keyValues();
+	public Result<Map<String, String>> ofKeyValues();
 
 	default Result<Integer> ofInt() {
-		return convert(properties(), string(), Integer::parseInt);
+		return convert(properties(), ofString(), Integer::parseInt);
 	}
 
 	default Result<Boolean> ofBoolean() {
-		return convert(properties(), string(), Boolean::parseBoolean);
+		return convert(properties(), ofString(), Boolean::parseBoolean);
 	}
 
 	default Result<URI> ofURI() {
-		return convert(properties(), string(), URI::new);
+		return convert(properties(), ofString(), URI::new);
 	}
 
 	default Result<LogProviderRef> ofProviderRef() {
@@ -136,7 +136,7 @@ public interface LogKeyed {
 	/**
 	 * Checks that value is not null, throwing {@link PropertyMissingException} naming key
 	 * if it is. Useful for a property that is required but was set programmatically (e.g.
-	 * a builder setter) rather than resolved through {@link #string()}/etc, so there is
+	 * a builder setter) rather than resolved through {@link #ofString()}/etc, so there is
 	 * no {@link Result} to check for missing-ness.
 	 * @param <T> value type.
 	 * @param key property key, used only in the exception message.
@@ -277,7 +277,7 @@ class DefaultLogKeyed implements LogKeyed {
 	}
 
 	@Override
-	public Result<String> string() {
+	public Result<String> ofString() {
 		return resolve(k -> {
 			var v = this.properties.stringPropertyOrNull(k);
 			return v == null ? null : new Result.Success.PropertySuccess<>(v, v.value());
@@ -285,7 +285,7 @@ class DefaultLogKeyed implements LogKeyed {
 	}
 
 	@Override
-	public Result<List<String>> list() {
+	public Result<List<String>> ofList() {
 		return resolve(k -> {
 			FoundProperty.@Nullable ListProperty prop = properties.listPropertyOrNull(k);
 			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
@@ -293,7 +293,7 @@ class DefaultLogKeyed implements LogKeyed {
 	}
 
 	@Override
-	public Result<Map<String, String>> keyValues() {
+	public Result<Map<String, String>> ofKeyValues() {
 		return resolve(k -> {
 			FoundProperty.@Nullable MapProperty prop = properties.mapPropertyOrNull(k);
 			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
