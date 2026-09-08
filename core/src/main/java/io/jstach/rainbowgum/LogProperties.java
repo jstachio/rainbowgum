@@ -476,10 +476,31 @@ public interface LogProperties {
 		return findUpPathOrNull(key, k -> func.apply(this, concatKey(root, k)));
 	}
 
+	/**
+	 * Starts resolving a property under key against this properties - the preferred entry
+	 * point for looking up and converting a property, see {@link LogProperty}.
+	 * @param key key, must start with {@value #ROOT_PREFIX} and not start or end with
+	 * {@value #SEP}.
+	 * @return a LogProperty ready to be resolved (e.g. via
+	 * {@link LogProperty#ofString()}) or given fallback keys to try (via
+	 * {@link LogProperty#or(String)}).
+	 * @throws IllegalArgumentException if key is malformed.
+	 */
 	default LogProperty forKey(String key) {
 		return LogProperty.of(this, key);
 	}
 
+	/**
+	 * Starts resolving a property under key, with a <code>{name}</code> placeholder in
+	 * key interpolated to nameParam, against this properties.
+	 * @param key key, containing a <code>{name}</code> placeholder, and once interpolated
+	 * must start with {@value #ROOT_PREFIX} and not start or end with {@value #SEP}.
+	 * @param nameParam value to interpolate for <code>{name}</code> in key.
+	 * @return a LogProperty ready to be resolved (e.g. via
+	 * {@link LogProperty#ofString()}) or given fallback keys to try (via
+	 * {@link LogProperty#or(String, String)}).
+	 * @throws IllegalArgumentException if the interpolated key is malformed.
+	 */
 	default LogProperty forKey(String key, String nameParam) {
 		return LogProperty.of(this, key, nameParam);
 	}
