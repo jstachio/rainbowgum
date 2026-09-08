@@ -187,8 +187,30 @@ unifying.
       alternative worth considering: a single `Property`-like object that just
       holds the config, the type, the key, *and* the last-retrieved value/result
       together, instead of threading that state through several distinct types.
-      Not a quick fix - would touch every call site in this section - but should
-      be the starting point if `LogProperty` gets a real redesign pass.
+      **Largely done on `refactory/logproperty`**: `PropertyGetter` and its whole
+      family (`RootPropertyGetter`, `ChildPropertyGetter`, `SearchPropertyGetter`,
+      `AbstractKeysBuilder`, `PropertyKeyBuilder`, `Property`, `DefaultProperty`,
+      `FallbackGetter`, `MapGetter`, `ListGetter`, `ResultFuncGetter`) are gone;
+      `LogKeyed` was merged into `LogProperty`, which now holds config + key +
+      type + value/`Result` together via `LogProperties#forKey(String)`.
+      `LogProperties` gained a generic `visit(key, visitor)` combinator so
+      implementers no longer need to know about property-resolution internals.
+      One loose end remains, see the `FoundProperty` item just below.
+- [ ] **Consider consolidating `FoundProperty`** now that it's package-private
+      (moved out of `LogProperty` to a top-level sibling type in the same file
+      specifically to achieve that - nested interface members are always
+      implicitly public in Java, so hiding it required becoming a top-level
+      type). It currently has three near-identical record variants
+      (`StringProperty`/`ListProperty`/`MapProperty`) rather than one generic
+      class; Adam had reservations about collapsing them earlier in the cycle
+      while the type was still (accidentally) public, since they map directly to
+      `LogProperties`'s own `valueOrNull`/`listOrNull`/`mapOrNull` trio and felt
+      "native" enough to deserve staying distinct. Now that `FoundProperty` is
+      confirmed internal-only, Adam's fine with revisiting that - either
+      consolidating to one class or removing `FoundProperty` entirely (folding
+      its fields into `PropertySuccess` directly). Deliberately deferred to a
+      follow-up PR rather than growing this cycle's already-large
+      `refactory/logproperty` branch further.
 
 ## 5. Whatever else before 1.0.0
 
