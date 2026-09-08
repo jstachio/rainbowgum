@@ -31,6 +31,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
+import io.jstach.rainbowgum.LogProperty.Result;
 
 /*
  * RainbowGumHolder is static, JVM-wide state (see RainbowGumEntryPointTest's own comment
@@ -329,44 +330,39 @@ class LogPropertiesTest {
 	@Test
 	void testStringPropertyOrNull() {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "v1");
-		var found = props.stringPropertyOrNull("logging.p1");
-		if (found == null) {
+		var result = props.forKey("logging.p1").ofString();
+		if (!(result instanceof Result.Success<String> success)) {
 			throw new AssertionError();
 		}
-		assertEquals("v1", found.value());
-		assertEquals("logging.p1", found.key());
-		assertNull(props.stringPropertyOrNull("logging.missing"));
+		assertEquals("v1", success.value());
+		assertEquals("logging.p1", success.key());
+		assertTrue(props.forKey("logging.missing").ofString() instanceof Result.Missing<String>);
+	}
+
+	private static String valueDescriptionOf(Result<?> result) {
+		if (!(result instanceof Result.Success.PropertySuccess<?> success)) {
+			throw new AssertionError();
+		}
+		return success.property().valueDescription();
 	}
 
 	@ParameterizedTest
 	@ValueSource(strings = { "password", "PASSWORD", "apikey", "secret", "token" })
 	void testStringPropertyValueDescriptionRedactsExactMatch(String value) {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", value);
-		var found = props.stringPropertyOrNull("logging.p1");
-		if (found == null) {
-			throw new AssertionError();
-		}
-		assertEquals("<REDACTED>", found.valueDescription());
+		assertEquals("<REDACTED>", valueDescriptionOf(props.forKey("logging.p1").ofString()));
 	}
 
 	@Test
 	void testStringPropertyValueDescriptionRedactsSubstringMatch() {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "my-password-123");
-		var found = props.stringPropertyOrNull("logging.p1");
-		if (found == null) {
-			throw new AssertionError();
-		}
-		assertEquals("<REDACTED>", found.valueDescription());
+		assertEquals("<REDACTED>", valueDescriptionOf(props.forKey("logging.p1").ofString()));
 	}
 
 	@Test
 	void testStringPropertyValueDescriptionPassesThroughOrdinaryValues() {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "hello");
-		var found = props.stringPropertyOrNull("logging.p1");
-		if (found == null) {
-			throw new AssertionError();
-		}
-		assertEquals("hello", found.valueDescription());
+		assertEquals("hello", valueDescriptionOf(props.forKey("logging.p1").ofString()));
 	}
 
 	@Test
@@ -374,11 +370,7 @@ class LogPropertiesTest {
 		var props = LogProperties.builder().fromProperties("""
 				logging.a=x,y
 				""").build();
-		var found = props.listPropertyOrNull("logging.a");
-		if (found == null) {
-			throw new AssertionError();
-		}
-		assertEquals("[x, y]", found.valueDescription());
+		assertEquals("[x, y]", valueDescriptionOf(props.forKey("logging.a").ofList()));
 	}
 
 	@Test
@@ -386,11 +378,7 @@ class LogPropertiesTest {
 		var props = LogProperties.builder().fromProperties("""
 				logging.a=k=v
 				""").build();
-		var found = props.mapPropertyOrNull("logging.a");
-		if (found == null) {
-			throw new AssertionError();
-		}
-		assertEquals("{k=v}", found.valueDescription());
+		assertEquals("{k=v}", valueDescriptionOf(props.forKey("logging.a").ofKeyValues()));
 	}
 
 	@Test
@@ -541,19 +529,15 @@ class LogPropertiesTest {
 	}
 
 	@Test
-	void testListLogPropertiesStringAndMapPropertyOrNullSearchInOrder() {
+	void testListLogPropertiesVisitSearchesMembersInOrder() {
 		var a = LogProperties.MutableLogProperties.builder().build();
 		var b = LogProperties.builder().fromProperties("""
 				logging.a=k=v
 				""").build();
 		var composite = LogProperties.of(List.of(a, b));
-		if (composite.stringPropertyOrNull("logging.a") == null) {
-			throw new AssertionError();
-		}
-		if (composite.mapPropertyOrNull("logging.a") == null) {
-			throw new AssertionError();
-		}
-		assertNull(composite.mapPropertyOrNull("logging.missing"));
+		assertTrue(composite.forKey("logging.a").ofString() instanceof Result.Success<String>);
+		assertTrue(composite.forKey("logging.a").ofKeyValues() instanceof Result.Success<Map<String, String>>);
+		assertTrue(composite.forKey("logging.missing").ofKeyValues() instanceof Result.Missing<Map<String, String>>);
 	}
 
 	@Test

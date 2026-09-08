@@ -26,10 +26,6 @@ import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperties.Builder.AbstractLogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
-import io.jstach.rainbowgum.LogProperty.FoundProperty;
-import io.jstach.rainbowgum.LogProperty.FoundProperty.ListProperty;
-import io.jstach.rainbowgum.LogProperty.FoundProperty.MapProperty;
-import io.jstach.rainbowgum.LogProperty.FoundProperty.StringProperty;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
@@ -418,45 +414,24 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Find <strong>string</strong> property or <code>null</code>.
-	 * @param key property name.
-	 * @return found property or <code>null</code>
+	 * Visits this properties with visitor, by default just applying visitor to this and
+	 * key directly. A composite/aggregate {@link LogProperties} (one backed by more than
+	 * one underlying source) overrides this to recursively visit each of its members in
+	 * order, returning the first non-<code>null</code> result - which member actually
+	 * produced it is exactly what visitor is handed as its first argument, so a composite
+	 * never needs to know anything about what visitor is trying to build (a raw value, a
+	 * {@link LogProperty.FoundProperty}, or anything else); it just walks its members and
+	 * stops at the first hit.
+	 * @param <R> result type.
+	 * @param key property key.
+	 * @param visitor applied to (the member of this properties that ends up handling the
+	 * visit, key); a <code>null</code> return means keep visiting.
+	 * @return first non-<code>null</code> result, or <code>null</code> if nothing visited
+	 * produced one.
 	 */
-	@SuppressWarnings("exports")
-	default FoundProperty.@Nullable StringProperty stringPropertyOrNull(String key) {
-		String v = valueOrNull(key);
-		if (v != null) {
-			return new FoundProperty.StringProperty(this, key, v);
-		}
-		return null;
-	}
-
-	/**
-	 * Find <strong>list</strong> property or <code>null</code>.
-	 * @param key property name.
-	 * @return found property or <code>null</code>
-	 */
-	@SuppressWarnings("exports")
-	default FoundProperty.@Nullable ListProperty listPropertyOrNull(String key) {
-		var v = listOrNull(key);
-		if (v != null) {
-			return new FoundProperty.ListProperty(this, key, v);
-		}
-		return null;
-	}
-
-	/**
-	 * Find <strong>map</strong> property or <code>null</code>.
-	 * @param key property name.
-	 * @return found property or <code>null</code>
-	 */
-	@SuppressWarnings("exports")
-	default FoundProperty.@Nullable MapProperty mapPropertyOrNull(String key) {
-		var v = mapOrNull(key);
-		if (v != null) {
-			return new FoundProperty.MapProperty(this, key, v);
-		}
-		return null;
+	default <R extends @Nullable Object> @Nullable R visit(String key,
+			BiFunction<LogProperties, String, @Nullable R> visitor) {
+		return visitor.apply(this, key);
 	}
 
 	/**
@@ -1414,31 +1389,10 @@ interface ListLogProperties extends LogProperties {
 	}
 
 	@Override
-	default @Nullable StringProperty stringPropertyOrNull(String key) {
+	default <R extends @Nullable Object> @Nullable R visit(String key,
+			BiFunction<LogProperties, String, @Nullable R> visitor) {
 		for (var props : properties()) {
-			var value = props.stringPropertyOrNull(key);
-			if (value != null) {
-				return value;
-			}
-		}
-		return null;
-	}
-
-	@Override
-	default @Nullable ListProperty listPropertyOrNull(String key) {
-		for (var props : properties()) {
-			var value = props.listPropertyOrNull(key);
-			if (value != null) {
-				return value;
-			}
-		}
-		return null;
-	}
-
-	@Override
-	default @Nullable MapProperty mapPropertyOrNull(String key) {
-		for (var props : properties()) {
-			var value = props.mapPropertyOrNull(key);
+			var value = props.visit(key, visitor);
 			if (value != null) {
 				return value;
 			}
