@@ -17,7 +17,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogProperty.Property;
-import io.jstach.rainbowgum.LogProperty.PropertyGetter;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
@@ -348,11 +347,6 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 abstract class AbstractChangePublisher implements ChangePublisher {
 
-	static final PropertyGetter<Set<ChangeType>> changeSetting = PropertyGetter.of()
-		.withSearch(LogProperties.CHANGE_PREFIX)
-		.ofList()
-		.map(s -> ChangeType.parse(s));
-
 	/*
 	 * TODO Ideally this would be a concurrent weak hashmap. The reasoning is we may want
 	 * a configuration where SLF4J loggers are not stored in concurrent hash map but some
@@ -387,7 +381,9 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
-		return changeSetting.get(config().properties(), loggerName).or(Set.of()).value();
+		var value = config().properties()
+			.findOrNull(LogProperties.CHANGE_PREFIX, loggerName, LogProperties::listOrNull);
+		return value == null ? Set.of() : ChangeType.parse(value);
 	}
 
 }
@@ -446,8 +442,7 @@ final class DefaultLogConfig implements LogConfig {
 			.ofBoolean()
 			.build(LogProperties.GLOBAL_CHANGE_PROPERTY)
 			.get(properties)
-			.or(false)
-			.value();
+			.value(false);
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		applyGlobalAppenderReentrantLockProperty(properties);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
@@ -471,8 +466,7 @@ final class DefaultLogConfig implements LogConfig {
 			.ofBoolean()
 			.build(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
 			.get(properties)
-			.or(false)
-			.value();
+			.value(false);
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {

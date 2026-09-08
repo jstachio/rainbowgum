@@ -58,7 +58,7 @@ record BuilderModel( //
 
 	// https://github.com/jstachio/jstachio/issues/325
 	@JStacheLambda(
-			template = "{{#checkForNull}}{{propertyVar}}.require({{> @section}}){{/checkForNull}}{{^checkForNull}}{{> @section}}{{/checkForNull}}")
+			template = "{{#checkForNull}}io.jstach.rainbowgum.LogKeyed.require({{propertyVar}}, {{> @section}}){{/checkForNull}}{{^checkForNull}}{{> @section}}{{/checkForNull}}")
 	public String validate(PropertyModel pm) {
 		return "";
 	}
@@ -106,19 +106,39 @@ record BuilderModel( //
 		// return typeWithAnnotation;
 		// }
 
-		public @Nullable String convertMethod() {
+		/**
+		 * The {@link io.jstach.rainbowgum.LogKeyed} accessor method to call to get this
+		 * property's raw (pre-converter) {@link io.jstach.rainbowgum.LogProperty.Result}.
+		 * A property with a custom {@link #converter} always reads as a plain string -
+		 * every {@code @ConvertParameter} method takes a {@code String} - regardless of
+		 * its declared {@link #type}.
+		 * @return LogKeyed method name, no parens, e.g. "ofInt".
+		 */
+		public String baseAccessor() {
 			if (converter != null) {
-				return ".map(_v -> " + converter.methodName + "(_v))";
+				return "string";
 			}
 			return switch (type) {
-				case INTEGER_TYPE -> ".ofInt()";
-				case STRING_TYPE -> null;
-				case URI_TYPE -> ".ofURI()";
-				case BOOLEAN_TYPE -> ".ofBoolean()";
-				case MAP_TYPE -> ".ofMap()";
-				case LIST_TYPE -> ".ofList()";
+				case INTEGER_TYPE -> "ofInt";
+				case STRING_TYPE -> "string";
+				case URI_TYPE -> "ofURI";
+				case BOOLEAN_TYPE -> "ofBoolean";
+				case MAP_TYPE -> "keyValues";
+				case LIST_TYPE -> "list";
 				default -> throw new IllegalStateException(type + " is not supported");
 			};
+		}
+
+		public boolean hasConverter() {
+			return converter != null;
+		}
+
+		public String converterMethodName() {
+			var c = converter;
+			if (c == null) {
+				throw new IllegalStateException("no converter");
+			}
+			return c.methodName;
 		}
 
 		public String typeDescription() {
