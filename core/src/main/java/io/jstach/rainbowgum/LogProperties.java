@@ -420,8 +420,8 @@ public interface LogProperties {
 	 * order, returning the first non-<code>null</code> result - which member actually
 	 * produced it is exactly what visitor is handed as its first argument, so a composite
 	 * never needs to know anything about what visitor is trying to build (a raw value, a
-	 * {@link FoundProperty}, or anything else); it just walks its members and stops at
-	 * the first hit.
+	 * resolved property, or anything else); it just walks its members and stops at the
+	 * first hit.
 	 * @param <R> result type.
 	 * @param key property key.
 	 * @param visitor applied to (the member of this properties that ends up handling the
