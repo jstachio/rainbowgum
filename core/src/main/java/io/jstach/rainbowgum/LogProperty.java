@@ -14,9 +14,6 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogProperty.PropertyFunction;
-import io.jstach.rainbowgum.LogProperty.PropertyValue;
-import io.jstach.rainbowgum.LogProperty.Result;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
