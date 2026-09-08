@@ -17,7 +17,6 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -41,22 +40,24 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
 
-		Property<Integer> bufferSize = Property.builder() //
+		Integer bufferSize = config.properties() //
+			.forKey("logging.custom.async.bufferSize")
 			.ofInt()
-			.orElse(1024)
-			.build("logging.custom.async.bufferSize");
+			.or(1024)
+			.value();
 
-		LogProvider<LogOutput> output = Property.builder()
+		LogProvider<LogOutput> output = (name, cfg) -> cfg.properties()
+			.forKey("logging.custom.output")
 			.ofProvider(LogOutput::of)
-			.orElse(LogOutput.ofStandardOut())
-			.withKey("logging.custom.output")
-			.provider(o -> o);
+			.or(LogOutput.ofStandardOut())
+			.value()
+			.provide(name, cfg);
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
 				r.publisher(PublisherFactory //
 					.async() //
-					.bufferSize(r.value(bufferSize)) //
+					.bufferSize(bufferSize) //
 					.build());
 				r.appender("console", a -> {
 					a.output(output);
@@ -317,10 +318,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 			var routes = this.routes;
 			var config = this.config;
 			if (routes.isEmpty()) {
-				List<String> routeNames = Property.builder() //
+				List<String> routeNames = config.properties() //
+					.forKey(LogProperties.ROUTES_PROPERTY)
 					.ofList()
-					.build(LogProperties.ROUTES_PROPERTY)
-					.get(config.properties())
 					.or(List.of())
 					.value();
 				if (routeNames.isEmpty()) {

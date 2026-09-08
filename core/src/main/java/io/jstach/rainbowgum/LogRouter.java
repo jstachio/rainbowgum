@@ -19,7 +19,6 @@ import java.util.function.Function;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
@@ -344,11 +343,10 @@ public sealed interface LogRouter extends LogLifecycle {
 			 */
 			Router build(RouterFactory factory) {
 				String name = this.name;
-				flags.addAll(Property.builder()
+				flags.addAll(config.properties()
+					.forKey(LogProperties.ROUTE_FLAGS_PROPERTY, name)
 					.ofList()
 					.map(RouteFlag::parse)
-					.buildWithName(LogProperties.ROUTE_FLAGS_PROPERTY, name)
-					.get(config.properties())
 					.or(EnumSet.noneOf(RouteFlag.class))
 					.value());
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
@@ -422,11 +420,11 @@ public sealed interface LogRouter extends LogLifecycle {
 				}
 
 				if (publisher == null) {
-					publisher = Property.builder() //
-						.ofProviderRef() //
-						.map(r -> config.publisherRegistry().provide(r)) //
-						.buildWithName(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
-						.get(config.properties())
+					var properties = config.properties();
+					publisher = LogKeyed
+						.convert(properties,
+								properties.forKey(LogProperties.ROUTE_PUBLISHER_PROPERTY, name).ofProviderRef(),
+								r -> config.publisherRegistry().provide(r))
 						.or(() -> LogPublisher.SyncLogPublisher.builder().build())
 						.value();
 				}
@@ -788,19 +786,19 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	}
 
 	private static Level queueLevel() {
-		return LogProperty.builder()
-			.build(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY)
-			.map(LevelResolver::parseLevel)
-			.get(LogProperties.StandardProperties.SYSTEM_PROPERTIES)
+		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+		return LogKeyed
+			.convert(properties, properties.forKey(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY).ofString(),
+					LevelResolver::parseLevel)
 			.or(Level.INFO)
 			.value();
 	}
 
 	private static final Level errorLevel() {
-		return LogProperty.builder()
-			.build(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY)
-			.map(LevelResolver::parseLevel)
-			.get(LogProperties.StandardProperties.SYSTEM_PROPERTIES)
+		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+		return LogKeyed
+			.convert(properties, properties.forKey(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY).ofString(),
+					LevelResolver::parseLevel)
 			.or(Level.ERROR)
 			.value();
 	}

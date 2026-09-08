@@ -7,7 +7,6 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.svc.ServiceProvider;
@@ -73,13 +72,11 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	}
 
 	private boolean isGlobalAnsiDisabled(LogConfig config) {
-		boolean globalDisable = Property.builder() //
+		return config.properties()
+			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
 			.ofBoolean() //
-			.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
-			.get(config.properties()) //
 			.or(false)
 			.value();
-		return globalDisable;
 	}
 
 }

@@ -4,7 +4,6 @@ import java.util.logging.Logger;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
@@ -27,14 +26,6 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	 */
 	public static final String JUL_LEVEL_DISABLE_PROPERTY = "logging.jul.level.disable";
 
-	static final Property<Boolean> JUL_DISABLE_PROPERTY_ = Property.builder()
-		.ofBoolean() //
-		.build(JUL_DISABLE_PROPERTY);
-
-	static final Property<Boolean> JUL_LEVEL_DISABLE_PROPERTY_ = Property.builder()
-		.ofBoolean() //
-		.build(JUL_LEVEL_DISABLE_PROPERTY);
-
 	private volatile boolean installed = false;
 
 	/**
@@ -51,7 +42,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 		else {
 			installed = true;
 		}
-		var disableLevel = JUL_LEVEL_DISABLE_PROPERTY_.get(config.properties()).or(false).value();
+		var disableLevel = config.properties().forKey(JUL_LEVEL_DISABLE_PROPERTY).ofBoolean().or(false).value();
 
 		if (!disableLevel) {
 			var logger = Logger.getLogger("");
@@ -79,7 +70,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	 * @hidden
 	 */
 	public static boolean install(@SuppressWarnings("exports") LogProperties properties) {
-		if (JUL_DISABLE_PROPERTY_.get(properties).or(false).value()) {
+		if (properties.forKey(JUL_DISABLE_PROPERTY).ofBoolean().or(false).value()) {
 			return false;
 		}
 		if (!isLoggingModuleAvailable()) {

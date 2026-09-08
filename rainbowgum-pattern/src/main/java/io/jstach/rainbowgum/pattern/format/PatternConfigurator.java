@@ -11,7 +11,6 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.ServiceRegistry;
@@ -64,12 +63,7 @@ public final class PatternConfigurator implements Configurator {
 		services.putIfAbsent(PatternCompiler.class, n, () -> PatternCompiler.of(b -> {
 		}).provide(n, config));
 		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider());
-		var disable = LogProperty.builder()
-			.ofBoolean()
-			.build(LOGGING_PATTERN_DISABLE_PROPERTY)
-			.get(config.properties())
-			.or(false)
-			.value();
+		var disable = config.properties().forKey(LOGGING_PATTERN_DISABLE_PROPERTY).ofBoolean().or(false).value();
 		if (!disable) {
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, (name, c) -> {
 				PatternEncoderBuilder b = new PatternEncoderBuilder(name);

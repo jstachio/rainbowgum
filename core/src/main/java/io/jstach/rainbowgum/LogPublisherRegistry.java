@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
@@ -150,10 +149,8 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 
 		@Override
 		protected PublisherFactory provide(String name, LogProperties properties) {
-			int _bufferSize = Property.builder()
+			int _bufferSize = properties.forKey(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name)
 				.ofInt() //
-				.buildWithName(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name) //
-				.get(properties) //
 				.or(LogPublisherRegistry.ASYNC_BUFFER_SIZE)
 				.value();
 			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize,

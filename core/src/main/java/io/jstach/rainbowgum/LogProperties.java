@@ -49,12 +49,11 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * "https://docs.spring.io/spring-boot/docs/3.1.0/reference/html/features.html#features.logging">
  * Spring Boot logging </a>
  * <p>
- * LogProperties should generally be accessed with the {@link LogProperty.PropertyGetter}
- * and {@link LogProperty.Property} like-monads which will allow safe
- * <em>programmatic</em> data conversion of the flat key values and useful error messages
- * to users if the property cannot be mapped or is missing. For more <em>declarative</em>
- * injection of properties see {@link LogConfigurable} which will generate builders that
- * can use LogProperties.
+ * LogProperties should generally be accessed with {@link #forKey(String)} (see
+ * {@link LogKeyed}) which will allow safe <em>programmatic</em> data conversion of the
+ * flat key values and useful error messages to users if the property cannot be mapped or
+ * is missing. For more <em>declarative</em> injection of properties see
+ * {@link LogConfigurable} which will generate builders that can use LogProperties.
  * <p>
  * Rainbow Gum treats {@value #SEP} in the keys as special separator analogous to
  * JavaScript/JSON and various other configuration systems. Furthermore to work with a
