@@ -1,9 +1,9 @@
 {{=$$ $$=}}
 package $$packageName$$;
 
+import io.jstach.rainbowgum.LogKeyed;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
-import io.jstach.rainbowgum.LogProperty.Property;
 
 /**
  * Builder to create {@link $$targetType$$ }.
@@ -52,7 +52,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 	private final String propertyPrefix;
 	$$#properties$$
 	$$#normal$$
-	final Property<$$typeWithNoAnnotation$$> $$propertyVar$$;
+	final String $$propertyVar$$;
 	$$/normal$$
 	$$/properties$$
 	
@@ -87,11 +87,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		this.propertyPrefix = LogProperties.interpolateKey(PROPERTY_PREFIX, prefixParameters);
 		$$#properties$$
 		$$#normal$$
-		$$propertyVar$$ = Property.builder()
-			$$#convertMethod$$$$.$$
-			$$/convertMethod$$
-			.build(LogProperties.interpolateKey($$propertyLiteral$$, prefixParameters));
-
+		$$propertyVar$$ = LogProperties.interpolateKey($$propertyLiteral$$, prefixParameters);
 		$$/normal$$
 		$$#prefixParameter$$
 		this.$$name$$ = $$name$$;
@@ -153,7 +149,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		var __v = LogProperty.Validator.of(this.getClass());
 		$$#properties$$
 		$$#normal$$
-		var _$$name$$ = $$propertyVar$$.get(properties).or(this.$$name$$);
+		var _$$name$$ = $$#hasConverter$$LogKeyed.convert(properties, properties.forKey($$propertyVar$$).$$baseAccessor$$(), _v -> $$converterMethodName$$(_v))$$/hasConverter$$$$^hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$()$$/hasConverter$$.or(this.$$name$$);
 		__v.$$validateMethod$$(_$$name$$);
 		$$/normal$$
 		$$/properties$$
@@ -175,7 +171,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		$$#normal$$
 		var _$$name$$ = this.$$name$$;
 		if (_$$name$$ != null) {
-			consumer.accept($$propertyVar$$.key(), $$propertyVar$$.propertyString(_$$name$$));
+			consumer.accept($$propertyVar$$, LogKeyed.propertyString(_$$name$$));
 		}
 		$$/normal$$
 		$$/properties$$
