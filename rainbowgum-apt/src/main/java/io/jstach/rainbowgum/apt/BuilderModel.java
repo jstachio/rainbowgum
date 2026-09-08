@@ -58,7 +58,7 @@ record BuilderModel( //
 
 	// https://github.com/jstachio/jstachio/issues/325
 	@JStacheLambda(
-			template = "{{#checkForNull}}io.jstach.rainbowgum.LogKeyed.require({{propertyVar}}, {{> @section}}){{/checkForNull}}{{^checkForNull}}{{> @section}}{{/checkForNull}}")
+			template = "{{#checkForNull}}io.jstach.rainbowgum.LogProperty.require({{propertyVar}}, {{> @section}}){{/checkForNull}}{{^checkForNull}}{{> @section}}{{/checkForNull}}")
 	public String validate(PropertyModel pm) {
 		return "";
 	}
@@ -107,12 +107,13 @@ record BuilderModel( //
 		// }
 
 		/**
-		 * The {@link io.jstach.rainbowgum.LogKeyed} accessor method to call to get this
-		 * property's raw (pre-converter) {@link io.jstach.rainbowgum.LogProperty.Result}.
-		 * A property with a custom {@link #converter} always reads as a plain string -
-		 * every {@code @ConvertParameter} method takes a {@code String} - regardless of
-		 * its declared {@link #type}.
-		 * @return LogKeyed method name, no parens, e.g. "ofInt".
+		 * The {@link io.jstach.rainbowgum.LogProperty} accessor method to call to get
+		 * this property's raw (pre-converter)
+		 * {@link io.jstach.rainbowgum.LogProperty.Result}. A property with a custom
+		 * {@link #converter} always reads as a plain string - every
+		 * {@code @ConvertParameter} method takes a {@code String} - regardless of its
+		 * declared {@link #type}.
+		 * @return LogProperty method name, no parens, e.g. "ofInt".
 		 */
 		public String baseAccessor() {
 			if (converter != null) {

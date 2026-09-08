@@ -6,8 +6,8 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import io.jstach.rainbowgum.LogKeyed;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -125,7 +125,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	 * @return initialization option.
 	 */
 	protected static InitOption initOption(LogProperties properties) {
-		return LogKeyed
+		return LogProperty
 			.convert(properties, properties.forKey(INITIALIZE_RAINBOW_GUM_PROPERTY).ofString(), InitOption::parse)
 			.or(InitOption.CHECK)
 			.value();
