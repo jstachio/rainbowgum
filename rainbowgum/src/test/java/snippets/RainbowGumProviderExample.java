@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.RainbowGum;
@@ -17,22 +16,24 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
 
-		Property<Integer> bufferSize = Property.builder() //
+		Integer bufferSize = config.properties() //
+			.forKey("logging.custom.async.bufferSize")
 			.ofInt()
-			.orElse(1024)
-			.build("logging.custom.async.bufferSize");
+			.or(1024)
+			.value();
 
-		LogProvider<LogOutput> output = Property.builder()
+		LogProvider<LogOutput> output = (name, cfg) -> cfg.properties()
+			.forKey("logging.custom.output")
 			.ofProvider(LogOutput::of)
-			.orElse(LogOutput.ofStandardOut())
-			.withKey("logging.custom.output")
-			.provider(o -> o);
+			.or(LogOutput.ofStandardOut())
+			.value()
+			.provide(name, cfg);
 
 		var gum = RainbowGum.builder() //
 			.route(r -> {
 				r.publisher(PublisherFactory //
 					.async() //
-					.bufferSize(r.value(bufferSize)) //
+					.bufferSize(bufferSize) //
 					.build());
 				r.appender("console", a -> {
 					a.output(output);

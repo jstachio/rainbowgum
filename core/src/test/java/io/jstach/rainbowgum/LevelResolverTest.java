@@ -524,9 +524,9 @@ class LevelResolverTest {
 	 * The above test only ever calls RouteFlag.parse(Collection) with a non-empty
 	 * collection (the property parses "IGNORE_GLOBAL_LEVEL_RESOLVER" into a one-element
 	 * list) - a route with no logging.route.<name>.flags property configured never
-	 * reaches parse(Collection) at all (the PropertyGetter is MISSING and its map()
-	 * short-circuits before calling the mapper), so the isEmpty() early return is only
-	 * reachable if the property is present but parses to zero elements.
+	 * reaches parse(Collection) at all (the Result is Missing and .map() short-circuits
+	 * before calling the mapper), so the isEmpty() early return is only reachable if the
+	 * property is present but parses to zero elements.
 	 */
 	@Test
 	void testRouteFlagParseCollectionOfEmptyIsEmptySet() {

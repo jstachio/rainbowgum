@@ -30,7 +30,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
 
 /*
@@ -61,7 +60,7 @@ class LogPropertiesTest {
 		var properties = LogProperties.of(List.of(LogProperties.StandardProperties.SYSTEM_PROPERTIES,
 				LogProperties.StandardProperties.ENVIRONMENT_VARIABLES));
 		try {
-			Property.builder().build("logging.some.ignoreMe").get(properties).value();
+			properties.forKey("logging.some.ignoreMe").ofString().value();
 			fail("expected exception");
 		}
 		catch (PropertyMissingException e) {
@@ -78,7 +77,7 @@ class LogPropertiesTest {
 			.removeKeyPrefix(LogProperties.ROOT_PREFIX)
 			.build();
 		try {
-			Property.builder().build("logging.some.ignoreMe").get(props).value();
+			props.forKey("logging.some.ignoreMe").ofString().value();
 			fail("expected exception");
 		}
 		catch (PropertyMissingException e) {
@@ -94,7 +93,7 @@ class LogPropertiesTest {
 			.renameKey(k -> LogProperties.removeKeyPrefix(k, LogProperties.ROOT_PREFIX))
 			.fromURIQuery(URI.create("stuff:///?blah=hello"))
 			.build();
-		String actual = Property.builder().build("logging.blah").get(props).value();
+		String actual = props.forKey("logging.blah").ofString().value();
 		assertEquals("hello", actual);
 
 	}
@@ -225,7 +224,7 @@ class LogPropertiesTest {
 			/*
 			 * Bad because we do not have the logging prefix
 			 */
-			LogProperty.builder().build("greet").get(badProps).value();
+			badProps.forKey("greet");
 		});
 		m.clear();
 		var props = MutableLogProperties.builder()
@@ -237,7 +236,7 @@ class LogPropertiesTest {
 			.build()
 			.put("greet", "hello");
 
-		String actual = LogProperty.builder().build("logging.greet").get(props).value();
+		String actual = props.forKey("logging.greet").ofString().value();
 		String expected = "hello";
 		assertEquals(expected, actual);
 	}
@@ -291,12 +290,7 @@ class LogPropertiesTest {
 		Map<String, String> actual = props.mapOrNull("a");
 		Map<String, String> expected = Map.of("a1", "v1", "a2", "v2");
 		assertEquals(expected, actual);
-		actual = LogProperty.builder()
-			.withPrefix(LogProperties.ROOT_PREFIX) //
-			.ofMap()
-			.build("a")
-			.get(props)
-			.value();
+		actual = props.forKey(LogProperties.concatKey(LogProperties.ROOT_PREFIX, "a")).ofKeyValues().value();
 		assertEquals(expected, actual);
 	}
 

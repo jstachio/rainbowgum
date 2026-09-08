@@ -8,7 +8,6 @@ import java.net.URI;
 
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.LogProperty.Result;
 
 class LogProviderRefTest {
@@ -32,8 +31,7 @@ class LogProviderRefTest {
 		LogProperties properties = LogProperties.MutableLogProperties.builder()
 			.build()
 			.put("logging.out", "console:///");
-		Property<URI> property = Property.builder().ofURI().build("logging.out");
-		Result<URI> result = property.get(properties);
+		Result<URI> result = properties.forKey("logging.out").ofURI();
 		if (!(result instanceof Result.Success<URI> success)) {
 			throw new AssertionError("expected a successful result");
 		}

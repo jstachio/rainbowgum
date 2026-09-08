@@ -16,7 +16,6 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
-import io.jstach.rainbowgum.LogProperty.Property;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
@@ -438,11 +437,7 @@ final class DefaultLogConfig implements LogConfig {
 		this.registry = registry;
 		this.properties = properties;
 		this.levelResolver = levelResolver;
-		boolean changeable = Property.builder() //
-			.ofBoolean()
-			.build(LogProperties.GLOBAL_CHANGE_PROPERTY)
-			.get(properties)
-			.value(false);
+		boolean changeable = properties.forKey(LogProperties.GLOBAL_CHANGE_PROPERTY).ofBoolean().or(false).value();
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		applyGlobalAppenderReentrantLockProperty(properties);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
@@ -462,11 +457,11 @@ final class DefaultLogConfig implements LogConfig {
 	 * guarantee independent of any single instance's configuration.
 	 */
 	private static void applyGlobalAppenderReentrantLockProperty(LogProperties properties) {
-		AbstractLogAppender.forceReentrantLockAppenders = Property.builder() //
+		AbstractLogAppender.forceReentrantLockAppenders = properties
+			.forKey(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
 			.ofBoolean()
-			.build(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
-			.get(properties)
-			.value(false);
+			.or(false)
+			.value();
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {

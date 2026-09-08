@@ -6,7 +6,6 @@ import java.util.stream.Stream;
 
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.format.AnsiSupport;
@@ -54,10 +53,9 @@ public sealed interface PatternCompiler {
 				.orElseGet(() -> PatternRegistry.of());
 			var patternConfig = findService(services, PatternConfig.class, name, LogProperties.DEFAULT_NAME)
 				.orElseGet(() -> {
-					boolean ansiDisable = LogProperty.Property.builder() //
+					boolean ansiDisable = config.properties()
+						.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 						.ofBoolean() //
-						.build(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
-						.get(config.properties()) //
 						.or(() -> !AnsiSupport.isAnsiSupported())
 						.value();
 					var b = PatternConfig.builder(name)

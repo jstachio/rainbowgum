@@ -213,7 +213,7 @@ public interface LogKeyed {
 	 * @return a new LogKeyed trying this key's keys followed by fallbackKey.
 	 */
 	default LogKeyed or(String fallbackKey) {
-		LogProperties.validateKeyParameters(fallbackKey, Set.of());
+		validateKey(fallbackKey);
 		return withKey(fallbackKey);
 	}
 
@@ -226,7 +226,9 @@ public interface LogKeyed {
 	 * @return a new LogKeyed trying this key's keys followed by fallbackKey.
 	 */
 	default LogKeyed or(String fallbackKey, String nameParam) {
-		return withKey(LogProperties.interpolateNamedKey(fallbackKey, nameParam));
+		String interpolated = LogProperties.interpolateNamedKey(fallbackKey, nameParam);
+		validateKey(interpolated);
+		return withKey(interpolated);
 	}
 
 	private LogKeyed withKey(String fallbackKey) {
@@ -236,12 +238,33 @@ public interface LogKeyed {
 	}
 
 	static LogKeyed of(LogProperties properties, String key) {
-		LogProperties.validateKeyParameters(key, Set.of());
+		validateKey(key);
 		return new DefaultLogKeyed(List.of(key), properties);
 	}
 
 	static LogKeyed of(LogProperties properties, String key, String nameParam) {
-		return new DefaultLogKeyed(List.of(LogProperties.interpolateNamedKey(key, nameParam)), properties);
+		String interpolated = LogProperties.interpolateNamedKey(key, nameParam);
+		validateKey(interpolated);
+		return new DefaultLogKeyed(List.of(interpolated), properties);
+	}
+
+	/**
+	 * Validates a fully resolved (post <code>{name}</code> interpolation) property key -
+	 * must start with {@value LogProperties#ROOT_PREFIX}, must not start or end with
+	 * {@value LogProperties#SEP}, and must not use a reserved key parameter name. Mirrors
+	 * what {@code PropertyGetter.validateKey} used to enforce.
+	 * @param key fully resolved key to validate.
+	 * @throws IllegalArgumentException if key is malformed.
+	 */
+	private static void validateKey(String key) {
+		if (!key.startsWith(LogProperties.ROOT_PREFIX)) {
+			throw new IllegalArgumentException(
+					"Property key should start with: '" + LogProperties.ROOT_PREFIX + "'. key = " + key);
+		}
+		if (key.endsWith(LogProperties.SEP) || key.startsWith(LogProperties.SEP)) {
+			throw new IllegalArgumentException("Property key should not start or end with '" + LogProperties.SEP + "'");
+		}
+		LogProperties.validateKeyParameters(key, Set.of());
 	}
 
 }
