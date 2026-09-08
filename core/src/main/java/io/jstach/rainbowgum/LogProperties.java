@@ -9,7 +9,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -26,10 +25,11 @@ import org.eclipse.jdt.annotation.Nullable;
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperties.Builder.AbstractLogProperties;
-import io.jstach.rainbowgum.LogProperties.FoundProperty.ListProperty;
-import io.jstach.rainbowgum.LogProperties.FoundProperty.MapProperty;
-import io.jstach.rainbowgum.LogProperties.FoundProperty.StringProperty;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
+import io.jstach.rainbowgum.LogProperty.FoundProperty;
+import io.jstach.rainbowgum.LogProperty.FoundProperty.ListProperty;
+import io.jstach.rainbowgum.LogProperty.FoundProperty.MapProperty;
+import io.jstach.rainbowgum.LogProperty.FoundProperty.StringProperty;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
@@ -500,104 +500,6 @@ public interface LogProperties {
 	 */
 	default int order() {
 		return 0;
-	}
-
-	/**
-	 * Found property retrieved from {@link LogProperties}. This is a bridge and meta data
-	 * needed for the {@link LogProperty} fluent like monads. It includes the original
-	 * value before conversions.
-	 *
-	 * @apiNote This sealed class is purposely not generic parameterized but you are
-	 * allowed to pattern match as the subclasses represent the builtin types of
-	 * properties that are supported.
-	 */
-	public sealed interface FoundProperty {
-
-		/**
-		 * The originating <em>exact</em> properties that the value was found on.
-		 * @return properties.
-		 */
-		LogProperties properties();
-
-		/**
-		 * The key that was used to find this property.
-		 * @return key also known as property name.
-		 */
-		String key();
-
-		/**
-		 * A string representation of the value that this property has usually for error
-		 * descriptions.
-		 * @return description of value.
-		 */
-		String valueDescription();
-
-		/**
-		 * A found <strong>string</strong> property result which includes the
-		 * <strong>exact</strong> properties where a value was found.
-		 *
-		 * @param properties the <strong>exact</strong> properties where the value was
-		 * found.
-		 * @param key property key.
-		 * @param value property string value.
-		 */
-		public record StringProperty(LogProperties properties, String key, String value) implements FoundProperty {
-			@Override
-			public String valueDescription() {
-				return maybeRedact(value);
-			}
-
-			private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
-
-			private static final String REDACTED_VALUE = "<REDACTED>";
-
-			private static final String maybeRedact(String input) {
-				String lower = input.toLowerCase(Locale.ROOT);
-				if (REDACTED_KEYS.contains(lower)) {
-					return REDACTED_VALUE;
-				}
-				for (var k : REDACTED_KEYS) {
-					if (input.contains(k)) {
-						return REDACTED_VALUE;
-					}
-				}
-				return input;
-			}
-		}
-
-		/**
-		 * A found <strong>list</strong> property result which includes the
-		 * <strong>exact</strong> properties where a value was found.
-		 *
-		 * @param properties the <strong>exact</strong> properties where the value was
-		 * found.
-		 * @param key property key.
-		 * @param value property string value.
-		 */
-		public record ListProperty(LogProperties properties, String key, List<String> value) implements FoundProperty {
-			@Override
-			public String valueDescription() {
-				return StringProperty.maybeRedact("" + value);
-			}
-		}
-
-		/**
-		 * A found <strong>map</strong> property result which includes the
-		 * <strong>exact</strong> properties where a value was found.
-		 *
-		 * @param properties the <strong>exact</strong> properties where the value was
-		 * found.
-		 * @param key property key.
-		 * @param value property string value.
-		 */
-		public record MapProperty(LogProperties properties, String key,
-				Map<String, String> value) implements FoundProperty {
-			@Override
-			public String valueDescription() {
-				return StringProperty.maybeRedact("" + value);
-			}
-		}
-
 	}
 
 	/**
