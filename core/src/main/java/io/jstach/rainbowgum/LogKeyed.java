@@ -18,12 +18,12 @@ public interface LogKeyed {
 	public Result<List<String>> list();
 	public Result<Map<String,String>> keyValues();
 	
-	public static LogKeyed of(LogProperties properties, String key) {
+	static LogKeyed of(LogProperties properties, String key) {
 		LogProperties.validateKeyParameters(key, Set.of());
 		return new DefaultLogKeyed(key, properties);
 	}
 	
-	public static LogKeyed of(LogProperties properties, String key, String nameParam) {
+	static LogKeyed of(LogProperties properties, String key, String nameParam) {
 		return new DefaultLogKeyed(LogProperties.interpolateNamedKey(key, nameParam), properties);
 	}
 	
