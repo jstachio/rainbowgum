@@ -421,10 +421,9 @@ public sealed interface LogRouter extends LogLifecycle {
 
 				if (publisher == null) {
 					var properties = config.properties();
-					publisher = LogProperty
-						.convert(properties,
-								properties.forKey(LogProperties.ROUTE_PUBLISHER_PROPERTY, name).ofProviderRef(),
-								r -> config.publisherRegistry().provide(r))
+					publisher = properties.forKey(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
+						.ofProviderRef()
+						.convert(properties, r -> config.publisherRegistry().provide(r))
 						.or(() -> LogPublisher.SyncLogPublisher.builder().build())
 						.value();
 				}
@@ -787,18 +786,18 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private static Level queueLevel() {
 		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
-		return LogProperty
-			.convert(properties, properties.forKey(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY).ofString(),
-					LevelResolver::parseLevel)
+		return properties.forKey(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY)
+			.ofString()
+			.convert(properties, LevelResolver::parseLevel)
 			.or(Level.INFO)
 			.value();
 	}
 
 	private static final Level errorLevel() {
 		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
-		return LogProperty
-			.convert(properties, properties.forKey(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY).ofString(),
-					LevelResolver::parseLevel)
+		return properties.forKey(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY)
+			.ofString()
+			.convert(properties, LevelResolver::parseLevel)
 			.or(Level.ERROR)
 			.value();
 	}

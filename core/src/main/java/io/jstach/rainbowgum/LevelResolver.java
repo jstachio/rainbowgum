@@ -722,9 +722,9 @@ final class GroupLevelResolver implements LevelConfig {
 		Map<String, Level> groupToLevels = new LinkedHashMap<>();
 		for (var e : groupToLoggers.entrySet()) {
 			String group = e.getKey();
-			LogProperty
-				.convert(properties, properties.forKey(LogProperties.concatKey(groupLevelPrefix, group)).ofString(),
-						LevelResolver::parseLevel)
+			properties.forKey(LogProperties.concatKey(groupLevelPrefix, group))
+				.ofString()
+				.convert(properties, LevelResolver::parseLevel)
 				.optional() //
 				.ifPresent(level -> groupToLevels.put(group, level));
 		}
@@ -773,9 +773,9 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	@Override
 	public @Nullable Level levelOrNull(String name) {
-		return LogProperty
-			.convert(properties, properties.forKey(LogProperties.concatKey(prefix, name)).ofString(),
-					LevelResolver::parseLevel)
+		return properties.forKey(LogProperties.concatKey(prefix, name))
+			.ofString()
+			.convert(properties, LevelResolver::parseLevel)
 			.valueOrNull();
 	}
 

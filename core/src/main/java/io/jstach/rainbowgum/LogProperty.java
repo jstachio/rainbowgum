@@ -74,7 +74,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<Integer> ofInt() {
-		return convert(properties(), ofString(), Integer::parseInt);
+		return ofString().convert(properties(), Integer::parseInt);
 	}
 
 	/**
@@ -82,7 +82,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<Boolean> ofBoolean() {
-		return convert(properties(), ofString(), Boolean::parseBoolean);
+		return ofString().convert(properties(), Boolean::parseBoolean);
 	}
 
 	/**
@@ -90,7 +90,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<URI> ofURI() {
-		return convert(properties(), ofString(), URI::new);
+		return ofString().convert(properties(), URI::new);
 	}
 
 	/**
@@ -116,39 +116,7 @@ public interface LogProperty {
 	 */
 	default <U> Result<LogProvider<U>> ofProvider(
 			PropertyFunction<LogProviderRef, LogProvider<U>, ? super Exception> mapper) {
-		return convert(properties(), ofProviderRef(), mapper);
-	}
-
-	/**
-	 * Like {@link Result#map(PropertyFunction)} but on conversion failure builds a richer
-	 * error message - which key it came from, where that key was found, and (for
-	 * {@link PropertyConvertException}/{@link ValidationException} causes) the original
-	 * raw value - instead of {@code Result.map}'s terser one line message. Usable at any
-	 * point in a chain, not just directly off a {@link LogProperty}, since a
-	 * {@link Result.Success} keeps pointing back to the {@link FoundProperty} it
-	 * originally came from no matter how many conversions have run since.
-	 * @param <T> input value type.
-	 * @param <U> output value type.
-	 * @param properties the properties the original lookup was made against, used only
-	 * for the "Tried:" line of the error message.
-	 * @param result result to convert.
-	 * @param converter conversion function.
-	 * @return converted result.
-	 */
-	static <T, U> Result<U> convert(LogProperties properties, Result<T> result,
-			PropertyFunction<T, U, ? super Exception> converter) {
-		return switch (result) {
-			case Result.Success<T> s -> {
-				try {
-					yield mapValue(s, converter._apply(s.value()));
-				}
-				catch (Exception e) {
-					yield richError(properties, s, e);
-				}
-			}
-			case Result.Missing<T> m -> m.convert();
-			case Result.Error<T> e -> e.convert();
-		};
+		return ofProviderRef().convert(properties(), mapper);
 	}
 
 	/**
@@ -156,8 +124,9 @@ public interface LogProperty {
 	 * success was a {@link Result.Success.PropertySuccess} (and so which
 	 * {@link FoundProperty} it originally came from) or a
 	 * {@link Result.Success.ValueSuccess} - useful for a conversion step that cannot
-	 * itself throw, so {@link #convert} would be overkill, but that still needs to keep
-	 * the result's origin intact for a later conversion step's error message.
+	 * itself throw, so {@link Result#convert(LogProperties, PropertyFunction)} would be
+	 * overkill, but that still needs to keep the result's origin intact for a later
+	 * conversion step's error message.
 	 * @param <T> success's value type.
 	 * @param <U> new value type.
 	 * @param success success to take the origin from.
@@ -827,6 +796,35 @@ public interface LogProperty {
 		 */
 		@Override
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
+
+		/**
+		 * Like {@link #map(PropertyFunction)} but on conversion failure builds a richer
+		 * error message - which key it came from, where that key was found, and (for
+		 * {@link PropertyConvertException}/{@link ValidationException} causes) the
+		 * original raw value - instead of {@code map}'s terser one line message. Usable
+		 * at any point in a chain, not just directly off a {@link LogProperty}, since a
+		 * {@link Success} keeps pointing back to the property it originally came from no
+		 * matter how many conversions have run since.
+		 * @param <U> output value type.
+		 * @param properties the properties the original lookup was made against, used
+		 * only for the "Tried:" line of the error message.
+		 * @param converter conversion function.
+		 * @return converted result.
+		 */
+		default <U> Result<U> convert(LogProperties properties, PropertyFunction<T, U, ? super Exception> converter) {
+			return switch (this) {
+				case Success<T> s -> {
+					try {
+						yield mapValue(s, converter._apply(s.value()));
+					}
+					catch (Exception e) {
+						yield richError(properties, s, e);
+					}
+				}
+				case Missing<T> m -> m.convert();
+				case Error<T> e -> e.convert();
+			};
+		}
 
 		/**
 		 * Convenience that turns a value into an optional.
