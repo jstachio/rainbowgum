@@ -50,7 +50,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * Spring Boot logging </a>
  * <p>
  * LogProperties should generally be accessed with {@link #forKey(String)} (see
- * {@link LogKeyed}) which will allow safe <em>programmatic</em> data conversion of the
+ * {@link LogProperty}) which will allow safe <em>programmatic</em> data conversion of the
  * flat key values and useful error messages to users if the property cannot be mapped or
  * is missing. For more <em>declarative</em> injection of properties see
  * {@link LogConfigurable} which will generate builders that can use LogProperties.
@@ -476,12 +476,12 @@ public interface LogProperties {
 		return findUpPathOrNull(key, k -> func.apply(this, concatKey(root, k)));
 	}
 
-	default LogKeyed forKey(String key) {
-		return LogKeyed.of(this, key);
+	default LogProperty forKey(String key) {
+		return LogProperty.of(this, key);
 	}
 
-	default LogKeyed forKey(String key, String nameParam) {
-		return LogKeyed.of(this, key, nameParam);
+	default LogProperty forKey(String key, String nameParam) {
+		return LogProperty.of(this, key, nameParam);
 	}
 
 	/**

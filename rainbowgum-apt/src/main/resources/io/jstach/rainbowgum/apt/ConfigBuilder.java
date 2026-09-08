@@ -1,7 +1,6 @@
 {{=$$ $$=}}
 package $$packageName$$;
 
-import io.jstach.rainbowgum.LogKeyed;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 
@@ -149,7 +148,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		var __v = LogProperty.Validator.of(this.getClass());
 		$$#properties$$
 		$$#normal$$
-		var _$$name$$ = $$#hasConverter$$LogKeyed.convert(properties, properties.forKey($$propertyVar$$).$$baseAccessor$$(), _v -> $$converterMethodName$$(_v))$$/hasConverter$$$$^hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$()$$/hasConverter$$.or(this.$$name$$);
+		var _$$name$$ = $$#hasConverter$$LogProperty.convert(properties, properties.forKey($$propertyVar$$).$$baseAccessor$$(), _v -> $$converterMethodName$$(_v))$$/hasConverter$$$$^hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$()$$/hasConverter$$.or(this.$$name$$);
 		__v.$$validateMethod$$(_$$name$$);
 		$$/normal$$
 		$$/properties$$
@@ -171,7 +170,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		$$#normal$$
 		var _$$name$$ = this.$$name$$;
 		if (_$$name$$ != null) {
-			consumer.accept($$propertyVar$$, LogKeyed.propertyString(_$$name$$));
+			consumer.accept($$propertyVar$$, LogProperty.propertyString(_$$name$$));
 		}
 		$$/normal$$
 		$$/properties$$
