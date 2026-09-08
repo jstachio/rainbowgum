@@ -13,7 +13,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.LogProperty.FoundProperty.StringProperty;
+import io.jstach.rainbowgum.FoundProperty.StringProperty;
 import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
 import io.jstach.rainbowgum.LogProperty.PropertyFunction;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
