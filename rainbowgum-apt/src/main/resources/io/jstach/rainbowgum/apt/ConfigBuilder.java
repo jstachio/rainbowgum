@@ -148,7 +148,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		var __v = LogProperty.Validator.of(this.getClass());
 		$$#properties$$
 		$$#normal$$
-		var _$$name$$ = $$#hasConverter$$LogProperty.convert(properties, properties.forKey($$propertyVar$$).$$baseAccessor$$(), _v -> $$converterMethodName$$(_v))$$/hasConverter$$$$^hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$()$$/hasConverter$$.or(this.$$name$$);
+		var _$$name$$ = $$#hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$().convert(properties, _v -> $$converterMethodName$$(_v))$$/hasConverter$$$$^hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$()$$/hasConverter$$.or(this.$$name$$);
 		__v.$$validateMethod$$(_$$name$$);
 		$$/normal$$
 		$$/properties$$
