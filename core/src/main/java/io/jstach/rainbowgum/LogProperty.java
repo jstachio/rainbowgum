@@ -1127,15 +1127,21 @@ final class DefaultLogProperty implements LogProperty {
 	@Override
 	public Result<String> ofString() {
 		return resolve(k -> {
-			var v = this.properties.stringPropertyOrNull(k);
-			return v == null ? null : new Result.Success.PropertySuccess<>(v, v.value());
+			var prop = properties.visit(k, (p, kk) -> {
+				var v = p.valueOrNull(kk);
+				return v == null ? null : new FoundProperty.StringProperty(p, kk, v);
+			});
+			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
 		});
 	}
 
 	@Override
 	public Result<List<String>> ofList() {
 		return resolve(k -> {
-			FoundProperty.@Nullable ListProperty prop = properties.listPropertyOrNull(k);
+			var prop = properties.visit(k, (p, kk) -> {
+				var v = p.listOrNull(kk);
+				return v == null ? null : new FoundProperty.ListProperty(p, kk, v);
+			});
 			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
 		});
 	}
@@ -1143,7 +1149,10 @@ final class DefaultLogProperty implements LogProperty {
 	@Override
 	public Result<Map<String, String>> ofKeyValues() {
 		return resolve(k -> {
-			FoundProperty.@Nullable MapProperty prop = properties.mapPropertyOrNull(k);
+			var prop = properties.visit(k, (p, kk) -> {
+				var v = p.mapOrNull(kk);
+				return v == null ? null : new FoundProperty.MapProperty(p, kk, v);
+			});
 			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
 		});
 	}
