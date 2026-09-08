@@ -476,6 +476,14 @@ public interface LogProperties {
 			BiFunction<LogProperties, String, @Nullable T> func) {
 		return findUpPathOrNull(key, k -> func.apply(this, concatKey(root, k)));
 	}
+	
+	default LogKeyed forKey(String key) {
+		return LogKeyed.of(this, key);
+	}
+	
+	default LogKeyed forKey(String key, String nameParam) {
+		return LogKeyed.of(this, key, nameParam);
+	}
 
 	/**
 	 * Describes a key and by default is usually just the key.
