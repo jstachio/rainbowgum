@@ -118,12 +118,12 @@ public interface LogProperty {
 
 	/**
 	 * Rewraps a value that was already derived from success's value, preserving whether
-	 * success was a {@link Result.Success.PropertySuccess} (and so which
-	 * {@link FoundProperty} it originally came from) or a
-	 * {@link Result.Success.ValueSuccess} - useful for a conversion step that cannot
-	 * itself throw, so {@link Result#convert(LogProperties, PropertyFunction)} would be
-	 * overkill, but that still needs to keep the result's origin intact for a later
-	 * conversion step's error message.
+	 * success was a {@link Result.Success.PropertySuccess} (and so which underlying
+	 * property it originally came from) or a {@link Result.Success.ValueSuccess} - useful
+	 * for a conversion step that cannot itself throw, so
+	 * {@link Result#convert(LogProperties, PropertyFunction)} would be overkill, but that
+	 * still needs to keep the result's origin intact for a later conversion step's error
+	 * message.
 	 * @param <T> success's value type.
 	 * @param <U> new value type.
 	 * @param success success to take the origin from.
