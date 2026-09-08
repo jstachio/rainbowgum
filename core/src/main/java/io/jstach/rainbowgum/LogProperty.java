@@ -322,7 +322,7 @@ public interface LogProperty {
 	 * allowed to pattern match as the subclasses represent the builtin types of
 	 * properties that are supported.
 	 */
-	public sealed interface FoundProperty {
+	sealed interface FoundProperty {
 
 		/**
 		 * The originating <em>exact</em> properties that the value was found on.
@@ -352,7 +352,7 @@ public interface LogProperty {
 		 * @param key property key.
 		 * @param value property string value.
 		 */
-		public record StringProperty(LogProperties properties, String key, String value) implements FoundProperty {
+		record StringProperty(LogProperties properties, String key, String value) implements FoundProperty {
 			@Override
 			public String valueDescription() {
 				return maybeRedact(value);
@@ -385,7 +385,7 @@ public interface LogProperty {
 		 * @param key property key.
 		 * @param value property string value.
 		 */
-		public record ListProperty(LogProperties properties, String key, List<String> value) implements FoundProperty {
+		record ListProperty(LogProperties properties, String key, List<String> value) implements FoundProperty {
 			@Override
 			public String valueDescription() {
 				return StringProperty.maybeRedact("" + value);
@@ -401,8 +401,7 @@ public interface LogProperty {
 		 * @param key property key.
 		 * @param value property string value.
 		 */
-		public record MapProperty(LogProperties properties, String key,
-				Map<String, String> value) implements FoundProperty {
+		record MapProperty(LogProperties properties, String key, Map<String, String> value) implements FoundProperty {
 			@Override
 			public String valueDescription() {
 				return StringProperty.maybeRedact("" + value);
