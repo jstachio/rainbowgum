@@ -70,7 +70,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<Integer> ofInt() {
-		return ofString().convert(properties(), Integer::parseInt);
+		return ofString().convert(Integer::parseInt);
 	}
 
 	/**
@@ -78,7 +78,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<Boolean> ofBoolean() {
-		return ofString().convert(properties(), Boolean::parseBoolean);
+		return ofString().convert(Boolean::parseBoolean);
 	}
 
 	/**
@@ -86,7 +86,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<URI> ofURI() {
-		return ofString().convert(properties(), URI::new);
+		return ofString().convert(URI::new);
 	}
 
 	/**
@@ -112,16 +112,16 @@ public interface LogProperty {
 	 */
 	default <U> Result<LogProvider<U>> ofProvider(
 			PropertyFunction<LogProviderRef, LogProvider<U>, ? super Exception> mapper) {
-		return ofProviderRef().convert(properties(), mapper);
+		return ofProviderRef().convert(mapper);
 	}
 
 	/**
 	 * Rewraps a value that was already derived from success's value, keeping the
-	 * {@link Result.Success.PropertySuccess}'s origin (properties/key/rawValue/kind)
-	 * intact - useful for a conversion step that cannot itself throw, so
-	 * {@link Result#convert(LogProperties, PropertyFunction)} would be overkill, but that
-	 * still needs to keep the result's origin intact for a later conversion step's error
-	 * message.
+	 * {@link Result.Success.PropertySuccess}'s origin
+	 * (topProperties/properties/key/rawValue/kind) intact - useful for a conversion step
+	 * that cannot itself throw, so {@link Result#convert(PropertyFunction)} would be
+	 * overkill, but that still needs to keep the result's origin intact for a later
+	 * conversion step's error message.
 	 * @param <T> success's value type.
 	 * @param <U> new value type.
 	 * @param success success to take the origin from.
@@ -130,19 +130,18 @@ public interface LogProperty {
 	 */
 	static <T, U> Result.Success<U> mapValue(Result.Success<T> success, U value) {
 		return switch (success) {
-			case Result.Success.PropertySuccess<T> ps ->
-				new Result.Success.PropertySuccess<>(ps.properties(), ps.key(), ps.rawValue(), ps.kind(), value);
+			case Result.Success.PropertySuccess<T> ps -> new Result.Success.PropertySuccess<>(ps.topProperties(),
+					ps.properties(), ps.key(), ps.rawValue(), ps.kind(), value);
 		};
 	}
 
-	private static <U> Result.Error<U> richError(LogProperties properties, Result.Success<?> previousResult,
-			Exception e) {
+	private static <U> Result.Error<U> richError(Result.Success<?> previousResult, Exception e) {
 		String fqk = previousResult.key();
 		Result.Success.PropertySuccess<?> ps = switch (previousResult) {
 			case Result.Success.PropertySuccess<?> p -> p;
 		};
 		if (ps.kind() == Result.Success.PropertySuccess.Kind.VALUE) {
-			String resolvedKey = properties.description(fqk);
+			String resolvedKey = ps.topProperties().description(fqk);
 			String message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
 			return new Result.Error<>(resolvedKey, message, e);
 		}
@@ -156,7 +155,7 @@ public interface LogProperty {
 		else {
 			message = "Error for property. key: " + resolvedKey + ", " + errorName(e) + " " + e.getMessage();
 		}
-		message += "\nTried: '" + fqk + "' from " + properties.description(fqk);
+		message += "\nTried: '" + fqk + "' from " + ps.topProperties().description(fqk);
 		return new Result.Error<>(resolvedKey, message, e);
 	}
 
@@ -704,14 +703,19 @@ public interface LogProperty {
 
 		/**
 		 * Maps this result's value through {@code mapper}. On success, keeps the origin
-		 * (properties/key/rawValue/kind, see {@link Success.PropertySuccess}) so a later
-		 * conversion step's error message can still point back to it. On failure, builds
-		 * the same rich error message {@link #convert(LogProperties, PropertyFunction)}
-		 * does - which key it came from, where that key was found, and (for
+		 * ({@link Success.PropertySuccess#topProperties() topProperties}/properties/key/
+		 * rawValue/kind, see {@link Success.PropertySuccess}) so a later conversion
+		 * step's error message can still point back to it. On failure, builds a rich
+		 * error message - which key it came from, where that key was found, and (for
 		 * {@link PropertyConvertException}/{@link ValidationException} causes) the
-		 * original raw value - except the "Tried:" line can only ever be that same exact
-		 * source, since (unlike {@code convert()}) there is no separate, possibly
-		 * broader/aggregate {@link LogProperties} parameter to search for that line.
+		 * original raw value - with a "Tried:" line searching {@code topProperties}: the
+		 * {@link LogProperties} the very first {@link LogProperties#forKey(String)} in
+		 * this chain was looked up against, which for a chained/composite
+		 * {@code LogProperties.of(a, b)} can be broader than the exact source the value
+		 * was actually found at. Same message {@link #convert(PropertyFunction)} builds -
+		 * the two are equivalent, {@code convert} is just the conventional name to reach
+		 * for when the mapper is doing type conversion rather than an arbitrary value
+		 * transform.
 		 * @param <U> result type
 		 * @param mapper mapping function.
 		 * @return mapped result.
@@ -720,28 +724,25 @@ public interface LogProperty {
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
 
 		/**
-		 * Like {@link #map(PropertyFunction)} but additionally accepts the
-		 * {@link LogProperties} the original lookup was made against, used for the
-		 * "Tried:" line of a failure's error message - so that line can show a broader
-		 * search (for example every member of a chained/composite
-		 * {@code LogProperties.of(a, b)}) than just the exact source the value was found
-		 * at. Usable at any point in a chain, not just directly off a
-		 * {@link LogProperty}, since a {@link Success} keeps pointing back to the
-		 * property it originally came from no matter how many conversions have run since.
+		 * Equivalent to {@link #map(PropertyFunction)} - see its documentation for what
+		 * the failure message looks like - kept as a separate, identically-named method
+		 * only so a conversion step (parsing a {@code String} into some other type) reads
+		 * distinctly from a plain value transform at the call site. Usable at any point
+		 * in a chain, not just directly off a {@link LogProperty}, since a
+		 * {@link Success} keeps pointing back to the property it originally came from no
+		 * matter how many conversions have run since.
 		 * @param <U> output value type.
-		 * @param properties the properties the original lookup was made against, used
-		 * only for the "Tried:" line of the error message.
 		 * @param converter conversion function.
 		 * @return converted result.
 		 */
-		default <U> Result<U> convert(LogProperties properties, PropertyFunction<T, U, ? super Exception> converter) {
+		default <U> Result<U> convert(PropertyFunction<T, U, ? super Exception> converter) {
 			return switch (this) {
 				case Success<T> s -> {
 					try {
 						yield mapValue(s, converter._apply(s.value()));
 					}
 					catch (Exception e) {
-						yield richError(properties, s, e);
+						yield richError(s, e);
 					}
 				}
 				case Missing<T> m -> m.convert();
@@ -802,14 +803,20 @@ public interface LogProperty {
 			/**
 			 * A property that is present, either because it was actually found in
 			 * properties, or (when {@code kind} is {@link Kind#VALUE}) because it was
-			 * missing there and a fallback value was supplied instead - either way,
-			 * properties is the properties it was (or would have been) searched against,
-			 * for a later conversion step's error message.
+			 * missing there and a fallback value was supplied instead.
 			 *
 			 * @param <T> property type.
+			 * @param topProperties the {@link LogProperties} the very first
+			 * {@link LogProperties#forKey(String)} in this chain was looked up against -
+			 * for a chained/composite {@code LogProperties.of(a, b)} this is the whole
+			 * composite, not just whichever member the value ended up found in. Used for
+			 * a failure message's "Tried:" line, which can therefore search more broadly
+			 * than {@code properties}.
 			 * @param properties the properties searched; for {@link Kind#STRING}/
 			 * {@link Kind#LIST}/{@link Kind#MAP} the <strong>exact</strong> properties
-			 * where the value was found.
+			 * where the value was found - for a chained/composite search this can be
+			 * narrower than {@code topProperties}, naming just the one member the value
+			 * was actually found in. Used for a failure message's "key: ... from X" line.
 			 * @param key property key.
 			 * @param rawValue value as originally found (or the fallback, for
 			 * {@link Kind#VALUE}), before any conversion - a {@link String}, {@link List
@@ -825,8 +832,8 @@ public interface LogProperty {
 			 * {@code Integer}) so error messages can still describe the original value -
 			 * value's type and rawValue's kind are not always in sync.
 			 */
-			public record PropertySuccess<T>(LogProperties properties, String key, Object rawValue, Kind kind,
-					T value) implements Success<T> {
+			public record PropertySuccess<T>(LogProperties topProperties, LogProperties properties, String key,
+					Object rawValue, Kind kind, T value) implements Success<T> {
 
 				/**
 				 * Which of {@link LogProperty}'s typed accessors a
@@ -861,6 +868,7 @@ public interface LogProperty {
 
 				/**
 				 * Successfully found property value.
+				 * @param topProperties the properties the original lookup started from.
 				 * @param properties the properties searched.
 				 * @param key property key.
 				 * @param rawValue value as originally found (or the fallback), before any
@@ -878,10 +886,10 @@ public interface LogProperty {
 				public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
 					try {
 						U u = mapper._apply(value);
-						return new PropertySuccess<>(properties, key, rawValue, kind, u);
+						return new PropertySuccess<>(topProperties, properties, key, rawValue, kind, u);
 					}
 					catch (Exception e) {
-						return richError(properties, this, e);
+						return richError(this, e);
 					}
 				}
 
@@ -955,7 +963,7 @@ public interface LogProperty {
 			@Override
 			public Result<T> or(@Nullable T fallback) {
 				if (fallback != null) {
-					return new Success.PropertySuccess<>(properties, keys.get(0), fallback,
+					return new Success.PropertySuccess<>(properties, properties, keys.get(0), fallback,
 							Success.PropertySuccess.Kind.VALUE, fallback);
 				}
 				return this;
@@ -1089,8 +1097,8 @@ final class DefaultLogProperty implements LogProperty {
 	public Result<String> ofString() {
 		return resolve(k -> properties.visit(k, (p, kk) -> {
 			var v = p.valueOrNull(kk);
-			return v == null ? null
-					: new Result.Success.PropertySuccess<>(p, kk, v, Result.Success.PropertySuccess.Kind.STRING, v);
+			return v == null ? null : new Result.Success.PropertySuccess<>(properties, p, kk, v,
+					Result.Success.PropertySuccess.Kind.STRING, v);
 		}));
 	}
 
@@ -1098,8 +1106,8 @@ final class DefaultLogProperty implements LogProperty {
 	public Result<List<String>> ofList() {
 		return resolve(k -> properties.visit(k, (p, kk) -> {
 			var v = p.listOrNull(kk);
-			return v == null ? null
-					: new Result.Success.PropertySuccess<>(p, kk, v, Result.Success.PropertySuccess.Kind.LIST, v);
+			return v == null ? null : new Result.Success.PropertySuccess<>(properties, p, kk, v,
+					Result.Success.PropertySuccess.Kind.LIST, v);
 		}));
 	}
 
@@ -1107,8 +1115,8 @@ final class DefaultLogProperty implements LogProperty {
 	public Result<Map<String, String>> ofMap() {
 		return resolve(k -> properties.visit(k, (p, kk) -> {
 			var v = p.mapOrNull(kk);
-			return v == null ? null
-					: new Result.Success.PropertySuccess<>(p, kk, v, Result.Success.PropertySuccess.Kind.MAP, v);
+			return v == null ? null : new Result.Success.PropertySuccess<>(properties, p, kk, v,
+					Result.Success.PropertySuccess.Kind.MAP, v);
 		}));
 	}
 

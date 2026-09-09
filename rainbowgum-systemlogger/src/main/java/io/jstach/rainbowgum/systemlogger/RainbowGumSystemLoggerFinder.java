@@ -128,7 +128,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 		var v = LogProperty.Validator.of(RainbowGumSystemLoggerFinder.class);
 		var result = properties.forKey(INITIALIZE_RAINBOW_GUM_PROPERTY)
 			.ofString()
-			.convert(properties, InitOption::parse)
+			.convert(InitOption::parse)
 			.or(InitOption.CHECK)
 			.validate(v);
 		v.validate();

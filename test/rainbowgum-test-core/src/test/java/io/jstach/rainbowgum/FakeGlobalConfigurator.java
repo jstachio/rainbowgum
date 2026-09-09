@@ -24,13 +24,12 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * (naming this class) the same way a generated builder's own {@code Validator}
  * would.</li>
  * <li>{@value #MODE3_PROPERTY} via
- * {@link LogProperty.Result#convert(LogProperties, LogProperty.PropertyFunction)
- * convert()} (not {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()}, see
- * {@code FakeEncoderBuilder}'s {@code label}) - both build the same rich
- * {@code richError()} message on failure, but only {@code convert()} takes a separate
- * outer/aggregate {@link LogProperties} so its "Tried:" line can search more broadly than
- * the exact source the value was found at; {@code map()}'s "Tried:" line is always that
- * same exact source.</li>
+ * {@link LogProperty.Result#convert(LogProperty.PropertyFunction) convert()} - the
+ * conventional name for a conversion step, but otherwise identical to
+ * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()}: both build the same
+ * rich {@code richError()} message on failure, reading a possibly-broader/ aggregate
+ * {@link LogProperties} for the "Tried:" line off the result's own
+ * {@code PropertySuccess.topProperties()}.</li>
  * </ul>
  * See {@link ConfigFailureTest.ConfigFailure} for exactly how these compare, including
  * chained/{@code ListLogProperties} variants.
@@ -57,7 +56,7 @@ final class FakeGlobalConfigurator implements Configurator {
 		var mode2 = properties.forKey(MODE2_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode2).validate(v);
 		v.validate();
 		mode2.value();
-		properties.forKey(MODE3_PROPERTY).ofString().convert(properties, FakeGlobalConfigurator::checkMode3).value();
+		properties.forKey(MODE3_PROPERTY).ofString().convert(FakeGlobalConfigurator::checkMode3).value();
 		return true;
 	}
 

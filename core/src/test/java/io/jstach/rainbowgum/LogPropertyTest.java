@@ -60,9 +60,9 @@ class LogPropertyTest {
 	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testValueKindPropertySuccessRejectsNullValueAndMap() {
 		var properties = LogProperties.StandardProperties.EMPTY;
-		assertThrows(NullPointerException.class,
-				() -> new PropertySuccess<String>(properties, "key", "5", PropertySuccess.Kind.VALUE, null));
-		var success = new PropertySuccess<>(properties, "key", "5", PropertySuccess.Kind.VALUE, "5");
+		assertThrows(NullPointerException.class, () -> new PropertySuccess<String>(properties, properties, "key", "5",
+				PropertySuccess.Kind.VALUE, null));
+		var success = new PropertySuccess<>(properties, properties, "key", "5", PropertySuccess.Kind.VALUE, "5");
 		assertEquals("key", success.key());
 		assertEquals("Fallback[key]=5", success.describe());
 		Result<Integer> mapped = success.map(Integer::parseInt);
@@ -78,9 +78,10 @@ class LogPropertyTest {
 	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testPropertySuccessRejectsNullValueAndMap() {
 		LogProperties properties = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "5");
-		assertThrows(NullPointerException.class,
-				() -> new PropertySuccess<String>(properties, "logging.p1", "5", PropertySuccess.Kind.STRING, null));
-		var success = new PropertySuccess<>(properties, "logging.p1", "5", PropertySuccess.Kind.STRING, "5");
+		assertThrows(NullPointerException.class, () -> new PropertySuccess<String>(properties, properties, "logging.p1",
+				"5", PropertySuccess.Kind.STRING, null));
+		var success = new PropertySuccess<>(properties, properties, "logging.p1", "5", PropertySuccess.Kind.STRING,
+				"5");
 		assertEquals("logging.p1", success.key());
 		assertEquals("Property[logging.p1]=5", success.describe());
 		Result<Integer> mapped = success.map(Integer::parseInt);
@@ -133,8 +134,8 @@ class LogPropertyTest {
 
 	@Test
 	void testResultValueOrNullWithFallback() {
-		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY, "key", "actual",
-				PropertySuccess.Kind.VALUE, "actual");
+		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
+				LogProperties.StandardProperties.EMPTY, "key", "actual", PropertySuccess.Kind.VALUE, "actual");
 		assertEquals("actual", success.valueOrNull("fallback"));
 		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		assertEquals("fallback", missing.valueOrNull("fallback"));
@@ -149,8 +150,8 @@ class LogPropertyTest {
 
 	@Test
 	void testResultOptional() {
-		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY, "key", "actual",
-				PropertySuccess.Kind.VALUE, "actual");
+		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
+				LogProperties.StandardProperties.EMPTY, "key", "actual", PropertySuccess.Kind.VALUE, "actual");
 		assertEquals(Optional.of("actual"), success.optional());
 		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		assertEquals(Optional.empty(), missing.optional());
@@ -158,8 +159,8 @@ class LogPropertyTest {
 
 	@Test
 	void testResultGetReturnsItself() {
-		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY, "key", "value",
-				PropertySuccess.Kind.VALUE, "value");
+		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
+				LogProperties.StandardProperties.EMPTY, "key", "value", PropertySuccess.Kind.VALUE, "value");
 		assertSame(success, success.get());
 	}
 

@@ -424,7 +424,7 @@ public sealed interface LogRouter extends LogLifecycle {
 					var properties = config.properties();
 					publisher = properties.forKey(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
 						.ofProviderRef()
-						.convert(properties, r -> config.publisherRegistry().provide(r))
+						.convert(r -> config.publisherRegistry().provide(r))
 						.or(() -> LogPublisher.SyncLogPublisher.builder().build())
 						.value();
 				}
@@ -789,7 +789,7 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 		return properties.forKey(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY)
 			.ofString()
-			.convert(properties, LevelResolver::parseLevel)
+			.convert(LevelResolver::parseLevel)
 			.or(Level.INFO)
 			.value();
 	}
@@ -798,7 +798,7 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 		return properties.forKey(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY)
 			.ofString()
-			.convert(properties, LevelResolver::parseLevel)
+			.convert(LevelResolver::parseLevel)
 			.or(Level.ERROR)
 			.value();
 	}

@@ -148,10 +148,9 @@ final class FakeEncoderBuilder implements LogBuilder<FakeEncoderBuilder, LogEnco
 		/*
 		 * Deliberately Result.map() here, not LogProperty.ofXxx()/Result.convert() -
 		 * exercises the plain end-of-fluent-chain mapping path (Success.map(), which
-		 * builds the same richError() message convert() does, except its "Tried:" line
-		 * can only ever be the exact source the value was found at - map() has no
-		 * separate outer/aggregate LogProperties parameter to search more broadly for
-		 * that line the way convert() does). See
+		 * builds the exact same richError() message convert() does - both read the
+		 * broader/aggregate LogProperties for the "Tried:" line off the result's own
+		 * PropertySuccess.topProperties(), not a parameter either method is given). See
 		 * ConfigFailureTest.encoderCustomStringValidationFailure().
 		 */
 		var _label = properties.forKey(property_label).ofString().map(l -> {
