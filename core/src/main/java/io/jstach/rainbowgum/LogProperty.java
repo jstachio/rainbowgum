@@ -131,7 +131,8 @@ public interface LogProperty {
 	 */
 	static <T, U> Result.Success<U> mapValue(Result.Success<T> success, U value) {
 		return switch (success) {
-			case Result.Success.PropertySuccess<T> ps -> new Result.Success.PropertySuccess<>(ps.property(), value);
+			case Result.Success.PropertySuccess<T> ps ->
+				new Result.Success.PropertySuccess<>(ps.properties(), ps.key(), ps.rawValue(), ps.kind(), value);
 			case Result.Success.ValueSuccess<T> vs -> new Result.Success.ValueSuccess<>(vs.key(), value);
 		};
 	}
@@ -139,20 +140,20 @@ public interface LogProperty {
 	private static <U> Result.Error<U> richError(LogProperties properties, Result.Success<?> previousResult,
 			Exception e) {
 		String fqk = previousResult.key();
-		FoundProperty fp = switch (previousResult) {
+		Result.Success.PropertySuccess<?> ps = switch (previousResult) {
 			case Result.Success.ValueSuccess<?> vs -> null;
-			case Result.Success.PropertySuccess<?> ps -> ps.property();
+			case Result.Success.PropertySuccess<?> p -> p;
 		};
-		if (fp == null) {
+		if (ps == null) {
 			String resolvedKey = properties.description(fqk);
 			String message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
 			return new Result.Error<>(resolvedKey, message, e);
 		}
-		var badProps = fp.properties();
+		var badProps = ps.properties();
 		String resolvedKey = "'" + fqk + "' from " + badProps.description(fqk);
 		String message;
 		if (e instanceof PropertyConvertException || e instanceof ValidationException) {
-			message = "Error converting property. key: " + resolvedKey + ", value: '" + fp.valueDescription()
+			message = "Error converting property. key: " + resolvedKey + ", value: '" + ps.valueDescription()
 					+ "' cause:\n" + e.getMessage();
 		}
 		else {
@@ -762,14 +763,56 @@ public interface LogProperty {
 			 * A property that is present.
 			 *
 			 * @param <T> property type.
-			 * @param value actual value.
-			 * @param property found property.
+			 * @param properties the <strong>exact</strong> properties where the value was
+			 * found.
+			 * @param key property key.
+			 * @param rawValue value as originally found, before any conversion - a
+			 * {@link String}, {@link List List&lt;String&gt;}, or {@link Map
+			 * Map&lt;String,String&gt;} depending on kind.
+			 * @param kind which of {@link LogProperty}'s {@code ofString()}/
+			 * {@code ofList()}/{@code ofMap()} this property was found through, and so
+			 * rawValue's runtime type.
+			 * @param value actual (possibly converted) value.
+			 * @apiNote rawValue/kind stick around after a conversion (e.g.
+			 * {@link LogProperty#ofInt()} converting the string this was found as into an
+			 * {@code Integer}) so error messages can still describe the original value -
+			 * value's type and rawValue's kind are not always in sync.
 			 */
-			public record PropertySuccess<T>(FoundProperty property, T value) implements Success<T> {
+			public record PropertySuccess<T>(LogProperties properties, String key, Object rawValue, Kind kind,
+					T value) implements Success<T> {
+
+				/**
+				 * Which of {@link LogProperty}'s typed accessors a
+				 * {@link PropertySuccess} was found through, and so what
+				 * {@link PropertySuccess#rawValue()}'s runtime type actually is.
+				 */
+				public enum Kind {
+
+					/**
+					 * rawValue is a {@link String}, found via
+					 * {@link LogProperty#ofString()}.
+					 */
+					STRING,
+					/**
+					 * rawValue is a {@link List List&lt;String&gt;}, found via
+					 * {@link LogProperty#ofList()}.
+					 */
+					LIST,
+					/**
+					 * rawValue is a {@link Map Map&lt;String,String&gt;}, found via
+					 * {@link LogProperty#ofMap()}.
+					 */
+					MAP
+
+				}
+
 				/**
 				 * Successfully found property value.
+				 * @param properties the exact properties where the value was found.
+				 * @param key property key.
+				 * @param rawValue value as originally found, before any conversion.
+				 * @param kind rawValue's kind.
 				 * @param value actual value should not be <code>null</code>.
-				 * @param property found property.
 				 */
 				public PropertySuccess {
 					if (value == null) {
@@ -778,24 +821,41 @@ public interface LogProperty {
 				}
 
 				@Override
-				public String key() {
-					return property.key();
-				}
-
-				@Override
 				public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
 					try {
 						U u = mapper._apply(value);
-						return new PropertySuccess<>(property, u);
+						return new PropertySuccess<>(properties, key, rawValue, kind, u);
 					}
 					catch (Exception e) {
-						return Error.of(property.key(), e);
+						return Error.of(key, e);
 					}
 				}
 
 				@Override
 				public String describe() {
-					return "Property[" + property.key() + "]=" + property.valueDescription();
+					return "Property[" + key + "]=" + valueDescription();
+				}
+
+				String valueDescription() {
+					String s = kind == Kind.STRING ? (String) rawValue : String.valueOf(rawValue);
+					return maybeRedact(s);
+				}
+
+				private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
+
+				private static final String REDACTED_VALUE = "<REDACTED>";
+
+				private static String maybeRedact(String input) {
+					String lower = input.toLowerCase(Locale.ROOT);
+					if (REDACTED_KEYS.contains(lower)) {
+						return REDACTED_VALUE;
+					}
+					for (var k : REDACTED_KEYS) {
+						if (input.contains(k)) {
+							return REDACTED_VALUE;
+						}
+					}
+					return input;
 				}
 
 			}
@@ -970,45 +1030,29 @@ final class DefaultLogProperty implements LogProperty {
 
 	@Override
 	public Result<String> ofString() {
-		return resolve(k -> {
-			var prop = properties.visit(k, (p, kk) -> {
-				var v = p.valueOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v, FoundProperty.Kind.STRING);
-			});
-			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, (String) prop.value());
-		});
+		return resolve(k -> properties.visit(k, (p, kk) -> {
+			var v = p.valueOrNull(kk);
+			return v == null ? null
+					: new Result.Success.PropertySuccess<>(p, kk, v, Result.Success.PropertySuccess.Kind.STRING, v);
+		}));
 	}
 
 	@Override
 	public Result<List<String>> ofList() {
-		return resolve(k -> {
-			var prop = properties.visit(k, (p, kk) -> {
-				var v = p.listOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v, FoundProperty.Kind.LIST);
-			});
-			if (prop == null) {
-				return null;
-			}
-			@SuppressWarnings("unchecked")
-			List<String> value = (List<String>) prop.value();
-			return new Result.Success.PropertySuccess<>(prop, value);
-		});
+		return resolve(k -> properties.visit(k, (p, kk) -> {
+			var v = p.listOrNull(kk);
+			return v == null ? null
+					: new Result.Success.PropertySuccess<>(p, kk, v, Result.Success.PropertySuccess.Kind.LIST, v);
+		}));
 	}
 
 	@Override
 	public Result<Map<String, String>> ofMap() {
-		return resolve(k -> {
-			var prop = properties.visit(k, (p, kk) -> {
-				var v = p.mapOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v, FoundProperty.Kind.MAP);
-			});
-			if (prop == null) {
-				return null;
-			}
-			@SuppressWarnings("unchecked")
-			Map<String, String> value = (Map<String, String>) prop.value();
-			return new Result.Success.PropertySuccess<>(prop, value);
-		});
+		return resolve(k -> properties.visit(k, (p, kk) -> {
+			var v = p.mapOrNull(kk);
+			return v == null ? null
+					: new Result.Success.PropertySuccess<>(p, kk, v, Result.Success.PropertySuccess.Kind.MAP, v);
+		}));
 	}
 
 	private <T> Result<T> resolve(java.util.function.Function<String, Result.@Nullable Success<T>> lookup) {
@@ -1036,78 +1080,6 @@ final class DefaultLogProperty implements LogProperty {
 
 	String fullyQualifiedKey(String key) {
 		return key;
-	}
-
-}
-
-/**
- * Found property retrieved from {@link LogProperties}. This is a bridge and meta data
- * needed for the {@link LogProperty} fluent like monads. It includes the original value
- * before conversions.
- *
- * @param properties the <strong>exact</strong> properties where the value was found.
- * @param key property key.
- * @param value property value, whose runtime type is described by kind.
- * @param kind which of {@link LogProperty}'s {@code ofString()}/{@code ofList()}/
- * {@code ofMap()} this property was found through.
- * @apiNote value is deliberately untyped ({@code Object}) rather than generic - a
- * {@link Result.Success.PropertySuccess} keeps pointing back to the same FoundProperty
- * instance across conversions (e.g. {@link LogProperty#ofInt()} converts the string this
- * was found as into an {@code Integer}), so FoundProperty's value type and the current
- * result's value type are not always the same. Deliberately a top-level (not nested) type
- * so it stays package-private - interface members are always implicitly public in Java
- * even without the keyword, so nesting it inside LogProperty would not have hidden it.
- */
-record FoundProperty(LogProperties properties, String key, Object value, FoundProperty.Kind kind) {
-
-	/**
-	 * Which of {@link LogProperty}'s typed accessors a {@link FoundProperty} was found
-	 * through, and so what value's runtime type actually is.
-	 */
-	enum Kind {
-
-		/**
-		 * value is a {@link String}, found via {@link LogProperty#ofString()}.
-		 */
-		STRING,
-		/**
-		 * value is a {@link List List&lt;String&gt;}, found via
-		 * {@link LogProperty#ofList()}.
-		 */
-		LIST,
-		/**
-		 * value is a {@link Map Map&lt;String,String&gt;}, found via
-		 * {@link LogProperty#ofMap()}.
-		 */
-		MAP
-
-	}
-
-	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
-
-	private static final String REDACTED_VALUE = "<REDACTED>";
-
-	/**
-	 * A string representation of the value that this property has usually for error
-	 * descriptions.
-	 * @return description of value.
-	 */
-	String valueDescription() {
-		String s = kind == Kind.STRING ? (String) value : String.valueOf(value);
-		return maybeRedact(s);
-	}
-
-	private static String maybeRedact(String input) {
-		String lower = input.toLowerCase(Locale.ROOT);
-		if (REDACTED_KEYS.contains(lower)) {
-			return REDACTED_VALUE;
-		}
-		for (var k : REDACTED_KEYS) {
-			if (input.contains(k)) {
-				return REDACTED_VALUE;
-			}
-		}
-		return input;
 	}
 
 }
