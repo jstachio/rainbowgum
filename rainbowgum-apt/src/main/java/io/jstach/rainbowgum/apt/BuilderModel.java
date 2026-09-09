@@ -124,7 +124,7 @@ record BuilderModel( //
 				case STRING_TYPE -> "ofString";
 				case URI_TYPE -> "ofURI";
 				case BOOLEAN_TYPE -> "ofBoolean";
-				case MAP_TYPE -> "ofKeyValues";
+				case MAP_TYPE -> "ofMap";
 				case LIST_TYPE -> "ofList";
 				default -> throw new IllegalStateException(type + " is not supported");
 			};

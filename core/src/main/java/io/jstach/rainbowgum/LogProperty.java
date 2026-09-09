@@ -64,7 +64,7 @@ public interface LogProperty {
 	 * Resolves the property as a map, using {@link LogProperties#mapOrNull(String)}.
 	 * @return result.
 	 */
-	public Result<Map<String, String>> ofKeyValues();
+	public Result<Map<String, String>> ofMap();
 
 	/**
 	 * Resolves the property as an int.
@@ -1046,7 +1046,7 @@ final class DefaultLogProperty implements LogProperty {
 	}
 
 	@Override
-	public Result<Map<String, String>> ofKeyValues() {
+	public Result<Map<String, String>> ofMap() {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.mapOrNull(kk);

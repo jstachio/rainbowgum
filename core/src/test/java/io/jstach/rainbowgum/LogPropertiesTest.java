@@ -291,7 +291,7 @@ class LogPropertiesTest {
 		Map<String, String> actual = props.mapOrNull("a");
 		Map<String, String> expected = Map.of("a1", "v1", "a2", "v2");
 		assertEquals(expected, actual);
-		actual = props.forKey(LogProperties.concatKey(LogProperties.ROOT_PREFIX, "a")).ofKeyValues().value();
+		actual = props.forKey(LogProperties.concatKey(LogProperties.ROOT_PREFIX, "a")).ofMap().value();
 		assertEquals(expected, actual);
 	}
 
@@ -378,7 +378,7 @@ class LogPropertiesTest {
 		var props = LogProperties.builder().fromProperties("""
 				logging.a=k=v
 				""").build();
-		assertEquals("{k=v}", valueDescriptionOf(props.forKey("logging.a").ofKeyValues()));
+		assertEquals("{k=v}", valueDescriptionOf(props.forKey("logging.a").ofMap()));
 	}
 
 	@Test
@@ -536,8 +536,8 @@ class LogPropertiesTest {
 				""").build();
 		var composite = LogProperties.of(List.of(a, b));
 		assertTrue(composite.forKey("logging.a").ofString() instanceof Result.Success<String>);
-		assertTrue(composite.forKey("logging.a").ofKeyValues() instanceof Result.Success<Map<String, String>>);
-		assertTrue(composite.forKey("logging.missing").ofKeyValues() instanceof Result.Missing<Map<String, String>>);
+		assertTrue(composite.forKey("logging.a").ofMap() instanceof Result.Success<Map<String, String>>);
+		assertTrue(composite.forKey("logging.missing").ofMap() instanceof Result.Missing<Map<String, String>>);
 	}
 
 	@Test
