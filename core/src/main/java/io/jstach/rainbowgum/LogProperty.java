@@ -154,10 +154,22 @@ public interface LogProperty {
 					+ "' cause:\n" + e.getMessage();
 		}
 		else {
-			message = "Error for property. key: " + resolvedKey + ", " + e.getClass().getName() + " " + e.getMessage();
+			message = "Error for property. key: " + resolvedKey + ", " + errorName(e) + " " + e.getMessage();
 		}
 		message += "\nTried: '" + fqk + "' from " + properties.description(fqk);
 		return new Result.Error<>(resolvedKey, message, e);
+	}
+
+	/**
+	 * Prefers {@link PropertyProblem#errorName()} (a short, stable name) over the
+	 * exception's actual class name - a foreign exception (not one of ours) just gets its
+	 * full class name as before.
+	 */
+	private static String errorName(Exception e) {
+		if (e instanceof PropertyProblem pp) {
+			return pp.errorName();
+		}
+		return e.getClass().getName();
 	}
 
 	/**
@@ -292,7 +304,18 @@ public interface LogProperty {
 	/**
 	 * Parent interface for property exceptions.
 	 */
-	sealed interface PropertyProblem {
+	sealed interface PropertyProblem permits PropertyConvertException, PropertyMissingException, ValidationException,
+			LogProviderRef.NotFoundException {
+
+		/**
+		 * A short, stable name for this problem used in error messages instead of the
+		 * exception's full (and for a nested class, {@code $}-separated) class name.
+		 * Deliberately hardcoded per implementation rather than derived via
+		 * {@code getClass().getSimpleName()} so it stays stable across renames/moves of
+		 * the actual exception class.
+		 * @return error name.
+		 */
+		String errorName();
 
 	}
 
@@ -340,6 +363,11 @@ public interface LogProperty {
 			return this.key;
 		}
 
+		@Override
+		public String errorName() {
+			return "PropertyConvertException";
+		}
+
 	}
 
 	/**
@@ -357,6 +385,11 @@ public interface LogProperty {
 			super(s);
 		}
 
+		@Override
+		public String errorName() {
+			return "PropertyMissingException";
+		}
+
 	}
 
 	/**
@@ -370,6 +403,11 @@ public interface LogProperty {
 
 		ValidationException(String message, @Nullable Throwable cause) {
 			super(message, cause);
+		}
+
+		@Override
+		public String errorName() {
+			return "ValidationException";
 		}
 
 		/**

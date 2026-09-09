@@ -6,6 +6,7 @@ import java.util.NoSuchElementException;
 
 import org.eclipse.jdt.annotation.Nullable;
 
+import io.jstach.rainbowgum.LogProperty.PropertyProblem;
 import io.jstach.rainbowgum.LogProperty.Result;
 
 /**
@@ -57,12 +58,17 @@ public sealed interface LogProviderRef {
 	/**
 	 * Thrown if a provider could not be found for the ref.
 	 */
-	public static class NotFoundException extends NoSuchElementException {
+	public static final class NotFoundException extends NoSuchElementException implements PropertyProblem {
 
 		private static final long serialVersionUID = 5484668688480940159L;
 
 		NotFoundException(String s) {
 			super(s);
+		}
+
+		@Override
+		public String errorName() {
+			return "NotFoundException";
 		}
 
 		/**

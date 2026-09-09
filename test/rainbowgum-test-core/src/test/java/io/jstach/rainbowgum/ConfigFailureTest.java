@@ -41,7 +41,7 @@ class ConfigFailureTest {
 				"""
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
-						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], io.jstach.rainbowgum.LogProviderRef$NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						Tried: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output]"""),
 
 		badLevelValue("""
@@ -55,7 +55,7 @@ class ConfigFailureTest {
 				logging.route.default.publisher=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher], io.jstach.rainbowgum.LogProviderRef$NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher], NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						Tried: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher]"""),
 
 		unregisteredEncoderScheme("""
@@ -66,7 +66,7 @@ class ConfigFailureTest {
 				"""
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
-						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], io.jstach.rainbowgum.LogProviderRef$NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
 
 		encoderMissingRequiredStringProperty("""
@@ -184,7 +184,7 @@ class ConfigFailureTest {
 				"""
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
-						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], io.jstach.rainbowgum.LogProviderRef$NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						Tried: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], PROPERTIES_STRING[logging.appender.myapp.output]""") {
 			@Override
 			LogProperties properties() {
