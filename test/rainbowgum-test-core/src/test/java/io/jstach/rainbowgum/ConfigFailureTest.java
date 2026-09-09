@@ -308,15 +308,15 @@ class ConfigFailureTest {
 		 */
 		globalConvertValueErrorAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], PROPERTIES_STRING[logging.fakeGlobal.mode3]""") {
+						Error for property. key: 'logging.fakeGlobal.mode3' from B_PROPS[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
+						Tried: 'logging.fakeGlobal.mode3' from A_PROPS[logging.fakeGlobal.mode3], B_PROPS[logging.fakeGlobal.mode3]""") {
 			@Override
 			LogProperties properties() {
-				var a = LogProperties.builder().fromProperties("""
+				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
 						logging.fakeGlobal.mode=x
 						logging.fakeGlobal.mode2=y
 						""").build();
-				var b = LogProperties.builder().fromProperties("""
+				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
 						logging.fakeGlobal.mode3=bad
 						""").build();
 				return LogProperties.of(List.of(a, b));
@@ -332,11 +332,11 @@ class ConfigFailureTest {
 		// unregisteredOutputSchemeAcrossChainedProperties below for what this proves.
 		globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties("",
 				"""
-						Property missing. keys: ['logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode], PROPERTIES_STRING[logging.fakeGlobal.mode]]""") {
+						Property missing. keys: ['logging.fakeGlobal.mode' from A_PROPS[logging.fakeGlobal.mode], B_PROPS[logging.fakeGlobal.mode]]""") {
 			@Override
 			LogProperties properties() {
-				var a = LogProperties.builder().fromProperties("").build();
-				var b = LogProperties.builder().fromProperties("").build();
+				var a = LogProperties.builder().description("A_PROPS").fromProperties("").build();
+				var b = LogProperties.builder().description("B_PROPS").fromProperties("").build();
 				return LogProperties.of(List.of(a, b));
 			}
 
@@ -351,13 +351,13 @@ class ConfigFailureTest {
 		globalFlagReadWithValidateBuildsRicherMissingMessageAcrossChainedProperties("",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Property missing. keys: ['logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2], PROPERTIES_STRING[logging.fakeGlobal.mode2]]""") {
+						Property missing. keys: ['logging.fakeGlobal.mode2' from A_PROPS[logging.fakeGlobal.mode2], B_PROPS[logging.fakeGlobal.mode2]]""") {
 			@Override
 			LogProperties properties() {
-				var a = LogProperties.builder().fromProperties("""
+				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
 						logging.fakeGlobal.mode=x
 						""").build();
-				var b = LogProperties.builder().fromProperties("").build();
+				var b = LogProperties.builder().description("B_PROPS").fromProperties("").build();
 				return LogProperties.of(List.of(a, b));
 			}
 
