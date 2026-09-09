@@ -2,7 +2,6 @@ package io.jstach.rainbowgum;
 
 import java.net.URI;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
@@ -91,7 +90,11 @@ final class DefaultPublisherRegistry implements LogPublisherRegistry {
 		if (scheme == null) {
 			throw new IllegalArgumentException("URI is missing scheme. uri: " + uri);
 		}
-		var provider = Optional.ofNullable(providers.get(scheme)).orElseThrow();
+		var provider = providers.get(scheme);
+		if (provider == null) {
+			throw new LogProviderRef.NotFoundException(
+					"No publisher found. Scheme not registered. scheme: '" + scheme + "',  URI: '" + uri + "'");
+		}
 		return provider.provide(ref);
 	}
 
