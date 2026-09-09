@@ -148,7 +148,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			case Result.Missing<URI> m -> m.convert();
 			case Result.Error<URI> e -> e.convert();
 		};
-		Result<LogOutput> fileProperty = refResult.convert(LogOutput::of).convert(p -> p.provide(name, config));
+		Result<LogOutput> fileProperty = refResult.map(LogOutput::of).map(p -> p.provide(name, config));
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 		return appender(name, config, fileProperty, encoderProperty);
 	}
@@ -235,13 +235,13 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	private static Result<LogOutput> outputProperty(String propertyKey, String name, LogConfig config) {
 		var properties = config.properties();
 		var provider = properties.forKey(propertyKey, name).ofProvider(LogOutput::of);
-		return provider.convert(p -> p.provide(name, config));
+		return provider.map(p -> p.provide(name, config));
 	}
 
 	private static Result<LogEncoder> encoderProperty(String propertyKey, String name, LogConfig config) {
 		var properties = config.properties();
 		var provider = properties.forKey(propertyKey, name).ofProvider(LogEncoder::of);
-		return provider.convert(p -> p.provide(name, config));
+		return provider.map(p -> p.provide(name, config));
 	}
 
 }

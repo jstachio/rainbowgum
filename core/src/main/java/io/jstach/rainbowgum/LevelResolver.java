@@ -815,7 +815,7 @@ final class GroupLevelResolver implements LevelConfig {
 			String group = e.getKey();
 			properties.forKey(LogProperties.concatKey(groupLevelPrefix, group))
 				.ofString()
-				.convert(LevelResolver::parseLevel)
+				.map(LevelResolver::parseLevel)
 				.optional() //
 				.ifPresent(level -> groupToLevels.put(group, level));
 		}
@@ -866,7 +866,7 @@ final class ConfigLevelResolver implements LevelConfig {
 	public @Nullable Level levelOrNull(String name) {
 		return properties.forKey(LogProperties.concatKey(prefix, name))
 			.ofString()
-			.convert(LevelResolver::parseLevel)
+			.map(LevelResolver::parseLevel)
 			.valueOrNull();
 	}
 

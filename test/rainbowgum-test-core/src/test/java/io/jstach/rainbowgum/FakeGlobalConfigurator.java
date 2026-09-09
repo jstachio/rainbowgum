@@ -11,25 +11,22 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * for its global on/off switches. Unlike those switches (always {@code Boolean}, which
  * can never itself fail to parse - {@link Boolean#parseBoolean(String)} just returns
  * {@code false} for anything unrecognized), this fake also has three required companion
- * properties, each demonstrating a different way a direct (no builder) read can fail:
+ * properties, each read via {@link LogProperty.Result#map(LogProperty.PropertyFunction)
+ * map()} (same as {@code FakeEncoderBuilder}'s {@code label}) but wired up differently so
+ * each demonstrates a different way a direct (no builder) read can fail:
  * <ul>
- * <li>{@value #MODE_PROPERTY} via plain {@link LogProperty.Result#value()} (with a
- * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} check, same as
- * {@code FakeEncoderBuilder}'s {@code label}), so a missing/bad value throws immediately
- * and unwrapped - no "Validation failed for ...:" collection in between.</li>
- * <li>{@value #MODE2_PROPERTY} via a hand-built
+ * <li>{@value #MODE_PROPERTY} - plain {@link LogProperty.Result#value()} after the
+ * {@code map()} check, so a missing/bad value throws immediately and unwrapped - no
+ * "Validation failed for ...:" collection in between.</li>
+ * <li>{@value #MODE2_PROPERTY} - a hand-built
  * {@link LogProperty.Validator}/{@link LogProperty.Result#validate(LogProperty.Validator)
- * validate(Validator)} (with the same kind of {@code map()} check as
- * {@value #MODE_PROPERTY}), which gets that richer "Validation failed for X:" message
- * (naming this class) the same way a generated builder's own {@code Validator}
- * would.</li>
- * <li>{@value #MODE3_PROPERTY} via
- * {@link LogProperty.Result#convert(LogProperty.PropertyFunction) convert()} - the
- * conventional name for a conversion step, but otherwise identical to
- * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()}: both build the same
- * rich {@code richError()} message on failure, reading a possibly-broader/ aggregate
- * {@link LogProperties} for the "Tried:" line off the result's own
- * {@code PropertySuccess.topProperties()}.</li>
+ * validate(Validator)} after the same kind of {@code map()} check, which gets that richer
+ * "Validation failed for X:" message (naming this class) the same way a generated
+ * builder's own {@code Validator} would.</li>
+ * <li>{@value #MODE3_PROPERTY} - kept as a third, separately-named property purely so
+ * {@link ConfigFailureTest.ConfigFailure}'s permutation matrix has a case per read style
+ * to point at; its own {@code map()} check ({@link #checkMode3(String)}) is otherwise
+ * identical in mechanism to {@value #MODE_PROPERTY}'s.</li>
  * </ul>
  * See {@link ConfigFailureTest.ConfigFailure} for exactly how these compare, including
  * chained/{@code ListLogProperties} variants.
@@ -56,7 +53,7 @@ final class FakeGlobalConfigurator implements Configurator {
 		var mode2 = properties.forKey(MODE2_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode2).validate(v);
 		v.validate();
 		mode2.value();
-		properties.forKey(MODE3_PROPERTY).ofString().convert(FakeGlobalConfigurator::checkMode3).value();
+		properties.forKey(MODE3_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode3).value();
 		return true;
 	}
 
