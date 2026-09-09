@@ -154,12 +154,13 @@ class ConfigFailureTest {
 		 * Hits Result.map() at the end of the fluent chain (FakeEncoderBuilder's "label"
 		 * field: properties.forKey(...).ofString().map(...)) instead of
 		 * LogProperty.ofXxx()/Result.convert() - see the comment on FakeEncoderBuilder's
-		 * _label. map() builds the same rich error message convert()'s richError() does
-		 * (quoted key, "from X", exception class name, "Tried:" line), except its
-		 * "Tried:" line can only ever be that same exact source - map() has no separate
-		 * outer/aggregate LogProperties parameter the way convert() does, so unlike
-		 * unregisteredOutputSchemeAcrossChainedProperties below there is no broader
-		 * search to report.
+		 * _label. map() builds the exact same rich error message convert()'s richError()
+		 * does, including the "Tried:" line: since the "properties" this builder was
+		 * given is itself a composite (PROPERTIES_STRING plus the
+		 * [logging.appender.myapp.encoder]->URI(fake:///) query-parameter layer), the
+		 * first "Tried:" line names both, same as any convert()-based property here would
+		 * (see encoderMalformedIntProperty above). The second "Tried:" line is the outer
+		 * encoder-URI-to-builder conversion's own richError(), nested via "cause:".
 		 */
 		encoderCustomStringValidationFailure("""
 				logging.appenders=myapp
@@ -174,7 +175,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], java.lang.IllegalArgumentException label must not be 'bad'
-						Tried: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label]
+						Tried: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], [logging.appender.myapp.encoder]->URI(fake:///)[label]
 						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
 
 		// same Result.map() (not convert()) path as encoderCustomStringValidationFailure
@@ -192,7 +193,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], java.lang.IllegalArgumentException tags must not contain 'bad'
-						Tried: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags]
+						Tried: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], [logging.appender.myapp.encoder]->URI(fake:///)[tags]
 						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
 
 		// same Result.map() (not convert()) path as encoderCustomStringValidationFailure
@@ -210,7 +211,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], java.lang.IllegalArgumentException headers must not contain key 'bad'
-						Tried: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers]
+						Tried: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], [logging.appender.myapp.encoder]->URI(fake:///)[headers]
 						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
 
 		/*
@@ -324,11 +325,10 @@ class ConfigFailureTest {
 		 * The genuine-error counterpart to globalFlagReadWithoutValidatorThrowsDirectly
 		 * above: mode itself fails its map() check, going through the same richError()
 		 * formatting convert() uses (quoted key, "from X", exception class name, "Tried:"
-		 * line) - see the comment on encoderCustomStringValidationFailure above. Since
-		 * map() has no separate outer/aggregate LogProperties parameter, "Tried:" here
-		 * can only ever repeat the same exact source as "from X" - contrast with
-		 * globalConvertValueErrorAcrossChainedProperties above, where convert()'s
-		 * "Tried:" aggregates every chained member.
+		 * line) - see the comment on encoderCustomStringValidationFailure above. Not
+		 * chained, so "from X" and "Tried:" both just name PROPERTIES_STRING here; see
+		 * globalFlagValueErrorAcrossChainedProperties below for the chained case, where
+		 * they differ.
 		 */
 		globalFlagValueError("""
 				logging.fakeGlobal.mode=bad
@@ -480,19 +480,21 @@ class ConfigFailureTest {
 		 * mode (the plain, no-Validator "value" property, see
 		 * globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties above)
 		 * genuinely failing to convert (not just being absent), inside a chained
-		 * composite. mode is read via Result.map() (not convert()), which builds the same
-		 * richError() message convert() does - since mode3 is Kind.STRING (found, not a
-		 * fallback), "from X"/"Tried:" name the exact chained member it was found in
-		 * ("b"/B_PROPS below), same exact-source precision
-		 * globalConvertValueErrorAcrossChainedProperties above shows for "from X" - but
-		 * unlike that convert() case, map() has no separate outer/aggregate LogProperties
-		 * parameter, so "Tried:" here stays just B_PROPS too, never aggregating in
-		 * A_PROPS.
+		 * composite. mode is read via Result.map() (not convert()), which builds the
+		 * exact same richError() message convert() does, including the "Tried:" line:
+		 * "key: ... from X" stays exact (only "b"/B_PROPS, not doubled) since it comes
+		 * from PropertySuccess.properties() (the exact source the value was found at),
+		 * while "Tried: ... from X" is the full aggregate (both members, doubled) since
+		 * it now comes from PropertySuccess.topProperties() - the composite the very
+		 * first forKey() lookup in this chain was made against, carried on the result
+		 * itself rather than passed in by the caller. Same exact-vs-aggregate split
+		 * globalConvertValueErrorAcrossChainedProperties above shows for convert() - the
+		 * two are indistinguishable now.
 		 */
 		globalFlagValueErrorAcrossChainedProperties("",
 				"""
 						Error for property. key: 'logging.fakeGlobal.mode' from B_PROPS[logging.fakeGlobal.mode], java.lang.IllegalArgumentException mode must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode' from B_PROPS[logging.fakeGlobal.mode]""") {
+						Tried: 'logging.fakeGlobal.mode' from A_PROPS[logging.fakeGlobal.mode], B_PROPS[logging.fakeGlobal.mode]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("").build();
@@ -514,14 +516,14 @@ class ConfigFailureTest {
 		 * Chained-composite variant of globalValidateError above: mode2 (in "b") fails
 		 * its map() check while mode (in "a") is valid, so the Validator collects the
 		 * same richError() message globalValidateError does, naming B_PROPS as the exact
-		 * (and, for the same reason as globalFlagValueErrorAcrossChainedProperties above,
-		 * only) source in both "from X" and "Tried:".
+		 * source in "from X" and the full A_PROPS+B_PROPS aggregate in "Tried:" - same as
+		 * globalFlagValueErrorAcrossChainedProperties above.
 		 */
 		globalValidateErrorAcrossChainedProperties("",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
 						Error for property. key: 'logging.fakeGlobal.mode2' from B_PROPS[logging.fakeGlobal.mode2], java.lang.IllegalArgumentException mode2 must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode2' from B_PROPS[logging.fakeGlobal.mode2]""") {
+						Tried: 'logging.fakeGlobal.mode2' from A_PROPS[logging.fakeGlobal.mode2], B_PROPS[logging.fakeGlobal.mode2]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
