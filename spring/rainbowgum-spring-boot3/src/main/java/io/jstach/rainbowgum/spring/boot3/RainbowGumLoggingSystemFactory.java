@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.spring.boot3;
 
 import java.lang.System.Logger.Level;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -20,8 +21,11 @@ import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.logging.LoggingSystemFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.support.SpringFactoriesLoader;
+import org.springframework.util.unit.DataSize;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
@@ -53,6 +57,20 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 	record SpringLogProperties(Environment environment) implements LogProperties {
 
+		/*
+		 * Vanilla Spring Boot/Logback always rolls once file output is configured at all
+		 * - rolling is not opt-in there. Matched here by having FILE_PROPERTY resolve to
+		 * a rolling:/// URI (scheme-qualified, so LogAppenderRegistry.normalizeFileUri
+		 * leaves it as-is) instead of a plain path, which would resolve to plain
+		 * (non-rolling) file output.
+		 */
+		private static final String OUTPUT_FILE_PREFIX = "logging.output.file.";
+
+		// Spring Boot's own rollingpolicy.file-name-pattern default embeds this
+		// literal token for the active file's own name/path - RainbowGum's pattern is
+		// only the suffix appended after it, so this is stripped if present.
+		private static final String LOG_FILE_TOKEN = "${LOG_FILE}";
+
 		@Override
 		public @Nullable String valueOrNull(String key) {
 			if (key.equals(SpringBootSupportedProperties.LOGGING_LEVEL)) {
@@ -64,15 +82,53 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			else if (key.equals(LogProperties.FILE_PROPERTY)) {
 				String name = environment.getProperty(key);
 				if (name != null && !name.isBlank()) {
-					return name;
+					return rollingUri(name);
 				}
 				String path = environment.getProperty(SpringBootSupportedProperties.FILE_PATH);
 				if (path != null && !path.isBlank()) {
 					// Spring Boot's own default file name when only the directory is
 					// given - see LogFile.get(...).
-					return Path.of(path, "spring.log").toString();
+					return rollingUri(Path.of(path, "spring.log").toString());
 				}
 				return null;
+			}
+			else if (key.equals(OUTPUT_FILE_PREFIX + "maxFileSize")) {
+				DataSize size = environment.getProperty(SpringBootSupportedProperties.ROLLINGPOLICY_MAX_FILE_SIZE,
+						DataSize.class);
+				return size == null ? null : String.valueOf(size.toBytes());
+			}
+			else if (key.equals(OUTPUT_FILE_PREFIX + "totalSizeCap")) {
+				DataSize size = environment.getProperty(SpringBootSupportedProperties.ROLLINGPOLICY_TOTAL_SIZE_CAP,
+						DataSize.class);
+				return size == null ? null : String.valueOf(size.toBytes());
+			}
+			else if (key.equals(OUTPUT_FILE_PREFIX + "maxHistory")) {
+				return environment.getProperty(SpringBootSupportedProperties.ROLLINGPOLICY_MAX_HISTORY);
+			}
+			else if (key.equals(OUTPUT_FILE_PREFIX + "cleanHistoryOnStart")) {
+				return environment.getProperty(SpringBootSupportedProperties.ROLLINGPOLICY_CLEAN_HISTORY_ON_START);
+			}
+			else if (key.equals(OUTPUT_FILE_PREFIX + "fileNamePattern")) {
+				// Read the raw (not placeholder-resolved) value - Environment.getProperty
+				// would try to resolve ${LOG_FILE} against another property and throw if
+				// it can't, but the literal token is exactly what is being matched below
+				// to strip.
+				String pattern = rawProperty(environment,
+						SpringBootSupportedProperties.ROLLINGPOLICY_FILE_NAME_PATTERN);
+				if (pattern == null) {
+					return null;
+				}
+				if (pattern.startsWith(LOG_FILE_TOKEN)) {
+					pattern = pattern.substring(LOG_FILE_TOKEN.length());
+				}
+				// date based (%d) rotation is not supported - fall back to
+				// RollingFileOutput's own default (.%i) rather than letting
+				// RollingPolicy.ParsedPattern.parse() throw at startup; this is
+				// exactly what Spring Boot's own documented default value contains.
+				if (pattern.contains("%d")) {
+					return null;
+				}
+				return pattern;
 			}
 			else if (key.equals(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)) {
 				String ansiEnabled = environment.getProperty(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED);
@@ -88,6 +144,30 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 						return mapped;
 					}
 				}
+			}
+			return environment.getProperty(key);
+		}
+
+		// Path.toUri() (not URI.create/new URI(path)) handles the same
+		// relative-to-absolute resolution and escaping LogAppenderRegistry's own
+		// normalizeFileUri does for a plain path.
+		private static String rollingUri(String path) {
+			URI fileUri = Path.of(path).toUri();
+			return "rolling" + fileUri.toString().substring("file".length());
+		}
+
+		// PropertySource#getProperty (unlike Environment#getProperty) never resolves
+		// ${...} placeholders in the value - walks sources directly in the same
+		// precedence order Environment itself would use.
+		private static @Nullable String rawProperty(Environment environment, String key) {
+			if (environment instanceof ConfigurableEnvironment ce) {
+				for (PropertySource<?> source : ce.getPropertySources()) {
+					Object value = source.getProperty(key);
+					if (value != null) {
+						return value.toString();
+					}
+				}
+				return null;
 			}
 			return environment.getProperty(key);
 		}

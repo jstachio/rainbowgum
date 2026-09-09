@@ -1008,9 +1008,73 @@ Here are some of the supported outputs (not a complete listing):
 
 <h3 id="rolling">Rolling Files</h3>
 
-Rainbow Gum currently does not support rolling of files on its own but does provide a mechanism
-to safely allow external programs such as 
-<a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a> to do the rolling. 
+The <code>rainbowgum-file</code> module (see above - not included by default,
+<code>rainbowgum-core</code> on its own has no file I/O capability at all) additionally
+provides a deliberately basic, size based rolling file output under the "rolling" URI
+scheme, {@link io.jstach.rainbowgum.rolling.RollingFileOutput}:
+
+{@snippet lang=properties :
+logging.appenders=myapp
+logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10485760&maxHistory=7
+}
+
+or equivalently as properties (same <code>logging.output.{name}.*</code> prefix
+{@link io.jstach.rainbowgum.file.FileOutputBuilder} itself uses - <code>uri</code>/
+<code>fileName</code>/<code>append</code>/<code>prudent</code>/<code>bufferSize</code>
+all still apply and are passed straight through to the underlying file output):
+
+{@snippet lang=properties :
+logging.appenders=myapp
+logging.appender.myapp.output=rolling:///var/log/app.log
+logging.output.myapp.maxFileSize=10485760
+logging.output.myapp.maxHistory=7
+}
+
+<table class="table">
+<caption><strong>Rolling properties</strong></caption>
+<tr><th>Property</th><th>Default</th><th>Description</th></tr>
+<tr>
+<td><code>maxFileSize</code></td>
+<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_MAX_FILE_SIZE} (10MB)</td>
+<td>Bytes before a roll is triggered.</td>
+</tr>
+<tr>
+<td><code>maxHistory</code></td>
+<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_MAX_HISTORY}</td>
+<td>Number of archives to retain.</td>
+</tr>
+<tr>
+<td><code>totalSizeCap</code></td>
+<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_TOTAL_SIZE_CAP} (unlimited)</td>
+<td>Combined archive size cap in bytes; oldest archives are evicted first once
+exceeded.</td>
+</tr>
+<tr>
+<td><code>cleanHistoryOnStart</code></td>
+<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_CLEAN_HISTORY_ON_START}</td>
+<td>Whether pruning also runs once at startup, not just after each roll.</td>
+</tr>
+<tr>
+<td><code>fileNamePattern</code></td>
+<td><code>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_FILE_NAME_PATTERN}</code></td>
+<td>Archive suffix appended directly after the active file's own path (e.g.
+<code>app.log</code> archives to <code>app.log.1</code>, <code>app.log.2</code>, etc);
+must contain exactly one <code>%i</code> (rotation index) token - calendar/date
+(<code>%d</code>) based rotation is not supported. A pattern ending in
+<code>.gz</code> gzip compresses archives on rotation.</td>
+</tr>
+</table>
+
+<p>
+<strong>This is deliberately basic - just enough to keep a small/desktop app's disk
+from filling up, not a substitute for a real log rotation/aggregation
+policy.</strong> There is no calendar/date based rotation, no compression on a
+schedule independent of rotation, and no coordination across multiple processes
+writing the same file. If you need any of that, use the external-tool approach
+below instead (typically
+<a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a>)
+- it remains the recommended approach for anything beyond preventing a disk from
+filling up, and does not depend on the <code>rainbowgum-file</code> module at all.
 How this typically works:
 
 <ol>

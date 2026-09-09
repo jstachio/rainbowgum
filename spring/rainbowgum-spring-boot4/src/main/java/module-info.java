@@ -70,6 +70,21 @@
  * itself is unset, matching Spring Boot's own {@code LogFile.get(...)} precedence.</td>
  * </tr>
  * <tr>
+ * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#ROLLINGPOLICY_MAX_FILE_SIZE}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#ROLLINGPOLICY_MAX_HISTORY}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#ROLLINGPOLICY_TOTAL_SIZE_CAP}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#ROLLINGPOLICY_CLEAN_HISTORY_ON_START}, {@value
+ * io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#ROLLINGPOLICY_FILE_NAME_PATTERN}</td>
+ * <td>Native, but requires the {@code rainbowgum-file} module (a runtime dependency of
+ * this one already) - bridged to {@code io.jstach.rainbowgum.rolling.RollingFileOutputBuilder}'s
+ * own properties, converting {@link org.springframework.util.unit.DataSize} values to
+ * bytes. Vanilla Spring Boot/Logback always rolls once file output is configured at all,
+ * so {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} resolves to a
+ * {@code rolling:///} URI here too rather than requiring separate opt-in. Date based
+ * ({@code %d}) rotation in {@code file-name-pattern} is not supported - RainbowGum's
+ * own default is used instead of failing at startup.</td>
+ * </tr>
+ * <tr>
  * <td>{@value io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#CONSOLE_ENABLED}</td>
  * <td>Native - when {@code false}, restricts the route to just the file appender if one
  * resolves; otherwise left alone rather than pointing at nothing.</td>
@@ -150,9 +165,9 @@
  * <td>Unclear mapping to RainbowGum's own shutdown lifecycle - not attempted.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.logback.rollingpolicy.*}, {@code logging.log4j2.rollingpolicy.*}</td>
- * <td>N/A - this module has no Logback or Log4j2 dependency, and RainbowGum does not
- * support file rolling at all (see the roadmap's file-rolling discussion).</td>
+ * <td>{@code logging.log4j2.rollingpolicy.*}</td>
+ * <td>N/A - this module has no Log4j2 dependency; {@code logging.logback.rollingpolicy.*}
+ * (despite the name) is bridged - see the "Supported" table above.</td>
  * </tr>
  * </table>
  */
