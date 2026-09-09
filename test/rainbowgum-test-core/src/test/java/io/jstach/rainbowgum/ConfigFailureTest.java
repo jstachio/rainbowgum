@@ -293,6 +293,42 @@ class ConfigFailureTest {
 			}
 		},
 
+		/*
+		 * The composite/chained cases above
+		 * (globalFlagReadWith...AcrossChainedProperties) are both Missing, where a
+		 * "key from X" can't be exact - nothing was found anywhere, so
+		 * ListLogProperties.description() just joins every member for the "keys:" line.
+		 * This one is a genuine convert() Error found on one specific chained member
+		 * (mode3 lives only in the second LogProperties, "b" below) - the
+		 * "key: ... from X" line stays exact (only "b", not doubled) since it comes from
+		 * PropertySuccess.properties() (the exact source), while "Tried: ... from X" is
+		 * still the full aggregate (both members, doubled) since that comes from the
+		 * outer/composite properties passed into convert(). Same exact-vs-aggregate split
+		 * unregisteredOutputSchemeAcrossChainedProperties above shows for the encoder
+		 * side - this is the FakeGlobalConfigurator/convert() equivalent.
+		 */
+		globalConvertSingleValueErrorAcrossChainedProperties("",
+				"""
+						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
+						Tried: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], PROPERTIES_STRING[logging.fakeGlobal.mode3]""") {
+			@Override
+			LogProperties properties() {
+				var a = LogProperties.builder().fromProperties("""
+						logging.fakeGlobal.mode=x
+						logging.fakeGlobal.mode2=y
+						""").build();
+				var b = LogProperties.builder().fromProperties("""
+						logging.fakeGlobal.mode3=bad
+						""").build();
+				return LogProperties.of(List.of(a, b));
+			}
+
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
 		globalConvertListValueMissing("""
 				logging.fakeGlobal.mode=x
 				logging.fakeGlobal.mode2=y
