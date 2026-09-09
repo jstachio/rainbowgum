@@ -144,8 +144,7 @@ final class FakeEncoderBuilder implements LogBuilder<FakeEncoderBuilder, LogEnco
 	@Override
 	public FakeEncoderBuilder fromProperties(LogProperties properties) {
 		var __v = Validator.of(this.getClass());
-		var _host = properties.forKey(property_host).ofString().or(this.host);
-		__v.add(_host);
+		var _host = properties.forKey(property_host).ofString().or(this.host).validate(__v);
 		/*
 		 * Deliberately Result.map() here, not LogProperty.ofXxx()/Result.convert() -
 		 * exercises the plain end-of-fluent-chain mapping path (Success.map() ->
@@ -158,28 +157,23 @@ final class FakeEncoderBuilder implements LogBuilder<FakeEncoderBuilder, LogEnco
 				throw new IllegalArgumentException("label must not be 'bad'");
 			}
 			return l;
-		}).or(this.label);
-		__v.addIfError(_label);
-		var _port = properties.forKey(property_port).ofInt().or(this.port);
-		__v.addIfError(_port);
-		var _endpoint = properties.forKey(property_endpoint).ofURI().or(this.endpoint);
-		__v.addIfError(_endpoint);
+		}).or(this.label).validateIfError(__v);
+		var _port = properties.forKey(property_port).ofInt().or(this.port).validateIfError(__v);
+		var _endpoint = properties.forKey(property_endpoint).ofURI().or(this.endpoint).validateIfError(__v);
 		// same Result.map() (not convert()) path as _label above, but on a List.
 		var _tags = properties.forKey(property_tags).ofList().map(list -> {
 			if (list.contains("bad")) {
 				throw new IllegalArgumentException("tags must not contain 'bad'");
 			}
 			return list;
-		}).or(this.tags);
-		__v.addIfError(_tags);
+		}).or(this.tags).validateIfError(__v);
 		// same Result.map() (not convert()) path as _label above, but on a Map.
 		var _headers = properties.forKey(property_headers).ofMap().map(map -> {
 			if (map.containsKey("bad")) {
 				throw new IllegalArgumentException("headers must not contain key 'bad'");
 			}
 			return map;
-		}).or(this.headers);
-		__v.addIfError(_headers);
+		}).or(this.headers).validateIfError(__v);
 		__v.validate();
 		this.host = _host.value();
 		this.label = _label.valueOrNull();
