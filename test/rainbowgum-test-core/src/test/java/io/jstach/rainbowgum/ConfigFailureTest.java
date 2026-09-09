@@ -208,6 +208,15 @@ class ConfigFailureTest {
 						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
 
 		/*
+		 * The 12 FakeGlobalConfigurator cases below cover the full [chained|not chained]
+		 * x [error|missing] x [convert|value|validator] matrix - see
+		 * FakeGlobalConfigurator's javadoc for what each of the three properties
+		 * (mode/mode2/mode3) demonstrates. Sorted by chained (not chained group first,
+		 * then chained), then by missing/error within each, so every chained case (and
+		 * every chained *error* case in particular) sits next to the others like it.
+		 */
+
+		/*
 		 * permutation: not chained,missing,value
 		 *
 		 * Contrast with the encoder cases above, which all go through a builder +
@@ -216,7 +225,7 @@ class ConfigFailureTest {
 		 * off LogConfig.properties() - the same style JULConfigurator uses for its global
 		 * on/off switches - so a missing value here throws immediately and unwrapped: a
 		 * plain "Property missing. keys: [...]" with none of the Validator/builder
-		 * machinery in between. See FakeGlobalConfigurator's javadoc.
+		 * machinery in between.
 		 */
 		globalFlagReadWithoutValidatorThrowsDirectly("",
 				"""
@@ -259,18 +268,13 @@ class ConfigFailureTest {
 		/*
 		 * permutation: not chained,missing,convert
 		 *
-		 * Direct (no builder) convert() read, missing vs error (malformed). The "Missing"
-		 * case proves convert() adds nothing when the property is simply absent -
-		 * Result.convert()'s own switch passes a Missing straight through (case
+		 * Direct (no builder) convert() read, missing vs error (malformed). This
+		 * "Missing" case proves convert() adds nothing when the property is simply absent
+		 * - Result.convert()'s own switch passes a Missing straight through (case
 		 * Missing<T> m -> m.convert();) without ever reaching richError(), so the message
 		 * is the exact same plain "Property missing. keys: [...]" shape as
 		 * globalFlagReadWithoutValidatorThrowsDirectly above, just naming a different
-		 * key. The "Error" case (below) is a genuine convert() failure and goes through
-		 * richError() - compare its shape to
-		 * encoderMalformedIntProperty/encoderMalformedUriProperty above, which are also
-		 * convert() failures but inside a builder + Validator ("Validation failed for
-		 * X:\n..." wrapper); here there is no such wrapper, same as
-		 * globalFlagReadWithoutValidatorThrowsDirectly.
+		 * key.
 		 */
 		globalConvertValueMissing("""
 				logging.fakeGlobal.mode=x
@@ -284,7 +288,16 @@ class ConfigFailureTest {
 			}
 		},
 
-		// permutation: not chained,error,convert
+		/*
+		 * permutation: not chained,error,convert
+		 *
+		 * The genuine convert() failure counterpart to globalConvertValueMissing above -
+		 * goes through richError() - compare its shape to
+		 * encoderMalformedIntProperty/encoderMalformedUriProperty above, which are also
+		 * convert() failures but inside a builder + Validator ("Validation failed for
+		 * X:\n..." wrapper); here there is no such wrapper, same as
+		 * globalFlagReadWithoutValidatorThrowsDirectly.
+		 */
 		globalConvertValueError("""
 				logging.fakeGlobal.mode=x
 				logging.fakeGlobal.mode2=y
@@ -300,34 +313,66 @@ class ConfigFailureTest {
 		},
 
 		/*
-		 * permutation: chained,error,convert
+		 * permutation: not chained,error,value
 		 *
-		 * The composite/chained cases above
-		 * (globalFlagReadWith...AcrossChainedProperties) are both Missing, where a
-		 * "key from X" can't be exact - nothing was found anywhere, so
-		 * ListLogProperties.description() just joins every member for the "keys:" line.
-		 * This one is a genuine convert() Error found on one specific chained member
-		 * (mode3 lives only in the second LogProperties, "b" below) - the
-		 * "key: ... from X" line stays exact (only "b", not doubled) since it comes from
-		 * PropertySuccess.properties() (the exact source), while "Tried: ... from X" is
-		 * still the full aggregate (both members, doubled) since that comes from the
-		 * outer/composite properties passed into convert(). Same exact-vs-aggregate split
-		 * unregisteredOutputSchemeAcrossChainedProperties above shows for the encoder
-		 * side - this is the FakeGlobalConfigurator/convert() equivalent.
+		 * The genuine-error counterpart to globalFlagReadWithoutValidatorThrowsDirectly
+		 * above: mode itself fails its map() check. Same terse Error.of(key, e) path
+		 * FakeEncoderBuilder's label uses (see encoderCustomStringValidationFailure
+		 * above) - no "from X"/"Tried:" provenance at all - which is why this message is
+		 * identical to globalFlagValueErrorAcrossChainedProperties below regardless of
+		 * chaining.
 		 */
-		globalConvertValueErrorAcrossChainedProperties("",
+		globalFlagValueError("""
+				logging.fakeGlobal.mode=bad
+				""", """
+				Error for property. key: logging.fakeGlobal.mode, mode must not be 'bad'""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		/*
+		 * permutation: not chained,error,validator
+		 *
+		 * The genuine-error counterpart to
+		 * globalFlagReadWithValidateBuildsRicherMissingMessage above: mode2 fails its
+		 * map() check instead of being absent, so the Validator collects a Result.Error
+		 * (via Validator#add, same as Missing) instead of a Result.Missing - same
+		 * "Validation failed for X:" wrapper, but the inner line is mode2's terse
+		 * Error.of(key, e) message instead of "Property missing. keys: [...]".
+		 */
+		globalValidateError("""
+				logging.fakeGlobal.mode=x
+				logging.fakeGlobal.mode2=bad
+				""", """
+				Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
+				Error for property. key: logging.fakeGlobal.mode2, mode2 must not be 'bad'""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		/*
+		 * permutation: chained,missing,convert
+		 *
+		 * Chained-composite variant of globalConvertValueMissing above: mode3 is absent
+		 * from both chained members, so - same as
+		 * globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties below - the
+		 * "keys:" line lists both members' descriptions since nothing was found anywhere
+		 * to be exact about.
+		 */
+		globalConvertValueMissingAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode3' from B_PROPS[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode3' from A_PROPS[logging.fakeGlobal.mode3], B_PROPS[logging.fakeGlobal.mode3]""") {
+						Property missing. keys: ['logging.fakeGlobal.mode3' from A_PROPS[logging.fakeGlobal.mode3], B_PROPS[logging.fakeGlobal.mode3]]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
 						logging.fakeGlobal.mode=x
 						logging.fakeGlobal.mode2=y
 						""").build();
-				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
-						logging.fakeGlobal.mode3=bad
-						""").build();
+				var b = LogProperties.builder().description("B_PROPS").fromProperties("").build();
 				return LogProperties.of(List.of(a, b));
 			}
 
@@ -379,18 +424,56 @@ class ConfigFailureTest {
 		},
 
 		/*
+		 * permutation: chained,error,convert
+		 *
+		 * The composite/chained missing cases above
+		 * (globalFlagReadWith...AcrossChainedProperties) are both Missing, where a "key
+		 * from X" can't be exact - nothing was found anywhere, so
+		 * ListLogProperties.description() just joins every member for the "keys:" line.
+		 * This one is a genuine convert() Error found on one specific chained member
+		 * (mode3 lives only in the second LogProperties, "b" below) - the
+		 * "key: ... from X" line stays exact (only "b", not doubled) since it comes from
+		 * PropertySuccess.properties() (the exact source), while "Tried: ... from X" is
+		 * still the full aggregate (both members, doubled) since that comes from the
+		 * outer/composite properties passed into convert(). Same exact-vs-aggregate split
+		 * unregisteredOutputSchemeAcrossChainedProperties above shows for the encoder
+		 * side - this is the FakeGlobalConfigurator/convert() equivalent.
+		 */
+		globalConvertValueErrorAcrossChainedProperties("",
+				"""
+						Error for property. key: 'logging.fakeGlobal.mode3' from B_PROPS[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
+						Tried: 'logging.fakeGlobal.mode3' from A_PROPS[logging.fakeGlobal.mode3], B_PROPS[logging.fakeGlobal.mode3]""") {
+			@Override
+			LogProperties properties() {
+				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
+						logging.fakeGlobal.mode=x
+						logging.fakeGlobal.mode2=y
+						""").build();
+				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
+						logging.fakeGlobal.mode3=bad
+						""").build();
+				return LogProperties.of(List.of(a, b));
+			}
+
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		/*
 		 * permutation: chained,error,value
 		 *
-		 * The one cell that was actually missing from the matrix: mode (the plain,
-		 * no-Validator "value" property, see globalFlagReadWithoutValidatorThrowsDirectly
-		 * above) genuinely failing to convert (not just being absent), inside a chained
+		 * mode (the plain, no-Validator "value" property, see
+		 * globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties above)
+		 * genuinely failing to convert (not just being absent), inside a chained
 		 * composite. mode is read via Result.map() (not convert()), the same terse
 		 * Error.of(key, e) path FakeEncoderBuilder's label uses - see
 		 * encoderCustomStringValidationFailure above - which has no "from X"/"Tried:"
 		 * provenance at all, so unlike globalConvertValueErrorAcrossChainedProperties
-		 * (the convert() equivalent) this message is identical whether mode lives in a
-		 * single LogProperties or a chained one; kept here anyway for completeness of the
-		 * [chained|not chained] x [error|missing] x [convert|value|validator] matrix.
+		 * (the convert() equivalent) this message is identical to globalFlagValueError
+		 * above, whether mode lives in a single LogProperties or a chained one; kept here
+		 * anyway for completeness of the matrix.
 		 */
 		globalFlagValueErrorAcrossChainedProperties("", """
 				Error for property. key: logging.fakeGlobal.mode, mode must not be 'bad'""") {
@@ -399,6 +482,35 @@ class ConfigFailureTest {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("").build();
 				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
 						logging.fakeGlobal.mode=bad
+						""").build();
+				return LogProperties.of(List.of(a, b));
+			}
+
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		/*
+		 * permutation: chained,error,validator
+		 *
+		 * Chained-composite variant of globalValidateError above: mode2 (in "b") fails
+		 * its map() check while mode (in "a") is valid, so the Validator collects the
+		 * same terse Error.of(key, e) message globalValidateError does - no "from
+		 * X"/"Tried:" provenance, so this message is identical to the non-chained
+		 * version; kept here anyway for completeness of the matrix.
+		 */
+		globalValidateErrorAcrossChainedProperties("", """
+				Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
+				Error for property. key: logging.fakeGlobal.mode2, mode2 must not be 'bad'""") {
+			@Override
+			LogProperties properties() {
+				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
+						logging.fakeGlobal.mode=x
+						""").build();
+				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
+						logging.fakeGlobal.mode2=bad
 						""").build();
 				return LogProperties.of(List.of(a, b));
 			}
