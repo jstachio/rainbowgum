@@ -164,6 +164,16 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-simple-props</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-simple</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-apt</artifactId>
         <version>${project.version}</version>
         <optional>true</optional>
@@ -1237,6 +1247,8 @@
     <module>rainbowgum-jansi</module>
     <module>benchmark</module>
     <module>rainbowgum-avaje-config</module>
+    <module>rainbowgum-simple-props</module>
+    <module>rainbowgum-simple</module>
     <module>test</module>
     <module>etc</module>
     <module>rainbowgum-apt</module>
