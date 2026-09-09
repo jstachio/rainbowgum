@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum;
 
-import java.util.List;
-
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 /**
@@ -12,7 +10,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * {@code logging.jul.disable}/{@code logging.jul.level.disable} in rainbowgum-jul) uses
  * for its global on/off switches. Unlike those switches (always {@code Boolean}, which
  * can never itself fail to parse - {@link Boolean#parseBoolean(String)} just returns
- * {@code false} for anything unrecognized), this fake also has four required companion
+ * {@code false} for anything unrecognized), this fake also has three required companion
  * properties, each demonstrating a different way a direct (no builder) read can fail:
  * <ul>
  * <li>{@value #MODE_PROPERTY} via plain {@link LogProperty.Result#value()}, so a
@@ -22,15 +20,12 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * {@link LogProperty.Validator}/{@link LogProperty.Result#validate(LogProperty.Validator)
  * validate(Validator)}, which gets that richer "Validation failed for X:" message (naming
  * this class) the same way a generated builder's own {@code Validator} would.</li>
- * <li>{@value #MODE3_PROPERTY}, a single {@link String} value validated through
+ * <li>{@value #MODE3_PROPERTY} via
  * {@link LogProperty.Result#convert(LogProperties, LogProperty.PropertyFunction)
  * convert()} (not {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()}, see
  * {@code FakeEncoderBuilder}'s {@code label}) so the failure goes through
  * {@code richError()}'s richer path instead of {@code map()}'s terse
  * {@code Error.of(key, e)}.</li>
- * <li>{@value #TAGS_PROPERTY}, the same idea as {@value #MODE3_PROPERTY} but a
- * {@code List<String>} - compare the two to see what, if anything, changes in the message
- * shape between a {@code convert()} failure on a single value versus a list.</li>
  * </ul>
  * See {@link ConfigFailureTest.ConfigFailure} for exactly how these compare, including
  * chained/{@code ListLogProperties} variants.
@@ -45,8 +40,6 @@ final class FakeGlobalConfigurator implements Configurator {
 
 	static final String MODE3_PROPERTY = "logging.fakeGlobal.mode3";
 
-	static final String TAGS_PROPERTY = "logging.fakeGlobal.tags";
-
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		var properties = config.properties();
@@ -60,7 +53,6 @@ final class FakeGlobalConfigurator implements Configurator {
 		v.validate();
 		mode2.value();
 		properties.forKey(MODE3_PROPERTY).ofString().convert(properties, FakeGlobalConfigurator::checkMode3).value();
-		properties.forKey(TAGS_PROPERTY).ofList().convert(properties, FakeGlobalConfigurator::checkTags).value();
 		return true;
 	}
 
@@ -69,13 +61,6 @@ final class FakeGlobalConfigurator implements Configurator {
 			throw new IllegalArgumentException("mode3 must not be 'bad'");
 		}
 		return value;
-	}
-
-	private static List<String> checkTags(List<String> tags) {
-		if (tags.contains("bad")) {
-			throw new IllegalArgumentException("tags must not contain 'bad'");
-		}
-		return tags;
 	}
 
 }
