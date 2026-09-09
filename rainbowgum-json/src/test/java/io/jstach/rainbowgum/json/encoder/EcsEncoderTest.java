@@ -5,9 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,19 +45,11 @@ class EcsEncoderTest {
 	@Test
 	void testBuilder() {
 		EcsEncoderBuilder b = new EcsEncoderBuilder("ecs");
-		b.serviceName("myapp");
-		b.prettyPrint(true);
-		Map<String, String> props = new LinkedHashMap<>();
-		b.toProperties(props::put);
-		String expected = """
+		String propString = """
 				logging.encoder.ecs.serviceName=myapp
 				logging.encoder.ecs.prettyPrint=true
 				""";
-		String actual = PropertiesParser.writeProperties(props);
-		assertEquals(expected, actual);
-
-		b = new EcsEncoderBuilder("ecs");
-		props = PropertiesParser.readProperties(actual);
+		var props = PropertiesParser.readProperties(propString);
 		b.fromProperties(props::get);
 
 		EcsEncoder encoder = b.build();
@@ -75,7 +65,7 @@ class EcsEncoderTest {
 		ListLogOutput out = new ListLogOutput();
 		buffer.drain(out, e);
 		String message = out.events().get(0).getValue();
-		expected = """
+		String expected = """
 				{
 				 "@timestamp":"1970-01-01T00:00:00.001Z",
 				 "log.level":"INFO",

@@ -162,21 +162,6 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 	}
 	
 	/**
-	 * Turns the builder into java.util.Properties like Map skipping values that are null.
-	 * @param consumer apply is called where first arg is key and second is value.
-	 */
-	public void toProperties(java.util.function.BiConsumer<String, String> consumer) {
-		$$#properties$$
-		$$#normal$$
-		var _$$name$$ = this.$$name$$;
-		if (_$$name$$ != null) {
-			consumer.accept($$propertyVar$$, LogProperty.propertyString(_$$name$$));
-		}
-		$$/normal$$
-		$$/properties$$
-	}
-	
-	/**
 	 * The interpolated property prefix: {@value #PROPERTY_PREFIX}.
 	 * @return resolved prefix which should end with a "<code>.</code>".
 	 */

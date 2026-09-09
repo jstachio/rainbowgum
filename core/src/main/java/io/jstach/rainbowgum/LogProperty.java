@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -179,60 +178,6 @@ public interface LogProperty {
 			throw new PropertyMissingException("Value is required not null. property key='" + key + "'");
 		}
 		return value;
-	}
-
-	/**
-	 * Converts a value into a String that can be parsed back by {@link LogProperties}'s
-	 * built-in property parsing. Supported types: String, Boolean, Integer, URI, Map,
-	 * List.
-	 * @param value value to convert, must not be null.
-	 * @return property-string representation of value.
-	 */
-	static String propertyString(Object value) {
-		return switch (value) {
-			case String s -> s;
-			case Boolean b -> String.valueOf(b);
-			case Integer i -> String.valueOf(i);
-			case URI u -> String.valueOf(u);
-			case Map<?, ?> m -> mapPropertyString(m);
-			case List<?> list -> listPropertyString(list);
-			default -> throw new RuntimeException("Unable to convert to property string. value = " + value);
-		};
-	}
-
-	private static String mapPropertyString(Map<?, ?> value) {
-		StringBuilder sb = new StringBuilder();
-		boolean first = true;
-		for (var e : value.entrySet()) {
-			if (first) {
-				first = false;
-			}
-			else {
-				sb.append("&");
-			}
-			PercentCodec.encode(sb, String.valueOf(e.getKey()), StandardCharsets.UTF_8);
-			Object v = e.getValue();
-			if (v != null) {
-				sb.append("=");
-				PercentCodec.encode(sb, String.valueOf(v), StandardCharsets.UTF_8);
-			}
-		}
-		return sb.toString();
-	}
-
-	private static String listPropertyString(List<?> list) {
-		StringBuilder sb = new StringBuilder();
-		boolean first = true;
-		for (var e : list) {
-			if (first) {
-				first = false;
-			}
-			else {
-				sb.append(",");
-			}
-			PercentCodec.encode(sb, String.valueOf(e), StandardCharsets.UTF_8);
-		}
-		return sb.toString();
 	}
 
 	/**
