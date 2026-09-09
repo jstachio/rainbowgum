@@ -20,7 +20,12 @@ class RouterTest {
 
 		// LevelResolver resolver = InternalLevelResolver.of(Map.of("stuff", Level.INFO,
 		// "", Level.DEBUG));
-		LevelResolver resolver = LevelResolver.builder().level(Level.DEBUG).level(Level.INFO, "stuff").build();
+		var config = LogConfig.builder().build();
+		LevelResolver resolver = LevelResolver.builder()
+			.level(Level.DEBUG)
+			.level(Level.INFO, "stuff")
+			.build()
+			.provide("test", config);
 		assertEquals(Level.INFO, resolver.resolveLevel("stuff.crap"));
 		var publisher = new TestSyncPublisher();
 		@SuppressWarnings("resource")
@@ -34,20 +39,29 @@ class RouterTest {
 	@Test
 	void testCompositeRouter() throws Exception {
 
+		var config = LogConfig.builder().build();
+
 		// LevelResolver resolver1 = InternalLevelResolver.of(Map.of("stuff", Level.INFO,
 		// "", Level.DEBUG));
-		LevelResolver resolver1 = LevelResolver.builder().level(Level.DEBUG).level(Level.INFO, "stuff").build();
+		LevelResolver resolver1 = LevelResolver.builder()
+			.level(Level.DEBUG)
+			.level(Level.INFO, "stuff")
+			.build()
+			.provide("1", config);
 		var publisher1 = new TestSyncPublisher();
 		var router1 = new SimpleRouter("1", publisher1, resolver1);
 
 		// LevelResolver resolver2 = InternalLevelResolver.of(Map.of("stuff", Level.DEBUG,
 		// "", Level.WARNING));
-		LevelResolver resolver2 = LevelResolver.builder().level(Level.DEBUG, "stuff").level(Level.WARNING).build();
+		LevelResolver resolver2 = LevelResolver.builder()
+			.level(Level.DEBUG, "stuff")
+			.level(Level.WARNING)
+			.build()
+			.provide("2", config);
 
 		var publisher2 = new TestSyncPublisher();
 		var router2 = new SimpleRouter("2", publisher2, resolver2);
 
-		var config = LogConfig.builder().build();
 		var root = InternalRootRouter.of(List.of(router1, router2), config);
 
 		var route = root.route("stuff", Level.DEBUG);
@@ -76,7 +90,8 @@ class RouterTest {
 		 * mutation of the live key values. Freezing (and therefore defensively copying)
 		 * would just be wasted allocation here.
 		 */
-		var resolver = LevelResolver.builder().level(Level.DEBUG).build();
+		var config = LogConfig.builder().build();
+		var resolver = LevelResolver.builder().level(Level.DEBUG).build().provide("test", config);
 		var publisher = new TestSyncPublisher();
 		@SuppressWarnings("resource")
 		var router = new SimpleRouter("1", publisher, resolver);
@@ -98,7 +113,8 @@ class RouterTest {
 		 * the event) before the worker gets around to it. The router must freeze
 		 * (defensively copy) the event before publishing it asynchronously.
 		 */
-		var resolver = LevelResolver.builder().level(Level.DEBUG).build();
+		var config = LogConfig.builder().build();
+		var resolver = LevelResolver.builder().level(Level.DEBUG).build().provide("test", config);
 		var publisher = new TestAsyncPublisher();
 		@SuppressWarnings("resource")
 		var router = new SimpleRouter("1", publisher, resolver);

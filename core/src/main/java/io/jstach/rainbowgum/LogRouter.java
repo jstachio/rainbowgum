@@ -379,7 +379,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				if (!flags.contains(RouteFlag.IGNORE_GLOBAL_LEVEL_RESOLVER)) {
 					routeLevelResolverBuilder.fallback(config.levelResolver());
 				}
-				var levelResolver = routeLevelResolverBuilder.build();
+				var levelResolver = routeLevelResolverBuilder.build().provide(name, config);
 
 				if (currentConfig == null) {
 					/*
@@ -397,7 +397,8 @@ public sealed interface LogRouter extends LogLifecycle {
 						levelResolver = LevelResolver.builder()
 							.resolver(levelResolver)
 							.fallback(StaticLevelResolver.INFO)
-							.build();
+							.build()
+							.provide(name, config);
 						// throw new IllegalStateException("Global Level Resolver should
 						// not resolve to Level.ALL");
 					}
@@ -599,7 +600,7 @@ sealed interface InternalRootRouter extends RootRouter {
 		routes = sorted;
 		LevelResolver.Builder resolverBuilder = LevelResolver.builder();
 		routes.stream().map(Router::levelResolver).forEach(resolverBuilder::resolver);
-		var globalLevelResolver = resolverBuilder.build();
+		var globalLevelResolver = resolverBuilder.build().provide("", config);
 
 		Router[] array = routes.toArray(new Router[] {});
 

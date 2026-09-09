@@ -65,6 +65,30 @@ To land before 1.0:
       resize/soft-limit-hit counter (see the soft-limiting `maxBufferSize` work on
       `LogEncoder`/`JsonBuffer`) was floated as the first real candidate, once WARN/INFO
       widening (above) makes a non-error signal like that appropriate.
+- [x] `LevelResolver`/`LevelConfig` now alert instead of throwing: a level property that
+      fails to parse (root `logging.level` or a per-logger `logging.level.X`) used to
+      throw `PropertyConvertException` right out of `resolveLevel`/`levelOrNull` -
+      possibly on every single call for a hot logger name, since a
+      `ConcurrentHashMap#computeIfAbsent` mapping function that throws leaves nothing
+      cached. `CachedLevelResolver` (per-route) and the new `AlertingLevelConfig`
+      (global, package-private, `LevelResolver.java`) now catch that, alert exactly once
+      per logger name via `LogAlerts`, and fall back to `Level.INFO`. `DefaultLogConfig`
+      now takes `LogAlerts`/`LogMetrics` in its constructor (built by `LogConfig.Builder`
+      before `DefaultLogConfig` itself) instead of constructing them internally, since
+      the global resolver needs `LogAlerts` before a full `LogConfig` exists to pull
+      `config.alerts()` from - see the two-pass item just below for the one remaining
+      rough edge this didn't fix.
+- [ ] **Two-pass config**: `LogConfig.Builder.build()` builds the global level resolver
+      from `logProperties` as it stood *before* any `Configurator` runs, then only
+      afterward calls `RainbowGumServiceProvider.Configurator.runConfigurators(...)` - so
+      a configurator that contributes additional property sources (or otherwise changes
+      what the level resolver should have seen) is invisible to it. Flagged inline where
+      `runConfigurators` is called in `LogConfig.java`. Proper fix: run configurators
+      first, then rebuild whatever is purely derived from properties (starting with the
+      level resolver) a second time against the now-fully-configured `LogConfig`, rather
+      than building it once, early, and never revisiting it. Deliberately not done as
+      part of the `LevelResolver` alerting work above - a bigger change to `LogConfig`'s
+      build lifecycle than that warranted on its own.
 - [ ] A third, still-unaddressed facet the old `status()` API used to partly cover:
       a **static configuration report** - not alerts (event-driven) or metrics
       (gauges), just "what actually got wired up." With `REUSE_BUFFER`/

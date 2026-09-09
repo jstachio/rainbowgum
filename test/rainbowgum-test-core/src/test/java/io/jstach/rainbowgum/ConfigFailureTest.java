@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.System.Logger.Level;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -23,11 +24,11 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * {@link FakeEncoderConfigurator} (host/label/port/endpoint/tags/headers, i.e.
  * String/Integer/URI/List/Map) is registered by default for every case, exercising a
  * component with a spread of property types failing conversion/validation through a
- * builder+{@link LogProperty.Validator} - the built-in scenarios (unregistered scheme,
- * bad level) need no such fixture, but registering it is harmless for them since none of
- * their properties overlap with FakeEncoderBuilder's. {@link FakeGlobalConfigurator}
- * (opted into per-case via {@link ConfigFailure#configurators()}) is the contrasting
- * case: a direct property read with no builder/Validator in between.
+ * builder+{@link LogProperty.Validator} - the built-in scenarios (unregistered scheme)
+ * need no such fixture, but registering it is harmless for them since none of their
+ * properties overlap with FakeEncoderBuilder's. {@link FakeGlobalConfigurator} (opted
+ * into per-case via {@link ConfigFailure#configurators()}) is the contrasting case: a
+ * direct property read with no builder/Validator in between.
  */
 class ConfigFailureTest {
 
@@ -44,28 +45,33 @@ class ConfigFailureTest {
 	}
 
 	/*
-	 * Not a ConfigFailure case: a bad per-logger level mapping does NOT make
-	 * RainbowGum.builder(config).build().start() fail at all - per-logger level
-	 * properties (as opposed to the bare "logging.level" root default, see
-	 * ConfigFailure.badLevelValue above) are resolved lazily, only when a logger by that
-	 * exact name is actually looked up (ConfigLevelResolver.levelOrNull(name), called
-	 * from LevelResolver.resolveLevel(name)) - so a typo like this can sit in config for
-	 * the whole life of the process without ever surfacing, until/unless something
-	 * actually logs through "com.blah".
+	 * Not a ConfigFailure case, and no longer a "throws lazily" case either (see git
+	 * history for that older version of this test - and the now-removed
+	 * ConfigFailure.badLevelValue, which used to make a bad root "logging.level" fail
+	 * RainbowGum...start() itself). Both were made obsolete by the same fix: a level
+	 * property that fails to parse - root or per-logger - no longer throws anywhere.
+	 * CachedLevelResolver/AlertingLevelConfig catch it, fall back to Level.INFO, and
+	 * report exactly one alert per distinct logger name (not one per resolveLevel(name)
+	 * call - resolution for a hot logger happens constantly, and ConcurrentHashMap's
+	 * computeIfAbsent would otherwise leave a throwing lookup uncached, re-parsing and
+	 * re-alerting every single time).
 	 */
 	@Test
-	void testBadPerLoggerLevelMappingOnlyFailsWhenThatLoggerIsResolved() {
+	void testBadLevelMappingAlertsOnceAndFallsBackToInfoInsteadOfThrowing() {
 		var props = LogProperties.builder().fromProperties("""
 				logging.level.com.blah=BLAH
 				""").build();
 		var config = LogConfig.builder().properties(props).build();
 		try (var gum = RainbowGum.builder(config).build().start()) {
-			var e = assertThrows(RuntimeException.class, () -> gum.router().levelResolver().resolveLevel("com.blah"));
-			assertEquals(
-					"""
-							Error for property. key: 'logging.level.com.blah' from PROPERTIES_STRING[logging.level.com.blah], java.lang.IllegalArgumentException Cannot parse Level from input. input='BLAH'
-							Tried: 'logging.level.com.blah' from PROPERTIES_STRING[logging.level.com.blah]""",
-					e.getMessage());
+			var alerts = gum.config().alerts();
+			assertEquals(0, alerts.stats().total());
+
+			assertEquals(Level.INFO, gum.router().levelResolver().resolveLevel("com.blah"));
+			assertEquals(1, alerts.stats().total());
+
+			// resolving the same bad name again must not alert a second time.
+			assertEquals(Level.INFO, gum.router().levelResolver().resolveLevel("com.blah"));
+			assertEquals(1, alerts.stats().total());
 		}
 	}
 
@@ -80,13 +86,6 @@ class ConfigFailureTest {
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
 						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						Tried: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output]"""),
-
-		badLevelValue("""
-				logging.level=NOTALEVEL
-				""",
-				"""
-						Error for property. key: 'logging.level' from PROPERTIES_STRING[logging.level], java.lang.IllegalArgumentException Cannot parse Level from input. input='NOTALEVEL'
-						Tried: 'logging.level' from PROPERTIES_STRING[logging.level]"""),
 
 		unregisteredPublisherScheme("""
 				logging.route.default.publisher=bogus:///

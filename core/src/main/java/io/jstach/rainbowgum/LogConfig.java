@@ -305,26 +305,47 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				logProperties = LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
 
 			}
-			var levelResolver = this.buildGlobalResolver(logProperties);
-			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver);
+			/*
+			 * Built before DefaultLogConfig itself (rather than left for
+			 * DefaultLogConfig's constructor to create, as before) specifically so
+			 * buildGlobalResolver below can hand LogAlerts to the global level resolver's
+			 * alerting wrapper - the global resolver is built before a full LogConfig
+			 * exists to pull config.alerts() from, so alerts (and metrics, via alerts'
+			 * own listener wiring) are constructed directly here instead.
+			 */
+			LogAlerts alerts = new DefaultLogAlerts(LogAlerts.DEFAULT_CAPACITY);
+			LogMetrics metrics = new DefaultLogMetrics();
+			var levelResolver = this.buildGlobalResolver(logProperties, alerts);
+			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics);
 			if (serviceLoader != null) {
 				configurators = new ArrayList<>(configurators);
 				findProviders(serviceLoader, Configurator.class).forEach(configurators::add);
 			}
 			if (!configurators.isEmpty()) {
+				/*
+				 * TODO two-pass config: configurators run after config (and therefore the
+				 * global level resolver above) already exists, so a configurator that
+				 * contributes additional property sources or otherwise changes what the
+				 * level resolver should have seen is invisible to it - the resolver was
+				 * already built from logProperties as it stood before any configurator
+				 * ran. A more correct design would run configurators first, then rebuild
+				 * whatever is purely derived from properties (starting with the level
+				 * resolver) a second time against the now-fully-configured LogConfig. Not
+				 * done here - see todo.md.
+				 */
 				RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);
 			}
 			return config;
 		}
 
-		LevelConfig buildGlobalResolver(LogProperties logProperties) {
+		LevelConfig buildGlobalResolver(LogProperties logProperties, LogAlerts alerts) {
 			LevelConfig levelResolver = LevelConfig
 				.of(List.of(ConfigLevelResolver.of(logProperties), GroupLevelResolver.of(logProperties)));
 			var config = buildLevelConfigOrNull();
 			if (config != null) {
-				return LevelConfig.of(List.<LevelConfig>of(config, levelResolver));
+				levelResolver = LevelConfig.of(List.<LevelConfig>of(config, levelResolver));
 			}
-			return levelResolver;
+			return new AlertingLevelConfig(levelResolver, alerts);
 		}
 
 		private static List<LogProperties> provideProperties(ServiceRegistry registry,
@@ -432,19 +453,20 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogMetrics metrics;
 
-	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver) {
+	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
+			LogMetrics metrics) {
 		super();
 		this.registry = registry;
 		this.properties = properties;
 		this.levelResolver = levelResolver;
+		this.alerts = alerts;
+		this.metrics = metrics;
 		boolean changeable = properties.forKey(LogProperties.GLOBAL_CHANGE_PROPERTY).ofBoolean().or(false).value();
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		applyGlobalAppenderReentrantLockProperty(properties);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
-		this.alerts = new DefaultLogAlerts(LogAlerts.DEFAULT_CAPACITY);
-		this.metrics = new DefaultLogMetrics();
 		this.alerts.addListener(event -> this.metrics.errorCounter(event.loggerName(), 1));
 	}
 

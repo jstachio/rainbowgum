@@ -324,10 +324,16 @@ public interface LevelResolver {
 		 * found for a logger name wins), and, if any {@link #fallback(LevelResolver)
 		 * fallbacks} were added, wrapping that in a priority chain where the fallbacks
 		 * are only consulted for logger names the combined resolver above has no opinion
-		 * on (resolves to {@link Level#ALL}). The result is cached.
-		 * @return level resolver.
+		 * on (resolves to {@link Level#ALL}). The result is cached - deferred as a
+		 * {@link LogProvider} (rather than building the cached resolver directly) since
+		 * the cache also needs {@link LogConfig#alerts()} to report a logger name whose
+		 * level property fails to resolve, and only a couple of resolver primitives (this
+		 * builder's cache, and separately the global resolver's own alerting wrapper)
+		 * need alerts at all - not every {@link LevelResolver}/{@link LevelConfig}
+		 * implementation.
+		 * @return level resolver provider.
 		 */
-		public LevelResolver build() {
+		public LogProvider<LevelResolver> build() {
 			var config = buildLevelConfigOrNull();
 			List<LevelResolver> copy = new ArrayList<>();
 			if (config != null) {
@@ -341,7 +347,8 @@ public interface LevelResolver {
 				priority.addAll(fallbacks);
 				resolver = PriorityLevelResolver.of(priority);
 			}
-			return cached(resolver);
+			var _resolver = resolver;
+			return (name, c) -> cached(_resolver, c.alerts());
 		}
 
 		/**
@@ -419,11 +426,11 @@ public interface LevelResolver {
 			return level;
 		}
 
-		static LevelResolver cached(LevelResolver resolver) {
+		static LevelResolver cached(LevelResolver resolver, LogAlerts alerts) {
 			if (resolver instanceof StaticLevelResolver) {
 				return resolver;
 			}
-			return new CachedLevelResolver(resolver);
+			return new CachedLevelResolver(resolver, alerts);
 		}
 
 	}
@@ -639,16 +646,39 @@ final class CachedLevelResolver implements LevelResolver {
 
 	private final LevelResolver levelResolver;
 
+	private final LogAlerts alerts;
+
 	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
 
-	public CachedLevelResolver(LevelResolver levelResolver) {
+	public CachedLevelResolver(LevelResolver levelResolver, LogAlerts alerts) {
 		super();
 		this.levelResolver = levelResolver;
+		this.alerts = alerts;
 	}
 
 	@Override
 	public Level resolveLevel(String name) {
-		return levelCache.computeIfAbsent(name, n -> levelResolver.resolveLevel(n));
+		return levelCache.computeIfAbsent(name, n -> {
+			try {
+				return levelResolver.resolveLevel(n);
+			}
+			catch (Exception e) {
+				/*
+				 * A malformed level property must not be able to break logging itself.
+				 * ConcurrentHashMap#computeIfAbsent leaves nothing cached when the
+				 * mapping function throws, so without catching here a bad property would
+				 * re-parse and re-throw on every single resolveLevel(n) call for this
+				 * logger name, not just once - a real amplification risk for a hot
+				 * logger. Fall back to a fixed, conservative default (Level.INFO,
+				 * matching LogProperties' own documented root default) and alert exactly
+				 * once per logger name instead, since the fallback value is itself cached
+				 * above just like a successful resolution would be.
+				 */
+				alerts.error(CachedLevelResolver.class,
+						"Failed to resolve level for logger '" + n + "', falling back to " + Level.INFO, e);
+				return Level.INFO;
+			}
+		});
 	}
 
 	@Override
@@ -660,6 +690,67 @@ final class CachedLevelResolver implements LevelResolver {
 	public void clear() {
 		levelCache.clear();
 		levelResolver.clear();
+	}
+
+}
+
+/**
+ * Wraps the global {@link LevelConfig} (see
+ * {@code LogConfig.Builder.buildGlobalResolver}) with the same
+ * alert-on-failure/fallback-to-INFO safety net as {@link CachedLevelResolver} gives every
+ * per-route resolver, but implemented at the {@link #levelOrNull(String)} level (not
+ * {@link #resolveLevel(String)}) so {@link LevelConfig#defaultLevel()} stays available -
+ * {@code LogConfig.levelResolver()} is declared to return {@link LevelConfig}, not just
+ * {@link LevelResolver}, and real callers use {@code defaultLevel()}. Unlike
+ * {@link CachedLevelResolver} this does not cache successful lookups (the global resolver
+ * never has), only failed ones, purely so a bad property alerts once per logger name
+ * instead of on every call.
+ * <p>
+ * Special-cased outside the normal {@code LevelResolver.Builder.build()} ->
+ * {@code LogProvider<LevelResolver>} path since the global resolver is built before a
+ * {@link LogConfig} exists to pull {@link LogAlerts} from - see where this is constructed
+ * for why {@link LogAlerts} (and {@link LogMetrics}, via alerts' own listener wiring) are
+ * built and handed in directly instead.
+ */
+final class AlertingLevelConfig implements LevelConfig {
+
+	private final LevelConfig levelConfig;
+
+	private final LogAlerts alerts;
+
+	private final ConcurrentHashMap<String, Level> failedNames = new ConcurrentHashMap<>();
+
+	AlertingLevelConfig(LevelConfig levelConfig, LogAlerts alerts) {
+		this.levelConfig = levelConfig;
+		this.alerts = alerts;
+	}
+
+	@Override
+	public @Nullable Level levelOrNull(String name) {
+		var fallback = failedNames.get(name);
+		if (fallback != null) {
+			return fallback;
+		}
+		try {
+			return levelConfig.levelOrNull(name);
+		}
+		catch (Exception e) {
+			alerts.error(AlertingLevelConfig.class,
+					"Failed to resolve level for logger '" + name + "', falling back to " + Level.INFO, e);
+			failedNames.putIfAbsent(name, Level.INFO);
+			return Level.INFO;
+		}
+	}
+
+	@Override
+	public void clear() {
+		failedNames.clear();
+		levelConfig.clear();
+	}
+
+	@Override
+	public String toString() {
+		return "AlertingLevelConfig[" + levelConfig + "]";
 	}
 
 }
