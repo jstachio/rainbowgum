@@ -18,7 +18,6 @@ import io.jstach.rainbowgum.LogProperty.Result;
 import io.jstach.rainbowgum.LogProperty.Result.Error;
 import io.jstach.rainbowgum.LogProperty.Result.Missing;
 import io.jstach.rainbowgum.LogProperty.Result.Success.PropertySuccess;
-import io.jstach.rainbowgum.LogProperty.Result.Success.ValueSuccess;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogProperty.Validator;
 
@@ -26,7 +25,7 @@ class LogPropertyTest {
 
 	@Test
 	void testValidatorAddIfErrorIgnoresMissingButKeepsError() {
-		Missing<Integer> missing = new Missing<>(List.of("key"), "missing");
+		Missing<Integer> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		Error<Integer> error = new Error<>("key", "bad value", new NumberFormatException("nope"));
 		var validator = Validator.of(LogPropertyTest.class);
 		validator.addIfError(missing);
@@ -59,9 +58,11 @@ class LogPropertyTest {
 
 	@Test
 	@SuppressWarnings({ "null", "nullness", "NullAway" })
-	void testValueSuccessRejectsNullValueAndMap() {
-		assertThrows(NullPointerException.class, () -> new ValueSuccess<String>("key", null));
-		var success = new ValueSuccess<>("key", "5");
+	void testValueKindPropertySuccessRejectsNullValueAndMap() {
+		var properties = LogProperties.StandardProperties.EMPTY;
+		assertThrows(NullPointerException.class,
+				() -> new PropertySuccess<String>(properties, "key", "5", PropertySuccess.Kind.VALUE, null));
+		var success = new PropertySuccess<>(properties, "key", "5", PropertySuccess.Kind.VALUE, "5");
 		assertEquals("key", success.key());
 		assertEquals("Fallback[key]=5", success.describe());
 		Result<Integer> mapped = success.map(Integer::parseInt);
@@ -93,20 +94,23 @@ class LogPropertyTest {
 
 	@Test
 	void testMissingRejectsEmptyKeys() {
-		assertThrows(IllegalArgumentException.class, () -> new Missing<String>(List.of(), "message"));
+		assertThrows(IllegalArgumentException.class,
+				() -> new Missing<String>(LogProperties.StandardProperties.EMPTY, List.of(), "message"));
 	}
 
 	@Test
 	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testMissingOrWithFallbackSupplier() {
-		Missing<String> missing = new Missing<>(List.of("key"), "Property missing. keys: [key]");
+		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"),
+				"Property missing. keys: [key]");
 		assertEquals("fallback", missing.or(() -> "fallback").value());
 		assertThrows(PropertyMissingException.class, () -> missing.or(() -> null).value());
 	}
 
 	@Test
 	void testMissingConvertAndDescribe() {
-		Missing<String> missing = new Missing<>(List.of("key"), "Property missing. keys: [key]");
+		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"),
+				"Property missing. keys: [key]");
 		Missing<Integer> converted = missing.convert();
 		assertEquals("Missing[[key]]", converted.describe());
 		assertEquals(missing, missing.map(Integer::parseInt));
@@ -129,30 +133,33 @@ class LogPropertyTest {
 
 	@Test
 	void testResultValueOrNullWithFallback() {
-		Result<String> success = new ValueSuccess<>("key", "actual");
+		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY, "key", "actual",
+				PropertySuccess.Kind.VALUE, "actual");
 		assertEquals("actual", success.valueOrNull("fallback"));
-		Result<String> missing = new Missing<>(List.of("key"), "missing");
+		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		assertEquals("fallback", missing.valueOrNull("fallback"));
 	}
 
 	@Test
 	void testResultOrWithFallbackObject() {
-		Result<String> missing = new Missing<>(List.of("key"), "missing");
+		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		assertEquals("fallback", missing.or("fallback").value());
 		assertThrows(PropertyMissingException.class, () -> missing.or((String) null).value());
 	}
 
 	@Test
 	void testResultOptional() {
-		Result<String> success = new ValueSuccess<>("key", "actual");
+		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY, "key", "actual",
+				PropertySuccess.Kind.VALUE, "actual");
 		assertEquals(Optional.of("actual"), success.optional());
-		Result<String> missing = new Missing<>(List.of("key"), "missing");
+		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		assertEquals(Optional.empty(), missing.optional());
 	}
 
 	@Test
 	void testResultGetReturnsItself() {
-		Result<String> success = new ValueSuccess<>("key", "value");
+		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY, "key", "value",
+				PropertySuccess.Kind.VALUE, "value");
 		assertSame(success, success.get());
 	}
 
