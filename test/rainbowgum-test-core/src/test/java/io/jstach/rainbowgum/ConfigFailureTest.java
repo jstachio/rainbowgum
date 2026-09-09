@@ -3,11 +3,7 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.lang.System.Logger.Level;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -590,45 +586,6 @@ class ConfigFailureTest {
 						""").build();
 				return LogProperties.of(List.of(appenders, encoder));
 			}
-		},
-
-		/*
-		 * The "unusual error" Adam flagged for logging.file.name: pointing it at a path
-		 * that exists but is a directory, not a file, throws a genuine
-		 * java.io.FileNotFoundException - a name that's actively misleading here, since
-		 * the path is very much found, just not openable as a file. Overrides both
-		 * properties() (to create the directory as a side effect) and expectedMessage()
-		 * (the message embeds an absolute path that has to be computed at test time, not
-		 * hardcoded).
-		 */
-		fileNameThatIsActuallyADirectory {
-
-			private final Path dir = Path.of("target/ConfigFailureTest-directory-not-a-file");
-
-			@Override
-			LogProperties properties() {
-				try {
-					Files.createDirectories(dir);
-				}
-				catch (IOException e) {
-					throw new UncheckedIOException(e);
-				}
-				return LogProperties.builder().fromProperties("""
-						logging.file.name=%s
-						""".formatted(dir)).build();
-			}
-
-			@Override
-			String expectedMessage() {
-				String absolutePath = dir.toAbsolutePath().toString();
-				return """
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'file' from property: Fallback[logging.route.default.appenders]=[file, console]. cause:
-						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.io.UncheckedIOException java.io.FileNotFoundException: %s (Is a directory)
-						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]""" //
-					.formatted(absolutePath);
-			}
-
 		};
 
 		private final String propertiesString;

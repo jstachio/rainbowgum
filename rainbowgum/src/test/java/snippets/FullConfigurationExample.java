@@ -8,7 +8,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.output.FileOutputBuilder;
+import io.jstach.rainbowgum.file.FileOutputBuilder;
 import io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
 

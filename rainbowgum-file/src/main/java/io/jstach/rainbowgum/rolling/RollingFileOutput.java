@@ -14,7 +14,7 @@ import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
-import io.jstach.rainbowgum.output.FileOutput;
+import io.jstach.rainbowgum.file.FileOutput;
 
 /**
  * A {@link FileOutput} that rolls (renames the active file to a numbered archive and

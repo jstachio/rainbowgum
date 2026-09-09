@@ -139,7 +139,7 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
-        <artifactId>rainbowgum-rolling</artifactId>
+        <artifactId>rainbowgum-file</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -1245,7 +1245,7 @@
     <module>rainbowgum-pattern</module>
     <module>rainbowgum-systemlogger</module>
     <module>rainbowgum-tomcat</module>
-    <module>rainbowgum-rolling</module>
+    <module>rainbowgum-file</module>
     <module>spring</module>
     <module>rainbowgum-maven-last</module>
   </modules>

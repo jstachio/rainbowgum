@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.output;
+package io.jstach.rainbowgum.file;
 
 import java.net.URI;
 import java.nio.ByteBuffer;

@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
-import io.jstach.rainbowgum.output.FileOutput;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /**
@@ -211,23 +210,6 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 				return LIST_OUTPUT_SCHEME;
 			}
 
-		},
-		FILE {
-
-			@Override
-			public LogProvider<LogOutput> provide(LogProviderRef ref) {
-				return FileOutput.of(ref);
-			}
-
-			@Override
-			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
-				throw new UnsupportedOperationException();
-			}
-
-			@Override
-			public String scheme() {
-				return LogOutput.FILE_SCHEME;
-			}
 		};
 
 		@Override

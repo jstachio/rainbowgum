@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.output;
+package io.jstach.rainbowgum.file;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,11 +17,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.jstach.rainbowgum.EnumCombinations;
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.TestLogEventFactory;
 
 class FileOutputTest {
 
