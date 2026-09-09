@@ -1,16 +1,21 @@
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
- * Bare minimum size based rolling file output. See
+ * File output - {@link io.jstach.rainbowgum.file.FileOutput} registered under the
+ * {@code file} URI scheme - plus bare minimum size based rolling on top of it, see
  * {@link io.jstach.rainbowgum.rolling.RollingFileOutput} for the full property list and
  * scope - deliberately does not support calendar/date based rotation or Logback's own
  * {@code fileNamePattern} conventions, only a numbered-suffix (<code>%i</code>) scheme.
+ * {@code rainbowgum-core} on its own has no file I/O capability at all - this module is
+ * what adds it.
  *
  * @provides RainbowGumServiceProvider
+ * @see io.jstach.rainbowgum.file.FileOutput
  * @see io.jstach.rainbowgum.rolling.RollingFileOutput
  */
-module io.jstach.rainbowgum.rolling {
+module io.jstach.rainbowgum.file {
 
+	exports io.jstach.rainbowgum.file;
 	exports io.jstach.rainbowgum.rolling;
 
 	requires transitive io.jstach.rainbowgum;

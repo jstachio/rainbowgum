@@ -1,11 +1,10 @@
-package io.jstach.rainbowgum.output;
+package io.jstach.rainbowgum.file;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.TestLogEventFactory;
 
 /**
  * Golden-string event fixtures used by {@link FileOutputPropertiesTest}. Duplicated from

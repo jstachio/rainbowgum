@@ -54,6 +54,11 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-file</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-test-jdk</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>

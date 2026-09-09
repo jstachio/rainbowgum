@@ -11,7 +11,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogResponse.Status;
-import io.jstach.rainbowgum.output.FileOutput;
+import io.jstach.rainbowgum.file.FileOutput;
 
 /*
  * The active-file byte counter is tracked internally rather than stat-ing the file on

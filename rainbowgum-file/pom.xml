@@ -5,8 +5,8 @@
     <artifactId>rainbowgum-maven-parent</artifactId>
     <version>0.11.0-SNAPSHOT</version>
   </parent>
-  <artifactId>rainbowgum-rolling</artifactId>
-  <name>rainbowgum-rolling</name>
+  <artifactId>rainbowgum-file</artifactId>
+  <name>rainbowgum-file</name>
   <properties>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>

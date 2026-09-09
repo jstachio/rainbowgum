@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.output;
+package io.jstach.rainbowgum.file;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,7 +17,7 @@ import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogResponse.Status;
-import io.jstach.rainbowgum.TestLogEventFactory;
+import io.jstach.rainbowgum.output.ListLogOutput;
 
 /*
  * LogOutput is protected from overlapping write/flush/close calls by the appender and

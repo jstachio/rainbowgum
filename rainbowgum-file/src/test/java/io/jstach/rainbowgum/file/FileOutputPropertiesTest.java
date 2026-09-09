@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.output;
+package io.jstach.rainbowgum.file;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -19,7 +19,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.jstach.rainbowgum.EnumCombinations;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
@@ -27,7 +26,6 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
-import io.jstach.rainbowgum.TestLogEventFactory;
 
 class FileOutputPropertiesTest {
 
@@ -45,7 +43,7 @@ class FileOutputPropertiesTest {
 			var properties = LogProperties.builder().fromProperties("""
 					logging.file.name=%s
 					""".formatted(file)).build();
-			var config = LogConfig.builder().properties(properties).build();
+			var config = LogConfig.builder().properties(properties).serviceLoader().build();
 			var gum = RainbowGum.builder(config).build();
 			try (var rg = gum.start()) {
 				rg.log(TestLogEventFactory.of("test").event(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
@@ -82,6 +80,7 @@ class FileOutputPropertiesTest {
 					""".formatted(fileName);
 			var config = LogConfig.builder()
 				.properties(LogProperties.builder().fromProperties(properties).build())
+				.serviceLoader()
 				.build();
 			var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
 			assertEquals(
@@ -89,7 +88,7 @@ class FileOutputPropertiesTest {
 							Failure providing Appenders for route: 'default'. cause:
 							Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
 							Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log' cause:
-							Validation failed for io.jstach.rainbowgum.output.FileOutputBuilder:
+							Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 							Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 							Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri]
 							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], java.lang.NumberFormatException For input string: "blah"
@@ -108,6 +107,33 @@ class FileOutputPropertiesTest {
 		finally {
 			Files.deleteIfExists(Path.of(fileName));
 		}
+	}
+
+	/*
+	 * Moved here from test/rainbowgum-test-core's ConfigFailureTest when FileOutput moved
+	 * out of core - the "unusual error" Adam flagged for logging.file.name: pointing it
+	 * at a path that exists but is a directory, not a file, throws a genuine
+	 * java.io.FileNotFoundException - a name that's actively misleading here, since the
+	 * path is very much found, just not openable as a file.
+	 */
+	@Test
+	void testFileNameThatIsActuallyADirectory() throws IOException {
+		Path dir = Path.of("target/FileOutputPropertiesTest-directory-not-a-file");
+		Files.createDirectories(dir);
+		var properties = LogProperties.builder().fromProperties("""
+				logging.file.name=%s
+				""".formatted(dir)).build();
+		var config = LogConfig.builder().properties(properties).serviceLoader().build();
+		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+		String absolutePath = dir.toAbsolutePath().toString();
+		assertEquals(
+				"""
+						Failure providing Appenders for route: 'default'. cause:
+						Failure providing Appender: 'file' from property: Fallback[logging.route.default.appenders]=[file, console]. cause:
+						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.io.UncheckedIOException java.io.FileNotFoundException: %s (Is a directory)
+						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]"""
+					.formatted(absolutePath),
+				e.getMessage());
 	}
 
 	@ParameterizedTest
@@ -173,7 +199,7 @@ class FileOutputPropertiesTest {
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
 						Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah' cause:
-						Validation failed for io.jstach.rainbowgum.output.FileOutputBuilder:
+						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], java.lang.NumberFormatException For input string: "blah"
 						Tried: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
 						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""" //
@@ -202,7 +228,7 @@ class FileOutputPropertiesTest {
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
 						Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log' cause:
-						Validation failed for io.jstach.rainbowgum.output.FileOutputBuilder:
+						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 						Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], ENVIRONMENT_VARIABLES[logging_output_file_uri]
 						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""";
@@ -244,7 +270,7 @@ class FileOutputPropertiesTest {
 		LogConfig config() {
 			var fallback = LogProperties.StandardProperties.ENVIRONMENT_VARIABLES;
 			var props = LogProperties.builder().fromProperties(properties.formatted(fileUri())).with(fallback).build();
-			return LogConfig.builder().properties(props).build();
+			return LogConfig.builder().properties(props).serviceLoader().build();
 		}
 
 		String fileUri() {
