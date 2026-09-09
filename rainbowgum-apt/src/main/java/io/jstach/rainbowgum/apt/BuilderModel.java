@@ -173,7 +173,7 @@ record BuilderModel( //
 		}
 
 		public String validateMethod() {
-			return required ? "add" : "addIfError";
+			return required ? "validate" : "validateIfError";
 		}
 
 		public boolean isNormal() {
