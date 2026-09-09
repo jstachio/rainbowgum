@@ -253,6 +253,114 @@ class ConfigFailureTest {
 		},
 
 		/*
+		 * 2x2 matrix for a direct (no builder) convert() read: single value vs list,
+		 * crossed with missing vs error (malformed). The two "Missing" cases below prove
+		 * convert() adds nothing when the property is simply absent - Result.convert()'s
+		 * own switch passes a Missing straight through (case Missing<T> m ->
+		 * m.convert();) without ever reaching richError(), so the message is the exact
+		 * same plain "Property missing. keys: [...]" shape as
+		 * globalFlagReadWithoutValidatorThrowsDirectly above, just naming a different
+		 * key. The two "Error" cases are a genuine convert() failure and go through
+		 * richError() - compare their shape to
+		 * encoderMalformedIntProperty/encoderMalformedUriProperty above, which are also
+		 * convert() failures but inside a builder + Validator ("Validation failed for
+		 * X:\n..." wrapper); here there is no such wrapper, same as
+		 * globalFlagReadWithoutValidatorThrowsDirectly.
+		 */
+		globalConvertSingleValueMissing("""
+				logging.fakeGlobal.mode=x
+				logging.fakeGlobal.mode2=y
+				""",
+				"""
+						Property missing. keys: ['logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3]]""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		globalConvertSingleValueError("""
+				logging.fakeGlobal.mode=x
+				logging.fakeGlobal.mode2=y
+				logging.fakeGlobal.mode3=bad
+				""",
+				"""
+						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
+						Tried: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3]""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		globalConvertListValueMissing("""
+				logging.fakeGlobal.mode=x
+				logging.fakeGlobal.mode2=y
+				logging.fakeGlobal.mode3=z
+				""",
+				"""
+						Property missing. keys: ['logging.fakeGlobal.tags' from PROPERTIES_STRING[logging.fakeGlobal.tags]]""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		globalConvertListValueError("""
+				logging.fakeGlobal.mode=x
+				logging.fakeGlobal.mode2=y
+				logging.fakeGlobal.mode3=z
+				logging.fakeGlobal.tags=good,bad
+				""",
+				"""
+						Error for property. key: 'logging.fakeGlobal.tags' from PROPERTIES_STRING[logging.fakeGlobal.tags], java.lang.IllegalArgumentException tags must not contain 'bad'
+						Tried: 'logging.fakeGlobal.tags' from PROPERTIES_STRING[logging.fakeGlobal.tags]""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		// chained-composite variant of globalFlagReadWithoutValidatorThrowsDirectly - see
+		// unregisteredOutputSchemeAcrossChainedProperties below for what this proves.
+		globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties("",
+				"""
+						Property missing. keys: ['logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode], PROPERTIES_STRING[logging.fakeGlobal.mode]]""") {
+			@Override
+			LogProperties properties() {
+				var a = LogProperties.builder().fromProperties("").build();
+				var b = LogProperties.builder().fromProperties("").build();
+				return LogProperties.of(List.of(a, b));
+			}
+
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		// chained-composite variant of
+		// globalFlagReadWithValidateBuildsRicherMissingMessage.
+		globalFlagReadWithValidateBuildsRicherMissingMessageAcrossChainedProperties("",
+				"""
+						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
+						Property missing. keys: ['logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2], PROPERTIES_STRING[logging.fakeGlobal.mode2]]""") {
+			@Override
+			LogProperties properties() {
+				var a = LogProperties.builder().fromProperties("""
+						logging.fakeGlobal.mode=x
+						""").build();
+				var b = LogProperties.builder().fromProperties("").build();
+				return LogProperties.of(List.of(a, b));
+			}
+
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		/*
 		 * Chained-source case: exercises ListLogProperties/CompositeLogProperties by
 		 * overriding properties() to combine two separately-built LogProperties via
 		 * LogProperties.of(List.of(...)) instead of parsing one string.
