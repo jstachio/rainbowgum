@@ -1028,9 +1028,9 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.valueOrNull(kk);
-				return v == null ? null : new FoundProperty.StringProperty(p, kk, v);
+				return v == null ? null : new FoundProperty(p, kk, v);
 			});
-			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
+			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, (String) prop.value());
 		});
 	}
 
@@ -1039,9 +1039,14 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.listOrNull(kk);
-				return v == null ? null : new FoundProperty.ListProperty(p, kk, v);
+				return v == null ? null : new FoundProperty(p, kk, v);
 			});
-			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
+			if (prop == null) {
+				return null;
+			}
+			@SuppressWarnings("unchecked")
+			List<String> value = (List<String>) prop.value();
+			return new Result.Success.PropertySuccess<>(prop, value);
 		});
 	}
 
@@ -1050,9 +1055,14 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.mapOrNull(kk);
-				return v == null ? null : new FoundProperty.MapProperty(p, kk, v);
+				return v == null ? null : new FoundProperty(p, kk, v);
 			});
-			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
+			if (prop == null) {
+				return null;
+			}
+			@SuppressWarnings("unchecked")
+			Map<String, String> value = (Map<String, String>) prop.value();
+			return new Result.Success.PropertySuccess<>(prop, value);
 		});
 	}
 
@@ -1090,93 +1100,46 @@ final class DefaultLogProperty implements LogProperty {
  * needed for the {@link LogProperty} fluent like monads. It includes the original value
  * before conversions.
  *
- * @apiNote This sealed class is purposely not generic parameterized but you are allowed
- * to pattern match as the subclasses represent the builtin types of properties that are
- * supported. Deliberately a top-level (not nested) type so it stays package-private -
- * interface members are always implicitly public in Java even without the keyword, so
- * nesting it inside LogProperty would not have hidden it.
+ * @param properties the <strong>exact</strong> properties where the value was found.
+ * @param key property key.
+ * @param value property value: a {@link String}, {@link List}, or {@link Map} depending
+ * on which of {@link LogProperty#ofString()}/{@link LogProperty#ofList()}/
+ * {@link LogProperty#ofMap()} it was found through.
+ * @apiNote value is deliberately untyped ({@code Object}) rather than generic - a
+ * {@link Result.Success.PropertySuccess} keeps pointing back to the same FoundProperty
+ * instance across conversions (e.g. {@link LogProperty#ofInt()} converts the string this
+ * was found as into an {@code Integer}), so FoundProperty's value type and the current
+ * result's value type are not always the same. Deliberately a top-level (not nested) type
+ * so it stays package-private - interface members are always implicitly public in Java
+ * even without the keyword, so nesting it inside LogProperty would not have hidden it.
  */
-sealed interface FoundProperty {
+record FoundProperty(LogProperties properties, String key, Object value) {
 
-	/**
-	 * The originating <em>exact</em> properties that the value was found on.
-	 * @return properties.
-	 */
-	LogProperties properties();
+	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
 
-	/**
-	 * The key that was used to find this property.
-	 * @return key also known as property name.
-	 */
-	String key();
+	private static final String REDACTED_VALUE = "<REDACTED>";
 
 	/**
 	 * A string representation of the value that this property has usually for error
 	 * descriptions.
 	 * @return description of value.
 	 */
-	String valueDescription();
+	String valueDescription() {
+		String s = value instanceof String str ? str : String.valueOf(value);
+		return maybeRedact(s);
+	}
 
-	/**
-	 * A found <strong>string</strong> property result which includes the
-	 * <strong>exact</strong> properties where a value was found.
-	 *
-	 * @param properties the <strong>exact</strong> properties where the value was found.
-	 * @param key property key.
-	 * @param value property string value.
-	 */
-	record StringProperty(LogProperties properties, String key, String value) implements FoundProperty {
-		@Override
-		public String valueDescription() {
-			return maybeRedact(value);
+	private static String maybeRedact(String input) {
+		String lower = input.toLowerCase(Locale.ROOT);
+		if (REDACTED_KEYS.contains(lower)) {
+			return REDACTED_VALUE;
 		}
-
-		private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
-
-		private static final String REDACTED_VALUE = "<REDACTED>";
-
-		private static final String maybeRedact(String input) {
-			String lower = input.toLowerCase(Locale.ROOT);
-			if (REDACTED_KEYS.contains(lower)) {
+		for (var k : REDACTED_KEYS) {
+			if (input.contains(k)) {
 				return REDACTED_VALUE;
 			}
-			for (var k : REDACTED_KEYS) {
-				if (input.contains(k)) {
-					return REDACTED_VALUE;
-				}
-			}
-			return input;
 		}
-	}
-
-	/**
-	 * A found <strong>list</strong> property result which includes the
-	 * <strong>exact</strong> properties where a value was found.
-	 *
-	 * @param properties the <strong>exact</strong> properties where the value was found.
-	 * @param key property key.
-	 * @param value property string value.
-	 */
-	record ListProperty(LogProperties properties, String key, List<String> value) implements FoundProperty {
-		@Override
-		public String valueDescription() {
-			return StringProperty.maybeRedact("" + value);
-		}
-	}
-
-	/**
-	 * A found <strong>map</strong> property result which includes the
-	 * <strong>exact</strong> properties where a value was found.
-	 *
-	 * @param properties the <strong>exact</strong> properties where the value was found.
-	 * @param key property key.
-	 * @param value property string value.
-	 */
-	record MapProperty(LogProperties properties, String key, Map<String, String> value) implements FoundProperty {
-		@Override
-		public String valueDescription() {
-			return StringProperty.maybeRedact("" + value);
-		}
+		return input;
 	}
 
 }
