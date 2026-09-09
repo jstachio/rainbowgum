@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -40,6 +41,32 @@ class ConfigFailureTest {
 			RainbowGum.builder(config).build().start();
 		});
 		assertEquals(c.expectedMessage(), e.getMessage());
+	}
+
+	/*
+	 * Not a ConfigFailure case: a bad per-logger level mapping does NOT make
+	 * RainbowGum.builder(config).build().start() fail at all - per-logger level
+	 * properties (as opposed to the bare "logging.level" root default, see
+	 * ConfigFailure.badLevelValue above) are resolved lazily, only when a logger by that
+	 * exact name is actually looked up (ConfigLevelResolver.levelOrNull(name), called
+	 * from LevelResolver.resolveLevel(name)) - so a typo like this can sit in config for
+	 * the whole life of the process without ever surfacing, until/unless something
+	 * actually logs through "com.blah".
+	 */
+	@Test
+	void testBadPerLoggerLevelMappingOnlyFailsWhenThatLoggerIsResolved() {
+		var props = LogProperties.builder().fromProperties("""
+				logging.level.com.blah=BLAH
+				""").build();
+		var config = LogConfig.builder().properties(props).build();
+		try (var gum = RainbowGum.builder(config).build().start()) {
+			var e = assertThrows(RuntimeException.class, () -> gum.router().levelResolver().resolveLevel("com.blah"));
+			assertEquals(
+					"""
+							Error for property. key: 'logging.level.com.blah' from PROPERTIES_STRING[logging.level.com.blah], java.lang.IllegalArgumentException Cannot parse Level from input. input='BLAH'
+							Tried: 'logging.level.com.blah' from PROPERTIES_STRING[logging.level.com.blah]""",
+					e.getMessage());
+		}
 	}
 
 	enum ConfigFailure {
