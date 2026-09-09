@@ -82,19 +82,21 @@ class LevelResolverTest {
 												]
 											]
 										],
-										CompositeLevelConfig[
-											ConfigLevelResolver[
-												prefix=logging.level,
-												properties=MapLogProperties[
-													description='test_props',
-													order=0
-												]
-											],
-											GroupLevelResolver[
-												groupLevelPrefix=logging.level,
-												properties=MapLogProperties[
-													description='test_props',
-													order=0
+										AlertingLevelConfig[
+											CompositeLevelConfig[
+												ConfigLevelResolver[
+													prefix=logging.level,
+													properties=MapLogProperties[
+														description='test_props',
+														order=0
+													]
+												],
+												GroupLevelResolver[
+													groupLevelPrefix=logging.level,
+													properties=MapLogProperties[
+														description='test_props',
+														order=0
+													]
 												]
 											]
 										]
@@ -206,19 +208,21 @@ class LevelResolverTest {
 														]
 													]
 												],
-												CompositeLevelConfig[
-													ConfigLevelResolver[
-														prefix=logging.level,
-														properties=MapLogProperties[
-															description='test_props',
-															order=0
-														]
-													],
-													GroupLevelResolver[
-														groupLevelPrefix=logging.level,
-														properties=MapLogProperties[
-															description='test_props',
-															order=0
+												AlertingLevelConfig[
+													CompositeLevelConfig[
+														ConfigLevelResolver[
+															prefix=logging.level,
+															properties=MapLogProperties[
+																description='test_props',
+																order=0
+															]
+														],
+														GroupLevelResolver[
+															groupLevelPrefix=logging.level,
+															properties=MapLogProperties[
+																description='test_props',
+																order=0
+															]
 														]
 													]
 												]
