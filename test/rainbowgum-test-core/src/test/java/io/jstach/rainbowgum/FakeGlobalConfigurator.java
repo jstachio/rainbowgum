@@ -20,8 +20,10 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * collection in between.</li>
  * <li>{@value #MODE2_PROPERTY} via a hand-built
  * {@link LogProperty.Validator}/{@link LogProperty.Result#validate(LogProperty.Validator)
- * validate(Validator)}, which gets that richer "Validation failed for X:" message (naming
- * this class) the same way a generated builder's own {@code Validator} would.</li>
+ * validate(Validator)} (with the same kind of {@code map()} check as
+ * {@value #MODE_PROPERTY}), which gets that richer "Validation failed for X:" message
+ * (naming this class) the same way a generated builder's own {@code Validator}
+ * would.</li>
  * <li>{@value #MODE3_PROPERTY} via
  * {@link LogProperty.Result#convert(LogProperties, LogProperty.PropertyFunction)
  * convert()} (not {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()}, see
@@ -51,7 +53,7 @@ final class FakeGlobalConfigurator implements Configurator {
 		}
 		properties.forKey(MODE_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode).value();
 		var v = LogProperty.Validator.of(FakeGlobalConfigurator.class);
-		var mode2 = properties.forKey(MODE2_PROPERTY).ofString().validate(v);
+		var mode2 = properties.forKey(MODE2_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode2).validate(v);
 		v.validate();
 		mode2.value();
 		properties.forKey(MODE3_PROPERTY).ofString().convert(properties, FakeGlobalConfigurator::checkMode3).value();
@@ -61,6 +63,13 @@ final class FakeGlobalConfigurator implements Configurator {
 	private static String checkMode(String value) {
 		if (value.equals("bad")) {
 			throw new IllegalArgumentException("mode must not be 'bad'");
+		}
+		return value;
+	}
+
+	private static String checkMode2(String value) {
+		if (value.equals("bad")) {
+			throw new IllegalArgumentException("mode2 must not be 'bad'");
 		}
 		return value;
 	}
