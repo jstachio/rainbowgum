@@ -88,7 +88,12 @@ configuration at all; drop a <code>logging.properties</code> file in
 <code>src/test/resources</code> if you want to customize it. See
 {@link io.jstach.rainbowgum.simple.props/} for the exact resolution order (System
 properties, then <code>RAINBOWGUM_</code>-prefixed environment variables, then the
-classpath file) and the environment variable naming convention.
+classpath file) and the environment variable naming convention. The classpath file is
+one of the rare places Rainbow Gum does implicit resource loading (see the
+<a href="#description">Description</a> section above for why core itself avoids that) -
+<code>rainbowgum-simple-props</code> bundles a GraalVM native image
+{@code resource-config.json} covering the default <code>logging.properties</code> name
+so this still works out of the box in a native image, not just on HotSpot.
 <p>
 <strong>This is meant for testing and very simple applications, not production
 applications.</strong> For a real application we encourage <a href="#config">
