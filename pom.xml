@@ -6,7 +6,7 @@
   <packaging>pom</packaging>
   <version>0.11.0-SNAPSHOT</version>
   <url>https://github.com/jstachio/rainbowgum</url>
-  <description>Minimum Opinionated Logging</description>
+  <description>Secure, GraalVM native and jlink friendly modular logging</description>
   <organization>
     <name>rainbowgum</name>
     <url>https://jstach.io/rainbowgum</url>
