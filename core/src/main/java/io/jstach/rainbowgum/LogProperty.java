@@ -70,7 +70,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<Integer> ofInt() {
-		return ofString().convert(Integer::parseInt);
+		return ofString().map(Integer::parseInt);
 	}
 
 	/**
@@ -78,7 +78,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<Boolean> ofBoolean() {
-		return ofString().convert(Boolean::parseBoolean);
+		return ofString().map(Boolean::parseBoolean);
 	}
 
 	/**
@@ -86,7 +86,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<URI> ofURI() {
-		return ofString().convert(URI::new);
+		return ofString().map(URI::new);
 	}
 
 	/**
@@ -112,14 +112,14 @@ public interface LogProperty {
 	 */
 	default <U> Result<LogProvider<U>> ofProvider(
 			PropertyFunction<LogProviderRef, LogProvider<U>, ? super Exception> mapper) {
-		return ofProviderRef().convert(mapper);
+		return ofProviderRef().map(mapper);
 	}
 
 	/**
 	 * Rewraps a value that was already derived from success's value, keeping the
 	 * {@link Result.Success.PropertySuccess}'s origin
 	 * (topProperties/properties/key/rawValue/kind) intact - useful for a conversion step
-	 * that cannot itself throw, so {@link Result#convert(PropertyFunction)} would be
+	 * that cannot itself throw, so {@link Result#map(PropertyFunction)} would be
 	 * overkill, but that still needs to keep the result's origin intact for a later
 	 * conversion step's error message.
 	 * @param <T> success's value type.
@@ -712,43 +712,15 @@ public interface LogProperty {
 		 * {@link LogProperties} the very first {@link LogProperties#forKey(String)} in
 		 * this chain was looked up against, which for a chained/composite
 		 * {@code LogProperties.of(a, b)} can be broader than the exact source the value
-		 * was actually found at. Same message {@link #convert(PropertyFunction)} builds -
-		 * the two are equivalent, {@code convert} is just the conventional name to reach
-		 * for when the mapper is doing type conversion rather than an arbitrary value
-		 * transform.
+		 * was actually found at. Usable at any point in a chain, not just directly off a
+		 * {@link LogProperty}, since a {@link Success} keeps pointing back to the
+		 * property it originally came from no matter how many conversions have run since.
 		 * @param <U> result type
 		 * @param mapper mapping function.
 		 * @return mapped result.
 		 */
 		@Override
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
-
-		/**
-		 * Equivalent to {@link #map(PropertyFunction)} - see its documentation for what
-		 * the failure message looks like - kept as a separate, identically-named method
-		 * only so a conversion step (parsing a {@code String} into some other type) reads
-		 * distinctly from a plain value transform at the call site. Usable at any point
-		 * in a chain, not just directly off a {@link LogProperty}, since a
-		 * {@link Success} keeps pointing back to the property it originally came from no
-		 * matter how many conversions have run since.
-		 * @param <U> output value type.
-		 * @param converter conversion function.
-		 * @return converted result.
-		 */
-		default <U> Result<U> convert(PropertyFunction<T, U, ? super Exception> converter) {
-			return switch (this) {
-				case Success<T> s -> {
-					try {
-						yield mapValue(s, converter._apply(s.value()));
-					}
-					catch (Exception e) {
-						yield richError(s, e);
-					}
-				}
-				case Missing<T> m -> m.convert();
-				case Error<T> e -> e.convert();
-			};
-		}
 
 		/**
 		 * Convenience that turns a value into an optional.
