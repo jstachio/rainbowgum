@@ -703,7 +703,15 @@ public interface LogProperty {
 		public Result<T> or(Supplier<T> fallback);
 
 		/**
-		 * Map a result
+		 * Maps this result's value through {@code mapper}. On success, keeps the origin
+		 * (properties/key/rawValue/kind, see {@link Success.PropertySuccess}) so a later
+		 * conversion step's error message can still point back to it. On failure, builds
+		 * the same rich error message {@link #convert(LogProperties, PropertyFunction)}
+		 * does - which key it came from, where that key was found, and (for
+		 * {@link PropertyConvertException}/{@link ValidationException} causes) the
+		 * original raw value - except the "Tried:" line can only ever be that same exact
+		 * source, since (unlike {@code convert()}) there is no separate, possibly
+		 * broader/aggregate {@link LogProperties} parameter to search for that line.
 		 * @param <U> result type
 		 * @param mapper mapping function.
 		 * @return mapped result.
@@ -712,13 +720,14 @@ public interface LogProperty {
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
 
 		/**
-		 * Like {@link #map(PropertyFunction)} but on conversion failure builds a richer
-		 * error message - which key it came from, where that key was found, and (for
-		 * {@link PropertyConvertException}/{@link ValidationException} causes) the
-		 * original raw value - instead of {@code map}'s terser one line message. Usable
-		 * at any point in a chain, not just directly off a {@link LogProperty}, since a
-		 * {@link Success} keeps pointing back to the property it originally came from no
-		 * matter how many conversions have run since.
+		 * Like {@link #map(PropertyFunction)} but additionally accepts the
+		 * {@link LogProperties} the original lookup was made against, used for the
+		 * "Tried:" line of a failure's error message - so that line can show a broader
+		 * search (for example every member of a chained/composite
+		 * {@code LogProperties.of(a, b)}) than just the exact source the value was found
+		 * at. Usable at any point in a chain, not just directly off a
+		 * {@link LogProperty}, since a {@link Success} keeps pointing back to the
+		 * property it originally came from no matter how many conversions have run since.
 		 * @param <U> output value type.
 		 * @param properties the properties the original lookup was made against, used
 		 * only for the "Tried:" line of the error message.
@@ -872,7 +881,7 @@ public interface LogProperty {
 						return new PropertySuccess<>(properties, key, rawValue, kind, u);
 					}
 					catch (Exception e) {
-						return Error.of(key, e);
+						return richError(properties, this, e);
 					}
 				}
 
@@ -1025,11 +1034,6 @@ public interface LogProperty {
 			@Override
 			public <U> Error<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
 				return convert();
-			}
-
-			static <U> Error<U> of(String resolvedKey, Exception cause) {
-				String message = "Error for property. key: " + resolvedKey + ", " + cause.getMessage();
-				return new Error<U>(resolvedKey, message, cause);
 			}
 
 			@Override

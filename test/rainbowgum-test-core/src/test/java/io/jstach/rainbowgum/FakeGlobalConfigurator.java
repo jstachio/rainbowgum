@@ -14,10 +14,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * properties, each demonstrating a different way a direct (no builder) read can fail:
  * <ul>
  * <li>{@value #MODE_PROPERTY} via plain {@link LogProperty.Result#value()} (with a
- * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} check, same terse
- * {@code Error.of(key, e)} path as {@code FakeEncoderBuilder}'s {@code label}), so a
- * missing/bad value throws immediately and unwrapped - no "Validation failed for ...:"
- * collection in between.</li>
+ * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} check, same as
+ * {@code FakeEncoderBuilder}'s {@code label}), so a missing/bad value throws immediately
+ * and unwrapped - no "Validation failed for ...:" collection in between.</li>
  * <li>{@value #MODE2_PROPERTY} via a hand-built
  * {@link LogProperty.Validator}/{@link LogProperty.Result#validate(LogProperty.Validator)
  * validate(Validator)} (with the same kind of {@code map()} check as
@@ -27,9 +26,11 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * <li>{@value #MODE3_PROPERTY} via
  * {@link LogProperty.Result#convert(LogProperties, LogProperty.PropertyFunction)
  * convert()} (not {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()}, see
- * {@code FakeEncoderBuilder}'s {@code label}) so the failure goes through
- * {@code richError()}'s richer path instead of {@code map()}'s terse
- * {@code Error.of(key, e)}.</li>
+ * {@code FakeEncoderBuilder}'s {@code label}) - both build the same rich
+ * {@code richError()} message on failure, but only {@code convert()} takes a separate
+ * outer/aggregate {@link LogProperties} so its "Tried:" line can search more broadly than
+ * the exact source the value was found at; {@code map()}'s "Tried:" line is always that
+ * same exact source.</li>
  * </ul>
  * See {@link ConfigFailureTest.ConfigFailure} for exactly how these compare, including
  * chained/{@code ListLogProperties} variants.
