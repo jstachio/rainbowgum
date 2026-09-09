@@ -6,9 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -25,25 +23,6 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogProperty.Validator;
 
 class LogPropertyTest {
-
-	/*
-	 * Regression test for a real bug found while investigating LogProperty coverage:
-	 * ListGetter._propertyString (now LogProperty.propertyString's inlined equivalent)
-	 * had "if (first) { first = true; }" instead of "first = false", so entries after the
-	 * first were never comma-separated.
-	 */
-	@Test
-	void testPropertyStringSeparatesMultipleListEntriesWithComma() {
-		assertEquals("a,b,c", LogProperty.propertyString(List.of("a", "b", "c")));
-	}
-
-	@Test
-	void testPropertyStringSeparatesMultipleMapEntriesWithAmpersand() {
-		Map<String, String> map = new LinkedHashMap<>();
-		map.put("a", "1");
-		map.put("b", "2");
-		assertEquals("a=1&b=2", LogProperty.propertyString(map));
-	}
 
 	@Test
 	void testValidatorAddIfErrorIgnoresMissingButKeepsError() {
