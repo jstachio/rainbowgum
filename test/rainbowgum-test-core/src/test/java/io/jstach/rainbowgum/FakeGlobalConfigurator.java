@@ -10,16 +10,24 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * {@code logging.jul.disable}/{@code logging.jul.level.disable} in rainbowgum-jul) uses
  * for its global on/off switches. Unlike those switches (always {@code Boolean}, which
  * can never itself fail to parse - {@link Boolean#parseBoolean(String)} just returns
- * {@code false} for anything unrecognized), this fake also has a required companion
- * property, read the same direct way with no {@code .or(...)} fallback, so a missing/bad
+ * {@code false} for anything unrecognized), this fake also has two required companion
+ * properties, read the same direct way with no {@code .or(...)} fallback:
+ * {@value #MODE_PROPERTY} via plain {@link LogProperty.Result#value()}, so a missing/bad
  * value throws immediately and unwrapped - no "Validation failed for ...:" collection in
- * between.
+ * between - and {@value #MODE2_PROPERTY} via {@link LogProperty.Result#validate(Class)
+ * value()'s validate(Class) sibling}, which gets that richer "Validation failed for X:"
+ * message (naming this class) without a full builder-shaped {@link LogProperty.Validator}
+ * of its own - see
+ * {@link ConfigFailureTest.ConfigFailure#globalFlagReadWithValidateBuildsRicherMissingMessage}
+ * for exactly how the two compare.
  */
 final class FakeGlobalConfigurator implements Configurator {
 
 	static final String DISABLE_PROPERTY = "logging.fakeGlobal.disable";
 
 	static final String MODE_PROPERTY = "logging.fakeGlobal.mode";
+
+	static final String MODE2_PROPERTY = "logging.fakeGlobal.mode2";
 
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
@@ -29,6 +37,7 @@ final class FakeGlobalConfigurator implements Configurator {
 			return true;
 		}
 		properties.forKey(MODE_PROPERTY).ofString().value();
+		properties.forKey(MODE2_PROPERTY).ofString().validate(FakeGlobalConfigurator.class);
 		return true;
 	}
 

@@ -231,6 +231,29 @@ class ConfigFailureTest {
 		},
 
 		/*
+		 * Same idea as globalFlagReadWithoutValidatorThrowsDirectly above (a direct
+		 * property read, no builder), but via Result.validate(Class) instead of
+		 * Result.value() - mode is set so that first direct read succeeds and execution
+		 * reaches mode2's validate(FakeGlobalConfigurator.class) call. Compare this
+		 * message to the plain "Property missing. keys: [...]" above: validate(Class)
+		 * gets the same "Validation failed for X:" wrapper a real builder's own Validator
+		 * would produce, naming FakeGlobalConfigurator as the thing that wanted the
+		 * property, without FakeGlobalConfigurator needing to build a Validator and
+		 * collect results itself for just one property.
+		 */
+		globalFlagReadWithValidateBuildsRicherMissingMessage("""
+				logging.fakeGlobal.mode=x
+				""",
+				"""
+						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
+						Property missing. keys: ['logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2]]""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		/*
 		 * Chained-source case: exercises ListLogProperties/CompositeLogProperties by
 		 * overriding properties() to combine two separately-built LogProperties via
 		 * LogProperties.of(List.of(...)) instead of parsing one string.
