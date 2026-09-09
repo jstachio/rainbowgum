@@ -973,7 +973,7 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.valueOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v);
+				return v == null ? null : new FoundProperty(p, kk, v, FoundProperty.Kind.STRING);
 			});
 			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, (String) prop.value());
 		});
@@ -984,7 +984,7 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.listOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v);
+				return v == null ? null : new FoundProperty(p, kk, v, FoundProperty.Kind.LIST);
 			});
 			if (prop == null) {
 				return null;
@@ -1000,7 +1000,7 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.mapOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v);
+				return v == null ? null : new FoundProperty(p, kk, v, FoundProperty.Kind.MAP);
 			});
 			if (prop == null) {
 				return null;
@@ -1047,9 +1047,9 @@ final class DefaultLogProperty implements LogProperty {
  *
  * @param properties the <strong>exact</strong> properties where the value was found.
  * @param key property key.
- * @param value property value: a {@link String}, {@link List}, or {@link Map} depending
- * on which of {@link LogProperty#ofString()}/{@link LogProperty#ofList()}/
- * {@link LogProperty#ofMap()} it was found through.
+ * @param value property value, whose runtime type is described by kind.
+ * @param kind which of {@link LogProperty}'s {@code ofString()}/{@code ofList()}/
+ * {@code ofMap()} this property was found through.
  * @apiNote value is deliberately untyped ({@code Object}) rather than generic - a
  * {@link Result.Success.PropertySuccess} keeps pointing back to the same FoundProperty
  * instance across conversions (e.g. {@link LogProperty#ofInt()} converts the string this
@@ -1058,7 +1058,30 @@ final class DefaultLogProperty implements LogProperty {
  * so it stays package-private - interface members are always implicitly public in Java
  * even without the keyword, so nesting it inside LogProperty would not have hidden it.
  */
-record FoundProperty(LogProperties properties, String key, Object value) {
+record FoundProperty(LogProperties properties, String key, Object value, FoundProperty.Kind kind) {
+
+	/**
+	 * Which of {@link LogProperty}'s typed accessors a {@link FoundProperty} was found
+	 * through, and so what value's runtime type actually is.
+	 */
+	enum Kind {
+
+		/**
+		 * value is a {@link String}, found via {@link LogProperty#ofString()}.
+		 */
+		STRING,
+		/**
+		 * value is a {@link List List&lt;String&gt;}, found via
+		 * {@link LogProperty#ofList()}.
+		 */
+		LIST,
+		/**
+		 * value is a {@link Map Map&lt;String,String&gt;}, found via
+		 * {@link LogProperty#ofMap()}.
+		 */
+		MAP
+
+	}
 
 	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
 
@@ -1070,7 +1093,7 @@ record FoundProperty(LogProperties properties, String key, Object value) {
 	 * @return description of value.
 	 */
 	String valueDescription() {
-		String s = value instanceof String str ? str : String.valueOf(value);
+		String s = kind == Kind.STRING ? (String) value : String.valueOf(value);
 		return maybeRedact(s);
 	}
 
