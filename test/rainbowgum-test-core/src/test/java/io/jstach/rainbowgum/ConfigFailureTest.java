@@ -12,23 +12,33 @@ import java.util.List;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
+
 /**
  * End to end golden string tests: each {@link ConfigFailure} constant is a full
  * properties file that should make RainbowGum fail to start, and the exact exception
  * message it should fail with - being an enum, a new case just needs to be added as a new
  * constant and it is automatically picked up by {@link #test(ConfigFailure)}.
  * {@link FakeEncoderConfigurator} (host/label/port/endpoint/tags/headers, i.e.
- * String/Integer/URI/List/Map) is registered for the cases that need a component with a
- * spread of property types to fail conversion/validation on - the built-in scenarios
- * (unregistered scheme, bad level) need no such fixture.
+ * String/Integer/URI/List/Map) is registered by default for every case, exercising a
+ * component with a spread of property types failing conversion/validation through a
+ * builder+{@link LogProperty.Validator} - the built-in scenarios (unregistered scheme,
+ * bad level) need no such fixture, but registering it is harmless for them since none of
+ * their properties overlap with FakeEncoderBuilder's. {@link FakeGlobalConfigurator}
+ * (opted into per-case via {@link ConfigFailure#configurators()}) is the contrasting
+ * case: a direct property read with no builder/Validator in between.
  */
 class ConfigFailureTest {
 
 	@ParameterizedTest
 	@EnumSource(ConfigFailure.class)
 	void test(ConfigFailure c) {
-		var config = LogConfig.builder().properties(c.properties()).configurator(new FakeEncoderConfigurator()).build();
-		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+		var e = assertThrows(RuntimeException.class, () -> {
+			var builder = LogConfig.builder().properties(c.properties());
+			c.configurators().forEach(builder::configurator);
+			var config = builder.build();
+			RainbowGum.builder(config).build().start();
+		});
 		assertEquals(c.expectedMessage(), e.getMessage());
 	}
 
@@ -172,6 +182,29 @@ class ConfigFailureTest {
 						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
 
 		/*
+		 * Contrast with the encoder cases above, which all go through a builder +
+		 * Validator (so a bad value gets collected and reported as "Validation failed for
+		 * X:\n..."). FakeGlobalConfigurator instead reads its required property directly
+		 * off LogConfig.properties() - the same style JULConfigurator uses for its global
+		 * on/off switches - so a missing value here throws immediately and unwrapped: a
+		 * plain "Property missing. keys: [...]" with none of the Validator/builder
+		 * machinery in between. See FakeGlobalConfigurator's javadoc.
+		 */
+		globalFlagReadWithoutValidatorThrowsDirectly("",
+				"""
+						Property missing. keys: ['logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode]]""") {
+			@Override
+			LogProperties properties() {
+				return LogProperties.builder().fromProperties("").build();
+			}
+
+			@Override
+			List<Configurator> configurators() {
+				return List.of(new FakeGlobalConfigurator());
+			}
+		},
+
+		/*
 		 * Chained-source case: exercises ListLogProperties/CompositeLogProperties by
 		 * overriding properties() to combine two separately-built LogProperties via
 		 * LogProperties.of(List.of(...)) instead of parsing one string.
@@ -280,6 +313,10 @@ class ConfigFailureTest {
 
 		String expectedMessage() {
 			return expectedMessage;
+		}
+
+		List<Configurator> configurators() {
+			return List.of(new FakeEncoderConfigurator());
 		}
 
 	}
