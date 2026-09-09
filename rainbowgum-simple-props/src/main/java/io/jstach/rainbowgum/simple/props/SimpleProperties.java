@@ -28,6 +28,16 @@ import io.jstach.rainbowgum.LogProperties;
  * </ol>
  * Create one with {@link #builder()}, or just rely on {@link SimplePropertiesProvider}
  * picking up the defaults automatically via {@link java.util.ServiceLoader}.
+ * <p>
+ * <b>GraalVM native image</b>: this module bundles a {@code resource-config.json} (at
+ * {@code META-INF/native-image/io.jstach.rainbowgum/rainbowgum-simple-props/}) that
+ * registers the default resource name, {@value Builder#DEFAULT_RESOURCE}, so a
+ * {@code logging.properties} on the classpath is included in the native image
+ * automatically - native-image's own embedded-configuration discovery picks this up from
+ * any jar on the build classpath, no extra plugin or flag needed. A custom
+ * {@link Builder#resource(String)} is a different resource name, so it is <em>not</em>
+ * covered by that file - add your own {@code resource-config.json} entry (or pass
+ * {@code -H:IncludeResources=...} directly) for it.
  */
 public final class SimpleProperties {
 
@@ -98,6 +108,9 @@ public final class SimpleProperties {
 		 * stripped before resolving; the remainder is resolved as a plain classpath
 		 * resource name. Not found is not an error - that layer simply contributes no
 		 * properties.
+		 * @apiNote unlike the default resource name, a custom one here is not covered by
+		 * this module's bundled GraalVM {@code resource-config.json} - see this class's
+		 * javadoc.
 		 * @param resource classpath resource, default {@value #DEFAULT_RESOURCE}.
 		 * @return this.
 		 */
