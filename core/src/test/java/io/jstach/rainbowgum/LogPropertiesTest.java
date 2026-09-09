@@ -343,7 +343,7 @@ class LogPropertiesTest {
 		if (!(result instanceof Result.Success.PropertySuccess<?> success)) {
 			throw new AssertionError();
 		}
-		return success.property().valueDescription();
+		return success.valueDescription();
 	}
 
 	@ParameterizedTest

@@ -77,9 +77,9 @@ class LogPropertyTest {
 	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testPropertySuccessRejectsNullValueAndMap() {
 		LogProperties properties = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "5");
-		var found = new FoundProperty(properties, "logging.p1", "5", FoundProperty.Kind.STRING);
-		assertThrows(NullPointerException.class, () -> new PropertySuccess<String>(found, null));
-		var success = new PropertySuccess<>(found, "5");
+		assertThrows(NullPointerException.class,
+				() -> new PropertySuccess<String>(properties, "logging.p1", "5", PropertySuccess.Kind.STRING, null));
+		var success = new PropertySuccess<>(properties, "logging.p1", "5", PropertySuccess.Kind.STRING, "5");
 		assertEquals("logging.p1", success.key());
 		assertEquals("Property[logging.p1]=5", success.describe());
 		Result<Integer> mapped = success.map(Integer::parseInt);
