@@ -92,8 +92,7 @@ final class DefaultPublisherRegistry implements LogPublisherRegistry {
 		}
 		var provider = providers.get(scheme);
 		if (provider == null) {
-			throw new LogProviderRef.NotFoundException(
-					"No publisher found. Scheme not registered. scheme: '" + scheme + "',  URI: '" + uri + "'");
+			throw LogProviderRef.NotFoundException.of("publisher", scheme, uri);
 		}
 		return provider.provide(ref);
 	}
