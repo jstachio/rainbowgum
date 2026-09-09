@@ -76,6 +76,26 @@ Java directly and the {@link java.util.ServiceLoader} is below.
 {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider} has additional documentation on how to register
 a service loader aware jar.
 
+<h3 id="simple_testing">Using rainbowgum-simple (Testing/Simple Apps)</h3>
+
+For unit testing a library module, or a very simple application, Rainbow Gum provides a
+zero-configuration bundle, <code>rainbowgum-simple</code>, analogous to
+<a href="https://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html">slf4j-simple</a>
+but considerably more capable - it also brings in <a href="#system_logger">
+java.lang.System.Logger support</a> (slf4j-simple does not). The usual way to use it is as a
+<code>test</code> scoped dependency on a library module: add it and logging works with no
+configuration at all; drop a <code>logging.properties</code> file in
+<code>src/test/resources</code> if you want to customize it. See
+{@link io.jstach.rainbowgum.simple.props/} for the exact resolution order (System
+properties, then <code>RAINBOWGUM_</code>-prefixed environment variables, then the
+classpath file) and the environment variable naming convention.
+<p>
+<strong>This is meant for testing and very simple applications, not production
+applications.</strong> For a real application we encourage <a href="#config">
+your own configuration system</a> (a custom
+{@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider}) or
+<a href="#simple_example_builder">the programmatic builders</a> above instead.
+
 <h2 id="description">Description</h2>
 
 Rainbow Gum is a secure, GraalVM native and jlink friendly, modular JDK 21+ SLF4J
