@@ -13,7 +13,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * {@code false} for anything unrecognized), this fake also has three required companion
  * properties, each demonstrating a different way a direct (no builder) read can fail:
  * <ul>
- * <li>{@value #MODE_PROPERTY} via plain {@link LogProperty.Result#value()}, so a
+ * <li>{@value #MODE_PROPERTY} via plain {@link LogProperty.Result#value()} (with a
+ * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} check, same terse
+ * {@code Error.of(key, e)} path as {@code FakeEncoderBuilder}'s {@code label}), so a
  * missing/bad value throws immediately and unwrapped - no "Validation failed for ...:"
  * collection in between.</li>
  * <li>{@value #MODE2_PROPERTY} via a hand-built
@@ -47,13 +49,20 @@ final class FakeGlobalConfigurator implements Configurator {
 		if (disabled) {
 			return true;
 		}
-		properties.forKey(MODE_PROPERTY).ofString().value();
+		properties.forKey(MODE_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode).value();
 		var v = LogProperty.Validator.of(FakeGlobalConfigurator.class);
 		var mode2 = properties.forKey(MODE2_PROPERTY).ofString().validate(v);
 		v.validate();
 		mode2.value();
 		properties.forKey(MODE3_PROPERTY).ofString().convert(properties, FakeGlobalConfigurator::checkMode3).value();
 		return true;
+	}
+
+	private static String checkMode(String value) {
+		if (value.equals("bad")) {
+			throw new IllegalArgumentException("mode must not be 'bad'");
+		}
+		return value;
 	}
 
 	private static String checkMode3(String value) {
