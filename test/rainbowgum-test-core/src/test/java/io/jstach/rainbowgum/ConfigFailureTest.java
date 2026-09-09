@@ -232,14 +232,13 @@ class ConfigFailureTest {
 
 		/*
 		 * Same idea as globalFlagReadWithoutValidatorThrowsDirectly above (a direct
-		 * property read, no builder), but via Result.validate(Class) instead of
-		 * Result.value() - mode is set so that first direct read succeeds and execution
-		 * reaches mode2's validate(FakeGlobalConfigurator.class) call. Compare this
-		 * message to the plain "Property missing. keys: [...]" above: validate(Class)
-		 * gets the same "Validation failed for X:" wrapper a real builder's own Validator
-		 * would produce, naming FakeGlobalConfigurator as the thing that wanted the
-		 * property, without FakeGlobalConfigurator needing to build a Validator and
-		 * collect results itself for just one property.
+		 * property read, no builder), but via a hand-built Validator +
+		 * Result.validate(Validator) instead of plain Result.value() - mode is set so
+		 * that first direct read succeeds and execution reaches mode2's read. Compare
+		 * this message to the plain "Property missing. keys: [...]" above: routing
+		 * through a Validator gets the same "Validation failed for X:" wrapper a
+		 * generated builder's own Validator would produce, naming FakeGlobalConfigurator
+		 * as the thing that wanted the property.
 		 */
 		globalFlagReadWithValidateBuildsRicherMissingMessage("""
 				logging.fakeGlobal.mode=x

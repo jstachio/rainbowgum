@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 import org.eclipse.jdt.annotation.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -124,11 +125,14 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	 * @return initialization option.
 	 */
 	protected static InitOption initOption(LogProperties properties) {
-		return properties.forKey(INITIALIZE_RAINBOW_GUM_PROPERTY)
+		var v = LogProperty.Validator.of(RainbowGumSystemLoggerFinder.class);
+		var result = properties.forKey(INITIALIZE_RAINBOW_GUM_PROPERTY)
 			.ofString()
 			.convert(properties, InitOption::parse)
 			.or(InitOption.CHECK)
-			.validate(RainbowGumSystemLoggerFinder.class);
+			.validate(v);
+		v.validate();
+		return result.value();
 	}
 
 	private interface RouterProvider {

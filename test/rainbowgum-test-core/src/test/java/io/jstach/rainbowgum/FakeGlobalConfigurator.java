@@ -4,9 +4,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 /**
  * Test-only configurator for {@link ConfigFailureTest} that deliberately does
- * <strong>not</strong> go through a builder/{@link LogProperty.Validator} the way
- * {@link FakeEncoderBuilder} does - it reads properties directly off
- * {@link LogConfig#properties()}, the same style {@code JULConfigurator} (see
+ * <strong>not</strong> go through a generated builder the way {@link FakeEncoderBuilder}
+ * does - it reads properties directly off {@link LogConfig#properties()}, the same style
+ * {@code JULConfigurator} (see
  * {@code logging.jul.disable}/{@code logging.jul.level.disable} in rainbowgum-jul) uses
  * for its global on/off switches. Unlike those switches (always {@code Boolean}, which
  * can never itself fail to parse - {@link Boolean#parseBoolean(String)} just returns
@@ -14,10 +14,10 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * properties, read the same direct way with no {@code .or(...)} fallback:
  * {@value #MODE_PROPERTY} via plain {@link LogProperty.Result#value()}, so a missing/bad
  * value throws immediately and unwrapped - no "Validation failed for ...:" collection in
- * between - and {@value #MODE2_PROPERTY} via {@link LogProperty.Result#validate(Class)
- * value()'s validate(Class) sibling}, which gets that richer "Validation failed for X:"
- * message (naming this class) without a full builder-shaped {@link LogProperty.Validator}
- * of its own - see
+ * between - and {@value #MODE2_PROPERTY} via a hand-built
+ * {@link LogProperty.Validator}/{@link LogProperty.Result#validate(LogProperty.Validator)
+ * validate(Validator)}, which gets that richer "Validation failed for X:" message (naming
+ * this class) the same way a generated builder's own {@code Validator} would - see
  * {@link ConfigFailureTest.ConfigFailure#globalFlagReadWithValidateBuildsRicherMissingMessage}
  * for exactly how the two compare.
  */
@@ -37,7 +37,10 @@ final class FakeGlobalConfigurator implements Configurator {
 			return true;
 		}
 		properties.forKey(MODE_PROPERTY).ofString().value();
-		properties.forKey(MODE2_PROPERTY).ofString().validate(FakeGlobalConfigurator.class);
+		var v = LogProperty.Validator.of(FakeGlobalConfigurator.class);
+		var mode2 = properties.forKey(MODE2_PROPERTY).ofString().validate(v);
+		v.validate();
+		mode2.value();
 		return true;
 	}
 

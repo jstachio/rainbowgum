@@ -651,27 +651,37 @@ public interface LogProperty {
 		public T value() throws PropertyMissingException, PropertyConvertException;
 
 		/**
-		 * Like {@link #value()} but on failure builds a richer error message via a
-		 * single-use {@link Validator} instead of throwing the bare
-		 * {@link PropertyMissingException}/{@link PropertyConvertException} directly -
-		 * the message names {@code component} (typically whoever is calling this) as the
-		 * thing that wanted the property, the same "Validation failed for X:" shape a
-		 * builder's own {@link Validator} produces for a whole batch of properties, just
-		 * for one. Uses {@link Validator#add(Result)} (not
-		 * {@link Validator#addIfError(Result)}), so a still-{@link Missing} result is
-		 * treated as a real failure - if this result already had a fallback applied
-		 * earlier in the chain (e.g. via {@link #or(Object)}) it would no longer be
-		 * {@link Missing} by the time this runs.
-		 * @param component the class on whose behalf this property is being resolved -
-		 * only used to name the source of the failure in the exception message.
-		 * @return value.
-		 * @throws ValidationException if this result is not a {@link Success}.
+		 * Registers this result with {@code validator} via {@link Validator#add(Result)}
+		 * (a still-{@link Missing} result is treated as a real failure) and returns this
+		 * result unchanged, so a chain that builds a required property can register
+		 * itself with a shared {@link Validator} and keep going in one expression -
+		 * {@code properties.forKey(key).ofString().or(fallback).validate(v)} - instead of
+		 * a separate {@code var x = ...; v.add(x);} statement pair. The validator is
+		 * shared and single-use by design: add every property's result this way (or via
+		 * {@link #validateIfError(Validator)} for an optional one), then call
+		 * {@link Validator#validate()} exactly once at the end to report every failure
+		 * together instead of one exception per property.
+		 * @param validator validator to add this result to.
+		 * @return this result, unchanged.
 		 */
-		default T validate(Class<?> component) {
-			var v = Validator.of(component);
-			v.add(this);
-			v.validate();
-			return value();
+		default Result<T> validate(Validator validator) {
+			validator.add(this);
+			return this;
+		}
+
+		/**
+		 * Like {@link #validate(Validator)} but via {@link Validator#addIfError(Result)}
+		 * instead of {@link Validator#add(Result)} - a {@link Missing} result is expected
+		 * and ignored, only a {@link Result.Error} is treated as a failure. Intended for
+		 * an optional property that already has a fallback applied (for example via
+		 * {@link #or(Object)}): the property being absent is fine, but if it was present
+		 * and failed to convert that should not be swallowed.
+		 * @param validator validator to add this result to.
+		 * @return this result, unchanged.
+		 */
+		default Result<T> validateIfError(Validator validator) {
+			validator.addIfError(this);
+			return this;
 		}
 
 		/**
