@@ -651,6 +651,30 @@ public interface LogProperty {
 		public T value() throws PropertyMissingException, PropertyConvertException;
 
 		/**
+		 * Like {@link #value()} but on failure builds a richer error message via a
+		 * single-use {@link Validator} instead of throwing the bare
+		 * {@link PropertyMissingException}/{@link PropertyConvertException} directly -
+		 * the message names {@code component} (typically whoever is calling this) as the
+		 * thing that wanted the property, the same "Validation failed for X:" shape a
+		 * builder's own {@link Validator} produces for a whole batch of properties, just
+		 * for one. Uses {@link Validator#add(Result)} (not
+		 * {@link Validator#addIfError(Result)}), so a still-{@link Missing} result is
+		 * treated as a real failure - if this result already had a fallback applied
+		 * earlier in the chain (e.g. via {@link #or(Object)}) it would no longer be
+		 * {@link Missing} by the time this runs.
+		 * @param component the class on whose behalf this property is being resolved -
+		 * only used to name the source of the failure in the exception message.
+		 * @return value.
+		 * @throws ValidationException if this result is not a {@link Success}.
+		 */
+		default T validate(Class<?> component) {
+			var v = Validator.of(component);
+			v.add(this);
+			v.validate();
+			return value();
+		}
+
+		/**
 		 * Returns the current result if fallback is null or returns fallback as a result
 		 * if this result is missing.
 		 * @param fallback maybe <code>null</code>.
