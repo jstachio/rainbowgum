@@ -69,7 +69,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 
 		var provider = providers.get(scheme);
 		if (provider == null) {
-			throw new LogProviderRef.NotFoundException("No encoder found. URI=" + uri);
+			throw LogProviderRef.NotFoundException.of("encoder", scheme, uri);
 		}
 
 		return provider.provide(_ref);

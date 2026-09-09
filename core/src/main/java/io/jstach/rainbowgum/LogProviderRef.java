@@ -65,6 +65,21 @@ public sealed interface LogProviderRef {
 			super(s);
 		}
 
+		/**
+		 * Builds a {@link NotFoundException} for an unregistered scheme, with a message
+		 * consistent across every kind of provider registry (output/publisher/encoder/
+		 * etc).
+		 * @param component the kind of thing not found (e.g. "output", "publisher",
+		 * "encoder").
+		 * @param scheme the URI scheme that had no provider registered for it.
+		 * @param uri the full URI that was being resolved.
+		 * @return exception, not thrown.
+		 */
+		static NotFoundException of(String component, String scheme, URI uri) {
+			return new NotFoundException(
+					"No " + component + " found. Scheme not registered. scheme: '" + scheme + "', URI: '" + uri + "'");
+		}
+
 	}
 
 }
