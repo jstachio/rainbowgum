@@ -51,6 +51,40 @@ public final class SpringBootSupportedProperties {
 	public static final String CONSOLE_ENABLED = "logging.console.enabled";
 
 	/**
+	 * Archive naming pattern for the rolling file output that {@link #FILE_PATH}/{@code
+	 * logging.file.name} bridges to - vanilla Spring Boot/Logback always rolls once file
+	 * output is configured at all, so this module does too rather than requiring users to
+	 * opt in separately. Bridged to
+	 * {@code io.jstach.rainbowgum.rolling.RollingFileOutputBuilder}'s own {@code
+	 * fileNamePattern}; the leading {@code ${LOG_FILE}} token Spring Boot's own default
+	 * embeds is stripped, and a pattern containing {@code %d} (date based rotation, which
+	 * is not supported) is ignored in favor of RainbowGum's own default.
+	 */
+	public static final String ROLLINGPOLICY_FILE_NAME_PATTERN = "logging.logback.rollingpolicy.file-name-pattern";
+
+	/**
+	 * Bridged to {@code RollingFileOutputBuilder}'s own {@code cleanHistoryOnStart}.
+	 */
+	public static final String ROLLINGPOLICY_CLEAN_HISTORY_ON_START = "logging.logback.rollingpolicy.clean-history-on-start";
+
+	/**
+	 * A {@link org.springframework.util.unit.DataSize} (e.g. {@code 10MB}) - bridged to
+	 * {@code RollingFileOutputBuilder}'s own {@code maxFileSize}, converted to bytes.
+	 */
+	public static final String ROLLINGPOLICY_MAX_FILE_SIZE = "logging.logback.rollingpolicy.max-file-size";
+
+	/**
+	 * A {@link org.springframework.util.unit.DataSize} (e.g. {@code 100MB}) - bridged to
+	 * {@code RollingFileOutputBuilder}'s own {@code totalSizeCap}, converted to bytes.
+	 */
+	public static final String ROLLINGPOLICY_TOTAL_SIZE_CAP = "logging.logback.rollingpolicy.total-size-cap";
+
+	/**
+	 * Bridged to {@code RollingFileOutputBuilder}'s own {@code maxHistory}.
+	 */
+	public static final String ROLLINGPOLICY_MAX_HISTORY = "logging.logback.rollingpolicy.max-history";
+
+	/**
 	 * {@code NEVER}/{@code ALWAYS}/{@code DETECT} - bridged to RainbowGum's own {@code
 	 * logging.global.ansi.disable} property.
 	 */
