@@ -13,7 +13,6 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import io.jstach.rainbowgum.FoundProperty.StringProperty;
 import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
 import io.jstach.rainbowgum.LogProperty.PropertyFunction;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
@@ -99,7 +98,7 @@ class LogPropertyTest {
 	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testPropertySuccessRejectsNullValueAndMap() {
 		LogProperties properties = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "5");
-		var found = new StringProperty(properties, "logging.p1", "5");
+		var found = new FoundProperty(properties, "logging.p1", "5");
 		assertThrows(NullPointerException.class, () -> new PropertySuccess<String>(found, null));
 		var success = new PropertySuccess<>(found, "5");
 		assertEquals("logging.p1", success.key());
