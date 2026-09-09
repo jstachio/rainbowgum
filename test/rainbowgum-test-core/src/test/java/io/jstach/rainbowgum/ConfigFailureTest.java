@@ -51,18 +51,11 @@ class ConfigFailureTest {
 						Error for property. key: 'logging.level' from PROPERTIES_STRING[logging.level], java.lang.IllegalArgumentException Cannot parse Level from input. input='NOTALEVEL'
 						Tried: 'logging.level' from PROPERTIES_STRING[logging.level]"""),
 
-		/*
-		 * The NoSuchElementException leaking through here (instead of a "no publisher
-		 * found" style message like unregisteredOutputScheme above) looks like a real,
-		 * pre-existing rough edge in route publisher resolution - captured as-is rather
-		 * than "fixed" here, since this test's job is pinning current behavior, not
-		 * changing it.
-		 */
 		unregisteredPublisherScheme("""
 				logging.route.default.publisher=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher], java.util.NoSuchElementException No value present
+						Error for property. key: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher], io.jstach.rainbowgum.LogProviderRef$NotFoundException No publisher found. Scheme not registered. scheme: 'bogus',  URI: 'bogus:///'
 						Tried: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher]"""),
 
 		encoderMissingRequiredStringProperty("""
