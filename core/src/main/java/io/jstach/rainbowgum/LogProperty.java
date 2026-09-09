@@ -139,7 +139,7 @@ public interface LogProperty {
 	private static <U> Result.Error<U> richError(LogProperties properties, Result.Success<?> previousResult,
 			Exception e) {
 		String fqk = previousResult.key();
-		FoundProperty fp = switch (previousResult) {
+		FoundProperty<?> fp = switch (previousResult) {
 			case Result.Success.ValueSuccess<?> vs -> null;
 			case Result.Success.PropertySuccess<?> ps -> ps.property();
 		};
@@ -765,7 +765,7 @@ public interface LogProperty {
 			 * @param value actual value.
 			 * @param property found property.
 			 */
-			public record PropertySuccess<T>(FoundProperty property, T value) implements Success<T> {
+			public record PropertySuccess<T>(FoundProperty<?> property, T value) implements Success<T> {
 				/**
 				 * Successfully found property value.
 				 * @param value actual value should not be <code>null</code>.
@@ -973,9 +973,9 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.valueOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v);
+				return v == null ? null : new FoundProperty<>(p, kk, v);
 			});
-			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, (String) prop.value());
+			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
 		});
 	}
 
@@ -984,14 +984,9 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.listOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v);
+				return v == null ? null : new FoundProperty<>(p, kk, v);
 			});
-			if (prop == null) {
-				return null;
-			}
-			@SuppressWarnings("unchecked")
-			List<String> value = (List<String>) prop.value();
-			return new Result.Success.PropertySuccess<>(prop, value);
+			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
 		});
 	}
 
@@ -1000,14 +995,9 @@ final class DefaultLogProperty implements LogProperty {
 		return resolve(k -> {
 			var prop = properties.visit(k, (p, kk) -> {
 				var v = p.mapOrNull(kk);
-				return v == null ? null : new FoundProperty(p, kk, v);
+				return v == null ? null : new FoundProperty<>(p, kk, v);
 			});
-			if (prop == null) {
-				return null;
-			}
-			@SuppressWarnings("unchecked")
-			Map<String, String> value = (Map<String, String>) prop.value();
-			return new Result.Success.PropertySuccess<>(prop, value);
+			return prop == null ? null : new Result.Success.PropertySuccess<>(prop, prop.value());
 		});
 	}
 
@@ -1045,20 +1035,22 @@ final class DefaultLogProperty implements LogProperty {
  * needed for the {@link LogProperty} fluent like monads. It includes the original value
  * before conversions.
  *
+ * @param <T> value type, as found - a {@link String}, {@link List}, or {@link Map}
+ * depending on which of {@link LogProperty#ofString()}/{@link LogProperty#ofList()}/
+ * {@link LogProperty#ofMap()} it was found through.
  * @param properties the <strong>exact</strong> properties where the value was found.
  * @param key property key.
- * @param value property value: a {@link String}, {@link List}, or {@link Map} depending
- * on which of {@link LogProperty#ofString()}/{@link LogProperty#ofList()}/
- * {@link LogProperty#ofMap()} it was found through.
- * @apiNote value is deliberately untyped ({@code Object}) rather than generic - a
- * {@link Result.Success.PropertySuccess} keeps pointing back to the same FoundProperty
+ * @param value property value.
+ * @apiNote holders of a FoundProperty (like {@link Result.Success.PropertySuccess}) use
+ * the wildcard {@code FoundProperty<?>} rather than tying its type parameter to their
+ * own, since a {@code PropertySuccess} keeps pointing back to the same FoundProperty
  * instance across conversions (e.g. {@link LogProperty#ofInt()} converts the string this
  * was found as into an {@code Integer}), so FoundProperty's value type and the current
  * result's value type are not always the same. Deliberately a top-level (not nested) type
  * so it stays package-private - interface members are always implicitly public in Java
  * even without the keyword, so nesting it inside LogProperty would not have hidden it.
  */
-record FoundProperty(LogProperties properties, String key, Object value) {
+record FoundProperty<T>(LogProperties properties, String key, T value) {
 
 	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
 
