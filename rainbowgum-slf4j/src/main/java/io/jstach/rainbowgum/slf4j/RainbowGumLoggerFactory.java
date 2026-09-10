@@ -74,9 +74,13 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			var allowedChanges = changePublisher.allowedChanges(name);
 			if (allowedChanges.contains(ChangeType.LEVEL)) {
 				/*
-				 * We get a logger that can log everything.
+				 * The level can change after this logger is created (that is the whole
+				 * point of it being replaceable), so the sink must not be bound based on
+				 * a level snapshot at creation time - level gating for this logger
+				 * happens entirely inside ReplaceableLogger/LevelLogger instead, via
+				 * setLevel().
 				 */
-				LogEventLogger logger = router.route(name, System.Logger.Level.ERROR);
+				LogEventLogger logger = router.eventLogger(name);
 				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
 				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
 				subscribe(name, router, changeable, allowedChanges);
@@ -106,9 +110,11 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * RouteChangePublisher that GlobalLogRouter transfers its queued subscribers into
 	 * once a real router replaces the placeholder queue (see
 	 * InternalRootRouter.setRouter/GlobalLogRouter._drain). r (below) is that replacement
-	 * router - re-resolving the route against it, not just the level, is what stops an
+	 * router - re-fetching the sink from it, not just the level, is what stops an
 	 * already-created ReplaceableLogger from continuing to dispatch into the
-	 * now-abandoned queue after the swap.
+	 * now-abandoned queue after the swap. eventLogger(name), not route(name, level), is
+	 * used deliberately: the level is applied via setLevel() on the line above instead,
+	 * so gating it a second time at the sink would be redundant.
 	 */
 	private void subscribe(String name, RootRouter router, ReplaceableLogger changeable,
 			Set<ChangeType> allowedChanges) {
@@ -118,7 +124,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			public void accept(RootRouter r) {
 				var level = r.levelResolver().resolveLevel(name);
 				changeable.setLevel(Levels.toSlf4jLevel(level));
-				var logger = r.route(name, level);
+				var logger = r.eventLogger(name);
 				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
 				changeable.setEventHandler(handler);
 			}
