@@ -40,6 +40,19 @@ public sealed interface LogRouter extends LogLifecycle {
 	public Route route(String loggerName, java.lang.System.Logger.Level level);
 
 	/**
+	 * The sink to dispatch events to for a logger name, with <strong>no level based
+	 * gating</strong> - unlike {@link #route(String, java.lang.System.Logger.Level)}, the
+	 * returned {@link LogEventLogger} always accepts {@link LogEventLogger#log(LogEvent)}
+	 * regardless of what level is currently enabled. Use this when level gating is
+	 * already handled independently (e.g. a logger facade caching its own resolved level
+	 * and re-checking it on every call) and a level would otherwise have to be made up
+	 * just to obtain a working sink.
+	 * @param loggerName topic.
+	 * @return event logger, never <code>null</code>.
+	 */
+	public LogEventLogger eventLogger(String loggerName);
+
+	/**
 	 * Global router which is always available.
 	 * @return global root router.
 	 */
@@ -195,6 +208,17 @@ public sealed interface LogRouter extends LogLifecycle {
 				event = event.freeze();
 			}
 			publisher().log(event);
+		}
+
+		@Override
+		default LogEventLogger eventLogger(String loggerName) {
+			/*
+			 * A leaf Router does not route to a different Router by name (that only
+			 * happens at the RootRouter level, e.g. CompositeLogRouter fanning out to
+			 * multiple child Routers) - it always dispatches to its own publisher, so it
+			 * is already its own sink.
+			 */
+			return this;
 		}
 
 		/**
@@ -687,6 +711,11 @@ record SingleSyncRootRouter(Router router, RouteChangePublisher changePublisher)
 		return router.route(loggerName, level);
 	}
 
+	@Override
+	public LogEventLogger eventLogger(String loggerName) {
+		return router.eventLogger(loggerName);
+	}
+
 }
 
 record SingleAsyncRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
@@ -711,6 +740,11 @@ record SingleAsyncRootRouter(Router router, RouteChangePublisher changePublisher
 		return router.route(loggerName, level);
 	}
 
+	@Override
+	public LogEventLogger eventLogger(String loggerName) {
+		return router.eventLogger(loggerName);
+	}
+
 }
 
 @SuppressWarnings("ArrayRecordComponent") // TODO revisit perf
@@ -727,6 +761,16 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver,
 			return this;
 		}
 		return Routes.NotFound;
+	}
+
+	@Override
+	public LogEventLogger eventLogger(String loggerName) {
+		/*
+		 * log(LogEvent) below already fans out to every child router regardless of how it
+		 * was reached, so this composite is already its own sink - no per-child selection
+		 * happens until log() actually runs.
+		 */
+		return this;
 	}
 
 	@Override
@@ -823,6 +867,11 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	}
 
 	@Override
+	public LogEventLogger eventLogger(String loggerName) {
+		return this;
+	}
+
+	@Override
 	public void start(LogConfig config) {
 	}
 
@@ -895,6 +944,11 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 	@Override
 	public Route route(String loggerName, Level level) {
 		return this.delegate.route(loggerName, level);
+	}
+
+	@Override
+	public LogEventLogger eventLogger(String loggerName) {
+		return this.delegate.eventLogger(loggerName);
 	}
 
 	@Override

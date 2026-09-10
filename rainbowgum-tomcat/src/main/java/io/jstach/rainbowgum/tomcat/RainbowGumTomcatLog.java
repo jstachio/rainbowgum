@@ -1,7 +1,5 @@
 package io.jstach.rainbowgum.tomcat;
 
-import java.lang.System.Logger.Level;
-
 import org.apache.juli.logging.Log;
 
 import io.jstach.rainbowgum.LogRouter;
@@ -49,10 +47,7 @@ public final class RainbowGumTomcatLog implements ForwardingTomcatLog {
 			this.delegate = new ChangeableRainbowGumTomcatLog(loggerName, router);
 		}
 		else {
-			// We want a logger that can handle all events.
-			// TODO this is a common need and perhaps a method on LogRouter like
-			// "eventLogger"
-			var eventLogger = router.route(loggerName, Level.ERROR);
+			var eventLogger = router.eventLogger(loggerName);
 			Log delegate = switch (level) {
 				case ALL -> new TomcatLevelLog.TraceLevelLog(loggerName, eventLogger);
 				case TRACE -> new TomcatLevelLog.TraceLevelLog(loggerName, eventLogger);
