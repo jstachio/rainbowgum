@@ -1034,6 +1034,8 @@ their defaults.
 
 <h3 id="rolling">Rolling Files</h3>
 
+<h4 id="rolling_builtin">Built-in Rolling</h4>
+
 The same <code>rainbowgum-file</code> module additionally provides a deliberately basic,
 size based rolling file output under the "rolling" URI scheme,
 {@link io.jstach.rainbowgum.rolling.RollingFileOutput}:
@@ -1059,6 +1061,9 @@ below instead (typically
 <a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a>)
 - it remains the recommended approach for anything beyond preventing a disk from
 filling up, and does not depend on the <code>rainbowgum-file</code> module at all.
+
+<h4 id="rolling_external">External Tool Support (logrotate)</h4>
+
 How this typically works:
 
 <ol>
