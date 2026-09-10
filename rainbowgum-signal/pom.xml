@@ -1,0 +1,49 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-maven-parent</artifactId>
+    <version>0.11.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-signal</artifactId>
+  <name>rainbowgum-signal</name>
+  <properties>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc-apt</artifactId>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!--
+            javac unconditionally warns "X is internal proprietary API and may be
+            removed in a future release" on every sun.misc.Signal/SignalHandler
+            reference, even when the module properly declares `requires jdk.unsupported`
+            - confirmed neither -nowarn, -Xlint:-removal, nor -XDignore.symbol.file
+            suppress it (tested directly with javac 26 both on the classpath and as a
+            proper module). This is that module's entire purpose (legacy/unsupported
+            API kept alive on purpose) so the warning is expected and unavoidable here;
+            failOnWarning is relaxed for this module only rather than repo wide.
+          -->
+          <failOnWarning>false</failOnWarning>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
