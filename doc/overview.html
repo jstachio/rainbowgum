@@ -1118,6 +1118,63 @@ We might have a logrotate script that looks like:
 }
 }
 
+<h5 id="rolling_external_signal">Unix Signal based reopen (recommended for Linux/Docker)</h5>
+
+On Linux - and in most container/Docker deployments - a Unix signal is a simpler alternative
+to the HTTP endpoint above: no port needs to be opened or secured, and no application code
+has to be written at all. The optional <code>rainbowgum-signal</code> module (not included by
+default) provides {@link io.jstach.rainbowgum.signal.SignalConfigurator}, which listens for a
+configurable signal and calls {@link io.jstach.rainbowgum.LogOutputRegistry#reopen()} - the
+exact same call the HTTP example above makes - whenever it is received.
+
+<p>
+<strong>Merely depending on this module does not activate it</strong> - installing a live
+signal handler is an ambient capability change (any process with permission to signal this
+one could trigger it), so it is deliberately disabled by default. Activate it with:
+</p>
+
+{@snippet lang=properties :
+logging.signal.enable=true
+}
+
+or, if configuring Rainbow Gum programmatically instead of via properties, by calling
+{@link io.jstach.rainbowgum.signal.SignalConfigurator#enabled(boolean)} explicitly - passing
+<code>new SignalConfigurator().enabled(true)</code> to
+{@link io.jstach.rainbowgum.LogConfig.Builder#configurator(io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator)}
+is itself the opt-in, independent of the property above.
+
+<p>
+The signal name defaults to {@value io.jstach.rainbowgum.signal.SignalConfigurator#DEFAULT_SIGNAL_NAME}
+and can be changed with {@value io.jstach.rainbowgum.signal.SignalConfigurator#SIGNAL_NAME}
+(or the equivalent {@link io.jstach.rainbowgum.signal.SignalConfigurator#signalName(String)}
+method). Given the same logging configuration as above, the logrotate <code>postrotate</code>
+script simply sends the signal to the running process instead of calling out over HTTP -
+assuming the application writes its own pid to a file, e.g. <code>/var/run/app.pid</code>:
+
+{@snippet :
+/var/log/app.log
+{
+  rotate 4
+  weekly
+  missingok
+  notifempty
+  compress
+  delaycompress
+  sharedscripts
+  nocreate
+  postrotate
+    kill -USR1 $(cat /var/run/app.pid) 2>/dev/null || true
+  endscript
+}
+}
+
+<p>
+<strong>This module is not usable on Windows</strong> (there are no POSIX signals) - it
+detects this and safely becomes a no-op rather than failing to start, so it is safe to leave
+on the classpath of a cross platform application; use the HTTP based approach above there
+instead.
+</p>
+
 <h2 id="filter">Filtering</h2>
 
 Like logback Rainbow Gum provides two types of filtering through functional composition:
