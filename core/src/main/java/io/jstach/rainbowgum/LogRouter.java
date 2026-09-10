@@ -40,19 +40,6 @@ public sealed interface LogRouter extends LogLifecycle {
 	public Route route(String loggerName, java.lang.System.Logger.Level level);
 
 	/**
-	 * The sink to dispatch events to for a logger name, with <strong>no level based
-	 * gating</strong> - unlike {@link #route(String, java.lang.System.Logger.Level)}, the
-	 * returned {@link LogEventLogger} always accepts {@link LogEventLogger#log(LogEvent)}
-	 * regardless of what level is currently enabled. Use this when level gating is
-	 * already handled independently (e.g. a logger facade caching its own resolved level
-	 * and re-checking it on every call) and a level would otherwise have to be made up
-	 * just to obtain a working sink.
-	 * @param loggerName topic.
-	 * @return event logger, never <code>null</code>.
-	 */
-	public LogEventLogger eventLogger(String loggerName);
-
-	/**
 	 * Global router which is always available.
 	 * @return global root router.
 	 */
@@ -140,6 +127,19 @@ public sealed interface LogRouter extends LogLifecycle {
 	sealed interface RootRouter extends LogRouter permits InternalRootRouter {
 
 		/**
+		 * The sink to dispatch events to for a logger name, with <strong>no level based
+		 * gating</strong> - unlike {@link #route(String, java.lang.System.Logger.Level)},
+		 * the returned {@link LogEventLogger} always accepts
+		 * {@link LogEventLogger#log(LogEvent)} regardless of what level is currently
+		 * enabled. Use this when level gating is already handled independently (e.g. a
+		 * logger facade caching its own resolved level and re-checking it on every call)
+		 * and a level would otherwise have to be made up just to obtain a working sink.
+		 * @param loggerName topic.
+		 * @return event logger, never <code>null</code>.
+		 */
+		public LogEventLogger eventLogger(String loggerName);
+
+		/**
 		 * Level resolver to find levels for a log name.
 		 * @return level resolver.
 		 */
@@ -208,17 +208,6 @@ public sealed interface LogRouter extends LogLifecycle {
 				event = event.freeze();
 			}
 			publisher().log(event);
-		}
-
-		@Override
-		default LogEventLogger eventLogger(String loggerName) {
-			/*
-			 * A leaf Router does not route to a different Router by name (that only
-			 * happens at the RootRouter level, e.g. CompositeLogRouter fanning out to
-			 * multiple child Routers) - it always dispatches to its own publisher, so it
-			 * is already its own sink.
-			 */
-			return this;
 		}
 
 		/**
@@ -712,7 +701,7 @@ record SingleRootRouter(Router router, RouteChangePublisher changePublisher) imp
 
 	@Override
 	public LogEventLogger eventLogger(String loggerName) {
-		return router.eventLogger(loggerName);
+		return router;
 	}
 
 }
