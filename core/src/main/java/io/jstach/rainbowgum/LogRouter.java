@@ -632,8 +632,7 @@ sealed interface InternalRootRouter extends RootRouter {
 				s -> config.changePublisher().allowedChanges(s).contains(ChangeType.LEVEL));
 		if (array.length == 1) {
 			var r = array[0];
-			return r.synchronous() ? new SingleSyncRootRouter(r, changePublisher)
-					: new SingleAsyncRootRouter(r, changePublisher);
+			return new SingleRootRouter(r, changePublisher);
 		}
 		return new CompositeLogRouter(array, globalLevelResolver, changePublisher);
 	}
@@ -689,36 +688,7 @@ sealed interface InternalRootRouter extends RootRouter {
 
 }
 
-record SingleSyncRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
-
-	@Override
-	public void start(LogConfig config) {
-		router.start(config);
-	}
-
-	@Override
-	public void close() {
-		router.close();
-	}
-
-	@Override
-	public LevelResolver levelResolver() {
-		return router.levelResolver();
-	}
-
-	@Override
-	public Route route(String loggerName, Level level) {
-		return router.route(loggerName, level);
-	}
-
-	@Override
-	public LogEventLogger eventLogger(String loggerName) {
-		return router.eventLogger(loggerName);
-	}
-
-}
-
-record SingleAsyncRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
+record SingleRootRouter(Router router, RouteChangePublisher changePublisher) implements InternalRootRouter {
 
 	@Override
 	public void start(LogConfig config) {
