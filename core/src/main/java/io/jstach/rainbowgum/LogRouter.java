@@ -729,7 +729,42 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver,
 		 * was reached, so this composite is already its own sink - no per-child selection
 		 * happens until log() actually runs.
 		 */
-		return this;
+		// return this;
+		return _eventLogger(loggerName);
+	}
+
+	private LogEventLogger _eventLogger(String loggerName) {
+		final int length = routers.length;
+		int[] levelToLogger = new int[length];
+		for (int i = 0; i < length; i++) {
+			int level = LevelResolver.normalizeLevel(routers[i].levelResolver().resolveLevel(loggerName)).getSeverity();
+			levelToLogger[i] = level;
+		}
+		var _routers = routers;
+		// maybe an abstract class or record would be better?
+		return event -> {
+			int level = LevelResolver.normalizeLevel(event.level()).getSeverity();
+			for (int i = 0; i < length; i++) {
+				if (levelToLogger[i] <= level) {
+					var router = _routers[i];
+					/*
+					 * We assume async routers are earlier in the array.
+					 */
+					if (!router.synchronous()) {
+						/*
+						 * Now all events are frozen from here onward to guarantee that the
+						 * synchronous routers see the same thing as the async routers.
+						 *
+						 * Freeze is a noop if it already frozen.
+						 */
+						event = event.freeze();
+					}
+					router.log(event);
+					
+				}
+
+			}
+		};
 	}
 
 	@Override
