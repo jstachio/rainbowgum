@@ -20,7 +20,7 @@ class IssuesTest {
 		 * logger.error("Hello, World!", IllegalArgumentException()) }
 		 */
 		try (var gum = gum().start()) {
-			RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(gum, new RainbowGumMDCAdapter());
+			RainbowGumLoggerFactory factory = RainbowGumLoggerFactory.of(gum, new RainbowGumMDCAdapter());
 			var logger = factory.getLogger("issue70");
 			logger.info("Hello, World!");
 			logger.error("Hello, World!", new IllegalArgumentException());
