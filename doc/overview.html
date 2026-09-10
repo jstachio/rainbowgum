@@ -1118,6 +1118,16 @@ We might have a logrotate script that looks like:
 }
 }
 
+<p>
+The example above assumes a fixed, known port. For Spring Boot applications where the port
+is not fixed (e.g. a random port for tests, or unknown until the web server actually starts),
+Spring Boot's own
+<a href="https://docs.spring.io/spring-boot/reference/actuator/process-monitoring.html">process
+monitoring support</a> includes <code>WebServerPortFileWriter</code>, which writes the actual
+bound port to a file (<code>application.port</code> by default) that the <code>postrotate</code>
+script can read instead of hardcoding one.
+</p>
+
 <h5 id="rolling_external_signal">Unix Signal based reopen (recommended for Linux/Docker)</h5>
 
 On Linux - and in most container/Docker deployments - a Unix signal is a simpler alternative
@@ -1167,6 +1177,15 @@ assuming the application writes its own pid to a file, e.g. <code>/var/run/app.p
   endscript
 }
 }
+
+<p>
+For Spring Boot applications, the pid file itself does not need to be written by hand: the
+same
+<a href="https://docs.spring.io/spring-boot/reference/actuator/process-monitoring.html">process
+monitoring support</a> mentioned above also includes <code>ApplicationPidFileWriter</code>,
+which writes the running application's pid to a file (<code>application.pid</code> by default,
+customizable via its constructor) for exactly this purpose.
+</p>
 
 <p>
 <strong>This module is not usable on Windows</strong> (there are no POSIX signals) - it
