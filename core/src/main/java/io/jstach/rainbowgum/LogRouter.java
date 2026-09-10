@@ -785,25 +785,28 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	private final RouteChangePublisher changePublisher = new RouteChangePublisher(s -> true);
 
 	static QueueEventsRouter of() {
-		return new QueueEventsRouter(StaticLevelResolver.of(queueLevel()), StaticLevelResolver.of(errorLevel()));
+		var validator = LogProperty.Validator.of(QueueEventsRouter.class);
+		var queueLevel = queueLevel().validate(validator);
+		var errorLevel = errorLevel().validate(validator);
+		validator.validate();
+		return new QueueEventsRouter(StaticLevelResolver.of(queueLevel.value()),
+				StaticLevelResolver.of(errorLevel.value()));
 	}
 
-	private static Level queueLevel() {
+	private static LogProperty.Result<Level> queueLevel() {
 		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 		return properties.forKey(LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY)
 			.ofString()
 			.map(LevelResolver::parseLevel)
-			.or(Level.INFO)
-			.value();
+			.or(Level.INFO);
 	}
 
-	private static final Level errorLevel() {
+	private static final LogProperty.Result<Level> errorLevel() {
 		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 		return properties.forKey(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY)
 			.ofString()
 			.map(LevelResolver::parseLevel)
-			.or(Level.ERROR)
-			.value();
+			.or(Level.ERROR);
 	}
 
 	private QueueEventsRouter(LevelResolver levelResolver, LevelResolver errorLevelResolver) {
