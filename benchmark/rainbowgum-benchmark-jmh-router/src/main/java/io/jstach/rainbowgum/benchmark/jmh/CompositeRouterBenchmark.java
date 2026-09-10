@@ -54,6 +54,15 @@ public class CompositeRouterBenchmark {
 
 	private RainbowGum compositeRouteGum;
 
+	/**
+	 * Fetched once in {@link #setup()}, mirroring how a cached logger (LevelLogger,
+	 * ReplaceableLogger, the non-changeable Tomcat/JCL Log) obtains it once at
+	 * construction time and reuses it for the life of that logger - not how
+	 * {@link #compositeRoute} uses the router, which re-resolves via route(name, level)
+	 * on every call.
+	 */
+	private io.jstach.rainbowgum.LogEventLogger cachedEventLogger;
+
 	private LogEvent event;
 
 	@Setup(org.openjdk.jmh.annotations.Level.Trial)
@@ -79,6 +88,8 @@ public class CompositeRouterBenchmark {
 		builder.route("route-warn", r -> r.level(Level.WARNING).appender("noop3", a -> a.output(NoopOutput.INSTANCE)));
 		builder.route("route-error", r -> r.level(Level.ERROR).appender("noop4", a -> a.output(NoopOutput.INSTANCE)));
 		this.compositeRouteGum = builder.build().start();
+
+		this.cachedEventLogger = compositeRouteGum.router().eventLogger(LOGGER_NAME);
 	}
 
 	@TearDown(org.openjdk.jmh.annotations.Level.Trial)
@@ -103,6 +114,18 @@ public class CompositeRouterBenchmark {
 			route.log(event);
 		}
 		bh.consume(route);
+	}
+
+	/**
+	 * Uses the {@link #cachedEventLogger} fetched once in {@link #setup()} - the shape a
+	 * real cached logger (LevelLogger, ReplaceableLogger, non-changeable Tomcat/JCL Log)
+	 * actually uses: no per-call route()/isEnabled() call at all, just log() directly on
+	 * an already-resolved sink.
+	 */
+	@Benchmark
+	public void cachedEventLoggerRoute(Blackhole bh) {
+		cachedEventLogger.log(event);
+		bh.consume(cachedEventLogger);
 	}
 
 	enum NoopOutput implements LogOutput {
