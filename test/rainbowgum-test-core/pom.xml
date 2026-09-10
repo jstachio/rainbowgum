@@ -12,4 +12,47 @@
       <artifactId>rainbowgum-core</artifactId>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <executions>
+          <!--
+            QueueRouter*InvalidTest touch GlobalLogRouter, a JVM-wide singleton that
+            self-initializes exactly once (on first LogRouter.global() call) and
+            permanently poisons itself if that first attempt fails - every later touch
+            throws NoClassDefFoundError instead of re-running init. Surefire's default
+            reuseForks=true shares one JVM across every test class in this module, so
+            these two need excluding from the default execution and re-running in their
+            own execution with reuseForks=false, which forks a fresh JVM per test class
+            instead of reusing one - see QueueRouterLevelPropertyInvalidTest's javadoc.
+          -->
+          <execution>
+            <id>default-test</id>
+            <configuration>
+              <excludes>
+                <exclude>**/QueueRouterLevelPropertyInvalidTest.java</exclude>
+                <exclude>**/QueueRouterBothPropertiesInvalidTest.java</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>queue-router-validation-tests</id>
+            <phase>test</phase>
+            <goals>
+              <goal>test</goal>
+            </goals>
+            <configuration>
+              <reuseForks>false</reuseForks>
+              <includes>
+                <include>**/QueueRouterLevelPropertyInvalidTest.java</include>
+                <include>**/QueueRouterBothPropertiesInvalidTest.java</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
