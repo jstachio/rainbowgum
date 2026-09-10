@@ -264,20 +264,34 @@ unifying.
       that holds up on a closer look, `write(LogEvent, String)` (and the `STRING` write
       method) may be dead API surface worth removing rather than keeping "just in case" -
       not investigated further or acted on yet.
-- [ ] **Commons Logging (jcl) probably needs its own native Rainbow Gum
-      implementation, the same way `rainbowgum-tomcat` replaced bridging through
-      JUL**: currently the only path is `jcl-over-slf4j`/`spring-jcl`, both of which
-      are someone else's bridge rather than a Rainbow Gum-native `LogFactory`/`Log`.
-      The blocker is that depth-aware (caller info) and runtime-changeable (level,
-      event handler) logger facades are genuinely fiddly to get right - see
-      `rainbowgum-slf4j`'s `ReplaceableLogger`
-      (`LevelChangeable`/`LogEventHandler.EventHandlerChangeable`/
-      `LoggerDecoratorService.DepthAwareLogger`), `CallerInfoEventDecorator`, and
-      `AbstractFilteringLogger`. That logic is currently written once, coupled to
-      SLF4J's `Logger` shape. Before a `rainbowgum-jcl` module (or similar) is worth
-      starting, this shared depth/changeable-logger machinery should be extracted out
-      of `rainbowgum-slf4j` into something a second facade implementation (JCL, and
-      potentially others down the line) can reuse instead of re-deriving it.
+- [x] **Commons Logging (jcl) native Rainbow Gum implementation**: landed as
+      `rainbowgum-jcl` on `feature/router-event-logger`. The premise of this item's
+      original draft was wrong - it assumed `rainbowgum-slf4j`'s
+      `ReplaceableLogger`/`CallerInfoEventDecorator`/`AbstractFilteringLogger` machinery
+      would need extracting out first, but that machinery is specifically earned by
+      SLF4J's own hot, heavily-wrapped call path (caller info, markers, the fluent
+      builder API) - none of which Commons Logging's `Log` interface has. Decompiling
+      both confirmed `org.apache.commons.logging.Log` and `org.apache.juli.logging.Log`
+      (Tomcat's own facade) are method-for-method identical (18 methods, same
+      signatures, just declared in a different order), so `rainbowgum-jcl` is instead a
+      near-direct port of `rainbowgum-tomcat`'s much simpler pattern:
+      `RainbowGumLog`/`ForwardingLog` picks between `LevelLog` (fixed-level, no
+      per-call check - the non-changeable fast path) and `ChangeableRainbowGumLog`
+      (re-resolves the level and re-fetches the sink fresh on every call instead of
+      caching + subscribing to change events - simpler than `ReplaceableLogger`, and
+      correctly current by construction). The one new piece Tomcat's SPI (reflection
+      based, per its own constructor comment) didn't need: `RainbowGumLogFactory
+      extends org.apache.commons.logging.LogFactory`, discovered via
+      `java.util.ServiceLoader` - confirmed Commons Logging 1.3.x's own
+      `module-info.java` declares `uses org.apache.commons.logging.LogFactory`, so a
+      plain `@ServiceProvider(LogFactory.class)`-generated
+      `META-INF/services/org.apache.commons.logging.LogFactory` entry is sufficient on
+      both the module path and the classpath - verified end-to-end with a live
+      `LogFactory.getLog(...)` smoke test outside the reactor, not just a compile check.
+      Takeaway for any future facade (JMX, whatever else): default to the Tomcat/JCL
+      "re-resolve every call" shape, only reach for SLF4J's
+      cache-plus-subscription machinery if the facade's own call path is hot enough to
+      justify it.
 - [x] **No message size limiting - `LogEvent#formattedMessage(StringBuilder)` appends
       unbounded**: every `LogEvent` implementation (`OneArgLogEvent`, `TwoArgLogEvent`,
       `ArrayArgLogEvent`, etc. in `LogEvent.java`) writes into the passed `StringBuilder`
