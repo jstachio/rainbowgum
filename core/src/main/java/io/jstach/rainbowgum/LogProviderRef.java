@@ -74,16 +74,24 @@ public sealed interface LogProviderRef {
 		/**
 		 * Builds a {@link NotFoundException} for an unregistered scheme, with a message
 		 * consistent across every kind of provider registry (output/publisher/encoder/
-		 * etc).
-		 * @param component the kind of thing not found (e.g. "output", "publisher",
-		 * "encoder").
+		 * etc). If the scheme happens to be one known to be provided by an optional
+		 * module not currently on the classpath (see {@link ProviderModule}), the message
+		 * is extended to say which dependency to add.
+		 * @param component the kind of thing not found.
 		 * @param scheme the URI scheme that had no provider registered for it.
 		 * @param uri the full URI that was being resolved.
 		 * @return exception, not thrown.
 		 */
-		static NotFoundException of(String component, String scheme, URI uri) {
-			return new NotFoundException(
-					"No " + component + " found. Scheme not registered. scheme: '" + scheme + "', URI: '" + uri + "'");
+		static NotFoundException of(ProviderModule.ComponentType component, String scheme, URI uri) {
+			String message = "No " + component.label() + " found. Scheme not registered. scheme: '" + scheme
+					+ "', URI: '" + uri + "'";
+			var module = ProviderModule.find(component, scheme);
+			if (module.isPresent()) {
+				var m = module.get();
+				message += ". Scheme '" + scheme + "' is provided by module '" + m.moduleName() + "' (Maven: '"
+						+ m.mavenGav() + "') - add that dependency.";
+			}
+			return new NotFoundException(message);
 		}
 
 	}

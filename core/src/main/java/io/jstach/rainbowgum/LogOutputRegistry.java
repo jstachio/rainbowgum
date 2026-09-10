@@ -165,7 +165,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		String scheme = Objects.requireNonNull(uri.getScheme());
 		OutputProvider customProvider = providers.get(scheme);
 		if (customProvider == null) {
-			throw LogProviderRef.NotFoundException.of("output", scheme, uri);
+			throw LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, scheme, uri);
 		}
 		var _ref = ref;
 		return (name, config) -> {

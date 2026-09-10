@@ -47,6 +47,30 @@ class LogProviderRefTest {
 	}
 
 	@Test
+	void testNotFoundExceptionOfUnknownSchemeHasNoModuleHint() {
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "bogus",
+				URI.create("bogus:///"));
+		assertEquals("No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'", e.getMessage());
+	}
+
+	@Test
+	void testNotFoundExceptionOfKnownSchemeButWrongComponentTypeHasNoModuleHint() {
+		// "gelf" is only registered as an encoder scheme, not an output scheme.
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "gelf",
+				URI.create("gelf:///"));
+		assertEquals("No output found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'", e.getMessage());
+	}
+
+	@Test
+	void testNotFoundExceptionOfKnownSchemeHasModuleHint() {
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.ENCODER, "gelf",
+				URI.create("gelf:///"));
+		assertEquals("No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. "
+				+ "Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' "
+				+ "(Maven: 'io.jstach.rainbowgum:rainbowgum-json') - add that dependency.", e.getMessage());
+	}
+
+	@Test
 	void testNormalizeUriPassesThroughWhenSchemeAlreadyPresent() {
 		var uri = URI.create("console:///?a=b");
 		assertEquals(uri, DefaultLogProviderRef.normalize(uri));
