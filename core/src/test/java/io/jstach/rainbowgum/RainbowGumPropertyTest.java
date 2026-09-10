@@ -81,7 +81,7 @@ class RainbowGumPropertyTest {
 
 			@Override
 			void assertOther(RainbowGum gum) {
-				SingleSyncRootRouter rootRouter = (SingleSyncRootRouter) gum.router();
+				SingleRootRouter rootRouter = (SingleRootRouter) gum.router();
 				var router = rootRouter.router();
 				DefaultSyncLogPublisher publisher = (DefaultSyncLogPublisher) router.publisher();
 				assertInstanceOf(ReuseBufferLogAppender.class, publisher.appender());
@@ -99,7 +99,7 @@ class RainbowGumPropertyTest {
 
 			@Override
 			void assertOther(RainbowGum gum) {
-				SingleSyncRootRouter rootRouter = (SingleSyncRootRouter) gum.router();
+				SingleRootRouter rootRouter = (SingleRootRouter) gum.router();
 				var router = rootRouter.router();
 				DefaultSyncLogPublisher publisher = (DefaultSyncLogPublisher) router.publisher();
 				assertInstanceOf(LockThreadLocalBufferLogAppender.class, publisher.appender());
@@ -117,7 +117,7 @@ class RainbowGumPropertyTest {
 
 			@Override
 			void assertOther(RainbowGum gum) {
-				SingleSyncRootRouter rootRouter = (SingleSyncRootRouter) gum.router();
+				SingleRootRouter rootRouter = (SingleRootRouter) gum.router();
 				var router = rootRouter.router();
 				DefaultSyncLogPublisher publisher = (DefaultSyncLogPublisher) router.publisher();
 				assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, publisher.appender());
