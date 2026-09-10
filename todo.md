@@ -363,6 +363,14 @@ unifying.
       > help prototype if there's interest in something like this for `LoggingSystem`
       > itself.
 
+- [ ] **`console` as a scheme alias for `stdout`**: `LogOutput.STDOUT_SCHEME`/
+      `STDERR_SCHEME` (`LogOutput.java`) are the only registered console output
+      schemes today - `logging.appender.myapp.output=console` currently just fails
+      with `NotFoundException`. Logback/Spring Boot users reach for "console" by
+      habit (`ConsoleAppender`), so registering it in `LogOutputRegistry`'s
+      `StandardLogOutputProvider` as a plain alias resolving to the same stdout
+      output `STDOUT_SCHEME` does would be a small, low-risk win. Surfaced while
+      adding the `doc/overview.html` "Console" output subsection.
 - [ ] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
       `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
       buffer/lock strategies but are represented as three independent enum constants in

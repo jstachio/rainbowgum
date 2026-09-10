@@ -1001,69 +1001,53 @@ An explicit file URI such as <code>file:///./app.log</code> is still honored as-
 Here are some of the supported outputs (not a complete listing):
 </p>
 
-<ul>
-  <li>stdout and stderr</li>
-  <li>{@link io.jstach.rainbowgum.file.FileOutputBuilder} with URI scheme of "file" - requires the <code>rainbowgum-file</code> dependency; <code>rainbowgum-core</code> on its own has no file I/O capability</li>
-</ul>
+<h3 id="console">Console</h3>
+
+<code>stdout</code> and <code>stderr</code> are the default outputs, require no additional
+module, and need no further configuration beyond the URI scheme itself:
+
+{@snippet lang=properties :
+logging.appenders=myapp
+logging.appender.myapp.output=stdout
+}
+
+{@snippet lang=properties :
+logging.appenders=myapp
+logging.appender.myapp.output=stderr
+}
+
+<h3 id="file">File Output</h3>
+
+The <code>rainbowgum-file</code> module (not included by default -
+<code>rainbowgum-core</code> on its own has no file I/O capability at all) provides
+plain, non-rolling file output under the "file" URI scheme,
+{@link io.jstach.rainbowgum.file.FileOutputBuilder}:
+
+{@snippet lang=properties :
+logging.appenders=myapp
+logging.appender.myapp.output=file:///var/log/app.log
+}
+
+See {@link io.jstach.rainbowgum.file.FileOutputBuilder} for the full list of supported
+properties (e.g. <code>append</code>, <code>prudent</code>, <code>bufferSize</code>) and
+their defaults.
 
 <h3 id="rolling">Rolling Files</h3>
 
-The <code>rainbowgum-file</code> module (see above - not included by default,
-<code>rainbowgum-core</code> on its own has no file I/O capability at all) additionally
-provides a deliberately basic, size based rolling file output under the "rolling" URI
-scheme, {@link io.jstach.rainbowgum.rolling.RollingFileOutput}:
+The same <code>rainbowgum-file</code> module additionally provides a deliberately basic,
+size based rolling file output under the "rolling" URI scheme,
+{@link io.jstach.rainbowgum.rolling.RollingFileOutput}:
 
 {@snippet lang=properties :
 logging.appenders=myapp
 logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10485760&maxHistory=7
 }
 
-or equivalently as properties (same <code>logging.output.{name}.*</code> prefix
-{@link io.jstach.rainbowgum.file.FileOutputBuilder} itself uses - <code>uri</code>/
-<code>fileName</code>/<code>append</code>/<code>prudent</code>/<code>bufferSize</code>
-all still apply and are passed straight through to the underlying file output):
-
-{@snippet lang=properties :
-logging.appenders=myapp
-logging.appender.myapp.output=rolling:///var/log/app.log
-logging.output.myapp.maxFileSize=10485760
-logging.output.myapp.maxHistory=7
-}
-
-<table class="table">
-<caption><strong>Rolling properties</strong></caption>
-<tr><th>Property</th><th>Default</th><th>Description</th></tr>
-<tr>
-<td><code>maxFileSize</code></td>
-<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_MAX_FILE_SIZE} (10MB)</td>
-<td>Bytes before a roll is triggered.</td>
-</tr>
-<tr>
-<td><code>maxHistory</code></td>
-<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_MAX_HISTORY}</td>
-<td>Number of archives to retain.</td>
-</tr>
-<tr>
-<td><code>totalSizeCap</code></td>
-<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_TOTAL_SIZE_CAP} (unlimited)</td>
-<td>Combined archive size cap in bytes; oldest archives are evicted first once
-exceeded.</td>
-</tr>
-<tr>
-<td><code>cleanHistoryOnStart</code></td>
-<td>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_CLEAN_HISTORY_ON_START}</td>
-<td>Whether pruning also runs once at startup, not just after each roll.</td>
-</tr>
-<tr>
-<td><code>fileNamePattern</code></td>
-<td><code>{@value io.jstach.rainbowgum.rolling.RollingFileOutput#DEFAULT_FILE_NAME_PATTERN}</code></td>
-<td>Archive suffix appended directly after the active file's own path (e.g.
-<code>app.log</code> archives to <code>app.log.1</code>, <code>app.log.2</code>, etc);
-must contain exactly one <code>%i</code> (rotation index) token - calendar/date
-(<code>%d</code>) based rotation is not supported. A pattern ending in
-<code>.gz</code> gzip compresses archives on rotation.</td>
-</tr>
-</table>
+See {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder} for the full list of
+properties (<code>maxFileSize</code>, <code>maxHistory</code>, <code>totalSizeCap</code>,
+<code>cleanHistoryOnStart</code>, <code>fileNamePattern</code>) and their defaults - they
+work equally well as query parameters above or as
+<code>logging.output.{name}.*</code> properties.
 
 <p>
 <strong>This is deliberately basic - just enough to keep a small/desktop app's disk
