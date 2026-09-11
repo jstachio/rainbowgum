@@ -38,6 +38,31 @@ class LogPropertyTest {
 	}
 
 	@Test
+	void testValidateNowReturnsValueOnSuccess() {
+		var success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
+				LogProperties.StandardProperties.EMPTY, "key", "actual", PropertySuccess.Kind.VALUE, "actual");
+		assertEquals("actual", success.validateNow(LogPropertyTest.class));
+	}
+
+	@Test
+	void testValidateNowTreatsStillMissingAsFailure() {
+		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
+		assertThrows(ValidationException.class, () -> missing.validateNow(LogPropertyTest.class));
+	}
+
+	@Test
+	void testValidateNowWithFallbackAppliedFirstDoesNotTreatItAsMissing() {
+		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
+		assertEquals("fallback", missing.or("fallback").validateNow(LogPropertyTest.class));
+	}
+
+	@Test
+	void testValidateNowThrowsOnError() {
+		Error<String> error = new Error<>("key", "bad value", new NumberFormatException("nope"));
+		assertThrows(ValidationException.class, () -> error.validateNow(LogPropertyTest.class));
+	}
+
+	@Test
 	void testPropertyFunctionSneakyThrowsCheckedException() {
 		PropertyFunction<String, String, IOException> f = new PropertyFunction<>() {
 			@Override
