@@ -113,11 +113,15 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 	/**
 	 * Config Change Publisher. By default this is enabled with
-	 * {@value LogProperties#GLOBAL_CHANGE_PROPERTY} set to <code>true</code> and then
-	 * configuring which "logger" prefix will be allowed to change with
-	 * {@value LogProperties#CHANGE_PREFIX} + {@value LogProperties#SEP} + logger name set
-	 * to a list of {@link ChangeType} or <code>true</code>/<code>false</code> to enable
-	 * or disable all changes.
+	 * {@value LogProperties#GLOBAL_CHANGE_PROPERTY} set to <code>true</code>, which then
+	 * gates two independent, per-logger-name properties:
+	 * {@value LogProperties#CHANGE_PREFIX} + {@value LogProperties#SEP} + logger name,
+	 * set to a list of {@link ChangeType} or <code>true</code>/<code>false</code> to
+	 * enable or disable all changes, and {@value LogProperties#CALLER_PREFIX} +
+	 * {@value LogProperties#SEP} + logger name, set to a {@link CallerType} (or
+	 * <code>true</code>/<code>false</code>) to control caller info. The two are resolved
+	 * independently - one does not imply or override the other, even for overlapping
+	 * logger name prefixes.
 	 */
 	interface ChangePublisher {
 
@@ -133,7 +137,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		public void publish();
 
 		/**
-		 * Test to see if <strong>any</strong> changes are enabled for a logger.
+		 * Test to see if <strong>any</strong> changes are enabled for a logger - either
+		 * {@link #allowedChanges(String)} is non-empty or {@link #callerType(String)} is
+		 * not {@link CallerType#NONE}.
 		 * @param loggerName logger name.
 		 * @return true if enabled.
 		 */
@@ -147,19 +153,26 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		public Set<ChangeType> allowedChanges(String loggerName);
 
 		/**
-		 * Whether caller info should be computed for a logger. Unlike
+		 * The caller info level for a logger, resolved from
+		 * {@value LogProperties#CALLER_PREFIX}, independently of
+		 * {@link #allowedChanges(String)} /{@value LogProperties#CHANGE_PREFIX}. Unlike
 		 * {@link ChangeType#LEVEL}, which is genuinely re-evaluated on every
 		 * {@link #publish()}, this is resolved once when a logger is first created and
 		 * never revisited afterward - it reflects a static per-logger capability, not
-		 * something that changes at runtime, despite being parsed from the same
-		 * {@value LogProperties#CHANGE_PREFIX} property and the same {@link ChangeType}
-		 * set as {@code LEVEL} (deliberately, to avoid a second property lookup per
-		 * logger name).
+		 * something that changes at runtime.
+		 * @param loggerName logger name.
+		 * @return caller type, {@link CallerType#NONE} if not configured.
+		 */
+		public CallerType callerType(String loggerName);
+
+		/**
+		 * Whether caller info should be computed for a logger at all, regardless of which
+		 * non-{@link CallerType#NONE} level.
 		 * @param loggerName logger name.
 		 * @return true if caller info is enabled for this logger.
 		 */
 		default boolean callerInfoEnabled(String loggerName) {
-			return allowedChanges(loggerName).contains(ChangeType.CALLER);
+			return callerType(loggerName) != CallerType.NONE;
 		}
 
 		/**
@@ -170,16 +183,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			/**
 			 * The logger is allowed to change levels.
 			 */
-			LEVEL,
-			/**
-			 * Caller info is enabled for the logger. Despite being a member of this enum
-			 * and parsed from the same property as {@link #LEVEL}, this is not actually
-			 * re-evaluated on {@link ChangePublisher#publish()} the way {@code LEVEL} is
-			 * - it is a static per-logger capability decided once. See
-			 * {@link ChangePublisher#callerInfoEnabled(String)} for the accessor callers
-			 * should actually use.
-			 */
-			CALLER;
+			LEVEL;
 
 			static Set<ChangeType> parse(List<String> value) {
 				if (value.isEmpty()) {
@@ -201,6 +205,35 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			static ChangeType parse(String value) {
 				String v = value.toUpperCase(Locale.ROOT);
 				return ChangeType.valueOf(v);
+			}
+
+		}
+
+		/**
+		 * Caller info levels, resolved from {@value LogProperties#CALLER_PREFIX}.
+		 * {@link #BASIC} is the only level implemented today (a stack-walk down to the
+		 * calling class/method/line) - kept as an enum rather than a boolean so a future,
+		 * richer level (matching what some other logging frameworks gather from the
+		 * stack) can be added without a breaking property-format change.
+		 */
+		public enum CallerType {
+
+			/**
+			 * Caller info is not computed.
+			 */
+			NONE,
+			/**
+			 * Caller info is computed as a single stack frame (class, method, line).
+			 */
+			BASIC;
+
+			static CallerType parse(String value) {
+				String v = value.toUpperCase(Locale.ROOT);
+				return switch (v) {
+					case "TRUE" -> BASIC;
+					case "FALSE" -> NONE;
+					default -> CallerType.valueOf(v);
+				};
 			}
 
 		}
@@ -407,6 +440,13 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	 */
 	private final ConcurrentHashMap<String, Set<ChangeType>> changesCache = new ConcurrentHashMap<>();
 
+	/*
+	 * Sibling to changesCache, not folded into it - CallerType is resolved from its own
+	 * logging.caller.<name> property, independent of logging.change.<name>, so it gets
+	 * its own map rather than a combined per-name struct (one map per concern).
+	 */
+	private final ConcurrentHashMap<String, CallerType> callerTypeCache = new ConcurrentHashMap<>();
+
 	protected abstract LogConfig reload();
 
 	protected abstract LogConfig config();
@@ -414,6 +454,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	@Override
 	public void publish() {
 		changesCache.clear();
+		callerTypeCache.clear();
 		LogConfig config = reload();
 		for (var c : consumers) {
 			c.accept(config);
@@ -427,7 +468,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public boolean isEnabled(String loggerName) {
-		return !allowedChanges(loggerName).isEmpty();
+		return !allowedChanges(loggerName).isEmpty() || callerType(loggerName) != CallerType.NONE;
 	}
 
 	@Override
@@ -472,6 +513,34 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		});
 	}
 
+	@Override
+	public CallerType callerType(String loggerName) {
+		return callerTypeCache.computeIfAbsent(loggerName, n -> {
+			LogProperty.Result<CallerType> result = config().properties()
+				.findOrNull(LogProperties.CALLER_PREFIX, n, (props, fullKey) -> {
+					LogProperty.Result<CallerType> r = props.forKey(fullKey).ofString().map(CallerType::parse);
+					return r instanceof LogProperty.Result.Missing ? null : r;
+				});
+			if (result == null) {
+				return CallerType.NONE;
+			}
+			try {
+				return result.validateNow(ChangePublisher.class);
+			}
+			catch (LogProperty.ValidationException e) {
+				/*
+				 * Same reasoning as allowedChanges()'s catch above: a malformed (or
+				 * pre-split, e.g. the old "caller" token that used to live in
+				 * logging.change.<name>) logging.caller.<name> value alerts once and
+				 * falls back to CallerType.NONE, cached, rather than re-parsing and
+				 * re-alerting on every call.
+				 */
+				config().alerts().error(ChangePublisher.class, e);
+				return CallerType.NONE;
+			}
+		});
+	}
+
 }
 
 enum IgnoreChangePublisher implements ChangePublisher {
@@ -495,6 +564,11 @@ enum IgnoreChangePublisher implements ChangePublisher {
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
 		return Set.of();
+	}
+
+	@Override
+	public CallerType callerType(String loggerName) {
+		return CallerType.NONE;
 	}
 
 }
