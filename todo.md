@@ -252,31 +252,42 @@ unifying.
         projects converging on "per-logger flags for what a logger is allowed to
         report/change" as the right shape is a useful data point for whatever this
         becomes.
-- [ ] **`rainbowgum-slf4j` implements neither `org.slf4j.spi.LocationAwareLogger` nor
-      `org.slf4j.spi.LoggingEventAware`, and the second one is arguably the more
-      consequential gap.** Surfaced while researching `LocationAwareLogger` for the
-      JCL/Spring caller-info work (see `feature/slf4j-location-aware`). SLF4J 2.x's
-      fluent API (`logger.atInfo().log(...)`) is backed by
+- [x] **`rainbowgum-slf4j` implemented neither `org.slf4j.spi.LocationAwareLogger` nor
+      `org.slf4j.spi.LoggingEventAware`.** Surfaced while researching
+      `LocationAwareLogger` for the JCL/Spring caller-info work (`feature/slf4j-location-aware`,
+      merged), `LoggingEventAware` implemented on `feature/slf4j-logging-event-aware`.
+      One correction from the original draft of this item, found by decompiling
+      `DefaultLoggingEventBuilder` directly rather than reasoning from the javadoc: the
+      "every fluent-API caller already falls to the least-specialized path" claim below
+      was overstated for RainbowGum's *own* `.atInfo()`/etc. calls specifically -
+      `LevelLogger` already overrides those to return `RainbowGumEventBuilder` directly,
+      which never goes anywhere near `DefaultLoggingEventBuilder`'s three-way dispatch
+      chain at all. That chain, and therefore `LoggingEventAware`, only matters when a
+      *third party* constructs its own `LoggingEventBuilder` (`DefaultLoggingEventBuilder`
+      or otherwise) around a `Logger` obtained from this factory, bypassing
+      `RainbowGumEventBuilder` entirely - the fluent-API analogue of the jcl-over-slf4j
+      scenario `LocationAwareLogger` support already handles, not a gap in RainbowGum's
+      own direct fluent usage. `LocationAwareForwardingLogger` (same class, same
+      `ChangeType.CALLER` gating) now implements both interfaces, reusing the same
+      fqcn-based `findCaller` - `LoggingEvent.getCallerBoundary()` is guaranteed non-null
+      by `DefaultLoggingEventBuilder` specifically (defaults to its own fqcn if nothing
+      else set it, confirmed by decompiling `log(LoggingEvent)`), so the same "skip a
+      contiguous run of frames matching this class name" search applies unchanged.
+      Original text kept below for context on the three-way chain itself, which is still
+      accurate as a description of SLF4J's own dispatch order:
+      SLF4J 2.x's fluent API (`logger.atInfo().log(...)`) is backed by
       `org.slf4j.spi.DefaultLoggingEventBuilder`, which dispatches via a three-way
-      priority chain, not two: `LoggingEventAware` (`@since 2.0.0`, checked *first*) >
+      priority chain: `LoggingEventAware` (`@since 2.0.0`, checked *first*) >
       `LocationAwareLogger` (legacy bridges: jcl-over-slf4j, log4j-to-slf4j,
       jul-to-slf4j all target this one, predates 2.0) > plain `Logger` (last resort -
       merges the `Throwable` into the same `Object[]` as the arguments and calls the
       varargs overload regardless of how many arguments were actually supplied).
-      Because RainbowGum implements none of the three specially, *every* fluent-API
-      caller - not just bridge libraries - already falls all the way to that last,
-      least-specialized path today, defeating `LevelLogger`'s whole
-      arity-specialized-dispatch design for that entire calling style, independent of
-      whatever gets decided for `LocationAwareLogger`/JCL specifically.
-      `LoggingEventAware` is a single method (`void log(LoggingEvent event)`) where
-      `LoggingEvent` is presumably a structured carrier (level/message/args/marker/
-      throwable/caller-boundary) rather than a flat parameter list - given how much of
-      modern SLF4J usage is fluent-style, implementing this one may matter more
-      long-term than `LocationAwareLogger`, even though the latter is what the
-      immediate JCL/Spring motivation is about. Deliberately kept as its own separate
-      item rather than folded into the `LocationAwareLogger` branch - different
-      interface, different caller population (all fluent-API users, not just bridges),
-      deserves its own design pass rather than riding along.
+      Separate, smaller, still-open finding from the same research: `RainbowGumEventBuilder._log()`
+      always builds its `LogEvent` via `LogEvent.ofAll(...)` (the general N-arg shape)
+      regardless of how many arguments were actually added, unlike the direct
+      (non-fluent) call path's `event1`/`event2`/`eventArray` specialization for
+      0/1/2/N args - a real but much narrower arity-specialization gap than the above,
+      worth a one-off fix rather than its own design pass.
 - [x] The `Property`/`PropertyGetter`/`Result` monad (`map`, `mapResult`, `or`,
       `orElse`, multi-key fallback, etc.) has essentially no direct unit tests of its
       own composition/error-propagation/fallback-chain behavior - it's exercised only
