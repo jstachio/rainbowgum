@@ -16,7 +16,7 @@ import io.jstach.rainbowgum.LogEventFactory;
  * the source of golden-string breakage under parallel test execution where the real
  * thread is never actually "main").
  */
-public final class TestLogEventFactory extends LogEventFactory {
+public final class TestLogEventFactory implements LogEventFactory {
 
 	/**
 	 * Fixed timestamp every event created by this factory has, unless overridden
@@ -63,22 +63,22 @@ public final class TestLogEventFactory extends LogEventFactory {
 	}
 
 	@Override
-	protected String loggerName() {
+	public String loggerName() {
 		return loggerName;
 	}
 
 	@Override
-	protected Instant timestamp() {
+	public Instant timestamp() {
 		return FIXED_TIMESTAMP;
 	}
 
 	@Override
-	protected String threadName() {
+	public String threadName() {
 		return FIXED_THREAD_NAME;
 	}
 
 	@Override
-	protected long threadId() {
+	public long threadId() {
 		return FIXED_THREAD_ID;
 	}
 
@@ -116,7 +116,7 @@ public final class TestLogEventFactory extends LogEventFactory {
 	 * @return event.
 	 */
 	public LogEvent event(Level level, String message) {
-		return event(level, message, KeyValues.of(), (@Nullable Throwable) null);
+		return eventNoArg(level, message, KeyValues.of(), (@Nullable Throwable) null);
 	}
 
 }

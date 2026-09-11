@@ -267,7 +267,7 @@ class RawJsonWriterTest {
 		w.writeAscii("{}");
 		var output = new ListLogOutput();
 		LogEvent event = LogEventFactory.of("test")
-			.event(System.Logger.Level.INFO, "hello", KeyValues.of(), (Throwable) null)
+			.eventNoArg(System.Logger.Level.INFO, "hello", KeyValues.of(), (Throwable) null)
 			.freeze(Instant.EPOCH);
 		w.write(output, event);
 		assertEquals(0, w.size());

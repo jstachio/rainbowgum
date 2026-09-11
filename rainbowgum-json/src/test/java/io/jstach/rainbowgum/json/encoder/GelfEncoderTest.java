@@ -111,7 +111,8 @@ class GelfEncoderTest {
 		GelfEncoder encoder = b.build();
 
 		var buffer = encoder.buffer(WriteMethod.STRING);
-		LogEvent e = LogEventFactory.of("gelf").event(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
+		LogEvent e = LogEventFactory.of("gelf")
+			.eventNoArg(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
 		encoder.encode(e, buffer);
 
 		assertTrue(buffer.isOversized());
@@ -278,7 +279,7 @@ class GelfEncoderTest {
 			Instant instant = Instant.ofEpochMilli(1);
 			var kvs = MutableKeyValues.of().add("k\"1", "v1");
 			LogEvent e = LogEventFactory.of("gelf")
-				.event(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
+				.eventNoArg(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
 				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
@@ -299,7 +300,7 @@ class GelfEncoderTest {
 			// lone high surrogate with no matching low surrogate.
 			String malformed = "bad\uD800end";
 			LogEvent e = LogEventFactory.of("gelf")
-				.event(System.Logger.Level.INFO, malformed, KeyValues.of(), (Throwable) null)
+				.eventNoArg(System.Logger.Level.INFO, malformed, KeyValues.of(), (Throwable) null)
 				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();

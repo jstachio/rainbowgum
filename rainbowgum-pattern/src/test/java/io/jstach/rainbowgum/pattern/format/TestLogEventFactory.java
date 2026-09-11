@@ -9,7 +9,7 @@ import io.jstach.rainbowgum.LogEventFactory;
  * and {@link #threadId()} to deterministic values, since this module's pattern output
  * (e.g. {@code %thread}) can embed them in golden-string assertions.
  */
-public final class TestLogEventFactory extends LogEventFactory {
+public final class TestLogEventFactory implements LogEventFactory {
 
 	private final String loggerName;
 
@@ -22,22 +22,22 @@ public final class TestLogEventFactory extends LogEventFactory {
 	}
 
 	@Override
-	protected String loggerName() {
+	public String loggerName() {
 		return loggerName;
 	}
 
 	@Override
-	protected Instant timestamp() {
+	public Instant timestamp() {
 		return Instant.EPOCH;
 	}
 
 	@Override
-	protected String threadName() {
+	public String threadName() {
 		return "main";
 	}
 
 	@Override
-	protected long threadId() {
+	public long threadId() {
 		return 1L;
 	}
 

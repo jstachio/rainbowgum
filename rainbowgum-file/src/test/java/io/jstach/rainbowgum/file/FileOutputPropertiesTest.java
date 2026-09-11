@@ -46,7 +46,8 @@ class FileOutputPropertiesTest {
 			var config = LogConfig.builder().properties(properties).serviceLoader().build();
 			var gum = RainbowGum.builder(config).build();
 			try (var rg = gum.start()) {
-				rg.log(TestLogEventFactory.of("test").event(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
+				rg.log(TestLogEventFactory.of("test")
+					.eventNoArg(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
 			}
 			assertTrue(Files.exists(file), "expected " + file + " to have been created");
 			String content = Files.readString(file);

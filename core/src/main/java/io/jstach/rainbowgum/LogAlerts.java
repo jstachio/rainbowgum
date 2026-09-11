@@ -175,7 +175,7 @@ final class DefaultLogAlerts implements LogAlerts {
 				listener.onAlert(frozen);
 			}
 			catch (Exception e) {
-				FailsafeAppender.INSTANCE.log(eventFactory.event(Level.ERROR, "LogAlerts.Listener threw", e));
+				FailsafeAppender.INSTANCE.log(eventFactory.eventNoArg(Level.ERROR, "LogAlerts.Listener threw", e));
 			}
 		}
 		FailsafeAppender.INSTANCE.log(frozen);

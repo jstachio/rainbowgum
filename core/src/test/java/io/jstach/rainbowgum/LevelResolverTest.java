@@ -107,7 +107,7 @@ class LevelResolverTest {
 						]""";
 				assertEquals(expected, actual);
 			}
-			g.log(LogEventFactory.of("com.stuff.foo").event(level, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("com.stuff.foo").eventNoArg(level, "hello", KeyValues.of(), (Throwable) null));
 			assertNotEquals(Level.ALL, config.levelResolver().resolveLevel("com.stuff.foo"));
 			props.put(LogProperties.LEVEL_PREFIX, "OFF");
 			props.put(LogProperties.concatKey(LogProperties.LEVEL_PREFIX, "com.stuff.foo"), "OFF");
@@ -123,7 +123,7 @@ class LevelResolverTest {
 			 * Assuming the level is enabled we expect the next statement per the level
 			 * resolver cache.
 			 */
-			g.log(LogEventFactory.of("com.stuff.foo").event(level, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("com.stuff.foo").eventNoArg(level, "hello", KeyValues.of(), (Throwable) null));
 			{
 				checkOutput("list", level, loggerLevel, output);
 			}
@@ -133,7 +133,7 @@ class LevelResolverTest {
 			 * We expect no output as our level resolving cache is cleared and should
 			 * resolve OFF.
 			 */
-			g.log(LogEventFactory.of("com.stuff.foo").event(level, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("com.stuff.foo").eventNoArg(level, "hello", KeyValues.of(), (Throwable) null));
 			assertEquals("", output.toString());
 
 		}
@@ -254,7 +254,7 @@ class LevelResolverTest {
 						]""".formatted(LevelResolver.normalizeLevel(routeLevel));
 				assertEquals(expected, actual);
 			}
-			g.log(LogEventFactory.of("com.stuff.foo").event(level, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("com.stuff.foo").eventNoArg(level, "hello", KeyValues.of(), (Throwable) null));
 			assertNotEquals(Level.ALL, config.levelResolver().resolveLevel("com.stuff.foo"));
 			props.put(LogProperties.LEVEL_PREFIX, "OFF");
 			props.put(LogProperties.concatKey(LogProperties.LEVEL_PREFIX, "com.stuff.foo"), "OFF");
@@ -266,7 +266,7 @@ class LevelResolverTest {
 			 * Assuming the level is enabled we expect the next statement per the level
 			 * resolver cache.
 			 */
-			g.log(LogEventFactory.of("com.stuff.foo").event(level, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("com.stuff.foo").eventNoArg(level, "hello", KeyValues.of(), (Throwable) null));
 			{
 				checkOutput("first", level, loggerLevel, first);
 				checkOutput("second", level, routeLevel, second);
@@ -277,7 +277,7 @@ class LevelResolverTest {
 			 * We expect no output as our level resolving cache is cleared and should
 			 * resolve OFF.
 			 */
-			g.log(LogEventFactory.of("com.stuff.foo").event(level, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("com.stuff.foo").eventNoArg(level, "hello", KeyValues.of(), (Throwable) null));
 			assertEquals("", first.toString());
 
 		}
@@ -512,7 +512,7 @@ class LevelResolverTest {
 					a -> a.output(secondOutput).encoder(LogFormatter.builder().message().newline().encoder().build()));
 		}).build();
 		try (var g = gum) {
-			g.log(LogEventFactory.of("com.stuff").event(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("com.stuff").eventNoArg(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
 		}
 		// The default route has no IGNORE_GLOBAL_LEVEL_RESOLVER flag, so it falls back
 		// to the global logging.level.com.stuff=ERROR and filters INFO out.

@@ -34,7 +34,7 @@ class SpringBootKeywordFactoryTest {
 
 	private static String format(String pattern, Throwable throwable) {
 		var event = LogEventFactory.of("io.jstach.logger")
-			.event(System.Logger.Level.INFO, "hello", MutableKeyValues.of().freeze(), throwable)
+			.eventNoArg(System.Logger.Level.INFO, "hello", MutableKeyValues.of().freeze(), throwable)
 			.freeze(Instant.EPOCH);
 		StringBuilder sb = new StringBuilder();
 		compiler().compile(pattern).format(sb, event);

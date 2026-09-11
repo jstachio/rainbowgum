@@ -252,7 +252,7 @@ class PatternConfiguratorTest {
 				var route = router.route("com.pattern.test.Test", level);
 				if (route.isEnabled()) {
 					var event = TestLogEventFactory.of("com.pattern.test.Test")
-						.event(level, "hello", KeyValues.of(), (Throwable) null)
+						.eventNoArg(level, "hello", KeyValues.of(), (Throwable) null)
 						.freeze(instant);
 					route.log(event);
 				}

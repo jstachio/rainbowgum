@@ -28,7 +28,7 @@ class RainbowGumMDCAdapterTest {
 		test.run(mdc);
 		String expected = test.expected;
 		KeyValues kvs = mdc.keyValues();
-		LogEvent event = LogEventFactory.of("test").event(System.Logger.Level.INFO, "test", kvs, (Throwable) null);
+		LogEvent event = LogEventFactory.of("test").eventNoArg(System.Logger.Level.INFO, "test", kvs, (Throwable) null);
 		StringBuilder sb = new StringBuilder();
 		formatter.format(sb, event);
 		String actual = sb.toString();

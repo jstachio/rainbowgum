@@ -32,7 +32,7 @@ class LogbackJsonEncoderTest {
 
 		var buffer = encoder.buffer(WriteMethod.STRING);
 		LogEvent e = LogEventFactory.of("logback")
-			.event(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
+			.eventNoArg(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
 		encoder.encode(e, buffer);
 
 		assertTrue(buffer.isOversized());
@@ -99,7 +99,7 @@ class LogbackJsonEncoderTest {
 			Instant instant = Instant.ofEpochMilli(1);
 			var kvs = MutableKeyValues.of().add("k1", "v1").add("k2", "v2");
 			LogEvent e = LogEventFactory.of("logback")
-				.event(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
+				.eventNoArg(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
 				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
@@ -120,7 +120,7 @@ class LogbackJsonEncoderTest {
 			Throwable cause = new IllegalStateException("root cause");
 			Throwable t = new RuntimeException("boom", cause);
 			LogEvent e = LogEventFactory.of("logback")
-				.event(System.Logger.Level.INFO, "hello", KeyValues.of(), t)
+				.eventNoArg(System.Logger.Level.INFO, "hello", KeyValues.of(), t)
 				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();

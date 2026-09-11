@@ -30,7 +30,7 @@ class LogEncoderRegistryTest {
 
 		var gum = RainbowGum.builder(config).build();
 		try (var g = gum.start()) {
-			g.log(LogEventFactory.of("stuff").event(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("stuff").eventNoArg(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
 		}
 		String actual = output.toString();
 		String expected = """
@@ -52,7 +52,7 @@ class LogEncoderRegistryTest {
 
 		var gum = RainbowGum.builder(config).build();
 		try (var g = gum.start()) {
-			g.log(LogEventFactory.of("stuff").event(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("stuff").eventNoArg(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
 		}
 		String actual = output.toString();
 		String expected = """

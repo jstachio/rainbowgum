@@ -84,7 +84,7 @@ class CompilerTest {
 		var c = PatternCompiler.builder().patternConfig(PatternConfig.ofUniversal()).build();
 		var formatter = c.compile("%lsn");
 		var event = TestLogEventFactory.of("io.jstach.logger")
-			.event(Level.INFO, "hello", MutableKeyValues.of().freeze(), (Throwable) null)
+			.eventNoArg(Level.INFO, "hello", MutableKeyValues.of().freeze(), (Throwable) null)
 			.freeze(Instant.EPOCH);
 		StringBuilder sb = new StringBuilder();
 		formatter.format(sb, event);
@@ -269,7 +269,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("test_throwable");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 
@@ -284,7 +284,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 		},
@@ -292,7 +292,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 		},
@@ -301,7 +301,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 		},
@@ -310,7 +310,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "keepA", "noisyReflect", "keepB");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 		},
@@ -319,7 +319,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 		},
@@ -329,7 +329,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 		},
@@ -337,7 +337,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("should not appear");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 
@@ -350,7 +350,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("should not appear");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 		},
@@ -483,7 +483,7 @@ class CompilerTest {
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("boom");
 				return TestLogEventFactory.of(logger())
-					.event(level(), message(), keyValues(), throwable)
+					.eventNoArg(level(), message(), keyValues(), throwable)
 					.freeze(Instant.EPOCH);
 			}
 
@@ -712,7 +712,7 @@ class CompilerTest {
 
 		LogEvent event() {
 			return TestLogEventFactory.of(logger())
-				.event(level(), message(), keyValues(), (Throwable) null)
+				.eventNoArg(level(), message(), keyValues(), (Throwable) null)
 				.freeze(Instant.EPOCH);
 		}
 

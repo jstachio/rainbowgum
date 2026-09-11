@@ -98,7 +98,7 @@ class RouterTest {
 		var route = router.route("stuff", Level.DEBUG);
 
 		var mkvs = MutableKeyValues.of().add("phase", "A");
-		route.log(TestLogEventFactory.of().event(Level.DEBUG, "msg", mkvs, (Throwable) null));
+		route.log(TestLogEventFactory.of().eventNoArg(Level.DEBUG, "msg", mkvs, (Throwable) null));
 
 		assertEquals(1, publisher.events.size());
 		var captured = publisher.events.getFirst();
@@ -121,7 +121,7 @@ class RouterTest {
 		var route = router.route("stuff", Level.DEBUG);
 
 		var mkvs = MutableKeyValues.of().add("phase", "A");
-		route.log(TestLogEventFactory.of().event(Level.DEBUG, "msg", mkvs, (Throwable) null));
+		route.log(TestLogEventFactory.of().eventNoArg(Level.DEBUG, "msg", mkvs, (Throwable) null));
 
 		assertEquals(1, publisher.events.size());
 		var captured = publisher.events.getFirst();

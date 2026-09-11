@@ -34,7 +34,7 @@ class LogstashEncoderTest {
 
 		var buffer = encoder.buffer(WriteMethod.STRING);
 		LogEvent e = LogEventFactory.of("logstash")
-			.event(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
+			.eventNoArg(Level.INFO, "x".repeat(30_000), KeyValues.of(), (Throwable) null);
 		encoder.encode(e, buffer);
 
 		assertTrue(buffer.isOversized());
@@ -150,7 +150,7 @@ class LogstashEncoderTest {
 			Instant instant = Instant.ofEpochMilli(1);
 			var kvs = MutableKeyValues.of().add("requestId", "abc123");
 			LogEvent e = LogEventFactory.of("logstash")
-				.event(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
+				.eventNoArg(System.Logger.Level.INFO, "hello", kvs, (Throwable) null)
 				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();
@@ -169,7 +169,7 @@ class LogstashEncoderTest {
 			Instant instant = Instant.ofEpochMilli(1);
 			Throwable t = new RuntimeException("boom");
 			LogEvent e = LogEventFactory.of("logstash")
-				.event(System.Logger.Level.ERROR, "hello", KeyValues.of(), t)
+				.eventNoArg(System.Logger.Level.ERROR, "hello", KeyValues.of(), t)
 				.freeze(instant);
 			g.log(e);
 			String actual = output.events().get(0).getValue();

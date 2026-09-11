@@ -52,7 +52,7 @@ class PatternEncoderCharsetTest {
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
 		try (var g = RainbowGum.builder(config).build().start()) {
 			g.log(LogEventFactory.of("test")
-				.event(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null));
+				.eventNoArg(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null));
 		}
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.ISO_8859_1), output.capturedBytes());
 	}
@@ -73,7 +73,7 @@ class PatternEncoderCharsetTest {
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
 		try (var g = RainbowGum.builder(config).build().start()) {
 			g.log(LogEventFactory.of("test")
-				.event(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null));
+				.eventNoArg(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null));
 		}
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.UTF_8), output.capturedBytes());
 	}

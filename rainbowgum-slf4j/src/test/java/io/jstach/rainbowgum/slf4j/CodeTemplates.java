@@ -122,6 +122,18 @@ public class CodeTemplates {
 			return level.name();
 		}
 
+		/**
+		 * Name of the {@link java.lang.System.Logger.Level} constant this SLF4J level
+		 * maps to - matches {@link Levels#toSystemLevel(Level)}, just needed here as a
+		 * compile-time constant instead of a runtime call.
+		 */
+		public String systemLevelName() {
+			return switch (level) {
+				case WARN -> "WARNING";
+				default -> level.name();
+			};
+		}
+
 	}
 
 	public static final String levelLoggerTemplate = """
@@ -158,35 +170,35 @@ public class CodeTemplates {
 				@Override
 				public void {{methodName}}(String msg) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, msg);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, msg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String format, Object arg) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, format, arg);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, format, arg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String format, Object arg1, Object arg2) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, format, arg1, arg2);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, format, arg1, arg2);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String format, Object... arguments) {
 					{{#isEnabled}}
-					handler().handleArray(Level.{{name}}, format, arguments);
+					handler().handleArray(System.Logger.Level.{{systemLevelName}}, format, arguments);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(String msg, Throwable t) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, msg, t);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, msg, t);
 					{{/isEnabled}}
 				}
 
@@ -203,35 +215,35 @@ public class CodeTemplates {
 				@Override
 				public void {{methodName}}(Marker marker, String msg) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, msg);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, msg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String format, Object arg) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, format, arg);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, format, arg);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String format, Object arg1, Object arg2) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, format, arg1, arg2);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, format, arg1, arg2);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String format, Object... argArray) {
 					{{#isEnabled}}
-					handler().handleArray(Level.{{name}}, format, argArray);
+					handler().handleArray(System.Logger.Level.{{systemLevelName}}, format, argArray);
 					{{/isEnabled}}
 				}
 
 				@Override
 				public void {{methodName}}(Marker marker, String msg, Throwable t) {
 					{{#isEnabled}}
-					handler().handle(Level.{{name}}, msg, t);
+					handler().handle(System.Logger.Level.{{systemLevelName}}, msg, t);
 					{{/isEnabled}}
 				}
 				{{/levels}}
