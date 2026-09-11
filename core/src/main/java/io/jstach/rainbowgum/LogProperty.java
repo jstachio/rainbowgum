@@ -684,6 +684,36 @@ public interface LogProperty {
 		}
 
 		/**
+		 * Convenience for a genuine one-off, single-property validation that does not
+		 * need to participate in a larger batch: builds a single-use {@link Validator},
+		 * registers this result with it via {@link Validator#add(Result)}, and validates
+		 * immediately - instead of registering with a caller-managed {@link Validator}
+		 * via {@link #validate(Validator)} and deferring to a later
+		 * {@link Validator#validate()} call.
+		 * <p>
+		 * Uses {@link Validator#add(Result)} semantics: a still-{@link Missing} result is
+		 * treated as a failure, same as an absent required property with no fallback. If
+		 * this property is optional, apply a fallback first -
+		 * {@code properties.forKey(key).ofString().or(fallback).validateNow(component)} -
+		 * since a result with a fallback applied is never {@link Missing}. For a property
+		 * that should tolerate being missing but not being present-and-malformed, use
+		 * {@link #validateIfError(Validator)} with an externally-owned {@link Validator}
+		 * instead - there is deliberately no addIfError-equivalent of this method, to
+		 * avoid two same-named single-property convenience methods with silently
+		 * different failure semantics.
+		 * @param component the class on whose behalf this property is being resolved -
+		 * only used to name the source of the failure in the exception message.
+		 * @return value.
+		 * @throws ValidationException if this result is not a {@link Success}.
+		 */
+		default T validateNow(Class<?> component) {
+			var v = Validator.of(component);
+			v.add(this);
+			v.validate();
+			return value();
+		}
+
+		/**
 		 * Returns the current result if fallback is null or returns fallback as a result
 		 * if this result is missing.
 		 * @param fallback maybe <code>null</code>.
