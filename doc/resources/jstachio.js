@@ -15,6 +15,22 @@
 
 anchors.add();
 
+// #navbar-top (and everything in it, including the theme button javadoc's own
+// script.js already wires up a working click handler for) is hidden on the overview
+// page - see "module-index-page #navbar-top" in jstachio.css, which drops the
+// redundant Overview/Tree/Index/Help row since this page has its own custom header.
+// The theme button is still wanted though, so move it out to the one part of the
+// navbar that stays visible here: the sub-nav's search box row, just to the left of
+// the search box. #theme-panel (the light/dark/system dropdown) is position:fixed in
+// javadoc's own stylesheet, so its new DOM parent doesn't affect where it renders -
+// moved to <body> directly, clear of any risk of an ancestor with a CSS transform
+// (which would otherwise change what position:fixed is relative to). Harmless no-op
+// on every other page: #navbar-top is never hidden there, so this block never runs.
+if ($('body').hasClass('module-index-page')) {
+  $('#theme-button').insertBefore('.sub-nav .nav-list-search');
+  $('#theme-panel').appendTo('body');
+}
+
 // Mobile TOC drawer: #toc-toggle/#toc-backdrop only exist (and #toc-toggle
 // is only visible) on the overview page below the 800px breakpoint - see
 // jstachio.css. Harmless no-op elsewhere since the click targets are absent

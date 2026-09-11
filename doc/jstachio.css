@@ -62,6 +62,28 @@ h2.toc-title:before {
     display: none;
 }
 
+/*
+  jstachio.js moves #theme-button (and #theme-panel) out of the hidden #navbar-top
+  above into .sub-nav .nav-list-search's row, since that's the only part of the
+  navbar left visible on this page. Its stylesheet.css rule (button#theme-button)
+  sizes and offsets it for the taller --top-nav-height row it normally lives in -
+  the sub-nav row is shorter (--sub-nav-height) and vertically centers its children
+  via flexbox, so the button needs to be smaller and not fight that centering with
+  its own "top: -9.5px" relative offset. background/background-color (the actual
+  sun/moon icon, driven by the --current-theme-svg variable) are left alone -
+  overridden here is only size/position, not which icon shows.
+*/
+.module-index-page .sub-nav #theme-button {
+    position: static;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin: 0 4px 0 0;
+    background-size: 16px 16px;
+    background-position: center;
+    flex: 0 0 auto;
+}
+
 .module-index-page .title {
   padding-bottom: 1.2em;
   font-size: 1.2rem;
@@ -142,7 +164,16 @@ body.module-index-page nav.js-toc {
   transform: translateX(-100%);
   transition: transform 0.25s ease-in-out;
   z-index: 1001;
-  background: Canvas;
+  /*
+    Was "Canvas" (a CSS system-color keyword) - that only tracks the OS/browser's
+    own dark-mode preference, not this site's [data-theme] attribute toggle, so
+    selecting Dark via the theme button left this drawer white while the rest of
+    the page went dark. --toc-background-color/--body-text-color are javadoc's own
+    theme variables (redefined under [data-theme="dark"] in stylesheet.css), same
+    ones #theme-panel below already uses for the same kind of floating panel.
+  */
+  background: var(--toc-background-color);
+  color: var(--body-text-color);
   overflow-x: hidden;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
 }
@@ -165,9 +196,10 @@ body.module-index-page main {
   font-size: 1.4rem;
   line-height: 1;
   padding: 0.2rem 0.55rem;
-  background: Canvas;
-  color: CanvasText;
-  border: 1px solid GrayText;
+  /* Same "Canvas doesn't track [data-theme]" issue as nav.js-toc above. */
+  background: var(--toc-background-color);
+  color: var(--body-text-color);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   cursor: pointer;
 }
