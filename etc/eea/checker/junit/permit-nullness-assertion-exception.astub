@@ -1,0 +1,29 @@
+// Trimmed, JUnit-5-only copy of checker.jar's own
+// org/checkerframework/checker/nullness/permit-nullness-assertion-exception.astub.
+//
+// The Nullness Checker's default junit-assertions.astub declares
+// assertNotNull(Object actual) with no @Nullable on the parameter, so the checker
+// requires the argument to already be non-null before you can even call it - backwards
+// from how assertNotNull is actually used as a null-check idiom in tests. checker.jar
+// ships an opt-in fix for exactly this, but it also declares stubs for the old JUnit 4
+// org.junit.Assertions class, which this project (JUnit 5 only) doesn't have on its test
+// classpath - referencing that built-in stub as-is trades the original warning for an
+// unresolvable "package/type not found" one instead, since -Werror is set here. This
+// file keeps just the org.junit.jupiter.api.Assertions part.
+//
+// See https://github.com/typetools/checker-framework/issues/6475.
+
+package org.junit.jupiter.api;
+
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import java.util.function.Supplier;
+
+public class Assertions {
+  @EnsuresNonNull("#1")
+  public static void assertNotNull(@Nullable Object actual);
+  @EnsuresNonNull("#1")
+  public static void assertNotNull(@Nullable Object actual, String message);
+  @EnsuresNonNull("#1")
+  public static void assertNotNull(@Nullable Object actual, Supplier<String> messageSupplier);
+}

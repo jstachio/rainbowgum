@@ -1159,6 +1159,33 @@
                 <annotationProcessor>org.checkerframework.checker.nullness.NullnessChecker</annotationProcessor>
               </annotationProcessors>
             </configuration>
+            <executions>
+              <execution>
+                <!--
+                  Checker Framework's default junit-assertions.astub declares
+                  assertNotNull(Object actual) with no @Nullable on the parameter, so the
+                  Nullness Checker requires the argument to already be non-null before you
+                  can call it - backwards from how assertNotNull is actually used as a
+                  null-check idiom in tests. checker.jar ships its own opt-in fix for
+                  exactly this (org/checkerframework/checker/nullness/permit-nullness-assertion-exception.astub,
+                  declares @Nullable + @EnsuresNonNull instead), but it also covers the
+                  old JUnit 4 org.junit.Assertions, which this project (JUnit 5 only)
+                  doesn't have on its test classpath - referencing it as-is would just
+                  trade the original warning for an unresolvable "type not found" one,
+                  since -Werror is set here. etc/eea/checker/junit keeps a trimmed,
+                  JUnit-5-only copy instead. See
+                  https://github.com/typetools/checker-framework/issues/6475. Only added
+                  to default-testCompile, not the plugin-wide config above: main sources
+                  don't have JUnit on the classpath at all.
+                -->
+                <id>default-testCompile</id>
+                <configuration>
+                  <compilerArgs combine.children="append">
+                    <arg>-Astubs=${checker.stubs}/junit</arg>
+                  </compilerArgs>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>
