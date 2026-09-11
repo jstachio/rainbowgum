@@ -72,6 +72,14 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			DepthAwareLogger newLogger;
 			var level = router.levelResolver().resolveLevel(name);
 			var allowedChanges = changePublisher.allowedChanges(name);
+			/*
+			 * callerInfoEnabled is resolved from its own logging.caller.<name> property,
+			 * independent of allowedChanges/logging.change.<name> - fetched once here
+			 * (not re-derived per branch) and threaded through to both maybeAddCallerInfo
+			 * call sites and subscribe()'s captured closure, preserving the existing
+			 * "decided once at construction, never revisited on change" semantics.
+			 */
+			boolean callerInfoEnabled = changePublisher.callerInfoEnabled(name);
 			if (allowedChanges.contains(ChangeType.LEVEL)) {
 				/*
 				 * The level can change after this logger is created (that is the whole
@@ -81,9 +89,9 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				 * setLevel().
 				 */
 				LogEventLogger logger = router.eventLogger(name);
-				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
+				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1);
 				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
-				subscribe(name, router, changeable, allowedChanges);
+				subscribe(name, router, changeable, callerInfoEnabled);
 				newLogger = changeable;
 			}
 			else {
@@ -93,7 +101,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				}
 				else {
 					var slf4jLevel = Levels.toSlf4jLevel(level);
-					LogEventHandler handler = maybeAddCallerInfo(name, allowedChanges, logger, 0);
+					LogEventHandler handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 0);
 					newLogger = LevelLogger.of(slf4jLevel, handler);
 				}
 			}
@@ -116,8 +124,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * used deliberately: the level is applied via setLevel() on the line above instead,
 	 * so gating it a second time at the sink would be redundant.
 	 */
-	private void subscribe(String name, RootRouter router, ReplaceableLogger changeable,
-			Set<ChangeType> allowedChanges) {
+	private void subscribe(String name, RootRouter router, ReplaceableLogger changeable, boolean callerInfoEnabled) {
 		router.onChange(new Consumer<RootRouter>() {
 
 			@Override
@@ -125,30 +132,19 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				var level = r.levelResolver().resolveLevel(name);
 				changeable.setLevel(Levels.toSlf4jLevel(level));
 				var logger = r.eventLogger(name);
-				var handler = maybeAddCallerInfo(name, allowedChanges, logger, 1);
+				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1);
 				changeable.setEventHandler(handler);
 			}
 
 		});
 	}
 
-	private LogEventHandler maybeAddCallerInfo(String loggerName, Set<ChangeType> allowedChanges, LogEventLogger logger,
+	private LogEventHandler maybeAddCallerInfo(String loggerName, boolean callerInfoEnabled, LogEventLogger logger,
 			int depth) {
-		LogEventHandler _logger;
-		/*
-		 * allowedChanges is already resolved once per getLogger() call (needed for the
-		 * LEVEL branch too), so checking it directly here is cheaper than a second,
-		 * redundant ChangePublisher.callerInfoEnabled(loggerName) lookup that would just
-		 * re-derive the same Set - see ChangePublisher.callerInfoEnabled(String) for the
-		 * accessor callers that only care about CALLER (not LEVEL too) should use.
-		 */
-		if (allowedChanges.contains(ChangeType.CALLER)) {
-			_logger = LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth);
+		if (callerInfoEnabled) {
+			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth);
 		}
-		else {
-			_logger = LogEventHandler.of(loggerName, logger, mdc);
-		}
-		return _logger;
+		return LogEventHandler.of(loggerName, logger, mdc);
 	}
 
 	sealed interface LoggerDecorator {
