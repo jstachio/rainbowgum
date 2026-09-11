@@ -135,6 +135,13 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	private LogEventHandler maybeAddCallerInfo(String loggerName, Set<ChangeType> allowedChanges, LogEventLogger logger,
 			int depth) {
 		LogEventHandler _logger;
+		/*
+		 * allowedChanges is already resolved once per getLogger() call (needed for the
+		 * LEVEL branch too), so checking it directly here is cheaper than a second,
+		 * redundant ChangePublisher.callerInfoEnabled(loggerName) lookup that would just
+		 * re-derive the same Set - see ChangePublisher.callerInfoEnabled(String) for the
+		 * accessor callers that only care about CALLER (not LEVEL too) should use.
+		 */
 		if (allowedChanges.contains(ChangeType.CALLER)) {
 			_logger = LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth);
 		}
