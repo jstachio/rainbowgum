@@ -196,6 +196,34 @@ unifying.
       directly, bypassing the shortcut) reads better since there's no such wrapping
       `.map()` in the way. Worth fixing when `fileAppender()` gets its cleanup pass
       above, rather than as a one-off.
+- [ ] **`ChangeType.CALLER` doesn't really belong under `ChangePublisher`/"changing"**,
+      and `ChangePublisher.allowedChanges(String)` has no caching at all. Two related
+      but separate problems:
+      - Conceptually, `ChangeType.CALLER` ("the logger is allowed to change caller
+        info") isn't actually treated as something that changes at runtime the way
+        `LEVEL` is - confirmed in code: `RainbowGumLoggerFactory.subscribe()`'s
+        router-change callback reuses the `allowedChanges` `Set<ChangeType>` captured
+        once at logger-construction time (a method parameter, never re-fetched from
+        `changePublisher.allowedChanges(name)` on subsequent change events), so whether
+        a given logger gets `CallerInfoEventDecorator` wrapping is decided exactly once
+        and never revisited - unlike `LEVEL`, which genuinely gets live-updated
+        (`changeable.setLevel(...)`) on every `onChange` firing. `CALLER` is really a
+        static per-logger capability flag read once, not a live-changeable setting;
+        being an enum constant of `ChangeType` alongside `LEVEL` implies a symmetry the
+        code doesn't actually have.
+      - `LogConfig.AbstractChangePublisher.allowedChanges(String loggerName)`
+        (`LogConfig.java`) has zero caching - every call does a fresh
+        `properties().findOrNull(LogProperties.CHANGE_PREFIX, loggerName,
+        LogProperties::listOrNull)` property lookup followed by `ChangeType.parse(list)`
+        (uppercase + `valueOf` per entry), with nothing analogous to
+        `CachedLevelResolver`, which exists specifically to avoid this same
+        re-parse-on-every-call cost for level resolution. Since this is called at least
+        once per distinct logger name (and again on every `subscribe()` re-fire for
+        changeable loggers), it's a real, currently-uncached cost on a path that
+        `CachedLevelResolver` already proved is worth caching.
+      - Worth a real design pass: split `CALLER`-awareness out of `ChangeType`/
+        `ChangePublisher` into its own (probably static, resolved-once) concept, and
+        give `allowedChanges()` the same caching treatment `LevelResolver` already has.
 - [x] The `Property`/`PropertyGetter`/`Result` monad (`map`, `mapResult`, `or`,
       `orElse`, multi-key fallback, etc.) has essentially no direct unit tests of its
       own composition/error-propagation/fallback-chain behavior - it's exercised only
