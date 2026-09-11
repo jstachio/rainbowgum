@@ -27,8 +27,10 @@ class AppenderAlertReportingTest {
 
 	static Stream<Arguments> appenderTypes() {
 		return Stream.of(Arguments.of(AppenderType.LOCK_THREAD_LOCAL_BUFFER, LockThreadLocalBufferLogAppender.class),
-				Arguments.of(AppenderType.REUSE_BUFFER, ReuseBufferLogAppender.class), Arguments
-					.of(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, SynchronizedThreadLocalBufferLogAppender.class));
+				Arguments.of(AppenderType.REUSE_BUFFER, ReuseBufferLogAppender.class),
+				Arguments.of(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER,
+						SynchronizedThreadLocalBufferLogAppender.class),
+				Arguments.of(AppenderType.LOCK_NEW_BUFFER, LockNewBufferLogAppender.class));
 	}
 
 	@ParameterizedTest

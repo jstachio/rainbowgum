@@ -85,6 +85,12 @@ class DefaultAppenderSelectionTest {
 	}
 
 	@Test
+	void lockNewBufferTypeSelectsLockNewBuffer() {
+		var appender = appender(AppenderType.LOCK_NEW_BUFFER, Set.of());
+		assertInstanceOf(LockNewBufferLogAppender.class, appender);
+	}
+
+	@Test
 	void synchronizedThreadLocalBufferReentryDropFlagDropsReentrantAppend() {
 		var output = new ListLogOutput();
 		var testAppender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER,
