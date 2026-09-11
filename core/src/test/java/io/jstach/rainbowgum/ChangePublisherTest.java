@@ -90,11 +90,13 @@ class ChangePublisherTest {
 	}
 
 	/*
-	 * Golden-master pin of the exact alert produced today for a malformed
-	 * logging.change.<name> value, captured before refactoring allowedChanges() to use
-	 * LogProperty/Result instead of a raw try/catch around ChangeType.parse - so a
-	 * behavior change in the alert's loggerName/message/cause shape shows up as an
-	 * explicit, deliberate diff to this test rather than silently drifting.
+	 * Golden-master pin of the exact alert produced for a malformed logging.change.<name>
+	 * value. Originally captured before allowedChanges() switched from a raw try/catch
+	 * around ChangeType.parse to LogProperty.Result (see git history for the prior,
+	 * plainer message) - now pinned to that switch's richer message, built automatically
+	 * by Result#map's error handling rather than the hand-rolled string this test used to
+	 * check for, so any further behavior change here shows up as an explicit, deliberate
+	 * diff instead of silently drifting.
 	 */
 	@Test
 	void testMalformedChangeValueGoldenAlert() {
@@ -108,7 +110,11 @@ class ChangePublisherTest {
 
 		var event = badConfig.alerts().dump().get(0);
 		assertEquals(AbstractChangePublisher.class.getName(), event.loggerName());
-		assertEquals("Failed to parse logging.change for logger 'bad', falling back to no changes allowed",
+		assertEquals(
+				"""
+						Error for property. key: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad], \
+						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE
+						Tried: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad]""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);
