@@ -33,7 +33,7 @@ class LoggerDecoratorTest {
 
 		LogConfig config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.global.change=true
-				logging.change=caller
+				logging.caller=true
 				""").build()).configurator(new MyLoggerDecoratorService()).build();
 		RainbowGum gum = gum(config);
 		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();

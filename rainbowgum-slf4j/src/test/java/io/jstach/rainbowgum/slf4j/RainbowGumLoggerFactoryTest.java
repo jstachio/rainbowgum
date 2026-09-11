@@ -143,6 +143,7 @@ class RainbowGumLoggerFactoryTest {
 		String global = """
 				logging.global.change=true
 				logging.change.mychange=true
+				logging.caller.mychange=true
 				""";
 		Map<String, String> m = new LinkedHashMap<>();
 		m.put("logging.level.mychange", "ERROR");
@@ -196,7 +197,7 @@ class RainbowGumLoggerFactoryTest {
 	void testCallerInfoLogger() {
 		String global = """
 				logging.global.change=true
-				logging.change.mychange=caller
+				logging.caller.mychange=true
 				""";
 		Map<String, String> m = new LinkedHashMap<>();
 		m.put("logging.level.mychange", "ERROR");
