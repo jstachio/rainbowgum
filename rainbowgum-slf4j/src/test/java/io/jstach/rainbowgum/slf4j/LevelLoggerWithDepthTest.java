@@ -48,7 +48,7 @@ class LevelLoggerWithDepthTest {
 	void testHandleWithCallerDefaultIgnoresCallerAndDelegates() {
 		LogEvent[] received = new LogEvent[1];
 		LogEventHandler handler = LogEventHandler.of("name", e -> received[0] = e, new RainbowGumMDCAdapter());
-		LogEvent event = handler.event0(Level.INFO, "hello");
+		LogEvent event = handler.eventNoArg(System.Logger.Level.INFO, "hello", (Throwable) null);
 		Caller caller = Caller.ofDepthOrNull(0);
 		handler.handle(event, caller);
 		assertEquals(event, received[0]);

@@ -1,7 +1,8 @@
 package io.jstach.rainbowgum.slf4j;
 
+import java.lang.System.Logger.Level;
+
 import org.eclipse.jdt.annotation.Nullable;
-import org.slf4j.event.Level;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
@@ -64,31 +65,31 @@ final class CallerInfoEventDecorator implements LogEventHandler {
 	@Override
 	public void handle(Level level, String msg) {
 		var caller = stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
-		handle(event0(level, msg), caller);
+		handle(eventNoArg(level, msg, (Throwable) null), caller);
 	}
 
 	@Override
 	public void handle(Level level, String format, Throwable throwable) {
 		var caller = stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
-		handle(event(level, format, throwable), caller);
+		handle(eventNoArg(level, format, throwable), caller);
 	}
 
 	@Override
 	public void handle(Level level, String format, Object arg) {
 		var caller = stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
-		handle(event1(level, format, arg), caller);
+		handle(eventOneArg(level, format, arg), caller);
 	}
 
 	@Override
 	public void handle(Level level, String format, Object arg1, Object arg2) {
 		var caller = stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
-		handle(event2(level, format, arg1, arg2), caller);
+		handle(eventTwoArg(level, format, arg1, arg2), caller);
 	}
 
 	@Override
 	public void handleArray(Level level, String format, Object[] args) {
 		var caller = stackWalker.walk(s -> s.skip(depth).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
-		handle(eventArray(level, format, args), caller);
+		handle(eventArgs(level, format, args), caller);
 	}
 
 	@Override

@@ -38,7 +38,7 @@ class PatternEncoderMaxBufferSizeTest {
 		LogEncoder encoder = b.build().provide("list", config);
 		var buffer = encoder.buffer(WriteMethod.STRING);
 		var event = LogEventFactory.of("test")
-			.event(System.Logger.Level.INFO, message, KeyValues.of(), (Throwable) null);
+			.eventNoArg(System.Logger.Level.INFO, message, KeyValues.of(), (Throwable) null);
 		encoder.encode(event, buffer);
 		return buffer;
 	}
@@ -89,7 +89,8 @@ class PatternEncoderMaxBufferSizeTest {
 			.provide("console", config);
 		var buffer = encoder.buffer(WriteMethod.STRING);
 		var event = LogEventFactory.of("test")
-			.event(System.Logger.Level.INFO, "a message well past five characters", KeyValues.of(), (Throwable) null);
+			.eventNoArg(System.Logger.Level.INFO, "a message well past five characters", KeyValues.of(),
+					(Throwable) null);
 		encoder.encode(event, buffer);
 		assertTrue(buffer.isOversized());
 	}

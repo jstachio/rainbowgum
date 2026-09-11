@@ -114,7 +114,7 @@ class LogEncoderCharsetTest {
 
 	private static LogEvent event() {
 		return TestLogEventFactory.of("test")
-			.event(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null);
+			.eventNoArg(System.Logger.Level.INFO, MESSAGE, KeyValues.of(), (Throwable) null);
 	}
 
 	static class CapturingOutput implements LogOutput {

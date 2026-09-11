@@ -45,7 +45,7 @@ class StructuredLoggingTest {
 			.build()
 			.start()) {
 			LogEvent e = LogEventFactory.of("io.jstach.logger")
-				.event(System.Logger.Level.INFO, "hello", MutableKeyValues.of().freeze(), null)
+				.eventNoArg(System.Logger.Level.INFO, "hello", MutableKeyValues.of().freeze(), null)
 				.freeze(Instant.EPOCH);
 			g.log(e);
 		}

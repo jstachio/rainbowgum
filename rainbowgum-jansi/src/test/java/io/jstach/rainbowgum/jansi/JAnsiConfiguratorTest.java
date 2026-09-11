@@ -19,7 +19,7 @@ class JAnsiConfiguratorTest {
 				""".formatted(JAnsiConfigurator.JANSI_DISABLE)).build()).configurator(new JAnsiConfigurator()).build();
 		var gum = RainbowGum.builder(config).build();
 		try (var g = gum.start()) {
-			g.log(LogEventFactory.of("test").event(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
+			g.log(LogEventFactory.of("test").eventNoArg(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
 		}
 	}
 

@@ -146,7 +146,7 @@ class RainbowGumPropertyTest {
 					continue;
 				}
 				var e = TestLogEventFactory.of("com.pattern.test.Test")
-					.event(level, "hello", KeyValues.of(), (Throwable) null)
+					.eventNoArg(level, "hello", KeyValues.of(), (Throwable) null)
 					.freeze(instant);
 				events.add(e);
 			}

@@ -5,7 +5,6 @@ import java.time.Instant;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.slf4j.Marker;
-import org.slf4j.event.Level;
 import org.slf4j.event.LoggingEvent;
 import org.slf4j.spi.LocationAwareLogger;
 import org.slf4j.spi.LoggingEventAware;
@@ -13,6 +12,7 @@ import org.slf4j.spi.LoggingEventAware;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
 /**
@@ -46,7 +46,7 @@ import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
  * time.
  */
 final class LocationAwareForwardingLogger
-		implements ForwardingLogger, LocationAwareLogger, LoggingEventAware, DepthAwareLogger, EventCreator<Level> {
+		implements ForwardingLogger, LocationAwareLogger, LoggingEventAware, DepthAwareLogger, LogEventFactory {
 
 	private static final StackWalker STACK_WALKER = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
@@ -97,12 +97,7 @@ final class LocationAwareForwardingLogger
 	}
 
 	@Override
-	public System.Logger.Level translateLevel(Level level) {
-		return Levels.toSystemLevel(level);
-	}
-
-	@Override
-	public KeyValues keyValues() {
+	public KeyValues defaultKeyValues() {
 		return mdc.keyValues();
 	}
 
@@ -114,7 +109,8 @@ final class LocationAwareForwardingLogger
 			return;
 		}
 		var caller = findCaller(fqcn);
-		var event = eventArray(slf4jLevel, message, argArray == null ? EMPTY_ARGS : argArray, t);
+		var sysLevel = Levels.toSystemLevel(slf4jLevel);
+		var event = eventArgs(sysLevel, message, argArray == null ? EMPTY_ARGS : argArray, t);
 		handlerSource.currentHandler().handle(event, caller);
 	}
 
@@ -136,10 +132,11 @@ final class LocationAwareForwardingLogger
 	}
 
 	/*
-	 * Not built via EventCreator.eventArray(...) because keyValues() there is always just
-	 * the ambient MDC - a third-party LoggingEventBuilder's own addKeyValue(...) calls
-	 * need to be layered on top of that, the same way RainbowGumEventBuilder.kvs() layers
-	 * its own addKeyValue(...) calls on top of a copy of the MDC.
+	 * Not built via the eventArgs(...) convenience overload because defaultKeyValues()
+	 * there is always just the ambient MDC - a third-party LoggingEventBuilder's own
+	 * addKeyValue(...) calls need to be layered on top of that, the same way
+	 * RainbowGumEventBuilder.kvs() layers its own addKeyValue(...) calls on top of a copy
+	 * of the MDC.
 	 */
 	private LogEvent toLogEvent(LoggingEvent event) {
 		var pairs = event.getKeyValuePairs();
@@ -153,9 +150,9 @@ final class LocationAwareForwardingLogger
 		}
 		var thread = Thread.currentThread();
 		var args = event.getArgumentArray();
-		return LogEvent.ofAll(Instant.now(), thread.getName(), thread.threadId(), translateLevel(event.getLevel()),
-				loggerName, event.getMessage(), keyValues, event.getThrowable(), messageFormatter(),
-				args == null ? EMPTY_ARGS : args);
+		return LogEvent.ofAll(Instant.now(), thread.getName(), thread.threadId(),
+				Levels.toSystemLevel(event.getLevel()), loggerName, event.getMessage(), keyValues, event.getThrowable(),
+				messageFormatter(), args == null ? EMPTY_ARGS : args);
 	}
 
 	/*

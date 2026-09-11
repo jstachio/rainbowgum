@@ -1,17 +1,18 @@
 package io.jstach.rainbowgum.slf4j;
 
 import java.lang.StackWalker.Option;
+import java.lang.System.Logger.Level;
 
 import org.eclipse.jdt.annotation.Nullable;
-import org.slf4j.event.Level;
 import org.slf4j.spi.LoggingEventBuilder;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventLogger;
 
-interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
+interface LogEventHandler extends LogEventFactory, LogEventLogger {
 
 	/**
 	 * Implemented by loggers whose dispatch target can be swapped after creation
@@ -26,11 +27,6 @@ interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
 
 	}
 
-	@Override
-	default java.lang.System.Logger.Level translateLevel(Level level) {
-		return Levels.toSystemLevel(level);
-	}
-
 	default void log(LogEvent event) {
 		handle(event);
 	}
@@ -42,29 +38,29 @@ interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
 	}
 
 	default void handle(Level level, String msg) {
-		handle(event0(level, msg));
+		handle(eventNoArg(level, msg, (Throwable) null));
 	}
 
 	default void handle(Level level, String format, Throwable throwable) {
-		handle(event(level, format, throwable));
+		handle(eventNoArg(level, format, throwable));
 	}
 
 	default void handle(Level level, String format, Object arg) {
-		handle(event1(level, format, arg));
+		handle(eventOneArg(level, format, arg));
 	}
 
 	default void handle(Level level, String format, Object arg1, Object arg2) {
-		handle(event2(level, format, arg1, arg2));
+		handle(eventTwoArg(level, format, arg1, arg2));
 	}
 
 	default void handleArray(Level level, String format, Object[] args) {
-		handle(eventArray(level, format, args));
+		handle(eventArgs(level, format, args));
 	}
 
 	public boolean isCallerAware();
 
 	@Override
-	default KeyValues keyValues() {
+	default KeyValues defaultKeyValues() {
 		/*
 		 * Do not copy here. The overwhelming majority of log calls use a synchronous
 		 * publisher, especially now that virtual threads make blocking IO cheap, and a
@@ -78,8 +74,8 @@ interface LogEventHandler extends EventCreator<Level>, LogEventLogger {
 
 	public RainbowGumMDCAdapter mdc();
 
-	default LoggingEventBuilder eventBuilder(Level level) {
-		return new RainbowGumEventBuilder(this, mdc(), translateLevel(level));
+	default LoggingEventBuilder eventBuilder(org.slf4j.event.Level level) {
+		return new RainbowGumEventBuilder(this, mdc(), Levels.toSystemLevel(level));
 	}
 
 	public LogEventHandler withDepth(int depth);

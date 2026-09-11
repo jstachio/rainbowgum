@@ -38,7 +38,7 @@ class CallerInfoEventDecoratorTest {
 	@Test
 	void testHandleWithExplicitDepthAttributesTheDirectCaller() {
 		var decorator = new CallerInfoEventDecorator("test", new RainbowGumMDCAdapter(), e -> lastEvent = e);
-		LogEvent event = decorator.event0(Level.INFO, "hello");
+		LogEvent event = decorator.eventNoArg(System.Logger.Level.INFO, "hello", (Throwable) null);
 		decorator.handle(event, 1);
 		var caller = lastEvent.callerOrNull();
 		assertEquals("testHandleWithExplicitDepthAttributesTheDirectCaller", caller.methodName());
@@ -48,7 +48,7 @@ class CallerInfoEventDecoratorTest {
 	@Test
 	void testHandleWithDepthPastStackTopAttachesNoCaller() {
 		var decorator = new CallerInfoEventDecorator("test", new RainbowGumMDCAdapter(), e -> lastEvent = e);
-		LogEvent event = decorator.event0(Level.INFO, "hello");
+		LogEvent event = decorator.eventNoArg(System.Logger.Level.INFO, "hello", (Throwable) null);
 		decorator.handle(event, Integer.MAX_VALUE / 2);
 		assertNull(lastEvent.callerOrNull());
 		assertEquals(event, lastEvent);
