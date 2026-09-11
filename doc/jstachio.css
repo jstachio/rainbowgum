@@ -113,16 +113,71 @@ body.module-index-page main {
   margin-left: 300px;
 }
 
+#toc-toggle {
+  display: none;
+}
+#toc-backdrop {
+  display: none;
+}
+
 @media screen and (max-width: 800px) {
 
+/*
+  Below 800px the desktop sidebar (fixed, 300px, shifted on screen via
+  margin-left) has no room - "left: 0" alone (the old mobile rule) combined
+  with the desktop-wide "margin-left: -300px" actually pushed the whole nav
+  entirely off screen (its right edge lands exactly at the viewport's left
+  edge), making the TOC completely inaccessible on a phone, not just
+  cramped. Replaced with a slide-in drawer toggled by #toc-toggle instead:
+  closed by default (transform pushes it fully off screen, same as before),
+  opened by adding .toc-open (via jstachio.js), which both the nav and a
+  dimming backdrop respond to.
+*/
 body.module-index-page nav.js-toc {
   left: 0;
+  margin-left: 0;
+  width: 85vw;
+  max-width: 320px;
+  max-height: 100vh;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease-in-out;
+  z-index: 1001;
+  background: Canvas;
   overflow-x: hidden;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+body.module-index-page nav.js-toc.toc-open {
+  transform: translateX(0);
 }
 
 body.module-index-page main {
   margin-left: 0px;
   overflow-wrap: anywhere;
+}
+
+#toc-toggle {
+  display: block;
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1002;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.2rem 0.55rem;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid GrayText;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#toc-backdrop.toc-open {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
 }
 
 }
