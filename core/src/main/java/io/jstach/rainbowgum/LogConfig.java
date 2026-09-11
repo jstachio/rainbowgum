@@ -433,27 +433,45 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
 		return changesCache.computeIfAbsent(loggerName, n -> {
-			try {
-				var value = config().properties().findOrNull(LogProperties.CHANGE_PREFIX, n, LogProperties::listOrNull);
-				return value == null ? Set.of() : ChangeType.parse(value);
-			}
-			catch (Exception e) {
-				/*
-				 * A malformed logging.change.<name> value must not be able to break
-				 * logging itself. ConcurrentHashMap#computeIfAbsent leaves nothing cached
-				 * when the mapping function throws, so without catching here a bad
-				 * property would re-parse and re-throw on every single allowedChanges(n)
-				 * call for this logger name, not just once - same amplification risk
-				 * CachedLevelResolver guards against for level properties. Fall back to
-				 * "nothing allowed to change" and alert exactly once per logger name
-				 * instead, since the fallback value is itself cached above just like a
-				 * successful parse would be.
-				 */
-				config().alerts()
-					.error(AbstractChangePublisher.class, "Failed to parse " + LogProperties.CHANGE_PREFIX
-							+ " for logger '" + n + "', falling back to no changes allowed", e);
+			/*
+			 * findOrNull walks the logger-name hierarchy (closest match wins, see its own
+			 * javadoc) trying each candidate key in turn - per candidate, resolve it as a
+			 * LogProperty and only return null (telling findOrNull to keep walking up)
+			 * when the key is genuinely Missing there. A present-but-malformed value is a
+			 * Result.Error, not a Missing - it must stop the walk right there rather than
+			 * silently falling through to a less specific ancestor's value.
+			 */
+			LogProperty.Result<Set<ChangeType>> result = config().properties()
+				.findOrNull(LogProperties.CHANGE_PREFIX, n, (props, fullKey) -> {
+					LogProperty.Result<Set<ChangeType>> r = props.forKey(fullKey).ofList().map(ChangeType::parse);
+					return r instanceof LogProperty.Result.Missing ? null : r;
+				});
+			if (result == null) {
 				return Set.of();
 			}
+			return switch (result) {
+				case LogProperty.Result.Success<Set<ChangeType>> s -> s.value();
+				case LogProperty.Result.Error<Set<ChangeType>> e -> {
+					/*
+					 * A malformed logging.change.<name> value must not be able to break
+					 * logging itself. ConcurrentHashMap#computeIfAbsent leaves nothing
+					 * cached when the mapping function throws, so without catching this
+					 * (here, via the Result.Error case rather than a try/catch -
+					 * LogProperty.Result#map already turned ChangeType.parse's thrown
+					 * exception into this Error, with a richer message than a manual
+					 * catch would build) a bad property would re-parse and re-alert on
+					 * every single allowedChanges(n) call for this logger name, not just
+					 * once - same amplification risk CachedLevelResolver guards against
+					 * for level properties. Fall back to "nothing allowed to change" and
+					 * alert exactly once per logger name instead, since the fallback
+					 * value is itself cached above just like a successful parse would be.
+					 */
+					config().alerts().error(AbstractChangePublisher.class, e.message(), e.cause());
+					yield Set.of();
+				}
+				// Unreachable: the lambda above never returns a Missing result.
+				case LogProperty.Result.Missing<Set<ChangeType>> m -> Set.of();
+			};
 		});
 	}
 
