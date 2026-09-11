@@ -52,12 +52,16 @@ interface EventCreator<LEVEL> {
 	}
 
 	default LogEvent eventArray(LEVEL level, @Nullable String message, Object[] args) {
+		return eventArray(level, message, args, null);
+	}
+
+	default LogEvent eventArray(LEVEL level, @Nullable String message, Object[] args, @Nullable Throwable throwable) {
 		var sysLevel = translateLevel(level);
 		var loggerName = loggerName();
 		var keyValues = keyValues();
 		var currentThread = Thread.currentThread();
 		return LogEvent.ofAll(Instant.now(), currentThread.getName(), currentThread.threadId(), sysLevel, loggerName,
-				message, keyValues, null, messageFormatter(), args);
+				message, keyValues, throwable, messageFormatter(), args);
 	}
 
 }

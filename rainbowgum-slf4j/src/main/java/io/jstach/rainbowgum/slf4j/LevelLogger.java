@@ -7,13 +7,18 @@ import org.slf4j.spi.LoggingEventBuilder;
 import org.slf4j.spi.NOPLoggingEventBuilder;
 
 @SuppressWarnings("exports")
-sealed interface LevelLogger extends BaseLogger, Logger {
+sealed interface LevelLogger extends BaseLogger, Logger, HandlerSource {
 
 	LogEventHandler handler();
 
 	Level level();
 
 	public LevelLogger withDepth(int depth);
+
+	@Override
+	default LogEventHandler currentHandler() {
+		return handler();
+	}
 
 	@Override
 	default LoggingEventBuilder makeLoggingEventBuilder(Level level) {

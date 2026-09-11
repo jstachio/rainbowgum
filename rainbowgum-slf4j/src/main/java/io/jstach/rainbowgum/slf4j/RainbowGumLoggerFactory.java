@@ -77,7 +77,9 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			 * independent of allowedChanges/logging.change.<name> - fetched once here
 			 * (not re-derived per branch) and threaded through to both maybeAddCallerInfo
 			 * call sites and subscribe()'s captured closure, preserving the existing
-			 * "decided once at construction, never revisited on change" semantics.
+			 * "decided once at construction, never revisited on change" semantics. It is
+			 * also the same flag that decides, below, whether newLogger gets wrapped with
+			 * LocationAwareForwardingLogger.
 			 */
 			boolean callerInfoEnabled = changePublisher.callerInfoEnabled(name);
 			if (allowedChanges.contains(ChangeType.LEVEL)) {
@@ -89,7 +91,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				 * setLevel().
 				 */
 				LogEventLogger logger = router.eventLogger(name);
-				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1);
+				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1 + CALLER_WRAP_DEPTH);
 				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
 				subscribe(name, router, changeable, callerInfoEnabled);
 				newLogger = changeable;
@@ -101,9 +103,12 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				}
 				else {
 					var slf4jLevel = Levels.toSlf4jLevel(level);
-					LogEventHandler handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 0);
+					LogEventHandler handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, CALLER_WRAP_DEPTH);
 					newLogger = LevelLogger.of(slf4jLevel, handler);
 				}
+			}
+			if (callerInfoEnabled && newLogger instanceof HandlerSource hs) {
+				newLogger = new LocationAwareForwardingLogger(newLogger, hs, name, mdc);
 			}
 			Logger decorated = decorator.decorate(currentRainbowGum, newLogger);
 			Logger oldInstance = loggerMap.putIfAbsent(name, decorated);
@@ -132,12 +137,23 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				var level = r.levelResolver().resolveLevel(name);
 				changeable.setLevel(Levels.toSlf4jLevel(level));
 				var logger = r.eventLogger(name);
-				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1);
+				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1 + CALLER_WRAP_DEPTH);
 				changeable.setEventHandler(handler);
 			}
 
 		});
 	}
+
+	/*
+	 * getLogger() wraps with LocationAwareForwardingLogger whenever callerInfoEnabled is
+	 * true, and being a ForwardingLogger it adds exactly one extra frame to the plain
+	 * (non-location-aware) SLF4J call path - see ForwardingLogger's default methods,
+	 * which are one-line calls to delegate(). maybeAddCallerInfo's depth is only ever
+	 * consulted when callerInfoEnabled is true (see below), which is the same condition
+	 * that triggers that wrap, so adding this unconditionally here is safe even on paths
+	 * (OffLogger) where the wrap never actually happens.
+	 */
+	private static final int CALLER_WRAP_DEPTH = 1;
 
 	private LogEventHandler maybeAddCallerInfo(String loggerName, boolean callerInfoEnabled, LogEventLogger logger,
 			int depth) {

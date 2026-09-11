@@ -6,7 +6,8 @@ import org.slf4j.event.Level;
 import io.jstach.rainbowgum.slf4j.LogEventHandler.EventHandlerChangeable;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
-class ReplaceableLogger implements ForwardingLogger, LevelChangeable, EventHandlerChangeable, DepthAwareLogger {
+class ReplaceableLogger
+		implements ForwardingLogger, LevelChangeable, EventHandlerChangeable, DepthAwareLogger, HandlerSource {
 
 	private volatile LevelLogger logger;
 
@@ -33,6 +34,11 @@ class ReplaceableLogger implements ForwardingLogger, LevelChangeable, EventHandl
 	@Override
 	public void setEventHandler(LogEventHandler eventHandler) {
 		this.logger = LevelLogger.of(logger.level(), eventHandler);
+	}
+
+	@Override
+	public LogEventHandler currentHandler() {
+		return logger.handler();
 	}
 
 	@Override
