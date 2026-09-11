@@ -230,6 +230,31 @@ unifying.
       - Worth a real design pass: split `CALLER`-awareness out of `ChangeType`/
         `ChangePublisher` into its own (probably static, resolved-once) concept, and
         give `allowedChanges()` the same caching treatment `LevelResolver` already has.
+- [ ] **`rainbowgum-slf4j` implements neither `org.slf4j.spi.LocationAwareLogger` nor
+      `org.slf4j.spi.LoggingEventAware`, and the second one is arguably the more
+      consequential gap.** Surfaced while researching `LocationAwareLogger` for the
+      JCL/Spring caller-info work (see `feature/slf4j-location-aware`). SLF4J 2.x's
+      fluent API (`logger.atInfo().log(...)`) is backed by
+      `org.slf4j.spi.DefaultLoggingEventBuilder`, which dispatches via a three-way
+      priority chain, not two: `LoggingEventAware` (`@since 2.0.0`, checked *first*) >
+      `LocationAwareLogger` (legacy bridges: jcl-over-slf4j, log4j-to-slf4j,
+      jul-to-slf4j all target this one, predates 2.0) > plain `Logger` (last resort -
+      merges the `Throwable` into the same `Object[]` as the arguments and calls the
+      varargs overload regardless of how many arguments were actually supplied).
+      Because RainbowGum implements none of the three specially, *every* fluent-API
+      caller - not just bridge libraries - already falls all the way to that last,
+      least-specialized path today, defeating `LevelLogger`'s whole
+      arity-specialized-dispatch design for that entire calling style, independent of
+      whatever gets decided for `LocationAwareLogger`/JCL specifically.
+      `LoggingEventAware` is a single method (`void log(LoggingEvent event)`) where
+      `LoggingEvent` is presumably a structured carrier (level/message/args/marker/
+      throwable/caller-boundary) rather than a flat parameter list - given how much of
+      modern SLF4J usage is fluent-style, implementing this one may matter more
+      long-term than `LocationAwareLogger`, even though the latter is what the
+      immediate JCL/Spring motivation is about. Deliberately kept as its own separate
+      item rather than folded into the `LocationAwareLogger` branch - different
+      interface, different caller population (all fluent-API users, not just bridges),
+      deserves its own design pass rather than riding along.
 - [x] The `Property`/`PropertyGetter`/`Result` monad (`map`, `mapResult`, `or`,
       `orElse`, multi-key fallback, etc.) has essentially no direct unit tests of its
       own composition/error-propagation/fallback-chain behavior - it's exercised only
