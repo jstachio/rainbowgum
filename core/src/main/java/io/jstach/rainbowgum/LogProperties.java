@@ -234,6 +234,13 @@ public interface LogProperties {
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
 
 	/**
+	 * Logging caller info properties prefix. Independent of {@link #CHANGE_PREFIX} -
+	 * resolved through its own logger-name hierarchy walk, so a value here can never be
+	 * silently overridden by a more specific {@link #CHANGE_PREFIX} entry or vice versa.
+	 */
+	static final String CALLER_PREFIX = ROOT_PREFIX + "caller";
+
+	/**
 	 * Logging file property for default single file appending. The value should be a URI.
 	 */
 	static final String FILE_PROPERTY = ROOT_PREFIX + "file.name";
