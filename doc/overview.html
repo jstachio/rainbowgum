@@ -626,18 +626,23 @@ Somewhat related to level resolvers and config change is how to enable {@linkpla
 It is incredibly slow so like changing loggers it must be enabled and you can enable it with logger name inheritance
 so not all loggers will be slow.
 
-Below is an example of configuring to allow <em>"changing" loggers with <strong>caller info</strong></em>:
+Below is an example of configuring caller info for a set of logger names:
 
 {@snippet lang=properties :
-logging.global.change=true               # this is required to turn on level changing. 
-logging.change.com.mycompany=caller      # only logger names starting with com.mycompany will have caller info
+logging.global.change=true               # this is required to enable any dynamic per logger name configuration.
+logging.caller.com.mycompany=true        # only logger names starting with com.mycompany will have caller info
 }
 
 Caller info can be disabled dynamically with supporting configuration systems just like level changing.
 
-Note that {@value io.jstach.rainbowgum.LogProperties#CHANGE_PREFIX} is a comma separated list of 
-{@link io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType} however caller info will automatically allow
-the logger to change levels as well.
+Note that {@value io.jstach.rainbowgum.LogProperties#CALLER_PREFIX} is resolved completely independently of
+{@value io.jstach.rainbowgum.LogProperties#CHANGE_PREFIX}: each walks its own logger name inheritance separately,
+so enabling caller info for <code>com.mycompany</code> does not also make <code>com.mycompany</code> level
+changeable, and a more specific <code>logging.change.com.mycompany.app</code> entry does not clobber
+<code>com.mycompany.app</code>'s inherited caller info the way it would if the two shared one property. The
+value is a {@link io.jstach.rainbowgum.LogConfig.ChangePublisher.CallerType} (or
+<code>true</code>/<code>false</code>) - {@link io.jstach.rainbowgum.LogConfig.ChangePublisher.CallerType#BASIC
+BASIC} (what <code>true</code> means today) is the only level implemented so far.
 
 <h2 id="publishers">Publishers</h2>
 
