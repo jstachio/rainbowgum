@@ -245,6 +245,13 @@ unifying.
       - Worth a real design pass: split `CALLER`-awareness out of `ChangeType`/
         `ChangePublisher` into its own (probably static, resolved-once) concept, and
         give `allowedChanges()` the same caching treatment `LevelResolver` already has.
+      - Worth looking at for inspiration when doing that design pass: tinylog's
+        unreleased 3.0.0 (`slf4j-tinylog` module, `v3.0` branch on GitHub, started
+        roughly the same time as RainbowGum) added an `OutputVisibility` per-logger
+        config concept that's somewhat analogous to `ChangeType` here - two independent
+        projects converging on "per-logger flags for what a logger is allowed to
+        report/change" as the right shape is a useful data point for whatever this
+        becomes.
 - [ ] **`rainbowgum-slf4j` implements neither `org.slf4j.spi.LocationAwareLogger` nor
       `org.slf4j.spi.LoggingEventAware`, and the second one is arguably the more
       consequential gap.** Surfaced while researching `LocationAwareLogger` for the
