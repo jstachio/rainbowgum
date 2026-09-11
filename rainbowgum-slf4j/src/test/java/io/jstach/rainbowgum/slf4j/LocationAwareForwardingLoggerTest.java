@@ -62,6 +62,7 @@ class LocationAwareForwardingLoggerTest {
 			String preBootProperties = """
 					logging.global.change=true
 					logging.change=true
+					logging.caller=true
 					""";
 			var bootstrapConfig = LogConfig.builder()
 				.properties(LogProperties.builder().fromProperties(preBootProperties).build())
@@ -92,7 +93,7 @@ class LocationAwareForwardingLoggerTest {
 	private LocationAwareLogger locationAwareLogger(String name) {
 		String global = """
 				logging.global.change=true
-				logging.change.%s=caller
+				logging.caller.%s=true
 				logging.level.%s=INFO
 				""".formatted(name, name);
 		var props = LogProperties.builder().fromProperties(global).build();
