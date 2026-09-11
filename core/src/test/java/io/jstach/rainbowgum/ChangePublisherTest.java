@@ -89,6 +89,34 @@ class ChangePublisherTest {
 		assertEquals(1, badConfig.alerts().dump().size(), "the fallback must be cached, not re-parsed and re-alerted");
 	}
 
+	/*
+	 * Golden-master pin of the exact alert produced today for a malformed
+	 * logging.change.<name> value, captured before refactoring allowedChanges() to use
+	 * LogProperty/Result instead of a raw try/catch around ChangeType.parse - so a
+	 * behavior change in the alert's loggerName/message/cause shape shows up as an
+	 * explicit, deliberate diff to this test rather than silently drifting.
+	 */
+	@Test
+	void testMalformedChangeValueGoldenAlert() {
+		var badConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.global.change=true
+				logging.change.bad=nonsense
+				""").build()).build();
+		var cp = changePublisher(badConfig);
+
+		cp.allowedChanges("bad");
+
+		var event = badConfig.alerts().dump().get(0);
+		assertEquals(AbstractChangePublisher.class.getName(), event.loggerName());
+		assertEquals("Failed to parse logging.change for logger 'bad', falling back to no changes allowed",
+				event.message());
+		var throwable = event.throwableOrNull();
+		assertNotNull(throwable);
+		assertEquals(IllegalArgumentException.class, throwable.getClass());
+		assertEquals("No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE",
+				throwable.getMessage());
+	}
+
 	@Test
 	void testPublishClearsTheCacheForNamesRequestedAfterward() {
 		MutableLogProperties props = MutableLogProperties.builder().copyProperties("""
