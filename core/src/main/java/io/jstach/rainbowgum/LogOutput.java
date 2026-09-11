@@ -567,4 +567,8 @@ class StdErrOutput extends LogOutput.AbstractOutputStreamOutput {
 		return OutputType.CONSOLE_ERR;
 	}
 
+	@Override
+	public void close() {
+	}
+
 }

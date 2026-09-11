@@ -1,10 +1,21 @@
 # Roadmap to 1.0.0
 
-The next release off this work is 0.10.0, not 1.0.0 - the items below are what's
-still outstanding before an eventual 1.0.0, not a blocker list for 0.10.0.
+The next release off this work is 0.11.0, not 1.0.0 - the items below are what's
+still outstanding before an eventual 1.0.0, not a blocker list for 0.11.0.
 
-See also `code-todos.md` for a themed survey of the `// TODO` comments still scattered
-through the codebase - several feed directly into the items below.
+Deliberately deferred to the release after 0.11.0 (planned to be mostly a cleanup
+release):
+
+- **JSpecify migration** (item 2 below) - not started this cycle.
+- **spring-javaformat-maven-plugin version bump** - a Dependabot PR was left open on
+  purpose; a version bump there could shift formatting rules across the whole codebase
+  and warrants its own dedicated pass, not a drive-by alongside other work.
+- **`rainbowgum-apt`'s moditect "already modular" build flakiness** (surfaces as a
+  scoped `-pl X -am install` failing after a prior build already ran moditect against
+  the same jar, without an intervening `clean` - a real annoyance for local dev loops
+  and any script that builds a module subset more than once, e.g.
+  `benchmark/webapp`'s `run-all.sh`/`run-k8s.sh`) - Adam has a known fix for this from
+  other projects, planned for next cycle rather than a one-off workaround here.
 
 ## 1. Replace pull-style status with separate alerts and metrics systems
 
@@ -336,12 +347,18 @@ unifying.
       construction counting) without a root cause. Needs a clean, non-shared benchmark
       environment to chase further - or, failing that, a documented known-issue before
       shipping 1.0 with Tomcat integration included.
-- [ ] A few fixes from this cycle are sitting on branches that were never confirmed
+- [x] A few fixes from this cycle are sitting on branches that were never confirmed
       merged - worth a final check before release: `FileChannelOutput`'s
       closed-after-close guard, and `ForwardingOutputTest`'s post-`ByteBuffer`-default
-      fix update.
-- [ ] `StdErrOutput` is missing the no-op-after-close override that `StdOutOutput`
-      already has - flagged mid-cycle, deferred, never circled back to.
+      fix update. Confirmed landed during the 0.11.0 pre-release pass: `FileOutput`
+      (the class was renamed/moved since this was written) has the `AtomicBoolean`
+      closed-guard on `close()`/write/flush, and `ForwardingOutputTest` passes as part
+      of the full suite.
+- [x] `StdErrOutput` is missing the no-op-after-close override that `StdOutOutput`
+      already has - flagged mid-cycle, deferred, never circled back to. Fixed during
+      the 0.11.0 pre-release pass: closing a route bound to `StdErrOutput` was
+      physically closing the process-wide `System.err` stream, the same real bug
+      `StdOutOutput`'s existing no-op override was already guarding against.
 - [ ] Once items 1 and 2 above land, sweep `doc/overview.html` for consistency
       (status reporting section, nullability mentions) rather than patching it
       piecemeal per-PR the way this cycle did.
