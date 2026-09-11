@@ -106,6 +106,8 @@ body.module-index-page nav.js-toc {
   width: 300px;
   position: fixed;
   overflow-wrap: anywhere;
+  max-height: calc(100vh - 45px);
+  overflow-y: auto;
 }
 body.module-index-page main {
   margin-left: 300px;
