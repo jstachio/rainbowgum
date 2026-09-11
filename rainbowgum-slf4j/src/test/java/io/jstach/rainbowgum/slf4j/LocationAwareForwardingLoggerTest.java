@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
+import org.slf4j.spi.DefaultLoggingEventBuilder;
 import org.slf4j.spi.LocationAwareLogger;
+import org.slf4j.spi.LoggingEventAware;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
@@ -34,6 +37,44 @@ class LocationAwareForwardingLoggerTest {
 		logger.log(null, "com.example.NotOnTheStack", LocationAwareLogger.INFO_INT, "hello", null, null);
 
 		assertEquals("INFO hello\n", list.toString());
+	}
+
+	/*
+	 * Exercises the real SLF4J dispatch chain end to end (DefaultLoggingEventBuilder is
+	 * SLF4J's own class, not a test double) - this is exactly the shape of the motivating
+	 * scenario: a third party constructs its own LoggingEventBuilder around a Logger
+	 * obtained from this factory, bypassing RainbowGumEventBuilder entirely.
+	 * DefaultLoggingEventBuilder.log(LoggingEvent) detects "logger instanceof
+	 * LoggingEventAware" and calls our log(LoggingEvent) directly - and sets
+	 * callerBoundary to its own fqcn first, which findCaller then has to skip past twice
+	 * (both its log(LoggingEvent) and log(String, Object) frames are that same class) to
+	 * reach the real caller.
+	 */
+	@Test
+	void testLoggingEventAwareViaRealDefaultLoggingEventBuilderReportsCallerAndMergesKeyValues() {
+		var logger = locationAwareLogger("bridge.fluent");
+		assertInstanceOf(LoggingEventAware.class, logger);
+
+		var builder = new DefaultLoggingEventBuilder(logger, Level.INFO);
+		builder.addKeyValue("foo", "bar");
+		builder.log("hello {}", "world");
+
+		String expected = "INFO hello world <caller>io.jstach.rainbowgum.slf4j.LocationAwareForwardingLoggerTest"
+				+ ".testLoggingEventAwareViaRealDefaultLoggingEventBuilderReportsCallerAndMergesKeyValues</caller>\n";
+		assertEquals(expected, list.toString());
+
+		var event = list.events().get(0).getKey();
+		assertEquals("bar", event.keyValues().getValueOrNull("foo"));
+	}
+
+	@Test
+	void testLoggingEventAwareBelowThresholdLevelIsSkipped() {
+		var logger = locationAwareLogger("bridge.fluentgated");
+
+		var builder = new DefaultLoggingEventBuilder(logger, Level.DEBUG);
+		builder.log("should not appear");
+
+		assertEquals("", list.toString());
 	}
 
 	@Test
