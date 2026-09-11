@@ -196,9 +196,24 @@ unifying.
       directly, bypassing the shortcut) reads better since there's no such wrapping
       `.map()` in the way. Worth fixing when `fileAppender()` gets its cleanup pass
       above, rather than as a one-off.
-- [ ] **`ChangeType.CALLER` doesn't really belong under `ChangePublisher`/"changing"**,
-      and `ChangePublisher.allowedChanges(String)` has no caching at all. Two related
-      but separate problems:
+- [x] **`ChangeType.CALLER` doesn't really belong under `ChangePublisher`/"changing"**,
+      and `ChangePublisher.allowedChanges(String)` had no caching at all. Addressed on
+      `explore/changepublisher-caller-caching`: `AbstractChangePublisher` now caches
+      `allowedChanges(String)` in a `ConcurrentHashMap<String, Set<ChangeType>>`
+      (mirroring `CachedLevelResolver`'s exact shape - same call pattern, "once per
+      never-before-seen logger name" - and its alert-once-then-cache-a-fallback
+      behavior for a malformed property value), cleared on `publish()` so a property
+      change is visible to names requested afterward. `ChangePublisher` gained a
+      dedicated `callerInfoEnabled(String)` default method (backed by the same cache)
+      with javadoc stating plainly that, unlike `LEVEL`, it is resolved once and never
+      revisited - fixing the conceptual mislabeling without changing behavior:
+      `RainbowGumLoggerFactory.subscribe()` was deliberately left capturing
+      caller-awareness once at construction time, since that already-once-only
+      behavior turned out to be the *correct* semantics for a static per-logger
+      capability, not a bug to fix. `ChangeType` stays a two-value enum and
+      `allowedChanges(): Set<ChangeType>` stays the public return shape - no breaking
+      change, and the single-property-lookup tradeoff (see below) is preserved as-is.
+      Original problem description kept for context:
       - Conceptually, `ChangeType.CALLER` ("the logger is allowed to change caller
         info") isn't actually treated as something that changes at runtime the way
         `LEVEL` is - confirmed in code: `RainbowGumLoggerFactory.subscribe()`'s

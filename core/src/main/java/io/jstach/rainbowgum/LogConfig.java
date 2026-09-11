@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -146,6 +147,22 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		public Set<ChangeType> allowedChanges(String loggerName);
 
 		/**
+		 * Whether caller info should be computed for a logger. Unlike
+		 * {@link ChangeType#LEVEL}, which is genuinely re-evaluated on every
+		 * {@link #publish()}, this is resolved once when a logger is first created and
+		 * never revisited afterward - it reflects a static per-logger capability, not
+		 * something that changes at runtime, despite being parsed from the same
+		 * {@value LogProperties#CHANGE_PREFIX} property and the same {@link ChangeType}
+		 * set as {@code LEVEL} (deliberately, to avoid a second property lookup per
+		 * logger name).
+		 * @param loggerName logger name.
+		 * @return true if caller info is enabled for this logger.
+		 */
+		default boolean callerInfoEnabled(String loggerName) {
+			return allowedChanges(loggerName).contains(ChangeType.CALLER);
+		}
+
+		/**
 		 * Changing type options.
 		 */
 		public enum ChangeType {
@@ -155,7 +172,12 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 */
 			LEVEL,
 			/**
-			 * The logger is allowed to change caller info.
+			 * Caller info is enabled for the logger. Despite being a member of this enum
+			 * and parsed from the same property as {@link #LEVEL}, this is not actually
+			 * re-evaluated on {@link ChangePublisher#publish()} the way {@code LEVEL} is
+			 * - it is a static per-logger capability decided once. See
+			 * {@link ChangePublisher#callerInfoEnabled(String)} for the accessor callers
+			 * should actually use.
 			 */
 			CALLER;
 
@@ -377,12 +399,21 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	 */
 	private final Collection<Consumer<? super LogConfig>> consumers = new CopyOnWriteArrayList<Consumer<? super LogConfig>>();
 
+	/*
+	 * Same shape as LevelResolver.java's CachedLevelResolver: allowedChanges(name) is
+	 * only ever called once per never-before-seen logger name (RainbowGumLoggerFactory
+	 * caches the resulting Logger forever afterward), so a ConcurrentHashMap here matches
+	 * the exact call pattern that made a ConcurrentHashMap the right tradeoff there too.
+	 */
+	private final ConcurrentHashMap<String, Set<ChangeType>> changesCache = new ConcurrentHashMap<>();
+
 	protected abstract LogConfig reload();
 
 	protected abstract LogConfig config();
 
 	@Override
 	public void publish() {
+		changesCache.clear();
 		LogConfig config = reload();
 		for (var c : consumers) {
 			c.accept(config);
@@ -401,9 +432,29 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
-		var value = config().properties()
-			.findOrNull(LogProperties.CHANGE_PREFIX, loggerName, LogProperties::listOrNull);
-		return value == null ? Set.of() : ChangeType.parse(value);
+		return changesCache.computeIfAbsent(loggerName, n -> {
+			try {
+				var value = config().properties().findOrNull(LogProperties.CHANGE_PREFIX, n, LogProperties::listOrNull);
+				return value == null ? Set.of() : ChangeType.parse(value);
+			}
+			catch (Exception e) {
+				/*
+				 * A malformed logging.change.<name> value must not be able to break
+				 * logging itself. ConcurrentHashMap#computeIfAbsent leaves nothing cached
+				 * when the mapping function throws, so without catching here a bad
+				 * property would re-parse and re-throw on every single allowedChanges(n)
+				 * call for this logger name, not just once - same amplification risk
+				 * CachedLevelResolver guards against for level properties. Fall back to
+				 * "nothing allowed to change" and alert exactly once per logger name
+				 * instead, since the fallback value is itself cached above just like a
+				 * successful parse would be.
+				 */
+				config().alerts()
+					.error(AbstractChangePublisher.class, "Failed to parse " + LogProperties.CHANGE_PREFIX
+							+ " for logger '" + n + "', falling back to no changes allowed", e);
+				return Set.of();
+			}
+		});
 	}
 
 }
