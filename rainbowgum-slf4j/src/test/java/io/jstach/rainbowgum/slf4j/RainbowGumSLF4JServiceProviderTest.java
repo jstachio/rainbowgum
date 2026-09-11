@@ -3,11 +3,14 @@ package io.jstach.rainbowgum.slf4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.helpers.BasicMarkerFactory;
 
+import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 
 /*
@@ -40,6 +43,27 @@ class RainbowGumSLF4JServiceProviderTest {
 		assertInstanceOf(RainbowGumMDCAdapter.class, provider.getMDCAdapter());
 		assertNotNull(provider.getMDCAdapter());
 		assertEquals("2.0", provider.getRequestedApiVersion());
+	}
+
+	@Test
+	void testLoggingMdcEnabledByDefaultStoresAndReturnsValue() {
+		var provider = new RainbowGumSLF4JServiceProvider();
+		provider.initialize(RainbowGum.builder().build());
+		var mdc = provider.getMDCAdapter();
+		mdc.put("key", "value");
+		assertEquals("value", mdc.get("key"));
+	}
+
+	@Test
+	void testLoggingMdcDisabledPropertyMakesPutAndGetNoops() {
+		var props = LogProperties.builder().fromProperties("logging.mdc=DISABLED").build();
+		var config = LogConfig.builder().properties(props).build();
+		var provider = new RainbowGumSLF4JServiceProvider();
+		provider.initialize(RainbowGum.builder(config).build());
+		var mdc = provider.getMDCAdapter();
+		mdc.put("key", "value");
+		assertNull(mdc.get("key"));
+		assertNull(mdc.getCopyOfContextMap());
 	}
 
 	/*
