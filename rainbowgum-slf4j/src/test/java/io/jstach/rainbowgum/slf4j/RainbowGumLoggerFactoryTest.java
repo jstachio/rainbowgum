@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
+import org.slf4j.spi.LocationAwareLogger;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
@@ -24,6 +25,18 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 class RainbowGumLoggerFactoryTest {
 
 	ListLogOutput list = new ListLogOutput();
+
+	/*
+	 * ChangeType.CALLER wraps the underlying LevelLogger/ReplaceableLogger with
+	 * LocationAwareForwardingLogger - unwrap it so the tests below can still assert on
+	 * the type of what it wraps, same as before that wrap existed.
+	 */
+	private static Logger unwrapCaller(Logger logger) {
+		if (logger instanceof LocationAwareForwardingLogger law) {
+			return law.delegate();
+		}
+		return logger;
+	}
 
 	@Test
 	void testGetLogger() {
@@ -159,7 +172,7 @@ class RainbowGumLoggerFactoryTest {
 
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("mychange");
-		assertInstanceOf(LevelChangeable.class, logger);
+		assertInstanceOf(LevelChangeable.class, unwrapCaller(logger));
 		assertTrue(logger.isErrorEnabled());
 		assertFalse(logger.isDebugEnabled());
 		assertFalse(factory.getLogger("mychange.one").isDebugEnabled());
@@ -188,7 +201,7 @@ class RainbowGumLoggerFactoryTest {
 				""";
 		assertEquals(expected, actual);
 
-		assertInstanceOf(LevelChangeable.class, logger);
+		assertInstanceOf(LevelChangeable.class, unwrapCaller(logger));
 		logger = factory.getLogger("static");
 		assertInstanceOf(LevelLogger.class, logger);
 	}
@@ -213,6 +226,7 @@ class RainbowGumLoggerFactoryTest {
 
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("mychange");
+		assertInstanceOf(LocationAwareLogger.class, logger);
 		assertTrue(logger.isErrorEnabled());
 		assertFalse(logger.isDebugEnabled());
 		assertFalse(factory.getLogger("mychange.one").isDebugEnabled());
@@ -226,8 +240,10 @@ class RainbowGumLoggerFactoryTest {
 				""";
 		assertEquals(expected, actual);
 
-		assertInstanceOf(LevelLogger.class, logger);
+		assertInstanceOf(LevelLogger.class, unwrapCaller(logger));
 
+		assertFalse(factory.getLogger("static") instanceof LocationAwareLogger,
+				"a logger without ChangeType.CALLER must not be location-aware");
 	}
 
 	@Test
@@ -240,7 +256,7 @@ class RainbowGumLoggerFactoryTest {
 		var rainbowgum = gum(props);
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("anything");
-		assertInstanceOf(LevelChangeable.class, logger);
+		assertInstanceOf(LevelChangeable.class, unwrapCaller(logger));
 	}
 
 	/*
