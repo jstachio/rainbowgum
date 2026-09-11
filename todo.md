@@ -210,7 +210,13 @@ unifying.
         (`changeable.setLevel(...)`) on every `onChange` firing. `CALLER` is really a
         static per-logger capability flag read once, not a live-changeable setting;
         being an enum constant of `ChangeType` alongside `LEVEL` implies a symmetry the
-        code doesn't actually have.
+        code doesn't actually have. Adam's own account of why it ended up here: it was
+        deliberate, not an oversight - folding `CALLER` into the same
+        `logging.change.<name>` property as `LEVEL` was specifically to avoid parsing
+        two separate properties per logger name. The tradeoff didn't fully pay off
+        though, since (next bullet) that single combined lookup isn't cached either -
+        worth keeping the "avoid a second property" goal in mind for whatever design
+        replaces this, rather than casually splitting back into two uncached lookups.
       - `LogConfig.AbstractChangePublisher.allowedChanges(String loggerName)`
         (`LogConfig.java`) has zero caching - every call does a fresh
         `properties().findOrNull(LogProperties.CHANGE_PREFIX, loggerName,
