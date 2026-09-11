@@ -206,7 +206,30 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * {@link #LOCK_THREAD_LOCAL_BUFFER}, since its whole point is a hard guarantee
 		 * independent of anything else in the configuration.
 		 */
-		SYNCHRONIZED_THREAD_LOCAL_BUFFER;
+		SYNCHRONIZED_THREAD_LOCAL_BUFFER,
+		/**
+		 * Like {@link #LOCK_THREAD_LOCAL_BUFFER} (encoding done outside the lock, the
+		 * lock only guards the final write to the output) except the buffer is allocated
+		 * fresh for every single event instead of being cached in a {@link ThreadLocal}.
+		 * <p>
+		 * For deployments that want a hard guarantee of never using {@link ThreadLocal}
+		 * anywhere in the logging path - {@link #REUSE_BUFFER} is the existing
+		 * no-{@code ThreadLocal} option, but it holds its lock across the entire
+		 * encode-then-write critical section (the single shared buffer must stay
+		 * protected for as long as anything is writing into it), so it pays for that
+		 * guarantee with lock contention proportional to encoding cost, not just I/O
+		 * cost. This type keeps {@link #LOCK_THREAD_LOCAL_BUFFER}'s low-contention shape
+		 * (encode into a buffer nothing else can see, lock only for the write) while
+		 * dropping the {@link ThreadLocal} - the buffer is simply a local variable, not
+		 * cached anywhere, so nothing needs to be evicted or leaked-if-forgotten either.
+		 * The tradeoff is a fresh buffer allocation (and whatever it grows to internally)
+		 * on every single event instead of amortizing that allocation across a thread's
+		 * whole lifetime.
+		 * @apiNote not the default - {@link #LOCK_THREAD_LOCAL_BUFFER}'s reused buffer is
+		 * the better choice unless avoiding {@link ThreadLocal} entirely is a hard
+		 * requirement, not just a preference.
+		 */
+		LOCK_NEW_BUFFER;
 
 		static AppenderType parse(String value) {
 			String v = value.toUpperCase(Locale.ROOT);
@@ -549,6 +572,8 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 				new SynchronizedThreadLocalBufferLogAppender(name, output, encoder, flags, alerts, metrics);
 			case LOCK_THREAD_LOCAL_BUFFER -> new LockThreadLocalBufferLogAppender(name, output, encoder, flags,
 					new ReentrantLock(), alerts, metrics);
+			case LOCK_NEW_BUFFER ->
+				new LockNewBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
 		};
 	}
 
@@ -954,6 +979,74 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 			lock.lock();
 			try {
 				output.write(events, count, encoder, bufferThreadLocal.get());
+				if (immediateFlush) {
+					output.flush();
+				}
+			}
+			finally {
+				lock.unlock();
+			}
+		}
+		catch (Exception e) {
+			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+		}
+	}
+
+}
+
+/*
+ * Like LockThreadLocalBufferLogAppender (encode outside the lock, lock only the final
+ * write) except the buffer is a fresh allocation per event instead of a ThreadLocal - for
+ * deployments that want a hard guarantee of no ThreadLocal anywhere in the logging path
+ * without paying ReuseBufferLogAppender's lock-across-the-whole-encode cost.
+ */
+final class LockNewBufferLogAppender extends LockLogAppender implements InternalLogAppender {
+
+	LockNewBufferLogAppender(String name, LogOutput output, LogEncoder encoder, Set<LogAppender.AppenderFlag> flags,
+			ReentrantLock lock, LogAlerts alerts, LogMetrics metrics) {
+		super(name, output, encoder, flags, lock, alerts, metrics);
+	}
+
+	@Override
+	public final void append(LogEvent event) {
+		try {
+			var buffer = encoder.buffer(output.bufferHints());
+			encoder.encode(event, buffer);
+			writeLocked(event, buffer);
+		}
+		catch (Exception e) {
+			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+		}
+	}
+
+	private void writeLocked(LogEvent event, LogEncoder.Buffer buffer) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, metrics, 1)) {
+			return;
+		}
+		lock.lock();
+		try {
+			output.write(event, buffer);
+			if (immediateFlush) {
+				output.flush();
+			}
+		}
+		finally {
+			lock.unlock();
+		}
+	}
+
+	@Override
+	public void append(LogEvent[] events, int count) {
+		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, metrics, count)) {
+			return;
+		}
+		try {
+			var buffer = encoder.buffer(output.bufferHints());
+			lock.lock();
+			try {
+				output.write(events, count, encoder, buffer);
 				if (immediateFlush) {
 					output.flush();
 				}
