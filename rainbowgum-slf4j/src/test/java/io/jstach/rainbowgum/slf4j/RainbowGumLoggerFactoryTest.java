@@ -243,7 +243,7 @@ class RainbowGumLoggerFactoryTest {
 		assertInstanceOf(LevelLogger.class, unwrapCaller(logger));
 
 		assertFalse(factory.getLogger("static") instanceof LocationAwareLogger,
-				"a logger without ChangeType.CALLER must not be location-aware");
+				"a logger without callerInfoEnabled must not be location-aware");
 	}
 
 	@Test
