@@ -91,12 +91,12 @@ class ChangePublisherTest {
 
 	/*
 	 * Golden-master pin of the exact alert produced for a malformed logging.change.<name>
-	 * value. Originally captured before allowedChanges() switched from a raw try/catch
-	 * around ChangeType.parse to LogProperty.Result (see git history for the prior,
-	 * plainer message) - now pinned to that switch's richer message, built automatically
-	 * by Result#map's error handling rather than the hand-rolled string this test used to
-	 * check for, so any further behavior change here shows up as an explicit, deliberate
-	 * diff instead of silently drifting.
+	 * value. See git history for two earlier, plainer messages this evolved from: first a
+	 * hand-rolled string around a raw try/catch, then Result#map's own richer message
+	 * once allowedChanges() switched to LogProperty.Result - now pinned to
+	 * Result#validateNow(Class)'s ValidationException wrapping that same message (with a
+	 * "Validation failed for <component>:" header), so any further behavior change here
+	 * shows up as an explicit, deliberate diff instead of silently drifting.
 	 */
 	@Test
 	void testMalformedChangeValueGoldenAlert() {
@@ -109,18 +109,22 @@ class ChangePublisherTest {
 		cp.allowedChanges("bad");
 
 		var event = badConfig.alerts().dump().get(0);
-		assertEquals(AbstractChangePublisher.class.getName(), event.loggerName());
+		assertEquals(ChangePublisher.class.getName(), event.loggerName());
 		assertEquals(
 				"""
+						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad], \
 						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE
 						Tried: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad]""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);
-		assertEquals(IllegalArgumentException.class, throwable.getClass());
+		assertEquals(LogProperty.ValidationException.class, throwable.getClass());
+		var cause = throwable.getCause();
+		assertNotNull(cause);
+		assertEquals(IllegalArgumentException.class, cause.getClass());
 		assertEquals("No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE",
-				throwable.getMessage());
+				cause.getMessage());
 	}
 
 	@Test
