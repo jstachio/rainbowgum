@@ -378,7 +378,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				.ofString()
 				.map(LogAlerts.UnobservedErrorsAction::parse)
 				.or(LogAlerts.UnobservedErrorsAction.DUMP)
-				.validate(alertsValidator);
+				.validateIfError(alertsValidator);
 			/*
 			 * Only used if unobservedErrorsActionResult is actually an Error - discarded
 			 * either way once alertsValidator.validate() below throws for it, so which
@@ -390,8 +390,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			var alertsResult = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
 				.ofInt()
 				.or(LogAlerts.DEFAULT_CAPACITY)
-				.map(capacity -> new DefaultLogAlerts(capacity, unobservedErrorsActionOrPlaceholder))
-				.validate(alertsValidator);
+				.map(capacity -> newDefaultLogAlerts(capacity, unobservedErrorsActionOrPlaceholder))
+				.validateIfError(alertsValidator);
 			alertsValidator.validate();
 			LogAlerts alerts = alertsResult.value();
 			LogMetrics metrics = new DefaultLogMetrics();
@@ -424,6 +424,18 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 */
 			alerts.start(config);
 			return config;
+		}
+
+		/*
+		 * A named method rather than `capacity -> new DefaultLogAlerts(...)` inline in
+		 * the map(...) call above - CheckerFramework's Initialization Checker does not
+		 * refine a `new` expression's type back to @Initialized when it appears directly
+		 * inside a lambda body passed through a generic method like map(...); wrapping it
+		 * in an ordinary method (whose own declared return type is checked independently)
+		 * sidesteps that.
+		 */
+		private static LogAlerts newDefaultLogAlerts(int capacity, LogAlerts.UnobservedErrorsAction action) {
+			return new DefaultLogAlerts(capacity, action);
 		}
 
 		LevelConfig buildGlobalResolver(LogProperties logProperties, LogAlerts alerts) {
