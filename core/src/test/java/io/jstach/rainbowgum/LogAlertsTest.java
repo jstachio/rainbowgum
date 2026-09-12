@@ -135,6 +135,34 @@ class LogAlertsTest {
 	}
 
 	@Test
+	void zeroCapacityValueFailsLoudlyViaConstructorValidation() {
+		// 0 parses fine as an int (so ofInt()/or(default) let it straight through) -
+		// this is specifically catching DefaultLogAlerts's own constructor validation
+		// via map(DefaultLogAlerts::new), not the int-parsing validation the
+		// not-a-number case above already covers.
+		var props = LogProperties.builder().fromProperties("logging.alerts.capacity=0").build();
+		var e = assertThrows(ValidationException.class, () -> LogConfig.builder().properties(props).build());
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogAlerts:
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0
+						Tried: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity]""",
+				e.getMessage());
+	}
+
+	@Test
+	void negativeCapacityValueFailsLoudlyViaConstructorValidation() {
+		var props = LogProperties.builder().fromProperties("logging.alerts.capacity=-1").build();
+		var e = assertThrows(ValidationException.class, () -> LogConfig.builder().properties(props).build());
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogAlerts:
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0
+						Tried: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity]""",
+				e.getMessage());
+	}
+
+	@Test
 	void unobservedErrorsActionNoneDoesNotDumpOrFail() {
 		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=NONE").build();
 		var config = assertDoesNotThrow(() -> LogConfig.builder().properties(props).configurator((c, pass) -> {
