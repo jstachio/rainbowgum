@@ -15,18 +15,6 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
 class ArrayMDCAdapter implements MDCAdapter {
 
-	/*
-	 * When true, every method below becomes a no-op/empty-returning stub instead of
-	 * touching either ThreadLocal - see RainbowGumMDCAdapter(boolean), the only extra
-	 * constructor that ever passes true here (logging.mdc.disabled, read once at SLF4J
-	 * provider initialize() time - see RainbowGumSLF4JServiceProvider). A disabled
-	 * instance still allocates the two ThreadLocal fields below (get() on either is
-	 * simply never reached) rather than restructuring this class around a
-	 * disabled-vs-enabled split - not worth the extra type/indirection just to skip two
-	 * field initializers that are never populated.
-	 */
-	private final boolean disabled;
-
 	final ThreadLocal<MutableKeyValues> copyOnThreadLocal = new ThreadLocal<>();
 
 	private static final int WRITE_OPERATION = 1;
@@ -35,14 +23,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	// keeps track of the last operation performed
 	final ThreadLocal<Integer> lastOperation = new ThreadLocal<Integer>();
-
-	ArrayMDCAdapter() {
-		this(false);
-	}
-
-	ArrayMDCAdapter(boolean disabled) {
-		this.disabled = disabled;
-	}
 
 	private Integer getAndSetLastOperation(int op) {
 		Integer lastOp = lastOperation.get();
@@ -78,9 +58,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 	@Override
 	public void put(@NonNull String key, @Nullable String val) throws NullPointerException {
 		requireNonNull(key, "key cannot be null");
-		if (disabled) {
-			return;
-		}
 
 		MutableKeyValues oldMap = copyOnThreadLocal.get();
 		Integer lastOp = getAndSetLastOperation(WRITE_OPERATION);
@@ -96,7 +73,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	@Override
 	public void remove(@Nullable String key) {
-		if (key == null || disabled) {
+		if (key == null) {
 			return;
 		}
 		MutableKeyValues oldMap = copyOnThreadLocal.get();
@@ -116,16 +93,13 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	@Override
 	public void clear() {
-		if (disabled) {
-			return;
-		}
 		lastOperation.set(WRITE_OPERATION);
 		copyOnThreadLocal.remove();
 	}
 
 	@Override
 	public @Nullable String get(String key) {
-		if (Objects.isNull(key) || disabled) {
+		if (Objects.isNull(key)) {
 			return null;
 		}
 		final MutableKeyValues map = copyOnThreadLocal.get();
@@ -147,9 +121,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 	 * @return key values, never <code>null</code>.
 	 */
 	public KeyValues keyValues() {
-		if (disabled) {
-			return KeyValues.of();
-		}
 		lastOperation.set(MAP_COPY_OPERATION);
 		var m = copyOnThreadLocal.get();
 		return m == null ? KeyValues.of() : m;
@@ -163,9 +134,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 	 * @return a new mutable key values, never <code>null</code>.
 	 */
 	public MutableKeyValues copyMutableKeyValues() {
-		if (disabled) {
-			return MutableKeyValues.of();
-		}
 		MutableKeyValues oldMap = copyOnThreadLocal.get();
 		if (oldMap == null) {
 			return MutableKeyValues.of();
@@ -180,9 +148,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	@Override
 	public @Nullable Map<String, @Nullable String> getCopyOfContextMap() {
-		if (disabled) {
-			return null;
-		}
 		MutableKeyValues hashMap = copyOnThreadLocal.get();
 		if (hashMap == null) {
 			return null;
@@ -194,9 +159,6 @@ class ArrayMDCAdapter implements MDCAdapter {
 
 	@Override
 	public void setContextMap(Map<String, @Nullable String> contextMap) {
-		if (disabled) {
-			return;
-		}
 		lastOperation.set(WRITE_OPERATION);
 
 		MutableKeyValues newMap = MutableKeyValues.of(contextMap.size());
