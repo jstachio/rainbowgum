@@ -719,6 +719,11 @@ or through properties.
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_FLAGS_PROPERTY} = List of {@link io.jstach.rainbowgum.LogAppender.AppenderFlag}</dd>
 </dl>
 
+Most appender types reuse a buffer per thread ({@link java.lang.ThreadLocal}) for low lock contention. For deployments
+that want no {@link java.lang.ThreadLocal} anywhere in the logging path,
+{@link io.jstach.rainbowgum.LogAppender.AppenderType#LOCK_NEW_BUFFER} allocates a fresh buffer per event instead,
+trading that guarantee for a per-event allocation.
+
 An important Appender Flag is {@link io.jstach.rainbowgum.LogAppender.AppenderFlag#DISABLE_IMMEDIATE_FLUSH} which
 will tell the output to not flush after each event. Flushing after each event is enabled by default to follow
 <a href="https://12factor.net/logs">12 Factors requirements of events written unbuffered</a> synchronously;
@@ -1465,6 +1470,10 @@ Rainbow Gum SLF4J module {@link io.jstach.rainbowgum.slf4j/} supports:
 <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService Decorating loggers}</li>
 <li>{@linkplain io.jstach.rainbowgum.LogEvent.Caller Caller Information}</li>
 </ul>
+MDC defaults to a {@link java.lang.ThreadLocal}-backed implementation; setting
+<code>logging.mdc.type</code> to <code>NOOP</code> swaps in a no-op implementation instead, for deployments
+that want no {@link java.lang.ThreadLocal} anywhere in the logging path and are fine losing MDC to get it.
+<p>
 There is no built-in {@link org.slf4j.Marker} support (it is not stored on the event
 or used for routing/filtering by default), but a
 {@linkplain io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger decorator} can
