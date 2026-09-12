@@ -45,23 +45,22 @@
       <artifactId>rainbowgum-jul</artifactId>
       <scope>runtime</scope>
     </dependency>
-    <!-- The below are just for code snippts and are not actual depedendencies -->
+    <!--
+      The below are just for code snippets and are not actual dependencies - see
+      rainbowgum-coverage-aggregate for why they aren't also runtime+optional=true here
+      the way they used to be: that module now owns the "must be visible to
+      report-aggregate" concern instead of this one growing scope=runtime dependencies
+      it doesn't actually need just to make coverage tooling happy.
+    -->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-json</artifactId>
-      <scope>runtime</scope>
-      <optional>true</optional>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-file</artifactId>
-      <!--
-        Must be runtime + optional=true (like rainbowgum-json above), not scope=test,
-        even though nothing here actually needs it at runtime - see the codecover
-        profile's report-aggregate comment below for why.
-      -->
-      <scope>runtime</scope>
-      <optional>true</optional>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -91,47 +90,4 @@
       <optional>true</optional>
     </dependency>
   </dependencies>
-  <!--
-    codecover's report-aggregate goal below only aggregates coverage for modules that
-    are compile/runtime/provided-scope dependencies of this module - a scope=test
-    dependency's classes/coverage data are invisible to it, even though the module
-    itself still builds and runs its own tests fine. Any module (like
-    rainbowgum-json/rainbowgum-file above) that should show up in the aggregate report
-    but isn't a real runtime dependency of this bundle needs scope=runtime,
-    optional=true instead - optional=true keeps it from leaking into consumers'
-    transitive dependencies, matching the "just for code snippets" modules' actual
-    intent.
-  -->
-  <profiles>
-    <profile>
-      <id>codecover</id>
-      <activation>
-        <property>
-          <name>codecover</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.jacoco</groupId>
-            <artifactId>jacoco-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <phase>verify</phase>
-                <goals>
-                  <goal>report-aggregate</goal>
-                </goals>
-                <configuration>
-                  <dataFileIncludes>
-                    <dataFileInclude>**/jacoco.exec</dataFileInclude>
-                  </dataFileIncludes>
-                  <outputDirectory>${project.reporting.outputDirectory}/jacoco-aggregate</outputDirectory>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>
