@@ -44,6 +44,8 @@ class DefaultAppenderSelectionTest {
 
 	final boolean originalForceReentrantLockAppenders = AbstractLogAppender.forceReentrantLockAppenders;
 
+	final boolean originalForceNoThreadLocalAppenders = AbstractLogAppender.forceNoThreadLocalAppenders;
+
 	ByteArrayOutputStream metaLogBytes = new ByteArrayOutputStream();
 
 	PrintStream metaLogStream = new PrintStream(metaLogBytes);
@@ -56,6 +58,7 @@ class DefaultAppenderSelectionTest {
 	@AfterEach
 	void after() {
 		AbstractLogAppender.forceReentrantLockAppenders = originalForceReentrantLockAppenders;
+		AbstractLogAppender.forceNoThreadLocalAppenders = originalForceNoThreadLocalAppenders;
 		MetaLog.output = () -> System.err;
 	}
 
@@ -88,6 +91,34 @@ class DefaultAppenderSelectionTest {
 	void lockNewBufferTypeSelectsLockNewBuffer() {
 		var appender = appender(AppenderType.LOCK_NEW_BUFFER, Set.of());
 		assertInstanceOf(LockNewBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void globalForceNoThreadLocalDowngradesLockThreadLocalBufferType() {
+		AbstractLogAppender.forceNoThreadLocalAppenders = true;
+		var appender = appender(AppenderType.LOCK_THREAD_LOCAL_BUFFER, Set.of());
+		assertInstanceOf(LockNewBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void globalForceNoThreadLocalDowngradesSynchronizedThreadLocalBufferType() {
+		AbstractLogAppender.forceNoThreadLocalAppenders = true;
+		var appender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, Set.of());
+		assertInstanceOf(LockNewBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void globalForceNoThreadLocalLeavesExplicitReuseBufferAlone() {
+		AbstractLogAppender.forceNoThreadLocalAppenders = true;
+		var appender = appender(AppenderType.REUSE_BUFFER, Set.of());
+		assertInstanceOf(ReuseBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void loggingGlobalThreadlocalDisabledPropertySetsStaticFlagOnLogConfigConstruction() {
+		var props = LogProperties.builder().fromProperties("logging.global.threadlocalDisabled=TRUE").build();
+		LogConfig.builder().properties(props).build();
+		assertTrue(AbstractLogAppender.forceNoThreadLocalAppenders);
 	}
 
 	@Test

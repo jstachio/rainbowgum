@@ -229,6 +229,29 @@ public interface LogProperties {
 	static final String GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY = ROOT_PREFIX + "global.appender.reentrantLock";
 
 	/**
+	 * A global, process-wide guarantee of no {@link ThreadLocal} anywhere in the logging
+	 * path, for deployments that want that guaranteed independent of
+	 * per-appender/per-module configuration. When active:
+	 * <ul>
+	 * <li>Any appender that would otherwise use
+	 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER} or
+	 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} (the default,
+	 * plus its {@code synchronized}-locking sibling - both {@link ThreadLocal}-backed) is
+	 * downgraded to {@link LogAppender.AppenderType#LOCK_NEW_BUFFER} instead - an
+	 * explicit request for {@link LogAppender.AppenderType#REUSE_BUFFER} (already
+	 * {@link ThreadLocal}-free) is left as-is rather than also forced to
+	 * {@code LOCK_NEW_BUFFER}.</li>
+	 * <li>{@code rainbowgum-slf4j}'s MDC support is disabled, the same as an explicit
+	 * {@code logging.mdc.type=NOOP} - see {@code RainbowGumSLF4JServiceProvider}.</li>
+	 * </ul>
+	 * @apiNote unlike {@link #GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY} this reaches
+	 * beyond {@code core} into {@code rainbowgum-slf4j} - both independently read this
+	 * same property key rather than one module exposing a shared static flag the other
+	 * consumes, since there is no other cross-module wiring between them today.
+	 */
+	static final String GLOBAL_THREADLOCAL_DISABLED_PROPERTY = ROOT_PREFIX + "global.threadlocalDisabled";
+
+	/**
 	 * Logging change properties prefix.
 	 */
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
