@@ -214,12 +214,51 @@ final class DefaultLogAlerts implements LogAlerts {
 	 */
 	private final UnobservedErrorsAction unobservedErrorsAction;
 
-	DefaultLogAlerts(int capacity, UnobservedErrorsAction unobservedErrorsAction) {
+	/*
+	 * Private and deliberately not defensive - of(LogProperties) below is the only
+	 * caller, and it has already validated both fields (capacity > 0, a resolvable
+	 * UnobservedErrorsAction) before ever reaching this constructor. Re-checking here
+	 * would be defensive programming duplicating what was already a real, reported
+	 * validation failure one call up - see of(...)'s own comment.
+	 */
+	private DefaultLogAlerts(int capacity, UnobservedErrorsAction unobservedErrorsAction) {
+		this.ring = new LogEvent[capacity];
+		this.unobservedErrorsAction = unobservedErrorsAction;
+	}
+
+	/*
+	 * Package-friend static factory: resolves and validates both
+	 * LogProperties#ALERTS_CAPACITY_PROPERTY and
+	 * LogProperties#ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY against one shared Validator
+	 * - a mistake in both at once is reported together instead of only the first one
+	 * found - then constructs. requirePositiveCapacity is a plain int -> int validating
+	 * transform (not an object construction) specifically so it can sit inside map(...)
+	 * without tripping CheckerFramework's Initialization Checker, which does not refine a
+	 * `new Foo(...)` expression back to @Initialized when it appears directly inside a
+	 * lambda body passed through a generic method like map(...) - the one and only `new
+	 * DefaultLogAlerts(...)` call stays a plain, unconditional statement here instead.
+	 */
+	static LogAlerts of(LogProperties properties) {
+		var validator = LogProperty.Validator.of(LogAlerts.class);
+		var unobservedErrorsActionResult = properties.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
+			.ofString()
+			.map(UnobservedErrorsAction::parse)
+			.or(UnobservedErrorsAction.DUMP)
+			.validateIfError(validator);
+		var capacityResult = properties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
+			.ofInt()
+			.or(LogAlerts.DEFAULT_CAPACITY)
+			.map(DefaultLogAlerts::requirePositiveCapacity)
+			.validateIfError(validator);
+		validator.validate();
+		return new DefaultLogAlerts(capacityResult.value(), unobservedErrorsActionResult.value());
+	}
+
+	private static int requirePositiveCapacity(int capacity) {
 		if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity should be greater than 0");
 		}
-		this.ring = new LogEvent[capacity];
-		this.unobservedErrorsAction = unobservedErrorsAction;
+		return capacity;
 	}
 
 	@Override

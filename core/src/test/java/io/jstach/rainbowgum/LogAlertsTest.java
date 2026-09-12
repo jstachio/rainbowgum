@@ -74,7 +74,8 @@ class LogAlertsTest {
 
 	@Test
 	void ringBufferEvictsOldestFirstOnceAtCapacity() {
-		var alerts = new DefaultLogAlerts(2, LogAlerts.UnobservedErrorsAction.DUMP);
+		var props = LogProperties.builder().fromProperties("logging.alerts.capacity=2").build();
+		var alerts = DefaultLogAlerts.of(props);
 
 		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
 		alerts.error(LogAlertsTest.class, "second", new RuntimeException());
@@ -101,12 +102,6 @@ class LogAlertsTest {
 		var stats = alerts.stats();
 		assertEquals(2, stats.total());
 		assertEquals(0, stats.size());
-	}
-
-	@Test
-	void constructorRejectsNonPositiveCapacity() {
-		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
-				() -> new DefaultLogAlerts(0, LogAlerts.UnobservedErrorsAction.DUMP));
 	}
 
 	@Test

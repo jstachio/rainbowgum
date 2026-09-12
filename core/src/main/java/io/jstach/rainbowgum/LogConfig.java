@@ -366,34 +366,13 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 * buildGlobalResolver below can hand LogAlerts to the global level resolver's
 			 * alerting wrapper - the global resolver is built before a full LogConfig
 			 * exists to pull config.alerts() from, so alerts (and metrics, via alerts'
-			 * own listener wiring) are constructed directly here instead. Both properties
-			 * come from logProperties as already resolved above - before any configurator
-			 * runs, the same as everything else built directly in this method - and share
-			 * one Validator so a mistake in both at once is reported together instead of
-			 * only the first one found.
+			 * own listener wiring) are constructed directly here instead. Capacity and
+			 * logging.alerts.unobservedErrorsAction both come from logProperties as
+			 * already resolved above - before any configurator runs, the same as
+			 * everything else built directly in this method - see
+			 * DefaultLogAlerts.of(...) for how the two are validated together.
 			 */
-			var alertsValidator = LogProperty.Validator.of(LogAlerts.class);
-			var unobservedErrorsActionResult = logProperties
-				.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
-				.ofString()
-				.map(LogAlerts.UnobservedErrorsAction::parse)
-				.or(LogAlerts.UnobservedErrorsAction.DUMP)
-				.validateIfError(alertsValidator);
-			/*
-			 * Only used if unobservedErrorsActionResult is actually an Error - discarded
-			 * either way once alertsValidator.validate() below throws for it, so which
-			 * placeholder is used here does not matter; DUMP is picked only to have a
-			 * valid enum constant to construct with.
-			 */
-			LogAlerts.UnobservedErrorsAction unobservedErrorsActionOrPlaceholder = unobservedErrorsActionResult instanceof LogProperty.Result.Success<LogAlerts.UnobservedErrorsAction> s
-					? s.value() : LogAlerts.UnobservedErrorsAction.DUMP;
-			var alertsResult = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
-				.ofInt()
-				.or(LogAlerts.DEFAULT_CAPACITY)
-				.map(capacity -> newDefaultLogAlerts(capacity, unobservedErrorsActionOrPlaceholder))
-				.validateIfError(alertsValidator);
-			alertsValidator.validate();
-			LogAlerts alerts = alertsResult.value();
+			LogAlerts alerts = DefaultLogAlerts.of(logProperties);
 			LogMetrics metrics = new DefaultLogMetrics();
 			var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics);
@@ -424,18 +403,6 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 */
 			alerts.start(config);
 			return config;
-		}
-
-		/*
-		 * A named method rather than `capacity -> new DefaultLogAlerts(...)` inline in
-		 * the map(...) call above - CheckerFramework's Initialization Checker does not
-		 * refine a `new` expression's type back to @Initialized when it appears directly
-		 * inside a lambda body passed through a generic method like map(...); wrapping it
-		 * in an ordinary method (whose own declared return type is checked independently)
-		 * sidesteps that.
-		 */
-		private static LogAlerts newDefaultLogAlerts(int capacity, LogAlerts.UnobservedErrorsAction action) {
-			return new DefaultLogAlerts(capacity, action);
 		}
 
 		LevelConfig buildGlobalResolver(LogProperties logProperties, LogAlerts alerts) {
