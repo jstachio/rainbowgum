@@ -27,16 +27,12 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	/**
 	 * Whether MDC is available at all - {@code ENABLED} (the default) is today's existing
 	 * {@link ArrayMDCAdapter} behavior; {@code DISABLED} swaps in a
-	 * {@link RainbowGumMDCAdapter#RainbowGumMDCAdapter(boolean) disabled} instance
-	 * instead, whose every method is a no-op/empty-returning stub that never touches
-	 * either of {@link ArrayMDCAdapter}'s {@link ThreadLocal} fields - for deployments
-	 * that want a hard guarantee of no {@link ThreadLocal} anywhere in the logging path
-	 * and are fine losing MDC entirely to get it.
+	 * {@link NoopMDCAdapter} instead, whose every method is a no-op/empty-returning stub
+	 * that never touches either of {@link ArrayMDCAdapter}'s {@link ThreadLocal} fields -
+	 * for deployments that want a hard guarantee of no {@link ThreadLocal} anywhere in
+	 * the logging path and are fine losing MDC entirely to get it.
 	 *
-	 * @apiNote whether a disabled MDC should alert/warn on use (someone called
-	 * {@code MDC.put(...)} expecting it to work) instead of silently doing nothing is
-	 * still an open question - not implemented either way yet, silently doing nothing is
-	 * simplest starting point.
+	 * @see NoopMDCAdapter
 	 */
 	enum MDCSetting {
 
@@ -46,9 +42,8 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 		 */
 		ENABLED,
 		/**
-		 * MDC is completely turned off - every {@link MDCAdapter} method becomes a
-		 * no-op/empty-returning stub, and neither of {@link ArrayMDCAdapter}'s
-		 * {@link ThreadLocal} fields is ever touched.
+		 * MDC is completely turned off - {@link NoopMDCAdapter} is used instead of
+		 * {@link ArrayMDCAdapter}.
 		 */
 		DISABLED;
 
@@ -142,7 +137,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 			.or(MDCSetting.ENABLED)
 			.value();
 		if (setting == MDCSetting.DISABLED) {
-			mdcAdapter = new RainbowGumMDCAdapter(true);
+			mdcAdapter = new NoopMDCAdapter();
 		}
 		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdcAdapter);
 	}
