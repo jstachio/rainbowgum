@@ -565,6 +565,7 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder, AppenderType type,
 			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
 		type = AbstractLogAppender.guardSynchronizedAppenderType(type);
+		type = AbstractLogAppender.guardThreadLocalAppenderType(type);
 		return switch (type) {
 			case REUSE_BUFFER ->
 				new ReuseBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
@@ -611,6 +612,43 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 			return type;
 		}
 		return LogAppender.AppenderType.LOCK_THREAD_LOCAL_BUFFER;
+	}
+
+	/*
+	 * Set once from LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY during LogConfig
+	 * construction (see DefaultLogConfig) - a global, process-wide guarantee that no
+	 * appender will ever use ThreadLocal, for deployments that want that guaranteed even
+	 * when something explicitly requests LOCK_THREAD_LOCAL_BUFFER (the default) or
+	 * SYNCHRONIZED_THREAD_LOCAL_BUFFER. Global (not per-route/per-appender) by design,
+	 * matching the property's own scope - rainbowgum-slf4j's MDC support independently
+	 * reads the same property key to decide whether to disable itself too, see
+	 * LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY's javadoc.
+	 */
+	static volatile boolean forceNoThreadLocalAppenders = false;
+
+	/**
+	 * Downgrades either {@link ThreadLocal}-backed type (
+	 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER} or
+	 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER}) to
+	 * {@link LogAppender.AppenderType#LOCK_NEW_BUFFER} if
+	 * {@link #forceNoThreadLocalAppenders} is active - the enforcement point that makes
+	 * the global no-{@link ThreadLocal} guarantee a real guarantee rather than just a
+	 * changed default. An explicit {@link LogAppender.AppenderType#REUSE_BUFFER} request
+	 * is left as-is - it is already {@link ThreadLocal}-free, so there is nothing to
+	 * downgrade.
+	 * @param type type as given to an appender factory method.
+	 * @return {@code type} unchanged, unless the guarantee is active and a
+	 * {@link ThreadLocal}-backed type was requested, in which case
+	 * {@code LOCK_NEW_BUFFER} instead.
+	 */
+	static LogAppender.AppenderType guardThreadLocalAppenderType(LogAppender.AppenderType type) {
+		if (!forceNoThreadLocalAppenders) {
+			return type;
+		}
+		return switch (type) {
+			case LOCK_THREAD_LOCAL_BUFFER, SYNCHRONIZED_THREAD_LOCAL_BUFFER -> LogAppender.AppenderType.LOCK_NEW_BUFFER;
+			case REUSE_BUFFER, LOCK_NEW_BUFFER -> type;
+		};
 	}
 
 	/**

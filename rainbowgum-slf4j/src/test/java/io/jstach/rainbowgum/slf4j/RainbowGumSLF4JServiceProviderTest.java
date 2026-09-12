@@ -11,6 +11,7 @@ import org.slf4j.helpers.BasicMarkerFactory;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 
 /*
@@ -64,6 +65,31 @@ class RainbowGumSLF4JServiceProviderTest {
 		mdc.put("key", "value");
 		assertNull(mdc.get("key"));
 		assertNull(mdc.getCopyOfContextMap());
+	}
+
+	@Test
+	void testLoggingMdcTypeBadValueFailsLoudlyInsteadOfSilentlyResolvingToDefault() {
+		var props = LogProperties.builder().fromProperties("logging.mdc.type=BOGUS").build();
+		var config = LogConfig.builder().properties(props).build();
+		var provider = new RainbowGumSLF4JServiceProvider();
+		var e = assertThrows(LogProperty.PropertyConvertException.class,
+				() -> provider.initialize(RainbowGum.builder(config).build()));
+		assertEquals(
+				"""
+						Error for property. key: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider.MDCType.BOGUS
+						Tried: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type]""",
+				e.getMessage());
+	}
+
+	@Test
+	void testLoggingGlobalThreadlocalDisabledPropertyAlsoMakesPutAndGetNoops() {
+		var props = LogProperties.builder().fromProperties("logging.global.threadlocalDisabled=TRUE").build();
+		var config = LogConfig.builder().properties(props).build();
+		var provider = new RainbowGumSLF4JServiceProvider();
+		provider.initialize(RainbowGum.builder(config).build());
+		var mdc = provider.getMDCAdapter();
+		mdc.put("key", "value");
+		assertNull(mdc.get("key"));
 	}
 
 	/*

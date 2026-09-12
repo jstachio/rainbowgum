@@ -604,6 +604,7 @@ final class DefaultLogConfig implements LogConfig {
 		boolean changeable = properties.forKey(LogProperties.GLOBAL_CHANGE_PROPERTY).ofBoolean().or(false).value();
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		applyGlobalAppenderReentrantLockProperty(properties);
+		applyGlobalThreadLocalDisabledProperty(properties);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
@@ -624,6 +625,40 @@ final class DefaultLogConfig implements LogConfig {
 			.ofBoolean()
 			.or(false)
 			.value();
+	}
+
+	/*
+	 * An enum (TRUE/FALSE) rather than .ofBoolean() deliberately, unlike its sibling just
+	 * above - a typo'd value here (e.g. "yse") fails loudly through the existing
+	 * Property/Result machinery instead of silently resolving to "not disabled", which is
+	 * the wrong failure mode for a property whose whole point is a hard, otherwise
+	 * easy-to-silently-miss guarantee.
+	 */
+	private enum ThreadLocalDisabled {
+
+		TRUE, FALSE;
+
+		static ThreadLocalDisabled parse(String value) {
+			return ThreadLocalDisabled.valueOf(value.toUpperCase(Locale.ROOT));
+		}
+
+	}
+
+	/*
+	 * Same last-writer-wins/process-wide-guarantee tradeoff as
+	 * applyGlobalAppenderReentrantLockProperty just above - see that method's comment.
+	 * rainbowgum-slf4j independently reads this same property key at its own SLF4J
+	 * provider initialize() touchpoint to decide whether to disable MDC too - see
+	 * LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY's javadoc for why that is two
+	 * independent readers rather than one shared flag.
+	 */
+	private static void applyGlobalThreadLocalDisabledProperty(LogProperties properties) {
+		AbstractLogAppender.forceNoThreadLocalAppenders = properties
+			.forKey(LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY)
+			.ofString()
+			.map(ThreadLocalDisabled::parse)
+			.or(ThreadLocalDisabled.FALSE)
+			.value() == ThreadLocalDisabled.TRUE;
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {
