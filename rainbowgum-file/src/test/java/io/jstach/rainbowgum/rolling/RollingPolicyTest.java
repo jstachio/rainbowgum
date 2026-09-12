@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.rolling;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -128,6 +129,14 @@ class RollingPolicyTest {
 		assertTrue(Files.exists(dir.resolve("app.log.1")), "newest archive must survive the cap");
 		assertFalse(Files.exists(dir.resolve("app.log.2")), "older archives must be evicted once the cap is exceeded");
 		assertFalse(Files.exists(dir.resolve("app.log.3")));
+	}
+
+	@Test
+	void cleanHistoryOnNonExistentParentDirectoryDoesNothing() throws IOException {
+		var active = dir.resolve("does-not-exist-yet/app.log");
+		var pattern = ParsedPattern.parse(".%i");
+
+		assertDoesNotThrow(() -> RollingPolicy.cleanHistory(active, pattern, 1, 0));
 	}
 
 	@Test

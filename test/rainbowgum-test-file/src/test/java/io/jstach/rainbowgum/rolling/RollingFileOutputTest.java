@@ -14,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.TestLogEventFactory;
@@ -117,6 +118,126 @@ class RollingFileOutputTest {
 		assertTrue(Files.exists(dir.resolve("app.log.1")));
 		assertFalse(Files.exists(dir.resolve("app.log.2")));
 		assertFalse(Files.exists(dir.resolve("app.log.3")));
+	}
+
+	@Test
+	void prudentPropertyReachesInnerFileOutputAndRollsCorrectly() throws IOException {
+		// prudent is not a RollingFileOutputBuilder property; it only reaches the
+		// delegate FileOutput because both builders share the same
+		// logging.output.{name}. prefix and DefaultRollingFileOutput.write(ByteBuffer,
+		// ...) forwards straight through - this is the only way to reach that overload.
+		Path active = dir.resolve("app.log");
+		var props = LogProperties.builder().fromProperties("logging.output.file.prudent=true").build();
+		var config = LogConfig.builder().properties(props).build();
+		var provider = RollingFileOutput.of(b -> {
+			b.fileName(active.toString());
+			b.maxFileSize(10);
+			b.maxHistory(2);
+		});
+		var gum = RainbowGum.builder(config)
+			.route(r -> r.appender("file", a -> a.output(provider).formatter(FORMATTER)))
+			.build();
+
+		try (var rg = gum.start()) {
+			for (int i = 0; i < 10; i++) {
+				rg.log(TestLogEventFactory.of().event(lineFor(i)));
+			}
+			rg.config().outputRegistry().flush();
+		}
+
+		assertTrue(Files.exists(dir.resolve("app.log.1")), "prudent mode must still roll like normal mode");
+	}
+
+	@Test
+	void reopenDelegatesToUnderlyingFileOutputAfterExternalRotation() throws IOException {
+		Path active = dir.resolve("app.log");
+		var provider = RollingFileOutput.of(b -> {
+			b.fileName(active.toString());
+			b.maxFileSize(1000);
+		});
+		var config = LogConfig.builder().build();
+		var gum = RainbowGum.builder(config)
+			.route(r -> r.appender("file", a -> a.output(provider).formatter(FORMATTER)))
+			.build();
+
+		try (var rg = gum.start()) {
+			rg.log(TestLogEventFactory.of().event("first"));
+			rg.config().outputRegistry().flush();
+			Path movedAway = dir.resolve("app.log.moved");
+			Files.move(active, movedAway);
+
+			var response = rg.config().outputRegistry().reopen();
+			assertTrue(response.toString().contains("status=OK"), () -> "expected OK status, got: " + response);
+
+			rg.log(TestLogEventFactory.of().event("second"));
+			rg.config().outputRegistry().flush();
+			assertEquals("second\n", Files.readString(active));
+			assertEquals("first\n", Files.readString(movedAway));
+		}
+	}
+
+	@Test
+	void customFileNamePatternAndTotalSizeCapApplyEndToEnd() throws IOException {
+		// each "lineN\n" is exactly 6 bytes; maxFileSize=5 rolls after every single
+		// event, and totalSizeCap=10 (< 2 archives worth) keeps only the newest
+		// archive, evicting older ones - both set via the builder lambda, not
+		// properties, so this only exercises RollingFileOutputBuilder's generated
+		// totalSizeCap(...)/fileNamePattern(...) setters.
+		Path active = dir.resolve("app.log");
+		var provider = RollingFileOutput.of(b -> {
+			b.fileName(active.toString());
+			b.maxFileSize(5);
+			b.maxHistory(7);
+			b.totalSizeCap(10);
+			b.fileNamePattern("-%i.archive");
+		});
+		var config = LogConfig.builder().build();
+		var gum = RainbowGum.builder(config)
+			.route(r -> r.appender("file", a -> a.output(provider).formatter(FORMATTER)))
+			.build();
+
+		try (var rg = gum.start()) {
+			for (int i = 0; i < 4; i++) {
+				rg.log(TestLogEventFactory.of().event("line" + i));
+			}
+			rg.config().outputRegistry().flush();
+		}
+
+		assertEquals("line3\n", Files.readString(active));
+		assertEquals("line2\n", Files.readString(dir.resolve("app.log-1.archive")),
+				"custom pattern must be used for archive names");
+		assertFalse(Files.exists(dir.resolve("app.log.1")), "default pattern must not be used once overridden");
+		assertFalse(Files.exists(dir.resolve("app.log-2.archive")),
+				"totalSizeCap set via the builder lambda must evict the older archive");
+	}
+
+	@Test
+	void rollingUriSchemeWithoutQueryParamsUsesPlainConfigProperties() throws IOException {
+		Path active = dir.resolve("noquery.log");
+		var props = LogProperties.builder()
+			.fromProperties("logging.output.file.maxFileSize=1\nlogging.output.file.maxHistory=1")
+			.build();
+		var config = LogConfig.builder().serviceLoader().properties(props).build();
+		var uri = URI.create("rolling://" + active.toAbsolutePath());
+		var ref = LogProviderRef.of(uri);
+
+		var output = config.outputRegistry().provide(ref).provide("file", config);
+		output.start(config);
+		try {
+			var event = TestLogEventFactory.of().event("first");
+			output.write(event, "first\n");
+			output.flush();
+			// second write exceeds maxFileSize=1 (from plain config properties, no
+			// query string), must trigger a roll before writing.
+			output.write(event, "second\n");
+			output.flush();
+		}
+		finally {
+			output.close();
+		}
+
+		assertEquals("first\n", Files.readString(dir.resolve("noquery.log.1")));
+		assertEquals("second\n", Files.readString(active));
 	}
 
 	@Test

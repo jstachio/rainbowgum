@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -162,6 +163,47 @@ class FileOutputTest {
 			b.fromProperties(test.fileProperties());
 		});
 		return file;
+	}
+
+	@Test
+	void bareFileNameWithNoParentDirectoryIsCreatedInWorkingDirectory() throws IOException {
+		String fileName = "bareFileOutputTest.log";
+		try {
+			var config = LogConfig.builder().build();
+			var output = FileOutput.of(b -> b.fileName(fileName)).provide("file", config);
+			output.start(config);
+			var event = TestLogEventFactory.of().event("hello");
+			output.write(event, "hello\n");
+			output.flush();
+			output.close();
+			assertEquals("hello\n", Files.readString(Path.of(fileName)));
+		}
+		finally {
+			Files.deleteIfExists(Path.of(fileName));
+		}
+	}
+
+	@Test
+	void reopenableAndFileChannelOutputUriDelegateToUnderlyingFile() throws IOException {
+		String fileName = "./target/FileOutputTest/uri.log";
+		try {
+			var config = LogConfig.builder().build();
+			var expectedUri = new File(fileName).toURI();
+
+			var reopenable = FileOutput.of(b -> b.fileName(fileName)).provide("file", config);
+			assertEquals(expectedUri, reopenable.uri());
+			reopenable.close();
+
+			var channel = FileOutput.of(b -> {
+				b.fileName(fileName);
+				b.prudent(true);
+			}).provide("file", config);
+			assertEquals(expectedUri, channel.uri());
+			channel.close();
+		}
+		finally {
+			Files.deleteIfExists(Path.of(fileName));
+		}
 	}
 
 	@Test
