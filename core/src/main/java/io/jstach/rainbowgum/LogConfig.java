@@ -370,11 +370,11 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 * from logProperties as already resolved above - before any configurator
 			 * runs, the same as everything else built directly in this method.
 			 */
-			int alertsCapacity = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
+			LogAlerts alerts = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
 				.ofInt()
 				.or(LogAlerts.DEFAULT_CAPACITY)
+				.map(DefaultLogAlerts::new)
 				.validateNow(LogAlerts.class);
-			LogAlerts alerts = new DefaultLogAlerts(alertsCapacity);
 			LogMetrics metrics = new DefaultLogMetrics();
 			var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics);
