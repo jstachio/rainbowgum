@@ -27,6 +27,7 @@ TODO
 .interp
 tmp
 checkstyle
+benchmark/micro/results/
 #javadoc
 *.mv.db
 versions

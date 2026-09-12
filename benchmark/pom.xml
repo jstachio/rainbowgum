@@ -20,6 +20,7 @@
     <module>rainbowgum-benchmark-rainbowgum</module>
     <module>rainbowgum-benchmark-share</module>
     <module>rainbowgum-benchmark-log4j</module>
+    <module>micro</module>
   </modules>
   <dependencyManagement>
     <dependencies>
