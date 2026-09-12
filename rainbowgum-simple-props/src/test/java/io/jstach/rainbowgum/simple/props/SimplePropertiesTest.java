@@ -58,6 +58,17 @@ class SimplePropertiesTest {
 	}
 
 	@Test
+	void testResourceWithoutClasspathPrefixOrLeadingSlashStillResolves() {
+		// no "classpath:" scheme and no leading "/" - the branch every other test's
+		// "classpath:/..." resource skips (loadResource's startsWith("classpath:")
+		// check is false, and the leading-slash-stripping loop never runs since there
+		// is none to strip).
+		var props = SimpleProperties.builder().resource("no-prefix.properties").envLookup(k -> null).build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("INFO", composite.forKey("logging.level.root").ofString().value());
+	}
+
+	@Test
 	void testMissingResourceDoesNotThrowAndFallsThrough() {
 		var props = SimpleProperties.builder()
 			.resource("classpath:/does-not-exist.properties")
