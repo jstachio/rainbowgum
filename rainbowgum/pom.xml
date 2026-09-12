@@ -74,20 +74,5 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-test-file</artifactId>
-      <!--
-        Also runtime + optional=true, same reason as rainbowgum-file above, but for a
-        different symptom: RollingFileOutputTest lives in this module (not rainbowgum-file
-        itself, since real rolling/writing is slow), so without this, report-aggregate
-        never sees that module's jacoco.exec at all and RollingFileOutputBuilder/
-        RollingFileOutput/DefaultRollingFileOutput show 0 coverage even though they're
-        exercised end to end.
-      -->
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-      <optional>true</optional>
-    </dependency>
   </dependencies>
 </project>
