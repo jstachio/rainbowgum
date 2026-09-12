@@ -64,6 +64,22 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-test-jdk</artifactId>
+      <!--
+        Same symptom as rainbowgum-test-file: rainbowgum-jul, rainbowgum-systemlogger,
+        and rainbowgum-jdk's own systemlogger factory have no tests of their own -
+        JDKSetupTest (a single, thorough, end-to-end JUL/System.Logger test) lives here
+        instead, the same "kept in its own module because it needs both jdk and jul
+        together" reasoning as rainbowgum-file's rolling split. Without this dependency,
+        report-aggregate never sees that module's jacoco.exec, so every class in those
+        three modules showed 0% coverage despite being exercised thoroughly.
+      -->
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-json</artifactId>
       <scope>runtime</scope>
       <optional>true</optional>
