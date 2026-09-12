@@ -25,42 +25,44 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	private static final String REQUESTED_API_VERSION = "2.0";
 
 	/**
-	 * Whether MDC is available at all - {@code ENABLED} (the default) is today's existing
-	 * {@link ArrayMDCAdapter} behavior; {@code DISABLED} swaps in a
-	 * {@link NoopMDCAdapter} instead, whose every method is a no-op/empty-returning stub
-	 * that never touches either of {@link ArrayMDCAdapter}'s {@link ThreadLocal} fields -
-	 * for deployments that want a hard guarantee of no {@link ThreadLocal} anywhere in
-	 * the logging path and are fine losing MDC entirely to get it.
-	 *
-	 * @see NoopMDCAdapter
+	 * Which {@link RainbowGumMDCAdapter} implementation to use - {@code THREAD_LOCAL}
+	 * (the default) is today's existing {@link ArrayMDCAdapter} behavior; {@code NOOP}
+	 * swaps in a {@link NoopMDCAdapter} instead, whose every method is a
+	 * no-op/empty-returning stub that never touches either of {@link ArrayMDCAdapter}'s
+	 * {@link ThreadLocal} fields - for deployments that want a hard guarantee of no
+	 * {@link ThreadLocal} anywhere in the logging path and are fine losing MDC entirely
+	 * to get it. Kept as a type rather than an enabled/disabled toggle so a future third
+	 * implementation - e.g. one backed by {@code ScopedValue} instead of
+	 * {@link ThreadLocal}, once that's a viable MDC storage strategy - can be added
+	 * without a breaking property-format change.
 	 */
-	enum MDCSetting {
+	enum MDCType {
 
 		/**
 		 * MDC works normally - {@link ArrayMDCAdapter}'s existing
 		 * {@link ThreadLocal}-backed behavior, unchanged.
 		 */
-		ENABLED,
+		THREAD_LOCAL,
 		/**
 		 * MDC is completely turned off - {@link NoopMDCAdapter} is used instead of
 		 * {@link ArrayMDCAdapter}.
 		 */
-		DISABLED;
+		NOOP;
 
-		static MDCSetting parse(String value) {
-			return MDCSetting.valueOf(value.toUpperCase(Locale.ROOT));
+		static MDCType parse(String value) {
+			return MDCType.valueOf(value.toUpperCase(Locale.ROOT));
 		}
 
 	}
 
 	/**
-	 * {@code logging.mdc} - {@code ENABLED} (default) or {@code DISABLED}. Read once,
-	 * during {@link #initialize(RainbowGum)}, since
+	 * {@code logging.mdc.type} - {@code THREAD_LOCAL} (default) or {@code NOOP}. Read
+	 * once, during {@link #initialize(RainbowGum)}, since
 	 * {@link #RainbowGumSLF4JServiceProvider()} (called by
 	 * {@link java.util.ServiceLoader}) runs before any {@link RainbowGum} (and therefore
 	 * any properties) exist yet.
 	 */
-	static final String LOGGING_MDC_PROPERTY = "logging.mdc";
+	static final String LOGGING_MDC_TYPE_PROPERTY = "logging.mdc.type";
 
 	@Nullable
 	private ILoggerFactory loggerFactory;
@@ -68,11 +70,11 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	private final IMarkerFactory markerFactory;
 
 	/*
-	 * Not final: initialize(RainbowGum) may swap this from the default ENABLED instance
-	 * constructed below to a DISABLED one once logging.mdc can actually be read - see
-	 * that method. Any MDCAdapter method called between construction and initialize()
-	 * running (an SLF4J-bootstrap-ordering edge case, not expected in normal use) still
-	 * observes the default ENABLED/ThreadLocal-backed instance either way.
+	 * Not final: initialize(RainbowGum) may swap this from the default THREAD_LOCAL
+	 * instance constructed below to a NOOP one once logging.mdc.type can actually be read
+	 * - see that method. Any MDCAdapter method called between construction and
+	 * initialize() running (an SLF4J-bootstrap-ordering edge case, not expected in normal
+	 * use) still observes the default THREAD_LOCAL instance either way.
 	 */
 	private RainbowGumMDCAdapter mdcAdapter;
 
@@ -129,14 +131,14 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	 * @param rainbowGum which gum to use for logger factory.
 	 */
 	public void initialize(RainbowGum rainbowGum) {
-		var setting = rainbowGum.config()
+		var type = rainbowGum.config()
 			.properties()
-			.forKey(LOGGING_MDC_PROPERTY)
+			.forKey(LOGGING_MDC_TYPE_PROPERTY)
 			.ofString()
-			.map(MDCSetting::parse)
-			.or(MDCSetting.ENABLED)
+			.map(MDCType::parse)
+			.or(MDCType.THREAD_LOCAL)
 			.value();
-		if (setting == MDCSetting.DISABLED) {
+		if (type == MDCType.NOOP) {
 			mdcAdapter = new NoopMDCAdapter();
 		}
 		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdcAdapter);

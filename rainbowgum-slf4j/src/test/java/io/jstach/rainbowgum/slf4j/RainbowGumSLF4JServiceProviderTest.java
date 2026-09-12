@@ -46,7 +46,7 @@ class RainbowGumSLF4JServiceProviderTest {
 	}
 
 	@Test
-	void testLoggingMdcEnabledByDefaultStoresAndReturnsValue() {
+	void testLoggingMdcTypeThreadLocalByDefaultStoresAndReturnsValue() {
 		var provider = new RainbowGumSLF4JServiceProvider();
 		provider.initialize(RainbowGum.builder().build());
 		var mdc = provider.getMDCAdapter();
@@ -55,8 +55,8 @@ class RainbowGumSLF4JServiceProviderTest {
 	}
 
 	@Test
-	void testLoggingMdcDisabledPropertyMakesPutAndGetNoops() {
-		var props = LogProperties.builder().fromProperties("logging.mdc=DISABLED").build();
+	void testLoggingMdcTypeNoopPropertyMakesPutAndGetNoops() {
+		var props = LogProperties.builder().fromProperties("logging.mdc.type=NOOP").build();
 		var config = LogConfig.builder().properties(props).build();
 		var provider = new RainbowGumSLF4JServiceProvider();
 		provider.initialize(RainbowGum.builder(config).build());
