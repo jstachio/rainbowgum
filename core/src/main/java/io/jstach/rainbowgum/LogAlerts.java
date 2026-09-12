@@ -27,9 +27,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@link LogAlerts} is itself a {@link LogLifecycle}: {@link #start(LogConfig)} is called
  * exactly once, after every
  * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator} has run, and is
- * where {@link UnobservedErrorsAction} is applied - see that enum for what "nobody is
- * listening yet" means and why it matters specifically at that moment rather than for the
- * life of the process.
+ * where {@link UnobservedErrorsAction} (already resolved at construction, same as
+ * capacity) gets applied against whatever has been recorded by then - see that enum for
+ * what "nobody is listening yet" means and why it matters specifically at that moment
+ * rather than for the life of the process.
  *
  * @see LogConfig#alerts()
  */
@@ -204,11 +205,21 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	private final LogEventFactory eventFactory = LogEventFactory.of(DefaultLogAlerts.class.getName());
 
-	DefaultLogAlerts(int capacity) {
+	/*
+	 * Resolved once, at construction (same as capacity) rather than inside start(...):
+	 * unlike capacity this does not shape any constructor-time state, but LogProperties
+	 * is available just as early, and start(LogConfig) is really about announcing "I have
+	 * started" (config is there because a few edge cases needed it, not because this
+	 * needed to be a start-time lookup).
+	 */
+	private final UnobservedErrorsAction unobservedErrorsAction;
+
+	DefaultLogAlerts(int capacity, UnobservedErrorsAction unobservedErrorsAction) {
 		if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity should be greater than 0");
 		}
 		this.ring = new LogEvent[capacity];
+		this.unobservedErrorsAction = unobservedErrorsAction;
 	}
 
 	@Override
@@ -257,13 +268,7 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	@Override
 	public void start(LogConfig config) {
-		var action = config.properties()
-			.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
-			.ofString()
-			.map(UnobservedErrorsAction::parse)
-			.or(UnobservedErrorsAction.DUMP)
-			.value();
-		if (action == UnobservedErrorsAction.NONE || hasExternalListener || total.get() == 0) {
+		if (unobservedErrorsAction == UnobservedErrorsAction.NONE || hasExternalListener || total.get() == 0) {
 			return;
 		}
 		var backlog = dump();
@@ -274,7 +279,7 @@ final class DefaultLogAlerts implements LogAlerts {
 		for (var event : backlog) {
 			MetaLog.error(event);
 		}
-		if (action == UnobservedErrorsAction.FAIL) {
+		if (unobservedErrorsAction == UnobservedErrorsAction.FAIL) {
 			throw new IllegalStateException(
 					backlog.size() + " alert(s) were recorded before any LogAlerts.Listener was registered and "
 							+ LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY + "=FAIL - refusing to start.");

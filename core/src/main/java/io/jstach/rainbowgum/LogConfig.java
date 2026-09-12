@@ -366,15 +366,34 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 * buildGlobalResolver below can hand LogAlerts to the global level resolver's
 			 * alerting wrapper - the global resolver is built before a full LogConfig
 			 * exists to pull config.alerts() from, so alerts (and metrics, via alerts'
-			 * own listener wiring) are constructed directly here instead. Capacity comes
-			 * from logProperties as already resolved above - before any configurator
-			 * runs, the same as everything else built directly in this method.
+			 * own listener wiring) are constructed directly here instead. Both properties
+			 * come from logProperties as already resolved above - before any configurator
+			 * runs, the same as everything else built directly in this method - and share
+			 * one Validator so a mistake in both at once is reported together instead of
+			 * only the first one found.
 			 */
-			LogAlerts alerts = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
+			var alertsValidator = LogProperty.Validator.of(LogAlerts.class);
+			var unobservedErrorsActionResult = logProperties
+				.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
+				.ofString()
+				.map(LogAlerts.UnobservedErrorsAction::parse)
+				.or(LogAlerts.UnobservedErrorsAction.DUMP)
+				.validate(alertsValidator);
+			/*
+			 * Only used if unobservedErrorsActionResult is actually an Error - discarded
+			 * either way once alertsValidator.validate() below throws for it, so which
+			 * placeholder is used here does not matter; DUMP is picked only to have a
+			 * valid enum constant to construct with.
+			 */
+			LogAlerts.UnobservedErrorsAction unobservedErrorsActionOrPlaceholder = unobservedErrorsActionResult instanceof LogProperty.Result.Success<LogAlerts.UnobservedErrorsAction> s
+					? s.value() : LogAlerts.UnobservedErrorsAction.DUMP;
+			var alertsResult = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
 				.ofInt()
 				.or(LogAlerts.DEFAULT_CAPACITY)
-				.map(DefaultLogAlerts::new)
-				.validateNow(LogAlerts.class);
+				.map(capacity -> new DefaultLogAlerts(capacity, unobservedErrorsActionOrPlaceholder))
+				.validate(alertsValidator);
+			alertsValidator.validate();
+			LogAlerts alerts = alertsResult.value();
 			LogMetrics metrics = new DefaultLogMetrics();
 			var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics);
@@ -397,12 +416,11 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);
 			}
 			/*
-			 * Deliberately last: alerts.start(config) applies
-			 * LogAlerts.UnobservedErrorsAction against whatever configurators recorded
-			 * above, plus anything property loading itself already reported before this
-			 * method was even called - by construction nothing has had a chance to
-			 * register a LogAlerts.Listener yet, so this is the one moment "still nobody
-			 * is listening" actually means something.
+			 * Deliberately last: alerts already resolved LogAlerts.UnobservedErrorsAction
+			 * at construction above, but only now, once configurators have had their
+			 * chance to record alerts and/or register a real Listener, does "should I
+			 * report/refuse to start" actually mean anything - by construction nothing
+			 * has had a chance to register one before this point.
 			 */
 			alerts.start(config);
 			return config;

@@ -19,7 +19,6 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
 
-import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 /*
@@ -75,7 +74,7 @@ class LogAlertsTest {
 
 	@Test
 	void ringBufferEvictsOldestFirstOnceAtCapacity() {
-		var alerts = new DefaultLogAlerts(2);
+		var alerts = new DefaultLogAlerts(2, LogAlerts.UnobservedErrorsAction.DUMP);
 
 		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
 		alerts.error(LogAlertsTest.class, "second", new RuntimeException());
@@ -106,7 +105,8 @@ class LogAlertsTest {
 
 	@Test
 	void constructorRejectsNonPositiveCapacity() {
-		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> new DefaultLogAlerts(0));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+				() -> new DefaultLogAlerts(0, LogAlerts.UnobservedErrorsAction.DUMP));
 	}
 
 	@Test
@@ -211,14 +211,13 @@ class LogAlertsTest {
 
 	@Test
 	void unobservedErrorsActionBadValueFailsLoudlyInsteadOfSilentlyResolvingToDefault() {
+		// resolved (and validated) at construction time now, alongside capacity, so this
+		// fails before any configurator ever runs - no need for one in this test.
 		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=BOGUS").build();
-		var e = assertThrows(PropertyConvertException.class,
-				() -> LogConfig.builder().properties(props).configurator((c, pass) -> {
-					c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
-					return true;
-				}).build());
+		var e = assertThrows(ValidationException.class, () -> LogConfig.builder().properties(props).build());
 		assertEquals(
 				"""
+						Validation failed for io.jstach.rainbowgum.LogAlerts:
 						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction.BOGUS
 						Tried: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction]""",
 				e.getMessage());
