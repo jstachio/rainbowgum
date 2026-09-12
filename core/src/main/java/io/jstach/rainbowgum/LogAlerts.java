@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,15 +23,22 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@linkplain LogProvider provided} config, or that are
  * {@linkplain LogLifecycle#start( LogConfig) started} with config, should prefer
  * capturing {@code config.alerts()} over reaching for global state.
+ * <p>
+ * {@link LogAlerts} is itself a {@link LogLifecycle}: {@link #start(LogConfig)} is called
+ * exactly once, after every
+ * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator} has run, and is
+ * where {@link UnobservedErrorsAction} is applied - see that enum for what "nobody is
+ * listening yet" means and why it matters specifically at that moment rather than for the
+ * life of the process.
  *
  * @see LogConfig#alerts()
  */
-public sealed interface LogAlerts permits DefaultLogAlerts {
+public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts {
 
 	/**
 	 * Default capacity of the alert ring buffer.
 	 */
-	static final int DEFAULT_CAPACITY = 100;
+	static final int DEFAULT_CAPACITY = 128;
 
 	/**
 	 * Records an alert.
@@ -127,6 +135,48 @@ public sealed interface LogAlerts permits DefaultLogAlerts {
 	record Stats(long total, int size, int capacity) {
 	}
 
+	/**
+	 * What {@link #start(LogConfig)} does if, at that moment, at least one alert has been
+	 * recorded and still zero {@link Listener}s are registered - the situation Logback's
+	 * {@code StatusManager} calls an unobserved status: nothing is watching, so whatever
+	 * went wrong during property loading or a
+	 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator} would
+	 * otherwise only ever have reached the individual, easy to miss stderr lines each
+	 * {@link #error(LogEvent)} call already produces.
+	 * <p>
+	 * Deliberately keyed as
+	 * {@value LogProperties#ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY} (an enum, not a
+	 * boolean) since "fail" without "dump" first would throw away the only diagnostic
+	 * evidence of why it failed.
+	 */
+	enum UnobservedErrorsAction {
+
+		/**
+		 * Do nothing beyond what {@link #error(LogEvent)} already does per event.
+		 */
+		NONE,
+		/**
+		 * Default. Report the whole backlog to {@code MetaLog} as one clearly labeled
+		 * block, the same way Logback auto-installs a console listener and prints its
+		 * accumulated status if nothing else is watching by the end of configuration -
+		 * RainbowGum still starts.
+		 */
+		DUMP,
+		/**
+		 * Same reporting as {@link #DUMP}, but then throws, so
+		 * {@link LogConfig.Builder#build()} (and therefore whatever is building a
+		 * {@link RainbowGum} from it) never completes. Goes further than Logback ever
+		 * does - an explicit, opt-in choice of integrity over resilience for deployments
+		 * where a silently-broken bootstrap is worse than refusing to start.
+		 */
+		FAIL;
+
+		static UnobservedErrorsAction parse(String value) {
+			return UnobservedErrorsAction.valueOf(value.toUpperCase(Locale.ROOT));
+		}
+
+	}
+
 }
 
 final class DefaultLogAlerts implements LogAlerts {
@@ -142,6 +192,15 @@ final class DefaultLogAlerts implements LogAlerts {
 	private final ReentrantLock lock = new ReentrantLock();
 
 	private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
+
+	/*
+	 * Kept apart from listeners.isEmpty() deliberately: DefaultLogConfig's own
+	 * metrics-bridge listener (see its constructor) is always registered before
+	 * start(...) ever runs, and a passive in-process counter nobody has wired an exporter
+	 * to is not "someone is watching" in the sense UnobservedErrorsAction cares about -
+	 * only a real addListener(Listener) call (this class's public API) flips this.
+	 */
+	private volatile boolean hasExternalListener = false;
 
 	private final LogEventFactory eventFactory = LogEventFactory.of(DefaultLogAlerts.class.getName());
 
@@ -184,7 +243,47 @@ final class DefaultLogAlerts implements LogAlerts {
 	@Override
 	public AutoCloseable addListener(Listener listener) {
 		listeners.add(listener);
+		hasExternalListener = true;
 		return () -> listeners.remove(listener);
+	}
+
+	/*
+	 * DefaultLogConfig's own metrics-bridge listener goes through this instead of
+	 * addListener(Listener) - see hasExternalListener's own comment for why.
+	 */
+	void addInternalListener(Listener listener) {
+		listeners.add(listener);
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		var action = config.properties()
+			.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
+			.ofString()
+			.map(UnobservedErrorsAction::parse)
+			.or(UnobservedErrorsAction.DUMP)
+			.value();
+		if (action == UnobservedErrorsAction.NONE || hasExternalListener || total.get() == 0) {
+			return;
+		}
+		var backlog = dump();
+		MetaLog.error(eventFactory.eventNoArg(Level.ERROR,
+				backlog.size() + " alert(s) were recorded before any LogAlerts.Listener was registered - "
+						+ "dumping the backlog now since nothing else will see it:",
+				null));
+		for (var event : backlog) {
+			MetaLog.error(event);
+		}
+		if (action == UnobservedErrorsAction.FAIL) {
+			throw new IllegalStateException(
+					backlog.size() + " alert(s) were recorded before any LogAlerts.Listener was registered and "
+							+ LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY + "=FAIL - refusing to start.");
+		}
+	}
+
+	@Override
+	public void close() {
+		listeners.clear();
 	}
 
 	@Override

@@ -1,6 +1,9 @@
 package io.jstach.rainbowgum;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -15,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+
+import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
 
 /*
  * Mutates the shared static MetaLog.output field - see MetaLogTest's identical note for
@@ -101,6 +106,107 @@ class LogAlertsTest {
 	@Test
 	void constructorRejectsNonPositiveCapacity() {
 		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> new DefaultLogAlerts(0));
+	}
+
+	@Test
+	void defaultCapacityIs128() {
+		assertEquals(128, LogAlerts.DEFAULT_CAPACITY);
+		assertEquals(128, alerts().stats().capacity());
+	}
+
+	@Test
+	void capacityIsReadFromLogPropertiesLoadedPriorInTheBuilder() {
+		var props = LogProperties.builder().fromProperties("logging.alerts.capacity=5").build();
+		var config = LogConfig.builder().properties(props).build();
+		assertEquals(5, config.alerts().stats().capacity());
+	}
+
+	@Test
+	void unobservedErrorsActionNoneDoesNotDumpOrFail() {
+		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=NONE").build();
+		var config = assertDoesNotThrow(() -> LogConfig.builder().properties(props).configurator((c, pass) -> {
+			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+			return true;
+		}).build());
+		assertEquals(1, config.alerts().dump().size());
+		String reported = outputStream.toString(StandardCharsets.UTF_8);
+		assertTrue(reported.contains("boom"), () -> "the per-event stderr echo still happens: " + reported);
+		assertFalse(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
+				() -> "NONE must not add the summary/backlog-replay lines: " + reported);
+	}
+
+	@Test
+	void unobservedErrorsActionDumpDefaultsToReportingBacklogButStillStarts() {
+		// no logging.alerts.unobservedErrorsAction property set - DUMP is the default.
+		var config = assertDoesNotThrow(() -> LogConfig.builder().configurator((c, pass) -> {
+			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+			return true;
+		}).build());
+		assertEquals(1, config.alerts().dump().size());
+		String reported = outputStream.toString(StandardCharsets.UTF_8);
+		assertTrue(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
+				() -> "expected the unobserved-backlog summary, got: " + reported);
+		// three separate FailsafeAppender.log(...) calls happened: the original
+		// per-event echo (from error() itself), the summary line, and the
+		// backlog-replay of that same event - each starts a fresh "RAINBOW_GUM" block.
+		assertEquals(3, reported.split("RAINBOW_GUM", -1).length - 1,
+				() -> "expected original + summary + replay, got: " + reported);
+	}
+
+	@Test
+	void unobservedErrorsActionFailThrowsAndConfigNeverCompletes() {
+		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=FAIL").build();
+		var e = assertThrows(IllegalStateException.class,
+				() -> LogConfig.builder().properties(props).configurator((c, pass) -> {
+					c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+					return true;
+				}).build());
+		assertEquals("1 alert(s) were recorded before any LogAlerts.Listener was registered and "
+				+ "logging.alerts.unobservedErrorsAction=FAIL - refusing to start.", e.getMessage());
+		String reported = outputStream.toString(StandardCharsets.UTF_8);
+		assertTrue(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
+				() -> "FAIL must still dump before throwing, got: " + reported);
+	}
+
+	@Test
+	void unobservedErrorsActionBadValueFailsLoudlyInsteadOfSilentlyResolvingToDefault() {
+		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=BOGUS").build();
+		var e = assertThrows(PropertyConvertException.class,
+				() -> LogConfig.builder().properties(props).configurator((c, pass) -> {
+					c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+					return true;
+				}).build());
+		assertEquals(
+				"""
+						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction.BOGUS
+						Tried: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction]""",
+				e.getMessage());
+	}
+
+	@Test
+	void aListenerRegisteredByAConfiguratorSuppressesTheUnobservedDump() {
+		var config = assertDoesNotThrow(() -> LogConfig.builder().configurator((c, pass) -> {
+			c.alerts().addListener(event -> {
+			});
+			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+			return true;
+		}).build());
+		assertEquals(1, config.alerts().dump().size());
+		String reported = outputStream.toString(StandardCharsets.UTF_8);
+		assertFalse(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
+				() -> "an already-registered listener must suppress the summary/backlog-replay lines: " + reported);
+	}
+
+	@Test
+	void closeClearsListeners() {
+		var alerts = alerts();
+		List<String> seen = new ArrayList<>();
+		alerts.addListener(e -> seen.add(e.message()));
+
+		alerts.close();
+		alerts.error(LogAlertsTest.class, "after close", new RuntimeException());
+
+		assertTrue(seen.isEmpty(), () -> "closed listeners must not be notified, saw: " + seen);
 	}
 
 	@Test

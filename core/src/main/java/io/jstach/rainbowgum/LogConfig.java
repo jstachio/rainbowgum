@@ -366,9 +366,15 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 * buildGlobalResolver below can hand LogAlerts to the global level resolver's
 			 * alerting wrapper - the global resolver is built before a full LogConfig
 			 * exists to pull config.alerts() from, so alerts (and metrics, via alerts'
-			 * own listener wiring) are constructed directly here instead.
+			 * own listener wiring) are constructed directly here instead. Capacity comes
+			 * from logProperties as already resolved above - before any configurator
+			 * runs, the same as everything else built directly in this method.
 			 */
-			LogAlerts alerts = new DefaultLogAlerts(LogAlerts.DEFAULT_CAPACITY);
+			int alertsCapacity = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
+				.ofInt()
+				.or(LogAlerts.DEFAULT_CAPACITY)
+				.value();
+			LogAlerts alerts = new DefaultLogAlerts(alertsCapacity);
 			LogMetrics metrics = new DefaultLogMetrics();
 			var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics);
@@ -390,6 +396,15 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				 */
 				RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);
 			}
+			/*
+			 * Deliberately last: alerts.start(config) applies
+			 * LogAlerts.UnobservedErrorsAction against whatever configurators recorded
+			 * above, plus anything property loading itself already reported before this
+			 * method was even called - by construction nothing has had a chance to
+			 * register a LogAlerts.Listener yet, so this is the one moment "still nobody
+			 * is listening" actually means something.
+			 */
+			alerts.start(config);
 			return config;
 		}
 
@@ -608,7 +623,14 @@ final class DefaultLogConfig implements LogConfig {
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
-		this.alerts.addListener(event -> this.metrics.errorCounter(event.loggerName(), 1));
+		/*
+		 * addInternalListener, not addListener: a passive in-process counter nobody has
+		 * wired an exporter to does not count as "someone is watching" for
+		 * LogAlerts.UnobservedErrorsAction's purposes - see DefaultLogAlerts's own
+		 * comment on hasExternalListener. alerts is always a DefaultLogAlerts; LogAlerts
+		 * is sealed to permit only that one implementation.
+		 */
+		((DefaultLogAlerts) this.alerts).addInternalListener(event -> this.metrics.errorCounter(event.loggerName(), 1));
 	}
 
 	/*

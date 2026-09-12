@@ -605,6 +605,7 @@ final class SimpleRainbowGum implements RainbowGum, Shutdownable {
 	@Override
 	public void shutdown() {
 		router().close();
+		config().alerts().close();
 		config().serviceRegistry().close();
 	}
 

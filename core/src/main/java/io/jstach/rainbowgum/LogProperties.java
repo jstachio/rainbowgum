@@ -252,6 +252,24 @@ public interface LogProperties {
 	static final String GLOBAL_THREADLOCAL_DISABLED_PROPERTY = ROOT_PREFIX + "global.threadlocalDisabled";
 
 	/**
+	 * Maximum number of alerts {@link LogAlerts} holds in its ring buffer. Read once,
+	 * from whatever {@link LogProperties} {@link LogConfig.Builder#build()} has already
+	 * resolved by the time it constructs {@link LogAlerts} - before any
+	 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator} runs.
+	 * @see LogAlerts#DEFAULT_CAPACITY
+	 */
+	static final String ALERTS_CAPACITY_PROPERTY = ROOT_PREFIX + "alerts.capacity";
+
+	/**
+	 * What {@link LogAlerts} does, once on {@link LogLifecycle#start(LogConfig) start},
+	 * if it has recorded at least one alert and still has zero
+	 * {@link LogAlerts.Listener}s registered - see
+	 * {@link LogAlerts.UnobservedErrorsAction} for the three choices and
+	 * {@link LogAlerts.UnobservedErrorsAction#DUMP} for the default.
+	 */
+	static final String ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY = ROOT_PREFIX + "alerts.unobservedErrorsAction";
+
+	/**
 	 * Logging change properties prefix.
 	 */
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
