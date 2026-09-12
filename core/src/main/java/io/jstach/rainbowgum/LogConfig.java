@@ -373,7 +373,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			int alertsCapacity = logProperties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
 				.ofInt()
 				.or(LogAlerts.DEFAULT_CAPACITY)
-				.value();
+				.validateNow(LogAlerts.class);
 			LogAlerts alerts = new DefaultLogAlerts(alertsCapacity);
 			LogMetrics metrics = new DefaultLogMetrics();
 			var levelResolver = this.buildGlobalResolver(logProperties, alerts);

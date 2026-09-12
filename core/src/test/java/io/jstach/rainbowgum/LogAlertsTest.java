@@ -20,6 +20,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 /*
  * Mutates the shared static MetaLog.output field - see MetaLogTest's identical note for
@@ -119,6 +120,18 @@ class LogAlertsTest {
 		var props = LogProperties.builder().fromProperties("logging.alerts.capacity=5").build();
 		var config = LogConfig.builder().properties(props).build();
 		assertEquals(5, config.alerts().stats().capacity());
+	}
+
+	@Test
+	void badCapacityValueFailsLoudlyInsteadOfSilentlyResolvingToDefault() {
+		var props = LogProperties.builder().fromProperties("logging.alerts.capacity=not-a-number").build();
+		var e = assertThrows(ValidationException.class, () -> LogConfig.builder().properties(props).build());
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogAlerts:
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.NumberFormatException For input string: "not-a-number"
+						Tried: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity]""",
+				e.getMessage());
 	}
 
 	@Test
