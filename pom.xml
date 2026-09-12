@@ -140,6 +140,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-signal</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-json</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1283,6 +1288,7 @@
     <module>rainbowgum</module>
     <module>rainbowgum-disruptor</module>
     <module>rainbowgum-jansi</module>
+    <module>rainbowgum-signal</module>
     <module>benchmark</module>
     <module>rainbowgum-avaje-config</module>
     <module>rainbowgum-simple-props</module>
