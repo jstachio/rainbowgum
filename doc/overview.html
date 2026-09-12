@@ -679,6 +679,12 @@ that might fan-out and other exotic strategies.
 
 Rainbow Gum has an experimental async publisher that uses the LMAX Disruptor ringbuffer: {@link io.jstach.rainbowgum.disruptor/ }.
 If the jar is found on start it will replace the default async publisher.
+<p>
+Since publishers are where Rainbow Gum's threading concerns live, this is worth mentioning here: setting
+{@value io.jstach.rainbowgum.LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} to <code>TRUE</code> is a
+process-wide guarantee of no {@link java.lang.ThreadLocal} anywhere in the logging path - it forces every
+appender off {@link java.lang.ThreadLocal}-backed buffer strategies and, if the SLF4J module is in use,
+disables MDC too - the same effect as combining the appender and MDC options above individually.
 
 <h2 id="appenders">Appenders</h2>
 
