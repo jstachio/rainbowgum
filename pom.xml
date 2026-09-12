@@ -980,14 +980,12 @@
       <!--
         This per-module profile only records each module's own coverage (prepare-agent
         + report). The actual aggregate report across every module is a separate
-        report-aggregate execution in the rainbowgum module's own pom - see the comment
-        there on why a module must be a compile/runtime/provided (never scope=test)
-        dependency of rainbowgum to show up in that aggregate, and optional=true for one
-        that isn't really needed at runtime by the umbrella bundle. Piggybacking the
-        aggregate root on rainbowgum (a real, published artifact) rather than a
-        dedicated dummy/aggregator-only module is a known wart, worth revisiting -
-        rainbowgum's own dependency list keeps growing for reasons that have nothing to
-        do with what it actually ships.
+        report-aggregate execution in rainbowgum-coverage-aggregate's own pom - a
+        dedicated, unpublished pom-packaging module that exists solely to hold that
+        dependency list, rather than piggybacking it on rainbowgum (a real, published
+        bundle) the way it used to. See that module's own comment on why each dependency
+        needs scope=runtime, optional=true (never scope=test) to actually show up in the
+        aggregate.
       -->
       <id>codecover</id>
       <activation>
@@ -1298,6 +1296,7 @@
     <module>rainbowgum-tomcat</module>
     <module>rainbowgum-file</module>
     <module>spring</module>
+    <module>rainbowgum-coverage-aggregate</module>
     <module>rainbowgum-maven-last</module>
   </modules>
 </project>
