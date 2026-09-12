@@ -74,6 +74,20 @@
       <scope>runtime</scope>
       <optional>true</optional>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-test-file</artifactId>
+      <!--
+        Different symptom than the others above: RollingFileOutputTest (real end-to-end
+        rolling/writing, slow) lives in this test-support module rather than
+        rainbowgum-file itself. Without this dependency, report-aggregate never sees that
+        module's jacoco.exec at all, so RollingFileOutputBuilder/RollingFileOutput/
+        DefaultRollingFileOutput showed 0% coverage despite being exercised end to end.
+      -->
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+      <optional>true</optional>
+    </dependency>
   </dependencies>
   <profiles>
     <profile>
