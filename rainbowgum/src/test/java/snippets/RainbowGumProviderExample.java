@@ -20,13 +20,13 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.forKey("logging.custom.async.bufferSize")
 			.ofInt()
 			.or(1024)
-			.value();
+			.validateNow(RainbowGumProviderExample.class);
 
 		LogProvider<LogOutput> output = (name, cfg) -> cfg.properties()
 			.forKey("logging.custom.output")
 			.ofProvider(LogOutput::of)
 			.or(LogOutput.ofStandardOut())
-			.value()
+			.validateNow(RainbowGumProviderExample.class)
 			.provide(name, cfg);
 
 		var gum = RainbowGum.builder() //

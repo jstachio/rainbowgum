@@ -15,8 +15,10 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * map()} (same as {@code FakeEncoderBuilder}'s {@code label}) but wired up differently so
  * each demonstrates a different way a direct (no builder) read can fail:
  * <ul>
- * <li>{@value #MODE_PROPERTY} - plain {@link LogProperty.Result#value()} after the
- * {@code map()} check, so a missing/bad value throws immediately and unwrapped - no
+ * <li>{@value #MODE_PROPERTY} - the raw, unwrapped
+ * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} result value (see
+ * this class's private {@code rawValue(Result)}) with no {@link LogProperty.Validator}
+ * involved at all, so a missing/bad value throws immediately and unwrapped - no
  * "Validation failed for ...:" collection in between.</li>
  * <li>{@value #MODE2_PROPERTY} - a hand-built
  * {@link LogProperty.Validator}/{@link LogProperty.Result#validate(LogProperty.Validator)
@@ -44,17 +46,34 @@ final class FakeGlobalConfigurator implements Configurator {
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		var properties = config.properties();
-		boolean disabled = properties.forKey(DISABLE_PROPERTY).ofBoolean().or(false).value();
+		boolean disabled = properties.forKey(DISABLE_PROPERTY)
+			.ofBoolean()
+			.or(false)
+			.validateNow(FakeGlobalConfigurator.class);
 		if (disabled) {
 			return true;
 		}
-		properties.forKey(MODE_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode).value();
+		rawValue(properties.forKey(MODE_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode));
 		var v = LogProperty.Validator.of(FakeGlobalConfigurator.class);
 		var mode2 = properties.forKey(MODE2_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode2).validate(v);
 		v.validate();
 		mode2.value();
-		properties.forKey(MODE3_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode3).value();
+		rawValue(properties.forKey(MODE3_PROPERTY).ofString().map(FakeGlobalConfigurator::checkMode3));
 		return true;
+	}
+
+	/*
+	 * MODE_PROPERTY/MODE3_PROPERTY's whole point (see class javadoc) is the raw,
+	 * unwrapped exception a Missing/Error's own value() throws - not the "Validation
+	 * failed for ...:" wrapping validateNow(Class) would add. LogProperty.Result no
+	 * longer exposes value() itself (a bare Result might still be Missing), so this just
+	 * narrows to LogProperty.ValidatedResult - true for every concrete Result, Missing
+	 * included - without going through a Validator at all.
+	 */
+	private static <T> T rawValue(LogProperty.Result<T> result) {
+		return switch (result) {
+			case LogProperty.ValidatedResult<T> vr -> vr.value();
+		};
 	}
 
 	private static String checkMode(String value) {

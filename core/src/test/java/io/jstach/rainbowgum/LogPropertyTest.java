@@ -108,7 +108,7 @@ class LogPropertyTest {
 		assertEquals("key", success.key());
 		assertEquals("Fallback[key]=5", success.describe());
 		Result<Integer> mapped = success.map(Integer::parseInt);
-		assertEquals(5, mapped.value());
+		assertEquals(5, mapped.validateNow(LogPropertyTest.class));
 
 		Result<Integer> errored = success.map(s -> {
 			throw new NumberFormatException("nope");
@@ -127,7 +127,7 @@ class LogPropertyTest {
 		assertEquals("logging.p1", success.key());
 		assertEquals("Property[logging.p1]=5", success.describe());
 		Result<Integer> mapped = success.map(Integer::parseInt);
-		assertEquals(5, mapped.value());
+		assertEquals(5, mapped.validateNow(LogPropertyTest.class));
 
 		Result<Integer> errored = success.map(s -> {
 			throw new NumberFormatException("nope");
@@ -146,8 +146,8 @@ class LogPropertyTest {
 	void testMissingOrWithFallbackSupplier() {
 		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"),
 				"Property missing. keys: [key]");
-		assertEquals("fallback", missing.or(() -> "fallback").value());
-		assertThrows(PropertyMissingException.class, () -> missing.or(() -> null).value());
+		assertEquals("fallback", missing.or(() -> "fallback").validateNow(LogPropertyTest.class));
+		assertThrows(PropertyMissingException.class, () -> ((Missing<String>) missing.or(() -> null)).value());
 	}
 
 	@Test
@@ -176,26 +176,26 @@ class LogPropertyTest {
 
 	@Test
 	void testResultValueOrNullWithFallback() {
-		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
+		var success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
 				LogProperties.StandardProperties.EMPTY, "key", "actual", PropertySuccess.Kind.VALUE, "actual");
 		assertEquals("actual", success.valueOrNull("fallback"));
-		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
+		var missing = new Missing<String>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		assertEquals("fallback", missing.valueOrNull("fallback"));
 	}
 
 	@Test
 	void testResultOrWithFallbackObject() {
-		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
-		assertEquals("fallback", missing.or("fallback").value());
-		assertThrows(PropertyMissingException.class, () -> missing.or((String) null).value());
+		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
+		assertEquals("fallback", missing.or("fallback").validateNow(LogPropertyTest.class));
+		assertThrows(PropertyMissingException.class, () -> ((Missing<String>) missing.or((String) null)).value());
 	}
 
 	@Test
 	void testResultOptional() {
-		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
+		var success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
 				LogProperties.StandardProperties.EMPTY, "key", "actual", PropertySuccess.Kind.VALUE, "actual");
 		assertEquals(Optional.of("actual"), success.optional());
-		Result<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
+		var missing = new Missing<String>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		assertEquals(Optional.empty(), missing.optional());
 	}
 

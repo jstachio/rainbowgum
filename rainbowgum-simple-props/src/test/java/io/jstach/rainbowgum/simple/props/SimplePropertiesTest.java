@@ -33,7 +33,8 @@ class SimplePropertiesTest {
 			.resource("classpath:/does-not-exist.properties")
 			.build();
 		var composite = LogProperties.of(props.properties());
-		assertEquals("DEBUG", composite.forKey("logging.level.root").ofString().value());
+		assertEquals("DEBUG",
+				composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
 	}
 
 	@Test
@@ -44,7 +45,8 @@ class SimplePropertiesTest {
 			.resource("classpath:/does-not-exist.properties")
 			.build();
 		var composite = LogProperties.of(props.properties());
-		assertEquals("TRACE", composite.forKey("logging.level.root").ofString().value());
+		assertEquals("TRACE",
+				composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
 	}
 
 	@Test
@@ -54,7 +56,7 @@ class SimplePropertiesTest {
 		// no env value for the key, so the file layer should win.
 		var props = SimpleProperties.builder().envLookup(k -> null).build();
 		var composite = LogProperties.of(props.properties());
-		assertEquals("WARN", composite.forKey("logging.level.root").ofString().value());
+		assertEquals("WARN", composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
 	}
 
 	@Test
@@ -65,7 +67,7 @@ class SimplePropertiesTest {
 		// is none to strip).
 		var props = SimpleProperties.builder().resource("no-prefix.properties").envLookup(k -> null).build();
 		var composite = LogProperties.of(props.properties());
-		assertEquals("INFO", composite.forKey("logging.level.root").ofString().value());
+		assertEquals("INFO", composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
 	}
 
 	@Test
@@ -84,7 +86,8 @@ class SimplePropertiesTest {
 		var composite = LogProperties.of(props.properties());
 		// file has WARN, env has DEBUG - env (order 300) beats the file layer (order
 		// 100).
-		assertEquals("DEBUG", composite.forKey("logging.level.root").ofString().value());
+		assertEquals("DEBUG",
+				composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
 	}
 
 	@Test
@@ -106,7 +109,7 @@ class SimplePropertiesTest {
 			.build();
 		var composite = LogProperties.of(props.properties());
 		var e = assertThrows(PropertyConvertException.class,
-				() -> composite.forKey("logging.threshold").ofInt().value());
+				() -> ((Result.Error<Integer>) composite.forKey("logging.threshold").ofInt()).value());
 		assertEquals(
 				"""
 						Error for property. key: 'logging.threshold' from ENV[RAINBOWGUM_threshold], java.lang.NumberFormatException For input string: "not-a-number"
@@ -119,7 +122,7 @@ class SimplePropertiesTest {
 		var props = SimpleProperties.builder().resource("classpath:/bad-int.properties").envLookup(k -> null).build();
 		var composite = LogProperties.of(props.properties());
 		var e = assertThrows(PropertyConvertException.class,
-				() -> composite.forKey("logging.threshold").ofInt().value());
+				() -> ((Result.Error<Integer>) composite.forKey("logging.threshold").ofInt()).value());
 		assertEquals(
 				"""
 						Error for property. key: 'logging.threshold' from SIMPLE_PROPS_FILE[classpath:/bad-int.properties][logging.threshold], java.lang.NumberFormatException For input string: "not-a-number"
@@ -134,7 +137,8 @@ class SimplePropertiesTest {
 			var props = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_level_root", "DEBUG")::get).build();
 			var composite = LogProperties.of(props.properties());
 			// sysprop (order 400) beats both env (DEBUG) and the file (WARN).
-			assertEquals("ERROR", composite.forKey("logging.level.root").ofString().value());
+			assertEquals("ERROR",
+					composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
 		}
 		finally {
 			System.clearProperty("logging.level.root");

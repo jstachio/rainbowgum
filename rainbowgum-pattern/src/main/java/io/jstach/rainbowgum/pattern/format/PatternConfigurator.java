@@ -63,7 +63,11 @@ public final class PatternConfigurator implements Configurator {
 		services.putIfAbsent(PatternCompiler.class, n, () -> PatternCompiler.of(b -> {
 		}).provide(n, config));
 		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider());
-		var disable = config.properties().forKey(LOGGING_PATTERN_DISABLE_PROPERTY).ofBoolean().or(false).value();
+		var disable = config.properties()
+			.forKey(LOGGING_PATTERN_DISABLE_PROPERTY)
+			.ofBoolean()
+			.or(false)
+			.validateNow(PatternConfigurator.class);
 		if (!disable) {
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, (name, c) -> {
 				PatternEncoderBuilder b = new PatternEncoderBuilder(name);

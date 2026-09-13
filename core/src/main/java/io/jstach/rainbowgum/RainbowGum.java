@@ -44,13 +44,13 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 			.forKey("logging.custom.async.bufferSize")
 			.ofInt()
 			.or(1024)
-			.value();
+			.validateNow(RainbowGumProviderExample.class);
 
 		LogProvider<LogOutput> output = (name, cfg) -> cfg.properties()
 			.forKey("logging.custom.output")
 			.ofProvider(LogOutput::of)
 			.or(LogOutput.ofStandardOut())
-			.value()
+			.validateNow(RainbowGumProviderExample.class)
 			.provide(name, cfg);
 
 		var gum = RainbowGum.builder() //
@@ -322,7 +322,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 					.forKey(LogProperties.ROUTES_PROPERTY)
 					.ofList()
 					.or(List.of())
-					.value();
+					.validateNow(Builder.class);
 				if (routeNames.isEmpty()) {
 					routes = List.of(Router.builder(Router.DEFAULT_ROUTER_NAME, config).build());
 				}

@@ -32,6 +32,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
 import io.jstach.rainbowgum.LogProperty.Result;
+import io.jstach.rainbowgum.LogProperty.Result.Missing;
 
 /*
  * RainbowGumHolder is static, JVM-wide state (see RainbowGumEntryPointTest's own comment
@@ -61,7 +62,7 @@ class LogPropertiesTest {
 		var properties = LogProperties.of(List.of(LogProperties.StandardProperties.SYSTEM_PROPERTIES,
 				LogProperties.StandardProperties.ENVIRONMENT_VARIABLES));
 		try {
-			properties.forKey("logging.some.ignoreMe").ofString().value();
+			((Missing<String>) properties.forKey("logging.some.ignoreMe").ofString()).value();
 			fail("expected exception");
 		}
 		catch (PropertyMissingException e) {
@@ -78,7 +79,7 @@ class LogPropertiesTest {
 			.removeKeyPrefix(LogProperties.ROOT_PREFIX)
 			.build();
 		try {
-			props.forKey("logging.some.ignoreMe").ofString().value();
+			((Missing<String>) props.forKey("logging.some.ignoreMe").ofString()).value();
 			fail("expected exception");
 		}
 		catch (PropertyMissingException e) {
@@ -94,7 +95,7 @@ class LogPropertiesTest {
 			.renameKey(k -> LogProperties.removeKeyPrefix(k, LogProperties.ROOT_PREFIX))
 			.fromURIQuery(URI.create("stuff:///?blah=hello"))
 			.build();
-		String actual = props.forKey("logging.blah").ofString().value();
+		String actual = props.forKey("logging.blah").ofString().validateNow(LogPropertiesTest.class);
 		assertEquals("hello", actual);
 
 	}
@@ -237,7 +238,7 @@ class LogPropertiesTest {
 			.build()
 			.put("greet", "hello");
 
-		String actual = props.forKey("logging.greet").ofString().value();
+		String actual = props.forKey("logging.greet").ofString().validateNow(LogPropertiesTest.class);
 		String expected = "hello";
 		assertEquals(expected, actual);
 	}
@@ -291,7 +292,9 @@ class LogPropertiesTest {
 		Map<String, String> actual = props.mapOrNull("a");
 		Map<String, String> expected = Map.of("a1", "v1", "a2", "v2");
 		assertEquals(expected, actual);
-		actual = props.forKey(LogProperties.concatKey(LogProperties.ROOT_PREFIX, "a")).ofMap().value();
+		actual = props.forKey(LogProperties.concatKey(LogProperties.ROOT_PREFIX, "a"))
+			.ofMap()
+			.validateNow(LogPropertiesTest.class);
 		assertEquals(expected, actual);
 	}
 

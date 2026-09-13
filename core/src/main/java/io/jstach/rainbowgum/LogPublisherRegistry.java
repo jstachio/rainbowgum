@@ -154,7 +154,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 			int _bufferSize = properties.forKey(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name)
 				.ofInt() //
 				.or(LogPublisherRegistry.ASYNC_BUFFER_SIZE)
-				.value();
+				.validateNow(DefaultPublisherProviders.class);
 			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize,
 					config.alerts());
 		}
