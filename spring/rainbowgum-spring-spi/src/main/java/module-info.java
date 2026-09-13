@@ -18,5 +18,5 @@ module io.jstach.rainbowgum.spring.boot.spi {
 	 * as it is an automatic module.
 	 */
 	requires spring.core;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 }

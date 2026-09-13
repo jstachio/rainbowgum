@@ -4,7 +4,7 @@
  */
 module io.jstach.rainbowgum.bundle {
 	requires io.jstach.rainbowgum;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	/*
 	 * The following static is to placate maven javadoc
 	 * issues with scope compile.

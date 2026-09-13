@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.file;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;

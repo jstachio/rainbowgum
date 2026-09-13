@@ -3,7 +3,7 @@ package io.jstach.rainbowgum;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A dynamic version of {@link LogEvent}'s static "<code>of</code>" factory methods - same

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.spi.LoggingEventBuilder;
 
@@ -26,8 +26,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	private final RainbowGumMDCAdapter mdc;
 
-	@Nullable
-	private List<@Nullable Object> args;
+	@Nullable private List<@Nullable Object> args;
 
 	private @Nullable MutableKeyValues mutableKeyValues;
 
@@ -37,8 +36,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	private @Nullable String message;
 
-	@Nullable
-	private Throwable throwable;
+	@Nullable private Throwable throwable;
 
 	private static final LogMessageFormatter messageFormatter = StandardMessageFormatter.SLF4J;
 

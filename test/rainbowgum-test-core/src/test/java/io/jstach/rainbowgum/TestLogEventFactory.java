@@ -3,7 +3,7 @@ package io.jstach.rainbowgum;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link LogEventFactory} for tests: fixes {@link #timestamp()}, {@link #threadName()}

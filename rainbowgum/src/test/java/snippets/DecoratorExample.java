@@ -2,7 +2,7 @@ package snippets;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;

@@ -231,7 +231,7 @@ class EcsEncoderTest {
 			}
 
 			@Override
-			@org.eclipse.jdt.annotation.Nullable
+			@org.jspecify.annotations.Nullable
 			Throwable throwable() {
 				return new RuntimeException("boom");
 			}
@@ -254,7 +254,7 @@ class EcsEncoderTest {
 			assertEquals(expected, actual);
 		}
 
-		@org.eclipse.jdt.annotation.Nullable
+		@org.jspecify.annotations.Nullable
 		Throwable throwable() {
 			return null;
 		}

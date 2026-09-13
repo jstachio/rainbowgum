@@ -11,7 +11,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.avaje.spi.Service;
 import io.jstach.rainbowgum.LogConfig;
@@ -283,8 +283,7 @@ public sealed interface RainbowGumServiceProvider {
 	 */
 	public static RainbowGum provide(ServiceLoader<RainbowGumServiceProvider> loader) {
 		var config = provideConfig(loader);
-		@Nullable
-		RainbowGum gum = findProviders(loader, RainbowGumProvider.class)
+		@Nullable RainbowGum gum = findProviders(loader, RainbowGumProvider.class)
 			.sorted(Comparator.comparingInt(RainbowGumProvider::priority).reversed())
 			.flatMap(s -> s.provide(config).stream())
 			.findFirst()
@@ -357,10 +356,8 @@ enum ServiceLoaderCache {
 	}
 
 	ServiceLoader<RainbowGumServiceProvider> findServiceLoader() {
-		@Nullable
-		ServiceLoader<RainbowGumServiceProvider> loader = null;
-		@Nullable
-		ClassLoader[] classLoaders = new @Nullable ClassLoader[] { Thread.currentThread().getContextClassLoader(),
+		@Nullable ServiceLoader<RainbowGumServiceProvider> loader = null;
+		@Nullable ClassLoader[] classLoaders = new @Nullable ClassLoader[] { Thread.currentThread().getContextClassLoader(),
 				ServiceLoaderCache.class.getClassLoader(), defaultClassLoader() };
 		lock.readLock().lock();
 		try {

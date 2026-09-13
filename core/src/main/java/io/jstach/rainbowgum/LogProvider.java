@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A factory that may need config to provide.

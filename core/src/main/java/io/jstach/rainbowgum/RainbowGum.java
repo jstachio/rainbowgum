@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Router;

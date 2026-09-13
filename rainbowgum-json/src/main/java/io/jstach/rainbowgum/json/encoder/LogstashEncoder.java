@@ -4,7 +4,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.function.Consumer;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;

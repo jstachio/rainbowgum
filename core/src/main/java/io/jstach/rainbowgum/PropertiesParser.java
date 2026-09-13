@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.function.BiConsumer;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Writes and parses properties.

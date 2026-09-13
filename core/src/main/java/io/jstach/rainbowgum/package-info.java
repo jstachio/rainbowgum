@@ -12,8 +12,5 @@
  * </ol>
  *
  */
-@org.eclipse.jdt.annotation.NonNullByDefault({ PARAMETER, RETURN_TYPE, FIELD, TYPE_BOUND, TYPE_ARGUMENT,
-		ARRAY_CONTENTS })
+@org.jspecify.annotations.NullMarked
 package io.jstach.rainbowgum;
-
-import static org.eclipse.jdt.annotation.DefaultLocation.*;

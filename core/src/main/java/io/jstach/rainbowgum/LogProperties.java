@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
@@ -1224,8 +1224,7 @@ public interface LogProperties {
 
 	private static <T> @Nullable T searchPath(String key, Function<String, @Nullable T> resolveFunc, String sep) {
 		String tempName = key;
-		@Nullable
-		T level = null;
+		@Nullable T level = null;
 		int indexOfLastDot = tempName.length();
 		while ((level == null) && (indexOfLastDot > -1)) {
 			tempName = tempName.substring(0, indexOfLastDot);

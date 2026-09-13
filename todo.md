@@ -127,11 +127,17 @@ shown real friction: its bundled stubs don't treat `Objects.requireNonNull`/
 `Objects.requireNonNullElse` the way you'd expect for narrowing a `@Nullable` value,
 which forced awkward workarounds in test code this cycle.
 
-- [ ] Mechanically replace `org.eclipse.jdt.annotation.Nullable` with
+- [x] Mechanically replace `org.eclipse.jdt.annotation.Nullable` with
       `org.jspecify.annotations.Nullable` throughout - the vendor-neutral standard, and
       what the wider ecosystem (Guava, Spring, etc.) is converging on. This is a big,
       mostly-mechanical multi-module migration, probably worth its own dedicated
-      branch rather than folding into other work.
+      branch rather than folding into other work. Done on `feature/jspecify-annotations`:
+      `Nullable`/`NonNull`/`NonNullByDefault({...})`/`DefaultLocation` all replaced with
+      their `org.jspecify.annotations` equivalents (`NonNullByDefault` becomes
+      `NullMarked`, which does not support the old per-location parameter list - the one
+      module that used an explicit list now gets the same everywhere-applies default as
+      every other module already had). The tool/enforcement-scope items below are
+      unchanged by this - still open, separate decisions.
 - [ ] Settle the enforcement tool as a separate decision from the annotation swap:
       CheckerFramework's Nullness Checker already understands JSpecify annotations, so
       keeping CheckerFramework is one option; switching to error-prone + NullAway (a

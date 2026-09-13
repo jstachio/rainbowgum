@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventHandler;
@@ -117,8 +117,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	private static class LogEventCell {
 
-		@Nullable
-		LogEvent event;
+		@Nullable LogEvent event;
 
 	}
 

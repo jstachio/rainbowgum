@@ -4,5 +4,5 @@
  * see {@link io.jstach.rainbowgum.simple.props.SimpleProperties} for priority and the
  * environment variable naming convention.
  */
-@org.eclipse.jdt.annotation.NonNullByDefault
+@org.jspecify.annotations.NullMarked
 package io.jstach.rainbowgum.simple.props;

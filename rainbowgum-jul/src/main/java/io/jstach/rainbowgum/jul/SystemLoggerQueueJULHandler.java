@@ -8,7 +8,7 @@ import java.util.logging.Handler;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
@@ -68,13 +68,11 @@ final class SystemLoggerQueueJULHandler extends Handler {
 		if (loggerName == null) {
 			return;
 		}
-		@Nullable
-		Throwable cause = rec.getThrown();
+		@Nullable Throwable cause = rec.getThrown();
 		var router = LogRouter.global();
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			@Nullable
-			String msg = getMessage(rec);
+			@Nullable String msg = getMessage(rec);
 			var args = rec.getParameters();
 
 			Instant timestamp = rec.getInstant();

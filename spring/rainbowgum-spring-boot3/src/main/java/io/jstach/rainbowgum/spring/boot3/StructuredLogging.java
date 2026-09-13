@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.spring.boot3;
 import java.util.Locale;
 import java.util.Map;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.env.Environment;
 
 import io.jstach.rainbowgum.LogConfig;

@@ -7,7 +7,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogAppender.AppenderType;
@@ -190,8 +190,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 		LogOutput output = outputProperty.override(appenderConfig.output());
 
-		@Nullable
-		LogEncoder encoder = appenderConfig.encoder();
+		@Nullable LogEncoder encoder = appenderConfig.encoder();
 
 		if (output instanceof LogEncoder e) {
 			encoder = e;
@@ -200,14 +199,12 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 		encoder = resolveEncoder(name, config, output, encoderProperty).override(encoder);
 
-		@Nullable
-		Set<LogAppender.AppenderFlag> flags = appenderConfig.flags();
+		@Nullable Set<LogAppender.AppenderFlag> flags = appenderConfig.flags();
 		if (flags == null) {
 			flags = resolveFlags(config, name);
 		}
 
-		@Nullable
-		AppenderType appenderType = appenderConfig.appenderType();
+		@Nullable AppenderType appenderType = appenderConfig.appenderType();
 		if (appenderType == null) {
 			appenderType = resolveAppenderType(config, name);
 		}

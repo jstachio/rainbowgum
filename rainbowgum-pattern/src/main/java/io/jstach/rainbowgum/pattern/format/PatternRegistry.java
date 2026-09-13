@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.annotation.CaseChanging;

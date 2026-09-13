@@ -39,6 +39,22 @@
       <artifactId>pistachio-prism-apt</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.eclipse.jdt</groupId>
+      <artifactId>org.eclipse.jdt.annotation</artifactId>
+      <version>2.4.100</version>
+      <optional>true</optional>
+      <scope>provided</scope>
+      <!--
+        Not used by any of this module's own source (that is org.jspecify.annotations,
+        same as everywhere else) - pistachio-prism-apt 0.1.2 hardcodes
+        org.eclipse.jdt.annotation.Nullable into the *Prism.java classes it generates
+        (LogConfigurablePrism, KeyParameterPrism, etc., under
+        target/generated-sources/annotations), so this module alone still needs it on
+        its compile classpath for those to resolve. Scoped here rather than in the root
+        pom precisely so it stays that narrow - no other module needs it.
+      -->
+    </dependency>
+    <dependency>
       <groupId>io.jstach.pistachio</groupId>
       <artifactId>pistachio-svc</artifactId>
     </dependency>

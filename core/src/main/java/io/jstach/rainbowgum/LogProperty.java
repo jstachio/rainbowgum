@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.annotation.CaseChanging;
 

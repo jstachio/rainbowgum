@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.slf4j;
 
 import java.util.Locale;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.IMarkerFactory;
 import org.slf4j.helpers.BasicMarkerFactory;
@@ -92,8 +92,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 
 	}
 
-	@Nullable
-	private ILoggerFactory loggerFactory;
+	@Nullable private ILoggerFactory loggerFactory;
 
 	private final IMarkerFactory markerFactory;
 

@@ -44,7 +44,7 @@ module io.jstach.rainbowgum.slf4j {
 	exports io.jstach.rainbowgum.slf4j;
 	exports io.jstach.rainbowgum.slf4j.spi;
 
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	requires static io.jstach.svc;
 	
 	requires transitive org.slf4j;

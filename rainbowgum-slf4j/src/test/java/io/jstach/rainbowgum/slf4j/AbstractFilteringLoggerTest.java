@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.Function;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.Marker;

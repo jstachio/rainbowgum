@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -193,8 +193,7 @@ class FileOutputPropertiesTest {
 				logging.file.name=file:///%s?bufferSize=blah
 				""") {
 			@Override
-			@Nullable
-			String exceptionMessage() {
+			@Nullable String exceptionMessage() {
 				String uri = Paths.get(FILE_PATH).toUri().toString();
 				String message = """
 						Failure providing Appenders for route: 'default'. cause:
@@ -223,8 +222,7 @@ class FileOutputPropertiesTest {
 				logging.output.file.uri=not a uri with spaces
 				""") {
 			@Override
-			@Nullable
-			String exceptionMessage() {
+			@Nullable String exceptionMessage() {
 				return """
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
@@ -239,8 +237,7 @@ class FileOutputPropertiesTest {
 				logging.file.name=:://
 				""") {
 			@Override
-			@Nullable
-			String exceptionMessage() {
+			@Nullable String exceptionMessage() {
 				String message = """
 						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.net.URISyntaxException Expected scheme name at index 0: :://
 						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""";
@@ -251,8 +248,7 @@ class FileOutputPropertiesTest {
 				logging.appenders=file
 				""") {
 			@Override
-			@Nullable
-			String exceptionMessage() {
+			@Nullable String exceptionMessage() {
 				return """
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
@@ -278,8 +274,7 @@ class FileOutputPropertiesTest {
 			return FILE_PATH;
 		}
 
-		@Nullable
-		String exceptionMessage() {
+		@Nullable String exceptionMessage() {
 			return null;
 		}
 

@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.tomcat;
 
 import java.lang.System.Logger.Level;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 // This was used just to generate TomcatLevelLog
@@ -20,7 +20,7 @@ class TomcatLevelLogGenTest {
 				import java.time.Instant;
 
 				import org.apache.juli.logging.Log;
-				import org.eclipse.jdt.annotation.Nullable;
+				import org.jspecify.annotations.Nullable;
 
 				import io.jstach.rainbowgum.KeyValues;
 				import io.jstach.rainbowgum.LogEvent;

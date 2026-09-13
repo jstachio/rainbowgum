@@ -48,8 +48,8 @@ import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.apt.BuilderModel.PropertyModel;
 import io.jstach.rainbowgum.apt.prism.ConvertParameterPrism;
@@ -105,8 +105,7 @@ public class ConfigProcessor extends AbstractProcessor {
 		return SourceVersion.latestSupported();
 	}
 
-	@Nullable
-	private BuilderModel model(Helper h, LogConfigurablePrism prism, ExecutableElement ee) {
+	@Nullable private BuilderModel model(Helper h, LogConfigurablePrism prism, ExecutableElement ee) {
 
 		TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
 		String builderName = prism.name();
@@ -161,8 +160,7 @@ public class ConfigProcessor extends AbstractProcessor {
 
 		List<Throwable> errors = new ArrayList<>();
 		errors.add(t);
-		@Nullable
-		Throwable e = t;
+		@Nullable Throwable e = t;
 		while (e != null) {
 			errors.add(e);
 			e = e.getCause();
@@ -233,8 +231,7 @@ public class ConfigProcessor extends AbstractProcessor {
 			kind = BuilderModel.PropertyKind.NAME_PARAMETER;
 			foundParams.put(name, p);
 		}
-		@Nullable
-		String javadoc = methodDoc.properties.get(name);
+		@Nullable String javadoc = methodDoc.properties.get(name);
 		if (javadoc == null) {
 			javadoc = "";
 		}
@@ -245,7 +242,7 @@ public class ConfigProcessor extends AbstractProcessor {
 		}
 		String fieldType = typeWithAnnotation;
 		if (defaultValue.equals("null")) {
-			fieldType = ToStringTypeVisitor.toCodeSafeString(p.asType(), "@org.eclipse.jdt.annotation.Nullable");
+			fieldType = ToStringTypeVisitor.toCodeSafeString(p.asType(), "@org.jspecify.annotations.Nullable");
 		}
 
 		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, typeWithNoAnnotation, fieldType,
@@ -381,8 +378,7 @@ public class ConfigProcessor extends AbstractProcessor {
 
 		public List<TypeElement> ancestors(@Nullable final TypeElement e) {
 			List<TypeElement> list = new ArrayList<>();
-			@Nullable
-			TypeElement c = e;
+			@Nullable TypeElement c = e;
 			while (c != null) {
 				list.add(c);
 				TypeMirror tm = c.getSuperclass();

@@ -21,7 +21,7 @@ module io.jstach.rainbowgum.jansi {
 	requires org.fusesource.jansi;
 	
 	requires static io.jstach.svc;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	
 	provides RainbowGumServiceProvider with io.jstach.rainbowgum.jansi.JAnsiConfigurator;
 }

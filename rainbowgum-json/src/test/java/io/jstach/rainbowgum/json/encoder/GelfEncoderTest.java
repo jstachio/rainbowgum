@@ -9,7 +9,7 @@ import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.List;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -473,8 +473,7 @@ class GelfEncoderTest {
 				""") {
 
 			@Override
-			@Nullable
-			Throwable throwable() {
+			@Nullable Throwable throwable() {
 				return new RuntimeException("expected");
 			}
 
@@ -521,8 +520,7 @@ class GelfEncoderTest {
 			return List.of(e);
 		}
 
-		@Nullable
-		Throwable throwable() {
+		@Nullable Throwable throwable() {
 			return null;
 		}
 

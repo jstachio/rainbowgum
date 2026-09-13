@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.slf4j;
 import java.lang.StackWalker.Option;
 import java.lang.System.Logger.Level;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.spi.LoggingEventBuilder;
 
 import io.jstach.rainbowgum.KeyValues;

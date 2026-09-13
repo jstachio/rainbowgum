@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.slf4j;
 
 import java.lang.System.Logger.Level;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;

@@ -1,6 +1,6 @@
 package io.jstach.rainbowgum.format;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Detects whether the current process is attached to an ANSI capable terminal so that

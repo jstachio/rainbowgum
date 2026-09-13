@@ -3,7 +3,7 @@ package io.jstach.rainbowgum;
 import java.io.UncheckedIOException;
 import java.net.URI;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.Appenders;
 

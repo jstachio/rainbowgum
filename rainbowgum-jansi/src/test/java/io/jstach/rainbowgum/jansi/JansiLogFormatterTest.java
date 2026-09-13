@@ -6,7 +6,7 @@ import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.List;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -26,11 +26,9 @@ class JansiLogFormatterTest {
 		String loggerName = "loggerName";
 		String message = "message";
 		KeyValues keyValues = KeyValues.MutableKeyValues.of().add("k1", "v1");
-		@Nullable
-		Throwable throwable = null;
+		@Nullable Throwable throwable = null;
 		LogMessageFormatter messageFormatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
-		@Nullable
-		List<@Nullable Object> args = List.of();
+		@Nullable List<@Nullable Object> args = List.of();
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, args);
 		var formatter = JansiLogFormatter.builder()

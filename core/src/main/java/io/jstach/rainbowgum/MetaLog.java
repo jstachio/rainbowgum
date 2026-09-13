@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Logging about logging. This is the static, always-available entry point used by code

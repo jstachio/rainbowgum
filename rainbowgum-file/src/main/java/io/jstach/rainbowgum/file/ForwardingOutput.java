@@ -3,8 +3,8 @@ package io.jstach.rainbowgum.file;
 import java.net.URI;
 import java.nio.ByteBuffer;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
@@ -16,8 +16,7 @@ import io.jstach.rainbowgum.LogResponse.Status;
 
 interface ForwardingOutput extends LogOutput {
 
-	@Nullable
-	LogOutput delegate();
+	@Nullable LogOutput delegate();
 
 	@Override
 	default void start(LogConfig config) {

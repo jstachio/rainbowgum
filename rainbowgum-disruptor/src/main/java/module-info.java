@@ -11,7 +11,7 @@ module io.jstach.rainbowgum.disruptor {
 	requires transitive io.jstach.rainbowgum;
 	requires static io.jstach.rainbowgum.annotation;
 	requires com.lmax.disruptor;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	requires static io.jstach.svc;
 	
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider 

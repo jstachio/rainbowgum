@@ -22,7 +22,7 @@ module io.jstach.rainbowgum.file {
 
 	requires static io.jstach.rainbowgum.annotation;
 	requires static io.jstach.svc;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 
 	provides RainbowGumServiceProvider with io.jstach.rainbowgum.rolling.RollingConfigurator;
 

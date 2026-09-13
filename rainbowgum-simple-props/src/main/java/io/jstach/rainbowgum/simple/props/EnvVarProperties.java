@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.simple.props;
 
 import java.util.function.Function;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
 

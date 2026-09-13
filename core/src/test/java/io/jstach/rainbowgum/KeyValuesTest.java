@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;

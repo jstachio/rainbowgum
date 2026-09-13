@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A pattern keyword instance is the content of percent encoded keywords in a pattern.
@@ -15,8 +15,7 @@ public interface PatternKeyword {
 	 * Padding information
 	 * @return padding info.
 	 */
-	@Nullable
-	Padding padding();
+	@Nullable Padding padding();
 
 	/**
 	 * Keyword used in pattern.

@@ -9,5 +9,5 @@
 module io.jstach.rainbowgum.systemlogger {
 	exports io.jstach.rainbowgum.systemlogger;
 	requires transitive io.jstach.rainbowgum;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 }

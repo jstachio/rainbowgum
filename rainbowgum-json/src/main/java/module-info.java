@@ -16,7 +16,7 @@ module io.jstach.rainbowgum.json {
 
 	requires static io.jstach.rainbowgum.annotation;
 	requires static io.jstach.svc;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
 		with io.jstach.rainbowgum.json.encoder.GelfEncoderConfigurator,

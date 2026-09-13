@@ -1,2 +1,2 @@
-@org.eclipse.jdt.annotation.NonNullByDefault
+@org.jspecify.annotations.NullMarked
 package io.jstach.rainbowgum.test.config;

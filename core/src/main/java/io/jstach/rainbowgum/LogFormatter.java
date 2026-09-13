@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
 import io.jstach.rainbowgum.annotation.CaseChanging;
@@ -1429,8 +1429,7 @@ final class SelectedEncodedKeyValuesFormatter implements LogFormatter {
 	void formatKeyValues(StringBuilder output, KeyValues keyValues) {
 		boolean first = true;
 		for (String k : keys) {
-			@Nullable
-			String v = keyValues.getValueOrNull(k);
+			@Nullable String v = keyValues.getValueOrNull(k);
 			if (v == null) {
 				switch (nullStrategy) {
 					case SKIP -> {

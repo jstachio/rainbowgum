@@ -4,7 +4,7 @@ import java.lang.System.Logger.Level;
 import java.time.Instant;
 
 import org.apache.juli.logging.Log;
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
@@ -23,8 +23,7 @@ interface TomcatLevelLog extends Log {
 	default void log(Level level, @Nullable Object obj, @Nullable Throwable t) {
 		// We do not need to check if the route is enabled.
 		// We are assuming level logging mode.
-		@Nullable
-		String formattedMessage = obj == null ? null : obj.toString();
+		@Nullable String formattedMessage = obj == null ? null : obj.toString();
 		var currentThread = Thread.currentThread();
 		LogEvent event = LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level,
 				loggerName(), formattedMessage, KeyValues.of(), t);

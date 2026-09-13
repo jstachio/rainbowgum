@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent.Caller;

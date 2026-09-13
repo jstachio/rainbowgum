@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogAppender.AppenderType;

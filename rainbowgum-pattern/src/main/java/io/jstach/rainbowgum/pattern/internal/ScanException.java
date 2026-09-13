@@ -1,6 +1,6 @@
 package io.jstach.rainbowgum.pattern.internal;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * @hidden
