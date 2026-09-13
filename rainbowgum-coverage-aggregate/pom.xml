@@ -34,6 +34,22 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-test-core</artifactId>
+      <!--
+        Same symptom as rainbowgum-test-file/rainbowgum-test-jdk below: LevelResolverTest,
+        LogMessageFormatterTest, ConfigFailureTest, and the QueueRouter*InvalidTest trio
+        used to live in core's own src/test until "Improve mvn -T speed by moving tests"
+        moved them out to this module (kept slow/JVM-poisoning tests out of core's own
+        fast default-test execution). Without this dependency, report-aggregate never
+        sees this module's jacoco.exec, so core showed less coverage than it actually
+        has despite these tests still running.
+      -->
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-pattern</artifactId>
       <scope>runtime</scope>
       <optional>true</optional>
