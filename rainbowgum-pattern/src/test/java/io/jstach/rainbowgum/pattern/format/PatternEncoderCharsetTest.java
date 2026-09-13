@@ -1,7 +1,9 @@
 package io.jstach.rainbowgum.pattern.format;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -21,6 +23,7 @@ import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
 
@@ -81,6 +84,29 @@ class PatternEncoderCharsetTest {
 	@Test
 	void convertCharsetOfNullIsNull() {
 		assertNull(PatternConfigurator.convertCharset(null));
+	}
+
+	/*
+	 * logging.encoder.{name}.charset had only happy-path coverage before this - nothing
+	 * exercised an unrecognized charset name, even though Charset.forName(...) (the
+	 *
+	 * @ConvertParameter backing this property) genuinely can and does throw - found by
+	 * grepping the property list ConfigProcessor#PROPERTY_LIST_OPTION generates against
+	 * the test tree.
+	 */
+	@Test
+	void badCharsetFailsLoudlyWithPropertyDescription() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.encoder.list.pattern=%msg\nlogging.encoder.list.charset=not-a-charset")
+			.build();
+		var b = new PatternEncoderBuilder("list");
+		var e = assertThrows(ValidationException.class, () -> b.fromProperties(properties));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
+						Error for property. key: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset
+						Tried: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset]""",
+				e.getMessage());
 	}
 
 	static class CapturingOutput implements LogOutput {
