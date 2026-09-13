@@ -1128,6 +1128,40 @@
       </build>
     </profile>
     <profile>
+      <!--
+        Not part of the normal build or bin/analyze.sh - a one-off audit tool. Run with
+        e.g. `./mvnw -q -Pproperty-list clean install -DskipTests` to make every module's
+        rainbowgum-apt run write out target/generated-sources/annotations/META-INF/rainbowgum/properties.txt,
+        listing that module's generated builders' property keys (see
+        ConfigProcessor#PROPERTY_LIST_OPTION), then grep those files against the test tree
+        to find properties with no golden-string coverage.
+      -->
+      <id>property-list</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <!--
+                Most modules in the reactor do not run ConfigProcessor at all (no
+                @LogConfigurable factory methods, or rainbowgum-apt is not even an
+                annotation processor dependency), so javac's "option not recognized by
+                any processor" warning fires there for the -A option below - unlike a
+                normal -Xlint category, that specific warning has no flag to suppress
+                it, so this profile turns off the reactor's usual failOnWarning instead
+                of trying to scope compilerArgs per-module for a one-off audit tool.
+              -->
+              <failOnWarning>false</failOnWarning>
+              <compilerArgs combine.children="append">
+                <arg>-Aio.jstach.rainbowgum.apt.propertyList=text</arg>
+              </compilerArgs>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
       <id>checkerframework</id>
       <properties>
         <checker.stubs>${parent.root}/etc/eea/checker</checker.stubs>
