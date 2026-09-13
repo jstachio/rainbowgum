@@ -71,6 +71,86 @@ class RainbowGumProviderExample implements RainbowGumProvider {
 
 }
 }
+ * <p>
+ * <strong>Initialization order</strong> - most of the actual work happens in
+ * {@link LogConfig.Builder#build()}, {@link LogRouter.Router.Builder}, and
+ * {@code LogAppenderRegistry}; this is the exact sequence for anyone debugging a
+ * configuration or writing a {@link RainbowGumServiceProvider.RainbowGumProvider}:
+ * <ol>
+ * <li>{@link LogConfig.Builder#build()} builds the shared {@link LogConfig}:
+ * <ol>
+ * <li>Resolve the {@link ServiceRegistry} (default: a new empty one) and
+ * {@link LogProperties} - manually added
+ * {@link RainbowGumServiceProvider.PropertiesProvider}s, else (if a
+ * {@link java.util.ServiceLoader} was supplied) SPI-discovered ones, with system
+ * properties always layered in as a final fallback.</li>
+ * <li>Build {@link LogAlerts} and {@link LogMetrics} from properties.</li>
+ * <li>Build the global level resolver ({@code logging.level.*} and
+ * {@code logging.group.*}, plus anything added directly on the builder).</li>
+ * <li>Construct the {@link LogConfig} itself - this is also where a few
+ * process-wide flags get latched (config change support, the appender lock, and
+ * thread-local-disabled globals) and the default output/encoder/publisher
+ * registries are created.</li>
+ * <li>Run every {@link RainbowGumServiceProvider.Configurator} (manually added,
+ * then SPI-discovered), highest {@linkplain RainbowGumServiceProvider.Configurator#priority()
+ * priority} first. A configurator returning {@code false} is retried in a later
+ * pass (see {@link RainbowGumServiceProvider#PASSES}) - useful if it depends on
+ * another configurator running first.</li>
+ * <li>Start {@link LogAlerts} - deliberately last, so a configurator's own alert
+ * listener is already registered before alerts decides whether an unobserved
+ * error should refuse startup.</li>
+ * </ol>
+ * </li>
+ * <li>{@link Builder#build()} builds each named {@link LogRouter.Router} (a single
+ * route named {@value LogProperties#DEFAULT_NAME}, unless {@code logging.routes}
+ * names several) via {@link LogRouter.Router.Builder}'s own (package-private)
+ * {@code build()}:
+ * <ol>
+ * <li>Resolve route flags ({@code logging.route.<name>.flags}).</li>
+ * <li>Build a route-scoped level resolver: anything configured directly on the
+ * route builder, layered over {@code logging.route.<name>.level.*}, falling back
+ * to the global level resolver from step 1 (skipped entirely if the route flag
+ * {@code IGNORE_GLOBAL_LEVEL_RESOLVER} is set) - and finally to {@code INFO} if
+ * nothing at all resolves a level.</li>
+ * <li>Resolve appenders - only if none were added programmatically on the route
+ * builder (that check is all-or-nothing: adding even one appender in code skips
+ * property-based resolution entirely). See <strong>Appender resolution</strong>
+ * below.</li>
+ * <li>Resolve the publisher - {@code logging.route.<name>.publisher}, falling
+ * back to a synchronous publisher if unset.</li>
+ * <li>Hand the resolved appenders to the publisher and register the publisher in
+ * the {@link ServiceRegistry}.</li>
+ * </ol>
+ * </li>
+ * <li>{@link #start()} starts the root router, which starts each route's
+ * publisher, which starts each of its appenders, which starts its output (e.g.
+ * opening a file).</li>
+ * </ol>
+ * <strong>Appender resolution</strong> - the part most often mistaken for a bug,
+ * since no appenders are ever added programmatically in the common case:
+ * <ol>
+ * <li>{@code logging.route.<name>.appenders} names the route's appenders; for the
+ * {@value LogProperties#DEFAULT_NAME} route only, a missing value falls back to
+ * the unprefixed {@code logging.appenders}.</li>
+ * <li>If that is <em>still</em> missing: for the default route only, the list
+ * defaults to {@code [file, console]} if {@code logging.file.name} (or Spring
+ * Boot's convention) is set, otherwise just {@code [console]}. A non-default
+ * route with no appenders configured anywhere is a startup failure, not a silent
+ * no-op.</li>
+ * <li>Each named appender then resolves independently. {@code file} and
+ * {@code console} are the two built-in special cases, each with its own output
+ * property/fallback ({@code logging.file.name} then
+ * {@code logging.appender.file.output} for {@code file};
+ * {@code logging.appender.console.output} falling back to standard-out for
+ * {@code console}). Any other name is fully generic:
+ * {@code logging.appender.<name>.output}/{@code .encoder}/{@code .flags}/
+ * {@code .type}, with the output's own URI scheme choosing which registered
+ * {@link LogOutput.OutputProvider} builds it.</li>
+ * <li>An encoder is only looked up if the resolved output does not already
+ * implement {@link LogEncoder} itself (rare, e.g. some structured outputs);
+ * otherwise it is used as-is and the {@code .encoder} property is never
+ * consulted.</li>
+ * </ol>
  */
 //@formatter:on
 @SuppressWarnings("InvalidInlineTag")
