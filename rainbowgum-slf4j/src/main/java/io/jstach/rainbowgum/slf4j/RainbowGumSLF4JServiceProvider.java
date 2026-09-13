@@ -9,6 +9,7 @@ import org.slf4j.helpers.BasicMarkerFactory;
 import org.slf4j.spi.MDCAdapter;
 import org.slf4j.spi.SLF4JServiceProvider;
 
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
 
@@ -159,16 +160,24 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	 */
 	public void initialize(RainbowGum rainbowGum) {
 		var properties = rainbowGum.config().properties();
-		var type = properties.forKey(LOGGING_MDC_TYPE_PROPERTY)
+		// shared validator: a mistake in both logging.mdc.type and
+		// logging.global.threadlocalDisabled at once is reported together instead of
+		// only the first one found - both already have .or(default) applied, so
+		// validateIfError (not validate) is correct: Missing can never occur.
+		var validator = LogProperty.Validator.of(RainbowGumSLF4JServiceProvider.class);
+		var typeResult = properties.forKey(LOGGING_MDC_TYPE_PROPERTY)
 			.ofString()
 			.map(MDCType::parse)
 			.or(MDCType.THREAD_LOCAL)
-			.value();
-		var globalDisabled = properties.forKey(GLOBAL_THREADLOCAL_DISABLED_PROPERTY)
+			.validateIfError(validator);
+		var globalDisabledResult = properties.forKey(GLOBAL_THREADLOCAL_DISABLED_PROPERTY)
 			.ofString()
 			.map(GlobalThreadLocalDisabled::parse)
 			.or(GlobalThreadLocalDisabled.FALSE)
-			.value() == GlobalThreadLocalDisabled.TRUE;
+			.validateIfError(validator);
+		validator.validate();
+		var type = typeResult.value();
+		var globalDisabled = globalDisabledResult.value() == GlobalThreadLocalDisabled.TRUE;
 		if (type == MDCType.NOOP || globalDisabled) {
 			mdcAdapter = new NoopMDCAdapter();
 		}

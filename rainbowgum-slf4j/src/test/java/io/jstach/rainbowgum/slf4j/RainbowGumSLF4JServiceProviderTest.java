@@ -72,10 +72,11 @@ class RainbowGumSLF4JServiceProviderTest {
 		var props = LogProperties.builder().fromProperties("logging.mdc.type=BOGUS").build();
 		var config = LogConfig.builder().properties(props).build();
 		var provider = new RainbowGumSLF4JServiceProvider();
-		var e = assertThrows(LogProperty.PropertyConvertException.class,
+		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> provider.initialize(RainbowGum.builder(config).build()));
 		assertEquals(
 				"""
+						Validation failed for io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider:
 						Error for property. key: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider.MDCType.BOGUS
 						Tried: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type]""",
 				e.getMessage());
