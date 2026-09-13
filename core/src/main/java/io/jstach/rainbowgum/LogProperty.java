@@ -18,9 +18,8 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
 /**
  * Describes a key (or several fallback keys) resolved against a {@link LogProperties}
  * instance - start with {@link LogProperties#forKey(String)} - and also serves as the
- * namespace for the shared property machinery: {@link Result} (and its
- * {@link PropertyValue} supertype), {@link Validator}, and the property-specific
- * exceptions.
+ * namespace for the shared property machinery: {@link Result}, {@link Validator}, and the
+ * property-specific exceptions.
  *
  * @see LogProperties
  */
@@ -564,20 +563,11 @@ public interface LogProperty {
 	}
 
 	/**
-	 * A supplier of a property result. Can be lazy but does not have to be. A non lazy
-	 * PropertyValue is {@link Result}.
+	 * The result of a property fetched from properties.
 	 *
 	 * @param <T> property type.
-	 * @see Result
 	 */
-	interface PropertyValue<T> extends Supplier<Result<T>> {
-
-		/**
-		 * Gets result.
-		 * @return result.
-		 */
-		@Override
-		public Result<T> get();
+	sealed interface Result<T> {
 
 		/**
 		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
@@ -586,62 +576,7 @@ public interface LogProperty {
 		 * @throws PropertyMissingException if there is no value.
 		 * @throws PropertyConvertException if the property failed conversion.
 		 */
-		default T value() throws PropertyMissingException, PropertyConvertException {
-			return get().value();
-		}
-
-		/**
-		 * Returns the current result if fallback is null or returns fallback as a result
-		 * if this result is missing.
-		 * @param fallback maybe <code>null</code>.
-		 * @return value.
-		 */
-		public PropertyValue<T> or(@Nullable T fallback);
-
-		/**
-		 * Returns the current result if success or error otherwise fallback supplier is
-		 * used. If the supplier returns <code>null</code> then the result will be mising.
-		 * @param fallback may return <code>null</code> but not recommended.
-		 * @return value.
-		 */
-		public PropertyValue<T> or(Supplier<T> fallback);
-
-		/**
-		 * Overrides the result with a value if it is not <code>null</code> regardless if
-		 * the original Result is an error or not. <strong>This overrides even an error
-		 * result from {@link #get()}!</strong> This is equivalent to
-		 * <code>replacement == null ? value.value() : replacement;</code>.
-		 * @param replacement value to use to override.
-		 * @return result with replacement if it is not null.
-		 */
-		default T override(@Nullable T replacement) {
-			if (replacement != null) {
-				return replacement;
-			}
-			return value();
-		}
-
-		/**
-		 * Map a result
-		 * @param <U> result type
-		 * @param mapper mapping function.
-		 * @return mapped result.
-		 */
-		public <U> PropertyValue<U> map(PropertyFunction<T, U, ? super Exception> mapper);
-
-	}
-
-	/**
-	 * The result of a property fetched from properties.
-	 *
-	 * @param <T> property type.
-	 */
-	sealed interface Result<T> extends PropertyValue<T> {
-
-		@Override
-		default Result<T> get() {
-			return this;
-		}
+		public T value() throws PropertyMissingException, PropertyConvertException;
 
 		/**
 		 * Gets the value.
@@ -661,16 +596,6 @@ public interface LogProperty {
 			}
 			return fallback;
 		}
-
-		/**
-		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
-		 * value.
-		 * @return value.
-		 * @throws PropertyMissingException if there is no value.
-		 * @throws PropertyConvertException if the property failed conversion.
-		 */
-		@Override
-		public T value() throws PropertyMissingException, PropertyConvertException;
 
 		/**
 		 * Registers this result with {@code validator} via {@link Validator#add(Result)}
@@ -742,7 +667,6 @@ public interface LogProperty {
 		 * @param fallback maybe <code>null</code>.
 		 * @return value.
 		 */
-		@Override
 		public Result<T> or(@Nullable T fallback);
 
 		/**
@@ -751,7 +675,6 @@ public interface LogProperty {
 		 * @param fallback may return <code>null</code> but not recommended.
 		 * @return value.
 		 */
-		@Override
 		public Result<T> or(Supplier<T> fallback);
 
 		/**
@@ -772,7 +695,6 @@ public interface LogProperty {
 		 * @param mapper mapping function.
 		 * @return mapped result.
 		 */
-		@Override
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
 
 		/**

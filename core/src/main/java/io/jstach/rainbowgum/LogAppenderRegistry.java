@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
@@ -188,7 +189,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			Result<LogOutput> outputProperty, //
 			Result<LogEncoder> encoderProperty) {
 
-		LogOutput output = outputProperty.override(appenderConfig.output());
+		LogOutput output = Objects.requireNonNullElseGet(appenderConfig.output(), outputProperty::value);
 
 		@Nullable LogEncoder encoder = appenderConfig.encoder();
 
@@ -197,7 +198,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		}
 		String name = appenderConfig.name();
 
-		encoder = resolveEncoder(name, config, output, encoderProperty).override(encoder);
+		var resolvedEncoder = resolveEncoder(name, config, output, encoderProperty);
+		encoder = Objects.requireNonNullElseGet(encoder, resolvedEncoder::value);
 
 		@Nullable Set<LogAppender.AppenderFlag> flags = appenderConfig.flags();
 		if (flags == null) {

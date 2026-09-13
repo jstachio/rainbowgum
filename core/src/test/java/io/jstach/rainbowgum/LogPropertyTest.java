@@ -201,13 +201,6 @@ class LogPropertyTest {
 	}
 
 	@Test
-	void testResultGetReturnsItself() {
-		Result<String> success = new PropertySuccess<>(LogProperties.StandardProperties.EMPTY,
-				LogProperties.StandardProperties.EMPTY, "key", "value", PropertySuccess.Kind.VALUE, "value");
-		assertSame(success, success.get());
-	}
-
-	@Test
 	void testEmptyStandardPropertiesHasNegativeOrder() {
 		assertEquals(-1, LogProperties.StandardProperties.EMPTY.order());
 	}
