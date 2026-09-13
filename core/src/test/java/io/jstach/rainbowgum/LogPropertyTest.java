@@ -18,7 +18,6 @@ import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
 import io.jstach.rainbowgum.LogProperty.Result;
 import io.jstach.rainbowgum.LogProperty.Result.Error;
 import io.jstach.rainbowgum.LogProperty.Result.Missing;
-import io.jstach.rainbowgum.LogProperty.Result.Success.PropertySuccess;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogProperty.Validator;
 

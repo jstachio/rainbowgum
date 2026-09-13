@@ -116,11 +116,10 @@ public interface LogProperty {
 
 	/**
 	 * Rewraps a value that was already derived from success's value, keeping the
-	 * {@link Result.Success.PropertySuccess}'s origin
-	 * (topProperties/properties/key/rawValue/kind) intact - useful for a conversion step
-	 * that cannot itself throw, so {@link Result#map(PropertyFunction)} would be
-	 * overkill, but that still needs to keep the result's origin intact for a later
-	 * conversion step's error message.
+	 * {@link PropertySuccess}'s origin (topProperties/properties/key/rawValue/kind)
+	 * intact - useful for a conversion step that cannot itself throw, so
+	 * {@link Result#map(PropertyFunction)} would be overkill, but that still needs to
+	 * keep the result's origin intact for a later conversion step's error message.
 	 * @param <T> success's value type.
 	 * @param <U> new value type.
 	 * @param success success to take the origin from.
@@ -129,17 +128,26 @@ public interface LogProperty {
 	 */
 	static <T, U> Result.Success<U> mapValue(Result.Success<T> success, U value) {
 		return switch (success) {
-			case Result.Success.PropertySuccess<T> ps -> new Result.Success.PropertySuccess<>(ps.topProperties(),
-					ps.properties(), ps.key(), ps.rawValue(), ps.kind(), value);
+			case PropertySuccess<T> ps ->
+				new PropertySuccess<>(ps.topProperties(), ps.properties(), ps.key(), ps.rawValue(), ps.kind(), value);
 		};
 	}
 
-	private static <U> Result.Error<U> richError(Result.Success<?> previousResult, Exception e) {
+	/**
+	 * Builds a rich error from a failed conversion of a previously successful result -
+	 * package-visible (rather than private) only so the top-level {@link PropertySuccess}
+	 * can call it from {@link Result#map(PropertyFunction)}.
+	 * @param <U> the converted value type.
+	 * @param previousResult the success being converted.
+	 * @param e the conversion failure.
+	 * @return a rich error result.
+	 */
+	static <U> Result.Error<U> richError(Result.Success<?> previousResult, Exception e) {
 		String fqk = previousResult.key();
-		Result.Success.PropertySuccess<?> ps = switch (previousResult) {
-			case Result.Success.PropertySuccess<?> p -> p;
+		PropertySuccess<?> ps = switch (previousResult) {
+			case PropertySuccess<?> p -> p;
 		};
-		if (ps.kind() == Result.Success.PropertySuccess.Kind.VALUE) {
+		if (ps.kind() == PropertySuccess.Kind.VALUE) {
 			String resolvedKey = ps.topProperties().description(fqk);
 			String message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
 			return new Result.Error<>(resolvedKey, message, e);
@@ -679,10 +687,10 @@ public interface LogProperty {
 
 		/**
 		 * Maps this result's value through {@code mapper}. On success, keeps the origin
-		 * ({@link Success.PropertySuccess#topProperties() topProperties}/properties/key/
-		 * rawValue/kind, see {@link Success.PropertySuccess}) so a later conversion
-		 * step's error message can still point back to it. On failure, builds a rich
-		 * error message - which key it came from, where that key was found, and (for
+		 * ({@link PropertySuccess#topProperties() topProperties}/properties/key/
+		 * rawValue/kind, see {@link PropertySuccess}) so a later conversion step's error
+		 * message can still point back to it. On failure, builds a rich error message -
+		 * which key it came from, where that key was found, and (for
 		 * {@link PropertyConvertException}/{@link ValidationException} causes) the
 		 * original raw value - with a "Tried:" line searching {@code topProperties}: the
 		 * {@link LogProperties} the very first {@link LogProperties#forKey(String)} in
@@ -716,7 +724,7 @@ public interface LogProperty {
 		 *
 		 * @param <T> property type.
 		 */
-		public sealed interface Success<T> extends RequiredResult<T> {
+		public sealed interface Success<T> extends RequiredResult<T> permits PropertySuccess {
 
 			@Override
 			default @Nullable T valueOrNull() {
@@ -747,131 +755,6 @@ public interface LogProperty {
 			 */
 			public String key();
 
-			/**
-			 * A property that is present, either because it was actually found in
-			 * properties, or (when {@code kind} is {@link Kind#VALUE}) because it was
-			 * missing there and a fallback value was supplied instead.
-			 *
-			 * @param <T> property type.
-			 * @param topProperties the {@link LogProperties} the very first
-			 * {@link LogProperties#forKey(String)} in this chain was looked up against -
-			 * for a chained/composite {@code LogProperties.of(a, b)} this is the whole
-			 * composite, not just whichever member the value ended up found in. Used for
-			 * a failure message's "Tried:" line, which can therefore search more broadly
-			 * than {@code properties}.
-			 * @param properties the properties searched; for {@link Kind#STRING}/
-			 * {@link Kind#LIST}/{@link Kind#MAP} the <strong>exact</strong> properties
-			 * where the value was found - for a chained/composite search this can be
-			 * narrower than {@code topProperties}, naming just the one member the value
-			 * was actually found in. Used for a failure message's "key: ... from X" line.
-			 * @param key property key.
-			 * @param rawValue value as originally found (or the fallback, for
-			 * {@link Kind#VALUE}), before any conversion - a {@link String}, {@link List
-			 * List&lt;String&gt;}, or {@link Map Map&lt;String,String&gt;} depending on
-			 * kind.
-			 * @param kind which of {@link LogProperty}'s {@code ofString()}/
-			 * {@code ofList()}/{@code ofMap()} this property was found through, and so
-			 * rawValue's runtime type - or {@link Kind#VALUE} if it was not found at all
-			 * and rawValue is a fallback.
-			 * @param value actual (possibly converted) value.
-			 * @apiNote rawValue/kind stick around after a conversion (e.g.
-			 * {@link LogProperty#ofInt()} converting the string this was found as into an
-			 * {@code Integer}) so error messages can still describe the original value -
-			 * value's type and rawValue's kind are not always in sync.
-			 */
-			public record PropertySuccess<T>(LogProperties topProperties, LogProperties properties, String key,
-					Object rawValue, Kind kind, T value) implements Success<T> {
-
-				/**
-				 * Which of {@link LogProperty}'s typed accessors a
-				 * {@link PropertySuccess} was found through, and so what
-				 * {@link PropertySuccess#rawValue()}'s runtime type actually is - or that
-				 * it was not found at all and is a plain fallback value.
-				 */
-				public enum Kind {
-
-					/**
-					 * rawValue is a {@link String}, found via
-					 * {@link LogProperty#ofString()}.
-					 */
-					STRING,
-					/**
-					 * rawValue is a {@link List List&lt;String&gt;}, found via
-					 * {@link LogProperty#ofList()}.
-					 */
-					LIST,
-					/**
-					 * rawValue is a {@link Map Map&lt;String,String&gt;}, found via
-					 * {@link LogProperty#ofMap()}.
-					 */
-					MAP,
-					/**
-					 * Not found in properties at all - rawValue is a plain fallback value
-					 * supplied via {@link Result#or}.
-					 */
-					VALUE
-
-				}
-
-				/**
-				 * Successfully found property value.
-				 * @param topProperties the properties the original lookup started from.
-				 * @param properties the properties searched.
-				 * @param key property key.
-				 * @param rawValue value as originally found (or the fallback), before any
-				 * conversion.
-				 * @param kind rawValue's kind.
-				 * @param value actual value should not be <code>null</code>.
-				 */
-				public PropertySuccess {
-					if (value == null) {
-						throw new NullPointerException("value");
-					}
-				}
-
-				@Override
-				public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper) {
-					try {
-						U u = mapper._apply(value);
-						return new PropertySuccess<>(topProperties, properties, key, rawValue, kind, u);
-					}
-					catch (Exception e) {
-						return richError(this, e);
-					}
-				}
-
-				@Override
-				public String describe() {
-					if (kind == Kind.VALUE) {
-						return "Fallback[" + key + "]=" + value;
-					}
-					return "Property[" + key + "]=" + valueDescription();
-				}
-
-				String valueDescription() {
-					String s = kind == Kind.STRING ? (String) rawValue : String.valueOf(rawValue);
-					return maybeRedact(s);
-				}
-
-				private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
-
-				private static final String REDACTED_VALUE = "<REDACTED>";
-
-				private static String maybeRedact(String input) {
-					String lower = input.toLowerCase(Locale.ROOT);
-					if (REDACTED_KEYS.contains(lower)) {
-						return REDACTED_VALUE;
-					}
-					for (var k : REDACTED_KEYS) {
-						if (input.contains(k)) {
-							return REDACTED_VALUE;
-						}
-					}
-					return input;
-				}
-
-			}
-
 		}
 
 		/**
@@ -879,8 +762,8 @@ public interface LogProperty {
 		 *
 		 * @param <T> property type.
 		 * @param properties the properties that were searched, kept around so
-		 * {@link #or(Object)} can hand it to the {@link Success.PropertySuccess} it
-		 * builds for a supplied fallback.
+		 * {@link #or(Object)} can hand it to the {@link PropertySuccess} it builds for a
+		 * supplied fallback.
 		 * @param keys keys.
 		 * @param message description of where the property is missing.
 		 */
@@ -910,8 +793,8 @@ public interface LogProperty {
 			@Override
 			public Result<T> or(@Nullable T fallback) {
 				if (fallback != null) {
-					return new Success.PropertySuccess<>(properties, properties, keys.get(0), fallback,
-							Success.PropertySuccess.Kind.VALUE, fallback);
+					return new PropertySuccess<>(properties, properties, keys.get(0), fallback,
+							PropertySuccess.Kind.VALUE, fallback);
 				}
 				return this;
 			}
@@ -1010,6 +893,130 @@ public interface LogProperty {
 
 }
 
+/**
+ * A property that is present, either because it was actually found in properties, or
+ * (when {@code kind} is {@link Kind#VALUE}) because it was missing there and a fallback
+ * value was supplied instead.
+ * <p>
+ * Not public: nothing outside {@code LogProperty}'s own resolution machinery (in this
+ * package) constructs or pattern-matches on this directly - callers work through the
+ * sealed {@link LogProperty.Result}/{@link LogProperty.Result.Success} interfaces
+ * instead.
+ *
+ * @param <T> property type.
+ * @param topProperties the {@link LogProperties} the very first
+ * {@link LogProperties#forKey(String)} in this chain was looked up against - for a
+ * chained/composite {@code LogProperties.of(a, b)} this is the whole composite, not just
+ * whichever member the value ended up found in. Used for a failure message's "Tried:"
+ * line, which can therefore search more broadly than {@code properties}.
+ * @param properties the properties searched; for {@link Kind#STRING}/{@link Kind#LIST}/
+ * {@link Kind#MAP} the <strong>exact</strong> properties where the value was found - for
+ * a chained/composite search this can be narrower than {@code topProperties}, naming just
+ * the one member the value was actually found in. Used for a failure message's "key: ...
+ * from X" line.
+ * @param key property key.
+ * @param rawValue value as originally found (or the fallback, for {@link Kind#VALUE}),
+ * before any conversion - a {@link String}, {@link List List&lt;String&gt;}, or
+ * {@link Map Map&lt;String,String&gt;} depending on kind.
+ * @param kind which of {@link LogProperty}'s {@code ofString()}/{@code ofList()}/
+ * {@code ofMap()} this property was found through, and so rawValue's runtime type - or
+ * {@link Kind#VALUE} if it was not found at all and rawValue is a fallback.
+ * @param value actual (possibly converted) value.
+ * @apiNote rawValue/kind stick around after a conversion (e.g.
+ * {@link LogProperty#ofInt()} converting the string this was found as into an
+ * {@code Integer}) so error messages can still describe the original value - value's type
+ * and rawValue's kind are not always in sync.
+ */
+record PropertySuccess<T>(LogProperties topProperties, LogProperties properties, String key, Object rawValue,
+		PropertySuccess.Kind kind, T value) implements LogProperty.Result.Success<T> {
+
+	/**
+	 * Which of {@link LogProperty}'s typed accessors a {@link PropertySuccess} was found
+	 * through, and so what {@link PropertySuccess#rawValue()}'s runtime type actually is
+	 * - or that it was not found at all and is a plain fallback value.
+	 */
+	enum Kind {
+
+		/**
+		 * rawValue is a {@link String}, found via {@link LogProperty#ofString()}.
+		 */
+		STRING,
+		/**
+		 * rawValue is a {@link List List&lt;String&gt;}, found via
+		 * {@link LogProperty#ofList()}.
+		 */
+		LIST,
+		/**
+		 * rawValue is a {@link Map Map&lt;String,String&gt;}, found via
+		 * {@link LogProperty#ofMap()}.
+		 */
+		MAP,
+		/**
+		 * Not found in properties at all - rawValue is a plain fallback value supplied
+		 * via {@link LogProperty.Result#or}.
+		 */
+		VALUE
+
+	}
+
+	/**
+	 * Successfully found property value.
+	 * @param topProperties the properties the original lookup started from.
+	 * @param properties the properties searched.
+	 * @param key property key.
+	 * @param rawValue value as originally found (or the fallback), before any conversion.
+	 * @param kind rawValue's kind.
+	 * @param value actual value should not be <code>null</code>.
+	 */
+	PropertySuccess {
+		if (value == null) {
+			throw new NullPointerException("value");
+		}
+	}
+
+	@Override
+	public <U> LogProperty.Result<U> map(LogProperty.PropertyFunction<T, U, ? super Exception> mapper) {
+		try {
+			U u = mapper._apply(value);
+			return new PropertySuccess<>(topProperties, properties, key, rawValue, kind, u);
+		}
+		catch (Exception e) {
+			return LogProperty.richError(this, e);
+		}
+	}
+
+	@Override
+	public String describe() {
+		if (kind == Kind.VALUE) {
+			return "Fallback[" + key + "]=" + value;
+		}
+		return "Property[" + key + "]=" + valueDescription();
+	}
+
+	String valueDescription() {
+		String s = kind == Kind.STRING ? (String) rawValue : String.valueOf(rawValue);
+		return maybeRedact(s);
+	}
+
+	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
+
+	private static final String REDACTED_VALUE = "<REDACTED>";
+
+	private static String maybeRedact(String input) {
+		String lower = input.toLowerCase(Locale.ROOT);
+		if (REDACTED_KEYS.contains(lower)) {
+			return REDACTED_VALUE;
+		}
+		for (var k : REDACTED_KEYS) {
+			if (input.contains(k)) {
+				return REDACTED_VALUE;
+			}
+		}
+		return input;
+	}
+
+}
+
 final class DefaultLogProperty implements LogProperty {
 
 	private final List<String> keys;
@@ -1044,8 +1051,7 @@ final class DefaultLogProperty implements LogProperty {
 	public Result<String> ofString() {
 		return resolve(k -> properties.visit(k, (p, kk) -> {
 			var v = p.valueOrNull(kk);
-			return v == null ? null : new Result.Success.PropertySuccess<>(properties, p, kk, v,
-					Result.Success.PropertySuccess.Kind.STRING, v);
+			return v == null ? null : new PropertySuccess<>(properties, p, kk, v, PropertySuccess.Kind.STRING, v);
 		}));
 	}
 
@@ -1053,8 +1059,7 @@ final class DefaultLogProperty implements LogProperty {
 	public Result<List<String>> ofList() {
 		return resolve(k -> properties.visit(k, (p, kk) -> {
 			var v = p.listOrNull(kk);
-			return v == null ? null : new Result.Success.PropertySuccess<>(properties, p, kk, v,
-					Result.Success.PropertySuccess.Kind.LIST, v);
+			return v == null ? null : new PropertySuccess<>(properties, p, kk, v, PropertySuccess.Kind.LIST, v);
 		}));
 	}
 
@@ -1062,8 +1067,7 @@ final class DefaultLogProperty implements LogProperty {
 	public Result<Map<String, String>> ofMap() {
 		return resolve(k -> properties.visit(k, (p, kk) -> {
 			var v = p.mapOrNull(kk);
-			return v == null ? null : new Result.Success.PropertySuccess<>(properties, p, kk, v,
-					Result.Success.PropertySuccess.Kind.MAP, v);
+			return v == null ? null : new PropertySuccess<>(properties, p, kk, v, PropertySuccess.Kind.MAP, v);
 		}));
 	}
 

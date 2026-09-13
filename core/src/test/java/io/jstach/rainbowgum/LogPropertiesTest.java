@@ -340,7 +340,7 @@ class LogPropertiesTest {
 	}
 
 	private static String valueDescriptionOf(Result<?> result) {
-		if (!(result instanceof Result.Success.PropertySuccess<?> success)) {
+		if (!(result instanceof PropertySuccess<?> success)) {
 			throw new AssertionError();
 		}
 		return success.valueDescription();
