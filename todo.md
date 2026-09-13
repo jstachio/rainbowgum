@@ -138,15 +138,15 @@ which forced awkward workarounds in test code this cycle.
       module that used an explicit list now gets the same everywhere-applies default as
       every other module already had). The tool/enforcement-scope items below are
       unchanged by this - still open, separate decisions.
-- [ ] Settle the enforcement tool as a separate decision from the annotation swap:
-      CheckerFramework's Nullness Checker already understands JSpecify annotations, so
-      keeping CheckerFramework is one option; switching to error-prone + NullAway (a
-      lighter-weight, JSpecify-native checker) is the other. Don't assume the tool
-      change is bundled with the annotation change.
-- [ ] Whichever tool wins, extend checking to every module, not just `core`, closing
-      the current gap.
-- [ ] Confirm this also retires the known-broken Eclipse profile tooling wrinkle, since
-      it's tied to the JDT/CheckerFramework combination.
+- [ ] Extend checking (both CheckerFramework and NullAway - see `bin/analyze.sh`,
+      neither runs on regular builds since both are too slow for that) to every module,
+      not just `core`, closing the current gap.
+- [x] This does not retire the known-broken `eclipse` profile - it stays, deliberately,
+      even broken: this project is one of the few actually exercising Eclipse's own
+      JDT null-analysis against JSpecify annotations, and the plan is to eventually
+      help the Eclipse team get their side of JSpecify support working. See
+      `bin/analyze.sh`'s own comment on why it is excluded from the default profile
+      set it runs.
 
 ## 3. Consider file rolling
 

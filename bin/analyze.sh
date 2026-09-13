@@ -4,7 +4,14 @@ set -e
 
 _profiles="$1"
 if [ -z "$_profiles" ]; then
-  _profiles="checkerframework errorprone eclipse"
+  # "eclipse" is deliberately not in this default set: it is known-broken
+  # (unrelated -failOnWarning/unsupported @SuppressWarnings issues in ECJ, not
+  # something a normal code change here fixes) and is kept around anyway - this
+  # project is one of the few actually exercising Eclipse's own JDT null-analysis
+  # against JSpecify annotations, with an eye towards eventually helping the
+  # Eclipse team get their side of JSpecify support working. Pass it explicitly
+  # (./bin/analyze.sh eclipse) if you want to run it.
+  _profiles="checkerframework errorprone"
 fi
 
 _ignored_profiles="-enforce-maven-version,-format-apply,-deploy-local,-javadoc-jar"
