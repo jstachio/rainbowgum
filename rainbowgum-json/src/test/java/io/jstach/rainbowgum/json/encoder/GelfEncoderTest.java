@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.json.encoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -127,9 +128,14 @@ class GelfEncoderTest {
 	 */
 	@Test
 	void testBuildWithoutRequiredHostThrows() {
+		// generated GelfEncoderBuilder.build() catches LogProperty.require(...)'s raw
+		// PropertyMissingException and rethrows via
+		// LogProperty.ValidationException.of(...).
 		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
-		var e = assertThrows(LogProperty.PropertyMissingException.class, b::build);
-		assertEquals("Value is required not null. property key='logging.encoder.gelf.host'", e.getMessage());
+		var e = assertThrows(LogProperty.ValidationException.class, b::build);
+		assertEquals("Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder: "
+				+ "Value is required not null. property key='logging.encoder.gelf.host'", e.getMessage());
+		assertInstanceOf(LogProperty.PropertyMissingException.class, e.getCause());
 	}
 
 	@Test

@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +36,23 @@ class LogPropertyTest {
 		var validator2 = Validator.of(LogPropertyTest.class);
 		validator2.addIfError(missing);
 		validator2.validate();
+	}
+
+	@Test
+	void testValidationExceptionOfUsesSameMessagePrefixAsValidate() {
+		var cause = new IllegalArgumentException("capacity should be greater than 0");
+		var e = ValidationException.of(LogPropertyTest.class, cause);
+		assertEquals("Validation failed for io.jstach.rainbowgum.LogPropertyTest: capacity should be greater than 0",
+				e.getMessage());
+		var actualCause = e.getCause();
+		assertNotNull(actualCause);
+		assertSame(cause, actualCause);
+	}
+
+	@Test
+	void testValidationExceptionOfReturnsRatherThanThrows() {
+		// of(...) must not itself throw - the caller decides whether/when to.
+		assertNotNull(ValidationException.of(LogPropertyTest.class, new IllegalArgumentException("boom")));
 	}
 
 	@Test
