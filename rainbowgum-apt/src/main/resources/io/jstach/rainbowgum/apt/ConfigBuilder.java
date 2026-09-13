@@ -136,11 +136,16 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 	 $$/exceptions$$
 	 */
 	public $$targetType$$ build() $$throwsList$${
-		return $$factoryMethod$$(
-				$$#properties$$
-				$$^-first$$, $$/-first$$$$#validate$$this.{{name}}$$/validate$$
-				$$/properties$$
-				);
+		try {
+			return $$factoryMethod$$(
+					$$#properties$$
+					$$^-first$$, $$/-first$$$$#validate$$this.{{name}}$$/validate$$
+					$$/properties$$
+					);
+		}
+		catch (IllegalArgumentException | LogProperty.PropertyMissingException e) {
+			throw LogProperty.ValidationException.of(this.getClass(), e);
+		}
 	}
 	
 	@Override

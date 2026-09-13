@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.rolling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 /*
  * fileName/uri validation happens synchronously in RollingFileOutput.of(...)'s static
@@ -29,10 +31,17 @@ class RollingFileOutputBuilderTest {
 	@Test
 	void bothFileNameAndUriUnsetThrowsBeforeAnyFileAccess() {
 		var config = LogConfig.builder().build();
-		assertThrows(IllegalArgumentException.class, () -> RollingFileOutput.of(b -> {
+		// generated RollingFileOutputBuilder.build() catches the factory method's own
+		// cross-field check and rethrows via LogProperty.ValidationException.of(...), not
+		// just single-field conversion failures - RollingFileOutput.of(...)'s raw
+		// IllegalArgumentException is the cause.
+		var e = assertThrows(ValidationException.class, () -> RollingFileOutput.of(b -> {
 			b.fileName(null);
 			b.uri(null);
 		}).provide("fail", config));
+		assertEquals("Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder: "
+				+ "fileName and uri cannot both be unset.", e.getMessage());
+		assertInstanceOf(IllegalArgumentException.class, e.getCause());
 	}
 
 	@Test

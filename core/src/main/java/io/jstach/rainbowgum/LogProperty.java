@@ -449,6 +449,29 @@ public interface LogProperty {
 
 		}
 
+		/**
+		 * Wraps cause in a {@link ValidationException}, using the same "Validation failed
+		 * for &lt;class&gt;:" message prefix {@link #validate(Class, List)} itself uses.
+		 * {@link ValidationException}'s constructor is package-private, so this is the
+		 * supported way for code outside this package - generated builder code in
+		 * particular - to report a downstream factory method's own defensive/cross-field
+		 * check (an {@link IllegalArgumentException}, say) through the same channel as a
+		 * per-field validation failure, without duplicating the message format itself.
+		 * Returns rather than throws so the caller writes
+		 * {@code throw ValidationException.of(...)} - keeps the throw itself, and
+		 * therefore unreachable-code/definite-assignment analysis at the call site,
+		 * visible there instead of hidden inside this method.
+		 * @param builder class to prefix to the message, same role as
+		 * {@link #validate(Class, List)}'s own parameter.
+		 * @param cause the exception to wrap.
+		 * @return a new {@link ValidationException} wrapping cause; not thrown by this
+		 * method.
+		 */
+		public static ValidationException of(Class<?> builder, RuntimeException cause) {
+			return new ValidationException("Validation failed for " + builder.getName() + ": " + cause.getMessage(),
+					cause);
+		}
+
 	}
 
 	/**

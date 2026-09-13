@@ -49,6 +49,24 @@ record BuilderModel( //
 		return description.lines().map(String::trim).toList();
 	}
 
+	/*
+	 * ConfigBuilder.java's build() wraps the factoryMethod call in a plain try/catch,
+	 * catching only IllegalArgumentException/LogProperty.PropertyMissingException (a
+	 * curated allowlist of what a factory method's own defensive checks or
+	 * LogProperty.require(...) realistically throw - not a blanket RuntimeException, so
+	 * an unrelated bug is not silently mislabeled "Validation failed") and rethrowing via
+	 * LogProperty.ValidationException.of(...) - a public static factory next to
+	 * ValidationException's own existing validate(Class, List) one, since
+	 * ValidationException's constructor itself is package-private.
+	 * PropertyMissingException's own constructor is likewise package-private, but the
+	 * type itself is not - a member type declared in a public interface (LogProperty is
+	 * one) is implicitly public per JLS 9.5 regardless of written modifiers, so generated
+	 * code in any package can name it in a catch clause directly. That catch clause is
+	 * completely orthogonal to checked exceptions - it never touches them - so
+	 * exceptions/throwsList() below (genuinely read from the factory method's own throws
+	 * clause via ee.getThrownTypes() in ConfigProcessor.model(...)) keeps working exactly
+	 * as it already did, unaffected by any of this.
+	 */
 	public String throwsList() {
 		if (exceptions.isEmpty()) {
 			return "";
