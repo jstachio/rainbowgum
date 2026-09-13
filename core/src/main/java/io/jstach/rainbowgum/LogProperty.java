@@ -578,34 +578,6 @@ public interface LogProperty {
 	sealed interface Result<T> {
 
 		/**
-		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
-		 * value.
-		 * @return value.
-		 * @throws PropertyMissingException if there is no value.
-		 * @throws PropertyConvertException if the property failed conversion.
-		 */
-		public T value() throws PropertyMissingException, PropertyConvertException;
-
-		/**
-		 * Gets the value.
-		 * @return value or <code>null</code>.
-		 */
-		public @Nullable T valueOrNull();
-
-		/**
-		 * Gets a value if there is if not uses the fallback.
-		 * @param fallback maybe <code>null</code>.
-		 * @return value.
-		 */
-		default @Nullable T valueOrNull(@Nullable T fallback) {
-			var v = valueOrNull();
-			if (v != null) {
-				return v;
-			}
-			return fallback;
-		}
-
-		/**
 		 * Registers this result with {@code validator} via {@link Validator#add(Result)}
 		 * (a still-{@link Missing} result is treated as a real failure) and returns this
 		 * result unchanged, so a chain that builds a required property can register
@@ -619,9 +591,9 @@ public interface LogProperty {
 		 * @param validator validator to add this result to.
 		 * @return this result, unchanged.
 		 */
-		default Result<T> validate(Validator validator) {
+		default ValidatedResult<T> validate(Validator validator) {
 			validator.add(this);
-			return this;
+			return (ValidatedResult<T>) this;
 		}
 
 		/**
@@ -634,9 +606,9 @@ public interface LogProperty {
 		 * @param validator validator to add this result to.
 		 * @return this result, unchanged.
 		 */
-		default Result<T> validateIfError(Validator validator) {
+		default ValidatedResult<T> validateIfError(Validator validator) {
 			validator.addIfError(this);
-			return this;
+			return (ValidatedResult<T>) this;
 		}
 
 		/**
@@ -666,7 +638,10 @@ public interface LogProperty {
 			var v = Validator.of(component);
 			v.add(this);
 			v.validate();
-			return value();
+			var result = switch(this) {
+			case ValidatedResult<T> vr -> vr;
+			};
+			return result.value();
 		}
 
 		/**
@@ -704,14 +679,6 @@ public interface LogProperty {
 		 * @return mapped result.
 		 */
 		public <U> Result<U> map(PropertyFunction<T, U, ? super Exception> mapper);
-
-		/**
-		 * Convenience that turns a value into an optional.
-		 * @return optional.
-		 */
-		default Optional<T> optional() {
-			return Optional.ofNullable(valueOrNull());
-		}
 
 		/**
 		 * A description of the result for error messages.
@@ -767,7 +734,7 @@ public interface LogProperty {
 		 * @param keys keys.
 		 * @param message description of where the property is missing.
 		 */
-		public record Missing<T>(LogProperties properties, List<String> keys, String message) implements Result<T> {
+		public record Missing<T>(LogProperties properties, List<String> keys, String message) implements ValidatedResult<T> {
 			/**
 			 * A property that is missing (<code>null</code>).
 			 * @param properties the properties that were searched.
@@ -835,7 +802,7 @@ public interface LogProperty {
 		 * @param cause exception thrown while trying to convert.
 		 */
 		@SuppressWarnings("JavaLangClash")
-		public record Error<T>(String key, String message, Exception cause) implements RequiredResult<T> {
+		public record Error<T>(String key, String message, Exception cause) implements ValidatedResult<T> {
 			/*
 			 * TODO consider rename to Failure
 			 */
@@ -881,13 +848,53 @@ public interface LogProperty {
 		}
 
 	}
+	
+	sealed interface ValidatedResult<T> extends Result<T> {
+		/**
+		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
+		 * value.
+		 * @return value.
+		 * @throws PropertyMissingException if there is no value.
+		 * @throws PropertyConvertException if the property failed conversion.
+		 */
+		public T value() throws PropertyMissingException, PropertyConvertException;
+		
+		/**
+		 * Gets the value.
+		 * @return value or <code>null</code>.
+		 */
+		public @Nullable T valueOrNull();
 
+		/**
+		 * Gets a value if there is if not uses the fallback.
+		 * @param fallback maybe <code>null</code>.
+		 * @return value.
+		 */
+		default @Nullable T valueOrNull(@Nullable T fallback) {
+			var v = valueOrNull();
+			if (v != null) {
+				return v;
+			}
+			return fallback;
+		}
+		
+		/**
+		 * Convenience that turns a value into an optional.
+		 * @return optional.
+		 */
+		default Optional<T> optional() {
+			return Optional.ofNullable(valueOrNull());
+		}
+
+
+	}
+	
 	/**
 	 * A result that is not missing and will either be an error or success.
 	 *
 	 * @param <T> property type.
 	 */
-	sealed interface RequiredResult<T> extends Result<T> {
+	sealed interface RequiredResult<T> extends ValidatedResult<T> {
 
 	}
 
