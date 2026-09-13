@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum.pattern.format;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -12,6 +14,7 @@ import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 /*
  * The generated PatternEncoderBuilder.maxBufferSize(...) property/setter - proves
@@ -61,6 +64,28 @@ class PatternEncoderMaxBufferSizeTest {
 		var buffer = bufferAfterEncoding("",
 				"a message well past five characters, over and over again to grow it a lot more just in case");
 		assertFalse(buffer.isOversized());
+	}
+
+	/*
+	 * logging.encoder.{name}.maxBufferSize had only happy-path coverage before this -
+	 * nothing exercised a malformed value, even though it is a plain Integer and so can
+	 * genuinely fail conversion - found by grepping the property list
+	 * ConfigProcessor#PROPERTY_LIST_OPTION generates against the test tree.
+	 */
+	@Test
+	void badMaxBufferSizeFailsLoudlyWithPropertyDescription() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.encoder.list.maxBufferSize=notanumber\n")
+			.build();
+		var b = new PatternEncoderBuilder("list");
+		b.pattern("%msg");
+		var e = assertThrows(ValidationException.class, () -> b.fromProperties(properties));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
+						Error for property. key: 'logging.encoder.list.maxBufferSize' from PROPERTIES_STRING[logging.encoder.list.maxBufferSize], java.lang.NumberFormatException For input string: "notanumber"
+						Tried: 'logging.encoder.list.maxBufferSize' from PROPERTIES_STRING[logging.encoder.list.maxBufferSize]""",
+				e.getMessage());
 	}
 
 	/*
