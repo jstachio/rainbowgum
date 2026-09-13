@@ -18,7 +18,7 @@ module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum.spi;
 
 	requires static io.jstach.rainbowgum.annotation;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	requires static io.avaje.spi;
 
 	uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider;

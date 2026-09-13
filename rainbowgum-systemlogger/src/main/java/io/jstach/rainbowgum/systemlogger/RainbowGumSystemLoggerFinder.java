@@ -4,7 +4,7 @@ import java.lang.System.Logger;
 import java.util.Locale;
 import java.util.function.Supplier;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter;

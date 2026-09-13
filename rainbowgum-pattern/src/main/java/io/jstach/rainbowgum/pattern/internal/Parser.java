@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.pattern.internal;
 import java.util.List;
 import java.util.Objects;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.pattern.Padding;
 import io.jstach.rainbowgum.pattern.internal.Node.CompositeNode;
@@ -110,8 +110,7 @@ public class Parser {
 	}
 
 	// T = LITERAL | '%' C | '%' FORMAT_MODIFIER C
-	@Nullable
-	NodeBuilder<?> T() throws ScanException {
+	@Nullable NodeBuilder<?> T() throws ScanException {
 		Token t = getCurentToken();
 		expectNotNull(t, "a LITERAL or '%'");
 

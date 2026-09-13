@@ -10,5 +10,5 @@
  * {@link io.jstach.rainbowgum.spring.boot.spi.SpringRainbowGumServiceProvider} never need
  * to change this import when bumping Spring Boot major versions.
  */
-@org.eclipse.jdt.annotation.NonNullByDefault
+@org.jspecify.annotations.NullMarked
 package io.jstach.rainbowgum.spring.boot.spi;

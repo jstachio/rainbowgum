@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.test.config;
 import java.net.URI;
 import java.util.List;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 

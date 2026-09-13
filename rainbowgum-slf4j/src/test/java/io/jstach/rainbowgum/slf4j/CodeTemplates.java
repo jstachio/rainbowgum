@@ -268,7 +268,7 @@ public class CodeTemplates {
 
 			import java.lang.StackWalker.Option;
 
-			import org.eclipse.jdt.annotation.Nullable;
+			import org.jspecify.annotations.Nullable;
 			import org.slf4j.Marker;
 			import org.slf4j.event.Level;
 			import org.slf4j.spi.LoggingEventBuilder;

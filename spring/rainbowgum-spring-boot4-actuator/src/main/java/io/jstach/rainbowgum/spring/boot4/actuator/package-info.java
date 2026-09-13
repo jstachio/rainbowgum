@@ -1,5 +1,5 @@
 /**
  * Rainbow Gum Spring Boot Actuator/Micrometer integration.
  */
-@org.eclipse.jdt.annotation.NonNullByDefault
+@org.jspecify.annotations.NullMarked
 package io.jstach.rainbowgum.spring.boot4.actuator;

@@ -3,7 +3,7 @@ package io.jstach.rainbowgum;
 import java.text.MessageFormat;
 import java.util.IdentityHashMap;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.annotation.CaseChanging;
 

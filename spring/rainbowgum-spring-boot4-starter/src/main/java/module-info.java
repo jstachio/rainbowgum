@@ -6,5 +6,5 @@
  * suffixed with the Spring Boot major version while the packages are not.
  */
 module io.jstach.rainbowgum.spring.boot4.starter {
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 }

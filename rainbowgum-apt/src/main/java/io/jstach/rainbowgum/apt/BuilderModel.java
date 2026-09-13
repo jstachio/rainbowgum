@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.apt;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.jstache.JStache;
 import io.jstach.jstache.JStacheConfig;
@@ -22,7 +22,7 @@ record BuilderModel( //
 		List<PropertyModel> properties, List<String> exceptions) {
 
 	public String nullableAnnotation() {
-		return "org.eclipse.jdt.annotation.Nullable";
+		return "org.jspecify.annotations.Nullable";
 	}
 
 	public String LB() {
@@ -118,7 +118,7 @@ record BuilderModel( //
 
 		// public String fieldType() {
 		// if (defaultValue.equals("null") && !typeWithAnnotation.contains("Nullable")) {
-		// return classRef.getPackageName() + ".@org.eclipse.jdt.annotation.Nullable " +
+		// return classRef.getPackageName() + ".@org.jspecify.annotations.Nullable " +
 		// classRef.getSimpleName();
 		// }
 		// return typeWithAnnotation;

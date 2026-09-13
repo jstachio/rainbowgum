@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
@@ -213,8 +213,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 				pattern = ISO8601_PATTERN;
 			}
 			ZoneId zoneId = node.opt(1, config.zoneId(), s -> ZoneId.of(s));
-			@Nullable
-			Locale locale = node.optOrNull(2, s -> Locale.forLanguageTag(s));
+			@Nullable Locale locale = node.optOrNull(2, s -> Locale.forLanguageTag(s));
 			var dtf = DateTimeFormatter.ofPattern(pattern).withZone(zoneId);
 			if (locale != null) {
 				dtf = dtf.withLocale(locale);

@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
@@ -595,8 +595,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 			return new ArrayKeyValues();
 		}
 		ArrayKeyValues orig = this;
-		@Nullable
-		String[] copyKvs = new @Nullable String[this.threshold];
+		@Nullable String[] copyKvs = new @Nullable String[this.threshold];
 		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.threshold);
 		return new ArrayKeyValues(copyKvs, size, threshold);
 	}

@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEncoder;
@@ -145,8 +145,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		final String shortMessage = formattedMessage.toString();
 		Instant now = event.timestamp();
 		final double timeStamp = ((double) now.toEpochMilli()) / 1000;
-		@Nullable
-		String fullMessage = null;
+		@Nullable String fullMessage = null;
 		var t = event.throwableOrNull();
 		if (t != null) {
 			formattedMessage.append("\n");

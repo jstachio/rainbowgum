@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
@@ -151,8 +151,7 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 		 * a different content type instead, not {@link StandardContentType#TEXT_PLAIN}.
 		 * @return charset or <code>null</code> if not fixed/known.
 		 */
-		@Nullable
-		Charset charsetOrNull();
+		@Nullable Charset charsetOrNull();
 
 		/**
 		 * Finds the matching {@link StandardContentType} for the given content type and

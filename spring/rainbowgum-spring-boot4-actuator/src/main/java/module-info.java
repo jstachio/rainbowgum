@@ -15,7 +15,7 @@ module io.jstach.rainbowgum.spring.boot4.actuator {
 	requires spring.context;
 	requires micrometer.core;
 
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 
 	// Spring reflectively instantiates the auto configuration class and, since
 	// @AutoConfiguration defaults to full (CGLIB proxied) @Configuration mode,

@@ -183,7 +183,7 @@ module io.jstach.rainbowgum.spring.boot4 {
 	 */
 	requires spring.boot;
 	requires spring.core;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	requires static io.jstach.svc;
 
 	/*

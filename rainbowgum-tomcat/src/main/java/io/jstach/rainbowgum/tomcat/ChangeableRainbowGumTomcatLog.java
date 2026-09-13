@@ -4,7 +4,7 @@ import java.lang.System.Logger.Level;
 import java.time.Instant;
 
 import org.apache.juli.logging.Log;
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LevelResolver;
@@ -38,8 +38,7 @@ final class ChangeableRainbowGumTomcatLog implements Log {
 		level = LevelResolver.normalizeLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			@Nullable
-			String formattedMessage = obj == null ? null : obj.toString();
+			@Nullable String formattedMessage = obj == null ? null : obj.toString();
 			var currentThread = Thread.currentThread();
 			LogEvent event = LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level,
 					loggerName, formattedMessage, KeyValues.of(), t);

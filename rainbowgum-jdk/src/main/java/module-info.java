@@ -72,7 +72,7 @@ module io.jstach.rainbowgum.jdk {
 	requires io.jstach.rainbowgum;
 	requires io.jstach.rainbowgum.systemlogger;
 
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	requires static io.jstach.svc;
 
 	provides System.LoggerFinder with io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;

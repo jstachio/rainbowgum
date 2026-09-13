@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.slf4j;
 import java.lang.StackWalker.StackFrame;
 import java.time.Instant;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.event.LoggingEvent;
 import org.slf4j.spi.LocationAwareLogger;

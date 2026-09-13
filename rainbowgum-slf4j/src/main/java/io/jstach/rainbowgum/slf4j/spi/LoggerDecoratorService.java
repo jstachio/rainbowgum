@@ -1,6 +1,6 @@
 package io.jstach.rainbowgum.slf4j.spi;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.spi.LoggingEventBuilder;
 
@@ -161,8 +161,7 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 		 * use cases (e.g. prefixing) impossible without this.
 		 * @return message or null if not set.
 		 */
-		@Nullable
-		String message();
+		@Nullable String message();
 
 		/**
 		 * The message set on the builder so far, if possible.

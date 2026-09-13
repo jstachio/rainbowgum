@@ -16,7 +16,7 @@ module io.jstach.rainbowgum.avaje {
 	requires io.avaje.config;
 	
 	requires static io.jstach.svc;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	
 	provides RainbowGumServiceProvider with io.jstach.rainbowgum.avaje.AvajePropertiesProvider;
 	provides AppLog.Provider with io.jstach.rainbowgum.avaje.RainbowGumAppLog;

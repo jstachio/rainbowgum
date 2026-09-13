@@ -3,7 +3,7 @@ package io.jstach.rainbowgum;
 import java.io.PrintWriter;
 import java.io.Writer;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /*
  * Internal Utilities.

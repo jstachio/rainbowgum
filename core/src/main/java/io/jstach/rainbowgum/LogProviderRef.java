@@ -4,7 +4,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.NoSuchElementException;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperty.PropertyProblem;
 import io.jstach.rainbowgum.LogProperty.Result;
@@ -24,8 +24,7 @@ public sealed interface LogProviderRef {
 	 * Property key from where the URI came from or <code>null</code>.
 	 * @return property key.
 	 */
-	@Nullable
-	String keyOrNull();
+	@Nullable String keyOrNull();
 
 	/**
 	 * Creates a log provider ref from URI.

@@ -25,7 +25,7 @@ module io.jstach.rainbowgum.jul {
 	requires io.jstach.rainbowgum;
 
 	requires static java.logging;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	requires static io.jstach.svc;
 
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.jul.JULConfigurator;

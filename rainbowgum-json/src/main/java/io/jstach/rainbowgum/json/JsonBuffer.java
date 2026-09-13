@@ -5,7 +5,7 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
 import static io.jstach.rainbowgum.json.RawJsonWriter.COMMA;
 import static io.jstach.rainbowgum.json.RawJsonWriter.SEMI;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;

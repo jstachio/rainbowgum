@@ -10,7 +10,7 @@ import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.ansi.AnsiColor;
 import org.springframework.boot.ansi.AnsiStyle;
 import org.springframework.boot.logging.LogFile;
@@ -177,11 +177,9 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 
 		final String NAME_AND_GROUP;
 
-		@Nullable
-		String CONSOLE_LOG_PATTERN;
+		@Nullable String CONSOLE_LOG_PATTERN;
 
-		@Nullable
-		String FILE_LOG_PATTERN;
+		@Nullable String FILE_LOG_PATTERN;
 
 		String LOG_DATEFORMAT_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 

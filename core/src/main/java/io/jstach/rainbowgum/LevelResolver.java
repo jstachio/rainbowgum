@@ -14,8 +14,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 
@@ -64,8 +64,7 @@ public interface LevelResolver {
 		 * @param name logger name.
 		 * @return level or <code>null</code>.
 		 */
-		@Nullable
-		Level levelOrNull(String name);
+		@Nullable Level levelOrNull(String name);
 
 		/**
 		 * The default level if no level is found. By default if not overridden this is

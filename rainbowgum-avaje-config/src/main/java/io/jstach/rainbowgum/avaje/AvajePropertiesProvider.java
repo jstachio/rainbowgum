@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.avaje;
 import java.util.List;
 import java.util.function.Supplier;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.avaje.config.Config;
 import io.avaje.config.Configuration;
