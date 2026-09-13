@@ -76,7 +76,7 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
 			.ofBoolean() //
 			.or(false)
-			.value();
+			.validateNow(JAnsiConfigurator.class);
 	}
 
 }

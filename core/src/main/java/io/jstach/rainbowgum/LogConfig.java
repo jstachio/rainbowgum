@@ -613,7 +613,10 @@ final class DefaultLogConfig implements LogConfig {
 		this.levelResolver = levelResolver;
 		this.alerts = alerts;
 		this.metrics = metrics;
-		boolean changeable = properties.forKey(LogProperties.GLOBAL_CHANGE_PROPERTY).ofBoolean().or(false).value();
+		boolean changeable = properties.forKey(LogProperties.GLOBAL_CHANGE_PROPERTY)
+			.ofBoolean()
+			.or(false)
+			.validateNow(DefaultLogConfig.class);
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		applyGlobalAppenderReentrantLockProperty(properties);
 		applyGlobalThreadLocalDisabledProperty(properties);
@@ -643,7 +646,7 @@ final class DefaultLogConfig implements LogConfig {
 			.forKey(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
 			.ofBoolean()
 			.or(false)
-			.value();
+			.validateNow(DefaultLogConfig.class);
 	}
 
 	/*
@@ -677,7 +680,7 @@ final class DefaultLogConfig implements LogConfig {
 			.ofString()
 			.map(ThreadLocalDisabled::parse)
 			.or(ThreadLocalDisabled.FALSE)
-			.value() == ThreadLocalDisabled.TRUE;
+			.validateNow(DefaultLogConfig.class) == ThreadLocalDisabled.TRUE;
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {

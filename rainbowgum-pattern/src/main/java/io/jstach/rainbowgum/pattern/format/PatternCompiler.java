@@ -57,7 +57,7 @@ public sealed interface PatternCompiler {
 						.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 						.ofBoolean() //
 						.or(() -> !AnsiSupport.isAnsiSupported())
-						.value();
+						.validateNow(PatternCompiler.class);
 					var b = PatternConfig.builder(name)
 						.propertyFunction(PatternConfig.propertyFunction(config.properties(),
 								PatternConfig.PATTERN_PROPERY_PREFIX))

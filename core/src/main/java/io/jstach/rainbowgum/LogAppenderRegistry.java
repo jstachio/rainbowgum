@@ -13,6 +13,7 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
 import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.LogProperty.Result;
+import io.jstach.rainbowgum.LogProperty.ValidatedResult;
 
 /**
  * Register appenders by name. TODO probably can remove this.
@@ -62,25 +63,43 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		}
 
 		var _r = result;
-		return result.<List<LogProvider<LogAppender>>>map(appenderNames -> {
+		return rawValue(result.<List<LogProvider<LogAppender>>>map(appenderNames -> {
 			List<LogProvider<LogAppender>> appenders = new ArrayList<>();
 			for (String appenderName : appenderNames.stream().distinct().toList()) {
 				appenders.add(appender(appenderName)
 					.describe("Appender: '" + appenderName + "' from property: " + _r.describe()));
 			}
 			return appenders;
-		}).value();
+		})).value();
 	}
 
 	private static List<String> addDefaultAppenderNames(LogConfig config) {
 		List<String> appenderNames = new ArrayList<>();
-		config.properties()
-			.forKey(LogProperties.FILE_PROPERTY)
-			.ofURI()
-			.optional()
+		rawValue(config.properties().forKey(LogProperties.FILE_PROPERTY).ofURI()).optional()
 			.ifPresent(a -> appenderNames.add(LogAppender.FILE_APPENDER_NAME));
 		appenderNames.add(LogAppender.CONSOLE_APPENDER_NAME);
 		return appenderNames;
+	}
+
+	/*
+	 * appenders() (a Missing route-appenders property is a genuine misconfiguration with
+	 * no fallback for a non-default route), addDefaultAppenderNames() (an Error on the
+	 * optional logging.file.name check must still surface, unwrapped), and
+	 * appender(...)'s own output/encoder resolution (no explicit override and no property
+	 * present either) all need the raw, unwrapped exception a Missing/Error's own
+	 * value()/optional() throws - not the
+	 * "Validation failed for DefaultAppenderRegistry:" wrapping validateNow(Class) would
+	 * add, which would also change the exception's public type away from
+	 * PropertyMissingException/PropertyConvertException for callers (see
+	 * FileOutputPropertiesTest) that catch those specifically. LogProperty.Result no
+	 * longer exposes value()/optional() itself (a bare Result might still be Missing), so
+	 * this just narrows to LogProperty.ValidatedResult - true for every concrete Result,
+	 * Missing included - without going through a Validator at all.
+	 */
+	private static <T> ValidatedResult<T> rawValue(Result<T> result) {
+		return switch (result) {
+			case ValidatedResult<T> vr -> vr;
+		};
 	}
 
 	static LogProvider<LogAppender> appender(String name) {
@@ -103,11 +122,11 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 		var output = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config) //
 			.or(() -> LogOutput.ofStandardOut().provide(name, config))
-			.value();
+			.validateNow(DefaultAppenderRegistry.class);
 
 		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
 
-		var encoder = resolveEncoder(name, config, output, encoderProperty).value();
+		var encoder = resolveEncoder(name, config, output, encoderProperty).validateNow(DefaultAppenderRegistry.class);
 
 		var flags = resolveFlags(config, name);
 
@@ -126,7 +145,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.ofList()
 			.map(AppenderFlag::parse)
 			.or(EnumSet.noneOf(LogAppender.AppenderFlag.class))
-			.value();
+			.validateNow(DefaultAppenderRegistry.class);
 	}
 
 	private static AppenderType resolveAppenderType(LogConfig config, String name) {
@@ -135,7 +154,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			.ofString()
 			.map(AppenderType::parse)
 			.or(AppenderType.LOCK_THREAD_LOCAL_BUFFER)
-			.value();
+			.validateNow(DefaultAppenderRegistry.class);
 	}
 
 	static LogAppender fileAppender(LogConfig config) {
@@ -189,7 +208,8 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			Result<LogOutput> outputProperty, //
 			Result<LogEncoder> encoderProperty) {
 
-		LogOutput output = Objects.requireNonNullElseGet(appenderConfig.output(), outputProperty::value);
+		LogOutput output = Objects.requireNonNullElseGet(appenderConfig.output(),
+				() -> rawValue(outputProperty).value());
 
 		@Nullable LogEncoder encoder = appenderConfig.encoder();
 
@@ -199,7 +219,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		String name = appenderConfig.name();
 
 		var resolvedEncoder = resolveEncoder(name, config, output, encoderProperty);
-		encoder = Objects.requireNonNullElseGet(encoder, resolvedEncoder::value);
+		encoder = Objects.requireNonNullElseGet(encoder, () -> rawValue(resolvedEncoder).value());
 
 		@Nullable Set<LogAppender.AppenderFlag> flags = appenderConfig.flags();
 		if (flags == null) {

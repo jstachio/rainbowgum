@@ -30,7 +30,11 @@ class SimplePropertiesProviderTest {
 		RainbowGum.set(RainbowGum::defaults);
 		try (var gum = RainbowGum.of()) {
 			// src/test/resources/logging.properties has logging.level.root=WARN
-			String value = gum.config().properties().forKey("logging.level.root").ofString().value();
+			String value = gum.config()
+				.properties()
+				.forKey("logging.level.root")
+				.ofString()
+				.validateNow(SimplePropertiesProviderTest.class);
 			assertEquals("WARN", value);
 		}
 	}
@@ -52,7 +56,11 @@ class SimplePropertiesProviderTest {
 		var config = LogConfig.builder().serviceRegistry(registry).serviceLoader().build();
 
 		try (var gum = RainbowGum.builder(config).build().start()) {
-			String value = gum.config().properties().forKey("logging.level.root").ofString().value();
+			String value = gum.config()
+				.properties()
+				.forKey("logging.level.root")
+				.ofString()
+				.validateNow(SimplePropertiesProviderTest.class);
 			assertEquals("TRACE", value);
 		}
 	}

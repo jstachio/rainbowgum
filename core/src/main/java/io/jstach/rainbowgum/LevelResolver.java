@@ -800,23 +800,19 @@ final class GroupLevelResolver implements LevelConfig {
 		Map<String, List<String>> groupToLoggers = properties.forKey(GROUPS_PROPERTY).ofList().map(_groups -> {
 			Map<String, List<String>> m = new LinkedHashMap<>();
 			for (String g : _groups) {
-				properties.forKey(GROUP_PROPERTY, g) //
-					.ofList() //
-					.optional() //
-					.filter(loggers -> !loggers.isEmpty()) //
+				rawValue(properties.forKey(GROUP_PROPERTY, g).ofList()).optional()
+					.filter(loggers -> !loggers.isEmpty())
 					.ifPresent(loggers -> m.put(g, loggers));
 			}
 			return m;
-		}).or(Map.of()).value();
+		}).or(Map.of()).validateNow(GroupLevelResolver.class);
 
 		Map<String, Level> groupToLevels = new LinkedHashMap<>();
 		for (var e : groupToLoggers.entrySet()) {
 			String group = e.getKey();
-			properties.forKey(LogProperties.concatKey(groupLevelPrefix, group))
+			rawValue(properties.forKey(LogProperties.concatKey(groupLevelPrefix, group))
 				.ofString()
-				.map(LevelResolver::parseLevel)
-				.optional() //
-				.ifPresent(level -> groupToLevels.put(group, level));
+				.map(LevelResolver::parseLevel)).optional().ifPresent(level -> groupToLevels.put(group, level));
 		}
 		Map<String, Level> loggerToLevels = new LinkedHashMap<>();
 		for (var e : groupToLevels.entrySet()) {
@@ -832,6 +828,22 @@ final class GroupLevelResolver implements LevelConfig {
 			}
 		}
 		return new MapLevelResolver(Map.copyOf(loggerToLevels));
+	}
+
+	/*
+	 * Both group-loggers and group-level lookups above are optional (a Missing group or
+	 * group-level entry is fine, just skipped) but must still surface a present-but
+	 * malformed value's raw, unwrapped exception - not a "Validation failed for
+	 * GroupLevelResolver:" wrapping, which would also change the exception's public type
+	 * away from PropertyConvertException. LogProperty.Result no longer exposes
+	 * optional()/value() itself (a bare Result might still be Missing), so this just
+	 * narrows to LogProperty.ValidatedResult - true for every concrete Result, Missing
+	 * included - without going through a Validator at all.
+	 */
+	private static <T> LogProperty.ValidatedResult<T> rawValue(LogProperty.Result<T> result) {
+		return switch (result) {
+			case LogProperty.ValidatedResult<T> vr -> vr;
+		};
 	}
 
 	@Override
@@ -863,10 +875,20 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	@Override
 	public @Nullable Level levelOrNull(String name) {
-		return properties.forKey(LogProperties.concatKey(prefix, name))
-			.ofString()
-			.map(LevelResolver::parseLevel)
+		return rawValue(
+				properties.forKey(LogProperties.concatKey(prefix, name)).ofString().map(LevelResolver::parseLevel))
 			.valueOrNull();
+	}
+
+	/*
+	 * Same rationale as GroupLevelResolver's own rawValue(): optional (a Missing level
+	 * override is fine), but a present-but-malformed value must still surface its raw,
+	 * unwrapped PropertyConvertException rather than a Validator-wrapped one.
+	 */
+	private static <T> LogProperty.ValidatedResult<T> rawValue(LogProperty.Result<T> result) {
+		return switch (result) {
+			case LogProperty.ValidatedResult<T> vr -> vr;
+		};
 	}
 
 	@Override

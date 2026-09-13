@@ -356,12 +356,11 @@ public sealed interface LogRouter extends LogLifecycle {
 			 */
 			Router build(RouterFactory factory) {
 				String name = this.name;
-				flags.addAll(config.properties()
+				flags.addAll(rawValue(config.properties()
 					.forKey(LogProperties.ROUTE_FLAGS_PROPERTY, name)
 					.ofList()
 					.map(RouteFlag::parse)
-					.or(EnumSet.noneOf(RouteFlag.class))
-					.value());
+					.or(EnumSet.noneOf(RouteFlag.class))).value());
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
 
 				/*
@@ -435,11 +434,10 @@ public sealed interface LogRouter extends LogLifecycle {
 
 				if (publisher == null) {
 					var properties = config.properties();
-					publisher = properties.forKey(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
+					publisher = rawValue(properties.forKey(LogProperties.ROUTE_PUBLISHER_PROPERTY, name)
 						.ofProviderRef()
 						.map(r -> config.publisherRegistry().provide(r))
-						.or(() -> LogPublisher.SyncLogPublisher.builder().build())
-						.value();
+						.or(() -> LogPublisher.SyncLogPublisher.builder().build())).value();
 				}
 
 				var apps = new LogAppender.Appenders(name, config, appenders);
@@ -449,6 +447,23 @@ public sealed interface LogRouter extends LogLifecycle {
 				 */
 				config.serviceRegistry().put(LogPublisher.class, name, pub);
 				return factory.create(pub, levelResolver, name, config);
+			}
+
+			/*
+			 * Both flags and publisher above already have a fallback applied (Missing is
+			 * impossible), but a present-but-malformed value must still surface its raw,
+			 * unwrapped exception - not a "Validation failed for Builder:" wrapping,
+			 * which would also change the exception's public type away from
+			 * PropertyConvertException (see ConfigFailureTest's bogus-scheme publisher
+			 * case). LogProperty.Result no longer exposes value() itself (a bare Result
+			 * might still be Missing), so this just narrows to
+			 * LogProperty.ValidatedResult - true for every concrete Result - without
+			 * going through a Validator at all.
+			 */
+			private static <T> LogProperty.ValidatedResult<T> rawValue(LogProperty.Result<T> result) {
+				return switch (result) {
+					case LogProperty.ValidatedResult<T> vr -> vr;
+				};
 			}
 
 		}

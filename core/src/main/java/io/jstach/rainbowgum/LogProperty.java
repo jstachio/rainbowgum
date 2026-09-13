@@ -638,8 +638,8 @@ public interface LogProperty {
 			var v = Validator.of(component);
 			v.add(this);
 			v.validate();
-			var result = switch(this) {
-			case ValidatedResult<T> vr -> vr;
+			var result = switch (this) {
+				case ValidatedResult<T> vr -> vr;
 			};
 			return result.value();
 		}
@@ -734,7 +734,8 @@ public interface LogProperty {
 		 * @param keys keys.
 		 * @param message description of where the property is missing.
 		 */
-		public record Missing<T>(LogProperties properties, List<String> keys, String message) implements ValidatedResult<T> {
+		public record Missing<T>(LogProperties properties, List<String> keys,
+				String message) implements ValidatedResult<T> {
 			/**
 			 * A property that is missing (<code>null</code>).
 			 * @param properties the properties that were searched.
@@ -848,8 +849,25 @@ public interface LogProperty {
 		}
 
 	}
-	
+
+	/**
+	 * A {@link Result} that is safe to pull a value out of - either because it can never
+	 * actually be missing ({@link RequiredResult}: a {@link Success} or an
+	 * {@link Result.Error}, both already resolved one way or the other) or because a
+	 * caller has explicitly acknowledged the possibility of a still-{@link Missing}
+	 * result by running it through {@link Result#validate(Validator)},
+	 * {@link Result#validateIfError(Validator)}, or {@link Result#validateNow(Class)}.
+	 * <p>
+	 * {@link Result} itself deliberately does not declare {@link #value()}/
+	 * {@link #valueOrNull()}/{@link #optional()} - a bare {@link Result} returned by
+	 * {@link LogProperty#ofString()} and friends forces a caller through one of those
+	 * validation paths before it can pull a value out, instead of blindly calling
+	 * {@code value()} on a result that might still be {@link Missing}.
+	 *
+	 * @param <T> property type.
+	 */
 	sealed interface ValidatedResult<T> extends Result<T> {
+
 		/**
 		 * Gets the value and will fail with {@link NoSuchElementException} if there is no
 		 * value.
@@ -858,7 +876,7 @@ public interface LogProperty {
 		 * @throws PropertyConvertException if the property failed conversion.
 		 */
 		public T value() throws PropertyMissingException, PropertyConvertException;
-		
+
 		/**
 		 * Gets the value.
 		 * @return value or <code>null</code>.
@@ -877,7 +895,7 @@ public interface LogProperty {
 			}
 			return fallback;
 		}
-		
+
 		/**
 		 * Convenience that turns a value into an optional.
 		 * @return optional.
@@ -886,9 +904,8 @@ public interface LogProperty {
 			return Optional.ofNullable(valueOrNull());
 		}
 
-
 	}
-	
+
 	/**
 	 * A result that is not missing and will either be an error or success.
 	 *
