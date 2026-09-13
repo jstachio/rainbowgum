@@ -1285,6 +1285,30 @@ every well known counter to an external metrics system without hand listing each
 
 {@snippet class="snippets.AlertsMetricsExample" region="metricsExample" }
 
+<h4 id="metrics_spring_boot_actuator">Spring Boot Actuator (Micrometer)</h4>
+
+For Spring Boot 4 applications, {@link io.jstach.rainbowgum.spring.boot4.actuator/ } bridges
+every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric} above to Micrometer as a
+<code>rainbowgum.&lt;name&gt;</code> counter (e.g. <code>rainbowgum.events.dropped</code>), tagged
+with its level. It activates automatically - no properties to set, no bean to register - as long
+as Micrometer is on the classpath, which it already is once
+<code>spring-boot-starter-micrometer-metrics</code> (Spring Boot 4's own dedicated metrics
+starter) is a dependency; add just the module and the counters show up under
+<code>/actuator/metrics</code> and any Micrometer registry the application already has configured
+(Prometheus, etc.).
+
+<p>
+Only the fixed <code>StandardMetric</code> set above is bound - deliberately not the
+per-logger-name counters {@link io.jstach.rainbowgum.LogMetrics} also accumulates as a side
+effect of every alert, since logger names are application-chosen and effectively unbounded, which
+would be an unbounded cardinality source in a metrics backend. {@link io.jstach.rainbowgum.LogAlerts}
+itself is not bridged to Micrometer at all; only its metrics side effect is.
+</p>
+
+<p>
+There is currently no Spring Boot 3 equivalent of this module - it is Boot 4 only.
+</p>
+
 <h2 id="example_configuration">Example Configuration</h2>
 
 Everything above introduced routes, level resolvers, publishers, appenders, encoders, and outputs
