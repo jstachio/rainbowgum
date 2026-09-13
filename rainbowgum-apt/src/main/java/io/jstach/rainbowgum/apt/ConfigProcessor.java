@@ -28,6 +28,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -64,10 +65,27 @@ import io.jstach.svc.ServiceProvider;
  */
 @SupportedAnnotationTypes({ LogConfigurablePrism.PRISM_ANNOTATION_TYPE, KeyParameterPrism.PRISM_ANNOTATION_TYPE,
 		DefaultParameterPrism.PRISM_ANNOTATION_TYPE, PassThroughParameterPrism.PRISM_ANNOTATION_TYPE })
+@SupportedOptions(ConfigProcessor.PROPERTY_LIST_OPTION)
 @ServiceProvider(value = Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
 
 	private static final String CONFIG_BEAN_CLASS = LogConfigurablePrism.PRISM_ANNOTATION_TYPE;
+
+	/**
+	 * Annotation processor option (<code>-A</code>) that, when set to {@code text},
+	 * {@code properties}, or {@code json}, writes every generated builder's property keys
+	 * for this compilation to a single resource file,
+	 * <code>META-INF/rainbowgum/properties.&lt;format&gt;</code> under
+	 * {@link javax.tools.StandardLocation#SOURCE_OUTPUT} (so it never ends up in a
+	 * shipped jar). Each key is the un-interpolated, <code>{name}</code>-parameterized
+	 * template - the same string as the builder's own {@code PROPERTY_<NAME>} constant,
+	 * not a value a real config could ever contain verbatim. Unset by default; not needed
+	 * for a normal build. Intended for auditing which properties actually have test
+	 * coverage, e.g. by grepping every generated list for golden-string hits.
+	 */
+	public static final String PROPERTY_LIST_OPTION = "io.jstach.rainbowgum.apt.propertyList";
+
+	private final List<BuilderModel> models = new ArrayList<>();
 
 	/**
 	 * No-Arg constructor for Service Loader.
@@ -94,10 +112,93 @@ public class ConfigProcessor extends AbstractProcessor {
 				}
 				ExecutableElement ee = (ExecutableElement) annotatedElement;
 				LogConfigurablePrism prism = LogConfigurablePrism.getInstanceOn(annotatedElement);
-				model(h, prism, ee);
+				var m = model(h, prism, ee);
+				if (m != null) {
+					models.add(m);
+				}
 			}
 		}
+		else {
+			writePropertyList();
+		}
 		return false;
+	}
+
+	private void writePropertyList() {
+		String format = processingEnv.getOptions().get(PROPERTY_LIST_OPTION);
+		if (format == null || models.isEmpty()) {
+			return;
+		}
+		String extension = switch (format) {
+			case "json" -> "json";
+			case "properties" -> "properties";
+			default -> "txt";
+		};
+		String content = switch (format) {
+			case "json" -> propertyListJson();
+			case "properties" -> propertyListProperties();
+			default -> propertyListText();
+		};
+		try {
+			var file = processingEnv.getFiler()
+				.createResource(StandardLocation.SOURCE_OUTPUT, "", "META-INF/rainbowgum/properties." + extension);
+			try (var w = file.openWriter()) {
+				w.write(content);
+			}
+		}
+		catch (IOException e) {
+			processingEnv.getMessager()
+				.printMessage(Kind.WARNING, "Failed to write property list: " + exceptionToErrorMessage(e));
+		}
+	}
+
+	private String propertyListText() {
+		StringBuilder sb = new StringBuilder();
+		for (var m : models) {
+			for (var p : m.normalProperties()) {
+				sb.append(m.propertyPrefix()).append(p.name()).append("\n");
+			}
+		}
+		return sb.toString();
+	}
+
+	private String propertyListProperties() {
+		StringBuilder sb = new StringBuilder();
+		for (var m : models) {
+			for (var p : m.normalProperties()) {
+				sb.append(m.propertyPrefix())
+					.append(p.name())
+					.append("=")
+					.append(m.packageName())
+					.append(".")
+					.append(m.builderName())
+					.append("\n");
+			}
+		}
+		return sb.toString();
+	}
+
+	private String propertyListJson() {
+		StringBuilder sb = new StringBuilder("[\n");
+		boolean first = true;
+		for (var m : models) {
+			for (var p : m.normalProperties()) {
+				if (!first) {
+					sb.append(",\n");
+				}
+				first = false;
+				sb.append("  {\"key\": \"")
+					.append(m.propertyPrefix())
+					.append(p.name())
+					.append("\", \"builder\": \"")
+					.append(m.packageName())
+					.append(".")
+					.append(m.builderName())
+					.append("\"}");
+			}
+		}
+		sb.append("\n]\n");
+		return sb.toString();
 	}
 
 	@Override
