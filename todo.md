@@ -67,11 +67,11 @@ To land before 1.0:
 - [x] Design the metrics system: needs its own home for queue-depth-style gauges now
       that `QueueStatus` is gone - not necessarily reusing `LogResponse.Status` at all,
       since that type was built around single-snapshot health rather than metrics.
-- [ ] Sanity check `LogAlerts.DEFAULT_CAPACITY` (currently 100) against a real consumer
+- [x] Sanity check `LogAlerts.DEFAULT_CAPACITY` (currently 100) against a real consumer
       instead of a guess.
 - [ ] Revisit whether coalescing repeated identical alerts (a stuck queue dropping
       every event) is needed - not addressed by the first `LogAlerts` cut.
-- [ ] `LogAlerts` currently has no listener-driven consumer of its own yet (the
+- [x] `LogAlerts` currently has no listener-driven consumer of its own yet (the
       `addListener` hook landed on `feature/log-alerts` but nothing calls it) - a buffer
       resize/soft-limit-hit counter (see the soft-limiting `maxBufferSize` work on
       `LogEncoder`/`JsonBuffer`) was floated as the first real candidate, once WARN/INFO
@@ -155,14 +155,14 @@ and `doc/overview.html`'s "Rolling Files" section currently leans entirely on ex
 tools (`logrotate`) for safe rotation. If this moves forward, both need to change
 together, not just the code.
 
-- [ ] Decide the trigger model up front - time-based, size-based, or both - before
+- [x] Decide the trigger model up front - time-based, size-based, or both - before
       writing any implementation.
-- [ ] Decide where it lives: a new `LogOutput` wrapping `FileOutput`, or a decorator
+- [x] Decide where it lives: a new `LogOutput` wrapping `FileOutput`, or a decorator
       that composes with the existing safe-external-rotation mechanism rather than
       replacing it.
-- [ ] Stay in RainbowGum's own lane rather than porting Logback's rolling-policy
+- [x] Stay in RainbowGum's own lane rather than porting Logback's rolling-policy
       hierarchy wholesale - the differentiator here is staying simple/low-overhead.
-- [ ] Update `doc/overview.html`'s Rolling Files section and the old "Features not
+- [x] Update `doc/overview.html`'s Rolling Files section and the old "Features not
       going to support" note once a direction is picked.
 
 ## 4. Improve the LogProperty API and friends; at least add test coverage
@@ -329,7 +329,7 @@ unifying.
       `LogProperties` gained a generic `visit(key, visitor)` combinator so
       implementers no longer need to know about property-resolution internals.
       One loose end remains, see the `FoundProperty` item just below.
-- [ ] **Consider consolidating `FoundProperty`** now that it's package-private
+- [x] **Consider consolidating `FoundProperty`** now that it's package-private
       (moved out of `LogProperty` to a top-level sibling type in the same file
       specifically to achieve that - nested interface members are always
       implicitly public in Java, so hiding it required becoming a top-level
@@ -486,7 +486,7 @@ unifying.
       `StandardLogOutputProvider` as a plain alias resolving to the same stdout
       output `STDOUT_SCHEME` does would be a small, low-risk win. Surfaced while
       adding the `doc/overview.html` "Console" output subsection.
-- [ ] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
+- [x] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
       `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
       buffer/lock strategies but are represented as three independent enum constants in
       one flat `Set<AppenderFlag>`, alongside unrelated concerns
@@ -499,3 +499,4 @@ unifying.
       exclusive. Deliberately not doing this before 0.10 - flags work, the redesign is
       nontrivial, and there's no pressure to land it before the next release - but worth
       a real design pass before 1.0 rather than continuing to enumerate more flags.
+      ADAM: solved with appender type.
