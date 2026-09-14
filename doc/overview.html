@@ -95,11 +95,13 @@ one of the rare places Rainbow Gum does implicit resource loading (see the
 {@code resource-config.json} covering the default <code>logging.properties</code> name
 so this still works out of the box in a native image, not just on HotSpot.
 <p>
-<strong>This is meant for testing and very simple applications, not production
-applications.</strong> For a real application we encourage <a href="#config">
-your own configuration system</a> (a custom
+<strong>This is good for testing, simple applications, or older applications that
+prefer letting the logging system handle loading its own configuration.</strong> For
+finer control or dynamic configuration, <a href="#config">your own configuration
+system</a> (a custom
 {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider}) or
-<a href="#simple_example_builder">the programmatic builders</a> above instead.
+<a href="#simple_example_builder">the programmatic builders</a> above are also
+available.
 
 <h2 id="description">Description</h2>
 
