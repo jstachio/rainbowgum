@@ -124,8 +124,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.NumberFormatException For input string: "not-a-number"
-						Tried: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity]""",
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.NumberFormatException For input string: "not-a-number\"""",
 				e.getMessage());
 	}
 
@@ -140,8 +139,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0
-						Tried: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity]""",
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0""",
 				e.getMessage());
 	}
 
@@ -152,8 +150,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0
-						Tried: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity]""",
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0""",
 				e.getMessage());
 	}
 
@@ -213,8 +210,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction.BOGUS
-						Tried: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction]""",
+						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction.BOGUS""",
 				e.getMessage());
 	}
 

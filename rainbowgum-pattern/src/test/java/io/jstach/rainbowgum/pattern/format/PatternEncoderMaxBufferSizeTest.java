@@ -83,8 +83,7 @@ class PatternEncoderMaxBufferSizeTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
-						Error for property. key: 'logging.encoder.list.maxBufferSize' from PROPERTIES_STRING[logging.encoder.list.maxBufferSize], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.encoder.list.maxBufferSize' from PROPERTIES_STRING[logging.encoder.list.maxBufferSize]""",
+						Error for property. key: 'logging.encoder.list.maxBufferSize' from PROPERTIES_STRING[logging.encoder.list.maxBufferSize], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 

@@ -33,8 +33,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize]""",
+						Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 
@@ -44,8 +43,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.maxHistory' from PROPERTIES_STRING[logging.output.file.maxHistory], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.output.file.maxHistory' from PROPERTIES_STRING[logging.output.file.maxHistory]""",
+						Error for property. key: 'logging.output.file.maxHistory' from PROPERTIES_STRING[logging.output.file.maxHistory], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 
@@ -55,8 +53,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.totalSizeCap' from PROPERTIES_STRING[logging.output.file.totalSizeCap], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.output.file.totalSizeCap' from PROPERTIES_STRING[logging.output.file.totalSizeCap]""",
+						Error for property. key: 'logging.output.file.totalSizeCap' from PROPERTIES_STRING[logging.output.file.totalSizeCap], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 
