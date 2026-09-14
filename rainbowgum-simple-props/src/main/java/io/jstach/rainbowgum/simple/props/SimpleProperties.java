@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.simple.props;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -156,11 +157,13 @@ public final class SimpleProperties {
 					return LogProperties.StandardProperties.EMPTY;
 				}
 				String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-				return LogProperties.builder()
-					.description("SIMPLE_PROPS_FILE[" + resource + "]")
-					.order(100)
-					.fromProperties(content)
-					.build();
+				// return LogProperties.builder()
+				// .description("SIMPLE_PROPS_FILE[" + resource + "]")
+				// .order(100)
+				// .fromProperties(content)
+				// .build();
+				return SimpleLogProperties.read(new StringReader(content), resource);
+
 			}
 			catch (IOException e) {
 				throw new UncheckedIOException("Failed to read classpath resource: " + resource, e);

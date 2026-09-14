@@ -754,7 +754,7 @@ public interface LogProperties {
 			@Override
 			public String description(String key) {
 				String rename = renameKey.apply(key);
-				return description + "[" + rename + "]";
+				return descriptionForKey(description, rename);
 			}
 
 			@Override
@@ -1369,6 +1369,42 @@ public interface LogProperties {
 			throw new IllegalArgumentException("Keyed parameter mismatch. key: '" + key + "' , key parameters: "
 					+ keyParameters + " provided parameters: " + parameters);
 		}
+	}
+
+	/**
+	 * Standard way to produce description for a key.
+	 * @param type the properties type name.
+	 * @param key the properties key translated.
+	 * @return description for key.
+	 */
+	static String descriptionForKey(String type, String key) {
+		return type + "[" + key + "]";
+
+	}
+
+	/**
+	 * Standard way to produce description for a key with an index.
+	 * @param type the properties type name.
+	 * @param resource file like name.
+	 * @param key the properties key translated.
+	 * @return description for key.
+	 */
+	static String descriptionForResource(String type, String resource, String key) {
+		return type + "[" + resource + "][" + key + "]";
+
+	}
+
+	/**
+	 * Standard way to produce description for a key with an index.
+	 * @param type the properties type name.
+	 * @param resource file like name.
+	 * @param key the properties key translated.
+	 * @param index usually line number of where key found.
+	 * @return description for key.
+	 */
+	static String descriptionForResource(String type, String resource, String key, long index) {
+		return type + "[" + resource + ":" + index + "][" + key + "]";
+
 	}
 
 }
