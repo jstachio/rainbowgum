@@ -25,7 +25,7 @@ class ChangeTypeTest {
 
 	/*
 	 * "caller" used to be a valid ChangeType token before CALLER moved to its own
-	 * logging.caller.<name> property (ChangePublisher.CallerType) - now an unrecognized
+	 * logging.caller.<name> property (LogEvent.Caller.CallerType) - now an unrecognized
 	 * token, which AbstractChangePublisher.allowedChanges() already catches and alerts on
 	 * rather than crashing, a reasonable pre-1.0 migration path for anyone still setting
 	 * logging.change.<name>=caller.
@@ -35,10 +35,23 @@ class ChangeTypeTest {
 		assertThrows(IllegalArgumentException.class, () -> ChangeType.parse(List.of("caller")));
 	}
 
+	/*
+	 * ChangeType.NONE is synonymous with false at the single-token level too, not just
+	 * the list-level "true"/"false" shortcut _Test.FALSE below already exercises.
+	 */
+	@Test
+	void testParseSingleTokenFalseAliasesToNone() {
+		assertEquals(ChangeType.NONE, ChangeType.parse("false"));
+		assertEquals(ChangeType.NONE, ChangeType.parse("FALSE"));
+	}
+
 	@SuppressWarnings("ImmutableEnumChecker")
 	enum _Test {
 
-		TRUE("true", EnumSet.allOf(ChangeType.class)), LEVEL("level", EnumSet.of(ChangeType.LEVEL));
+		TRUE("true", EnumSet.complementOf(EnumSet.of(ChangeType.NONE))), //
+		FALSE("false", Set.of()), //
+		NONE("none", Set.of()), //
+		LEVEL("level", EnumSet.of(ChangeType.LEVEL));
 
 		final String input;
 

@@ -5,6 +5,7 @@ import java.lang.StackWalker.StackFrame;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
@@ -404,6 +405,35 @@ public sealed interface LogEvent {
 				return "null";
 			return caller.fileNameOrNull() + ":" + caller.lineNumber() + "/" + caller.className() + "."
 					+ caller.methodName();
+		}
+
+		/**
+		 * Caller info strategies, resolved from {@value LogProperties#CALLER_PREFIX}.
+		 * {@link #BASIC} is the only strategy implemented today (a stack-walk down to the
+		 * calling class/method/line) - kept as an enum rather than a boolean so a future,
+		 * richer strategy (matching what some other logging frameworks gather from the
+		 * stack) can be added without a breaking property-format change.
+		 */
+		public enum CallerType {
+
+			/**
+			 * Caller info is not computed.
+			 */
+			NONE,
+			/**
+			 * Caller info is computed as a single stack frame (class, method, line).
+			 */
+			BASIC;
+
+			static CallerType parse(String value) {
+				String v = value.toUpperCase(Locale.ROOT);
+				return switch (v) {
+					case "TRUE" -> BASIC;
+					case "FALSE" -> NONE;
+					default -> CallerType.valueOf(v);
+				};
+			}
+
 		}
 
 	}

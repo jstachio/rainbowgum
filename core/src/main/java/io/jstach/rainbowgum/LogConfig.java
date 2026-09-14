@@ -17,6 +17,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
+import io.jstach.rainbowgum.LogEvent.Caller.CallerType;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
@@ -153,7 +154,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		public Set<ChangeType> allowedChanges(String loggerName);
 
 		/**
-		 * The caller info level for a logger, resolved from
+		 * The caller info strategy for a logger, resolved from
 		 * {@value LogProperties#CALLER_PREFIX}, independently of
 		 * {@link #allowedChanges(String)} /{@value LogProperties#CHANGE_PREFIX}. Unlike
 		 * {@link ChangeType#LEVEL}, which is genuinely re-evaluated on every
@@ -167,7 +168,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		/**
 		 * Whether caller info should be computed for a logger at all, regardless of which
-		 * non-{@link CallerType#NONE} level.
+		 * non-{@link CallerType#NONE} strategy.
 		 * @param loggerName logger name.
 		 * @return true if caller info is enabled for this logger.
 		 */
@@ -181,6 +182,14 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		public enum ChangeType {
 
 			/**
+			 * No changes are allowed. Synonymous with <code>false</code> - never actually
+			 * present in a {@link #allowedChanges(String)} result (that case is just the
+			 * empty set); this exists so a single malformed-vs-explicitly-off token can
+			 * be told apart while parsing, and so <code>false</code> is a real,
+			 * documented enum member rather than only a magic string.
+			 */
+			NONE,
+			/**
 			 * The logger is allowed to change levels.
 			 */
 			LEVEL;
@@ -192,47 +201,22 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				var s = EnumSet.noneOf(ChangeType.class);
 				for (var v : value) {
 					if (v.equalsIgnoreCase("true")) {
-						return EnumSet.allOf(ChangeType.class);
+						return EnumSet.complementOf(EnumSet.of(ChangeType.NONE));
 					}
-					if (v.equalsIgnoreCase("false")) {
+					var ct = ChangeType.parse(v);
+					if (ct == NONE) {
 						return EnumSet.noneOf(ChangeType.class);
 					}
-					s.add(ChangeType.parse(v));
+					s.add(ct);
 				}
 				return s;
 			}
 
 			static ChangeType parse(String value) {
 				String v = value.toUpperCase(Locale.ROOT);
-				return ChangeType.valueOf(v);
-			}
-
-		}
-
-		/**
-		 * Caller info levels, resolved from {@value LogProperties#CALLER_PREFIX}.
-		 * {@link #BASIC} is the only level implemented today (a stack-walk down to the
-		 * calling class/method/line) - kept as an enum rather than a boolean so a future,
-		 * richer level (matching what some other logging frameworks gather from the
-		 * stack) can be added without a breaking property-format change.
-		 */
-		public enum CallerType {
-
-			/**
-			 * Caller info is not computed.
-			 */
-			NONE,
-			/**
-			 * Caller info is computed as a single stack frame (class, method, line).
-			 */
-			BASIC;
-
-			static CallerType parse(String value) {
-				String v = value.toUpperCase(Locale.ROOT);
 				return switch (v) {
-					case "TRUE" -> BASIC;
 					case "FALSE" -> NONE;
-					default -> CallerType.valueOf(v);
+					default -> ChangeType.valueOf(v);
 				};
 			}
 
