@@ -81,7 +81,7 @@ a service loader aware jar.
 For unit testing a library module, or a very simple application, Rainbow Gum provides a
 zero-configuration bundle, <code>rainbowgum-simple</code>, analogous to
 <a href="https://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html">slf4j-simple</a>
-but considerably more capable - it also brings in <a href="#system_logger">
+but considerably more capable: it also brings in <a href="#system_logger">
 java.lang.System.Logger support</a> (slf4j-simple does not). The usual way to use it is as a
 <code>test</code> scoped dependency on a library module: add it and logging works with no
 configuration at all; drop a <code>logging.properties</code> file in
@@ -90,7 +90,7 @@ configuration at all; drop a <code>logging.properties</code> file in
 properties, then <code>RAINBOWGUM_</code>-prefixed environment variables, then the
 classpath file) and the environment variable naming convention. The classpath file is
 one of the rare places Rainbow Gum does implicit resource loading (see the
-<a href="#description">Description</a> section above for why core itself avoids that) -
+<a href="#description">Description</a> section above for why core itself avoids that).
 <code>rainbowgum-simple-props</code> bundles a GraalVM native image
 {@code resource-config.json} covering the default <code>logging.properties</code> name
 so this still works out of the box in a native image, not just on HotSpot.
@@ -121,7 +121,7 @@ discusses more extensively on the opinionated design and philosophy.
   <dt>Team</dt>
   <dd>
     <ul>
-      <li><a href="https://github.com/agentgt">Adam Gent (agentgt)</a> - lead</li>
+      <li><a href="https://github.com/agentgt">Adam Gent (agentgt)</a>, lead</li>
     </ul>
   </dd>
   <dt>Issues</dt>
@@ -157,10 +157,10 @@ The only module needed during runtime is
 Currently Rainbow Gum does not provide support for:
 
 <ul>
-  <li>Default external config file (e.g. log4j2.xml) - by design but do not worry because Rainbow Gum provides lots of extensions to use 
-    your applications configuration system. Out of the box system properties are supported.</li>
-  <li>Rolling of log files without external tool - there is support for rolling without losing events using external tool such as logrotate.</li>
-  <li>{@linkplain org.slf4j.Marker SLF4J Marker} support -  libraries and application rarely use it compared to MDC. </li>
+  <li>Default external config file (e.g. log4j2.xml). This is by design; Rainbow Gum provides lots of extensions to use
+    your applications configuration system, and system properties are supported out of the box.</li>
+  <li>Rolling of log files without an external tool; there is support for rolling without losing events using an external tool such as logrotate.</li>
+  <li>{@linkplain org.slf4j.Marker SLF4J Marker} support (libraries and applications rarely use it compared to MDC).</li>
  </ul>
 
  The reason Rainbow Gum does not provide a default logging configuration file is:
@@ -240,8 +240,8 @@ is <em>very different</em>!
 <li>{@link io.jstach.rainbowgum.LogOutput}</li>
 </ol>
 
-For the exact order components are built and started - useful when debugging a
-configuration or writing a custom provider - see
+For the exact order components are built and started (useful when debugging a
+configuration or writing a custom provider), see
 {@linkplain io.jstach.rainbowgum.RainbowGum "Initialization order"} in
 {@link io.jstach.rainbowgum.RainbowGum}'s own documentation.
 
@@ -327,15 +327,15 @@ logging.encoder.example.prettyPrint=true
   Thus <code>gelf</code> is actually <code>gelf:///</code>
 </em>
 
-Because the first property is a URI, its query string is searched for the second line's properties too -
-<code>{propertyName}</code> as a bare query parameter, with no <code>logging.{subComponent}.{name}.</code>
-prefix - so instead of two separate properties one can write everything on the URI line:
+Because the first property is a URI, its query string is also searched for the second line's properties,
+using <code>{propertyName}</code> as a bare query parameter with no <code>logging.{subComponent}.{name}.</code>
+prefix. So instead of two separate properties, one can write everything on the URI line:
 
 {@snippet lang=properties :
 logging.appender.example.encoder=gelf:///?prettyPrint=true
 }
 
-This is not special-cased to <code>encoder</code>/<code>gelf</code> - every URI-configured sub-component looks
+This is not special-cased to <code>encoder</code>/<code>gelf</code>: every URI-configured sub-component looks
 its own properties up the same way. The built-in rolling file output is another example:
 
 {@snippet lang=properties :
@@ -353,7 +353,7 @@ logging.output.myapp.maxFileSize=10485760
   <code>logging.encoder.example.prettyPrint</code> and a <code>?prettyPrint=</code> query parameter on the
   encoder URI are set, the plain property wins and the URI's value is ignored. This lets a URI act as a
   terse, single-line default that a separately set property can still override without editing the URI
-  itself. This is not configurable - every {@link io.jstach.rainbowgum.LogBuilder} resolves its properties
+  itself. This is not configurable: every {@link io.jstach.rainbowgum.LogBuilder} resolves its properties
   this way via {@link io.jstach.rainbowgum.LogProperties#of(java.net.URI, String, io.jstach.rainbowgum.LogProperties)}.
 </strong>
 
@@ -385,7 +385,7 @@ profiles in other systems.
 
 Rainbow Gum will happily start with <em>zero</em> properties set because most of the
 properties described above have a built-in default when missing. Nothing here is
-hidden magic though - the defaults are just what get used when a property lookup falls
+hidden magic though: the defaults are just what get used when a property lookup falls
 through to code instead of a configured value, and that same "out of the box" setup can
 be reproduced explicitly with:
 
@@ -393,7 +393,7 @@ be reproduced explicitly with:
 logging.level=INFO
 logging.routes=default
 logging.route.default.publisher=sync
-# logging.appenders is shorthand for logging.route.default.appenders - it only
+# logging.appenders is shorthand for logging.route.default.appenders: it only
 # works as a fallback for the "default" route, not any other route name.
 logging.appenders=console
 logging.appender.console.output=stdout
@@ -404,10 +404,10 @@ A few things worth calling out about the above:
 
 <ul>
   <li>
-    <code>logging.appenders</code> defaults to just <code>console</code> - <strong>not</strong>
+    <code>logging.appenders</code> defaults to just <code>console</code>, <strong>not</strong>
     <code>console,file</code>. A file appender is only ever added automatically, and only when
     {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} (<code>logging.file.name</code>)
-    is itself set - in which case the implicit default becomes
+    is itself set, in which case the implicit default becomes
     <code>logging.appenders=file,console</code> (file first, console still included, not replaced).
     Setting <code>logging.appenders</code> yourself to any value, including just <code>file</code>,
     disables this auto-add behavior entirely since an explicit value always wins.
@@ -670,7 +670,7 @@ so enabling caller info for <code>com.mycompany</code> does not also make <code>
 changeable, and a more specific <code>logging.change.com.mycompany.app</code> entry does not clobber
 <code>com.mycompany.app</code>'s inherited caller info the way it would if the two shared one property. The
 value is a {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType} (or
-<code>true</code>/<code>false</code>) - {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType#BASIC
+<code>true</code>/<code>false</code>), where {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType#BASIC
 BASIC} (what <code>true</code> means today) is the only strategy implemented so far.
 
 <h2 id="publishers">Publishers</h2>
@@ -679,7 +679,7 @@ A {@link io.jstach.rainbowgum.LogPublisher} schedules delivery of a {@link io.js
 Appenders. Publishers come in two types:
 
 <ol>
-  <li>{@linkplain io.jstach.rainbowgum.LogPublisher.SyncLogPublisher synchronous} - the default</li>
+  <li>{@linkplain io.jstach.rainbowgum.LogPublisher.SyncLogPublisher synchronous} (the default)</li>
   <li>{@linkplain io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher asynchronous}</li> 
 </ol> 
 
@@ -711,9 +711,9 @@ If the jar is found on start it will replace the default async publisher.
 <p>
 Since publishers are where Rainbow Gum's threading concerns live, this is worth mentioning here: setting
 {@value io.jstach.rainbowgum.LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} to <code>TRUE</code> is a
-process-wide guarantee of no {@link java.lang.ThreadLocal} anywhere in the logging path - it forces every
+process-wide guarantee of no {@link java.lang.ThreadLocal} anywhere in the logging path: it forces every
 appender off {@link java.lang.ThreadLocal}-backed buffer strategies and, if the SLF4J module is in use,
-disables MDC too - the same effect as combining the appender and MDC options above individually.
+disables MDC too, which is the same effect as combining the appender and MDC options above individually.
 
 <h2 id="appenders">Appenders</h2>
 
@@ -858,7 +858,7 @@ logging.encoder.myappender.structured=true
 
 <h4 id="logstash">Logstash JSON Encoder</h4>
 
-{@link io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder} - format produced by
+{@link io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder}: format produced by
     <a href="https://github.com/logfellow/logstash-logback-encoder">logstash-logback-encoder</a>'s
     <code>LogstashEncoder</code>, URI scheme
     {@value io.jstach.rainbowgum.json.encoder.LogstashEncoder#LOGSTASH_SCHEME}. Key values are flattened
@@ -873,7 +873,7 @@ logging.encoder.myappender.zoneId=UTC
 
 <h4 id="logback_json">Logback JSON Encoder</h4>
 
-    {@link io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder} - resembles
+    {@link io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder}: resembles
     <a href="https://logback.qos.ch/manual/encoders.html#JsonEncoder">Logback's own opinionated JSON encoder</a>,
     URI scheme {@value io.jstach.rainbowgum.json.encoder.LogbackJsonEncoder#LOGBACK_SCHEME}. Nests key values
     under a <code>mdc</code> object and, for throwables, a <code>throwable</code> object with a
@@ -912,8 +912,8 @@ already the default encoder for console output.
 <p>
   <strong>NOTE:</strong> <em>The <strong>color</strong> pattern keywords work out of the box with no extra module.</em>
     Rainbow Gum detects whether the process is attached to an ANSI capable terminal using only
-    {@link java.lang.System#console()} and well known environment variables ({@code NO_COLOR}, {@code TERM}) - see
-    {@link io.jstach.rainbowgum.format.AnsiSupport} - and simply does not emit ANSI escape sequences when it is not.
+    {@link java.lang.System#console()} and well known environment variables ({@code NO_COLOR}, {@code TERM};
+    see {@link io.jstach.rainbowgum.format.AnsiSupport}), and simply does not emit ANSI escape sequences when it is not.
     The separate JAnsi module <a href="#jansi">covered below</a> is no longer generally needed; it is now largely a
     legacy option for a handful of edge cases. ANSI escape can also be globally disabled by setting
     {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} to <code>true</code>, which disables
@@ -964,7 +964,7 @@ With the above, <code>%property{app}</code> anywhere in a pattern outputs <code>
 
 Like Logback you can add your own pattern keywords, and {@link io.jstach.rainbowgum.pattern.format.PatternConfig}
 can instead be set programmatically as a single default shared by every encoder that has no more specific
-property configuration. Both - with full code examples - are covered in the
+property configuration. Both (with full code examples) are covered in the
 {@link io.jstach.rainbowgum.pattern/ } module javadoc.
 
 <h4 id="pattern_exception">Automatic Exception Rendering</h4>
@@ -976,8 +976,8 @@ exception formatter to the end of the compiled pattern, so a logged throwable is
 because the pattern forgot to ask for it.
 
 To opt out and suppress exception rendering entirely, add <code>%nopex</code> (or <code>%nopexception</code>)
-anywhere in the pattern - like the other throwable keywords, its mere presence is enough to disable the
-automatic append, and it renders nothing itself:
+anywhere in the pattern (like the other throwable keywords, its mere presence is enough to disable the
+automatic append), and it renders nothing itself:
 
 {@snippet lang=properties :
 logging.encoder.myappender.pattern=%msg%nopex
@@ -999,11 +999,11 @@ logging.encoder.myappender.pattern=%msg%nopex
     <li>
       <strong>Stripping ANSI on piping/redirection.</strong> JAnsi works by wrapping <code>System.out</code>/
       <code>System.err</code> and stripping escape sequences at write time when it decides the destination is not a
-      real terminal - which requires JAnsi to correctly detect that in the first place. <code>AnsiSupport</code>
+      real terminal, which requires JAnsi to correctly detect that in the first place. <code>AnsiSupport</code>
       instead decides once, using {@link java.lang.System#console()}, whether to emit ANSI escapes <em>at all</em>,
       which is both simpler and does not depend on a terminal-detection library getting it right. This matters
-      because terminal detection is a genuinely hard problem in practice: for example JLine's terminal detection -
-      used by a number of other tools for the same purpose - is known to not correctly detect piped/redirected
+      because terminal detection is a genuinely hard problem in practice: for example JLine's terminal detection
+      (used by a number of other tools for the same purpose) is known to not correctly detect piped/redirected
       output in some cases, emitting escape codes into a pipe it should have recognized as non-interactive.
     </li>
   </ul>
@@ -1012,7 +1012,7 @@ logging.encoder.myappender.pattern=%msg%nopex
   <em>
     <a href="https://openjdk.org/jeps/8307341">Future versions of the JDK may require command line arguments</a>
     for using jars packaged with native libraries, which JAnsi is. Given that Rainbow Gum favors security we
-    strongly agree with the draft JDK Enhancement Proposal (JEP) - this is one more reason
+    strongly agree with the draft JDK Enhancement Proposal (JEP): this is one more reason
     <code>AnsiSupport</code>'s pure-JDK approach (no
     native code, no reflection, no separate terminal library) is now the preferred path.
   </em>
@@ -1056,7 +1056,7 @@ Of course fully qualified file URI are supported as well like: <code>file:///./a
 For Spring Boot compatibility {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} is also supported
 if custom routers and appenders are not configured. Unlike the generic <code>output</code> property above,
 {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} is <strong>not</strong> subject to the <code>./</code>
-caveat - since it is documented to always be a file path (never a URI scheme reference) Rainbow Gum resolves
+caveat: since it is documented to always be a file path (never a URI scheme reference), Rainbow Gum resolves
 it as one directly, so both of the following work as expected without needing a <code>./</code> prefix:
 </p>
 
@@ -1091,7 +1091,7 @@ logging.appender.myapp.output=stderr
 
 <h3 id="file">File Output</h3>
 
-The <code>rainbowgum-file</code> module (not included by default -
+The <code>rainbowgum-file</code> module (not included by default;
 <code>rainbowgum-core</code> on its own has no file I/O capability at all) provides
 plain, non-rolling file output under the "file" URI scheme,
 {@link io.jstach.rainbowgum.file.FileOutputBuilder}:
@@ -1120,12 +1120,12 @@ logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10485760&ma
 
 See {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder} for the full list of
 properties (<code>maxFileSize</code>, <code>maxHistory</code>, <code>totalSizeCap</code>,
-<code>cleanHistoryOnStart</code>, <code>fileNamePattern</code>) and their defaults - they
+<code>cleanHistoryOnStart</code>, <code>fileNamePattern</code>) and their defaults. They
 work equally well as query parameters above or as
 <code>logging.output.{name}.*</code> properties.
 
 <p>
-<strong>This is deliberately basic - just enough to keep a small/desktop app's disk
+<strong>This is deliberately basic: just enough to keep a small/desktop app's disk
 from filling up, not a substitute for a real log rotation/aggregation
 policy.</strong> There is no calendar/date based rotation, no compression on a
 schedule independent of rotation, and no coordination across multiple processes
@@ -1196,10 +1196,10 @@ We might have a logrotate script that looks like:
 Like logback Rainbow Gum provides two types of filtering through functional composition:
 
 <ol>
-  <li>{@linkplain io.jstach.rainbowgum.LogRouter.Router.RouterFactory#of(Function) router based filtering} 
-    - similar to logbacks normal filters.</li>
-  <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService SLF4J based filtering} 
-    - similar to <a href="https://logback.qos.ch/manual/filters.html#TurboFilter">logback Turbo Filters</a></li>
+  <li>{@linkplain io.jstach.rainbowgum.LogRouter.Router.RouterFactory#of(Function) router based filtering},
+    similar to logbacks normal filters.</li>
+  <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService SLF4J based filtering},
+    similar to <a href="https://logback.qos.ch/manual/filters.html#TurboFilter">logback Turbo Filters</a></li>
 </ol>
 
 <h3 id="router_filter">Event based Filtering</h3>
@@ -1241,7 +1241,7 @@ like router based filtering.
 </p>
 <p>
 Do not implement the decorated {@link org.slf4j.Logger} by extending
-{@link org.slf4j.helpers.AbstractLogger} directly - getting SLF4J caller-info depth right
+{@link org.slf4j.helpers.AbstractLogger} directly: getting SLF4J caller-info depth right
 means depending on that class's internal dispatch shape, which is an unversioned
 implementation detail and easy to get subtly wrong. Extend
 {@linkplain io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger AbstractFilteringLogger}
@@ -1255,20 +1255,20 @@ built-in {@code Marker} support otherwise):
 
 <h2 id="alerts_metrics">Alerts and Metrics</h2>
 
-Rainbow Gum's own internal health - as opposed to the application events flowing through
-the {@link io.jstach.rainbowgum.LogRouter Router} - is exposed through two small, separate
+Rainbow Gum's own internal health (as opposed to the application events flowing through
+the {@link io.jstach.rainbowgum.LogRouter Router}) is exposed through two small, separate
 {@link io.jstach.rainbowgum.LogConfig} accessors:
 {@link io.jstach.rainbowgum.LogConfig#alerts()} and {@link io.jstach.rainbowgum.LogConfig#metrics()}.
-They are deliberately two different types rather than one combined API - an appender failing
+They are deliberately two different types rather than one combined API. An appender failing
 to write is a discrete event worth recording with a message (and possibly a throwable), while
-"how many times has this happened" is much cheaper to just keep as a running number - and each
+"how many times has this happened" is much cheaper to just keep as a running number. Each
 is meant to be independently replaceable later (a future Micrometer backed <code>LogMetrics</code>,
 say, without needing to also replace how alerts are recorded).
 
 <h3 id="alerts">Alerts</h3>
 
-{@link io.jstach.rainbowgum.LogAlerts} records problems with the logging system itself - an
-appender failing to write, or an async publisher's queue overflowing - rather than application
+{@link io.jstach.rainbowgum.LogAlerts} records problems with the logging system itself (an
+appender failing to write, or an async publisher's queue overflowing) rather than application
 logging. Because logging itself may be broken these are not routed back through the normal
 Router but are instead kept in a small in memory ring buffer
 ({@link io.jstach.rainbowgum.LogAlerts#dump()} and {@link io.jstach.rainbowgum.LogAlerts#stats()})
@@ -1276,7 +1276,7 @@ as well as immediately reported (currently to stderr).
 
 <p>
 You can also subscribe to alerts as they happen with
-{@link io.jstach.rainbowgum.LogAlerts#addListener(io.jstach.rainbowgum.LogAlerts.Listener)} -
+{@link io.jstach.rainbowgum.LogAlerts#addListener(io.jstach.rainbowgum.LogAlerts.Listener)},
 useful for bridging alerts to whatever alerting/paging system an application already has:
 </p>
 
@@ -1285,7 +1285,7 @@ useful for bridging alerts to whatever alerting/paging system an application alr
 <h3 id="metrics">Metrics</h3>
 
 {@link io.jstach.rainbowgum.LogMetrics} is for the cheap, high frequency counters that would be
-wasteful to record as discrete alert events - counters like
+wasteful to record as discrete alert events: counters like
 {@value io.jstach.rainbowgum.LogMetrics#EVENTS_DROPPED_METRIC} (an appender dropping events on
 reentry, see <a href="#appender_reentry">Appender Reentry Protection</a>) and
 {@value io.jstach.rainbowgum.LogMetrics#BUFFER_TRIMMED_METRIC} (a reused encoder buffer growing
@@ -1298,13 +1298,13 @@ buffer.
 {@link io.jstach.rainbowgum.LogMetrics#errorCounter(String, long)} and
 {@link io.jstach.rainbowgum.LogMetrics#warnCounter(String, long)} increment a named counter;
 {@link io.jstach.rainbowgum.LogMetrics#counters()} returns a snapshot of every counter recorded
-so far. Counters are monotonically increasing for the life of the process - like a
-Prometheus/Micrometer counter there is no reset method, a downstream metrics system is expected
+so far. Counters are monotonically increasing for the life of the process. Like a
+Prometheus/Micrometer counter, there is no reset method; a downstream metrics system is expected
 to compute the rate of change instead.
 </p>
 
 The fixed, well known set of counters Rainbow Gum itself records is enumerable through
-{@link io.jstach.rainbowgum.LogMetrics.StandardMetric} - useful for something wanting to bind
+{@link io.jstach.rainbowgum.LogMetrics.StandardMetric}, useful for something wanting to bind
 every well known counter to an external metrics system without hand listing each name/level pair:
 
 {@snippet class="snippets.AlertsMetricsExample" region="metricsExample" }
@@ -1314,7 +1314,7 @@ every well known counter to an external metrics system without hand listing each
 For Spring Boot 4 applications, {@link io.jstach.rainbowgum.spring.boot4.actuator/ } bridges
 every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric} above to Micrometer as a
 <code>rainbowgum.&lt;name&gt;</code> counter (e.g. <code>rainbowgum.events.dropped</code>), tagged
-with its level. It activates automatically - no properties to set, no bean to register - as long
+with its level. It activates automatically (no properties to set, no bean to register) as long
 as Micrometer is on the classpath, which it already is once
 <code>spring-boot-starter-micrometer-metrics</code> (Spring Boot 4's own dedicated metrics
 starter) is a dependency; add just the module and the counters show up under
@@ -1322,7 +1322,7 @@ starter) is a dependency; add just the module and the counters show up under
 (Prometheus, etc.).
 
 <p>
-Only the fixed <code>StandardMetric</code> set above is bound - deliberately not the
+Only the fixed <code>StandardMetric</code> set above is bound: deliberately not the
 per-logger-name counters {@link io.jstach.rainbowgum.LogMetrics} also accumulates as a side
 effect of every alert, since logger names are application-chosen and effectively unbounded, which
 would be an unbounded cardinality source in a metrics backend. {@link io.jstach.rainbowgum.LogAlerts}
@@ -1330,7 +1330,7 @@ itself is not bridged to Micrometer at all; only its metrics side effect is.
 </p>
 
 <p>
-There is currently no Spring Boot 3 equivalent of this module - it is Boot 4 only.
+There is currently no Spring Boot 3 equivalent of this module; it is Boot 4 only.
 </p>
 
 <h2 id="example_configuration">Example Configuration</h2>
@@ -1550,8 +1550,8 @@ supported at this time.
 Rainbow Gum SLF4J implementation is unique in that it has 
 two special implementation of loggers:
 <ul>
-<li>Level Logger - logger based on level threshold and <em>can never change</em>!</li>
-<li>Changing Logger - level and other configuration <em>can change</em>.</li>
+<li>Level Logger: logger based on level threshold and <em>can never change</em>!</li>
+<li>Changing Logger: level and other configuration <em>can change</em>.</li>
 </ul>
 Other logging implementations like Logback by default use something analogous to changing loggers
 which require a constant check if the level threshold has changed.
@@ -1618,29 +1618,29 @@ the System Logger provided the loggers are created after Rainbow Gum initializes
 <h3 id="spring_boot">Spring Boot</h3>
 
 Rainbow Gum provides Spring Boot 3 and 4 support that is maintained by the Rainbow Gum project, as two separate
-modules/artifacts - one per Spring Boot major version. Rainbow Gum cannot compete with Spring Boot's own bundled
+modules/artifacts, one per Spring Boot major version. Rainbow Gum cannot compete with Spring Boot's own bundled
 Logback/Log4j2 integration on "we maintain this forever regardless of what Spring Boot does next", so rather than
 bet on one major version staying source-compatible with the next (they usually are not), each supported major gets
 its own artifact:
 
 <ul>
-  <li>{@link io.jstach.rainbowgum.spring.boot4/ } / <code>rainbowgum-spring-boot4-starter</code> - for Spring Boot 4
+  <li>{@link io.jstach.rainbowgum.spring.boot4/ } / <code>rainbowgum-spring-boot4-starter</code>: for Spring Boot 4
     <strong>(recommended for new projects)</strong>.</li>
-  <li>{@link io.jstach.rainbowgum.spring.boot3/ } / <code>rainbowgum-spring-boot3-starter</code> - for Spring Boot 3.</li>
+  <li>{@link io.jstach.rainbowgum.spring.boot3/ } / <code>rainbowgum-spring-boot3-starter</code>: for Spring Boot 3.</li>
 </ul>
 
 Their own internal implementation packages ({@code io.jstach.rainbowgum.spring.boot3}/{@code boot4}) are not
-exported and never imported by consumers - Spring Boot discovers them itself through {@code META-INF/spring.factories}
-and the Java service loader - so those packages are duplicated per major version rather than shared, and are not
-necessarily identical in behavior; each module's own javadoc has the authoritative full supported/not-supported
+exported and never imported by consumers. Spring Boot discovers them itself through {@code META-INF/spring.factories}
+and the Java service loader, so those packages are duplicated per major version rather than shared, and are not
+necessarily identical in behavior. Each module's own javadoc has the authoritative full supported/not-supported
 property table for which Spring Boot logging properties (<code>logging.*</code>, <code>spring.output.ansi.enabled</code>,
 etc.) it supports, kept next to the code that implements it rather than duplicated here where it could drift out of
-sync -
+sync:
 {@link io.jstach.rainbowgum.spring.boot4/ } and {@link io.jstach.rainbowgum.spring.boot3/ }. The one package you might
 actually import,
 {@link io.jstach.rainbowgum.spring.boot.spi}, lives in its own genuinely shared module (<code>rainbowgum-spring-spi</code>,
 pulled in transitively by both starters) because it only depends on {@code org.springframework.core.env.Environment},
-which is expected to remain stable across Spring Boot major versions - so if you have implemented
+which is expected to remain stable across Spring Boot major versions, so if you have implemented
 {@code SpringRainbowGumServiceProvider} yourself, that import never needs to change when you bump major versions.
 
 <p>
@@ -1684,7 +1684,7 @@ The recommended setup of Spring Boot 4 with Maven is:
 }
 
 For Spring Boot 3 substitute <code>rainbowgum-spring-boot4-starter</code> with
-<code>rainbowgum-spring-boot3-starter</code> above - everything else is identical.
+<code>rainbowgum-spring-boot3-starter</code> above; everything else is identical.
 
 Note that if one chooses to not use one of the <code>rainbowgum-spring-boot*-starter</code> artifacts
 or the underlying <code>rainbowgum-spring-boot3</code>/<code>rainbowgum-spring-boot4</code> module directly,
@@ -1711,8 +1711,8 @@ File an issue if you are interested an implementation.
 Commons Logging support can be had by using:
 
 <ul>
-  <li><a href="https://www.slf4j.org/legacy.html#jclRecursion">jcl-over-slf4j</a> - if not using Spring, or using Spring Framework 6 / Spring Boot 3 (or earlier) and one does not want <code>spring-jcl</code>. </li>
-  <li><a href="https://docs.spring.io/spring-framework/reference/core/spring-jcl.html">spring-jcl</a> - if using Spring Framework 6 / Spring Boot 3 (or earlier).</li>
+  <li><a href="https://www.slf4j.org/legacy.html#jclRecursion">jcl-over-slf4j</a>: if not using Spring, or using Spring Framework 6 / Spring Boot 3 (or earlier) and one does not want <code>spring-jcl</code>. </li>
+  <li><a href="https://docs.spring.io/spring-framework/reference/core/spring-jcl.html">spring-jcl</a>: if using Spring Framework 6 / Spring Boot 3 (or earlier).</li>
 </ul>
 
 Both of these are drop in replacements to commons-logging library.
@@ -1725,7 +1725,7 @@ but requires excluding <code>spring-jcl</code>.
 <b>Spring Framework 7 / Spring Boot 4 changed this</b>: <code>spring-jcl</code> was removed and Spring went back to depending
 directly on the real <a href="https://commons.apache.org/proper/commons-logging/">Apache Commons Logging</a> (1.3+), which as of
 that version added its own built-in SLF4J discovery. So with Rainbow Gum's Spring Boot 4 integration, <code>commons-logging</code>
-calls are routed to SLF4J (and therefore Rainbow Gum) automatically by commons-logging itself - no <code>jcl-over-slf4j</code>
+calls are routed to SLF4J (and therefore Rainbow Gum) automatically by commons-logging itself: no <code>jcl-over-slf4j</code>
 substitution or <code>spring-jcl</code>/<code>commons-logging</code> exclusion dance needed.
 
 <p>
