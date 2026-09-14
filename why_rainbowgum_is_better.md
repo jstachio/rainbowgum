@@ -73,8 +73,24 @@ logger/message, 10MB rotation, 7 files retained - written natively in each, actu
 compiled and run against the real libraries (not hand-waved):
 
 <table>
-<tr><th>Log4j2 (18 lines)</th><th>Logback (23 lines)</th><th>Rainbow Gum (7 lines)</th></tr>
+<tr><th>Rainbow Gum (7 lines)</th><th>Log4j2 (18 lines)</th><th>Logback (23 lines)</th></tr>
 <tr><td>
+
+```java
+RainbowGum.builder()
+    .route(r -> {
+        r.appender("rolling", a -> a.output(
+            RollingFileOutput.of(b -> {
+                b.fileName("app.log");
+                b.maxFileSize(10 * 1024 * 1024);
+                b.maxHistory(7);
+            })));
+        r.level(Level.INFO);
+    })
+    .set();
+```
+
+</td><td>
 
 ```java
 var builder = ConfigurationBuilderFactory
@@ -143,22 +159,6 @@ appender.start();
 var root = context.getLogger(Logger.ROOT_LOGGER_NAME);
 root.setLevel(Level.INFO);
 root.addAppender(appender);
-```
-
-</td><td>
-
-```java
-RainbowGum.builder()
-    .route(r -> {
-        r.appender("rolling", a -> a.output(
-            RollingFileOutput.of(b -> {
-                b.fileName("app.log");
-                b.maxFileSize(10 * 1024 * 1024);
-                b.maxHistory(7);
-            })));
-        r.level(Level.INFO);
-    })
-    .set();
 ```
 
 </td></tr>
