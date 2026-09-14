@@ -57,6 +57,25 @@ class final SomeFactory {
 	}
  }
  * }
+ * <p>
+ * If constructing the target type needs something only available on
+ * {@code io.jstach.rainbowgum.LogConfig} itself (for example another component that can
+ * only be resolved once config exists), prefer returning
+ * {@code io.jstach.rainbowgum.LogProvider<MyPlugin>} from the factory method instead of
+ * <code>MyPlugin</code> directly:
+ * {@snippet :
+class final SomeFactory {
+	@LogConfigurable(name="MyPluginBuilder", prefix="logging.myplugin.{name}.")
+	static LogProvider<MyPlugin> of(@KeyParameter String name, Integer myParameter) {
+		// still validate/parse everything derivable from properties eagerly, right here.
+		return (n, config) -> new MyPlugin(name, myParameter, config);
+	}
+ }
+ * }
+ * The factory method still runs (and can still throw {@link IllegalArgumentException})
+ * as soon as the builder is built; only the part of construction that genuinely needs
+ * {@code LogConfig} is deferred, to whenever <code>provide(name, config)</code> is
+ * actually called later.
  */
 // @formatter:on
 @Retention(CLASS)
