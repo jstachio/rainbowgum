@@ -203,8 +203,7 @@ class ChangePublisherTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad], \
-						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE
-						Tried: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad]""",
+						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);
@@ -236,8 +235,7 @@ class ChangePublisherTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.caller.bad' from PROPERTIES_STRING[logging.caller.bad], \
-						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogEvent.Caller.CallerType.NONSENSE
-						Tried: 'logging.caller.bad' from PROPERTIES_STRING[logging.caller.bad]""",
+						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogEvent.Caller.CallerType.NONSENSE""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);

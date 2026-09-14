@@ -86,15 +86,12 @@ class FileOutputPropertiesTest {
 			var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
 			assertEquals(
 					"""
-							Failure providing Appenders for route: 'default'. cause:
-							Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
-							Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log' cause:
 							Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 							Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
-							Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri]
 							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], java.lang.NumberFormatException For input string: "blah"
-							Tried: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize]
-							Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]""",
+							  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
+							  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
+							  ↳ Failure providing Appenders for route: 'default'.""",
 					e.getMessage());
 			Throwable cause = e;
 			Throwable tmp = cause.getCause();
@@ -129,10 +126,9 @@ class FileOutputPropertiesTest {
 		String absolutePath = dir.toAbsolutePath().toString();
 		assertEquals(
 				"""
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'file' from property: Fallback[logging.route.default.appenders]=[file, console]. cause:
 						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.io.UncheckedIOException java.io.FileNotFoundException: %s (Is a directory)
-						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]"""
+						  ↳ Failure providing Appender: 'file' from property: Fallback[logging.route.default.appenders]=[file, console].
+						  ↳ Failure providing Appenders for route: 'default'."""
 					.formatted(absolutePath),
 				e.getMessage());
 	}
@@ -196,13 +192,13 @@ class FileOutputPropertiesTest {
 			@Nullable String exceptionMessage() {
 				String uri = Paths.get(FILE_PATH).toUri().toString();
 				String message = """
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
-						Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah' cause:
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], java.lang.NumberFormatException For input string: "blah"
 						Tried: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
-						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""" //
+						  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah'
+						    Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]
+						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
+						  ↳ Failure providing Appenders for route: 'default'.""" //
 					.formatted(uri, uri);
 				return message;
 			}
@@ -224,13 +220,13 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable String exceptionMessage() {
 				return """
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
-						Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log' cause:
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 						Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], ENVIRONMENT_VARIABLES[logging_output_file_uri]
-						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""";
+						  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
+						    Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]
+						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
+						  ↳ Failure providing Appenders for route: 'default'.""";
 			}
 		},
 		BAD_URI("""
@@ -250,9 +246,9 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable String exceptionMessage() {
 				return """
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'file' from property: Property[logging.appenders]=[file]. cause:
-						Property missing. keys: ['logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name], 'logging.appender.file.output' from PROPERTIES_STRING[logging.appender.file.output], ENVIRONMENT_VARIABLES[logging_appender_file_output]]""";
+						Property missing. keys: ['logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name], 'logging.appender.file.output' from PROPERTIES_STRING[logging.appender.file.output], ENVIRONMENT_VARIABLES[logging_appender_file_output]]
+						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
+						  ↳ Failure providing Appenders for route: 'default'.""";
 			}
 		}
 

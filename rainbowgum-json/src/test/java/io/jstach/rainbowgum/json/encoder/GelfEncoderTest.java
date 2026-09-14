@@ -181,13 +181,12 @@ class GelfEncoderTest {
 		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
 		assertEquals(
 				"""
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
-						Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'gelf' cause:
 						Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder:
 						Error for property. key: 'logging.encoder.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits], java.lang.NumberFormatException For input string: "notanumber"
 						Tried: 'logging.encoder.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits], [logging.appender.list.encoder]->URI(gelf:///)[timeFractionalDigits]
-						Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]""",
+						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'gelf'
+						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
+						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
 	}
 

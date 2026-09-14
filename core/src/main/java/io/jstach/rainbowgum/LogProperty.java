@@ -153,16 +153,36 @@ public interface LogProperty {
 			return new Result.Error<>(resolvedKey, message, e);
 		}
 		var badProps = ps.properties();
-		String resolvedKey = "'" + fqk + "' from " + badProps.description(fqk);
-		String message;
-		if (e instanceof PropertyConvertException || e instanceof ValidationException) {
-			message = "Error converting property. key: " + resolvedKey + ", value: '" + ps.valueDescription()
-					+ "' cause:\n" + e.getMessage();
+		String badDescription = badProps.description(fqk);
+		String resolvedKey = "'" + fqk + "' from " + badDescription;
+		boolean chained = e instanceof PropertyConvertException || e instanceof ValidationException;
+		String own;
+		if (chained) {
+			own = "Error converting property. key: " + resolvedKey + ", value: '" + ps.valueDescription() + "'";
 		}
 		else {
-			message = "Error for property. key: " + resolvedKey + ", " + errorName(e) + " " + e.getMessage();
+			own = "Error for property. key: " + resolvedKey + ", " + errorName(e) + " " + e.getMessage();
 		}
-		message += "\nTried: '" + fqk + "' from " + ps.topProperties().description(fqk);
+		/*
+		 * Only worth a "Tried:" line if topProperties actually searched more broadly than
+		 * where the value was found (a chained/composite LogProperties) - for a
+		 * non-chained property, topProperties().description(fqk) is identical to
+		 * badDescription above, so appending it would just repeat the "key: ... from X"
+		 * text already shown on this exact message with nothing new to say.
+		 */
+		String triedDescription = ps.topProperties().description(fqk);
+		if (!triedDescription.equals(badDescription)) {
+			own += "\nTried: '" + fqk + "' from " + triedDescription;
+		}
+		/*
+		 * Root cause first: e's own message already has everything beneath this layer
+		 * fully rendered (its own recursive "↳" trail included, if any), so this layer's
+		 * contribution is appended as one more arrow line rather than prepended - keeps
+		 * the deepest, most specific failure at the top no matter how many layers wrap
+		 * it. A non-chained e (a plain library exception like NumberFormatException) has
+		 * nothing beneath it to defer to, so its own message stays the whole (root) text.
+		 */
+		String message = chained ? e.getMessage() + "\n  ↳ " + own.replace("\n", "\n    ") : own;
 		return new Result.Error<>(resolvedKey, message, e);
 	}
 

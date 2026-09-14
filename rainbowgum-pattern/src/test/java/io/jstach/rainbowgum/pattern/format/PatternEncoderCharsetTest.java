@@ -104,8 +104,7 @@ class PatternEncoderCharsetTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
-						Error for property. key: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset
-						Tried: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset]""",
+						Error for property. key: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset""",
 				e.getMessage());
 	}
 
