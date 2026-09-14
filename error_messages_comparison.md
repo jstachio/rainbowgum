@@ -6,9 +6,12 @@ its own for now since it's likely to grow scenario by scenario.
 The methodology: take the *same* kind of mistake - a config value that fails to convert
 to the type it needs to be - and see what each framework actually does. Every example
 below was actually run against real config for each framework (versions: Logback 1.6.3,
-Log4j2 3.0.0-beta2, Rainbow Gum 0.11.0), not reconstructed from memory or documentation.
-Rainbow Gum's own outputs are the exact golden strings its own test suite asserts on
-(see `RollingFileOutputPropertiesTest`, `PatternEncoderCharsetTest`, `LogstashEncoderTest`).
+Log4j2 3.0.0-beta2, Rainbow Gum 0.12.0-SNAPSHOT), not reconstructed from memory or
+documentation. Rainbow Gum's own outputs are the exact golden strings its own test suite
+asserts on (see `RollingFileOutputPropertiesTest`, `PatternEncoderCharsetTest`,
+`LogstashEncoderTest`), and use Rainbow Gum's current root-cause-first message format: the
+most specific failure is always the first line, with each layer that wrapped it listed
+below as a `  ↳ ` line, deepest wrapping context last.
 
 **The headline finding: Rainbow Gum is the only one of the three that fails the same way
 every time.** Logback's behavior for a bad value ranges from "throws all the way up and
@@ -56,7 +59,6 @@ easy to lose in a normal amount of startup log noise.
 ```
 Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
 Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], java.lang.NumberFormatException For input string: "notanumber"
-Tried: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize]
 ```
 
 Thrown as an actual exception at startup - the application does not start with a broken
@@ -100,17 +102,19 @@ end-to-end message a real misconfigured `RainbowGum.builder(config).build()` act
 produces, not just the innermost builder's own message:
 
 ```
-Failure providing Appenders for route: 'default'. cause:
-Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
-Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash' cause:
 Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder:
 Error for property. key: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
 Tried: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], [logging.appender.list.encoder]->URI(logstash:///)[zoneId]
-Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]
+  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash'
+  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
+  ↳ Failure providing Appenders for route: 'default'.
 ```
 
-Every line is a real cause, top to bottom, each naming the exact component and property
-key responsible - not a stack trace to be filtered through.
+Every line is a real cause, each naming the exact component and property key
+responsible - not a stack trace to be filtered through. The actual root cause (the
+malformed `zoneId`) is the *first* line, not buried under three levels of generic
+"failure providing X" wrapping context; that context is still there, just listed below
+in the order it wrapped the failure, for whoever wants to trace it back up.
 
 ## Scenario 3: an unrecognized charset name
 
@@ -119,7 +123,6 @@ key responsible - not a stack trace to be filtered through.
 ```
 Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
 Error for property. key: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset
-Tried: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset]
 ```
 
 Logback and Log4j2 equivalents not yet captured here - a good next addition to this
