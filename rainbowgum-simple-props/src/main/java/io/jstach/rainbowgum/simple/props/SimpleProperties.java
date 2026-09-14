@@ -157,13 +157,7 @@ public final class SimpleProperties {
 					return LogProperties.StandardProperties.EMPTY;
 				}
 				String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-				// return LogProperties.builder()
-				// .description("SIMPLE_PROPS_FILE[" + resource + "]")
-				// .order(100)
-				// .fromProperties(content)
-				// .build();
 				return SimpleLogProperties.read(new StringReader(content), resource);
-
 			}
 			catch (IOException e) {
 				throw new UncheckedIOException("Failed to read classpath resource: " + resource, e);
