@@ -194,9 +194,9 @@ class FileOutputPropertiesTest {
 				String message = """
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], java.lang.NumberFormatException For input string: "blah"
-						Tried: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
+						Tried: 'logging.output.file.bufferSize' from ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], PROPERTIES_STRING[logging.output.file.bufferSize], [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
 						  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah'
-						    Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]
+						    Tried: 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name]
 						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 						  ↳ Failure providing Appenders for route: 'default'.""" //
 					.formatted(uri, uri);
@@ -222,9 +222,9 @@ class FileOutputPropertiesTest {
 				return """
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
-						Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], ENVIRONMENT_VARIABLES[logging_output_file_uri]
+						Tried: 'logging.output.file.uri' from ENVIRONMENT_VARIABLES[logging_output_file_uri], PROPERTIES_STRING[logging.output.file.uri]
 						  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
-						    Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]
+						    Tried: 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name]
 						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 						  ↳ Failure providing Appenders for route: 'default'.""";
 			}
@@ -236,7 +236,7 @@ class FileOutputPropertiesTest {
 			@Nullable String exceptionMessage() {
 				String message = """
 						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.net.URISyntaxException Expected scheme name at index 0: :://
-						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name]""";
+						Tried: 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name]""";
 				return message;
 			}
 		},
@@ -246,7 +246,7 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable String exceptionMessage() {
 				return """
-						Property missing. keys: ['logging.file.name' from PROPERTIES_STRING[logging.file.name], ENVIRONMENT_VARIABLES[logging_file_name], 'logging.appender.file.output' from PROPERTIES_STRING[logging.appender.file.output], ENVIRONMENT_VARIABLES[logging_appender_file_output]]
+						Property missing. keys: ['logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name], 'logging.appender.file.output' from ENVIRONMENT_VARIABLES[logging_appender_file_output], PROPERTIES_STRING[logging.appender.file.output]]
 						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 						  ↳ Failure providing Appenders for route: 'default'.""";
 			}
