@@ -327,14 +327,38 @@ logging.encoder.example.prettyPrint=true
   Thus <code>gelf</code> is actually <code>gelf:///</code>
 </em>
 
-Because the first property is a URI one can do:
+Because the first property is a URI, its query string is searched for the second line's properties too -
+<code>{propertyName}</code> as a bare query parameter, with no <code>logging.{subComponent}.{name}.</code>
+prefix - so instead of two separate properties one can write everything on the URI line:
 
 {@snippet lang=properties :
 logging.appender.example.encoder=gelf:///?prettyPrint=true
 }
 
+This is not special-cased to <code>encoder</code>/<code>gelf</code> - every URI-configured sub-component looks
+its own properties up the same way. The built-in rolling file output is another example:
+
+{@snippet lang=properties :
+logging.appenders=myapp
+logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10485760
+
+# the above is equivalent to the more verbose:
+logging.appender.myapp.output=rolling:///var/log/app.log
+logging.output.myapp.maxFileSize=10485760
+}
+
+<strong>
+  Precedence: the plain, separately named property is tried first and the URI query parameter is only
+  consulted as a fallback when it is missing. If both
+  <code>logging.encoder.example.prettyPrint</code> and a <code>?prettyPrint=</code> query parameter on the
+  encoder URI are set, the plain property wins and the URI's value is ignored. This lets a URI act as a
+  terse, single-line default that a separately set property can still override without editing the URI
+  itself. This is not configurable - every {@link io.jstach.rainbowgum.LogBuilder} resolves its properties
+  this way via {@link io.jstach.rainbowgum.LogProperties#of(java.net.URI, String, io.jstach.rainbowgum.LogProperties)}.
+</strong>
+
 URIs play an important part for component provision as the  {@link java.net.URI#getScheme() URI scheme}
-is used for plugin lookup as well as single line configuration. This follows  
+is used for plugin lookup as well as single line configuration. This follows
 <a href="https://12factor.net/">12 factor</a> recommendation of resources and configuration.
 
 </p>
