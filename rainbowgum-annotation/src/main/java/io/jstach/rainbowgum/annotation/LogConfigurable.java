@@ -36,6 +36,27 @@ class final SomeFactory {
  * }
  * The builder will try the property <code>logging.myplugin.example.myParameter</code> and
  * use it if it exists to override the <code>80</code> value.
+ * <p>
+ * If the annotated factory method throws {@link IllegalArgumentException} (or a
+ * subclass), the generated builder's <code>build()</code> treats that as a validation
+ * failure: it is caught and rewrapped as a
+ * <code>io.jstach.rainbowgum.LogProperty.ValidationException</code>, the same exception
+ * a per-property conversion failure produces. This is the way to validate a relationship
+ * <em>between</em> multiple parameters (for example, one field's valid range depending on
+ * another field's value) that a single property's own conversion can't catch by itself.
+ * Prefer naming the specific parameter(s) at fault in the exception's message, since that
+ * message becomes the body of the resulting <code>ValidationException</code> as-is:
+ * {@snippet :
+class final SomeFactory {
+	@LogConfigurable(name="MyPluginBuilder", prefix="logging.myplugin.{name}.")
+	static MyPlugin of(@KeyParameter String name, int min, int max) {
+		if (min > max) {
+			throw new IllegalArgumentException("min (" + min + ") must not be greater than max (" + max + ")");
+		}
+		return new MyPlugin(name, min, max);
+	}
+ }
+ * }
  */
 // @formatter:on
 @Retention(CLASS)
