@@ -91,10 +91,7 @@ class FileOutputPropertiesTest {
 							Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log' cause:
 							Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 							Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
-							Tried: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri]
-							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], java.lang.NumberFormatException For input string: "blah"
-							Tried: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize]
-							Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]""",
+							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], java.lang.NumberFormatException For input string: "blah\"""",
 					e.getMessage());
 			Throwable cause = e;
 			Throwable tmp = cause.getCause();
@@ -131,8 +128,7 @@ class FileOutputPropertiesTest {
 				"""
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'file' from property: Fallback[logging.route.default.appenders]=[file, console]. cause:
-						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.io.UncheckedIOException java.io.FileNotFoundException: %s (Is a directory)
-						Tried: 'logging.file.name' from PROPERTIES_STRING[logging.file.name]"""
+						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.io.UncheckedIOException java.io.FileNotFoundException: %s (Is a directory)"""
 					.formatted(absolutePath),
 				e.getMessage());
 	}

@@ -25,8 +25,7 @@ class DisruptorConfiguratorTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.disruptor.DisruptorLogBuilder:
-						Error for property. key: 'logging.publisher.async.bufferSize' from PROPERTIES_STRING[logging.publisher.async.bufferSize], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.publisher.async.bufferSize' from PROPERTIES_STRING[logging.publisher.async.bufferSize]""",
+						Error for property. key: 'logging.publisher.async.bufferSize' from PROPERTIES_STRING[logging.publisher.async.bufferSize], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 

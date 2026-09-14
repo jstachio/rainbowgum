@@ -80,15 +80,13 @@ class ConfigFailureTest {
 				"""
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
-						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
-						Tried: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output]"""),
+						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'"""),
 
 		unregisteredPublisherScheme("""
 				logging.route.default.publisher=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher], NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
-						Tried: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher]"""),
+						Error for property. key: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher], NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'"""),
 
 		unregisteredEncoderScheme("""
 				logging.appenders=myapp
@@ -98,8 +96,7 @@ class ConfigFailureTest {
 				"""
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
-						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'"""),
 
 		unregisteredEncoderSchemeFromKnownModuleHintsDependency("""
 				logging.appenders=myapp
@@ -109,8 +106,7 @@ class ConfigFailureTest {
 				"""
 						Failure providing Appenders for route: 'default'. cause:
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
-						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' (Maven: 'io.jstach.rainbowgum:rainbowgum-json') - add that dependency.
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' (Maven: 'io.jstach.rainbowgum:rainbowgum-json') - add that dependency."""),
 
 		encoderMissingRequiredStringProperty("""
 				logging.appenders=myapp
@@ -122,8 +118,7 @@ class ConfigFailureTest {
 						Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp]. cause:
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Property missing. keys: ['logging.encoder.myapp.host' from PROPERTIES_STRING[logging.encoder.myapp.host], [logging.appender.myapp.encoder]->URI(fake:///)[host]]
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Property missing. keys: ['logging.encoder.myapp.host' from PROPERTIES_STRING[logging.encoder.myapp.host], [logging.appender.myapp.encoder]->URI(fake:///)[host]]"""),
 
 		encoderMalformedIntProperty("""
 				logging.appenders=myapp
@@ -138,8 +133,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.port' from PROPERTIES_STRING[logging.encoder.myapp.port], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.encoder.myapp.port' from PROPERTIES_STRING[logging.encoder.myapp.port], [logging.appender.myapp.encoder]->URI(fake:///)[port]
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Tried: 'logging.encoder.myapp.port' from PROPERTIES_STRING[logging.encoder.myapp.port], [logging.appender.myapp.encoder]->URI(fake:///)[port]"""),
 
 		encoderMalformedUriProperty("""
 				logging.appenders=myapp
@@ -154,8 +148,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.myapp.endpoint], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
-						Tried: 'logging.encoder.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.myapp.endpoint], [logging.appender.myapp.encoder]->URI(fake:///)[endpoint]
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Tried: 'logging.encoder.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.myapp.endpoint], [logging.appender.myapp.encoder]->URI(fake:///)[endpoint]"""),
 
 		/*
 		 * Hits Result.map() at the end of the fluent chain (FakeEncoderBuilder's "label"
@@ -182,8 +175,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], java.lang.IllegalArgumentException label must not be 'bad'
-						Tried: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], [logging.appender.myapp.encoder]->URI(fake:///)[label]
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Tried: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], [logging.appender.myapp.encoder]->URI(fake:///)[label]"""),
 
 		// same Result.map() (not convert()) path as encoderCustomStringValidationFailure
 		// above, but on a List.
@@ -200,8 +192,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], java.lang.IllegalArgumentException tags must not contain 'bad'
-						Tried: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], [logging.appender.myapp.encoder]->URI(fake:///)[tags]
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Tried: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], [logging.appender.myapp.encoder]->URI(fake:///)[tags]"""),
 
 		// same Result.map() (not convert()) path as encoderCustomStringValidationFailure
 		// above, but on a Map.
@@ -218,8 +209,7 @@ class ConfigFailureTest {
 						Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///' cause:
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], java.lang.IllegalArgumentException headers must not contain key 'bad'
-						Tried: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], [logging.appender.myapp.encoder]->URI(fake:///)[headers]
-						Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder]"""),
+						Tried: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], [logging.appender.myapp.encoder]->URI(fake:///)[headers]"""),
 
 		/*
 		 * The 12 FakeGlobalConfigurator cases below cover the full [chained|not chained]
@@ -318,8 +308,7 @@ class ConfigFailureTest {
 				logging.fakeGlobal.mode3=bad
 				""",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3]""") {
+						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -331,18 +320,18 @@ class ConfigFailureTest {
 		 *
 		 * The genuine-error counterpart to globalFlagReadWithoutValidatorThrowsDirectly
 		 * above: mode itself fails its map() check, going through the same richError()
-		 * formatting convert() uses (quoted key, "from X", exception class name, "Tried:"
-		 * line) - see the comment on encoderCustomStringValidationFailure above. Not
-		 * chained, so "from X" and "Tried:" both just name PROPERTIES_STRING here; see
+		 * formatting convert() uses (quoted key, "from X", exception class name, and a
+		 * "Tried:" line only when that differs from "from X") - see the comment on
+		 * encoderCustomStringValidationFailure above. Not chained, so "from X" already
+		 * says everything there is to say and no "Tried:" line is added; see
 		 * globalFlagValueErrorAcrossChainedProperties below for the chained case, where
-		 * they differ.
+		 * they differ and the "Tried:" line earns its keep.
 		 */
 		globalFlagValueError("""
 				logging.fakeGlobal.mode=bad
 				""",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode], java.lang.IllegalArgumentException mode must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode]""") {
+						Error for property. key: 'logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode], java.lang.IllegalArgumentException mode must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -366,8 +355,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Error for property. key: 'logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2], java.lang.IllegalArgumentException mode2 must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2]""") {
+						Error for property. key: 'logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2], java.lang.IllegalArgumentException mode2 must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());

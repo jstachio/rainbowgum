@@ -77,8 +77,7 @@ class RainbowGumSLF4JServiceProviderTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider:
-						Error for property. key: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider.MDCType.BOGUS
-						Tried: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type]""",
+						Error for property. key: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider.MDCType.BOGUS""",
 				e.getMessage());
 	}
 

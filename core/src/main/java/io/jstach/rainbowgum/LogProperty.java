@@ -153,7 +153,8 @@ public interface LogProperty {
 			return new Result.Error<>(resolvedKey, message, e);
 		}
 		var badProps = ps.properties();
-		String resolvedKey = "'" + fqk + "' from " + badProps.description(fqk);
+		String badDescription = badProps.description(fqk);
+		String resolvedKey = "'" + fqk + "' from " + badDescription;
 		String message;
 		if (e instanceof PropertyConvertException || e instanceof ValidationException) {
 			message = "Error converting property. key: " + resolvedKey + ", value: '" + ps.valueDescription()
@@ -162,7 +163,17 @@ public interface LogProperty {
 		else {
 			message = "Error for property. key: " + resolvedKey + ", " + errorName(e) + " " + e.getMessage();
 		}
-		message += "\nTried: '" + fqk + "' from " + ps.topProperties().description(fqk);
+		/*
+		 * Only worth a "Tried:" line if topProperties actually searched more broadly than
+		 * where the value was found (a chained/composite LogProperties) - for a
+		 * non-chained property, topProperties().description(fqk) is identical to
+		 * badDescription above, so appending it would just repeat the "key: ... from X"
+		 * text already shown on this exact message with nothing new to say.
+		 */
+		String triedDescription = ps.topProperties().description(fqk);
+		if (!triedDescription.equals(badDescription)) {
+			message += "\nTried: '" + fqk + "' from " + triedDescription;
+		}
 		return new Result.Error<>(resolvedKey, message, e);
 	}
 
