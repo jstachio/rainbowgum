@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
-import io.jstach.rainbowgum.LogConfig.ChangePublisher.CallerType;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
+import io.jstach.rainbowgum.LogEvent.Caller.CallerType;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 
 class ChangePublisherTest {
@@ -236,7 +236,7 @@ class ChangePublisherTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.caller.bad' from PROPERTIES_STRING[logging.caller.bad], \
-						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.CallerType.NONSENSE
+						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogEvent.Caller.CallerType.NONSENSE
 						Tried: 'logging.caller.bad' from PROPERTIES_STRING[logging.caller.bad]""",
 				event.message());
 		var throwable = event.throwableOrNull();
@@ -245,8 +245,7 @@ class ChangePublisherTest {
 		var cause = throwable.getCause();
 		assertNotNull(cause);
 		assertEquals(IllegalArgumentException.class, cause.getClass());
-		assertEquals("No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.CallerType.NONSENSE",
-				cause.getMessage());
+		assertEquals("No enum constant io.jstach.rainbowgum.LogEvent.Caller.CallerType.NONSENSE", cause.getMessage());
 	}
 
 	@Test

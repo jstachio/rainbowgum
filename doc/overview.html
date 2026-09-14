@@ -645,9 +645,9 @@ Note that {@value io.jstach.rainbowgum.LogProperties#CALLER_PREFIX} is resolved 
 so enabling caller info for <code>com.mycompany</code> does not also make <code>com.mycompany</code> level
 changeable, and a more specific <code>logging.change.com.mycompany.app</code> entry does not clobber
 <code>com.mycompany.app</code>'s inherited caller info the way it would if the two shared one property. The
-value is a {@link io.jstach.rainbowgum.LogConfig.ChangePublisher.CallerType} (or
-<code>true</code>/<code>false</code>) - {@link io.jstach.rainbowgum.LogConfig.ChangePublisher.CallerType#BASIC
-BASIC} (what <code>true</code> means today) is the only level implemented so far.
+value is a {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType} (or
+<code>true</code>/<code>false</code>) - {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType#BASIC
+BASIC} (what <code>true</code> means today) is the only strategy implemented so far.
 
 <h2 id="publishers">Publishers</h2>
 
