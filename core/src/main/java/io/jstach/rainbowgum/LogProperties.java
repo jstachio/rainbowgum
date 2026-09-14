@@ -1179,6 +1179,10 @@ public interface LogProperties {
 				return key.replace(".", "_");
 			}
 
+			@Override
+			public int order() {
+				return 300;
+			}
 		};
 
 		@Override
@@ -1379,11 +1383,11 @@ public interface LogProperties {
 	 */
 	static String descriptionForKey(String type, String key) {
 		return type + "[" + key + "]";
-
 	}
 
 	/**
-	 * Standard way to produce description for a key with an index.
+	 * Standard way to produce description for a key found in a resource (a file or
+	 * similar), without a line number.
 	 * @param type the properties type name.
 	 * @param resource file like name.
 	 * @param key the properties key translated.
@@ -1391,11 +1395,11 @@ public interface LogProperties {
 	 */
 	static String descriptionForResource(String type, String resource, String key) {
 		return type + "[" + resource + "][" + key + "]";
-
 	}
 
 	/**
-	 * Standard way to produce description for a key with an index.
+	 * Standard way to produce description for a key found in a resource (a file or
+	 * similar) at a known index, usually a line number.
 	 * @param type the properties type name.
 	 * @param resource file like name.
 	 * @param key the properties key translated.
@@ -1404,7 +1408,6 @@ public interface LogProperties {
 	 */
 	static String descriptionForResource(String type, String resource, String key, long index) {
 		return type + "[" + resource + ":" + index + "][" + key + "]";
-
 	}
 
 }
