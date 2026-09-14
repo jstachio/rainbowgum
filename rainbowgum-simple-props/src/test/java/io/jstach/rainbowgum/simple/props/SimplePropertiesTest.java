@@ -125,8 +125,8 @@ class SimplePropertiesTest {
 				() -> ((Result.Error<Integer>) composite.forKey("logging.threshold").ofInt()).value());
 		assertEquals(
 				"""
-						Error for property. key: 'logging.threshold' from SIMPLE_PROPS_FILE[classpath:/bad-int.properties][logging.threshold], java.lang.NumberFormatException For input string: "not-a-number"
-						Tried: 'logging.threshold' from SYSTEM_PROPERTIES[logging.threshold], ENV[RAINBOWGUM_threshold], SIMPLE_PROPS_FILE[classpath:/bad-int.properties][logging.threshold]""",
+						Error for property. key: 'logging.threshold' from SIMPLE_PROPS[classpath:/bad-int.properties:4][logging.threshold], java.lang.NumberFormatException For input string: "not-a-number"
+						Tried: 'logging.threshold' from SYSTEM_PROPERTIES[logging.threshold], ENV[RAINBOWGUM_threshold], SIMPLE_PROPS[classpath:/bad-int.properties:4][logging.threshold]""",
 				e.getMessage());
 	}
 
