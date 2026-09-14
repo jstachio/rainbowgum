@@ -30,10 +30,9 @@ class AvajePropertiesProviderTest {
 			}
 		});
 		String expected = """
-				Failure providing Appenders for route: 'default'. cause:
-				Failure providing Appender: 'stuff' from property: Property[logging.appenders]=[stuff]. cause:
 				Error for property. key: 'logging.appender.stuff.output' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output], NotFoundException No output found. Scheme not registered. scheme: 'blah', URI: 'blah:///'
-				Tried: 'logging.appender.stuff.output' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output]""";
+				  ↳ Failure providing Appender: 'stuff' from property: Property[logging.appenders]=[stuff].
+				  ↳ Failure providing Appenders for route: 'default'.""";
 		String actual = e.getMessage();
 		assertEquals(expected, actual);
 	}

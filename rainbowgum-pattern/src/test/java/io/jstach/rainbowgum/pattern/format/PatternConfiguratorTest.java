@@ -62,13 +62,11 @@ class PatternConfiguratorTest {
 		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
 		assertEquals(
 				"""
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
-						Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern' cause:
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.zoneId' from PROPERTIES_STRING[logging.pattern.config.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
-						Tried: 'logging.pattern.config.list.zoneId' from PROPERTIES_STRING[logging.pattern.config.list.zoneId]
-						Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]""",
+						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
+						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
 	}
 
@@ -88,13 +86,11 @@ class PatternConfiguratorTest {
 		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
 		assertEquals(
 				"""
-						Failure providing Appenders for route: 'default'. cause:
-						Failure providing Appender: 'list' from property: Property[logging.appenders]=[list]. cause:
-						Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern' cause:
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.sequenceNumberStart' from PROPERTIES_STRING[logging.pattern.config.list.sequenceNumberStart], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.pattern.config.list.sequenceNumberStart' from PROPERTIES_STRING[logging.pattern.config.list.sequenceNumberStart]
-						Tried: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder]""",
+						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
+						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
 	}
 

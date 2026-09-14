@@ -60,7 +60,7 @@ public interface LogProvider<T> {
 	 * @return wrapped provider.
 	 */
 	default LogProvider<T> describe(String description) {
-		return wrap(this, (k, t) -> "Failure providing " + description + ". cause:\n" + t.getMessage());
+		return wrap(this, (k, t) -> t.getMessage() + "\n  ↳ Failure providing " + description + ".");
 	}
 
 	/**
@@ -69,7 +69,7 @@ public interface LogProvider<T> {
 	 * @return wrapped provider.
 	 */
 	default LogProvider<T> describe(Function<String, String> description) {
-		return wrap(this, (k, t) -> "Failure providing " + description.apply(k) + ". cause:\n" + t.getMessage());
+		return wrap(this, (k, t) -> t.getMessage() + "\n  ↳ Failure providing " + description.apply(k) + ".");
 	}
 
 	private static <U> LogProvider<U> wrap(LogProvider<U> provider, BiFunction<String, Throwable, String> description) {
