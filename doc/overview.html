@@ -1458,9 +1458,17 @@ For most simply including the dependency <code>io.jstach.rainbowgum:rainbowgum</
 is enough. That dependency will transitively pull in the most commonly used modules.
 For a more minimal setup (total application size in terms of classes)
 <code>{@linkplain io.jstach.rainbowgum/ io.jstach.rainbowgum:rainbowgum-core}</code>
-and <code>{@linkplain io.jstach.rainbowgum.slf4j/ io.jstach.rainbowgum:rainbowgum-slf4j}</code> 
+and <code>{@linkplain io.jstach.rainbowgum.slf4j/ io.jstach.rainbowgum:rainbowgum-slf4j}</code>
 (if using SLF4J)
 should be used.
+
+<p>
+<strong>NOTE:</strong> if you are using a web framework or platform that already bundles
+its own logging framework (Logback, Log4j2, etc.), you will likely need to exclude that
+transitive dependency, or the two will conflict on the SLF4J provider slot. See the
+<a href="#spring_boot">Spring Boot</a> section below for a concrete example of excluding
+<code>spring-boot-starter-logging</code>.
+</p>
 
 <h3 id="maven">Maven</h3>
 
