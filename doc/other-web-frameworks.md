@@ -15,15 +15,17 @@ actually running.
 | Framework | Own logging facade | Default backend | SLF4J is a first-class citizen? | Effort to put Rainbow Gum underneath |
 | --- | --- | --- | --- | --- |
 | Micronaut | SLF4J | Logback (`logback-classic`) | Yes, natively | Low: standard SLF4J provider swap |
-| Helidon | `java.util.logging` (JUL) | JUL (`logging.properties`) | Optional, via a bridge | Low/Medium: JUL handler swap, SLF4J already works for app code |
+| Helidon | `java.util.logging` (JUL) | JUL (`logging.properties`) | Optional, via a bridge | Medium (good enough) / High (first-class): SLF4J app code already works, but a correct swap of Helidon's own JUL calls needs a new custom `LogManager` (see below) |
 | Quarkus | JBoss Logging, on JBoss Log Manager | JBoss Log Manager | Bridged in, not swappable without surgery | Medium/High: additive handler is safe, full replacement is experimental |
 
 The common thread: Rainbow Gum's `rainbowgum-slf4j` module (a normal SLF4J
 provider) and `rainbowgum-jul` module (a `java.util.logging.Handler`
 subclass installed on the root JUL logger, not a custom `LogManager`,
-confirmed by reading its source) are the two levers available for all
-three frameworks. Which one matters, and how cleanly it slots in, differs a
-lot per framework.
+confirmed by reading its source) are the two levers available today. Whether
+that's enough, or whether a framework really wants a full `LogManager`
+replacement instead, differs a lot per framework. Helidon turns out to want
+the latter for a first-class integration, per the correction in its section
+below.
 
 ## Micronaut
 
@@ -113,30 +115,59 @@ receives log output: it's what Helidon's own diagnostics/MDC glue
 `helidon-logging-slf4j` tells that glue code to talk to SLF4J's `MDC` instead
 of JUL's (nonexistent) equivalent.
 
-**Putting Rainbow Gum underneath.** Two independent paths, and you'll likely
-want both:
+**Putting Rainbow Gum underneath (correction).** An earlier version of this
+document claimed `rainbowgum-jul`'s existing Handler-based bridge (confirmed
+by reading its source: `SystemLoggerQueueJULHandler extends Handler`, not a
+custom `LogManager`) would attach cleanly under Helidon since Helidon doesn't
+replace the default `java.util.logging.LogManager`. That's true for Helidon's
+*own* default `JulProvider` (confirmed: it only calls
+`LogManager.getLogManager().readConfiguration(...)` on the stock LogManager,
+never replaces it), but it's not what Helidon itself does when it wants a
+*different* backend under its own JUL calls. Helidon's `helidon-logging-log4j`
+module ships this native-image build argument
+([source](https://github.com/helidon-io/helidon/blob/release-4.5.4/logging/log4j/src/main/resources/META-INF/native-image/io.helidon.logging/helidon-logging-log4j/native-image.properties)):
 
-1. Application and library code that already uses SLF4J needs nothing
-   special: `rainbowgum-slf4j` is a normal SLF4J provider, exactly like any
-   other Java application.
-2. Helidon's own internal JUL calls (and any JUL-only library) need
-   `rainbowgum-jul`'s handler installed on the JUL root logger. Rainbow Gum's
-   JUL bridge (`SystemLoggerQueueJULHandler`) is a plain
-   `java.util.logging.Handler` subclass rather than a custom `LogManager`,
-   confirmed by reading `rainbowgum-jul`'s source directly. Since Helidon does
-   not replace the default `java.util.logging.LogManager` the way Quarkus
-   does, this should attach cleanly:
-   `Logger.getLogger("").addHandler(...)` works the same regardless of what
-   Helidon's own `logging.properties` set up beforehand. `rainbowgum-jdk`
-   (which pulls in `rainbowgum-jul` as a runtime companion by default) installs
-   this automatically as part of Rainbow Gum's own startup.
+```
+-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+```
 
-Sequencing matters: call `LogConfig.configureRuntime()` (or skip it if you're
-fully replacing Helidon's own JUL setup) and get Rainbow Gum initialized as
-early as possible, the same "initialize before anything else logs" concern
-Rainbow Gum already documents for its own `System.Logger`/JUL early-init
-handling (see `rainbowgum-jdk`'s module javadoc on queueing events until
-Rainbow Gum is bound).
+That's a full `java.util.logging.LogManager` replacement (Log4j2's own
+`log4j-jul` artifact), not a Handler attached after the fact. A LogManager
+replacement is resolved on the very first `Logger.getLogger(...)` call
+anywhere in the JVM, so `Logger` instances themselves are backed by the real
+target system from the start: no early-boot messages missed before a bridge
+Handler gets installed, and no separate step needed to keep a JUL Logger's own
+cached level in sync with the real system's (often more granular) level
+resolution. A Handler-based bridge, including Rainbow Gum's current
+`rainbowgum-jul`, doesn't get either property for free.
+
+For a genuinely first-class Helidon integration, Rainbow Gum would need the
+same thing Log4j2 built: an actual `java.util.logging.LogManager` subclass,
+installable via `-Djava.util.logging.manager=...`. That doesn't exist today -
+this project previously considered and rejected a custom `LogManager` in
+general (`rainbowgum-jul` stays Handler-based deliberately, see its own
+history), specifically because of the early-initialization risk
+`rainbowgum-jdk`'s module javadoc documents at length: a `LogManager` is
+constructed the moment anything touches JUL, which can easily be before
+Rainbow Gum itself is meant to initialize, and the JDK explicitly recommends
+against heavy work in that constructor. Revisiting that decision for Helidon
+specifically would need the same queue-and-replay approach `rainbowgum-jdk`
+already uses for `System.LoggerFinder` (queue events until a real Rainbow Gum
+is bound, replay them, print `ERROR`-and-above to `System.err` if one never
+binds) applied to a `LogManager` implementation instead of just a
+`LoggerFinder`: a real, nontrivial piece of new work, not a dependency swap.
+
+The existing Handler-based `rainbowgum-jul` bridge still works as a "good
+enough for most apps" fallback under Helidon (same mechanics as the Quarkus
+additive-handler path below), it just won't have full early-boot fidelity or
+automatic per-logger level sync the way a LogManager replacement would.
+
+Sequencing matters regardless of which approach is used: call
+`LogConfig.configureRuntime()` (or skip it if fully replacing Helidon's own
+JUL setup) and get Rainbow Gum initialized as early as possible, the same
+"initialize before anything else logs" concern Rainbow Gum already documents
+for its own `System.Logger`/JUL early-init handling (see `rainbowgum-jdk`'s
+module javadoc on queueing events until Rainbow Gum is bound).
 
 **If you want Helidon's own MDC/context propagation to line up with Rainbow
 Gum's key values**, also add `helidon-logging-slf4j` so `HelidonMdc` writes
@@ -235,9 +266,12 @@ same shape. None of the three have one today.
 
 - **Micronaut**: drop-in SLF4J provider swap, same as Spring Boot without the
   starter module. The only real gap is the `/loggers` management endpoint.
-- **Helidon**: default facade is JUL, not SLF4J, but Rainbow Gum's JUL bridge
-  is exactly the right shape for it (Handler-based, `LogManager`-agnostic) and
-  application-level SLF4J already works unmodified.
+- **Helidon**: default facade is JUL, not SLF4J, and application-level SLF4J
+  code already works unmodified. Rainbow Gum's existing Handler-based
+  `rainbowgum-jul` bridge is good enough for most apps, but Helidon's own
+  `helidon-logging-log4j` module shows the officially-blessed way to fully
+  replace Helidon's own JUL calls is a custom `java.util.logging.LogManager`,
+  which Rainbow Gum doesn't have and would need to build.
 - **Quarkus**: don't fight JBoss Log Manager. An additive handler using
   documented `quarkus.log.handlers` config is low-risk and captures
   everything; becoming the *sole* backend by excluding Quarkus's bundled SLF4J
