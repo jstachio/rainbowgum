@@ -1,0 +1,32 @@
+name: JDK AOT Cache Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  aot-cache-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+
+    runs-on: ${{ matrix.os }}
+    env:
+      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 26
+        uses: actions/setup-java@v5
+        with:
+          java-version: '26'
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Install Rainbow Gum
+        run: ./mvnw $MAVEN_CLI_OPTS -DskipTests clean install
+      - name: Build the JDK AOT cache and run against it
+        run: ./mvnw $MAVEN_CLI_OPTS -f test/rainbowgum-test-aot-cache/pom.xml -Paot verify

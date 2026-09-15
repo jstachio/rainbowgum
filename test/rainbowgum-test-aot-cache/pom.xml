@@ -1,0 +1,149 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-test-parent</artifactId>
+    <version>0.12.0-SNAPSHOT</version>
+  </parent>
+  <!--
+    Deliberately not listed in test/pom.xml's <modules>: this needs a JDK 24+ runtime
+    (JEP 483, the AOT cache) to do anything meaningful, spawns real "java" subprocesses
+    from Maven, and produces a cache file nothing else in the reactor needs, so it must
+    not run as part of the normal reactor build (`mvn install`/`mvn verify` from the
+    root). Built on its own:
+
+      ./mvnw -f test/rainbowgum-test-aot-cache/pom.xml -Paot verify
+
+    or via the AOT cache GitHub Actions job (see .github/workflows/aot-cache.yml), which
+    is what actually runs this in CI.
+  -->
+  <artifactId>rainbowgum-test-aot-cache</artifactId>
+  <properties>
+    <exec.mainClass>io.jstach.rainbowgum.test.aotcache.Main</exec.mainClass>
+    <aot.cache.file>${project.build.directory}/app.aot</aot.cache.file>
+    <aot.run.output>${project.build.directory}/aot-run-output.txt</aot.run.output>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-simple</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc-apt</artifactId>
+    </dependency>
+  </dependencies>
+  <profiles>
+    <profile>
+      <id>aot</id>
+      <build>
+        <plugins>
+          <!--
+            exec-maven-plugin's own computed classpath (the <classpath/> magic argument)
+            includes target/classes, an exploded directory, not this module's own jar.
+            The JDK's AOT cache rejects any classpath entry that is a non-empty
+            directory outright ("Cannot have non-empty directory in paths"), confirmed
+            by hand against a real build of this module before writing this pom, so the
+            two "java" invocations below need a jar-only classpath: this module's own
+            packaged jar (built by the default-jar execution, already bound to the
+            package phase ahead of these) plus its dependency jars, computed here into
+            rainbowgum.aot.classpath and reused by both.
+          -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>3.11.0</version>
+            <executions>
+              <execution>
+                <id>aot-dependency-classpath</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>build-classpath</goal>
+                </goals>
+                <configuration>
+                  <outputProperty>rainbowgum.aot.classpath</outputProperty>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <!--
+                  One "java" invocation both trains (runs Main once, recording which
+                  classes/methods get touched) and assembles the cache from that
+                  training run, per JEP 483's own -XX:AOTCacheOutput shortcut for its
+                  otherwise separate -XX:AOTMode=record/create steps.
+                -->
+                <id>aot-cache-create</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>java</executable>
+                  <arguments>
+                    <argument>-XX:AOTCacheOutput=${aot.cache.file}</argument>
+                    <argument>-cp</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar:${rainbowgum.aot.classpath}</argument>
+                    <argument>${exec.mainClass}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+              <execution>
+                <!--
+                  AOTMode=on (not the default, auto) is deliberate: it fails the JVM
+                  outright if the cache cannot be mapped, instead of silently falling
+                  back to a normal, non-cached run, which would let a broken cache pass
+                  this module's test unnoticed.
+                -->
+                <id>aot-cache-run</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>java</executable>
+                  <outputFile>${aot.run.output}</outputFile>
+                  <arguments>
+                    <argument>-XX:AOTMode=on</argument>
+                    <argument>-XX:AOTCache=${aot.cache.file}</argument>
+                    <argument>-cp</argument>
+                    <argument>${project.build.directory}/${project.build.finalName}.jar:${rainbowgum.aot.classpath}</argument>
+                    <argument>${exec.mainClass}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <version>3.5.6</version>
+            <configuration>
+              <systemPropertyVariables>
+                <aot.run.output>${aot.run.output}</aot.run.output>
+              </systemPropertyVariables>
+            </configuration>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
