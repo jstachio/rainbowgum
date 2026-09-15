@@ -23,17 +23,25 @@ import io.jstach.svc.ServiceProvider;
  * <p>
  * <b>GraalVM native image</b>: this module bundles a {@code native-image.properties} (at
  * {@code META-INF/native-image/io.jstach.rainbowgum/rainbowgum-jdk/}) with
- * {@code --initialize-at-build-time=io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory}.
- * That flag is still needed even though this class does no eager work of its own: the
- * JDK's own internals ({@code java.time}, {@code java.util.Locale}/{@code Calendar}
- * formatting) call {@code System.getLogger(...)} incidentally, for their own diagnostics,
- * from unrelated static-init paths that end up reachable during a real native-image
- * build, and whichever registered {@code System.LoggerFinder} is on the classpath, namely
- * this class, gets swept up regardless. native-image's own embedded configuration
- * discovery picks this up from this module's jar automatically, no extra plugin or flag
- * needed on the consuming side; see {@code rainbowgum-systemlogger}'s own bundled
- * {@code native-image.properties} for the companion flag this one usually needs alongside
- * it.
+ * {@code --initialize-at-build-time} for this class plus the handful of core classes
+ * ({@code RainbowGumHolder}, {@link io.jstach.rainbowgum.LogProperties} and its
+ * {@code StandardProperties} helper, {@code PropertySuccess}, {@code ServiceLoaderCache})
+ * its constructor's lazily-deferred property/{@code RainbowGum.getOrNull()} lookup
+ * touches on first real use. This is still needed even though nothing here does eager
+ * work in its own constructor: the JDK's own internals call {@code System.getLogger(...)}
+ * incidentally, for their own diagnostics, from unrelated code paths that end up
+ * reachable during a real native-image build (one observed trigger:
+ * {@code com.oracle.svm.core.jdk.TrustStoreManagerFeature} loading the default trust
+ * store at build time, unrelated to anything this module does), and whichever registered
+ * {@code System.LoggerFinder} is on the classpath, namely this class, gets swept up
+ * regardless. What actually gets resolved and frozen in is just the cheap "nothing bound
+ * yet" state (no real {@code RainbowGum} has loaded, so {@code RainbowGum.getOrNull()}
+ * returns {@code null} and property lookups fall back to real system properties), the
+ * same state any freshly started JVM begins in, not anything environment-specific baked
+ * in from the build. native-image's own embedded configuration discovery picks this up
+ * from this module's jar automatically, no extra plugin or flag needed on the consuming
+ * side; see {@code rainbowgum-systemlogger}'s own bundled {@code native-image.properties}
+ * for the companion flags this one usually needs alongside it.
  *
  * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */
