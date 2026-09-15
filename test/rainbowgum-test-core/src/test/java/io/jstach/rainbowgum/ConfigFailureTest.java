@@ -130,31 +130,46 @@ class ConfigFailureTest {
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
 		/*
-		 * LogAppender.builder(name)'s own validateName, called on every appender name
-		 * whether it came from a property or programmatic code, confirmed reachable this
-		 * way (not just by calling the Builder directly): logging.appenders is a
-		 * comma-separated list, and a name containing a space is still one list entry,
-		 * not two, so it reaches validateName intact.
+		 * DefaultAppenderRegistry.appenders' own LogProperties.validateNames call,
+		 * triggered on every name in logging.appenders before any of them is used to
+		 * build a LogProvider, reported against logging.appenders itself rather than some
+		 * unrelated {name}-keyed property (e.g. this appender's own output) that would
+		 * otherwise interpolate it first: logging.appenders is a comma-separated list,
+		 * and a name containing a space is still one list entry, not two, so it reaches
+		 * the check intact.
 		 */
 		appenderNameWithWhitespace("""
 				logging.appenders=my app
 				logging.appender.my app.output=list:///
-				""", """
-				Appender name cannot have whitespace
-				  ↳ Failure providing Appender: 'my app' from property: Property[logging.appenders]=[my app].
-				  ↳ Failure providing Appenders for route: 'default'."""),
+				""",
+				"""
+						Validation failed for io.jstach.rainbowgum.LogAppender: Invalid appender name 'my app' in Property[logging.appenders]=[my app]: must be alphanumeric (hyphen/underscore allowed)"""),
 
-		// Same validateName, the other reachable branch: LogProperties.SEP ('.') would
+		// Same check, the other reachable branch: LogProperties.SEP ('.') would
 		// otherwise be ambiguous with the "." this appender's own property keys
 		// (logging.appender.<name>.output, etc.) use to separate the name from the rest
 		// of the key.
 		appenderNameWithSeparator("""
 				logging.appenders=my.app
 				logging.appender.my.app.output=list:///
-				""", """
-				Appender name cannot have '.'
-				  ↳ Failure providing Appender: 'my.app' from property: Property[logging.appenders]=[my.app].
-				  ↳ Failure providing Appenders for route: 'default'."""),
+				""",
+				"""
+						Validation failed for io.jstach.rainbowgum.LogAppender: Invalid appender name 'my.app' in Property[logging.appenders]=[my.app]: must be alphanumeric (hyphen/underscore allowed)"""),
+
+		/*
+		 * RainbowGum.Builder.build()'s own LogProperties.validateNames call, the same
+		 * shape of fix as the appender one above, closing a gap that had zero coverage
+		 * before this change: a route name previously had no format validation at all
+		 * until something happened to interpolate logging.route.<name>.level (or worse,
+		 * never, if a route was fully explicit). logging.routes is a comma-separated
+		 * list, same as logging.appenders, and is validated the same way: reported
+		 * against logging.routes itself, not some unrelated {name}-keyed property.
+		 */
+		routeNameWithWhitespace("""
+				logging.routes=my route
+				""",
+				"""
+						Validation failed for io.jstach.rainbowgum.LogRouter: Invalid route name 'my route' in Property[logging.routes]=[my route]: must be alphanumeric (hyphen/underscore allowed)"""),
 
 		unregisteredEncoderSchemeFromKnownModuleHintsDependency("""
 				logging.appenders=myapp

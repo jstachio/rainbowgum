@@ -494,6 +494,36 @@ class LogPropertiesTest {
 	}
 
 	@Test
+	void testInterpolateKeyAllowsAlphanumericHyphenAndUnderscoreValues() {
+		assertEquals("a.my-app_1.b", LogProperties.interpolateKey("a.{name}.b", k -> "my-app_1"));
+	}
+
+	@Test
+	void testInterpolateKeyThrowsOnNonAlphanumericValueWithGoldenMessage() {
+		var e = assertThrows(IllegalArgumentException.class,
+				() -> LogProperties.interpolateKey("a.{name}.b", k -> "my app"));
+		assertEquals(
+				"\"a.{name}.b\" cannot be interpolated: parameter 'name' value 'my app' must be alphanumeric (hyphen/underscore allowed)",
+				e.getMessage());
+	}
+
+	@Test
+	void testInterpolateKeyThrowsOnBlankValue() {
+		assertThrows(IllegalArgumentException.class, () -> LogProperties.interpolateKey("a.{name}.b", k -> ""));
+	}
+
+	@Test
+	void testValidateKeyParameterValueThrowsOnNonAlphanumericValue() {
+		assertThrows(IllegalArgumentException.class,
+				() -> LogProperty.Validator.validateKeyParameterValue("a.{name}.b", "name", "my.app"));
+	}
+
+	@Test
+	void testValidateKeyParameterValueReturnsValueUnchangedWhenValid() {
+		assertEquals("my-app_1", LogProperty.Validator.validateKeyParameterValue("a.{name}.b", "name", "my-app_1"));
+	}
+
+	@Test
 	void testValidateKeyParametersThrowsOnMismatch() {
 		assertThrows(IllegalArgumentException.class, () -> LogProperties.validateKeyParameters("a.{name}", Set.of()));
 	}

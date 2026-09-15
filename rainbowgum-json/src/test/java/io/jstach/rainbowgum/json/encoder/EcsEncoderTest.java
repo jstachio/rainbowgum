@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.json.encoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
@@ -19,6 +20,7 @@ import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.PropertiesParser;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -41,6 +43,42 @@ class EcsEncoderTest {
 		encoder.encode(e, buffer);
 
 		assertTrue(buffer.isOversized());
+	}
+
+	/*
+	 * EcsEncoderBuilder's generated constructor calls LogProperties.interpolateKey
+	 * eagerly (see the codegen template every @LogConfigurable builder shares), so a bad
+	 * name is rejected immediately, before any property or field is ever set.
+	 */
+	@Test
+	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
+		var e = assertThrows(LogProperty.ValidationException.class, () -> new EcsEncoderBuilder("bad name"));
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				e.getMessage());
+	}
+
+	/*
+	 * The fully loaded, realistic failure: a programmatic RainbowGum with a custom
+	 * (EcsEncoder) encoder attached to an appender whose name is bad. The encoder's own
+	 * name is always the appender's name (see LogAppender.Builder.build(), which resolves
+	 * the encoder via provide(appenderName, config)), so the appender's own eager name
+	 * check in LogAppender.builder(name) fires first, before the encoder builder is even
+	 * constructed - the two checks are the same shared LogProperties validation, so
+	 * either one firing proves the fix works end to end.
+	 */
+	@Test
+	void testRainbowGumCreationFailsWithBadAppenderNameUsingEcsEncoder() {
+		var config = LogConfig.builder().build();
+		ListLogOutput output = new ListLogOutput();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> RainbowGum.builder(config).route(rb -> rb.appender("bad name", a -> {
+					a.encoder(EcsEncoder.of(ecs -> ecs.structured(true)));
+					a.output(output);
+				})));
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.LogAppender: \"logging.appender.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				e.getMessage());
 	}
 
 	@Test

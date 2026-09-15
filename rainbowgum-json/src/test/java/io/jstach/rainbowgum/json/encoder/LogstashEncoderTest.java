@@ -19,10 +19,24 @@ import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogstashEncoderTest {
+
+	/*
+	 * LogstashEncoderBuilder's generated constructor calls LogProperties.interpolateKey
+	 * eagerly (see the codegen template every @LogConfigurable builder shares), so a bad
+	 * name is rejected immediately, before any property or field is ever set.
+	 */
+	@Test
+	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
+		var e = assertThrows(LogProperty.ValidationException.class, () -> new LogstashEncoderBuilder("bad name"));
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				e.getMessage());
+	}
 
 	/*
 	 * Confirms maxBufferSize threads all the way from LogstashEncoderBuilder through to

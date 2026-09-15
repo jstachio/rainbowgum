@@ -1308,6 +1308,7 @@ public interface LogProperties {
 				throw new IllegalArgumentException(
 						"Keyed parameter missing. key: '" + key + "' parameter: '" + k + "'");
 			}
+			LogProperty.Validator.validateKeyParameterValue(key, k, v);
 			result = result.replace("{" + k + "}", v);
 		}
 		return result;

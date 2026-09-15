@@ -398,11 +398,18 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 			var routes = this.routes;
 			var config = this.config;
 			if (routes.isEmpty()) {
-				List<String> routeNames = config.properties() //
+				var routeNamesResult = config.properties() //
 					.forKey(LogProperties.ROUTES_PROPERTY)
 					.ofList()
-					.or(List.of())
-					.validateNow(Builder.class);
+					.or(List.of());
+				List<String> routeNames = routeNamesResult.validateNow(Builder.class);
+				/*
+				 * Validated as a plain list of names, before any of them is used to build
+				 * a Router, so a bad name is reported against this list property itself,
+				 * not deferred until some unrelated {name}-keyed property (e.g. this
+				 * route's own level) happens to interpolate it first.
+				 */
+				LogProperty.Validator.validateNames(LogRouter.class, "route", routeNamesResult, routeNames);
 				if (routeNames.isEmpty()) {
 					routes = List.of(Router.builder(Router.DEFAULT_ROUTER_NAME, config).build());
 				}

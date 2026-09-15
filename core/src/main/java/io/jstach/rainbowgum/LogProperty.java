@@ -588,6 +588,95 @@ public interface LogProperty {
 			ValidationException.validate(builder, results);
 		}
 
+		/**
+		 * Validates every name in a list resolved from a comma-separated list property
+		 * (e.g. appenders/routes) before any of those names are used to construct
+		 * anything, so a bad name is reported against the list property itself rather
+		 * than against whatever unrelated {@code {name}}-keyed property a downstream
+		 * lookup happens to interpolate first. Static (rather than an instance method
+		 * using an existing {@link Validator}'s own {@code builder} field) since this
+		 * check is independent of - and never participates in - whatever else a
+		 * particular {@link Validator} instance may have accumulated via
+		 * {@link #add(Result)}/{@link #addIfError(Result)}.
+		 * @param component the class on whose behalf these names are being resolved -
+		 * used to prefix the thrown {@link ValidationException}'s message, the same role
+		 * {@link #of(Class)} plays elsewhere.
+		 * @param kind short noun describing what these names are (e.g.
+		 * {@code "appender"}, {@code "route"}), used only for the message.
+		 * @param source the result the list itself was resolved from, used only for its
+		 * {@link Result#describe()} in the message.
+		 * @param names names to validate.
+		 * @return names unchanged if all are valid.
+		 * @throws ValidationException if any name is blank or has other characters.
+		 */
+		static List<String> validateNames(Class<?> component, String kind, Result<?> source, List<String> names) {
+			for (String name : names) {
+				if (!isValidName(name)) {
+					throw ValidationException.of(component,
+							new IllegalArgumentException("Invalid " + kind + " name '" + name + "' in "
+									+ source.describe() + ": must be alphanumeric (hyphen/underscore allowed)"));
+				}
+			}
+			return names;
+		}
+
+		/**
+		 * Validates that a key parameter token (the identifier inside <code>{...}</code>
+		 * in a key template, e.g. <code>"name"</code> in <code>a.{name}.b</code>) is well
+		 * formed: non-blank and made up only of letters, digits, <code>-</code>, or
+		 * <code>_</code>. This guards against a malformed key <em>template</em>, not user
+		 * input.
+		 * @param parameter parameter token found in a key template.
+		 * @return the parameter unchanged if valid.
+		 * @throws IllegalArgumentException if the parameter is blank or has other
+		 * characters.
+		 */
+		static String validateKeyParameter(String parameter) {
+			if (!isValidName(parameter)) {
+				throw new IllegalArgumentException(
+						"Key parameter must be alphanumeric (hyphen/underscore allowed). parameter: '" + parameter
+								+ "'");
+			}
+			return parameter;
+		}
+
+		/**
+		 * Validates that a value about to be interpolated for a <code>{name}</code>-style
+		 * key parameter is well formed: non-blank and made up only of letters, digits,
+		 * <code>-</code>, or <code>_</code>. This is the single choke point every
+		 * keyed-name mechanism in the project (appender/output/encoder/publisher/route
+		 * names, and every annotation-processor generated builder's own property prefix)
+		 * funnels through via {@link LogProperties#interpolateKey(String, Function)}.
+		 * @param key original, pre-interpolation key template (e.g.
+		 * <code>a.{name}.b</code>).
+		 * @param parameter name of the parameter being interpolated (e.g.
+		 * <code>"name"</code>).
+		 * @param value value about to be substituted for the parameter.
+		 * @return the value unchanged if valid.
+		 * @throws IllegalArgumentException if the value is blank or has other characters.
+		 */
+		static String validateKeyParameterValue(String key, String parameter, String value) {
+			validateKeyParameter(parameter);
+			if (!isValidName(value)) {
+				throw new IllegalArgumentException("\"" + key + "\" cannot be interpolated: parameter '" + parameter
+						+ "' value '" + value + "' must be alphanumeric (hyphen/underscore allowed)");
+			}
+			return value;
+		}
+
+		private static boolean isValidName(String s) {
+			if (s.isBlank()) {
+				return false;
+			}
+			for (int i = 0; i < s.length(); i++) {
+				char c = s.charAt(i);
+				if (!Character.isLetterOrDigit(c) && c != '-' && c != '_') {
+					return false;
+				}
+			}
+			return true;
+		}
+
 	}
 
 	/**
