@@ -29,6 +29,19 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 
 class GelfEncoderTest {
 
+	/*
+	 * GelfEncoderBuilder's generated constructor calls LogProperties.interpolateKey
+	 * eagerly (see the codegen template every @LogConfigurable builder shares), so a bad
+	 * name is rejected immediately, before any property or field is ever set.
+	 */
+	@Test
+	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
+		var e = assertThrows(LogProperty.ValidationException.class, () -> new GelfEncoderBuilder("bad name"));
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				e.getMessage());
+	}
+
 	@Test
 	void testBuilder() {
 		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");

@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.json.encoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
@@ -17,10 +18,26 @@ import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogbackJsonEncoderTest {
+
+	/*
+	 * LogbackJsonEncoderBuilder's generated constructor calls
+	 * LogProperties.interpolateKey eagerly (see the codegen template every
+	 *
+	 * @LogConfigurable builder shares), so a bad name is rejected immediately, before any
+	 * property or field is ever set.
+	 */
+	@Test
+	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
+		var e = assertThrows(LogProperty.ValidationException.class, () -> new LogbackJsonEncoderBuilder("bad name"));
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				e.getMessage());
+	}
 
 	/*
 	 * Confirms maxBufferSize threads all the way from LogbackJsonEncoderBuilder through

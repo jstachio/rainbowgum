@@ -78,20 +78,25 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 			$$^-first$$, $$/-first$$$$type$$ $$name$$
 			$$/prefixParameters$$
 			) {
-		java.util.Map<String,String> prefixParameters = java.util.Map.of(
-				$$#prefixParameters$$
-				$$^-first$$, $$/-first$$"$$name$$", $$name$$
-				$$/prefixParameters$$
-			);
-		this.propertyPrefix = LogProperties.interpolateKey(PROPERTY_PREFIX, prefixParameters);
-		$$#properties$$
-		$$#normal$$
-		$$propertyVar$$ = LogProperties.interpolateKey($$propertyLiteral$$, prefixParameters);
-		$$/normal$$
-		$$#prefixParameter$$
-		this.$$name$$ = $$name$$;
-		$$/prefixParameter$$
-		$$/properties$$
+		try {
+			java.util.Map<String,String> prefixParameters = java.util.Map.of(
+					$$#prefixParameters$$
+					$$^-first$$, $$/-first$$"$$name$$", $$name$$
+					$$/prefixParameters$$
+				);
+			this.propertyPrefix = LogProperties.interpolateKey(PROPERTY_PREFIX, prefixParameters);
+			$$#properties$$
+			$$#normal$$
+			$$propertyVar$$ = LogProperties.interpolateKey($$propertyLiteral$$, prefixParameters);
+			$$/normal$$
+			$$#prefixParameter$$
+			this.$$name$$ = $$name$$;
+			$$/prefixParameter$$
+			$$/properties$$
+		}
+		catch (IllegalArgumentException e) {
+			throw LogProperty.ValidationException.of(this.getClass(), e);
+		}
 	}
 
 	$$#properties$$

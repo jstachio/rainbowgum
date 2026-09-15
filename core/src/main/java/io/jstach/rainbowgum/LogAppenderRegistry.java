@@ -30,14 +30,24 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		}
 
 		var _r = result;
-		return rawValue(result.<List<LogProvider<LogAppender>>>map(appenderNames -> {
-			List<LogProvider<LogAppender>> appenders = new ArrayList<>();
-			for (String appenderName : appenderNames.stream().distinct().toList()) {
-				appenders.add(appender(appenderName)
-					.describe("Appender: '" + appenderName + "' from property: " + _r.describe()));
-			}
-			return appenders;
-		})).value();
+		/*
+		 * Validated as a plain list of names, before any of them is used to build a
+		 * LogProvider, so a bad name is reported against this list property itself
+		 * (LogProperty.Validator.validateNames throws its own uncaught
+		 * ValidationException) - not wrapped/reformatted by Result.map's own
+		 * exception-to-rich-error handling, and not deferred until some unrelated
+		 * {name}-keyed property (e.g. this appender's own output/encoder) happens to
+		 * interpolate it first.
+		 */
+		List<String> appenderNames = rawValue(result).value().stream().distinct().toList();
+		LogProperty.Validator.validateNames(LogAppender.class, "appender", _r, appenderNames);
+
+		List<LogProvider<LogAppender>> appenders = new ArrayList<>();
+		for (String appenderName : appenderNames) {
+			appenders.add(appender(appenderName)
+				.describe("Appender: '" + appenderName + "' from property: " + _r.describe()));
+		}
+		return appenders;
 	}
 
 	private static List<String> addDefaultAppenderNames(LogConfig config) {

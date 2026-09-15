@@ -244,20 +244,24 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 * @return builder.
 	 */
 	public static Builder builder(String name) {
-		return new Builder(validateName(name));
-	}
-
-	private static String validateName(String name) {
-		if (name.isBlank()) {
-			throw new IllegalArgumentException("Appender name cannot be blank. name='" + name + "'");
+		/*
+		 * Eagerly triggers LogProperties' own key-parameter-value validation now,
+		 * matching every annotation-processor-generated Builder's own constructor, which
+		 * does the same via its own eager interpolateKey call: needed because this
+		 * hand-written Builder can otherwise skip every keyed property lookup entirely
+		 * when every field is set explicitly, never validating the name at all. Wrapped
+		 * into a ValidationException the same way a generated builder's constructor is,
+		 * so a bad name reports the same exception type regardless of whether it came
+		 * from logging.appenders (LogAppenderRegistry's own validateNames call) or a
+		 * direct programmatic builder(name) call like this one.
+		 */
+		try {
+			LogProperties.interpolateNamedKey(LogProperties.APPENDER_PREFIX, name);
 		}
-		if (name.contains(" ") || name.contains("\t") || name.contains("\n") || name.contains("\r")) {
-			throw new IllegalArgumentException("Appender name cannot have whitespace");
+		catch (IllegalArgumentException e) {
+			throw LogProperty.ValidationException.of(LogAppender.class, e);
 		}
-		if (name.contains(LogProperties.SEP)) {
-			throw new IllegalArgumentException("Appender name cannot have '" + LogProperties.SEP + "'");
-		}
-		return name;
+		return new Builder(name);
 	}
 
 	/**

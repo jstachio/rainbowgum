@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
@@ -14,6 +15,15 @@ import org.junit.jupiter.api.Test;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
 class RouterTest {
+
+	@Test
+	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
+		var config = LogConfig.builder().build();
+		var e = assertThrows(LogProperty.ValidationException.class, () -> LogRouter.Router.builder("bad name", config));
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.LogRouter: \"logging.route.{name}.level\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				e.getMessage());
+	}
 
 	@Test
 	void testSingleRouter() throws Exception {

@@ -217,6 +217,22 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * @return builder.
 		 */
 		static Builder builder(String name, LogConfig config) {
+			/*
+			 * Eagerly triggers LogProperties' own key-parameter-value validation now:
+			 * needed because a fully-explicit route (explicit appenders, level,
+			 * publisher) never triggers a single keyed property lookup on its own, so
+			 * without this a malformed name would otherwise never be validated. Wrapped
+			 * into a ValidationException the same way a generated builder's constructor
+			 * is, so a bad name reports the same exception type regardless of whether it
+			 * came from logging.routes (RainbowGum.Builder's own validateNames call) or a
+			 * direct programmatic builder(name, config) call like this one.
+			 */
+			try {
+				LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
+			}
+			catch (IllegalArgumentException e) {
+				throw LogProperty.ValidationException.of(LogRouter.class, e);
+			}
 			return new Builder(name, config);
 		}
 
