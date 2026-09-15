@@ -23,7 +23,6 @@
   <properties>
     <exec.mainClass>io.jstach.rainbowgum.test.aotcache.Main</exec.mainClass>
     <aot.cache.file>${project.build.directory}/app.aot</aot.cache.file>
-    <aot.run.output>${project.build.directory}/aot-run-output.txt</aot.run.output>
   </properties>
   <dependencies>
     <dependency>
@@ -98,30 +97,6 @@
                   </arguments>
                 </configuration>
               </execution>
-              <execution>
-                <!--
-                  AOTMode=on (not the default, auto) is deliberate: it fails the JVM
-                  outright if the cache cannot be mapped, instead of silently falling
-                  back to a normal, non-cached run, which would let a broken cache pass
-                  this module's test unnoticed.
-                -->
-                <id>aot-cache-run</id>
-                <phase>pre-integration-test</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <executable>java</executable>
-                  <outputFile>${aot.run.output}</outputFile>
-                  <arguments>
-                    <argument>-XX:AOTMode=on</argument>
-                    <argument>-XX:AOTCache=${aot.cache.file}</argument>
-                    <argument>-cp</argument>
-                    <argument>${project.build.directory}/${project.build.finalName}.jar:${rainbowgum.aot.classpath}</argument>
-                    <argument>${exec.mainClass}</argument>
-                  </arguments>
-                </configuration>
-              </execution>
             </executions>
           </plugin>
           <plugin>
@@ -129,8 +104,19 @@
             <artifactId>maven-failsafe-plugin</artifactId>
             <version>3.5.6</version>
             <configuration>
+              <!--
+                The actual "run with -XX:AOTMode=on and check output" step is not a
+                separate exec-maven-plugin execution: AotCacheRunIT below launches java
+                itself with a plain ProcessBuilder, a black-box smoke test, using the
+                classpath/cache file/main class passed through as system properties
+                here. AOTMode=on (not the default, auto) is deliberate: it fails outright
+                if the cache cannot be mapped, instead of silently falling back to a
+                normal, non-cached run, which would let a broken cache pass unnoticed.
+              -->
               <systemPropertyVariables>
-                <aot.run.output>${aot.run.output}</aot.run.output>
+                <aot.cache.file>${aot.cache.file}</aot.cache.file>
+                <aot.classpath>${project.build.directory}/${project.build.finalName}.jar:${rainbowgum.aot.classpath}</aot.classpath>
+                <aot.main.class>${exec.mainClass}</aot.main.class>
               </systemPropertyVariables>
             </configuration>
             <executions>
