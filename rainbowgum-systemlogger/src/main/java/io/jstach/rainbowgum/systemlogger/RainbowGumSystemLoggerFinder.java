@@ -18,11 +18,14 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * <p>
  * <b>GraalVM native image</b>: this module bundles a {@code native-image.properties} (at
  * {@code META-INF/native-image/io.jstach.rainbowgum/rainbowgum-systemlogger/}) with
- * {@code --initialize-at-build-time=io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder$RouterProvider}.
- * See {@link #routerProvider} for why that is still needed even though this class
- * resolves its router lazily rather than eagerly in its constructor. native-image's own
- * embedded configuration discovery picks this up from this module's jar automatically, no
- * extra plugin or flag needed on the consuming side.
+ * {@code --initialize-at-build-time} for {@code RouterProvider} plus the core classes
+ * ({@code GlobalLogRouter}, {@code StaticLevelResolver}) its {@code LogRouter.global()}
+ * fallback touches on first real use. See {@link #routerProvider} for why this is still
+ * needed even though this class resolves its router lazily rather than eagerly in its
+ * constructor, and why what gets frozen in is just the cheap "nothing bound yet" state,
+ * not anything environment-specific. native-image's own embedded configuration discovery
+ * picks this up from this module's jar automatically, no extra plugin or flag needed on
+ * the consuming side.
  *
  * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */
@@ -50,19 +53,25 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	 * supplier just below.
 	 *
 	 * This alone does not make a custom System.LoggerFinder fully invisible to
-	 * native-image's build-time analysis, since the JDK's own internals (java.time,
-	 * java.util.Locale/Calendar formatting) call System.getLogger(...) incidentally, for
-	 * their own diagnostics, from all sorts of unrelated static-init paths that end up
-	 * reachable during a real build; whichever registered LoggerFinder is on the
-	 * classpath gets swept up regardless of how lazy its own construction is. What
-	 * laziness here does buy: whatever gets resolved and frozen into the image heap as a
-	 * side effect is now always a *fresh*, real resolution (this exact code path, run for
-	 * real, not a stale decision baked in from something else), and the constructor
-	 * itself is trivial, so native-image only needs
-	 * `--initialize-at-build-time=io.jstach.rainbowgum.jdk.systemlogger
-	 * .SystemLoggingFactory,io.jstach.rainbowgum.systemlogger
-	 * .RainbowGumSystemLoggerFinder$RouterProvider` (confirmed by hand against a real
-	 * GraalVM build), not every class in the whole io.jstach.rainbowgum package.
+	 * native-image's build-time analysis, since the JDK's own internals call
+	 * System.getLogger(...) incidentally, for their own diagnostics, from all sorts of
+	 * unrelated code paths that end up reachable during a real build (observed triggers:
+	 * java.time/java.util.Locale formatting, and separately
+	 * com.oracle.svm.core.jdk.TrustStoreManagerFeature loading the default trust store at
+	 * build time); whichever registered LoggerFinder is on the classpath gets swept up
+	 * regardless of how lazy its own construction is. What laziness here does buy: since
+	 * getLogger(...) only ever runs this exact code path for real, what gets resolved and
+	 * frozen into the image heap as a side effect is always the correct, fresh answer:
+	 * when RainbowGumServiceProvider.RainbowGumEagerLoad exists (SLF4J's own facade
+	 * implements it), that answer is just LogRouter.global()'s ambient, not-yet-bound
+	 * queuing router, the same "nothing bound yet" state any freshly started JVM begins
+	 * in, not anything environment-specific baked in from the build. That still pulls in
+	 * a handful of core classes (GlobalLogRouter, StaticLevelResolver) that also need
+	 * flagging, confirmed by hand against a real GraalVM build; see this module's own
+	 * bundled native-image.properties for the exact list, and rainbowgum-jdk's own
+	 * SystemLoggingFactory javadoc for the companion flags reached via
+	 * LogProperties.findGlobalProperties() instead. Not every class in the whole
+	 * io.jstach.rainbowgum package needs this treatment, only these specific ones.
 	 */
 	private volatile @Nullable RouterProvider routerProvider;
 

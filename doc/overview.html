@@ -1811,22 +1811,36 @@ default <code>logging.properties</code> resource name (see
 included in the native image automatically.</li>
 <li>{@code rainbowgum-jdk} and {@code rainbowgum-systemlogger} (the
 {@code java.lang.System.LoggerFinder} integration) each bundle an
-{@code --initialize-at-build-time=...} argument for one class. This exists because the
-JDK's own internals ({@code java.time}, {@code java.util.Locale}/{@code Calendar}
-formatting) call {@code System.getLogger(...)} incidentally, for their own diagnostics,
-from unrelated static-init paths that end up reachable during a real native-image build,
-and whichever registered {@code System.LoggerFinder} is on the classpath gets swept up
-regardless. See {@code io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory} (not
-part of {@code rainbowgum-jdk}'s exported API) and
+{@code --initialize-at-build-time=...} argument, one covering
+{@code SystemLoggingFactory} plus a handful of core support classes
+({@code RainbowGumHolder}, {@code LogProperties} and its {@code StandardProperties}
+helper, {@code PropertySuccess}, {@code ServiceLoaderCache}), the other covering
+{@code RainbowGumSystemLoggerFinder$RouterProvider} plus {@code GlobalLogRouter} and
+{@code StaticLevelResolver}. This exists because the JDK's own internals
+({@code java.time}/{@code java.util.Locale} formatting, and separately
+{@code com.oracle.svm.core.jdk.TrustStoreManagerFeature} loading the default trust store
+at build time) call {@code System.getLogger(...)} incidentally, for their own
+diagnostics, from unrelated code paths that end up reachable during a real
+native-image build, and whichever registered {@code System.LoggerFinder} is on the
+classpath gets swept up regardless, along with whatever its resolution touches. What
+actually gets resolved and frozen in for these specific classes is just the cheap
+"nothing bound yet" state (no real {@code RainbowGum} has loaded), the same state any
+freshly started JVM begins in, not anything environment-specific baked in from the
+build. See {@code io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory} (not part
+of {@code rainbowgum-jdk}'s exported API) and
 {@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder} for the exact
 flags and the full explanation.</li>
 </ul>
 
 If a native-image build reports an object of some other Rainbow Gum class needing
-{@code --initialize-at-build-time}, that likely means a constructor or field initializer
-somewhere is doing real work eagerly instead of lazily; consider that a bug report
-against the module in question rather than something to just paper over with a broader
-flag.
+{@code --initialize-at-build-time}, check first whether it is reachable this same way
+(an incidental {@code System.getLogger(...)}/{@code System.LoggerFinder} touch resolving
+to harmless "nothing bound yet" state); if so, adding the class to the relevant module's
+own {@code native-image.properties} is the right fix, the same way the classes above were
+found, by building with a real GraalVM install and reading what it reports. If instead
+something is doing real, environment-dependent work eagerly in a constructor or field
+initializer, that is a bug report against the module in question, not something to just
+flag away.
 <p>
 {@code test/rainbowgum-test-native} in the project's own repository is a working,
 end-to-end example: a small application depending only on {@code rainbowgum-simple} plus
