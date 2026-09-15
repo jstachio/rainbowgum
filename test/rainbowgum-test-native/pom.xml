@@ -1,0 +1,117 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-test-parent</artifactId>
+    <version>0.12.0-SNAPSHOT</version>
+  </parent>
+  <!--
+    Deliberately not listed in test/pom.xml's <modules>: a native-image build takes
+    minutes, needs a GraalVM JDK, and produces nothing worth installing/deploying, so it
+    must not run as part of the normal reactor (`mvn install`/`mvn verify` from the root).
+    Built on its own, after the reactor has installed everything else into the local
+    repo, either directly:
+
+      ./mvnw -f test/rainbowgum-test-native/pom.xml -Pnative verify
+
+    or via the native-image GitHub Actions job (see .github/workflows/native-image.yml),
+    which is what actually runs this in CI.
+  -->
+  <artifactId>rainbowgum-test-native</artifactId>
+  <properties>
+    <native.maven.plugin.version>0.10.6</native.maven.plugin.version>
+    <exec.mainClass>io.jstach.rainbowgum.test.nativeimage.Main</exec.mainClass>
+    <native.image.executable>${project.build.directory}/rainbowgum-test-native</native.image.executable>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-simple</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc-apt</artifactId>
+    </dependency>
+  </dependencies>
+  <profiles>
+    <profile>
+      <id>native</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <version>${native.maven.plugin.version}</version>
+            <extensions>true</extensions>
+            <executions>
+              <execution>
+                <!--
+                  compile-no-fork, not the test goal: native-maven-plugin's test goal
+                  compiles JUnit's own launcher/engine straight into the image. Tried
+                  that first and dropped it: it bundles its own, much older JUnit
+                  Platform jars that clash with this project's, and separately trips a
+                  GraalVM build-time-initialization error in rainbowgum-jdk's
+                  SystemLoggingFactory, triggered by the native JUnit runner's own
+                  progress-reporting code touching System.getLogger, not by anything
+                  this module's own code does. A plain executable built from Main is
+                  launched directly with a plain ProcessBuilder by NativeImageRunIT
+                  below instead, a black-box smoke test that sidesteps both.
+                -->
+                <id>native-compile</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>compile-no-fork</goal>
+                </goals>
+                <configuration>
+                  <imageName>rainbowgum-test-native</imageName>
+                  <mainClass>${exec.mainClass}</mainClass>
+                  <fallback>false</fallback>
+                  <!--
+                    No buildArgs needed here for Rainbow Gum's own classes: GraalVM's
+                    own class-initialization analysis reaches java.lang.System.getLogger(...)
+                    from unrelated JDK static-init paths (Currency/DecimalFormatSymbols,
+                    java.time formatting, etc) that happen to be reachable during a real
+                    build, resolving and instantiating rainbowgum-jdk's
+                    SystemLoggingFactory (the registered java.lang.System.LoggerFinder)
+                    as a side effect, which used to need an explicit "initialize at
+                    build time" flag here. rainbowgum-jdk and rainbowgum-systemlogger
+                    now each bundle their own META-INF/native-image/.../
+                    native-image.properties with the exact flag they need, which
+                    native-image's own embedded configuration discovery picks up
+                    automatically from their jars on this build's classpath (see
+                    doc/overview.html's GraalVM Native Image section for the full
+                    explanation).
+                  -->
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <version>3.5.6</version>
+            <configuration>
+              <systemPropertyVariables>
+                <native.image.executable>${native.image.executable}</native.image.executable>
+              </systemPropertyVariables>
+            </configuration>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

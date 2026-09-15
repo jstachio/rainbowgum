@@ -1,0 +1,39 @@
+name: Native Image Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Minimal starting point recommended by GitHub's own Actions security review:
+# this workflow only checks out code and builds/tests, it never needs to write
+# anything back to the repository.
+permissions:
+  contents: read
+
+jobs:
+  native-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+
+    runs-on: ${{ matrix.os }}
+    env:
+      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'maven'
+      - name: Install Rainbow Gum
+        run: ./mvnw $MAVEN_CLI_OPTS -DskipTests clean install
+      - name: Build and run rainbowgum-test-native as a native image
+        run: ./mvnw $MAVEN_CLI_OPTS -f test/rainbowgum-test-native/pom.xml -Pnative verify
