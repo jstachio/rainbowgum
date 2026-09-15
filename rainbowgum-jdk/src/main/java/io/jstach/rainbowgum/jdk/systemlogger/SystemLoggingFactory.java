@@ -36,8 +36,16 @@ public final class SystemLoggingFactory extends RainbowGumSystemLoggerFinder {
 	 * No-Arg for Service Loader.
 	 */
 	public SystemLoggingFactory() {
-		this(LogProperties.findGlobalProperties());
-
+		/*
+		 * Deferring LogProperties.findGlobalProperties() itself into the lazy supplier,
+		 * not just initOption(...), matters: that method checks RainbowGum.getOrNull()
+		 * and falls back to real system properties, both of which must be resolved
+		 * against whatever is true when a logger is actually first requested, not
+		 * whatever happened to be true the moment this ServiceLoader-constructed instance
+		 * came into being (see RainbowGumSystemLoggerFinder's own javadoc on why its
+		 * constructor no longer does any of this eagerly either).
+		 */
+		super(() -> initOption(LogProperties.findGlobalProperties()));
 	}
 
 	/**

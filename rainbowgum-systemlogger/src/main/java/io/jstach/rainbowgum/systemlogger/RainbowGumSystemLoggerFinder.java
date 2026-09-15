@@ -26,7 +26,37 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	 */
 	public static final String INITIALIZE_RAINBOW_GUM_PROPERTY = LogProperties.ROOT_PREFIX + "systemlogger.initialize";
 
-	private final RouterProvider routerProvider;
+	private final Supplier<? extends InitOption> optSupplier;
+
+	/*
+	 * Resolved lazily, on the first getLogger(...) call, not eagerly in the constructor.
+	 * Constructing a System.LoggerFinder happens through java.util.ServiceLoader, which
+	 * the JDK itself may trigger from all sorts of incidental static initialization (see
+	 * rainbowgum-jdk's own module javadoc); under GraalVM native-image's default
+	 * build-time class initialization in particular, an eager constructor here would
+	 * freeze whatever InitOption/RainbowGum state happened to resolve during the build
+	 * into the image, using build-time system properties and a build-time
+	 * RainbowGum.getOrNull() check, not the real ones the running image would see. A
+	 * benign race (two threads computing the same idempotent value once each) is fine
+	 * here, matching InitRouterProvider's own existing lazy resolution of its RainbowGum
+	 * supplier just below.
+	 *
+	 * This alone does not make a custom System.LoggerFinder fully invisible to
+	 * native-image's build-time analysis, since the JDK's own internals (java.time,
+	 * java.util.Locale/Calendar formatting) call System.getLogger(...) incidentally, for
+	 * their own diagnostics, from all sorts of unrelated static-init paths that end up
+	 * reachable during a real build; whichever registered LoggerFinder is on the
+	 * classpath gets swept up regardless of how lazy its own construction is. What
+	 * laziness here does buy: whatever gets resolved and frozen into the image heap as a
+	 * side effect is now always a *fresh*, real resolution (this exact code path, run for
+	 * real, not a stale decision baked in from something else), and the constructor
+	 * itself is trivial, so native-image only needs
+	 * `--initialize-at-build-time=io.jstach.rainbowgum.jdk.systemlogger
+	 * .SystemLoggingFactory,io.jstach.rainbowgum.systemlogger
+	 * .RainbowGumSystemLoggerFinder$RouterProvider` (confirmed by hand against a real
+	 * GraalVM build), not every class in the whole io.jstach.rainbowgum package.
+	 */
+	private volatile @Nullable RouterProvider routerProvider;
 
 	/**
 	 * Values (case is ignored) for {@value #INITIALIZE_RAINBOW_GUM_PROPERTY}.
@@ -70,9 +100,17 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	 * @param optSupplier can be resolved with {@link #initOption(LogProperties)}.
 	 */
 	protected RainbowGumSystemLoggerFinder(Supplier<? extends InitOption> optSupplier) {
+		this.optSupplier = optSupplier;
+	}
+
+	private RouterProvider routerProvider() {
+		var rp = this.routerProvider;
+		if (rp != null) {
+			return rp;
+		}
 		try {
 			var opt = optSupplier.get();
-			this.routerProvider = switch (opt) {
+			rp = switch (opt) {
 				case FALSE -> n -> LogRouter.global();
 				case TRUE -> new InitRouterProvider(RainbowGum::of);
 				case CHECK -> {
@@ -91,6 +129,8 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 					return gum;
 				});
 			};
+			this.routerProvider = rp;
+			return rp;
 		}
 		catch (Exception e) {
 			// We have to do this because it because very difficult
@@ -110,7 +150,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	@Override
 	public Logger getLogger(String name, Module module) {
-		var router = routerProvider.router(name);
+		var router = routerProvider().router(name);
 		if (!router.isChangeable(name)) {
 			var level = router.levelResolver().resolveLevel(name);
 			return LevelSystemLogger.of(name, level, router.route(name, level));
