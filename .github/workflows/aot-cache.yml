@@ -7,6 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Minimal starting point recommended by GitHub's own Actions security review
+# (raised on the sibling native-image workflow, PR #528): this workflow only
+# checks out code and builds/tests, it never needs to write anything back to
+# the repository.
+permissions:
+  contents: read
+
 jobs:
   aot-cache-test:
     strategy:
