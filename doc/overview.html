@@ -1795,6 +1795,45 @@ single static factory method annotated with {@link io.jstach.rainbowgum.annotati
 
 </p>
 
+<h3 id="graalvm_native">GraalVM Native Image</h3>
+
+Rainbow Gum is designed to work under GraalVM native-image with no extra configuration
+on the consuming side. Modules that need native-image build arguments bundle their own
+{@code native-image.properties} (at
+{@code META-INF/native-image/io.jstach.rainbowgum/<i>artifact-name</i>/}), which
+native-image's own embedded configuration discovery picks up automatically from any jar
+on the build classpath. As of this writing, two modules bundle one:
+
+<ul>
+<li>{@code rainbowgum-simple-props} bundles a {@code resource-config.json} covering the
+default <code>logging.properties</code> resource name (see
+{@link io.jstach.rainbowgum.simple.props.SimpleProperties} for details), so it is
+included in the native image automatically.</li>
+<li>{@code rainbowgum-jdk} and {@code rainbowgum-systemlogger} (the
+{@code java.lang.System.LoggerFinder} integration) each bundle an
+{@code --initialize-at-build-time=...} argument for one class. This exists because the
+JDK's own internals ({@code java.time}, {@code java.util.Locale}/{@code Calendar}
+formatting) call {@code System.getLogger(...)} incidentally, for their own diagnostics,
+from unrelated static-init paths that end up reachable during a real native-image build,
+and whichever registered {@code System.LoggerFinder} is on the classpath gets swept up
+regardless. See {@code io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory} (not
+part of {@code rainbowgum-jdk}'s exported API) and
+{@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder} for the exact
+flags and the full explanation.</li>
+</ul>
+
+If a native-image build reports an object of some other Rainbow Gum class needing
+{@code --initialize-at-build-time}, that likely means a constructor or field initializer
+somewhere is doing real work eagerly instead of lazily; consider that a bug report
+against the module in question rather than something to just paper over with a broader
+flag.
+<p>
+{@code test/rainbowgum-test-native} in the project's own repository is a working,
+end-to-end example: a small application depending only on {@code rainbowgum-simple} plus
+a custom, ServiceLoader-discovered {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider},
+built to a real native executable and run as a black-box smoke test in CI, with no
+manual native-image flags of its own.
+
 <h2 id="FAQ">FAQ</h2>
 
 <h3 id="faq_editdoc">There is a typo in this documentation how can I fix it?</h3>
