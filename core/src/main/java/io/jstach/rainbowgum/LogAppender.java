@@ -249,13 +249,13 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 	private static String validateName(String name) {
 		if (name.isBlank()) {
-			throw new IllegalStateException("Appender name cannot be null. name=" + name);
+			throw new IllegalArgumentException("Appender name cannot be blank. name='" + name + "'");
 		}
 		if (name.contains(" ") || name.contains("\t") || name.contains("\n") || name.contains("\r")) {
-			throw new IllegalStateException("Appender name cannot have whitespace");
+			throw new IllegalArgumentException("Appender name cannot have whitespace");
 		}
 		if (name.contains(LogProperties.SEP)) {
-			throw new IllegalStateException("Appender name cannot have '" + LogProperties.SEP + "'");
+			throw new IllegalArgumentException("Appender name cannot have '" + LogProperties.SEP + "'");
 		}
 		return name;
 	}

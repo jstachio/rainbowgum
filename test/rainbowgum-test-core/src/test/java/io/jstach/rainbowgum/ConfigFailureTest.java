@@ -129,6 +129,33 @@ class ConfigFailureTest {
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
+		/*
+		 * LogAppender.builder(name)'s own validateName, called on every appender name
+		 * whether it came from a property or programmatic code, confirmed reachable this
+		 * way (not just by calling the Builder directly): logging.appenders is a
+		 * comma-separated list, and a name containing a space is still one list entry,
+		 * not two, so it reaches validateName intact.
+		 */
+		appenderNameWithWhitespace("""
+				logging.appenders=my app
+				logging.appender.my app.output=list:///
+				""", """
+				Appender name cannot have whitespace
+				  ↳ Failure providing Appender: 'my app' from property: Property[logging.appenders]=[my app].
+				  ↳ Failure providing Appenders for route: 'default'."""),
+
+		// Same validateName, the other reachable branch: LogProperties.SEP ('.') would
+		// otherwise be ambiguous with the "." this appender's own property keys
+		// (logging.appender.<name>.output, etc.) use to separate the name from the rest
+		// of the key.
+		appenderNameWithSeparator("""
+				logging.appenders=my.app
+				logging.appender.my.app.output=list:///
+				""", """
+				Appender name cannot have '.'
+				  ↳ Failure providing Appender: 'my.app' from property: Property[logging.appenders]=[my.app].
+				  ↳ Failure providing Appenders for route: 'default'."""),
+
 		unregisteredEncoderSchemeFromKnownModuleHintsDependency("""
 				logging.appenders=myapp
 				logging.appender.myapp.output=list:///
