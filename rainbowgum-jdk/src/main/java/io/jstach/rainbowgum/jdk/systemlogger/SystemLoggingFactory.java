@@ -20,6 +20,20 @@ import io.jstach.svc.ServiceProvider;
  * <p>
  * To keep just the handler installation disabled while still depending on it, see
  * {@code io.jstach.rainbowgum.jul.JULConfigurator#JUL_DISABLE_PROPERTY}.
+ * <p>
+ * <b>GraalVM native image</b>: this module bundles a {@code native-image.properties} (at
+ * {@code META-INF/native-image/io.jstach.rainbowgum/rainbowgum-jdk/}) with
+ * {@code --initialize-at-build-time=io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory}.
+ * That flag is still needed even though this class does no eager work of its own: the
+ * JDK's own internals ({@code java.time}, {@code java.util.Locale}/{@code Calendar}
+ * formatting) call {@code System.getLogger(...)} incidentally, for their own diagnostics,
+ * from unrelated static-init paths that end up reachable during a real native-image
+ * build, and whichever registered {@code System.LoggerFinder} is on the classpath, namely
+ * this class, gets swept up regardless. native-image's own embedded configuration
+ * discovery picks this up from this module's jar automatically, no extra plugin or flag
+ * needed on the consuming side; see {@code rainbowgum-systemlogger}'s own bundled
+ * {@code native-image.properties} for the companion flag this one usually needs alongside
+ * it.
  *
  * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */

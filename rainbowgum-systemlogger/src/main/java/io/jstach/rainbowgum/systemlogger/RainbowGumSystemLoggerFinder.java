@@ -15,6 +15,14 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * Abstract System Logger Finder to allow users to create their own custom
  * System.LoggerFinder. <strong>This implementation does not cache System Loggers</strong>
  * by name!
+ * <p>
+ * <b>GraalVM native image</b>: this module bundles a {@code native-image.properties} (at
+ * {@code META-INF/native-image/io.jstach.rainbowgum/rainbowgum-systemlogger/}) with
+ * {@code --initialize-at-build-time=io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder$RouterProvider}.
+ * See {@link #routerProvider} for why that is still needed even though this class
+ * resolves its router lazily rather than eagerly in its constructor. native-image's own
+ * embedded configuration discovery picks this up from this module's jar automatically, no
+ * extra plugin or flag needed on the consuming side.
  *
  * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */
