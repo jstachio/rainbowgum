@@ -244,18 +244,47 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 * @return builder.
 	 */
 	public static Builder builder(String name) {
-		return new Builder(name);
+		return new Builder(validateName(name));
+	}
+
+	private static String validateName(String name) {
+		if (name.isBlank()) {
+			throw new IllegalStateException("Appender name cannot be null. name=" + name);
+		}
+		if (name.contains(" ") || name.contains("\t") || name.contains("\n") || name.contains("\r")) {
+			throw new IllegalStateException("Appender name cannot have whitespace");
+		}
+		if (name.contains(LogProperties.SEP)) {
+			throw new IllegalStateException("Appender name cannot have '" + LogProperties.SEP + "'");
+		}
+		return name;
 	}
 
 	/**
-	 * Builder for creating standard appenders.
-	 * <p>
-	 * If the output is not set standard out will be used. If the encoder is not set a
-	 * default encoder will be resolved from the output.
+	 * Builder for creating standard appenders. Whatever is not set explicitly is resolved
+	 * from properties keyed under {@link LogProperties#APPENDER_PREFIX} for this
+	 * builder's name (see {@link #fromProperties(LogProperties)}), and failing that from
+	 * a small set of defaults: no encoder resolves one from the output's own type, no
+	 * flags means none are set, and no appender type means
+	 * {@link AppenderType#LOCK_THREAD_LOCAL_BUFFER}. There is deliberately no such
+	 * default for output, since a required source is not something a generic named
+	 * appender can safely guess, except for the well known {@code "console"}/
+	 * {@code "file"} names, which register their own fallback via
+	 * {@link #outputDefault(LogProvider)}.
 	 */
-	public static final class Builder {
+	public static final class Builder implements LogBuilder<Builder, LogAppender> {
 
 		private @Nullable LogProvider<? extends LogOutput> output = null;
+
+		/*
+		 * A weaker fallback than an explicit output(...) call: consulted only if neither
+		 * that nor APPENDER_OUTPUT_PROPERTY resolves anything. Package-private, not part
+		 * of the public Builder API: DefaultAppenderRegistry is the only caller, for
+		 * "console"'s stdout default, where the precedence is deliberately the opposite
+		 * of an ordinary explicit value (the property is meant to override this default,
+		 * not the other way around).
+		 */
+		private @Nullable LogProvider<? extends LogOutput> outputDefault = null;
 
 		private @Nullable LogProvider<? extends LogEncoder> encoder = null;
 
@@ -267,6 +296,11 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 
 		private Builder(String name) {
 			this.name = name;
+		}
+
+		Builder outputDefault(LogProvider<? extends LogOutput> outputDefault) {
+			this.outputDefault = outputDefault;
+			return this;
 		}
 
 		/**
@@ -379,16 +413,82 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 			return this;
 		}
 
+		@Override
+		public String propertyPrefix() {
+			return LogProperties.APPENDER_PREFIX;
+		}
+
+		/**
+		 * Fills in whatever of flags/appender type is not already explicitly set on this
+		 * builder from properties keyed under {@link #propertyPrefix()} for this
+		 * builder's name; an already-set field always wins over the property, matching
+		 * every other generated builder's {@code fromProperties} in this project. Both
+		 * are resolved and validated together against one {@link LogProperty.Validator},
+		 * so a builder with both malformed reports both in a single exception rather than
+		 * just the first one reached.
+		 * <p>
+		 * Output/encoder are deliberately not handled here even though they too are keyed
+		 * under {@link #propertyPrefix()}: turning either into a concrete, registered
+		 * {@link LogOutput}/{@link LogEncoder} needs a {@link LogConfig} (to actually
+		 * look up the URI scheme), which this method does not have. {@link #build()}
+		 * resolves those two once a real {@link LogConfig} is available, using the same
+		 * property keys.
+		 * @param properties properties to resolve unset fields from.
+		 * @return this.
+		 */
+		@Override
+		public Builder fromProperties(LogProperties properties) {
+			/*
+			 * Register every result with the validator first, and only call validate(),
+			 * which throws one aggregate exception up front if anything registered is
+			 * Missing (when added via add(...)) or an Error (either method), before
+			 * extracting any individual value below. Extracting a value via
+			 * value()/valueOrNull() throws immediately for a still-unhandled Error (see
+			 * LogProperty.Result.Error's own valueOrNull()), which would otherwise let
+			 * the first bad property escape unwrapped before the Validator ever got a
+			 * chance to collect the rest: the same ordering the annotation processor
+			 * generates for every other builder in this project.
+			 */
+			var validator = LogProperty.Validator.of(LogAppender.class);
+			var flagsResult = flags == null ? properties.forKey(APPENDER_FLAGS_PROPERTY, name)
+				.ofList()
+				.map(AppenderFlag::parse)
+				.validateIfError(validator) : null;
+			var appenderTypeResult = appenderType == null ? properties.forKey(APPENDER_TYPE_PROPERTY, name)
+				.ofString()
+				.map(AppenderType::parse)
+				.validateIfError(validator) : null;
+			validator.validate();
+			if (flagsResult != null) {
+				var resolved = flagsResult.valueOrNull();
+				// AppenderFlag.parse always returns an EnumSet (empty or not), so
+				// EnumSet.copyOf is always safe here, never the "non-EnumSet and empty"
+				// case it rejects.
+				if (resolved != null) {
+					flags = EnumSet.copyOf(resolved);
+				}
+			}
+			if (appenderTypeResult != null) {
+				appenderType = appenderTypeResult.valueOrNull();
+			}
+			return this;
+		}
+
 		/**
 		 * Builds.
 		 * @return an appender factory.
 		 */
 		public LogProvider<LogAppender> build() {
 			/*
-			 * We need to capture parameters since appender creation needs to be lazy.
+			 * We need to capture parameters since appender creation needs to be lazy, and
+			 * a copy is made below (rather than mutating this builder's own fields) so a
+			 * shared/reused Builder instance is never mutated by a later
+			 * fromProperties(...) call the lazy lambda makes once a real LogConfig is
+			 * available.
 			 */
 			var _name = name;
 			var _output = output;
+			var _outputDefault = outputDefault;
 			var _encoder = encoder;
 			var _flags = flags;
 			var _appenderType = appenderType;
@@ -396,10 +496,81 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 			 * TODO should we use the parent name for resolution?
 			 */
 			return (n, config) -> {
-				AppenderConfig a = new AppenderConfig(_name, LogProvider.provideOrNull(_output, _name, config),
-						LogProvider.provideOrNull(_encoder, _name, config), _flags, _appenderType);
-				return DefaultAppenderRegistry.appender(a, config);
+				var b = new Builder(_name);
+				b.flags = _flags;
+				b.appenderType = _appenderType;
+				b.fromProperties(config.properties());
+
+				LogOutput output = LogProvider.provideOrNull(_output, _name, config);
+				if (output == null) {
+					/*
+					 * A malformed (not just missing) property must throw here,
+					 * immediately, regardless of whether a default exists below: e.g.
+					 * "console" with a genuinely bad logging.appender.console.output must
+					 * fail loudly, not silently fall back to stdout. Only the Missing
+					 * case falls through to outputDefault.
+					 */
+					output = switch (outputProperty(_name, config)) {
+						case LogProperty.Result.Success<LogOutput> s -> s.value();
+						case LogProperty.Result.Missing<LogOutput> m -> null;
+						case LogProperty.Result.Error<LogOutput> e -> e.value();
+					};
+				}
+				if (output == null) {
+					output = LogProvider.provideOrNull(_outputDefault, _name, config);
+				}
+				if (output == null) {
+					/*
+					 * No explicit value, no property, no default: the same missing
+					 * -property failure a required property with no fallback produces
+					 * anywhere else. Re-deriving the same (definitely still Missing)
+					 * result and calling value() throws it unwrapped, no Validator
+					 * involved, same as before this refactor.
+					 */
+					output = DefaultAppenderRegistry.rawValue(outputProperty(_name, config)).value();
+				}
+
+				final LogOutput finalOutput = output;
+				LogEncoder encoder = _encoder != null ? LogProvider.provideOrNull(_encoder, _name, config) : null;
+				if (output instanceof LogEncoder e) {
+					encoder = e;
+				}
+				if (encoder == null) {
+					encoder = DefaultAppenderRegistry
+						.rawValue(encoderProperty(_name, config).or(() -> config.encoderRegistry()
+							.encoderForOutputType(finalOutput.type())
+							.provide(_name, config)))
+						.value();
+				}
+
+				Set<AppenderFlag> flags = b.flags != null ? b.flags : EnumSet.noneOf(AppenderFlag.class);
+				AppenderType appenderType = b.appenderType != null ? b.appenderType
+						: AppenderType.LOCK_THREAD_LOCAL_BUFFER;
+
+				return DirectLogAppender.of(_name, output, encoder, appenderType, flags, config.alerts(),
+						config.metrics());
 			};
+		}
+
+		/*
+		 * Resolves APPENDER_OUTPUT_PROPERTY all the way to a concrete LogOutput (not just
+		 * a LogProvider), catching any exception provide() throws and re-wrapping it with
+		 * "Error for property. key: ..." context via Result.map(), the same mechanism
+		 * DefaultAppenderRegistry's now-removed outputProperty(...) helper used, moved
+		 * here since output resolution is now entirely this Builder's concern.
+		 */
+		private static LogProperty.Result<LogOutput> outputProperty(String name, LogConfig config) {
+			return config.properties()
+				.forKey(APPENDER_OUTPUT_PROPERTY, name)
+				.ofProvider(LogOutput::of)
+				.map(p -> p.provide(name, config));
+		}
+
+		private static LogProperty.Result<LogEncoder> encoderProperty(String name, LogConfig config) {
+			return config.properties()
+				.forKey(APPENDER_ENCODER_PROPERTY, name)
+				.ofProvider(LogEncoder::of)
+				.map(p -> p.provide(name, config));
 		}
 
 	}
