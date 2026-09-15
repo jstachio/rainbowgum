@@ -384,12 +384,12 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.6.1</version>
+          <version>3.6.2</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>buildnumber-maven-plugin</artifactId>
-          <version>3.3.0</version>
+          <version>3.3.1</version>
           <executions>
             <execution>
               <phase>validate</phase>
@@ -427,7 +427,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>3.6.3</version>
+          <version>3.6.4</version>
         </plugin>
         <plugin>
           <groupId>org.moditect</groupId>
@@ -452,7 +452,7 @@
         <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>templating-maven-plugin</artifactId>
-            <version>3.1.0</version>
+            <version>3.1.1</version>
         </plugin>
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
