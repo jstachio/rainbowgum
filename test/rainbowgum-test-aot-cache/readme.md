@@ -37,20 +37,20 @@ computed via `maven-dependency-plugin`'s `build-classpath` goal):
    -cp ... Main`. One command both trains (runs `Main` once, recording which classes and
    methods actually get touched) and assembles the cache from that training run, per JEP
    483's shortcut for what is otherwise two separate `-XX:AOTMode=record`/`create` steps.
-2. **`aot-cache-run`** (bound to `pre-integration-test`, so it runs before the IT below):
-   `java -XX:AOTMode=on -XX:AOTCache=app.aot -cp ... Main`, with its stdout captured to a
-   file. `AOTMode=on`, not the default `auto`, is deliberate: it fails the JVM outright if
-   the cache cannot be mapped, instead of silently falling back to a normal, non-cached run,
-   which would let a broken cache pass this module's test unnoticed. Verified this really
-   fails by hand: deleting the cache file and rerunning this exact command exits 1 with
-   "Unable to use AOT cache."
+2. **`AotCacheRunIT`** (`maven-failsafe-plugin`, `integration-test`/`verify` goals, so it
+   runs after `aot-cache-create` above): launches `java -XX:AOTMode=on
+   -XX:AOTCache=app.aot -cp ... Main` itself, with a plain `ProcessBuilder`, and checks
+   its output: a black-box smoke test, deliberately. `AOTMode=on`, not the default
+   `auto`, is deliberate too: it fails outright if the cache cannot be mapped, instead of
+   silently falling back to a normal, non-cached run, which would let a broken cache pass
+   unnoticed. Verified this really fails by hand: deleting the cache file and rerunning
+   this exact command exits 1 with "Unable to use AOT cache."
 
-`AotCacheRunIT` (`maven-failsafe-plugin`, `integration-test`/`verify` goals, so it runs after
-both `java` invocations above) only reads that captured output file back and asserts on it.
-It deliberately plays no part in the cache itself: JEP 483 explicitly warns against including
-a rich test framework in the classes an AOT cache actually trains against, so all of the
-actual training and cache-loading happens in a plain `Main` class with no JUnit on its
-classpath, and JUnit only ever runs afterward, in a separate JVM, to check a text file.
+`AotCacheRunIT` itself runs in its own, normal JVM and deliberately plays no part in the
+cache: JEP 483 explicitly warns against including a rich test framework in the classes an
+AOT cache actually trains against, so all of the actual training and cache-loading happens
+in a plain `Main` class with no JUnit anywhere near its classpath, and JUnit only ever runs
+afterward, in a separate process, to launch that `java` invocation and check its output.
 
 If a future JDK release changes the required flags or their behavior, that is useful signal
 from this module, not noise.
