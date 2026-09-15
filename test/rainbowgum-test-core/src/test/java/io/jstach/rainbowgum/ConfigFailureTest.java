@@ -99,12 +99,13 @@ class ConfigFailureTest {
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
 		/*
-		 * DefaultAppenderRegistry as the validating class here, not LogAppender (the
-		 * public-facing sealed interface these two properties are actually documented on)
-		 * is exactly the kind of thing that's easy to change by accident and have nothing
-		 * catch it: this case (and badAppenderTypeValue below) are the only tests in this
-		 * whole suite that exercise resolveFlags/resolveAppenderType's own validation at
-		 * all.
+		 * LogAppender.Builder.fromProperties now resolves and validates both of these
+		 * together against one Validator (see its own source), naming the public
+		 * LogAppender interface these properties are documented on, not the internal
+		 * DefaultAppenderRegistry these two cases named before the appender-construction
+		 * refactor that unified the programmatic and property-driven paths into one
+		 * Builder-based path. This case (and badAppenderTypeValue below) are the only
+		 * tests in this whole suite that exercise that validation at all.
 		 */
 		badAppenderFlagsValue("""
 				logging.appenders=myapp
@@ -112,7 +113,7 @@ class ConfigFailureTest {
 				logging.appender.myapp.flags=BOGUS_FLAG
 				""",
 				"""
-						Validation failed for io.jstach.rainbowgum.DefaultAppenderRegistry:
+						Validation failed for io.jstach.rainbowgum.LogAppender:
 						Error for property. key: 'logging.appender.myapp.flags' from PROPERTIES_STRING[logging.appender.myapp.flags], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAppender.AppenderFlag.BOGUS_FLAG
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
@@ -123,7 +124,7 @@ class ConfigFailureTest {
 				logging.appender.myapp.type=BOGUS_TYPE
 				""",
 				"""
-						Validation failed for io.jstach.rainbowgum.DefaultAppenderRegistry:
+						Validation failed for io.jstach.rainbowgum.LogAppender:
 						Error for property. key: 'logging.appender.myapp.type' from PROPERTIES_STRING[logging.appender.myapp.type], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAppender.AppenderType.BOGUS_TYPE
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),

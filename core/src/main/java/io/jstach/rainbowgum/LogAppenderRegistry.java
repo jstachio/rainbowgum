@@ -3,15 +3,8 @@ package io.jstach.rainbowgum;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
 
-import org.jspecify.annotations.Nullable;
-
-import io.jstach.rainbowgum.LogAppender.AppenderFlag;
-import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.LogProperty.Result;
 import io.jstach.rainbowgum.LogProperty.ValidatedResult;
 
@@ -22,34 +15,8 @@ sealed interface LogAppenderRegistry permits DefaultAppenderRegistry {
 
 }
 
-record AppenderConfig(String name, @Nullable LogOutput output, @Nullable LogEncoder encoder,
-		@Nullable Set<AppenderFlag> flags, @Nullable AppenderType appenderType) {
-
-	AppenderConfig {
-		validateName(name);
-	}
-
-	private static String validateName(String name) {
-		if (name.isBlank()) {
-			throw new IllegalStateException("Appender name cannot be null. name=" + name);
-		}
-		if (name.contains(" ") || name.contains("\t") || name.contains("\n") || name.contains("\r")) {
-			throw new IllegalStateException("Appender name cannot have whitespace");
-		}
-		if (name.contains(LogProperties.SEP)) {
-			throw new IllegalStateException("Appender name cannot have '" + LogProperties.SEP + "'");
-		}
-		return name;
-	}
-}
-
 final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
-	/*
-	 * TODO The shit in here is a mess because auto configuration of appenders based on
-	 * properties is complicated particularly because we want to support Spring Boots
-	 * configuration OOB.
-	 */
 	static List<LogProvider<LogAppender>> appenders(LogConfig config, String routeName) {
 		var keyed = config.properties().forKey(LogProperties.ROUTE_APPENDERS_PROPERTY, routeName);
 		if (routeName.equals(LogProperties.DEFAULT_NAME)) {
@@ -85,18 +52,17 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	 * appenders() (a Missing route-appenders property is a genuine misconfiguration with
 	 * no fallback for a non-default route), addDefaultAppenderNames() (an Error on the
 	 * optional logging.file.name check must still surface, unwrapped), and
-	 * appender(...)'s own output/encoder resolution (no explicit override and no property
-	 * present either) all need the raw, unwrapped exception a Missing/Error's own
-	 * value()/optional() throws - not the
-	 * "Validation failed for DefaultAppenderRegistry:" wrapping validateNow(Class) would
-	 * add, which would also change the exception's public type away from
+	 * LogAppender.Builder.build()'s own final "genuinely missing, no default" output
+	 * fallback all need the raw, unwrapped exception a Missing/Error's own
+	 * value()/optional() throws, not the "Validation failed for X:" wrapping a Validator
+	 * would add, which would also change the exception's public type away from
 	 * PropertyMissingException/PropertyConvertException for callers (see
 	 * FileOutputPropertiesTest) that catch those specifically. LogProperty.Result no
 	 * longer exposes value()/optional() itself (a bare Result might still be Missing), so
-	 * this just narrows to LogProperty.ValidatedResult - true for every concrete Result,
-	 * Missing included - without going through a Validator at all.
+	 * this just narrows to LogProperty.ValidatedResult, true for every concrete Result,
+	 * Missing included, without going through a Validator at all.
 	 */
-	private static <T> ValidatedResult<T> rawValue(Result<T> result) {
+	static <T> ValidatedResult<T> rawValue(Result<T> result) {
 		return switch (result) {
 			case ValidatedResult<T> vr -> vr;
 		};
@@ -110,55 +76,31 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			if (name.equals(LogAppender.CONSOLE_APPENDER_NAME)) {
 				return defaultConsoleAppender(config);
 			}
-			var builder = new AppenderConfig(name, null, null, null, null);
-			var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
-			var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
-			return appender(builder, config, outputProperty, encoderProperty);
+			return LogAppender.builder(name).build().provide(name, config);
 		};
 	}
 
 	private static LogAppender defaultConsoleAppender(LogConfig config) {
 		String name = LogAppender.CONSOLE_APPENDER_NAME;
-
-		var output = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config) //
-			.or(() -> LogOutput.ofStandardOut().provide(name, config))
-			.validateNow(DefaultAppenderRegistry.class);
-
-		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
-
-		var encoder = resolveEncoder(name, config, output, encoderProperty).validateNow(DefaultAppenderRegistry.class);
-
-		var flags = resolveFlags(config, name);
-
-		var consoleAppender = LogAppender.builder(LogAppender.CONSOLE_APPENDER_NAME)
-			.output(output)
-			.encoder(encoder)
-			.flags(flags)
-			.build()
-			.provide(LogAppender.CONSOLE_APPENDER_NAME, config);
-		return consoleAppender;
-	}
-
-	private static Set<AppenderFlag> resolveFlags(LogConfig config, String name) {
-		return config.properties()
-			.forKey(LogAppender.APPENDER_FLAGS_PROPERTY, name)
-			.ofList()
-			.map(AppenderFlag::parse)
-			.or(EnumSet.noneOf(LogAppender.AppenderFlag.class))
-			.validateNow(DefaultAppenderRegistry.class);
-	}
-
-	private static AppenderType resolveAppenderType(LogConfig config, String name) {
-		return config.properties()
-			.forKey(LogAppender.APPENDER_TYPE_PROPERTY, name)
-			.ofString()
-			.map(AppenderType::parse)
-			.or(AppenderType.LOCK_THREAD_LOCAL_BUFFER)
-			.validateNow(DefaultAppenderRegistry.class);
+		return LogAppender.builder(name).outputDefault(LogOutput.ofStandardOut()).build().provide(name, config);
 	}
 
 	static LogAppender fileAppender(LogConfig config) {
 		final String name = LogAppender.FILE_APPENDER_NAME;
+		/*
+		 * Unchanged from before the appender-construction refactor unified everything
+		 * else onto LogAppender.Builder: LogProperties.FILE_PROPERTY (Spring Boot's
+		 * logging.file.name) is chained ahead of the generic
+		 * logging.appender.file.output, and LogProperty.mapValue's own
+		 * exception-to-rich-property-error wrapping around the URI-to-LogProviderRef
+		 * conversion step (normalizeFileUri/LogProviderRef.of) both need the exact Result
+		 * plumbing below, not something a plain builder setter can express without losing
+		 * "Error converting property..."/"Tried: ..." context real
+		 * FileOutputPropertiesTest cases assert on. Only the very last step changes: the
+		 * fully-resolved LogOutput is handed to a real LogAppender.Builder (as an
+		 * explicit value, so build() never re-resolves it from properties) instead of
+		 * bypassing it via AppenderConfig.
+		 */
 		Result<URI> uriResult = config.properties()
 			.forKey(LogProperties.FILE_PROPERTY)
 			.or(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
@@ -168,22 +110,18 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			case Result.Missing<URI> m -> m.convert();
 			case Result.Error<URI> e -> e.convert();
 		};
-		Result<LogOutput> fileProperty = refResult.map(LogOutput::of).map(p -> p.provide(name, config));
-		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
-		return appender(name, config, fileProperty, encoderProperty);
+		LogOutput output = rawValue(refResult.map(LogOutput::of).map(p -> p.provide(name, config))).value();
+		return LogAppender.builder(name).output(output).build().provide(name, config);
 	}
 
 	/*
-	 * Unlike the generic appender output property (which falls back to here and is
-	 * genuinely ambiguous - a bare word could be a deliberate URI scheme like "stdout")
-	 * LogProperties.FILE_PROPERTY (Spring Boot's logging.file.name) is documented to
-	 * always be a file path. Resolve its value as one directly instead of leaving it to
-	 * the generic URI-scheme-sniffing that ordinary output properties rely on, so callers
-	 * do not need to know about the "./" prefix workaround those require. Values that
-	 * already have an explicit scheme (e.g. file:///...) are left as-is since they are
-	 * already unambiguous; genuinely malformed values never reach here - ofURI() itself
-	 * already failed them with their original, well understood URI syntax error before
-	 * this runs.
+	 * Values that already have an explicit scheme (e.g. file:///...) are left as-is since
+	 * they are already unambiguous; genuinely malformed values never reach here, since
+	 * ofURI() itself already failed them with their original, well understood URI syntax
+	 * error before this runs. Only a value that actually came from FILE_PROPERTY (not the
+	 * generic, already-unambiguous APPENDER_OUTPUT_PROPERTY fallback) gets this
+	 * treatment, checked via the key the value was actually found at, not which property
+	 * this lookup started from.
 	 */
 	private static URI normalizeFileUri(Result.Success<URI> result) {
 		URI uri = result.value();
@@ -191,76 +129,6 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			return uri;
 		}
 		return Paths.get(uri.getPath()).toUri();
-	}
-
-	static LogAppender appender( //
-			AppenderConfig appenderConfig, //
-			LogConfig config) {
-		String name = appenderConfig.name();
-		var outputProperty = outputProperty(LogAppender.APPENDER_OUTPUT_PROPERTY, name, config);
-		var encoderProperty = encoderProperty(LogAppender.APPENDER_ENCODER_PROPERTY, name, config);
-		return appender(appenderConfig, config, outputProperty, encoderProperty);
-	}
-
-	static LogAppender appender( //
-			AppenderConfig appenderConfig, //
-			LogConfig config, //
-			Result<LogOutput> outputProperty, //
-			Result<LogEncoder> encoderProperty) {
-
-		LogOutput output = Objects.requireNonNullElseGet(appenderConfig.output(),
-				() -> rawValue(outputProperty).value());
-
-		@Nullable LogEncoder encoder = appenderConfig.encoder();
-
-		if (output instanceof LogEncoder e) {
-			encoder = e;
-		}
-		String name = appenderConfig.name();
-
-		var resolvedEncoder = resolveEncoder(name, config, output, encoderProperty);
-		encoder = Objects.requireNonNullElseGet(encoder, () -> rawValue(resolvedEncoder).value());
-
-		@Nullable Set<LogAppender.AppenderFlag> flags = appenderConfig.flags();
-		if (flags == null) {
-			flags = resolveFlags(config, name);
-		}
-
-		@Nullable AppenderType appenderType = appenderConfig.appenderType();
-		if (appenderType == null) {
-			appenderType = resolveAppenderType(config, name);
-		}
-
-		return DirectLogAppender.of(name, output, encoder, appenderType, flags, config.alerts(), config.metrics());
-	}
-
-	private static Result<LogEncoder> resolveEncoder(String name, LogConfig config, LogOutput output,
-			Result<LogEncoder> encoderProperty) {
-		return encoderProperty.or(() -> {
-			var encoderRegistry = config.encoderRegistry();
-			return encoderRegistry.encoderForOutputType(output.type()).provide(name, config);
-		});
-	}
-
-	static LogAppender appender( //
-			String name, //
-			LogConfig config, //
-			Result<LogOutput> outputProperty, Result<LogEncoder> encoderProperty) {
-		var builder = new AppenderConfig(name, null, null, null, null);
-		return appender(builder, config, outputProperty, encoderProperty);
-
-	}
-
-	private static Result<LogOutput> outputProperty(String propertyKey, String name, LogConfig config) {
-		var properties = config.properties();
-		var provider = properties.forKey(propertyKey, name).ofProvider(LogOutput::of);
-		return provider.map(p -> p.provide(name, config));
-	}
-
-	private static Result<LogEncoder> encoderProperty(String propertyKey, String name, LogConfig config) {
-		var properties = config.properties();
-		var provider = properties.forKey(propertyKey, name).ofProvider(LogEncoder::of);
-		return provider.map(p -> p.provide(name, config));
 	}
 
 }
