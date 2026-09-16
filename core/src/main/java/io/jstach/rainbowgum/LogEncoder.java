@@ -432,25 +432,12 @@ sealed interface TextBuffer extends LogEncoder.Buffer {
 }
 
 /**
- * A buffer that formats into a {@link StringBuilder} (direct access available as the
- * field {@link #stringBuilder}) but - like {@link DirectByteBufferBuffer} -
- * {@linkplain #encodeToBuffer(LogFormatter, LogEvent) converts to bytes outside the
- * lock}, not inside {@link #drain(LogOutput, LogEvent)}. Earlier this converted lazily,
- * inside {@code drain} (via {@link LogOutput#write(LogEvent, String)}'s default
- * {@code String.getBytes(UTF_8)} implementation) - appenders that separate formatting
- * from writing ({@code LockThreadLocalBufferLogAppender},
- * {@code SynchronizedThreadLocalBufferLogAppender}) call {@code drain} from inside their
- * lock, so that meant the {@code getBytes()} cost landed inside the lock, unlike
- * {@link DirectByteBufferBuffer}'s {@link CharsetEncoder} work, which never did. Moved
- * here to match, so a {@code WriteMethod.STRING}-hinting output's cost profile is
- * actually comparable to a {@code BYTES}/{@code BYTE_BUFFER}-hinting one instead of
- * conflating "which encode strategy" with "how much of it happens under the lock".
+ * A buffer that simply wraps a {@link StringBuilder}. Direct access to the
+ * {@link StringBuilder} is available as the field {@link #stringBuilder}.
  *
  * @see AbstractEncoder
  */
 final class StringBuilderBuffer implements TextBuffer {
-
-	private static final byte[] EMPTY_BYTES = new byte[0];
 
 	/**
 	 * Underlying StringBuilder.
@@ -460,8 +447,6 @@ final class StringBuilderBuffer implements TextBuffer {
 	private final int maxBufferSize;
 
 	private final LogMetrics metrics;
-
-	private byte[] bytes = EMPTY_BYTES;
 
 	/**
 	 * Creates a StringBuilder based buffer that reports {@link #isOversized()} once
@@ -485,20 +470,14 @@ final class StringBuilderBuffer implements TextBuffer {
 		this.metrics = metrics;
 	}
 
-	/**
-	 * Writes the already-encoded bytes to the output. Assumes
-	 * {@link #encodeToBuffer(LogFormatter, LogEvent)} has already been called for this
-	 * event - see the class doc for why that step happens there instead of here.
-	 */
 	@Override
 	public void drain(LogOutput output, LogEvent event) {
-		output.write(event, bytes, 0, bytes.length, StandardContentType.TEXT_PLAIN);
+		output.write(event, stringBuilder.toString());
 	}
 
 	@Override
 	public void clear() {
 		stringBuilder.setLength(0);
-		bytes = EMPTY_BYTES;
 		// setLength(0) never touches capacity, so isOversized() here still
 		// reflects growth from whatever was just written - trimToSize()
 		// mutates the StringBuilder in place, no reassignment needed (works
@@ -517,12 +496,67 @@ final class StringBuilderBuffer implements TextBuffer {
 	@Override
 	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
 		formatter.format(stringBuilder, event);
-		/*
-		 * Matches LogOutput.write(LogEvent, String)'s own default implementation exactly
-		 * (same charset, same content type) - just done here, outside the lock, instead
-		 * of lazily inside drain().
-		 */
-		bytes = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
+	}
+
+}
+
+/**
+ * A buffer that formats into a {@link StringBuilder}, then encodes that text with
+ * {@link String#getBytes(Charset)} before the appender lock is entered. This keeps the
+ * getBytes based byte-array path separate from {@link StringBuilderBuffer}'s original
+ * string-draining behavior and from {@link DirectByteBufferBuffer}'s reused
+ * {@link CharsetEncoder} path.
+ */
+final class StringBuilderBufferBytes implements TextBuffer {
+
+	private static final byte[] EMPTY_BYTES = new byte[0];
+
+	final StringBuilder stringBuilder;
+
+	private final Charset charset;
+
+	private final LogOutput.ContentType contentType;
+
+	private final int maxBufferSize;
+
+	private final LogMetrics metrics;
+
+	private byte[] bytes = EMPTY_BYTES;
+
+	StringBuilderBufferBytes(StringBuilder stringBuilder, Charset charset, LogOutput.ContentType contentType,
+			int maxBufferSize, LogMetrics metrics) {
+		super();
+		this.stringBuilder = stringBuilder;
+		this.charset = charset;
+		this.contentType = contentType;
+		this.maxBufferSize = maxBufferSize;
+		this.metrics = metrics;
+	}
+
+	@Override
+	public void drain(LogOutput output, LogEvent event) {
+		output.write(event, bytes, 0, bytes.length, contentType);
+	}
+
+	@Override
+	public void clear() {
+		stringBuilder.setLength(0);
+		bytes = EMPTY_BYTES;
+		if (isOversized()) {
+			stringBuilder.trimToSize();
+			metrics.warnCounter(LogMetrics.BUFFER_TRIMMED_METRIC, 1);
+		}
+	}
+
+	@Override
+	public boolean isOversized() {
+		return maxBufferSize >= 0 && stringBuilder.capacity() > maxBufferSize;
+	}
+
+	@Override
+	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
+		formatter.format(stringBuilder, event);
+		bytes = stringBuilder.toString().getBytes(charset);
 	}
 
 }
