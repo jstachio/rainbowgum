@@ -36,7 +36,20 @@ native image itself is also markedly larger - 25.86MB code area vs Rainbow Gum's
 
 ## Not yet tried
 
-Rainbow Gum's per-appender locking strategy (`logging.appender.<name>.type`,
-`AppenderType`) is configurable and untouched here (default:
-`LOCK_THREAD_LOCAL_BUFFER`) - worth revisiting against this specific result before
-drawing final conclusions, but deliberately not chased yet.
+* Rainbow Gum's per-appender locking strategy (`logging.appender.<name>.type`,
+  `AppenderType`) is configurable and untouched here (default:
+  `LOCK_THREAD_LOCAL_BUFFER`) - worth revisiting against this specific result before
+  drawing final conclusions, but deliberately not chased yet.
+* Theory (unverified, needs real profiling - JFR/async-profiler, not guessing): TTLL is
+  mostly time formatting, and Log4j2's own fast-path date formatting may just be
+  quicker than Rainbow Gum's here. Rainbow Gum's default TTLL formatter
+  (`DefaultInstantFormatter`/`MillisCache`, `core/.../LogFormatter.java`) already
+  caches the formatted string per millisecond, the same trick Log4j2's
+  `FixedDateFormat`/Logback's `CachingDateFormatter` use, so it is not naively
+  reformatting every event - but the cache is one shared `AtomicReference<Entry>`,
+  meaning every concurrent thread contends on it, and two threads racing in the same
+  millisecond both reformat and clobber each other's write. Separately, `Instant` is
+  a real heap-allocated object today; Project Valhalla's value types could remove that
+  allocation cost entirely if `Instant` (or a Valhalla-friendly replacement) becomes a
+  flattened value type in a future JDK. Neither half of this theory has been profiled
+  yet to confirm it is actually where the time goes.
