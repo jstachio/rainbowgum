@@ -401,6 +401,16 @@ untested - both have large, long-running test suites - it means there is no publ
 number to compare against, favorable or not, the way there is for Rainbow Gum and
 tinylog.
 
+To be clear, 92% is not a number Rainbow Gum is chasing toward 100 for its own sake.
+Line coverage measures which lines *ran* during a test, not which lines were actually
+*verified* - a test that only exists to touch a line pads the percentage without proving
+anything, and 100% can just as easily mean "we wrote a trivial test for every line"
+as "we deleted the dead code that shouldn't have been there in the first place."
+Rainbow Gum prefers real, end-to-end tests - including parameterized ones that sweep many
+input shapes through the same real assertion, like `ConfigFailureTest`'s enum-driven
+cases - over hand-crafted unit tests aimed at specific lines. The percentage is a
+byproduct of testing real behavior thoroughly, not the target itself.
+
 ## Smaller security surface
 
 * No expression language. Log4j2's JNDI-lookup-capable expression language in log
