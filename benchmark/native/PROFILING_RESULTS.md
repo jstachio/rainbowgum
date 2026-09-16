@@ -182,28 +182,102 @@ from Finding 1 alone:
 
 Rainbow Gum's own `synchronized`-based appender spends real time spinning too (14.7%,
 clearly present, clearly not free) - but **less than half** of Log4j2's 34.4%, even
-though both use the same underlying HotSpot monitor mechanism. The likely reason,
-readable directly in both codebases: `SynchronizedThreadLocalBufferLogAppender`'s
-critical section covers only the final `output.write(event, buffer)` call (encoding
-already done outside the lock, into a thread-local buffer - same "encode outside,
-lock only the write" shape as the `ReentrantLock`-based default), while Log4j2's
-`OutputStreamManager.write(byte[], int, int, boolean)` - the actual `synchronized`
-method - does the buffer-copy-or-flush decision *and* the destination write *and* the
-conditional flush all inside the one lock. A shorter critical section means less time
-for 50 threads to pile up waiting on it, hence less spin. This wasn't measured
-separately (no line-level timing of Log4j2's own lock body), but it follows directly
-from reading both `AbstractLogAppender`/`SynchronizedThreadLocalBufferLogAppender` and
-the decompiled `OutputStreamManager` side by side (see `RESULTS.md`'s own "Does Log4j2
-write to stdout directly?" section for the decompile).
+though both use the same underlying HotSpot monitor mechanism.
+
+**Correction from the first pass at this file**: it originally guessed this was down to
+Log4j2 having one *wider* critical section than Rainbow Gum's. Decompiling the actual
+default-encoder path (`Constants.ENABLE_DIRECT_ENCODERS=true`,
+`PatternLayout.encode(LogEvent, ByteBufferDestination)` →
+`StringBuilderEncoder.encode(...)` → `TextEncoderHelper.encodeText(...)`) shows
+something more specific: Log4j2 acquires **two separate `synchronized` locks per
+event**, not one wide one.
+
+`StringBuilderEncoder` formats into its own **thread-local** `CharsetEncoder`/
+`CharBuffer`/`ByteBuffer` first - genuinely no lock needed for that part, same shape as
+Rainbow Gum's own thread-local encode step. Only once that's done does
+`TextEncoderHelper.writeEncodedText(...)` call `destination.writeBytes(ByteBuffer)` -
+`OutputStreamManager.writeBytes(ByteBuffer data)`, which is `synchronized(this)`
+**(lock #1)**, copying those bytes into the manager's own shared internal buffer. That
+method returns, the lock releases - and then, back in `AbstractOutputStreamAppender.directEncodeEvent(...)`,
+a *separate* call, `this.manager.flush()`, acquires `OutputStreamManager`'s
+`synchronized void flush()` **(lock #2)**, which does the actual
+`writeToDestination`+`flushDestination` (the real `System.out` write and flush).
+
+Rainbow Gum's `SynchronizedThreadLocalBufferLogAppender.writeLocked(...)` does both of
+those in **one** `lock`/`unlock` pair - `output.write(event, buffer)` then, still
+inside the same lock, `output.flush()` if `immediateFlush`. Two lock acquisitions per
+event instead of one is a real, concrete, doubled opportunity for 50 threads to collide
+- not the only factor (Log4j2's `try_spin` share is *more* than double Rainbow Gum's,
+14.7% → 34.4%, not just 2x), but a genuine, code-verified contributor, not a guess.
+
+## Finding 5: no, Log4j2 is not batching flushes - and what the `writeBytes` % split actually means
+
+Looking at the flame graphs directly (not just the leaf-frame tables above), Rainbow
+Gum's `java/io/FileOutputStream.writeBytes` frame - the literal, unavoidable JDK call
+that hands bytes to the OS - is wider than Log4j2's: **34.3% inclusive of RG-sync's
+samples vs 24.0% of Log4j2's**. That's a real, correctly-read number (using exact
+frame-name matching to confirm, not eyeballing). The natural next question: does
+Log4j2 get there by flushing less often - batching several events into fewer actual
+writes - which would be a real, unfair advantage this benchmark hasn't been
+controlling for?
+
+**Checked directly with `strace`, not inferred from decompiled bytecode this time**:
+traced `write(1, ...)` syscalls (fd 1 = the redirected stdout file) for a
+single-threaded run of each framework and compared the count against `Spin`'s own
+reported iteration count (5 enabled log calls per iteration - 4 `info` plus a 5th
+`info`, the `debug` call is disabled and correctly produces zero writes on both sides):
+
+| | write(1, ...) syscalls | iterations | syscalls / iteration |
+|---|---:|---:|---:|
+| Rainbow Gum | 94,390 | 18,878 | **5.0000** |
+| Log4j2 | 31,685 | 6,337 | **5.0000** |
+
+Exactly one `write()` syscall per enabled log event, on both sides, no exceptions in
+either trace. **The buffering hypothesis is refuted, not just unconfirmed** - both
+frameworks flush every single event to the OS, exactly as `immediateFlush=true`
+(confirmed for both in `RESULTS.md`) says they should.
+
+So what does the 34.3% vs 24.0% split actually reflect, if not fewer flushes? It's a
+**proportion of each framework's own total CPU budget**, not a per-event cost
+comparison - and the two budgets are shaped very differently. Log4j2's own wrapper
+methods around that same JDK call - `OutputStreamManager.writeBytes`/`flush`/
+`writeToDestination` - are themselves 39.3%/35.0%/27.6% inclusive (they overlap with
+each other and with the JDK call, being callers of it, not separate time). Rainbow
+Gum's equivalent wrapper (`LogOutput.write`/`DirectByteBufferBuffer.drain`) is a
+shorter chain, so a *larger share* of Rainbow Gum's total time is the bare JDK call
+with comparatively little framework code around it, while Log4j2's own
+`OutputStreamManager` machinery (the same two-lock dance from Finding 4, plus the
+buffer-copy-or-flush branching inside `writeBytes`) eats into its share of the pie.
+Full inclusive breakdown for both:
+
+| frame | RG-sync | Log4j2 |
+|---|---:|---:|
+| `FileOutputStream.writeBytes` (JDK, unavoidable) | 34.3% | 24.0% |
+| `FileOutputStream.write` | 38.3% | 28.8% |
+| own manager/output wrapper (`OutputStreamManager.writeBytes` / `LogOutput.write`) | 40.0% | 39.3% |
+| own flush wrapper (`OutputStreamManager.flush` / n/a - folded into the write lock) | *(same lock as write, see Finding 4)* | 35.0% |
+| `PrintStream.write` (JDK) | 37.5% | 26.8% |
+| `write` (glibc/syscall leaf, any depth) | 28.6% (self 27.7%) | 19.6% (self 19.1%) |
+
+A **proportion being smaller does not mean less absolute work** - Log4j2 is still
+processing slightly more iterations/sec overall (128,970 vs RG-sync's 124,291), so a
+smaller *share* of a similarly-sized-or-larger total budget can still mean similar or
+even less absolute time per event. This table settles "is Log4j2 skipping flushes"
+(no) without settling "is Rainbow Gum's actual write more expensive per call" (open -
+would need matched-throughput or per-call timing, not proportions, to answer that
+cleanly).
 
 ## What this does and doesn't settle
 
 **Settled, with real evidence**: the locking-strategy story (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`
 beating the default under contention) now has both a mechanism (Finding 1's read of
-Log4j2's own lock) *and* a direct confirmation from profiling Rainbow Gum's own
-spin-lock-shaped appender type itself (Finding 4) - not just a repeatable number with
-no explanation anymore, and not just an inference from the other framework's profile
-either.
+Log4j2's own lock, corrected in Finding 4 to the precise two-separate-locks-per-event
+chain) *and* a direct confirmation from profiling Rainbow Gum's own spin-lock-shaped
+appender type itself (Finding 4) - not just a repeatable number with no explanation
+anymore, and not just an inference from the other framework's profile either. Also
+settled: Log4j2 is **not** flushing less often than Rainbow Gum (Finding 5) - both
+frameworks issue exactly one `write()` syscall per event, confirmed with `strace`, not
+just decompiled source reading.
 
 **Not settled**: the *single-threaded*, zero-contention +26.6% gap is still
 unexplained by anything in this profile - no single frame or cluster of frames stands
