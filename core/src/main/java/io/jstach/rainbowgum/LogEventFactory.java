@@ -63,11 +63,26 @@ public interface LogEventFactory {
 
 	/**
 	 * Timestamp to use for the next event created by this factory. Default is
-	 * {@link Instant#now()}.
+	 * {@link Instant#ofEpochMilli(long)
+	 * Instant.ofEpochMilli}({@link System#currentTimeMillis()}) - deliberately
+	 * <em>not</em> {@link Instant#now()}. {@code Instant.now()} does genuine
+	 * nanosecond-precision work on top of the millisecond value (on most JDKs, a second,
+	 * separate read of a monotonic clock plus interpolation math to fill in
+	 * sub-millisecond digits) that is wasted for logging:
+	 * {@link LogFormatter.TimestampFormatter#of() TTLL} and every other built-in
+	 * formatter except {@link LogFormatter.TimestampFormatter#ofMicros() ofMicros()}/a
+	 * sub-millisecond {@link java.time.format.DateTimeFormatter} pattern only ever render
+	 * millisecond precision anyway, so paying for nanosecond precision on every single
+	 * event is pure overhead for the common case.
 	 * @return timestamp.
+	 * @apiNote if sub-millisecond precision is actually needed (e.g. pairing
+	 * {@link LogFormatter.TimestampFormatter#ofMicros() ofMicros()} with a real clock),
+	 * override this method to return {@link Instant#now()} instead - with this default,
+	 * the nanosecond field of every event's timestamp is always a whole millisecond (a
+	 * multiple of 1,000,000), never genuinely sub-millisecond precise.
 	 */
 	default Instant timestamp() {
-		return Instant.now();
+		return Instant.ofEpochMilli(System.currentTimeMillis());
 	}
 
 	/**

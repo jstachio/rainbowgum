@@ -269,6 +269,57 @@ not rule out buffering behavior being different in some other way (e.g. immediat
 semantics, or how many events get batched into one buffer versus one buffer per event) -
 not chased further yet.
 
+## Cheaper `Instant`s in `LogEventFactory` - a negative result
+
+Adam's standing theory (see "Not yet tried" below, pre-existing before this test) was
+that TTLL's per-event cost is mostly time formatting, and specifically suspected
+`Instant.now()` itself - not just the formatting step - since `Instant.now()` does real
+nanosecond-precision work (on most JDKs, an extra native call plus interpolation math)
+on top of the millisecond value that TTLL's default format
+(`LogFormatter.TimestampFormatter#of()`, `HH:mm:ss.SSS`) never even displays.
+
+`LogEventFactory#timestamp()`'s default (the actual timestamp source for every event
+built through the SLF4J binding - `LogEventHandler extends LogEventFactory`) was
+`Instant.now()`. Changed it to `Instant.ofEpochMilli(System.currentTimeMillis())` -
+millisecond-precision only, one syscall, no nanosecond interpolation. This is a core
+change (`core/.../LogEventFactory.java`), not benchmark-only: it changes the default for
+every consumer of the SLF4J binding's default event construction, with a documented
+precision trade-off (anyone actually pairing `TimestampFormatter#ofMicros()` with a real
+sub-millisecond clock needs to override `timestamp()` back to `Instant.now()` now).
+
+**Confirmed via a quick JMH check first** (not committed, throwaway): on HotSpot/JIT
+(Temurin 26.0.2, not GraalVM), `Instant.now()` measured 34.19 ns/op vs 30.59 ns/op for
+`Instant.ofEpochMilli(System.currentTimeMillis())` - a real, outside-error-bars ~12%
+difference, but a tiny ~3.6ns/op absolute one. Both sit well above the
+`currentTimeMillis()`-alone floor (~24ns/op), meaning most of `Instant.now()`'s cost
+(object allocation, epoch-second/nano normalization math) is shared with the cheaper
+variant too - the nanosecond-precision work specifically is a small slice of a small
+number.
+
+**Measured end-to-end anyway** (TTLL, GraalVM 25.3.4, default appender/output/level,
+`/greet/world`, 6 runs: 3 forward + 3 reversed start order): **no measurable
+difference.**
+
+| | before (`Instant.now()`) | after (`Instant.ofEpochMilli(...)`) | change |
+|---|---:|---:|---:|
+| throughput | 27,116 req/s | 27,251 req/s | +0.5% |
+| p50 latency | 1.78 ms | 1.77 ms | -0.6% |
+| RSS (avg) | 38.3 MB | 38.2 MB | -0.3% |
+
+Every one of these deltas is smaller than this benchmark's own established run-to-run
+noise floor (~1-2%, see the methodology note at the top of this file). Consistent with
+the JMH numbers: ~3.6ns saved per `Instant`, times up to 5 log calls per request, is
+~18ns - against a per-request cost that's tens of microseconds (HTTP parsing, virtual
+thread scheduling, TTLL string building, actual I/O), this saving is simply too small
+to surface at the request-throughput level, even though the underlying per-call cost
+difference is real. **This does not support "`Instant.now()`'s nanosecond-precision
+cost" as a meaningful contributor to Rainbow Gum's native-image-vs-Log4j2 gap** - the
+change is being kept anyway (verified real via JMH, zero measured downside, and the
+millisecond-only precision is what every built-in formatter already displays), but the
+underlying "why is TTLL slower here" question remains genuinely open. The
+`MillisCache`-contention half of the original theory (a shared `AtomicReference` every
+concurrent thread contends on) is still untested.
+
 ## Baseline: logging mostly off (`LOG_LEVEL=ERROR`)
 
 `LOG_LEVEL=ERROR` overrides each framework's root level (Rainbow Gum:
@@ -321,10 +372,14 @@ Two things stand out:
 * Real profiling (JFR/async-profiler) of the TTLL time-formatting theory: TTLL is
   mostly time formatting, and Log4j2's own fast-path date formatting may just be
   quicker than Rainbow Gum's `DefaultInstantFormatter`/`MillisCache` here (a shared
-  `AtomicReference<Entry>` every concurrent thread contends on). Separately, `Instant`
+  `AtomicReference<Entry>` every concurrent thread contends on) - the
+  `MillisCache`-contention half is still untested. The "`Instant.now()`'s
+  nanosecond-precision cost" half was tested (see "Cheaper `Instant`s in
+  `LogEventFactory`" above) and found not to matter end-to-end, despite a real, small
+  per-call cost confirmed via JMH - so this remains open only for the
+  formatting/contention half, not the timestamp-construction half. Separately, `Instant`
   is a real heap-allocated object today; Project Valhalla's value types could remove
-  that allocation cost if `Instant` becomes a flattened value type in a future JDK.
-  Neither half of this theory has been profiled yet to confirm it's actually where the
-  time goes.
+  that allocation cost if `Instant` becomes a flattened value type in a future JDK - not
+  profiled either.
 * Why Log4j2's own buffering/flush behavior differs from "just a bigger buffer" if it
   does at all - not yet investigated beyond the byte-buffer-size constant itself.
