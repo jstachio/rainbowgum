@@ -3,6 +3,11 @@ package io.jstach.rainbowgum.benchmark.encoding;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,11 +25,13 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
+import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 /**
  * Synthetic encoder benchmark for comparing Log4j2's PatternLayout direct encoder with
@@ -115,11 +122,18 @@ public final class Main {
 			cases.add(new RainbowGumThreadLocalCase("rainbowgum-threadlocal-string", WriteMethod.STRING,
 					options.scenario.rainbowGumEvents()));
 		}
+		if (options.includes("rainbowgum-copy-chars")) {
+			cases.add(new RainbowGumCopyCharsCase("rainbowgum-copy-chars", options.scenario.rainbowGumEvents()));
+		}
+		if (options.includes("rainbowgum-threadlocal-copy-chars")) {
+			cases.add(new RainbowGumThreadLocalCopyCharsCase("rainbowgum-threadlocal-copy-chars",
+					options.scenario.rainbowGumEvents()));
+		}
 		return cases;
 	}
 
-	private sealed interface Case
-			permits Log4j2DirectCase, Log4j2ByteArrayCase, RainbowGumCase, RainbowGumThreadLocalCase {
+	private sealed interface Case permits Log4j2DirectCase, Log4j2ByteArrayCase, RainbowGumCase,
+			RainbowGumThreadLocalCase, RainbowGumCopyCharsCase, RainbowGumThreadLocalCopyCharsCase {
 
 		String name();
 
@@ -287,6 +301,177 @@ public final class Main {
 			}
 			long nanos = System.nanoTime() - start;
 			return new Result(nanos, output.bytes, output.checksum);
+		}
+
+	}
+
+	private static final class RainbowGumCopyCharsCase implements Case {
+
+		private final String name;
+
+		private final LogEvent[] events;
+
+		private final CountingLogOutput output = new CountingLogOutput(WriteMethod.BYTE_BUFFER);
+
+		private final CopyCharsEncoder encoder = new CopyCharsEncoder(StandardEventFormatter.builder().build());
+
+		private final LogEncoder.Buffer buffer = encoder.buffer(WriteMethod.BYTE_BUFFER);
+
+		private RainbowGumCopyCharsCase(String name, LogEvent[] events) {
+			this.name = name;
+			this.events = events;
+		}
+
+		@Override
+		public String name() {
+			return name;
+		}
+
+		@Override
+		public Result run(int iterations) {
+			output.resetCounters();
+			long start = System.nanoTime();
+			for (int i = 0; i < iterations; i++) {
+				LogEvent event = events[i & 3];
+				encoder.encode(event, buffer);
+				buffer.drain(output, event);
+			}
+			long nanos = System.nanoTime() - start;
+			return new Result(nanos, output.bytes, output.checksum);
+		}
+
+	}
+
+	private static final class RainbowGumThreadLocalCopyCharsCase implements Case {
+
+		private final String name;
+
+		private final LogEvent[] events;
+
+		private final CountingLogOutput output = new CountingLogOutput(WriteMethod.BYTE_BUFFER);
+
+		private final CopyCharsEncoder encoder = new CopyCharsEncoder(StandardEventFormatter.builder().build());
+
+		private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal = ThreadLocal
+			.withInitial(() -> encoder.buffer(WriteMethod.BYTE_BUFFER));
+
+		private RainbowGumThreadLocalCopyCharsCase(String name, LogEvent[] events) {
+			this.name = name;
+			this.events = events;
+		}
+
+		@Override
+		public String name() {
+			return name;
+		}
+
+		@Override
+		public Result run(int iterations) {
+			output.resetCounters();
+			long start = System.nanoTime();
+			for (int i = 0; i < iterations; i++) {
+				LogEvent event = events[i & 3];
+				LogEncoder.Buffer buffer = bufferThreadLocal.get();
+				encoder.encode(event, buffer);
+				buffer.drain(output, event);
+			}
+			long nanos = System.nanoTime() - start;
+			return new Result(nanos, output.bytes, output.checksum);
+		}
+
+	}
+
+	private static final class CopyCharsEncoder extends LogEncoder.AbstractEncoder<CopyCharsBuffer> {
+
+		private final LogFormatter formatter;
+
+		private CopyCharsEncoder(LogFormatter formatter) {
+			this.formatter = formatter;
+		}
+
+		@Override
+		protected CopyCharsBuffer doBuffer(BufferHints hints) {
+			return new CopyCharsBuffer();
+		}
+
+		@Override
+		protected void doEncode(LogEvent event, CopyCharsBuffer buffer) {
+			buffer.clear();
+			formatter.format(buffer.stringBuilder, event);
+			buffer.encodeText();
+		}
+
+	}
+
+	private static final class CopyCharsBuffer implements LogEncoder.Buffer {
+
+		private final StringBuilder stringBuilder = new StringBuilder(1024);
+
+		private final CharsetEncoder charsetEncoder = StandardCharsets.UTF_8.newEncoder()
+			.onMalformedInput(CodingErrorAction.REPLACE)
+			.onUnmappableCharacter(CodingErrorAction.REPLACE);
+
+		private CharBuffer charBuffer = CharBuffer.allocate(1024);
+
+		private ByteBuffer byteBuffer = ByteBuffer.allocate(8192);
+
+		@Override
+		public void drain(LogOutput output, LogEvent event) {
+			output.write(event, byteBuffer, ContentType.StandardContentType.TEXT_PLAIN);
+		}
+
+		@Override
+		public void clear() {
+			stringBuilder.setLength(0);
+			charBuffer.clear();
+			byteBuffer.clear();
+		}
+
+		private void encodeText() {
+			int length = stringBuilder.length();
+			if (length > charBuffer.capacity()) {
+				charBuffer = CharBuffer.allocate(length);
+			}
+			stringBuilder.getChars(0, length, charBuffer.array(), charBuffer.arrayOffset());
+			charBuffer.limit(length);
+			charBuffer.position(0);
+			charsetEncoder.reset();
+			while (true) {
+				byteBuffer.clear();
+				CoderResult result = charsetEncoder.encode(charBuffer, byteBuffer, true);
+				if (result.isOverflow()) {
+					growByteBuffer();
+					charBuffer.position(0);
+					charsetEncoder.reset();
+					continue;
+				}
+				throwIfError(result);
+				result = charsetEncoder.flush(byteBuffer);
+				if (result.isOverflow()) {
+					growByteBuffer();
+					charBuffer.position(0);
+					charsetEncoder.reset();
+					continue;
+				}
+				throwIfError(result);
+				byteBuffer.flip();
+				return;
+			}
+		}
+
+		private void growByteBuffer() {
+			byteBuffer = ByteBuffer.allocate(byteBuffer.capacity() * 2);
+		}
+
+		private static void throwIfError(CoderResult result) {
+			if (result.isError()) {
+				try {
+					result.throwException();
+				}
+				catch (CharacterCodingException ex) {
+					throw new IllegalStateException(ex);
+				}
+			}
 		}
 
 	}

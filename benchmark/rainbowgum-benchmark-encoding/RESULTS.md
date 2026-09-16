@@ -89,16 +89,58 @@ changes little. The bytes path slowed by about 2.2%, byte-buffer by about 0.5%, 
 string by about 1.9%. That suggests the large `rainbowgum-bytes` /
 `rainbowgum-byte-buffer` gap here is not explained by Log4j2 having layout-level
 thread-local encoder state while the synthetic Rainbow Gum baseline kept its buffer in a
-plain field. The larger difference remains the encoding strategy itself: Rainbow Gum's
+plain field. The larger difference remains the encoding implementation shape itself: Rainbow Gum's
 current `CharsetEncoder` path versus Log4j2's `StringBuilderEncoder` implementation and
-Rainbow Gum's own `String.getBytes` path.
+Rainbow Gum's own `String.getBytes` path. The copy-chars section below narrows that down
+further.
+
+## Copying `StringBuilder` into a reusable `CharBuffer`
+
+Log4j2's direct `PatternLayout.encode(...)` path does not wrap the `StringBuilder` in a
+`CharBuffer`. Its `TextEncoderHelper` copies the builder into a reusable array-backed
+`CharBuffer` first:
+
+```java
+text.getChars(0, text.length(), charBuf.array(), charBuf.arrayOffset());
+```
+
+The `rainbowgum-copy-chars` modes add a benchmark-only Rainbow Gum encoder/buffer with
+the same broad shape: format TTLL into a reused `StringBuilder`, copy its chars into a
+reused `CharBuffer`, encode through a reused UTF-8 `CharsetEncoder` into a reused
+`ByteBuffer`, then drain to the in-memory output. This omits Log4j2's chunked overflow
+path because these benchmark events fit in the initial 1024-char / 8192-byte buffers.
+
+Clean sequential ASCII run, same command shape and measurement settings as above:
+
+| case | ns/event | events/s | bytes/event |
+|---|---:|---:|---:|
+| `log4j2-direct` | 82.2 | 12,164,938 | 128.5 |
+| `log4j2-byte-array` | 82.3 | 12,145,645 | 128.5 |
+| `rainbowgum-bytes` | 303.4 | 3,296,127 | 128.5 |
+| `rainbowgum-byte-buffer` | 308.7 | 3,239,005 | 128.5 |
+| `rainbowgum-string` | 80.3 | 12,448,474 | 128.5 |
+| `rainbowgum-threadlocal-bytes` | 307.5 | 3,251,652 | 128.5 |
+| `rainbowgum-threadlocal-byte-buffer` | 302.5 | 3,305,853 | 128.5 |
+| `rainbowgum-threadlocal-string` | 91.2 | 10,962,759 | 128.5 |
+| `rainbowgum-copy-chars` | 82.0 | 12,198,614 | 128.5 |
+| `rainbowgum-threadlocal-copy-chars` | 82.0 | 12,189,817 | 128.5 |
+
+This is the clearest isolated result so far. The copy-chars encoder lands essentially on
+Log4j2 direct and Rainbow Gum's `String.getBytes` path, while Rainbow Gum's current
+`BYTES` / `BYTE_BUFFER` encoder remains around 300 ns/event. In this synthetic benchmark,
+the expensive part is not `CharsetEncoder` in general and not per-event `ThreadLocal`
+lookup; it is Rainbow Gum's current direct byte-buffer implementation shape, especially
+relative to Log4j2's copy-to-`CharBuffer` approach.
 
 ## Reading
 
 With output and appender locking removed, Rainbow Gum's `STRING` path is close to Log4j2
-for pure ASCII content and scales similarly on the longer ASCII message. Rainbow Gum's
-`BYTES` and `BYTE_BUFFER` paths are much slower in this isolated encoder benchmark,
-which points at the current `CharsetEncoder`-based path as a major remaining cost.
+for pure ASCII content and scales similarly on the longer ASCII message. The later
+copy-chars test shows a reused-`CharsetEncoder` Rainbow Gum variant can also land in that
+same range when it follows Log4j2's `StringBuilder.getChars(...)` into a reusable
+`CharBuffer` shape. Rainbow Gum's built-in `BYTES` and `BYTE_BUFFER` paths are much
+slower in this isolated encoder benchmark, so the issue appears to be that implementation
+shape rather than `CharsetEncoder` alone.
 
 The emoji scenario shows the expected tradeoff: Rainbow Gum's `STRING` path loses more
 than it does for ASCII, consistent with leaving the compact-string Latin1 fast path.
