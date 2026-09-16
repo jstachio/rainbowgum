@@ -390,6 +390,17 @@ misconfigured, not just the happy path. See
 [error_messages_comparison.md](error_messages_comparison.md) for what that buys you in
 practice.
 
+Credit where due again: tinylog does the same thing, and does it well - its
+[Codecov badge](https://app.codecov.io/gh/tinylog-org/tinylog/tree/v2.8) shows **94%**,
+tracked continuously the same way Rainbow Gum's is. Logback's and Log4j2's actual
+coverage, by contrast, is not something you can just go look up: neither publishes a
+number anywhere - the obvious place to check, Codecov, returns "unknown" for both
+([logback](https://codecov.io/gh/qos-ch/logback), [log4j2](https://codecov.io/gh/apache/logging-log4j2)),
+meaning no coverage data has ever been uploaded there. That doesn't mean they're
+untested - both have large, long-running test suites - it means there is no public
+number to compare against, favorable or not, the way there is for Rainbow Gum and
+tinylog.
+
 ## Smaller security surface
 
 * No expression language. Log4j2's JNDI-lookup-capable expression language in log
