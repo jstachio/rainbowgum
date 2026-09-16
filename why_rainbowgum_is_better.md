@@ -122,6 +122,26 @@ many events an appender has silently dropped, or how often the encoder's buffer 
 shrink back down, means wiring up Micrometer or JMX yourself first - Rainbow Gum answers
 that question with a method call.
 
+## The correct external log rotation, not "copy truncate"
+
+The classic Unix daemon convention for external log rotation is: an external tool (e.g.
+`logrotate`) moves the log file aside, then signals the running process to close and
+reopen it by its original name - releasing the moved file's descriptor cleanly, with no
+dropped or corrupted events. The alternative most JVM logging frameworks push you toward
+instead - `logrotate`'s `copytruncate` mode, or the framework's own internal size/time
+based rolling policy - either truncates the file out from under a process that still has
+it open (a real event-loss/corruption race) or takes rotation out of `logrotate`'s hands
+entirely.
+
+Rainbow Gum's `LogOutputRegistry#reopen()` does the correct move-then-reopen dance
+against any output, triggerable over a plain HTTP endpoint (no extra dependency, a few
+lines of application code) or, on Linux/Docker, directly from a logrotate `postrotate`
+script via a real Unix signal - `kill -USR1 $(cat app.pid)`, no open port and no
+application code at all - through the optional `rainbowgum-signal` module. Neither
+Logback nor Log4j2 offers anything like it: both expect their own internal rolling
+policy to be the only thing touching the file, with `copytruncate` as the sole fallback
+if you insist on using `logrotate` alongside them anyway.
+
 ## Modular, GraalVM Native, and jlink friendly
 
 * Log4j2, Reload4j, and Logback all require the `java.xml` module - Logback pulls it in
