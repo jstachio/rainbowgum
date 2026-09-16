@@ -26,6 +26,13 @@ import io.jstach.rainbowgum.benchmark.nativeimage.BenchServer;
  * {@code LOG_LEVEL} overrides the root level ({@code logging.level}) - e.g.
  * {@code LOG_LEVEL=ERROR} for a "mostly off" baseline, since none of
  * {@code BenchHandler}'s calls are above {@code INFO}.
+ * <p>
+ * {@code OUTPUT_TYPE=STRING} swaps the console output for {@link StringStdOutOutput},
+ * identical to the default stdout output except it hints
+ * {@code LogOutput.WriteMethod#STRING} instead of {@code BYTES} - activating the
+ * {@code String.getBytes(UTF_8)}-based encode path Logback itself uses, instead of the
+ * {@code CharsetEncoder}-based path every built-in Rainbow Gum output currently hints.
+ * Unset by default.
  */
 public final class App {
 
@@ -48,6 +55,9 @@ public final class App {
 		String appenderType = System.getenv("APPENDER_TYPE");
 		if (appenderType != null) {
 			System.setProperty("logging.appender.console.type", appenderType);
+		}
+		if ("STRING".equals(System.getenv("OUTPUT_TYPE"))) {
+			System.setProperty("logging.appender.console.output", StringStdOutOutput.SCHEME + ":///");
 		}
 		String logLevel = System.getenv("LOG_LEVEL");
 		if (logLevel != null) {

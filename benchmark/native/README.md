@@ -141,6 +141,19 @@ does to the numbers here - it is a real, repeatable win in this specific environ
 (GraalVM Substrate VM), the opposite of what the plain-HotSpot finding that made
 `LOCK_THREAD_LOCAL_BUFFER` the default would predict.
 
+## Output encoding strategy (`OUTPUT_TYPE=STRING`, Rainbow Gum only)
+
+Rainbow Gum's app also honors `OUTPUT_TYPE=STRING`, setting
+`logging.appender.console.output=string-stdout:///` - a custom `LogOutput` (this
+module's own `StringStdOutOutput`, registered via a hand-written `Configurator`/
+`META-INF/services` entry, since this module has no `@ServiceProvider` annotation
+processor wired up) identical to the default stdout output except it hints
+`WriteMethod.STRING` instead of `BYTES`, activating the `String.getBytes(UTF_8)`-based
+encode path (no `CharsetEncoder`) that Logback itself uses - see [RESULTS.md](RESULTS.md)
+for why this isn't quite an apples-to-apples "try Logback's strategy" swap (it moves the
+byte-encoding step inside the appender's lock, which the default `BYTES` path avoids by
+design) and what it actually does to the numbers anyway.
+
 ## Baseline: logging mostly off (`LOG_LEVEL`)
 
 All three apps honor `LOG_LEVEL` (e.g. `LOG_LEVEL=ERROR`), overriding the root level -

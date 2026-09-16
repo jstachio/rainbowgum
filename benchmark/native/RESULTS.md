@@ -172,6 +172,52 @@ may not reproduce cleanly outside its own original conditions. Not chased furthe
 recorded honestly as a non-replication rather than forced to match the expected
 narrative.
 
+## Activating the `STRING`/`getBytes()` fast path (`OUTPUT_TYPE=STRING`)
+
+The "Non-Latin1 content" section above noted the `getBytes()` fast path is real in
+Rainbow Gum but dead code - no built-in `LogOutput` hints `WriteMethod.STRING`. Added
+`StringStdOutOutput` (Rainbow Gum benchmark module only, registered under a
+`string-stdout:///` URI scheme via a hand-written `Configurator` -
+`OUTPUT_TYPE=STRING`), identical to the default stdout output except it hints `STRING`
+instead of `BYTES`.
+
+**Caveat found before running anything**: this isn't a clean single-variable swap. For
+the default appender type (`LOCK_THREAD_LOCAL_BUFFER`), `encoder.encode(...)` (building
+the `StringBuilder`) happens *outside* the lock either way, but the actual
+byte-conversion step happens at a different point depending on write method - for
+`BYTES`, the `CharsetEncoder` work happens inside `encode()`, still outside the lock;
+for `STRING`, the `StringBuilder.toString()` + `getBytes()` conversion only happens
+inside `Buffer.drain(...)`, which is called from `output.write(event, buffer)` -
+*inside* `writeLocked()`'s critical section. So `OUTPUT_TYPE=STRING` moves the
+byte-encoding work inside the lock, something the `BYTES`/`BYTE_BUFFER` paths
+specifically avoid by design (see `LockThreadLocalBufferLogAppender`'s own comment).
+Not what "just try Logback's encode strategy" sounds like at first, but a real variant
+worth measuring anyway.
+
+TTLL, GraalVM 25.3.4, default appender type, `/greet/world`, 6 runs each (3 forward, 3
+in reversed start order, to rule out a same-session time-based drift confounding the
+comparison - it didn't, both orders landed in the same range):
+
+| | default (`BYTES`) | `OUTPUT_TYPE=STRING` | change |
+|---|---:|---:|---:|
+| throughput | 26,972 req/s | 29,558 req/s | **+9.6%** |
+| p50 latency | 1.79 ms | 1.59 ms | -11.2% |
+| RSS (avg) | 38.1 MB | 39.2 MB | +2.8% |
+
+A real, repeatable, order-independent win on both throughput and latency, small RSS
+cost - despite moving work *into* the lock, which is the opposite of what this
+benchmark's whole locking-strategy story (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`,
+`LOCK_NEW_BUFFER` above) would predict. Not explained - `DirectByteBufferBuffer`'s
+`CharsetEncoder` path apparently costs more than the extra in-lock time this trades it
+for, at least at this event size and concurrency, but that's a guess, not profiled.
+
+**Absolute numbers here are not comparable to this file's earlier GraalVM-25.3.4 table**
+(69,677 req/s for this exact default configuration, measured in an earlier session) -
+this session's sandbox is running at roughly a third of that throughput across the
+board, consistent with the "methodology note" above about this being a shared,
+virtualized, noisy environment. Only the internal default-vs-`STRING` delta, measured
+back-to-back under identical current-session conditions, is meaningful here.
+
 ## Structured logging scenario (`STRUCTURED_FORMAT=gelf`)
 
 Each framework uses its own idiomatic structured format - see [README.md](README.md)
@@ -257,10 +303,10 @@ Two things stand out:
 
 ## Not yet tried
 
-* An `LogOutput` that actually hints `WriteMethod.STRING`, activating the
-  `getBytes()`-fast-path code that already exists but is currently dead (see "Non-Latin1
-  content" above) - would let Rainbow Gum's console output try Logback's own strategy
-  directly, not just something architecturally similar.
+* `REUSE_BUFFER` + `OUTPUT_TYPE=STRING` together - the combination that would actually
+  match Logback's shape exactly (encode *and* getBytes *and* write, all under one lock);
+  what's measured above (`STRING` with the default appender type) only moves the
+  getBytes step under the lock, not the formatting step too.
 * `SYNCHRONIZED_THREAD_LOCAL_BUFFER` was only tried on GraalVM 21; whether it still
   wins (and by how much) on GraalVM 25.3.4, or on plain HotSpot, is unknown - not yet
   measured on either.
