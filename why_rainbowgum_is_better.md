@@ -139,6 +139,20 @@ does) treat as free. `isInfoEnabled()` still correctly returns `false` (SLF4J's 
 requires the method to exist), but the actual logging call itself never consults it,
 because which behavior to run was already decided once, not on every call.
 
+Credit where due: tinylog's SLF4J binding is close in spirit, if not in mechanism. Every
+disabled-level call there is gated by a single `static final boolean` field
+(`MINIMUM_DEFAULT_LEVEL_COVERS_DEBUG` and friends), computed once when the class loads -
+not a per-call comparison against some mutable level. Once the JIT (or GraalVM
+native-image's own build-time constant folding) sees that field can never change, the
+`if` and everything it guards collapses away just like Rainbow Gum's empty method does.
+The real difference is scope: tinylog's flag is one global minimum across the entire JVM,
+so it only stays free while nothing anywhere in the app needs a lower level - configure
+even one package to `DEBUG` while the rest of the app sits at `INFO`, and that flag flips
+to covering `DEBUG`, so *every* `debug()` call app-wide (not just the one package that
+needed it) falls through to a real per-tag runtime check. Rainbow Gum's per-logger class
+selection has no such blast radius: each logger's cost depends only on its own resolved
+level, however many other loggers elsewhere are configured differently.
+
 ## Built-in operational metrics, no extra dependency
 
 Rainbow Gum tracks a small, well known set of counters about the logging system itself -
@@ -187,6 +201,33 @@ if you insist on using `logrotate` alongside them anyway.
   reflection other than the `ServiceLoader` (which is GraalVM native friendly and the
   preferred way to do pluggable components on modern JDKs), and needs no special
   configuration to work correctly under GraalVM native.
+
+None of the other frameworks in this comparison has strong, native-first GraalVM support
+today, though it's worth being fair about where each one actually stands:
+
+* **Logback** ships no GraalVM reachability metadata of its own - what exists comes from
+  the third-party [`graalvm-reachability-metadata`](https://github.com/oracle/graalvm-reachability-metadata)
+  repository, not `logback.qos.ch`. It is, however, doing real work in this direction:
+  [`logback-tyler`](https://github.com/qos-ch/logback-tyler) translates a `logback.xml`
+  file into a plain Java class (`TylerConfigurator`) that configures Logback with no XML
+  parser and no reflection at all - the same two things Rainbow Gum avoids by design from
+  the start. It is a genuinely good sign for Logback's native-image future, even though it
+  is a still-new, opt-in translation step bolted onto an XML-first architecture rather
+  than something built in from the ground up.
+* **Log4j2** does have an official GraalVM page (`logging.apache.org/log4j/2.x/graalvm.html`),
+  which is more first-party documentation than Logback, Reload4j, or tinylog have. It is
+  brief, though - a page of "here's what's supported, here are links to GraalVM's own
+  docs" rather than a worked, CI-verified example.
+* **Reload4j and tinylog** have no dedicated native-image documentation at all.
+
+Rainbow Gum's own GraalVM Native Image documentation (in the
+[user guide](https://jstach.io/rainbowgum/)) goes further than any of these: it explains,
+with root causes, the specific JDK-internal
+code paths (`java.time`/`java.util.Locale` formatting, `TrustStoreManagerFeature`) that
+incidentally call `System.getLogger(...)` during a native-image build and why that is
+safe, and `test/rainbowgum-test-native` is a real application built to a native
+executable and run as a black-box smoke test in CI on every change - not just a claim
+that it works.
 
 ## Programmatic configuration is dramatically less verbose
 
