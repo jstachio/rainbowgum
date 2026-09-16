@@ -31,7 +31,8 @@ throughput question like this one.
 
 Interactive flame graphs (self-contained HTML, click into any frame):
 
-* Rainbow Gum: https://claude.ai/code/artifact/2b173a3e-29bf-4b76-98f7-f2709e8fef9e
+* Rainbow Gum (default appender type, `LOCK_THREAD_LOCAL_BUFFER`): https://claude.ai/code/artifact/2b173a3e-29bf-4b76-98f7-f2709e8fef9e
+* Rainbow Gum (`APPENDER_TYPE=SYNCHRONIZED_THREAD_LOCAL_BUFFER`, added after the first pass - see "Finding 4" below): https://claude.ai/code/artifact/acddbf69-52fa-46e1-a8f8-b698534c74f8
 * Log4j2: https://claude.ai/code/artifact/86f8547d-fdf1-450d-97dd-bf972e5316a7
 
 (Published as Claude artifacts rather than committed to the repo - these are
@@ -60,15 +61,19 @@ doing differently," not "why is native-image specifically slower for Rainbow Gum
 
 ## Headline numbers
 
-| | Rainbow Gum | Log4j2 | gap |
-|---|---:|---:|---:|
-| 1 thread (no contention) | 129,118 iter/s | 163,498 iter/s | Log4j2 **+26.6%** |
-| 50 threads (contended) | 112,011 iter/s | 128,970 iter/s | Log4j2 **+15.1%** |
+| | Rainbow Gum (default) | Rainbow Gum (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`) | Log4j2 | gap (RG default) | gap (RG sync) |
+|---|---:|---:|---:|---:|---:|
+| 1 thread (no contention) | 129,118 iter/s | not measured | 163,498 iter/s | Log4j2 **+26.6%** | - |
+| 50 threads (contended) | 112,011 iter/s | 124,291 iter/s | 128,970 iter/s | Log4j2 **+15.1%** | Log4j2 **+3.8%** |
 
-Both frameworks run their **own zero-config/default settings** here - Rainbow Gum's
-default `LOCK_THREAD_LOCAL_BUFFER` appender type (not `SYNCHRONIZED_THREAD_LOCAL_BUFFER`
-or `OUTPUT_TYPE=STRING`, neither tested in this pass), Log4j2's default `ConsoleAppender`
-config from the real benchmark's `log4j2.xml`.
+Both frameworks run their **own zero-config/default settings** for the first pass -
+Rainbow Gum's default `LOCK_THREAD_LOCAL_BUFFER` appender type (not
+`OUTPUT_TYPE=STRING`, not tested in this pass), Log4j2's default `ConsoleAppender`
+config from the real benchmark's `log4j2.xml`. A second pass (Finding 4 below) reran
+just the 50-thread case with `APPENDER_TYPE=SYNCHRONIZED_THREAD_LOCAL_BUFFER` - closes
+most of the remaining gap on its own (+10.9% over Rainbow Gum's own default, down to
+Log4j2 leading by only +3.8%), consistent with (and a smaller-scale mirror of) the
+native-image result in `RESULTS.md`'s "Closing the gap" section.
 
 **The gap is real even with zero lock contention** (single thread, +26.6%) - so
 whatever locking-strategy story explains part of the *contended* gap, there is also a
@@ -159,12 +164,46 @@ cause.
   frameworks' cost here is JNI boundary-crossing overhead inherent to writing bytes out
   through a `FileOutputStream`, not something either framework's Java code controls.
 
+## Finding 4: profiling `SYNCHRONIZED_THREAD_LOCAL_BUFFER` directly confirms the spin story
+
+Reran the 50-thread case with `-Dlogging.appender.console.type=SYNCHRONIZED_THREAD_LOCAL_BUFFER`
+(same driver, same shape, own flame graph linked above) rather than inferring the
+mechanism only from Log4j2's side. Result: **+10.9% throughput over Rainbow Gum's own
+default** (124,291 vs 112,011 iter/s) - taking the gap to Log4j2 down from +15.1% to
+just **+3.8%**, on plain HotSpot with no other change.
+
+The flame graph confirms the mechanism directly instead of leaving it as an inference
+from Finding 1 alone:
+
+| | RG default (`LOCK_THREAD_LOCAL_BUFFER`) | RG `SYNCHRONIZED_THREAD_LOCAL_BUFFER` | Log4j2 |
+|---|---:|---:|---:|
+| `ObjectMonitor::try_spin` (self-time) | *(not applicable - `ReentrantLock`, no monitor)* | **14.7%** | **34.4%** |
+| `__futex_abstimed_wait_cancelable64` (self-time) | 4.7% | 2.9% | 2.8% |
+
+Rainbow Gum's own `synchronized`-based appender spends real time spinning too (14.7%,
+clearly present, clearly not free) - but **less than half** of Log4j2's 34.4%, even
+though both use the same underlying HotSpot monitor mechanism. The likely reason,
+readable directly in both codebases: `SynchronizedThreadLocalBufferLogAppender`'s
+critical section covers only the final `output.write(event, buffer)` call (encoding
+already done outside the lock, into a thread-local buffer - same "encode outside,
+lock only the write" shape as the `ReentrantLock`-based default), while Log4j2's
+`OutputStreamManager.write(byte[], int, int, boolean)` - the actual `synchronized`
+method - does the buffer-copy-or-flush decision *and* the destination write *and* the
+conditional flush all inside the one lock. A shorter critical section means less time
+for 50 threads to pile up waiting on it, hence less spin. This wasn't measured
+separately (no line-level timing of Log4j2's own lock body), but it follows directly
+from reading both `AbstractLogAppender`/`SynchronizedThreadLocalBufferLogAppender` and
+the decompiled `OutputStreamManager` side by side (see `RESULTS.md`'s own "Does Log4j2
+write to stdout directly?" section for the decompile).
+
 ## What this does and doesn't settle
 
 **Settled, with real evidence**: the locking-strategy story (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`
-beating the default under contention) has a genuine, visible mechanism behind it now -
-spin-vs-park behavior under HotSpot's monitor implementation - not just a repeatable
-number with no explanation.
+beating the default under contention) now has both a mechanism (Finding 1's read of
+Log4j2's own lock) *and* a direct confirmation from profiling Rainbow Gum's own
+spin-lock-shaped appender type itself (Finding 4) - not just a repeatable number with
+no explanation anymore, and not just an inference from the other framework's profile
+either.
 
 **Not settled**: the *single-threaded*, zero-contention +26.6% gap is still
 unexplained by anything in this profile - no single frame or cluster of frames stands
