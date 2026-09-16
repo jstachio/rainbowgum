@@ -210,7 +210,7 @@ event instead of one is a real, concrete, doubled opportunity for 50 threads to 
 - not the only factor (Log4j2's `try_spin` share is *more* than double Rainbow Gum's,
 14.7% → 34.4%, not just 2x), but a genuine, code-verified contributor, not a guess.
 
-## Finding 5: no, Log4j2 is not batching flushes - and what the `writeBytes` % split actually means
+## Finding 5: the two-lock design has a real (if narrow) race window - Log4j2 *can* flush another thread's event
 
 Looking at the flame graphs directly (not just the leaf-frame tables above), Rainbow
 Gum's `java/io/FileOutputStream.writeBytes` frame - the literal, unavoidable JDK call
@@ -221,23 +221,58 @@ Log4j2 get there by flushing less often - batching several events into fewer act
 writes - which would be a real, unfair advantage this benchmark hasn't been
 controlling for?
 
-**Checked directly with `strace`, not inferred from decompiled bytecode this time**:
-traced `write(1, ...)` syscalls (fd 1 = the redirected stdout file) for a
-single-threaded run of each framework and compared the count against `Spin`'s own
-reported iteration count (5 enabled log calls per iteration - 4 `info` plus a 5th
-`info`, the `debug` call is disabled and correctly produces zero writes on both sides):
+**First pass, checked with `strace`, single-threaded**: traced `write(1, ...)`
+syscalls (fd 1 = the redirected stdout file) and compared the count against `Spin`'s
+own reported iteration count (5 enabled log calls per iteration - the `debug` call is
+disabled and correctly produces zero writes on both sides). Result: exactly 5.0000
+syscalls/iteration for both frameworks - reported at the time as "the buffering
+hypothesis is refuted." **That conclusion was wrong, or at least incomplete**: a
+single-threaded run cannot exhibit a race that only exists *because* of concurrent
+threads interleaving - the test wasn't capable of detecting the thing it was checking
+for. Adam caught this directly from reading Finding 4's own mechanism, not from new
+data: with two separate locks per event (`writeBytes` then a separate `flush`), an
+event's bytes are appended into the *shared* manager buffer under lock #1, then that
+lock is released *before* the flush happens - so a second thread's `writeBytes` call
+can land in that gap, append its own event into the same shared buffer, and then
+whichever thread reaches `flush()` first drains *both* events in one real `write()`
+syscall. Confirmed by decompiling `ByteBufferDestinationHelper.writeToUnsynchronized`
+(called from `writeBytes`): it literally does `destBuff.put(source)` - appends into
+`destination.getByteBuffer()`, the one shared buffer - not a per-thread one.
 
-| | write(1, ...) syscalls | iterations | syscalls / iteration |
+**Reran with real concurrency** (`strace -f`, 8/32/64 threads) to check for it
+directly instead of arguing from the decompile alone:
+
+| | write(1,...) syscalls | iterations | syscalls/iteration |
 |---|---:|---:|---:|
-| Rainbow Gum | 94,390 | 18,878 | **5.0000** |
-| Log4j2 | 31,685 | 6,337 | **5.0000** |
+| Log4j2, 8 threads | 42,278 | 8,487 | 4.9815 |
+| Log4j2, 32 threads | 74,301 | 14,887 | 4.9910 |
+| Log4j2, 64 threads | 62,431 | 12,514 | 4.9889 |
+| Rainbow Gum default, 32 threads (control) | 67,165 | 13,433 | **5.0000** |
+| Rainbow Gum `SYNCHRONIZED_THREAD_LOCAL_BUFFER`, 32 threads (control) | 63,135 | 12,627 | **5.0000** |
 
-Exactly one `write()` syscall per enabled log event, on both sides, no exceptions in
-either trace. **The buffering hypothesis is refuted, not just unconfirmed** - both
-frameworks flush every single event to the OS, exactly as `immediateFlush=true`
-(confirmed for both in `RESULTS.md`) says they should.
+**The race is real, not just theoretical** - Log4j2 consistently lands a small amount
+below 5.0 (roughly 0.1-0.4% of events getting carried along in another thread's flush)
+across every concurrency level tried, while both Rainbow Gum appender types hit
+*exactly* 5.0000 at the same 32-thread concurrency, zero deviation - a clean control
+ruling out shutdown-timing noise or some other explanation common to both frameworks.
+Rainbow Gum can't exhibit this at all by construction: the default appender never
+shares a buffer across threads (`LOCK_THREAD_LOCAL_BUFFER`'s ThreadLocal), and
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER`'s single lock/unlock pair covers write *and* flush
+together, so there's no gap between them for another thread to land in.
 
-So what does the 34.3% vs 24.0% split actually reflect, if not fewer flushes? It's a
+**But the magnitude is small, not "the" explanation for the throughput gap**: 0.1-0.4%
+fewer syscalls is nowhere near large enough to account for a 4-15% throughput
+difference on its own. What it *does* establish, independent of any performance
+argument: Log4j2's `immediateFlush=true` is a weaker guarantee than "this thread's own
+flush call moved this event's bytes to the OS" - an event can legitimately be
+flushed by some *other* thread's flush call instead, slightly ahead of or instead of
+its own. Not a data-loss bug under normal operation (the bytes still reach the OS,
+just via a neighbor's flush rather than guaranteed via their own), but a real
+timing/attribution subtlety in the two-lock design that a single combined lock (like
+Rainbow Gum's) doesn't have.
+
+So what does the 34.3% vs 24.0% `writeBytes` split actually reflect, if the syscall
+counts are this close (within ~0.4% of each other, not a large gap)? It's mostly a
 **proportion of each framework's own total CPU budget**, not a per-event cost
 comparison - and the two budgets are shaped very differently. Log4j2's own wrapper
 methods around that same JDK call - `OutputStreamManager.writeBytes`/`flush`/
@@ -262,10 +297,11 @@ Full inclusive breakdown for both:
 A **proportion being smaller does not mean less absolute work** - Log4j2 is still
 processing slightly more iterations/sec overall (128,970 vs RG-sync's 124,291), so a
 smaller *share* of a similarly-sized-or-larger total budget can still mean similar or
-even less absolute time per event. This table settles "is Log4j2 skipping flushes"
-(no) without settling "is Rainbow Gum's actual write more expensive per call" (open -
-would need matched-throughput or per-call timing, not proportions, to answer that
-cleanly).
+even less absolute time per event. This table settles "is Log4j2 skipping flushes at a
+rate that would explain the throughput gap" (no - the measured ~0.1-0.4% deficit is far
+too small) without settling "is Rainbow Gum's actual write more expensive per call"
+(open - would need matched-throughput or per-call timing, not proportions, to answer
+that cleanly).
 
 ## What this does and doesn't settle
 
@@ -275,9 +311,16 @@ Log4j2's own lock, corrected in Finding 4 to the precise two-separate-locks-per-
 chain) *and* a direct confirmation from profiling Rainbow Gum's own spin-lock-shaped
 appender type itself (Finding 4) - not just a repeatable number with no explanation
 anymore, and not just an inference from the other framework's profile either. Also
-settled: Log4j2 is **not** flushing less often than Rainbow Gum (Finding 5) - both
-frameworks issue exactly one `write()` syscall per event, confirmed with `strace`, not
-just decompiled source reading.
+settled, with a correction along the way (Finding 5): the two-lock design's race
+window - where one thread's `flush()` can carry along a *different* thread's
+already-`writeBytes()`-appended event - is real and measurable under concurrency
+(Rainbow Gum: exactly 5.0000 syscalls/iteration always; Log4j2: consistently
+4.98-4.99 across 8/32/64 threads), confirming Adam's read of Finding 4's own mechanism
+was correct. The first pass at this question (single-threaded `strace`) was too weak a
+test to see it and wrongly called it "refuted" - corrected once concurrency was
+actually applied. The magnitude is small enough (~0.1-0.4% of events) that it doesn't
+explain the throughput gap on its own, but it's a genuine, now-measured architectural
+difference, not just a theoretical one.
 
 **Not settled**: the *single-threaded*, zero-contention +26.6% gap is still
 unexplained by anything in this profile - no single frame or cluster of frames stands
