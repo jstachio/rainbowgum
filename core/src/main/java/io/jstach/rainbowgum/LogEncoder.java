@@ -577,6 +577,8 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	 */
 	public final StringBuilder stringBuilder;
 
+	CharBuffer charBuffer;
+
 	private final CharsetEncoder charsetEncoder;
 
 	private final LogOutput.WriteMethod writeMethod;
@@ -606,13 +608,12 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	 * {@link LogOutput.ContentType#charsetOrNull() charset}, if specified, should
 	 * normally match {@code charset}.
 	 * @param maxBufferSize a negative value disables {@link #isOversized()} entirely
-	 * (always {@code false}). Since {@code initialByteCapacity} (commonly
-	 * {@value #DEFAULT_INITIAL_BYTE_CAPACITY}) is allocated up front and counted by
-	 * {@link #isOversized()} regardless of how much of it any event has actually used, a
-	 * {@code maxBufferSize} at or below {@code initialByteCapacity} makes
-	 * {@link #isOversized()} unconditionally {@code true} from the very first event -
-	 * {@code maxBufferSize} should normally be set well above whatever initial capacity
-	 * is in play.
+	 * (always {@code false}). Since the direct buffer allocates the initial character and
+	 * byte storage up front and counts both in {@link #isOversized()} regardless of how
+	 * much of either store an event has actually used, a low {@code maxBufferSize} can
+	 * make {@link #isOversized()} unconditionally {@code true} from the very first event
+	 * - {@code maxBufferSize} should normally be set well above the combined initial
+	 * retained capacity.
 	 * @param metrics where to report {@link LogMetrics#BUFFER_TRIMMED_METRIC} each time
 	 * {@link #clear()} actually shrinks the backing storage.
 	 */
@@ -620,6 +621,7 @@ final class DirectByteBufferBuffer implements TextBuffer {
 			LogOutput.ContentType contentType, int maxBufferSize, LogMetrics metrics) {
 		this.writeMethod = writeMethod;
 		this.stringBuilder = new StringBuilder(initialByteCapacity);
+		this.charBuffer = CharBuffer.allocate(initialByteCapacity);
 		this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
 		this.charsetEncoder = charset.newEncoder()
 			.onMalformedInput(CodingErrorAction.REPLACE)
@@ -664,8 +666,14 @@ final class DirectByteBufferBuffer implements TextBuffer {
 		}
 		byteBuffer.clear();
 		charsetEncoder.reset();
-		CharBuffer cb = CharBuffer.wrap(stringBuilder);
-		var result = charsetEncoder.encode(cb, byteBuffer, true);
+		int length = stringBuilder.length();
+		if (charBuffer.capacity() < length) {
+			charBuffer = CharBuffer.allocate(length);
+		}
+		stringBuilder.getChars(0, length, charBuffer.array(), charBuffer.arrayOffset());
+		charBuffer.limit(length);
+		charBuffer.position(0);
+		var result = charsetEncoder.encode(charBuffer, byteBuffer, true);
 		if (result.isError()) {
 			try {
 				result.throwException();
@@ -688,13 +696,15 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	@Override
 	public void clear() {
 		stringBuilder.setLength(0);
+		charBuffer.clear();
 		// Checked before byteBuffer is touched below, so this still reflects
 		// growth from whatever was just drained. stringBuilder.trimToSize()
-		// mutates in place; byteBuffer isn't final (it's already reassigned
-		// during growth in encodeToByteBuffer()) so reallocating it back down
-		// here needs no new field-mutability changes either.
+		// mutates in place; byteBuffer and charBuffer aren't final (they're already
+		// reassigned during growth in encodeToByteBuffer()) so reallocating them back
+		// down here needs no new field-mutability changes either.
 		if (isOversized()) {
 			stringBuilder.trimToSize();
+			charBuffer = CharBuffer.allocate(initialByteCapacity);
 			byteBuffer = ByteBuffer.allocate(initialByteCapacity);
 			metrics.warnCounter(LogMetrics.BUFFER_TRIMMED_METRIC, 1);
 		}
@@ -702,7 +712,8 @@ final class DirectByteBufferBuffer implements TextBuffer {
 
 	@Override
 	public boolean isOversized() {
-		return maxBufferSize >= 0 && (stringBuilder.capacity() + byteBuffer.capacity()) > maxBufferSize;
+		return maxBufferSize >= 0
+				&& (stringBuilder.capacity() + charBuffer.capacity() + byteBuffer.capacity()) > maxBufferSize;
 	}
 
 }

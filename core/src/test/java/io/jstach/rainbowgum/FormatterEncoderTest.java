@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.nio.ByteBuffer;
@@ -20,9 +21,9 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * when the former rainbowgum-nio module's DirectByteBufferEncoder/DirectByteBufferBuffer
  * were folded into core as the default encoder/buffer for every WriteMethod, not just an
  * opt-in) produces byte-for-byte identical output across STRING/BYTES/BYTE_BUFFER, and
- * that each write method actually reaches the LogOutput overload it is supposed to -
- * BYTES and BYTE_BUFFER must not fall through to each other's default bridging method,
- * which would defeat the point (an extra byte[] copy).
+ * that each byte-oriented write method actually reaches the LogOutput overload it is
+ * supposed to - BYTES and BYTE_BUFFER must not fall through to each other's default
+ * bridging method, which would defeat the point (an extra byte[] copy).
  */
 class FormatterEncoderTest {
 
@@ -94,19 +95,22 @@ class FormatterEncoderTest {
 	}
 
 	@Test
-	void stringWriteMethodUsesStringBuilderBufferNotAByteBasedOverload() {
+	void stringWriteMethodUsesStringBuilderBufferAndDrainsPreEncodedBytes() {
+		boolean[] byteArrayOverloadCalled = { false };
 		var output = new WriteMethodOutput(WriteMethod.STRING) {
 			@Override
 			public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
-				fail("expected write(LogEvent, String) to be called for STRING, not the byte[] overload");
+				byteArrayOverloadCalled[0] = true;
+				super.write(event, bytes, off, len, contentType);
 			}
 
 			@Override
 			public void write(LogEvent event, ByteBuffer buf, ContentType contentType) {
-				fail("expected write(LogEvent, String) to be called for STRING, not the ByteBuffer overload");
+				fail("expected STRING to drain pre-encoded bytes, not the ByteBuffer overload");
 			}
 		};
 		encodeInto(output, null, "hello");
+		assertTrue(byteArrayOverloadCalled[0], "STRING should drain through the pre-encoded byte[] overload");
 		assertEquals(List.of("[INFO] hello\n"), output.events().stream().map(e -> e.getValue()).toList());
 	}
 
