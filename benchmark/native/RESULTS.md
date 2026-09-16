@@ -103,6 +103,29 @@ This does **not** close the gap with Log4j2 (36,102 still leads), but it meaning
 narrows it, and in the structured-logging scenario below it's enough to pull clearly
 ahead of Logback.
 
+## `LOCK_NEW_BUFFER` - a negative result
+
+Adam's characterization: "the lock with no thread local," believed closer to Logback's
+own shape than `REUSE_BUFFER` is - `REUSE_BUFFER` holds its lock across the entire
+encode-then-write critical section (matching Logback), while `LOCK_NEW_BUFFER` encodes
+*outside* the lock like the two `..._THREAD_LOCAL_BUFFER` types do, just without the
+`ThreadLocal` (a fresh buffer allocated per event instead of one reused per thread).
+Tried on GraalVM 25.3.4, Rainbow Gum only (Log4j2/Logback numbers already established
+above), TTLL scenario, 3 runs:
+
+| | `LOCK_THREAD_LOCAL_BUFFER` (default) | `LOCK_NEW_BUFFER` |
+|---|---:|---:|
+| throughput | 69,677 req/s | 67,845 req/s |
+| RSS avg | 63.2 MB | 113.3 MB |
+
+Unlike `SYNCHRONIZED_THREAD_LOCAL_BUFFER`, this one is a straightforward loss on both
+axes - not just failing to beat Log4j2/Logback, but **worse than Rainbow Gum's own
+default**: throughput down slightly (-2.6%), and memory nearly **double** (113.3 vs
+63.2 MB) - unsurprising in hindsight, since a fresh buffer allocated for every single
+event (instead of one reused per thread) is real, continuous garbage at this request
+rate. Matching Logback's *locking shape* did not translate into matching (or beating)
+Logback's *numbers* - Logback's own 71,420 req/s still comfortably beats this.
+
 ## Structured logging scenario (`STRUCTURED_FORMAT=gelf`)
 
 Each framework uses its own idiomatic structured format - see [README.md](README.md)
@@ -194,8 +217,9 @@ Two things stand out:
 * Investigate *why* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins under Substrate VM (GraalVM
   21) specifically, and *why* Rainbow Gum leads under HotSpot but trails under
   native-image for the same workload - both results are recorded, neither is explained.
-* `REUSE_BUFFER`/`LOCK_NEW_BUFFER` (the other two `AppenderType` values) not tried at
-  all yet, on any JVM mode.
+* `REUSE_BUFFER` (the one remaining untried `AppenderType` value) not tried yet, on any
+  JVM mode - `LOCK_NEW_BUFFER` was tried (see above, a negative result on GraalVM
+  25.3.4) but only there.
 * Platform-thread scenario (currently virtual threads only, both client and server
   side).
 * Real profiling (JFR/async-profiler) of the TTLL time-formatting theory: TTLL is
