@@ -21,14 +21,23 @@ against Rainbow Gum's zero-config `LogEncoder.ofTTLL()` default).
 
 ## Building and running a native image
 
-Requires a real GraalVM JDK as `JAVA_HOME` (a plain JDK cannot run `native-image`):
+Requires a real GraalVM JDK as `JAVA_HOME` (a plain JDK cannot run `native-image`).
+This project's own CI (`.github/workflows/native-image.yml`) pins GraalVM 21, but the
+numbers in [RESULTS.md](RESULTS.md) were mostly measured on the latest available
+(`25.3.4+1.r25`) after finding it roughly doubles throughput across all three apps over
+GraalVM 21 - either works, they are just not the same numbers:
 
 ```sh
-export JAVA_HOME=~/.sdkman/candidates/java/21.0.12-graal   # or any GraalVM 21+ install
+export JAVA_HOME=~/.sdkman/candidates/java/25.3.4+1.r25-graalce   # or any recent GraalVM install
 ./mvnw -f benchmark/native/rainbowgum-benchmark-native-rainbowgum/pom.xml -Pnative package
 ./mvnw -f benchmark/native/rainbowgum-benchmark-native-log4j2/pom.xml -Pnative package
 ./mvnw -f benchmark/native/rainbowgum-benchmark-native-logback/pom.xml -Pnative package
 ```
+
+The same jars also run as plain apps on any regular JDK (no native-image, no GraalVM
+needed) - `java -cp target/<jar>:<classpath> io.jstach.rainbowgum.benchmark.nativeimage.<name>.App`,
+useful for an AOT-vs-JIT comparison; see the "HotSpot" section of
+[RESULTS.md](RESULTS.md).
 
 Each produces a real executable at `target/rainbowgum-benchmark-native-<name>`. Run one,
 then drive it with the shared driver from another shell:

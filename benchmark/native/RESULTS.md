@@ -1,11 +1,12 @@
 # GraalVM native image benchmark results
 
-Methodology: see [README.md](README.md). Each app run as a real native executable
-(GraalVM 21 Oracle distro, `21.0.12-graal`), driven by
-`rainbowgum-benchmark-native-driver` over plain HTTP/1.1, concurrency 50 (virtual
-threads on both client and server side), 3-5s warmup (discarded) + 12-20s measured,
-against `GET /greet/world`. RSS sampled from `/proc/<pid>/status` while the measurement
-ran.
+Methodology: see [README.md](README.md). Each app run as a real native executable,
+driven by `rainbowgum-benchmark-native-driver` over plain HTTP/1.1, concurrency 50
+(virtual threads on both client and server side), 3-5s warmup (discarded) + 12-20s
+measured, against `GET /greet/world`. RSS sampled from `/proc/<pid>/status` while the
+measurement ran. Most numbers below (everything except the "GraalVM version" and
+"HotSpot" sections) were measured on GraalVM 21 Oracle distro (`21.0.12-graal`) - noted
+explicitly wherever that's not the case.
 
 **A methodology note worth being upfront about**: the first pass at these numbers (kept
 in git history, not reproduced here) showed much larger gaps than what is below - most
@@ -18,6 +19,57 @@ difference between configurations. Every number below is an average of **3 indep
 runs** (2 for logback-structured; the third run's environment made this session run
 out of time, but the first two were already tight), not a single sample, specifically
 because of what that first pass got wrong.
+
+## GraalVM version: 21 vs the latest (25.3.4)
+
+All numbers above and below this section used GraalVM 21 (`21.0.12-graal`, Oracle
+distro - matches this project's own CI, `.github/workflows/native-image.yml`). Also
+tried the latest available (`25.3.4+1.r25`, Community Edition, already installed
+locally via sdkman - both CE and Oracle editions top out at the same `25.3.4+1.r25` as
+of this session), TTLL scenario, Rainbow Gum's default appender type (not
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` - reset to default specifically to get a clean
+before/after comparison isolated to the GraalVM version alone), 3 runs each:
+
+| | Rainbow Gum (default) | Log4j2 | Logback |
+|---|---:|---:|---:|
+| GraalVM 21 throughput | 30,587 req/s | 36,102 req/s | 31,703 req/s |
+| **GraalVM 25.3.4 throughput** | **69,677 req/s** | **84,073 req/s** | **71,420 req/s** |
+| GraalVM 21 RSS avg | 45.7 MB | 81.4 MB | 50.6 MB |
+| GraalVM 25.3.4 RSS avg | 63.2 MB | 98.7 MB | 65.2 MB |
+
+Throughput roughly **doubles or more** across all three on the newer GraalVM, with
+relative ordering preserved (Log4j2 still leads, by a broadly similar proportional
+margin). RSS goes up somewhat on the newer version for all three, not down - a real
+tradeoff, not a strict win, though the relative gap between frameworks barely moves.
+Given this is a real, substantial, across-the-board improvement, later runs in this
+file after this section use GraalVM 25.3.4 unless stated otherwise.
+
+## HotSpot (plain JVM, no native-image) baseline
+
+"Let's try this on hotspot just to see." Same apps, same jars, run with a plain
+`java -cp ...` (Eclipse Temurin 26.0.2, a real HotSpot JVM - not GraalVM's own JIT at
+all) instead of a native executable. TTLL scenario, Rainbow Gum's default appender
+type, 3 runs each:
+
+| | Rainbow Gum (default) | Log4j2 | Logback |
+|---|---:|---:|---:|
+| throughput | **41,677 req/s** | 35,573 req/s | 41,267 req/s |
+| RSS avg | 583.8 MB | 599.7 MB | 622.4 MB |
+
+**The ranking flips.** Under GraalVM native-image, Log4j2 leads throughput and Rainbow
+Gum trails. Under plain HotSpot, for the identical workload, **Rainbow Gum leads**
+(41,677 req/s, essentially tied with Logback's 41,267, both clearly ahead of Log4j2's
+35,573). Neither result is "wrong" - they're answering different questions. AOT
+compilation and JIT compilation optimize different things, and apparently optimize
+these three frameworks' actual hot paths differently enough to change which one wins.
+This is worth remembering before treating any single one of these benchmark's numbers
+as *the* answer to "which is fastest" - the honest answer is "it depends which JVM mode
+you're actually going to deploy with."
+
+Memory tells a much less ambiguous story regardless of JVM mode: HotSpot's RSS here
+(583-622 MB) is roughly **9-10x** every native-image RSS number in this file, for every
+framework, which is exactly GraalVM native-image's actual selling point - this isn't a
+close call the way throughput is.
 
 ## TTLL (plain console) scenario
 
@@ -136,9 +188,14 @@ Two things stand out:
 
 ## Not yet tried
 
-* Try `SYNCHRONIZED_THREAD_LOCAL_BUFFER` (or `REUSE_BUFFER`/`LOCK_NEW_BUFFER`) against
-  Log4j2's own throughput specifically to see if the gap closes further, or investigate
-  *why* synchronized wins under Substrate VM specifically here.
+* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` was only tried on GraalVM 21; whether it still
+  wins (and by how much) on GraalVM 25.3.4, or on plain HotSpot, is unknown - not yet
+  measured on either.
+* Investigate *why* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins under Substrate VM (GraalVM
+  21) specifically, and *why* Rainbow Gum leads under HotSpot but trails under
+  native-image for the same workload - both results are recorded, neither is explained.
+* `REUSE_BUFFER`/`LOCK_NEW_BUFFER` (the other two `AppenderType` values) not tried at
+  all yet, on any JVM mode.
 * Platform-thread scenario (currently virtual threads only, both client and server
   side).
 * Real profiling (JFR/async-profiler) of the TTLL time-formatting theory: TTLL is
