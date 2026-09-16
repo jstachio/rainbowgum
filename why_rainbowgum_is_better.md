@@ -5,6 +5,7 @@ Where X is one of the following JVM logging implementations:
 * [Logback](https://logback.qos.ch/)
 * [Log4j 2](https://logging.apache.org/log4j/2.x/)
 * [Reload4j](https://reload4j.qos.ch/) (Log4j 1, still alive as a security-patched fork)
+* [tinylog](https://tinylog.org/v2/)
 
 This document (like [JStachio's own](https://github.com/jstachio/jstachio/blob/main/why_jstachio_is_better.md),
 which it borrows its format from) is deliberately opinionated marketing - the
@@ -22,6 +23,7 @@ production.
 | **rainbowgum** (core + slf4j) | 0.11.0 | 366 + 63 KiB | **429 KiB** | Requires only `java.base` |
 | logback (classic + core) | 1.6.3 | 286 + 635 KiB | 921 KiB | Requires `java.xml`, transitively |
 | log4j2 (core + api + slf4j2 binding) | 3.0.0-beta2 | 1434 + 347 + 26 KiB | 1.76 MiB | Kitchen sink of features |
+| tinylog (api + impl + slf4j binding) | 2.8.0 | 63 + 134 + 14 KiB | 211 KiB | Smallest jar - but see below |
 
 Of the major general purpose JVM logging implementations, Rainbow Gum's `rainbowgum-core`
 is the only one that requires **just** `java.base` - nothing else. Logback and Log4j2 both
@@ -30,6 +32,39 @@ XML config yourself), and both bring their own separate facade concepts on top o
 SLF4J already provides. On a JDK 21+ `jlink`/GraalVM native image, that difference in
 module graph is the difference between a minimal runtime and one that has to carry XML
 parsing along for the ride.
+
+tinylog deserves real credit here: its codebase genuinely is lean - no XML configuration
+engine, a small class count, `tinylog.properties`/system-property configuration only -
+and by raw jar bytes it beats everyone in the table above, Rainbow Gum included. But
+`tinylog-impl`'s own module descriptor marks `java.sql` and `java.naming` as
+`requires static` ("optional"), while core pattern-formatting classes - not just the
+JDBC writer those modules obviously belong to - import them directly:
+[`DateToken`](https://github.com/tinylog-org/tinylog/blob/2934408bfa30a02cb241720211d391b88b18c61f/tinylog-impl/src/main/java/org/tinylog/pattern/DateToken.java#L16)
+imports `java.sql.PreparedStatement`/`java.sql.Timestamp` at the top of the file, and it's
+one of 28 classes in `tinylog-impl` referencing `java.sql` types (`jdeps -v` confirms it).
+"Optional" is what the module descriptor claims; the bytecode says otherwise.
+
+That is real, measured size on a `jlink` image someone actually cares enough to size-tune
+- not an abstract dependency-graph complaint. On JDK 26
+(`--strip-debug --no-header-files --no-man-pages --compress=zip-9`):
+
+| Modules added | Image size |
+| --- | ---: |
+| `java.base` (what Rainbow Gum needs) | 40.70 MiB |
+| + `java.management` (`tinylog-api`'s own hard requirement) | 41.36 MiB |
+| + `java.sql` | 45.64 MiB |
+| + `java.naming` (the JDBC writer's JNDI lookup) | 46.05 MiB |
+
+Going from Rainbow Gum's `java.base`-only image to what a tinylog-based one actually needs
+costs **5.35 MiB (+13%)** - over ten times the roughly 200 KiB the jar-size table above
+credited tinylog for saving.
+
+tinylog's jar is also small partly because it has no programmatic configuration API at
+all: `tinylog-api` ships property/system-property/JNDI value resolvers and nothing
+resembling Logback's, Log4j2's, or Rainbow Gum's builder API. That's a legitimate design
+choice for tinylog's target use case, not a size optimization anyone else is leaving on
+the table - it's a capability Rainbow Gum has that tinylog's jar-size numbers above simply
+don't have to pay for.
 
 ## Fast
 
