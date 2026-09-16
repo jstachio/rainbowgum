@@ -97,18 +97,22 @@ class BufferSelfShrinkTest {
 	}
 
 	/*
-	 * maxBufferSize is deliberately set above
-	 * DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY (8192) here - a maxBufferSize
-	 * at or below that makes the buffer unconditionally oversized from construction alone
-	 * (documented on the buffer's own constructor), which would demonstrate that caveat
-	 * instead of genuine event-driven growth.
+	 * maxBufferSize is deliberately set above twice
+	 * DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY (8192) here - isOversized()
+	 * checks stringBuilder.capacity() + byteBuffer.capacity(), and both are now pre-sized
+	 * to DEFAULT_INITIAL_BYTE_CAPACITY in the constructor (previously only byteBuffer
+	 * was; stringBuilder started at StringBuilder's own default of 16), so a
+	 * maxBufferSize at or below 2 * DEFAULT_INITIAL_BYTE_CAPACITY makes the buffer
+	 * unconditionally oversized from construction alone (documented on the buffer's own
+	 * constructor), which would demonstrate that caveat instead of genuine event-driven
+	 * growth.
 	 */
 	@Test
 	void directByteBufferBufferShrinksBothStoresAfterOversizedClear() {
 		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
-			.maxBufferSize(10_000)
+			.maxBufferSize(20_000)
 			.build()
 			.provide("test", config);
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
@@ -179,7 +183,9 @@ class BufferSelfShrinkTest {
 		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
-			.maxBufferSize(10_000)
+			// See directByteBufferBufferShrinksBothStoresAfterOversizedClear's comment
+			// above for why this must be above 2 * DEFAULT_INITIAL_BYTE_CAPACITY.
+			.maxBufferSize(20_000)
 			.build()
 			.provide("test", config);
 		var output = new CapturingOutput();
@@ -188,7 +194,7 @@ class BufferSelfShrinkTest {
 
 		appender.append(new LogEvent[] { event("x".repeat(20_000)), event("small") }, 2);
 
-		assertTrue(output.capacities.get(0) > 10_000,
+		assertTrue(output.capacities.get(0) > 20_000,
 				"sanity check: the first (big) event in the batch must have grown the shared buffer");
 		assertTrue(output.capacities.get(1) < output.capacities.get(0),
 				"the second event in the same batch must already see the buffer shrunk back down, proving the "

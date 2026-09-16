@@ -127,14 +127,14 @@ public interface LogEncoder {
 		/**
 		 * Charset to encode with. Only affects outputs whose
 		 * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
-		 * {@link WriteMethod#BYTE_BUFFER} - the {@link WriteMethod#STRING} path hands a
-		 * plain {@link String} to {@link LogOutput#write(LogEvent, String)}, whose own
-		 * default implementation is fixed to {@link StandardCharsets#UTF_8} regardless of
-		 * this setting, but no built-in output actually uses that write method. Defaults
-		 * to {@link StandardCharsets#UTF_8}, or to {@link #contentType(ContentType)}'s
-		 * own charset if that was set and this was not. If both are set this charset is
-		 * what is actually used to encode; {@link #contentType(ContentType)} still
-		 * controls what is reported to the output.
+		 * {@link WriteMethod#BYTE_BUFFER} - the {@link WriteMethod#STRING} path encodes
+		 * with {@link StandardCharsets#UTF_8} unconditionally (matching
+		 * {@link LogOutput#write(LogEvent, String)}'s own default implementation, which
+		 * this setting has no effect on). Defaults to {@link StandardCharsets#UTF_8}, or
+		 * to {@link #contentType(ContentType)}'s own charset if that was set and this was
+		 * not. If both are set this charset is what is actually used to encode;
+		 * {@link #contentType(ContentType)} still controls what is reported to the
+		 * output.
 		 * @param charset charset to encode with.
 		 * @return this.
 		 */
@@ -432,12 +432,25 @@ sealed interface TextBuffer extends LogEncoder.Buffer {
 }
 
 /**
- * A buffer that simply wraps a {@link StringBuilder}. Direct access to the
- * {@link StringBuilder} is available as the field {@link #stringBuilder}.
+ * A buffer that formats into a {@link StringBuilder} (direct access available as the
+ * field {@link #stringBuilder}) but - like {@link DirectByteBufferBuffer} -
+ * {@linkplain #encodeToBuffer(LogFormatter, LogEvent) converts to bytes outside the
+ * lock}, not inside {@link #drain(LogOutput, LogEvent)}. Earlier this converted lazily,
+ * inside {@code drain} (via {@link LogOutput#write(LogEvent, String)}'s default
+ * {@code String.getBytes(UTF_8)} implementation) - appenders that separate formatting
+ * from writing ({@code LockThreadLocalBufferLogAppender},
+ * {@code SynchronizedThreadLocalBufferLogAppender}) call {@code drain} from inside their
+ * lock, so that meant the {@code getBytes()} cost landed inside the lock, unlike
+ * {@link DirectByteBufferBuffer}'s {@link CharsetEncoder} work, which never did. Moved
+ * here to match, so a {@code WriteMethod.STRING}-hinting output's cost profile is
+ * actually comparable to a {@code BYTES}/{@code BYTE_BUFFER}-hinting one instead of
+ * conflating "which encode strategy" with "how much of it happens under the lock".
  *
  * @see AbstractEncoder
  */
 final class StringBuilderBuffer implements TextBuffer {
+
+	private static final byte[] EMPTY_BYTES = new byte[0];
 
 	/**
 	 * Underlying StringBuilder.
@@ -447,6 +460,8 @@ final class StringBuilderBuffer implements TextBuffer {
 	private final int maxBufferSize;
 
 	private final LogMetrics metrics;
+
+	private byte[] bytes = EMPTY_BYTES;
 
 	/**
 	 * Creates a StringBuilder based buffer that reports {@link #isOversized()} once
@@ -470,14 +485,20 @@ final class StringBuilderBuffer implements TextBuffer {
 		this.metrics = metrics;
 	}
 
+	/**
+	 * Writes the already-encoded bytes to the output. Assumes
+	 * {@link #encodeToBuffer(LogFormatter, LogEvent)} has already been called for this
+	 * event - see the class doc for why that step happens there instead of here.
+	 */
 	@Override
 	public void drain(LogOutput output, LogEvent event) {
-		output.write(event, stringBuilder.toString());
+		output.write(event, bytes, 0, bytes.length, StandardContentType.TEXT_PLAIN);
 	}
 
 	@Override
 	public void clear() {
 		stringBuilder.setLength(0);
+		bytes = EMPTY_BYTES;
 		// setLength(0) never touches capacity, so isOversized() here still
 		// reflects growth from whatever was just written - trimToSize()
 		// mutates the StringBuilder in place, no reassignment needed (works
@@ -496,6 +517,12 @@ final class StringBuilderBuffer implements TextBuffer {
 	@Override
 	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
 		formatter.format(stringBuilder, event);
+		/*
+		 * Matches LogOutput.write(LogEvent, String)'s own default implementation exactly
+		 * (same charset, same content type) - just done here, outside the lock, instead
+		 * of lazily inside drain().
+		 */
+		bytes = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
 	}
 
 }
@@ -541,9 +568,14 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	public static final int DEFAULT_INITIAL_BYTE_CAPACITY = 8192;
 
 	/**
-	 * The buffer the formatter writes characters into.
+	 * The buffer the formatter writes characters into. Sized in the constructor with
+	 * {@code initialByteCapacity} (chars, not bytes, but close enough as a starting guess
+	 * and cheaper than the alternative) instead of defaulting to {@link StringBuilder}'s
+	 * own default capacity (16) - otherwise every fresh buffer pays for several growth
+	 * reallocations on essentially every first event, the exact kind of per-event cost
+	 * {@link #byteBuffer} below is already sized up front to avoid.
 	 */
-	public final StringBuilder stringBuilder = new StringBuilder();
+	public final StringBuilder stringBuilder;
 
 	private final CharsetEncoder charsetEncoder;
 
@@ -587,6 +619,7 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	DirectByteBufferBuffer(LogOutput.WriteMethod writeMethod, int initialByteCapacity, Charset charset,
 			LogOutput.ContentType contentType, int maxBufferSize, LogMetrics metrics) {
 		this.writeMethod = writeMethod;
+		this.stringBuilder = new StringBuilder(initialByteCapacity);
 		this.byteBuffer = ByteBuffer.allocate(initialByteCapacity);
 		this.charsetEncoder = charset.newEncoder()
 			.onMalformedInput(CodingErrorAction.REPLACE)
