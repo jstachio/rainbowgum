@@ -491,9 +491,14 @@ Two things stand out:
   A/B for Rainbow Gum - the "Closing the gap" section's default-appender-type row is a
   same-session carryover number, not a controlled same-batch baseline against Log4j2.
 * Investigate *why* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins under Substrate VM
-  specifically (confirmed on both GraalVM 21 and 25.3.4, the win is larger on 25.3.4),
-  and *why* Rainbow Gum leads under HotSpot but trails under native-image for the same
-  workload - both results are recorded, neither is explained.
+  specifically (confirmed on both GraalVM 21 and 25.3.4, the win is larger on 25.3.4) -
+  **partially answered for HotSpot** via isolated flame-graph profiling, see
+  [PROFILING_RESULTS.md](PROFILING_RESULTS.md) (Log4j2's own `synchronized` lock spends
+  34.4% of samples in `ObjectMonitor::try_spin` under 50-thread contention, the same
+  spin-vs-park mechanism `SYNCHRONIZED_THREAD_LOCAL_BUFFER` opts into on purpose) -
+  whether Substrate VM's own monitor implementation behaves the same way under
+  contention is still untested. *Why* Rainbow Gum leads under HotSpot but trails under
+  native-image for the same workload remains unexplained either way.
 * `REUSE_BUFFER` (the one remaining untried `AppenderType` value) not tried yet, on any
   JVM mode - `LOCK_NEW_BUFFER` was tried (see above, a negative result on GraalVM
   25.3.4) but only there.
