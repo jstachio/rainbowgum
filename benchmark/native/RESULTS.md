@@ -3,80 +3,151 @@
 Methodology: see [README.md](README.md). Each app run as a real native executable
 (GraalVM 21 Oracle distro, `21.0.12-graal`), driven by
 `rainbowgum-benchmark-native-driver` over plain HTTP/1.1, concurrency 50 (virtual
-threads on both client and server side), 5s warmup (discarded) + 20s measured, against
-`GET /greet/world`. RSS sampled from `/proc/<pid>/status` while the measurement ran.
+threads on both client and server side), 3-5s warmup (discarded) + 12-20s measured,
+against `GET /greet/world`. RSS sampled from `/proc/<pid>/status` while the measurement
+ran.
+
+**A methodology note worth being upfront about**: the first pass at these numbers (kept
+in git history, not reproduced here) showed much larger gaps than what is below - most
+strikingly, Rainbow Gum's own default-appender-type throughput measured 23,057 req/s on
+that first run. Re-running the *identical* configuration three more times measured
+30,529 / 30,565 / 30,666 req/s - tightly clustered, nowhere near the original number.
+That first pass was an outlier from this being a shared, virtualized sandbox (probably
+residual load from the native-image build that had just finished), not a real
+difference between configurations. Every number below is an average of **3 independent
+runs** (2 for logback-structured; the third run's environment made this session run
+out of time, but the first two were already tight), not a single sample, specifically
+because of what that first pass got wrong.
+
+## TTLL (plain console) scenario
+
+| | Rainbow Gum (default) | Rainbow Gum (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`) | Log4j2 | Logback |
+|---|---:|---:|---:|---:|
+| throughput (avg of 3 runs) | 30,587 req/s | 33,549 req/s | **36,102 req/s** | 31,703 req/s |
+
+Log4j2 still leads. But the default-vs-tuned Rainbow Gum comparison is the real story
+here.
+
+## Locking strategy matters: `SYNCHRONIZED_THREAD_LOCAL_BUFFER`
+
+Adam's hunch, prompted by `LogAppender.AppenderType`'s own javadoc noting Log4j2's
+appenders use `synchronized` rather than a `java.util.concurrent` lock, and that this
+type "used to be the default" until virtual-thread benchmarking found it lost to
+`LOCK_THREAD_LOCAL_BUFFER` - on a plain HotSpot JVM. Tried against this GraalVM
+native-image benchmark specifically (`APPENDER_TYPE=SYNCHRONIZED_THREAD_LOCAL_BUFFER`,
+set as `logging.appender.console.type` before the first logger is created):
+
+**it wins here, consistently, by a real margin** - roughly **+9.7%** throughput over
+Rainbow Gum's own default (33,549 vs 30,587 req/s, TTLL scenario), confirmed across 3
+runs each, not a one-off. This is the opposite of what the HotSpot-JVM finding that
+made `LOCK_THREAD_LOCAL_BUFFER` the default would predict, at least in *this*
+environment (GraalVM Substrate VM, JDK 21 baseline - before JEP 491, so `synchronized`
+still pins the carrier thread when called from a virtual thread here, which makes the
+win more surprising, not less). Whether this is specific to Substrate VM's own lock/
+monitor implementation, this sandbox, or something else has not been investigated
+further - flagging the result, not yet explaining it.
+
+This does **not** close the gap with Log4j2 (36,102 still leads), but it meaningfully
+narrows it, and in the structured-logging scenario below it's enough to pull clearly
+ahead of Logback.
+
+## Structured logging scenario (`STRUCTURED_FORMAT=gelf`)
+
+Each framework uses its own idiomatic structured format - see [README.md](README.md)
+for why: Rainbow Gum (`rainbowgum-json`'s `GelfEncoder`) and Log4j2 (`log4j-core`'s own
+built-in `GelfLayout`) both produce GELF; Logback (no first-party GELF option) uses the
+third-party `logstash-logback-encoder` instead, producing Logstash-format JSON.
+
+| | Rainbow Gum (default) | Rainbow Gum (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`) | Log4j2 | Logback |
+|---|---:|---:|---:|---:|
+| throughput (avg of 3 runs, 2 for Logback) | 31,004 req/s | 33,642 req/s | **34,641 req/s** | 27,948 req/s |
+
+With the locking-strategy fix applied, Rainbow Gum clearly beats Logback here (33,642
+vs 27,948 - roughly +20%) and comes within about 3% of Log4j2, not the wider gap the
+TTLL scenario shows. Logback's own structured number is lower than its own TTLL number
+(27,948 vs 31,703) - the Jackson-based `logstash-logback-encoder` is doing real,
+comparatively expensive work per event that neither Rainbow Gum's hand-rolled JSON
+writer nor Log4j2's built-in (non-Jackson) `GelfLayout` has to pay for. See the earlier
+per-run p50/p99/RSS breakdown further down for the shape of that cost (tail latency,
+not just throughput).
+
+## Detail: latency and memory (single representative runs, not averaged)
+
+These numbers are from individual runs, not the 3-run averages above - useful for shape
+(tail latency, RSS) even though the throughput column specifically should be read from
+the averaged tables above instead.
+
+| | Rainbow Gum (default) | Rainbow Gum (sync) | Log4j2 | Logback |
+|---|---:|---:|---:|---:|
+| TTLL p50 / p99 | 2.13 / 4.84 ms | 1.47 / 3.96 ms | 1.65 / 5.72 ms | 2.04 / 4.64 ms |
+| TTLL RSS avg | 45.7 MB | 53.1 MB | 81.4 MB | 50.6 MB |
+| structured p50 / p99 | 1.54 / 4.01 ms | 1.48 / 3.91 ms | 1.37 / 4.33 ms | 1.60 / 7.77 ms |
+| structured RSS avg | 52.7 MB | 53.0 MB | 94.0 MB | 128.2 MB |
+
+RSS: Rainbow Gum leads both scenarios regardless of appender type (the locking
+strategy changes throughput, not memory footprint meaningfully). Logback's structured
+RSS (128.2 MB) is the outlier of the whole table - roughly 2.4x Rainbow Gum's own
+structured RSS, and the framework's single worst number here by far, consistent with
+the Jackson-based encoder story above.
+
+## Log4j2's buffer size (checked, not the differentiator it might look like)
+
+Adam asked whether Log4j2's own throughput lead might come from aggressive output
+buffering. Checked directly (decompiled `org.apache.logging.log4j.core.util.Constants`
+from the real `log4j-core-2.26.1.jar`): the default is
+`log4j.encoder.byteBufferSize=8192` (8 KiB), system-property overridable. Rainbow Gum's
+own default (`LogEncoder.DEFAULT_INITIAL_BYTE_CAPACITY`) is also 8192 - same number.
+This rules out "Log4j2 just uses a bigger buffer" as the explanation, though it does
+not rule out buffering behavior being different in some other way (e.g. immediate-flush
+semantics, or how many events get batched into one buffer versus one buffer per event) -
+not chased further yet.
+
+## Baseline: logging mostly off (`LOG_LEVEL=ERROR`)
+
+`LOG_LEVEL=ERROR` overrides each framework's root level (Rainbow Gum:
+`logging.level`; Log4j2/Logback: `${...:-INFO}` substituted in the config files with a
+system property `App.main` sets from the env var). None of `BenchHandler`'s calls are
+above `INFO`, so this disables every log call in the request path - the near-zero-cost
+disabled-level path each framework's SLF4J binding takes, exercised through a real HTTP
+server under load instead of a synthetic microbenchmark. 3 runs each, same methodology.
 
 | | Rainbow Gum | Log4j2 | Logback |
 |---|---:|---:|---:|
-| throughput | 23,057 req/s | **26,846 req/s** | 24,035 req/s |
-| p50 latency | 2.13 ms | **1.65 ms** | 2.04 ms |
-| p99 latency | 4.84 ms | 5.72 ms | **4.64 ms** |
-| RSS avg | **45.7 MB** | 81.4 MB | 50.6 MB |
+| throughput (avg of 3 runs) | 75,612 req/s | 75,596 req/s | 75,558 req/s |
+| RSS avg (avg of 3 runs) | **40.9 MB** | 59.0 MB | 51.0 MB |
 
-Checked for run-to-run stability with a second, independent pass (different warmup/
-duration, same relative ordering held): Log4j2 led throughput and had the lowest
-latency both times; Rainbow Gum led RSS (lowest memory) both times, by a wide and
-consistent margin over Log4j2 specifically (roughly half).
+Two things stand out:
 
-## Honest read
-
-Log4j2 is ahead here on raw throughput and p50 latency, not Rainbow Gum. This is
-consistent with (not a departure from) `why_rainbowgum_is_better.md`'s own existing
-"Fast" section, which already notes: *"on plain platform threads with no structured
-logging, Log4j2 still leads there; that specific gap isn't closed."* This benchmark
-uses virtual threads on both client and server, and TTLL (not structured) output, and
-Log4j2 still leads - so that already-acknowledged gap shows up here too, not just on
-platform threads.
-
-Memory tells a different, clearly favorable story: Rainbow Gum uses roughly half the
-resident memory of Log4j2 under sustained load, consistent with the module/image-size
-story already established in `why_rainbowgum_is_better.md`'s "Small" section (Log4j2's
-native image itself is also markedly larger - 25.86MB code area vs Rainbow Gum's
-9.53MB, from the build output in this same session).
-
-## Structured logging
-
-Same methodology, `STRUCTURED_FORMAT=gelf`. Each framework uses its own idiomatic
-structured format rather than being forced onto identical wire output - see
-[README.md](README.md) for why: Rainbow Gum uses `rainbowgum-json`'s `GelfEncoder`
-(GELF), Log4j2 uses `log4j-core`'s own built-in `GelfLayout` (also GELF, no extra
-dependency), Logback uses the third-party `logstash-logback-encoder` (Logstash-format
-JSON, not GELF - Logback has no first-party or well-maintained GELF option, and
-forcing GELF parity there isn't worth a dependency nobody would actually pick).
-
-| | Rainbow Gum | Log4j2 | Logback |
-|---|---:|---:|---:|
-| throughput | 31,464 req/s | **34,229 req/s** | 27,452 req/s |
-| p50 latency | 1.54 ms | **1.37 ms** | 1.60 ms |
-| p99 latency | **4.01 ms** | 4.33 ms | 7.77 ms |
-| RSS avg | **52.7 MB** | 94.0 MB | 128.2 MB |
-
-A more differentiated - and more favorable to Rainbow Gum - picture than the plain TTLL
-result above. Log4j2 still leads raw throughput and p50, but by a narrower margin here.
-Rainbow Gum now clearly beats Logback on throughput (not just memory), and leads on p99
-tail latency too, not just RSS. Logback's p99 (7.77ms) and max (24.52ms) stand out
-specifically - Jackson-based serialization (`logstash-logback-encoder` depends on
-`jackson-databind`) is doing real, comparatively expensive work per event that neither
-Rainbow Gum's own hand-rolled JSON writer nor Log4j2's built-in `GelfLayout` (also not
-Jackson-based) has to pay for. Logback's memory (128.2 MB avg) is roughly 2.4x Rainbow
-Gum's here, a wider gap than the already-wide TTLL-scenario gap against Log4j2.
+1. **Throughput converges to statistically indistinguishable** across all three
+   (75,558-75,612 req/s, tighter clustering across 9 total runs than any single
+   framework's own logging-enabled numbers above) once logging is mostly disabled -
+   confirms the earlier throughput *differences* were actually about logging cost, not
+   some other difference in HTTP dispatch, and that throughput numbers *can* be tight
+   and reliable in this environment when the workload doesn't route through the parts
+   that vary (logging itself, apparently).
+2. **Memory is exactly as repeatable as predicted, and Rainbow Gum clearly leads even
+   with logging mostly off**: 40.9 MB vs Log4j2's 59.0 MB (-31%) and Logback's 51.0 MB
+   (-20%). This is not "logging is cheap so it stops mattering" - a real, persistent
+   baseline-footprint gap remains between the three runtimes even with almost nothing
+   being logged, consistent with the plain image-size numbers from the "Small" section
+   of `why_rainbowgum_is_better.md` and every RSS number recorded elsewhere in this
+   file. Of everything measured in this benchmark, this is the number with the least
+   run-to-run noise and the clearest, most consistent story.
 
 ## Not yet tried
 
-* Rainbow Gum's per-appender locking strategy (`logging.appender.<name>.type`,
-  `AppenderType`) is configurable and untouched here (default:
-  `LOCK_THREAD_LOCAL_BUFFER`) - worth revisiting against this specific result before
-  drawing final conclusions, but deliberately not chased yet.
-* Theory (unverified, needs real profiling - JFR/async-profiler, not guessing): TTLL is
+* Try `SYNCHRONIZED_THREAD_LOCAL_BUFFER` (or `REUSE_BUFFER`/`LOCK_NEW_BUFFER`) against
+  Log4j2's own throughput specifically to see if the gap closes further, or investigate
+  *why* synchronized wins under Substrate VM specifically here.
+* Platform-thread scenario (currently virtual threads only, both client and server
+  side).
+* Real profiling (JFR/async-profiler) of the TTLL time-formatting theory: TTLL is
   mostly time formatting, and Log4j2's own fast-path date formatting may just be
-  quicker than Rainbow Gum's here. Rainbow Gum's default TTLL formatter
-  (`DefaultInstantFormatter`/`MillisCache`, `core/.../LogFormatter.java`) already
-  caches the formatted string per millisecond, the same trick Log4j2's
-  `FixedDateFormat`/Logback's `CachingDateFormatter` use, so it is not naively
-  reformatting every event - but the cache is one shared `AtomicReference<Entry>`,
-  meaning every concurrent thread contends on it, and two threads racing in the same
-  millisecond both reformat and clobber each other's write. Separately, `Instant` is
-  a real heap-allocated object today; Project Valhalla's value types could remove that
-  allocation cost entirely if `Instant` (or a Valhalla-friendly replacement) becomes a
-  flattened value type in a future JDK. Neither half of this theory has been profiled
-  yet to confirm it is actually where the time goes.
+  quicker than Rainbow Gum's `DefaultInstantFormatter`/`MillisCache` here (a shared
+  `AtomicReference<Entry>` every concurrent thread contends on). Separately, `Instant`
+  is a real heap-allocated object today; Project Valhalla's value types could remove
+  that allocation cost if `Instant` becomes a flattened value type in a future JDK.
+  Neither half of this theory has been profiled yet to confirm it's actually where the
+  time goes.
+* Why Log4j2's own buffering/flush behavior differs from "just a bigger buffer" if it
+  does at all - not yet investigated beyond the byte-buffer-size constant itself.

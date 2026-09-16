@@ -121,10 +121,33 @@ output only visible by actually reading it:
   entry for just that one class - deliberately not the agent's full, noisier captured
   output, most of which turned out to already be unnecessary.
 
+## Locking strategy (`APPENDER_TYPE`, Rainbow Gum only)
+
+Rainbow Gum's app also honors `APPENDER_TYPE`, setting
+`logging.appender.console.type` before the first logger is created - e.g.
+`APPENDER_TYPE=SYNCHRONIZED_THREAD_LOCAL_BUFFER` to try the locking/buffering strategy
+closer to Log4j2's own `synchronized`-based approach instead of the
+`LOCK_THREAD_LOCAL_BUFFER` default. See [RESULTS.md](RESULTS.md) for what this actually
+does to the numbers here - it is a real, repeatable win in this specific environment
+(GraalVM Substrate VM), the opposite of what the plain-HotSpot finding that made
+`LOCK_THREAD_LOCAL_BUFFER` the default would predict.
+
+## Baseline: logging mostly off (`LOG_LEVEL`)
+
+All three apps honor `LOG_LEVEL` (e.g. `LOG_LEVEL=ERROR`), overriding the root level -
+Rainbow Gum via `logging.level`, Log4j2/Logback via a `${...:-INFO}` substitution in
+each config file. Since none of `BenchHandler`'s calls are above `INFO`, this disables
+every log call in the request path, exercising each framework's near-zero-cost
+disabled-level path through a real HTTP server under load rather than a synthetic
+microbenchmark. See [RESULTS.md](RESULTS.md) - this is the scenario where memory (not
+throughput) turns out to be the most reliable, repeatable signal this benchmark
+produces.
+
 ## Not yet done
 
-* Lock strategy tuning (`logging.appender.<name>.type`) if Rainbow Gum's native numbers
-  need it - deliberately deferred until there is a real number to react to.
+* Why `SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins here specifically (Substrate VM's own
+  lock/monitor implementation? this sandbox? something else?) - the result is recorded,
+  the explanation is not.
 * Platform-thread scenario (currently virtual threads only, both client and server
   side).
 * Real profiling (JFR/async-profiler) of the TTLL time-formatting theory in
