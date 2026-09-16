@@ -68,6 +68,17 @@
                   <imageName>rainbowgum-benchmark-native-rainbowgum</imageName>
                   <mainClass>${exec.mainClass}</mainClass>
                   <fallback>false</fallback>
+                  <buildArgs>
+                    <!--
+                      com.sun.net.httpserver's internal config class reads
+                      sun.net.httpserver.nodelay during class initialization, which
+                      GraalVM freezes at build time - BenchServer's own runtime
+                      System.setProperty(...) call (which works fine on a plain JVM) is
+                      too late under native-image, so the property has to be supplied
+                      here instead, at build time.
+                    -->
+                    <buildArg>-Dsun.net.httpserver.nodelay=true</buildArg>
+                  </buildArgs>
                 </configuration>
               </execution>
             </executions>

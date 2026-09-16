@@ -25,6 +25,16 @@ public final class BenchServer {
 	 * @throws IOException if the server socket cannot be bound.
 	 */
 	public static void startAndAwait(int port) throws IOException {
+		/*
+		 * com.sun.net.httpserver's own accepted sockets do not set TCP_NODELAY unless
+		 * this internal system property is set before HttpServer.create(...) runs -
+		 * without it, every single request pays for the classic Nagle's-algorithm /
+		 * delayed-ACK interaction (a consistent ~40ms stall per request, confirmed by
+		 * hand against this exact server), which has nothing to do with the application
+		 * or the logging backend but completely swamps it if left unset, making every
+		 * backend measured through this server look identically (and misleadingly) slow.
+		 */
+		System.setProperty("sun.net.httpserver.nodelay", "true");
 		HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
 		server.createContext("/greet", new BenchHandler());
 		server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());

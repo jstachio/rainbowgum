@@ -76,6 +76,10 @@
                       config was actually used.
                     -->
                     <buildArg>-H:IncludeResources=logback\.xml$</buildArg>
+                    <!-- See rainbowgum-benchmark-native-rainbowgum/pom.xml for why this
+                         is needed at build time, not just BenchServer's own runtime
+                         System.setProperty(...) call. -->
+                    <buildArg>-Dsun.net.httpserver.nodelay=true</buildArg>
                   </buildArgs>
                 </configuration>
               </execution>

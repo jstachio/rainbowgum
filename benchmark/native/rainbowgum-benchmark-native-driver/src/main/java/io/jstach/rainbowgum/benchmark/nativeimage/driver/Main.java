@@ -45,7 +45,16 @@ public class Main {
 		System.out.println("target:      " + a.url());
 		System.out.println("concurrency: " + a.concurrency());
 
+		/*
+		 * Explicit HTTP_1_1: HttpClient otherwise defaults to preferring HTTP/2, which
+		 * against com.sun.net.httpserver.HttpServer (HTTP/1.1 only, no h2c upgrade
+		 * support) means every single request pays for a failed upgrade negotiation
+		 * before falling back - a large, constant-per-request cost that swamps whatever
+		 * the server itself is actually doing and makes every backend look identically
+		 * slow.
+		 */
 		try (HttpClient client = HttpClient.newBuilder()
+			.version(HttpClient.Version.HTTP_1_1)
 			.executor(Executors.newVirtualThreadPerTaskExecutor())
 			.build()) {
 			if (a.warmupSeconds() > 0) {

@@ -76,6 +76,12 @@
                   <imageName>rainbowgum-benchmark-native-log4j2</imageName>
                   <mainClass>${exec.mainClass}</mainClass>
                   <fallback>false</fallback>
+                  <buildArgs>
+                    <!-- See rainbowgum-benchmark-native-rainbowgum/pom.xml for why this
+                         is needed at build time, not just BenchServer's own runtime
+                         System.setProperty(...) call. -->
+                    <buildArg>-Dsun.net.httpserver.nodelay=true</buildArg>
+                  </buildArgs>
                 </configuration>
               </execution>
             </executions>
