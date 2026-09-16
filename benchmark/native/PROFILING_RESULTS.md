@@ -260,16 +260,40 @@ shares a buffer across threads (`LOCK_THREAD_LOCAL_BUFFER`'s ThreadLocal), and
 `SYNCHRONIZED_THREAD_LOCAL_BUFFER`'s single lock/unlock pair covers write *and* flush
 together, so there's no gap between them for another thread to land in.
 
-**But the magnitude is small, not "the" explanation for the throughput gap**: 0.1-0.4%
-fewer syscalls is nowhere near large enough to account for a 4-15% throughput
-difference on its own. What it *does* establish, independent of any performance
-argument: Log4j2's `immediateFlush=true` is a weaker guarantee than "this thread's own
-flush call moved this event's bytes to the OS" - an event can legitimately be
-flushed by some *other* thread's flush call instead, slightly ahead of or instead of
-its own. Not a data-loss bug under normal operation (the bytes still reach the OS,
-just via a neighbor's flush rather than guaranteed via their own), but a real
-timing/attribution subtlety in the two-lock design that a single combined lock (like
-Rainbow Gum's) doesn't have.
+**Does this mean Log4j2 can lose or corrupt log lines? Checked directly, not inferred:
+no.** Counted actual lines in the 32-thread run's output file against expected count
+(`iterations × 5`): **74,435 lines written, 74,435 expected - exact match.** Then
+checked every one of those 74,435 lines against the expected well-formed pattern
+(timestamp, thread, level, logger, message) with a regex - **74,435 out of 74,435
+match, zero truncated or interleaved lines.** Fewer `write()` syscalls than events
+means multiple complete, already-fully-formatted events get coalesced into one larger
+syscall (since each `writeBytes(ByteBuffer)` call appends one event's bytes as a whole,
+atomic, already-encoded chunk under its own lock - never a partial line), not that any
+event's bytes go missing or get scrambled together mid-line.
+
+There's also a structural reason this can't cause the *originating* thread to return
+from its own log call before its bytes are safely flushed, even though a *different*
+thread might be the one that physically triggers the `write()`: every call to
+`directEncodeEvent(event)` - on every thread, for every event - always executes its
+*own* `manager.flush()` before returning, unconditionally. If no one else has drained
+the shared buffer yet, that call does the real work. If another thread already beat it
+to the punch (the race from above), that thread's own `writeBytes()` call
+happens-before (per the JVM's own memory model, both operations being `synchronized`
+on the same monitor) any later thread's `flush()` - so by the time *any* thread's own
+`flush()` call returns, its own bytes are guaranteed to have already been drained,
+either by itself or by whoever got there first. The race changes *which thread*
+physically issues the `write()` syscall for a given event's bytes, not *whether* or
+*when relative to that thread's own log call returning* it happens.
+
+**So, plainly: no corruption, no lost lines, no partial writes - but a real, measured,
+now-proven timing quirk** where `immediateFlush=true` doesn't mean "this thread's own
+flush call moved this event's bytes to the OS," only "*some* flush call did, by the
+time this call returns" - an attribution subtlety, not a durability or correctness
+one. A single combined lock (like Rainbow Gum's `SYNCHRONIZED_THREAD_LOCAL_BUFFER`,
+where the same lock covers both the write and the flush) doesn't have even this
+subtlety - whichever thread's lock acquisition writes an event is, by construction,
+also the one that flushes it. 0.1-0.4% fewer syscalls is, in any case, nowhere near
+large enough on its own to explain a 4-15% throughput gap.
 
 So what does the 34.3% vs 24.0% `writeBytes` split actually reflect, if the syscall
 counts are this close (within ~0.4% of each other, not a large gap)? It's mostly a
