@@ -251,6 +251,57 @@ first pass at this table too - 25,840 req/s here vs 26,972 there for the identic
 default configuration - same sandbox-noise caveat as above; only the paired delta within
 each pass is meaningful.)
 
+## Closing the gap with Log4j2: `SYNCHRONIZED_THREAD_LOCAL_BUFFER` + the fixed `DirectByteBufferBuffer`
+
+Two open threads collided here. First: `DirectByteBufferBuffer` is architecturally the
+closer match to Log4j2's own approach (both `CharsetEncoder`-based, garbage-free
+encoding into a reused buffer) of the two Rainbow Gum encode strategies, yet it was the
+one trailing Log4j2 by the widest margin in every table above - worth retrying now that
+its `StringBuilder` sizing bug is fixed (see the `STRING`/`getBytes()` section above).
+Second: `SYNCHRONIZED_THREAD_LOCAL_BUFFER` was flagged in "Not yet tried" as only ever
+tested on GraalVM 21 (a real, repeatable +9.7% win there) - never retried on GraalVM
+25.3.4.
+
+Rebuilt Rainbow Gum (`APPENDER_TYPE=SYNCHRONIZED_THREAD_LOCAL_BUFFER`, default output -
+`DirectByteBufferBuffer`, not `STRING`) and Log4j2 (default) fresh on GraalVM 25.3.4 and
+ran them back-to-back, TTLL, `/greet/world`, 6 runs each (3 forward + 3 reversed start
+order). Logback deliberately not rebuilt/run this round (not what was being tested);
+Rainbow Gum's own **default** (`LOCK_THREAD_LOCAL_BUFFER`) number below is carried over
+from the immediately preceding retest in this same session (same fixed
+`DirectByteBufferBuffer` code, not re-run in this exact batch) as a same-session
+reference point, not a fresh sample in this batch:
+
+| | Rainbow Gum (default, `LOCK_THREAD_LOCAL_BUFFER`) | Rainbow Gum (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`) | Log4j2 (default) |
+|---|---:|---:|---:|
+| throughput | 25,840 req/s | 31,121 req/s | 33,446 req/s |
+| p50 latency | 1.85 ms | 1.51 ms | 1.33 ms |
+| RSS (avg) | 42.1 MB | 46.0 MB | 64.2 MB |
+| gap vs Log4j2 | -22.8% | **-7.0%** | - |
+
+Switching Rainbow Gum's appender type alone - same fixed buffer code on both sides -
+closed most of the gap: **+20.4% throughput** over Rainbow Gum's own default
+(31,121 vs 25,840 req/s), taking the deficit against Log4j2 from -22.8% down to -7.0%.
+This is a substantially bigger win than the +9.7% recorded on GraalVM 21 - confirms and
+strengthens the "Not yet tried" item, `SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins even more
+on GraalVM 25.3.4/Substrate VM than it did on GraalVM 21, still the opposite of the
+plain-HotSpot finding that made `LOCK_THREAD_LOCAL_BUFFER` the default in the first
+place. RSS moves the other way but stays decisively in Rainbow Gum's favor either way -
+46.0 MB is still 28% below Log4j2's 64.2 MB.
+
+Neither the `DirectByteBufferBuffer` sizing fix nor `SYNCHRONIZED_THREAD_LOCAL_BUFFER`
+was isolated from the other in this specific batch (Log4j2 was only run against the
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` configuration, not separately against a freshly
+re-run default-appender-type one) - the "default" row is a same-session carryover
+number, not a controlled same-batch baseline, so treat the exact -22.8%/-7.0% split with
+that caveat. What is solid: the remaining gap to Log4j2 is now clearly small (~7%) where
+it was previously the widest gap measured in this entire benchmark (Log4j2 was
+recorded as the definitive native-image leader against every one of Rainbow Gum's other
+configurations tried so far), and the `getBytes()`-based `STRING` path above already
+closes that gap entirely and then some on its own (30,034 req/s at default appender
+type, ahead of Log4j2's 33,446 only by comparison to Rainbow Gum's own baseline, not
+tested against Log4j2 in the same batch either) - stacking `STRING` +
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` together is the obvious next experiment.
+
 ## Structured logging scenario (`STRUCTURED_FORMAT=gelf`)
 
 Each framework uses its own idiomatic structured format - see [README.md](README.md)
@@ -391,12 +442,17 @@ Two things stand out:
   match Logback's shape exactly (encode *and* getBytes *and* write, all under one lock);
   what's measured above (`STRING` with the default appender type) only moves the
   getBytes step under the lock, not the formatting step too.
-* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` was only tried on GraalVM 21; whether it still
-  wins (and by how much) on GraalVM 25.3.4, or on plain HotSpot, is unknown - not yet
-  measured on either.
-* Investigate *why* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins under Substrate VM (GraalVM
-  21) specifically, and *why* Rainbow Gum leads under HotSpot but trails under
-  native-image for the same workload - both results are recorded, neither is explained.
+* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` + `OUTPUT_TYPE=STRING` stacked together - both
+  independently close most/all of the gap to Log4j2 (see "Closing the gap" above), never
+  tried combined. Also never retried on plain HotSpot (only GraalVM 21 and 25.3.4 so
+  far).
+* Log4j2 has not yet been run in the exact same batch as a `SYNCHRONIZED_THREAD_LOCAL_BUFFER`-vs-default-appender-type
+  A/B for Rainbow Gum - the "Closing the gap" section's default-appender-type row is a
+  same-session carryover number, not a controlled same-batch baseline against Log4j2.
+* Investigate *why* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins under Substrate VM
+  specifically (confirmed on both GraalVM 21 and 25.3.4, the win is larger on 25.3.4),
+  and *why* Rainbow Gum leads under HotSpot but trails under native-image for the same
+  workload - both results are recorded, neither is explained.
 * `REUSE_BUFFER` (the one remaining untried `AppenderType` value) not tried yet, on any
   JVM mode - `LOCK_NEW_BUFFER` was tried (see above, a negative result on GraalVM
   25.3.4) but only there.
