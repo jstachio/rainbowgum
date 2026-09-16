@@ -126,6 +126,52 @@ event (instead of one reused per thread) is real, continuous garbage at this req
 rate. Matching Logback's *locking shape* did not translate into matching (or beating)
 Logback's *numbers* - Logback's own 71,420 req/s still comfortably beats this.
 
+## Non-Latin1 content: does Logback's `getBytes()` fast path actually matter here?
+
+Background, from `feature/webapp-benchmark`'s own `FINDINGS.md` (not reproduced from
+scratch here, just cited): Logback's `LayoutWrappingEncoder` does a plain
+`String.getBytes(charset)` per event - no `CharsetEncoder`, no reused buffer. The JDK's
+compact strings give `String.getBytes(UTF_8)` a fast path for pure-Latin1 content
+(effectively a straight array copy); the moment a string contains **any** character
+above U+00FF, the whole string's internal coder flips to `UTF16` and encoding falls
+back to a full, slower path for the *entire* line, not just the one character. That
+prior benchmark measured this costing Logback ~7% throughput under virtual threads
+(Log4j2/Rainbow Gum, both `CharsetEncoder`-based, unaffected).
+
+Checked directly in this codebase: Rainbow Gum *has* the identical fast path -
+`LogOutput.write(LogEvent, String)`'s default implementation is exactly
+`s.getBytes(StandardCharsets.UTF_8)` (`core/.../LogOutput.java`) - but it is gated
+behind `BufferHints`/`WriteMethod.STRING`, and **no built-in `LogOutput` implementation
+hints `STRING`**: every one of them (including the one behind `ofStandardOut()`, used
+by this benchmark) explicitly hints `WriteMethod.BYTES`, so the `StringBuilderBuffer` +
+getBytes path is real, present, and dead code in practice today. Adding an output that
+actually activates it is a real TODO, not done here.
+
+Retested this benchmark's own TTLL scenario (GraalVM 25.3.4, Rainbow Gum's default
+appender type restored) with the request path changed from `/greet/world` to a single
+globe emoji, `/greet/%F0%9F%8C%8D` (percent-encoded 🌍, U+1F30D - 4 UTF-8 bytes,
+actually *fewer* bytes than "world"'s 5 ASCII ones, so any slowdown is about encoding
+path, not data volume), 3 runs each:
+
+| | Rainbow Gum | Log4j2 | Logback |
+|---|---:|---:|---:|
+| ASCII ("world") throughput | 69,677 req/s | 84,073 req/s | 71,420 req/s |
+| Emoji (🌍) throughput | 69,112 req/s | 82,987 req/s | 71,166 req/s |
+| change | -0.8% | -1.3% | -0.4% |
+
+**This does not clearly reproduce the prior finding.** All three dipped slightly, by
+amounts close enough to each other (and close enough to this environment's own
+run-to-run noise elsewhere in this file) that nothing here stands out as *the*
+Logback-specific effect the prior benchmark measured - if anything, Logback shows the
+*smallest* relative change of the three in this run, the opposite of what the theory
+predicts. Possible reasons, none confirmed: a different request/response overhead
+ratio here (plain `HttpServer` vs the Spring/Tomcat stack the original measurement
+used) could be diluting a real but small per-event cost; the effect could be genuinely
+present but below this benchmark's noise floor at 3 runs; or the original ~7% figure
+may not reproduce cleanly outside its own original conditions. Not chased further -
+recorded honestly as a non-replication rather than forced to match the expected
+narrative.
+
 ## Structured logging scenario (`STRUCTURED_FORMAT=gelf`)
 
 Each framework uses its own idiomatic structured format - see [README.md](README.md)
@@ -211,6 +257,10 @@ Two things stand out:
 
 ## Not yet tried
 
+* An `LogOutput` that actually hints `WriteMethod.STRING`, activating the
+  `getBytes()`-fast-path code that already exists but is currently dead (see "Non-Latin1
+  content" above) - would let Rainbow Gum's console output try Logback's own strategy
+  directly, not just something architecturally similar.
 * `SYNCHRONIZED_THREAD_LOCAL_BUFFER` was only tried on GraalVM 21; whether it still
   wins (and by how much) on GraalVM 25.3.4, or on plain HotSpot, is unknown - not yet
   measured on either.
