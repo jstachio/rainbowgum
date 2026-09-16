@@ -261,10 +261,83 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * only "some flush call did, by the time this call returned."
 		 * @apiNote added specifically to test whether Log4j2's own throughput lead is
 		 * explained by this shape - see {@code benchmark/native/PROFILING_RESULTS.md} for
-		 * the measured result. Not recommended over
-		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER} without first checking that write-up.
+		 * the measured result: it is not (a net loss, not a gain). <strong>Not
+		 * recommended for a reason beyond that measured loss</strong>: every other
+		 * appender type in this project keeps a simple, deliberate property - whichever
+		 * thread produced an event is the thread that writes and (if immediate flush
+		 * applies) flushes it, nothing else. This type gives that up - a thread's own
+		 * bytes can end up written by a different thread's flush call - in exchange for a
+		 * throughput benefit that turned out not to exist. Kept as a documented, honest
+		 * negative result, not as an option to reach for.
 		 */
-		SYNCHRONIZED_SHARED_BUFFER;
+		SYNCHRONIZED_SHARED_BUFFER,
+		/**
+		 * Experimental - like {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER} (per-thread
+		 * scratch buffer, encode outside any lock) except the write and the flush are two
+		 * <strong>separate</strong> {@code synchronized} blocks on the
+		 * <strong>same</strong> monitor, with the lock released in between, instead of
+		 * one critical section covering both. A different thread's own write can happen
+		 * in that gap.
+		 * <p>
+		 * Whether that gap matters depends entirely on the output: against a
+		 * {@link java.io.PrintStream}-backed output like the default console output
+		 * (which auto-flushes on every {@code write} call containing a newline, confirmed
+		 * directly - disabling this appender's own explicit flush call entirely still
+		 * produced exactly one {@code write()} syscall per event), the real OS-level
+		 * write already happens synchronously inside the write step, so releasing the
+		 * lock before the separate flush step has nothing left to batch - another
+		 * thread's write is already its own complete syscall by the time it happens, lock
+		 * gap or not. Pairing this type with an output that genuinely buffers instead -
+		 * accumulating bytes in memory and only doing real I/O on an explicit
+		 * {@link LogOutput#flush()} - is what gives the gap something to do: one thread's
+		 * write (now just a cheap in-memory append) can land, release the lock, and let a
+		 * second thread's write land in the <em>same</em> pending buffer before anyone
+		 * actually flushes it.
+		 * <p>
+		 * Unlike {@link #SYNCHRONIZED_SHARED_BUFFER}, this needs no second monitor and no
+		 * defensive buffer hand-off: because write and flush share the exact same lock,
+		 * they can never overlap, so whatever output-level buffer is doing the
+		 * accumulating can always be drained in place with no extra allocation - the cost
+		 * that made {@link #SYNCHRONIZED_SHARED_BUFFER} a net loss.
+		 * <p>
+		 * <strong>A genuinely buffering output is what makes this type work at all, and
+		 * it is also what gives up a real property the default console output
+		 * has.</strong> Measured directly (not just reasoned about): killed a process
+		 * mid-run ({@code kill -9}) writing to the plain, unbuffered console output, and
+		 * the last line in the file had a timestamp matching the kill instant to the
+		 * millisecond - nothing was ever sitting unflushed in application memory to lose.
+		 * Repeating the same kill against an output that genuinely buffers (see
+		 * {@code benchmark/native/PROFILING_RESULTS.md}) can lose however many events
+		 * happened to be sitting in that buffer, unflushed, at the moment of the kill - a
+		 * real, non-zero "at risk" window the default console output simply does not
+		 * have, independent of and in addition to the attribution subtlety below. This is
+		 * precisely the twelve-factor app methodology's own reasoning for requiring an
+		 * app's own event stream to be written <em>unbuffered</em> to stdout - any
+		 * buffering an app does internally is buffering the platform cannot see or
+		 * account for, and this type reintroduces exactly that risk deliberately, as an
+		 * experiment, not as something to reach for in a real deployment without
+		 * understanding this tradeoff.
+		 * <p>
+		 * A real consequence of sharing a buffer across threads even without a crash: a
+		 * thread's own flush call is not guaranteed to be what physically writes its own
+		 * event, the same attribution subtlety documented on
+		 * {@link #SYNCHRONIZED_SHARED_BUFFER} - not a durability problem on its own
+		 * during ordinary continued operation, only in combination with a hard kill as
+		 * described above.
+		 * @apiNote added specifically to test whether Log4j2's real mechanism is just
+		 * "the lock is released between write and flush" rather than a second lock or a
+		 * dedicated shared-buffer object - see
+		 * {@code benchmark/native/PROFILING_RESULTS.md} for the measured result: a modest
+		 * win over {@link #LOCK_THREAD_LOCAL_BUFFER} but still behind
+		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER}. <strong>Not recommended even where
+		 * it does win</strong>, for the same reason as
+		 * {@link #SYNCHRONIZED_SHARED_BUFFER}: it gives up the property that an event's
+		 * own thread is what writes and flushes it, and - only when paired with a
+		 * genuinely buffering output, see {@code BufferedStdOutOutput} in that write-up -
+		 * trades away the crash-safety a genuinely unbuffered output has, for a
+		 * throughput gain too small to justify either.
+		 */
+		SYNCHRONIZED_DEFERRED_FLUSH;
 
 		static AppenderType parse(String value) {
 			String v = value.toUpperCase(Locale.ROOT);
@@ -787,6 +860,8 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 				new LockNewBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
 			case SYNCHRONIZED_SHARED_BUFFER ->
 				new SynchronizedSharedBufferLogAppender(name, output, encoder, flags, alerts, metrics);
+			case SYNCHRONIZED_DEFERRED_FLUSH ->
+				new SynchronizedDeferredFlushLogAppender(name, output, encoder, flags, alerts, metrics);
 		};
 	}
 
@@ -824,7 +899,7 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 			return type;
 		}
 		return switch (type) {
-			case SYNCHRONIZED_THREAD_LOCAL_BUFFER, SYNCHRONIZED_SHARED_BUFFER ->
+			case SYNCHRONIZED_THREAD_LOCAL_BUFFER, SYNCHRONIZED_SHARED_BUFFER, SYNCHRONIZED_DEFERRED_FLUSH ->
 				LogAppender.AppenderType.LOCK_THREAD_LOCAL_BUFFER;
 			case LOCK_THREAD_LOCAL_BUFFER, REUSE_BUFFER, LOCK_NEW_BUFFER -> type;
 		};
@@ -862,7 +937,8 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 			return type;
 		}
 		return switch (type) {
-			case LOCK_THREAD_LOCAL_BUFFER, SYNCHRONIZED_THREAD_LOCAL_BUFFER, SYNCHRONIZED_SHARED_BUFFER ->
+			case LOCK_THREAD_LOCAL_BUFFER, SYNCHRONIZED_THREAD_LOCAL_BUFFER, SYNCHRONIZED_SHARED_BUFFER,
+					SYNCHRONIZED_DEFERRED_FLUSH ->
 				LogAppender.AppenderType.LOCK_NEW_BUFFER;
 			case REUSE_BUFFER, LOCK_NEW_BUFFER -> type;
 		};
@@ -1607,6 +1683,98 @@ final class SynchronizedSharedBufferLogAppender extends AbstractLogAppender impl
 	@Override
 	public List<LogResponse> act(LogAction action) {
 		synchronized (flushLock) {
+			try {
+				return _request(action);
+			}
+			catch (UncheckedIOException ioe) {
+				return List.of(new Response(LogOutput.class, name, Status.ErrorStatus.of(ioe)));
+			}
+		}
+	}
+
+}
+
+/**
+ * Implements {@link LogAppender.AppenderType#SYNCHRONIZED_DEFERRED_FLUSH} - see that
+ * constant's javadoc for the full design rationale and the measured result. Structurally
+ * identical to {@link SynchronizedThreadLocalBufferLogAppender} except {@code append}
+ * releases {@link #monitor} between the write and the flush instead of holding it across
+ * both.
+ */
+final class SynchronizedDeferredFlushLogAppender extends AbstractLogAppender implements InternalLogAppender {
+
+	private final Object monitor = new Object();
+
+	// See LockThreadLocalBufferLogAppender's identical field for why this suppression is
+	// needed.
+	@SuppressWarnings("nullness:type.argument")
+	private final ThreadLocal<LogEncoder.Buffer> bufferThreadLocal;
+
+	SynchronizedDeferredFlushLogAppender(String name, LogOutput output, LogEncoder encoder,
+			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
+		super(name, output, encoder, flags, alerts, metrics);
+		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
+	}
+
+	@Override
+	public void append(LogEvent event) {
+		try {
+			var buffer = bufferThreadLocal.get();
+			buffer.clear();
+			encoder.encode(event, buffer);
+			writeThenFlush(event, buffer);
+		}
+		catch (Exception e) {
+			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+		}
+	}
+
+	private void writeThenFlush(LogEvent event, LogEncoder.Buffer buffer) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, metrics, 1)) {
+			return;
+		}
+		synchronized (monitor) {
+			output.write(event, buffer);
+		}
+		if (immediateFlush) {
+			synchronized (monitor) {
+				output.flush();
+			}
+		}
+	}
+
+	@Override
+	public void append(LogEvent[] events, int count) {
+		if (shouldDropForReentry(Thread.holdsLock(monitor), flags, metrics, count)) {
+			return;
+		}
+		try {
+			synchronized (monitor) {
+				output.write(events, count, encoder, bufferThreadLocal.get());
+			}
+			if (immediateFlush) {
+				synchronized (monitor) {
+					output.flush();
+				}
+			}
+		}
+		catch (Exception e) {
+			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+		}
+	}
+
+	@Override
+	public void close() {
+		synchronized (monitor) {
+			super.close();
+		}
+	}
+
+	@Override
+	public List<LogResponse> act(LogAction action) {
+		synchronized (monitor) {
 			try {
 				return _request(action);
 			}

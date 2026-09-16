@@ -34,6 +34,7 @@ Interactive flame graphs (self-contained HTML, click into any frame):
 * Rainbow Gum (default appender type, `LOCK_THREAD_LOCAL_BUFFER`): https://claude.ai/code/artifact/2b173a3e-29bf-4b76-98f7-f2709e8fef9e
 * Rainbow Gum (`APPENDER_TYPE=SYNCHRONIZED_THREAD_LOCAL_BUFFER`, added after the first pass - see "Finding 4" below): https://claude.ai/code/artifact/acddbf69-52fa-46e1-a8f8-b698534c74f8
 * Rainbow Gum (`APPENDER_TYPE=SYNCHRONIZED_SHARED_BUFFER`, added to test Finding 5/6's replication - see "Finding 6" below): https://claude.ai/code/artifact/dbfbba8f-094c-473d-8fa5-a17a86c729fd
+* Rainbow Gum (`APPENDER_TYPE=SYNCHRONIZED_DEFERRED_FLUSH` + `OUTPUT_TYPE=BUFFERED` - see "Finding 7" below): https://claude.ai/code/artifact/5afb49cc-0ce4-478e-b77b-569caebd389f
 * Log4j2: https://claude.ai/code/artifact/86f8547d-fdf1-450d-97dd-bf972e5316a7
 
 (Published as Claude artifacts rather than committed to the repo - these are
@@ -405,6 +406,95 @@ about "two *independent* locks requiring double-buffering." Not built in this pa
 Finding 6 answers the question actually asked (Adam's own two-different-monitors
 proposal), not a hypothetical faithful port.
 
+## Finding 7: the missing piece was "the lock is released between write and flush," not two locks - and it comes with a real, measured 12-factor cost
+
+Adam read Finding 6's own "obvious next step" note and proposed exactly it, more
+precisely: not two locks at all, just **the same single lock, acquired twice** - write,
+release, re-acquire, flush - instead of one critical section covering both. He also
+predicted correctly, before anything was measured, that this needs an output that
+genuinely buffers to have any effect: against the default console output
+(`System.out`, a `PrintStream`), the real `write()` syscall already happens
+synchronously inside the write step (confirmed directly - disabling this appender's
+own explicit flush entirely still produced exactly one syscall per event, see Finding
+5's methodology), so releasing the lock before a separate flush call has nothing left
+to batch.
+
+Built both pieces to test it properly instead of reasoning about it alone: a new
+`AppenderType.SYNCHRONIZED_DEFERRED_FLUSH` (same shape as
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER`, but write and flush are two separate `synchronized`
+blocks on the same monitor, not one), paired with a new benchmark-module output,
+`BufferedStdOutOutput` (a raw file descriptor wrapped in a plain
+`java.io.BufferedOutputStream`, 8192 bytes matching Log4j2's own default - deliberately
+not a `PrintStream`, so nothing auto-flushes).
+
+**Result: +3.3% over Rainbow Gum's own default, but still -6.9% behind
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` and -10.2% behind Log4j2** (115,760 vs 112,011 /
+124,291 / 128,970 iter/s, 50 threads). A real, measured improvement over the plain
+default - and the mechanism does work as predicted: `strace` batching-depth counting
+(same methodology as Finding 5/6) found syscalls carrying up to 3 events at 32
+threads, and `ObjectMonitor::try_spin` came in at **12.0%**, genuinely *lower* than
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER`'s 14.7% (shorter individual critical sections mean
+less time for 50 threads to pile up on any one of them). But throughput is still
+lower despite less measured spin time - the likely explanation, not fully isolated:
+*two* lock acquisitions per event, even when each one is individually cheap and
+low-contention, cost more in aggregate (JIT/monitor entry-exit overhead, not just
+contention) than *one* combined acquisition does. Flame graph:
+https://claude.ai/code/artifact/5afb49cc-0ce4-478e-b77b-569caebd389f. Not isolated
+further given the next finding changed the direction of this whole line of
+investigation.
+
+**Then Adam pushed back on the premise itself, not the numbers**: *"I don't like how
+one thread can dump more events or events it doesn't even own."* This is the same
+attribution subtlety Finding 5 already proved harmless for correctness (no corruption,
+no lost lines under normal operation) - but "harmless" and "acceptable design" are
+different questions, and he's right that they are. Every other appender type in this
+project keeps one simple, deliberate property: whichever thread produced an event is
+the thread that writes and flushes it, full stop. Both `SYNCHRONIZED_SHARED_BUFFER`
+and `SYNCHRONIZED_DEFERRED_FLUSH` give that property up in exchange for a throughput
+benefit that, measured honestly, turned out to be either negative or too small to
+matter.
+
+**Checked one more thing directly before writing that verdict down - not just
+inferred from the architecture**: does buffering-for-batching also cost something
+beyond attribution, specifically the [twelve-factor app](https://12factor.net/logs)
+principle Adam quoted (*"each running process writes its event stream, unbuffered, to
+stdout"*)? Killed (`kill -9`) a process mid-run for each output and compared the last
+written line's own embedded timestamp against the wall-clock instant the kill was
+issued:
+
+| output | last line's timestamp | kill issued at | gap |
+|---|---|---|---|
+| default (`StdOutOutput`/`System.out`) | `19:17:04.661` | `19:17:04.661` | **0ms** |
+| default + this appender's own flush disabled entirely | (558,347 lines still written) | - | still ~0, `PrintStream` autoFlush bypasses our own flag |
+| `BufferedStdOutOutput` (genuinely buffered) | varies run to run | varies | **non-zero and unbounded in the worst case** |
+
+The default output's last line matched the kill instant to the millisecond, every
+time, regardless of whether Rainbow Gum's own flush was even enabled - confirming it
+is genuinely unbuffered in the twelve-factor sense, not just "flushes quickly." A
+separate, minimal standalone demo (a bare `BufferedOutputStream` over a raw FD, large
+buffer, no `flush()` call ever) made the risk unambiguous: killed mid-run, the file
+ends at a buffer boundary with an entire buffer's worth of already-`write()`-called
+content - up to tens of megabytes, thousands of events - permanently unrecoverable,
+with no way to even know how much was lost since the OS never received it. Log4j2's
+own manager buffer (8192 bytes, the same size `BufferedStdOutOutput` uses) has this
+same risk at a smaller scale by construction, `immediateFlush=true` policy or not -
+the policy narrows the window, it does not remove it the way genuinely not buffering
+does.
+
+**Conclusion, not just a number**: this closes out the two-lock/shared-buffer/
+deferred-flush line of investigation. `SYNCHRONIZED_SHARED_BUFFER` and
+`SYNCHRONIZED_DEFERRED_FLUSH` are kept in the tree as honest, documented negative
+results (their own javadoc now says so directly, including this crash-safety and
+attribution tradeoff, not just the throughput numbers) - not because either wins,
+and not only because neither actually wins, but because even where
+`SYNCHRONIZED_DEFERRED_FLUSH` shows a real modest gain, it buys that gain by giving up
+two properties (event ownership, and - only when paired with a genuinely buffering
+output - the twelve-factor unbuffered guarantee) that are worth more than the
+throughput. Log4j2's real lead over Rainbow Gum's own best option
+(`SYNCHRONIZED_THREAD_LOCAL_BUFFER`, still -3.8%, see "Closing the gap" in
+`RESULTS.md`) remains open, and is not explained by anything in this two-lock/buffering
+line of investigation - whatever it is, it isn't this.
+
 ## What this does and doesn't settle
 
 **Settled, with real evidence**: the locking-strategy story (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`
@@ -429,7 +519,16 @@ allocation cost of safely handing off a shared buffer between independent locks
 outweighs the deeper batching it achieves. Copying Log4j2's *symptom* (two lock
 acquisitions) without its *specific* mechanism (one shared monitor, not two) makes
 things worse, confirmed with real numbers rather than left as a plausible-sounding
-guess.
+guess. Building the *specific* mechanism too (Finding 7 -
+`SYNCHRONIZED_DEFERRED_FLUSH`, one monitor acquired twice) did recover a real, modest
+throughput gain over Rainbow Gum's default - but also, checked directly rather than
+assumed, comes with a genuine twelve-factor-app crash-safety cost when paired with a
+genuinely buffering output, and always with the same attribution subtlety Finding 5
+found harmless-but-real. Whether that's an acceptable tradeoff turned out to be a
+values question, not just a numbers one - settled by Adam directly: no, "one thread
+can dump more events or events it doesn't even own" is not something worth Log4j2
+parity for. Both experimental types stay in the tree as documented negative results,
+not recommendations.
 
 **Not settled**: the *single-threaded*, zero-contention +26.6% gap is still
 unexplained by anything in this profile - no single frame or cluster of frames stands

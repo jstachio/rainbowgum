@@ -32,7 +32,11 @@ import io.jstach.rainbowgum.benchmark.nativeimage.BenchServer;
  * {@code LogOutput.WriteMethod#STRING} instead of {@code BYTES} - activating the
  * {@code String.getBytes(UTF_8)}-based encode path Logback itself uses, instead of the
  * {@code CharsetEncoder}-based path every built-in Rainbow Gum output currently hints.
- * Unset by default.
+ * {@code OUTPUT_TYPE=BUFFERED} swaps it for {@link BufferedStdOutOutput}, a raw-FD output
+ * wrapped in a plain {@code java.io.BufferedOutputStream} instead of {@link System#out}'s
+ * auto-flushing {@code PrintStream} - meant to be paired with
+ * {@code APPENDER_TYPE=SYNCHRONIZED_DEFERRED_FLUSH}, the only appender type that can
+ * actually take advantage of an output that genuinely buffers. Unset by default.
  */
 public final class App {
 
@@ -56,8 +60,12 @@ public final class App {
 		if (appenderType != null) {
 			System.setProperty("logging.appender.console.type", appenderType);
 		}
-		if ("STRING".equals(System.getenv("OUTPUT_TYPE"))) {
+		String outputType = System.getenv("OUTPUT_TYPE");
+		if ("STRING".equals(outputType)) {
 			System.setProperty("logging.appender.console.output", StringStdOutOutput.SCHEME + ":///");
+		}
+		else if ("BUFFERED".equals(outputType)) {
+			System.setProperty("logging.appender.console.output", BufferedStdOutOutput.SCHEME + ":///");
 		}
 		String logLevel = System.getenv("LOG_LEVEL");
 		if (logLevel != null) {
