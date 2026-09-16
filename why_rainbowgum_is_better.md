@@ -104,6 +104,24 @@ does) treat as free. `isInfoEnabled()` still correctly returns `false` (SLF4J's 
 requires the method to exist), but the actual logging call itself never consults it,
 because which behavior to run was already decided once, not on every call.
 
+## Built-in operational metrics, no extra dependency
+
+Rainbow Gum tracks a small, well known set of counters about the logging system itself -
+events dropped, encoder buffer trims, failed writes - out of the box, with zero required
+dependency beyond `java.base`:
+
+```java
+var counters = config.metrics().counters();
+// [Counter[name=events.dropped, level=ERROR, count=3], ...]
+```
+
+Each is a plain `LongAdder`, incremented with no per-call allocation and no listener
+dispatch - cheap enough to leave on unconditionally, not something you opt into only in
+a profiling build. Neither Logback nor Log4j2 ship anything like this: finding out how
+many events an appender has silently dropped, or how often the encoder's buffer had to
+shrink back down, means wiring up Micrometer or JMX yourself first - Rainbow Gum answers
+that question with a method call.
+
 ## Modular, GraalVM Native, and jlink friendly
 
 * Log4j2, Reload4j, and Logback all require the `java.xml` module - Logback pulls it in
