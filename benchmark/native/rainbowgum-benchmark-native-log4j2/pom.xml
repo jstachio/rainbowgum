@@ -1,0 +1,87 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-benchmark-native-parent</artifactId>
+    <version>0.12.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-benchmark-native-log4j2</artifactId>
+  <properties>
+    <parent.root>${basedir}/../../..</parent.root>
+    <native.maven.plugin.version>0.10.6</native.maven.plugin.version>
+    <exec.mainClass>io.jstach.rainbowgum.benchmark.nativeimage.log4j2.App</exec.mainClass>
+    <!--
+      Deliberately NOT the 3.0.0-beta2 pinned by ../../rainbowgum-benchmark-parent
+      (benchmark/pom.xml, used by the old hand-rolled micro-benchmarks): Log4j's own
+      GraalVM reachability metadata ("Log4j Core and all its official extensions are
+      bundled with the necessary GraalVM reachability metadata" per
+      logging.apache.org/log4j/2.x/graalvm.html) was added on the 2.x line starting at
+      2.25.0, not (yet, as of this beta) on the still-in-development 3.x line - see the
+      README in this module's parent directory for what happens on 3.0.0-beta2 without
+      this override (it builds, but silently falls back to a no-op SimpleLogger at
+      runtime).
+    -->
+    <log4j.version>2.26.1</log4j.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-benchmark-native-share</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
+      <version>${log4j.version}</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifest>
+              <addClasspath>true</addClasspath>
+              <mainClass>${exec.mainClass}</mainClass>
+              <classpathPrefix>${exec.classpathPrefix}</classpathPrefix>
+              <classpathLayoutType>repository</classpathLayoutType>
+              <useUniqueVersions>false</useUniqueVersions>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <profiles>
+    <profile>
+      <id>native</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <version>${native.maven.plugin.version}</version>
+            <extensions>true</extensions>
+            <executions>
+              <execution>
+                <id>native-compile</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>compile-no-fork</goal>
+                </goals>
+                <configuration>
+                  <imageName>rainbowgum-benchmark-native-log4j2</imageName>
+                  <mainClass>${exec.mainClass}</mainClass>
+                  <fallback>false</fallback>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
