@@ -130,6 +130,7 @@ class AppenderAsModeFlagPermutationTest {
 			case SYNCHRONIZED_THREAD_LOCAL_BUFFER -> SynchronizedThreadLocalBufferLogAppender.class;
 			case LOCK_THREAD_LOCAL_BUFFER -> LockThreadLocalBufferLogAppender.class;
 			case LOCK_NEW_BUFFER -> LockNewBufferLogAppender.class;
+			case SYNCHRONIZED_SHARED_BUFFER -> SynchronizedSharedBufferLogAppender.class;
 		};
 		for (var direct : directAppenders(mode, publisher)) {
 			assertInstanceOf(expectedAppenderClass, direct);

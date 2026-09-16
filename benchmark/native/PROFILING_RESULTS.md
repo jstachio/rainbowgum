@@ -33,6 +33,7 @@ Interactive flame graphs (self-contained HTML, click into any frame):
 
 * Rainbow Gum (default appender type, `LOCK_THREAD_LOCAL_BUFFER`): https://claude.ai/code/artifact/2b173a3e-29bf-4b76-98f7-f2709e8fef9e
 * Rainbow Gum (`APPENDER_TYPE=SYNCHRONIZED_THREAD_LOCAL_BUFFER`, added after the first pass - see "Finding 4" below): https://claude.ai/code/artifact/acddbf69-52fa-46e1-a8f8-b698534c74f8
+* Rainbow Gum (`APPENDER_TYPE=SYNCHRONIZED_SHARED_BUFFER`, added to test Finding 5/6's replication - see "Finding 6" below): https://claude.ai/code/artifact/dbfbba8f-094c-473d-8fa5-a17a86c729fd
 * Log4j2: https://claude.ai/code/artifact/86f8547d-fdf1-450d-97dd-bf972e5316a7
 
 (Published as Claude artifacts rather than committed to the repo - these are
@@ -344,6 +345,66 @@ too small) without settling "is Rainbow Gum's actual write more expensive per ca
 (open - would need matched-throughput or per-call timing, not proportions, to answer
 that cleanly).
 
+## Finding 6: replicating Log4j2's two-lock design was built and tested - it's a clear loss for Rainbow Gum
+
+Adam asked directly whether Rainbow Gum could replicate Log4j2's two-lock shape, and
+proposed a specific variant: two *genuinely different* monitor objects (not Log4j2's
+own single shared monitor acquired twice) - one for appending an event's bytes into a
+buffer shared across all threads, a second, independent one for draining that shared
+buffer to the real output. Predicted beforehand (from Finding 4's own numbers: Log4j2's
+existing two-lock design already costs it more than double Rainbow Gum's single-lock
+`ObjectMonitor::try_spin` share, for a syscall-count benefit measured at well under
+0.5%) that this would be a net loss, not a win - built and benchmarked it anyway to
+check that prediction with real data instead of leaving it as an untested guess.
+
+Added a new core `LogAppender.AppenderType`, `SYNCHRONIZED_SHARED_BUFFER`
+(`core/.../LogAppender.java`: `SharedBufferOutput`, a `LogOutput` that accumulates
+bytes into a shared buffer instead of doing real I/O, plus
+`SynchronizedSharedBufferLogAppender`). Each thread still encodes into its own
+`ThreadLocal` scratch buffer first (no lock), same as every other `ThreadLocal`-backed
+type; the two new locks are purely about the shared buffer and the flush. Full test
+suite green, including a real bug this surfaced along the way: draining must happen
+*unconditionally* on every `append()`, not only when `immediateFlush` is set, to match
+every other appender type's existing `AppenderFlag#DISABLE_IMMEDIATE_FLUSH` contract
+(events are always delivered to the output, only the OS-level flush is skippable) -
+`AppenderAsModeFlagPermutationTest` caught this immediately when it was still gated
+wrong.
+
+**Result: -32.9% vs Rainbow Gum's own default, -39.6% vs `SYNCHRONIZED_THREAD_LOCAL_BUFFER`,
+-41.8% vs Log4j2** (75,123 iter/s vs 112,011 / 124,291 / 128,970, all 50 threads,
+otherwise identical setup). The prediction held, decisively - this isn't a marginal
+loss, it's the worst-performing configuration measured in this entire session.
+
+**Why, precisely - checked in the flame graph, not assumed**: the batching mechanism
+itself works, and works *better* than Log4j2's own - a `strace` batching-depth check
+(same methodology as Finding 5) found syscalls carrying up to **5** events at once (204
+carrying 2, 13 carrying 3, 3 carrying 4, 2 carrying 5, out of ~67k total), deeper
+coalescing than Log4j2's own observed max of 3. But `zero_blocks_stub` (a JIT
+memory-zeroing intrinsic) shows up at 5.0% self-time, and `Arrays.copyOf`-adjacent
+allocation activity elsewhere in the profile, that don't appear at anywhere near this
+level in any other profile in this file. The reason is structural, not incidental:
+because the two locks are genuinely independent (per Adam's own design, not Log4j2's),
+`drainTo(...)` cannot safely hand off the *live* shared buffer to be written outside
+its own lock - a concurrent append could still be racing in. So it allocates a
+**fresh backing array on every single drain** to hand off safely, and since draining
+now happens on every event (not just when the rare race hits), that's a real allocation
+on the hot path of *every logged event*, not just the occasional batched one. Log4j2's
+own single-shared-monitor design never needs this: append and drain can never overlap
+there, so the exact same live buffer can always be reused in place.
+
+**This isolates the actual tradeoff cleanly**: the "share one buffer, drain
+separately" idea is not inherently bad - it produces real batching, deeper than
+Log4j2's own - but Adam's proposed *independent-locks* variant specifically pays for
+that independence with a per-event allocation Log4j2's own *same-monitor-twice* design
+avoids entirely. Untested, and the obvious next step if this is worth pursuing
+further: a variant using Log4j2's exact shape (one shared monitor, acquired twice,
+sequentially - no second independent object) instead of two truly separate ones, which
+would let `drainTo` reuse its buffer in place with no allocation, isolating whether the
+regression is about "two lock acquisitions instead of one" in general or specifically
+about "two *independent* locks requiring double-buffering." Not built in this pass -
+Finding 6 answers the question actually asked (Adam's own two-different-monitors
+proposal), not a hypothetical faithful port.
+
 ## What this does and doesn't settle
 
 **Settled, with real evidence**: the locking-strategy story (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`
@@ -361,7 +422,14 @@ was correct. The first pass at this question (single-threaded `strace`) was too 
 test to see it and wrongly called it "refuted" - corrected once concurrency was
 actually applied. The magnitude is small enough (~0.1-0.4% of events) that it doesn't
 explain the throughput gap on its own, but it's a genuine, now-measured architectural
-difference, not just a theoretical one.
+difference, not just a theoretical one. Also settled (Finding 6): replicating that
+two-lock shape in Rainbow Gum, at least with genuinely independent monitor objects, is
+a clear net loss (-32.9% to -41.8% depending on the baseline), not a win - the
+allocation cost of safely handing off a shared buffer between independent locks
+outweighs the deeper batching it achieves. Copying Log4j2's *symptom* (two lock
+acquisitions) without its *specific* mechanism (one shared monitor, not two) makes
+things worse, confirmed with real numbers rather than left as a plausible-sounding
+guess.
 
 **Not settled**: the *single-threaded*, zero-contention +26.6% gap is still
 unexplained by anything in this profile - no single frame or cluster of frames stands

@@ -229,7 +229,42 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * the better choice unless avoiding {@link ThreadLocal} entirely is a hard
 		 * requirement, not just a preference.
 		 */
-		LOCK_NEW_BUFFER;
+		LOCK_NEW_BUFFER,
+		/**
+		 * Experimental - replicates Log4j2's own two-lock design (one
+		 * {@code synchronized} block to copy an event's already-encoded bytes into a
+		 * buffer <strong>shared across all threads</strong>, a second, independent
+		 * {@code synchronized} block to drain that shared buffer to the output) instead
+		 * of
+		 * {@link #LOCK_THREAD_LOCAL_BUFFER}/{@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER}'s
+		 * one-lock-covers-both-the-copy-and-the-write shape. Each thread still encodes
+		 * into its own {@link ThreadLocal} scratch buffer first, outside any lock, same
+		 * as the other {@code ThreadLocal}-backed types - the two new locks are purely
+		 * about the shared buffer and the flush, not encoding.
+		 * <p>
+		 * Unlike Log4j2 (which reuses one {@code synchronized(this)} monitor for both
+		 * steps), this uses two genuinely separate monitor objects, so an append and a
+		 * concurrent drain never block each other directly - draining hands off the
+		 * shared buffer's current contents to a freshly allocated array first (a small
+		 * per-flush allocation Log4j2's own single-monitor design does not need, exactly
+		 * because appends and drains can never overlap there).
+		 * <p>
+		 * A real consequence of sharing one buffer across threads: a thread's own flush
+		 * call is not guaranteed to be what physically writes its own event - another
+		 * thread's flush, racing in between this thread's buffer-copy and its own flush
+		 * call, can drain (and therefore be the one to actually write) this thread's
+		 * bytes first. Measured directly (not just reasoned about) in
+		 * {@code benchmark/native/PROFILING_RESULTS.md}: no data loss or corruption
+		 * results from this - every event's bytes are still written exactly once,
+		 * complete and in order - but {@link AppenderFlag#DISABLE_IMMEDIATE_FLUSH} aside,
+		 * "this call returned" no longer means "this call's own flush wrote these bytes,"
+		 * only "some flush call did, by the time this call returned."
+		 * @apiNote added specifically to test whether Log4j2's own throughput lead is
+		 * explained by this shape - see {@code benchmark/native/PROFILING_RESULTS.md} for
+		 * the measured result. Not recommended over
+		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER} without first checking that write-up.
+		 */
+		SYNCHRONIZED_SHARED_BUFFER;
 
 		static AppenderType parse(String value) {
 			String v = value.toUpperCase(Locale.ROOT);
@@ -750,6 +785,8 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 					new ReentrantLock(), alerts, metrics);
 			case LOCK_NEW_BUFFER ->
 				new LockNewBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
+			case SYNCHRONIZED_SHARED_BUFFER ->
+				new SynchronizedSharedBufferLogAppender(name, output, encoder, flags, alerts, metrics);
 		};
 	}
 
@@ -783,10 +820,14 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * {@code LOCK_THREAD_LOCAL_BUFFER} instead.
 	 */
 	static LogAppender.AppenderType guardSynchronizedAppenderType(LogAppender.AppenderType type) {
-		if (!forceReentrantLockAppenders || type != LogAppender.AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER) {
+		if (!forceReentrantLockAppenders) {
 			return type;
 		}
-		return LogAppender.AppenderType.LOCK_THREAD_LOCAL_BUFFER;
+		return switch (type) {
+			case SYNCHRONIZED_THREAD_LOCAL_BUFFER, SYNCHRONIZED_SHARED_BUFFER ->
+				LogAppender.AppenderType.LOCK_THREAD_LOCAL_BUFFER;
+			case LOCK_THREAD_LOCAL_BUFFER, REUSE_BUFFER, LOCK_NEW_BUFFER -> type;
+		};
 	}
 
 	/*
@@ -821,7 +862,8 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 			return type;
 		}
 		return switch (type) {
-			case LOCK_THREAD_LOCAL_BUFFER, SYNCHRONIZED_THREAD_LOCAL_BUFFER -> LogAppender.AppenderType.LOCK_NEW_BUFFER;
+			case LOCK_THREAD_LOCAL_BUFFER, SYNCHRONIZED_THREAD_LOCAL_BUFFER, SYNCHRONIZED_SHARED_BUFFER ->
+				LogAppender.AppenderType.LOCK_NEW_BUFFER;
 			case REUSE_BUFFER, LOCK_NEW_BUFFER -> type;
 		};
 	}
@@ -1353,6 +1395,218 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 	@Override
 	public List<LogResponse> act(LogAction action) {
 		synchronized (monitor) {
+			try {
+				return _request(action);
+			}
+			catch (UncheckedIOException ioe) {
+				return List.of(new Response(LogOutput.class, name, Status.ErrorStatus.of(ioe)));
+			}
+		}
+	}
+
+}
+
+/**
+ * A {@link LogOutput} that is not a real sink - it accumulates already-encoded bytes from
+ * possibly many threads into one shared, growable in-memory buffer instead of doing any
+ * I/O, protected by its own monitor ({@link #appendLock}) that is deliberately a
+ * <strong>different</strong> object from whatever lock protects draining that buffer to a
+ * real output. See {@link LogAppender.AppenderType#SYNCHRONIZED_SHARED_BUFFER}'s javadoc
+ * for why ({@link SynchronizedSharedBufferLogAppender} is the only caller).
+ */
+final class SharedBufferOutput implements LogOutput {
+
+	private final Object appendLock = new Object();
+
+	private byte[] buffer;
+
+	private int length;
+
+	SharedBufferOutput(int initialCapacity) {
+		this.buffer = new byte[initialCapacity];
+	}
+
+	@Override
+	public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
+		synchronized (appendLock) {
+			ensureCapacity(len);
+			System.arraycopy(bytes, off, buffer, length, len);
+			length += len;
+		}
+	}
+
+	private void ensureCapacity(int extra) {
+		if (length + extra > buffer.length) {
+			buffer = Arrays.copyOf(buffer, Math.max(buffer.length * 2, length + extra));
+		}
+	}
+
+	/**
+	 * Hands off whatever is currently accumulated to {@code realOutput} and resets the
+	 * shared buffer to empty - a no-op if nothing has been appended since the last drain.
+	 * Callers are expected to serialize calls to this method themselves (via their own,
+	 * separate lock) so that only one drain happens at a time; this method only protects
+	 * the buffer against concurrent {@link #write} calls, not against concurrent drains
+	 * of its own.
+	 * <p>
+	 * Because {@link #appendLock} is a genuinely different monitor from whatever protects
+	 * this method's caller, an append can still be in flight when a drain starts - so the
+	 * currently-accumulated bytes are handed off as a freshly allocated array rather than
+	 * the live backing array, and a fresh backing array is installed before releasing
+	 * {@link #appendLock}. Log4j2's own equivalent does not need this (both steps share
+	 * one monitor there, so they can never overlap), which is exactly the tradeoff
+	 * {@link LogAppender.AppenderType#SYNCHRONIZED_SHARED_BUFFER}'s javadoc points at -
+	 * genuinely independent locks avoid blocking appends during a drain, at the cost of
+	 * an allocation per drain that the single-shared-monitor design avoids.
+	 * @param realOutput output to receive the accumulated bytes, if any.
+	 * @param event event to associate the write with (for alerting/metrics only - the
+	 * bytes drained may belong to more than one event).
+	 */
+	void drainTo(LogOutput realOutput, LogEvent event) {
+		byte[] toWrite;
+		int len;
+		synchronized (appendLock) {
+			if (length == 0) {
+				return;
+			}
+			toWrite = buffer;
+			len = length;
+			buffer = new byte[toWrite.length];
+			length = 0;
+		}
+		realOutput.write(event, toWrite, 0, len, ContentType.StandardContentType.TEXT_PLAIN);
+	}
+
+	@Override
+	public java.net.URI uri() {
+		throw new UnsupportedOperationException("SharedBufferOutput is not a real output and has no URI");
+	}
+
+	@Override
+	public OutputType type() {
+		return OutputType.MEMORY;
+	}
+
+	@Override
+	public LogEncoder.BufferHints bufferHints() {
+		return LogOutput.WriteMethod.BYTES;
+	}
+
+	@Override
+	public void flush() {
+		// Draining/flushing is orchestrated by SynchronizedSharedBufferLogAppender via
+		// drainTo(...) - this output is never flushed on its own.
+	}
+
+	@Override
+	public void close() {
+	}
+
+}
+
+/**
+ * Replicates Log4j2's own two-{@code synchronized}-block design for
+ * {@link LogAppender.AppenderType#SYNCHRONIZED_SHARED_BUFFER} - see that constant's
+ * javadoc for the full design rationale and the measured result.
+ */
+final class SynchronizedSharedBufferLogAppender extends AbstractLogAppender implements InternalLogAppender {
+
+	private final Object flushLock = new Object();
+
+	private final SharedBufferOutput sharedBuffer;
+
+	// See LockThreadLocalBufferLogAppender's identical field for why this suppression is
+	// needed.
+	@SuppressWarnings("nullness:type.argument")
+	private final ThreadLocal<LogEncoder.Buffer> scratchThreadLocal;
+
+	SynchronizedSharedBufferLogAppender(String name, LogOutput output, LogEncoder encoder,
+			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
+		super(name, output, encoder, flags, alerts, metrics);
+		this.sharedBuffer = new SharedBufferOutput(8192);
+		this.scratchThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(sharedBuffer.bufferHints()));
+	}
+
+	@Override
+	public void append(LogEvent event) {
+		try {
+			var scratch = scratchThreadLocal.get();
+			scratch.clear();
+			encoder.encode(event, scratch);
+			scratch.drain(sharedBuffer, event);
+			drainAndMaybeFlush(event);
+		}
+		catch (Exception e) {
+			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+		}
+	}
+
+	/*
+	 * Draining (delivering the shared buffer's current contents to output.write(...))
+	 * always happens, matching every other appender type in this file - only the actual
+	 * output.flush() call is conditional on immediateFlush. This is what lets the
+	 * batching/race behavior described in AppenderType#SYNCHRONIZED_SHARED_BUFFER's
+	 * javadoc still happen when immediateFlush is on (the scenario this type exists to
+	 * test) while keeping AppenderFlag#DISABLE_IMMEDIATE_FLUSH's contract the same as
+	 * every other type: events are always delivered to the real output, only the OS-level
+	 * flush is skippable.
+	 */
+	private void drainAndMaybeFlush(LogEvent event) {
+		if (shouldDropForReentry(Thread.holdsLock(flushLock), flags, metrics, 1)) {
+			return;
+		}
+		synchronized (flushLock) {
+			sharedBuffer.drainTo(output, event);
+			if (immediateFlush) {
+				output.flush();
+			}
+		}
+	}
+
+	@Override
+	public void append(LogEvent[] events, int count) {
+		if (shouldDropForReentry(Thread.holdsLock(flushLock), flags, metrics, count)) {
+			return;
+		}
+		try {
+			for (int i = 0; i < count; i++) {
+				var scratch = scratchThreadLocal.get();
+				scratch.clear();
+				encoder.encode(events[i], scratch);
+				scratch.drain(sharedBuffer, events[i]);
+			}
+			if (count > 0) {
+				synchronized (flushLock) {
+					sharedBuffer.drainTo(output, events[0]);
+					if (immediateFlush) {
+						output.flush();
+					}
+				}
+			}
+		}
+		catch (Exception e) {
+			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
+			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+		}
+	}
+
+	/*
+	 * No final drain here, matching every other appender in this file: draining (see
+	 * drainAndMaybeFlush) already happens unconditionally on every append() call
+	 * regardless of immediateFlush, so nothing is ever left pending in the shared buffer
+	 * by the time close() runs.
+	 */
+	@Override
+	public void close() {
+		synchronized (flushLock) {
+			super.close();
+		}
+	}
+
+	@Override
+	public List<LogResponse> act(LogAction action) {
+		synchronized (flushLock) {
 			try {
 				return _request(action);
 			}
