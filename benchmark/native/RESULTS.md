@@ -34,6 +34,33 @@ story already established in `why_rainbowgum_is_better.md`'s "Small" section (Lo
 native image itself is also markedly larger - 25.86MB code area vs Rainbow Gum's
 9.53MB, from the build output in this same session).
 
+## Structured logging
+
+Same methodology, `STRUCTURED_FORMAT=gelf`. Each framework uses its own idiomatic
+structured format rather than being forced onto identical wire output - see
+[README.md](README.md) for why: Rainbow Gum uses `rainbowgum-json`'s `GelfEncoder`
+(GELF), Log4j2 uses `log4j-core`'s own built-in `GelfLayout` (also GELF, no extra
+dependency), Logback uses the third-party `logstash-logback-encoder` (Logstash-format
+JSON, not GELF - Logback has no first-party or well-maintained GELF option, and
+forcing GELF parity there isn't worth a dependency nobody would actually pick).
+
+| | Rainbow Gum | Log4j2 | Logback |
+|---|---:|---:|---:|
+| throughput | 31,464 req/s | **34,229 req/s** | 27,452 req/s |
+| p50 latency | 1.54 ms | **1.37 ms** | 1.60 ms |
+| p99 latency | **4.01 ms** | 4.33 ms | 7.77 ms |
+| RSS avg | **52.7 MB** | 94.0 MB | 128.2 MB |
+
+A more differentiated - and more favorable to Rainbow Gum - picture than the plain TTLL
+result above. Log4j2 still leads raw throughput and p50, but by a narrower margin here.
+Rainbow Gum now clearly beats Logback on throughput (not just memory), and leads on p99
+tail latency too, not just RSS. Logback's p99 (7.77ms) and max (24.52ms) stand out
+specifically - Jackson-based serialization (`logstash-logback-encoder` depends on
+`jackson-databind`) is doing real, comparatively expensive work per event that neither
+Rainbow Gum's own hand-rolled JSON writer nor Log4j2's built-in `GelfLayout` (also not
+Jackson-based) has to pay for. Logback's memory (128.2 MB avg) is roughly 2.4x Rainbow
+Gum's here, a wider gap than the already-wide TTLL-scenario gap against Log4j2.
+
 ## Not yet tried
 
 * Rainbow Gum's per-appender locking strategy (`logging.appender.<name>.type`,

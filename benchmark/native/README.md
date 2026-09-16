@@ -81,10 +81,51 @@ down.
 Rainbow Gum needed no changes at all: `rainbowgum-slf4j` on the classpath is the entire
 setup, console + TTLL are its own zero-config defaults.
 
+Load-test numbers for both scenarios (TTLL and structured) are in
+[RESULTS.md](RESULTS.md).
+
+## Structured logging (`STRUCTURED_FORMAT=gelf`)
+
+Each app also supports a second, structured-output mode, selected by setting
+`STRUCTURED_FORMAT=gelf` before starting it (an env var read in each `App.main`, which
+sets the relevant framework's own config-selection system property before the first
+logger is created - `logging.appender.console.encoder` for Rainbow Gum,
+`log4j2.configurationFile` for Log4j2, `logback.configurationFile` for Logback). No
+separate native image is needed for this - both configs are bundled in the same
+executable.
+
+"Varying support" turned out to be real: Rainbow Gum (`rainbowgum-json`'s `GelfEncoder`)
+and Log4j2 (`log4j-core`'s own built-in `GelfLayout`, no extra dependency) both have
+first-party GELF support. Logback has none - the third-party
+`net.logstash.logback:logstash-logback-encoder` is used instead, producing
+Logstash-format JSON rather than GELF, deliberately Logback's own idiomatic choice
+rather than a forced, less-maintained GELF option nobody would actually pick in
+practice.
+
+Two more silent-at-runtime GraalVM gotchas turned up getting this working, both the
+same *shape* as the two above - a clean build, a running server, wrong or missing
+output only visible by actually reading it:
+
+* The `-H:IncludeResources=logback\.xml$` fix from the plain-TTLL scenario only matched
+  that one literal filename - `logback-json.xml` (the structured config) was just as
+  silently absent as `logback.xml` originally was, for the identical reason. Broadened
+  to `-H:IncludeResources=logback.*\.xml$` to cover both.
+* `net.logstash.logback.encoder.LogstashEncoder` itself was not reachable by GraalVM's
+  closed-world analysis - nothing statically referenced it, only a class-name string in
+  `logback-json.xml` did - so even with the resource fixed, Logback logged
+  `ClassNotFoundException` for the encoder and silently dropped it, leaving the
+  `ConsoleAppender` with "No encoder set". Diagnosed with the GraalVM tracing agent
+  (`-agentlib:native-image-agent=config-output-dir=...` against a real JVM-mode run of
+  the same scenario) rather than guessing, then fixed with one small, hand-written
+  `META-INF/native-image/io.jstach.rainbowgum/rainbowgum-benchmark-native-logback/reflect-config.json`
+  entry for just that one class - deliberately not the agent's full, noisier captured
+  output, most of which turned out to already be unnecessary.
+
 ## Not yet done
 
-* Actual load-test numbers (throughput/latency/RSS via the driver, across virtual vs
-  platform threads) - the point of this pass was getting all three working under
-  native-image at all, not measuring yet.
 * Lock strategy tuning (`logging.appender.<name>.type`) if Rainbow Gum's native numbers
   need it - deliberately deferred until there is a real number to react to.
+* Platform-thread scenario (currently virtual threads only, both client and server
+  side).
+* Real profiling (JFR/async-profiler) of the TTLL time-formatting theory in
+  RESULTS.md - not chased yet, flagged as unverified.

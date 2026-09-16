@@ -22,6 +22,20 @@
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
     </dependency>
+    <dependency>
+      <!--
+        Logback itself has no first-party structured/JSON logging support at all -
+        unlike Rainbow Gum (rainbowgum-json) and Log4j2 (log4j-core's own built-in
+        GelfLayout), this needs a third-party dependency. logstash-logback-encoder is
+        the de-facto standard choice, producing Logstash-format JSON rather than GELF -
+        deliberately Logback's own idiomatic format rather than forcing GELF parity
+        with the other two (there is no first-party/well-maintained GELF option for
+        Logback worth using here).
+      -->
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>9.0</version>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -75,7 +89,7 @@
                       a passing build with a running server is not proof the right
                       config was actually used.
                     -->
-                    <buildArg>-H:IncludeResources=logback\.xml$</buildArg>
+                    <buildArg>-H:IncludeResources=logback.*\.xml$</buildArg>
                     <!-- See rainbowgum-benchmark-native-rainbowgum/pom.xml for why this
                          is needed at build time, not just BenchServer's own runtime
                          System.setProperty(...) call. -->

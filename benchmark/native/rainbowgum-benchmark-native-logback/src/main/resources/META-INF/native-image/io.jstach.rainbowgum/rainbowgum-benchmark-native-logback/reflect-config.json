@@ -1,0 +1,7 @@
+[
+{
+  "name":"net.logstash.logback.encoder.LogstashEncoder",
+  "queryAllPublicMethods":true,
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+}
+]

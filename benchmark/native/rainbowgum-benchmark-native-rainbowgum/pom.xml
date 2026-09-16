@@ -22,6 +22,11 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-slf4j</artifactId>
     </dependency>
+    <dependency>
+      <!-- GelfEncoder, for the structured-logging scenario (STRUCTURED_FORMAT=gelf). -->
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-json</artifactId>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
