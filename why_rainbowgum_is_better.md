@@ -79,6 +79,31 @@ held for the whole encode-then-write critical section, the same shape as Rainbow
 `REUSE_BUFFER`. It is not a choice you can make; it is the only implementation Logback
 has. Rainbow Gum treats that as one of four options, not the only one.
 
+## Discarding a disabled level costs as close to zero as possible
+
+Most frameworks' SLF4J bindings dispatch every call through a single logger
+implementation that checks the current level against an `if` condition -
+`isDebugEnabled()` (or the equivalent internal check inside `debug(...)` itself) still
+runs a comparison and a branch on every single disabled call, no matter how "cheap" that
+check is. Rainbow Gum's SLF4J logger instead resolves the effective level once, when the
+logger is obtained, to one of five concrete per-level classes
+(`ErrorLogger`/`WarnLogger`/`InfoLogger`/`DebugLogger`/`TraceLogger`, generated - not
+hand-written, so there is no per-level combination anyone could forget). For any level
+below the one that class represents, the method body is empty:
+
+```java
+// a Logger resolved at WARN - this is the entire method, not an excerpt
+@Override
+public void info(String msg) {
+}
+```
+
+Calling `.info(...)`/`.debug(...)`/`.trace(...)` on a logger configured at `WARN` does not
+evaluate a condition at all - it calls a method with nothing in it, which the JIT can (and
+does) treat as free. `isInfoEnabled()` still correctly returns `false` (SLF4J's contract
+requires the method to exist), but the actual logging call itself never consults it,
+because which behavior to run was already decided once, not on every call.
+
 ## Modular, GraalVM Native, and jlink friendly
 
 * Log4j2, Reload4j, and Logback all require the `java.xml` module - Logback pulls it in
