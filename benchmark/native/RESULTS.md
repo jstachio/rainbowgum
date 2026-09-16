@@ -218,6 +218,39 @@ board, consistent with the "methodology note" above about this being a shared,
 virtualized, noisy environment. Only the internal default-vs-`STRING` delta, measured
 back-to-back under identical current-session conditions, is meaningful here.
 
+### Retested after fixing the "caveat" above (`core` change, not benchmark-only)
+
+The in-lock `getBytes()` caveat above was a real bug, not just a benchmark footnote -
+fixed in `core`: `StringBuilderBuffer` now converts to a `byte[]` inside
+`encodeToBuffer(...)` (outside the lock, the same timing `DirectByteBufferBuffer`'s
+`CharsetEncoder` work already used) and `drain(...)` writes that precomputed array
+directly, instead of lazily calling `LogOutput.write(LogEvent, String)` - whose
+`getBytes()` was what landed inside the lock before. Separately,
+`DirectByteBufferBuffer`'s own scratch `StringBuilder` was never sized with
+`initialByteCapacity` (it defaulted to `StringBuilder`'s own capacity of 16, unlike the
+already-presized `byteBuffer` next to it) - fixed to match, so every fresh buffer isn't
+paying for several growth reallocations on its first event.
+
+Retested the exact same comparison (TTLL, GraalVM 25.3.4, default appender type,
+`/greet/world`, 6 runs: 3 forward + 3 reversed start order):
+
+| | default (`BYTES`) | `OUTPUT_TYPE=STRING` | change |
+|---|---:|---:|---:|
+| throughput | 25,840 req/s | 30,034 req/s | **+16.2%** (was +9.6%) |
+| p50 latency | 1.85 ms | 1.58 ms | -14.6% (was -11.2%) |
+| RSS (avg) | 42.1 MB | 39.6 MB | **-6.1%** (was +2.8%) |
+
+Fixing the lock-timing bug didn't shrink the win, it grew it, and RSS flipped from a
+small cost to a real savings. Not fully explained - moving the `getBytes()` work outside
+the lock should mostly affect contention/latency, not raw allocation volume, so the RSS
+flip in particular is a bit surprising - but the direction is consistent and the
+comparison is now the clean, single-variable one the original caveat said it wasn't:
+same appender type, same lock timing on both sides, only the encode strategy
+(`getBytes()` vs `CharsetEncoder`) differs. (Absolute numbers moved again vs the
+first pass at this table too - 25,840 req/s here vs 26,972 there for the identical
+default configuration - same sandbox-noise caveat as above; only the paired delta within
+each pass is meaningful.)
+
 ## Structured logging scenario (`STRUCTURED_FORMAT=gelf`)
 
 Each framework uses its own idiomatic structured format - see [README.md](README.md)
