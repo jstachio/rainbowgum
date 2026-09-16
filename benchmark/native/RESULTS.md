@@ -353,6 +353,47 @@ not rule out buffering behavior being different in some other way (e.g. immediat
 semantics, or how many events get batched into one buffer versus one buffer per event) -
 not chased further yet.
 
+### Does Log4j2 write to stdout directly (bypassing `System.out`)?
+
+Adam recalled seeing something like `direct` in Log4j2's code and asked whether its
+default console output hits the file descriptor directly, unlike Rainbow Gum's
+`StdOutOutput` (which explicitly wraps whatever `System.out` is bound to at provision
+time). Checked directly (decompiled `ConsoleAppender`/`AbstractOutputStreamAppender`/
+`OutputStreamManager`/`Constants` from the real `log4j-core-2.26.1.jar`) - there are in
+fact **two different `direct`s** in Log4j2, and only one of them is active by default:
+
+* **`ConsoleAppender.Builder#direct`** (a builder attribute, e.g. `direct="true"` in
+  XML) - this is the FD-bypass one Adam was picturing: when `true`, the appender opens
+  `new FileOutputStream(FileDescriptor.out)` directly, skipping `System.out` entirely.
+  It **defaults to `false`**, and this benchmark's `log4j2.xml` never sets it - so the
+  default path (`ConsoleAppender.getDefaultOutputStream`) is used instead, which wraps
+  `System.out` (`new CloseShieldOutputStream(System.out)`) - **the exact same target
+  Rainbow Gum's `StdOutOutput` wraps.** No FD-bypass advantage for Log4j2 in this
+  benchmark; both frameworks go through `System.out`.
+* **`Constants.ENABLE_DIRECT_ENCODERS`** (`log4j2.enable.direct.encoders` system
+  property) - a completely different "direct," about the encode *target* rather than
+  the output *destination*: when `true` (the default, and not overridden anywhere in
+  this benchmark), `AbstractOutputStreamAppender.tryAppend(...)` calls
+  `directEncodeEvent(event)`, which encodes the layout straight into the
+  `OutputStreamManager`'s own reused 8192-byte `ByteBuffer` (`manager` itself implements
+  `ByteBufferDestination`) with **zero `byte[]` allocation per event** - true
+  garbage-free encoding. The alternative (`ENABLE_DIRECT_ENCODERS=false`) allocates a
+  fresh `byte[]` per event via `layout.toByteArray(event)` instead. Since this defaults
+  to `true`, Log4j2 **is** using this "direct" path by default here - which is
+  architecturally the closest match to Rainbow Gum's own `DirectByteBufferBuffer`
+  (also `CharsetEncoder`-into-a-reused-`ByteBuffer`, also garbage-free) - confirming the
+  "Closing the gap" section's premise that these two are genuinely comparable
+  strategies, not an apples-to-oranges case where Log4j2 secretly skips a whole layer
+  of work Rainbow Gum still pays for.
+
+One more thing confirmed along the way: `immediateFlush` also defaults to `true` for
+`ConsoleAppender` (`AbstractOutputStreamAppender.Builder`'s field default, also
+hardcoded `true` in `ConsoleAppender`'s own default-manager factory path, and this
+benchmark's config never overrides it) - `OutputStreamManager.write(...)` calls
+`flushDestination()` (a real `System.out.flush()`) after every single event, same as
+Rainbow Gum's own default per-event flush behavior. No batching/deferred-flush
+advantage for Log4j2 either - both frameworks flush every event to the same target.
+
 ## Cheaper `Instant`s in `LogEventFactory` - a negative result
 
 Adam's standing theory (see "Not yet tried" below, pre-existing before this test) was
@@ -470,5 +511,7 @@ Two things stand out:
   is a real heap-allocated object today; Project Valhalla's value types could remove
   that allocation cost if `Instant` becomes a flattened value type in a future JDK - not
   profiled either.
-* Why Log4j2's own buffering/flush behavior differs from "just a bigger buffer" if it
-  does at all - not yet investigated beyond the byte-buffer-size constant itself.
+* ~~Why Log4j2's own buffering/flush behavior differs from "just a bigger buffer" if it
+  does at all~~ - resolved (see "Does Log4j2 write to stdout directly?" above): same
+  buffer size, same `System.out` target (not a raw FD), same per-event `immediateFlush`
+  behavior as Rainbow Gum. Log4j2's own throughput lead remains otherwise unexplained.
