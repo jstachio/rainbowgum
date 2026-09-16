@@ -54,6 +54,31 @@ native structured-logging support produces with nothing but a property.
 (For completeness: on plain platform threads with no structured logging, Log4j2 still
 leads there; that specific gap isn't closed.)
 
+## Configurable locking strategy
+
+Locking is not a footnote in logging performance - under real concurrent load, contention
+on the append path is often the actual bottleneck, not encoding cost. Rainbow Gum makes
+the locking/buffering strategy an explicit, per-appender choice
+(`logging.appender.<name>.type`, or `LogAppender.Builder#appenderType` programmatically),
+and that choice is independent of which encoder or output the appender uses - any encoder
+(pattern, GELF, ECS, Logstash, a custom one) paired with any output (console, file, a
+custom one) can pick whichever of the four strategies fits:
+
+* `LOCK_THREAD_LOCAL_BUFFER` (default) - encode into a per-thread reused buffer outside
+  the lock, hold the lock only for the final write to the output.
+* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` - the same shape, but the write is guarded by a
+  plain `synchronized` block instead of a `ReentrantLock`.
+* `LOCK_NEW_BUFFER` - the same low-contention shape with no `ThreadLocal` at all, for
+  deployments that want a hard guarantee against it, at the cost of a fresh buffer
+  allocation per event.
+* `REUSE_BUFFER` - a single shared buffer, held under lock for the entire
+  encode-then-write critical section.
+
+Logback has exactly one locking strategy across every appender it ships - a single lock
+held for the whole encode-then-write critical section, the same shape as Rainbow Gum's
+`REUSE_BUFFER`. It is not a choice you can make; it is the only implementation Logback
+has. Rainbow Gum treats that as one of four options, not the only one.
+
 ## Modular, GraalVM Native, and jlink friendly
 
 * Log4j2, Reload4j, and Logback all require the `java.xml` module - Logback pulls it in
