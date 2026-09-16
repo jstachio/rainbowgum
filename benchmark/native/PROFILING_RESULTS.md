@@ -260,6 +260,23 @@ shares a buffer across threads (`LOCK_THREAD_LOCAL_BUFFER`'s ThreadLocal), and
 `SYNCHRONIZED_THREAD_LOCAL_BUFFER`'s single lock/unlock pair covers write *and* flush
 together, so there's no gap between them for another thread to land in.
 
+**How many events actually share a buffer at once?** Checked directly by capturing
+full `write()` content (`strace -s 4000`) and counting newlines per syscall, rather
+than inferring depth from the aggregate deficit alone:
+
+| threads | 1 event/syscall | 2 events/syscall | 3 events/syscall |
+|---|---:|---:|---:|
+| 32 | 69,865 | 150 | 0 |
+| 64 | 64,298 | 149 | 1 |
+
+Almost always exactly 1 (the normal case). 2 is the common form of the race. 3 did
+happen once, at 64 threads (3.2x oversubscribed relative to this machine's 20 cores) -
+rare, but the ceiling isn't hard-capped at 2 either; the shared buffer is 8192 bytes
+and these TTLL lines are ~120-150 bytes, so it has room for dozens before
+`drainIfByteBufferFull` would force an early drain - in principle nothing stops a
+larger pile-up under enough contention, it's just increasingly unlikely for the same
+reason 3-way collisions are already this rare at 2 and this row's only occurrence.
+
 **Does this mean Log4j2 can lose or corrupt log lines? Checked directly, not inferred:
 no.** Counted actual lines in the 32-thread run's output file against expected count
 (`iterations × 5`): **74,435 lines written, 74,435 expected - exact match.** Then
