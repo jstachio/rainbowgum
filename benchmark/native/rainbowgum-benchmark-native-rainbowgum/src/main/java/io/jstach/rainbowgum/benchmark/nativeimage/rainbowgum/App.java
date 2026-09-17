@@ -42,6 +42,15 @@ import io.jstach.rainbowgum.benchmark.nativeimage.BenchServer;
  * {@code THREAD_TYPE=PLATFORM} switches {@link BenchServer}'s dispatch executor from
  * virtual threads (the default) to a fixed-size platform-thread pool - see
  * {@link BenchServer#startAndAwait(int)}.
+ * <p>
+ * {@code ENCODER_TYPE=GET_BYTES} switches the console appender's encoder to
+ * {@code get-bytes-ttll:///} - the same TTLL formatter as the default, but converting to
+ * bytes via {@code String.getBytes(UTF_8)} on the fully-built string (see
+ * {@link GetBytesEncoderConfigurator}) instead of the default's {@code CharBuffer}/
+ * {@code CharsetEncoder}-based copy-encoding, to test whether Logback's own
+ * {@code getBytes()}-based conversion is what makes its converter-chain
+ * {@code PatternLayoutEncoder} slow under native-image, or whether it is unrelated to the
+ * conversion strategy (see {@code 0-11-2-RESULTS.md}). Unset by default.
  */
 public final class App {
 
@@ -71,6 +80,9 @@ public final class App {
 		}
 		else if ("BUFFERED".equals(outputType)) {
 			System.setProperty("logging.appender.console.output", BufferedStdOutOutput.SCHEME + ":///");
+		}
+		if ("GET_BYTES".equals(System.getenv("ENCODER_TYPE"))) {
+			System.setProperty("logging.appender.console.encoder", GetBytesEncoderConfigurator.SCHEME + ":///");
 		}
 		String logLevel = System.getenv("LOG_LEVEL");
 		if (logLevel != null) {
