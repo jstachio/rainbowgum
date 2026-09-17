@@ -154,6 +154,81 @@ the other), worth a closer look before calling this an unconditional win.
   non-Jackson `GelfLayout` genuinely looks closer to "free" than any other structured-logging path
   measured in this benchmark so far.
 
+## The same controlled comparison, on HotSpot
+
+Same 8 configs (4 frameworks x TTLL/GELF), same fixed thread model (virtual), same methodology, but
+HotSpot (Temurin 26.0.2) instead of native-image this time - the other half of the platform-detection
+question: does `SYNCHRONIZED_THREAD_LOCAL_BUFFER` still win outside native-image, or does the
+already-established HotSpot finding (`LOCK_THREAD_LOCAL_BUFFER` is the better default there, which is
+*why* it's the default in the first place) still hold once GELF is added to the picture too, not just
+TTLL?
+
+**One run in this batch (`logback`+GELF) hit a real, reproducible memory anomaly serious enough that
+it appears to have gotten the whole background batch killed by something outside this benchmark's own
+control** (host/sandbox-level, not a JVM crash) partway through - see its own section below. The other
+21 of 24 runs completed cleanly and are reported normally:
+
+| framework | TTLL throughput | TTLL p50 | TTLL RSS | GELF throughput | GELF p50 | GELF RSS |
+|---|---:|---:|---:|---:|---:|---:|
+| rg-sync | 37,196 req/s | 1.36 ms | 582.0 MB | 34,022 req/s | 1.36 ms | 588.7 MB |
+| **rg-lock (default)** | **43,253 req/s** | 1.13 ms | 576.7 MB | **42,243 req/s** | 1.19 ms | 591.0 MB |
+| log4j2 | 35,167 req/s | 1.25 ms | 637.6 MB | 33,586 req/s | 1.23 ms | 609.1 MB |
+| logback | 41,698 req/s | 1.22 ms | 609.2 MB | see below | - | see below |
+
+### The sync-vs-lock question, confirmed in reverse on HotSpot
+
+**`LOCK_THREAD_LOCAL_BUFFER` (the current default) wins here, in both formats** - +16.3% throughput
+over `SYNCHRONIZED_THREAD_LOCAL_BUFFER` in TTLL (43,253 vs 37,196 req/s), +24.2% in GELF (42,243 vs
+34,022 req/s). This is a genuine cross-over, not just "the native-image win shrinks" - the ranking
+fully flips, and it now holds under GELF as well as TTLL (previously this HotSpot-favors-lock finding
+had only been confirmed for TTLL). Combined with the native-image section above
+(`SYNCHRONIZED_THREAD_LOCAL_BUFFER` +29-32%), **this is exactly the pattern that justifies gating by
+platform, not picking one appender type as a new global default**: whichever one you'd pick,
+something is leaving 16-32% throughput on the table on the other platform.
+
+`rg-lock` also clearly leads both other frameworks here in both formats (log4j2 by +23.0%/+25.8%,
+logback's own TTLL row by +3.7%) - consistent with this file's original, very first "HotSpot" section
+finding that Rainbow Gum leads on HotSpot generally.
+
+### `logback` + GELF: a real, reproducible, unexplained memory blow-up
+
+The first sign was `logback-gelf-run1` in this batch showing RSS avg 5,407 MB / max 6,403 MB (every
+other row in this entire file, across both native-image and HotSpot, sits under 650 MB) and a max
+latency of 116 ms (every other row's max sits in single digits). The batch was killed partway through
+`run2`.
+
+Re-probed by hand, foreground, with live per-second RSS sampling, twice:
+
+| variant | t=1s | t=8s | t=15-18s (still climbing) |
+|---|---:|---:|---:|
+| virtual threads | 466 MB | 8,384 MB | 8,511 MB |
+| platform threads (`THREAD_TYPE=PLATFORM`) | 429 MB | 7,295 MB | 7,663 MB |
+
+**Growth is monotonic and never plateaus within the run** - this is not a transient GC spike, it
+sustains and keeps climbing for the entire measured window regardless of thread model. Ruling out
+virtual-thread-identity churn specifically (a plausible first guess - a new virtual thread per request,
+`~35,000/s`, could leak via a `ThreadLocal`-cached buffer never reclaimed) since it reproduces
+identically with a small, fixed, reused 200-thread platform pool - 200 threads cannot explain
+unbounded multi-gigabyte growth via a per-thread cache. A capped-heap sanity check
+(`-Xmx1g`, shorter/lighter run) showed no such growth (topped out at 793 MB, stable) - suggesting this
+is specifically about what happens when HotSpot's default heap ergonomics (no `-Xmx` anywhere in this
+benchmark's own methodology, and this host has 121 GB of RAM to grow into) meet
+`logstash-logback-encoder`'s Jackson-based allocation profile under sustained load: garbage
+accumulates faster than GC reclaims it, and with a huge default max heap available, HotSpot lets
+committed memory keep growing rather than collecting aggressively. **Not confirmed with a heap
+histogram/profiler - this is an informed hypothesis from the differential tests above, not a diagnosed
+root cause.** Notably this never showed up in the native-image pass above (`logback`+GELF RSS there
+was a normal 105.1 MB) - whatever this is, it looks specific to HotSpot's heap ergonomics on this
+particular host, not to Logback/`logstash-logback-encoder` architecturally.
+
+Throughput itself stayed roughly in line with the other rows during the growth (34,000-38,000 req/s
+across the three affected samples) - the leak (if that's what it is) doesn't appear to choke request
+handling within this benchmark's short window, only memory, plus that one 116-139ms latency-tail
+spike. Given the risk of triggering another external kill, this was not run to completion for a
+clean 3-sample average the way every other row in this file is - the three samples collected (run1,
+and the two hand-probed reruns) are reported above individually rather than averaged into the main
+table.
+
 ## Not yet done
 
 * Isolate JVM mode from the other two axes directly: same framework, same format, same threads,
@@ -167,3 +242,13 @@ the other), worth a closer look before calling this an unconditional win.
   retained before treating the sync-vs-lock throughput win as an unconditional recommendation.
 * The remaining unpicked corners of the full cube - both passes in this file deliberately sampled a
   subset, not the full 8-corners-x-4-frameworks space.
+* **Root-cause the `logback`+GELF HotSpot memory blow-up properly** - a heap histogram or profiler run
+  (not just the differential RSS probes done here) is needed before calling the "GC ergonomics meeting
+  a huge default heap" hypothesis confirmed rather than just plausible. Worth checking whether an
+  explicit `-Xmx` (matching what a real deployment would actually set) makes it disappear entirely, and
+  whether it reproduces on a smaller-RAM host at all.
+* This file's cross-platform pair (native-image: `SYNCHRONIZED_THREAD_LOCAL_BUFFER` +29-32%; HotSpot:
+  `LOCK_THREAD_LOCAL_BUFFER` +16-24%) is the concrete data behind an `AppenderType.AUTO_DETECT` design
+  under discussion - opt-in (not the new default), sniffing platform only (not GraalVM version - this
+  file's own native-image numbers came from GraalVM 21 and 25.3.4 with no sign the effect depends on
+  version) via `org.graalvm.nativeimage.imagecode`. Not yet implemented.
