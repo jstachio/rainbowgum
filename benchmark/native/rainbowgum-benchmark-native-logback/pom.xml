@@ -1,0 +1,106 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-benchmark-native-parent</artifactId>
+    <version>0.12.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-benchmark-native-logback</artifactId>
+  <properties>
+    <parent.root>${basedir}/../../..</parent.root>
+    <native.maven.plugin.version>0.10.6</native.maven.plugin.version>
+    <exec.mainClass>io.jstach.rainbowgum.benchmark.nativeimage.logback.App</exec.mainClass>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-benchmark-native-share</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+    </dependency>
+    <dependency>
+      <!--
+        Logback itself has no first-party structured/JSON logging support at all -
+        unlike Rainbow Gum (rainbowgum-json) and Log4j2 (log4j-core's own built-in
+        GelfLayout), this needs a third-party dependency. logstash-logback-encoder is
+        the de-facto standard choice, producing Logstash-format JSON rather than GELF -
+        deliberately Logback's own idiomatic format rather than forcing GELF parity
+        with the other two (there is no first-party/well-maintained GELF option for
+        Logback worth using here).
+      -->
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>9.0</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifest>
+              <addClasspath>true</addClasspath>
+              <mainClass>${exec.mainClass}</mainClass>
+              <classpathPrefix>${exec.classpathPrefix}</classpathPrefix>
+              <classpathLayoutType>repository</classpathLayoutType>
+              <useUniqueVersions>false</useUniqueVersions>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <profiles>
+    <profile>
+      <id>native</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <version>${native.maven.plugin.version}</version>
+            <extensions>true</extensions>
+            <executions>
+              <execution>
+                <id>native-compile</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>compile-no-fork</goal>
+                </goals>
+                <configuration>
+                  <imageName>rainbowgum-benchmark-native-logback</imageName>
+                  <mainClass>${exec.mainClass}</mainClass>
+                  <fallback>false</fallback>
+                  <buildArgs>
+                    <!--
+                      Unlike Log4j2 (whose ContextInitializer resource lookup GraalVM's
+                      analysis can trace automatically), Logback's own classpath resource
+                      lookup for logback.xml is not statically determinable, so without
+                      this it is silently absent from the image - the app still starts
+                      (no crash), but Logback falls back to its own no-config
+                      BasicConfigurator (DEBUG root level, its own default pattern),
+                      which is a real, easy-to-miss correctness trap for this benchmark:
+                      a passing build with a running server is not proof the right
+                      config was actually used.
+                    -->
+                    <buildArg>-H:IncludeResources=logback.*\.xml$</buildArg>
+                    <!-- See rainbowgum-benchmark-native-rainbowgum/pom.xml for why this
+                         is needed at build time, not just BenchServer's own runtime
+                         System.setProperty(...) call. -->
+                    <buildArg>-Dsun.net.httpserver.nodelay=true</buildArg>
+                  </buildArgs>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
