@@ -97,18 +97,17 @@ class BufferSelfShrinkTest {
 	}
 
 	/*
-	 * maxBufferSize is deliberately set above
-	 * DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY (8192) here - a maxBufferSize
-	 * at or below that makes the buffer unconditionally oversized from construction alone
-	 * (documented on the buffer's own constructor), which would demonstrate that caveat
-	 * instead of genuine event-driven growth.
+	 * maxBufferSize is deliberately set above DirectByteBufferBuffer's combined initial
+	 * retained capacity here - a lower maxBufferSize makes the buffer unconditionally
+	 * oversized from construction alone (documented on the buffer's own constructor),
+	 * which would demonstrate that caveat instead of genuine event-driven growth.
 	 */
 	@Test
 	void directByteBufferBufferShrinksBothStoresAfterOversizedClear() {
 		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
-			.maxBufferSize(10_000)
+			.maxBufferSize(30_000)
 			.build()
 			.provide("test", config);
 		var buffer = (DirectByteBufferBuffer) encoder.buffer(WriteMethod.BYTE_BUFFER);
@@ -116,15 +115,18 @@ class BufferSelfShrinkTest {
 
 		encoder.encode(event("x".repeat(20_000)), buffer);
 		int grownStringCapacity = buffer.stringBuilder.capacity();
+		int grownCharCapacity = buffer.charBuffer().capacity();
 		buffer.drain(output, event("unused"));
 		int grownByteCapacity = output.lastCapacity;
-		assertTrue(grownStringCapacity + grownByteCapacity > 10_000,
-				"sanity check: the big message must have actually grown both stores past the threshold");
+		assertTrue(grownStringCapacity + grownCharCapacity + grownByteCapacity > 30_000,
+				"sanity check: the big message must have actually grown all stores past the threshold");
 
 		buffer.clear();
 
 		assertTrue(buffer.stringBuilder.capacity() < grownStringCapacity,
 				"clear() must shrink the backing StringBuilder back down once oversized");
+		assertTrue(buffer.charBuffer().capacity() < grownCharCapacity,
+				"clear() must shrink the backing CharBuffer back down once oversized");
 		assertEquals(1, trimmedCount(config), "a shrink must report LogMetrics.BUFFER_TRIMMED_METRIC");
 
 		// Encode a small event so encodeToByteBuffer() doesn't need to regrow the
@@ -148,6 +150,7 @@ class BufferSelfShrinkTest {
 
 		encoder.encode(event("small"), buffer);
 		int stringCapacityBeforeClear = buffer.stringBuilder.capacity();
+		int charCapacityBeforeClear = buffer.charBuffer().capacity();
 		buffer.drain(output, event("unused"));
 		int byteCapacityBeforeClear = output.lastCapacity;
 
@@ -157,6 +160,8 @@ class BufferSelfShrinkTest {
 
 		assertEquals(stringCapacityBeforeClear, buffer.stringBuilder.capacity(),
 				"a buffer well under the threshold must not have its StringBuilder reallocated");
+		assertEquals(charCapacityBeforeClear, buffer.charBuffer().capacity(),
+				"a buffer well under the threshold must not have its CharBuffer reallocated");
 		assertEquals(byteCapacityBeforeClear, output.lastCapacity,
 				"a buffer well under the threshold must not have its ByteBuffer reallocated");
 		assertEquals(0, trimmedCount(config), "no shrink happened, so nothing should be reported");
@@ -179,7 +184,7 @@ class BufferSelfShrinkTest {
 		var config = LogConfig.builder().build();
 		LogEncoder encoder = LogEncoder.builder(FORMATTER)
 			.charset(StandardCharsets.UTF_8)
-			.maxBufferSize(10_000)
+			.maxBufferSize(30_000)
 			.build()
 			.provide("test", config);
 		var output = new CapturingOutput();
