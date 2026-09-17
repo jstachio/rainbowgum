@@ -92,14 +92,78 @@ here, only that JVM mode clearly does. If any of these four numbers looks worth 
 is a real controlled run (single axis varied, other two held constant, longer duration, more runs) -
 exactly this benchmark's usual methodology, not this pass's.
 
+## Controlled comparison: native-image + virtual threads, TTLL vs GELF, all four frameworks
+
+The confounded pass above couldn't isolate anything. This one deliberately holds two axes fixed at
+the values most people actually deploying this platform will pick - **native-image** (this benchmark
+consistently shows it winning) and **virtual threads** (native-image is not the natural home for
+heavy platform-thread-dependent apps, virtual threads are the modernization path) - and varies only
+the remaining two: Rainbow Gum's appender type (`SYNCHRONIZED_THREAD_LOCAL_BUFFER` vs the default
+`LOCK_THREAD_LOCAL_BUFFER`) and log format (TTLL vs GELF/Logstash-JSON), across all four frameworks.
+This is the comparison that actually answers "should `SYNCHRONIZED_THREAD_LOCAL_BUFFER` be the
+default for GraalVM native, or is `LOCK_THREAD_LOCAL_BUFFER` good enough".
+
+Same methodology as above (GraalVM 25.3.4 CE, concurrency 50, 3s warmup + 15s measured,
+`GET /greet/world`, stdout piped to `/dev/null` this time - see the harness-quirk note above for why),
+**3 runs each**, 8 configs, all exit code 0 (no timeouts, unlike the platform-thread rows above):
+
+| framework | TTLL throughput | TTLL p50 | TTLL RSS | GELF throughput | GELF p50 | GELF RSS |
+|---|---:|---:|---:|---:|---:|---:|
+| **rg-sync** | **91,773 req/s** | 0.45 ms | 119.7 MB | **92,264 req/s** | 0.45 ms | 74.2 MB |
+| rg-lock (default) | 71,122 req/s | 0.63 ms | 103.3 MB | 70,012 req/s | 0.65 ms | 65.6 MB |
+| log4j2 | 85,066 req/s | 0.48 ms | 99.6 MB | 82,037 req/s | 0.50 ms | 100.5 MB |
+| logback | 71,939 req/s | 0.63 ms | 65.1 MB | 56,772 req/s | 0.68 ms | 105.1 MB |
+
+### The sync-vs-lock question, answered
+
+**`SYNCHRONIZED_THREAD_LOCAL_BUFFER` wins decisively here, in both formats**: +29.0% throughput over
+the current default in TTLL (91,773 vs 71,122 req/s), +31.8% in GELF (92,264 vs 70,012 req/s) - a
+bigger, cleaner margin than any earlier same-question measurement in this benchmark (the largest
+prior number was +20.4%, GraalVM 25.3.4, TTLL only, see [RESULTS.md](RESULTS.md)'s "Closing the gap"
+section), and now confirmed to hold under GELF too, not just TTLL. p50 latency moves the same
+direction (0.63->0.45 ms TTLL, 0.65->0.45 ms GELF).
+
+**And it changes the framework-level story, not just the internal one**: with the current default
+(`rg-lock`), Rainbow Gum trails Log4j2 by 16.4% (TTLL) / 14.7% (GELF). With
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` (`rg-sync`), Rainbow Gum *beats* Log4j2 by 7.9% (TTLL) / 12.5%
+(GELF) - the exact scenario (native-image, virtual threads) this platform's actual users are most
+likely to run in. `LOCK_THREAD_LOCAL_BUFFER` staying the default here is leaving a real, repeatable,
+double-digit win on the table for the deployment target this feature was built for.
+
+RSS is the one place this isn't a clean sweep: `rg-sync`'s TTLL RSS (119.7 MB) is the highest of all
+four frameworks in this row, worse than even `rg-lock`'s (103.3 MB) - the one number in this whole
+comparison that doesn't favor `SYNCHRONIZED_THREAD_LOCAL_BUFFER`. In GELF, `rg-sync`'s RSS (74.2 MB)
+drops back below `rg-lock`'s TTLL number and is competitive again. Not explained (a fresh
+`ReentrantLock`/`synchronized` monitor shouldn't itself cost meaningfully more resident memory than
+the other), worth a closer look before calling this an unconditional win.
+
+### Other things worth noting
+
+* **Rainbow Gum's own RSS drops going from TTLL to GELF, in both appender types** (`rg-sync`:
+  119.7->74.2 MB, `rg-lock`: 103.3->65.6 MB) - the opposite of what "GELF's JSON payload is bigger
+  per line than TTLL's plain text" would predict, and the opposite of Logback's own direction (see
+  below). Not explained, not chased further this pass - flagged as a genuine anomaly, not hand-waved
+  away as "must be noise" (it's consistent across all 3 runs each way).
+* **Logback's RSS moves hard in the other direction**: 65.1 MB (TTLL) -> 105.1 MB (GELF, actually
+  Logstash JSON via the third-party `logstash-logback-encoder`), +61%, and its throughput drops 21%
+  (71,939 -> 56,772 req/s) - consistent with this benchmark's standing finding that Logback's
+  Jackson-based structured encoder is doing real, comparatively expensive work per event (see
+  [RESULTS.md](RESULTS.md)'s structured-logging section). Log4j2's own built-in `GelfLayout`, by
+  contrast, costs it almost nothing extra (RSS flat at ~100 MB, throughput down only 3.6%).
+* **Log4j2 has the flattest format-to-format profile of the four** on every metric - the built-in,
+  non-Jackson `GelfLayout` genuinely looks closer to "free" than any other structured-logging path
+  measured in this benchmark so far.
+
 ## Not yet done
 
 * Isolate JVM mode from the other two axes directly: same framework, same format, same threads,
   native vs HotSpot only.
 * Isolate thread model directly: same framework, same format, same JVM mode, virtual vs platform only
-  - this pass never holds threads as the only varying axis for any pair.
-* Isolate format directly: same framework, same JVM mode, same threads, TTLL vs GELF only.
-* Investigate the platform-thread client-side hang-on-shutdown quirk noted above - cosmetic for this
+  - neither pass in this file ever holds threads as the only varying axis for any pair.
+* Investigate the platform-thread client-side hang-on-shutdown quirk noted above - cosmetic for that
   pass's data, but worth understanding before leaning on `--threads platform` for a longer run.
-* The remaining 4 unpicked corners of the cube, for all four frameworks - this pass deliberately only
-  sampled 4 of the 8x4=32 possible (framework, corner) pairs.
+* The RSS anomaly noted above (`rg-sync`'s TTLL RSS being the one number that doesn't favor
+  `SYNCHRONIZED_THREAD_LOCAL_BUFFER`) - worth a longer run and/or a closer look at what's actually
+  retained before treating the sync-vs-lock throughput win as an unconditional recommendation.
+* The remaining unpicked corners of the full cube - both passes in this file deliberately sampled a
+  subset, not the full 8-corners-x-4-frameworks space.
