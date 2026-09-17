@@ -149,15 +149,8 @@ class FormatterEncoderTest {
 
 	static class WriteMethodOutput extends ListLogOutput {
 
-		private final WriteMethod writeMethod;
-
 		WriteMethodOutput(WriteMethod writeMethod) {
-			this.writeMethod = writeMethod;
-		}
-
-		@Override
-		public LogEncoder.BufferHints bufferHints() {
-			return writeMethod;
+			super(writeMethod);
 		}
 
 	}

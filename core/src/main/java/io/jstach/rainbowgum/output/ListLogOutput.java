@@ -10,8 +10,10 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
+import io.jstach.rainbowgum.LogOutput.WriteMethod;
 
 /**
  * An output for debugging.
@@ -22,10 +24,14 @@ public class ListLogOutput implements LogOutput {
 
 	private volatile BiConsumer<LogEvent, String> consumer;
 
-	private ListLogOutput(List<Entry<LogEvent, String>> events, BiConsumer<LogEvent, String> consumer) {
+	private final BufferHints bufferHints;
+
+	private ListLogOutput(List<Entry<LogEvent, String>> events, BiConsumer<LogEvent, String> consumer,
+			BufferHints bufferHints) {
 		super();
 		this.events = events;
 		this.consumer = consumer;
+		this.bufferHints = bufferHints;
 	}
 
 	@Override
@@ -37,8 +43,23 @@ public class ListLogOutput implements LogOutput {
 	 * Creates a list output.
 	 */
 	public ListLogOutput() {
+		this(WriteMethod.BYTES);
+	}
+
+	/**
+	 * Creates a list output that hints a particular write method, so a test can exercise
+	 * a specific {@link LogOutput#write} overload without needing its own subclass just
+	 * to override {@link #bufferHints()}.
+	 * @param bufferHints hints returned from {@link #bufferHints()}.
+	 */
+	public ListLogOutput(BufferHints bufferHints) {
 		this(new ArrayList<>(), (e, s) -> {
-		});
+		}, Objects.requireNonNull(bufferHints));
+	}
+
+	@Override
+	public BufferHints bufferHints() {
+		return bufferHints;
 	}
 
 	/**
