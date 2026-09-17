@@ -24,7 +24,20 @@ import io.jstach.rainbowgum.benchmark.nativeimage.BenchServer;
  * {@code 0-11-2-RESULTS.md}). Not GELF or Logstash format either - its own generic,
  * RFC-8259 JSON-Lines representation of the event.
  * <p>
- * {@code LOG_LEVEL} overrides the root level (all three config files substitute
+ * {@code TTLL_ENCODER=layout} switches to {@code logback-ttll-layout.xml} instead of the
+ * default {@code logback.xml} - same general shape (timestamp, thread, level, logger,
+ * message) but via {@code ch.qos.logback.classic.layout.TTLLLayout} (wrapped in
+ * {@code ch.qos.logback.core.encoder.LayoutWrappingEncoder}), a single monolithic
+ * {@code doLayout(ILoggingEvent)} method building one {@code StringBuilder} directly,
+ * instead of {@code logback.xml}'s {@code PatternLayoutEncoder}, whose
+ * {@code %d{HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n} pattern compiles into a
+ * chain of {@code Converter} objects walked per event. Added to test whether that
+ * converter-chain shape specifically (not date formatting, already ruled out - see
+ * {@code 0-11-2-RESULTS.md}) explains why Logback's own JSON encoder measured faster than
+ * its own pattern-based TTLL under native-image, the opposite of every other framework
+ * and format pair in this benchmark.
+ * <p>
+ * {@code LOG_LEVEL} overrides the root level (all four config files substitute
  * {@code ${bench.log.level:-INFO}} for the {@code root} level) - e.g.
  * {@code LOG_LEVEL=ERROR} for a "mostly off" baseline, since none of
  * {@code BenchHandler}'s calls are above {@code INFO}.
@@ -50,6 +63,9 @@ public final class App {
 		}
 		else if ("json".equals(structuredFormat)) {
 			System.setProperty("logback.configurationFile", "logback-json-builtin.xml");
+		}
+		else if ("layout".equals(System.getenv("TTLL_ENCODER"))) {
+			System.setProperty("logback.configurationFile", "logback-ttll-layout.xml");
 		}
 		String logLevel = System.getenv("LOG_LEVEL");
 		if (logLevel != null) {

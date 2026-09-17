@@ -330,6 +330,57 @@ date-converter test and the native-vs-HotSpot reversal, not a diagnosed root cau
 The date-converter test at least rules out the most obvious alternative explanation
 cleanly.
 
+### Confirmed directly: it's the converter chain, not JSON-vs-text
+
+The hypothesis above made a testable prediction: a non-pattern-based TTLL
+implementation - same timestamp/thread/level/logger/message content, same
+`CachingDateFormatter`-based date formatting, but one monolithic method instead of a
+converter chain - should perform like `JsonEncoder`, not like `PatternLayoutEncoder`.
+Logback ships exactly this: `ch.qos.logback.classic.layout.TTLLLayout`, wrapped in
+`ch.qos.logback.core.encoder.LayoutWrappingEncoder` (`TTLL_ENCODER=layout`, new
+`logback-ttll-layout.xml`) - a single `doLayout(ILoggingEvent)` method building one
+`StringBuilder` directly, no `Converter` chain at all.
+
+Interleaved, one session, 3 runs each (pattern, layout, json, repeated):
+
+| | pattern TTLL (`PatternLayoutEncoder`) | layout TTLL (`TTLLLayout`) | JSON (`JsonEncoder`) |
+|---|---:|---:|---:|
+| throughput | 70,188 req/s | **104,438 req/s** | 105,172 req/s |
+
+**Prediction confirmed, cleanly**: the non-pattern TTLL layout (+48.8% over pattern
+TTLL) lands within 0.7% of the JSON encoder - functionally identical, both roughly
++49% over the pattern-based encoder. This was never a "JSON is fast" or "TTLL is slow"
+finding - it is specifically a **`PatternLayoutEncoder`/converter-chain-under-native-image**
+finding. Any Logback output built on `PatternLayout` (which is most of them - most
+real-world Logback configs use pattern-based encoders) pays this cost under
+native-image; anything built as a single direct method (like `TTLLLayout` or
+`JsonEncoder`) does not.
+
+This still doesn't pin down *why* GraalVM's AOT compiler handles the converter-chain
+shape worse than HotSpot's JIT does (the profiler/PGO follow-ups below are still
+open), but the shape of the problem is no longer a hypothesis - it's confirmed by a
+direct, targeted test that predicted its own result correctly before running it.
+
+**A tempting alternative explanation, checked and ruled out: `String.getBytes()`
+overload choice.** Given this benchmark's own earlier finding that `getBytes` vs
+`getChars`-based copy-encoding mattered a lot for Rainbow Gum's own encoder under
+native-image, it's reasonable to suspect the same class of cause here. It isn't.
+Decompiling `LayoutWrappingEncoder` (`logback-core`) shows `convertToBytes(String)` is:
+
+```
+charset == null ? s.getBytes() : s.getBytes(charset)
+```
+
+Neither `logback.xml` (pattern TTLL) nor `logback-ttll-layout.xml` (layout TTLL) sets
+`<charset>`, and this method is inherited unmodified by both, so **both take the
+identical no-arg `s.getBytes()` call** on a string of comparable length. `JsonEncoder`,
+decompiled separately, uses the *other* overload -
+`s.getBytes(CoreConstants.UTF_8_CHARSET)` - and yet measures the same as layout TTLL,
+not the same as pattern TTLL. If the overload were the driver, JSON and layout TTLL
+would have to diverge and pattern/layout TTLL would have to match; the data does the
+opposite. This isolates the cause to `layout.doLayout(event)` itself, not to anything
+downstream of it.
+
 ## Not yet done
 
 * Isolate JVM mode from the other two axes directly: same framework, same format, same threads,
@@ -356,9 +407,12 @@ cleanly.
   under discussion - opt-in (not the new default), sniffing platform only (not GraalVM version - this
   file's own native-image numbers came from GraalVM 21 and 25.3.4 with no sign the effect depends on
   version) via `org.graalvm.nativeimage.imagecode`. Not yet implemented.
-* **Profile Logback's `PatternLayoutEncoder` vs `JsonEncoder` under native-image directly** (JFR or
-  async-profiler against the real native executable) to confirm or refute the converter-chain
-  AOT-optimization hypothesis above - the date-converter test ruled out the obvious alternative, but
-  the actual replacement hypothesis is still informed guesswork, not a profiled diagnosis. Also worth
-  trying `--pgo`/profile-guided native-image builds specifically for the TTLL scenario to see if that
-  alone closes the gap, which would be strong supporting evidence either way.
+* **Profile `PatternLayoutEncoder`'s converter chain under native-image directly** (JFR or
+  async-profiler against the real native executable) to see *why* GraalVM's AOT compiler
+  handles it worse than HotSpot's JIT does. The `TTLLLayout` test upgraded the converter-chain
+  explanation from informed guesswork to a directly confirmed structural cause (non-pattern TTLL
+  matches JSON, both far ahead of pattern TTLL; the `getBytes`-overload alternative was checked
+  and ruled out too), so this is no longer needed to establish *that* the converter chain is the
+  cause - only to explain the AOT-compiler mechanism behind it. Also worth trying `--pgo`/
+  profile-guided native-image builds specifically for the pattern-TTLL scenario, to see if that
+  alone closes the gap.
