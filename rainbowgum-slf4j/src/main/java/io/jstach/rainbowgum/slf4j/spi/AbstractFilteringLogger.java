@@ -84,6 +84,15 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 	 * {@code builder.addKeyValue("_marker", marker.toString())} if it wants markers
 	 * surfaced at all).
 	 * <p>
+	 * {@code builder} also implements {@link DepthAwareEventBuilder}, whose
+	 * {@code message()}/{@code throwable()}/{@code arguments()}/{@code keyValues()}
+	 * expose what has already been set - needed for read-modify-write overrides (e.g.
+	 * prefixing the message, redacting an argument) since plain
+	 * {@link LoggingEventBuilder} has no such accessors. Use
+	 * {@link DepthAwareEventBuilder}'s static {@code message(LoggingEventBuilder)}-style
+	 * helpers rather than casting directly, in case a future delegate ever passes through
+	 * a plain {@link LoggingEventBuilder} instead.
+	 * <p>
 	 * <strong>Do not call {@code builder.log()} directly from this method</strong> -
 	 * doing so adds an untracked stack frame and caller info will point at the wrong
 	 * line. To mutate and let it log normally, just mutate {@code builder} and return
@@ -97,6 +106,7 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 	 * @return true to have this class call {@code builder.log()} after this method
 	 * returns; false if you called {@link #log(LoggingEventBuilder)} yourself or want to
 	 * drop the event.
+	 * @see DepthAwareEventBuilder
 	 */
 	protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 		return true;
