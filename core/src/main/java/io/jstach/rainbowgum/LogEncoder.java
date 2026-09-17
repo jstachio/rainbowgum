@@ -120,6 +120,8 @@ public interface LogEncoder {
 
 		private int initialBufferSize = DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY;
 
+		private boolean useGetBytes;
+
 		private Builder(LogFormatter formatter) {
 			this.formatter = Objects.requireNonNull(formatter);
 		}
@@ -193,6 +195,17 @@ public interface LogEncoder {
 		}
 
 		/**
+		 * If set will use String.getBytes instead of a Charset Encoder. For mostly ASCII
+		 * this can be faster in some cases.
+		 * @param useGetBytes default is false.
+		 * @return this.
+		 */
+		public Builder useGetBytes(boolean useGetBytes) {
+			this.useGetBytes = useGetBytes;
+			return this;
+		}
+
+		/**
 		 * Builds the encoder.
 		 * @return encoder.
 		 */
@@ -213,7 +226,7 @@ public interface LogEncoder {
 			var resolvedCharset = c;
 			var resolvedContentType = ct;
 			return (n, config) -> new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
-					initialBufferSize, config.metrics());
+					initialBufferSize, useGetBytes, config.metrics());
 		}
 
 	}
@@ -500,6 +513,7 @@ final class StringBuilderBuffer implements TextBuffer {
 
 }
 
+// TODO this code needs to be tested.
 /**
  * A buffer that formats into a {@link StringBuilder}, then encodes that text with
  * {@link String#getBytes(Charset)} before the appender lock is entered. This keeps the
@@ -772,16 +786,19 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final int initialBufferSize;
 
+	private boolean useGetBytes;
+
 	private final LogMetrics metrics;
 
 	FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxBufferSize,
-			int initialBufferSize, LogMetrics metrics) {
+			int initialBufferSize, boolean useGetBytes, LogMetrics metrics) {
 		super();
 		this.formatter = formatter;
 		this.charset = charset;
 		this.contentType = contentType;
 		this.maxBufferSize = maxBufferSize;
 		this.initialBufferSize = initialBufferSize;
+		this.useGetBytes = useGetBytes;
 		this.metrics = metrics;
 	}
 
@@ -789,8 +806,13 @@ final class FormatterEncoder implements LogEncoder {
 	public Buffer buffer(BufferHints hints) {
 		return switch (hints.writeMethod()) {
 			case STRING -> StringBuilderBuffer.of(new StringBuilder(initialBufferSize), maxBufferSize, metrics);
-			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset,
-					contentType, maxBufferSize, metrics);
+			case BYTES,
+					BYTE_BUFFER ->
+				useGetBytes
+						? new StringBuilderBufferBytes(new StringBuilder(initialBufferSize), charset, contentType,
+								maxBufferSize, metrics)
+						: new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset, contentType,
+								maxBufferSize, metrics);
 		};
 	}
 
