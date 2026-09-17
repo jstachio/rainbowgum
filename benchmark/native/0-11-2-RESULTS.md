@@ -229,6 +229,56 @@ clean 3-sample average the way every other row in this file is - the three sampl
 and the two hand-probed reruns) are reported above individually rather than averaged into the main
 table.
 
+## Giving Logback a fair shot at JSON: its own built-in `JsonEncoder`
+
+Every JSON/GELF number for Logback so far in this file used the third-party
+`logstash-logback-encoder` (Jackson-based) - the de-facto standard choice, but not
+Logback's own architecture, and this file already found it doing real, comparatively
+expensive per-event work, plus the serious unbounded-HotSpot-memory issue documented
+above. That's a "how expensive is the popular third-party JSON encoder" result, not
+"how good is Logback itself at JSON" - conflating the two isn't a fair shot.
+
+Logback-classic ships its own `ch.qos.logback.classic.encoder.JsonEncoder` (since
+1.5.x, no third-party dependency - confirmed present in the `logback-classic:1.6.3`
+jar this benchmark already pins). Not GELF, not Logstash format either - its own
+generic RFC-8259 JSON-Lines representation of the event
+(`{"sequenceNumber":...,"timestamp":...,"level":...,"loggerName":...,"mdc":{...},
+"formattedMessage":...,"throwable":...}`). Wired in as `STRUCTURED_FORMAT=json`
+(`logback-json-builtin.xml`), alongside the existing `STRUCTURED_FORMAT=gelf`
+(`logback-json.xml`, unchanged, still the Logstash encoder).
+
+**Obvious caveat, stated up front**: this is not a GELF-format comparison - Logback's
+own JSON schema is a different shape/size than the GELF payloads Rainbow Gum and
+Log4j2 produce for their own `gelf` rows elsewhere in this file. Read the numbers
+below as "how does Logback's own best JSON path perform" first, and only loosely,
+directionally, against the other frameworks' GELF numbers second.
+
+Same methodology as the controlled comparisons above (virtual threads, concurrency
+50, 3s warmup + 15s measured, 3 runs each):
+
+| | native-image | HotSpot |
+|---|---:|---:|
+| throughput | **106,353 req/s** | 39,352 req/s |
+| p50 | 0.42 ms | 1.27 ms |
+| RSS avg | 56.5 MB | 616.7 MB |
+
+**Compare against this same file's Logstash-encoder numbers for Logback+GELF**:
+native-image was 56,772 req/s / 105.1 MB RSS; HotSpot never produced a valid
+steady-state number at all (unbounded memory growth, see above). Logback's own
+encoder is **+87.3% faster and uses 46% less memory on native-image**, and shows
+**zero sign of the HotSpot memory issue** - RSS sits at 616.7 MB, right in line with
+every other normal HotSpot row in this file, confirming that leak was specific to
+`logstash-logback-encoder`'s allocation profile, not something inherent to Logback's
+own architecture.
+
+Put differently: **Logback's own native-image JSON number (106,353 req/s) is the
+highest structured-logging throughput measured anywhere in this file** - higher than
+Rainbow Gum's own `rg-sync` GELF row (92,264 req/s) and Log4j2's GELF row
+(82,037 req/s), despite the different JSON schema and Logback trailing badly in every
+earlier structured-logging comparison in this file. Every prior "Logback is
+comparatively slow/expensive at structured logging" finding in this file was really a
+finding about `logstash-logback-encoder` specifically, not about Logback itself.
+
 ## Not yet done
 
 * Isolate JVM mode from the other two axes directly: same framework, same format, same threads,
@@ -242,11 +292,14 @@ table.
   retained before treating the sync-vs-lock throughput win as an unconditional recommendation.
 * The remaining unpicked corners of the full cube - both passes in this file deliberately sampled a
   subset, not the full 8-corners-x-4-frameworks space.
-* **Root-cause the `logback`+GELF HotSpot memory blow-up properly** - a heap histogram or profiler run
-  (not just the differential RSS probes done here) is needed before calling the "GC ergonomics meeting
-  a huge default heap" hypothesis confirmed rather than just plausible. Worth checking whether an
-  explicit `-Xmx` (matching what a real deployment would actually set) makes it disappear entirely, and
-  whether it reproduces on a smaller-RAM host at all.
+* **Root-cause the `logback`+GELF (Logstash encoder) HotSpot memory blow-up properly** - a heap
+  histogram or profiler run (not just the differential RSS probes done here) is needed before calling
+  the "GC ergonomics meeting a huge default heap" hypothesis confirmed rather than just plausible.
+  Narrowed since first written: Logback's own built-in `JsonEncoder` (see below) shows zero such issue
+  on the identical HotSpot JVM/host/workload, so this is specifically about
+  `logstash-logback-encoder`'s Jackson-based allocation profile, not something generic about "JSON on
+  HotSpot" or this host's heap ergonomics alone. Still worth checking whether an explicit `-Xmx` makes
+  it disappear entirely, and whether it reproduces on a smaller-RAM host at all.
 * This file's cross-platform pair (native-image: `SYNCHRONIZED_THREAD_LOCAL_BUFFER` +29-32%; HotSpot:
   `LOCK_THREAD_LOCAL_BUFFER` +16-24%) is the concrete data behind an `AppenderType.AUTO_DETECT` design
   under discussion - opt-in (not the new default), sniffing platform only (not GraalVM version - this
