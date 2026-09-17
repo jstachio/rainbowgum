@@ -279,6 +279,57 @@ earlier structured-logging comparison in this file. Every prior "Logback is
 comparatively slow/expensive at structured logging" finding in this file was really a
 finding about `logstash-logback-encoder` specifically, not about Logback itself.
 
+### A real anomaly worth flagging, not smoothing over: Logback's own JSON beats its own TTLL
+
+Spotted after the fact, worth being upfront about: the 106,353 req/s JSON number above
+was measured in a separate session from this file's earlier TTLL number for Logback
+(71,939 req/s) - exactly the kind of cross-session absolute-number comparison this
+file's own methodology note says not to trust. Re-measured both **interleaved, in one
+session** (TTLL, JSON, TTLL, JSON, TTLL, JSON - not grouped, to rule out one-directional
+drift) to check the finding survives a controlled comparison:
+
+| | TTLL | JSON |
+|---|---:|---:|
+| throughput (avg of 3, interleaved) | 71,601 req/s | 104,962 req/s |
+
+**Confirmed real, not a session artifact**: +46.6% for JSON over Logback's own TTLL,
+same session, same binary, same everything except which encoder. This is genuinely odd
+- every other framework in this file shows a small or negligible TTLL-vs-JSON/GELF delta
+(Rainbow Gum: -0.5% to +1.6% either way; Log4j2: -3.6%), several using the identical
+`%d{HH:mm:ss.SSS}` timestamp pattern Logback's own TTLL config uses. Logback being the
+one outlier, and by a wide margin, deserved a real look rather than just being cited as
+a good JSON number and moved on from.
+
+**First hypothesis, tested directly, refuted**: suspected `%d{HH:mm:ss.SSS}` (real
+calendar-aware date formatting) was expensive relative to `JsonEncoder`'s own
+`timestamp`/`nanoseconds` fields (plain epoch millis/nanos, no calendar math at all).
+Rebuilt the TTLL config with the date converter removed entirely
+(`[%thread] %-5level %logger - %msg%n`) and re-ran (3 runs): **72,354 req/s - no
+difference** from the with-date number above, within this file's own noise floor. Date
+formatting is not the cause.
+
+**The real clue was already sitting in this file**: on HotSpot, Logback's JSON number
+(39,352 req/s) is *slower* than its own TTLL number (41,698 req/s) - the ordinary,
+expected direction, matching every other framework. **The inflated JSON-beats-TTLL gap
+is native-image-specific** - it does not reproduce on HotSpot at all. That points at a
+GraalVM ahead-of-time-compilation quality difference, not a fundamental architectural
+one: `PatternLayoutEncoder`'s converter-chain design (a linked list of `Converter`
+objects, each one a virtual `write(...)` call, traversed per event) is exactly the
+shape of code AOT compilation without runtime profile data tends to optimize more
+conservatively than a JIT does (less aggressive devirtualization/inlining without
+having seen the actual call-site behavior first) - while `JsonEncoder`'s `encode(...)`
+is one monolithic method, all direct `StringBuilder` calls, no virtual dispatch chain,
+exactly the shape that inlines well regardless of compiler. HotSpot's adaptive JIT
+handles the converter-chain shape fine (or even better, per the HotSpot numbers) since
+it profiles and devirtualizes at runtime; GraalVM's static native-image compiler,
+working from static analysis alone here (no PGO used in this file), does not get the
+same chance.
+
+**Not confirmed with a profiler - this is an informed hypothesis from the
+date-converter test and the native-vs-HotSpot reversal, not a diagnosed root cause.**
+The date-converter test at least rules out the most obvious alternative explanation
+cleanly.
+
 ## Not yet done
 
 * Isolate JVM mode from the other two axes directly: same framework, same format, same threads,
@@ -305,3 +356,9 @@ finding about `logstash-logback-encoder` specifically, not about Logback itself.
   under discussion - opt-in (not the new default), sniffing platform only (not GraalVM version - this
   file's own native-image numbers came from GraalVM 21 and 25.3.4 with no sign the effect depends on
   version) via `org.graalvm.nativeimage.imagecode`. Not yet implemented.
+* **Profile Logback's `PatternLayoutEncoder` vs `JsonEncoder` under native-image directly** (JFR or
+  async-profiler against the real native executable) to confirm or refute the converter-chain
+  AOT-optimization hypothesis above - the date-converter test ruled out the obvious alternative, but
+  the actual replacement hypothesis is still informed guesswork, not a profiled diagnosis. Also worth
+  trying `--pgo`/profile-guided native-image builds specifically for the TTLL scenario to see if that
+  alone closes the gap, which would be strong supporting evidence either way.
