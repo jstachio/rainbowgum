@@ -611,7 +611,7 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	 */
 	public final StringBuilder stringBuilder;
 
-	CharBuffer charBuffer;
+	private CharBuffer charBuffer;
 
 	private final CharsetEncoder charsetEncoder;
 
@@ -748,6 +748,10 @@ final class DirectByteBufferBuffer implements TextBuffer {
 	public boolean isOversized() {
 		return maxBufferSize >= 0
 				&& (stringBuilder.capacity() + charBuffer.capacity() + byteBuffer.capacity()) > maxBufferSize;
+	}
+
+	CharBuffer charBuffer() {
+		return this.charBuffer;
 	}
 
 }

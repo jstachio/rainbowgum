@@ -115,7 +115,7 @@ class BufferSelfShrinkTest {
 
 		encoder.encode(event("x".repeat(20_000)), buffer);
 		int grownStringCapacity = buffer.stringBuilder.capacity();
-		int grownCharCapacity = buffer.charBuffer.capacity();
+		int grownCharCapacity = buffer.charBuffer().capacity();
 		buffer.drain(output, event("unused"));
 		int grownByteCapacity = output.lastCapacity;
 		assertTrue(grownStringCapacity + grownCharCapacity + grownByteCapacity > 30_000,
@@ -125,7 +125,7 @@ class BufferSelfShrinkTest {
 
 		assertTrue(buffer.stringBuilder.capacity() < grownStringCapacity,
 				"clear() must shrink the backing StringBuilder back down once oversized");
-		assertTrue(buffer.charBuffer.capacity() < grownCharCapacity,
+		assertTrue(buffer.charBuffer().capacity() < grownCharCapacity,
 				"clear() must shrink the backing CharBuffer back down once oversized");
 		assertEquals(1, trimmedCount(config), "a shrink must report LogMetrics.BUFFER_TRIMMED_METRIC");
 
@@ -150,7 +150,7 @@ class BufferSelfShrinkTest {
 
 		encoder.encode(event("small"), buffer);
 		int stringCapacityBeforeClear = buffer.stringBuilder.capacity();
-		int charCapacityBeforeClear = buffer.charBuffer.capacity();
+		int charCapacityBeforeClear = buffer.charBuffer().capacity();
 		buffer.drain(output, event("unused"));
 		int byteCapacityBeforeClear = output.lastCapacity;
 
@@ -160,7 +160,7 @@ class BufferSelfShrinkTest {
 
 		assertEquals(stringCapacityBeforeClear, buffer.stringBuilder.capacity(),
 				"a buffer well under the threshold must not have its StringBuilder reallocated");
-		assertEquals(charCapacityBeforeClear, buffer.charBuffer.capacity(),
+		assertEquals(charCapacityBeforeClear, buffer.charBuffer().capacity(),
 				"a buffer well under the threshold must not have its CharBuffer reallocated");
 		assertEquals(byteCapacityBeforeClear, output.lastCapacity,
 				"a buffer well under the threshold must not have its ByteBuffer reallocated");
