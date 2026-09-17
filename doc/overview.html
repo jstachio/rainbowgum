@@ -1865,6 +1865,12 @@ every native-image-aware framework uses, no GraalVM SDK dependency required):
 logging.appender.console.type=auto_detect
 }
 
+Which concrete type a given platform resolves to today is an implementation detail of this
+heuristic, not a contract - the whole point of {@code auto_detect} is to track whichever choice is
+actually best, so that mapping may change in a future release. If a deployment needs a specific
+type to always be used, pick that type explicitly instead of relying on what {@code auto_detect}
+happens to resolve to right now.
+<p>
 <strong>Not the default</strong> - {@code auto_detect} must be requested explicitly, the same as
 any other non-default {@link io.jstach.rainbowgum.LogAppender.AppenderType}.
 <p>

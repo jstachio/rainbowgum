@@ -230,30 +230,39 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * requirement, not just a preference.
 		 */
 		LOCK_NEW_BUFFER,
-		/**
-		 * Resolves to {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER} when running as a GraalVM
-		 * native image, or {@link #LOCK_THREAD_LOCAL_BUFFER} otherwise - decided once, at
-		 * appender construction time, not re-checked afterward.
-		 * <p>
-		 * Real-workload benchmarking under virtual threads found each of those two types
-		 * winning by a real, repeatable, double-digit-percentage margin on its own
-		 * platform and losing by a comparable margin on the other - a genuine cross-over,
-		 * not just a shrinking gap, so no single fixed choice serves both well. This
-		 * matters most for something distributed as more than one build of the same
-		 * artifact for the same deployment - a native executable and a plain jar, say -
-		 * where picking correctly per build would otherwise mean either shipping
+		/*
+		 * Real-workload benchmarking under virtual threads found
+		 * SYNCHRONIZED_THREAD_LOCAL_BUFFER and LOCK_THREAD_LOCAL_BUFFER each winning by a
+		 * real, repeatable, double-digit-percentage margin on their own platform (native
+		 * image, HotSpot respectively) and losing by a comparable margin on the other - a
+		 * genuine cross-over, not just a shrinking gap, so no single fixed choice serves
+		 * both well. Matters most for something distributed as more than one build of the
+		 * same artifact for the same deployment - a native executable and a plain jar,
+		 * say - where picking correctly per build would otherwise mean either shipping
 		 * different configuration for each or sniffing the platform in application code.
-		 * This type does that sniffing here instead, once, so neither is necessary.
-		 * <p>
-		 * Detected via the {@code org.graalvm.nativeimage.imagecode} system property
-		 * being {@code runtime} - the same check every native-image-aware framework uses
-		 * to avoid a hard dependency on GraalVM's own SDK just to ask "am I native?".
+		 * Detection is the same org.graalvm.nativeimage.imagecode system property check
+		 * every native-image-aware framework uses to avoid a hard dependency on GraalVM's
+		 * own SDK.
+		 */
+		/**
+		 * Picks whichever concrete type actually performs best for the platform this
+		 * process is currently running on, decided once, at appender construction time,
+		 * not re-checked afterward. <strong>Currently</strong> that means
+		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER} when running as a GraalVM native
+		 * image, or {@link #LOCK_THREAD_LOCAL_BUFFER} otherwise - but that specific
+		 * mapping is an implementation detail of this heuristic, not a contract. The
+		 * whole point of this type is to track whichever choice is actually best, so
+		 * which concrete type a given platform resolves to today may change in a future
+		 * release without notice, as benchmarking improves or platforms evolve.
+		 * <strong>If your deployment needs a specific type to always be used, pick that
+		 * type explicitly instead of relying on what {@code AUTO_DETECT} happens to
+		 * resolve to right now.</strong>
 		 * <p>
 		 * <strong>Not the default</strong> - requires explicitly requesting this type,
 		 * programmatically or via {@link LogAppender#APPENDER_TYPE_PROPERTY}. Downgraded
-		 * the same as an explicit request for whichever type it resolves to would be: by
-		 * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY} if it resolves to
-		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER}, and by
+		 * the same as an explicit request for whichever type it currently resolves to
+		 * would be: by {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY} if
+		 * it resolves to {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER}, and by
 		 * {@code LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} either way.
 		 */
 		AUTO_DETECT;
