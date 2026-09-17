@@ -130,6 +130,10 @@ class AppenderAsModeFlagPermutationTest {
 			case SYNCHRONIZED_THREAD_LOCAL_BUFFER -> SynchronizedThreadLocalBufferLogAppender.class;
 			case LOCK_THREAD_LOCAL_BUFFER -> LockThreadLocalBufferLogAppender.class;
 			case LOCK_NEW_BUFFER -> LockNewBufferLogAppender.class;
+			// This test suite always runs on a plain JVM, never as a native image
+			// (that's test/rainbowgum-test-native's job), so AUTO_DETECT always resolves
+			// to LOCK_THREAD_LOCAL_BUFFER here.
+			case AUTO_DETECT -> LockThreadLocalBufferLogAppender.class;
 		};
 		for (var direct : directAppenders(mode, publisher)) {
 			assertInstanceOf(expectedAppenderClass, direct);

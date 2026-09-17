@@ -229,7 +229,34 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 		 * the better choice unless avoiding {@link ThreadLocal} entirely is a hard
 		 * requirement, not just a preference.
 		 */
-		LOCK_NEW_BUFFER;
+		LOCK_NEW_BUFFER,
+		/**
+		 * Resolves to {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER} when running as a GraalVM
+		 * native image, or {@link #LOCK_THREAD_LOCAL_BUFFER} otherwise - decided once, at
+		 * appender construction time, not re-checked afterward.
+		 * <p>
+		 * Real-workload benchmarking under virtual threads found each of those two types
+		 * winning by a real, repeatable, double-digit-percentage margin on its own
+		 * platform and losing by a comparable margin on the other - a genuine cross-over,
+		 * not just a shrinking gap, so no single fixed choice serves both well. This
+		 * matters most for something distributed as more than one build of the same
+		 * artifact for the same deployment - a native executable and a plain jar, say -
+		 * where picking correctly per build would otherwise mean either shipping
+		 * different configuration for each or sniffing the platform in application code.
+		 * This type does that sniffing here instead, once, so neither is necessary.
+		 * <p>
+		 * Detected via the {@code org.graalvm.nativeimage.imagecode} system property
+		 * being {@code runtime} - the same check every native-image-aware framework uses
+		 * to avoid a hard dependency on GraalVM's own SDK just to ask "am I native?".
+		 * <p>
+		 * <strong>Not the default</strong> - requires explicitly requesting this type,
+		 * programmatically or via {@link LogAppender#APPENDER_TYPE_PROPERTY}. Downgraded
+		 * the same as an explicit request for whichever type it resolves to would be: by
+		 * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY} if it resolves to
+		 * {@link #SYNCHRONIZED_THREAD_LOCAL_BUFFER}, and by
+		 * {@code LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} either way.
+		 */
+		AUTO_DETECT;
 
 		static AppenderType parse(String value) {
 			String v = value.toUpperCase(Locale.ROOT);
@@ -739,6 +766,7 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder, AppenderType type,
 			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
+		type = AbstractLogAppender.resolveAutoDetectAppenderType(type);
 		type = AbstractLogAppender.guardSynchronizedAppenderType(type);
 		type = AbstractLogAppender.guardThreadLocalAppenderType(type);
 		return switch (type) {
@@ -750,6 +778,8 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 					new ReentrantLock(), alerts, metrics);
 			case LOCK_NEW_BUFFER ->
 				new LockNewBufferLogAppender(name, output, encoder, flags, new ReentrantLock(), alerts, metrics);
+			case AUTO_DETECT ->
+				throw new IllegalStateException("AUTO_DETECT should have already been resolved to a concrete type");
 		};
 	}
 
@@ -823,7 +853,47 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		return switch (type) {
 			case LOCK_THREAD_LOCAL_BUFFER, SYNCHRONIZED_THREAD_LOCAL_BUFFER -> LogAppender.AppenderType.LOCK_NEW_BUFFER;
 			case REUSE_BUFFER, LOCK_NEW_BUFFER -> type;
+			case AUTO_DETECT ->
+				throw new IllegalStateException("AUTO_DETECT should have already been resolved to a concrete type");
 		};
+	}
+
+	/**
+	 * Resolves {@link LogAppender.AppenderType#AUTO_DETECT} to
+	 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} or
+	 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER} depending on
+	 * {@link #isNativeImageRuntime()}; any other type is returned unchanged. Called
+	 * before {@link #guardSynchronizedAppenderType(LogAppender.AppenderType)} and
+	 * {@link #guardThreadLocalAppenderType(LogAppender.AppenderType)} so a resolved
+	 * {@code SYNCHRONIZED_THREAD_LOCAL_BUFFER} is still subject to both of those global
+	 * guarantees the same as if it had been requested directly.
+	 * @param type type as given to an appender factory method.
+	 * @return {@code type} unchanged unless it was {@code AUTO_DETECT}.
+	 */
+	static LogAppender.AppenderType resolveAutoDetectAppenderType(LogAppender.AppenderType type) {
+		if (type != LogAppender.AppenderType.AUTO_DETECT) {
+			return type;
+		}
+		return isNativeImageRuntime() ? LogAppender.AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER
+				: LogAppender.AppenderType.LOCK_THREAD_LOCAL_BUFFER;
+	}
+
+	/**
+	 * The system property GraalVM native-image itself sets to {@code buildtime} during
+	 * the image build and {@code runtime} when the built image actually executes - absent
+	 * entirely on a plain JVM. The standard, dependency-free way every native-image-aware
+	 * framework checks "am I native" without a hard compile-time dependency on GraalVM's
+	 * own SDK just to ask this one question.
+	 */
+	static final String NATIVE_IMAGE_CODE_PROPERTY = "org.graalvm.nativeimage.imagecode";
+
+	/**
+	 * Whether this process is currently running as an executing (not building) GraalVM
+	 * native image - see {@link #NATIVE_IMAGE_CODE_PROPERTY}.
+	 * @return true if running as a native image at runtime.
+	 */
+	static boolean isNativeImageRuntime() {
+		return "runtime".equals(System.getProperty(NATIVE_IMAGE_CODE_PROPERTY));
 	}
 
 	/**

@@ -11,6 +11,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,9 @@ class DefaultAppenderSelectionTest {
 
 	final boolean originalForceNoThreadLocalAppenders = AbstractLogAppender.forceNoThreadLocalAppenders;
 
+	final @Nullable String originalNativeImageCodeProperty = System
+		.getProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY);
+
 	ByteArrayOutputStream metaLogBytes = new ByteArrayOutputStream();
 
 	PrintStream metaLogStream = new PrintStream(metaLogBytes);
@@ -59,6 +63,12 @@ class DefaultAppenderSelectionTest {
 	void after() {
 		AbstractLogAppender.forceReentrantLockAppenders = originalForceReentrantLockAppenders;
 		AbstractLogAppender.forceNoThreadLocalAppenders = originalForceNoThreadLocalAppenders;
+		// checker will not allow System.clearProperty(...) (see
+		// RainbowGumServiceProviderTest's own note on this) - "" reads back as
+		// not-"runtime" the same as a genuinely absent property does, which is all
+		// isNativeImageRuntime() ever checks, so this restores the same effective state.
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY,
+				originalNativeImageCodeProperty == null ? "" : originalNativeImageCodeProperty);
 		MetaLog.output = () -> System.err;
 	}
 
@@ -112,6 +122,37 @@ class DefaultAppenderSelectionTest {
 		AbstractLogAppender.forceNoThreadLocalAppenders = true;
 		var appender = appender(AppenderType.REUSE_BUFFER, Set.of());
 		assertInstanceOf(ReuseBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void autoDetectSelectsLockThreadLocalBufferOutsideNativeImage() {
+		// see after()'s own comment for why "" instead of System.clearProperty(...).
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "");
+		var appender = appender(AppenderType.AUTO_DETECT, Set.of());
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void autoDetectSelectsSynchronizedThreadLocalBufferInsideNativeImage() {
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
+		var appender = appender(AppenderType.AUTO_DETECT, Set.of());
+		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void autoDetectInsideNativeImageStillHonorsGlobalForceReentrantLock() {
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
+		AbstractLogAppender.forceReentrantLockAppenders = true;
+		var appender = appender(AppenderType.AUTO_DETECT, Set.of());
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void autoDetectInsideNativeImageStillHonorsGlobalForceNoThreadLocal() {
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
+		AbstractLogAppender.forceNoThreadLocalAppenders = true;
+		var appender = appender(AppenderType.AUTO_DETECT, Set.of());
+		assertInstanceOf(LockNewBufferLogAppender.class, appender);
 	}
 
 	@Test
