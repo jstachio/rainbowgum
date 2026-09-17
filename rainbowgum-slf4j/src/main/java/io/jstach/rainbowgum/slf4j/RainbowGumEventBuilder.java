@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.slf4j;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -130,6 +131,29 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 	@Override
 	public @Nullable String message() {
 		return this.message;
+	}
+
+	@Override
+	public @Nullable Throwable throwable() {
+		return this.throwable;
+	}
+
+	@Override
+	public List<@Nullable Object> arguments() {
+		var args = this.args;
+		if (args == null) {
+			return List.of();
+		}
+		return Collections.unmodifiableList(new ArrayList<>(args));
+	}
+
+	@Override
+	public KeyValues keyValues() {
+		var keyValues = this.mutableKeyValues;
+		if (keyValues == null) {
+			return mdc.keyValues();
+		}
+		return keyValues;
 	}
 
 	private void _log() {

@@ -2,8 +2,13 @@ package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -18,6 +23,7 @@ import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
+import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
 
 class RainbowGumEventBuilderTest {
 
@@ -42,6 +48,85 @@ class RainbowGumEventBuilderTest {
 		builder.log("hello");
 		assertEquals("", original.toString());
 		assertEquals("hello", redirected.toString());
+	}
+
+	/*
+	 * throwable()/arguments()/keyValues() (the DepthAwareEventBuilder accessors added
+	 * alongside message() for decorator read-modify-write use cases) each need their own
+	 * unset-vs-set-and-a-snapshot-not-a-live-view coverage - none of that fits the
+	 * expected-formatted-output matrix below, which only ever checks the final logged
+	 * line, not what a decorator sees mid-build.
+	 */
+	private static DepthAwareEventBuilder newBuilder() {
+		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
+		LogEventHandler handler = LogEventHandler.of("logger", e -> {
+		}, mdc);
+		var builder = LevelLogger.of(org.slf4j.event.Level.INFO, handler)
+			.makeLoggingEventBuilder(org.slf4j.event.Level.INFO);
+		assertInstanceOf(DepthAwareEventBuilder.class, builder);
+		return (DepthAwareEventBuilder) builder;
+	}
+
+	@Test
+	void testThrowableUnsetIsNull() {
+		assertNull(newBuilder().throwable());
+	}
+
+	@Test
+	void testThrowableReturnsWhatWasSet() {
+		var builder = newBuilder();
+		var cause = new RuntimeException("fail");
+		builder.setCause(cause);
+		assertSame(cause, builder.throwable());
+	}
+
+	@Test
+	void testArgumentsUnsetIsEmpty() {
+		assertEquals(List.of(), newBuilder().arguments());
+	}
+
+	@Test
+	void testArgumentsReturnsWhatWasAddedInOrder() {
+		var builder = newBuilder();
+		builder.addArgument("a");
+		builder.addArgument("b");
+		assertEquals(List.of("a", "b"), builder.arguments());
+	}
+
+	@Test
+	void testArgumentsSnapshotIsNotALiveView() {
+		var builder = newBuilder();
+		builder.addArgument("a");
+		var snapshot = builder.arguments();
+		builder.addArgument("b");
+		assertEquals(List.of("a"), snapshot, "a snapshot taken before addArgument(\"b\") must not see it");
+		assertThrows(UnsupportedOperationException.class, () -> snapshot.add("c"));
+	}
+
+	@Test
+	void testKeyValuesUnsetFallsBackToMdc() {
+		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
+		mdc.put("mdcKey", "mdcValue");
+		LogEventHandler handler = LogEventHandler.of("logger", e -> {
+		}, mdc);
+		var builder = (DepthAwareEventBuilder) LevelLogger.of(org.slf4j.event.Level.INFO, handler)
+			.makeLoggingEventBuilder(org.slf4j.event.Level.INFO);
+		assertEquals("mdcValue", builder.keyValues().getValueOrNull("mdcKey"));
+	}
+
+	@Test
+	void testKeyValuesReflectsAddedKeyValue() {
+		var builder = newBuilder();
+		builder.addKeyValue("key1", "value1");
+		assertEquals("value1", builder.keyValues().getValueOrNull("key1"));
+	}
+
+	@Test
+	void testStaticHelpersReturnDefaultsForAPlainLoggingEventBuilder() {
+		LoggingEventBuilder plain = org.slf4j.spi.NOPLoggingEventBuilder.singleton();
+		assertNull(DepthAwareEventBuilder.throwable(plain));
+		assertEquals(List.of(), DepthAwareEventBuilder.arguments(plain));
+		assertTrue(DepthAwareEventBuilder.keyValues(plain).isEmpty());
 	}
 
 	@ParameterizedTest
