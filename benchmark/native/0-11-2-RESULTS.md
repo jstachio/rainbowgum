@@ -381,6 +381,73 @@ would have to diverge and pattern/layout TTLL would have to match; the data does
 opposite. This isolates the cause to `layout.doLayout(event)` itself, not to anything
 downstream of it.
 
+## Testing `String.getBytes()` on Rainbow Gum's own encoder, not just Logback's
+
+Adam's counter-read on the getBytes finding above: Rainbow Gum and Log4j2 both convert
+chars to bytes via a `CharBuffer`/`CharsetEncoder` pair, not `String.getBytes()`, and
+his suspicion is that `getBytes()` is actually well-optimized by both HotSpot and
+GraalVM (including under native-image), so Logback's pattern-TTLL problem is that
+GraalVM can't pre-encode/optimize the converter chain's output *at all*, not that
+`getBytes()` itself is expensive. The direct test: build Rainbow Gum's own encoder with
+`useGetBytes(true)` (an experimental flag that exists on `feature/log-encoder-copy-chars`,
+never merged to `main`) and see what happens to Rainbow Gum's own native-image numbers.
+
+**Methodology note - this required merging two independent, unmerged lines of work that
+don't otherwise coexist anywhere.** `useGetBytes`/`StringBuilderBufferBytes` only exists
+on `feature/log-encoder-copy-chars` (based on an old pre-v0.11.2 core, no
+`AppenderType.LOCK_NEW_BUFFER`); `LOCK_NEW_BUFFER` only exists on current `origin/main`
+(no `useGetBytes`). Hand-ported `useGetBytes`/`StringBuilderBufferBytes` onto a throwaway
+worktree off `origin/main` (not a real branch, not pushed) and installed that core build
+locally - same shape as the earlier `ENCODER_TYPE=GET_BYTES` experiment mentioned in
+`project_graalvm_native_benchmark.md`, which was previously dropped from this branch for
+the identical reason. Added `GetBytesEncoderConfigurator`
+(`get-bytes-ttll:///` encoder scheme) and `ENCODER_TYPE=GET_BYTES` to `App.java`, same
+pattern as `APPENDER_TYPE`. **This means the current `ENCODER_TYPE=GET_BYTES` code in
+this module will not build against a stock `origin/main` checkout** without that same
+local core merge - flagging honestly rather than pretending it's a clean, reproducible
+config.
+
+Interleaved, one session, 3 runs each, across Rainbow Gum's three `AppenderType`s x
+default/`GET_BYTES` encoding:
+
+| config | throughput | vs default | RSS avg |
+|---|---:|---:|---:|
+| default (`LOCK_THREAD_LOCAL_BUFFER`, `CharBuffer`/`CharsetEncoder`) | 70,940 req/s | - | 103.7 MB |
+| default + `GET_BYTES` | 74,545 req/s | +5.1% | 67.1 MB (-35%) |
+| `LOCK_NEW_BUFFER` (no ThreadLocal, fresh buffer/event) | 61,388 req/s | -13.5% | 272.4 MB (+163%) |
+| `LOCK_NEW_BUFFER` + `GET_BYTES` | 68,539 req/s | -3.4% | 112.5 MB (+8%) |
+| `SYNCHRONIZED_THREAD_LOCAL_BUFFER` | 90,142 req/s | +27.1% | 118.9 MB (+15%) |
+| `SYNCHRONIZED_THREAD_LOCAL_BUFFER` + `GET_BYTES` | **93,557 req/s** | **+31.9%** | **72.7 MB (-30%)** |
+
+**Adam's core claim is confirmed: `getBytes()` is not expensive under native-image, it
+measurably helps, everywhere it was tried.** Every single `AppenderType` got faster and
+used noticeably less memory with `GET_BYTES` than without it - this isn't a Logback
+quirk or a no-ThreadLocal-specific effect, it's a general native-image win for Rainbow
+Gum's own encode path too. The RSS drop is the more dramatic number in every row:
+-35% (default), -59% (`LOCK_NEW_BUFFER`, 272→113 MB), -30% (sync) - consistent with a
+`CharBuffer`+`CharsetEncoder` pair allocating and bookkeeping more per event than one
+direct `String.getBytes(charset)` call.
+
+**The specific "no ThreadLocal + lock + getBytes" combination Adam asked about
+(`LOCK_NEW_BUFFER` + `GET_BYTES`) is not the overall winner, though `GET_BYTES` closes
+most of its own gap.** `LOCK_NEW_BUFFER` alone is the worst config measured here (-13.5%,
+and a real memory problem at 272 MB - consistent with the fresh-`ByteBuffer`-per-event
+finding this benchmark's own `LOCK_NEW_BUFFER` history already flagged); adding
+`GET_BYTES` nearly closes the throughput gap to default (-3.4%, from -13.5%) and cuts
+RSS by more than half (272→113 MB), but does not overtake default, let alone sync.
+**The actual best configuration found anywhere in this whole benchmark session is
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` + `GET_BYTES`** - both axes win independently and the
+gains stack (+27.1% from sync alone, +31.9% with `GET_BYTES` added on top), directly
+relevant to `AppenderType.AUTO_DETECT`'s still-open design: if `useGetBytes` ever lands
+for real, native-image's `AUTO_DETECT` resolution should probably prefer
+`SYNCHRONIZED_THREAD_LOCAL_BUFFER` + `GET_BYTES`-style encoding together, not either
+alone.
+
+For context against Logback: 93,557 req/s is Rainbow Gum's best native-image TTLL
+number in this file by a wide margin, but still trails Logback's own best (layout-TTLL/
+JSON, ~105,000 req/s, see above) - closer than any prior Rainbow Gum config, not a full
+close of that gap.
+
 ## Not yet done
 
 * Isolate JVM mode from the other two axes directly: same framework, same format, same threads,
@@ -406,7 +473,15 @@ downstream of it.
   `LOCK_THREAD_LOCAL_BUFFER` +16-24%) is the concrete data behind an `AppenderType.AUTO_DETECT` design
   under discussion - opt-in (not the new default), sniffing platform only (not GraalVM version - this
   file's own native-image numbers came from GraalVM 21 and 25.3.4 with no sign the effect depends on
-  version) via `org.graalvm.nativeimage.imagecode`. Not yet implemented.
+  version) via `org.graalvm.nativeimage.imagecode`. Not yet implemented. Per the `useGetBytes` section
+  above, `AUTO_DETECT`'s native-image resolution should probably pair `SYNCHRONIZED_THREAD_LOCAL_BUFFER`
+  with `GET_BYTES`-style encoding, not appender type alone - but `useGetBytes` itself isn't merged to
+  `main` yet, so this is a "if/when it lands" note, not an immediate design change.
+* **Land `useGetBytes`/`StringBuilderBufferBytes` for real** (currently only exists on the unmerged
+  `feature/log-encoder-copy-chars`, hand-ported onto a throwaway `main`-based worktree just to run the
+  experiment above) - it measurably helps every `AppenderType` under native-image, not a narrow win,
+  and the `// TODO this code needs to be tested.` marker on that branch still needs real test coverage
+  before it could ship.
 * **Profile `PatternLayoutEncoder`'s converter chain under native-image directly** (JFR or
   async-profiler against the real native executable) to see *why* GraalVM's AOT compiler
   handles it worse than HotSpot's JIT does. The `TTLLLayout` test upgraded the converter-chain

@@ -1,2 +1,3 @@
 io.jstach.rainbowgum.benchmark.nativeimage.rainbowgum.StringStdOutConfigurator
 io.jstach.rainbowgum.benchmark.nativeimage.rainbowgum.BufferedStdOutConfigurator
+io.jstach.rainbowgum.benchmark.nativeimage.rainbowgum.GetBytesEncoderConfigurator
