@@ -1,9 +1,12 @@
 package io.jstach.rainbowgum.slf4j.spi;
 
+import java.util.List;
+
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.spi.LoggingEventBuilder;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.RainbowGum;
@@ -124,7 +127,10 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 
 	/**
 	 * Because wrapping can change the depth of the logger in the callstack this interface
-	 * allows implementations to change the depth of the event builder.
+	 * allows implementations to change the depth of the event builder. It also exposes
+	 * read access to whatever has been set on the builder so far - message, cause,
+	 * arguments, key values - none of which plain {@link LoggingEventBuilder} exposes, so
+	 * a decorator that needs to inspect (not just add to) an event has a way to do so.
 	 */
 	public interface DepthAwareEventBuilder extends LoggingEventBuilder {
 
@@ -173,6 +179,64 @@ public abstract class LoggerDecoratorService implements RainbowGumServiceProvide
 				return da.message();
 			}
 			return null;
+		}
+
+		/**
+		 * The cause set on this builder so far, if any. Plain {@link LoggingEventBuilder}
+		 * has no such accessor.
+		 * @return cause or null if not set.
+		 */
+		@Nullable Throwable throwable();
+
+		/**
+		 * The cause set on the builder so far, if possible.
+		 * @param eventBuilder event builder to check.
+		 * @return cause, or null if not set or not a {@link DepthAwareEventBuilder}.
+		 */
+		public static @Nullable Throwable throwable(LoggingEventBuilder eventBuilder) {
+			if (eventBuilder instanceof DepthAwareEventBuilder da) {
+				return da.throwable();
+			}
+			return null;
+		}
+
+		/**
+		 * The arguments added to this builder so far, in the order added. Plain
+		 * {@link LoggingEventBuilder} has no such accessor.
+		 * @return unmodifiable snapshot of the arguments, possibly empty.
+		 */
+		List<@Nullable Object> arguments();
+
+		/**
+		 * The arguments added to the builder so far, if possible.
+		 * @param eventBuilder event builder to check.
+		 * @return unmodifiable snapshot of the arguments, empty if none or not a
+		 * {@link DepthAwareEventBuilder}.
+		 */
+		public static List<@Nullable Object> arguments(LoggingEventBuilder eventBuilder) {
+			if (eventBuilder instanceof DepthAwareEventBuilder da) {
+				return da.arguments();
+			}
+			return List.of();
+		}
+
+		/**
+		 * The key values added to this builder so far (including any inherited from MDC).
+		 * Plain {@link LoggingEventBuilder} has no such accessor.
+		 * @return key values, possibly empty.
+		 */
+		KeyValues keyValues();
+
+		/**
+		 * The key values added to the builder so far, if possible.
+		 * @param eventBuilder event builder to check.
+		 * @return key values, empty if none or not a {@link DepthAwareEventBuilder}.
+		 */
+		public static KeyValues keyValues(LoggingEventBuilder eventBuilder) {
+			if (eventBuilder instanceof DepthAwareEventBuilder da) {
+				return da.keyValues();
+			}
+			return KeyValues.of();
 		}
 
 	}
