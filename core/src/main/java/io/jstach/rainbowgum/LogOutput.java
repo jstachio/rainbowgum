@@ -376,7 +376,15 @@ public interface LogOutput extends LogLifecycle, Flushable, LogComponent {
 	public enum WriteMethod implements BufferHints {
 
 		/**
-		 * Prefer calling {@link LogOutput#write(LogEvent, String)}.
+		 * Signals a preference for the {@code String.getBytes()}-based encode strategy
+		 * (no {@link java.nio.charset.CharsetEncoder}) over
+		 * {@link #BYTES}/{@link #BYTE_BUFFER}'s. The built-in buffer this hint selects
+		 * ({@code StringBuilderBuffer}) still converts to a {@code byte[]} before
+		 * {@link LogEncoder.Buffer#drain(LogOutput, LogEvent) draining} - it does
+		 * <em>not</em> call {@link LogOutput#write(LogEvent, String)} - so this is not a
+		 * guarantee the output will ever receive a literal {@link String}, only that the
+		 * encode strategy used to get to bytes is the {@code getBytes()} one rather than
+		 * a {@link java.nio.charset.CharsetEncoder}-based one.
 		 */
 		STRING,
 		/**

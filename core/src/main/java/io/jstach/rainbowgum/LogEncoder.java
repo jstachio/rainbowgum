@@ -195,8 +195,21 @@ public interface LogEncoder {
 		}
 
 		/**
-		 * If set will use String.getBytes instead of a Charset Encoder. For mostly ASCII
-		 * this can be faster in some cases.
+		 * If set, uses {@link String#getBytes(Charset)} (via
+		 * {@code StringBuilderBufferBytes}) instead of a reused {@link CharsetEncoder}
+		 * (via {@link DirectByteBufferBuffer}) for outputs whose
+		 * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
+		 * {@link WriteMethod#BYTE_BUFFER} - the JDK's compact-strings fast path makes
+		 * {@code getBytes()} on a pure-Latin1 string close to a raw array copy, which can
+		 * beat a {@link CharsetEncoder} pass for mostly-ASCII content, at the cost of
+		 * falling back to a slower path the moment any single character is outside Latin1
+		 * (the whole string's internal representation flips, not just that one
+		 * character).
+		 * <p>
+		 * Applies regardless of whether the hint was {@code BYTES} or {@code BYTE_BUFFER}
+		 * specifically - {@code StringBuilderBufferBytes} always calls the {@code byte[]}
+		 * write overload, so this setting overrides an output's own {@code BYTE_BUFFER}
+		 * preference rather than combining with it.
 		 * @param useGetBytes default is false.
 		 * @return this.
 		 */
@@ -445,12 +458,25 @@ sealed interface TextBuffer extends LogEncoder.Buffer {
 }
 
 /**
- * A buffer that simply wraps a {@link StringBuilder}. Direct access to the
- * {@link StringBuilder} is available as the field {@link #stringBuilder}.
+ * A buffer that formats into a {@link StringBuilder} (direct access available as the
+ * field {@link #stringBuilder}) but - like {@link DirectByteBufferBuffer} -
+ * {@linkplain #encodeToBuffer(LogFormatter, LogEvent) converts to bytes outside the
+ * lock}, not inside {@link #drain(LogOutput, LogEvent)}. Converting lazily, inside
+ * {@code drain} (via {@link LogOutput#write(LogEvent, String)}'s default
+ * {@code String.getBytes(UTF_8)} implementation), would mean the {@code getBytes()} cost
+ * lands inside the appender's lock for appenders that separate formatting from writing
+ * ({@code LockThreadLocalBufferLogAppender},
+ * {@code SynchronizedThreadLocalBufferLogAppender}), unlike
+ * {@link DirectByteBufferBuffer}'s {@link CharsetEncoder} work, which never does. Moving
+ * it here keeps a {@code WriteMethod.STRING}-hinting output's cost profile comparable to
+ * a {@code BYTES}/{@code BYTE_BUFFER}-hinting one instead of conflating "which encode
+ * strategy" with "how much of it happens under the lock".
  *
  * @see AbstractEncoder
  */
 final class StringBuilderBuffer implements TextBuffer {
+
+	private static final byte[] EMPTY_BYTES = new byte[0];
 
 	/**
 	 * Underlying StringBuilder.
@@ -460,6 +486,8 @@ final class StringBuilderBuffer implements TextBuffer {
 	private final int maxBufferSize;
 
 	private final LogMetrics metrics;
+
+	private byte[] bytes = EMPTY_BYTES;
 
 	/**
 	 * Creates a StringBuilder based buffer that reports {@link #isOversized()} once
@@ -483,14 +511,20 @@ final class StringBuilderBuffer implements TextBuffer {
 		this.metrics = metrics;
 	}
 
+	/**
+	 * Writes the already-encoded bytes to the output. Assumes
+	 * {@link #encodeToBuffer(LogFormatter, LogEvent)} has already been called for this
+	 * event - see the class doc for why that step happens there instead of here.
+	 */
 	@Override
 	public void drain(LogOutput output, LogEvent event) {
-		output.write(event, stringBuilder.toString());
+		output.write(event, bytes, 0, bytes.length, StandardContentType.TEXT_PLAIN);
 	}
 
 	@Override
 	public void clear() {
 		stringBuilder.setLength(0);
+		bytes = EMPTY_BYTES;
 		// setLength(0) never touches capacity, so isOversized() here still
 		// reflects growth from whatever was just written - trimToSize()
 		// mutates the StringBuilder in place, no reassignment needed (works
@@ -509,17 +543,35 @@ final class StringBuilderBuffer implements TextBuffer {
 	@Override
 	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
 		formatter.format(stringBuilder, event);
+		/*
+		 * Matches LogOutput.write(LogEvent, String)'s own default implementation exactly
+		 * (same charset, same content type) - just done here, outside the lock, instead
+		 * of lazily inside drain().
+		 */
+		bytes = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
 	}
 
 }
 
-// TODO this code needs to be tested.
 /**
  * A buffer that formats into a {@link StringBuilder}, then encodes that text with
- * {@link String#getBytes(Charset)} before the appender lock is entered. This keeps the
- * getBytes based byte-array path separate from {@link StringBuilderBuffer}'s original
- * string-draining behavior and from {@link DirectByteBufferBuffer}'s reused
- * {@link CharsetEncoder} path.
+ * {@link String#getBytes(Charset)} in {@link #encodeToBuffer(LogFormatter, LogEvent)} -
+ * i.e. before the appender lock is entered, the same "encode outside, lock only the
+ * write" timing {@link DirectByteBufferBuffer}'s {@link CharsetEncoder} path already
+ * uses, just with a different encode strategy. Selected via
+ * {@link LogEncoder#builder(LogFormatter)}'s {@code useGetBytes(true)} for outputs whose
+ * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
+ * {@link WriteMethod#BYTE_BUFFER} - kept as its own class rather than folded into
+ * {@link StringBuilderBuffer} (whose own {@code getBytes()} path is tied to
+ * {@link WriteMethod#STRING} instead) or {@link DirectByteBufferBuffer} (whose reused
+ * {@link ByteBuffer}/{@link CharBuffer} fields this class has no use for).
+ * <p>
+ * {@link #isOversized()} only tracks {@link #stringBuilder}'s capacity, not the
+ * {@code byte[]} this buffer produces each event - unlike {@link #stringBuilder} (a
+ * reused container whose capacity can grow and stay grown), the byte array is a fresh
+ * allocation every {@link #encodeToBuffer(LogFormatter, LogEvent)} call with no capacity
+ * to track or shrink back down; it becomes eligible for GC as soon as the next event's
+ * array replaces it in {@link #clear()}.
  */
 final class StringBuilderBufferBytes implements TextBuffer {
 
