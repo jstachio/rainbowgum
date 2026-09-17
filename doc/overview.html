@@ -1841,6 +1841,32 @@ found, by building with a real GraalVM install and reading what it reports. If i
 something is doing real, environment-dependent work eagerly in a constructor or field
 initializer, that is a bug report against the module in question, not something to just
 flag away.
+
+<h4 id="graalvm_appender_type">Appender Locking Strategy: Native Image vs HotSpot</h4>
+
+Real-workload benchmarking (virtual threads, both platforms) found the two thread-local-buffer
+appender types trading places depending on how the process is actually running:
+{@link io.jstach.rainbowgum.LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} wins by a
+real, repeatable, double-digit-percentage margin under GraalVM native-image, while the default,
+{@link io.jstach.rainbowgum.LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER}, wins by a
+comparable margin on a regular JVM (HotSpot) - a genuine cross-over, not just a shrinking gap, so
+no single fixed choice is best on both.
+<p>
+This matters most for something distributed as more than one build of the same artifact for the
+same deployment - a native executable and a plain jar, say - where picking correctly per build
+would otherwise mean either shipping different configuration for each or sniffing the platform in
+application code.
+{@link io.jstach.rainbowgum.LogAppender.AppenderType#AUTO_DETECT} does that sniffing instead,
+resolving once, at appender construction time, to whichever of the two types wins on the platform
+actually running (via the same {@code org.graalvm.nativeimage.imagecode} system property check
+every native-image-aware framework uses, no GraalVM SDK dependency required):
+
+{@snippet lang=properties :
+logging.appender.console.type=auto_detect
+}
+
+<strong>Not the default</strong> - {@code auto_detect} must be requested explicitly, the same as
+any other non-default {@link io.jstach.rainbowgum.LogAppender.AppenderType}.
 <p>
 {@code test/rainbowgum-test-native} in the project's own repository is a working,
 end-to-end example: a small application depending only on {@code rainbowgum-simple} plus
