@@ -195,20 +195,18 @@ public interface LogEncoder {
 		}
 
 		/**
-		 * If set, uses {@link String#getBytes(Charset)} (via
-		 * {@code StringBuilderBufferBytes}) instead of a reused {@link CharsetEncoder}
-		 * (via {@link DirectByteBufferBuffer}) for outputs whose
-		 * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
-		 * {@link WriteMethod#BYTE_BUFFER} - the JDK's compact-strings fast path makes
-		 * {@code getBytes()} on a pure-Latin1 string close to a raw array copy, which can
-		 * beat a {@link CharsetEncoder} pass for mostly-ASCII content, at the cost of
-		 * falling back to a slower path the moment any single character is outside Latin1
-		 * (the whole string's internal representation flips, not just that one
-		 * character).
+		 * If set, uses {@link String#getBytes(Charset)} instead of a reused
+		 * {@link CharsetEncoder} for outputs whose {@link BufferHints#writeMethod()} is
+		 * {@link WriteMethod#BYTES} or {@link WriteMethod#BYTE_BUFFER} - the JDK's
+		 * compact-strings fast path makes {@code getBytes()} on a pure-Latin1 string
+		 * close to a raw array copy, which can beat a {@link CharsetEncoder} pass for
+		 * mostly-ASCII content, at the cost of falling back to a slower path the moment
+		 * any single character is outside Latin1 (the whole string's internal
+		 * representation flips, not just that one character).
 		 * <p>
 		 * Applies regardless of whether the hint was {@code BYTES} or {@code BYTE_BUFFER}
-		 * specifically - {@code StringBuilderBufferBytes} always calls the {@code byte[]}
-		 * write overload, so this setting overrides an output's own {@code BYTE_BUFFER}
+		 * specifically - the buffer this selects always writes through the {@code byte[]}
+		 * overload, so this setting overrides an output's own {@code BYTE_BUFFER}
 		 * preference rather than combining with it.
 		 * @param useGetBytes default is false.
 		 * @return this.
@@ -458,25 +456,27 @@ sealed interface TextBuffer extends LogEncoder.Buffer {
 }
 
 /**
- * A buffer that formats into a {@link StringBuilder} (direct access available as the
- * field {@link #stringBuilder}) but - like {@link DirectByteBufferBuffer} -
- * {@linkplain #encodeToBuffer(LogFormatter, LogEvent) converts to bytes outside the
- * lock}, not inside {@link #drain(LogOutput, LogEvent)}. Converting lazily, inside
- * {@code drain} (via {@link LogOutput#write(LogEvent, String)}'s default
- * {@code String.getBytes(UTF_8)} implementation), would mean the {@code getBytes()} cost
- * lands inside the appender's lock for appenders that separate formatting from writing
- * ({@code LockThreadLocalBufferLogAppender},
- * {@code SynchronizedThreadLocalBufferLogAppender}), unlike
- * {@link DirectByteBufferBuffer}'s {@link CharsetEncoder} work, which never does. Moving
- * it here keeps a {@code WriteMethod.STRING}-hinting output's cost profile comparable to
- * a {@code BYTES}/{@code BYTE_BUFFER}-hinting one instead of conflating "which encode
- * strategy" with "how much of it happens under the lock".
+ * A buffer that simply wraps a {@link StringBuilder}. Direct access to the
+ * {@link StringBuilder} is available as the field {@link #stringBuilder}.
+ * <p>
+ * Genuinely hands the output a {@link String} - {@link #drain(LogOutput, LogEvent)} calls
+ * {@link LogOutput#write(LogEvent, String)} directly, no byte conversion of any kind
+ * happens here. This matters: some outputs cannot or should not be handed bytes at all -
+ * a JFR-backed output, for example, would want to record the {@link String} directly into
+ * a {@code String}-typed event field, not round-trip it through a {@code byte[]} it has
+ * no use for. That is what {@code WriteMethod#STRING} is for.
+ * <p>
+ * If what's actually wanted is {@code String.getBytes()}'s encode strategy (as opposed to
+ * a {@link CharsetEncoder}) for an output that does want bytes, use
+ * {@link LogEncoder#builder(LogFormatter)}'s {@code useGetBytes(true)} with
+ * {@code WriteMethod#BYTES}/{@code BYTE_BUFFER} instead - not this class. An earlier
+ * version of this class converted to bytes here as a workaround for not having that
+ * option yet; now that it exists, conflating "I want getBytes()" with "I want to skip
+ * {@code WriteMethod#STRING}'s own String contract" would be the wrong fix again.
  *
  * @see AbstractEncoder
  */
 final class StringBuilderBuffer implements TextBuffer {
-
-	private static final byte[] EMPTY_BYTES = new byte[0];
 
 	/**
 	 * Underlying StringBuilder.
@@ -486,8 +486,6 @@ final class StringBuilderBuffer implements TextBuffer {
 	private final int maxBufferSize;
 
 	private final LogMetrics metrics;
-
-	private byte[] bytes = EMPTY_BYTES;
 
 	/**
 	 * Creates a StringBuilder based buffer that reports {@link #isOversized()} once
@@ -511,20 +509,14 @@ final class StringBuilderBuffer implements TextBuffer {
 		this.metrics = metrics;
 	}
 
-	/**
-	 * Writes the already-encoded bytes to the output. Assumes
-	 * {@link #encodeToBuffer(LogFormatter, LogEvent)} has already been called for this
-	 * event - see the class doc for why that step happens there instead of here.
-	 */
 	@Override
 	public void drain(LogOutput output, LogEvent event) {
-		output.write(event, bytes, 0, bytes.length, StandardContentType.TEXT_PLAIN);
+		output.write(event, stringBuilder.toString());
 	}
 
 	@Override
 	public void clear() {
 		stringBuilder.setLength(0);
-		bytes = EMPTY_BYTES;
 		// setLength(0) never touches capacity, so isOversized() here still
 		// reflects growth from whatever was just written - trimToSize()
 		// mutates the StringBuilder in place, no reassignment needed (works
@@ -543,12 +535,6 @@ final class StringBuilderBuffer implements TextBuffer {
 	@Override
 	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
 		formatter.format(stringBuilder, event);
-		/*
-		 * Matches LogOutput.write(LogEvent, String)'s own default implementation exactly
-		 * (same charset, same content type) - just done here, outside the lock, instead
-		 * of lazily inside drain().
-		 */
-		bytes = stringBuilder.toString().getBytes(StandardCharsets.UTF_8);
 	}
 
 }
@@ -556,15 +542,13 @@ final class StringBuilderBuffer implements TextBuffer {
 /**
  * A buffer that formats into a {@link StringBuilder}, then encodes that text with
  * {@link String#getBytes(Charset)} in {@link #encodeToBuffer(LogFormatter, LogEvent)} -
- * i.e. before the appender lock is entered, the same "encode outside, lock only the
- * write" timing {@link DirectByteBufferBuffer}'s {@link CharsetEncoder} path already
- * uses, just with a different encode strategy. Selected via
- * {@link LogEncoder#builder(LogFormatter)}'s {@code useGetBytes(true)} for outputs whose
- * {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
- * {@link WriteMethod#BYTE_BUFFER} - kept as its own class rather than folded into
- * {@link StringBuilderBuffer} (whose own {@code getBytes()} path is tied to
- * {@link WriteMethod#STRING} instead) or {@link DirectByteBufferBuffer} (whose reused
- * {@link ByteBuffer}/{@link CharBuffer} fields this class has no use for).
+ * i.e. before the appender lock is entered, so the {@code getBytes()} cost lands outside
+ * the lock the same way a reused {@link CharsetEncoder}-based path's encode cost does.
+ * Selected via {@link LogEncoder#builder(LogFormatter)}'s {@code useGetBytes(true)} for
+ * outputs whose {@link BufferHints#writeMethod()} is {@link WriteMethod#BYTES} or
+ * {@link WriteMethod#BYTE_BUFFER} - not for {@link WriteMethod#STRING}, whose own buffer
+ * genuinely hands the output a {@link String} and has no byte-conversion strategy to swap
+ * out.
  * <p>
  * {@link #isOversized()} only tracks {@link #stringBuilder}'s capacity, not the
  * {@code byte[]} this buffer produces each event - unlike {@link #stringBuilder} (a

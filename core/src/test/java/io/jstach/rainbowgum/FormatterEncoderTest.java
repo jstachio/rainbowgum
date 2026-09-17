@@ -95,34 +95,20 @@ class FormatterEncoderTest {
 		assertEquals(List.of("[INFO] hello\n"), output.events().stream().map(e -> e.getValue()).toList());
 	}
 
-	/*
-	 * StringBuilderBuffer converts to a byte[] itself in encodeToBuffer(...) (outside the
-	 * lock, same as DirectByteBufferBuffer) and drain(...) writes that array directly -
-	 * so STRING now reaches the byte[] overload the same way BYTES does, not
-	 * write(LogEvent, String). ListLogOutput's own byte[] overload still internally
-	 * converts back to a String for its own storage, which is why write(LogEvent, String)
-	 * isn't asserted against here the way the ByteBuffer overload is - only that the
-	 * byte[] overload is what the buffer itself calls.
-	 */
 	@Test
-	void stringWriteMethodCallsByteArrayOverloadDirectlyNotTheStringOverload() {
-		boolean[] byteArrayOverloadCalled = { false };
+	void stringWriteMethodUsesStringBuilderBufferNotAByteBasedOverload() {
 		var output = new WriteMethodOutput(WriteMethod.STRING) {
 			@Override
 			public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
-				byteArrayOverloadCalled[0] = true;
-				super.write(event, bytes, off, len, contentType);
+				fail("expected write(LogEvent, String) to be called for STRING, not the byte[] overload");
 			}
 
 			@Override
 			public void write(LogEvent event, ByteBuffer buf, ContentType contentType) {
-				fail("expected the byte[] overload to be called directly for STRING, not the ByteBuffer overload");
+				fail("expected write(LogEvent, String) to be called for STRING, not the ByteBuffer overload");
 			}
 		};
 		encodeInto(output, null, "hello");
-		assertTrue(byteArrayOverloadCalled[0],
-				"expected the byte[] overload to be called for STRING - getBytes() now happens in "
-						+ "encodeToBuffer(...), outside the lock, not lazily inside drain()");
 		assertEquals(List.of("[INFO] hello\n"), output.events().stream().map(e -> e.getValue()).toList());
 	}
 
