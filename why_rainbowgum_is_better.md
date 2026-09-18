@@ -104,6 +104,41 @@ It is not a universal win: on plain HotSpot the effect reverses and the default
 locking strategy is the better choice, which is exactly why it stays opt-in rather than
 becoming the new default.
 
+## Uses less memory
+
+Same benchmark as above (`feature/graalvm-native-benchmark`, `benchmark/native`), RSS
+instead of throughput, Rainbow Gum's default locking strategy (no opt-in needed) both
+ways:
+
+| | Rainbow Gum | Logback | Log4j2 |
+|---|---:|---:|---:|
+| HotSpot, TTLL | **576.7 MB** | 609.2 MB | 637.6 MB |
+| HotSpot, GELF | **591.0 MB** | see below | 609.1 MB |
+| native-image, TTLL | 103.3 MB | **65.1 MB** | 99.6 MB |
+| native-image, GELF | **65.6 MB** | 105.1 MB | 100.5 MB |
+
+On HotSpot - a plain `com.sun.net.httpserver.HttpServer` app, not a full Spring Boot
+stack, so framework overhead isn't buried under a much larger baseline heap the way it
+was in the Spring Boot benchmark above - Rainbow Gum leads outright in both formats
+(Logback's own GELF row hit a separate, real, reproducible memory blow-up specific to
+the third-party `logstash-logback-encoder` it depends on for GELF, documented in
+`0-11-2-RESULTS.md`; excluded here rather than presented as a Rainbow Gum win it isn't).
+
+Under native-image the picture is more mixed, and worth being upfront about rather than
+smoothing over: Rainbow Gum wins GELF clearly, but Logback's plain TTLL row is
+genuinely the smallest of the three there - a real, currently unexplained result
+(Rainbow Gum's own RSS drops going from TTLL to GELF, the opposite of what a bigger
+JSON payload per line would predict). Not cherry-picked away; see `0-11-2-RESULTS.md`
+for the full breakdown.
+
+The cleanest single number, though, isolates runtime footprint from how much is
+actually being logged: with logging disabled entirely (`LOG_LEVEL=ERROR`, none of the
+benchmark's log calls reach any encoder), native-image RSS is **40.9 MB** for Rainbow
+Gum versus **59.0 MB** for Log4j2 (-31%) and **51.0 MB** for Logback (-20%) - a
+persistent baseline footprint gap between the three runtimes with almost nothing being
+logged at all, not an artifact of any specific format or workload (`RESULTS.md`'s own
+"Baseline: logging mostly off" section).
+
 ## Configurable locking strategy
 
 Locking is not a footnote in logging performance - under real concurrent load, contention
