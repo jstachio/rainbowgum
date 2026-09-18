@@ -47,6 +47,8 @@ class DefaultAppenderSelectionTest {
 
 	final boolean originalForceNoThreadLocalAppenders = AbstractLogAppender.forceNoThreadLocalAppenders;
 
+	final boolean originalGlobalOptimizeEnabled = AbstractLogAppender.globalOptimizeEnabled;
+
 	final @Nullable String originalNativeImageCodeProperty = System
 		.getProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY);
 
@@ -63,6 +65,7 @@ class DefaultAppenderSelectionTest {
 	void after() {
 		AbstractLogAppender.forceReentrantLockAppenders = originalForceReentrantLockAppenders;
 		AbstractLogAppender.forceNoThreadLocalAppenders = originalForceNoThreadLocalAppenders;
+		AbstractLogAppender.globalOptimizeEnabled = originalGlobalOptimizeEnabled;
 		// checker will not allow System.clearProperty(...) (see
 		// RainbowGumServiceProviderTest's own note on this) - "" reads back as
 		// not-"runtime" the same as a genuinely absent property does, which is all
@@ -163,6 +166,43 @@ class DefaultAppenderSelectionTest {
 	}
 
 	@Test
+	void loggingGlobalOptimizePropertySetsStaticFlagOnLogConfigConstruction() {
+		var props = LogProperties.builder().fromProperties("logging.global.optimize=TRUE").build();
+		LogConfig.builder().properties(props).build();
+		assertTrue(AbstractLogAppender.globalOptimizeEnabled);
+	}
+
+	@Test
+	void unspecifiedAppenderTypeStaysLockThreadLocalBufferWhenGlobalOptimizeDisabled() {
+		var appender = builderAppender(null);
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void unspecifiedAppenderTypeResolvesThroughAutoDetectOutsideNativeImageWhenGlobalOptimizeEnabled() {
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "");
+		AbstractLogAppender.globalOptimizeEnabled = true;
+		var appender = builderAppender(null);
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void unspecifiedAppenderTypeResolvesThroughAutoDetectInsideNativeImageWhenGlobalOptimizeEnabled() {
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
+		AbstractLogAppender.globalOptimizeEnabled = true;
+		var appender = builderAppender(null);
+		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, appender);
+	}
+
+	@Test
+	void explicitAppenderTypeWinsOverGlobalOptimize() {
+		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
+		AbstractLogAppender.globalOptimizeEnabled = true;
+		var appender = builderAppender(AppenderType.REUSE_BUFFER);
+		assertInstanceOf(ReuseBufferLogAppender.class, appender);
+	}
+
+	@Test
 	void synchronizedThreadLocalBufferReentryDropFlagDropsReentrantAppend() {
 		var output = new ListLogOutput();
 		var testAppender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER,
@@ -213,6 +253,20 @@ class DefaultAppenderSelectionTest {
 
 	private static LogAppender appender(AppenderType type, Set<AppenderFlag> flags, ListLogOutput output) {
 		return DirectLogAppender.of("test", output, ENCODER, type, flags, CONFIG.alerts(), CONFIG.metrics());
+	}
+
+	/*
+	 * Goes through the real LogAppender.Builder#build() path (unlike appender(...) above,
+	 * which calls DirectLogAppender.of directly with an already-resolved type) - the only
+	 * path that exercises the "no explicit appender type" default resolution
+	 * LogProperties#GLOBAL_OPTIMIZE_PROPERTY changes.
+	 */
+	private static LogAppender builderAppender(@Nullable AppenderType type) {
+		var builder = LogAppender.builder("test").output(new ListLogOutput()).encoder(ENCODER);
+		if (type != null) {
+			builder.appenderType(type);
+		}
+		return builder.build().provide("test", CONFIG);
 	}
 
 }
