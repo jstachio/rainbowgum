@@ -73,12 +73,12 @@ structured (GELF) logging - see the
 [`feature/webapp-benchmark`](https://github.com/jstachio/rainbowgum/tree/feature/webapp-benchmark)
 branch (`benchmark/webapp`) for methodology and the driver code:
 
-| scenario | Logback | Log4j2 | Rainbow Gum |
+| scenario | Rainbow Gum | Logback | Log4j2 |
 |---|---:|---:|---:|
-| virtual threads | 25,554 req/s | 18,990 req/s | **26,324 req/s** |
-| virtual threads + GELF | 25,797 req/s | 17,734 req/s | **27,450 req/s** |
-| container/12-factor style (console-only, GELF) | 15,002 req/s | 19,639 req/s | **34,172 req/s** |
-| container/12-factor + virtual threads | 21,587 req/s | 15,445 req/s | **25,572 req/s** |
+| virtual threads | **26,324 req/s** | 25,554 req/s | 18,990 req/s |
+| virtual threads + GELF | **27,450 req/s** | 25,797 req/s | 17,734 req/s |
+| container/12-factor style (console-only, GELF) | **34,172 req/s** | 15,002 req/s | 19,639 req/s |
+| container/12-factor + virtual threads | **25,572 req/s** | 21,587 req/s | 15,445 req/s |
 
 The container/12-factor scenario - structured logging straight to stdout, no file output,
 the way most people actually run a Spring Boot app in Kubernetes today - is Rainbow Gum's
@@ -86,8 +86,23 @@ best result, roughly **2x** both Logback and Log4j2, and also the closest thing 
 "zero extra configuration" of the scenarios tested: it's exactly what Rainbow Gum's
 native structured-logging support produces with nothing but a property.
 
-(For completeness: on plain platform threads with no structured logging, Log4j2 still
-leads there; that specific gap isn't closed.)
+Real GraalVM native-image benchmark - plain `com.sun.net.httpserver.HttpServer`, virtual
+threads, TTLL and GELF logging - see the
+[`feature/graalvm-native-benchmark`](https://github.com/jstachio/rainbowgum/tree/feature/graalvm-native-benchmark)
+branch (`benchmark/native`, `0-11-2-RESULTS.md`) for methodology and the driver code:
+
+| format | Rainbow Gum | Logback | Log4j2 |
+|---|---:|---:|---:|
+| TTLL | **91,773 req/s** | 71,939 req/s | 85,066 req/s |
+| GELF | **92,264 req/s** | 56,772 req/s | 82,037 req/s |
+
+Getting there takes one explicit choice: `SYNCHRONIZED_THREAD_LOCAL_BUFFER` (see
+"Configurable locking strategy" below) instead of the default locking strategy - under
+native-image specifically it is a real, repeatable +29-32% over the default, the
+difference between beating Log4j2 by roughly 8-12% and trailing it by roughly 15-16%.
+It is not a universal win: on plain HotSpot the effect reverses and the default
+locking strategy is the better choice, which is exactly why it stays opt-in rather than
+becoming the new default.
 
 ## Configurable locking strategy
 
