@@ -130,7 +130,7 @@ class LoggerDecoratorTest {
 		var composite = new RainbowGumLoggerFactory.LoggerDecorator.CompositeLoggerDecorator(services);
 
 		var handler = LogEventHandler.of("test", e -> {
-		}, new RainbowGumMDCAdapter());
+		}, new RainbowGumMDCAdapter(), null);
 		DepthAwareLogger base = LevelLogger.of(org.slf4j.event.Level.INFO, handler);
 		RainbowGum rainbowGum = RainbowGum.builder().build();
 

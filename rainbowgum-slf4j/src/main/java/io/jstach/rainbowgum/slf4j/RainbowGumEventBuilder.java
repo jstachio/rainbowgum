@@ -25,8 +25,6 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	private final LogEventHandler handler;
 
-	private final RainbowGumMDCAdapter mdc;
-
 	@Nullable private List<@Nullable Object> args;
 
 	private @Nullable MutableKeyValues mutableKeyValues;
@@ -47,9 +45,8 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	private LogEventLogger logger;
 
-	public RainbowGumEventBuilder(LogEventHandler handler, RainbowGumMDCAdapter mdc, Level level) {
+	public RainbowGumEventBuilder(LogEventHandler handler, Level level) {
 		this.handler = handler;
-		this.mdc = mdc;
 		this.level = level;
 		this.loggerName = handler.loggerName();
 		this.logger = handler;
@@ -65,7 +62,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 	MutableKeyValues kvs() {
 		var kvs = this.mutableKeyValues;
 		if (kvs == null) {
-			kvs = this.mutableKeyValues = mdc.copyMutableKeyValues();
+			kvs = this.mutableKeyValues = handler.copyDefaultKeyValues();
 		}
 		return kvs;
 	}
@@ -151,7 +148,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 	public KeyValues keyValues() {
 		var keyValues = this.mutableKeyValues;
 		if (keyValues == null) {
-			return mdc.keyValues();
+			return handler.defaultKeyValues();
 		}
 		return keyValues;
 	}
@@ -163,7 +160,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 		long threadId = thread.threadId();
 		KeyValues keyValues = this.mutableKeyValues;
 		if (keyValues == null) {
-			keyValues = mdc.keyValues();
+			keyValues = handler.defaultKeyValues();
 		}
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, this.args);

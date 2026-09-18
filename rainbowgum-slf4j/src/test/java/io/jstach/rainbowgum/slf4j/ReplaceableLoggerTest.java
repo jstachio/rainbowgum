@@ -26,7 +26,8 @@ class ReplaceableLoggerTest {
 
 	LogEvent lastEvent;
 
-	LogEventHandler handler = LogEventHandler.ofCallerInfo("test", e -> lastEvent = e, new RainbowGumMDCAdapter(), 1);
+	LogEventHandler handler = LogEventHandler.ofCallerInfo("test", e -> lastEvent = e, new RainbowGumMDCAdapter(), 1,
+			null);
 
 	@Test
 	void testDelegateAndToString() {
@@ -52,7 +53,7 @@ class ReplaceableLoggerTest {
 
 		LogEvent[] rebound = new LogEvent[1];
 		LogEventHandler newHandler = LogEventHandler.ofCallerInfo("rebound", e -> rebound[0] = e,
-				new RainbowGumMDCAdapter(), 1);
+				new RainbowGumMDCAdapter(), 1, null);
 		logger.setEventHandler(newHandler);
 		logger.info("via rebound handler");
 		assertEquals("via rebound handler", rebound[0].message());

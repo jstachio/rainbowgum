@@ -4,8 +4,11 @@ import java.lang.System.Logger.Level;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventLogger;
 
 final class CallerInfoEventDecorator implements LogEventHandler {
@@ -18,15 +21,19 @@ final class CallerInfoEventDecorator implements LogEventHandler {
 
 	private final RainbowGumMDCAdapter mdc;
 
+	private final @Nullable LogEventFactory scopedDefaults;
+
 	public CallerInfoEventDecorator(String loggerName, RainbowGumMDCAdapter mdc, LogEventLogger logger) {
-		this(loggerName, mdc, logger, CALLER_DEPTH_DELTA);
+		this(loggerName, mdc, logger, null, CALLER_DEPTH_DELTA);
 	}
 
-	public CallerInfoEventDecorator(String loggerName, RainbowGumMDCAdapter mdc, LogEventLogger logger, int depth) {
+	public CallerInfoEventDecorator(String loggerName, RainbowGumMDCAdapter mdc, LogEventLogger logger,
+			@Nullable LogEventFactory scopedDefaults, int depth) {
 		super();
 		this.loggerName = loggerName;
 		this.mdc = mdc;
 		this.logger = logger;
+		this.scopedDefaults = scopedDefaults;
 		this.depth = depth;
 	}
 
@@ -37,7 +44,17 @@ final class CallerInfoEventDecorator implements LogEventHandler {
 
 	@Override
 	public LogEventHandler withDepth(int depth) {
-		return new CallerInfoEventDecorator(loggerName, mdc, logger, CALLER_DEPTH_DELTA + depth);
+		return new CallerInfoEventDecorator(loggerName, mdc, logger, scopedDefaults, CALLER_DEPTH_DELTA + depth);
+	}
+
+	@Override
+	public KeyValues defaultKeyValues() {
+		return LogEventHandler.mergedDefaultKeyValues(mdc, scopedDefaults);
+	}
+
+	@Override
+	public MutableKeyValues copyDefaultKeyValues() {
+		return LogEventHandler.mergedCopyDefaultKeyValues(mdc, scopedDefaults);
 	}
 
 	public void handle(LogEvent event, @Nullable Caller caller) {
