@@ -5,6 +5,7 @@ Where X is one of the following JVM logging implementations:
 * [Logback](https://logback.qos.ch/)
 * [Log4j 2](https://logging.apache.org/log4j/2.x/)
 * [Reload4j](https://reload4j.qos.ch/) (Log4j 1, still alive as a security-patched fork)
+* [tinylog](https://tinylog.org/v2/)
 
 This document (like [JStachio's own](https://github.com/jstachio/jstachio/blob/main/why_jstachio_is_better.md),
 which it borrows its format from) is deliberately opinionated marketing - the
@@ -22,6 +23,7 @@ production.
 | **rainbowgum** (core + slf4j) | 0.11.0 | 366 + 63 KiB | **429 KiB** | Requires only `java.base` |
 | logback (classic + core) | 1.6.3 | 286 + 635 KiB | 921 KiB | Requires `java.xml`, transitively |
 | log4j2 (core + api + slf4j2 binding) | 3.0.0-beta2 | 1434 + 347 + 26 KiB | 1.76 MiB | Kitchen sink of features |
+| tinylog (api + impl + slf4j binding) | 2.8.0 | 63 + 134 + 14 KiB | 211 KiB | Smallest jar - but see below |
 
 Of the major general purpose JVM logging implementations, Rainbow Gum's `rainbowgum-core`
 is the only one that requires **just** `java.base` - nothing else. Logback and Log4j2 both
@@ -31,6 +33,39 @@ SLF4J already provides. On a JDK 21+ `jlink`/GraalVM native image, that differen
 module graph is the difference between a minimal runtime and one that has to carry XML
 parsing along for the ride.
 
+tinylog deserves real credit here: its codebase genuinely is lean - no XML configuration
+engine, a small class count, `tinylog.properties`/system-property configuration only -
+and by raw jar bytes it beats everyone in the table above, Rainbow Gum included. But
+`tinylog-impl`'s own module descriptor marks `java.sql` and `java.naming` as
+`requires static` ("optional"), while core pattern-formatting classes - not just the
+JDBC writer those modules obviously belong to - import them directly:
+[`DateToken`](https://github.com/tinylog-org/tinylog/blob/2934408bfa30a02cb241720211d391b88b18c61f/tinylog-impl/src/main/java/org/tinylog/pattern/DateToken.java#L16)
+imports `java.sql.PreparedStatement`/`java.sql.Timestamp` at the top of the file, and it's
+one of 28 classes in `tinylog-impl` referencing `java.sql` types (`jdeps -v` confirms it).
+"Optional" is what the module descriptor claims; the bytecode says otherwise.
+
+That is real, measured size on a `jlink` image someone actually cares enough to size-tune
+- not an abstract dependency-graph complaint. On JDK 26
+(`--strip-debug --no-header-files --no-man-pages --compress=zip-9`):
+
+| Modules added | Image size |
+| --- | ---: |
+| `java.base` (what Rainbow Gum needs) | 40.70 MiB |
+| + `java.management` (`tinylog-api`'s own hard requirement) | 41.36 MiB |
+| + `java.sql` | 45.64 MiB |
+| + `java.naming` (the JDBC writer's JNDI lookup) | 46.05 MiB |
+
+Going from Rainbow Gum's `java.base`-only image to what a tinylog-based one actually needs
+costs **5.35 MiB (+13%)** - over ten times the roughly 200 KiB the jar-size table above
+credited tinylog for saving.
+
+tinylog's jar is also small partly because it has no programmatic configuration API at
+all: `tinylog-api` ships property/system-property/JNDI value resolvers and nothing
+resembling Logback's, Log4j2's, or Rainbow Gum's builder API. That's a legitimate design
+choice for tinylog's target use case, not a size optimization anyone else is leaving on
+the table - it's a capability Rainbow Gum has that tinylog's jar-size numbers above simply
+don't have to pay for.
+
 ## Fast
 
 Real Spring Boot webapp benchmark, HTTP load, virtual and platform threads, plain and
@@ -38,12 +73,12 @@ structured (GELF) logging - see the
 [`feature/webapp-benchmark`](https://github.com/jstachio/rainbowgum/tree/feature/webapp-benchmark)
 branch (`benchmark/webapp`) for methodology and the driver code:
 
-| scenario | Logback | Log4j2 | Rainbow Gum |
+| scenario | Rainbow Gum | Logback | Log4j2 |
 |---|---:|---:|---:|
-| virtual threads | 25,554 req/s | 18,990 req/s | **26,324 req/s** |
-| virtual threads + GELF | 25,797 req/s | 17,734 req/s | **27,450 req/s** |
-| container/12-factor style (console-only, GELF) | 15,002 req/s | 19,639 req/s | **34,172 req/s** |
-| container/12-factor + virtual threads | 21,587 req/s | 15,445 req/s | **25,572 req/s** |
+| virtual threads | **26,324 req/s** | 25,554 req/s | 18,990 req/s |
+| virtual threads + GELF | **27,450 req/s** | 25,797 req/s | 17,734 req/s |
+| container/12-factor style (console-only, GELF) | **34,172 req/s** | 15,002 req/s | 19,639 req/s |
+| container/12-factor + virtual threads | **25,572 req/s** | 21,587 req/s | 15,445 req/s |
 
 The container/12-factor scenario - structured logging straight to stdout, no file output,
 the way most people actually run a Spring Boot app in Kubernetes today - is Rainbow Gum's
@@ -51,8 +86,178 @@ best result, roughly **2x** both Logback and Log4j2, and also the closest thing 
 "zero extra configuration" of the scenarios tested: it's exactly what Rainbow Gum's
 native structured-logging support produces with nothing but a property.
 
-(For completeness: on plain platform threads with no structured logging, Log4j2 still
-leads there; that specific gap isn't closed.)
+Real GraalVM native-image benchmark - plain `com.sun.net.httpserver.HttpServer`, virtual
+threads, TTLL and GELF logging - see the
+[`feature/graalvm-native-benchmark`](https://github.com/jstachio/rainbowgum/tree/feature/graalvm-native-benchmark)
+branch (`benchmark/native`, `0-11-2-RESULTS.md`) for methodology and the driver code:
+
+| format | Rainbow Gum | Logback | Log4j2 |
+|---|---:|---:|---:|
+| TTLL | **91,773 req/s** | 71,939 req/s | 85,066 req/s |
+| GELF | **92,264 req/s** | 56,772 req/s | 82,037 req/s |
+
+Logback's numbers here are not out-of-the-box either, and it's worth being explicit
+about that rather than letting the table imply otherwise: getting Logback's own default
+config to even load correctly under native-image at all required a non-obvious
+GraalVM build fix first (`-H:IncludeResources=logback\.xml$` - without it the config
+resource is silently absent at runtime and Logback falls back to `BasicConfigurator`
+with the wrong pattern *and* the wrong level, `DEBUG` instead of `INFO`, which alone
+would have skewed every number above), and the GELF row needed a second, separate fix
+(`net.logstash.logback.encoder.LogstashEncoder` isn't reachable by GraalVM's
+closed-world analysis on its own - a hand-written `reflect-config.json` entry was
+needed, found via the GraalVM tracing agent, not a guess). Both are documented in
+`benchmark/native/README.md`. Rainbow Gum needed neither - no build-time flags, no
+reflect-config, nothing beyond `rainbowgum-slf4j` on the classpath (see "Modular,
+GraalVM Native, and jlink friendly" below) - a real part of the "fast" story here, not
+just the runtime numbers.
+
+Getting there takes one explicit choice: `SYNCHRONIZED_THREAD_LOCAL_BUFFER` (see
+"Configurable locking strategy" below) instead of the default locking strategy - under
+native-image specifically it is a real, repeatable +29-32% over the default, the
+difference between beating Log4j2 by roughly 8-12% and trailing it by roughly 15-16%.
+It is not a universal win: on plain HotSpot the effect reverses and the default
+locking strategy is the better choice, which is exactly why it stays opt-in rather than
+becoming the new default.
+
+## Uses less memory
+
+Same benchmark as above (`feature/graalvm-native-benchmark`, `benchmark/native`), RSS
+instead of throughput, Rainbow Gum's default locking strategy (no opt-in needed) both
+ways - same caveat as above applies here too: Logback's native-image numbers needed the
+same non-default GraalVM build fixes just to load its config correctly at all, Rainbow
+Gum needed none:
+
+| | Rainbow Gum | Logback | Log4j2 |
+|---|---:|---:|---:|
+| HotSpot, TTLL | **576.7 MB** | 609.2 MB | 637.6 MB |
+| HotSpot, GELF | **591.0 MB** | see below | 609.1 MB |
+| native-image, TTLL | 103.3 MB | **65.1 MB** | 99.6 MB |
+| native-image, GELF | **65.6 MB** | 105.1 MB | 100.5 MB |
+
+On HotSpot - a plain `com.sun.net.httpserver.HttpServer` app, not a full Spring Boot
+stack, so framework overhead isn't buried under a much larger baseline heap the way it
+was in the Spring Boot benchmark above - Rainbow Gum leads outright in both formats
+(Logback's own GELF row hit a separate, real, reproducible memory blow-up specific to
+the third-party `logstash-logback-encoder` it depends on for GELF, documented in
+`0-11-2-RESULTS.md`; excluded here rather than presented as a Rainbow Gum win it isn't).
+
+Under native-image the picture is more mixed, and worth being upfront about rather than
+smoothing over: Rainbow Gum wins GELF clearly, but Logback's plain TTLL row is
+genuinely the smallest of the three there - a real, currently unexplained result
+(Rainbow Gum's own RSS drops going from TTLL to GELF, the opposite of what a bigger
+JSON payload per line would predict). Not cherry-picked away; see `0-11-2-RESULTS.md`
+for the full breakdown.
+
+The cleanest single number, though, isolates runtime footprint from how much is
+actually being logged: with logging disabled entirely (`LOG_LEVEL=ERROR`, none of the
+benchmark's log calls reach any encoder), native-image RSS is **40.9 MB** for Rainbow
+Gum versus **59.0 MB** for Log4j2 (-31%) and **51.0 MB** for Logback (-20%) - a
+persistent baseline footprint gap between the three runtimes with almost nothing being
+logged at all, not an artifact of any specific format or workload (`RESULTS.md`'s own
+"Baseline: logging mostly off" section).
+
+## Configurable locking strategy
+
+Locking is not a footnote in logging performance - under real concurrent load, contention
+on the append path is often the actual bottleneck, not encoding cost. Rainbow Gum makes
+the locking/buffering strategy an explicit, per-appender choice
+(`logging.appender.<name>.type`, or `LogAppender.Builder#appenderType` programmatically),
+and that choice is independent of which encoder or output the appender uses - any encoder
+(pattern, GELF, ECS, Logstash, a custom one) paired with any output (console, file, a
+custom one) can pick whichever of the four strategies fits:
+
+* `LOCK_THREAD_LOCAL_BUFFER` (default) - encode into a per-thread reused buffer outside
+  the lock, hold the lock only for the final write to the output.
+* `SYNCHRONIZED_THREAD_LOCAL_BUFFER` - the same shape, but the write is guarded by a
+  plain `synchronized` block instead of a `ReentrantLock`.
+* `LOCK_NEW_BUFFER` - the same low-contention shape with no `ThreadLocal` at all, for
+  deployments that want a hard guarantee against it, at the cost of a fresh buffer
+  allocation per event.
+* `REUSE_BUFFER` - a single shared buffer, held under lock for the entire
+  encode-then-write critical section.
+
+Logback has exactly one locking strategy across every appender it ships: encode outside
+any lock, then a `ReentrantLock` held only for the final write - the same shape as
+Rainbow Gum's `LOCK_NEW_BUFFER` (no `ThreadLocal` reuse, a fresh buffer allocated per
+event). It is not a choice you can make; it is the only implementation Logback has.
+Rainbow Gum treats that as one of four options, not the only one.
+
+## Discarding a disabled level costs as close to zero as possible
+
+Most frameworks' SLF4J bindings dispatch every call through a single logger
+implementation that checks the current level against an `if` condition -
+`isDebugEnabled()` (or the equivalent internal check inside `debug(...)` itself) still
+runs a comparison and a branch on every single disabled call, no matter how "cheap" that
+check is. Rainbow Gum's SLF4J logger instead resolves the effective level once, when the
+logger is obtained, to one of five concrete per-level classes
+(`ErrorLogger`/`WarnLogger`/`InfoLogger`/`DebugLogger`/`TraceLogger`, generated - not
+hand-written, so there is no per-level combination anyone could forget). For any level
+below the one that class represents, the method body is empty:
+
+```java
+// a Logger resolved at WARN - this is the entire method, not an excerpt
+@Override
+public void info(String msg) {
+}
+```
+
+Calling `.info(...)`/`.debug(...)`/`.trace(...)` on a logger configured at `WARN` does not
+evaluate a condition at all - it calls a method with nothing in it, which the JIT can (and
+does) treat as free. `isInfoEnabled()` still correctly returns `false` (SLF4J's contract
+requires the method to exist), but the actual logging call itself never consults it,
+because which behavior to run was already decided once, not on every call.
+
+Credit where due: tinylog's SLF4J binding is close in spirit, if not in mechanism. Every
+disabled-level call there is gated by a single `static final boolean` field
+(`MINIMUM_DEFAULT_LEVEL_COVERS_DEBUG` and friends), computed once when the class loads -
+not a per-call comparison against some mutable level. Once the JIT (or GraalVM
+native-image's own build-time constant folding) sees that field can never change, the
+`if` and everything it guards collapses away just like Rainbow Gum's empty method does.
+The real difference is scope: tinylog's flag is one global minimum across the entire JVM,
+so it only stays free while nothing anywhere in the app needs a lower level - configure
+even one package to `DEBUG` while the rest of the app sits at `INFO`, and that flag flips
+to covering `DEBUG`, so *every* `debug()` call app-wide (not just the one package that
+needed it) falls through to a real per-tag runtime check. Rainbow Gum's per-logger class
+selection has no such blast radius: each logger's cost depends only on its own resolved
+level, however many other loggers elsewhere are configured differently.
+
+## Built-in operational metrics, no extra dependency
+
+Rainbow Gum tracks a small, well known set of counters about the logging system itself -
+events dropped, encoder buffer trims, failed writes - out of the box, with zero required
+dependency beyond `java.base`:
+
+```java
+var counters = config.metrics().counters();
+// [Counter[name=events.dropped, level=ERROR, count=3], ...]
+```
+
+Each is a plain `LongAdder`, incremented with no per-call allocation and no listener
+dispatch - cheap enough to leave on unconditionally, not something you opt into only in
+a profiling build. Neither Logback nor Log4j2 ship anything like this: finding out how
+many events an appender has silently dropped, or how often the encoder's buffer had to
+shrink back down, means wiring up Micrometer or JMX yourself first - Rainbow Gum answers
+that question with a method call.
+
+## The correct external log rotation, not "copy truncate"
+
+The classic Unix daemon convention for external log rotation is: an external tool (e.g.
+`logrotate`) moves the log file aside, then signals the running process to close and
+reopen it by its original name - releasing the moved file's descriptor cleanly, with no
+dropped or corrupted events. The alternative most JVM logging frameworks push you toward
+instead - `logrotate`'s `copytruncate` mode, or the framework's own internal size/time
+based rolling policy - either truncates the file out from under a process that still has
+it open (a real event-loss/corruption race) or takes rotation out of `logrotate`'s hands
+entirely.
+
+Rainbow Gum's `LogOutputRegistry#reopen()` does the correct move-then-reopen dance
+against any output, triggerable over a plain HTTP endpoint (no extra dependency, a few
+lines of application code) or, on Linux/Docker, directly from a logrotate `postrotate`
+script via a real Unix signal - `kill -USR1 $(cat app.pid)`, no open port and no
+application code at all - through the optional `rainbowgum-signal` module. Neither
+Logback nor Log4j2 offers anything like it: both expect their own internal rolling
+policy to be the only thing touching the file, with `copytruncate` as the sole fallback
+if you insist on using `logrotate` alongside them anyway.
 
 ## Modular, GraalVM Native, and jlink friendly
 
@@ -64,6 +269,33 @@ leads there; that specific gap isn't closed.)
   reflection other than the `ServiceLoader` (which is GraalVM native friendly and the
   preferred way to do pluggable components on modern JDKs), and needs no special
   configuration to work correctly under GraalVM native.
+
+None of the other frameworks in this comparison has strong, native-first GraalVM support
+today, though it's worth being fair about where each one actually stands:
+
+* **Logback** ships no GraalVM reachability metadata of its own - what exists comes from
+  the third-party [`graalvm-reachability-metadata`](https://github.com/oracle/graalvm-reachability-metadata)
+  repository, not `logback.qos.ch`. It is, however, doing real work in this direction:
+  [`logback-tyler`](https://github.com/qos-ch/logback-tyler) translates a `logback.xml`
+  file into a plain Java class (`TylerConfigurator`) that configures Logback with no XML
+  parser and no reflection at all - the same two things Rainbow Gum avoids by design from
+  the start. It is a genuinely good sign for Logback's native-image future, even though it
+  is a still-new, opt-in translation step bolted onto an XML-first architecture rather
+  than something built in from the ground up.
+* **Log4j2** does have an official GraalVM page (`logging.apache.org/log4j/2.x/graalvm.html`),
+  which is more first-party documentation than Logback, Reload4j, or tinylog have. It is
+  brief, though - a page of "here's what's supported, here are links to GraalVM's own
+  docs" rather than a worked, CI-verified example.
+* **Reload4j and tinylog** have no dedicated native-image documentation at all.
+
+Rainbow Gum's own GraalVM Native Image documentation (in the
+[user guide](https://jstach.io/rainbowgum/)) goes further than any of these: it explains,
+with root causes, the specific JDK-internal
+code paths (`java.time`/`java.util.Locale` formatting, `TrustStoreManagerFeature`) that
+incidentally call `System.getLogger(...)` during a native-image build and why that is
+safe, and `test/rainbowgum-test-native` is a real application built to a native
+executable and run as a black-box smoke test in CI on every change - not just a claim
+that it works.
 
 ## Programmatic configuration is dramatically less verbose
 
@@ -225,6 +457,27 @@ including end-to-end golden-string tests of what happens when a component is
 misconfigured, not just the happy path. See
 [error_messages_comparison.md](error_messages_comparison.md) for what that buys you in
 practice.
+
+Credit where due again: tinylog does the same thing, and does it well - its
+[Codecov badge](https://app.codecov.io/gh/tinylog-org/tinylog/tree/v2.8) shows **94%**,
+tracked continuously the same way Rainbow Gum's is. Logback's and Log4j2's actual
+coverage, by contrast, is not something you can just go look up: neither publishes a
+number anywhere - the obvious place to check, Codecov, returns "unknown" for both
+([logback](https://codecov.io/gh/qos-ch/logback), [log4j2](https://codecov.io/gh/apache/logging-log4j2)),
+meaning no coverage data has ever been uploaded there. That doesn't mean they're
+untested - both have large, long-running test suites - it means there is no public
+number to compare against, favorable or not, the way there is for Rainbow Gum and
+tinylog.
+
+To be clear, 92% is not a number Rainbow Gum is chasing toward 100 for its own sake.
+Line coverage measures which lines *ran* during a test, not which lines were actually
+*verified* - a test that only exists to touch a line pads the percentage without proving
+anything, and 100% can just as easily mean "we wrote a trivial test for every line"
+as "we deleted the dead code that shouldn't have been there in the first place."
+Rainbow Gum prefers real, end-to-end tests - including parameterized ones that sweep many
+input shapes through the same real assertion, like `ConfigFailureTest`'s enum-driven
+cases - over hand-crafted unit tests aimed at specific lines. The percentage is a
+byproduct of testing real behavior thoroughly, not the target itself.
 
 ## Smaller security surface
 
