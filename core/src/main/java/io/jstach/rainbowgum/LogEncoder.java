@@ -120,7 +120,7 @@ public interface LogEncoder {
 
 		private int initialBufferSize = DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY;
 
-		private boolean useGetBytes;
+		private @Nullable Boolean useGetBytes;
 
 		private Builder(LogFormatter formatter) {
 			this.formatter = Objects.requireNonNull(formatter);
@@ -201,7 +201,14 @@ public interface LogEncoder {
 		 * buffer. Only affects {@link WriteMethod#BYTES}/{@link WriteMethod#BYTE_BUFFER}
 		 * outputs - always calls the byte[] overload directly regardless of which of
 		 * those two hints an output actually declares.
-		 * @param useGetBytes default is false.
+		 * <p>
+		 * If never called, this resolves to {@code true} instead of the historical
+		 * {@code false} default when {@link LogProperties#GLOBAL_OPTIMIZE_PROPERTY} is
+		 * enabled and the process is running as a GraalVM native image - see that
+		 * property's javadoc for what it currently resolves to and why that is not a
+		 * contract. Calling this method, either way, always wins over that.
+		 * @param useGetBytes default is false, unless left unset and overridden by
+		 * {@link LogProperties#GLOBAL_OPTIMIZE_PROPERTY}.
 		 * @return this.
 		 */
 		public Builder useGetBytes(boolean useGetBytes) {
@@ -229,9 +236,20 @@ public interface LogEncoder {
 			}
 			var resolvedCharset = c;
 			var resolvedContentType = ct;
-			boolean resolvedUseGetBytes = useGetBytes;
-			return (n, config) -> new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
-					initialBufferSize, resolvedUseGetBytes, config.metrics());
+			Boolean explicitUseGetBytes = useGetBytes;
+			return (n, config) -> {
+				/*
+				 * Resolved lazily, inside this lambda, not eagerly above: the global
+				 * optimize flag is only guaranteed set by the time a real LogConfig
+				 * exists (see DefaultLogConfig's constructor), which this lambda's config
+				 * parameter proves has already happened - resolving it eagerly in build()
+				 * could run before any LogConfig was ever constructed.
+				 */
+				boolean resolvedUseGetBytes = explicitUseGetBytes != null ? explicitUseGetBytes
+						: AbstractLogAppender.globalOptimizeEnabled && AbstractLogAppender.isNativeImageRuntime();
+				return new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
+						initialBufferSize, resolvedUseGetBytes, config.metrics());
+			};
 		}
 
 	}

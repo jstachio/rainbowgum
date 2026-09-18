@@ -309,10 +309,11 @@ public sealed interface LogAppender extends LogLifecycle {
 	 * builder's name (see {@link #fromProperties(LogProperties)}), and failing that from
 	 * a small set of defaults: no encoder resolves one from the output's own type, no
 	 * flags means none are set, and no appender type means
-	 * {@link AppenderType#LOCK_THREAD_LOCAL_BUFFER}. There is deliberately no such
-	 * default for output, since a required source is not something a generic named
-	 * appender can safely guess, except for the well known {@code "console"}/
-	 * {@code "file"} names, which register their own fallback via
+	 * {@link AppenderType#LOCK_THREAD_LOCAL_BUFFER} - or {@link AppenderType#AUTO_DETECT}
+	 * instead, if {@link LogProperties#GLOBAL_OPTIMIZE_PROPERTY} is enabled. There is
+	 * deliberately no such default for output, since a required source is not something a
+	 * generic named appender can safely guess, except for the well known
+	 * {@code "console"}/ {@code "file"} names, which register their own fallback via
 	 * {@link #outputDefault(LogProvider)}.
 	 */
 	public static final class Builder implements LogBuilder<Builder, LogAppender> {
@@ -447,7 +448,9 @@ public sealed interface LogAppender extends LogLifecycle {
 		/**
 		 * Sets the appender type (buffer/locking strategy). If not set it is resolved
 		 * from {@link LogAppender#APPENDER_TYPE_PROPERTY} or otherwise defaults to
-		 * {@link AppenderType#LOCK_THREAD_LOCAL_BUFFER}.
+		 * {@link AppenderType#LOCK_THREAD_LOCAL_BUFFER} ({@link AppenderType#AUTO_DETECT}
+		 * instead if {@link LogProperties#GLOBAL_OPTIMIZE_PROPERTY} is enabled). Calling
+		 * this method always wins over both.
 		 * @param appenderType appender type.
 		 * @return this.
 		 */
@@ -588,7 +591,8 @@ public sealed interface LogAppender extends LogLifecycle {
 
 				Set<AppenderFlag> flags = b.flags != null ? b.flags : EnumSet.noneOf(AppenderFlag.class);
 				AppenderType appenderType = b.appenderType != null ? b.appenderType
-						: AppenderType.LOCK_THREAD_LOCAL_BUFFER;
+						: AbstractLogAppender.globalOptimizeEnabled ? AppenderType.AUTO_DETECT
+								: AppenderType.LOCK_THREAD_LOCAL_BUFFER;
 
 				return DirectLogAppender.of(_name, output, encoder, appenderType, flags, config.alerts(),
 						config.metrics());
@@ -842,6 +846,17 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY's javadoc.
 	 */
 	static volatile boolean forceNoThreadLocalAppenders = false;
+
+	/*
+	 * Set once from LogProperties#GLOBAL_OPTIMIZE_PROPERTY during LogConfig construction
+	 * (see DefaultLogConfig) - unlike
+	 * forceReentrantLockAppenders/forceNoThreadLocalAppenders above, this is not a
+	 * downgrade applied to an already-resolved type; it only changes what
+	 * LogAppender.Builder#build() picks when appenderType was never set at all
+	 * (explicitly, either way, always wins). See LogProperties#GLOBAL_OPTIMIZE_PROPERTY's
+	 * javadoc for what it currently resolves to and why that is not a contract.
+	 */
+	static volatile boolean globalOptimizeEnabled = false;
 
 	/**
 	 * Downgrades either {@link ThreadLocal}-backed type (
