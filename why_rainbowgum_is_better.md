@@ -124,10 +124,11 @@ custom one) can pick whichever of the four strategies fits:
 * `REUSE_BUFFER` - a single shared buffer, held under lock for the entire
   encode-then-write critical section.
 
-Logback has exactly one locking strategy across every appender it ships - a single lock
-held for the whole encode-then-write critical section, the same shape as Rainbow Gum's
-`REUSE_BUFFER`. It is not a choice you can make; it is the only implementation Logback
-has. Rainbow Gum treats that as one of four options, not the only one.
+Logback has exactly one locking strategy across every appender it ships: encode outside
+any lock, then a `ReentrantLock` held only for the final write - the same shape as
+Rainbow Gum's `LOCK_NEW_BUFFER` (no `ThreadLocal` reuse, a fresh buffer allocated per
+event). It is not a choice you can make; it is the only implementation Logback has.
+Rainbow Gum treats that as one of four options, not the only one.
 
 ## Discarding a disabled level costs as close to zero as possible
 
