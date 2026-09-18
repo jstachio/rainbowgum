@@ -7,57 +7,40 @@ import java.util.concurrent.StructuredTaskScope;
 public class Demo {
 
 	public static void main(String[] args) throws Exception {
-		basicUsage();
-		firstWinsOnNestedSameName();
-		retrievalDoesNotNeedToKnowNamesAheadOfTime();
-		structuredChildInheritsBinding();
-		notBoundOutsideAnyScope();
+		typicalUsageOnePushForTheWholeRequest();
+		nestedPushIsCumulativeNotACollision();
+		structuredChildInheritsTheStack();
+		siblingsAndParentDoNotSeeEachOthersAdditions();
+		notBoundOutsideAnyPush();
 	}
 
-	static void basicUsage() {
-		System.out.println("== basicUsage ==");
-		ScopedKeyValues.builder()
-			.add("requestId", "abc123")
-			.add("tenant", "acme")
-			.run("request", () -> {
-				System.out.println("current(request) = " + ScopedKeyValues.current("request"));
-			});
-	}
-
-	static void firstWinsOnNestedSameName() {
-		System.out.println("== firstWinsOnNestedSameName ==");
-		ScopedKeyValues.builder().add("requestId", "outer").run("request", () -> {
-			System.out.println("outer sees: " + ScopedKeyValues.current("request"));
-			// Nested call under the SAME name with DIFFERENT values - first wins, this
-			// should have no effect; the outer binding stays in effect throughout.
-			ScopedKeyValues.builder().add("requestId", "inner-should-be-ignored").run("request", () -> {
-				System.out.println("inner sees (should still be 'outer'): " + ScopedKeyValues.current("request"));
-			});
-			System.out.println("outer still sees: " + ScopedKeyValues.current("request"));
+	static void typicalUsageOnePushForTheWholeRequest() {
+		System.out.println("== typicalUsageOnePushForTheWholeRequest ==");
+		// The expected real shape: one push wrapping the entire request, at the
+		// boundary - not scattered through business logic.
+		ScopedKeyValues.builder().add("requestId", "abc123").add("tenant", "acme").run(() -> {
+			System.out.println("current() = " + ScopedKeyValues.current());
+			System.out.println("currentMerged() = " + ScopedKeyValues.currentMerged());
 		});
 	}
 
-	static void retrievalDoesNotNeedToKnowNamesAheadOfTime() {
-		System.out.println("== retrievalDoesNotNeedToKnowNamesAheadOfTime ==");
-		// Simulates an unrelated library registering its OWN named scope that a
-		// LogEventFactory-style caller never heard of - currentAll() finds it anyway.
-		ScopedKeyValues.builder().add("requestId", "abc123").run("request", () -> {
-			ScopedKeyValues.builder().add("txId", "tx-789").run("some.library.FQCN.transaction", () -> {
-				System.out.println("currentAll() merged = " + ScopedKeyValues.currentAll());
+	static void nestedPushIsCumulativeNotACollision() {
+		System.out.println("== nestedPushIsCumulativeNotACollision ==");
+		ScopedKeyValues.builder().add("requestId", "abc123").run(() -> {
+			System.out.println("after outer push: " + ScopedKeyValues.current());
+			ScopedKeyValues.builder().add("step", "validate").run(() -> {
+				System.out.println("after inner push: " + ScopedKeyValues.current());
 			});
+			System.out.println("back to outer, inner's layer is gone: " + ScopedKeyValues.current());
 		});
 	}
 
-	static void structuredChildInheritsBinding() throws Exception {
-		System.out.println("== structuredChildInheritsBinding ==");
-		ScopedKeyValues.builder().add("requestId", "parent-value").run("request", () -> {
+	static void structuredChildInheritsTheStack() throws Exception {
+		System.out.println("== structuredChildInheritsTheStack ==");
+		ScopedKeyValues.builder().add("requestId", "parent-value").run(() -> {
 			try (var scope = StructuredTaskScope.<String>open()) {
-				var subtask = scope.fork(() -> {
-					// A different (virtual) thread - same ScopedValue binding, inherited
-					// structurally, no manual copying needed.
-					return "child thread sees: " + ScopedKeyValues.current("request") + " on "
-							+ Thread.currentThread();
-				});
+				var subtask = scope.fork(() -> "child sees: " + ScopedKeyValues.current() + " on "
+						+ Thread.currentThread());
 				scope.join();
 				System.out.println(subtask.get());
 			}
@@ -67,10 +50,33 @@ public class Demo {
 		});
 	}
 
-	static void notBoundOutsideAnyScope() {
-		System.out.println("== notBoundOutsideAnyScope ==");
-		System.out.println("current(request) outside any run = " + ScopedKeyValues.current("request"));
-		System.out.println("currentAll() outside any run = " + ScopedKeyValues.currentAll());
+	static void siblingsAndParentDoNotSeeEachOthersAdditions() throws Exception {
+		System.out.println("== siblingsAndParentDoNotSeeEachOthersAdditions ==");
+		ScopedKeyValues.builder().add("requestId", "req-1").run(() -> {
+			try (var scope = StructuredTaskScope.<Void>open()) {
+				System.out.println("parent before fork: " + ScopedKeyValues.current());
+				scope.fork(() -> {
+					ScopedKeyValues.builder().add("siblingA", "own-layer").run(() -> {
+						System.out.println("sibling A sees: " + ScopedKeyValues.current());
+					});
+					return null;
+				});
+				scope.fork(() -> {
+					System.out.println("sibling B sees (must NOT have A's layer): " + ScopedKeyValues.current());
+					return null;
+				});
+				scope.join();
+				System.out.println("parent after both children returned: " + ScopedKeyValues.current());
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		});
+	}
+
+	static void notBoundOutsideAnyPush() {
+		System.out.println("== notBoundOutsideAnyPush ==");
+		System.out.println("current() outside any push = " + ScopedKeyValues.current());
 	}
 
 }
