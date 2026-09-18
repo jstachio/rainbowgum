@@ -120,6 +120,8 @@ public interface LogEncoder {
 
 		private int initialBufferSize = DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY;
 
+		private boolean useGetBytes;
+
 		private Builder(LogFormatter formatter) {
 			this.formatter = Objects.requireNonNull(formatter);
 		}
@@ -193,6 +195,21 @@ public interface LogEncoder {
 		}
 
 		/**
+		 * If set, converts to bytes with {@link String#getBytes(Charset)} on the fully
+		 * formatted string instead of the default
+		 * {@link java.nio.charset.CharsetEncoder}-based copy directly into a reused byte
+		 * buffer. Only affects {@link WriteMethod#BYTES}/{@link WriteMethod#BYTE_BUFFER}
+		 * outputs - always calls the byte[] overload directly regardless of which of
+		 * those two hints an output actually declares.
+		 * @param useGetBytes default is false.
+		 * @return this.
+		 */
+		public Builder useGetBytes(boolean useGetBytes) {
+			this.useGetBytes = useGetBytes;
+			return this;
+		}
+
+		/**
 		 * Builds the encoder.
 		 * @return encoder.
 		 */
@@ -212,8 +229,9 @@ public interface LogEncoder {
 			}
 			var resolvedCharset = c;
 			var resolvedContentType = ct;
+			boolean resolvedUseGetBytes = useGetBytes;
 			return (n, config) -> new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
-					initialBufferSize, config.metrics());
+					initialBufferSize, resolvedUseGetBytes, config.metrics());
 		}
 
 	}
@@ -502,6 +520,75 @@ final class StringBuilderBuffer implements TextBuffer {
 
 /**
  * A buffer that formats into a reused {@link StringBuilder} (like
+ * {@link StringBuilderBuffer}) but converts to bytes with
+ * {@link String#getBytes(Charset)} on the fully formatted string, instead of
+ * {@link DirectByteBufferBuffer}'s {@link java.nio.charset.CharsetEncoder}-based copy
+ * directly into a reused byte buffer. A separate class from
+ * {@link DirectByteBufferBuffer} rather than a branch inside it because the two hold
+ * fundamentally different backing storage ({@link StringBuilder} plus a scratch
+ * {@code byte[]} here, a reused {@link ByteBuffer} there) - {@link #isOversized()} only
+ * tracks {@link #stringBuilder}'s capacity, not the scratch {@code byte[]}, since the
+ * array is always sized exactly to the last event's encoded length and never retains
+ * excess capacity the way a reused buffer can.
+ *
+ * @see LogEncoder.Builder#useGetBytes(boolean)
+ */
+final class StringBuilderBufferBytes implements TextBuffer {
+
+	private static final byte[] EMPTY_BYTES = new byte[0];
+
+	final StringBuilder stringBuilder;
+
+	private final Charset charset;
+
+	private final LogOutput.ContentType contentType;
+
+	private final int maxBufferSize;
+
+	private final LogMetrics metrics;
+
+	private byte[] bytes = EMPTY_BYTES;
+
+	StringBuilderBufferBytes(StringBuilder stringBuilder, Charset charset, LogOutput.ContentType contentType,
+			int maxBufferSize, LogMetrics metrics) {
+		super();
+		this.stringBuilder = stringBuilder;
+		this.charset = charset;
+		this.contentType = contentType;
+		this.maxBufferSize = maxBufferSize;
+		this.metrics = metrics;
+	}
+
+	@Override
+	public void drain(LogOutput output, LogEvent event) {
+		output.write(event, bytes, 0, bytes.length, contentType);
+	}
+
+	@Override
+	public void clear() {
+		stringBuilder.setLength(0);
+		bytes = EMPTY_BYTES;
+		if (isOversized()) {
+			stringBuilder.trimToSize();
+			metrics.warnCounter(LogMetrics.BUFFER_TRIMMED_METRIC, 1);
+		}
+	}
+
+	@Override
+	public boolean isOversized() {
+		return maxBufferSize >= 0 && stringBuilder.capacity() > maxBufferSize;
+	}
+
+	@Override
+	public void encodeToBuffer(LogFormatter formatter, LogEvent event) {
+		formatter.format(stringBuilder, event);
+		bytes = stringBuilder.toString().getBytes(charset);
+	}
+
+}
+
+/**
+ * A buffer that formats into a reused {@link StringBuilder} (like
  * {@link StringBuilderBuffer}) but encodes directly into a reused {@link ByteBuffer} via
  * a {@link CharsetEncoder}, instead of going through an intermediate {@code String} and
  * {@code byte[]} the way {@code LogOutput.write(LogEvent, String)}'s default
@@ -711,16 +798,19 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final int initialBufferSize;
 
+	private final boolean useGetBytes;
+
 	private final LogMetrics metrics;
 
 	FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxBufferSize,
-			int initialBufferSize, LogMetrics metrics) {
+			int initialBufferSize, boolean useGetBytes, LogMetrics metrics) {
 		super();
 		this.formatter = formatter;
 		this.charset = charset;
 		this.contentType = contentType;
 		this.maxBufferSize = maxBufferSize;
 		this.initialBufferSize = initialBufferSize;
+		this.useGetBytes = useGetBytes;
 		this.metrics = metrics;
 	}
 
@@ -728,8 +818,13 @@ final class FormatterEncoder implements LogEncoder {
 	public Buffer buffer(BufferHints hints) {
 		return switch (hints.writeMethod()) {
 			case STRING -> StringBuilderBuffer.of(new StringBuilder(initialBufferSize), maxBufferSize, metrics);
-			case BYTES, BYTE_BUFFER -> new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset,
-					contentType, maxBufferSize, metrics);
+			case BYTES,
+					BYTE_BUFFER ->
+				useGetBytes
+						? new StringBuilderBufferBytes(new StringBuilder(initialBufferSize), charset, contentType,
+								maxBufferSize, metrics)
+						: new DirectByteBufferBuffer(hints.writeMethod(), initialBufferSize, charset, contentType,
+								maxBufferSize, metrics);
 		};
 	}
 
