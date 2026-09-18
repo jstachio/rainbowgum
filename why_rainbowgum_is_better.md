@@ -96,6 +96,21 @@ branch (`benchmark/native`, `0-11-2-RESULTS.md`) for methodology and the driver 
 | TTLL | **91,773 req/s** | 71,939 req/s | 85,066 req/s |
 | GELF | **92,264 req/s** | 56,772 req/s | 82,037 req/s |
 
+Logback's numbers here are not out-of-the-box either, and it's worth being explicit
+about that rather than letting the table imply otherwise: getting Logback's own default
+config to even load correctly under native-image at all required a non-obvious
+GraalVM build fix first (`-H:IncludeResources=logback\.xml$` - without it the config
+resource is silently absent at runtime and Logback falls back to `BasicConfigurator`
+with the wrong pattern *and* the wrong level, `DEBUG` instead of `INFO`, which alone
+would have skewed every number above), and the GELF row needed a second, separate fix
+(`net.logstash.logback.encoder.LogstashEncoder` isn't reachable by GraalVM's
+closed-world analysis on its own - a hand-written `reflect-config.json` entry was
+needed, found via the GraalVM tracing agent, not a guess). Both are documented in
+`benchmark/native/README.md`. Rainbow Gum needed neither - no build-time flags, no
+reflect-config, nothing beyond `rainbowgum-slf4j` on the classpath (see "Modular,
+GraalVM Native, and jlink friendly" below) - a real part of the "fast" story here, not
+just the runtime numbers.
+
 Getting there takes one explicit choice: `SYNCHRONIZED_THREAD_LOCAL_BUFFER` (see
 "Configurable locking strategy" below) instead of the default locking strategy - under
 native-image specifically it is a real, repeatable +29-32% over the default, the
@@ -108,7 +123,9 @@ becoming the new default.
 
 Same benchmark as above (`feature/graalvm-native-benchmark`, `benchmark/native`), RSS
 instead of throughput, Rainbow Gum's default locking strategy (no opt-in needed) both
-ways:
+ways - same caveat as above applies here too: Logback's native-image numbers needed the
+same non-default GraalVM build fixes just to load its config correctly at all, Rainbow
+Gum needed none:
 
 | | Rainbow Gum | Logback | Log4j2 |
 |---|---:|---:|---:|
