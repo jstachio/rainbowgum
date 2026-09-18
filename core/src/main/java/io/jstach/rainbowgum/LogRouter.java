@@ -427,8 +427,6 @@ public sealed interface LogRouter extends LogLifecycle {
 							.fallback(StaticLevelResolver.INFO)
 							.build()
 							.provide(name, config);
-						// throw new IllegalStateException("Global Level Resolver should
-						// not resolve to Level.ALL");
 					}
 				}
 
