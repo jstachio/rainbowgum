@@ -11,8 +11,6 @@ class LogConfigTest {
 
 	@Test
 	void test() {
-		// System.setProperty("rainbowgum.log.stuff", "DEBUG");
-
 		var config = LogConfig.builder()
 			.properties(Map.<String, String>of("logging.level.stuff", "DEBUG")::get)
 			.build();
