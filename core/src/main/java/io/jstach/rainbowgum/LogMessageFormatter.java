@@ -135,7 +135,6 @@ final class SLF4JMessageFormatter {
 
 	private static final char DELIM_START = '{';
 
-	// private static final char DELIM_STOP = '}';
 	private static final String DELIM_STR = "{}";
 
 	private static final char ESCAPE_CHAR = '\\';
@@ -336,8 +335,6 @@ final class SLF4JMessageFormatter {
 			sbuf.append(oAsString);
 		}
 		catch (Throwable t) {
-			// Util.report("SLF4J: Failed toString() invocation on an object of type [" +
-			// o.getClass().getName() + "]", t);
 			sbuf.append("[FAILED toString()]");
 		}
 
