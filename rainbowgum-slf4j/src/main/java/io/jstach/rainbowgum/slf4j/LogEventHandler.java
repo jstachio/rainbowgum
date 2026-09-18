@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.spi.LoggingEventBuilder;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventFactory;
@@ -72,17 +73,67 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 		return mdc().keyValues();
 	}
 
+	/**
+	 * Like {@link #defaultKeyValues()} but a genuinely independent copy, safe for the
+	 * caller to mutate further (e.g. to seed a fluent builder that will add more key
+	 * values on top) - unlike {@link #defaultKeyValues()}, which is allowed to return
+	 * MDC's live, not-yet-exposed instance for the common case where nothing further
+	 * mutates it.
+	 * @return a new mutable key values, safe to mutate.
+	 */
+	default MutableKeyValues copyDefaultKeyValues() {
+		return mdc().copyMutableKeyValues();
+	}
+
 	public RainbowGumMDCAdapter mdc();
 
 	default LoggingEventBuilder eventBuilder(org.slf4j.event.Level level) {
-		return new RainbowGumEventBuilder(this, mdc(), Levels.toSystemLevel(level));
+		return new RainbowGumEventBuilder(this, Levels.toSystemLevel(level));
 	}
 
 	public LogEventHandler withDepth(int depth);
 
-	static LogEventHandler of(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc) {
-		record DefaultLogEventHandler(String loggerName, LogEventLogger logger,
-				RainbowGumMDCAdapter mdc) implements LogEventHandler {
+	/**
+	 * Merges {@code scopedDefaults}' own {@link LogEventFactory#defaultKeyValues()} (if
+	 * not null) as the lowest-precedence source underneath {@code mdc}'s current
+	 * key-values, which always win on a key collision - {@code null} (nothing registered)
+	 * returns {@code mdc.keyValues()} unchanged, no allocation.
+	 * @param mdc current thread's MDC.
+	 * @param scopedDefaults optional lower-precedence source, or {@code null}.
+	 * @return merged, read-only-by-convention key values.
+	 */
+	static KeyValues mergedDefaultKeyValues(RainbowGumMDCAdapter mdc, @Nullable LogEventFactory scopedDefaults) {
+		if (scopedDefaults == null) {
+			return mdc.keyValues();
+		}
+		var buf = MutableKeyValues.of();
+		scopedDefaults.defaultKeyValues().forEach(buf);
+		mdc.keyValues().forEach(buf);
+		return buf;
+	}
+
+	/**
+	 * Like {@link #mergedDefaultKeyValues(RainbowGumMDCAdapter, LogEventFactory)} but
+	 * always a fresh, independently mutable copy - see {@link #copyDefaultKeyValues()}.
+	 * @param mdc current thread's MDC.
+	 * @param scopedDefaults optional lower-precedence source, or {@code null}.
+	 * @return merged, mutable key values.
+	 */
+	static MutableKeyValues mergedCopyDefaultKeyValues(RainbowGumMDCAdapter mdc,
+			@Nullable LogEventFactory scopedDefaults) {
+		if (scopedDefaults == null) {
+			return mdc.copyMutableKeyValues();
+		}
+		var buf = MutableKeyValues.of();
+		scopedDefaults.defaultKeyValues().forEach(buf);
+		mdc.keyValues().forEach(buf);
+		return buf;
+	}
+
+	static LogEventHandler of(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc,
+			@Nullable LogEventFactory scopedDefaults) {
+		record DefaultLogEventHandler(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc,
+				@Nullable LogEventFactory scopedDefaults) implements LogEventHandler {
 
 			@Override
 			public void handle(LogEvent event) {
@@ -98,12 +149,23 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 			public boolean isCallerAware() {
 				return false;
 			}
+
+			@Override
+			public KeyValues defaultKeyValues() {
+				return mergedDefaultKeyValues(mdc, scopedDefaults);
+			}
+
+			@Override
+			public MutableKeyValues copyDefaultKeyValues() {
+				return mergedCopyDefaultKeyValues(mdc, scopedDefaults);
+			}
 		}
-		return new DefaultLogEventHandler(loggerName, logger, mdc);
+		return new DefaultLogEventHandler(loggerName, logger, mdc, scopedDefaults);
 	}
 
-	static LogEventHandler ofCallerInfo(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc, int depth) {
-		return new CallerInfoEventDecorator(loggerName, mdc, logger, depth + CALLER_DEPTH_DELTA);
+	static LogEventHandler ofCallerInfo(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc, int depth,
+			@Nullable LogEventFactory scopedDefaults) {
+		return new CallerInfoEventDecorator(loggerName, mdc, logger, scopedDefaults, depth + CALLER_DEPTH_DELTA);
 	}
 
 	static final int CALLER_DEPTH_DELTA = 2;

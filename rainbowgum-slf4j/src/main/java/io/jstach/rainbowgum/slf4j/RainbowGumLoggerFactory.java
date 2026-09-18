@@ -12,6 +12,7 @@ import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.RainbowGum;
@@ -108,7 +109,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				}
 			}
 			if (callerInfoEnabled && newLogger instanceof HandlerSource hs) {
-				newLogger = new LocationAwareForwardingLogger(newLogger, hs, name, mdc);
+				newLogger = new LocationAwareForwardingLogger(newLogger, hs, name);
 			}
 			Logger decorated = decorator.decorate(currentRainbowGum, newLogger);
 			Logger oldInstance = loggerMap.putIfAbsent(name, decorated);
@@ -157,10 +158,19 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	private LogEventHandler maybeAddCallerInfo(String loggerName, boolean callerInfoEnabled, LogEventLogger logger,
 			int depth) {
+		/*
+		 * Optional, deliberately opt-in: nothing registered under this name (the
+		 * overwhelming majority of setups) means findOrNull returns null and every
+		 * downstream path below behaves exactly as before this lookup existed - see
+		 * RainbowGumSLF4JServiceProvider#SCOPED_KEY_VALUES_SERVICE_NAME.
+		 */
+		var scopedDefaults = rainbowGum.config()
+			.serviceRegistry()
+			.findOrNull(LogEventFactory.class, RainbowGumSLF4JServiceProvider.SCOPED_KEY_VALUES_SERVICE_NAME);
 		if (callerInfoEnabled) {
-			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth);
+			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth, scopedDefaults);
 		}
-		return LogEventHandler.of(loggerName, logger, mdc);
+		return LogEventHandler.of(loggerName, logger, mdc, scopedDefaults);
 	}
 
 	sealed interface LoggerDecorator {

@@ -65,14 +65,10 @@ final class LocationAwareForwardingLogger
 
 	private final String loggerName;
 
-	private final RainbowGumMDCAdapter mdc;
-
-	LocationAwareForwardingLogger(DepthAwareLogger delegate, HandlerSource handlerSource, String loggerName,
-			RainbowGumMDCAdapter mdc) {
+	LocationAwareForwardingLogger(DepthAwareLogger delegate, HandlerSource handlerSource, String loggerName) {
 		this.delegate = delegate;
 		this.handlerSource = handlerSource;
 		this.loggerName = loggerName;
-		this.mdc = mdc;
 	}
 
 	@Override
@@ -84,7 +80,7 @@ final class LocationAwareForwardingLogger
 	public org.slf4j.Logger withDepth(int depth) {
 		var rewrapped = delegate.withDepth(depth);
 		if (rewrapped instanceof DepthAwareLogger da && rewrapped instanceof HandlerSource hs) {
-			return new LocationAwareForwardingLogger(da, hs, loggerName, mdc);
+			return new LocationAwareForwardingLogger(da, hs, loggerName);
 		}
 		throw new AssertionError(
 				"withDepth() on a LocationAwareForwardingLogger delegate must preserve DepthAwareLogger and HandlerSource: "
@@ -98,7 +94,15 @@ final class LocationAwareForwardingLogger
 
 	@Override
 	public KeyValues defaultKeyValues() {
-		return mdc.keyValues();
+		/*
+		 * Delegates to whatever LogEventHandler is currently bound, the same single
+		 * mechanism every other code path in this module goes through - previously read
+		 * mdc.keyValues() directly here, independent of LogEventHandler entirely, which
+		 * meant this path alone would have silently missed a registered LogEventFactory's
+		 * own defaultKeyValues() (see toLogEvent(...) below for the other, even more
+		 * independent, path that had the same problem).
+		 */
+		return handlerSource.currentHandler().defaultKeyValues();
 	}
 
 	@Override
@@ -132,17 +136,19 @@ final class LocationAwareForwardingLogger
 	}
 
 	/*
-	 * Not built via the eventArgs(...) convenience overload because defaultKeyValues()
-	 * there is always just the ambient MDC - a third-party LoggingEventBuilder's own
-	 * addKeyValue(...) calls need to be layered on top of that, the same way
-	 * RainbowGumEventBuilder.kvs() layers its own addKeyValue(...) calls on top of a copy
-	 * of the MDC.
+	 * Not built via the eventArgs(...) convenience overload because a third-party
+	 * LoggingEventBuilder's own addKeyValue(...) pairs need to be layered on top of
+	 * whatever defaultKeyValues() resolves to (ambient MDC, merged with a registered
+	 * LogEventFactory's own defaults if one exists - see
+	 * LogEventHandler#defaultKeyValues), the same way RainbowGumEventBuilder.kvs() layers
+	 * its own addKeyValue(...) calls on top of a copy of that same merged result.
 	 */
 	private LogEvent toLogEvent(LoggingEvent event) {
+		var handler = handlerSource.currentHandler();
 		var pairs = event.getKeyValuePairs();
-		KeyValues keyValues = mdc.keyValues();
+		KeyValues keyValues = handler.defaultKeyValues();
 		if (!pairs.isEmpty()) {
-			var mutable = mdc.copyMutableKeyValues();
+			var mutable = handler.copyDefaultKeyValues();
 			for (var kv : pairs) {
 				mutable.putKeyValue(kv.key, kv.value == null ? null : kv.value.toString());
 			}
