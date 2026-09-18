@@ -28,8 +28,6 @@ class RouterTest {
 	@Test
 	void testSingleRouter() throws Exception {
 
-		// LevelResolver resolver = InternalLevelResolver.of(Map.of("stuff", Level.INFO,
-		// "", Level.DEBUG));
 		var config = LogConfig.builder().build();
 		LevelResolver resolver = LevelResolver.builder()
 			.level(Level.DEBUG)
@@ -51,8 +49,6 @@ class RouterTest {
 
 		var config = LogConfig.builder().build();
 
-		// LevelResolver resolver1 = InternalLevelResolver.of(Map.of("stuff", Level.INFO,
-		// "", Level.DEBUG));
 		LevelResolver resolver1 = LevelResolver.builder()
 			.level(Level.DEBUG)
 			.level(Level.INFO, "stuff")
@@ -61,8 +57,6 @@ class RouterTest {
 		var publisher1 = new TestSyncPublisher();
 		var router1 = new SimpleRouter("1", publisher1, resolver1);
 
-		// LevelResolver resolver2 = InternalLevelResolver.of(Map.of("stuff", Level.DEBUG,
-		// "", Level.WARNING));
 		LevelResolver resolver2 = LevelResolver.builder()
 			.level(Level.DEBUG, "stuff")
 			.level(Level.WARNING)
