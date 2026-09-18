@@ -35,7 +35,6 @@ class KeyValuesTest {
 		for (int i = 1; i < 200; i++) {
 			m.put(String.valueOf(i), i + "value");
 		}
-		// Map.of("1", "1value", "2", "2value", "3", "3value");
 		var kvs = create(m);
 		for (int i = kvs.start(), j = 0; i > -1; i = kvs.next(i), j++) {
 			String k = kvs.key(i);
