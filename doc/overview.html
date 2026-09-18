@@ -1975,6 +1975,36 @@ happens to resolve to right now.
 <p>
 <strong>Not the default</strong> - {@code auto_detect} must be requested explicitly, the same as
 any other non-default {@link io.jstach.rainbowgum.LogAppender.AppenderType}.
+
+<h4 id="graalvm_global_optimize">Opting Every Appender/Encoder Into Platform-Specific Defaults At Once</h4>
+
+Setting {@code auto_detect} per appender works, but it is still a choice made per appender, and
+{@link io.jstach.rainbowgum.LogAppender.AppenderType#AUTO_DETECT} is not the only place this
+project has found a platform-specific win - the same native-image benchmarking found
+{@code String.getBytes(Charset)}-based text encoding measurably faster there too, ahead of the
+default {@code CharsetEncoder}-based copy. {@code logging.global.optimize} opts every
+appender/encoder that has not been given a more specific, explicit choice into whichever of these
+this release currently believes is best for the platform actually running, all at once:
+
+{@snippet lang=properties :
+logging.global.optimize=true
+}
+
+An explicit choice always wins over this property, whether set programmatically
+({@code appenderType(...)}, {@code useGetBytes(...)}) or via a more specific property
+({@link io.jstach.rainbowgum.LogAppender#APPENDER_TYPE_PROPERTY}) - this property only ever fills
+in what would otherwise be left unset.
+<p>
+<strong>What this currently does, and why that is not a contract:</strong> today it only has an
+effect under GraalVM native-image (detected the same way {@code auto_detect} is, above) - the
+default appender type becomes {@code auto_detect}, and text encoders default to
+{@code String.getBytes(Charset)}-based encoding. On a plain JVM this property currently changes
+nothing - the same benchmarking that motivated the native-image behavior pointed the other way on
+HotSpot. Exactly like {@code auto_detect} itself, none of this is a promise: as this project
+benchmarks more platforms, JDK versions, and encode strategies, what {@code logging.global.optimize}
+resolves to on a given platform - including whether it does anything on a plain JVM at all - can
+and will change between releases without notice. Pin an explicit appender type/encoder strategy
+instead if a deployment needs a specific one to always be used.
 <p>
 {@code test/rainbowgum-test-native} in the project's own repository is a working,
 end-to-end example: a small application depending only on {@code rainbowgum-simple} plus
