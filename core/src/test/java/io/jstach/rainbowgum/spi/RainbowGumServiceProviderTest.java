@@ -33,11 +33,6 @@ class RainbowGumServiceProviderTest {
 		assertNotNull(config);
 		String value = config.properties().valueOrNull(RainbowGumServiceProviderTest.class.getName());
 		assertEquals("test", value);
-
-		// checker will not allow this.
-		// for now it really doesn't hurt anything.
-		// System.clearProperty(RainbowGumServiceProviderTest.class.getName());
-
 	}
 
 	@Test
