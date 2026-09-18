@@ -74,14 +74,6 @@ final class Internal {
 			return this;
 		}
 
-		// /**
-		// * Return the string buffer itself.
-		// * @return StringBuffer holding the current buffer value.
-		// */
-		// public StringBuilder getBuffer() {
-		// return buf;
-		// }
-
 		@Override
 		public void flush() {
 		}
