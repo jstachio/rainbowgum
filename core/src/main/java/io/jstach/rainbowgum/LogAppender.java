@@ -29,7 +29,7 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
  * @apiNote because appenders require complicated implementation and to guarantee
  * integrity the implementations are encapsulated (sealed).
  */
-public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
+public sealed interface LogAppender extends LogLifecycle {
 
 	/**
 	 * Default Console appender name.
@@ -72,7 +72,10 @@ public sealed interface LogAppender extends LogLifecycle, LogEventConsumer {
 	 */
 	public void append(LogEvent[] events, int count);
 
-	@Override
+	/**
+	 * Appends a single event.
+	 * @param event event.
+	 */
 	public void append(LogEvent event);
 
 	/**
