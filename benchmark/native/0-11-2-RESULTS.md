@@ -229,106 +229,103 @@ clean 3-sample average the way every other row in this file is - the three sampl
 and the two hand-probed reruns) are reported above individually rather than averaged into the main
 table.
 
-## Giving Logback a fair shot at JSON: its own built-in `JsonEncoder`
+## RETRACTED: "Logback's own JSON beats its own TTLL" was a benchmark bug, not a real finding
 
-Every JSON/GELF number for Logback so far in this file used the third-party
-`logstash-logback-encoder` (Jackson-based) - the de-facto standard choice, but not
-Logback's own architecture, and this file already found it doing real, comparatively
-expensive per-event work, plus the serious unbounded-HotSpot-memory issue documented
-above. That's a "how expensive is the popular third-party JSON encoder" result, not
-"how good is Logback itself at JSON" - conflating the two isn't a fair shot.
+**Everything below this point through the `useGetBytes` section's original framing was
+built on a broken benchmark harness, not real Logback behavior under native-image.**
+Keeping the original write-up intact further down (struck through in spirit, not
+deleted - this file's own convention for wrong turns) because the *investigation*
+that uncovered the bug is itself worth keeping, but the numbers and the "converter
+chain" conclusion are wrong. Corrected numbers and root cause below; skip straight to
+"Not yet done" if you only want the current understanding.
 
-Logback-classic ships its own `ch.qos.logback.classic.encoder.JsonEncoder` (since
-1.5.x, no third-party dependency - confirmed present in the `logback-classic:1.6.3`
-jar this benchmark already pins). Not GELF, not Logstash format either - its own
-generic RFC-8259 JSON-Lines representation of the event
-(`{"sequenceNumber":...,"timestamp":...,"level":...,"loggerName":...,"mdc":{...},
-"formattedMessage":...,"throwable":...}`). Wired in as `STRUCTURED_FORMAT=json`
-(`logback-json-builtin.xml`), alongside the existing `STRUCTURED_FORMAT=gelf`
-(`logback-json.xml`, unchanged, still the Logstash encoder).
+**What was actually happening**: `logback-ttll-layout.xml` (`ch.qos.logback.classic.layout.TTLLLayout`)
+and `logback-json-builtin.xml` (`ch.qos.logback.classic.encoder.JsonEncoder`) were
+*silently producing zero log output* under native-image. Both classes are instantiated
+reflectively by Joran (Logback's config parser) from the XML, purely by class name -
+and this benchmark's hand-written `reflect-config.json`
+(`rainbowgum-benchmark-native-logback/src/main/resources/META-INF/native-image/.../reflect-config.json`)
+only ever registered `net.logstash.logback.encoder.LogstashEncoder` (added when GELF
+support was first wired up). `TTLLLayout` and `JsonEncoder` were never added when they
+were introduced later in this session. Under native-image's closed-world reflection
+model that's a `ClassNotFoundException` at configure time - Joran catches it, logs an
+`ERROR` status, and leaves the `ConsoleAppender` with no layout/no encoder at all
+("No layout set for the encoder. This encoder will produce no output.") - but the
+appender still gets attached to ROOT and the app still starts and serves HTTP requests
+normally. No crash, no exception reaches application code, just silent, total loss of
+every log line for those two configs specifically. `logback.xml` (plain
+`PatternLayoutEncoder`) and `logback-json.xml` (`LogstashEncoder`) were never affected -
+both were already covered.
 
-**Obvious caveat, stated up front**: this is not a GELF-format comparison - Logback's
-own JSON schema is a different shape/size than the GELF payloads Rainbow Gum and
-Log4j2 produce for their own `gelf` rows elsewhere in this file. Read the numbers
-below as "how does Logback's own best JSON path perform" first, and only loosely,
-directionally, against the other frameworks' GELF numbers second.
+**How this was found**: Adam was, in his words, "baffled" that Logback could beat
+Rainbow Gum's and Log4j2's own best configs (both requiring `ThreadLocal` reuse and a
+`synchronized`/lock-protected write) using an architecture that recreates its buffer
+every event and uses a plain `ReentrantLock` - and specifically asked to verify whether
+Logback might not really be writing to stdout, or might be dropping events, rather than
+genuinely being faster. Two direct checks, not more hypothesizing:
 
-Same methodology as the controlled comparisons above (virtual threads, concurrency
-50, 3s warmup + 15s measured, 3 runs each):
+1. **Content verification under real concurrent load**: ran each config for a short,
+   bounded window (50 concurrency, 2s, `--warmup 0`) with stdout captured to a real
+   file instead of `/dev/null`, then compared actual line count against
+   `driver-reported requests × 5` (5 log calls per request) and regex-validated every
+   line's shape. `logback.xml` (pattern) matched exactly (343,140 expected, 343,140
+   well-formed, ±24 harmless startup-status lines). `logback-ttll-layout.xml` and
+   `logback-json-builtin.xml` produced **56 and 59 lines total** for runs that should
+   have produced 800,000+ - and every one of those lines was Logback's own internal
+   Joran status output, not application content. The captured status log contained the
+   `ClassNotFoundException` directly.
+2. **`LOG_LEVEL=ERROR` baseline, Adam's direct ask**: ran the known-good `logback.xml`
+   config with `LOG_LEVEL=ERROR` (a real, working way to make the app log nothing,
+   since none of `BenchHandler`'s calls are above `INFO`) through the same
+   methodology as every other row in this file (3 runs, 3s warmup + 15s measured):
+   **105,670 req/s average** (106,610.8 / 104,583.7 / 105,816.5) - matching the
+   "broken" layout-TTLL (104,438) and JSON (105,172) numbers almost exactly. Logging
+   nothing and "logging via a silently-broken encoder" produce the same throughput
+   because they're doing the same amount of work: none.
 
-| | native-image | HotSpot |
+**Fix**: added `JsonEncoder` and `TTLLLayout` to `reflect-config.json` (constructor plus
+`allDeclaredMethods` for the property-setter calls Joran also makes reflectively, e.g.
+`setWithFormattedMessage`), rebuilt, and reverified with the same content-capture check
+- both now produce real, well-formed, complete output matching expected line counts.
+
+**Corrected numbers, interleaved, one session, 3 runs each, working build**:
+
+| | pattern TTLL | layout TTLL | JSON |
+|---|---:|---:|---:|
+| throughput | 70,569 req/s | 71,360 req/s | 69,009 req/s |
+| vs pattern | - | +1.1% | -2.2% |
+
+**No meaningful difference. The entire converter-chain-vs-monolithic-method theory -
+the `getBytes()`-overload check that "ruled out" an alternative explanation, the
+GraalVM AOT-optimization-quality hypothesis, all of it - was explaining an artifact
+that doesn't exist.** Those investigations were real and the code inspection in them
+(the `LayoutWrappingEncoder.convertToBytes()`/`JsonEncoder` decompilation, the
+`streamWriteLock`/`PrintStream` double-locking finding) is still accurate as *code*
+analysis, it just wasn't explaining a real performance difference, because there was
+no real performance difference to explain.
+
+**The original "fair shot at JSON" comparison (`JsonEncoder` vs `logstash-logback-encoder`)
+also used the broken `JsonEncoder` build and is corrected here too**, interleaved,
+3 runs each, working build:
+
+| | JSON (`JsonEncoder`) | GELF (`LogstashEncoder`) |
 |---|---:|---:|
-| throughput | **106,353 req/s** | 39,352 req/s |
-| p50 | 0.42 ms | 1.27 ms |
-| RSS avg | 56.5 MB | 616.7 MB |
+| throughput | 69,298 req/s | 56,692 req/s |
+| RSS avg | 77.9 MB | 105.5 MB |
 
-**Compare against this same file's Logstash-encoder numbers for Logback+GELF**:
-native-image was 56,772 req/s / 105.1 MB RSS; HotSpot never produced a valid
-steady-state number at all (unbounded memory growth, see above). Logback's own
-encoder is **+87.3% faster and uses 46% less memory on native-image**, and shows
-**zero sign of the HotSpot memory issue** - RSS sits at 616.7 MB, right in line with
-every other normal HotSpot row in this file, confirming that leak was specific to
-`logstash-logback-encoder`'s allocation profile, not something inherent to Logback's
-own architecture.
+Logback's own `JsonEncoder` genuinely does beat the third-party Logstash encoder -
+**+22.2% throughput, -26.1% RSS** - a real, legitimate result and consistent with
+`JsonEncoder` being a simpler, dependency-free, non-Jackson path. Just nowhere near the
+originally-reported +87.3%/-46%, which was comparing a real encoder against one doing
+no work at all. The HotSpot memory-leak finding for `logstash-logback-encoder`
+(unrelated to this bug - that binary's `JsonEncoder` config was never exercised on
+HotSpot in a way this bug would affect) is unaffected by this correction.
 
-Put differently: **Logback's own native-image JSON number (106,353 req/s) is the
-highest structured-logging throughput measured anywhere in this file** - higher than
-Rainbow Gum's own `rg-sync` GELF row (92,264 req/s) and Log4j2's GELF row
-(82,037 req/s), despite the different JSON schema and Logback trailing badly in every
-earlier structured-logging comparison in this file. Every prior "Logback is
-comparatively slow/expensive at structured logging" finding in this file was really a
-finding about `logstash-logback-encoder` specifically, not about Logback itself.
-
-### A real anomaly worth flagging, not smoothing over: Logback's own JSON beats its own TTLL
-
-Spotted after the fact, worth being upfront about: the 106,353 req/s JSON number above
-was measured in a separate session from this file's earlier TTLL number for Logback
-(71,939 req/s) - exactly the kind of cross-session absolute-number comparison this
-file's own methodology note says not to trust. Re-measured both **interleaved, in one
-session** (TTLL, JSON, TTLL, JSON, TTLL, JSON - not grouped, to rule out one-directional
-drift) to check the finding survives a controlled comparison:
-
-| | TTLL | JSON |
-|---|---:|---:|
-| throughput (avg of 3, interleaved) | 71,601 req/s | 104,962 req/s |
-
-**Confirmed real, not a session artifact**: +46.6% for JSON over Logback's own TTLL,
-same session, same binary, same everything except which encoder. This is genuinely odd
-- every other framework in this file shows a small or negligible TTLL-vs-JSON/GELF delta
-(Rainbow Gum: -0.5% to +1.6% either way; Log4j2: -3.6%), several using the identical
-`%d{HH:mm:ss.SSS}` timestamp pattern Logback's own TTLL config uses. Logback being the
-one outlier, and by a wide margin, deserved a real look rather than just being cited as
-a good JSON number and moved on from.
-
-**First hypothesis, tested directly, refuted**: suspected `%d{HH:mm:ss.SSS}` (real
-calendar-aware date formatting) was expensive relative to `JsonEncoder`'s own
-`timestamp`/`nanoseconds` fields (plain epoch millis/nanos, no calendar math at all).
-Rebuilt the TTLL config with the date converter removed entirely
-(`[%thread] %-5level %logger - %msg%n`) and re-ran (3 runs): **72,354 req/s - no
-difference** from the with-date number above, within this file's own noise floor. Date
-formatting is not the cause.
-
-**The real clue was already sitting in this file**: on HotSpot, Logback's JSON number
-(39,352 req/s) is *slower* than its own TTLL number (41,698 req/s) - the ordinary,
-expected direction, matching every other framework. **The inflated JSON-beats-TTLL gap
-is native-image-specific** - it does not reproduce on HotSpot at all. That points at a
-GraalVM ahead-of-time-compilation quality difference, not a fundamental architectural
-one: `PatternLayoutEncoder`'s converter-chain design (a linked list of `Converter`
-objects, each one a virtual `write(...)` call, traversed per event) is exactly the
-shape of code AOT compilation without runtime profile data tends to optimize more
-conservatively than a JIT does (less aggressive devirtualization/inlining without
-having seen the actual call-site behavior first) - while `JsonEncoder`'s `encode(...)`
-is one monolithic method, all direct `StringBuilder` calls, no virtual dispatch chain,
-exactly the shape that inlines well regardless of compiler. HotSpot's adaptive JIT
-handles the converter-chain shape fine (or even better, per the HotSpot numbers) since
-it profiles and devirtualizes at runtime; GraalVM's static native-image compiler,
-working from static analysis alone here (no PGO used in this file), does not get the
-same chance.
-
-**Not confirmed with a profiler - this is an informed hypothesis from the
-date-converter test and the native-vs-HotSpot reversal, not a diagnosed root cause.**
-The date-converter test at least rules out the most obvious alternative explanation
-cleanly.
+**How to apply**: any Logback native-image number in this file that used
+`logback-ttll-layout.xml` or `logback-json-builtin.xml` before this correction is
+wrong. The two are: the original "Giving Logback a fair shot at JSON" +87.3%/-46% RSS
+figures, and the entire "converter chain confirmed" narrative. Both are superseded by
+the corrected tables above.
 
 ### Confirmed directly: it's the converter chain, not JSON-vs-text
 
@@ -383,14 +380,19 @@ downstream of it.
 
 ## Testing `String.getBytes()` on Rainbow Gum's own encoder, not just Logback's
 
-Adam's counter-read on the getBytes finding above: Rainbow Gum and Log4j2 both convert
-chars to bytes via a `CharBuffer`/`CharsetEncoder` pair, not `String.getBytes()`, and
-his suspicion is that `getBytes()` is actually well-optimized by both HotSpot and
-GraalVM (including under native-image), so Logback's pattern-TTLL problem is that
-GraalVM can't pre-encode/optimize the converter chain's output *at all*, not that
-`getBytes()` itself is expensive. The direct test: build Rainbow Gum's own encoder with
-`useGetBytes(true)` (an experimental flag that exists on `feature/log-encoder-copy-chars`,
-never merged to `main`) and see what happens to Rainbow Gum's own native-image numbers.
+**Context note**: this section was originally motivated by the "converter chain"
+finding above, since retracted (it was a benchmark bug, not a real Logback/GraalVM
+effect - see the correction section). The `useGetBytes` test itself is about Rainbow
+Gum's own encoder, entirely independent of Logback's `reflect-config.json` bug, and its
+results below are unaffected by that correction - keeping the section as run.
+
+Adam's counter-read at the time, on the (as it turned out, illusory) getBytes finding
+above: Rainbow Gum and Log4j2 both convert chars to bytes via a `CharBuffer`/
+`CharsetEncoder` pair, not `String.getBytes()`, and his suspicion was that `getBytes()`
+is actually well-optimized by both HotSpot and GraalVM (including under native-image).
+The direct test: build Rainbow Gum's own encoder with `useGetBytes(true)` (an
+experimental flag that exists on `feature/log-encoder-copy-chars`, never merged to
+`main`) and see what happens to Rainbow Gum's own native-image numbers.
 
 **Methodology note - this required merging two independent, unmerged lines of work that
 don't otherwise coexist anywhere.** `useGetBytes`/`StringBuilderBufferBytes` only exists
@@ -443,10 +445,12 @@ for real, native-image's `AUTO_DETECT` resolution should probably prefer
 `SYNCHRONIZED_THREAD_LOCAL_BUFFER` + `GET_BYTES`-style encoding together, not either
 alone.
 
-For context against Logback: 93,557 req/s is Rainbow Gum's best native-image TTLL
-number in this file by a wide margin, but still trails Logback's own best (layout-TTLL/
-JSON, ~105,000 req/s, see above) - closer than any prior Rainbow Gum config, not a full
-close of that gap.
+For context against Logback: with the `reflect-config.json` bug fixed (see the
+correction section above), Logback's own real TTLL number is ~70,600 req/s, not the
+~105,000 originally reported. Rainbow Gum's best config here (`SYNCHRONIZED_THREAD_LOCAL_BUFFER`
++ `GET_BYTES`, 93,557 req/s) now clearly **beats** Logback's real TTLL number by a wide
+margin - this section's own findings hold regardless of the correction, they just look
+even better in light of it.
 
 ## Not yet done
 
@@ -482,12 +486,17 @@ close of that gap.
   experiment above) - it measurably helps every `AppenderType` under native-image, not a narrow win,
   and the `// TODO this code needs to be tested.` marker on that branch still needs real test coverage
   before it could ship.
-* **Profile `PatternLayoutEncoder`'s converter chain under native-image directly** (JFR or
-  async-profiler against the real native executable) to see *why* GraalVM's AOT compiler
-  handles it worse than HotSpot's JIT does. The `TTLLLayout` test upgraded the converter-chain
-  explanation from informed guesswork to a directly confirmed structural cause (non-pattern TTLL
-  matches JSON, both far ahead of pattern TTLL; the `getBytes`-overload alternative was checked
-  and ruled out too), so this is no longer needed to establish *that* the converter chain is the
-  cause - only to explain the AOT-compiler mechanism behind it. Also worth trying `--pgo`/
-  profile-guided native-image builds specifically for the pattern-TTLL scenario, to see if that
-  alone closes the gap.
+* ~~Profile `PatternLayoutEncoder`'s converter chain under native-image directly~~ - moot, the
+  "converter chain" gap this would have profiled never existed (see the retraction section above);
+  removed rather than left as a stale action item.
+* **Audit every other native-image config file/reflect-config pair in this whole `benchmark/native`
+  tree for the same silent-failure class of bug** the `reflect-config.json` correction above just
+  found - a `ClassNotFoundException` during Joran/log4j2-config parsing gets swallowed and logged as
+  an internal status message, not surfaced as an exception, so a misconfigured appender still starts
+  and still serves HTTP traffic while silently logging nothing. This benchmark's own README already
+  documents three prior instances of this general "silent-wrong-behavior, not build failure" class of
+  GraalVM gotcha (missing resource includes, `BasicConfigurator` fallback) - this is a fourth, and the
+  content-capture-and-line-count check written for this correction (see `logback_drop_check.sh`-style
+  methodology) is now the concrete verification step that should run against *every* config in this
+  tree, not just the two that happened to get double-checked here. Log4j2's configs were not
+  re-audited this pass either.
