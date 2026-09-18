@@ -132,8 +132,20 @@ record XxxDescription(String name, Class<?> type, List<XxxDescription> children,
 
 **Open problem, explicitly flagged by the prompt: the name.** `status()` is wrong now -
 it already means "health," post alerts/metrics split, and reusing it here would
-reintroduce exactly the ambiguity that split was meant to resolve. Candidates, no
-favorite yet:
+reintroduce exactly the ambiguity that split was meant to resolve.
+
+Worth being precise about *why*, since it isn't that "status" is a bad word for this
+concept - Adam's point: English-wise, "status" is inherently a pull word. Nobody in the
+history of work has volunteered "here is my status" unprompted; a status is something
+you're *asked for*, which is exactly this facet's own shape (pull, on-demand, current
+state). The word would have been a fine fit. It's disqualified here specifically because
+Logback's `StatusManager` (and Log4j2's `StatusLogger`, and this project's own removed
+`LogResponse.Status`/`LogStatusReporter`) already spent it on the *push*, event-history
+concept instead - so "status" now reads as "the push thing" across the ecosystem this
+project has to coexist with, not because the word itself was ever wrong for a pull
+query. A correct word, squatted by the wrong shape.
+
+Candidates, no favorite yet:
 
 | candidate | reads as | concern |
 |---|---|---|
