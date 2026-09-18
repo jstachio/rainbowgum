@@ -252,6 +252,34 @@ public interface LogProperties {
 	static final String GLOBAL_THREADLOCAL_DISABLED_PROPERTY = ROOT_PREFIX + "global.threadlocalDisabled";
 
 	/**
+	 * Opts every appender/encoder that has not been given an explicit choice into
+	 * whatever this release currently believes is the best buffering/locking strategy for
+	 * the platform the process is actually running on, instead of the fixed defaults
+	 * ({@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER}, a
+	 * {@link java.nio.charset.CharsetEncoder}-based encode) used otherwise. An explicit
+	 * choice - programmatic ({@code appenderType(...)}, {@code useGetBytes(...)}) or via
+	 * a more specific property ({@link LogAppender#APPENDER_TYPE_PROPERTY}) - always wins
+	 * over this property; it only ever fills in what would otherwise be unset.
+	 * <p>
+	 * <strong>What "best" resolves to today, and why that is not a contract:</strong>
+	 * currently this only has an effect under GraalVM native-image (detected the same way
+	 * {@link LogAppender.AppenderType#AUTO_DETECT} is - see its javadoc), where it sets
+	 * the default appender type to {@code AUTO_DETECT} (this benchmark's own measurements
+	 * found {@code SYNCHRONIZED_THREAD_LOCAL_BUFFER} a real, repeatable win over the
+	 * plain-JVM default there) and defaults text encoders to
+	 * {@code String.getBytes(Charset)}-based encoding over the default
+	 * {@code CharsetEncoder}-based one. On a plain JVM this property currently changes
+	 * nothing at all - the measurements that motivated the native-image behavior above
+	 * pointed the other way on HotSpot. None of this is a promise: as this project
+	 * benchmarks more platforms, JDK versions, and encode strategies, what "optimize"
+	 * resolves to on a given platform - including whether it does anything on a plain JVM
+	 * at all - can and will change between releases without notice. Pin an explicit
+	 * appender type/encoder strategy instead if a deployment needs a specific one to
+	 * always be used.
+	 */
+	static final String GLOBAL_OPTIMIZE_PROPERTY = ROOT_PREFIX + "global.optimize";
+
+	/**
 	 * Maximum number of alerts {@link LogAlerts} holds in its ring buffer. Read once,
 	 * from whatever {@link LogProperties} {@link LogConfig.Builder#build()} has already
 	 * resolved by the time it constructs {@link LogAlerts} - before any

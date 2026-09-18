@@ -604,6 +604,7 @@ final class DefaultLogConfig implements LogConfig {
 		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
 		applyGlobalAppenderReentrantLockProperty(properties);
 		applyGlobalThreadLocalDisabledProperty(properties);
+		applyGlobalOptimizeProperty(properties);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
@@ -665,6 +666,33 @@ final class DefaultLogConfig implements LogConfig {
 			.map(ThreadLocalDisabled::parse)
 			.or(ThreadLocalDisabled.FALSE)
 			.validateNow(DefaultLogConfig.class) == ThreadLocalDisabled.TRUE;
+	}
+
+	/*
+	 * Same enum-not-boolean reasoning as ThreadLocalDisabled above. Unlike the other two
+	 * global properties this one is not a "force/guarantee" downgrade applied after a
+	 * type is already resolved - it changes what the *default* resolves to when nothing
+	 * more specific (an explicit appenderType(...)/useGetBytes(...) call, or a more
+	 * specific property) was set, so it is read into the same kind of process-wide static
+	 * flag but consulted at a different point (LogAppender.Builder#build(),
+	 * LogEncoder.Builder#build()) - see LogProperties#GLOBAL_OPTIMIZE_PROPERTY's javadoc.
+	 */
+	private enum GlobalOptimize {
+
+		TRUE, FALSE;
+
+		static GlobalOptimize parse(String value) {
+			return GlobalOptimize.valueOf(value.toUpperCase(Locale.ROOT));
+		}
+
+	}
+
+	private static void applyGlobalOptimizeProperty(LogProperties properties) {
+		AbstractLogAppender.globalOptimizeEnabled = properties.forKey(LogProperties.GLOBAL_OPTIMIZE_PROPERTY)
+			.ofString()
+			.map(GlobalOptimize::parse)
+			.or(GlobalOptimize.FALSE)
+			.validateNow(DefaultLogConfig.class) == GlobalOptimize.TRUE;
 	}
 
 	class DefaultChangePublisher extends AbstractChangePublisher {
