@@ -125,6 +125,16 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-scoped-key-values-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-scoped-key-values</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-tomcat</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1313,6 +1323,8 @@
     <module>core</module>
     <module>rainbowgum-slf4j</module>
     <module>rainbowgum-jul</module>
+    <module>rainbowgum-scoped-key-values-api</module>
+    <module>rainbowgum-scoped-key-values</module>
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>
     <module>rainbowgum-disruptor</module>

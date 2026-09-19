@@ -1,0 +1,29 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-maven-parent</artifactId>
+    <version>0.12.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-scoped-key-values-api</artifactId>
+  <name>rainbowgum-scoped-key-values-api</name>
+  <properties>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
+    <!--
+      Deliberately does NOT override java.version like rainbowgum-scoped-key-values does:
+      this module never references java.lang.ScopedValue (or anything else JDK 25+)
+      directly, only java.util.ServiceLoader and plain interfaces/Map, so it stays on the
+      project's usual baseline and is safe to compile against from any consumer, not just
+      ones already on JDK 25+. A provider module supplies the actual ScopedValue-backed
+      implementation at runtime.
+    -->
+  </properties>
+  <!--
+    No <dependencies> block: org.jspecify:jspecify (optional) and junit-jupiter (test
+    scope) are already inherited from the parent pom's own plain <dependencies>, and
+    nothing else is needed - this module has no runtime dependency beyond JSpecify.
+  -->
+</project>
