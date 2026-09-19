@@ -173,4 +173,31 @@ class CompositeKeyValuesTest {
 		assertEquals("2", kvs.getValueOrNull("a"), "the original live composite still tracks mutation");
 	}
 
+	@Test
+	void freezeIsNoOpWhenNestedCompositeIsAlreadyFullyImmutable() throws Exception {
+		var a = KeyValues.of(Map.of("A", "a"));
+		var b = KeyValues.of(Map.of("B", "b"));
+		var c = KeyValues.of(Map.of("C", "c"));
+		var kvs = KeyValues.merge(KeyValues.merge(a, b), c);
+		assertSame(kvs, kvs.freeze());
+	}
+
+	@Test
+	void freezeCopiesAwayFromAMutableBuriedTwoLevelsDeep() throws Exception {
+		var mutable = MutableKeyValues.of();
+		mutable.putKeyValue("a", "1");
+		// mutable is buried inside the *inner* merge, not a direct field of the outer
+		// composite - the outer composite's own low/high fields are themselves
+		// composites, not MutableKeyValues, so detecting this requires recursing into
+		// the nested sides rather than only checking the outer pair directly.
+		var inner = KeyValues.merge(KeyValues.of(Map.of("k", "v")), mutable);
+		var kvs = KeyValues.merge(inner, KeyValues.of(Map.of("other", "x")));
+
+		var frozen = kvs.freeze();
+		mutable.putKeyValue("a", "2");
+
+		assertEquals("1", frozen.getValueOrNull("a"), "frozen snapshot must not see later mutation");
+		assertEquals("2", kvs.getValueOrNull("a"), "the original live composite still tracks mutation");
+	}
+
 }
