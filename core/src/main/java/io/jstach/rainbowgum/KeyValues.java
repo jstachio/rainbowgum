@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
@@ -151,6 +152,27 @@ public sealed interface KeyValues {
 		ArrayKeyValues mdc = new ArrayKeyValues(m.size());
 		mdc.putAll(m);
 		return mdc.freeze();
+	}
+
+	/**
+	 * Creates a lazy, read through view over several key values in increasing precedence
+	 * order (a key found in a later element shadows the same key in an earlier one).
+	 * Unlike copying the parts into a {@link MutableKeyValues} this does not materialize
+	 * a merged copy: each low level access and each {@link #forEach} traverses the
+	 * underlying parts directly, so the result always reflects whatever the parts
+	 * currently contain.
+	 * @param parts key values in increasing precedence order (later wins on key
+	 * collision).
+	 * @return composite key values, or {@link #of()} if empty, or the single element if
+	 * only one part was passed.
+	 */
+	public static KeyValues of(List<? extends KeyValues> parts) {
+		var copy = List.<KeyValues>copyOf(parts);
+		return switch (copy.size()) {
+			case 0 -> of();
+			case 1 -> copy.get(0);
+			default -> new CompositeKeyValues(copy);
+		};
 	}
 
 	/**
@@ -691,6 +713,171 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	private void inflateTable(final int toSize) {
 		threshold = toSize;
 		kvs = new @Nullable String[toSize];
+	}
+
+}
+
+/*
+ * Lazy, read through view over several KeyValues in increasing precedence order. The low
+ * level index packs the part index in the high bits and that part's own index in the low
+ * bits so no copy is ever materialized: every access is a direct delegation to one of the
+ * parts. Iteration skips entries shadowed by a later part so callers that stream
+ * KeyValues without deduplicating (e.g. JSON output) never see the same key twice.
+ */
+final class CompositeKeyValues implements KeyValues {
+
+	private static final int PART_SHIFT = 24;
+
+	private static final int LOCAL_MASK = (1 << PART_SHIFT) - 1;
+
+	private final List<KeyValues> parts;
+
+	CompositeKeyValues(List<KeyValues> parts) {
+		this.parts = parts;
+	}
+
+	private static int pack(int part, int local) {
+		return (part << PART_SHIFT) | (local & LOCAL_MASK);
+	}
+
+	private static int partOf(int index) {
+		return index >>> PART_SHIFT;
+	}
+
+	private static int localOf(int index) {
+		return index & LOCAL_MASK;
+	}
+
+	private boolean isShadowed(int partIndex, String key) {
+		for (int p = partIndex + 1; p < parts.size(); p++) {
+			var kvs = parts.get(p);
+			for (int i = kvs.start(); i > -1; i = kvs.next(i)) {
+				if (kvs.key(i).equals(key)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private int scanFrom(int p, int local) {
+		int n = parts.size();
+		while (p < n) {
+			var kvs = parts.get(p);
+			while (local > -1) {
+				if (!isShadowed(p, kvs.key(local))) {
+					return pack(p, local);
+				}
+				local = kvs.next(local);
+			}
+			p++;
+			if (p < n) {
+				kvs = parts.get(p);
+				local = kvs.start();
+			}
+		}
+		return -1;
+	}
+
+	@Override
+	public int start() {
+		if (parts.isEmpty()) {
+			return -1;
+		}
+		return scanFrom(0, parts.get(0).start());
+	}
+
+	@Override
+	public int next(int index) {
+		int p = partOf(index);
+		int local = parts.get(p).next(localOf(index));
+		return scanFrom(p, local);
+	}
+
+	@Override
+	public String key(int index) {
+		return parts.get(partOf(index)).key(localOf(index));
+	}
+
+	@Override
+	public @Nullable String valueOrNull(int index) {
+		return parts.get(partOf(index)).valueOrNull(localOf(index));
+	}
+
+	@Override
+	public @Nullable String getValueOrNull(String key) {
+		for (int p = parts.size() - 1; p > -1; p--) {
+			var kvs = parts.get(p);
+			for (int i = kvs.start(); i > -1; i = kvs.next(i)) {
+				if (kvs.key(i).equals(key)) {
+					return kvs.valueOrNull(i);
+				}
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public int size() {
+		int count = 0;
+		for (int i = start(); i > -1; i = next(i)) {
+			count++;
+		}
+		return count;
+	}
+
+	@Override
+	public void forEach(BiConsumer<? super String, ? super @Nullable String> action) {
+		for (int i = start(); i > -1; i = next(i)) {
+			action.accept(key(i), valueOrNull(i));
+		}
+	}
+
+	@Override
+	public <V> int forEach(KeyValuesConsumer<V> action, int counter, V storage) {
+		for (int i = start(); i > -1; i = next(i)) {
+			counter = action.accept(this, key(i), valueOrNull(i), counter, storage);
+		}
+		return counter;
+	}
+
+	@Override
+	public Map<String, @Nullable String> copyToMap() {
+		Map<String, @Nullable String> result = new HashMap<>();
+		forEach(result::put);
+		return result;
+	}
+
+	@Override
+	public KeyValues freeze() {
+		List<KeyValues> frozenParts = parts.stream().map(KeyValues::freeze).toList();
+		return new CompositeKeyValues(frozenParts);
+	}
+
+	@Override
+	public boolean equals(@Nullable Object obj) {
+		if (obj instanceof KeyValues kvs) {
+			return KeyValues.equals(this, kvs);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = 1;
+		for (int i = start(); i > -1; i = next(i)) {
+			var v = valueOrNull(i);
+			result = result + key(i).hashCode();
+			result = result + (v == null ? 0 : v.hashCode());
+		}
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		KeyValues.prettyPrint(this, sb);
+		return sb.toString();
 	}
 
 }
