@@ -1,0 +1,49 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-maven-parent</artifactId>
+    <version>0.12.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-scoped-key-values</artifactId>
+  <name>rainbowgum-scoped-key-values</name>
+  <properties>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
+    <!--
+      java.lang.ScopedValue finalized in JDK 25 (JEP 506) - does not exist at all
+      (not even as preview) at this project's usual 21 baseline, so this one module
+      overrides java.version just for itself. Does not need the enable preview flag:
+      this module only uses ScopedValue itself (stable since 25), never
+      java.util.concurrent.StructuredTaskScope directly (still preview even in JDK 26).
+      A caller elsewhere is free to use StructuredTaskScope with that flag on their own
+      side, and this module's bindings are still inherited into forked children
+      correctly, without this module's own build needing it at all.
+    -->
+    <java.version>25</java.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-scoped-key-values-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-slf4j</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc-apt</artifactId>
+    </dependency>
+  </dependencies>
+</project>

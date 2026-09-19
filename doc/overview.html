@@ -1565,9 +1565,111 @@ two special implementation of loggers:
 </ul>
 Other logging implementations like Logback by default use something analogous to changing loggers
 which require a constant check if the level threshold has changed.
-Level loggers do not need to do that check. Unless 
-{@linkplain io.jstach.rainbowgum.LogConfig.ChangePublisher changing loggers is turned on} 
+Level loggers do not need to do that check. Unless
+{@linkplain io.jstach.rainbowgum.LogConfig.ChangePublisher changing loggers is turned on}
 by default Level Loggers are used which are close to zero cost for discarding events.
+
+<h3 id="scoped_key_values">Scoped Key Values ({@link java.lang.ScopedValue} based MDC alternative)</h3>
+
+Rainbow Gum has an <strong>experimental</strong> alternative to
+<a href="https://slf4j.org/manual.html#mdc">MDC</a> for request/task-scoped key values, backed by
+{@link java.lang.ScopedValue} instead of {@link java.lang.ThreadLocal}:
+{@link io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues}.
+<p>
+MDC's {@code ThreadLocal} storage has two long-standing problems this removes by construction:
+<ul>
+<li>
+<strong>Unbinding.</strong> A value put on a pooled thread stays there until something remembers to call
+{@code MDC.remove(...)}, usually in a {@code finally} block. Forget one, or throw before reaching it, and
+the value leaks into whatever unrelated request or task happens to reuse that thread next.
+</li>
+<li>
+<strong>Fan-out.</strong> Nothing about {@code ThreadLocal} prevents one concurrent task from mutating
+values another sibling task (or the parent) is relying on, since they all just share the same backing
+map if it is naively passed around.
+</li>
+</ul>
+{@link java.lang.ScopedValue} bindings are immutable for the dynamic extent of one
+{@code ScopedValue.where(...).run(...)}/{@code .call(...)} call and are automatically, unconditionally
+unbound the instant that call returns, exception or not, with no {@code finally} required. A
+{@link java.util.concurrent.StructuredTaskScope} fork started inside that call inherits the binding as a
+frozen snapshot; nothing a sibling task or the parent does afterward can change what that snapshot
+contains, so correct fan-out isolation falls out of the JDK's own semantics instead of anything Rainbow
+Gum has to implement.
+<p>
+{@link io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues} pushes one small, immutable batch of key
+values at once, at a well-known request/task boundary, the same shape
+<a href="https://openjdk.org/jeps/506">JEP 506</a>'s own examples use, not something called from every
+layer of business logic - typically a single push wrapping an entire request, e.g. in a servlet filter
+or similar entry point:
+{@snippet lang=java :
+// e.g. a servlet filter's doFilter, or any other single request/task entry point
+ScopedKeyValues.builder()
+    .add("requestId", requestId)
+    .add("userId", userId)
+    .run(() -> {
+        // every log call for the duration of this Runnable/Callable, including inside
+        // any StructuredTaskScope fork started in here, sees requestId/userId, e.g.:
+        logger.info("handling request"); // logs with requestId and userId attached
+        service.handle(request);
+    });
+}
+This is deliberately <strong>not</strong> a replacement for MDC or for
+{@link org.slf4j.spi.LoggingEventBuilder#addKeyValue(String,Object)}. Ad-hoc, imperative, single-call-site
+key values are still MDC's/{@code addKeyValue}'s job - the two compose normally, since
+{@code ScopedKeyValues} is always merged in as the lowest-precedence source (see below), so an
+{@code addKeyValue(...)} call on one particular log line still overrides a key pushed here; this is for
+the opposite shape, a handful of values that should be visible on every log line for an entire
+request/task.
+
+<h4 id="scoped_key_values_modules">Two modules: API and provider</h4>
+
+This feature is split into two modules the same way SLF4J itself is split into
+<code>slf4j-api</code> and a chosen binding:
+<ul>
+<li>
+{@link io.jstach.rainbowgum.scopedkeyvalues/} is the {@code compile}-scoped API application/library code
+depends on to call {@link io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues}. It has no dependency
+beyond (optionally) JSpecify, does not reference {@link java.lang.ScopedValue} at all, and targets Rainbow
+Gum's usual JDK 21 baseline, so it is safe to depend on from code that has not committed to Rainbow Gum,
+or even to JDK 25, as its logging backend. It discovers the real storage mechanism at class-init time via
+a small {@code io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider}
+{@link java.util.ServiceLoader} lookup, the same bootstrap shape SLF4J itself uses for
+{@code org.slf4j.spi.SLF4JServiceProvider}. With no provider found, pushing still runs the body normally,
+it just does not record or propagate anything, the same safe-with-nothing-bound behavior SLF4J's own
+facade falls back to.
+</li>
+<li>
+{@link io.jstach.rainbowgum.scopedkeyvalues.provider/} is the {@code runtime}-scoped Rainbow Gum
+provider, like the rest of Rainbow Gum's optional modules. Simply depending on it is enough: it supplies
+the actual {@link java.lang.ScopedValue}-backed {@code ScopedKeyValuesProvider}, and separately registers
+a {@link io.jstach.rainbowgum.LogEventFactory} in the {@link io.jstach.rainbowgum.ServiceRegistry} whose
+values are merged in as the <em>lowest</em>-precedence source underneath MDC, so MDC and any fluent
+builder {@code addKeyValue(...)} calls always win on a key collision, and nothing changes for
+applications that do not push anything.
+</li>
+</ul>
+<p>
+<strong>Requirement:</strong> {@link java.lang.ScopedValue} was finalized in JDK 25
+(<a href="https://openjdk.org/jeps/506">JEP 506</a>), higher than Rainbow Gum's usual JDK 21 baseline. Only
+the provider module targets JDK 25+; the API module does not, and is not part of the default
+{@code io.jstach.rainbowgum:rainbowgum} dependency either way. Add both, with the API module at
+{@code compile} scope, unlike the rest of Rainbow Gum, which is {@code runtime}-scoped since application
+code is not meant to compile directly against implementation classes:
+{@snippet lang=xml :
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-scoped-key-values-api</artifactId>
+    <version>_VERSION_</version>
+    <scope>compile</scope>
+</dependency>
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-scoped-key-values</artifactId>
+    <version>_VERSION_</version>
+    <scope>runtime</scope>
+</dependency>
+}
 
 <h3 id="system_logger">java.lang.System.Logger and java.util.logging</h3>
 
