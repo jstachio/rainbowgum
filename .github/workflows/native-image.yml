@@ -29,7 +29,10 @@ jobs:
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@v1
         with:
-          java-version: '21'
+          # Deliberately tracks the latest GraalVM release rather than this project's own
+          # JDK 21 bytecode baseline: people who reach for GraalVM native-image are more
+          # likely to already be on the latest GraalVM, so that is what gets tested here.
+          java-version: '25'
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: 'maven'
