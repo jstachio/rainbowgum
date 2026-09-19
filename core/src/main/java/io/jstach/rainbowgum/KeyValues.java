@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
@@ -155,24 +154,33 @@ public sealed interface KeyValues {
 	}
 
 	/**
-	 * Creates a lazy, read through view over several key values in increasing precedence
-	 * order (a key found in a later element shadows the same key in an earlier one).
-	 * Unlike copying the parts into a {@link MutableKeyValues} this does not materialize
-	 * a merged copy: each low level access and each {@link #forEach} traverses the
-	 * underlying parts directly, so the result always reflects whatever the parts
-	 * currently contain.
-	 * @param parts key values in increasing precedence order (later wins on key
-	 * collision).
-	 * @return composite key values, or {@link #of()} if empty, or the single element if
-	 * only one part was passed.
+	 * Creates a lazy, read through view over two key values, {@code high} taking
+	 * precedence over {@code low} on a key collision. Unlike copying both into a
+	 * {@link MutableKeyValues} this does not materialize a merged copy: each low level
+	 * access and each {@link #forEach} traverses {@code low}/{@code high} directly, so
+	 * the result reflects whatever they currently contain at the moment of each access,
+	 * not just at the moment this method was called.
+	 * <p>
+	 * Unlike the {@code of(...)} factories, this is deliberately not named {@code of}:
+	 * every {@code of(...)} factory on this type returns a value that is, and stays,
+	 * immutable - this one does not make that guarantee, since {@code low}/{@code high}
+	 * are used as given, not copied. Multiple layers merge by nesting, e.g.
+	 * {@code merge(merge(a, b), c)}, the same way a cons list nests - {@code c} wins over
+	 * {@code b}, which wins over {@code a}.
+	 * @param low lower precedence key values, used as given, not copied.
+	 * @param high higher precedence key values, used as given, not copied, wins on key
+	 * collision.
+	 * @return {@code high} if {@code low} is empty, {@code low} if {@code high} is empty,
+	 * otherwise a composite view over both.
 	 */
-	public static KeyValues of(List<? extends KeyValues> parts) {
-		var copy = List.<KeyValues>copyOf(parts);
-		return switch (copy.size()) {
-			case 0 -> of();
-			case 1 -> copy.get(0);
-			default -> new CompositeKeyValues(copy);
-		};
+	public static KeyValues merge(KeyValues low, KeyValues high) {
+		if (low.isEmpty()) {
+			return high;
+		}
+		if (high.isEmpty()) {
+			return low;
+		}
+		return new CompositeKeyValues(low, high);
 	}
 
 	/**
@@ -718,100 +726,101 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 }
 
 /*
- * Lazy, read through view over several KeyValues in increasing precedence order. The low
- * level index packs the part index in the high bits and that part's own index in the low
- * bits so no copy is ever materialized: every access is a direct delegation to one of the
- * parts. Iteration skips entries shadowed by a later part so callers that stream
+ * Lazy, read through view over exactly two KeyValues, low/high in increasing precedence
+ * (high wins a key collision). A cons cell, not a copy: low/high are used as given, so
+ * every access is a direct delegation to one of the two, and the result reflects whatever
+ * they currently contain at the moment of each access. The low level index uses one bit
+ * to pick a side and the rest for that side's own index, so no array/list is ever
+ * allocated. Iteration skips low entries shadowed by high so callers that stream
  * KeyValues without deduplicating (e.g. JSON output) never see the same key twice.
+ * Multiple layers nest as KeyValues.merge(KeyValues.merge(a, b), c), the same way a cons
+ * list nests.
  */
 final class CompositeKeyValues implements KeyValues {
 
-	private static final int PART_SHIFT = 24;
+	private static final int SIDE_BIT = 1 << 30;
 
-	private static final int LOCAL_MASK = (1 << PART_SHIFT) - 1;
+	private static final int LOCAL_MASK = SIDE_BIT - 1;
 
-	private final List<KeyValues> parts;
+	private final KeyValues low;
 
-	CompositeKeyValues(List<KeyValues> parts) {
-		this.parts = parts;
+	private final KeyValues high;
+
+	CompositeKeyValues(KeyValues low, KeyValues high) {
+		this.low = low;
+		this.high = high;
 	}
 
-	private static int pack(int part, int local) {
-		return (part << PART_SHIFT) | (local & LOCAL_MASK);
+	private static int packLow(int local) {
+		return local & LOCAL_MASK;
 	}
 
-	private static int partOf(int index) {
-		return index >>> PART_SHIFT;
+	private static int packHigh(int local) {
+		return SIDE_BIT | (local & LOCAL_MASK);
+	}
+
+	private static boolean isHigh(int index) {
+		return (index & SIDE_BIT) != 0;
 	}
 
 	private static int localOf(int index) {
 		return index & LOCAL_MASK;
 	}
 
-	private boolean isShadowed(int partIndex, String key) {
-		for (int p = partIndex + 1; p < parts.size(); p++) {
-			var kvs = parts.get(p);
-			for (int i = kvs.start(); i > -1; i = kvs.next(i)) {
-				if (kvs.key(i).equals(key)) {
-					return true;
-				}
+	private boolean isShadowedByHigh(String key) {
+		for (int i = high.start(); i > -1; i = high.next(i)) {
+			if (high.key(i).equals(key)) {
+				return true;
 			}
 		}
 		return false;
 	}
 
-	private int scanFrom(int p, int local) {
-		int n = parts.size();
-		while (p < n) {
-			var kvs = parts.get(p);
-			while (local > -1) {
-				if (!isShadowed(p, kvs.key(local))) {
-					return pack(p, local);
-				}
-				local = kvs.next(local);
+	private int scanLowFrom(int local) {
+		while (local > -1) {
+			if (!isShadowedByHigh(low.key(local))) {
+				return packLow(local);
 			}
-			p++;
-			if (p < n) {
-				kvs = parts.get(p);
-				local = kvs.start();
-			}
+			local = low.next(local);
 		}
-		return -1;
+		int highStart = high.start();
+		return highStart > -1 ? packHigh(highStart) : -1;
 	}
 
 	@Override
 	public int start() {
-		if (parts.isEmpty()) {
-			return -1;
-		}
-		return scanFrom(0, parts.get(0).start());
+		return scanLowFrom(low.start());
 	}
 
 	@Override
 	public int next(int index) {
-		int p = partOf(index);
-		int local = parts.get(p).next(localOf(index));
-		return scanFrom(p, local);
+		if (isHigh(index)) {
+			int nextHigh = high.next(localOf(index));
+			return nextHigh > -1 ? packHigh(nextHigh) : -1;
+		}
+		return scanLowFrom(low.next(localOf(index)));
 	}
 
 	@Override
 	public String key(int index) {
-		return parts.get(partOf(index)).key(localOf(index));
+		return isHigh(index) ? high.key(localOf(index)) : low.key(localOf(index));
 	}
 
 	@Override
 	public @Nullable String valueOrNull(int index) {
-		return parts.get(partOf(index)).valueOrNull(localOf(index));
+		return isHigh(index) ? high.valueOrNull(localOf(index)) : low.valueOrNull(localOf(index));
 	}
 
 	@Override
 	public @Nullable String getValueOrNull(String key) {
-		for (int p = parts.size() - 1; p > -1; p--) {
-			var kvs = parts.get(p);
-			for (int i = kvs.start(); i > -1; i = kvs.next(i)) {
-				if (kvs.key(i).equals(key)) {
-					return kvs.valueOrNull(i);
-				}
+		for (int i = high.start(); i > -1; i = high.next(i)) {
+			if (high.key(i).equals(key)) {
+				return high.valueOrNull(i);
+			}
+		}
+		for (int i = low.start(); i > -1; i = low.next(i)) {
+			if (low.key(i).equals(key)) {
+				return low.valueOrNull(i);
 			}
 		}
 		return null;
@@ -849,9 +858,14 @@ final class CompositeKeyValues implements KeyValues {
 	}
 
 	@Override
+	@SuppressWarnings("ReferenceEquality")
 	public KeyValues freeze() {
-		List<KeyValues> frozenParts = parts.stream().map(KeyValues::freeze).toList();
-		return new CompositeKeyValues(frozenParts);
+		var frozenLow = low.freeze();
+		var frozenHigh = high.freeze();
+		if (frozenLow == low && frozenHigh == high) {
+			return this;
+		}
+		return new CompositeKeyValues(frozenLow, frozenHigh);
 	}
 
 	@Override
