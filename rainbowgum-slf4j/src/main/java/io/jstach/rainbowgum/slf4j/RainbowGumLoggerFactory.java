@@ -160,17 +160,19 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			int depth) {
 		/*
 		 * Optional, deliberately opt-in: nothing registered under this name (the
-		 * overwhelming majority of setups) means findOrNull returns null and every
-		 * downstream path below behaves exactly as before this lookup existed - see
+		 * overwhelming majority of setups) means findOrNull returns null, normalized to
+		 * NoopLogEventFactory.INSTANCE here so every downstream LogEventHandler path
+		 * behaves exactly as before this lookup existed - see
 		 * RainbowGumSLF4JServiceProvider#SCOPED_KEY_VALUES_SERVICE_NAME.
 		 */
-		var scopedDefaults = rainbowGum.config()
+		var found = rainbowGum.config()
 			.serviceRegistry()
 			.findOrNull(LogEventFactory.class, RainbowGumSLF4JServiceProvider.SCOPED_KEY_VALUES_SERVICE_NAME);
+		var delegate = found != null ? found : NoopLogEventFactory.INSTANCE;
 		if (callerInfoEnabled) {
-			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth, scopedDefaults);
+			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth, delegate);
 		}
-		return LogEventHandler.of(loggerName, logger, mdc, scopedDefaults);
+		return LogEventHandler.of(loggerName, logger, mdc, delegate);
 	}
 
 	sealed interface LoggerDecorator {

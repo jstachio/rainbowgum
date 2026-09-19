@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.slf4j;
 
 import java.lang.StackWalker.Option;
 import java.lang.System.Logger.Level;
+import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -60,17 +61,32 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 
 	public boolean isCallerAware();
 
+	/**
+	 * Lower precedence key values source consulted underneath {@link #mdc()}'s current
+	 * key values by {@link #defaultKeyValues()} and {@link #copyDefaultKeyValues()}.
+	 * Defaults to a no-op factory (empty key values) so no call site ever needs to null
+	 * check - a real, non-default delegate is only ever supplied at handler-construction
+	 * time in {@link RainbowGumLoggerFactory}, by looking one up in the
+	 * {@code ServiceRegistry}.
+	 * @return delegate, never {@code null}.
+	 */
+	default LogEventFactory delegate() {
+		return NoopLogEventFactory.INSTANCE;
+	}
+
 	@Override
 	default KeyValues defaultKeyValues() {
+		var extra = delegate().defaultKeyValues();
+		var mdcKvs = mdc().keyValues();
 		/*
-		 * Do not copy here. The overwhelming majority of log calls use a synchronous
-		 * publisher, especially now that virtual threads make blocking IO cheap, and a
-		 * copy on every MDC-bearing log call would be pure garbage for that common case.
-		 * Router.log() (LogRouter.java) freezes the event - which defensively copies the
-		 * key values - only when the route is actually asynchronous, i.e. only when a
-		 * copy is ever needed at all.
+		 * Do not copy or wrap when extra is empty (the overwhelming majority of log
+		 * calls, since delegate() is a no-op by default). A copy/composite on every
+		 * MDC-bearing log call would be pure garbage for that common case. Router.log()
+		 * (LogRouter.java) freezes the event - which defensively copies the key values -
+		 * only when the route is actually asynchronous, i.e. only when a copy is ever
+		 * needed at all.
 		 */
-		return mdc().keyValues();
+		return extra.isEmpty() ? mdcKvs : KeyValues.of(List.of(extra, mdcKvs));
 	}
 
 	/**
@@ -82,7 +98,14 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 	 * @return a new mutable key values, safe to mutate.
 	 */
 	default MutableKeyValues copyDefaultKeyValues() {
-		return mdc().copyMutableKeyValues();
+		var extra = delegate().defaultKeyValues();
+		if (extra.isEmpty()) {
+			return mdc().copyMutableKeyValues();
+		}
+		var buf = MutableKeyValues.of();
+		extra.forEach(buf);
+		mdc().keyValues().forEach(buf);
+		return buf;
 	}
 
 	public RainbowGumMDCAdapter mdc();
@@ -93,47 +116,10 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 
 	public LogEventHandler withDepth(int depth);
 
-	/**
-	 * Merges {@code scopedDefaults}' own {@link LogEventFactory#defaultKeyValues()} (if
-	 * not null) as the lowest-precedence source underneath {@code mdc}'s current
-	 * key-values, which always win on a key collision - {@code null} (nothing registered)
-	 * returns {@code mdc.keyValues()} unchanged, no allocation.
-	 * @param mdc current thread's MDC.
-	 * @param scopedDefaults optional lower-precedence source, or {@code null}.
-	 * @return merged, read-only-by-convention key values.
-	 */
-	static KeyValues mergedDefaultKeyValues(RainbowGumMDCAdapter mdc, @Nullable LogEventFactory scopedDefaults) {
-		if (scopedDefaults == null) {
-			return mdc.keyValues();
-		}
-		var buf = MutableKeyValues.of();
-		scopedDefaults.defaultKeyValues().forEach(buf);
-		mdc.keyValues().forEach(buf);
-		return buf;
-	}
-
-	/**
-	 * Like {@link #mergedDefaultKeyValues(RainbowGumMDCAdapter, LogEventFactory)} but
-	 * always a fresh, independently mutable copy - see {@link #copyDefaultKeyValues()}.
-	 * @param mdc current thread's MDC.
-	 * @param scopedDefaults optional lower-precedence source, or {@code null}.
-	 * @return merged, mutable key values.
-	 */
-	static MutableKeyValues mergedCopyDefaultKeyValues(RainbowGumMDCAdapter mdc,
-			@Nullable LogEventFactory scopedDefaults) {
-		if (scopedDefaults == null) {
-			return mdc.copyMutableKeyValues();
-		}
-		var buf = MutableKeyValues.of();
-		scopedDefaults.defaultKeyValues().forEach(buf);
-		mdc.keyValues().forEach(buf);
-		return buf;
-	}
-
 	static LogEventHandler of(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc,
-			@Nullable LogEventFactory scopedDefaults) {
+			LogEventFactory delegate) {
 		record DefaultLogEventHandler(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc,
-				@Nullable LogEventFactory scopedDefaults) implements LogEventHandler {
+				LogEventFactory delegate) implements LogEventHandler {
 
 			@Override
 			public void handle(LogEvent event) {
@@ -149,23 +135,13 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 			public boolean isCallerAware() {
 				return false;
 			}
-
-			@Override
-			public KeyValues defaultKeyValues() {
-				return mergedDefaultKeyValues(mdc, scopedDefaults);
-			}
-
-			@Override
-			public MutableKeyValues copyDefaultKeyValues() {
-				return mergedCopyDefaultKeyValues(mdc, scopedDefaults);
-			}
 		}
-		return new DefaultLogEventHandler(loggerName, logger, mdc, scopedDefaults);
+		return new DefaultLogEventHandler(loggerName, logger, mdc, delegate);
 	}
 
 	static LogEventHandler ofCallerInfo(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc, int depth,
-			@Nullable LogEventFactory scopedDefaults) {
-		return new CallerInfoEventDecorator(loggerName, mdc, logger, scopedDefaults, depth + CALLER_DEPTH_DELTA);
+			LogEventFactory delegate) {
+		return new CallerInfoEventDecorator(loggerName, mdc, logger, delegate, depth + CALLER_DEPTH_DELTA);
 	}
 
 	static final int CALLER_DEPTH_DELTA = 2;

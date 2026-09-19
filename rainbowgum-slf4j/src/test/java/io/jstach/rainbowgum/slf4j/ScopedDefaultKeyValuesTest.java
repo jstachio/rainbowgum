@@ -67,7 +67,7 @@ class ScopedDefaultKeyValuesTest {
 	@Test
 	void plainHandlerIsUnchangedWithNothingRegistered() {
 		var handler = LogEventHandler.of("test", e -> {
-		}, mdcWithEnv(), null);
+		}, mdcWithEnv(), NoopLogEventFactory.INSTANCE);
 		assertMdcOnly(handler.defaultKeyValues());
 	}
 
