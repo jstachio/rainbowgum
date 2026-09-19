@@ -858,14 +858,32 @@ final class CompositeKeyValues implements KeyValues {
 	}
 
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public KeyValues freeze() {
-		var frozenLow = low.freeze();
-		var frozenHigh = high.freeze();
-		if (frozenLow == low && frozenHigh == high) {
+		if (isFrozenAlready(low) && isFrozenAlready(high)) {
 			return this;
 		}
-		return new CompositeKeyValues(frozenLow, frozenHigh);
+		return new CompositeKeyValues(low.freeze(), high.freeze());
+	}
+
+	/*
+	 * Whether freeze() on kv is guaranteed to be a no-op, without relying on a
+	 * reference-equality check against freeze()'s own return value (an errorprone-flagged
+	 * anti-pattern, and one that would stop being meaningful if these implementations
+	 * ever became Valhalla value classes with different identity semantics). KeyValues is
+	 * sealed, so this is exhaustive over every implementation that can ever exist:
+	 * MutableKeyValues (only ArrayKeyValues) always needs a defensive copy; a nested
+	 * CompositeKeyValues needs one only if something mutable is buried in either of its
+	 * own two sides, checked recursively; everything else (EmptyKeyValues,
+	 * ImmutableArrayKeyValues) is already unconditionally immutable.
+	 */
+	private static boolean isFrozenAlready(KeyValues kv) {
+		if (kv instanceof MutableKeyValues) {
+			return false;
+		}
+		if (kv instanceof CompositeKeyValues c) {
+			return isFrozenAlready(c.low) && isFrozenAlready(c.high);
+		}
+		return true;
 	}
 
 	@Override
