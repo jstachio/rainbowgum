@@ -65,7 +65,7 @@ public class LoggerMethodTest {
 			assertEquals("", output.toString());
 			return;
 		}
-		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc, null);
+		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc, NoopLogEventFactory.INSTANCE);
 		var logger = LevelLogger.of(loggerLevel, handler);
 		String expected = method.test(level, logger);
 		if (level.toInt() < loggerLevel.toInt()) {
@@ -87,7 +87,7 @@ public class LoggerMethodTest {
 			assertEquals("", output.toString());
 			return;
 		}
-		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc, null);
+		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc, NoopLogEventFactory.INSTANCE);
 		var logger = new MyForwardingLogger(LevelLogger.of(loggerLevel, handler));
 		assertEquals(loggerName, logger.getName());
 		String expected = method.test(level, logger);
@@ -115,7 +115,7 @@ public class LoggerMethodTest {
 			assertEquals("", output.toString());
 			return;
 		}
-		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc, null);
+		LogEventHandler handler = LogEventHandler.of(loggerName, appender, mdc, NoopLogEventFactory.INSTANCE);
 		var delegate = LevelLogger.of(loggerLevel, handler);
 		var logger = new MethodTestDecoratingLogger(delegate);
 		assertEquals(loggerName, logger.getName());
@@ -169,7 +169,7 @@ public class LoggerMethodTest {
 			assertEquals("", output.toString());
 			return;
 		}
-		var handler = LogEventHandler.ofCallerInfo(loggerName, appender, mdc, 0, null);
+		var handler = LogEventHandler.ofCallerInfo(loggerName, appender, mdc, 0, NoopLogEventFactory.INSTANCE);
 		var logger = LevelLogger.of(loggerLevel, handler);
 		method.test(level, logger);
 		String expected = method.expectedCaller();

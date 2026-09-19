@@ -39,7 +39,8 @@ class RainbowGumEventBuilderTest {
 		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
 		StringBuilder original = new StringBuilder();
 		StringBuilder redirected = new StringBuilder();
-		LogEventHandler handler = LogEventHandler.of("logger", e -> e.formattedMessage(original), mdc, null);
+		LogEventHandler handler = LogEventHandler.of("logger", e -> e.formattedMessage(original), mdc,
+				NoopLogEventFactory.INSTANCE);
 		var builder = LevelLogger.of(org.slf4j.event.Level.INFO, handler)
 			.makeLoggingEventBuilder(org.slf4j.event.Level.INFO);
 		assertInstanceOf(LoggerDecoratorService.DepthAwareEventBuilder.class, builder);
@@ -60,7 +61,7 @@ class RainbowGumEventBuilderTest {
 	private static DepthAwareEventBuilder newBuilder() {
 		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
 		LogEventHandler handler = LogEventHandler.of("logger", e -> {
-		}, mdc, null);
+		}, mdc, NoopLogEventFactory.INSTANCE);
 		var builder = LevelLogger.of(org.slf4j.event.Level.INFO, handler)
 			.makeLoggingEventBuilder(org.slf4j.event.Level.INFO);
 		assertInstanceOf(DepthAwareEventBuilder.class, builder);
@@ -108,7 +109,7 @@ class RainbowGumEventBuilderTest {
 		RainbowGumMDCAdapter mdc = new RainbowGumMDCAdapter();
 		mdc.put("mdcKey", "mdcValue");
 		LogEventHandler handler = LogEventHandler.of("logger", e -> {
-		}, mdc, null);
+		}, mdc, NoopLogEventFactory.INSTANCE);
 		var builder = (DepthAwareEventBuilder) LevelLogger.of(org.slf4j.event.Level.INFO, handler)
 			.makeLoggingEventBuilder(org.slf4j.event.Level.INFO);
 		assertEquals("mdcValue", builder.keyValues().getValueOrNull("mdcKey"));
@@ -173,7 +174,8 @@ class RainbowGumEventBuilderTest {
 
 			@Override
 			Logger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, Level level) {
-				var handler = LogEventHandler.ofCallerInfo(loggerName(), appender, mdc, 0, null);
+				var handler = LogEventHandler.ofCallerInfo(loggerName(), appender, mdc, 0,
+						NoopLogEventFactory.INSTANCE);
 				var logger = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
 				logger.setLevel(org.slf4j.event.Level.ERROR);
 				return logger;
@@ -287,7 +289,8 @@ class RainbowGumEventBuilderTest {
 								""") {
 			@Override
 			LevelLogger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, System.Logger.Level level) {
-				var handler = LogEventHandler.ofCallerInfo(loggerName(), appender, mdc, 0, null);
+				var handler = LogEventHandler.ofCallerInfo(loggerName(), appender, mdc, 0,
+						NoopLogEventFactory.INSTANCE);
 				return LevelLogger.of(Levels.toSlf4jLevel(level), handler);
 			}
 
@@ -357,7 +360,7 @@ class RainbowGumEventBuilderTest {
 		}
 
 		Logger logger(RainbowGumMDCAdapter mdc, LogEventLogger appender, System.Logger.Level level) {
-			var handler = LogEventHandler.of(loggerName(), appender, mdc, null);
+			var handler = LogEventHandler.of(loggerName(), appender, mdc, NoopLogEventFactory.INSTANCE);
 			return LevelLogger.of(Levels.toSlf4jLevel(level), handler);
 		}
 
