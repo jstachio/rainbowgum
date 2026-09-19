@@ -2,7 +2,6 @@ package io.jstach.rainbowgum.slf4j;
 
 import java.lang.StackWalker.Option;
 import java.lang.System.Logger.Level;
-import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -76,17 +75,14 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 
 	@Override
 	default KeyValues defaultKeyValues() {
-		var extra = delegate().defaultKeyValues();
-		var mdcKvs = mdc().keyValues();
 		/*
-		 * Do not copy or wrap when extra is empty (the overwhelming majority of log
-		 * calls, since delegate() is a no-op by default). A copy/composite on every
-		 * MDC-bearing log call would be pure garbage for that common case. Router.log()
-		 * (LogRouter.java) freezes the event - which defensively copies the key values -
-		 * only when the route is actually asynchronous, i.e. only when a copy is ever
-		 * needed at all.
+		 * KeyValues.merge itself returns mdc().keyValues() unchanged when delegate() is
+		 * the no-op default (the overwhelming majority of log calls) - no composite, no
+		 * copy, for that common case. Router.log() (LogRouter.java) freezes the event -
+		 * which defensively copies the key values - only when the route is actually
+		 * asynchronous, i.e. only when a copy is ever needed at all.
 		 */
-		return extra.isEmpty() ? mdcKvs : KeyValues.of(List.of(extra, mdcKvs));
+		return KeyValues.merge(delegate().defaultKeyValues(), mdc().keyValues());
 	}
 
 	/**
