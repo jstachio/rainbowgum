@@ -57,19 +57,19 @@ final class StructuredLogging {
 	private static @Nullable LogProvider<? extends LogEncoder> encoderFor(String format, Environment environment) {
 		return switch (format.toLowerCase(Locale.ROOT)) {
 			case ECS -> EcsEncoder.of(b -> b
-				.serviceName(environment.getProperty(SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_NAME,
+				.serviceName(getProperty(environment, SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_NAME,
 						applicationName(environment)))
-				.serviceVersion(environment.getProperty(SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_VERSION,
+				.serviceVersion(getProperty(environment, SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_VERSION,
 						applicationVersion(environment)))
 				.serviceEnvironment(
 						environment.getProperty(SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_ENVIRONMENT))
 				.serviceNodeName(
 						environment.getProperty(SpringBootSupportedProperties.STRUCTURED_ECS_SERVICE_NODE_NAME)));
 			case GELF -> GelfEncoder.of(b -> {
-				String host = environment.getProperty(SpringBootSupportedProperties.STRUCTURED_GELF_HOST,
+				String host = getProperty(environment, SpringBootSupportedProperties.STRUCTURED_GELF_HOST,
 						applicationName(environment));
 				b.host(host != null ? host : "application");
-				String serviceVersion = environment.getProperty(
+				String serviceVersion = getProperty(environment,
 						SpringBootSupportedProperties.STRUCTURED_GELF_SERVICE_VERSION, applicationVersion(environment));
 				if (serviceVersion != null) {
 					// GELF additional field names can't contain dots - matches the
@@ -82,6 +82,16 @@ final class StructuredLogging {
 			});
 			default -> null;
 		};
+	}
+
+	/*
+	 * Environment#getProperty(key, defaultValue) requires a non-null defaultValue (it
+	 * guarantees a non-null return in exchange). applicationName/applicationVersion can
+	 * both be null, so this falls back by hand instead of using that overload.
+	 */
+	private static @Nullable String getProperty(Environment environment, String key, @Nullable String defaultValue) {
+		String value = environment.getProperty(key);
+		return value != null ? value : defaultValue;
 	}
 
 	private static @Nullable String applicationName(Environment environment) {

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Instant;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
@@ -32,7 +33,7 @@ class SpringBootKeywordFactoryTest {
 		return throwable;
 	}
 
-	private static String format(String pattern, Throwable throwable) {
+	private static String format(String pattern, @Nullable Throwable throwable) {
 		var event = LogEventFactory.of("io.jstach.logger")
 			.eventNoArg(System.Logger.Level.INFO, "hello", MutableKeyValues.of().freeze(), throwable)
 			.freeze(Instant.EPOCH);
@@ -45,24 +46,27 @@ class SpringBootKeywordFactoryTest {
 	void testWExPrefixesNewlineAndAppendsPackagingData() {
 		var throwable = throwableWithFrames("boom", "a", "b");
 		String actual = format("%wEx", throwable);
-		assertEquals("\njava.lang.RuntimeException: boom\n" + "\tat com.example.App.a(App.java:1) [na:na]\n"
-				+ "\tat com.example.App.b(App.java:2) [na:na]\n", actual);
+		assertEquals(
+				"\njava.lang.RuntimeException: boom\n\tat com.example.App.a(App.java:1) [na:na]\n\tat com.example.App.b(App.java:2) [na:na]\n",
+				actual);
 	}
 
 	@Test
 	void testWexLowerCaseAliasHasNoPackagingData() {
 		var throwable = throwableWithFrames("boom", "a", "b");
 		String actual = format("%wex", throwable);
-		assertEquals("\njava.lang.RuntimeException: boom\n" + "\tat com.example.App.a(App.java:1)\n"
-				+ "\tat com.example.App.b(App.java:2)\n", actual);
+		assertEquals(
+				"\njava.lang.RuntimeException: boom\n\tat com.example.App.a(App.java:1)\n\tat com.example.App.b(App.java:2)\n",
+				actual);
 	}
 
 	@Test
 	void testWExHonorsDepthOption() {
 		var throwable = throwableWithFrames("boom", "a", "b", "c", "d");
 		String actual = format("%wEx{2}", throwable);
-		assertEquals("\njava.lang.RuntimeException: boom\n" + "\tat com.example.App.a(App.java:1) [na:na]\n"
-				+ "\tat com.example.App.b(App.java:2) [na:na]\n" + "\t... 2 frames truncated\n", actual);
+		assertEquals(
+				"\njava.lang.RuntimeException: boom\n\tat com.example.App.a(App.java:1) [na:na]\n\tat com.example.App.b(App.java:2) [na:na]\n\t... 2 frames truncated\n",
+				actual);
 	}
 
 	@Test

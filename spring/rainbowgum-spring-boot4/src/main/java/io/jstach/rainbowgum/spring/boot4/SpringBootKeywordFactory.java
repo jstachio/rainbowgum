@@ -87,7 +87,7 @@ enum SpringBootKeywordFactory implements KeywordFactory, PatternKeyProvider {
 			/*
 			 * TODO This is probably not efficient at all but hey its Spring Boot.
 			 */
-			correlationIdFormatter.formatTo(event.keyValues()::getValueOrNull, output);
+			correlationIdFormatter.formatTo(key -> key == null ? null : event.keyValues().getValueOrNull(key), output);
 		}
 
 	}
