@@ -166,8 +166,8 @@ class RollingFileOutputTest {
 			Path movedAway = dir.resolve("app.log.moved");
 			Files.move(active, movedAway);
 
-			var response = rg.config().outputRegistry().reopen();
-			assertTrue(response.toString().contains("status=OK"), () -> "expected OK status, got: " + response);
+			var errors = rg.config().outputRegistry().reopen();
+			assertTrue(errors.isEmpty(), () -> "expected no reopen errors, got: " + errors);
 
 			rg.log(TestLogEventFactory.of().event("second"));
 			rg.config().outputRegistry().flush();

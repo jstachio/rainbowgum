@@ -2,7 +2,7 @@ package snippets;
 
 import java.util.List;
 
-import io.jstach.rainbowgum.LogResponse;
+import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.RainbowGum;
 
 public class RollingExample {
@@ -18,11 +18,13 @@ public class RollingExample {
 	public String someInternalHttpRequestHandler() {
 		var gum = RainbowGum.getOrNull();
 		if (gum != null) {
-			List<LogResponse> response = gum.config() //
+			List<LogEvent> errors = gum.config() //
 				.outputRegistry() //
 				.reopen(); // Here is where we siginal to reopen outputs that support
-							// reopening.
-			return response.toString();
+							// reopening. Anything that failed is also reported to the
+							// alert system (see LogConfig#alerts()) - errors here is
+							// just that same information handed back to the caller.
+			return errors.isEmpty() ? "ok" : errors.toString();
 		}
 		return "";
 	}

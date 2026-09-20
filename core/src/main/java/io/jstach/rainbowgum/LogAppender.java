@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
-import java.io.UncheckedIOException;
+import java.lang.System.Logger.Level;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -15,7 +16,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import io.jstach.rainbowgum.LogResponse.Status;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
@@ -741,10 +741,10 @@ sealed interface InternalLogAppender extends LogAppender, Actor {
 	/**
 	 * An appender can act on actions. One of the key actions is reopening files.
 	 * @param action action to run.
-	 * @return responses.
+	 * @return alert events for anything that failed, empty if the action fully succeeded.
 	 */
 	@Override
-	public List<LogResponse> act(LogAction action);
+	public List<LogEvent> act(LogAction action);
 
 }
 
@@ -756,25 +756,28 @@ sealed interface DirectLogAppender extends InternalLogAppender {
 
 	LogEncoder encoder();
 
-	default List<LogResponse> _request(LogAction action) {
-		List<LogResponse> r = switch (action) {
+	default List<LogEvent> _request(LogAction action) {
+		return switch (action) {
 			case LogAction.StandardAction a -> switch (a) {
-				case LogAction.StandardAction.REOPEN -> List.of(reopen());
-				case LogAction.StandardAction.FLUSH -> List.of(flush());
+				case LogAction.StandardAction.REOPEN -> reopen();
+				case LogAction.StandardAction.FLUSH -> flush();
 			};
 		};
-		return r;
 	}
 
-	default LogResponse reopen() {
-		var status = output().reopen();
-		return new Response(LogOutput.class, name(), status);
-	}
+	/**
+	 * Reopens {@link #output()}. Any failure is reported to the alert system rather than
+	 * thrown, at {@link Level#ERROR}.
+	 * @return the alert event if reopening failed, empty if it succeeded.
+	 */
+	List<LogEvent> reopen();
 
-	default LogResponse flush() {
-		output().flush();
-		return new Response(LogOutput.class, name(), LogResponse.Status.StandardStatus.OK);
-	}
+	/**
+	 * Flushes {@link #output()}. Any failure is reported to the alert system rather than
+	 * thrown, at {@link Level#ERROR}.
+	 * @return the alert event if flushing failed, empty if it succeeded.
+	 */
+	List<LogEvent> flush();
 
 	static DirectLogAppender of(String name, LogOutput output, LogEncoder encoder, AppenderType type,
 			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
@@ -1028,6 +1031,38 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		return this.encoder;
 	}
 
+	@Override
+	public List<LogEvent> reopen() {
+		try {
+			output.reopen();
+			return List.of();
+		}
+		catch (Exception e) {
+			var event = errorEvent(getClass(), "appender '" + name + "' failed to reopen output", e);
+			alerts.error(event);
+			return List.of(event);
+		}
+	}
+
+	@Override
+	public List<LogEvent> flush() {
+		try {
+			output.flush();
+			return List.of();
+		}
+		catch (Exception e) {
+			var event = errorEvent(getClass(), "appender '" + name + "' failed to flush output", e);
+			alerts.error(event);
+			return List.of(event);
+		}
+	}
+
+	private static LogEvent errorEvent(Class<?> loggerName, String message, Throwable throwable) {
+		var currentThread = Thread.currentThread();
+		return LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), Level.ERROR,
+				loggerName.getName(), message, KeyValues.of(), throwable);
+	}
+
 }
 
 /**
@@ -1084,7 +1119,7 @@ record CompositeLogAppender(DirectLogAppender[] appenders) implements InternalLo
 	}
 
 	@Override
-	public List<LogResponse> act(LogAction action) {
+	public List<LogEvent> act(LogAction action) {
 		return Actor.act(appenders, action);
 	}
 
@@ -1106,13 +1141,10 @@ sealed abstract class LockLogAppender extends AbstractLogAppender implements Int
 	}
 
 	@Override
-	public List<LogResponse> act(LogAction action) {
+	public List<LogEvent> act(LogAction action) {
 		lock.lock();
 		try {
 			return _request(action);
-		}
-		catch (UncheckedIOException ioe) {
-			return List.of(new Response(LogOutput.class, name, Status.ErrorStatus.of(ioe)));
 		}
 		finally {
 			lock.unlock();
@@ -1433,14 +1465,9 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 	}
 
 	@Override
-	public List<LogResponse> act(LogAction action) {
+	public List<LogEvent> act(LogAction action) {
 		synchronized (monitor) {
-			try {
-				return _request(action);
-			}
-			catch (UncheckedIOException ioe) {
-				return List.of(new Response(LogOutput.class, name, Status.ErrorStatus.of(ioe)));
-			}
+			return _request(action);
 		}
 	}
 

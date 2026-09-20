@@ -40,18 +40,18 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	 * Attempts to reopen all outputs of a certain type usually for log rotation. This
 	 * call will block if it attempts to reopen. If reopening is already happening an
 	 * empty list will be returned.
-	 * @return the output status of reopened outputs or an empty list if no outputs were
-	 * reopened.
+	 * @return alert events for outputs that failed to reopen, or an empty list if
+	 * reopening was skipped or every output reopened successfully.
 	 */
-	public List<LogResponse> reopen();
+	public List<LogEvent> reopen();
 
 	/**
 	 * Attempts to flush all outputs usually for log rotation. This call will block if it
 	 * attempts to flush. If flush is already happening an empty list will be returned.
-	 * @return the output status of reopened outputs or an empty list if no outputs were
-	 * reopened.
+	 * @return alert events for outputs that failed to flush, or an empty list if flushing
+	 * was skipped or every output flushed successfully.
 	 */
-	public List<LogResponse> flush();
+	public List<LogEvent> flush();
 
 }
 
@@ -78,16 +78,16 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 	}
 
 	@Override
-	public List<LogResponse> reopen() {
+	public List<LogEvent> reopen() {
 		return requestIO(LogAction.StandardAction.REOPEN);
 	}
 
 	@Override
-	public List<LogResponse> flush() {
+	public List<LogEvent> flush() {
 		return requestIO(LogAction.StandardAction.FLUSH);
 	}
 
-	private List<LogResponse> requestIO(LogAction action) {
+	private List<LogEvent> requestIO(LogAction action) {
 		if (reopenLock.tryLock()) {
 			try {
 				return _request(action);
@@ -101,7 +101,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		}
 	}
 
-	private List<LogResponse> _request(LogAction action) {
+	private List<LogEvent> _request(LogAction action) {
 		/*
 		 * TODO check rainbowgum is actually running.
 		 */
