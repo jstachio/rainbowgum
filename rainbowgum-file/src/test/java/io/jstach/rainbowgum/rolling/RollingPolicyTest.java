@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 
 import org.junit.jupiter.api.Test;
@@ -29,7 +31,7 @@ class RollingPolicyTest {
 	@Test
 	void parseRejectsPercentD() {
 		var e = assertThrows(IllegalArgumentException.class, () -> ParsedPattern.parse("%d{yyyy-MM-dd}.%i"));
-		assertTrue(e.getMessage().contains("%d"));
+		assertTrue(Objects.requireNonNull(e.getMessage()).contains("%d"));
 	}
 
 	@Test
@@ -110,7 +112,7 @@ class RollingPolicyTest {
 		var archive = dir.resolve("app.log.1.gz");
 		assertTrue(Files.exists(archive));
 		try (var in = new GZIPInputStream(Files.newInputStream(archive))) {
-			assertEquals("compress-me", new String(in.readAllBytes()));
+			assertEquals("compress-me", new String(in.readAllBytes(), StandardCharsets.UTF_8));
 		}
 	}
 
