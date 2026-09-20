@@ -1,80 +1,99 @@
 package io.jstach.rainbowgum.tomcat;
 
 import org.apache.juli.logging.Log;
+import org.jspecify.annotations.Nullable;
 
 interface ForwardingTomcatLog extends Log {
 
 	public Log delegate();
 
+	@Override
 	default boolean isDebugEnabled() {
 		return delegate().isDebugEnabled();
 	}
 
+	@Override
 	default boolean isErrorEnabled() {
 		return delegate().isErrorEnabled();
 	}
 
+	@Override
 	default boolean isFatalEnabled() {
 		return delegate().isFatalEnabled();
 	}
 
+	@Override
 	default boolean isInfoEnabled() {
 		return delegate().isInfoEnabled();
 	}
 
+	@Override
 	default boolean isTraceEnabled() {
 		return delegate().isTraceEnabled();
 	}
 
+	@Override
 	default boolean isWarnEnabled() {
 		return delegate().isWarnEnabled();
 	}
 
-	default void trace(Object message) {
+	@Override
+	default void trace(@Nullable Object message) {
 		delegate().trace(message);
 	}
 
-	default void trace(Object message, Throwable t) {
+	@Override
+	default void trace(@Nullable Object message, @Nullable Throwable t) {
 		delegate().trace(message, t);
 	}
 
-	default void debug(Object message) {
+	@Override
+	default void debug(@Nullable Object message) {
 		delegate().debug(message);
 	}
 
-	default void debug(Object message, Throwable t) {
+	@Override
+	default void debug(@Nullable Object message, @Nullable Throwable t) {
 		delegate().debug(message, t);
 	}
 
-	default void info(Object message) {
+	@Override
+	default void info(@Nullable Object message) {
 		delegate().info(message);
 	}
 
-	default void info(Object message, Throwable t) {
+	@Override
+	default void info(@Nullable Object message, @Nullable Throwable t) {
 		delegate().info(message, t);
 	}
 
-	default void warn(Object message) {
+	@Override
+	default void warn(@Nullable Object message) {
 		delegate().warn(message);
 	}
 
-	default void warn(Object message, Throwable t) {
+	@Override
+	default void warn(@Nullable Object message, @Nullable Throwable t) {
 		delegate().warn(message, t);
 	}
 
-	default void error(Object message) {
+	@Override
+	default void error(@Nullable Object message) {
 		delegate().error(message);
 	}
 
-	default void error(Object message, Throwable t) {
+	@Override
+	default void error(@Nullable Object message, @Nullable Throwable t) {
 		delegate().error(message, t);
 	}
 
-	default void fatal(Object message) {
+	@Override
+	default void fatal(@Nullable Object message) {
 		delegate().fatal(message);
 	}
 
-	default void fatal(Object message, Throwable t) {
+	@Override
+	default void fatal(@Nullable Object message, @Nullable Throwable t) {
 		delegate().fatal(message, t);
 	}
 

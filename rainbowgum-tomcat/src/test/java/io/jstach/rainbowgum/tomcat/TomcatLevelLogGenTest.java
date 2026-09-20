@@ -2,7 +2,6 @@ package io.jstach.rainbowgum.tomcat;
 
 import java.lang.System.Logger.Level;
 
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 // This was used just to generate TomcatLevelLog
@@ -128,7 +127,7 @@ class TomcatLevelLogGenTest {
 
 	}
 
-	static @Nullable String logMethodName(Level level) {
+	static String logMethodName(Level level) {
 		return switch (level) {
 			case DEBUG -> "debug";
 			case ALL -> throw new UnsupportedOperationException("Unimplemented case: " + level);
@@ -142,7 +141,7 @@ class TomcatLevelLogGenTest {
 		};
 	}
 
-	static @Nullable String levelCapitalName(Level level) {
+	static String levelCapitalName(Level level) {
 		return switch (level) {
 			case DEBUG -> "Debug";
 			case ALL -> throw new UnsupportedOperationException("Unimplemented case: " + level);
