@@ -63,50 +63,59 @@
       <artifactId>pistachio-svc-apt</artifactId>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!--
+            This module has a real module-info.java (compiled normally, no moditect
+            post-processing). Left to automatic ServiceLoader-based discovery, javac
+            would try to run every processor it finds on the processor path - including
+            this module's own ConfigProcessor, via its own module-info `provides
+            javax.annotation.processing.Processor with ...ConfigProcessor` clause -
+            against this module's own not-yet-compiled sources, which fails since
+            ConfigProcessor's class file does not exist yet. Explicitly naming exactly
+            the two processors this module's own sources actually need bypasses
+            automatic discovery entirely (javac's own semantics: an explicit -processor
+            list replaces ServiceLoader scanning, it does not add to it), so
+            ConfigProcessor is never a candidate to load in the first place. Both
+            classes below are already-compiled, external classes from the
+            pistachio-prism-apt/pistachio-svc-apt dependencies, not part of this
+            compilation, so there is no self-reference.
+          -->
+          <annotationProcessors>
+            <!-- pistachio-prism-apt: generates the *Prism.java classes ConfigProcessor
+              itself uses, from the @GeneratePrisms on
+              io.jstach.rainbowgum.apt.prism.package-info. -->
+            <annotationProcessor>io.jstach.prism.apt.PrismGenerator</annotationProcessor>
+            <!-- pistachio-svc-apt: generates ConfigProcessor's own
+              META-INF/services/javax.annotation.processing.Processor registration,
+              from its @ServiceProvider annotation. -->
+            <annotationProcessor>io.jstach.svc.apt.ServiceProcessor</annotationProcessor>
+            <!-- jstachio-apt: renders BuilderModel's own @JStache(path =
+              "io/jstach/rainbowgum/apt/ConfigBuilder.java") template into
+              BuilderModelRenderer, which ConfigProcessor uses directly. -->
+            <annotationProcessor>io.jstach.apt.GenerateRendererProcessor</annotationProcessor>
+          </annotationProcessors>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <configuration>
+          <additionalOptions>
+            <additionalOption>--allow-script-in-comments</additionalOption>
+            <additionalOption>--snippet-path ${project.basedir}/${doc.resources}${doc.snippets}</additionalOption>
+            <additionalOption>--add-stylesheet ${parent.root}/doc/jstachio.css</additionalOption>
+            <additionalOption>--link-modularity-mismatch info</additionalOption>
+          </additionalOptions>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
   <profiles>
-    <profile>
-      <id>moditect</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.moditect</groupId>
-            <artifactId>moditect-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-module-infos</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>add-module-info</goal>
-                </goals>
-                <configuration>
-                  <overwriteExistingFiles>true</overwriteExistingFiles>
-                  <module>
-                    <moduleInfoFile>
-                      src/main/java/module-info.moditect
-                    </moduleInfoFile>
-                  </module>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <configuration>
-              <additionalOptions>
-                <additionalOption>--allow-script-in-comments</additionalOption>
-                <additionalOption>--snippet-path ${project.basedir}/${doc.resources}${doc.snippets}</additionalOption>
-                <additionalOption>--add-stylesheet ${parent.root}/doc/jstachio.css</additionalOption>
-                <additionalOption>--link-modularity-mismatch info</additionalOption>
-              </additionalOptions>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
     <profile>
       <id>doc</id>
       <properties>
