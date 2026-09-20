@@ -83,7 +83,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 		disruptor.start();
 	}
 
-	DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer,
+	private DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer,
 			Iterable<? extends LogAppender> appenders, LogAlerts alerts) {
 		super();
 		this.disruptor = disruptor;
