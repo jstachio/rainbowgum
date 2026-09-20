@@ -1,11 +1,14 @@
 #!/bin/bash
-# Fast local dev build: parallel reactor (-T1C), no per-module javadoc generation, and
-# JUnit 5 test-level parallelism across classes within each module. Not a substitute for a
-# real CI/release build - use bin/doc.sh for the comprehensive javadoc build this
-# intentionally skips. See the "fast" profile's comment in pom.xml for how the test
-# parallelism is made safe (deterministic thread name/id in golden-string assertions,
-# @Isolated on classes that share JVM-wide static state) - and note it buys little at the
-# full-reactor level, since -T1C already saturates available cores; it mainly helps
-# individual test-heavy modules like core.
-# -Pfast
+# Fast local dev build: parallel reactor (-T2C), no per-module javadoc generation. Not a
+# substitute for a real CI/release build - use bin/doc.sh for the comprehensive javadoc
+# build this intentionally skips.
+#
+# Uses -D (command line, highest precedence) rather than a Maven profile property - a
+# profile-scoped <maven.javadoc.skip>true</maven.javadoc.skip> did not reliably skip
+# javadoc across this multi-module reactor, so that profile (formerly "fast" in pom.xml)
+# was removed.
+#
+# JUnit 5 test-level parallelism was also tried here and dropped: it did not actually
+# speed up the build, and the real fix for slow tests was moving them into their own
+# test module instead (see test/rainbowgum-test-file, RollingFileOutputTest and friends).
 mvnd --batch-mode --no-transfer-progress -T2C -Dmaven.javadoc.skip=true -q clean install $*
