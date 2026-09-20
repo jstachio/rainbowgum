@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -303,8 +304,8 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		}
 
 		@Override
-		public void initialize(LoggingInitializationContext initializationContext, String configLocation,
-				LogFile logFile) {
+		public void initialize(LoggingInitializationContext initializationContext, @Nullable String configLocation,
+				@Nullable LogFile logFile) {
 			var gum = RainbowGum.getOrNull();
 			if (gum != null) {
 				if (gum.config().serviceRegistry().findOrNull(PreBootRainbowGumProvider.BootFlag.class) == null) {
@@ -320,12 +321,12 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 					return;
 				}
 			}
+			Environment environment = Objects.requireNonNull(initializationContext.getEnvironment());
 			LogConfig config = LogConfig.builder()
-				.properties(new SpringLogProperties(initializationContext.getEnvironment()))
+				.properties(new SpringLogProperties(environment))
 				.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class, classLoader))
 				.configurator(new SpringBootPatternKeywordProvider())
 				.build();
-			Environment environment = initializationContext.getEnvironment();
 			LogProperties patternProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			Patterns patterns = new Patterns(patternProperties, environment);
 
@@ -355,7 +356,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		}
 
 		@Override
-		public Runnable getShutdownHandler() {
+		public @Nullable Runnable getShutdownHandler() {
 			return super.getShutdownHandler();
 		}
 
@@ -365,7 +366,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		}
 
 		@Override
-		public void setLogLevel(String loggerName, LogLevel level) {
+		public void setLogLevel(@Nullable String loggerName, @Nullable LogLevel level) {
 			super.setLogLevel(loggerName, level);
 		}
 
@@ -375,7 +376,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		}
 
 		@Override
-		public LoggerConfiguration getLoggerConfiguration(String loggerName) {
+		public @Nullable LoggerConfiguration getLoggerConfiguration(String loggerName) {
 			return super.getLoggerConfiguration(loggerName);
 		}
 
