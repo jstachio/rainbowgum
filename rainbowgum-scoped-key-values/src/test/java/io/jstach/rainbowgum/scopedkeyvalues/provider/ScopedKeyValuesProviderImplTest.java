@@ -3,8 +3,10 @@ package io.jstach.rainbowgum.scopedkeyvalues.provider;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /*
@@ -17,6 +19,17 @@ class ScopedKeyValuesProviderImplTest {
 
 	private final ScopedKeyValuesProviderImpl provider = new ScopedKeyValuesProviderImpl();
 
+	/*
+	 * Map.of(...) cannot be used here: its value type parameter is bound to non-null
+	 * Object, which is incompatible with push's nullable-valued Map parameter even though
+	 * these tests never actually pass a null value.
+	 */
+	private static Map<String, @Nullable String> layer(String key, String value) {
+		Map<String, @Nullable String> m = new LinkedHashMap<>();
+		m.put(key, value);
+		return m;
+	}
+
 	@Test
 	void currentMergedIsEmptyOutsideAnyPush() {
 		assertTrue(provider.currentMerged().isEmpty());
@@ -24,21 +37,21 @@ class ScopedKeyValuesProviderImplTest {
 
 	@Test
 	void pushedValuesAreVisibleForTheDurationOfTheBody() {
-		provider.push(Map.of("requestId", "abc123"), () -> {
+		provider.push(layer("requestId", "abc123"), () -> {
 			assertEquals("abc123", provider.currentMerged().get("requestId"));
 		});
 	}
 
 	@Test
 	void pushedValuesAreGoneAfterRunReturns() {
-		provider.push(Map.of("requestId", "abc123"), () -> {
+		provider.push(layer("requestId", "abc123"), () -> {
 		});
 		assertTrue(provider.currentMerged().isEmpty());
 	}
 
 	@Test
 	void nestedPushesAccumulateWithoutCollision() {
-		provider.push(Map.of("outer", "o"), () -> provider.push(Map.of("inner", "i"), () -> {
+		provider.push(layer("outer", "o"), () -> provider.push(layer("inner", "i"), () -> {
 			var merged = provider.currentMerged();
 			assertEquals("o", merged.get("outer"));
 			assertEquals("i", merged.get("inner"));
@@ -47,14 +60,14 @@ class ScopedKeyValuesProviderImplTest {
 
 	@Test
 	void laterNestedPushWinsOnCollision() {
-		provider.push(Map.of("k", "outer"), () -> provider.push(Map.of("k", "inner"), () -> {
+		provider.push(layer("k", "outer"), () -> provider.push(layer("k", "inner"), () -> {
 			assertEquals("inner", provider.currentMerged().get("k"));
 		}));
 	}
 
 	@Test
 	void callReturnsTheBodysResult() throws Exception {
-		String result = provider.push(Map.of("k", "v"), () -> "hello");
+		String result = provider.push(layer("k", "v"), () -> "hello");
 		assertEquals("hello", result);
 	}
 

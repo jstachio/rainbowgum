@@ -19,7 +19,7 @@ _ignored_profiles="-enforce-maven-version,-format-apply,-deploy-local,-javadoc-j
 # Null analysis (checkerframework/errorprone) is being turned on one module at a time,
 # one commit per module - see develop.md. Grows here as each module is verified clean
 # (or fixed) rather than flipping the whole reactor on at once.
-_modules="core,rainbowgum-annotation,rainbowgum-jul,rainbowgum-scoped-key-values-api,rainbowgum-jdk,rainbowgum,rainbowgum-simple-props"
+_modules="core,rainbowgum-annotation,rainbowgum-jul,rainbowgum-scoped-key-values-api,rainbowgum-jdk,rainbowgum,rainbowgum-simple-props,rainbowgum-scoped-key-values"
 
 for profile in $_profiles; do
 echo ""

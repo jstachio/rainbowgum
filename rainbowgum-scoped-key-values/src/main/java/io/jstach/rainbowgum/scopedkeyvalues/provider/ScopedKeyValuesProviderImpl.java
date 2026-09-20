@@ -71,9 +71,7 @@ public final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvide
 
 	private static KeyValues toKeyValues(Map<String, @Nullable String> layer) {
 		var buf = MutableKeyValues.of(layer.size());
-		for (var entry : layer.entrySet()) {
-			buf.putKeyValue(entry.getKey(), entry.getValue());
-		}
+		layer.forEach(buf);
 		return buf.freeze();
 	}
 
