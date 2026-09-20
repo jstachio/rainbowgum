@@ -12,7 +12,6 @@ import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
-import io.jstach.rainbowgum.LogResponse.Status;
 
 interface ForwardingOutput extends LogOutput {
 
@@ -108,6 +107,6 @@ interface ForwardingOutput extends LogOutput {
 	public BufferHints bufferHints();
 
 	@Override
-	public Status reopen();
+	public void reopen();
 
 }

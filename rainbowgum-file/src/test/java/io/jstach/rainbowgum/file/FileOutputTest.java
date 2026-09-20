@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
@@ -95,18 +96,13 @@ class FileOutputTest {
 				/*
 				 * Now we signal reopen.
 				 */
-				var response = rg.config().outputRegistry().reopen();
+				var errors = rg.config().outputRegistry().reopen();
 				{
 					String actual = Files.readString(Path.of(newFile));
 					String expected = test.expected;
 					assertEquals(expected, actual);
 				}
-				assertEquals(
-						"""
-								[Response[type=interface io.jstach.rainbowgum.LogOutput, name=file, status=OK], Response[type=interface io.jstach.rainbowgum.LogOutput, name=list, status=IGNORED]]
-								"""
-							.trim(),
-						response.toString());
+				assertEquals(List.of(), errors, () -> "expected no reopen errors, got: " + errors);
 				assertTrue(Files.exists(Path.of(fileName)));
 				for (var e : test.events()) {
 					rg.log(e);

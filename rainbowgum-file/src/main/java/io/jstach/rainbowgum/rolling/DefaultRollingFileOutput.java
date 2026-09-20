@@ -10,7 +10,6 @@ import java.util.function.Supplier;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogResponse.Status;
 import io.jstach.rainbowgum.file.FileOutput;
 
 /*
@@ -120,8 +119,8 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 	}
 
 	@Override
-	public Status reopen() {
-		return delegate.reopen();
+	public void reopen() {
+		delegate.reopen();
 	}
 
 	@Override

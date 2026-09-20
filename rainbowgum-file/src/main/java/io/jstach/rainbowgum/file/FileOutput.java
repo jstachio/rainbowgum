@@ -25,7 +25,6 @@ import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
-import io.jstach.rainbowgum.LogResponse.Status;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
 
@@ -232,14 +231,13 @@ class ReopenableFileOutput implements ForwardingOutput, FileOutput {
 	}
 
 	@Override
-	public Status reopen() {
+	public void reopen() {
 		this.fileOutput.close();
 		this.fileOutput = supplier.get();
 		var config = this.config;
 		if (config != null) {
 			this.fileOutput.start(config);
 		}
-		return Status.StandardStatus.OK;
 	}
 
 }

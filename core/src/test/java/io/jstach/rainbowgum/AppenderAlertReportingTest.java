@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -22,6 +23,12 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * own {@link LogAlerts} as well as {@link LogMetrics#EVENTS_FAILED_METRIC}. Deliberately
  * does not distinguish encoder vs output failures in either - both land as one
  * appender-level "failed to append" alert and the same counter.
+ * <p>
+ * Also confirms {@link DirectLogAppender#reopen()}/{@link DirectLogAppender#flush()}
+ * catch a failing {@link LogOutput#reopen()}/{@link LogOutput#flush()} the same way,
+ * reporting an {@link System.Logger.Level#ERROR} {@link LogEvent} to {@link LogAlerts}
+ * and returning it rather than throwing or returning a status - and that success reports
+ * nothing at all.
  */
 class AppenderAlertReportingTest {
 
@@ -87,6 +94,68 @@ class AppenderAlertReportingTest {
 		assertEquals(1, config.alerts().dump().size());
 		assertTrue(config.alerts().dump().get(0).message().contains("failed to append batch"));
 		assertEquals(events.length, failedEventsCount(config));
+	}
+
+	@ParameterizedTest
+	@MethodSource("appenderTypes")
+	void outputReopenFailureIsCaughtAndReported(AppenderType type, Class<?> expectedType) {
+		var output = new ListLogOutput() {
+			@Override
+			public void reopen() {
+				throw new RuntimeException("reopen boom");
+			}
+		};
+		var config = LogConfig.builder().build();
+		DirectLogAppender appender = directAppender(type, output, encoder(), config);
+		assertEquals(expectedType, appender.getClass());
+
+		var errors = assertDoesNotThrow(appender::reopen);
+
+		assertEquals(1, errors.size());
+		assertEquals(System.Logger.Level.ERROR, errors.get(0).level());
+		assertTrue(errors.get(0).message().contains("failed to reopen"));
+		assertEquals(1, config.alerts().dump().size());
+		assertTrue(config.alerts().dump().get(0).message().contains("failed to reopen"));
+	}
+
+	@ParameterizedTest
+	@MethodSource("appenderTypes")
+	void outputFlushFailureIsCaughtAndReported(AppenderType type, Class<?> expectedType) {
+		var output = new ListLogOutput() {
+			@Override
+			public void flush() {
+				throw new RuntimeException("flush boom");
+			}
+		};
+		var config = LogConfig.builder().build();
+		DirectLogAppender appender = directAppender(type, output, encoder(), config);
+		assertEquals(expectedType, appender.getClass());
+
+		var errors = assertDoesNotThrow(appender::flush);
+
+		assertEquals(1, errors.size());
+		assertEquals(System.Logger.Level.ERROR, errors.get(0).level());
+		assertTrue(errors.get(0).message().contains("failed to flush"));
+		assertEquals(1, config.alerts().dump().size());
+		assertTrue(config.alerts().dump().get(0).message().contains("failed to flush"));
+	}
+
+	@ParameterizedTest
+	@MethodSource("appenderTypes")
+	void outputReopenAndFlushSucceedWithNoAlerts(AppenderType type, Class<?> expectedType) {
+		var output = new ListLogOutput();
+		var config = LogConfig.builder().build();
+		DirectLogAppender appender = directAppender(type, output, encoder(), config);
+		assertEquals(expectedType, appender.getClass());
+
+		assertEquals(List.of(), appender.reopen());
+		assertEquals(List.of(), appender.flush());
+		assertEquals(0, config.alerts().dump().size());
+	}
+
+	private static DirectLogAppender directAppender(AppenderType type, ListLogOutput output, LogEncoder encoder,
+			LogConfig config) {
+		return DirectLogAppender.of("test", output, encoder, type, Set.of(), config.alerts(), config.metrics());
 	}
 
 	private static LogEncoder encoder() {

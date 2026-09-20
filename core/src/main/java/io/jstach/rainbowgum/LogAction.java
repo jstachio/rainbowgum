@@ -15,24 +15,24 @@ sealed interface LogAction {
 
 interface Actor {
 
-	List<LogResponse> act(LogAction action);
+	List<LogEvent> act(LogAction action);
 
-	static <A extends Actor> List<LogResponse> act(Iterable<A> actors, LogAction action) {
+	static <A extends Actor> List<LogEvent> act(Iterable<A> actors, LogAction action) {
 
-		List<LogResponse> responses = new ArrayList<>();
+		List<LogEvent> events = new ArrayList<>();
 		for (var appender : actors) {
-			responses.addAll(appender.act(action));
+			events.addAll(appender.act(action));
 		}
-		return responses;
+		return events;
 	}
 
-	static <T extends Actor> List<LogResponse> act(T[] actors, LogAction action) {
+	static <T extends Actor> List<LogEvent> act(T[] actors, LogAction action) {
 
-		List<LogResponse> responses = new ArrayList<>();
+		List<LogEvent> events = new ArrayList<>();
 		for (var appender : actors) {
-			responses.addAll(appender.act(action));
+			events.addAll(appender.act(action));
 		}
-		return responses;
+		return events;
 	}
 
 }

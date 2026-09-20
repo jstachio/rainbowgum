@@ -16,7 +16,6 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogOutput;
-import io.jstach.rainbowgum.LogResponse.Status;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 /*
@@ -199,8 +198,7 @@ class ForwardingOutputTest {
 		}
 
 		@Override
-		public Status reopen() {
-			return Status.StandardStatus.OK;
+		public void reopen() {
 		}
 
 	}
