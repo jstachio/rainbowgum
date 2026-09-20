@@ -24,7 +24,7 @@ The `vh` script will mostly make sure you do not violate this.
 If you just want to deploy a snapshot to centrals snapshot repositories run:
 
 ```
-mvn clean deploy -Pcentral
+./mvnw clean -T1 deploy -Pcentral
 ```
 
 ### Deploying Releases
@@ -54,7 +54,7 @@ We host the aggregate javadoc which includes the critical overview.html in this 
 This repository will need to be updated after release.
 
 1. Checkout jstachio.github.io
-1. cd to `p/jstachio` 
+1. cd to `doc/rainbowgum` 
 1. Run `build.sh <VERSION>`
 1. A new directory with all the javadoc from that version will be created. 
 1. Checkin the new content and push
@@ -66,9 +66,8 @@ Because we do not alter the pom file reproducing a release build is less trivial
 ```
 git checkout SOME_TAG
 bin/vh set pom  # no argument means use the version properties
-mvn clean install
+./mvnw -T1 clean install -Duser.timezone=UTC
 ```
 
-
-
+or use `bin/rebuild.sh`
 
