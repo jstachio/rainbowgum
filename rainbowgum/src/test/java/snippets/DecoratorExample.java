@@ -50,7 +50,7 @@ public class DecoratorExample extends LoggerDecoratorService {
 			if (marker != null) {
 				// Rainbow Gum core has no built-in Marker support (it is not stored
 				// on the event), so surface it as a key value instead.
-				builder.addKeyValue("marker", marker.toString());
+				builder = builder.addKeyValue("marker", marker.toString());
 			}
 			return true;
 		}

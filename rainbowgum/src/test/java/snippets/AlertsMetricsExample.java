@@ -36,9 +36,11 @@ public class AlertsMetricsExample {
 	}
 	// @end
 
+	@SuppressWarnings("unused")
 	private void sendToPagingSystem(String message) {
 	}
 
+	@SuppressWarnings("unused")
 	private void reportToMetricsSystem(String name, long value) {
 	}
 
