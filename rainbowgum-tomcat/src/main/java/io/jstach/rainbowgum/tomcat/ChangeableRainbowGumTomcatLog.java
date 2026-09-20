@@ -30,11 +30,11 @@ final class ChangeableRainbowGumTomcatLog implements Log {
 		return router.route(loggerName, LevelResolver.normalizeLevel(level)).isEnabled();
 	}
 
-	void log(Level level, Object obj) {
+	void log(Level level, @Nullable Object obj) {
 		log(level, obj, null);
 	}
 
-	void log(Level level, Object obj, @Nullable Throwable t) {
+	void log(Level level, @Nullable Object obj, @Nullable Throwable t) {
 		level = LevelResolver.normalizeLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
@@ -78,65 +78,65 @@ final class ChangeableRainbowGumTomcatLog implements Log {
 	}
 
 	@Override
-	public void trace(Object message) {
+	public void trace(@Nullable Object message) {
 		log(Level.TRACE, message);
 	}
 
 	@Override
-	public void trace(Object message, Throwable t) {
+	public void trace(@Nullable Object message, @Nullable Throwable t) {
 		log(Level.TRACE, message, t);
 
 	}
 
 	@Override
-	public void debug(Object message) {
+	public void debug(@Nullable Object message) {
 		log(Level.DEBUG, message);
 	}
 
 	@Override
-	public void debug(Object message, Throwable t) {
+	public void debug(@Nullable Object message, @Nullable Throwable t) {
 		log(Level.DEBUG, message, t);
 	}
 
 	@Override
-	public void info(Object message) {
+	public void info(@Nullable Object message) {
 		log(Level.INFO, message);
 	}
 
 	@Override
-	public void info(Object message, Throwable t) {
+	public void info(@Nullable Object message, @Nullable Throwable t) {
 		log(Level.INFO, message, t);
 
 	}
 
 	@Override
-	public void warn(Object message) {
+	public void warn(@Nullable Object message) {
 		log(Level.WARNING, message);
 	}
 
 	@Override
-	public void warn(Object message, Throwable t) {
+	public void warn(@Nullable Object message, @Nullable Throwable t) {
 		log(Level.WARNING, message, t);
 	}
 
 	@Override
-	public void error(Object message) {
+	public void error(@Nullable Object message) {
 		log(Level.ERROR, message);
 
 	}
 
 	@Override
-	public void error(Object message, Throwable t) {
+	public void error(@Nullable Object message, @Nullable Throwable t) {
 		log(Level.ERROR, message, t);
 	}
 
 	@Override
-	public void fatal(Object message) {
+	public void fatal(@Nullable Object message) {
 		log(Level.ERROR, message);
 	}
 
 	@Override
-	public void fatal(Object message, Throwable t) {
+	public void fatal(@Nullable Object message, @Nullable Throwable t) {
 		log(Level.ERROR, message, t);
 
 	}
