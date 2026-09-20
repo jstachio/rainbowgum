@@ -16,6 +16,11 @@ fi
 
 _ignored_profiles="-enforce-maven-version,-format-apply,-deploy-local,-javadoc-jar"
 
+# Null analysis (checkerframework/errorprone) is being turned on one module at a time,
+# one commit per module - see develop.md. Grows here as each module is verified clean
+# (or fixed) rather than flipping the whole reactor on at once.
+_modules="core,rainbowgum-annotation"
+
 for profile in $_profiles; do
 echo ""
 echo "--------------------- Running $profile -----------------------"
@@ -25,7 +30,7 @@ _CLEAN="clean"
 #if [[ "eclipse" == "$profile" ]]; then
 #  _CLEAN=""
 #fi
-./mvnw $MAVEN_CLI_OPTS ${_CLEAN} verify -pl core -P${profile},show-profiles,${_ignored_profiles} -Dmaven.javadoc.skip -DskipTests -Dmaven.source.skip=true
+./mvnw $MAVEN_CLI_OPTS ${_CLEAN} verify -pl ${_modules} -P${profile},show-profiles,${_ignored_profiles} -Dmaven.javadoc.skip -DskipTests -Dmaven.source.skip=true
 done
 
 # Checker or the maven compiler leaves these files around

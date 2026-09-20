@@ -10,8 +10,6 @@ import java.lang.annotation.Target;
 /**
  * Indicates a class that was copied from another trusted open source project and does not
  * need test coverage.
- *
- * @hidden
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ TYPE, METHOD })
