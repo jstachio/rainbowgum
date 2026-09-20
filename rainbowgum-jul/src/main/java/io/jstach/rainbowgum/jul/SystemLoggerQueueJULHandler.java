@@ -112,6 +112,7 @@ final class SystemLoggerQueueJULHandler extends Handler {
 				return bundle.getString(message);
 			}
 			catch (MissingResourceException e) {
+				// no translation found - fall through and use the raw message instead
 			}
 		}
 		return message;

@@ -71,7 +71,6 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	 * currently exposed for testing purposes.
 	 * @param properties properties to check
 	 * @return true if enabled.
-	 * @hidden
 	 */
 	public static boolean install(@SuppressWarnings("exports") LogProperties properties) {
 		if (properties.forKey(JUL_DISABLE_PROPERTY).ofBoolean().or(false).validateNow(JULConfigurator.class)) {
@@ -95,7 +94,6 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	/**
 	 * Will test if already installed. This is mainly for testing purpsoes.
 	 * @return true if installed.
-	 * @hidden
 	 */
 	public static boolean isInstalled() {
 		return SystemLoggerQueueJULHandler.isInstalled();
