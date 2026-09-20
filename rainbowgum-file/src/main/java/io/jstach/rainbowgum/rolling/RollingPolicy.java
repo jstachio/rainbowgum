@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
@@ -183,7 +184,7 @@ final class RollingPolicy {
 			for (Path candidate : stream) {
 				var matcher = regex.matcher(candidate.getFileName().toString());
 				if (matcher.matches()) {
-					indexes.add(Integer.parseInt(matcher.group(1)));
+					indexes.add(Integer.parseInt(Objects.requireNonNull(matcher.group(1))));
 				}
 			}
 		}
