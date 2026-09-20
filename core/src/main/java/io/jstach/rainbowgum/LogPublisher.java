@@ -12,7 +12,7 @@ import io.jstach.rainbowgum.LogAppender.Appenders;
  * Implementations are required to be threadsafe and <strong>overlapping calls are
  * expected!</strong>
  */
-public sealed interface LogPublisher extends LogEventLogger, LogLifecycle, LogComponent {
+public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
 	/**
 	 * If the publisher is synchronous.
