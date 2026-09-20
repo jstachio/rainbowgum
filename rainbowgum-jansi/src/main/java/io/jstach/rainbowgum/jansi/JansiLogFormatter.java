@@ -6,7 +6,6 @@ import org.fusesource.jansi.Ansi.Color;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
-import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 // TODO deprecate
 /**
@@ -14,7 +13,7 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
  */
 public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 
-	private final AnsiHelper ANSI;
+	private final AnsiHelper ansiHelper;
 
 	JansiLogFormatter( //
 			boolean ansi, LogFormatter timestampFormatter, //
@@ -26,7 +25,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 			LogFormatter keyValuesFormatter) {
 		super(timestampFormatter, threadFormatter, levelFormatter, nameFormatter, messageFormatter, throwableFormatter,
 				keyValuesFormatter);
-		this.ANSI = ansi ? AnsiHelper.ANSI : AnsiHelper.NO_ANSI;
+		this.ansiHelper = ansi ? AnsiHelper.ANSI : AnsiHelper.NO_ANSI;
 	}
 
 	/**
@@ -40,7 +39,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 	/**
 	 * Jansi log formatter builder.
 	 */
-	public static class Builder extends StandardEventFormatter.AbstractBuilder<Builder> {
+	public static class Builder extends AbstractStandardEventFormatter.AbstractBuilder<Builder> {
 
 		private boolean disableAnsi = false;
 
@@ -75,22 +74,23 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 
 	}
 
+	@Override
 	public void format(StringBuilder output, LogEvent logEvent) {
 
 		var sb = output;
 
-		ANSI.fg(sb, Color.CYAN);
+		ansiHelper.fg(sb, Color.CYAN);
 		timestampFormatter.format(output, logEvent);
-		ANSI.fg(sb, Color.DEFAULT);
+		ansiHelper.fg(sb, Color.DEFAULT);
 		sb.append(" ");
 
 		// Append current thread name if so configured
 		if (!threadFormatter.isNoop()) {
-			ANSI.a(sb, Attribute.INTENSITY_FAINT);
+			ansiHelper.a(sb, Attribute.INTENSITY_FAINT);
 			sb.append("[");
 			threadFormatter.format(output, logEvent);
 			sb.append("]");
-			ANSI.a(sb, Attribute.RESET);
+			ansiHelper.a(sb, Attribute.RESET);
 			sb.append(" ");
 		}
 
@@ -101,18 +101,18 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 		// Append the name of the log instance if so configured
 
 		if (!nameFormatter.isNoop()) {
-			ANSI.fg(sb, Color.MAGENTA);
+			ansiHelper.fg(sb, Color.MAGENTA);
 			nameFormatter.format(output, logEvent);
 		}
 
 		if (!LogFormatter.isNoopOrNull(keyValuesFormatter)) {
 			sb.append(" ");
-			ANSI.fg(sb, Color.WHITE, Attribute.INTENSITY_FAINT);
+			ansiHelper.fg(sb, Color.WHITE, Attribute.INTENSITY_FAINT);
 			sb.append("{");
 			keyValuesFormatter.format(output, logEvent);
 			sb.append("}");
 		}
-		ANSI.fg(sb, Color.DEFAULT);
+		ansiHelper.fg(sb, Color.DEFAULT);
 		sb.append(" - ");
 		messageFormatter.format(output, logEvent);
 		output.append("\n");
@@ -125,21 +125,21 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 			return;
 		switch (level) {
 			case ERROR:
-				ANSI.fg(sb, Attribute.INTENSITY_BOLD, Color.RED);
+				ansiHelper.fg(sb, Attribute.INTENSITY_BOLD, Color.RED);
 				break;
 			case INFO:
-				ANSI.fg(sb, Attribute.INTENSITY_BOLD, Color.BLUE);
+				ansiHelper.fg(sb, Attribute.INTENSITY_BOLD, Color.BLUE);
 				break;
 			case WARNING:
-				ANSI.fg(sb, Color.RED);
+				ansiHelper.fg(sb, Color.RED);
 				break;
 			case DEBUG:
 			case TRACE:
 			default:
-				ANSI.fg(sb, Color.DEFAULT);
+				ansiHelper.fg(sb, Color.DEFAULT);
 		}
 		levelFormatter.format(sb, event);
-		ANSI.fg(sb, Color.DEFAULT, Attribute.RESET);
+		ansiHelper.fg(sb, Color.DEFAULT, Attribute.RESET);
 	}
 
 	private static final char FIRST_ESC_CHAR = 27;
@@ -149,6 +149,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 	enum AnsiHelper {
 
 		ANSI {
+			@Override
 			void fg(StringBuilder sb, Color color) {
 				sb.append(FIRST_ESC_CHAR);
 				sb.append(SECOND_ESC_CHAR);
@@ -156,6 +157,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 				sb.append('m');
 			}
 
+			@Override
 			void fg(StringBuilder sb, Color color, Attribute attribute) {
 				sb.append(FIRST_ESC_CHAR);
 				sb.append(SECOND_ESC_CHAR);
@@ -165,6 +167,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 				sb.append('m');
 			}
 
+			@Override
 			void fg(StringBuilder sb, Attribute attribute, Color color) {
 				sb.append(FIRST_ESC_CHAR);
 				sb.append(SECOND_ESC_CHAR);
@@ -174,6 +177,7 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 				sb.append('m');
 			}
 
+			@Override
 			void a(StringBuilder sb, Attribute attribute) {
 				sb.append(FIRST_ESC_CHAR);
 				sb.append(SECOND_ESC_CHAR);
@@ -184,15 +188,19 @@ public final class JansiLogFormatter extends AbstractStandardEventFormatter {
 			}
 		},
 		NO_ANSI {
+			@Override
 			void fg(StringBuilder sb, Color color) {
 			}
 
+			@Override
 			void fg(StringBuilder sb, Color color, Attribute attribute) {
 			}
 
+			@Override
 			void fg(StringBuilder sb, Attribute attribute, Color color) {
 			}
 
+			@Override
 			void a(StringBuilder sb, Attribute attribute) {
 			}
 		};
