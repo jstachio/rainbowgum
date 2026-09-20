@@ -100,7 +100,7 @@ enum Command implements HelpSupport {
 			pom(current, timestamp);
 			out.println("Ready to release. Do not forget to push tags!");
 			out.println("Now manually run:");
-			out.println("mvn clean deploy -Duser.timezone=UTC -Ddeploy=release \\");
+			out.println("mvn clean deploy -T1 -Duser.timezone=UTC -Ddeploy=release \\");
 			out.println("&& git checkout . \\");
 			out.println("&& git push --follow-tags");
 		}
