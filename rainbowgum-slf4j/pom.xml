@@ -58,6 +58,31 @@
       compilerArgs values below in sync with rainbowgum-maven-parent's own
       errorprone/nullaway profiles if those ever change.
     -->
+    <!--
+      MDCAdapter.astub (etc/eea/checker/org.slf4j) teaches checkerframework SLF4J's real
+      (undocumented) nullability contract for org.slf4j.spi.MDCAdapter - see
+      https://github.com/qos-ch/slf4j/issues/493. Scoped to this module's own
+      checkerframework profile (rather than the shared root-pom one) because
+      org.slf4j.spi.MDCAdapter isn't resolvable from modules that don't depend on
+      slf4j-api - checkerframework only warns when a stub references an unresolvable
+      type, but -Werror turns that into a hard failure everywhere else in the reactor.
+    -->
+    <profile>
+      <id>checkerframework</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <compilerArgs combine.children="append">
+                <arg>-Astubs=${checker.stubs}/org.slf4j</arg>
+              </compilerArgs>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>errorprone</id>
       <build>

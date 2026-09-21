@@ -158,6 +158,14 @@ class ArrayMDCAdapter implements MDCAdapter {
 	 * @return map copy.
 	 */
 
+	/*
+	 * NullAway (unlike checkerframework, which reads etc/eea/checker/org.slf4j's
+	 * MDCAdapter.astub) has no stub-file mechanism for third-party generic type parameter
+	 * nullability, so it still flags these two overrides even though the checkerframework
+	 * stub already documents this as MDCAdapter's real contract - see
+	 * https://github.com/qos-ch/slf4j/issues/493.
+	 */
+	@SuppressWarnings("NullAway")
 	@Override
 	public @Nullable Map<String, @Nullable String> getCopyOfContextMap() {
 		MutableKeyValues hashMap = copyOnThreadLocal.get();
@@ -169,6 +177,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 		}
 	}
 
+	@SuppressWarnings("NullAway")
 	@Override
 	public void setContextMap(Map<String, @Nullable String> contextMap) {
 		lastOperation.set(WRITE_OPERATION);

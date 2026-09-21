@@ -1568,6 +1568,18 @@ which require a constant check if the level threshold has changed.
 Level loggers do not need to do that check. Unless
 {@linkplain io.jstach.rainbowgum.LogConfig.ChangePublisher changing loggers is turned on}
 by default Level Loggers are used which are close to zero cost for discarding events.
+<p>
+The SLF4J API does not document nullability for {@link org.slf4j.spi.MDCAdapter} or
+{@link org.slf4j.spi.LoggingEventBuilder#addArgument(Object)} (see
+<a href="https://github.com/qos-ch/slf4j/issues/493">slf4j#493</a>). Rainbow Gum accepts
+<code>null</code> more widely than SLF4J's own signatures require, e.g. MDC values, and
+logged arguments, for compatibility with existing SLF4J usage and other implementations,
+but this is not a recommendation: prefer not passing <code>null</code> where SLF4J itself
+gives no guarantee it is supported.
+<p>
+Like SLF4J's own reference {@link org.slf4j.spi.LoggingEventBuilder} implementation,
+Rainbow Gum's is mutable: each fluent call mutates and returns the same instance rather
+than a new one.
 
 <h3 id="scoped_key_values">Scoped Key Values ({@link java.lang.ScopedValue} based MDC alternative)</h3>
 
