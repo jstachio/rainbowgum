@@ -140,6 +140,22 @@ public sealed interface PatternFormatterFactory {
 	 * @return throwable formatter configured from the options.
 	 */
 	public static ThrowableFormatter throwableFormatter(PatternKeyword node, boolean packagingData) {
+		return throwableFormatter(node, packagingData, false);
+	}
+
+	/**
+	 * Like {@link #throwableFormatter(PatternKeyword, boolean)} but also able to build a
+	 * root-cause-first formatter for <code>%rEx</code>/<code>%rootException</code>.
+	 * @param node keyword node holding the option list.
+	 * @param packagingData whether the resulting formatter should also append packaging
+	 * data (jar/module and version) after each frame; see
+	 * {@link ThrowableFormatter.Builder#packagingData(boolean)}.
+	 * @param rootCauseFirst whether to print the root cause first; see
+	 * {@link ThrowableFormatter.Builder#rootCauseFirst(boolean)}.
+	 * @return throwable formatter configured from the options.
+	 */
+	public static ThrowableFormatter throwableFormatter(PatternKeyword node, boolean packagingData,
+			boolean rootCauseFirst) {
 		String depth = node.optOrNull(0);
 		int maxLines;
 		if (depth == null || depth.equalsIgnoreCase("full")) {
@@ -153,7 +169,12 @@ public sealed interface PatternFormatterFactory {
 		}
 		var options = node.optionList();
 		List<String> excludes = options.size() > 1 ? options.subList(1, options.size()) : List.of();
-		return ThrowableFormatter.builder().maxLines(maxLines).excludes(excludes).packagingData(packagingData).build();
+		return ThrowableFormatter.builder()
+			.maxLines(maxLines)
+			.excludes(excludes)
+			.packagingData(packagingData)
+			.rootCauseFirst(rootCauseFirst)
+			.build();
 	}
 
 }
@@ -365,6 +386,26 @@ enum StandardKeywordFactory implements KeywordFactory {
 		@Override
 		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			return PatternFormatterFactory.throwableFormatter(node, true);
+		}
+
+		@Override
+		public boolean isExceptionFormatter() {
+			return true;
+		}
+
+	},
+	/**
+	 * <code>%rEx</code>, <code>%rEx{full}</code>, <code>%rEx{short}</code>,
+	 * <code>%rEx{N}</code>, <code>%rEx{N, regex1, regex2, ...}</code>. Same options as
+	 * {@link #EXTENDED_THROWABLE} (including packaging data) but the root cause prints
+	 * first and each wrapper prints afterward, similar to logback's
+	 * <code>RootCauseFirstThrowableProxyConverter</code>.
+	 */
+	ROOT_EXCEPTION() {
+
+		@Override
+		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
+			return PatternFormatterFactory.throwableFormatter(node, true, true);
 		}
 
 		@Override

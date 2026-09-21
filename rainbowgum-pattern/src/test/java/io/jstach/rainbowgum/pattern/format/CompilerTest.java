@@ -358,6 +358,19 @@ class CompilerTest {
 					.freeze(Instant.EPOCH);
 			}
 		},
+		ROOT_EXCEPTION(List.of("%rEx", "%rootException"),
+				"java.lang.RuntimeException: root\n\tat com.example.App.r(App.java:1) [na:na]\nWrapped by: java.lang.RuntimeException: wrapper\n\tat com.example.App.w(App.java:1) [na:na]\n") {
+			@Override
+			LogEvent event() {
+				Throwable root = throwableWithFrames("root", "r");
+				Throwable wrapper = new RuntimeException("wrapper", root);
+				wrapper.setStackTrace(
+						new StackTraceElement[] { new StackTraceElement("com.example.App", "w", "App.java", 1) });
+				return TestLogEventFactory.of(logger())
+					.eventNoArg(level(), message(), keyValues(), wrapper)
+					.freeze(Instant.EPOCH);
+			}
+		},
 		NO_EXCEPTION(List.of("%nopex", "%nopexception"), "") {
 			@Override
 			LogEvent event() {
