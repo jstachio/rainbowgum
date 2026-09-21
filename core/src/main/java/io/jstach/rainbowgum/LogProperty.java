@@ -73,6 +73,14 @@ public interface LogProperty {
 	}
 
 	/**
+	 * Resolves the property as a long.
+	 * @return result.
+	 */
+	default Result<Long> ofLong() {
+		return ofString().map(Long::parseLong);
+	}
+
+	/**
 	 * Resolves the property as a boolean.
 	 * @return result.
 	 */
