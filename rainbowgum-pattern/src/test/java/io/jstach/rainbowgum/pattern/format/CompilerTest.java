@@ -30,8 +30,6 @@ import io.jstach.rainbowgum.pattern.format.PatternRegistry.KeywordKey;
 
 class CompilerTest {
 
-	// Fuck you checker for forcing objects requireNonNull to not take null.
-	// if I have to do this one more time I'm going to astub your ass.
 	static @NonNull Caller requireNonNull(@Nullable Caller caller) {
 		if (caller == null) {
 			throw new AssertionFailedError("expected caller");
