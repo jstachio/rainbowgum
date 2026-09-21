@@ -1,0 +1,14 @@
+package org.slf4j.spi;
+
+import java.util.Deque;
+import java.util.Map;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public interface MDCAdapter {
+  @Nullable String get(String key);
+  @Nullable Map<String, @Nullable String> getCopyOfContextMap();
+  void setContextMap(Map<String, @Nullable String> contextMap);
+  @Nullable String popByKey(String key);
+  @Nullable Deque<String> getCopyOfDequeByKey(String key);
+}

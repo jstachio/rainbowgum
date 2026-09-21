@@ -248,7 +248,7 @@ public sealed interface KeyValues {
 		 * Same as {@link Map#putAll(Map)}.
 		 * @param m map.
 		 */
-		default void putAll(Map<String, String> m) {
+		default void putAll(Map<String, ? extends @Nullable String> m) {
 			m.forEach(this);
 		}
 
