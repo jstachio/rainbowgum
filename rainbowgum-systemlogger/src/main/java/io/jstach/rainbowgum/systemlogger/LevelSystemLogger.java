@@ -27,8 +27,10 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger,
 	 * java.lang.System.Logger's varargs log(...) overloads follow java.text.MessageFormat
 	 * ({0}/{1}-style) placeholder conventions, not SLF4J's {}-style ones - override
 	 * messageFormatter() rather than relying on LogEventFactory's own SLF4J default.
+	 * Package-private (not private) - RainbowGumSystemLogger shares this exact same
+	 * factory shape rather than duplicating it.
 	 */
-	private static LogEventFactory eventFactory(String loggerName) {
+	static LogEventFactory eventFactory(String loggerName) {
 		record JULLogEventFactory(String loggerName) implements LogEventFactory {
 
 			@Override
