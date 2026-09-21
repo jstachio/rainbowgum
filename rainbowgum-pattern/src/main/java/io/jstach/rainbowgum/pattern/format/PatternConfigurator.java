@@ -101,8 +101,8 @@ public final class PatternConfigurator implements Configurator {
 		};
 	}
 
-	static @Nullable Charset convertCharset(@Nullable String charset) {
-		return charset == null ? null : Charset.forName(charset);
+	static Charset convertCharset(String charset) {
+		return Charset.forName(charset);
 	}
 
 	@LogConfigurable(name = "PatternConfigBuilder", prefix = PatternConfig.PATTERN_CONFIG_PREFIX)
@@ -125,14 +125,12 @@ public final class PatternConfigurator implements Configurator {
 
 	}
 
-	static @Nullable Long convertSequenceNumberStart(@Nullable String s) {
-		return s == null ? null : Long.valueOf(s);
+	static Long convertSequenceNumberStart(String s) {
+		return Long.valueOf(s);
 	}
 
-	static ZoneId convertZoneId(@Nullable String zoneId) {
-		var dc = PatternConfig.of();
-		ZoneId zoneId_ = zoneId == null ? dc.zoneId() : ZoneId.of(zoneId);
-		return zoneId_;
+	static ZoneId convertZoneId(String zoneId) {
+		return ZoneId.of(zoneId);
 	}
 
 }

@@ -81,11 +81,6 @@ class PatternEncoderCharsetTest {
 		assertArrayEquals(MESSAGE.getBytes(StandardCharsets.UTF_8), output.capturedBytes());
 	}
 
-	@Test
-	void convertCharsetOfNullIsNull() {
-		assertNull(PatternConfigurator.convertCharset(null));
-	}
-
 	/*
 	 * logging.encoder.{name}.charset had only happy-path coverage before this - nothing
 	 * exercised an unrecognized charset name, even though Charset.forName(...) (the

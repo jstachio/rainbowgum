@@ -106,7 +106,7 @@ public class Parser {
 	// Eopt = E|~
 	Node Eopt() throws ScanException {
 		_debug("in Eopt()");
-		Token next = getCurentToken();
+		Token next = getCurrentToken();
 		_debug("Current token is ", next);
 		if (next == null) {
 			return Node.end();
@@ -118,22 +118,20 @@ public class Parser {
 
 	// T = LITERAL | '%' C | '%' FORMAT_MODIFIER C
 	@Nullable NodeBuilder<?> T() throws ScanException {
-		Token t = getCurentToken();
-		expectNotNull(t, "a LITERAL or '%'");
+		var t = expectNotNull(getCurrentToken(), "a LITERAL or '%'");
 
-		switch (t.getType()) {
+		switch (t.type()) {
 			case Token.LITERAL:
 				advanceTokenPointer();
-				return n -> new LiteralNode(n, t.getValue());
+				return n -> new LiteralNode(n, t.value());
 			case Token.PERCENT:
 				advanceTokenPointer();
 				_debug("% token found");
 				Padding fi;
-				Token u = getCurentToken();
 				NodeBuilder<FormattingNode> c;
-				expectNotNull(u, "a FORMAT_MODIFIER, SIMPLE_KEYWORD or COMPOUND_KEYWORD");
-				if (u.getType() == Token.FORMAT_MODIFIER) {
-					fi = Padding.valueOf((String) u.getValue());
+				var u = expectNotNull(getCurrentToken(), "a FORMAT_MODIFIER, SIMPLE_KEYWORD or COMPOUND_KEYWORD");
+				if (u.type() == Token.FORMAT_MODIFIER) {
+					fi = Padding.valueOf(u.value());
 					advanceTokenPointer();
 					c = C(fi);
 				}
@@ -149,17 +147,17 @@ public class Parser {
 	}
 
 	NodeBuilder<FormattingNode> C(@Nullable Padding padding) throws ScanException {
-		Token t = getCurentToken();
+		Token t = getCurrentToken();
 		_debug("in C()");
 		_debug("Current token is ", t);
-		expectNotNull(t, "a LEFT_PARENTHESIS or KEYWORD");
-		int type = t.getType();
+		t = expectNotNull(t, "a LEFT_PARENTHESIS or KEYWORD");
+		int type = t.type();
 		switch (type) {
 			case Token.SIMPLE_KEYWORD:
 				return SINGLE(padding);
 			case Token.COMPOSITE_KEYWORD:
 				advanceTokenPointer();
-				return COMPOSITE(padding, t.getValue());
+				return COMPOSITE(padding, t.value());
 			default:
 				throw new IllegalStateException("Unexpected token " + t);
 		}
@@ -167,21 +165,21 @@ public class Parser {
 
 	NodeBuilder<FormattingNode> SINGLE(@Nullable Padding padding) throws ScanException {
 		_debug("in SINGLE()");
-		Token t = getNextToken();
+		Token t = expectNotNull(getNextToken(), "a SINGLE");
 		_debug("==", t);
 
-		Token ot = getCurentToken();
+		Token ot = getCurrentToken();
 
 		List<String> optionList;
 
-		if (ot != null && ot.getType() == Token.OPTION) {
-			optionList = ot.getOptionsList();
+		if (ot != null && ot.type() == Token.OPTION) {
+			optionList = ot.optionsList();
 			advanceTokenPointer();
 		}
 		else {
 			optionList = List.of();
 		}
-		return n -> new KeywordNode(n, padding, t.getValue(), optionList);
+		return n -> new KeywordNode(n, padding, t.value(), optionList);
 	}
 
 	NodeBuilder<FormattingNode> COMPOSITE(@Nullable Padding padding, String keyword) throws ScanException {
@@ -190,15 +188,15 @@ public class Parser {
 
 		Token t = getNextToken();
 
-		if (t == null || t.getType() != Token.RIGHT_PARENTHESIS) {
+		if (t == null || t.type() != Token.RIGHT_PARENTHESIS) {
 			String msg = "Expecting RIGHT_PARENTHESIS token but got " + t;
 			throw new ScanException(msg);
 		}
-		Token ot = getCurentToken();
+		Token ot = getCurrentToken();
 
 		List<String> optionList;
-		if (ot != null && ot.getType() == Token.OPTION) {
-			optionList = ot.getOptionsList();
+		if (ot != null && ot.type() == Token.OPTION) {
+			optionList = ot.optionsList();
 			advanceTokenPointer();
 		}
 		else {
@@ -208,14 +206,14 @@ public class Parser {
 		return n -> new CompositeNode(n, padding, keyword, optionList, childNode);
 	}
 
-	Token getNextToken() {
+	@Nullable Token getNextToken() {
 		if (pointer < tokenList.size()) {
 			return tokenList.get(pointer++);
 		}
 		return null;
 	}
 
-	Token getCurentToken() {
+	@Nullable Token getCurrentToken() {
 		if (pointer < tokenList.size()) {
 			return tokenList.get(pointer);
 		}
@@ -226,10 +224,11 @@ public class Parser {
 		pointer++;
 	}
 
-	void expectNotNull(Token t, String expected) {
+	Token expectNotNull(@Nullable Token t, String expected) {
 		if (t == null) {
 			throw new IllegalStateException("All tokens consumed but was expecting " + expected);
 		}
+		return t;
 	}
 
 	/*
@@ -243,7 +242,7 @@ public class Parser {
 	}
 
 	@SuppressWarnings("UnusedVariable")
-	private static void _debug(String msg, Object arg) {
+	private static void _debug(String msg, @Nullable Object arg) {
 		// System.out.println(msg + arg);
 	}
 

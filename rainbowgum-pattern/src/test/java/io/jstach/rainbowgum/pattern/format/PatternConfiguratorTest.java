@@ -93,15 +93,6 @@ class PatternConfiguratorTest {
 				e.getMessage());
 	}
 
-	@Test
-	void testConvertSequenceNumberStartOfNullIsNull() {
-		// The property pipeline never actually calls this with null (map() only
-		// invokes the conversion function on a successfully found String), but the
-		// method is defensively typed to accept null like its convertZoneId sibling,
-		// so it is tested directly here for completeness.
-		assertNull(PatternConfigurator.convertSequenceNumberStart(null));
-	}
-
 	enum _Test {
 
 		FULL("""

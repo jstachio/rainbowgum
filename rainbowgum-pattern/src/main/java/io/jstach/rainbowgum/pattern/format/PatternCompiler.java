@@ -4,6 +4,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
+
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
@@ -86,9 +88,9 @@ public sealed interface PatternCompiler {
 	 */
 	public final static class Builder {
 
-		private PatternRegistry patternRegistry;
+		private @Nullable PatternRegistry patternRegistry;
 
-		private PatternConfig patternConfig;
+		private @Nullable PatternConfig patternConfig;
 
 		private Builder() {
 		}
