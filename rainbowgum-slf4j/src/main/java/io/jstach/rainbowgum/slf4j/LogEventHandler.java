@@ -28,6 +28,7 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 
 	}
 
+	@Override
 	default void log(LogEvent event) {
 		handle(event);
 	}

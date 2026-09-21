@@ -29,6 +29,14 @@ _modules="core,rainbowgum-annotation,rainbowgum-jul,rainbowgum-scoped-key-values
 # pass clean on these, so they still get analyzed by those two.
 _modules_no_checkerframework="rainbowgum-file,rainbowgum-tomcat,:rainbowgum-spring-boot4"
 
+# Modules where both checkerframework AND nullaway need real design work before they can
+# be enabled (not mechanical fixes - see develop.md), but errorprone alone is clean:
+# rainbowgum-slf4j's ArrayMDCAdapter/RainbowGumMDCAdapter override org.slf4j.spi.MDCAdapter,
+# an un-stubbed third-party interface both tools treat as strictly @NonNull by default,
+# with no teaching mechanism (EEA/astub file) in place yet. errorprone doesn't do this kind
+# of cross-supertype nullness override checking at all, so it's unaffected.
+_modules_errorprone_only="rainbowgum-slf4j"
+
 for profile in $_profiles; do
 echo ""
 echo "--------------------- Running $profile -----------------------"
@@ -41,6 +49,9 @@ _CLEAN="clean"
 _run_modules="${_modules}"
 if [[ "checkerframework" != "$profile" ]]; then
   _run_modules="${_modules},${_modules_no_checkerframework}"
+fi
+if [[ "errorprone" == "$profile" ]]; then
+  _run_modules="${_run_modules},${_modules_errorprone_only}"
 fi
 ./mvnw $MAVEN_CLI_OPTS ${_CLEAN} verify -pl ${_run_modules} -P${profile},show-profiles,${_ignored_profiles} -Dmaven.javadoc.skip -DskipTests -Dmaven.source.skip=true
 done

@@ -7,6 +7,13 @@ import org.slf4j.spi.NOPLoggingEventBuilder;
 
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
+/*
+ * The trace/debug/info/warn/error(Marker, String, Object, Object) overrides below match
+ * org.slf4j.Logger's own real parameter names (marker, format, arg1, arg2) exactly - the
+ * slf4j-api jar just isn't compiled with -parameters, so errorprone falls back to
+ * synthetic arg0..arg3 names and flags a mismatch that isn't actually there.
+ */
+@SuppressWarnings("OverridingMethodInconsistentArgumentNamesChecker")
 interface BaseLogger extends DepthAwareLogger {
 
 	public String loggerName();

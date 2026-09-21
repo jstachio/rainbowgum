@@ -25,6 +25,13 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
 
+/*
+ * LoggingEventBuilder mutates itself and returns this, so a discarded return value here
+ * is never actually a bug - this whole class exists to exercise that mutation, and the
+ * real mistake to guard against (forgetting the terminal log() call) isn't something
+ * CheckReturnValue catches anyway.
+ */
+@SuppressWarnings("CheckReturnValue")
 class RainbowGumEventBuilderTest {
 
 	/*
@@ -89,8 +96,7 @@ class RainbowGumEventBuilderTest {
 	@Test
 	void testArgumentsReturnsWhatWasAddedInOrder() {
 		var builder = newBuilder();
-		builder.addArgument("a");
-		builder.addArgument("b");
+		builder.addArgument("a").addArgument("b");
 		assertEquals(List.of("a", "b"), builder.arguments());
 	}
 
@@ -210,10 +216,10 @@ class RainbowGumEventBuilderTest {
 		TWO_ARG("logger {mdcKey1=mdcValue1, key1=value1} - hello two [arg0] [arg1]\n" + "") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
-				builder.setMessage("hello two {} {}");
-				builder.addArgument("[arg0]");
-				builder.addArgument("[arg1]");
-				builder.addKeyValue("key1", () -> "value1");
+				builder.setMessage("hello two {} {}")
+					.addArgument("[arg0]")
+					.addArgument("[arg1]")
+					.addKeyValue("key1", () -> "value1");
 			}
 		},
 		TWO_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello two [arg0] [arg1]\n" + "") {
@@ -241,11 +247,11 @@ class RainbowGumEventBuilderTest {
 		THREE_ARG("logger {mdcKey1=mdcValue1, key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
-				builder.setMessage("hello three {} {} {}");
-				builder.addArgument("[arg0]");
-				builder.addArgument("[arg1]");
-				builder.addArgument(() -> "[arg2]");
-				builder.addKeyValue("key1", "value1");
+				builder.setMessage("hello three {} {} {}")
+					.addArgument("[arg0]")
+					.addArgument("[arg1]")
+					.addArgument(() -> "[arg2]")
+					.addKeyValue("key1", "value1");
 			}
 		},
 		THREE_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
@@ -306,17 +312,13 @@ class RainbowGumEventBuilderTest {
 		NULL_KEY_VALUE("logger {mdcKey1=mdcValue1, key1} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
-				builder.setMessage("hello {}");
-				builder.addArgument("[arg0]");
-				builder.addKeyValue("key1", (Object) null);
+				builder.setMessage("hello {}").addArgument("[arg0]").addKeyValue("key1", (Object) null);
 			}
 		},
 		NULL_KEY_VALUE_SUPPLIER("logger {mdcKey1=mdcValue1, key1} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
-				builder.setMessage("hello {}");
-				builder.addArgument("[arg0]");
-				builder.addKeyValue("key1", () -> null);
+				builder.setMessage("hello {}").addArgument("[arg0]").addKeyValue("key1", () -> null);
 			}
 		},
 		/*
@@ -373,9 +375,7 @@ class RainbowGumEventBuilderTest {
 		}
 
 		protected void build(LoggingEventBuilder builder) {
-			builder.setMessage("hello {}");
-			builder.addArgument("[arg0]");
-			builder.addKeyValue("key1", "value1");
+			builder.setMessage("hello {}").addArgument("[arg0]").addKeyValue("key1", "value1");
 		}
 
 		protected void log(LoggingEventBuilder builder) {

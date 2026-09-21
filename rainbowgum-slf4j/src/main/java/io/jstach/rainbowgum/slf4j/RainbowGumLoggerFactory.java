@@ -1,7 +1,7 @@
 package io.jstach.rainbowgum.slf4j;
 
-import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,7 +48,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * an inline lambda with no other strong referrer could become eligible for GC almost
 	 * immediately after subscribing.
 	 */
-	private final Consumer<RainbowGum> onGlobalChange = gum -> this.rainbowGum = gum;
+	private final Consumer<RainbowGum> onGlobalChange = this::setRainbowGum;
 
 	public RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
 		super();
@@ -57,6 +57,10 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		this.decorator = LoggerDecorator.of(rainbowGum);
 		this.mdc = mdc;
 		RainbowGum.onGlobalChange(onGlobalChange);
+	}
+
+	private void setRainbowGum(RainbowGum gum) {
+		this.rainbowGum = gum;
 	}
 
 	@Override
@@ -180,16 +184,17 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		public Logger decorate(RainbowGum gum, Logger logger);
 
 		public static LoggerDecorator of(RainbowGum gum) {
-			var array = gum.config()
+			var services = gum.config()
 				.serviceRegistry()
 				.find(LoggerDecoratorService.class)
-				.toArray(i -> new LoggerDecoratorService[i]);
-			Arrays.sort(array,
-					Comparator.comparingInt(LoggerDecoratorService::order).thenComparing(LoggerDecoratorService::name));
-			if (array.length == 0) {
+				.stream()
+				.sorted(Comparator.comparingInt(LoggerDecoratorService::order)
+					.thenComparing(LoggerDecoratorService::name))
+				.toList();
+			if (services.isEmpty()) {
 				return Noop.INSTANCE;
 			}
-			return new CompositeLoggerDecorator(array);
+			return new CompositeLoggerDecorator(services);
 		}
 
 		enum Noop implements LoggerDecorator {
@@ -203,7 +208,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 		}
 
-		record CompositeLoggerDecorator(LoggerDecoratorService[] services) implements LoggerDecorator {
+		record CompositeLoggerDecorator(List<LoggerDecoratorService> services) implements LoggerDecorator {
 
 			@Override
 			public Logger decorate(RainbowGum gum, Logger logger) {
@@ -214,7 +219,14 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 						return logger;
 					}
 					var next = Objects.requireNonNull(p.decorate(gum, da, i));
-					if (next != logger) {
+					/*
+					 * Deliberately identity, not equals(): "did this particular decorator
+					 * actually replace the logger instance" (used to advance the depth
+					 * index), not "is the new logger value-equal to the old one".
+					 */
+					@SuppressWarnings("ReferenceEquality")
+					boolean replaced = next != logger;
+					if (replaced) {
 						i++;
 					}
 					logger = next;

@@ -13,6 +13,7 @@ sealed interface LevelLogger extends BaseLogger, Logger, HandlerSource {
 
 	Level level();
 
+	@Override
 	public LevelLogger withDepth(int depth);
 
 	@Override
