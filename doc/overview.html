@@ -973,9 +973,18 @@ property configuration. Both (with full code examples) are covered in the
 
 Notice that none of the pattern examples above (e.g. <code>[%thread] %-5level %logger{15} - %msg%n</code>)
 mention an exception keyword at all. As with Logback, this is intentional and safe: if a pattern does not
-otherwise use <code>%ex</code>/<code>%xEx</code> (or their aliases), Rainbow Gum automatically appends a default
-exception formatter to the end of the compiled pattern, so a logged throwable is never silently dropped just
-because the pattern forgot to ask for it.
+otherwise use <code>%ex</code>/<code>%xEx</code>/<code>%rEx</code> (or their aliases), Rainbow Gum automatically
+appends a default exception formatter to the end of the compiled pattern, so a logged throwable is never silently
+dropped just because the pattern forgot to ask for it.
+
+<code>%rEx</code>/<code>%rootException</code> takes the same options as <code>%xEx</code> (depth, exclude
+patterns, packaging data) but prints the root cause first and works back up through each wrapper, captioned
+<code>Wrapped by:</code> instead of <code>Caused by:</code> - useful when the underlying failure is buried
+under several layers of wrapping and you want it to be the first thing you see:
+
+{@snippet lang=properties :
+logging.encoder.myappender.pattern=%msg%n%rEx
+}
 
 To opt out and suppress exception rendering entirely, add <code>%nopex</code> (or <code>%nopexception</code>)
 anywhere in the pattern (like the other throwable keywords, its mere presence is enough to disable the
