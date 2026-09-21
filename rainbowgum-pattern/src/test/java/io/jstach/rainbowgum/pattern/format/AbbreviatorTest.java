@@ -137,6 +137,7 @@ class AbbreviatorTest {
 	}
 
 	@Test
+	@SuppressWarnings("clear.system.property") // expected
 	void cacheIsBypassedWhenDisabledViaSystemProperty() {
 		System.setProperty(Abbreviator.DISABLE_CACHE_SYSTEM_PROPERTY, "true");
 		try {

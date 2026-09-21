@@ -643,6 +643,10 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 
 record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEvent {
 
+	StackFrameLogEvent {
+		Objects.requireNonNull(callerOrNull, "caller");
+	}
+
 	@Override
 	public Instant timestamp() {
 		return event.timestamp();

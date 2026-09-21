@@ -32,98 +32,55 @@ class Token {
 
 	private final int type;
 
-	private final String value;
+	private final @Nullable String value;
 
 	private final @Nullable List<String> optionsList;
 
-	public Token(int type) {
+	Token(int type) {
 		this(type, null, null);
 	}
 
-	public Token(int type, String value) {
+	Token(int type, String value) {
 		this(type, value, null);
 	}
 
-	public Token(int type, List<String> optionsList) {
+	Token(int type, List<String> optionsList) {
 		this(type, null, optionsList);
 	}
 
-	public Token(int type, String value, List<String> optionsList) {
+	private Token(int type, @Nullable String value, @Nullable List<String> optionsList) {
 		this.type = type;
 		this.value = value;
 		this.optionsList = optionsList;
 	}
 
-	public int getType() {
+	public String value() {
+		String v = value;
+		if (v == null) {
+			throw new IllegalStateException("Parser expected a value but was null. Likely a bug");
+		}
+		return v;
+	}
+
+	public List<String> optionsList() {
+		var list = optionsList;
+		if (list == null) {
+			throw new IllegalStateException("Parser expected a option list but was null. Likely a bug");
+
+		}
+		return list;
+	}
+
+	public int type() {
 		return type;
 	}
 
-	public String getValue() {
+	public @Nullable String valueOrNull() {
 		return value;
 	}
 
-	public List<String> getOptionsList() {
+	public @Nullable List<String> optionsListOrNull() {
 		return optionsList;
 	}
-
-	// public String toString() {
-	// String typeStr = null;
-	// switch (type) {
-	//
-	// case PERCENT:
-	// typeStr = "%";
-	// break;
-	// case FORMAT_MODIFIER:
-	// typeStr = "FormatModifier";
-	// break;
-	// case LITERAL:
-	// typeStr = "LITERAL";
-	// break;
-	// case OPTION:
-	// typeStr = "OPTION";
-	// break;
-	// case SIMPLE_KEYWORD:
-	// typeStr = "SIMPLE_KEYWORD";
-	// break;
-	// case COMPOSITE_KEYWORD:
-	// typeStr = "COMPOSITE_KEYWORD";
-	// break;
-	// case RIGHT_PARENTHESIS:
-	// typeStr = "RIGHT_PARENTHESIS";
-	// break;
-	// default:
-	// typeStr = "UNKNOWN";
-	// }
-	// if (value == null) {
-	// return "Token(" + typeStr + ")";
-	//
-	// }
-	// else {
-	// return "Token(" + typeStr + ", \"" + value + "\")";
-	// }
-	// }
-	//
-	// public int hashCode() {
-	// int result;
-	// result = type;
-	// result = 29 * result + (value != null ? value.hashCode() : 0);
-	// return result;
-	// }
-	//
-	// public boolean equals(Object o) {
-	// if (this == o)
-	// return true;
-	// if (!(o instanceof Token))
-	// return false;
-	//
-	// final Token token = (Token) o;
-	//
-	// if (type != token.type)
-	// return false;
-	// if (value != null ? !value.equals(token.value) : token.value != null)
-	// return false;
-	//
-	// return true;
-	// }
 
 }
