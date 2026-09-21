@@ -1,8 +1,10 @@
 package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.slf4j.event.Level;
 
@@ -19,7 +21,7 @@ import io.jstach.rainbowgum.LogEvent;
  */
 class CallerInfoEventDecoratorTest {
 
-	LogEvent lastEvent;
+	@Nullable LogEvent lastEvent;
 
 	@Test
 	void testThreeArgConstructorDefaultsToCallerDepthDelta() {
@@ -30,7 +32,9 @@ class CallerInfoEventDecoratorTest {
 		var decorator = new CallerInfoEventDecorator("test", new RainbowGumMDCAdapter(), e -> lastEvent = e);
 		var logger = LevelLogger.of(Level.INFO, decorator);
 		logger.info("hello");
+		assertNotNull(lastEvent);
 		var caller = lastEvent.callerOrNull();
+		assertNotNull(caller);
 		assertEquals("testThreeArgConstructorDefaultsToCallerDepthDelta", caller.methodName());
 		assertEquals("io.jstach.rainbowgum.slf4j.CallerInfoEventDecoratorTest", caller.className());
 	}
@@ -40,7 +44,9 @@ class CallerInfoEventDecoratorTest {
 		var decorator = new CallerInfoEventDecorator("test", new RainbowGumMDCAdapter(), e -> lastEvent = e);
 		LogEvent event = decorator.eventNoArg(System.Logger.Level.INFO, "hello", (Throwable) null);
 		decorator.handle(event, 1);
+		assertNotNull(lastEvent);
 		var caller = lastEvent.callerOrNull();
+		assertNotNull(caller);
 		assertEquals("testHandleWithExplicitDepthAttributesTheDirectCaller", caller.methodName());
 		assertEquals("io.jstach.rainbowgum.slf4j.CallerInfoEventDecoratorTest", caller.className());
 	}
@@ -50,6 +56,7 @@ class CallerInfoEventDecoratorTest {
 		var decorator = new CallerInfoEventDecorator("test", new RainbowGumMDCAdapter(), e -> lastEvent = e);
 		LogEvent event = decorator.eventNoArg(System.Logger.Level.INFO, "hello", (Throwable) null);
 		decorator.handle(event, Integer.MAX_VALUE / 2);
+		assertNotNull(lastEvent);
 		assertNull(lastEvent.callerOrNull());
 		assertEquals(event, lastEvent);
 	}

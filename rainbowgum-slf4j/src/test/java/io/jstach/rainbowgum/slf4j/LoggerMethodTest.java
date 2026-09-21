@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -46,6 +47,7 @@ public class LoggerMethodTest {
 	LogEventLogger appender = e -> {
 		if (callerInfo) {
 			var caller = e.callerOrNull();
+			assertNotNull(caller);
 			assertEquals("LoggerMethodTest.java", caller.fileNameOrNull());
 			assertTrue(caller.className().contains("LoggerMethodTest"));
 			assertTrue(caller.lineNumber() > 0);
@@ -340,7 +342,7 @@ public class LoggerMethodTest {
 
 		DEFAULT, NULL() {
 			@Override
-			public String format() {
+			public @Nullable String format() {
 				return null;
 			}
 
@@ -386,7 +388,7 @@ public class LoggerMethodTest {
 		DEFAULT, NULL() {
 
 			@Override
-			public String format() {
+			public @Nullable String format() {
 				return null;
 			}
 
@@ -442,7 +444,7 @@ public class LoggerMethodTest {
 
 		DEFAULT, NULL_MSG() {
 			@Override
-			public String format() {
+			public @Nullable String format() {
 				return null;
 			}
 
@@ -453,7 +455,7 @@ public class LoggerMethodTest {
 		},
 		NULL_MSG_THROWABLE_ARG2() {
 			@Override
-			public String format() {
+			public @Nullable String format() {
 				return null;
 			}
 
@@ -525,7 +527,7 @@ public class LoggerMethodTest {
 
 		DEFAULT, NULL_MSG() {
 			@Override
-			public String format() {
+			public @Nullable String format() {
 				return null;
 			}
 
@@ -536,7 +538,7 @@ public class LoggerMethodTest {
 		},
 		NULL_MSG_BUT_THROWABLE {
 			@Override
-			public String format() {
+			public @Nullable String format() {
 				return null;
 			}
 
@@ -552,7 +554,7 @@ public class LoggerMethodTest {
 		},
 		NULL_ARGS() {
 			@Override
-			public Object[] args() {
+			public Object @Nullable [] args() {
 				return null;
 			}
 
@@ -649,7 +651,7 @@ public class LoggerMethodTest {
 		},
 		NULL() {
 			@Override
-			public String format() {
+			public @Nullable String format() {
 				return null;
 			}
 
@@ -696,7 +698,14 @@ public class LoggerMethodTest {
 
 	interface Format {
 
-		String format();
+		/*
+		 * @Nullable: several enum constants below deliberately return null (e.g.
+		 * FormatMsg.NULL) to exercise the null-message path through the real
+		 * logger.debug(String)-style calls, which SLF4J itself never documents as
+		 * accepting or rejecting - same underlying ambiguity as
+		 * https://github.com/qos-ch/slf4j/issues/493.
+		 */
+		@Nullable String format();
 
 		String expected();
 
@@ -705,7 +714,7 @@ public class LoggerMethodTest {
 	interface NoArg extends Format {
 
 		@Override
-		default String format() {
+		default @Nullable String format() {
 			return "Hello!";
 		}
 
@@ -718,12 +727,14 @@ public class LoggerMethodTest {
 
 	interface ArgArray extends Format {
 
-		default Object[] args() {
+		// @Nullable: NULL_ARGS below deliberately returns null to test the
+		// null-varargs-array path (as opposed to an empty array).
+		default Object @Nullable [] args() {
 			return new Object[] { "arg1", "arg2", "arg3" };
 		}
 
 		@Override
-		default public String format() {
+		default public @Nullable String format() {
 			return "Hello {} {} {}!";
 		}
 
@@ -741,7 +752,7 @@ public class LoggerMethodTest {
 		}
 
 		@Override
-		default public String format() {
+		default public @Nullable String format() {
 			return "Hello {}!";
 		}
 
@@ -759,7 +770,7 @@ public class LoggerMethodTest {
 		}
 
 		@Override
-		default public String format() {
+		default public @Nullable String format() {
 			return "Hello {} {}!";
 		}
 

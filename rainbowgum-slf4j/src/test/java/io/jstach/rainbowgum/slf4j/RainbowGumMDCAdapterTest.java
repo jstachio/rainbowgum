@@ -50,6 +50,10 @@ class RainbowGumMDCAdapterTest {
 	 * reach.
 	 */
 
+	// MDCAdapter#get(String) doesn't declare its key parameter @Nullable (see
+	// module-info's SLF4J nullability paragraph / slf4j#493), but RainbowGum accepts
+	// a null key here for compatibility - this deliberately exercises that.
+	@SuppressWarnings("NullAway")
 	@Test
 	void testGetWithNullKeyReturnsNull() {
 		var mdc = new RainbowGumMDCAdapter();

@@ -3,8 +3,10 @@ package io.jstach.rainbowgum.slf4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.slf4j.event.Level;
 
@@ -24,7 +26,7 @@ class ReplaceableLoggerTest {
 
 	ListLogOutput list = new ListLogOutput();
 
-	LogEvent lastEvent;
+	@Nullable LogEvent lastEvent;
 
 	LogEventHandler handler = LogEventHandler.ofCallerInfo("test", e -> lastEvent = e, new RainbowGumMDCAdapter(), 1,
 			NoopLogEventFactory.INSTANCE);
@@ -49,6 +51,7 @@ class ReplaceableLoggerTest {
 	void testSetEventHandlerChangesWhereLogCallsGo() {
 		var logger = ReplaceableLogger.of(Level.INFO, handler);
 		logger.info("via original handler");
+		assertNotNull(lastEvent);
 		assertEquals("test", lastEvent.loggerName());
 
 		LogEvent[] rebound = new LogEvent[1];
@@ -68,7 +71,9 @@ class ReplaceableLoggerTest {
 		// directly at this depth must attribute this test method as caller.
 		var logger = ReplaceableLogger.of(Level.INFO, handler);
 		logger.info("direct");
+		assertNotNull(lastEvent);
 		Caller direct = lastEvent.callerOrNull();
+		assertNotNull(direct);
 		assertEquals("testWithDepthCompensatesForOneExtraWrappingLayer", direct.methodName());
 		assertEquals("io.jstach.rainbowgum.slf4j.ReplaceableLoggerTest", direct.className());
 
@@ -79,7 +84,9 @@ class ReplaceableLoggerTest {
 		var deeper = logger.withDepth(2);
 		assertInstanceOf(ReplaceableLogger.class, deeper);
 		logThroughOneExtraFrame(deeper);
+		assertNotNull(lastEvent);
 		Caller indirect = lastEvent.callerOrNull();
+		assertNotNull(indirect);
 		assertEquals("testWithDepthCompensatesForOneExtraWrappingLayer", indirect.methodName());
 		assertEquals("io.jstach.rainbowgum.slf4j.ReplaceableLoggerTest", indirect.className());
 	}
