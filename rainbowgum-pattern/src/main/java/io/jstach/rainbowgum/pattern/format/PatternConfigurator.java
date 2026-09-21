@@ -112,7 +112,8 @@ public final class PatternConfigurator implements Configurator {
 			@Nullable Boolean ansiDisabled, //
 			@PassThroughParameter @Nullable Function<String, @Nullable String> propertyFunction, //
 			@PassThroughParameter @Nullable Instant startTime, //
-			@ConvertParameter("convertSequenceNumberStart") @Nullable Long sequenceNumberStart) {
+			@ConvertParameter("convertSequenceNumberStart") @Nullable Long sequenceNumberStart, //
+			@ConvertParameter("convertAbbreviatorCache") PatternConfig.@Nullable CacheType abbreviatorCache) {
 		PatternConfig dc = PatternConfig.of();
 		ansiDisabled = ansiDisabled == null ? dc.ansiDisabled() : ansiDisabled;
 		lineSeparator = lineSeparator == null ? dc.lineSeparator() : lineSeparator;
@@ -120,13 +121,18 @@ public final class PatternConfigurator implements Configurator {
 		propertyFunction = propertyFunction == null ? StandardPropertyFunction.INSTANCE : propertyFunction;
 		startTime = startTime == null ? Instant.now() : startTime;
 		long sequenceNumberStart_ = sequenceNumberStart == null ? dc.sequenceNumberStart() : sequenceNumberStart;
+		abbreviatorCache = abbreviatorCache == null ? dc.abbreviatorCache() : abbreviatorCache;
 		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled, propertyFunction, startTime,
-				sequenceNumberStart_);
+				sequenceNumberStart_, abbreviatorCache);
 
 	}
 
 	static Long convertSequenceNumberStart(String s) {
 		return Long.valueOf(s);
+	}
+
+	static PatternConfig.CacheType convertAbbreviatorCache(String s) {
+		return PatternConfig.CacheType.parse(s);
 	}
 
 	static ZoneId convertZoneId(String zoneId) {

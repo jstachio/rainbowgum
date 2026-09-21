@@ -93,6 +93,30 @@ class PatternConfiguratorTest {
 				e.getMessage());
 	}
 
+	@Test
+	void testMalformedAbbreviatorCacheReportsErrorViaAddIfError() {
+		String properties = """
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.appender.list.encoder=pattern
+				logging.pattern.config.list.abbreviatorCache=notarealcachetype
+				logging.encoder.list.pattern=%logger{15}%n
+				""";
+		LogConfig config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator(new PatternConfigurator())
+			.build();
+		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
+						Error for property. key: 'logging.pattern.config.list.abbreviatorCache' from PROPERTIES_STRING[logging.pattern.config.list.abbreviatorCache], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType.NOTAREALCACHETYPE
+						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
+						  ↳ Failure providing Appenders for route: 'default'.""",
+				e.getMessage());
+	}
+
 	enum _Test {
 
 		FULL("""
@@ -166,6 +190,29 @@ class PatternConfiguratorTest {
 						logging.appender.list.encoder=pattern
 						logging.pattern.config.list.sequenceNumberStart=5
 						logging.encoder.list.pattern=%lsn%n
+						""";
+			}
+		},
+		/*
+		 * Exercises PatternConfigurator.convertAbbreviatorCache(String) and
+		 * PatternFormatterFactory's LOGGER keyword actually consulting
+		 * PatternConfig#abbreviatorCache() - disabling the cache must not change the
+		 * abbreviated output itself (see AbbreviatorTest for cache-identity-level
+		 * coverage), only whether Abbreviator.cache(...) wraps the result.
+		 */
+		ABBREVIATOR_CACHE_DISABLED_FROM_PROPERTY("""
+				c.p.test.Test
+				c.p.test.Test
+				c.p.test.Test
+				""") {
+			@Override
+			String properties() {
+				return """
+						logging.appenders=list
+						logging.appender.list.output=list
+						logging.appender.list.encoder=pattern
+						logging.pattern.config.list.abbreviatorCache=DISABLED
+						logging.encoder.list.pattern=%logger{15}%n
 						""";
 			}
 		},

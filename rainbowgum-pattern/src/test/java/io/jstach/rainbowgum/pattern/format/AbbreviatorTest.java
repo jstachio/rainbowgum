@@ -2,14 +2,14 @@ package io.jstach.rainbowgum.pattern.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Execution;
-import org.junit.jupiter.api.parallel.ExecutionMode;
 
 /*
  * Abbreviator (and its TargetLengthBasedClassNameAbbreviator/StandardAbbreviator
@@ -26,14 +26,12 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
  * cache, so the tests in the "cache" section below are original, written
  * directly against the ported algorithm.
  *
- * cacheIsBypassedWhenDisabledViaSystemProperty below sets/clears
- * Abbreviator.DISABLE_CACHE_SYSTEM_PROPERTY around itself - SAME_THREAD keeps that from
- * racing this class's own cache-hit assertions (e.g.
- * cachedAbbreviatorReturnsSameStringInstanceOnRepeatCalls) under parallel test
- * execution. No other class in this module touches that property, so @Isolated isn't
- * needed.
+ * Caching used to be an all-or-nothing JVM-wide system property
+ * (Abbreviator.DISABLE_CACHE_SYSTEM_PROPERTY); Abbreviator.of(int) now always returns an
+ * uncached abbreviator and callers opt into caching explicitly via
+ * Abbreviator.cache(Abbreviator) - PatternConfig#abbreviatorCache() (see
+ * PatternConfiguratorTest) is what actually decides that per pattern-config name.
  */
-@Execution(ExecutionMode.SAME_THREAD)
 class AbbreviatorTest {
 
 	// --- ported from Logback's TargetLengthBasedClassNameAbbreviatorTest ---
@@ -122,31 +120,61 @@ class AbbreviatorTest {
 	}
 
 	@Test
-	void ofWrapsResultInCache() {
-		assertInstanceOf(Abbreviator.CacheAbbreviator.class, Abbreviator.of(10));
+	void ofReturnsUncachedAbbreviator() {
+		// caching is opt-in via cache(...) now, driven by
+		// PatternConfig#abbreviatorCache()
+		// (see PatternFormatterFactory's LOGGER keyword) - of(...) by itself never wraps.
+		assertTrue(Abbreviator.of(10) instanceof Abbreviator.TargetLengthBasedClassNameAbbreviator);
+		assertSame(Abbreviator.StandardAbbreviator.CLASS_NAME_ONLY, Abbreviator.of(0));
+	}
+
+	@Test
+	void cacheWrapsResultInCacheAbbreviator() {
+		assertInstanceOf(Abbreviator.CacheAbbreviator.class, Abbreviator.cache(Abbreviator.of(10)));
 	}
 
 	@Test
 	void cachedAbbreviatorReturnsSameStringInstanceOnRepeatCalls() {
 		// confirms actual caching (not merely recomputing an equal String) by
 		// checking object identity of the result on a cache hit.
-		var abbreviator = Abbreviator.of(10);
+		var abbreviator = Abbreviator.cache(Abbreviator.of(10));
 		String first = abbreviator.abbreviate("io.jstach.logger.MyLogger");
 		String second = abbreviator.abbreviate("io.jstach.logger.MyLogger");
 		assertSame(first, second);
 	}
 
 	@Test
-	@SuppressWarnings("clear.system.property") // expected
-	void cacheIsBypassedWhenDisabledViaSystemProperty() {
-		System.setProperty(Abbreviator.DISABLE_CACHE_SYSTEM_PROPERTY, "true");
-		try {
-			Abbreviator delegate = Abbreviator.StandardAbbreviator.CLASS_NAME_ONLY;
-			assertSame(delegate, Abbreviator.cache(delegate));
-		}
-		finally {
-			System.clearProperty(Abbreviator.DISABLE_CACHE_SYSTEM_PROPERTY);
-		}
+	void uncachedAbbreviatorRecomputesEveryCall() {
+		var abbreviator = Abbreviator.of(10);
+		String first = abbreviator.abbreviate("io.jstach.logger.MyLogger");
+		String second = abbreviator.abbreviate("io.jstach.logger.MyLogger");
+		assertEquals(first, second);
+		// a fresh String each time, not the same cached instance.
+		assertNotSame(first, second);
+	}
+
+	// --- PatternConfig.CacheType.parse(String) - same true/false plus
+	// default/basic/disabled aliasing convention as LogEvent.Caller.CallerType.parse ---
+
+	@Test
+	void cacheTypeParseAliasesTrueDefaultAndBasicToBasic() {
+		assertEquals(PatternConfig.CacheType.BASIC, PatternConfig.CacheType.parse("true"));
+		assertEquals(PatternConfig.CacheType.BASIC, PatternConfig.CacheType.parse("TRUE"));
+		assertEquals(PatternConfig.CacheType.BASIC, PatternConfig.CacheType.parse("default"));
+		assertEquals(PatternConfig.CacheType.BASIC, PatternConfig.CacheType.parse("basic"));
+	}
+
+	@Test
+	void cacheTypeParseAliasesFalseAndDisabledToDisabled() {
+		assertEquals(PatternConfig.CacheType.DISABLED, PatternConfig.CacheType.parse("false"));
+		assertEquals(PatternConfig.CacheType.DISABLED, PatternConfig.CacheType.parse("disabled"));
+	}
+
+	@Test
+	void cacheTypeParseRejectsUnrecognizedValue() {
+		var e = assertThrows(IllegalArgumentException.class, () -> PatternConfig.CacheType.parse("nonsense"));
+		assertEquals("No enum constant io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType.NONSENSE",
+				e.getMessage());
 	}
 
 	// --- LogbackCache (generic caching layer backing Abbreviator.cache) ---
