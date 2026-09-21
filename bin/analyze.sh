@@ -19,7 +19,7 @@ _ignored_profiles="-enforce-maven-version,-format-apply,-deploy-local,-javadoc-j
 # Null analysis (checkerframework/errorprone/nullaway) is being turned on one module at a
 # time, one commit per module - see develop.md. Grows here as each module is verified
 # clean (or fixed) rather than flipping the whole reactor on at once.
-_modules="core,rainbowgum-annotation,rainbowgum-jul,rainbowgum-scoped-key-values-api,rainbowgum-jdk,rainbowgum,rainbowgum-simple-props,rainbowgum-scoped-key-values,rainbowgum-avaje-config,rainbowgum-jansi,rainbowgum-disruptor,rainbowgum-pattern"
+_modules="core,rainbowgum-annotation,rainbowgum-jul,rainbowgum-scoped-key-values-api,rainbowgum-jdk,rainbowgum,rainbowgum-simple-props,rainbowgum-scoped-key-values,rainbowgum-avaje-config,rainbowgum-jansi,rainbowgum-disruptor,rainbowgum-pattern,rainbowgum-systemlogger"
 
 # Modules excluded from the checkerframework profile only - errorprone and nullaway are
 # independent tools (nullaway doesn't use Checker Framework machinery at all) and both
@@ -44,11 +44,10 @@ _modules_no_checkerframework="rainbowgum-file,rainbowgum-tomcat,:rainbowgum-spri
 
 # Modules where checkerframework and/or nullaway need real design work before they can be
 # enabled (not mechanical fixes - see develop.md), but errorprone alone is clean:
-# - rainbowgum-systemlogger: a real @Nullable/@NonNull mismatch, tracked separately.
 # rainbowgum-json has not actually been tried under checkerframework/nullaway - included
 # here for now on the assumption it needs the same kind of pass; revisit if that turns out
 # to be wrong.
-_modules_errorprone_only="rainbowgum-json,rainbowgum-systemlogger"
+_modules_errorprone_only="rainbowgum-json"
 
 # Capture an ad-hoc override once, before the loop: _run_modules gets recomputed per
 # profile below (checkerframework/errorprone/nullaway each need a different module list),
