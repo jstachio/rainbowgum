@@ -53,6 +53,13 @@ _modules_no_checkerframework="rainbowgum-file,rainbowgum-tomcat,:rainbowgum-spri
 # to be wrong.
 _modules_errorprone_only="rainbowgum-pattern,rainbowgum-json,rainbowgum-systemlogger"
 
+# Capture an ad-hoc override once, before the loop: _run_modules gets recomputed per
+# profile below (checkerframework/errorprone/nullaway each need a different module list),
+# so checking "is it still empty" inside the loop doesn't work - the first iteration's
+# computed value is never empty again, silently reusing that first profile's module list
+# for every later profile in the same invocation instead of recomputing per profile.
+_env_run_modules="${_run_modules:-}"
+
 for profile in $_profiles; do
 echo ""
 echo "--------------------- Running $profile -----------------------"
@@ -64,9 +71,12 @@ _CLEAN="clean"
 #fi
 
 # set env var _run_modules at the command line to run specific modules adhoc.
-if [[ "$_run_modules" == "" ]]; then
+if [[ -n "$_env_run_modules" ]]; then
+  _run_modules="$_env_run_modules"
+else
+  _run_modules="${_modules}"
   if [[ "checkerframework" != "$profile" ]]; then
-    _run_modules="${_modules},${_modules_no_checkerframework}"
+    _run_modules="${_run_modules},${_modules_no_checkerframework}"
   fi
   if [[ "errorprone" == "$profile" ]]; then
     _run_modules="${_run_modules},${_modules_errorprone_only}"
