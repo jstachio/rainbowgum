@@ -46,11 +46,12 @@ public class DecoratorExample extends LoggerDecoratorService {
 		}
 
 		@Override
+		@SuppressWarnings("CheckReturnValue")
 		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 			if (marker != null) {
 				// Rainbow Gum core has no built-in Marker support (it is not stored
 				// on the event), so surface it as a key value instead.
-				builder = builder.addKeyValue("marker", marker.toString());
+				builder.addKeyValue("marker", marker.toString());
 			}
 			return true;
 		}
