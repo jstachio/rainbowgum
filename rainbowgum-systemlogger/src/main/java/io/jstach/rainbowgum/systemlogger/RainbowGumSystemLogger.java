@@ -69,7 +69,14 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		this._log(level, msg, (Throwable) null);
 	}
 
-	@SuppressWarnings("exports")
+	/*
+	 * java.lang.System.Logger#log(Level, Supplier<String>) declares Supplier<String>, not
+	 * Supplier<@Nullable String>, but like the single-String log(Level, String) overload
+	 * right above, a supplier returning null is treated the same as no message - accepted
+	 * wider than the JDK's own unannotated interface requires, same reasoning as
+	 * rainbowgum-slf4j's MDCAdapter/LoggingEventBuilder astubs.
+	 */
+	@SuppressWarnings({ "exports", "NullAway" })
 	@Override
 	public void log(Level level, Supplier<@Nullable String> msgSupplier) {
 		this._log(level, msgSupplier, (Throwable) null);
@@ -102,7 +109,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		}
 	}
 
-	@SuppressWarnings("exports")
+	@SuppressWarnings({ "exports", "NullAway" })
 	@Override
 	public void log(Level level, Supplier<@Nullable String> msgSupplier, @Nullable Throwable throwable) {
 		this._log(level, msgSupplier, throwable);

@@ -69,7 +69,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger,
 		return level;
 	}
 
-	final static @Nullable String getMessage(@Nullable ResourceBundle bundle, String msg) {
+	final static @Nullable String getMessage(@Nullable ResourceBundle bundle, @Nullable String msg) {
 		if (bundle == null || msg == null) {
 			return msg;
 		}
