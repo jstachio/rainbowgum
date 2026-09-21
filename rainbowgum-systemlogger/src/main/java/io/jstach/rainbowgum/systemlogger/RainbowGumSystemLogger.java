@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogRouter;
 
 /**
@@ -23,7 +22,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	private final LogRouter router;
 
-	private final LogEventFactory eventFactory;
+	private final SystemLoggerEventFactory eventFactory;
 
 	/**
 	 * Provides a system logger that will use the given root router.
@@ -39,14 +38,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		super();
 		this.loggerName = loggerName;
 		this.router = router;
-		this.eventFactory = LevelSystemLogger.eventFactory(loggerName);
-	}
-
-	private final static Level fixLevel(Level level) {
-		if (level == Level.ALL) {
-			return Level.TRACE;
-		}
-		return level;
+		this.eventFactory = new SystemLoggerEventFactory(loggerName);
 	}
 
 	private LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
@@ -60,7 +52,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	@Override
 	public boolean isLoggable(Level level) {
-		return router.route(loggerName, fixLevel(level)).isEnabled();
+		return router.route(loggerName, SystemLoggerEventFactory.fixLevel(level)).isEnabled();
 	}
 
 	@Override
@@ -84,7 +76,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 	@Override
 	public void log(Level level, Object obj) {
 		Objects.requireNonNull(obj, "obj");
-		level = fixLevel(level);
+		level = SystemLoggerEventFactory.fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = obj == null ? "" : obj.toString();
@@ -100,7 +92,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	// To keep call depth consistent
 	private void _log(Level level, @Nullable String msg, @Nullable Throwable throwable) {
-		level = fixLevel(level);
+		level = SystemLoggerEventFactory.fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			LogEvent event = event(level, msg, throwable);
@@ -116,7 +108,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	// To keep call depth consistent
 	private void _log(Level level, Supplier<@Nullable String> msgSupplier, @Nullable Throwable throwable) {
-		level = fixLevel(level);
+		level = SystemLoggerEventFactory.fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
 			String formattedMessage = msgSupplier.get();
@@ -132,10 +124,10 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	private void _log(Level level, @Nullable ResourceBundle bundle, @Nullable String msg,
 			@Nullable Throwable throwable) {
-		level = fixLevel(level);
+		level = SystemLoggerEventFactory.fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			String formattedMessage = LevelSystemLogger.getMessage(bundle, msg);
+			String formattedMessage = eventFactory.message(bundle, msg);
 			LogEvent event = event(level, formattedMessage, throwable);
 			route.log(event);
 		}
@@ -148,10 +140,10 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	// To keep call depth consistent.
 	private void _log(Level level, @Nullable ResourceBundle bundle, @Nullable String format, @Nullable Object... args) {
-		level = fixLevel(level);
+		level = SystemLoggerEventFactory.fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			String message = LevelSystemLogger.getMessage(bundle, format);
+			String message = eventFactory.message(bundle, format);
 			LogEvent event = eventFactory.eventArgs(level, message, args);
 			route.log(event);
 		}
