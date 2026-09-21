@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.json;
 
+import java.nio.charset.StandardCharsets;
+
 import io.jstach.rainbowgum.annotation.GeneratedByATrustedSource;
 
 //Copyright 2010 the V8 project authors. All rights reserved.
@@ -719,7 +721,7 @@ abstract class Grisu3 {
 			int integrals = (int) ((too_high.f >>> -one.e) & 0xffffffffL);
 			// Modulo by one is an and.
 			long fractionals = too_high.f & (one.f - 1);
-			long result = biggestPowerTen(integrals, DiyFp.kSignificandSize - (-one.e));
+			long result = biggestPowerTen(integrals, DiyFp.kSignificandSize - -one.e);
 			int divider = (int) ((result >>> 32) & 0xffffffffL);
 			int divider_exponent = (int) (result & 0xffffffffL);
 			int kappa = divider_exponent + 1;
@@ -947,7 +949,7 @@ abstract class Grisu3 {
 
 		@Override
 		public String toString() {
-			return "[chars:" + new String(chars, 0, end) + ", point:" + point + "]";
+			return "[chars:" + new String(chars, 0, end, StandardCharsets.UTF_8) + ", point:" + point + "]";
 		}
 
 		int copyTo(final byte[] target, final int position) {

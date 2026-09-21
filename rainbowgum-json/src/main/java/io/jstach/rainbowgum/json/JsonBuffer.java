@@ -48,7 +48,7 @@ public final class JsonBuffer implements Buffer {
 	/**
 	 * ASCII extended field prefix <code>_</code>
 	 */
-	protected static final byte DEFAULT_EXTENDED_FIELD_PREFIX = '_';
+	static final byte DEFAULT_EXTENDED_FIELD_PREFIX = '_';
 
 	/**
 	 * Create a JSON buffer.
@@ -363,6 +363,11 @@ public final class JsonBuffer implements Buffer {
 		jsonWriter.writeByte(SEMI);
 	}
 
+	/*
+	 * Intentional no-op placeholder for a not-yet-implemented feature - flag exists so
+	 * call sites don't need to change once this is implemented.
+	 */
+	@SuppressWarnings("UnusedVariable")
 	private static final void _writeEndField(int flag) {
 		// ignore for now.
 	}

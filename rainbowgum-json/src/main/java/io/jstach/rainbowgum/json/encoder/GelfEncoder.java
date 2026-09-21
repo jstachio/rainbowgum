@@ -40,7 +40,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final KeyValues headers;
 
-	private final boolean prettyprint;
+	private final boolean prettyPrint;
 
 	/**
 	 * Default number of fractional second digits the <code>_time</code> field is rendered
@@ -52,11 +52,11 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final int maxBufferSize;
 
-	GelfEncoder(String host, KeyValues headers, boolean prettyprint, int timeFractionalDigits, int maxBufferSize) {
+	GelfEncoder(String host, KeyValues headers, boolean prettyPrint, int timeFractionalDigits, int maxBufferSize) {
 		super();
 		this.host = host;
 		this.headers = headers;
-		this.prettyprint = prettyprint;
+		this.prettyPrint = prettyPrint;
 		this.timeFormatter = timeFormatter(timeFractionalDigits);
 		this.maxBufferSize = maxBufferSize;
 	}
@@ -122,7 +122,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 			@Nullable Map<String, String> headers, //
 			@Nullable Boolean prettyPrint, @Nullable Integer timeFractionalDigits, @Nullable Integer maxBufferSize) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;
-		host = Objects.requireNonNull(host);
+		Objects.requireNonNull(host);
 		var _headers = KeyValues.of(headers == null ? Map.of() : headers);
 		int _timeFractionalDigits = timeFractionalDigits == null ? DEFAULT_TIME_FRACTIONAL_DIGITS
 				: timeFractionalDigits;
@@ -133,7 +133,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE, maxBufferSize);
+		return new JsonBuffer(this.prettyPrint, ExtendedFieldPrefix.UNDERSCORE, maxBufferSize);
 	}
 
 	@Override
@@ -198,7 +198,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 		index = buffer.write("version", "1.1", index);
 
-		if (index > 0 && prettyprint) {
+		if (index > 0 && prettyPrint) {
 			buffer.writeLineFeed();
 		}
 		buffer.write(JSONToken.OBJECT_END);
