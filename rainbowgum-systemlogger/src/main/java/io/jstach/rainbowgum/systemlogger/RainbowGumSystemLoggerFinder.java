@@ -194,13 +194,13 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	}
 
-	private class InitRouterProvider implements RouterProvider {
+	private static class InitRouterProvider implements RouterProvider {
 
 		private final Supplier<RainbowGum> supplier;
 
 		private volatile @Nullable RainbowGum gum = null;
 
-		public InitRouterProvider(Supplier<RainbowGum> supplier) {
+		InitRouterProvider(Supplier<RainbowGum> supplier) {
 			super();
 			this.supplier = supplier;
 		}
