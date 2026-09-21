@@ -189,7 +189,7 @@ class AbbreviatorTest {
 		var cache = new LogbackCache<String, String>(k -> k);
 		int uniqueCounter = 0;
 		for (int i = 0; i < 2000; i++) {
-			String key = (i % 10 == 0) ? "unique-" + (uniqueCounter++) : "shared-" + (i % 3);
+			String key = (i % 10 == 0) ? "unique-" + uniqueCounter++ : "shared-" + (i % 3);
 			cache.value(key);
 		}
 		assertTrue(cache.getCacheMissRate() < 0.3d);

@@ -1,6 +1,6 @@
 package io.jstach.rainbowgum.pattern.internal;
 
-/**
+/*
  * Logback: the reliable, generic, fast and flexible logging framework.
  * Copyright (C) 1999-2015, QOS.ch. All rights reserved.
  *
@@ -35,6 +35,13 @@ import java.util.ArrayList;
  * Note that there is no EOS token returned.
  * </p>
  */
+/*
+ * Ported from Logback (see license header above) - the statement switches here have side
+ * effects (mutating tokenList/buf/state) and an empty default case, so converting them to
+ * arrow-style expression switches isn't a mechanical rename and risks subtly changing
+ * this hand-ported tokenizer's control flow.
+ */
+@SuppressWarnings("StatementSwitchToExpressionSwitch")
 class TokenStream {
 
 	public static final char ESCAPE_CHAR = '\\';
@@ -96,7 +103,7 @@ class TokenStream {
 					handleFormatModifierState(c, tokenList, buf);
 					break;
 				case OPTION_STATE:
-					processOption(c, tokenList, buf);
+					processOption(c, tokenList);
 					break;
 				case KEYWORD_STATE:
 					handleKeywordState(c, tokenList, buf);
@@ -147,7 +154,7 @@ class TokenStream {
 		}
 	}
 
-	private void processOption(char c, List<Token> tokenList, StringBuilder buf) throws ScanException {
+	private void processOption(char c, List<Token> tokenList) throws ScanException {
 		OptionTokenizer ot = new OptionTokenizer(this);
 		ot.tokenize(c, tokenList);
 	}

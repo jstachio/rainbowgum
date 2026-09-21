@@ -95,6 +95,11 @@ class CompilerTest {
 
 	public static final boolean OUTPUT = true;
 
+	/*
+	 * inputs is always assigned via List.of(...) in the constructor - genuinely
+	 * immutable, just not through a type that says so statically.
+	 */
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum PatternTest {
 
 		BARE("%BARE", ""), //
@@ -148,6 +153,7 @@ class CompilerTest {
 			}
 		},
 		FILE(List.of("%f", "%file"), "CompilerTest.java") {
+			@Override
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);
 				return LogEvent.withCaller(super.event(), caller);
@@ -166,6 +172,7 @@ class CompilerTest {
 				return "OK";
 			}
 
+			@Override
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);
 				return LogEvent.withCaller(super.event(), caller);
@@ -178,12 +185,14 @@ class CompilerTest {
 		LINE_WITHOUT_CALLER_INFO("%L", "") {
 		},
 		CLASS(List.of("%C", "%class"), CompilerTest.class.getName()) {
+			@Override
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);
 				return LogEvent.withCaller(super.event(), caller);
 			}
 		},
 		METHOD(List.of("%M", "%method"), "test") {
+			@Override
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);
 				return LogEvent.withCaller(super.event(), caller);
@@ -266,6 +275,7 @@ class CompilerTest {
 		ENCODED_MDC_KEY(List.of("%encodedMdc{k2}"), "k2=v2") {
 		},
 		THROWABLE(List.of("%ex", "%exception", "%throwable"), "java.lang.RuntimeException: test_throwable") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("test_throwable");
 				return TestLogEventFactory.of(logger())
@@ -279,8 +289,8 @@ class CompilerTest {
 			}
 		},
 		THROWABLE_MAX_LINES(List.of("%ex{2}"),
-				"java.lang.RuntimeException: boom\n" + "\tat com.example.App.a(App.java:1)\n"
-						+ "\tat com.example.App.b(App.java:2)\n" + "\t... 2 frames truncated\n") {
+				"java.lang.RuntimeException: boom\n\tat com.example.App.a(App.java:1)\n\tat com.example.App.b(App.java:2)\n\t... 2 frames truncated\n") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
 				return TestLogEventFactory.of(logger())
@@ -289,6 +299,7 @@ class CompilerTest {
 			}
 		},
 		THROWABLE_SHORT(List.of("%ex{short}"), "java.lang.RuntimeException: boom\n\t... 2 frames truncated\n") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
 				return TestLogEventFactory.of(logger())
@@ -296,8 +307,9 @@ class CompilerTest {
 					.freeze(Instant.EPOCH);
 			}
 		},
-		THROWABLE_FULL(List.of("%ex{full}"), "java.lang.RuntimeException: boom\n"
-				+ "\tat com.example.App.a(App.java:1)\n" + "\tat com.example.App.b(App.java:2)\n") {
+		THROWABLE_FULL(List.of("%ex{full}"),
+				"java.lang.RuntimeException: boom\n\tat com.example.App.a(App.java:1)\n\tat com.example.App.b(App.java:2)\n") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
 				return TestLogEventFactory.of(logger())
@@ -305,8 +317,9 @@ class CompilerTest {
 					.freeze(Instant.EPOCH);
 			}
 		},
-		THROWABLE_EXCLUDE(List.of("%ex{full, noisyReflect}"), "java.lang.RuntimeException: boom\n"
-				+ "\tat com.example.App.keepA(App.java:1)\n" + "\tat com.example.App.keepB(App.java:3)\n") {
+		THROWABLE_EXCLUDE(List.of("%ex{full, noisyReflect}"),
+				"java.lang.RuntimeException: boom\n\tat com.example.App.keepA(App.java:1)\n\tat com.example.App.keepB(App.java:3)\n") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "keepA", "noisyReflect", "keepB");
 				return TestLogEventFactory.of(logger())
@@ -314,8 +327,9 @@ class CompilerTest {
 					.freeze(Instant.EPOCH);
 			}
 		},
-		EXTENDED_THROWABLE(List.of("%xEx", "%xException", "%xThrowable"), "java.lang.RuntimeException: boom\n"
-				+ "\tat com.example.App.a(App.java:1) [na:na]\n" + "\tat com.example.App.b(App.java:2) [na:na]\n") {
+		EXTENDED_THROWABLE(List.of("%xEx", "%xException", "%xThrowable"),
+				"java.lang.RuntimeException: boom\n\tat com.example.App.a(App.java:1) [na:na]\n\tat com.example.App.b(App.java:2) [na:na]\n") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b");
 				return TestLogEventFactory.of(logger())
@@ -324,8 +338,8 @@ class CompilerTest {
 			}
 		},
 		EXTENDED_THROWABLE_MAX_LINES(List.of("%xEx{2}"),
-				"java.lang.RuntimeException: boom\n" + "\tat com.example.App.a(App.java:1) [na:na]\n"
-						+ "\tat com.example.App.b(App.java:2) [na:na]\n" + "\t... 2 frames truncated\n") {
+				"java.lang.RuntimeException: boom\n\tat com.example.App.a(App.java:1) [na:na]\n\tat com.example.App.b(App.java:2) [na:na]\n\t... 2 frames truncated\n") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = throwableWithFrames("boom", "a", "b", "c", "d");
 				return TestLogEventFactory.of(logger())
@@ -334,6 +348,7 @@ class CompilerTest {
 			}
 		},
 		NO_EXCEPTION(List.of("%nopex", "%nopexception"), "") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("should not appear");
 				return TestLogEventFactory.of(logger())
@@ -347,6 +362,7 @@ class CompilerTest {
 			}
 		},
 		NO_EXCEPTION_SUPPRESSES_AUTO_APPEND("%msg%nopex", "hello") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("should not appear");
 				return TestLogEventFactory.of(logger())
@@ -462,6 +478,7 @@ class CompilerTest {
 			}
 		},
 		FULL_INFO("[%thread] %-5level %logger{15} - %msg%n", "[main] INFO  c.l.TriviaMain - hello\n") {
+			@Override
 			protected void output(String output) {
 				if (OUTPUT)
 					System.out.print(output);
@@ -480,6 +497,7 @@ class CompilerTest {
 		 */
 		FULL_INFO_SHOWS_EXCEPTION_WITHOUT_EXPLICIT_KEYWORD("[%thread] %-5level %logger{15} - %msg%n",
 				"[main] INFO  c.l.TriviaMain - hello\n") {
+			@Override
 			LogEvent event() {
 				Throwable throwable = new RuntimeException("boom");
 				return TestLogEventFactory.of(logger())
@@ -504,6 +522,7 @@ class CompilerTest {
 		},
 		COLOR_INFO("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] [34mINFO [0;39m [36mc.l.TriviaMain[0;39m - hello\n") {
+			@Override
 			protected void output(String output) {
 				if (OUTPUT)
 					System.out.print(output);
@@ -516,6 +535,7 @@ class CompilerTest {
 		},
 		COLOR_ERROR("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] [1;31mERROR[0;39m [36mc.l.TriviaMain[0;39m - hello\n") {
+			@Override
 			protected void output(String output) {
 				if (OUTPUT)
 					System.out.print(output);
@@ -533,6 +553,7 @@ class CompilerTest {
 		},
 		COLOR_INFO_ANSI_DISABLED("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] INFO  c.l.TriviaMain - hello\n") {
+			@Override
 			protected void output(String output) {
 				if (OUTPUT)
 					System.out.print(output);
@@ -550,6 +571,7 @@ class CompilerTest {
 		},
 		COLOR_ERROR_ANSI_DISABLED("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] ERROR c.l.TriviaMain - hello\n") {
+			@Override
 			protected void output(String output) {
 				if (OUTPUT)
 					System.out.print(output);

@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.pattern.internal;
 
 import static io.jstach.rainbowgum.pattern.internal.TokenStream.*;
 
-/**
+/*
  * Logback: the reliable, generic, fast and flexible logging framework.
  * Copyright (C) 1999-2015, QOS.ch. All rights reserved.
  *
@@ -19,6 +19,13 @@ import static io.jstach.rainbowgum.pattern.internal.TokenStream.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/*
+ * Ported from Logback (see license header above) - the statement switch here has side
+ * effects and multiple state mutations per case, so converting it to an arrow-style
+ * expression switch isn't a mechanical rename and risks subtly changing this
+ * hand-ported tokenizer's control flow.
+ */
+@SuppressWarnings("StatementSwitchToExpressionSwitch")
 class OptionTokenizer {
 
 	private final static int EXPECTING_STATE = 0;

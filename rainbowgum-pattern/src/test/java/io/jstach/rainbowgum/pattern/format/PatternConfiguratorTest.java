@@ -12,7 +12,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogConfig.Builder;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
@@ -136,6 +135,7 @@ class PatternConfiguratorTest {
 				WARN  blah
 				ERROR blah
 				""") {
+			@Override
 			String properties() {
 				return """
 						logging.appenders=list
@@ -146,7 +146,7 @@ class PatternConfiguratorTest {
 			}
 
 			@Override
-			void config(Builder builder) {
+			void config(LogConfig.Builder builder) {
 				builder.configurator(new PatternKeywordProvider() {
 					@Override
 					protected void register(PatternRegistry patternRegistry) {
@@ -196,13 +196,14 @@ class PatternConfiguratorTest {
 			}
 
 			@Override
-			void config(Builder builder) {
+			void config(LogConfig.Builder builder) {
 				builder.configurator((c, p) -> {
 					c.outputRegistry().register("stdout", ref -> LogProvider.of(new FakeConsoleOutput()));
 					return true;
 				});
 			}
 
+			@Override
 			String actual(LogConfig config) {
 				ListLogOutput output = (ListLogOutput) config.outputRegistry().output("console").orElseThrow();
 				System.out.print(output);

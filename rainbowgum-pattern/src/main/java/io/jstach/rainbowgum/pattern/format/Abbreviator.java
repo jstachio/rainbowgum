@@ -41,6 +41,7 @@ interface Abbreviator {
 
 		CLASS_NAME_ONLY {
 
+			@Override
 			public String abbreviate(String fqClassName) {
 				// we ignore the fact that the separator character can also be a
 				// dollar
@@ -66,6 +67,7 @@ interface Abbreviator {
 			this.targetLength = targetLength;
 		}
 
+		@Override
 		public String abbreviate(String fqClassName) {
 			int inLen = fqClassName.length();
 			if (inLen < targetLength) {
@@ -221,6 +223,12 @@ class LogbackCache<K, V> extends LinkedHashMap<K, V> implements Cache<K, V> {
 		return _value(key);
 	}
 
+	/*
+	 * totalCalls/cacheMisses are volatile only so getCacheMisses()/getCacheMissRate() can
+	 * be read by any thread without taking lock - every write happens here, always under
+	 * lock, so the increments themselves are already serialized and can't race.
+	 */
+	@SuppressWarnings("NonAtomicVolatileUpdate")
 	V _value(K fqn) {
 		lock.lock();
 		try {

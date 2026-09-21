@@ -3,7 +3,7 @@ package io.jstach.rainbowgum.pattern.internal;
 import org.jspecify.annotations.Nullable;
 
 /**
- * @hidden
+ * Thrown when the pattern tokenizer encounters malformed input.
  */
 public class ScanException extends RuntimeException {
 
@@ -20,6 +20,14 @@ public class ScanException extends RuntimeException {
 		this.cause = rootCause;
 	}
 
+	/*
+	 * cause is only ever assigned in the constructor above, never mutated afterward
+	 * (unlike Throwable's own initCause()-based mechanism, which this class does not
+	 * use), so Throwable's synchronized getCause() has nothing to synchronize against
+	 * here.
+	 */
+	@Override
+	@SuppressWarnings("UnsynchronizedOverridesSynchronized")
 	public @Nullable Throwable getCause() {
 		return cause;
 	}
