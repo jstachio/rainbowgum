@@ -21,17 +21,22 @@ class ArrayMDCAdapter implements MDCAdapter {
 	 * expect each to start empty on the same thread).
 	 */
 	@SuppressWarnings("ThreadLocalUsage")
-	final ThreadLocal<MutableKeyValues> copyOnThreadLocal = new ThreadLocal<>();
+	final ThreadLocal<@Nullable MutableKeyValues> copyOnThreadLocal = new ThreadLocal<>();
 
 	private static final int WRITE_OPERATION = 1;
 
 	private static final int MAP_COPY_OPERATION = 2;
 
+	/*
+	 * @Nullable: get() returns null before the first set() on a given thread - real, not
+	 * just a checker technicality (wasLastOpReadOrNull below treats that null the same as
+	 * MAP_COPY_OPERATION).
+	 */
 	// keeps track of the last operation performed
 	@SuppressWarnings("ThreadLocalUsage")
-	final ThreadLocal<Integer> lastOperation = new ThreadLocal<Integer>();
+	final ThreadLocal<@Nullable Integer> lastOperation = new ThreadLocal<@Nullable Integer>();
 
-	private Integer getAndSetLastOperation(int op) {
+	private @Nullable Integer getAndSetLastOperation(int op) {
 		Integer lastOp = lastOperation.get();
 		lastOperation.set(op);
 		return lastOp;

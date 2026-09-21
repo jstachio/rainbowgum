@@ -46,8 +46,13 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * Held here (as opposed to inline at the subscribe call below) so this factory keeps
 	 * it strongly reachable - RainbowGum.onGlobalChange only holds a weak reference, so
 	 * an inline lambda with no other strong referrer could become eligible for GC almost
-	 * immediately after subscribing.
+	 * immediately after subscribing. The checker flags this::setRainbowGum as an
+	 * under-initialization risk (a method reference bound before the constructor
+	 * finishes), but it's never actually invoked until well after construction - only
+	 * when RainbowGum's global instance later changes, via the subscription registered in
+	 * the constructor below.
 	 */
+	@SuppressWarnings("methodref.receiver.bound")
 	private final Consumer<RainbowGum> onGlobalChange = this::setRainbowGum;
 
 	public RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
