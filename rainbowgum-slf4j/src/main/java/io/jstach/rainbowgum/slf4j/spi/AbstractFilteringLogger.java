@@ -32,6 +32,13 @@ import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
  * @see LoggerDecoratorService LoggerDecoratorService for a full example and how to
  * register a decorator.
  */
+/*
+ * The trace/debug/info/warn/error(Marker, String, Object, Object) overrides below match
+ * org.slf4j.Logger's own real parameter names (marker, format, arg1, arg2) exactly - the
+ * slf4j-api jar just isn't compiled with -parameters, so errorprone falls back to
+ * synthetic arg0..arg3 names and flags a mismatch that isn't actually there.
+ */
+@SuppressWarnings("OverridingMethodInconsistentArgumentNamesChecker")
 public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogger {
 
 	/*
@@ -167,6 +174,13 @@ public abstract class AbstractFilteringLogger implements Logger, DepthAwareLogge
 		return delegate.makeLoggingEventBuilder(level);
 	}
 
+	/*
+	 * LoggingEventBuilder mutates itself and returns this, so a builder call is never
+	 * actually "unused" just because its return value is discarded here - the real
+	 * mistake to guard against is forgetting the terminal log()/decorate() call, which
+	 * this method never does.
+	 */
+	@SuppressWarnings("CheckReturnValue")
 	private void normalizedLog(Level level, @Nullable Marker marker, @Nullable String message, @Nullable Object arg1,
 			@Nullable Object arg2, @Nullable Object @Nullable [] argArray, @Nullable Throwable throwable) {
 		if (!isEnabledForLevel(level, marker)) {

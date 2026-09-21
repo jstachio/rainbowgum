@@ -50,6 +50,7 @@ final class CallerInfoEventDecorator implements LogEventHandler {
 		return delegate;
 	}
 
+	@Override
 	public void handle(LogEvent event, @Nullable Caller caller) {
 		handle(withCaller(event, caller));
 

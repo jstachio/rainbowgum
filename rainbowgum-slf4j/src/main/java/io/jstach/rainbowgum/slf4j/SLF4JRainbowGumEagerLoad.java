@@ -6,8 +6,6 @@ import io.jstach.svc.ServiceProvider;
 /**
  * This is an internal detail to signal that this SLF4J implementation will load Rainbow
  * Gum.
- *
- * @hidden
  */
 @ServiceProvider(io.jstach.rainbowgum.spi.RainbowGumServiceProvider.class)
 public final class SLF4JRainbowGumEagerLoad implements RainbowGumEagerLoad {

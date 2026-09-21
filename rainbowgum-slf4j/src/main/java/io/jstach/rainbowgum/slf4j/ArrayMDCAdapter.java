@@ -15,6 +15,12 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
 class ArrayMDCAdapter implements MDCAdapter {
 
+	/*
+	 * Deliberately per-instance, not static: each ArrayMDCAdapter instance needs its own
+	 * independent thread-local state (tests construct several distinct instances and
+	 * expect each to start empty on the same thread).
+	 */
+	@SuppressWarnings("ThreadLocalUsage")
 	final ThreadLocal<MutableKeyValues> copyOnThreadLocal = new ThreadLocal<>();
 
 	private static final int WRITE_OPERATION = 1;
@@ -22,6 +28,7 @@ class ArrayMDCAdapter implements MDCAdapter {
 	private static final int MAP_COPY_OPERATION = 2;
 
 	// keeps track of the last operation performed
+	@SuppressWarnings("ThreadLocalUsage")
 	final ThreadLocal<Integer> lastOperation = new ThreadLocal<Integer>();
 
 	private Integer getAndSetLastOperation(int op) {

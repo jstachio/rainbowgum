@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.util.List;
+
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -125,8 +127,8 @@ class LoggerDecoratorTest {
 	@Test
 	void testCompositeDecoratorSkipsUnchangedThenStopsAtNonDepthAwareWrapper() {
 		neverCalledInvoked = false;
-		var services = new LoggerDecoratorService[] { new NoOpDecoratorService(), new BreakChainDecoratorService(),
-				new NeverCalledDecoratorService() };
+		var services = List.<LoggerDecoratorService>of(new NoOpDecoratorService(), new BreakChainDecoratorService(),
+				new NeverCalledDecoratorService());
 		var composite = new RainbowGumLoggerFactory.LoggerDecorator.CompositeLoggerDecorator(services);
 
 		var handler = LogEventHandler.of("test", e -> {
@@ -170,6 +172,7 @@ class LoggerDecoratorTest {
 		}
 
 		@Override
+		@SuppressWarnings("CheckReturnValue")
 		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 			String message = DepthAwareEventBuilder.message(builder);
 			builder.setMessage(PREFIX + (message == null ? "" : message));

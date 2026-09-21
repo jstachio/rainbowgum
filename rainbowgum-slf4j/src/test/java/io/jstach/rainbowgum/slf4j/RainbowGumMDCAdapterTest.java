@@ -109,6 +109,10 @@ class RainbowGumMDCAdapterTest {
 		assertEquals(Map.of("k1", "v1", "k2", "v2"), mdc.getCopyOfContextMap());
 	}
 
+	/*
+	 * consumer (below) holds stateless lambdas, never anything actually mutable.
+	 */
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum MdcTest {
 
 		put("k1=v1, k2=v2", a -> a.put("k2", "v2")), //

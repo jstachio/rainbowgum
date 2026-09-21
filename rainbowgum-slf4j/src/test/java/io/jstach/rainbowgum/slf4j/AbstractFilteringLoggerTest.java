@@ -41,7 +41,7 @@ class AbstractFilteringLoggerTest {
 		logger.info(m, "marker with throwable", new RuntimeException());
 
 		String caller = "io.jstach.rainbowgum.slf4j.AbstractFilteringLoggerTest.callerIsCorrectAcrossArities";
-		String[] lines = list.toString().split("\n");
+		String[] lines = list.toString().split("\n", 0);
 		assertEquals(10, lines.length);
 		for (String line : lines) {
 			assertEquals(caller, line.substring(line.indexOf("<caller>") + 8, line.indexOf("</caller>")));
@@ -65,7 +65,7 @@ class AbstractFilteringLoggerTest {
 		Logger logger = newLogger(MarkerCapturingLogger::new);
 		logger.info("no marker");
 		logger.info(MarkerFactory.getMarker("M"), "with marker");
-		String[] lines = list.toString().split("\n");
+		String[] lines = list.toString().split("\n", 0);
 		assertEquals(2, lines.length);
 		assertTrue(!lines[0].contains("_marker="), lines[0]);
 		assertTrue(lines[1].contains("with marker") && lines[1].contains("_marker=M"), lines[1]);
@@ -165,6 +165,7 @@ class AbstractFilteringLoggerTest {
 		}
 
 		@Override
+		@SuppressWarnings("CheckReturnValue")
 		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 			if (marker != null) {
 				builder.addKeyValue("_marker", marker.toString());

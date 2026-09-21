@@ -21,6 +21,12 @@ import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
 
+/*
+ * log(String message, Object arg0, Object arg1)'s param names are off by one from
+ * errorprone's synthesized arg0/arg1/arg2 positional guess (slf4j-api isn't compiled
+ * with -parameters, so it can't see the real names) - not an actual mismatch.
+ */
+@SuppressWarnings("OverridingMethodInconsistentArgumentNamesChecker")
 class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuilder {
 
 	private final LogEventHandler handler;

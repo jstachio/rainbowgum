@@ -8,12 +8,20 @@ import org.slf4j.spi.LoggingEventBuilder;
 /**
  * A logger that forwards calls to the {@link #delegate()} logger.
  */
+/*
+ * The trace/debug/info/warn/error(Marker, String, Object, Object) overrides below match
+ * org.slf4j.Logger's own real parameter names (marker, format, arg1, arg2) exactly - the
+ * slf4j-api jar just isn't compiled with -parameters, so errorprone falls back to
+ * synthetic arg0..arg3 names and flags a mismatch that isn't actually there.
+ */
+@SuppressWarnings("OverridingMethodInconsistentArgumentNamesChecker")
 public interface ForwardingLogger extends Logger, WrappingLogger {
 
 	/**
 	 * The downstream logger to forward calls to.
 	 * @return delegate.
 	 */
+	@Override
 	public Logger delegate();
 
 	@Override

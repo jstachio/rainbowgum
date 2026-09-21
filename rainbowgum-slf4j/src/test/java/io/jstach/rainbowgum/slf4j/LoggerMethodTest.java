@@ -151,6 +151,7 @@ public class LoggerMethodTest {
 		}
 
 		@Override
+		@SuppressWarnings("CheckReturnValue")
 		protected boolean decorate(LoggingEventBuilder builder, @Nullable Marker marker) {
 			DepthAwareEventBuilder.message(builder);
 			builder.addKeyValue("decorated", "true");
@@ -196,6 +197,7 @@ public class LoggerMethodTest {
 			return method.test(level, logger, method.marker());
 		}
 
+		@Override
 		public String toString() {
 			return "MARKER_" + method;
 		}
@@ -238,7 +240,7 @@ public class LoggerMethodTest {
 
 		@Override
 		public String toString() {
-			return this.getClass().getSimpleName();
+			return AT_LEVEL.class.getSimpleName();
 		}
 
 	}
@@ -265,7 +267,7 @@ public class LoggerMethodTest {
 
 		@Override
 		public String toString() {
-			return this.getClass().getSimpleName();
+			return AT__level.class.getSimpleName();
 		}
 
 	}
@@ -285,7 +287,7 @@ public class LoggerMethodTest {
 
 		@Override
 		public String toString() {
-			return this.getClass().getSimpleName();
+			return IS_ENABLED_FOR_LEVEL.class.getSimpleName();
 		}
 
 	}
@@ -313,7 +315,7 @@ public class LoggerMethodTest {
 
 		@Override
 		public String toString() {
-			return this.getClass().getSimpleName();
+			return IS_Level_ENABLED.class.getSimpleName();
 		}
 
 		@Override
@@ -702,10 +704,12 @@ public class LoggerMethodTest {
 
 	interface NoArg extends Format {
 
+		@Override
 		default String format() {
 			return "Hello!";
 		}
 
+		@Override
 		default public String expected() {
 			return "Hello!";
 		}
@@ -718,10 +722,12 @@ public class LoggerMethodTest {
 			return new Object[] { "arg1", "arg2", "arg3" };
 		}
 
+		@Override
 		default public String format() {
 			return "Hello {} {} {}!";
 		}
 
+		@Override
 		default public String expected() {
 			return "Hello arg1 arg2 arg3!";
 		}
@@ -734,10 +740,12 @@ public class LoggerMethodTest {
 			return "arg1";
 		}
 
+		@Override
 		default public String format() {
 			return "Hello {}!";
 		}
 
+		@Override
 		default public String expected() {
 			return "Hello arg1!";
 		}
@@ -750,10 +758,12 @@ public class LoggerMethodTest {
 			return "arg2";
 		}
 
+		@Override
 		default public String format() {
 			return "Hello {} {}!";
 		}
 
+		@Override
 		default public String expected() {
 			return "Hello arg1 arg2!";
 		}
@@ -787,6 +797,11 @@ public class LoggerMethodTest {
 
 	}
 
+	/*
+	 * methods (below) is always assigned a genuinely immutable list (List.of(...) or
+	 * .stream().toList()), just never through a type that says so statically.
+	 */
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum MethodKind {
 
 		AT_LEVEL(AT_LEVEL.class), //

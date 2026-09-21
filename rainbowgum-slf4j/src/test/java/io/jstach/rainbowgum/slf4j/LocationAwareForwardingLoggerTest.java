@@ -56,8 +56,7 @@ class LocationAwareForwardingLoggerTest {
 		assertInstanceOf(LoggingEventAware.class, logger);
 
 		var builder = new DefaultLoggingEventBuilder(logger, Level.INFO);
-		builder.addKeyValue("foo", "bar");
-		builder.log("hello {}", "world");
+		builder.addKeyValue("foo", "bar").log("hello {}", "world");
 
 		String expected = "INFO hello world <caller>io.jstach.rainbowgum.slf4j.LocationAwareForwardingLoggerTest"
 				+ ".testLoggingEventAwareViaRealDefaultLoggingEventBuilderReportsCallerAndMergesKeyValues</caller>\n";
