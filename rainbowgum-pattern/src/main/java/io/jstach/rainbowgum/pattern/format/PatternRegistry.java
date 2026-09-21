@@ -206,11 +206,19 @@ public sealed interface PatternRegistry {
 		 */
 		EXTENDED_THROWABLE("xEx", "xException", "xThrowable"), //
 		/**
+		 * <a href="https://logback.qos.ch/manual/layouts.html#rootException">Root
+		 * exception keywords</a>. Same options as {@link #EXTENDED_THROWABLE} (including
+		 * packaging data) but the root cause prints first and each wrapper prints
+		 * afterward, captioned "Wrapped by: " instead of "Caused by: ".
+		 */
+		ROOT_EXCEPTION("rEx", "rootException"), //
+		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#nopex">No exception
-		 * keywords</a>. Renders nothing but, like {@link #THROWABLE} and
-		 * {@link #EXTENDED_THROWABLE}, counts as the pattern having addressed exception
-		 * rendering - suppressing the automatic exception formatter that is otherwise
-		 * appended to any pattern that mentions none of these three keywords.
+		 * keywords</a>. Renders nothing but, like {@link #THROWABLE},
+		 * {@link #EXTENDED_THROWABLE}, and {@link #ROOT_EXCEPTION}, counts as the pattern
+		 * having addressed exception rendering - suppressing the automatic exception
+		 * formatter that is otherwise appended to any pattern that mentions none of these
+		 * keywords.
 		 */
 		NO_EXCEPTION("nopex", "nopexception"), //
 		/**
@@ -458,6 +466,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case THREAD -> KeywordFactory.of(LogFormatter.builder().threadName().build());
 				case THROWABLE -> StandardKeywordFactory.THROWABLE;
 				case EXTENDED_THROWABLE -> StandardKeywordFactory.EXTENDED_THROWABLE;
+				case ROOT_EXCEPTION -> StandardKeywordFactory.ROOT_EXCEPTION;
 				case NO_EXCEPTION -> KeywordFactory.of(LogFormatter.noop(), true);
 				case CLASS -> KeywordFactory.of(CallerInfoFormatter.CLASS);
 				case FILE -> KeywordFactory.of(CallerInfoFormatter.FILE);
@@ -543,11 +552,6 @@ final class DefaultPatternRegistry implements PatternRegistry {
 	//
 	// DEFAULT_CONVERTER_MAP.put("X", MDCConverter.class.getName());
 	// DEFAULT_CONVERTER_MAP.put("mdc", MDCConverter.class.getName());
-	//
-	// DEFAULT_CONVERTER_MAP.put("rEx",
-	// RootCauseFirstThrowableProxyConverter.class.getName());
-	// DEFAULT_CONVERTER_MAP.put("rootException",
-	// RootCauseFirstThrowableProxyConverter.class.getName());
 	//
 	// DEFAULT_CONVERTER_MAP.put("nopex",
 	// NopThrowableInformationConverter.class.getName());
