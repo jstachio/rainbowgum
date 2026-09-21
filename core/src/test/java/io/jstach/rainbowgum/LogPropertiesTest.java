@@ -33,6 +33,7 @@ import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogProperty.PropertyMissingException;
 import io.jstach.rainbowgum.LogProperty.Result;
 import io.jstach.rainbowgum.LogProperty.Result.Missing;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 /*
  * RainbowGumHolder is static, JVM-wide state (see RainbowGumEntryPointTest's own comment
@@ -340,6 +341,35 @@ class LogPropertiesTest {
 		assertEquals("v1", success.value());
 		assertEquals("logging.p1", success.key());
 		assertTrue(props.forKey("logging.missing").ofString() instanceof Result.Missing<String>);
+	}
+
+	@Test
+	void testLongPropertySuccessAndMissing() {
+		// ofLong() has no real caller today - every Long-typed config parameter in the
+		// tree (e.g. PatternConfigurator's sequenceNumberStart) goes through a
+		// @ConvertParameter instead - so this is its only coverage. Exercises a
+		// 10-digit value that would overflow ofInt()'s int to make sure it is actually
+		// wired to Long.parseLong, not just copy-pasted from ofInt().
+		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "9999999999");
+		var result = props.forKey("logging.p1").ofLong();
+		if (!(result instanceof Result.Success<Long> success)) {
+			throw new AssertionError();
+		}
+		assertEquals(9999999999L, success.value());
+		assertEquals("logging.p1", success.key());
+		assertTrue(props.forKey("logging.missing").ofLong() instanceof Result.Missing<Long>);
+	}
+
+	@Test
+	void testLongPropertyBadValueFailsLoudlyWithGoldenMessage() {
+		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "not-a-number");
+		var e = assertThrows(ValidationException.class,
+				() -> props.forKey("logging.p1").ofLong().validateNow(LogPropertiesTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogPropertiesTest:
+						Error for property. key: 'logging.p1' from custom mutable[logging.p1], java.lang.NumberFormatException For input string: "not-a-number\"""",
+				e.getMessage());
 	}
 
 	private static String valueDescriptionOf(Result<?> result) {
