@@ -689,6 +689,31 @@ public sealed interface LogFormatter {
 		 */
 		void formatThrowable(StringBuilder output, Throwable throwable);
 
+		/**
+		 * <strong>Prototype/experimental.</strong> Implemented by a {@link Throwable}
+		 * attached via {@link Throwable#addSuppressed(Throwable)} purely to carry
+		 * {@link KeyValues} - e.g. scoped context that was active when some throwable
+		 * earlier in the chain was actually thrown, not a genuine suppressed exception. A
+		 * {@link ThrowableFormatter} built by {@link #builder()} recognizes an instance
+		 * of this and renders it as <code>Context: key=value, ...</code> instead of
+		 * walking it like an ordinary suppressed exception.
+		 *
+		 * @apiNote there is no JDK-native way to attach arbitrary non-exception data to a
+		 * {@link Throwable} - {@link Throwable#addSuppressed(Throwable)} is the closest
+		 * available extension point, so a carrier is itself a (trace-free, message-free)
+		 * {@link Throwable} purely so it fits there.
+		 */
+		public interface KeyValuesCarrier {
+
+			/**
+			 * Key values to render.
+			 * @return key values, never empty (an empty carrier should simply not be
+			 * attached in the first place).
+			 */
+			KeyValues keyValues();
+
+		}
+
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			var t = event.throwableOrNull();
@@ -1287,6 +1312,164 @@ final class ThrowableFramePrinter {
 			}
 		}
 		return false;
+	}
+
+	/*
+	 * Renders a ThrowableFormatter.KeyValuesCarrier as "Context: k=v, k2=v2" instead of
+	 * walking it like an ordinary suppressed exception - shared by
+	 * StandardThrowableFormatter and RootCauseFirstThrowableFormatter's suppressed loops.
+	 */
+	static void printContextCarrier(StringBuilder output, ThrowableFormatter.KeyValuesCarrier carrier, String prefix) {
+		output.append(prefix).append("Context: ");
+		boolean[] first = { true };
+		carrier.keyValues().forEach((k, v) -> {
+			if (!first[0]) {
+				output.append(", ");
+			}
+			first[0] = false;
+			output.append(k).append('=').append(v);
+		});
+		output.append(System.lineSeparator());
+	}
+
+}
+
+/**
+ * Reimplements {@link Throwable#printStackTrace()}'s algorithm (header line, frames,
+ * common-frame elision against the enclosing trace, "Caused by:"/"Suppressed:" sections,
+ * circular reference guard) so that a max line count and frame exclusion patterns can be
+ * applied while printing.
+ */
+final class StandardThrowableFormatter implements ThrowableFormatter {
+
+	private static final String CAUSE_CAPTION = "Caused by: ";
+
+	private static final String SUPPRESSED_CAPTION = "Suppressed: ";
+
+	private final ThrowableFramePrinter framePrinter;
+
+	StandardThrowableFormatter(ThrowableFramePrinter framePrinter) {
+		this.framePrinter = framePrinter;
+	}
+
+	@Override
+	public void formatThrowable(StringBuilder output, Throwable throwable) {
+		Set<Throwable> dejaVu = Collections.newSetFromMap(new IdentityHashMap<>());
+		dejaVu.add(throwable);
+		var trace = throwable.getStackTrace();
+		output.append(throwable).append(System.lineSeparator());
+		framePrinter.printFrames(output, trace, trace.length, "");
+		for (var suppressed : throwable.getSuppressed()) {
+			if (suppressed instanceof ThrowableFormatter.KeyValuesCarrier carrier) {
+				ThrowableFramePrinter.printContextCarrier(output, carrier, "\t");
+				continue;
+			}
+			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, "\t", dejaVu);
+		}
+		var cause = throwable.getCause();
+		if (cause != null) {
+			printEnclosed(output, cause, trace, CAUSE_CAPTION, "", dejaVu);
+		}
+	}
+
+	private void printEnclosed(StringBuilder output, Throwable throwable, StackTraceElement[] enclosingTrace,
+			String caption, String prefix, Set<Throwable> dejaVu) {
+		if (!dejaVu.add(throwable)) {
+			output.append(prefix)
+				.append("[CIRCULAR REFERENCE: ")
+				.append(throwable)
+				.append(']')
+				.append(System.lineSeparator());
+			return;
+		}
+		var trace = throwable.getStackTrace();
+		output.append(prefix).append(caption).append(throwable).append(System.lineSeparator());
+		framePrinter.printFramesAgainstEnclosing(output, trace, enclosingTrace, prefix);
+		for (var suppressed : throwable.getSuppressed()) {
+			if (suppressed instanceof ThrowableFormatter.KeyValuesCarrier carrier) {
+				ThrowableFramePrinter.printContextCarrier(output, carrier, prefix + "\t");
+				continue;
+			}
+			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, prefix + "\t", dejaVu);
+		}
+		var cause = throwable.getCause();
+		if (cause != null) {
+			printEnclosed(output, cause, trace, CAUSE_CAPTION, prefix, dejaVu);
+		}
+	}
+
+}
+
+/**
+ * Mirrors logback's <code>RootCauseFirstThrowableProxyConverter</code>: same frame
+ * trimming/common-frame elision as {@link StandardThrowableFormatter}, but the root cause
+ * prints first and each wrapper prints afterward, captioned "Wrapped by: " instead of
+ * "Caused by: ". Common-frame elision for a given throwable is still computed against its
+ * own direct wrapper's frames (the throwable that has it as {@link Throwable#getCause()})
+ * regardless of print order - that relationship, and therefore the elision counts, do not
+ * depend on which order things are printed in.
+ * <p>
+ * A suppressed exception's own "Suppressed: " caption lands on the first line actually
+ * printed for it - the root of <em>its</em> own cause chain if it has one, not the
+ * suppressed exception's own header - matching logback's
+ * <code>recursiveAppendRootCauseFirst</code> exactly (the caption is threaded down
+ * through the recursion and only consumed once, at the bottom).
+ */
+final class RootCauseFirstThrowableFormatter implements ThrowableFormatter {
+
+	private static final String WRAPPED_BY_CAPTION = "Wrapped by: ";
+
+	private static final String SUPPRESSED_CAPTION = "Suppressed: ";
+
+	private final ThrowableFramePrinter framePrinter;
+
+	RootCauseFirstThrowableFormatter(ThrowableFramePrinter framePrinter) {
+		this.framePrinter = framePrinter;
+	}
+
+	@Override
+	public void formatThrowable(StringBuilder output, Throwable throwable) {
+		Set<Throwable> dejaVu = Collections.newSetFromMap(new IdentityHashMap<>());
+		print(output, throwable, null, null, "", dejaVu);
+	}
+
+	private void print(StringBuilder output, Throwable throwable, StackTraceElement @Nullable [] enclosingTrace,
+			@Nullable String caption, String prefix, Set<Throwable> dejaVu) {
+		if (!dejaVu.add(throwable)) {
+			output.append(prefix);
+			if (caption != null) {
+				output.append(caption);
+			}
+			output.append("[CIRCULAR REFERENCE: ").append(throwable).append(']').append(System.lineSeparator());
+			return;
+		}
+		var trace = throwable.getStackTrace();
+		var cause = throwable.getCause();
+		if (cause != null) {
+			print(output, cause, trace, caption, prefix, dejaVu);
+			caption = null; // consumed by the recursive (deeper) call above
+		}
+		output.append(prefix);
+		if (caption != null) {
+			output.append(caption);
+		}
+		if (cause != null) {
+			output.append(WRAPPED_BY_CAPTION);
+		}
+		output.append(throwable).append(System.lineSeparator());
+		if (enclosingTrace == null) {
+			framePrinter.printFrames(output, trace, trace.length, prefix);
+		}
+		else {
+			framePrinter.printFramesAgainstEnclosing(output, trace, enclosingTrace, prefix);
+		}
+		for (var suppressed : throwable.getSuppressed()) {
+			if (suppressed instanceof ThrowableFormatter.KeyValuesCarrier carrier) {
+				ThrowableFramePrinter.printContextCarrier(output, carrier, prefix + "\t");
+				continue;
+			}
+			print(output, suppressed, trace, SUPPRESSED_CAPTION, prefix + "\t", dejaVu);
+		}
 	}
 
 }

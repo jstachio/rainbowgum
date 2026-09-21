@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
+import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter.KeyValuesCarrier;
 import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider;
 import io.jstach.svc.ServiceProvider;
 
@@ -56,12 +57,26 @@ public final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvide
 
 	@Override
 	public void push(Map<String, @Nullable String> layer, Runnable body) {
-		ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer))).run(body);
+		var merged = KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer));
+		try {
+			ScopedValue.where(STACK, merged).run(body);
+		}
+		catch (Throwable t) {
+			tagWithContext(t, merged);
+			throw t;
+		}
 	}
 
 	@Override
 	public <T> T push(Map<String, @Nullable String> layer, Callable<T> body) throws Exception {
-		return ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer))).call(body::call);
+		var merged = KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer));
+		try {
+			return ScopedValue.where(STACK, merged).call(body::call);
+		}
+		catch (Exception e) {
+			tagWithContext(e, merged);
+			throw e;
+		}
 	}
 
 	@Override
@@ -73,6 +88,28 @@ public final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvide
 		var buf = MutableKeyValues.of(layer.size());
 		layer.forEach(buf);
 		return buf.freeze();
+	}
+
+	/*
+	 * Prototype/experimental - see ScopedContextMarker and
+	 * LogFormatter.ThrowableFormatter.KeyValuesCarrier. Tags the escaping throwable with
+	 * the key values that were bound at *this* push boundary - the deepest (most nested)
+	 * push an exception escapes through already has everything from enclosing pushes
+	 * merged in (see this class's own javadoc on the cons-cell structure), so only the
+	 * first (innermost) push it passes through needs to tag it; an outer push seeing it
+	 * already tagged leaves it alone rather than replacing a more specific snapshot with
+	 * a less specific one.
+	 */
+	private static void tagWithContext(Throwable t, KeyValues merged) {
+		if (merged.isEmpty()) {
+			return;
+		}
+		for (var suppressed : t.getSuppressed()) {
+			if (suppressed instanceof KeyValuesCarrier) {
+				return;
+			}
+		}
+		t.addSuppressed(new ScopedContextMarker(merged));
 	}
 
 }
