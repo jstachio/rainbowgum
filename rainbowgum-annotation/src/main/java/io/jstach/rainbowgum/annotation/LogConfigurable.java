@@ -145,6 +145,12 @@ public @interface LogConfigurable {
 	 * Wall call a static method on the factory class (the class that contains the
 	 * annotated {@link LogConfigurable} method) with the property value as a string to be
 	 * converted.
+	 * <p>
+	 * The annotated method is only called when the property is actually present - if the
+	 * property is missing and the parameter is optional (nullable or has a default), the
+	 * generated builder resolves straight to <code>null</code>/the default without ever
+	 * calling the converter, so it never needs to handle a missing or <code>null</code>
+	 * raw value itself.
 	 */
 	@Retention(CLASS)
 	@Target({ ElementType.PARAMETER })

@@ -98,6 +98,8 @@ record BuilderModel( //
 
 		private static final String INTEGER_TYPE = "java.lang.Integer";
 
+		private static final String LONG_TYPE = "java.lang.Long";
+
 		private static final String URI_TYPE = "java.net.URI";
 
 		private static final String STRING_TYPE = "java.lang.String";
@@ -139,6 +141,7 @@ record BuilderModel( //
 			}
 			return switch (type) {
 				case INTEGER_TYPE -> "ofInt";
+				case LONG_TYPE -> "ofLong";
 				case STRING_TYPE -> "ofString";
 				case URI_TYPE -> "ofURI";
 				case BOOLEAN_TYPE -> "ofBoolean";
@@ -163,6 +166,7 @@ record BuilderModel( //
 		public String typeDescription() {
 			return switch (type) {
 				case INTEGER_TYPE -> "Integer";
+				case LONG_TYPE -> "Long";
 				case STRING_TYPE -> "String";
 				case URI_TYPE -> "URI";
 				case BOOLEAN_TYPE -> "Boolean";
@@ -181,7 +185,7 @@ record BuilderModel( //
 
 		boolean isLiteralType() {
 			return switch (type) {
-				case INTEGER_TYPE, STRING_TYPE, BOOLEAN_TYPE -> true;
+				case INTEGER_TYPE, LONG_TYPE, STRING_TYPE, BOOLEAN_TYPE -> true;
 				default -> false;
 			};
 		}
