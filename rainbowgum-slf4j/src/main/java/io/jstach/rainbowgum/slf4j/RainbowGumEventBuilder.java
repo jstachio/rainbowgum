@@ -170,11 +170,12 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 		}
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, keyValues, throwable,
 				messageFormatter, this.args);
-		Caller caller = null;
 		if (handler.isCallerAware()) {
-			caller = LogEventHandler.stackWalker
+			@Nullable Caller caller = LogEventHandler.stackWalker
 				.walk(s -> s.skip(depth + DEPTH_DELTA).limit(1).map(f -> Caller.of(f)).findFirst().orElse(null));
-			event = LogEvent.withCaller(event, caller);
+			if (caller != null) {
+				event = LogEvent.withCaller(event, caller);
+			}
 		}
 		logger.log(event);
 	}
