@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum.systemlogger;
 
-import java.time.Instant;
 import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -8,18 +7,37 @@ import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 
-import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 
-record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) implements System.Logger {
+record LevelSystemLogger(String loggerName, int level, LogEventLogger logger,
+		LogEventFactory eventFactory) implements System.Logger {
 
 	static System.Logger of(String loggerName, Level level, LogEventLogger logger) {
 		if (level == Level.OFF) {
 			return new OffSystemLogger(loggerName);
 		}
-		return new LevelSystemLogger(loggerName, fixLevel(level).getSeverity(), logger);
+		return new LevelSystemLogger(loggerName, fixLevel(level).getSeverity(), logger, eventFactory(loggerName));
+	}
+
+	/*
+	 * java.lang.System.Logger's varargs log(...) overloads follow java.text.MessageFormat
+	 * ({0}/{1}-style) placeholder conventions, not SLF4J's {}-style ones - override
+	 * messageFormatter() rather than relying on LogEventFactory's own SLF4J default.
+	 */
+	private static LogEventFactory eventFactory(String loggerName) {
+		record JULLogEventFactory(String loggerName) implements LogEventFactory {
+
+			@Override
+			public LogMessageFormatter messageFormatter() {
+				return StandardMessageFormatter.JUL;
+			}
+
+		}
+		return new JULLogEventFactory(loggerName);
 	}
 
 	record OffSystemLogger(String loggerName) implements System.Logger {
@@ -80,9 +98,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	}
 
 	private LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
-		var currentThread = Thread.currentThread();
-		return LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level, loggerName,
-				formattedMessage, KeyValues.of(), throwable);
+		return eventFactory.eventNoArg(level, formattedMessage, throwable);
 	}
 
 	@Override
@@ -135,14 +151,7 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, @Nullable String format, @Nullable Object... params) {
 		if (isLoggable(level)) {
-			var currentThread = Thread.currentThread();
-			Instant timestamp = Instant.now();
-			String threadName = currentThread.getName();
-			long threadId = currentThread.threadId();
-			String message = format;
-			Throwable throwable = null;
-			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
-					throwable, StandardMessageFormatter.JUL, params);
+			LogEvent event = eventFactory.eventArgs(level, format, params);
 			logger.log(event);
 		}
 	}
@@ -159,14 +168,8 @@ record LevelSystemLogger(String loggerName, int level, LogEventLogger logger) im
 	@Override
 	public void log(Level level, @Nullable ResourceBundle bundle, @Nullable String format, @Nullable Object... params) {
 		if (isLoggable(level)) {
-			var currentThread = Thread.currentThread();
-			Instant timestamp = Instant.now();
-			String threadName = currentThread.getName();
-			long threadId = currentThread.threadId();
 			String message = getMessage(bundle, format);
-			Throwable throwable = null;
-			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
-					throwable, StandardMessageFormatter.JUL, params);
+			LogEvent event = eventFactory.eventArgs(level, message, params);
 			logger.log(event);
 		}
 
