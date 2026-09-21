@@ -1,15 +1,13 @@
 package io.jstach.rainbowgum.systemlogger;
 
-import java.time.Instant;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 
-import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
+import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogRouter;
 
 /**
@@ -25,6 +23,8 @@ public final class RainbowGumSystemLogger implements System.Logger {
 
 	private final LogRouter router;
 
+	private final LogEventFactory eventFactory;
+
 	/**
 	 * Provides a system logger that will use the given root router.
 	 * @param loggerName standard dotted logger name.
@@ -39,6 +39,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		super();
 		this.loggerName = loggerName;
 		this.router = router;
+		this.eventFactory = LevelSystemLogger.eventFactory(loggerName);
 	}
 
 	private final static Level fixLevel(Level level) {
@@ -49,9 +50,7 @@ public final class RainbowGumSystemLogger implements System.Logger {
 	}
 
 	private LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {
-		var currentThread = Thread.currentThread();
-		return LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level, loggerName,
-				formattedMessage, KeyValues.of(), throwable);
+		return eventFactory.eventNoArg(level, formattedMessage, throwable);
 	}
 
 	@Override
@@ -152,13 +151,8 @@ public final class RainbowGumSystemLogger implements System.Logger {
 		level = fixLevel(level);
 		var route = router.route(loggerName, level);
 		if (route.isEnabled()) {
-			Instant timestamp = Instant.now();
-			String threadName = Thread.currentThread().getName();
-			long threadId = Thread.currentThread().threadId();
 			String message = LevelSystemLogger.getMessage(bundle, format);
-			Throwable throwable = null;
-			LogEvent event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, message, KeyValues.of(),
-					throwable, StandardMessageFormatter.JUL, args);
+			LogEvent event = eventFactory.eventArgs(level, message, args);
 			route.log(event);
 		}
 	}
