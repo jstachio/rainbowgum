@@ -4,6 +4,10 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
+/*
+ * Inspired by Logback's own Token class (ch.qos.logback.core.pattern.parser.Token),
+ * including its token-type int constants below.
+ */
 class Token {
 
 	static final int PERCENT = 37;
