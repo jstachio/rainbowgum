@@ -9,21 +9,28 @@ interface Abbreviator {
 
 	static final char DOT = '.';
 
-	static final String DISABLE_CACHE_SYSTEM_PROPERTY = "logback.namedConverter.disableCache";
-
 	public String abbreviate(String in);
 
+	/**
+	 * Creates the abbreviator for the given target length - uncached. Callers that want
+	 * caching wrap the result with {@link #cache(Abbreviator)} themselves, driven by
+	 * {@link PatternConfig#abbreviatorCache()}.
+	 * @param length target length, non-positive means class-name-only.
+	 * @return abbreviator.
+	 */
 	public static Abbreviator of(int length) {
 		if (length <= 0) {
-			return cache(StandardAbbreviator.CLASS_NAME_ONLY);
+			return StandardAbbreviator.CLASS_NAME_ONLY;
 		}
-		return cache(new TargetLengthBasedClassNameAbbreviator(length));
+		return new TargetLengthBasedClassNameAbbreviator(length);
 	}
 
+	/**
+	 * Wraps an abbreviator with a cache.
+	 * @param a abbreviator to wrap.
+	 * @return cached abbreviator.
+	 */
 	public static Abbreviator cache(Abbreviator a) {
-		if (Boolean.getBoolean(DISABLE_CACHE_SYSTEM_PROPERTY)) {
-			return a;
-		}
 		Cache<String, String> cache = Cache.of(a::abbreviate);
 		return new CacheAbbreviator(cache);
 	}

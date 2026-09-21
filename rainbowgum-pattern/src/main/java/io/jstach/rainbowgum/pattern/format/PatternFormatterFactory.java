@@ -254,7 +254,11 @@ enum StandardKeywordFactory implements KeywordFactory {
 			if (length == null) {
 				return LogFormatter.builder().loggerName().build();
 			}
-			return new LoggerFormatter(Abbreviator.of(length));
+			Abbreviator abbreviator = Abbreviator.of(length);
+			if (config.abbreviatorCache() == PatternConfig.CacheType.BASIC) {
+				abbreviator = Abbreviator.cache(abbreviator);
+			}
+			return new LoggerFormatter(abbreviator);
 		}
 
 	},

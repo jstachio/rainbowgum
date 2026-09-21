@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.pattern.format;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Locale;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
@@ -78,6 +79,43 @@ public sealed interface PatternConfig extends Configurator {
 	public long sequenceNumberStart();
 
 	/**
+	 * Whether keywords that can cache their output (currently just
+	 * <code>%logger{N}</code> via its abbreviator) actually do so. Defaults to
+	 * {@link CacheType#BASIC}.
+	 * @return cache type.
+	 */
+	public CacheType abbreviatorCache();
+
+	/**
+	 * Whether a keyword's own internal caching (currently just <code>%logger{N}</code>'s
+	 * abbreviator) is used. {@link #BASIC} is the only real strategy implemented today -
+	 * kept as an enum rather than a boolean so a possible future global cache toggle (the
+	 * same idea already used for logger name caching and level resolvers) can reuse it
+	 * without a breaking property-format change.
+	 */
+	public enum CacheType {
+
+		/**
+		 * No caching - every call recomputes.
+		 */
+		DISABLED,
+		/**
+		 * The default cache.
+		 */
+		BASIC;
+
+		static CacheType parse(String value) {
+			String v = value.toUpperCase(Locale.ROOT);
+			return switch (v) {
+				case "TRUE", "DEFAULT" -> BASIC;
+				case "FALSE" -> DISABLED;
+				default -> CacheType.valueOf(v);
+			};
+		}
+
+	}
+
+	/**
 	 * Creates a builder to create formatter config.
 	 * @return builder.
 	 * @apiNote {@link PatternConfig} implements {@link Configurator} so it can be
@@ -111,6 +149,7 @@ public sealed interface PatternConfig extends Configurator {
 		builder.propertyFunction(config.propertyFunction());
 		builder.startTime(config.startTime());
 		builder.sequenceNumberStart(config.sequenceNumberStart());
+		builder.abbreviatorCache(config.abbreviatorCache());
 		return builder;
 	}
 
@@ -213,6 +252,11 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 		return 0L;
 	}
 
+	@Override
+	default CacheType abbreviatorCache() {
+		return CacheType.BASIC;
+	}
+
 	enum StandardPropertyFunction implements Function<String, @Nullable String> {
 
 		INSTANCE;
@@ -254,7 +298,7 @@ enum StandardFormatterConfig implements DefaultFormatterConfig {
 }
 
 record SimpleFormatterConfig(ZoneId zoneId, String lineSeparator, boolean ansiDisabled,
-		Function<String, @Nullable String> propertyFunction, Instant startTime,
-		long sequenceNumberStart) implements PatternConfig {
+		Function<String, @Nullable String> propertyFunction, Instant startTime, long sequenceNumberStart,
+		PatternConfig.CacheType abbreviatorCache) implements PatternConfig {
 
 }
