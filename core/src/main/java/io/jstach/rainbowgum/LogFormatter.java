@@ -689,6 +689,31 @@ public sealed interface LogFormatter {
 		 */
 		void formatThrowable(StringBuilder output, Throwable throwable);
 
+		/**
+		 * <strong>Prototype/experimental.</strong> Implemented by a {@link Throwable}
+		 * attached via {@link Throwable#addSuppressed(Throwable)} purely to carry
+		 * {@link KeyValues} - e.g. scoped context that was active when some throwable
+		 * earlier in the chain was actually thrown, not a genuine suppressed exception. A
+		 * {@link ThrowableFormatter} built by {@link #builder()} recognizes an instance
+		 * of this and renders it as <code>Context: key=value, ...</code> instead of
+		 * walking it like an ordinary suppressed exception.
+		 *
+		 * @apiNote there is no JDK-native way to attach arbitrary non-exception data to a
+		 * {@link Throwable} - {@link Throwable#addSuppressed(Throwable)} is the closest
+		 * available extension point, so a carrier is itself a (trace-free, message-free)
+		 * {@link Throwable} purely so it fits there.
+		 */
+		public interface KeyValuesCarrier {
+
+			/**
+			 * Key values to render.
+			 * @return key values, never empty (an empty carrier should simply not be
+			 * attached in the first place).
+			 */
+			KeyValues keyValues();
+
+		}
+
 		@Override
 		default void format(StringBuilder output, LogEvent event) {
 			var t = event.throwableOrNull();
@@ -1289,6 +1314,24 @@ final class ThrowableFramePrinter {
 		return false;
 	}
 
+	/*
+	 * Renders a ThrowableFormatter.KeyValuesCarrier as "Context: k=v, k2=v2" instead of
+	 * walking it like an ordinary suppressed exception - shared by
+	 * StandardThrowableFormatter and RootCauseFirstThrowableFormatter's suppressed loops.
+	 */
+	static void printContextCarrier(StringBuilder output, ThrowableFormatter.KeyValuesCarrier carrier, String prefix) {
+		output.append(prefix).append("Context: ");
+		boolean[] first = { true };
+		carrier.keyValues().forEach((k, v) -> {
+			if (!first[0]) {
+				output.append(", ");
+			}
+			first[0] = false;
+			output.append(k).append('=').append(v);
+		});
+		output.append(System.lineSeparator());
+	}
+
 }
 
 /**
@@ -1317,6 +1360,10 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 		output.append(throwable).append(System.lineSeparator());
 		framePrinter.printFrames(output, trace, trace.length, "");
 		for (var suppressed : throwable.getSuppressed()) {
+			if (suppressed instanceof ThrowableFormatter.KeyValuesCarrier carrier) {
+				ThrowableFramePrinter.printContextCarrier(output, carrier, "\t");
+				continue;
+			}
 			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, "\t", dejaVu);
 		}
 		var cause = throwable.getCause();
@@ -1339,6 +1386,10 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 		output.append(prefix).append(caption).append(throwable).append(System.lineSeparator());
 		framePrinter.printFramesAgainstEnclosing(output, trace, enclosingTrace, prefix);
 		for (var suppressed : throwable.getSuppressed()) {
+			if (suppressed instanceof ThrowableFormatter.KeyValuesCarrier carrier) {
+				ThrowableFramePrinter.printContextCarrier(output, carrier, prefix + "\t");
+				continue;
+			}
 			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, prefix + "\t", dejaVu);
 		}
 		var cause = throwable.getCause();
@@ -1413,6 +1464,10 @@ final class RootCauseFirstThrowableFormatter implements ThrowableFormatter {
 			framePrinter.printFramesAgainstEnclosing(output, trace, enclosingTrace, prefix);
 		}
 		for (var suppressed : throwable.getSuppressed()) {
+			if (suppressed instanceof ThrowableFormatter.KeyValuesCarrier carrier) {
+				ThrowableFramePrinter.printContextCarrier(output, carrier, prefix + "\t");
+				continue;
+			}
 			print(output, suppressed, trace, SUPPRESSED_CAPTION, prefix + "\t", dejaVu);
 		}
 	}
