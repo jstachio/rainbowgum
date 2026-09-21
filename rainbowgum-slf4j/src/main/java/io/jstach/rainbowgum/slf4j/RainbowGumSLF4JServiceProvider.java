@@ -107,7 +107,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 
 	}
 
-	@Nullable private ILoggerFactory loggerFactory;
+	private @Nullable ILoggerFactory loggerFactory;
 
 	private final IMarkerFactory markerFactory;
 

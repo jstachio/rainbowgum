@@ -1,0 +1,7 @@
+package org.slf4j.spi;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public interface LoggingEventBuilder {
+  LoggingEventBuilder addArgument(@Nullable Object p);
+}

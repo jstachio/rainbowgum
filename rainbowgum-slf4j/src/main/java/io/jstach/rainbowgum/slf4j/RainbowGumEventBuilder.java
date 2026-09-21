@@ -31,7 +31,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	private final LogEventHandler handler;
 
-	@Nullable private List<@Nullable Object> args;
+	private @Nullable List<@Nullable Object> args;
 
 	private @Nullable MutableKeyValues mutableKeyValues;
 
@@ -41,7 +41,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 
 	private @Nullable String message;
 
-	@Nullable private Throwable throwable;
+	private @Nullable Throwable throwable;
 
 	private static final LogMessageFormatter messageFormatter = StandardMessageFormatter.SLF4J;
 
@@ -93,7 +93,7 @@ class RainbowGumEventBuilder implements LoggingEventBuilder, DepthAwareEventBuil
 	}
 
 	@Override
-	public LoggingEventBuilder addArgument(Object p) {
+	public LoggingEventBuilder addArgument(@Nullable Object p) {
 		args().add(p);
 		return this;
 	}
