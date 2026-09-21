@@ -43,13 +43,13 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 	 */
 	public static final String LOGBACK_SCHEME = "logback";
 
-	private final boolean prettyprint;
+	private final boolean prettyPrint;
 
 	private final int maxBufferSize;
 
-	LogbackJsonEncoder(boolean prettyprint, int maxBufferSize) {
+	LogbackJsonEncoder(boolean prettyPrint, int maxBufferSize) {
 		super();
-		this.prettyprint = prettyprint;
+		this.prettyPrint = prettyPrint;
 		this.maxBufferSize = maxBufferSize;
 	}
 
@@ -87,7 +87,7 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.UNDERSCORE, maxBufferSize);
+		return new JsonBuffer(this.prettyPrint, ExtendedFieldPrefix.UNDERSCORE, maxBufferSize);
 	}
 
 	@Override
@@ -101,7 +101,13 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 		buffer.write(JSONToken.OBJECT_START);
 		int index = 0;
 		index = buffer.writeLong("timestamp", now.toEpochMilli(), index, 0);
-		index = buffer.writeInt("nanoseconds", now.getNano(), index, 0);
+		/*
+		 * The sub-second remainder alongside the millisecond "timestamp" field above, not
+		 * total nanoseconds since epoch - getNano() is exactly right here.
+		 */
+		@SuppressWarnings("JavaInstantGetSecondsGetNano")
+		int nanoAdjustment = now.getNano();
+		index = buffer.writeInt("nanoseconds", nanoAdjustment, index, 0);
 		index = buffer.write("level", LevelFormatter.toString(event.level()), index);
 		index = buffer.write("threadName", event.threadName(), index);
 		index = buffer.write("loggerName", event.loggerName(), index);
@@ -120,7 +126,7 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 			index = writeThrowable("throwable", t, buffer, index);
 		}
 
-		if (index > 0 && prettyprint) {
+		if (index > 0 && prettyPrint) {
 			buffer.writeLineFeed();
 		}
 		buffer.write(JSONToken.OBJECT_END);
@@ -138,7 +144,7 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 			frameIndex = buffer.write("className", frame.getClassName(), frameIndex, 0);
 			frameIndex = buffer.write("methodName", frame.getMethodName(), frameIndex, 0);
 			frameIndex = buffer.write("fileName", frame.getFileName(), frameIndex, 0);
-			frameIndex = buffer.writeInt("lineNumber", frame.getLineNumber(), frameIndex, 0);
+			buffer.writeInt("lineNumber", frame.getLineNumber(), frameIndex, 0);
 			buffer.writeArrayElementObjectEnd();
 			arrayIndex++;
 		}
@@ -146,7 +152,14 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 		throwableIndex++;
 
 		var cause = t.getCause();
-		if (cause != null && cause != t) {
+		/*
+		 * Deliberately identity, not equals(): a self-referential cause (getCause() ==
+		 * this, a real JDK-permitted case) must break the recursion here, not merely a
+		 * value-equal-but-distinct Throwable.
+		 */
+		@SuppressWarnings("ReferenceEquality")
+		boolean selfReferential = cause == t;
+		if (cause != null && !selfReferential) {
 			writeThrowable("cause", cause, buffer, throwableIndex);
 		}
 

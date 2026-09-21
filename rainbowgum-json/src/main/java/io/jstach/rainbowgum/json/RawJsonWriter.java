@@ -67,7 +67,7 @@ class RawJsonWriter {
 		this.buffer = new byte[capacity];
 	}
 
-	private void enlargeOrFlush(final int size, final int padding) {
+	private void enlargeOrFlush(final int padding) {
 		/*
 		 * buffer.length / 2 truncates to 0 for a buffer.length of 0 or 1, which would
 		 * otherwise leave the buffer at the same size (or, for length 0, still short of
@@ -83,7 +83,7 @@ class RawJsonWriter {
 	 */
 	public final void writeByte(final byte value) {
 		if (position == buffer.length) {
-			enlargeOrFlush(position, 0);
+			enlargeOrFlush(0);
 		}
 		buffer[position++] = value;
 	}
@@ -96,7 +96,7 @@ class RawJsonWriter {
 	public final void writeString(final String value) {
 		final int len = value.length();
 		if (position + (len << 2) + (len << 1) + 2 >= buffer.length) {
-			enlargeOrFlush(position, (len << 2) + (len << 1) + 2);
+			enlargeOrFlush((len << 2) + (len << 1) + 2);
 		}
 		final byte[] _result = buffer;
 		_result[position] = QUOTE;
@@ -116,6 +116,7 @@ class RawJsonWriter {
 	}
 
 	@GeneratedByATrustedSource
+	@SuppressWarnings("StatementSwitchToExpressionSwitch")
 	private void writeQuotedString(final CharSequence str, int i, int cur, final int len) {
 		final byte[] _result = this.buffer;
 		for (; i < len; i++) {
@@ -319,7 +320,7 @@ class RawJsonWriter {
 	public final void writeAsciiString(final String value) {
 		final int len = value.length() + 2;
 		if (position + len >= buffer.length) {
-			enlargeOrFlush(position, len);
+			enlargeOrFlush(len);
 		}
 		final byte[] _result = buffer;
 		_result[position] = QUOTE;
@@ -336,7 +337,7 @@ class RawJsonWriter {
 		else if (value == Double.NEGATIVE_INFINITY) {
 			writeAsciiString("\"-Infinity\"");
 		}
-		else if (value != value) {
+		else if (Double.isNaN(value)) {
 			writeAsciiString("\"NaN\"");
 		}
 		else if (value == 0.0) {
@@ -345,7 +346,7 @@ class RawJsonWriter {
 		else {
 			if (Grisu3.tryConvert(value, doubleBuilder)) {
 				if (position + 24 >= buffer.length) {
-					enlargeOrFlush(position, 24);
+					enlargeOrFlush(24);
 				}
 				final int len = doubleBuilder.copyTo(buffer, position);
 				position += len;
@@ -365,7 +366,7 @@ class RawJsonWriter {
 	public final void writeAscii(final String value) {
 		final int len = value.length();
 		if (position + len >= buffer.length) {
-			enlargeOrFlush(position, len);
+			enlargeOrFlush(len);
 		}
 		value.getBytes(0, len, buffer, position);
 		position += len;

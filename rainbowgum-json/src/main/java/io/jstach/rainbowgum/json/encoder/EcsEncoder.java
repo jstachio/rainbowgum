@@ -63,14 +63,14 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final boolean structured;
 
-	private final boolean prettyprint;
+	private final boolean prettyPrint;
 
 	private final int maxBufferSize;
 
 	private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_INSTANT;
 
 	EcsEncoder(@Nullable String serviceName, @Nullable String serviceVersion, @Nullable String serviceEnvironment,
-			@Nullable String serviceNodeName, @Nullable String eventDataset, boolean structured, boolean prettyprint,
+			@Nullable String serviceNodeName, @Nullable String eventDataset, boolean structured, boolean prettyPrint,
 			int maxBufferSize) {
 		super();
 		this.serviceName = serviceName;
@@ -79,7 +79,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		this.serviceNodeName = serviceNodeName;
 		this.eventDataset = eventDataset;
 		this.structured = structured;
-		this.prettyprint = prettyprint;
+		this.prettyPrint = prettyPrint;
 		this.maxBufferSize = maxBufferSize;
 	}
 
@@ -137,7 +137,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.AT, maxBufferSize);
+		return new JsonBuffer(this.prettyPrint, ExtendedFieldPrefix.AT, maxBufferSize);
 	}
 
 	@Override
@@ -149,7 +149,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		int index = structured ? encodeStructured(event, buffer, formattedMessage)
 				: encodeFlattened(event, buffer, formattedMessage);
 
-		if (index > 0 && prettyprint) {
+		if (index > 0 && prettyPrint) {
 			buffer.writeLineFeed();
 		}
 		buffer.write(JSONToken.OBJECT_END);
@@ -196,7 +196,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 		int logIndex = buffer.writeObjectStart("log", index, 0);
 		logIndex = buffer.write("level", LevelFormatter.toString(event.level()), logIndex, 0);
-		logIndex = buffer.write("logger", event.loggerName(), logIndex, 0);
+		buffer.write("logger", event.loggerName(), logIndex, 0);
 		buffer.writeObjectEnd();
 		index++;
 

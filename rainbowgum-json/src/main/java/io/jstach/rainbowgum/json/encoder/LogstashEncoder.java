@@ -46,16 +46,16 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 
 	private final ZoneId zoneId;
 
-	private final boolean prettyprint;
+	private final boolean prettyPrint;
 
 	private final DateTimeFormatter timeFormatter;
 
 	private final int maxBufferSize;
 
-	LogstashEncoder(ZoneId zoneId, boolean prettyprint, int maxBufferSize) {
+	LogstashEncoder(ZoneId zoneId, boolean prettyPrint, int maxBufferSize) {
 		super();
 		this.zoneId = zoneId;
-		this.prettyprint = prettyprint;
+		this.prettyPrint = prettyPrint;
 		this.timeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(zoneId);
 		this.maxBufferSize = maxBufferSize;
 	}
@@ -110,7 +110,7 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 
 	@Override
 	protected JsonBuffer doBuffer(BufferHints hints) {
-		return new JsonBuffer(this.prettyprint, ExtendedFieldPrefix.AT, maxBufferSize);
+		return new JsonBuffer(this.prettyPrint, ExtendedFieldPrefix.AT, maxBufferSize);
 	}
 
 	@Override
@@ -144,7 +144,7 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 			index = buffer.write(k, v, index);
 		}
 
-		if (index > 0 && prettyprint) {
+		if (index > 0 && prettyPrint) {
 			buffer.writeLineFeed();
 		}
 		buffer.write(JSONToken.OBJECT_END);
