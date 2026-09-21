@@ -16,7 +16,7 @@ import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
 
-/*
+/**
  * The generated PatternEncoderBuilder.maxBufferSize(...) property/setter - proves
  * logging.encoder.{name}.maxBufferSize actually threads through to the LogEncoder.Buffer
  * handed out and its isOversized() answer, the same way charset threads through to

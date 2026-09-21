@@ -25,6 +25,13 @@ import io.jstach.rainbowgum.pattern.internal.Node.LiteralNode;
 // OPTION = {...} | ~
 // COMPOSITE = E ')' OPTION
 
+/*
+ * Ported from Logback's grammar-driven parser (see the grammar comment above) - the
+ * statement switches here have local declarations and multi-statement case bodies, so
+ * converting them to arrow-style expression switches isn't a mechanical rename and
+ * risks subtly changing this hand-ported parser's control flow.
+ */
+@SuppressWarnings("StatementSwitchToExpressionSwitch")
 public class Parser {
 
 	// public final static Map<String, String> DEFAULT_COMPOSITE_CONVERTER_MAP = new
@@ -225,10 +232,17 @@ public class Parser {
 		}
 	}
 
+	/*
+	 * Intentionally disabled debug tracing hooks (called throughout this parser) - the
+	 * parameters exist so re-enabling the println below doesn't require touching every
+	 * call site.
+	 */
+	@SuppressWarnings("UnusedVariable")
 	private static void _debug(String msg) {
 		// System.out.println(msg);
 	}
 
+	@SuppressWarnings("UnusedVariable")
 	private static void _debug(String msg, Object arg) {
 		// System.out.println(msg + arg);
 	}

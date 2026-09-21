@@ -127,6 +127,11 @@ public sealed interface PatternRegistry {
 	 * Built-in supported pattern keys.
 	 */
 	@CaseChanging
+	/*
+	 * aliases is always assigned via List.of(...) in the constructor - genuinely
+	 * immutable, just not through a type that says so statically.
+	 */
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum KeywordKey implements PatternKey {
 
 		/**
@@ -234,6 +239,7 @@ public sealed interface PatternRegistry {
 			this(List.of(others));
 		}
 
+		@Override
 		public List<String> aliases() {
 			return this.aliases;
 		}
@@ -244,6 +250,11 @@ public sealed interface PatternRegistry {
 	 * Built-in supported color pattern keys.
 	 */
 	@CaseChanging
+	/*
+	 * aliases is always assigned via List.of(...) in the constructor - genuinely
+	 * immutable, just not through a type that says so statically.
+	 */
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum ColorKey implements PatternKey {
 
 		/**
@@ -326,6 +337,7 @@ public sealed interface PatternRegistry {
 			this(List.of(others));
 		}
 
+		@Override
 		public List<String> aliases() {
 			return this.aliases;
 		}
@@ -342,6 +354,11 @@ public sealed interface PatternRegistry {
 	 * Spring Boot patterns.
 	 */
 	@CaseChanging
+	/*
+	 * aliases is always assigned via List.of(...) in the constructor - genuinely
+	 * immutable, just not through a type that says so statically.
+	 */
+	@SuppressWarnings("ImmutableEnumChecker")
 	enum SpringBootKey implements PatternKey {
 
 		/*
@@ -391,6 +408,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 		super();
 	}
 
+	@Override
 	public void register(PatternKey key, PatternFormatterFactory factory) {
 		lock.writeLock().lock();
 		try {
@@ -410,6 +428,7 @@ final class DefaultPatternRegistry implements PatternRegistry {
 		}
 	}
 
+	@Override
 	public @Nullable PatternFormatterFactory getOrNull(String key) {
 		lock.readLock().lock();
 		try {

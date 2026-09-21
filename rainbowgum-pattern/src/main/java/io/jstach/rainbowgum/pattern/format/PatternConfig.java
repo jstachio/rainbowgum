@@ -167,6 +167,7 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 	 * Default zoneId if not specified. If not overridden the system default will be used.
 	 * @return zone id.
 	 */
+	@Override
 	default ZoneId zoneId() {
 		return ZoneId.systemDefault();
 	}
@@ -175,6 +176,7 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 	 * Line separator for %n by default uses {@link System#lineSeparator()}.
 	 * @return line separator.
 	 */
+	@Override
 	default String lineSeparator() {
 		return System.lineSeparator();
 	}
@@ -184,6 +186,7 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 	 * decorate.
 	 * @return false if ANSI escape sequences can be outputted.
 	 */
+	@Override
 	default boolean ansiDisabled() {
 		return false;
 	}
@@ -197,6 +200,7 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 	 * Captured once when this interface is first loaded so all default configs share a
 	 * single start time approximating application/logging startup.
 	 */
+	@SuppressWarnings("TimeInStaticInitializer")
 	Instant DEFAULT_START_TIME = Instant.now();
 
 	@Override

@@ -17,6 +17,7 @@ public sealed interface Node {
 
 		END;
 
+		@Override
 		public void prettyPrint(StringBuilder sb) {
 			sb.append("END");
 		}
@@ -45,6 +46,7 @@ public sealed interface Node {
 	}
 
 	public record LiteralNode(Node next, String value) implements HasNext {
+		@Override
 		public void prettyPrint(StringBuilder sb) {
 			sb.append("LITERAL[").append('\'').append(value).append('\'').append("]");
 			appendPrint(sb, next);
@@ -58,6 +60,7 @@ public sealed interface Node {
 	public record KeywordNode(Node next, @Nullable Padding padding, String keyword,
 			List<String> optionList) implements FormattingNode {
 
+		@Override
 		public void prettyPrint(StringBuilder sb) {
 			sb.append("KEYWORD[").append("'").append(keyword).append("'");
 			if (!optionList.isEmpty()) {
@@ -72,6 +75,7 @@ public sealed interface Node {
 	public record CompositeNode(Node next, @Nullable Padding padding, String keyword, List<String> optionList,
 			Node childNode) implements FormattingNode {
 
+		@Override
 		public void prettyPrint(StringBuilder sb) {
 			sb.append("COMPOSITE[").append("keyword='").append(keyword).append("'");
 			if (!optionList.isEmpty()) {

@@ -14,6 +14,7 @@ class AsIsEscaper implements ParserEscaper {
 	 * Note that this method assumes that it is called after the escape character has been
 	 * consumed.
 	 */
+	@Override
 	public void escape(String escapeChars, StringBuilder buf, char next, int pointer) {
 		// restitute the escape char (because it was consumed
 		// before this method was called).
@@ -24,8 +25,15 @@ class AsIsEscaper implements ParserEscaper {
 
 }
 
+/*
+ * Ported from Logback - the switch below has side effects (mutating buf, an early break,
+ * a throw in the default case), so converting it to an arrow-style expression switch
+ * isn't a mechanical rename.
+ */
+@SuppressWarnings("StatementSwitchToExpressionSwitch")
 class RegularEscaper implements ParserEscaper {
 
+	@Override
 	public void escape(String escapeChars, StringBuilder buf, char next, int pointer) {
 		if (escapeChars.indexOf(next) >= 0) {
 			buf.append(next);

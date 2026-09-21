@@ -382,7 +382,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 	 * Logback's syntax for a default value (e.g. <code>%X{requestId:-none}</code>).
 	 */
 	static KeyAndFallback keyAndFallback(String option) {
-		String[] s = option.split(":-");
+		String[] s = option.split(":-", 0);
 		if (s.length == 2) {
 			return new KeyAndFallback(s[0], s[1]);
 		}
@@ -718,6 +718,7 @@ enum ColorCompositeFactory implements CompositeFactory {
 		this.name = name;
 	}
 
+	@Override
 	public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
 		return create(node, child, !config.ansiDisabled());
 	}
