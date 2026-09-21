@@ -82,6 +82,16 @@ public interface LogProperty {
 
 	/**
 	 * Resolves the property as a boolean.
+	 * <p>
+	 * {@link Boolean#parseBoolean(String)} treats any value other than
+	 * <code>"true"</code> (case-insensitive) as <code>false</code> - a typo or a
+	 * reasonable-looking alternative like <code>someFlag=yes</code> silently resolves to
+	 * <code>false</code> instead of failing loudly. Component/plugin authors implementing
+	 * a new property should prefer a small enum (with
+	 * <code>true</code>/<code>false</code> aliased to e.g.
+	 * <code>on</code>/<code>off</code> members) parsed via {@link #ofString()} instead,
+	 * so a bad value alerts rather than silently resolving false. This method remains
+	 * available (and fine) for end users setting an existing boolean property.
 	 * @return result.
 	 */
 	default Result<Boolean> ofBoolean() {
