@@ -21,20 +21,29 @@ _ignored_profiles="-enforce-maven-version,-format-apply,-deploy-local,-javadoc-j
 # clean (or fixed) rather than flipping the whole reactor on at once.
 _modules="core,rainbowgum-annotation,rainbowgum-jul,rainbowgum-scoped-key-values-api,rainbowgum-jdk,rainbowgum,rainbowgum-simple-props,rainbowgum-scoped-key-values,rainbowgum-avaje-config,rainbowgum-jansi,rainbowgum-disruptor"
 
-# Modules where Checker Framework itself crashes (BugInCF on
-# getElementValueArray/resourceleak, reproducibly, analyzing a close() call against a
-# freshly-compiled - not stub/bytecode - declaring class - not a code problem here, see
-# develop.md) - excluded from the checkerframework profile only. errorprone and nullaway
-# are independent tools (nullaway doesn't use Checker Framework machinery at all) and both
-# pass clean on these, so they still get analyzed by those two.
-_modules_no_checkerframework="rainbowgum-file,rainbowgum-tomcat,:rainbowgum-spring-boot4"
+# Modules excluded from the checkerframework profile only - errorprone and nullaway are
+# independent tools (nullaway doesn't use Checker Framework machinery at all) and both
+# pass clean on these, so they still get analyzed by those two:
+# - rainbowgum-file, rainbowgum-tomcat, :rainbowgum-spring-boot4: Checker Framework itself
+#   crashes (BugInCF on getElementValueArray/resourceleak, reproducibly, analyzing a
+#   close() call against a freshly-compiled - not stub/bytecode - declaring class - not a
+#   code problem here, see develop.md).
+# - rainbowgum-slf4j: checkerframework's own test-compile has never actually succeeded for
+#   this module - its checkerframework profile (rainbowgum-slf4j/pom.xml) never wired
+#   jstachio-apt's own processor (io.jstach.apt.GenerateRendererProcessor) into the
+#   root-pom checkerframework profile's explicit <annotationProcessors> list (unlike
+#   errorprone/nullaway, which have no such explicit list and auto-run whatever's on the
+#   annotationProcessorPath), so test-compile fails immediately on "cannot find symbol" for
+#   generated renderer classes before any real nullness checking of the test tree happens.
+#   Wiring it in unblocks test-compile but then surfaces real findings inside jstachio-apt's
+#   *own* generated code (passing null to Function<...>-typed constructor params) that
+#   aren't ours to fix - real design work, not mechanical. Main-source-only
+#   `checkerframework compile` is clean; errorprone and nullaway are both fully clean,
+#   main+test.
+_modules_no_checkerframework="rainbowgum-file,rainbowgum-tomcat,:rainbowgum-spring-boot4,rainbowgum-slf4j"
 
 # Modules where checkerframework and/or nullaway need real design work before they can be
 # enabled (not mechanical fixes - see develop.md), but errorprone alone is clean:
-# - rainbowgum-slf4j's ArrayMDCAdapter/RainbowGumMDCAdapter override org.slf4j.spi.MDCAdapter,
-#   an un-stubbed third-party interface both tools treat as strictly @NonNull by default,
-#   with no teaching mechanism (EEA/astub file) in place yet. errorprone doesn't do this
-#   kind of cross-supertype nullness override checking at all, so it's unaffected.
 # - rainbowgum-pattern: a real, interconnected parser (Token/Parser/PatternCompiler) with
 #   genuine nullness findings that need someone who understands its null semantics, not a
 #   mechanical pass.
@@ -42,7 +51,7 @@ _modules_no_checkerframework="rainbowgum-file,rainbowgum-tomcat,:rainbowgum-spri
 # rainbowgum-json has not actually been tried under checkerframework/nullaway - included
 # here for now on the assumption it needs the same kind of pass; revisit if that turns out
 # to be wrong.
-_modules_errorprone_only="rainbowgum-slf4j,rainbowgum-pattern,rainbowgum-json,rainbowgum-systemlogger"
+_modules_errorprone_only="rainbowgum-pattern,rainbowgum-json,rainbowgum-systemlogger"
 
 for profile in $_profiles; do
 echo ""
