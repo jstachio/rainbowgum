@@ -5,7 +5,14 @@
 (The exception and rule that must be followed is that `main` branch must be
     linear and we use rebase instead of merge.)
 
+## Git Workflow
+
 Keep git commit titles under 72 chars.
+
+On PR branches commits should be squashed before being merged if the history is
+not worth preserving or confusing.
+
+## Testing
 
 Prefer end to end tests over unit tests.
 
@@ -15,13 +22,17 @@ For faster builds slow tests get put in test modules in test directory.
 
 Golden strings of error messages or log output are desirable in this library.
 
-Error messages are part of the UI and should be very clear with lots of context.
-We do not fail silently unless absolutely no other choice.
-
 Do not write unit tests that are not end to end just to improve code coverage.
 
 While this library does not do mutation testing the general idea is if code is
 edited other than refactor a test should fail.
+
+## Error Handling
+
+Error messages are part of the UI and should be very clear with lots of context.
+We do not fail silently unless absolutely no other choice.
+
+## API Design and Code Style
 
 Minimize API surface and allow future flexibility. Limit packages to very few
 as its hard to encapsulate across packages. The main package should have the
@@ -62,12 +73,6 @@ private classes.
 Enums and or sealed classes that are likely to have additional members on
 future minor releases should be annotated with `@CaseChanging`.
 
-On PR branches commits should be squashed before being merged if the history is
-not worth preserving or confusing.
-
-We do not add license headers to source code because its dumb and adds zero
-protection.
-
 ## Human specific
 
 This is for humans: try not write documentation targeted specifically for
@@ -80,6 +85,8 @@ agent probably did not work on that code but do not put them in javadoc. Likewis
 there is no code conduct because frankely it should be pretty obvious that being
 an asshole is not tolerated.
 
+We do not add license headers to source code because its dumb and adds zero
+protection.
 
 ## Agent specific
 
@@ -95,4 +102,3 @@ An agent should coauthor commits that have novel additions to the code base.
 Novel being complicated logic. Novel is not unit tests, refactoring, trivial
 documentation adjustments, dependency updates and other mechanical things that
 IDE tools, bots or simple agents would do. If in doubt the agent asks.
-
