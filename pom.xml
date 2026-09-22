@@ -131,6 +131,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-jboss-logging</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-slf4j</artifactId>
         <version>${project.version}</version>
       </dependency>
