@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.scopedkeyvalues.spi;
 
 import java.util.Map;
 
-import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues.CallableOp;
+import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues;
 
 /**
  * Service Provider Interface for
@@ -20,24 +20,13 @@ import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues.CallableOp;
 public interface ScopedKeyValuesProvider {
 
 	/**
-	 * Pushes {@code layer} and runs {@code body} for its duration.
-	 * @param layer key values to push, never {@code null}, keys and values never
-	 * {@code null}.
-	 * @param body code to run with {@code layer} pushed.
+	 * Creates a fresh {@link ScopedKeyValues.Builder} for one layer of key values. Owned
+	 * by this provider so an addition can be written directly into its own internal
+	 * representation, rather than every push forcing a copy through an intermediate
+	 * {@link Map}.
+	 * @return builder.
 	 */
-	void push(Map<String, String> layer, Runnable body);
-
-	/**
-	 * Pushes {@code layer} and calls {@code body} for its duration.
-	 * @param <T> return type.
-	 * @param <X> exception type {@code body} may throw.
-	 * @param layer key values to push, never {@code null}, keys and values never
-	 * {@code null}.
-	 * @param body code to call with {@code layer} pushed.
-	 * @return whatever {@code body} returns.
-	 * @throws X whatever {@code body} throws.
-	 */
-	<T, X extends Throwable> T push(Map<String, String> layer, CallableOp<T, X> body) throws X;
+	ScopedKeyValues.Builder builder();
 
 	/**
 	 * Every currently pushed layer, merged into one map - later (more deeply nested)

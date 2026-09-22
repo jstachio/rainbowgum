@@ -3,8 +3,6 @@ package io.jstach.rainbowgum.scopedkeyvalues.provider;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Map;
-
 import org.junit.jupiter.api.Test;
 
 /*
@@ -17,10 +15,6 @@ class ScopedKeyValuesProviderImplTest {
 
 	private final ScopedKeyValuesProviderImpl provider = new ScopedKeyValuesProviderImpl();
 
-	private static Map<String, String> layer(String key, String value) {
-		return Map.of(key, value);
-	}
-
 	@Test
 	void currentMergedIsEmptyOutsideAnyPush() {
 		assertTrue(provider.currentMerged().isEmpty());
@@ -28,21 +22,21 @@ class ScopedKeyValuesProviderImplTest {
 
 	@Test
 	void pushedValuesAreVisibleForTheDurationOfTheBody() {
-		provider.push(layer("requestId", "abc123"), () -> {
+		provider.builder().add("requestId", "abc123").run(() -> {
 			assertEquals("abc123", provider.currentMerged().get("requestId"));
 		});
 	}
 
 	@Test
 	void pushedValuesAreGoneAfterRunReturns() {
-		provider.push(layer("requestId", "abc123"), () -> {
+		provider.builder().add("requestId", "abc123").run(() -> {
 		});
 		assertTrue(provider.currentMerged().isEmpty());
 	}
 
 	@Test
 	void nestedPushesAccumulateWithoutCollision() {
-		provider.push(layer("outer", "o"), () -> provider.push(layer("inner", "i"), () -> {
+		provider.builder().add("outer", "o").run(() -> provider.builder().add("inner", "i").run(() -> {
 			var merged = provider.currentMerged();
 			assertEquals("o", merged.get("outer"));
 			assertEquals("i", merged.get("inner"));
@@ -51,15 +45,24 @@ class ScopedKeyValuesProviderImplTest {
 
 	@Test
 	void laterNestedPushWinsOnCollision() {
-		provider.push(layer("k", "outer"), () -> provider.push(layer("k", "inner"), () -> {
+		provider.builder().add("k", "outer").run(() -> provider.builder().add("k", "inner").run(() -> {
 			assertEquals("inner", provider.currentMerged().get("k"));
 		}));
 	}
 
 	@Test
 	void callReturnsTheBodysResult() throws Exception {
-		String result = provider.push(layer("k", "v"), () -> "hello");
+		String result = provider.builder().add("k", "v").call(() -> "hello");
 		assertEquals("hello", result);
+	}
+
+	@Test
+	void aSingleBuilderCanBePushedMultipleTimesIndependently() throws Exception {
+		var builder = provider.builder().add("k", "v1");
+		builder.run(() -> assertEquals("v1", provider.currentMerged().get("k")));
+
+		builder.add("k", "v2");
+		builder.run(() -> assertEquals("v2", provider.currentMerged().get("k")));
 	}
 
 }
