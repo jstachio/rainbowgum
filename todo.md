@@ -69,8 +69,9 @@ To land before 1.0:
       since that type was built around single-snapshot health rather than metrics.
 - [x] Sanity check `LogAlerts.DEFAULT_CAPACITY` (currently 100) against a real consumer
       instead of a guess.
-- [ ] Revisit whether coalescing repeated identical alerts (a stuck queue dropping
+- [x] Revisit whether coalescing repeated identical alerts (a stuck queue dropping
       every event) is needed - not addressed by the first `LogAlerts` cut.
+      (ADAM: negative for now. Use LogMetrics)
 - [x] `LogAlerts` currently has no listener-driven consumer of its own yet (the
       `addListener` hook landed on `feature/log-alerts` but nothing calls it) - a buffer
       resize/soft-limit-hit counter (see the soft-limiting `maxBufferSize` work on
@@ -117,36 +118,6 @@ To land before 1.0:
       (a plain utility method vs. a Spring actuator-style endpoint vs. something
       printed at startup) is still undecided.
 
-## 2. Replace Eclipse JDT nullability annotations with JSpecify
-
-`org.eclipse.jdt.annotation.Nullable` + CheckerFramework's Nullness Checker are used
-today, but only on `core` - `bin/analyze.sh checkerframework` is hardcoded to `-pl core`,
-so every other module (`rainbowgum-pattern`, `rainbowgum-json`, the Spring modules,
-`rainbowgum-disruptor`, etc.) currently has zero null-checking. CheckerFramework has also
-shown real friction: its bundled stubs don't treat `Objects.requireNonNull`/
-`Objects.requireNonNullElse` the way you'd expect for narrowing a `@Nullable` value,
-which forced awkward workarounds in test code this cycle.
-
-- [x] Mechanically replace `org.eclipse.jdt.annotation.Nullable` with
-      `org.jspecify.annotations.Nullable` throughout - the vendor-neutral standard, and
-      what the wider ecosystem (Guava, Spring, etc.) is converging on. This is a big,
-      mostly-mechanical multi-module migration, probably worth its own dedicated
-      branch rather than folding into other work. Done on `feature/jspecify-annotations`:
-      `Nullable`/`NonNull`/`NonNullByDefault({...})`/`DefaultLocation` all replaced with
-      their `org.jspecify.annotations` equivalents (`NonNullByDefault` becomes
-      `NullMarked`, which does not support the old per-location parameter list - the one
-      module that used an explicit list now gets the same everywhere-applies default as
-      every other module already had). The tool/enforcement-scope items below are
-      unchanged by this - still open, separate decisions.
-- [ ] Extend checking (both CheckerFramework and NullAway - see `bin/analyze.sh`,
-      neither runs on regular builds since both are too slow for that) to every module,
-      not just `core`, closing the current gap.
-- [x] This does not retire the known-broken `eclipse` profile - it stays, deliberately,
-      even broken: this project is one of the few actually exercising Eclipse's own
-      JDT null-analysis against JSpecify annotations, and the plan is to eventually
-      help the Eclipse team get their side of JSpecify support working. See
-      `bin/analyze.sh`'s own comment on why it is excluded from the default profile
-      set it runs.
 
 ## 3. Consider file rolling
 
@@ -164,6 +135,7 @@ together, not just the code.
       hierarchy wholesale - the differentiator here is staying simple/low-overhead.
 - [x] Update `doc/overview.html`'s Rolling Files section and the old "Features not
       going to support" note once a direction is picked.
+- [ ] doc/overview.html still claims we offer no file rolling at the top in limitations. (ADAM)
 
 ## 4. Improve the LogProperty API and friends; at least add test coverage
 
@@ -194,10 +166,11 @@ unifying.
       using it would only ever throw `NotFoundException`. If revisited, needs a real
       design (which registries support it, how it interacts with `{name}` key
       parameters) rather than reintroducing dead scaffolding.
-- [ ] `LogAppenderRegistry` carries its own admission of guilt in a comment: "The shit
+- [x] `LogAppenderRegistry` carries its own admission of guilt in a comment: "The shit
       in here is a mess because auto configuration of appenders based on properties is
       complicated." A focused cleanup pass is overdue, now that `fileAppender()` has
       already been simplified once this cycle via `mapResult`.
+      (ADAM: This was fixed with unifying calls to appenders builder)
 - [ ] **Misleading error wrapper from the `logging.file.name` auto-configuration
       shortcut**: `LogAppenderRegistry.fileAppender()` wraps the entire downstream
       `FileOutputBuilder.build()`/`fromProperties()` call inside a `.map()` chained off
@@ -213,6 +186,7 @@ unifying.
       directly, bypassing the shortcut) reads better since there's no such wrapping
       `.map()` in the way. Worth fixing when `fileAppender()` gets its cleanup pass
       above, rather than as a one-off.
+      (ADAM: I believe this has been mostly fixed with our newer validation stuff)
 - [x] **`ChangeType.CALLER` doesn't really belong under `ChangePublisher`/"changing"**,
       and `ChangePublisher.allowedChanges(String)` had no caching at all. Addressed on
       `explore/changepublisher-caller-caching`: `AbstractChangePublisher` now caches
@@ -269,81 +243,6 @@ unifying.
         projects converging on "per-logger flags for what a logger is allowed to
         report/change" as the right shape is a useful data point for whatever this
         becomes.
-- [x] **`rainbowgum-slf4j` implemented neither `org.slf4j.spi.LocationAwareLogger` nor
-      `org.slf4j.spi.LoggingEventAware`.** Surfaced while researching
-      `LocationAwareLogger` for the JCL/Spring caller-info work (`feature/slf4j-location-aware`,
-      merged), `LoggingEventAware` implemented on `feature/slf4j-logging-event-aware`.
-      One correction from the original draft of this item, found by decompiling
-      `DefaultLoggingEventBuilder` directly rather than reasoning from the javadoc: the
-      "every fluent-API caller already falls to the least-specialized path" claim below
-      was overstated for RainbowGum's *own* `.atInfo()`/etc. calls specifically -
-      `LevelLogger` already overrides those to return `RainbowGumEventBuilder` directly,
-      which never goes anywhere near `DefaultLoggingEventBuilder`'s three-way dispatch
-      chain at all. That chain, and therefore `LoggingEventAware`, only matters when a
-      *third party* constructs its own `LoggingEventBuilder` (`DefaultLoggingEventBuilder`
-      or otherwise) around a `Logger` obtained from this factory, bypassing
-      `RainbowGumEventBuilder` entirely - the fluent-API analogue of the jcl-over-slf4j
-      scenario `LocationAwareLogger` support already handles, not a gap in RainbowGum's
-      own direct fluent usage. `LocationAwareForwardingLogger` (same class, same
-      `ChangeType.CALLER` gating) now implements both interfaces, reusing the same
-      fqcn-based `findCaller` - `LoggingEvent.getCallerBoundary()` is guaranteed non-null
-      by `DefaultLoggingEventBuilder` specifically (defaults to its own fqcn if nothing
-      else set it, confirmed by decompiling `log(LoggingEvent)`), so the same "skip a
-      contiguous run of frames matching this class name" search applies unchanged.
-      Original text kept below for context on the three-way chain itself, which is still
-      accurate as a description of SLF4J's own dispatch order:
-      SLF4J 2.x's fluent API (`logger.atInfo().log(...)`) is backed by
-      `org.slf4j.spi.DefaultLoggingEventBuilder`, which dispatches via a three-way
-      priority chain: `LoggingEventAware` (`@since 2.0.0`, checked *first*) >
-      `LocationAwareLogger` (legacy bridges: jcl-over-slf4j, log4j-to-slf4j,
-      jul-to-slf4j all target this one, predates 2.0) > plain `Logger` (last resort -
-      merges the `Throwable` into the same `Object[]` as the arguments and calls the
-      varargs overload regardless of how many arguments were actually supplied).
-      Separate, smaller, still-open finding from the same research: `RainbowGumEventBuilder._log()`
-      always builds its `LogEvent` via `LogEvent.ofAll(...)` (the general N-arg shape)
-      regardless of how many arguments were actually added, unlike the direct
-      (non-fluent) call path's `event1`/`event2`/`eventArray` specialization for
-      0/1/2/N args - a real but much narrower arity-specialization gap than the above,
-      worth a one-off fix rather than its own design pass.
-- [x] The `Property`/`PropertyGetter`/`Result` monad (`map`, `mapResult`, `or`,
-      `orElse`, multi-key fallback, etc.) has essentially no direct unit tests of its
-      own composition/error-propagation/fallback-chain behavior - it's exercised only
-      indirectly through callers. Give it the same treatment `LogFormatter`,
-      `LogAppender`, and `RainbowGum`'s entry points got this cycle.
-- [ ] Old backlog item, still open: fix `LogProperties` search to use interpolated
-      keys.
-- [x] **Design critique worth revisiting before any deeper rework here**: the
-      current model spreads a property's lifecycle across a different class per
-      step - a type alone gets a `PropertyGetter`, a key plus type gets a
-      `Property`, and a key plus type plus value gets a `Result` (reached via
-      `PropertyValue`) - essentially a curried chain of types. A simpler
-      alternative worth considering: a single `Property`-like object that just
-      holds the config, the type, the key, *and* the last-retrieved value/result
-      together, instead of threading that state through several distinct types.
-      **Largely done on `refactory/logproperty`**: `PropertyGetter` and its whole
-      family (`RootPropertyGetter`, `ChildPropertyGetter`, `SearchPropertyGetter`,
-      `AbstractKeysBuilder`, `PropertyKeyBuilder`, `Property`, `DefaultProperty`,
-      `FallbackGetter`, `MapGetter`, `ListGetter`, `ResultFuncGetter`) are gone;
-      `LogKeyed` was merged into `LogProperty`, which now holds config + key +
-      type + value/`Result` together via `LogProperties#forKey(String)`.
-      `LogProperties` gained a generic `visit(key, visitor)` combinator so
-      implementers no longer need to know about property-resolution internals.
-      One loose end remains, see the `FoundProperty` item just below.
-- [x] **Consider consolidating `FoundProperty`** now that it's package-private
-      (moved out of `LogProperty` to a top-level sibling type in the same file
-      specifically to achieve that - nested interface members are always
-      implicitly public in Java, so hiding it required becoming a top-level
-      type). It currently has three near-identical record variants
-      (`StringProperty`/`ListProperty`/`MapProperty`) rather than one generic
-      class; Adam had reservations about collapsing them earlier in the cycle
-      while the type was still (accidentally) public, since they map directly to
-      `LogProperties`'s own `valueOrNull`/`listOrNull`/`mapOrNull` trio and felt
-      "native" enough to deserve staying distinct. Now that `FoundProperty` is
-      confirmed internal-only, Adam's fine with revisiting that - either
-      consolidating to one class or removing `FoundProperty` entirely (folding
-      its fields into `PropertySuccess` directly). Deliberately deferred to a
-      follow-up PR rather than growing this cycle's already-large
-      `refactory/logproperty` branch further.
 
 ## 5. Whatever else before 1.0.0
 
@@ -353,32 +252,6 @@ unifying.
       construction counting) without a root cause. Needs a clean, non-shared benchmark
       environment to chase further - or, failing that, a documented known-issue before
       shipping 1.0 with Tomcat integration included.
-- [x] A few fixes from this cycle are sitting on branches that were never confirmed
-      merged - worth a final check before release: `FileChannelOutput`'s
-      closed-after-close guard, and `ForwardingOutputTest`'s post-`ByteBuffer`-default
-      fix update. Confirmed landed during the 0.11.0 pre-release pass: `FileOutput`
-      (the class was renamed/moved since this was written) has the `AtomicBoolean`
-      closed-guard on `close()`/write/flush, and `ForwardingOutputTest` passes as part
-      of the full suite.
-- [x] `StdErrOutput` is missing the no-op-after-close override that `StdOutOutput`
-      already has - flagged mid-cycle, deferred, never circled back to. Fixed during
-      the 0.11.0 pre-release pass: closing a route bound to `StdErrOutput` was
-      physically closing the process-wide `System.err` stream, the same real bug
-      `StdOutOutput`'s existing no-op override was already guarding against.
-- [ ] Once items 1 and 2 above land, sweep `doc/overview.html` for consistency
-      (status reporting section, nullability mentions) rather than patching it
-      piecemeal per-PR the way this cycle did.
-- [x] **Question whether `LogOutput#write(LogEvent, String)` should exist at all**:
-      `bufferHints()`'s own default is `WriteMethod.BYTES`, and confirmed (while adding
-      charset support to `LogEncoder.of(LogFormatter, Charset)`) that not one built-in
-      output anywhere in the codebase overrides it to `WriteMethod.STRING` - not even
-      `ListLogOutput`, the simplest in-memory test double, which stores decoded `String`s
-      and would seem like the most natural fit for the `STRING` path if anything would
-      be. Every reference to `WriteMethod.STRING` in the whole tree is in test code
-      built specifically to exercise that one dispatch branch, never a real default. If
-      that holds up on a closer look, `write(LogEvent, String)` (and the `STRING` write
-      method) may be dead API surface worth removing rather than keeping "just in case" -
-      not investigated further or acted on yet.
 - [ ] **Commons Logging (jcl) probably needs its own native Rainbow Gum
       implementation, the same way `rainbowgum-tomcat` replaced bridging through
       JUL**: currently the only path is `jcl-over-slf4j`/`spring-jcl`, both of which
@@ -393,29 +266,7 @@ unifying.
       starting, this shared depth/changeable-logger machinery should be extracted out
       of `rainbowgum-slf4j` into something a second facade implementation (JCL, and
       potentially others down the line) can reuse instead of re-deriving it.
-- [x] **No message size limiting - `LogEvent#formattedMessage(StringBuilder)` appends
-      unbounded**: every `LogEvent` implementation (`OneArgLogEvent`, `TwoArgLogEvent`,
-      `ArrayArgLogEvent`, etc. in `LogEvent.java`) writes into the passed `StringBuilder`
-      via `LogMessageFormatter.format(...)` with no length check anywhere in the path.
-      This mostly seems like an encoder concern - a JSON/GELF-style encoder writing to an
-      external sink (a queue, a remote collector) could reasonably cap the *whole event*'s
-      size itself - but text encoders (`FormatterEncoder`'s `StringBuilderBuffer`/
-      `DirectByteBufferBuffer`) reuse a `StringBuilder` cached in a
-      `ThreadLocal<LogEncoder.Buffer>` (`LogAppender.java`) across events, only calling
-      `stringBuilder.setLength(0)` between them - which resets the *logical* length but
-      never shrinks the backing `char[]`. `StringBuilder` has no built-in max-capacity
-      concept, so one giant message (attacker-supplied or just a bug logging something
-      huge) permanently grows that thread's buffer, and on platform threads - a bounded,
-      long-lived, reused pool (e.g. Tomcat's request threads) unlike short-lived virtual
-      threads - that growth sticks around for the life of the thread, not just one
-      request. Actually bounding this isn't a one-line fix: it means threading a limit
-      through `formattedMessage`/`LogMessageFormatter.format` itself (truncating
-      mid-append, ideally without doing the full unbounded append first just to discard
-      it), not something that can be bolted on after the fact at the encoder/buffer
-      layer once the `StringBuilder` is already sized. Needs a real design pass before
-      1.0 - where the limit is configured, whether it's global or per-appender/encoder,
-      and what truncation should look like (hard cut vs. an indicator like Logback's
-      `...[truncated]`).
+      (ADAM: confirm jcl works with a test module. Modern jcl uses its own slf4j bridge)
 - [ ] **Draft GitHub issue for spring-projects/spring-boot: `LoggingSystem` has no
       way to signal its own health, only logger level state.** Not filed yet - draft
       below, written to match their issue template ("describe the problem you're
@@ -486,17 +337,4 @@ unifying.
       `StandardLogOutputProvider` as a plain alias resolving to the same stdout
       output `STDOUT_SCHEME` does would be a small, low-risk win. Surfaced while
       adding the `doc/overview.html` "Console" output subsection.
-- [x] **`AppenderFlag` is starting to show its limits**: `REUSE_BUFFER`/
-      `LOCK_THREAD_LOCAL_BUFFER`/`SYNCHRONIZED_THREAD_LOCAL_BUFFER` are mutually exclusive
-      buffer/lock strategies but are represented as three independent enum constants in
-      one flat `Set<AppenderFlag>`, alongside unrelated concerns
-      (`DISABLE_IMMEDIATE_FLUSH`, `REENTRY_DROP`/`REENTRY_LOG`) and a growing pile of
-      precedence rules between them (`AppenderFlag`'s own javadoc has to spell out which
-      flag wins if more than one buffer-strategy flag is set). Encoders and outputs get a
-      real shaped config (a distinct type per concern, resolved by property/builder)
-      instead of a bag of booleans - appenders arguably deserve the same eventually,
-      e.g. a single `bufferStrategy` choice instead of three flags that happen to be
-      exclusive. Deliberately not doing this before 0.10 - flags work, the redesign is
-      nontrivial, and there's no pressure to land it before the next release - but worth
-      a real design pass before 1.0 rather than continuing to enumerate more flags.
-      ADAM: solved with appender type.
+      (ADAM: Is this even worth doing given 99/100 output defaults to stdout?)
