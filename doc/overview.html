@@ -631,16 +631,19 @@ logging.appender.console.output=stdout
 
 In the above the route <em>"console"</em> will output log entries that
 will only have <code>WARN</code> or greater (<code>ERROR</code>)
-to  <code>stdout</code> (terminal/console output). 
-The route my <em>"mycompany"</em> will log <code>DEBUG</code> and greater but less than or equal
-of <code>INFO</code> for
-<code>com.mycompany</code> (and descedants like <code>com.mycompany.something</code>)
-to the file <code>mycompany.log</code>.
+to  <code>stdout</code> (terminal/console output).
+The route <em>"mycompany"</em> will log <code>DEBUG</code> and greater for
+<code>com.mycompany</code> (and descendants like <code>com.mycompany.something</code>)
+to the file <code>mycompany.log</code>. However the <em>"mycompany"</em> route has no opinion
+about any other logger name, so for everything else it falls back to the global level
+(<code>INFO</code>). That means at this point <code>mycompany.log</code> is also catching
+<code>INFO</code> and greater from every other logger, not just <code>com.mycompany</code>.
 
 <p>
-IF we only want <code>mycompany.log</code> to have <code>com.mycompany</code> and descendants logger name entries
-with <code>DEBUG</code> or greater than we turn off all other logger names. 
-To do this we add to the above configuration:
+To actually isolate <code>mycompany.log</code> to just <code>com.mycompany</code> (and
+descendants) the route needs to stop falling back to the global level for every other
+logger name. We do this by giving the route its own default of <code>OFF</code>, which the
+more specific <code>com.mycompany</code> override above still takes priority over:
 </p>
 
 {@snippet lang=properties :
