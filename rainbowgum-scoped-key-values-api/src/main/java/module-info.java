@@ -6,9 +6,9 @@
  * application/library code that wants to push scoped key values without committing to
  * which logging backend (if any) actually records them.
  * <p>
- * The real work is done by whichever
- * {@link io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider} is found via
- * {@link java.util.ServiceLoader} at class-init time - see
+ * The real work is done by whichever provider a
+ * {@link io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProviderFactory} found
+ * via {@link java.util.ServiceLoader} at class-init time hands back - see
  * {@code io.jstach.rainbowgum.scopedkeyvalues.provider} for the RainbowGum-backed one.
  * When none is found, {@link io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues} falls
  * back to running the body without recording anything, the same "safe with nothing
@@ -20,7 +20,7 @@ module io.jstach.rainbowgum.scopedkeyvalues {
 	exports io.jstach.rainbowgum.scopedkeyvalues;
 	exports io.jstach.rainbowgum.scopedkeyvalues.spi;
 
-	uses io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider;
+	uses io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProviderFactory;
 
 	requires static org.jspecify;
 

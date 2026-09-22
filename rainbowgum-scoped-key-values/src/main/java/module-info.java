@@ -16,7 +16,7 @@
  * that requirement.
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
- * @provides io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider
+ * @provides io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProviderFactory
  */
 module io.jstach.rainbowgum.scopedkeyvalues.provider {
 
@@ -32,7 +32,7 @@ module io.jstach.rainbowgum.scopedkeyvalues.provider {
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
 			with io.jstach.rainbowgum.scopedkeyvalues.provider.ScopedKeyValuesConfigurator;
 
-	provides io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider
-			with io.jstach.rainbowgum.scopedkeyvalues.provider.ScopedKeyValuesProviderImpl;
+	provides io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProviderFactory
+			with io.jstach.rainbowgum.scopedkeyvalues.provider.ScopedKeyValuesProviderFactoryImpl;
 
 }

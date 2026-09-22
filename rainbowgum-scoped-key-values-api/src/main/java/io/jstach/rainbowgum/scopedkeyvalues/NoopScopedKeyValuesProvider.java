@@ -1,33 +1,31 @@
 package io.jstach.rainbowgum.scopedkeyvalues;
 
 import java.util.Map;
-import java.util.concurrent.Callable;
 
-import org.jspecify.annotations.Nullable;
-
+import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues.CallableOp;
 import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider;
 
 /*
- * ScopedKeyValues' fallback when ServiceLoader finds no ScopedKeyValuesProvider: the
- * body still runs/calls normally, nothing is recorded or read back - mirrors SLF4J's own
- * "safe with nothing bound" behavior.
+ * ScopedKeyValues' fallback when ServiceLoader finds no ScopedKeyValuesProviderFactory:
+ * the body still runs/calls normally, nothing is recorded or read back - mirrors SLF4J's
+ * own "safe with nothing bound" behavior.
  */
 enum NoopScopedKeyValuesProvider implements ScopedKeyValuesProvider {
 
 	INSTANCE;
 
 	@Override
-	public void push(Map<String, @Nullable String> layer, Runnable body) {
+	public void push(Map<String, String> layer, Runnable body) {
 		body.run();
 	}
 
 	@Override
-	public <T> T push(Map<String, @Nullable String> layer, Callable<T> body) throws Exception {
+	public <T, X extends Throwable> T push(Map<String, String> layer, CallableOp<T, X> body) throws X {
 		return body.call();
 	}
 
 	@Override
-	public Map<String, @Nullable String> currentMerged() {
+	public Map<String, String> currentMerged() {
 		return Map.of();
 	}
 
