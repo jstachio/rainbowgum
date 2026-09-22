@@ -24,8 +24,13 @@ The `vh` script will mostly make sure you do not violate this.
 If you just want to deploy a snapshot to centrals snapshot repositories run:
 
 ```
-./mvnw clean -T1 deploy -Pcentral
+./mvnw clean -T1 deploy -Pcentral -Ddeploy=snapshot -Duser.timezone=UTC
 ```
+
+`-Ddeploy=snapshot` also activates the `deploy-snapshot` profile, which forces
+`maven.build.cache.enabled=false` regardless of any `-Pcache`/`RAINBOWGUM_CACHE`
+opt-in (see `explore/maven-build-cache`) so a stale cached artifact never gets
+deployed in place of a real build.
 
 ### Deploying Releases
 
