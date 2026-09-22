@@ -17,6 +17,11 @@ not worth preserving or confusing.
 See [build.md](build.md) for the Maven build cache, `bin/analyze.sh`, code
 coverage, and where to look when any of that goes stale.
 
+## Release
+
+See [release.md](release.md) for the release methodology, why we do not use
+the maven release plugin, and the actual steps for cutting a release.
+
 ## Testing
 
 Prefer end to end tests over unit tests.
