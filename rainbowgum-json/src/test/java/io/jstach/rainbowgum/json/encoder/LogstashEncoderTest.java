@@ -115,7 +115,7 @@ class LogstashEncoderTest {
 						Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder:
 						Error for property. key: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
 						Tried: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], [logging.appender.list.encoder]->URI(logstash:///)[zoneId]
-						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash'
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());

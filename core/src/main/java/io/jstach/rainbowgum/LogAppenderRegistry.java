@@ -120,7 +120,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			case Result.Missing<URI> m -> m.convert();
 			case Result.Error<URI> e -> e.convert();
 		};
-		LogOutput output = rawValue(refResult.map(LogOutput::of).map(p -> p.provide(name, config))).value();
+		LogOutput output = rawValue(LogProperty.provideValue(refResult.map(LogOutput::of), name, config)).value();
 		return LogAppender.builder(name).output(output).build().provide(name, config);
 	}
 

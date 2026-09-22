@@ -161,6 +161,59 @@ public interface LogProperty {
 	 * @return a rich error result.
 	 */
 	static <U> Result.Error<U> richError(Result.Success<?> previousResult, Exception e) {
+		return richError(previousResult, e, "Error converting property");
+	}
+
+	/**
+	 * Like {@link #richError(Result.Success, Exception)} but for a property whose value
+	 * was used to invoke {@link LogProvider#provide(String, LogConfig)} rather than a
+	 * plain same-property type conversion - see
+	 * {@link #provideValue(Result, String, LogConfig)}. The provider constructs a
+	 * genuinely separate component with its own property tree, so a failure inside it
+	 * (typically already a complete, self-describing {@link ValidationException} of its
+	 * own) must not be labeled "Error converting property": this property's own value
+	 * converted just fine, it merely triggered a provider that failed on its own terms.
+	 * @param <U> the provided component type.
+	 * @param previousResult the success whose value was provided from.
+	 * @param e the provisioning failure.
+	 * @return a rich error result.
+	 */
+	static <U> Result.Error<U> providingError(Result.Success<?> previousResult, Exception e) {
+		return richError(previousResult, e, "Failure providing from property");
+	}
+
+	/**
+	 * Like {@link Result#map(PropertyFunction)} but specifically for the "resolve to a
+	 * {@link LogProvider}, then {@link LogProvider#provide(String, LogConfig) provide}"
+	 * step used by output/encoder/appender resolution. A plain {@link Result#map} would
+	 * relabel any failure from {@code provide(...)} as "Error converting property" even
+	 * though this property's own value converted to a provider just fine - see
+	 * {@link #providingError(Result.Success, Exception)}.
+	 * @param <T> component type.
+	 * @param providerResult an already-resolved provider, e.g. from
+	 * {@link LogProperty#ofProvider(PropertyFunction)}.
+	 * @param name component name passed to
+	 * {@link LogProvider#provide(String, LogConfig)}.
+	 * @param config config passed to {@link LogProvider#provide(String, LogConfig)}.
+	 * @return the provided component, or the same {@link Result.Missing}/
+	 * {@link Result.Error} a plain conversion would have produced.
+	 */
+	static <T> Result<T> provideValue(Result<LogProvider<T>> providerResult, String name, LogConfig config) {
+		return switch (providerResult) {
+			case Result.Success<LogProvider<T>> s -> {
+				try {
+					yield mapValue(s, s.value().provide(name, config));
+				}
+				catch (Exception e) {
+					yield providingError(s, e);
+				}
+			}
+			case Result.Missing<LogProvider<T>> m -> m.convert();
+			case Result.Error<LogProvider<T>> e -> e.convert();
+		};
+	}
+
+	private static <U> Result.Error<U> richError(Result.Success<?> previousResult, Exception e, String chainedLabel) {
 		String fqk = previousResult.key();
 		PropertySuccess<?> ps = switch (previousResult) {
 			case PropertySuccess<?> p -> p;
@@ -176,7 +229,7 @@ public interface LogProperty {
 		boolean chained = e instanceof PropertyConvertException || e instanceof ValidationException;
 		String own;
 		if (chained) {
-			own = "Error converting property. key: " + resolvedKey + ", value: '" + ps.valueDescription() + "'";
+			own = chainedLabel + ". key: " + resolvedKey + ", value: '" + ps.valueDescription() + "'";
 		}
 		else {
 			own = "Error for property. key: " + resolvedKey + ", " + errorName(e) + " " + e.getMessage();

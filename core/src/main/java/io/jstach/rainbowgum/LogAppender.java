@@ -601,23 +601,22 @@ public sealed interface LogAppender extends LogLifecycle {
 
 		/*
 		 * Resolves APPENDER_OUTPUT_PROPERTY all the way to a concrete LogOutput (not just
-		 * a LogProvider), catching any exception provide() throws and re-wrapping it with
-		 * "Error for property. key: ..." context via Result.map(), the same mechanism
-		 * DefaultAppenderRegistry's now-removed outputProperty(...) helper used, moved
-		 * here since output resolution is now entirely this Builder's concern.
+		 * a LogProvider), via LogProperty.provideValue so a failure inside the provided
+		 * LogOutput's own construction (its own separate property tree, e.g.
+		 * logging.output.file.bufferSize) is not relabeled "Error converting property" as
+		 * if APPENDER_OUTPUT_PROPERTY's own value had failed to convert - see
+		 * LogProperty#providingError. Moved here since output resolution is now entirely
+		 * this Builder's concern.
 		 */
 		private static LogProperty.Result<LogOutput> outputProperty(String name, LogConfig config) {
-			return config.properties()
-				.forKey(APPENDER_OUTPUT_PROPERTY, name)
-				.ofProvider(LogOutput::of)
-				.map(p -> p.provide(name, config));
+			return LogProperty.provideValue(
+					config.properties().forKey(APPENDER_OUTPUT_PROPERTY, name).ofProvider(LogOutput::of), name, config);
 		}
 
 		private static LogProperty.Result<LogEncoder> encoderProperty(String name, LogConfig config) {
-			return config.properties()
-				.forKey(APPENDER_ENCODER_PROPERTY, name)
-				.ofProvider(LogEncoder::of)
-				.map(p -> p.provide(name, config));
+			return LogProperty.provideValue(
+					config.properties().forKey(APPENDER_ENCODER_PROPERTY, name).ofProvider(LogEncoder::of), name,
+					config);
 		}
 
 	}
