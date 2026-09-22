@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
-class CompositeKeyValuesTest {
+class KeyValuesMergeTest {
 
 	@Test
 	void emptyLowReturnsHighUnwrapped() throws Exception {
@@ -99,6 +99,27 @@ class CompositeKeyValuesTest {
 		assertEquals(Map.of("a", "3", "b", "4"), collected);
 	}
 
+	/*
+	 * Regression test: with the old lazy, bit-packed CompositeKeyValues, nesting three or
+	 * more merges deep with no key shared/shadowed across layers caused start()/next() to
+	 * cycle forever (a corrupted index alias, not just a wrong answer). Eager merge()
+	 * flattens into a plain array-backed KeyValues at merge time, so there is no
+	 * traversal-order state left to corrupt regardless of nesting depth.
+	 */
+	@Test
+	void deeplyNestedMergeWithNoSharedKeysAcrossLayersTerminatesAndYieldsEveryEntry() throws Exception {
+		var a = KeyValues.of(Map.of("a0", "va0", "a1", "va1"));
+		var b = KeyValues.of(Map.of("b0", "vb0", "b1", "vb1"));
+		var c = KeyValues.of(Map.of("c0", "vc0", "c1", "vc1"));
+		var kvs = KeyValues.merge(KeyValues.merge(a, b), c);
+
+		LinkedHashMap<String, @Nullable String> collected = new LinkedHashMap<>();
+		kvs.forEach(collected::put);
+
+		assertEquals(6, kvs.size());
+		assertEquals(Map.of("a0", "va0", "a1", "va1", "b0", "vb0", "b1", "vb1", "c0", "vc0", "c1", "vc1"), collected);
+	}
+
 	@Test
 	void explicitNullValueInHighWinsOverLowNonNull() throws Exception {
 		var low = KeyValues.of(Map.of("a", "1"));
@@ -118,14 +139,14 @@ class CompositeKeyValuesTest {
 	}
 
 	@Test
-	void equalsMatchesEquivalentNonCompositeKeyValues() throws Exception {
+	void equalsMatchesEquivalentKeyValues() throws Exception {
 		var low = KeyValues.of(Map.of("A", "a"));
 		var high = KeyValues.of(Map.of("B", "b"));
-		var composite = KeyValues.merge(low, high);
+		var merged = KeyValues.merge(low, high);
 		var flat = KeyValues.of(Map.of("A", "a", "B", "b"));
-		assertEquals(composite, flat);
-		assertEquals(flat, composite);
-		assertEquals(composite.hashCode(), flat.hashCode());
+		assertEquals(merged, flat);
+		assertEquals(flat, merged);
+		assertEquals(merged.hashCode(), flat.hashCode());
 	}
 
 	@Test
@@ -137,11 +158,11 @@ class CompositeKeyValuesTest {
 	}
 
 	@Test
-	void isLazyAndReflectsMutationOfUnderlyingMutablePart() throws Exception {
+	void mergeIsEagerAndDoesNotReflectLaterMutationOfAMutablePart() throws Exception {
 		/*
 		 * mutable must be non-empty at merge time, otherwise KeyValues.merge's own
 		 * trivial-collapse optimization (high.isEmpty() -> return low unchanged) fires
-		 * and kvs never becomes a composite wrapping mutable at all.
+		 * and kvs never copies mutable's contents at all.
 		 */
 		var mutable = MutableKeyValues.of();
 		mutable.putKeyValue("a", "1");
@@ -149,7 +170,15 @@ class CompositeKeyValuesTest {
 		assertEquals("1", kvs.getValueOrNull("a"));
 
 		mutable.putKeyValue("a", "2");
-		assertEquals("2", kvs.getValueOrNull("a"), "composite is a live view, not a snapshot");
+		assertEquals("1", kvs.getValueOrNull("a"), "merge() copies eagerly, later mutation must not be visible");
+	}
+
+	@Test
+	void mergeResultIsAlreadyFrozenEvenWhenBuiltFromAMutablePart() throws Exception {
+		var mutable = MutableKeyValues.of();
+		mutable.putKeyValue("a", "1");
+		var kvs = KeyValues.merge(KeyValues.of(Map.of("k", "v")), mutable);
+		assertSame(kvs, kvs.freeze());
 	}
 
 	@Test
@@ -161,43 +190,12 @@ class CompositeKeyValuesTest {
 	}
 
 	@Test
-	void freezeCopiesAwayFromALiveMutablePart() throws Exception {
-		var mutable = MutableKeyValues.of();
-		mutable.putKeyValue("a", "1");
-		var kvs = KeyValues.merge(KeyValues.of(Map.of("k", "v")), mutable);
-
-		var frozen = kvs.freeze();
-		mutable.putKeyValue("a", "2");
-
-		assertEquals("1", frozen.getValueOrNull("a"), "frozen snapshot must not see later mutation");
-		assertEquals("2", kvs.getValueOrNull("a"), "the original live composite still tracks mutation");
-	}
-
-	@Test
-	void freezeIsNoOpWhenNestedCompositeIsAlreadyFullyImmutable() throws Exception {
+	void freezeIsNoOpWhenNestedMergeIsAlreadyFullyImmutable() throws Exception {
 		var a = KeyValues.of(Map.of("A", "a"));
 		var b = KeyValues.of(Map.of("B", "b"));
 		var c = KeyValues.of(Map.of("C", "c"));
 		var kvs = KeyValues.merge(KeyValues.merge(a, b), c);
 		assertSame(kvs, kvs.freeze());
-	}
-
-	@Test
-	void freezeCopiesAwayFromAMutableBuriedTwoLevelsDeep() throws Exception {
-		var mutable = MutableKeyValues.of();
-		mutable.putKeyValue("a", "1");
-		// mutable is buried inside the *inner* merge, not a direct field of the outer
-		// composite - the outer composite's own low/high fields are themselves
-		// composites, not MutableKeyValues, so detecting this requires recursing into
-		// the nested sides rather than only checking the outer pair directly.
-		var inner = KeyValues.merge(KeyValues.of(Map.of("k", "v")), mutable);
-		var kvs = KeyValues.merge(inner, KeyValues.of(Map.of("other", "x")));
-
-		var frozen = kvs.freeze();
-		mutable.putKeyValue("a", "2");
-
-		assertEquals("1", frozen.getValueOrNull("a"), "frozen snapshot must not see later mutation");
-		assertEquals("2", kvs.getValueOrNull("a"), "the original live composite still tracks mutation");
 	}
 
 }

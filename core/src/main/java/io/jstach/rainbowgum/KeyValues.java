@@ -154,24 +154,16 @@ public sealed interface KeyValues {
 	}
 
 	/**
-	 * Creates a lazy, read through view over two key values, {@code high} taking
-	 * precedence over {@code low} on a key collision. Unlike copying both into a
-	 * {@link MutableKeyValues} this does not materialize a merged copy: each low level
-	 * access and each {@link #forEach} traverses {@code low}/{@code high} directly, so
-	 * the result reflects whatever they currently contain at the moment of each access,
-	 * not just at the moment this method was called.
-	 * <p>
-	 * Unlike the {@code of(...)} factories, this is deliberately not named {@code of}:
-	 * every {@code of(...)} factory on this type returns a value that is, and stays,
-	 * immutable - this one does not make that guarantee, since {@code low}/{@code high}
-	 * are used as given, not copied. Multiple layers merge by nesting, e.g.
-	 * {@code merge(merge(a, b), c)}, the same way a cons list nests - {@code c} wins over
-	 * {@code b}, which wins over {@code a}.
-	 * @param low lower precedence key values, used as given, not copied.
-	 * @param high higher precedence key values, used as given, not copied, wins on key
-	 * collision.
+	 * Creates a key values whose entries are the union of two key values, {@code high}
+	 * taking precedence over {@code low} on a key collision. The result is an eagerly
+	 * built, immutable copy: {@code low} and {@code high} are read once, at the moment of
+	 * this call, and are not retained or delegated to afterward. Multiple layers merge by
+	 * nesting, e.g. {@code merge(merge(a, b), c)}, the same way a cons list nests -
+	 * {@code c} wins over {@code b}, which wins over {@code a}.
+	 * @param low lower precedence key values.
+	 * @param high higher precedence key values, wins on key collision.
 	 * @return {@code high} if {@code low} is empty, {@code low} if {@code high} is empty,
-	 * otherwise a composite view over both.
+	 * otherwise an immutable copy of both merged together.
 	 */
 	public static KeyValues merge(KeyValues low, KeyValues high) {
 		if (low.isEmpty()) {
@@ -180,7 +172,10 @@ public sealed interface KeyValues {
 		if (high.isEmpty()) {
 			return low;
 		}
-		return new CompositeKeyValues(low, high);
+		var buf = MutableKeyValues.of(low.size() + high.size());
+		low.forEach(buf);
+		high.forEach(buf);
+		return buf.freeze();
 	}
 
 	/**
@@ -721,195 +716,6 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	private void inflateTable(final int toSize) {
 		threshold = toSize;
 		kvs = new @Nullable String[toSize];
-	}
-
-}
-
-/*
- * Lazy, read through view over exactly two KeyValues, low/high in increasing precedence
- * (high wins a key collision). A cons cell, not a copy: low/high are used as given, so
- * every access is a direct delegation to one of the two, and the result reflects whatever
- * they currently contain at the moment of each access. The low level index uses one bit
- * to pick a side and the rest for that side's own index, so no array/list is ever
- * allocated. Iteration skips low entries shadowed by high so callers that stream
- * KeyValues without deduplicating (e.g. JSON output) never see the same key twice.
- * Multiple layers nest as KeyValues.merge(KeyValues.merge(a, b), c), the same way a cons
- * list nests.
- */
-final class CompositeKeyValues implements KeyValues {
-
-	private static final int SIDE_BIT = 1 << 30;
-
-	private static final int LOCAL_MASK = SIDE_BIT - 1;
-
-	private final KeyValues low;
-
-	private final KeyValues high;
-
-	CompositeKeyValues(KeyValues low, KeyValues high) {
-		this.low = low;
-		this.high = high;
-	}
-
-	private static int packLow(int local) {
-		return local & LOCAL_MASK;
-	}
-
-	private static int packHigh(int local) {
-		return SIDE_BIT | (local & LOCAL_MASK);
-	}
-
-	private static boolean isHigh(int index) {
-		return (index & SIDE_BIT) != 0;
-	}
-
-	private static int localOf(int index) {
-		return index & LOCAL_MASK;
-	}
-
-	private boolean isShadowedByHigh(String key) {
-		for (int i = high.start(); i > -1; i = high.next(i)) {
-			if (high.key(i).equals(key)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private int scanLowFrom(int local) {
-		while (local > -1) {
-			if (!isShadowedByHigh(low.key(local))) {
-				return packLow(local);
-			}
-			local = low.next(local);
-		}
-		int highStart = high.start();
-		return highStart > -1 ? packHigh(highStart) : -1;
-	}
-
-	@Override
-	public int start() {
-		return scanLowFrom(low.start());
-	}
-
-	@Override
-	public int next(int index) {
-		if (isHigh(index)) {
-			int nextHigh = high.next(localOf(index));
-			return nextHigh > -1 ? packHigh(nextHigh) : -1;
-		}
-		return scanLowFrom(low.next(localOf(index)));
-	}
-
-	@Override
-	public String key(int index) {
-		return isHigh(index) ? high.key(localOf(index)) : low.key(localOf(index));
-	}
-
-	@Override
-	public @Nullable String valueOrNull(int index) {
-		return isHigh(index) ? high.valueOrNull(localOf(index)) : low.valueOrNull(localOf(index));
-	}
-
-	@Override
-	public @Nullable String getValueOrNull(String key) {
-		for (int i = high.start(); i > -1; i = high.next(i)) {
-			if (high.key(i).equals(key)) {
-				return high.valueOrNull(i);
-			}
-		}
-		for (int i = low.start(); i > -1; i = low.next(i)) {
-			if (low.key(i).equals(key)) {
-				return low.valueOrNull(i);
-			}
-		}
-		return null;
-	}
-
-	@Override
-	public int size() {
-		int count = 0;
-		for (int i = start(); i > -1; i = next(i)) {
-			count++;
-		}
-		return count;
-	}
-
-	@Override
-	public void forEach(BiConsumer<? super String, ? super @Nullable String> action) {
-		for (int i = start(); i > -1; i = next(i)) {
-			action.accept(key(i), valueOrNull(i));
-		}
-	}
-
-	@Override
-	public <V> int forEach(KeyValuesConsumer<V> action, int counter, V storage) {
-		for (int i = start(); i > -1; i = next(i)) {
-			counter = action.accept(this, key(i), valueOrNull(i), counter, storage);
-		}
-		return counter;
-	}
-
-	@Override
-	public Map<String, @Nullable String> copyToMap() {
-		Map<String, @Nullable String> result = new HashMap<>();
-		forEach(result::put);
-		return result;
-	}
-
-	@Override
-	public KeyValues freeze() {
-		if (isFrozenAlready(low) && isFrozenAlready(high)) {
-			return this;
-		}
-		return new CompositeKeyValues(low.freeze(), high.freeze());
-	}
-
-	/*
-	 * Whether freeze() on kv is guaranteed to be a no-op, without relying on a
-	 * reference-equality check against freeze()'s own return value (an errorprone-flagged
-	 * anti-pattern, and one that would stop being meaningful if these implementations
-	 * ever became Valhalla value classes with different identity semantics). KeyValues is
-	 * sealed, so this is exhaustive over every implementation that can ever exist:
-	 * MutableKeyValues (only ArrayKeyValues) always needs a defensive copy; a nested
-	 * CompositeKeyValues needs one only if something mutable is buried in either of its
-	 * own two sides, checked recursively; everything else (EmptyKeyValues,
-	 * ImmutableArrayKeyValues) is already unconditionally immutable.
-	 */
-	private static boolean isFrozenAlready(KeyValues kv) {
-		if (kv instanceof MutableKeyValues) {
-			return false;
-		}
-		if (kv instanceof CompositeKeyValues c) {
-			return isFrozenAlready(c.low) && isFrozenAlready(c.high);
-		}
-		return true;
-	}
-
-	@Override
-	public boolean equals(@Nullable Object obj) {
-		if (obj instanceof KeyValues kvs) {
-			return KeyValues.equals(this, kvs);
-		}
-		return false;
-	}
-
-	@Override
-	public int hashCode() {
-		int result = 1;
-		for (int i = start(); i > -1; i = next(i)) {
-			var v = valueOrNull(i);
-			result = result + key(i).hashCode();
-			result = result + (v == null ? 0 : v.hashCode());
-		}
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		KeyValues.prettyPrint(this, sb);
-		return sb.toString();
 	}
 
 }
