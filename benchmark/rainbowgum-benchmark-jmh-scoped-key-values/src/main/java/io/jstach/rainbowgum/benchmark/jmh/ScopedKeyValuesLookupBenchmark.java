@@ -19,6 +19,7 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 
 /**
  * Compares RainbowGum's real {@link KeyValues#merge(KeyValues, KeyValues)} against two
@@ -32,6 +33,18 @@ import io.jstach.rainbowgum.KeyValues;
  * shape of work: copy what is currently bound plus the new layer's entries into a fresh,
  * immutable structure on every push. What differs is the target data structure - a flat
  * array ({@link KeyValues}), a {@link HashMap}, or an immutable {@link Map#copyOf(Map)}.
+ * <p>
+ * Each variant's new layer is built once per push via that variant's own native
+ * construction path, not measured against some other variant's shape: the
+ * {@link KeyValues} layer is written straight into a {@link MutableKeyValues} via
+ * {@link MutableKeyValues#putKeyValue(String, String)}, the same way {@code
+ * ScopedKeyValues.Builder} itself does it now (no {@link Map} is built or copied to get
+ * there); the two {@link Map}-backed variants build a plain {@link Map} the way a real
+ * caller populating one naturally would. An earlier version of this benchmark built every
+ * layer as a {@link Map} first and only converted the {@code KeyValues} variant's layer
+ * to {@link KeyValues} inside the timed {@code pushOneMore} method itself - that charged
+ * {@code keyValuesPushOneMore} for a {@code Map}-to-{@code KeyValues} copy no production
+ * code path actually pays anymore.
  * <p>
  * The immutable-map variant exists only because null values are no longer allowed in
  * {@code ScopedKeyValues} (see its own javadoc) - that guarantee is what makes
@@ -81,6 +94,8 @@ public class ScopedKeyValuesLookupBenchmark {
 
 	private Map<String, String> lastLayer;
 
+	private KeyValues lastKeyValuesLayer;
+
 	private String firstInsertedKey;
 
 	private String lastInsertedKey;
@@ -93,11 +108,13 @@ public class ScopedKeyValuesLookupBenchmark {
 		Map<String, String> firstLayer = null;
 		for (int i = 0; i < depth; i++) {
 			Map<String, String> layer = layer(i, keysPerLayer);
+			KeyValues keyValuesLayer = keyValuesLayer(i, keysPerLayer);
 			if (firstLayer == null) {
 				firstLayer = layer;
 			}
 			this.lastLayer = layer;
-			c = KeyValues.merge(c, KeyValues.of(layer));
+			this.lastKeyValuesLayer = keyValuesLayer;
+			c = KeyValues.merge(c, keyValuesLayer);
 			eagerHash = eagerHashMerge(eagerHash, layer);
 			eagerImmutable = eagerImmutableMerge(eagerImmutable, layer);
 		}
@@ -114,6 +131,18 @@ public class ScopedKeyValuesLookupBenchmark {
 			layer.put("k" + layerIndex + "-" + k, "v" + layerIndex + "-" + k);
 		}
 		return layer;
+	}
+
+	/**
+	 * Builds a layer the same way {@code ScopedKeyValues.Builder} does now: writing
+	 * straight into a {@link MutableKeyValues}, never through a {@link Map}.
+	 */
+	private static KeyValues keyValuesLayer(int layerIndex, int keysPerLayer) {
+		var buf = MutableKeyValues.of(keysPerLayer);
+		for (int k = 0; k < keysPerLayer; k++) {
+			buf.putKeyValue("k" + layerIndex + "-" + k, "v" + layerIndex + "-" + k);
+		}
+		return buf.freeze();
 	}
 
 	/**
@@ -134,7 +163,7 @@ public class ScopedKeyValuesLookupBenchmark {
 
 	@Benchmark
 	public void keyValuesPushOneMore(Blackhole bh) {
-		bh.consume(KeyValues.merge(keyValues, KeyValues.of(lastLayer)));
+		bh.consume(KeyValues.merge(keyValues, lastKeyValuesLayer));
 	}
 
 	@Benchmark
