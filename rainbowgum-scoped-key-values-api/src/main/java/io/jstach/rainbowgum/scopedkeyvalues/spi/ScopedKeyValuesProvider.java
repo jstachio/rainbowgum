@@ -1,9 +1,8 @@
 package io.jstach.rainbowgum.scopedkeyvalues.spi;
 
 import java.util.Map;
-import java.util.concurrent.Callable;
 
-import org.jspecify.annotations.Nullable;
+import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues.CallableOp;
 
 /**
  * Service Provider Interface for
@@ -22,29 +21,29 @@ public interface ScopedKeyValuesProvider {
 
 	/**
 	 * Pushes {@code layer} and runs {@code body} for its duration.
-	 * @param layer key values to push, never {@code null}, values may be {@code null}.
+	 * @param layer key values to push, never {@code null}, keys and values never
+	 * {@code null}.
 	 * @param body code to run with {@code layer} pushed.
 	 */
-	@SuppressWarnings("exports")
-	void push(Map<String, @Nullable String> layer, Runnable body);
+	void push(Map<String, String> layer, Runnable body);
 
 	/**
 	 * Pushes {@code layer} and calls {@code body} for its duration.
 	 * @param <T> return type.
-	 * @param layer key values to push, never {@code null}, values may be {@code null}.
+	 * @param <X> exception type {@code body} may throw.
+	 * @param layer key values to push, never {@code null}, keys and values never
+	 * {@code null}.
 	 * @param body code to call with {@code layer} pushed.
 	 * @return whatever {@code body} returns.
-	 * @throws Exception whatever {@code body} throws.
+	 * @throws X whatever {@code body} throws.
 	 */
-	@SuppressWarnings("exports")
-	<T> T push(Map<String, @Nullable String> layer, Callable<T> body) throws Exception;
+	<T, X extends Throwable> T push(Map<String, String> layer, CallableOp<T, X> body) throws X;
 
 	/**
 	 * Every currently pushed layer, merged into one map - later (more deeply nested)
 	 * pushes win on a key collision.
 	 * @return merged, read-only-by-convention map, empty if nothing is currently pushed.
 	 */
-	@SuppressWarnings("exports")
-	Map<String, @Nullable String> currentMerged();
+	Map<String, String> currentMerged();
 
 }

@@ -3,10 +3,8 @@ package io.jstach.rainbowgum.scopedkeyvalues.provider;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /*
@@ -19,15 +17,8 @@ class ScopedKeyValuesProviderImplTest {
 
 	private final ScopedKeyValuesProviderImpl provider = new ScopedKeyValuesProviderImpl();
 
-	/*
-	 * Map.of(...) cannot be used here: its value type parameter is bound to non-null
-	 * Object, which is incompatible with push's nullable-valued Map parameter even though
-	 * these tests never actually pass a null value.
-	 */
-	private static Map<String, @Nullable String> layer(String key, String value) {
-		Map<String, @Nullable String> m = new LinkedHashMap<>();
-		m.put(key, value);
-		return m;
+	private static Map<String, String> layer(String key, String value) {
+		return Map.of(key, value);
 	}
 
 	@Test

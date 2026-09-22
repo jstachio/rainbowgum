@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.scopedkeyvalues;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -46,10 +47,17 @@ class ScopedKeyValuesTest {
 	}
 
 	@Test
-	void addAllowsANullValue() {
-		boolean[] ran = new boolean[1];
-		ScopedKeyValues.builder().add("k", null).run(() -> ran[0] = true);
-		assertTrue(ran[0]);
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
+	void addRejectsANullValueImmediately() {
+		var builder = ScopedKeyValues.builder();
+		assertThrows(NullPointerException.class, () -> builder.add("k", null));
+	}
+
+	@Test
+	@SuppressWarnings({ "null", "nullness", "NullAway" })
+	void addRejectsANullKeyImmediately() {
+		var builder = ScopedKeyValues.builder();
+		assertThrows(NullPointerException.class, () -> builder.add(null, "v"));
 	}
 
 }

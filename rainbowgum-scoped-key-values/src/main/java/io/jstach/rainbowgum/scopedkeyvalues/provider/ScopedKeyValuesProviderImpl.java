@@ -1,14 +1,13 @@
 package io.jstach.rainbowgum.scopedkeyvalues.provider;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
-
-import org.jspecify.annotations.Nullable;
+import java.util.Objects;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
+import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues.CallableOp;
 import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider;
-import io.jstach.svc.ServiceProvider;
 
 /**
  * {@code java.lang.ScopedValue}-backed {@link ScopedKeyValuesProvider}: each
@@ -24,23 +23,15 @@ import io.jstach.svc.ServiceProvider;
  * nothing a sibling task or the parent does afterward can change what that snapshot
  * contains.
  * <p>
- * Storage is {@code static}, not tied to a particular instance of this class, since
- * {@link java.util.ServiceLoader} does not guarantee only one instance is ever created -
- * {@link #currentMergedKeyValues()} is the fast, no-{@link Map}-conversion accessor
- * {@code rainbowgum-slf4j} integration uses directly on every log call;
- * {@link #currentMerged()} (the generic {@link ScopedKeyValuesProvider} contract) is only
- * ever used by callers going through the plain {@code ScopedKeyValues} facade, not by
- * this module's own logging integration.
+ * Constructed only by {@link ScopedKeyValuesProviderFactoryImpl}, not directly by
+ * {@link java.util.ServiceLoader} - package-private since nothing outside this package
+ * needs to construct it.
  */
-@ServiceProvider(ScopedKeyValuesProvider.class)
-public final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvider {
+final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvider {
 
 	private static final ScopedValue<KeyValues> STACK = ScopedValue.newInstance();
 
-	/**
-	 * For service loader.
-	 */
-	public ScopedKeyValuesProviderImpl() {
+	ScopedKeyValuesProviderImpl() {
 	}
 
 	/**
@@ -55,21 +46,30 @@ public final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvide
 	}
 
 	@Override
-	public void push(Map<String, @Nullable String> layer, Runnable body) {
+	public void push(Map<String, String> layer, Runnable body) {
 		ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer))).run(body);
 	}
 
 	@Override
-	public <T> T push(Map<String, @Nullable String> layer, Callable<T> body) throws Exception {
+	public <T, X extends Throwable> T push(Map<String, String> layer, CallableOp<T, X> body) throws X {
 		return ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer))).call(body::call);
 	}
 
 	@Override
-	public Map<String, @Nullable String> currentMerged() {
-		return currentMergedKeyValues().copyToMap();
+	public Map<String, String> currentMerged() {
+		/*
+		 * KeyValues#copyToMap() is typed for the general case (a KeyValues can hold null
+		 * values), but every KeyValues this provider ever binds comes from
+		 * toKeyValues(Map<String, String>) below, whose values were already checked
+		 * non-null at ScopedKeyValues.Builder#add(...). requireNonNull here turns that
+		 * invariant into an explicit, fail-fast check instead of a silent cast.
+		 */
+		Map<String, String> result = new LinkedHashMap<>();
+		currentMergedKeyValues().forEach((k, v) -> result.put(k, Objects.requireNonNull(v)));
+		return result;
 	}
 
-	private static KeyValues toKeyValues(Map<String, @Nullable String> layer) {
+	private static KeyValues toKeyValues(Map<String, String> layer) {
 		var buf = MutableKeyValues.of(layer.size());
 		layer.forEach(buf);
 		return buf.freeze();

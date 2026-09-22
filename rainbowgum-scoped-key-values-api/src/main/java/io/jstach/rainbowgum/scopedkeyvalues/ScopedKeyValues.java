@@ -3,12 +3,11 @@ package io.jstach.rainbowgum.scopedkeyvalues;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
-import java.util.concurrent.Callable;
-
-import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider;
+import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProviderFactory;
 
 /**
  * Request/task-scoped key values, pushed once (typically once, wrapping an entire request
@@ -44,8 +43,8 @@ public final class ScopedKeyValues {
 	}
 
 	private static ScopedKeyValuesProvider findProvider() {
-		for (var provider : ServiceLoader.load(ScopedKeyValuesProvider.class)) {
-			return provider;
+		for (var factory : ServiceLoader.load(ScopedKeyValuesProviderFactory.class)) {
+			return factory.provide();
 		}
 		return NoopScopedKeyValuesProvider.INSTANCE;
 	}
@@ -56,8 +55,7 @@ public final class ScopedKeyValues {
 	 * @return merged, read-only-by-convention map, empty if nothing is currently pushed
 	 * or no {@link ScopedKeyValuesProvider} was found.
 	 */
-	@SuppressWarnings("exports")
-	public static Map<String, @Nullable String> currentMerged() {
+	public static Map<String, String> currentMerged() {
 		return PROVIDER.currentMerged();
 	}
 
@@ -70,12 +68,34 @@ public final class ScopedKeyValues {
 	}
 
 	/**
+	 * Like {@code java.lang.ScopedValue.CallableOp} but declared here so this API module
+	 * never has to reference {@code java.lang.ScopedValue} itself, keeping it compilable
+	 * on older JDKs - the real {@code ScopedValue}-backed provider (a separate module
+	 * requiring a newer JDK) bridges the two with a plain method reference, since both
+	 * interfaces share the same {@code R call() throws X} shape.
+	 *
+	 * @param <R> return type.
+	 * @param <X> exception type the operation may throw.
+	 */
+	@FunctionalInterface
+	public interface CallableOp<R, X extends Throwable> {
+
+		/**
+		 * Runs the operation.
+		 * @return result.
+		 * @throws X whatever the operation itself declares.
+		 */
+		R call() throws X;
+
+	}
+
+	/**
 	 * Builds one immutable layer of key values and pushes it for the duration of a
-	 * {@link #run(Runnable)}/{@link #call(Callable)} call.
+	 * {@link #run(Runnable)}/{@link #call(CallableOp)} call.
 	 */
 	public static final class Builder {
 
-		private final Map<String, @Nullable String> layer = new LinkedHashMap<>();
+		private final Map<String, String> layer = new LinkedHashMap<>();
 
 		private Builder() {
 		}
@@ -83,10 +103,15 @@ public final class ScopedKeyValues {
 		/**
 		 * Adds a key/value pair to the layer being built. Order is preserved.
 		 * @param key key, never {@code null}.
-		 * @param value value, may be {@code null}.
+		 * @param value value, never {@code null} - pass a real sentinel/empty string
+		 * instead if "no value" needs to be represented, rather than relying on null
+		 * analysis to catch a missing one.
 		 * @return this.
+		 * @throws NullPointerException if either argument is {@code null}.
 		 */
-		public Builder add(String key, @Nullable String value) {
+		public Builder add(String key, String value) {
+			Objects.requireNonNull(key, "key");
+			Objects.requireNonNull(value, "value");
 			layer.put(key, value);
 			return this;
 		}
@@ -102,15 +127,16 @@ public final class ScopedKeyValues {
 		/**
 		 * Pushes this layer and calls {@code body} for its duration.
 		 * @param <T> return type.
+		 * @param <X> exception type {@code body} may throw.
 		 * @param body code to call with this layer pushed.
 		 * @return whatever {@code body} returns.
-		 * @throws Exception whatever {@code body} throws.
+		 * @throws X whatever {@code body} throws.
 		 */
-		public <T> T call(Callable<T> body) throws Exception {
+		public <T, X extends Throwable> T call(CallableOp<T, X> body) throws X {
 			return PROVIDER.push(frozen(), body);
 		}
 
-		private Map<String, @Nullable String> frozen() {
+		private Map<String, String> frozen() {
 			return Collections.unmodifiableMap(new LinkedHashMap<>(layer));
 		}
 
