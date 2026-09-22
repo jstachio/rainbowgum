@@ -26,6 +26,16 @@
     <maven.core.version>3.9.16</maven.core.version>
     <jdk.release.version>26.0.2</jdk.release.version>
 
+    <!--
+      org.apache.maven.extensions:maven-build-cache-extension (see .mvn/extensions.xml)
+      is registered but off by default - opt in with -Pcache or RAINBOWGUM_CACHE=true,
+      same pattern as jstachio's own maven.build.cache.enabled/JSTACHIO_CACHE. Being
+      evaluated for whether it actually speeds up this reactor's local builds without
+      producing stale/incorrect artifacts across the checkerframework/errorprone/nullaway
+      profile combinations - not yet trusted enough to be on by default.
+    -->
+    <maven.build.cache.enabled>false</maven.build.cache.enabled>
+
     <ecj.version>3.46.100</ecj.version>
     <plexus-compiler-eclipse.version>2.17.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.50.0</error-prone.version>
@@ -493,6 +503,18 @@
       <modules>
         <module>bin</module>
       </modules>
+    </profile>
+    <profile>
+      <id>cache</id>
+      <activation>
+        <property>
+          <name>env.RAINBOWGUM_CACHE</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <properties>
+        <maven.build.cache.enabled>true</maven.build.cache.enabled>
+      </properties>
     </profile>
      <profile>
       <id>show-profiles</id>
