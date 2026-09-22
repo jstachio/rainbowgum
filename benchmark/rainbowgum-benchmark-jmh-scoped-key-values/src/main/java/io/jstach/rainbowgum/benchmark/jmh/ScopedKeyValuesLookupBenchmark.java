@@ -1,0 +1,180 @@
+package io.jstach.rainbowgum.benchmark.jmh;
+
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
+
+import io.jstach.rainbowgum.KeyValues;
+
+/**
+ * Compares RainbowGum's real {@link KeyValues#merge(KeyValues, KeyValues)} against two
+ * "pretend" approaches modeled directly on
+ * <a href="https://github.com/qos-ch/logback-scoped-mdc">logback-scoped-mdc</a>'s
+ * {@code ScopedMDC}: every push there does {@code new HashMap<>(current)} plus the new
+ * entries, before ever binding the {@code ScopedValue}. {@code KeyValues.merge} is itself
+ * an eager copy (a plain array-backed flatten, not a lazy layered view - it used to be a
+ * lazy view but that had a real, since-fixed correctness bug at deep nesting, see
+ * {@code KeyValuesMergeTest}), so all three variants measured here are actually the same
+ * shape of work: copy what is currently bound plus the new layer's entries into a fresh,
+ * immutable structure on every push. What differs is the target data structure - a flat
+ * array ({@link KeyValues}), a {@link HashMap}, or an immutable {@link Map#copyOf(Map)}.
+ * <p>
+ * The immutable-map variant exists only because null values are no longer allowed in
+ * {@code ScopedKeyValues} (see its own javadoc) - that guarantee is what makes
+ * {@link Map#copyOf(Map)} usable at all here (it rejects null keys/values), and immutable
+ * map construction/lookup is exactly the kind of thing a future JDK could plausibly get a
+ * lot faster at (compact identity, specialized small-map internals) in a way a plain
+ * mutable {@link HashMap} copy would not automatically benefit from.
+ * <p>
+ * Two things are measured per variant: the cost of one more push on top of an
+ * already-{@code depth}-deep structure (the steady-state "entering one more nested scope"
+ * cost, proportional to however many entries have accumulated by then), and lookup cost
+ * for a key that only exists in the first-pushed layer versus one that only exists in the
+ * last-pushed (most recent) layer. {@link KeyValues} is documented as <code>O(n)</code>
+ * for a single lookup (a plain array, optimized for "iterate everything" over "look up
+ * one key") and {@code merge} appends each new layer's entries after whatever was already
+ * accumulated, so a first-pushed key resolves in a short scan near the front of the array
+ * while a last-pushed key requires scanning past every earlier entry first - the opposite
+ * of what "first pushed" versus "last pushed" would suggest if this were still the old
+ * lazy, most-recent-layer-checked-first composite. The two {@link Map}-backed variants
+ * are close to {@code O(1)} regardless of which layer a key came from.
+ * <p>
+ * Run with: {@code mvn -pl benchmark/rainbowgum-benchmark-jmh-scoped-key-values -am
+ * package} then {@code java --add-opens java.base/java.util=ALL-UNNAMED -cp
+ * "benchmark/rainbowgum-benchmark-jmh-scoped-key-values/target/classes:$(find ~/.m2
+ * -name 'jmh-core-*.jar' -o -name 'jopt-simple-*.jar' -o -name 'commons-math3-*.jar' |
+ * tr '\n' ':')core/target/classes" org.openjdk.jmh.Main}.
+ */
+@State(Scope.Thread)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Warmup(iterations = 5, time = 1)
+@Measurement(iterations = 5, time = 1)
+@Fork(1)
+public class ScopedKeyValuesLookupBenchmark {
+
+	@Param({ "1", "4", "16", "64" })
+	public int depth;
+
+	@Param({ "1", "4" })
+	public int keysPerLayer;
+
+	private KeyValues keyValues;
+
+	private Map<String, String> eagerHashMap;
+
+	private Map<String, String> eagerImmutableMap;
+
+	private Map<String, String> lastLayer;
+
+	private String firstInsertedKey;
+
+	private String lastInsertedKey;
+
+	@Setup(org.openjdk.jmh.annotations.Level.Trial)
+	public void setup() {
+		KeyValues c = KeyValues.of();
+		Map<String, String> eagerHash = Map.of();
+		Map<String, String> eagerImmutable = Map.of();
+		Map<String, String> firstLayer = null;
+		for (int i = 0; i < depth; i++) {
+			Map<String, String> layer = layer(i, keysPerLayer);
+			if (firstLayer == null) {
+				firstLayer = layer;
+			}
+			this.lastLayer = layer;
+			c = KeyValues.merge(c, KeyValues.of(layer));
+			eagerHash = eagerHashMerge(eagerHash, layer);
+			eagerImmutable = eagerImmutableMerge(eagerImmutable, layer);
+		}
+		this.keyValues = c;
+		this.eagerHashMap = eagerHash;
+		this.eagerImmutableMap = eagerImmutable;
+		this.firstInsertedKey = firstLayer == null ? "missing" : firstLayer.keySet().iterator().next();
+		this.lastInsertedKey = lastLayer == null ? "missing" : lastLayer.keySet().iterator().next();
+	}
+
+	private static Map<String, String> layer(int layerIndex, int keysPerLayer) {
+		Map<String, String> layer = new LinkedHashMap<>();
+		for (int k = 0; k < keysPerLayer; k++) {
+			layer.put("k" + layerIndex + "-" + k, "v" + layerIndex + "-" + k);
+		}
+		return layer;
+	}
+
+	/**
+	 * Mirrors {@code ScopedMDC.putAll}: a full copy of whatever is currently bound, plus
+	 * the new layer's entries.
+	 */
+	private static Map<String, String> eagerHashMerge(Map<String, String> current, Map<String, String> layer) {
+		Map<String, String> merged = new HashMap<>(current);
+		merged.putAll(layer);
+		return merged;
+	}
+
+	private static Map<String, String> eagerImmutableMerge(Map<String, String> current, Map<String, String> layer) {
+		Map<String, String> merged = new HashMap<>(current);
+		merged.putAll(layer);
+		return Map.copyOf(merged);
+	}
+
+	@Benchmark
+	public void keyValuesPushOneMore(Blackhole bh) {
+		bh.consume(KeyValues.merge(keyValues, KeyValues.of(lastLayer)));
+	}
+
+	@Benchmark
+	public void eagerHashMapPushOneMore(Blackhole bh) {
+		bh.consume(eagerHashMerge(eagerHashMap, lastLayer));
+	}
+
+	@Benchmark
+	public void eagerImmutableMapPushOneMore(Blackhole bh) {
+		bh.consume(eagerImmutableMerge(eagerImmutableMap, lastLayer));
+	}
+
+	@Benchmark
+	public void keyValuesLookupFirstInserted(Blackhole bh) {
+		bh.consume(keyValues.getValueOrNull(firstInsertedKey));
+	}
+
+	@Benchmark
+	public void eagerHashMapLookupFirstInserted(Blackhole bh) {
+		bh.consume(eagerHashMap.get(firstInsertedKey));
+	}
+
+	@Benchmark
+	public void eagerImmutableMapLookupFirstInserted(Blackhole bh) {
+		bh.consume(eagerImmutableMap.get(firstInsertedKey));
+	}
+
+	@Benchmark
+	public void keyValuesLookupLastInserted(Blackhole bh) {
+		bh.consume(keyValues.getValueOrNull(lastInsertedKey));
+	}
+
+	@Benchmark
+	public void eagerHashMapLookupLastInserted(Blackhole bh) {
+		bh.consume(eagerHashMap.get(lastInsertedKey));
+	}
+
+	@Benchmark
+	public void eagerImmutableMapLookupLastInserted(Blackhole bh) {
+		bh.consume(eagerImmutableMap.get(lastInsertedKey));
+	}
+
+}
