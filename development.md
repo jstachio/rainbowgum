@@ -12,6 +12,11 @@ Keep git commit titles under 72 chars.
 On PR branches commits should be squashed before being merged if the history is
 not worth preserving or confusing.
 
+## Build
+
+See [build.md](build.md) for the Maven build cache, `bin/analyze.sh`, code
+coverage, and where to look when any of that goes stale.
+
 ## Testing
 
 Prefer end to end tests over unit tests.
