@@ -64,10 +64,10 @@ This project favors modularity. A general rule is that each module mostly has
 one or two direct dependencies other than the jdk. Integration with some other
 library never goes into core.
 
-We use package-info and module-info. Annotate the package for JSpecify and not the module
+We use `package-info` and `module-info`. Annotate the package for JSpecify and not the module
 as that is not well supported.
 
-Methods that return null should ideally be suffixed with OrNull. Accessors
+Methods that return null should ideally be suffixed with `OrNull`. Accessors
 follow modern record style and are not prefixed with get.
 
 Public javadoc should never go into implementation details that are likely to
