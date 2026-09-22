@@ -161,7 +161,11 @@ Currently Rainbow Gum does not provide support for:
 <ul>
   <li>Default external config file (e.g. log4j2.xml). This is by design; Rainbow Gum provides lots of extensions to use
     your applications configuration system, and system properties are supported out of the box.</li>
-  <li>Rolling of log files without an external tool; there is support for rolling without losing events using an external tool such as logrotate.</li>
+  <li>Calendar/date based log file rotation or compression on a schedule; there is a
+    deliberately basic {@linkplain io.jstach.rainbowgum.rolling.RollingFileOutput
+    built-in size based rolling output} for keeping a small/desktop app's disk from
+    filling up, and full support for rolling without losing events using an external
+    tool such as logrotate, see the <a href="#rolling">Rolling Files</a> section.</li>
   <li>{@linkplain org.slf4j.Marker SLF4J Marker} support (libraries and applications rarely use it compared to MDC).</li>
  </ul>
 

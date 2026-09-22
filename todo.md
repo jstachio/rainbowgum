@@ -69,9 +69,6 @@ To land before 1.0:
       since that type was built around single-snapshot health rather than metrics.
 - [x] Sanity check `LogAlerts.DEFAULT_CAPACITY` (currently 100) against a real consumer
       instead of a guess.
-- [x] Revisit whether coalescing repeated identical alerts (a stuck queue dropping
-      every event) is needed - not addressed by the first `LogAlerts` cut.
-      (ADAM: negative for now. Use LogMetrics)
 - [x] `LogAlerts` currently has no listener-driven consumer of its own yet (the
       `addListener` hook landed on `feature/log-alerts` but nothing calls it) - a buffer
       resize/soft-limit-hit counter (see the soft-limiting `maxBufferSize` work on
@@ -135,7 +132,9 @@ together, not just the code.
       hierarchy wholesale - the differentiator here is staying simple/low-overhead.
 - [x] Update `doc/overview.html`'s Rolling Files section and the old "Features not
       going to support" note once a direction is picked.
-- [ ] doc/overview.html still claims we offer no file rolling at the top in limitations. (ADAM)
+- [x] doc/overview.html's Limitations section still claimed we offer no file rolling
+      without an external tool. Fixed: now mentions the built-in size based rolling
+      output and links to the Rolling Files section.
 
 ## 4. Improve the LogProperty API and friends; at least add test coverage
 
@@ -166,11 +165,6 @@ unifying.
       using it would only ever throw `NotFoundException`. If revisited, needs a real
       design (which registries support it, how it interacts with `{name}` key
       parameters) rather than reintroducing dead scaffolding.
-- [x] `LogAppenderRegistry` carries its own admission of guilt in a comment: "The shit
-      in here is a mess because auto configuration of appenders based on properties is
-      complicated." A focused cleanup pass is overdue, now that `fileAppender()` has
-      already been simplified once this cycle via `mapResult`.
-      (ADAM: This was fixed with unifying calls to appenders builder)
 - [ ] **Misleading error wrapper from the `logging.file.name` auto-configuration
       shortcut**: `LogAppenderRegistry.fileAppender()` wraps the entire downstream
       `FileOutputBuilder.build()`/`fromProperties()` call inside a `.map()` chained off
@@ -186,7 +180,10 @@ unifying.
       directly, bypassing the shortcut) reads better since there's no such wrapping
       `.map()` in the way. Worth fixing when `fileAppender()` gets its cleanup pass
       above, rather than as a one-off.
-      (ADAM: I believe this has been mostly fixed with our newer validation stuff)
+      (Checked: still present as of current main - `FileOutputPropertiesTest`'s
+      `URI_WITH_BAD_BUFFER_SIZE`/`BAD_OUTPUT_URI` golden strings still show the outer
+      message mislabeled under `logging.file.name` even though that property itself
+      converts fine.)
 - [x] **`ChangeType.CALLER` doesn't really belong under `ChangePublisher`/"changing"**,
       and `ChangePublisher.allowedChanges(String)` had no caching at all. Addressed on
       `explore/changepublisher-caller-caching`: `AbstractChangePublisher` now caches
