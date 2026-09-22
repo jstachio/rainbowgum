@@ -54,3 +54,7 @@ Where `VERSION` is the version you want.
 ## Why choose Rainbow Gum
 
 Covered in [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
+
+## Developing Rainbow Gum
+
+Covered in [developing.md](developing.md)
