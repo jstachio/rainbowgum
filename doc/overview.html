@@ -1828,10 +1828,28 @@ Spring will re-initialize <code>java.util.logging</code> and take over it so aga
 
 <h3 id="jboss_logging">JBoss Logging</h3>
 
-<a href="https://github.com/jboss-logging/jboss-logging">JBoss Logging</a> is sadly another logging facade. 
-It is supported by forcing JBoss to use its builtin SLF4J bridge 
-which should use Rainbow Gum's SLF4J implementation. When Rainbow Gum initializes its SLF4J implementation the following 
-will happen to encourage JBoss Logging to use SLF4J.
+<a href="https://github.com/jboss-logging/jboss-logging">JBoss Logging</a> is sadly another logging facade,
+but unlike Commons Logging below it does not auto-select SLF4J just because <code>slf4j-api</code> is
+on the classpath - without help it silently falls back to <code>java.util.logging</code>, still reporting
+e.g. <code>isInfoEnabled()</code> correctly the whole time, so nothing looks broken.
+
+<p>
+The <code>rainbowgum-jboss-logging</code> module is a true, native
+{@link org.jboss.logging.LoggerProvider} implementation (not a bridge through SLF4J at all),
+registered the same way any {@link java.util.ServiceLoader} provider is. Add the dependency
+and it is picked up automatically, no configuration needed:
+
+{@snippet lang=xml :
+<dependency>
+  <groupId>io.jstach.rainbowgum</groupId>
+  <artifactId>rainbowgum-jboss-logging</artifactId>
+</dependency>
+}
+
+<p>
+If <code>rainbowgum-jboss-logging</code> is not on the classpath, Rainbow Gum's SLF4J implementation
+still tries to help the SLF4J-bridge path along: when it initializes it sets
+<code>org.jboss.logging.provider=slf4j</code> if that system property is not already set.
 
 {@snippet :
 if (System.getProperty("org.jboss.logging.provider") == null) {
@@ -1839,8 +1857,11 @@ if (System.getProperty("org.jboss.logging.provider") == null) {
 }
 }
 
-At the moment there are no plans to implement a true JBoss Logging implementation as it is not widely used.
-File an issue if you are interested an implementation.
+This only helps if Rainbow Gum's SLF4J implementation happens to initialize before JBoss Logging's own
+<code>LoggerProviders</code> class loads - if a JBoss-Logging-using library logs something before the
+application has touched SLF4J at all, this is too late and the silent <code>java.util.logging</code>
+fallback still happens. <code>rainbowgum-jboss-logging</code> does not have this ordering problem, since
+{@link java.util.ServiceLoader} is consulted before any of JBoss Logging's own bridge fallbacks.
 
 <h3 id="commons_logging">Commons Logging (jcl)</h3>
 
