@@ -74,6 +74,14 @@ Public javadoc should never go into implementation details that are likely to
 change or hidden. Public javadoc should not reference package friendly or
 private classes.
 
+### Doc
+
+See [doc/README.md](doc/README.md) for how `doc/overview.html` and the
+aggregated javadoc build works.
+
+Prefer `{@value}` over typing the string out by hand when documenting a
+`public static final` field that holds a property name.
+
 Enums and or sealed classes that are likely to have additional members on
 future minor releases should be annotated with `@CaseChanging`.
 
