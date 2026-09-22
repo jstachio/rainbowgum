@@ -1,10 +1,8 @@
 package io.jstach.rainbowgum.scopedkeyvalues;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.function.BiConsumer;
 
 import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider;
 import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProviderFactory;
@@ -60,11 +58,12 @@ public final class ScopedKeyValues {
 	}
 
 	/**
-	 * Creates a builder to push a new layer of key values.
+	 * Creates a builder to push a new layer of key values, fetched fresh from whichever
+	 * {@link ScopedKeyValuesProvider} is active.
 	 * @return builder.
 	 */
 	public static Builder builder() {
-		return new Builder();
+		return PROVIDER.builder();
 	}
 
 	/**
@@ -91,17 +90,20 @@ public final class ScopedKeyValues {
 
 	/**
 	 * Builds one immutable layer of key values and pushes it for the duration of a
-	 * {@link #run(Runnable)}/{@link #call(CallableOp)} call.
+	 * {@link #run(Runnable)}/{@link #call(CallableOp)} call. Implemented by whichever
+	 * {@link ScopedKeyValuesProvider} is active, so an addition can be written directly
+	 * into that provider's own internal representation instead of always collecting into
+	 * an intermediate {@link Map} first.
+	 * <p>
+	 * Extends {@link BiConsumer} (rather than only offering a bespoke
+	 * {@code add(String, String)} method) so a builder can be populated directly from any
+	 * existing {@code BiConsumer}-shaped source of key values, the same idiom
+	 * {@code io.jstach.rainbowgum.KeyValues#forEach(BiConsumer)} already uses.
 	 */
-	public static final class Builder {
-
-		private final Map<String, String> layer = new LinkedHashMap<>();
-
-		private Builder() {
-		}
+	public interface Builder extends BiConsumer<String, String> {
 
 		/**
-		 * Adds a key/value pair to the layer being built. Order is preserved.
+		 * Fluent form of {@link #accept(Object, Object)}.
 		 * @param key key, never {@code null}.
 		 * @param value value, never {@code null} - pass a real sentinel/empty string
 		 * instead if "no value" needs to be represented, rather than relying on null
@@ -109,10 +111,8 @@ public final class ScopedKeyValues {
 		 * @return this.
 		 * @throws NullPointerException if either argument is {@code null}.
 		 */
-		public Builder add(String key, String value) {
-			Objects.requireNonNull(key, "key");
-			Objects.requireNonNull(value, "value");
-			layer.put(key, value);
+		default Builder add(String key, String value) {
+			accept(key, value);
 			return this;
 		}
 
@@ -120,9 +120,7 @@ public final class ScopedKeyValues {
 		 * Pushes this layer and runs {@code body} for its duration.
 		 * @param body code to run with this layer pushed.
 		 */
-		public void run(Runnable body) {
-			PROVIDER.push(frozen(), body);
-		}
+		void run(Runnable body);
 
 		/**
 		 * Pushes this layer and calls {@code body} for its duration.
@@ -132,13 +130,7 @@ public final class ScopedKeyValues {
 		 * @return whatever {@code body} returns.
 		 * @throws X whatever {@code body} throws.
 		 */
-		public <T, X extends Throwable> T call(CallableOp<T, X> body) throws X {
-			return PROVIDER.push(frozen(), body);
-		}
-
-		private Map<String, String> frozen() {
-			return Collections.unmodifiableMap(new LinkedHashMap<>(layer));
-		}
+		<T, X extends Throwable> T call(CallableOp<T, X> body) throws X;
 
 	}
 

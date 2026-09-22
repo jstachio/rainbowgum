@@ -6,22 +6,23 @@ import java.util.Objects;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
+import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues;
 import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues.CallableOp;
 import io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider;
 
 /**
  * {@code java.lang.ScopedValue}-backed {@link ScopedKeyValuesProvider}: each
- * {@linkplain #push(Map, Runnable) push} rebinds to
- * {@link KeyValues#merge(KeyValues, KeyValues)} of whatever was previously bound (the
- * lower precedence side) and the newly built {@link KeyValues} layer (the higher
- * precedence side) - a cons cell, not a list, nested one layer deeper with every push -
- * for the duration of that call via a plain {@code ScopedValue.where(...)}. There is no
- * mutable cell anywhere in this class: the JVM's own dynamic-scope unwind is the entire
- * "pop" mechanism, which is also what makes this safe under structured concurrency
- * without any extra bookkeeping - a {@code java.util.concurrent.StructuredTaskScope} fork
- * started inside a push inherits whatever was bound at that moment as a frozen snapshot;
- * nothing a sibling task or the parent does afterward can change what that snapshot
- * contains.
+ * {@link ScopedKeyValues.Builder#run(Runnable)}/{@link ScopedKeyValues.Builder#call(CallableOp)}
+ * rebinds to {@link KeyValues#merge(KeyValues, KeyValues)} of whatever was previously
+ * bound (the lower precedence side) and the builder's own {@link MutableKeyValues} layer
+ * (the higher precedence side) - a cons cell, not a list, nested one layer deeper with
+ * every push - for the duration of that call via a plain {@code ScopedValue.where(...)}.
+ * There is no mutable cell anywhere in this class outside of a single in-flight builder's
+ * own layer: the JVM's own dynamic-scope unwind is the entire "pop" mechanism, which is
+ * also what makes this safe under structured concurrency without any extra bookkeeping -
+ * a {@code java.util.concurrent.StructuredTaskScope} fork started inside a push inherits
+ * whatever was bound at that moment as a frozen snapshot; nothing a sibling task or the
+ * parent does afterward can change what that snapshot contains.
  * <p>
  * Constructed only by {@link ScopedKeyValuesProviderFactoryImpl}, not directly by
  * {@link java.util.ServiceLoader} - package-private since nothing outside this package
@@ -46,33 +47,50 @@ final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvider {
 	}
 
 	@Override
-	public void push(Map<String, String> layer, Runnable body) {
-		ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer))).run(body);
-	}
-
-	@Override
-	public <T, X extends Throwable> T push(Map<String, String> layer, CallableOp<T, X> body) throws X {
-		return ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), toKeyValues(layer))).call(body::call);
+	public ScopedKeyValues.Builder builder() {
+		return new KeyValuesBuilder();
 	}
 
 	@Override
 	public Map<String, String> currentMerged() {
 		/*
 		 * KeyValues#copyToMap() is typed for the general case (a KeyValues can hold null
-		 * values), but every KeyValues this provider ever binds comes from
-		 * toKeyValues(Map<String, String>) below, whose values were already checked
-		 * non-null at ScopedKeyValues.Builder#add(...). requireNonNull here turns that
-		 * invariant into an explicit, fail-fast check instead of a silent cast.
+		 * values), but every KeyValues this provider ever binds comes from a
+		 * KeyValuesBuilder below, whose additions were already checked non-null in
+		 * accept(). requireNonNull here turns that invariant into an explicit, fail-fast
+		 * check instead of a silent cast.
 		 */
 		Map<String, String> result = new LinkedHashMap<>();
 		currentMergedKeyValues().forEach((k, v) -> result.put(k, Objects.requireNonNull(v)));
 		return result;
 	}
 
-	private static KeyValues toKeyValues(Map<String, String> layer) {
-		var buf = MutableKeyValues.of(layer.size());
-		layer.forEach(buf);
-		return buf.freeze();
+	/**
+	 * Writes additions straight into a {@link MutableKeyValues}, so pushing a layer never
+	 * has to go through an intermediate {@link Map} the way the old {@code Map}-based
+	 * {@link ScopedKeyValuesProvider} contract used to force.
+	 */
+	private static final class KeyValuesBuilder implements ScopedKeyValues.Builder {
+
+		private final MutableKeyValues layer = MutableKeyValues.of();
+
+		@Override
+		public void accept(String key, String value) {
+			Objects.requireNonNull(key, "key");
+			Objects.requireNonNull(value, "value");
+			layer.putKeyValue(key, value);
+		}
+
+		@Override
+		public void run(Runnable body) {
+			ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), layer.freeze())).run(body);
+		}
+
+		@Override
+		public <T, X extends Throwable> T call(CallableOp<T, X> body) throws X {
+			return ScopedValue.where(STACK, KeyValues.merge(currentMergedKeyValues(), layer.freeze())).call(body::call);
+		}
+
 	}
 
 }
