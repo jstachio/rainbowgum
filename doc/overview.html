@@ -1865,30 +1865,50 @@ fallback still happens. <code>rainbowgum-jboss-logging</code> does not have this
 
 <h3 id="commons_logging">Commons Logging (jcl)</h3>
 
-Commons Logging support can be had by using:
+Commons Logging's own story has changed enough over time that it boils down to three
+cases, and in every one of them the fix is either nothing or a version bump, never
+<code>jcl-over-slf4j</code>:
 
-<ul>
-  <li><a href="https://www.slf4j.org/legacy.html#jclRecursion">jcl-over-slf4j</a>: if not using Spring, or using Spring Framework 6 / Spring Boot 3 (or earlier) and one does not want <code>spring-jcl</code>. </li>
-  <li><a href="https://docs.spring.io/spring-framework/reference/core/spring-jcl.html">spring-jcl</a>: if using Spring Framework 6 / Spring Boot 3 (or earlier).</li>
-</ul>
-
-Both of these are drop in replacements to commons-logging library.
-If you are using Rainbow Gum's Spring Boot 3 integration it will use <code>spring-jcl</code>. That being said
-if one does not want Spring "sniffing" around by reflection and not using Spring Boot <code>jcl-over-slf4j</code> is preferred
-but requires excluding <code>spring-jcl</code>.
+<table class="table">
+<caption><strong>Commons Logging Cases</strong></caption>
+<tr>
+<th>Case</th>
+<th>What's actually happening</th>
+<th>Action needed</th>
+</tr>
+<tr>
+<td>Spring Framework 6 / Spring Boot 3 (or earlier)</td>
+<td>Ships <a href="https://docs.spring.io/spring-framework/reference/core/spring-jcl.html">spring-jcl</a>
+(Spring's own minimal <code>LogFactory</code>), which has auto-detected SLF4J (or the
+Log4j2 API) on the classpath since Spring Framework 5.0, falling back to
+<code>java.util.logging</code> only if neither is present.</td>
+<td>Nothing.</td>
+</tr>
+<tr>
+<td>Spring Framework 7 / Spring Boot 4 (or later)</td>
+<td><code>spring-jcl</code> was dropped; Spring depends directly on the real
+<a href="https://commons.apache.org/proper/commons-logging/">Apache Commons Logging</a>
+(Spring Framework 7.0.0 pins 1.3.5).</td>
+<td>Nothing.</td>
+</tr>
+<tr>
+<td>Not using Spring, calling Commons Logging directly</td>
+<td>Real Commons Logging's own <code>LogFactory</code> auto-detects <code>org.slf4j.Logger</code>
+on the classpath and self-selects an SLF4J-backed factory - but only since
+<strong>1.3.0</strong> (November 2023).</td>
+<td>Upgrade to 1.3.0 or later. Rainbow Gum does not officially support Commons Logging
+older than that - there is no auto-detection to rely on before it.</td>
+</tr>
+</table>
 
 <p>
-
-<b>Spring Framework 7 / Spring Boot 4 changed this</b>: <code>spring-jcl</code> was removed and Spring went back to depending
-directly on the real <a href="https://commons.apache.org/proper/commons-logging/">Apache Commons Logging</a> (1.3+), which as of
-that version added its own built-in SLF4J discovery. So with Rainbow Gum's Spring Boot 4 integration, <code>commons-logging</code>
-calls are routed to SLF4J (and therefore Rainbow Gum) automatically by commons-logging itself: no <code>jcl-over-slf4j</code>
-substitution or <code>spring-jcl</code>/<code>commons-logging</code> exclusion dance needed.
-
-<p>
-
-For anything other than Spring Framework 7 / Spring Boot 4, the original <a href="https://commons.apache.org/proper/commons-logging/">commons-logging</a>
-should generally not be used and should be excluded from dependencies that need it.
+<b><code>jcl-over-slf4j</code> is strongly discouraged</b>, not just unnecessary once on
+Commons Logging 1.3+: it ships its own <code>org.apache.commons.logging.LogFactory</code>/
+<code>Log</code> classes under the exact same fully qualified names as real
+<a href="https://commons.apache.org/proper/commons-logging/">Commons Logging</a>. Having
+both on the classpath at once is not an error, it is a silent, classloader-order-dependent
+conflict over which jar's classes actually get loaded. Upgrade Commons Logging instead of
+reaching for it.
 
 <h3 id="plugin_guide">Extension development guide</h3>
 
