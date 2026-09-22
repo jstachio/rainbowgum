@@ -89,7 +89,7 @@ class FileOutputPropertiesTest {
 							Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 							Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], java.lang.NumberFormatException For input string: "blah"
-							  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
+							  ↳ Failure providing from property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
 							  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 							  ↳ Failure providing Appenders for route: 'default'.""",
 					e.getMessage());
@@ -195,7 +195,7 @@ class FileOutputPropertiesTest {
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], java.lang.NumberFormatException For input string: "blah"
 						Tried: 'logging.output.file.bufferSize' from ENVIRONMENT_VARIABLES[logging_output_file_bufferSize], PROPERTIES_STRING[logging.output.file.bufferSize], [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
-						  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah'
+						  ↳ Failure providing from property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah'
 						    Tried: 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name]
 						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 						  ↳ Failure providing Appenders for route: 'default'.""" //
@@ -223,7 +223,7 @@ class FileOutputPropertiesTest {
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 						Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 						Tried: 'logging.output.file.uri' from ENVIRONMENT_VARIABLES[logging_output_file_uri], PROPERTIES_STRING[logging.output.file.uri]
-						  ↳ Error converting property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
+						  ↳ Failure providing from property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
 						    Tried: 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name]
 						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 						  ↳ Failure providing Appenders for route: 'default'.""";

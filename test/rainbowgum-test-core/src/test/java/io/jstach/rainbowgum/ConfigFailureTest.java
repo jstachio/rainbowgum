@@ -189,7 +189,7 @@ class ConfigFailureTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Property missing. keys: ['logging.encoder.myapp.host' from PROPERTIES_STRING[logging.encoder.myapp.host], [logging.appender.myapp.encoder]->URI(fake:///)[host]]
-						  ↳ Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -204,7 +204,7 @@ class ConfigFailureTest {
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.port' from PROPERTIES_STRING[logging.encoder.myapp.port], java.lang.NumberFormatException For input string: "notanumber"
 						Tried: 'logging.encoder.myapp.port' from PROPERTIES_STRING[logging.encoder.myapp.port], [logging.appender.myapp.encoder]->URI(fake:///)[port]
-						  ↳ Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -219,7 +219,7 @@ class ConfigFailureTest {
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.myapp.endpoint], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 						Tried: 'logging.encoder.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.myapp.endpoint], [logging.appender.myapp.encoder]->URI(fake:///)[endpoint]
-						  ↳ Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -247,7 +247,7 @@ class ConfigFailureTest {
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], java.lang.IllegalArgumentException label must not be 'bad'
 						Tried: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], [logging.appender.myapp.encoder]->URI(fake:///)[label]
-						  ↳ Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -264,7 +264,7 @@ class ConfigFailureTest {
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], java.lang.IllegalArgumentException tags must not contain 'bad'
 						Tried: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], [logging.appender.myapp.encoder]->URI(fake:///)[tags]
-						  ↳ Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -281,7 +281,7 @@ class ConfigFailureTest {
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Error for property. key: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], java.lang.IllegalArgumentException headers must not contain key 'bad'
 						Tried: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], [logging.appender.myapp.encoder]->URI(fake:///)[headers]
-						  ↳ Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -644,7 +644,7 @@ class ConfigFailureTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Property missing. keys: ['logging.encoder.myapp.host' from PROPERTIES_STRING[logging.encoder.myapp.host], PROPERTIES_STRING[logging.encoder.myapp.host], [logging.appender.myapp.encoder]->URI(fake:///)[host]]
-						  ↳ Error converting property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						    Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], PROPERTIES_STRING[logging.appender.myapp.encoder]
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'.""") {

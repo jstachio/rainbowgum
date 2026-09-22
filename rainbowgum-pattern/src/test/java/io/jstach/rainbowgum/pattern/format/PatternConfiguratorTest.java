@@ -63,7 +63,7 @@ class PatternConfiguratorTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.zoneId' from PROPERTIES_STRING[logging.pattern.config.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
-						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
@@ -87,7 +87,7 @@ class PatternConfiguratorTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.sequenceNumberStart' from PROPERTIES_STRING[logging.pattern.config.list.sequenceNumberStart], java.lang.NumberFormatException For input string: "notanumber"
-						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
@@ -111,7 +111,7 @@ class PatternConfiguratorTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.abbreviatorCache' from PROPERTIES_STRING[logging.pattern.config.list.abbreviatorCache], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType.NOTAREALCACHETYPE
-						  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
