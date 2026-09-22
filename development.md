@@ -44,11 +44,14 @@ should be prefixed with `Abstract`.
 Inner classes in public interfaces are public. Use top level package friendly
 classes in the same file instead.
 
-Prefer builders over getter setters and only builders are mutable. Builders can
-build classes different classes via interfaces. There is not always a 1-1.
-Builders are preferred over multiple argument static method factories. Builders
-should be smart and pick best implementation. The exception to builders is hot
-path where garbage is not acceptable.
+Prefer builders over getters and setters; builders are the only classes that
+get to be mutable. A builder does not need a strict one to one mapping with
+what it builds, it can hand back different concrete classes through a shared
+interface depending on what got configured. Builders are preferred over static
+factory methods that take a pile of arguments, and a builder should be smart
+enough to pick the best implementation on its own. The one exception is hot
+paths, where builders get skipped entirely because that allocation is garbage
+we cannot afford.
 
 Likewise other than builders the code should be threadsafe or rely on
 some external guarantee that it is.
