@@ -60,21 +60,6 @@ class KeyValuesMergeTest {
 	}
 
 	@Test
-	void indexProtocolNeverRevisitsShadowedEntry() throws Exception {
-		var low = KeyValues.of(Map.of("env", "low"));
-		var high = KeyValues.of(Map.of("env", "high"));
-		var kvs = KeyValues.merge(low, high);
-
-		int count = 0;
-		for (int i = kvs.start(); i > -1; i = kvs.next(i)) {
-			assertEquals("env", kvs.key(i));
-			assertEquals("high", kvs.valueOrNull(i));
-			count++;
-		}
-		assertEquals(1, count);
-	}
-
-	@Test
 	void nestedMergeThreeLevelsDeepLaterAlwaysWins() throws Exception {
 		var a = KeyValues.of(Map.of("k", "a", "onlyA", "1"));
 		var b = KeyValues.of(Map.of("k", "b"));

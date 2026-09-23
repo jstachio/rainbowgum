@@ -13,15 +13,14 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
  * Key Value Pairs similar to a {@code Map<String,String>} but optimized for memory and
  * less garbage (no iterators).
  * <p>
- * <strong>The integer index used in the low level access are not in array order and thus
- * {@link #start()} and {@link #next(int)} should be used to iterate over the key values
- * instead of manually incrementing.</strong>
- * <p>
  * The observed order of the current default Key Value Pairs is insertion based ordering
  * but that should not be relied on as other implementations may change that.
  * <p>
  * The preferred way to get all or most of the key values out for formatting is to use
- * {@link KeyValuesConsumer}.
+ * {@link KeyValuesConsumer}. There is deliberately no low-level, index-based access
+ * (something like {@code key(int)}/{@code valueOrNull(int)}) on this interface: that
+ * shape only makes sense for an array-backed implementation, and would force every
+ * implementation - including ones not backed by a flat array - to expose it anyway.
  *
  * @apiNote The current key values implementation is a simple single String array as the
  * assumption is that most MDC (and or addKeyValuePair) usage is for a couple values and
@@ -44,35 +43,6 @@ public sealed interface KeyValues {
 	 * @return value for key maybe <code>null</code>.
 	 */
 	public @Nullable String getValueOrNull(String key);
-
-	/**
-	 * Low-level key access.
-	 * @param i index from {@link #start()} or {@link #next(int)}.
-	 * @return key.
-	 * @throws IndexOutOfBoundsException if the index is not valid for this key values.
-	 */
-	public String key(int i) throws IndexOutOfBoundsException;
-
-	/**
-	 * Low-level key access.
-	 * @param i index from {@link #start()} or {@link #next(int)}.
-	 * @return key.
-	 * @throws IndexOutOfBoundsException if the index is not valid for this key values.
-	 */
-	public @Nullable String valueOrNull(int i) throws IndexOutOfBoundsException;
-
-	/**
-	 * Returns the index of the first key.
-	 * @return the start index which may or may not be zero.
-	 */
-	public int start();
-
-	/**
-	 * Gets the next key index from the passed in previous key index.
-	 * @param i the previous key index.
-	 * @return next key index.
-	 */
-	public int next(int i);
 
 	/**
 	 * Used to easily iterate over the key value pairs without using an iterator.
@@ -327,14 +297,13 @@ public sealed interface KeyValues {
 		if (kvs.size() != self.size()) {
 			return false;
 		}
-		for (int i = self.start(); i > -1; i = self.next(i)) {
-			var k = self.key(i);
-			var v = self.valueOrNull(i);
-			if (!Objects.equals(v, kvs.getValueOrNull(k))) {
-				return false;
+		boolean[] result = { true };
+		self.forEach((k, v) -> {
+			if (result[0] && !Objects.equals(v, kvs.getValueOrNull(k))) {
+				result[0] = false;
 			}
-		}
-		return true;
+		});
+		return result[0];
 	}
 
 }
@@ -363,26 +332,6 @@ final class EmptyKeyValues implements KeyValues {
 	@Override
 	public int size() {
 		return 0;
-	}
-
-	@Override
-	public int next(int index) {
-		return -1;
-	}
-
-	@Override
-	public String key(int index) {
-		throw new IndexOutOfBoundsException(index);
-	}
-
-	@Override
-	public @Nullable String valueOrNull(int index) {
-		throw new IndexOutOfBoundsException(index);
-	}
-
-	@Override
-	public int start() {
-		return -1;
 	}
 
 	@Override
@@ -454,58 +403,8 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	}
 
 	@Override
-	public String key(int index) {
-		if (index >= (threshold - 1)) {
-			throw new IndexOutOfBoundsException(index);
-		}
-		String k = kvs[index];
-		if (k == null) {
-			throw new IndexOutOfBoundsException(index);
-		}
-		return k;
-	}
-
-	@Override
-	public @Nullable String valueOrNull(int index) {
-		if (index >= (threshold - 1)) {
-			throw new IndexOutOfBoundsException(index);
-		}
-		return kvs[index + 1];
-	}
-
-	@Override
 	public int size() {
 		return this.size;
-	}
-
-	private int _next(int index) {
-		if (size == 0) {
-			return -1;
-		}
-		var limit = threshold - 1;
-		if (index >= limit) {
-			return -1;
-		}
-		int i = index;
-		for (; i < limit; i += 2) {
-			var k = kvs[i];
-			var v = kvs[i + 1];
-			if (k == null && v == null) {
-				continue;
-			}
-			return i;
-		}
-		return -1;
-	}
-
-	@Override
-	public int next(int index) {
-		return _next(index + 2);
-	}
-
-	@Override
-	public int start() {
-		return _next(0);
 	}
 
 	@Override
@@ -593,14 +492,12 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 	@Override
 	public int hashCode() {
-		int result = 1;
-		for (int i = start(); i > -1; i = next(i)) {
-			var k = key(i);
-			var v = valueOrNull(i);
-			result = result + k.hashCode();
-			result = result + (v == null ? 0 : v.hashCode());
-		}
-		return result;
+		int[] result = { 1 };
+		forEach((k, v) -> {
+			result[0] = result[0] + k.hashCode();
+			result[0] = result[0] + (v == null ? 0 : v.hashCode());
+		});
+		return result[0];
 	}
 
 	@Override

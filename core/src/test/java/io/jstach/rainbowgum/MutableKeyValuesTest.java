@@ -151,18 +151,6 @@ class MutableKeyValuesTest {
 
 			}
 		},
-		FOR_LOOP() {
-			@Override
-			void test(MutableKeyValues kvs) {
-				StringBuilder sb = new StringBuilder();
-				for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
-					var k = kvs.key(i);
-					var v = kvs.valueOrNull(i);
-					sb.append(k).append("=").append(v).append(",");
-				}
-				assertEquals("A=a,C=c,", sb.toString());
-			}
-		},
 		GET_VALUE() {
 			@Override
 			void test(MutableKeyValues kvs) {
@@ -315,36 +303,6 @@ class MutableKeyValuesTest {
 
 		other.putKeyValue("a1", "b1");
 		assertNotEquals(other, first);
-	}
-
-	@ParameterizedTest
-	@MethodSource("kvsEmpties")
-	void testValueOrNullBadIndex(KeyValues kvs) {
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.valueOrNull(1));
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.valueOrNull(0));
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.valueOrNull(-1));
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.valueOrNull(Integer.MAX_VALUE));
-	}
-
-	@ParameterizedTest
-	@MethodSource("kvsEmpties")
-	void testKeyBadIndex(KeyValues kvs) {
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.key(1));
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.key(0));
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.key(-1));
-		assertThrows(IndexOutOfBoundsException.class, () -> kvs.key(Integer.MAX_VALUE));
-	}
-
-	@ParameterizedTest
-	@MethodSource("kvsEmpties")
-	void testStartEmpty(KeyValues kvs) {
-		assertEquals(-1, kvs.start());
-	}
-
-	@ParameterizedTest
-	@MethodSource("kvsEmpties")
-	void testNextEmpty(KeyValues kvs) {
-		assertEquals(-1, kvs.next(1));
 	}
 
 	@ParameterizedTest

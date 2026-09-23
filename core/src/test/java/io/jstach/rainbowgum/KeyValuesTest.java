@@ -36,14 +36,14 @@ class KeyValuesTest {
 			m.put(String.valueOf(i), i + "value");
 		}
 		var kvs = create(m);
-		for (int i = kvs.start(), j = 0; i > -1; i = kvs.next(i), j++) {
-			String k = kvs.key(i);
-			String v = kvs.valueOrNull(i);
+		int count = kvs.forEach((src, k, v, j, storage) -> {
 			String ek = String.valueOf(j + 1);
 			String ev = (j + 1) + "value";
 			assertEquals(ek, k, "key");
 			assertEquals(ev, v, "value");
-		}
+			return j + 1;
+		}, 0, kvs);
+		assertEquals(199, count);
 	}
 
 	@Test
