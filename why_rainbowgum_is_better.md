@@ -7,14 +7,39 @@ Where X is one of the following JVM logging implementations:
 * [Reload4j](https://reload4j.qos.ch/) (Log4j 1, still alive as a security-patched fork)
 * [tinylog](https://tinylog.org/v2/)
 
-This document (like [JStachio's own](https://github.com/jstachio/jstachio/blob/main/why_jstachio_is_better.md),
-which it borrows its format from) is deliberately opinionated marketing - the
-[user guide](https://jstach.io/rainbowgum/) is the actual documentation.
+This document naturally is biased and somewhat opinionated marketing but has some reasonable backing.
+If you are the author of one these libraries and would like me to make corrections I am happy to do so.
+
+For those looking for regular documentation [user guide](https://jstach.io/rainbowgum/) is the actual documentation.
+
+## Safe
 
 See also [error_messages_comparison.md](error_messages_comparison.md) - a companion
 document comparing what each framework actually does (and says) when a component is
 misconfigured, since "small and fast" doesn't matter much if a typo fails silently in
 production.
+
+What was found over and over in all the frameworks but Rainbow Gum is that errors particularly
+on initialization would be blindly swallowed or near impossible to disc those. If there
+was an error message it was not user friendly and lacked context.
+
+Furthermore Logback and Log4J2
+(but not Rainbow Gum or Tiny Log) have incredible technical debt with lots of old information out there.
+We routinely had issues configuring these logging frameworks for optimum performance / safety
+even using LLM agents. The agents would trip up and not configure correctly. When benchmarking
+either Logback or Log4J2 they would often not know that the frameworks had failed to load.
+
+Some other safety concerns:
+
+* Log4J2, Logback, and Tinylog will happily read resources of the classpath without your permission.
+* Log4J2 and Logback have and allow interpolation of properties.
+* Log4J2, Logback, Reload4J, and Tinylog all allow logging components to be mutated after initialization usually with getter/setter POJOs.
+* Log4J2 and Logback use reflection heavily.
+
+Rainbow Gum does not do the above. It does not mean Rainbow Gum is always more secure than the others but just that its
+security surface is smaller and when there are problems you will know sooner. 
+We believe too many features, moving parts and not knowing when things are misconfigured make some thing like Log4Shell more likely.
+
 
 ## Small
 
