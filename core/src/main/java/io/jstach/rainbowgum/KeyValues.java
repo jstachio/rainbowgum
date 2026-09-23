@@ -172,16 +172,33 @@ public sealed interface KeyValues {
 		if (high.isEmpty()) {
 			return low;
 		}
-		/*
-		 * low's own keys are already unique (a KeyValues never carries a duplicate), so
-		 * its entries can be appended straight in without a duplicate check - only high's
-		 * entries need that check, since only they can collide with what low already
-		 * contributed. Copying low via the ordinary putKeyValue-based accept() (like
-		 * high's below) would cost 1+2+...+low.size() comparisons to build up the buffer
-		 * - O(low.size()^2) - instead of the O(low.size()) a plain append is.
-		 */
+		return mergeArrays(low, high);
+	}
+
+	/*
+	 * low's own keys are already unique (a KeyValues never carries a duplicate), so its
+	 * entries never need putKeyValue's duplicate scan the way high's do - only high can
+	 * actually collide with what low already contributed. When low is a dense (gap-free)
+	 * array-backed KeyValues - true for essentially everything that reaches here in
+	 * practice, since merge()'s own output is always dense and neither KeyValues.of(Map)
+	 * nor ScopedKeyValues.Builder ever call remove() - its entries are bulk-copied
+	 * straight into the new backing array via System.arraycopy rather than appended one
+	 * at a time, which is what actually gets this close to a HashMap copy's own cost
+	 * rather than just skipping the duplicate scan. A low that is not known dense falls
+	 * back to ArrayKeyValues#appendUnchecked (still no duplicate scan, just per-entry
+	 * instead of one bulk copy) since a raw copy could otherwise stop at a gap before
+	 * reaching real entries that come after it.
+	 */
+	private static KeyValues mergeArrays(KeyValues low, KeyValues high) {
 		ArrayKeyValues buf = new ArrayKeyValues(low.size() + high.size());
-		low.forEach(buf::appendUnchecked);
+		buf.kvs = new @Nullable String[buf.threshold];
+		if (low instanceof AbstractArrayKeyValues low2 && low2.dense) {
+			System.arraycopy(low2.kvs, 0, buf.kvs, 0, low2.size * 2);
+			buf.size = low2.size;
+		}
+		else {
+			low.forEach(buf::appendUnchecked);
+		}
 		high.forEach(buf);
 		return buf.freeze();
 	}
@@ -418,6 +435,17 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 	protected int threshold;
 
+	/*
+	 * True as long as no MutableKeyValues#remove(String) has ever left a gap in kvs -
+	 * KeyValues.merge's fast path bulk-copies another instance's raw kvs array via
+	 * System.arraycopy only when this is true, since that skips the usual "stop at the
+	 * first empty slot" scan and would otherwise risk stopping at a gap before reaching
+	 * real entries that come after it. Defaults true (every fresh instance starts gap
+	 * free) and is propagated by copy()/freeze() below, since those also copy kvs
+	 * verbatim, gaps and all.
+	 */
+	protected boolean dense = true;
+
 	protected AbstractArrayKeyValues(@Nullable String[] kvs, int size, int threshold) {
 		super();
 		this.kvs = kvs;
@@ -630,7 +658,9 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		ArrayKeyValues orig = this;
 		@Nullable String[] copyKvs = new @Nullable String[this.threshold];
 		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.threshold);
-		return new ArrayKeyValues(copyKvs, size, threshold);
+		var result = new ArrayKeyValues(copyKvs, size, threshold);
+		result.dense = this.dense;
+		return result;
 	}
 
 	@SuppressWarnings("null") // Eclipse bug
@@ -642,7 +672,9 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		ArrayKeyValues orig = this;
 		String[] copyKvs = new String[this.threshold];
 		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.threshold);
-		return new ImmutableArrayKeyValues(copyKvs, size, threshold);
+		var result = new ImmutableArrayKeyValues(copyKvs, size, threshold);
+		result.dense = this.dense;
+		return result;
 	}
 
 	public @Nullable String apply(String t) {
@@ -689,7 +721,9 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	 * comparisons - O(size()^2). Skipping straight to the append tail is safe only when
 	 * the caller already knows key cannot be a duplicate, e.g. copying another KeyValues'
 	 * entries (unique by construction) one at a time into a buffer that started empty -
-	 * see KeyValues#merge.
+	 * used as KeyValues#merge's fallback for a low side that is not dense
+	 * (System.arraycopy is unsafe there - see the `dense` field), which is otherwise the
+	 * same shape as putKeyValue's own append tail.
 	 */
 	@SuppressWarnings("ReferenceEquality")
 	void appendUnchecked(String key, @Nullable String value) {
@@ -718,6 +752,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 				kvs[i] = null;
 				kvs[i + 1] = null;
 				size--;
+				dense = false;
 			}
 		}
 	}
