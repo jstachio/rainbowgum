@@ -9,8 +9,8 @@
 
 Keep git commit titles under 72 chars.
 
-On PR branches commits should be squashed before being merged if the history is
-not worth preserving or confusing.
+PR branches done by humans commits should be squashed before being merged if the history is
+not worth preserving or confusing. Agents should not squash till told to.
 
 ## Build
 
