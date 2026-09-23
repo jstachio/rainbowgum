@@ -130,6 +130,28 @@ class KeyValuesMergeTest {
 		assertEquals(1, kvs.size());
 	}
 
+	/*
+	 * merge()'s low-side copy skips putKeyValue's duplicate scan (see KeyValues#merge's
+	 * own comment) on the assumption that low's remaining entries are already unique -
+	 * true even when low has a hole from remove() sitting in front of later real entries,
+	 * since low.forEach already skips holes when handing entries to the fast copy.
+	 */
+	@Test
+	void lowWithARemovedEntryInFrontOfLaterKeysStillMergesCorrectly() throws Exception {
+		var low = MutableKeyValues.of();
+		low.putKeyValue("removed", "gone");
+		low.putKeyValue("kept", "original");
+		low.remove("removed");
+		var high = KeyValues.of(Map.of("kept", "overridden", "new", "n"));
+
+		var kvs = KeyValues.merge(low.freeze(), high);
+
+		LinkedHashMap<String, @Nullable String> collected = new LinkedHashMap<>();
+		kvs.forEach(collected::put);
+		assertEquals(Map.of("kept", "overridden", "new", "n"), collected);
+		assertEquals(2, kvs.size());
+	}
+
 	@Test
 	void toStringMatchesMergedContent() throws Exception {
 		var low = KeyValues.of(Map.of("A", "a"));
