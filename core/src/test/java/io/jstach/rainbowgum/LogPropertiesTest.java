@@ -248,6 +248,7 @@ class LogPropertiesTest {
 	enum ParseListTest {
 
 		SINGLE("a", "a"), //
+		SPACE("a b", "a b"), //
 		TWO_COMMA("a,b", "a", "b"), //
 		THREE_COMMA("a,b,c", "a", "b", "c"), //
 		TWO_AMP("a&b", "a", "b"), //

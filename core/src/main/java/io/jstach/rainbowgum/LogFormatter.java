@@ -350,7 +350,7 @@ public sealed interface LogFormatter {
 		 * @return formatter.
 		 */
 		public Builder encodedKeyValues() {
-			return add(DefaultKeyValuesFormatter.INSTANCE);
+			return add(DefaultKeyValuesFormatter.AMP);
 		}
 
 		/**
@@ -1509,8 +1509,15 @@ final class PackagingDataResolver {
 
 enum DefaultKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<StringBuilder> {
 
-	INSTANCE;
+	AMP("&"),
+	SPACE(" ");
 
+	private final String separator;
+	
+	DefaultKeyValuesFormatter(String separator) {
+		this.separator = separator;
+	}
+	
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		var keyValues = event.keyValues();
@@ -1528,7 +1535,7 @@ enum DefaultKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<String
 	@Override
 	public int accept(KeyValues values, String key, @Nullable String value, int index, StringBuilder storage) {
 		if (index > 0) {
-			storage.append("&");
+			storage.append(this.separator);
 		}
 		formatKeyValue(storage, key, value);
 		return index + 1;
