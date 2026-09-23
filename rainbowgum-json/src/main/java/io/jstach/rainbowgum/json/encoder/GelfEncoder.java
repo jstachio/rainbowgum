@@ -178,23 +178,17 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		/*
 		 * output headers
 		 */
-		for (int i = headers.start(); i >= 0; i = headers.next(i)) {
-			String k = headers.key(i);
+		index = headers.forEach((src, k, v, idx, buf) -> {
 			if (kvs.getValueOrNull(k) != null) {
-				continue;
+				return idx;
 			}
-			String v = headers.valueOrNull(i);
-			index = buffer.write(k, v, index, EXTENDED_F);
-		}
+			return buf.write(k, v, idx, EXTENDED_F);
+		}, index, buffer);
 
 		/*
 		 * output MDC
 		 */
-		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
-			String k = kvs.key(i);
-			String v = kvs.valueOrNull(i);
-			index = buffer.write(k, v, index, EXTENDED_F);
-		}
+		index = kvs.forEach((src, k, v, idx, buf) -> buf.write(k, v, idx, EXTENDED_F), index, buffer);
 
 		index = buffer.write("version", "1.1", index);
 
