@@ -54,40 +54,7 @@ scaffolding waiting on whichever of the two new systems replaces it.
 
 To land before 1.0:
 
-- [x] Design the alerts system: done, see `LogAlerts` on `feature/log-alerts` above.
-      Bootstrap scope actually landed: `FileChannelOutput`, `BlockingQueueAsyncLogPublisher`,
-      `DisruptorLogPublisher`, and `RainbowGumSystemLoggerFinder` (a Spring-independent
-      module) now capture `config.alerts()` at their existing `start(LogConfig)`/
-      lifecycle touchpoint instead of calling `MetaLog` directly. Deliberately left on
-      `MetaLog` (in-package, judged genuinely bootstrap-adjacent - no live config to
-      prefer, or premature to trust one): `ServiceRegistry.close()`, `LogRouter`'s
-      `QueueEventsRouter` (the pre-init event queue), and `LogAppender`'s reentry-lock
-      diagnostic. (The RabbitMQ output mentioned in an earlier draft of this item no
-      longer exists - that module was removed.)
-- [x] Design the metrics system: needs its own home for queue-depth-style gauges now
-      that `QueueStatus` is gone - not necessarily reusing `LogResponse.Status` at all,
-      since that type was built around single-snapshot health rather than metrics.
-- [x] Sanity check `LogAlerts.DEFAULT_CAPACITY` (currently 100) against a real consumer
-      instead of a guess.
-- [x] `LogAlerts` currently has no listener-driven consumer of its own yet (the
-      `addListener` hook landed on `feature/log-alerts` but nothing calls it) - a buffer
-      resize/soft-limit-hit counter (see the soft-limiting `maxBufferSize` work on
-      `LogEncoder`/`JsonBuffer`) was floated as the first real candidate, once WARN/INFO
-      widening (above) makes a non-error signal like that appropriate.
-- [x] `LevelResolver`/`LevelConfig` now alert instead of throwing: a level property that
-      fails to parse (root `logging.level` or a per-logger `logging.level.X`) used to
-      throw `PropertyConvertException` right out of `resolveLevel`/`levelOrNull` -
-      possibly on every single call for a hot logger name, since a
-      `ConcurrentHashMap#computeIfAbsent` mapping function that throws leaves nothing
-      cached. `CachedLevelResolver` (per-route) and the new `AlertingLevelConfig`
-      (global, package-private, `LevelResolver.java`) now catch that, alert exactly once
-      per logger name via `LogAlerts`, and fall back to `Level.INFO`. `DefaultLogConfig`
-      now takes `LogAlerts`/`LogMetrics` in its constructor (built by `LogConfig.Builder`
-      before `DefaultLogConfig` itself) instead of constructing them internally, since
-      the global resolver needs `LogAlerts` before a full `LogConfig` exists to pull
-      `config.alerts()` from - see the two-pass item just below for the one remaining
-      rough edge this didn't fix.
-- [ ] **Two-pass config**: `LogConfig.Builder.build()` builds the global level resolver
+- [x] **Two-pass config**: `LogConfig.Builder.build()` builds the global level resolver
       from `logProperties` as it stood *before* any `Configurator` runs, then only
       afterward calls `RainbowGumServiceProvider.Configurator.runConfigurators(...)` - so
       a configurator that contributes additional property sources (or otherwise changes
@@ -98,6 +65,7 @@ To land before 1.0:
       than building it once, early, and never revisiting it. Deliberately not done as
       part of the `LevelResolver` alerting work above - a bigger change to `LogConfig`'s
       build lifecycle than that warranted on its own.
+      (ADAM because this is internal and not exposed its not a big deal for 1.0)
 - [ ] A third, still-unaddressed facet the old `status()` API used to partly cover:
       a **static configuration report** - not alerts (event-driven) or metrics
       (gauges), just "what actually got wired up." With `REUSE_BUFFER`/
@@ -114,27 +82,8 @@ To land before 1.0:
       summary (name, concrete class, flags, output, encoder). Where this should live
       (a plain utility method vs. a Spring actuator-style endpoint vs. something
       printed at startup) is still undecided.
+      (ADAM I think we just have some pump out a List of LogEvent at the top level like LogRouter).
 
-
-## 3. Consider file rolling
-
-This reverses the current stance: the old backlog explicitly said "not going to support"
-and `doc/overview.html`'s "Rolling Files" section currently leans entirely on external
-tools (`logrotate`) for safe rotation. If this moves forward, both need to change
-together, not just the code.
-
-- [x] Decide the trigger model up front - time-based, size-based, or both - before
-      writing any implementation.
-- [x] Decide where it lives: a new `LogOutput` wrapping `FileOutput`, or a decorator
-      that composes with the existing safe-external-rotation mechanism rather than
-      replacing it.
-- [x] Stay in RainbowGum's own lane rather than porting Logback's rolling-policy
-      hierarchy wholesale - the differentiator here is staying simple/low-overhead.
-- [x] Update `doc/overview.html`'s Rolling Files section and the old "Features not
-      going to support" note once a direction is picked.
-- [x] doc/overview.html's Limitations section still claimed we offer no file rolling
-      without an external tool. Fixed: now mentions the built-in size based rolling
-      output and links to the Rolling Files section.
 
 ## 4. Improve the LogProperty API and friends; at least add test coverage
 
@@ -157,6 +106,7 @@ unifying.
 
 - [ ] Reconcile `LogOutputRegistry.normalize()` and `DefaultLogProviderRef.normalize()`
       into one implementation (or a clearly documented reason they must differ).
+      (ADAM I think this is done?)
 - [ ] **Reuse-by-name config**: decide whether `name:///somename`-style references
       (letting one property block, e.g. `logging.encoder.somename.*`, be reused from
       another, e.g. `logging.appender.default.encoder=name:///somename`) are actually
@@ -165,81 +115,8 @@ unifying.
       using it would only ever throw `NotFoundException`. If revisited, needs a real
       design (which registries support it, how it interacts with `{name}` key
       parameters) rather than reintroducing dead scaffolding.
-- [ ] **Misleading error wrapper from the `logging.file.name` auto-configuration
-      shortcut**: `LogAppenderRegistry.fileAppender()` wraps the entire downstream
-      `FileOutputBuilder.build()`/`fromProperties()` call inside a `.map()` chained off
-      the `logging.file.name` property lookup. Any exception thrown deep inside -
-      including a `ValidationException` for a completely unrelated property like
-      `logging.output.file.uri` or `logging.output.file.bufferSize` - gets mislabeled
-      in the outer message as "Error converting property. key: 'logging.file.name'"
-      even though `logging.file.name` itself converted fine. Confirmed present in both
-      `FileOutputPropertiesTest.URI_WITH_BAD_BUFFER_SIZE` and `BAD_OUTPUT_URI`'s golden
-      strings. Adam's read: this is specifically a side effect of the
-      `logging.file.name` convenience/auto-configuration path - the same failure
-      configured the "non-default" way (e.g. `logging.appender.<name>.output=file:...`
-      directly, bypassing the shortcut) reads better since there's no such wrapping
-      `.map()` in the way. Worth fixing when `fileAppender()` gets its cleanup pass
-      above, rather than as a one-off.
-      (Checked: still present as of current main - `FileOutputPropertiesTest`'s
-      `URI_WITH_BAD_BUFFER_SIZE`/`BAD_OUTPUT_URI` golden strings still show the outer
-      message mislabeled under `logging.file.name` even though that property itself
-      converts fine.)
-- [x] **`ChangeType.CALLER` doesn't really belong under `ChangePublisher`/"changing"**,
-      and `ChangePublisher.allowedChanges(String)` had no caching at all. Addressed on
-      `explore/changepublisher-caller-caching`: `AbstractChangePublisher` now caches
-      `allowedChanges(String)` in a `ConcurrentHashMap<String, Set<ChangeType>>`
-      (mirroring `CachedLevelResolver`'s exact shape - same call pattern, "once per
-      never-before-seen logger name" - and its alert-once-then-cache-a-fallback
-      behavior for a malformed property value), cleared on `publish()` so a property
-      change is visible to names requested afterward. `ChangePublisher` gained a
-      dedicated `callerInfoEnabled(String)` default method (backed by the same cache)
-      with javadoc stating plainly that, unlike `LEVEL`, it is resolved once and never
-      revisited - fixing the conceptual mislabeling without changing behavior:
-      `RainbowGumLoggerFactory.subscribe()` was deliberately left capturing
-      caller-awareness once at construction time, since that already-once-only
-      behavior turned out to be the *correct* semantics for a static per-logger
-      capability, not a bug to fix. `ChangeType` stays a two-value enum and
-      `allowedChanges(): Set<ChangeType>` stays the public return shape - no breaking
-      change, and the single-property-lookup tradeoff (see below) is preserved as-is.
-      Original problem description kept for context:
-      - Conceptually, `ChangeType.CALLER` ("the logger is allowed to change caller
-        info") isn't actually treated as something that changes at runtime the way
-        `LEVEL` is - confirmed in code: `RainbowGumLoggerFactory.subscribe()`'s
-        router-change callback reuses the `allowedChanges` `Set<ChangeType>` captured
-        once at logger-construction time (a method parameter, never re-fetched from
-        `changePublisher.allowedChanges(name)` on subsequent change events), so whether
-        a given logger gets `CallerInfoEventDecorator` wrapping is decided exactly once
-        and never revisited - unlike `LEVEL`, which genuinely gets live-updated
-        (`changeable.setLevel(...)`) on every `onChange` firing. `CALLER` is really a
-        static per-logger capability flag read once, not a live-changeable setting;
-        being an enum constant of `ChangeType` alongside `LEVEL` implies a symmetry the
-        code doesn't actually have. Adam's own account of why it ended up here: it was
-        deliberate, not an oversight - folding `CALLER` into the same
-        `logging.change.<name>` property as `LEVEL` was specifically to avoid parsing
-        two separate properties per logger name. The tradeoff didn't fully pay off
-        though, since (next bullet) that single combined lookup isn't cached either -
-        worth keeping the "avoid a second property" goal in mind for whatever design
-        replaces this, rather than casually splitting back into two uncached lookups.
-      - `LogConfig.AbstractChangePublisher.allowedChanges(String loggerName)`
-        (`LogConfig.java`) has zero caching - every call does a fresh
-        `properties().findOrNull(LogProperties.CHANGE_PREFIX, loggerName,
-        LogProperties::listOrNull)` property lookup followed by `ChangeType.parse(list)`
-        (uppercase + `valueOf` per entry), with nothing analogous to
-        `CachedLevelResolver`, which exists specifically to avoid this same
-        re-parse-on-every-call cost for level resolution. Since this is called at least
-        once per distinct logger name (and again on every `subscribe()` re-fire for
-        changeable loggers), it's a real, currently-uncached cost on a path that
-        `CachedLevelResolver` already proved is worth caching.
-      - Worth a real design pass: split `CALLER`-awareness out of `ChangeType`/
-        `ChangePublisher` into its own (probably static, resolved-once) concept, and
-        give `allowedChanges()` the same caching treatment `LevelResolver` already has.
-      - Worth looking at for inspiration when doing that design pass: tinylog's
-        unreleased 3.0.0 (`slf4j-tinylog` module, `v3.0` branch on GitHub, started
-        roughly the same time as RainbowGum) added an `OutputVisibility` per-logger
-        config concept that's somewhat analogous to `ChangeType` here - two independent
-        projects converging on "per-logger flags for what a logger is allowed to
-        report/change" as the right shape is a useful data point for whatever this
-        becomes.
+      (ADAM: Lets table this but lets reserve the "name" schema. 
+      Dot no allow it or "null" or "default" as a schema registered).
 
 ## 5. Whatever else before 1.0.0
 
@@ -249,21 +126,6 @@ unifying.
       construction counting) without a root cause. Needs a clean, non-shared benchmark
       environment to chase further - or, failing that, a documented known-issue before
       shipping 1.0 with Tomcat integration included.
-- [ ] **Commons Logging (jcl) probably needs its own native Rainbow Gum
-      implementation, the same way `rainbowgum-tomcat` replaced bridging through
-      JUL**: currently the only path is `jcl-over-slf4j`/`spring-jcl`, both of which
-      are someone else's bridge rather than a Rainbow Gum-native `LogFactory`/`Log`.
-      The blocker is that depth-aware (caller info) and runtime-changeable (level,
-      event handler) logger facades are genuinely fiddly to get right - see
-      `rainbowgum-slf4j`'s `ReplaceableLogger`
-      (`LevelChangeable`/`LogEventHandler.EventHandlerChangeable`/
-      `LoggerDecoratorService.DepthAwareLogger`), `CallerInfoEventDecorator`, and
-      `AbstractFilteringLogger`. That logic is currently written once, coupled to
-      SLF4J's `Logger` shape. Before a `rainbowgum-jcl` module (or similar) is worth
-      starting, this shared depth/changeable-logger machinery should be extracted out
-      of `rainbowgum-slf4j` into something a second facade implementation (JCL, and
-      potentially others down the line) can reuse instead of re-deriving it.
-      (ADAM: confirm jcl works with a test module. Modern jcl uses its own slf4j bridge)
 - [ ] **Draft GitHub issue for spring-projects/spring-boot: `LoggingSystem` has no
       way to signal its own health, only logger level state.** Not filed yet - draft
       below, written to match their issue template ("describe the problem you're
