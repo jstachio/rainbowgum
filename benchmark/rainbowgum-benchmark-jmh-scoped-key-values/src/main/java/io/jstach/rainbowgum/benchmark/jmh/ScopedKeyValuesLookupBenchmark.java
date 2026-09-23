@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -69,6 +70,19 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
  * lazy, most-recent-layer-checked-first composite. The two {@link Map}-backed variants
  * are close to {@code O(1)} regardless of which layer a key came from.
  * <p>
+ * A fourth variant, log4j2's {@link SortedArrayStringMap}, is included because it is the
+ * closest real-world relative of {@link KeyValues}: also a flat two-array (keys/values)
+ * structure with no per-entry heap object, but sorted by key and searched with
+ * {@code Arrays.binarySearch} rather than insertion-ordered and linearly scanned. It is
+ * expected to lose on push (its copy constructor bulk-copies via {@code
+ * System.arraycopy} same as {@link KeyValues}, but merging in a new layer still needs an
+ * {@code Arrays.binarySearch} plus an array-shifting insert per new key to keep the
+ * result sorted) and win on lookup ({@code O(log n)} regardless of a key's position,
+ * unlike {@link KeyValues}'s position-dependent linear scan). Its own {@code freeze()} is
+ * not used here - it just flips a plain, non-{@code volatile} {@code boolean} field on
+ * the same mutable object in place, not remotely the same guarantee as
+ * {@link KeyValues#freeze()}'s real copy-to-immutable.
+ * <p>
  * Run with: {@code mvn -pl benchmark/rainbowgum-benchmark-jmh-scoped-key-values -am
  * package} then {@code java --add-opens java.base/java.util=ALL-UNNAMED -cp
  * "benchmark/rainbowgum-benchmark-jmh-scoped-key-values/target/classes:$(find ~/.m2
@@ -99,6 +113,10 @@ public class ScopedKeyValuesLookupBenchmark {
 
 	private KeyValues lastKeyValuesLayer;
 
+	private SortedArrayStringMap sortedArrayStringMap;
+
+	private SortedArrayStringMap lastSortedArrayStringMapLayer;
+
 	private String firstInsertedKey;
 
 	private String lastInsertedKey;
@@ -108,22 +126,27 @@ public class ScopedKeyValuesLookupBenchmark {
 		KeyValues c = KeyValues.of();
 		Map<String, String> eagerLinkedHash = Map.of();
 		Map<String, String> eagerImmutable = Map.of();
+		SortedArrayStringMap sortedArray = new SortedArrayStringMap();
 		Map<String, String> firstLayer = null;
 		for (int i = 0; i < depth; i++) {
 			Map<String, String> layer = layer(i, keysPerLayer);
 			KeyValues keyValuesLayer = keyValuesLayer(i, keysPerLayer);
+			SortedArrayStringMap sortedArrayLayer = sortedArrayStringMapLayer(i, keysPerLayer);
 			if (firstLayer == null) {
 				firstLayer = layer;
 			}
 			this.lastLayer = layer;
 			this.lastKeyValuesLayer = keyValuesLayer;
+			this.lastSortedArrayStringMapLayer = sortedArrayLayer;
 			c = KeyValues.merge(c, keyValuesLayer);
 			eagerLinkedHash = eagerLinkedHashMerge(eagerLinkedHash, layer);
 			eagerImmutable = eagerImmutableMerge(eagerImmutable, layer);
+			sortedArray = sortedArrayStringMapMerge(sortedArray, sortedArrayLayer);
 		}
 		this.keyValues = c;
 		this.eagerLinkedHashMap = eagerLinkedHash;
 		this.eagerImmutableMap = eagerImmutable;
+		this.sortedArrayStringMap = sortedArray;
 		this.firstInsertedKey = firstLayer == null ? "missing" : firstLayer.keySet().iterator().next();
 		this.lastInsertedKey = lastLayer == null ? "missing" : lastLayer.keySet().iterator().next();
 	}
@@ -164,6 +187,35 @@ public class ScopedKeyValuesLookupBenchmark {
 		return Map.copyOf(merged);
 	}
 
+	/**
+	 * Builds a layer via {@link SortedArrayStringMap#putValue(String, Object)}, the same
+	 * "write straight in, no intermediate Map" shape as
+	 * {@link #keyValuesLayer(int, int)}.
+	 */
+	private static SortedArrayStringMap sortedArrayStringMapLayer(int layerIndex, int keysPerLayer) {
+		var layer = new SortedArrayStringMap(keysPerLayer);
+		for (int k = 0; k < keysPerLayer; k++) {
+			layer.putValue("k" + layerIndex + "-" + k, "v" + layerIndex + "-" + k);
+		}
+		return layer;
+	}
+
+	/**
+	 * {@link SortedArrayStringMap}'s own copy constructor bulk-copies via
+	 * {@code System.arraycopy} when the source is itself a {@link SortedArrayStringMap}
+	 * (see {@code initFrom0}), the same trick
+	 * {@link KeyValues#merge(KeyValues, KeyValues)} uses for its low side -
+	 * {@link SortedArrayStringMap#putAll(org.apache.logging.log4j.util.ReadOnlyStringMap)}
+	 * then merges the new layer in with a binary search plus an array-shifting insert per
+	 * new key, to keep the result sorted.
+	 */
+	private static SortedArrayStringMap sortedArrayStringMapMerge(SortedArrayStringMap current,
+			SortedArrayStringMap layer) {
+		SortedArrayStringMap merged = new SortedArrayStringMap(current);
+		merged.putAll(layer);
+		return merged;
+	}
+
 	@Benchmark
 	public void keyValuesPushOneMore(Blackhole bh) {
 		bh.consume(KeyValues.merge(keyValues, lastKeyValuesLayer));
@@ -177,6 +229,11 @@ public class ScopedKeyValuesLookupBenchmark {
 	@Benchmark
 	public void eagerImmutableMapPushOneMore(Blackhole bh) {
 		bh.consume(eagerImmutableMerge(eagerImmutableMap, lastLayer));
+	}
+
+	@Benchmark
+	public void sortedArrayStringMapPushOneMore(Blackhole bh) {
+		bh.consume(sortedArrayStringMapMerge(sortedArrayStringMap, lastSortedArrayStringMapLayer));
 	}
 
 	@Benchmark
@@ -195,6 +252,11 @@ public class ScopedKeyValuesLookupBenchmark {
 	}
 
 	@Benchmark
+	public void sortedArrayStringMapLookupFirstInserted(Blackhole bh) {
+		bh.consume(sortedArrayStringMap.getValue(firstInsertedKey));
+	}
+
+	@Benchmark
 	public void keyValuesLookupLastInserted(Blackhole bh) {
 		bh.consume(keyValues.getValueOrNull(lastInsertedKey));
 	}
@@ -207,6 +269,11 @@ public class ScopedKeyValuesLookupBenchmark {
 	@Benchmark
 	public void eagerImmutableMapLookupLastInserted(Blackhole bh) {
 		bh.consume(eagerImmutableMap.get(lastInsertedKey));
+	}
+
+	@Benchmark
+	public void sortedArrayStringMapLookupLastInserted(Blackhole bh) {
+		bh.consume(sortedArrayStringMap.getValue(lastInsertedKey));
 	}
 
 }

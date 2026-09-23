@@ -9,12 +9,18 @@
   <name>rainbowgum-benchmark-jmh-scoped-key-values</name>
   <properties>
     <jmh.version>1.37</jmh.version>
+    <log4j.version>2.26.1</log4j.version>
     <maven.javadoc.skip>true</maven.javadoc.skip>
   </properties>
   <dependencies>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>${log4j.version}</version>
     </dependency>
     <dependency>
       <groupId>org.openjdk.jmh</groupId>
