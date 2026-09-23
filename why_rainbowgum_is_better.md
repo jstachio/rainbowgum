@@ -7,20 +7,20 @@ Where X is one of the following JVM logging implementations:
 * [Reload4j](https://reload4j.qos.ch/) (Log4j 1, still alive as a security-patched fork)
 * [tinylog](https://tinylog.org/v2/)
 
-This document naturally is biased and somewhat opinionated marketing but has some reasonable backing.
-If you are the author of one these libraries and would like me to make corrections I am happy to do so.
+This document is naturally biased and somewhat opinionated marketing but has some reasonable backing.
+If you are the author of one these libraries and would like me to make corrections we are happy to do so.
 
-For those looking for regular documentation [user guide](https://jstach.io/rainbowgum/) is the actual documentation.
+For those looking for regular documentation the [user guide](https://jstach.io/rainbowgum/) is the actual documentation.
 
 ## Safe
 
 See also [error_messages_comparison.md](error_messages_comparison.md) - a companion
 document comparing what each framework actually does (and says) when a component is
-misconfigured, since "small and fast" doesn't matter much if a typo fails silently in
+misconfigured, since *"small and fast"* doesn't matter much if a typo fails silently in
 production.
 
 What was found over and over in all the frameworks but Rainbow Gum is that errors particularly
-on initialization would be blindly swallowed or near impossible to disc those. If there
+on initialization would be blindly swallowed or near impossible to discover. If there
 was an error message it was not user friendly and lacked context.
 
 Furthermore Logback and Log4J2
@@ -29,17 +29,60 @@ We routinely had issues configuring these logging frameworks for optimum perform
 even using LLM agents. The agents would trip up and not configure correctly. When benchmarking
 either Logback or Log4J2 they would often not know that the frameworks had failed to load.
 
+Many frameworks will argue that incorrect configuration and not failing
+fast is resiliency but Rainbow Gum only does this on initialization. Once started it does not
+fail fast (crash).
+
 Some other safety concerns:
 
-* Log4J2, Logback, and Tinylog will happily read resources of the classpath without your permission.
 * Log4J2 and Logback have and allow interpolation of properties.
-* Log4J2, Logback, Reload4J, and Tinylog all allow logging components to be mutated after initialization usually with getter/setter POJOs.
+* Log4J2, Logback, Reload4J, and Tinylog all allow logging components to be
+  mutated after initialization usually with getter/setters.
 * Log4J2 and Logback use reflection heavily.
+* Log4J2 and Logback have XML configuration parsers that increase the attack
+  surface. XML as been an attack vector in the past.
+* Log4J2, Logback, and Tinylog will read resources from the classpath by default.
+* Log4j2's JNDI-lookup-capable expression language in log
+  messages is exactly what made [Log4Shell](https://en.wikipedia.org/wiki/Log4Shell)
+  (CVE-2021-44228) possible - one of the most severe RCEs in the history of the Java
+  ecosystem, in a *logging* library. Rainbow Gum has no expression language, and never
+  interpolates untrusted string content as anything other than a string.
 
-Rainbow Gum does not do the above. It does not mean Rainbow Gum is always more secure than the others but just that its
-security surface is smaller and when there are problems you will know sooner. 
-We believe too many features, moving parts and not knowing when things are misconfigured make some thing like Log4Shell more likely.
+With some minor exceptions (ServiceLoader technically uses reflection) Rainbow
+Gum does not do the above. It does not mean Rainbow Gum is always more secure
+than the others but just that its security surface is smaller and when there are
+problems you will know sooner. We believe too many features, moving parts and
+not knowing when things are misconfigured make some thing like Log4Shell more
+likely.
 
+## Modern
+
+Rainbow Gum will continue to embrace modern JDK features and uses the latest JDK
+for building. The code uses modern JDK 21+ features such as sealed classes,
+triple quote strings, and pattern matching making contribution easier and safer.
+
+Rainbow Gum follows [Tip and Tail](https://openjdk.org/jeps/14) as well as semver.
+Expect frequent releases corresponding to improvements with the JDK or GraalVM native
+but with a core and configuration that is very backward compatible.
+
+The other logging libraries move slower and some have had a tradition of breaking semver or
+don't have clear versioning policies.
+
+Logback does get credit here as it has been rapidly improving.
+
+For example both Logback and Rainbow Gum are exploring Scoped Values:
+
+* https://jstach.io/rainbowgum/#scoped_key_values
+* https://github.com/qos-ch/logback-scoped-mdc
+
+A notable caveat at the moment for Logbacks Scoped Values:
+
+> * <p><b>Note:</b> This converter reads from the thread-current {@link ScopedValue}
+> * binding at format time. It works correctly with synchronous appenders. With
+> * asynchronous appenders, the scoped values will not be available on the
+> * formatting thread.</p>
+
+Rainbow Gum scoped key values gets passed down the stack and is available to async publishers.
 
 ## Small
 
@@ -503,19 +546,3 @@ Rainbow Gum prefers real, end-to-end tests - including parameterized ones that s
 input shapes through the same real assertion, like `ConfigFailureTest`'s enum-driven
 cases - over hand-crafted unit tests aimed at specific lines. The percentage is a
 byproduct of testing real behavior thoroughly, not the target itself.
-
-## Smaller security surface
-
-* No expression language. Log4j2's JNDI-lookup-capable expression language in log
-  messages is exactly what made [Log4Shell](https://en.wikipedia.org/wiki/Log4Shell)
-  (CVE-2021-44228) possible - one of the most severe RCEs in the history of the Java
-  ecosystem, in a *logging* library. Rainbow Gum has no expression language, and never
-  interpolates untrusted string content as anything other than a string.
-* No XML/YAML configuration parser in `core` at all, which means no XML entity expansion
-  attack surface, no "wait, which XML parser features are enabled by default" question to
-  answer.
-* Zero reflection other than `ServiceLoader`.
-
-None of this means Logback or Log4j2 are insecure today - both responded to Log4Shell and
-have hardened considerably since. It means Rainbow Gum structurally doesn't have the
-*category* of surface area that produced it in the first place.
