@@ -172,8 +172,16 @@ public sealed interface KeyValues {
 		if (high.isEmpty()) {
 			return low;
 		}
-		var buf = MutableKeyValues.of(low.size() + high.size());
-		low.forEach(buf);
+		/*
+		 * low's own keys are already unique (a KeyValues never carries a duplicate), so
+		 * its entries can be appended straight in without a duplicate check - only high's
+		 * entries need that check, since only they can collide with what low already
+		 * contributed. Copying low via the ordinary putKeyValue-based accept() (like
+		 * high's below) would cost 1+2+...+low.size() comparisons to build up the buffer
+		 * - O(low.size()^2) - instead of the O(low.size()) a plain append is.
+		 */
+		ArrayKeyValues buf = new ArrayKeyValues(low.size() + high.size());
+		low.forEach(buf::appendUnchecked);
 		high.forEach(buf);
 		return buf.freeze();
 	}
@@ -667,6 +675,26 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 				size++;
 				return;
 			}
+		}
+		ensureCapacity();
+		size++;
+		int valueIndex = (size * 2) - 1;
+		kvs[valueIndex - 1] = key;
+		kvs[valueIndex] = value;
+	}
+
+	/*
+	 * putKeyValue's leading scan exists to find/overwrite an existing key, so calling it
+	 * size() times to copy in an already-duplicate-free KeyValues costs 1+2+...+size()
+	 * comparisons - O(size()^2). Skipping straight to the append tail is safe only when
+	 * the caller already knows key cannot be a duplicate, e.g. copying another KeyValues'
+	 * entries (unique by construction) one at a time into a buffer that started empty -
+	 * see KeyValues#merge.
+	 */
+	@SuppressWarnings("ReferenceEquality")
+	void appendUnchecked(String key, @Nullable String value) {
+		if (kvs == EMPTY) {
+			inflateTable(threshold);
 		}
 		ensureCapacity();
 		size++;
