@@ -138,11 +138,7 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 		}
 
 		var kvs = event.keyValues();
-		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
-			String k = kvs.key(i);
-			String v = kvs.valueOrNull(i);
-			index = buffer.write(k, v, index);
-		}
+		index = kvs.forEach((src, k, v, idx, buf) -> buf.write(k, v, idx), index, buffer);
 
 		if (index > 0 && prettyPrint) {
 			buffer.writeLineFeed();

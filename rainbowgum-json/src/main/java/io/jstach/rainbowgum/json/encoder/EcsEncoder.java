@@ -254,12 +254,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private static int writeKeyValues(LogEvent event, JsonBuffer buffer, int index) {
 		var kvs = event.keyValues();
-		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
-			String k = kvs.key(i);
-			String v = kvs.valueOrNull(i);
-			index = buffer.write(k, v, index);
-		}
-		return index;
+		return kvs.forEach((src, k, v, idx, buf) -> buf.write(k, v, idx), index, buffer);
 	}
 
 }

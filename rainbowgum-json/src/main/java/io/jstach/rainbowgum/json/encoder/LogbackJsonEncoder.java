@@ -114,9 +114,7 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 
 		int mdcIndex = buffer.writeObjectStart("mdc", index, 0);
 		var kvs = event.keyValues();
-		for (int i = kvs.start(); i >= 0; i = kvs.next(i)) {
-			mdcIndex = buffer.write(kvs.key(i), kvs.valueOrNull(i), mdcIndex, 0);
-		}
+		kvs.forEach((src, k, v, idx, buf) -> buf.write(k, v, idx, 0), mdcIndex, buffer);
 		buffer.writeObjectEnd();
 		index++;
 
