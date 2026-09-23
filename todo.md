@@ -197,3 +197,88 @@ unifying.
       output `STDOUT_SCHEME` does would be a small, low-risk win. Surfaced while
       adding the `doc/overview.html` "Console" output subsection.
       (ADAM: Is this even worth doing given 99/100 output defaults to stdout?)
+
+## 6. Reconsider depth-based caller-info tracking (SLF4J 3.0 research)
+
+Adam's hunch, prompted by noticing "CallerData" work upstream: `rainbowgum-slf4j`'s
+whole caller-info mechanism - `LoggerDecoratorService.DepthAwareLogger`/
+`DepthAwareEventBuilder`, `withDepth(int)`, `setDepth(int)`, `AbstractFilteringLogger`'s
+hand-verified `DEPTH` constant, `RainbowGumEventBuilder`'s `DEPTH_DELTA` - is brittle:
+every wrapper layer has to know exactly how many stack frames it adds and get that
+count right, enforced only by tests (`AbstractFilteringLoggerTest`), with no compiler
+help. This is exactly the scenario `LoggerDecoratorService` is designed to invite -
+arbitrary third-party decorators wrapping the logger an arbitrary number of times - so
+it's the worst case for hand-counted depth. Tinylog's design was the original draw
+toward depth-counting; the reasoning for reconsidering it: caller-info capture is
+already dominated by the cost of the stack walk itself, so precisely-counted-depth
+saves very little on top of that "you're already slow" baseline - not worth the
+brittleness it buys.
+
+**Findings from researching SLF4J's own 3.0-line work (master branch vs `v_2.0.19`,
+scoped to `slf4j-api/` only - the repo has other non-facade modules that are noise for
+this)**:
+
+- The 2 -> 3 major bump is primarily about a **Java 11 baseline** (up from Java 8), not
+  CallerData - confirmed via commit `ff224725` ("given the bump to JDK 11, bump the
+  major version to 3 instead of 2"). Two parallel lines exist right now:
+  `branch_2.1.x` (`2.1.0-alpha2-SNAPSHOT`, Java 8, incremental) vs `master`
+  (`3.0.0-rc0-SNAPSHOT`, Java 11+, where CallerData actually landed). Both are
+  in-flux, pre-RC, dated to right around when this was researched (2026-09-17) - not
+  a stable target to design against, a direction to watch.
+- New `org.slf4j.helpers.CallerData` (explicitly ported from
+  `ch.qos.logback.classic.spi.CallerData`) does content-based stack-boundary
+  detection: walk a captured `Throwable`'s stack, skip frames matching a given
+  boundary class/an internal fixed list of `org.slf4j.*` classes/an optional
+  caller-supplied package-prefix list, and the first non-matching frame is the real
+  caller. Wired in as `default` methods (`LoggingEventBuilder.withCallerData(int)`,
+  `LoggingEvent.getCallerData()`) - fully binary/source compatible, nothing existing
+  needs to change to keep compiling against it.
+- **`org.slf4j.spi.CallerBoundaryAware` (`void setCallerBoundary(String fqcn)`)
+  already ships in the slf4j-api version we already depend on (2.0.19, confirmed by
+  decompiling the actual jar in `~/.m2`) - this is not 3.0-only.** If a boundary-based
+  redesign happens, implementing this interface directly (rather than inventing a
+  Rainbow-Gum-specific name) gets free recognition from anyone already familiar with
+  the SLF4J/Logback idiom, at zero new dependency cost.
+- **It is not actually depth-free, only differently brittle** - a single boundary
+  class name doesn't by itself solve "N layers of decorators deep" any more cleanly
+  than an integer does. Needs either (a) a package-prefix allowance (easy for
+  `io.jstach.rainbowgum.slf4j`'s own built-in wrappers, one prefix covers all of
+  them), or (b) each additional third-party decorator layer re-asserting its own
+  boundary (`setCallerBoundary(itsOwnClass)`) when it delegates further out - the
+  FQCN-shaped analog of today's `depth + 1` chaining
+  (`LoggerDecoratorService.decorate(RainbowGum, DepthAwareLogger, int depth)`'s
+  `depth` parameter exists for exactly this reason today). Whichever shape wins,
+  "who currently owns the boundary" still needs an answer - the question just moves,
+  it doesn't disappear.
+- Adam's naming lean so far: keep the `DepthAware*` interface family name (or possibly
+  rename toward something like `CallerBoundaryAware`-adjacent, still undecided - see
+  below), but replace `setDepth(int)`/`withDepth(int)` with something FQCN-shaped
+  (`setCallerBoundary(String)` if just implementing SLF4J's own interface directly, or
+  a Rainbow-Gum-spelled-out equivalent) for the decorator case specifically.
+- **Logback has not actually adapted to any of this yet** - the commit that bumps its
+  own `slf4j.version` to `3.0.0-rc0-SNAPSHOT` (`13f21ffe5`) is two lines of substance
+  (the version bump plus an unrelated license-header touch-up), no functional change,
+  zero interop with `withCallerData`/`getCallerData`. Logback's own
+  `ch.qos.logback.classic.spi.CallerData` (the class SLF4J's new one was modeled on)
+  hasn't been touched functionally either. **There is no reference "how a real
+  provider wires this up" implementation to crib from yet** - whatever Rainbow Gum
+  does here would be its own design call, not a port of prior art.
+
+Relates to (and would directly inform) the still-open JCL item in section 5 above -
+extracting the shared depth/changeable-logger machinery out of `rainbowgum-slf4j` for
+reuse by a future second facade implementation is a lot more attractive to do *after*
+deciding whether that machinery stays depth-counted or becomes boundary-based, not
+before.
+
+- [ ] Grep the actual current blast radius: every file in `rainbowgum-slf4j` touching
+      `Depth`/`depth` (`DepthAwareLogger`, `DepthAwareEventBuilder`, `withDepth`,
+      `setDepth`, `AbstractFilteringLogger`'s `DEPTH` constant,
+      `RainbowGumEventBuilder`'s `DEPTH_DELTA`, `WrappingLogger`/`ForwardingLogger`'s
+      own depth handling, `LoggerDecoratorService.decorate(...)`'s `depth` parameter) -
+      not yet done, needed before committing to a shape given how large this sounds
+      ("Depth" is apparently "all over the place").
+- [ ] Decide the actual shape: implement `org.slf4j.spi.CallerBoundaryAware` directly
+      vs. a Rainbow-Gum-specific interface/method name; keep or rename the
+      `DepthAware*` family; how a third-party `LoggerDecoratorService` decorator is
+      expected to identify itself (re-assert boundary per layer vs. a registered
+      trusted-package list vs. something else).
