@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -31,6 +32,11 @@ import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 
 class JfrLogOutputTest {
+
+	@BeforeAll
+	static void warmupJfr() {
+		JfrTestSupport.warmup();
+	}
 
 	private static JfrLogOutput createOutput() {
 		return new JfrLogOutput();
