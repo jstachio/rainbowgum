@@ -589,15 +589,15 @@ public sealed interface LogAppender extends LogLifecycle {
 									+ finalOutput.getClass().getName()
 									+ " provides a mandatory encoder and does not allow another encoder to be configured."));
 					}
-					encoder = pe.encoder();
+					encoder = pe.encoder(_name, config);
 				}
 				else {
 					encoder = explicitEncoder;
 					if (encoder == null) {
-						var providedDefault = finalOutput instanceof LogOutput.ProvidesEncoder pe ? pe.encoder() : null;
 						var propertyResult = encoderProperty(_name, config);
-						if (providedDefault != null && propertyResult instanceof LogProperty.Result.Missing) {
-							encoder = providedDefault;
+						if (finalOutput instanceof LogOutput.ProvidesEncoder pe
+								&& propertyResult instanceof LogProperty.Result.Missing) {
+							encoder = pe.encoder(_name, config);
 						}
 						else {
 							encoder = DefaultAppenderRegistry.rawValue(propertyResult.or(() -> config.encoderRegistry()

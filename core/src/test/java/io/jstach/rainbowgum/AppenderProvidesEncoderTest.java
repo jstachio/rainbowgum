@@ -114,8 +114,16 @@ class AppenderProvidesEncoderTest {
 				.provide("stub", LogConfig.builder().build());
 		}
 
+		/**
+		 * Test-only accessor for the same instance {@link #encoder(String, LogConfig)}
+		 * returns, so assertions can compare against it without needing a name/config.
+		 */
+		LogEncoder encoder() {
+			return encoder;
+		}
+
 		@Override
-		public LogEncoder encoder() {
+		public LogEncoder encoder(String name, LogConfig config) {
 			return encoder;
 		}
 
