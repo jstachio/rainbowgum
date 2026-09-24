@@ -46,6 +46,15 @@ minimal repro so it is easy to turn into a standalone bug report.
     base class did not change the behavior.
   - Which concrete event subclass is committed - reproduces the same way regardless of
     which one is chosen.
+  - Whether the event class is shared between multiple callers. Adam asked whether this
+    project's two JFR-committing classes (`JfrLogOutput`, `JfrAlertListener`) sharing one
+    event class hierarchy (`RainbowGumLogEvent`) was the trigger. It is not: giving
+    `JfrAlertListener` its own, completely separate, never-before-touched event hierarchy
+    (`RainbowGumAlertEvent`, no shared code with `RainbowGumLogEvent` beyond both
+    extending `jdk.jfr.Event`) still hits the identical `LinkageError` on *that*
+    hierarchy's own first cold-start commit. The bug is purely per-class ("has this
+    exact class ever been committed before in this JVM"), not about reuse across
+    callers.
   - Whether the JVM is running on the classpath or the module path... **partially**: a
     classpath-only repro (plain `java -cp`, no `module-info.java` anywhere) has not
     reproduced it in limited testing; every confirmed reproduction so far has been Maven

@@ -11,10 +11,13 @@ import jdk.jfr.Name;
 import jdk.jfr.StackTrace;
 
 /**
- * Base JFR event committed by {@link JfrLogOutput} and {@link JfrAlertListener}, one
- * concrete subclass per SLF4J / {@link java.lang.System.Logger.Level}, so each level can
- * be independently enabled/disabled and thresholded through a Flight Recorder
- * configuration ({@code .jfc}) the same way any other JFR event type can.
+ * Base JFR event committed by {@link JfrLogOutput}, one concrete subclass per SLF4J /
+ * {@link java.lang.System.Logger.Level}, so each level can be independently
+ * enabled/disabled and thresholded through a Flight Recorder configuration ({@code .jfc})
+ * the same way any other JFR event type can.
+ * <p>
+ * Deliberately not shared with {@link JfrAlertListener}, which commits its own, separate
+ * {@link RainbowGumAlertEvent} instead - see that class for why.
  * <p>
  * {@link #throwable} is a plain formatted stack trace string rather than JFR's own
  * {@code @StackTrace} capture: that JFR feature records the stack at the point
