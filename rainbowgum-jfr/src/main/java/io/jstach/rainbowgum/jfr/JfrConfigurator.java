@@ -37,7 +37,9 @@ public class JfrConfigurator implements Configurator {
 
 		@Override
 		public LogProvider<LogOutput> provide(LogProviderRef ref) {
-			return (name, c) -> new JfrLogOutput(MESSAGE_ENCODER.provide(name, c));
+			var uri = ref.uri();
+			var destination = JfrLogOutput.destinationOrNull(uri);
+			return (name, c) -> new JfrLogOutput(MESSAGE_ENCODER.provide(name, c), uri, destination);
 		}
 
 	}
