@@ -1,7 +1,10 @@
 package io.jstach.rainbowgum.jfr;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 
 import org.jspecify.annotations.Nullable;
 
@@ -14,6 +17,8 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
+
+import jdk.jfr.Recording;
 
 /**
  * A {@link LogOutput} that commits each log event as a JFR event (see
@@ -32,6 +37,19 @@ import io.jstach.rainbowgum.LogOutput.WriteMethod;
  * {@code .jfc} settings file - not through Rainbow Gum properties. If a Flight Recorder
  * session that enables the relevant event type is not running, {@link #write} does
  * (cheaply) nothing.
+ * <p>
+ * If the configured URI has a real path (anything past the root {@code /}), this output
+ * instead starts and owns its own {@link Recording} writing directly to that file for as
+ * long as the output is open, with every event type unconditionally enabled:
+ *
+ * <pre>{@code
+ * logging.appender.myappender.output=jfr:///var/log/myapp.jfr
+ * }</pre>
+ *
+ * In this mode JFR's own per-event enablement/threshold filtering is bypassed entirely -
+ * whether an event is captured is decided solely by Rainbow Gum's normal level resolver
+ * (the same one that already decides whether {@link #write} is called at all), not by JFR
+ * settings.
  * <p>
  * This output also implements {@link LogEncoder} itself, rendering just the message (no
  * timestamp/level/logger prefix - the JFR event already carries those as separate
@@ -52,23 +70,82 @@ public final class JfrLogOutput implements LogOutput, LogEncoder {
 
 	private final LogEncoder encoder;
 
+	private final URI uri;
+
+	private final @Nullable Path destination;
+
+	private volatile @Nullable Recording recording;
+
 	/**
-	 * Creates a JFR output.
+	 * Creates a JFR output that emits events only for whatever externally started Flight
+	 * Recorder session (if any) is currently running, without managing a recording of its
+	 * own.
 	 * @param encoder used only to render the message once per event (see
 	 * {@link #write(LogEvent, String)}) - this output never looks at the resulting
 	 * content type or bytes otherwise.
 	 */
 	public JfrLogOutput(LogEncoder encoder) {
+		this(encoder, JFR_URI, null);
+	}
+
+	/**
+	 * Creates a JFR output.
+	 * @param encoder used only to render the message once per event (see
+	 * {@link #write(LogEvent, String)}) - this output never looks at the resulting
+	 * content type or bytes otherwise.
+	 * @param uri the output's own configured URI, returned as-is by {@link #uri()}.
+	 * @param destination if not null, a file this output starts and owns its own
+	 * {@link Recording} against for as long as the output is open (see {@link #start},
+	 * {@link #close}); if null, events are only captured by whatever externally started
+	 * recording (if any) is already running.
+	 */
+	public JfrLogOutput(LogEncoder encoder, URI uri, @Nullable Path destination) {
 		this.encoder = encoder;
+		this.uri = uri;
+		this.destination = destination;
+	}
+
+	/**
+	 * Extracts a recording destination file from a configured output URI, if any. The
+	 * default {@code jfr:///} URI has path {@code "/"} (root, no real path segment),
+	 * which must not be mistaken for a configured destination file.
+	 * @param uri configured output URI.
+	 * @return destination file, or null if {@code uri} has no real path.
+	 */
+	static @Nullable Path destinationOrNull(URI uri) {
+		String path = uri.getPath();
+		if (path == null || path.length() <= 1) {
+			return null;
+		}
+		return Path.of(path);
 	}
 
 	@Override
 	public URI uri() {
-		return JFR_URI;
+		return uri;
 	}
 
 	@Override
 	public void start(LogConfig config) {
+		var path = destination;
+		if (path == null) {
+			return;
+		}
+		var r = new Recording();
+		r.enable(RainbowGumLogEvent.TraceEvent.class);
+		r.enable(RainbowGumLogEvent.DebugEvent.class);
+		r.enable(RainbowGumLogEvent.InfoEvent.class);
+		r.enable(RainbowGumLogEvent.WarnEvent.class);
+		r.enable(RainbowGumLogEvent.ErrorEvent.class);
+		try {
+			r.setDestination(path);
+		}
+		catch (IOException e) {
+			r.close();
+			throw new UncheckedIOException(e);
+		}
+		r.start();
+		this.recording = r;
 	}
 
 	@Override
@@ -140,6 +217,10 @@ public final class JfrLogOutput implements LogOutput, LogEncoder {
 
 	@Override
 	public void close() {
+		var r = recording;
+		if (r != null) {
+			r.close();
+		}
 	}
 
 }

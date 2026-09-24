@@ -2,10 +2,12 @@ package io.jstach.rainbowgum.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.lang.System.Logger.Level;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -177,6 +179,45 @@ class JfrLogOutputTest {
 		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
 		assertEquals(1, events.size());
 		assertEquals("encoded", events.get(0).getValue("message"));
+	}
+
+	@Test
+	void testDestinationOrNullForDefaultUriIsNull() {
+		assertNull(JfrLogOutput.destinationOrNull(URI.create("jfr:///")));
+	}
+
+	@Test
+	void testDestinationOrNullForRealPath(@TempDir Path dir) {
+		Path file = dir.resolve("myapp.jfr");
+		URI uri = URI.create("jfr://" + file.toUri().getRawSchemeSpecificPart());
+		assertEquals(file, JfrLogOutput.destinationOrNull(uri));
+	}
+
+	@Test
+	void testDestinationUriStartsOwnedRecordingCapturingAllEvents(@TempDir Path dir) throws IOException {
+		Path recordingFile = dir.resolve("owned.jfr");
+		URI uri = URI.create("jfr://" + recordingFile.toUri().getRawSchemeSpecificPart());
+
+		var config = LogConfig.builder().build();
+		var encoder = LogEncoder.of(LogFormatter.builder().message().build()).provide("test", config);
+		var output = new JfrLogOutput(encoder, uri, recordingFile);
+
+		// No externally started Recording here (unlike the other tests) - the output
+		// must own and start its own for events to be captured at all.
+		output.start(config);
+		try {
+			Instant instant = Instant.ofEpochMilli(1);
+			LogEvent e = LogEvent.of(instant, "main", 1L, Level.DEBUG, "jfr-test", "owned", KeyValues.of(), null)
+				.freeze(instant);
+			output.write(e, "owned");
+		}
+		finally {
+			output.close();
+		}
+
+		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
+		assertEquals(1, events.size(), "expected exactly one recorded event: " + events);
+		assertEquals("owned", events.get(0).getValue("message"));
 	}
 
 }
