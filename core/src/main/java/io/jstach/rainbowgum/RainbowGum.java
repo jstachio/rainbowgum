@@ -146,10 +146,15 @@ class RainbowGumProviderExample implements RainbowGumProvider {
  * {@code logging.appender.<name>.output}/{@code .encoder}/{@code .flags}/
  * {@code .type}, with the output's own URI scheme choosing which registered
  * {@link LogOutput.OutputProvider} builds it.</li>
- * <li>An encoder is only looked up if the resolved output does not already
- * implement {@link LogEncoder} itself (rare, e.g. some structured outputs);
- * otherwise it is used as-is and the {@code .encoder} property is never
- * consulted.</li>
+ * <li>An output can supply its own encoder by implementing
+ * {@link LogOutput.ProvidesEncoder} (rare, e.g. some structured outputs): with
+ * {@link LogOutput.ProvidesEncoder.Policy#MANDATORY} that encoder is used as-is
+ * and the {@code .encoder} property is never consulted (configuring one anyway
+ * is a startup failure); with {@link LogOutput.ProvidesEncoder.Policy#DEFAULT}
+ * it is only a fallback and the {@code .encoder} property, if set, still wins.
+ * An output that does not implement {@link LogOutput.ProvidesEncoder} at all is
+ * unaffected - the {@code .encoder} property (or the registry's default for the
+ * output's type) always applies.</li>
  * </ol>
  */
 //@formatter:on
