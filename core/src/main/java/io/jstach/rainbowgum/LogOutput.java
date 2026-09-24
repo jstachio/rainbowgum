@@ -35,8 +35,14 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
  * <p>
  * The write methods do not throw {@link IOException} on purpose as it is implementations
  * responsibility to handle errors and to be resilient on their own.
+ * <p>
+ * An output that needs a particular kind of encoding - or cannot function with just any
+ * encoder - implements {@link ProvidesEncoder} to supply its own, either as a mandatory,
+ * non-overridable choice or as an overridable default; see {@link ProvidesEncoder} for
+ * details.
  *
  * @see LogOutput.OutputProvider
+ * @see LogOutput.ProvidesEncoder
  * @see Buffer
  * @see AppenderFlag#DISABLE_IMMEDIATE_FLUSH
  * @apiNote if for some reason the output needs to share events with other threads call
@@ -125,6 +131,64 @@ public interface LogOutput extends LogLifecycle, Flushable {
 		 * @return provider of output.
 		 */
 		LogProvider<LogOutput> provide(LogProviderRef ref);
+
+	}
+
+	/**
+	 * Marks an output that supplies its own {@link LogEncoder} instead of relying
+	 * entirely on {@link LogAppender#APPENDER_ENCODER_PROPERTY} or
+	 * {@link LogEncoderRegistry#encoderForOutputType(OutputType)}. {@link #policy()}
+	 * decides whether that encoder can still be overridden:
+	 * <ul>
+	 * <li>{@link Policy#MANDATORY}: {@link #encoder()} is the only encoder this output
+	 * will ever use. Configuring another one anyway - programmatically via
+	 * {@link LogAppender.Builder#encoder}, or via
+	 * {@link LogAppender#APPENDER_ENCODER_PROPERTY} - is a
+	 * {@link LogProperty.ValidationException}, not a silent override.
+	 * <li>{@link Policy#DEFAULT}: {@link #encoder()} is used only if nothing else is
+	 * configured; either of the above always wins over it.
+	 * </ul>
+	 * Neither policy is consulted at all if an output does not implement this interface
+	 * in the first place - such an output has no opinion on its own encoder, and
+	 * resolution proceeds exactly as if this interface did not exist.
+	 *
+	 * @see LogAppender.Builder#build()
+	 */
+	public interface ProvidesEncoder {
+
+		/**
+		 * The encoder this output supplies.
+		 * @return encoder, see {@link #policy()} for whether it can be overridden.
+		 */
+		LogEncoder encoder();
+
+		/**
+		 * Whether {@link #encoder()} can be overridden by an explicitly configured
+		 * encoder.
+		 * @return policy.
+		 */
+		Policy policy();
+
+		/**
+		 * Whether a {@link ProvidesEncoder}'s {@link ProvidesEncoder#encoder()} can be
+		 * overridden by another, explicitly configured encoder.
+		 */
+		enum Policy {
+
+			/**
+			 * The output's own encoder is the only one allowed. Explicitly configuring
+			 * another encoder anyway, programmatically or via property, is a validation
+			 * failure rather than a silent override.
+			 */
+			MANDATORY,
+
+			/**
+			 * The output's own encoder is used only as a fallback: any explicitly
+			 * configured encoder, programmatic or property, wins over it.
+			 */
+			DEFAULT;
+
+		}
 
 	}
 

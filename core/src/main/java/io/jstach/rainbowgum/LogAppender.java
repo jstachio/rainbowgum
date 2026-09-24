@@ -577,16 +577,34 @@ public sealed interface LogAppender extends LogLifecycle {
 				}
 
 				final LogOutput finalOutput = output;
-				LogEncoder encoder = _encoder != null ? LogProvider.provideOrNull(_encoder, _name, config) : null;
-				if (output instanceof LogEncoder e) {
-					encoder = e;
+				LogEncoder explicitEncoder = _encoder != null ? LogProvider.provideOrNull(_encoder, _name, config)
+						: null;
+				LogEncoder encoder;
+				if (finalOutput instanceof LogOutput.ProvidesEncoder pe
+						&& pe.policy() == LogOutput.ProvidesEncoder.Policy.MANDATORY) {
+					boolean propertyWired = !(encoderProperty(_name, config) instanceof LogProperty.Result.Missing);
+					if (explicitEncoder != null || propertyWired) {
+						throw LogProperty.ValidationException
+							.of(LogAppender.class, new IllegalArgumentException("Appender '" + _name + "' output "
+									+ finalOutput.getClass().getName()
+									+ " provides a mandatory encoder and does not allow another encoder to be configured."));
+					}
+					encoder = pe.encoder();
 				}
-				if (encoder == null) {
-					encoder = DefaultAppenderRegistry
-						.rawValue(encoderProperty(_name, config).or(() -> config.encoderRegistry()
-							.encoderForOutputType(finalOutput.type())
-							.provide(_name, config)))
-						.value();
+				else {
+					encoder = explicitEncoder;
+					if (encoder == null) {
+						var providedDefault = finalOutput instanceof LogOutput.ProvidesEncoder pe ? pe.encoder() : null;
+						var propertyResult = encoderProperty(_name, config);
+						if (providedDefault != null && propertyResult instanceof LogProperty.Result.Missing) {
+							encoder = providedDefault;
+						}
+						else {
+							encoder = DefaultAppenderRegistry.rawValue(propertyResult.or(() -> config.encoderRegistry()
+								.encoderForOutputType(finalOutput.type())
+								.provide(_name, config))).value();
+						}
+					}
 				}
 
 				Set<AppenderFlag> flags = b.flags != null ? b.flags : EnumSet.noneOf(AppenderFlag.class);
