@@ -67,6 +67,18 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 
 	private static final URI JFR_URI = URI.create(JFR_SCHEME + ":///");
 
+	/**
+	 * Renders the message followed by any key values, e.g. {@code some message -
+	 * {key=value}}. Shared with {@link JfrAlertListener}, which renders alerts the same
+	 * way.
+	 */
+	static final LogFormatter MESSAGE_FORMATTER = LogFormatter.builder()
+		.message()
+		.text(" - {")
+		.keyValues()
+		.text("}")
+		.build();
+
 	private final URI uri;
 
 	private final @Nullable Path destination;
@@ -150,13 +162,12 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 
 	@Override
 	public LogEncoder encoder(String name, LogConfig config) {
-		return LogEncoder.of(LogFormatter.builder().message().text(" - {").keyValues().text("}").build())
-			.provide(name, config);
+		return LogEncoder.of(MESSAGE_FORMATTER).provide(name, config);
 	}
 
 	@Override
 	public void write(LogEvent event, String s) {
-		var jfrEvent = create(event.level());
+		var jfrEvent = RainbowGumLogEvent.of(event.level());
 		if (jfrEvent == null || !jfrEvent.isEnabled()) {
 			return;
 		}
@@ -178,17 +189,6 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 			charset = StandardCharsets.UTF_8;
 		}
 		write(event, new String(bytes, off, len, charset));
-	}
-
-	private static @Nullable RainbowGumLogEvent create(java.lang.System.Logger.Level level) {
-		return switch (level) {
-			case TRACE -> new RainbowGumLogEvent.TraceEvent();
-			case DEBUG -> new RainbowGumLogEvent.DebugEvent();
-			case INFO -> new RainbowGumLogEvent.InfoEvent();
-			case WARNING -> new RainbowGumLogEvent.WarnEvent();
-			case ERROR -> new RainbowGumLogEvent.ErrorEvent();
-			case ALL, OFF -> null;
-		};
 	}
 
 	@Override

@@ -11,10 +11,10 @@ import jdk.jfr.Name;
 import jdk.jfr.StackTrace;
 
 /**
- * Base JFR event committed by {@link JfrLogOutput}, one concrete subclass per SLF4J /
- * {@link java.lang.System.Logger.Level}, so each level can be independently
- * enabled/disabled and thresholded through a Flight Recorder configuration ({@code .jfc})
- * the same way any other JFR event type can.
+ * Base JFR event committed by {@link JfrLogOutput} and {@link JfrAlertListener}, one
+ * concrete subclass per SLF4J / {@link java.lang.System.Logger.Level}, so each level can
+ * be independently enabled/disabled and thresholded through a Flight Recorder
+ * configuration ({@code .jfc}) the same way any other JFR event type can.
  * <p>
  * {@link #throwable} is a plain formatted stack trace string rather than JFR's own
  * {@code @StackTrace} capture: that JFR feature records the stack at the point
@@ -50,6 +50,24 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	public @Nullable String throwable;
 
 	RainbowGumLogEvent() {
+	}
+
+	/**
+	 * Creates the concrete event subclass matching {@code level}, or null if there is
+	 * none (JFR events are all-or-nothing per level, not filterable by
+	 * {@link java.lang.System.Logger.Level#ALL}/{@link java.lang.System.Logger.Level#OFF}).
+	 * @param level level.
+	 * @return new, uncommitted event instance, or null.
+	 */
+	static @Nullable RainbowGumLogEvent of(java.lang.System.Logger.Level level) {
+		return switch (level) {
+			case TRACE -> new TraceEvent();
+			case DEBUG -> new DebugEvent();
+			case INFO -> new InfoEvent();
+			case WARNING -> new WarnEvent();
+			case ERROR -> new ErrorEvent();
+			case ALL, OFF -> null;
+		};
 	}
 
 	/**
