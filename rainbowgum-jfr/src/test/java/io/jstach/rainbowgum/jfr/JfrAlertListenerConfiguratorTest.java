@@ -56,7 +56,7 @@ class JfrAlertListenerConfiguratorTest {
 			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
 			recording.start();
 
-			var config = configWith(Map.of(JfrAlertListenerConfigurator.JFR_ALERTS_PROPERTY, "TRUE"));
+			var config = configWith(Map.of(JfrAlertListenerBuilder.PROPERTY_enabled, "true"));
 			config.alerts().error(RuntimeException.class, "boom", new RuntimeException("boom"));
 
 			recording.stop();
