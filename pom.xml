@@ -136,6 +136,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-jul-logmanager</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-slf4j</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1296,6 +1301,7 @@
     <module>rainbowgum-jboss-logging</module>
     <module>rainbowgum-scoped-key-values-api</module>
     <module>rainbowgum-scoped-key-values</module>
+    <module>rainbowgum-jul-logmanager</module>
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>
     <module>rainbowgum-disruptor</module>

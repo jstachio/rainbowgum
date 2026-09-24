@@ -1,32 +1,15 @@
 package io.jstach.rainbowgum.jul;
 
-import java.lang.System.Logger.Level;
-import java.time.Instant;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
 import java.util.logging.Handler;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 
 import org.jspecify.annotations.Nullable;
 
-import io.jstach.rainbowgum.KeyValues;
-import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
-import io.jstach.rainbowgum.LogRouter;
-
 /**
  * JUL logger that uses global router.
  */
 final class SystemLoggerQueueJULHandler extends Handler {
-
-	private static final int TRACE_LEVEL_THRESHOLD = java.util.logging.Level.FINEST.intValue();
-
-	private static final int DEBUG_LEVEL_THRESHOLD = java.util.logging.Level.FINE.intValue();
-
-	private static final int INFO_LEVEL_THRESHOLD = java.util.logging.Level.INFO.intValue();
-
-	private static final int WARN_LEVEL_THRESHOLD = java.util.logging.Level.WARNING.intValue();
 
 	/**
 	 * Do nothing constuctor
@@ -36,59 +19,7 @@ final class SystemLoggerQueueJULHandler extends Handler {
 
 	@Override
 	public void publish(@Nullable LogRecord rec) {
-		if (rec == null) {
-			return;
-		}
-
-		int lv = rec.getLevel().intValue();
-		final Level level;
-		if (Integer.MIN_VALUE == lv) {
-			level = Level.TRACE;
-		}
-		else if (TRACE_LEVEL_THRESHOLD >= lv) {
-			level = Level.TRACE;
-		}
-		else if (DEBUG_LEVEL_THRESHOLD >= lv) {
-			level = Level.DEBUG;
-		}
-		else if (INFO_LEVEL_THRESHOLD >= lv) {
-			level = Level.INFO;
-		}
-		else if (WARN_LEVEL_THRESHOLD >= lv) {
-			level = Level.WARNING;
-		}
-		else if (Integer.MAX_VALUE == lv) {
-			level = Level.OFF;
-		}
-		else {
-			level = Level.ERROR;
-		}
-
-		String loggerName = rec.getLoggerName();
-		if (loggerName == null) {
-			return;
-		}
-		@Nullable Throwable cause = rec.getThrown();
-		var router = LogRouter.global();
-		var route = router.route(loggerName, level);
-		if (route.isEnabled()) {
-			@Nullable String msg = getMessage(rec);
-			var args = rec.getParameters();
-
-			Instant timestamp = rec.getInstant();
-			long threadId = rec.getLongThreadID();
-			String threadName = "";
-			long currentThreadId = Thread.currentThread().threadId();
-			if (currentThreadId == threadId) {
-				threadName = Thread.currentThread().getName();
-			}
-			// TODO fix key values aka MDC
-			// TODO fix caller info
-			var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, msg, KeyValues.of(), cause,
-					StandardMessageFormatter.JUL, args);
-			route.log(event);
-
-		}
+		JULBridge.publish(rec);
 	}
 
 	@Override
@@ -99,23 +30,6 @@ final class SystemLoggerQueueJULHandler extends Handler {
 	@Override
 	public void close() {
 
-	}
-
-	private static @Nullable String getMessage(LogRecord record) {
-		String message = record.getMessage();
-		if (message == null) {
-			return null;
-		}
-		ResourceBundle bundle = record.getResourceBundle();
-		if (bundle != null) {
-			try {
-				return bundle.getString(message);
-			}
-			catch (MissingResourceException e) {
-				// no translation found - fall through and use the raw message instead
-			}
-		}
-		return message;
 	}
 
 	/**
