@@ -1755,6 +1755,27 @@ Caller info maybe provided later as it is agnostic of SLF4J and if you would lik
 the System Logger provided the loggers are created after Rainbow Gum initializes.
 </p>
 
+<h4 id="jul_avoid">Avoid java.util.logging if you can</h4>
+
+<p>
+Since <a href="https://openjdk.org/jeps/264">JEP 264</a> (JDK 9), the JDK's own internals
+log through {@code java.lang.System.Logger}, not {@code java.util.logging} - JUL is no
+longer something the platform itself leans on, and today is mostly a legacy API kept
+alive by libraries and frameworks that predate JEP 264, or that have simply never
+migrated off it. If you have any choice in the matter (your own code, or a dependency you
+can swap), preferring SLF4J or {@code System.Logger} directly avoids JUL's dispatch
+overhead entirely rather than routing around it.
+</p>
+<p>
+As a last resort, if some required dependency logs through JUL directly with no other
+integration seam, {@link io.jstach.rainbowgum.jul.logmanager/ } provides
+{@link io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager}, a
+{@code java.util.logging.LogManager} replacement - see its own javadoc for installation
+and GraalVM native-image notes. It is a more invasive, JVM-wide alternative to the
+default {@code rainbowgum-jul} bridge, worth reaching for only when the bridge genuinely
+cannot see a given {@code Logger} in time.
+</p>
+
 <h3 id="spring_boot">Spring Boot</h3>
 
 Rainbow Gum provides Spring Boot 3 and 4 support that is maintained by the Rainbow Gum project, as two separate

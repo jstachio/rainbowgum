@@ -1,0 +1,47 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-maven-parent</artifactId>
+    <version>0.12.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-jul-logmanager</artifactId>
+  <name>rainbowgum-jul-logmanager</name>
+  <properties>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-jul</artifactId>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--
+            java.util.logging.manager is read exactly once, by java.util.logging.LogManager's
+            own static bootstrap, the first time anything in the JVM touches java.util.logging.
+            After that first touch it is fixed for the rest of that JVM's life, no matter what
+            System.setProperty(...) calls happen afterward. -Djava.util.logging.manager here
+            becomes a real "java -D..." argument on the forked test JVM's own command line, so
+            it is visible before the JVM executes a single instruction of test code, which is
+            the only point at which setting it is guaranteed to still win the race. Every test
+            class in this module gets its own fresh fork (reuseForks=false) so a prior test
+            class touching java.util.logging in-process can never poison this one; see
+            RainbowGumLogManagerTest's own javadoc for why this module's tests cannot otherwise
+            prove the LogManager was actually installed.
+          -->
+          <argLine>-Djava.util.logging.manager=io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager</argLine>
+          <reuseForks>false</reuseForks>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
