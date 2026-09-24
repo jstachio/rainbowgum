@@ -140,13 +140,13 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	 * {@link LogEncoderRegistry#encoderForOutputType(OutputType)}. {@link #policy()}
 	 * decides whether that encoder can still be overridden:
 	 * <ul>
-	 * <li>{@link Policy#MANDATORY}: {@link #encoder()} is the only encoder this output
-	 * will ever use. Configuring another one anyway - programmatically via
-	 * {@link LogAppender.Builder#encoder}, or via
+	 * <li>{@link Policy#MANDATORY}: {@link #encoder(String, LogConfig)} is the only
+	 * encoder this output will ever use. Configuring another one anyway -
+	 * programmatically via {@link LogAppender.Builder#encoder}, or via
 	 * {@link LogAppender#APPENDER_ENCODER_PROPERTY} - is a
 	 * {@link LogProperty.ValidationException}, not a silent override.
-	 * <li>{@link Policy#DEFAULT}: {@link #encoder()} is used only if nothing else is
-	 * configured; either of the above always wins over it.
+	 * <li>{@link Policy#DEFAULT}: {@link #encoder(String, LogConfig)} is used only if
+	 * nothing else is configured; either of the above always wins over it.
 	 * </ul>
 	 * Neither policy is consulted at all if an output does not implement this interface
 	 * in the first place - such an output has no opinion on its own encoder, and
@@ -157,21 +157,30 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	public interface ProvidesEncoder {
 
 		/**
-		 * The encoder this output supplies.
+		 * The encoder this output supplies, given the same {@code name}/{@code config}
+		 * the output itself was provided with.
+		 * @param name appender name.
+		 * @param config config.
 		 * @return encoder, see {@link #policy()} for whether it can be overridden.
+		 * @apiNote this method is only ever called once per appender resolution, so an
+		 * implementation does not need to memoize the returned encoder itself.
 		 */
-		LogEncoder encoder();
+		LogEncoder encoder(String name, LogConfig config);
 
 		/**
-		 * Whether {@link #encoder()} can be overridden by an explicitly configured
-		 * encoder.
+		 * Whether {@link #encoder(String, LogConfig)} can be overridden by an explicitly
+		 * configured encoder. Defaults to {@link Policy#DEFAULT} - an implementation only
+		 * needs to override this to return {@link Policy#MANDATORY}.
 		 * @return policy.
 		 */
-		Policy policy();
+		default Policy policy() {
+			return Policy.DEFAULT;
+		}
 
 		/**
-		 * Whether a {@link ProvidesEncoder}'s {@link ProvidesEncoder#encoder()} can be
-		 * overridden by another, explicitly configured encoder.
+		 * Whether a {@link ProvidesEncoder}'s
+		 * {@link ProvidesEncoder#encoder(String, LogConfig)} can be overridden by
+		 * another, explicitly configured encoder.
 		 */
 		enum Policy {
 
