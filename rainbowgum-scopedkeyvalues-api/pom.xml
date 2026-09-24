@@ -7,13 +7,13 @@
     <artifactId>rainbowgum-maven-parent</artifactId>
     <version>0.12.0-SNAPSHOT</version>
   </parent>
-  <artifactId>rainbowgum-scoped-key-values-api</artifactId>
-  <name>rainbowgum-scoped-key-values-api</name>
+  <artifactId>rainbowgum-scopedkeyvalues-api</artifactId>
+  <name>rainbowgum-scopedkeyvalues-api</name>
   <properties>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>
     <!--
-      Deliberately does NOT override java.version like rainbowgum-scoped-key-values does:
+      Deliberately does NOT override java.version like rainbowgum-scopedkeyvalues does:
       this module never references java.lang.ScopedValue (or anything else JDK 25+)
       directly, only java.util.ServiceLoader and plain interfaces/Map, so it stays on the
       project's usual baseline and is safe to compile against from any consumer, not just

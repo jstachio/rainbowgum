@@ -146,12 +146,12 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
-        <artifactId>rainbowgum-scoped-key-values-api</artifactId>
+        <artifactId>rainbowgum-scopedkeyvalues-api</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
-        <artifactId>rainbowgum-scoped-key-values</artifactId>
+        <artifactId>rainbowgum-scopedkeyvalues</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -1299,8 +1299,8 @@
     <module>rainbowgum-slf4j</module>
     <module>rainbowgum-jul</module>
     <module>rainbowgum-jboss-logging</module>
-    <module>rainbowgum-scoped-key-values-api</module>
-    <module>rainbowgum-scoped-key-values</module>
+    <module>rainbowgum-scopedkeyvalues-api</module>
+    <module>rainbowgum-scopedkeyvalues</module>
     <module>rainbowgum-jul-logmanager</module>
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>
