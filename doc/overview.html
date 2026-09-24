@@ -1973,6 +1973,44 @@ application has touched SLF4J at all, this is too late and the silent <code>java
 fallback still happens. <code>rainbowgum-jboss-logging</code> does not have this ordering problem, since
 {@link java.util.ServiceLoader} is consulted before any of JBoss Logging's own bridge fallbacks.
 
+<h3 id="log4j2">Log4j2</h3>
+
+<a href="https://logging.apache.org/log4j/2.x/">Log4j2</a> is a logging facade in its own right (not just
+an implementation) with a much larger method surface than SLF4J - dozens of per-level overloads across
+message type, parameter count, {@link org.apache.logging.log4j.Marker}, and {@link java.lang.Throwable}.
+
+<p>
+The <code>rainbowgum-log4j2</code> module is a true, native
+{@link org.apache.logging.log4j.spi.LoggerContextFactory} implementation (not a bridge through SLF4J at
+all), registered via {@link java.util.ServiceLoader}. Add the dependency and it is picked up
+automatically, no configuration needed:
+
+{@snippet lang=xml :
+<dependency>
+  <groupId>io.jstach.rainbowgum</groupId>
+  <artifactId>rainbowgum-log4j2</artifactId>
+</dependency>
+}
+
+<p>
+Log4j2's {@link org.apache.logging.log4j.spi.AbstractLogger} (the base class every real Log4j2 backend
+extends) absorbs almost all of that combinatorial surface itself: it declares no abstract methods of its
+own, funneling every overload down to three methods a backend must actually implement -
+{@link org.apache.logging.log4j.spi.ExtendedLogger#isEnabled(org.apache.logging.log4j.Level) isEnabled(Level)},
+{@link org.apache.logging.log4j.spi.ExtendedLogger#isEnabled(org.apache.logging.log4j.Level, org.apache.logging.log4j.Marker) isEnabled(Level, Marker)},
+and
+{@link org.apache.logging.log4j.spi.LocationAwareLogger#logMessage(org.apache.logging.log4j.Level, org.apache.logging.log4j.Marker, String, StackTraceElement, org.apache.logging.log4j.message.Message, Throwable) logMessage(...)}
+- plus around fifteen further <code>isEnabled(Level, Marker, &lt;message-type&gt;, Throwable...)</code>
+overloads declared directly on {@link org.apache.logging.log4j.spi.ExtendedLogger} that
+<code>AbstractLogger</code> leaves unimplemented (confirmed by inspection, matching
+<code>org.apache.logging.log4j:log4j-to-slf4j</code>'s own upstream reference implementation), all of
+which just delegate to the level+marker check since Rainbow Gum has no message-content-based filtering.
+
+<p>
+{@link org.apache.logging.log4j.Marker} is accepted but otherwise ignored, matching
+<code>rainbowgum-jboss-logging</code>'s own treatment of markers - Rainbow Gum's router has no
+marker-based filtering or routing concept.
+
 <h3 id="commons_logging">Commons Logging (jcl)</h3>
 
 Commons Logging's own story has changed enough over time that it boils down to three
