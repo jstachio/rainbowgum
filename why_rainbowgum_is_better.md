@@ -7,10 +7,12 @@ Where X is one of the following JVM logging implementations:
 * [Reload4j](https://reload4j.qos.ch/) (Log4j 1, still alive as a security-patched fork)
 * [tinylog](https://tinylog.org/v2/)
 
-This document is naturally biased and somewhat opinionated marketing but has some reasonable backing.
-If you are the author of one these libraries and would like us to make corrections we are happy to do so.
+This document is naturally biased and somewhat opinionated marketing but has
+some reasonable backing. If you are the author of one these libraries and would
+like us to make corrections we are happy to do so.
 
-For those looking for regular documentation the [user guide](https://jstach.io/rainbowgum/) is the actual documentation.
+For those looking for regular documentation the [user
+guide](https://jstach.io/rainbowgum/) is the actual documentation.
 
 ## Safe
 
@@ -32,9 +34,9 @@ either Logback or Log4J2 they would often not know that the frameworks had faile
 
 Many frameworks will argue that not failing fast on incorrect configuration is
 resiliency but Rainbow Gum only failst fast on initialization. Once started it
-does not fail fast (crash). Part of why Logback and particularly Log4J2 allow
-have this problem is they allow configuration after the logging framework has
-loaded and the compontents are very mutable. Rainbow Gum and somewhat Tiny Log
+does not fail fast (crash). Part of why Logback and particularly Log4J2 have
+this problem is they allow configuration after the logging framework has loaded
+and the compontents are very mutable. Rainbow Gum and somewhat Tiny Log
 generally do not allow configuration other than levels after initialization.
 
 Some other safety concerns:
@@ -53,24 +55,30 @@ Some other safety concerns:
   ecosystem, in a *logging* library. Rainbow Gum has no expression language, and never
   interpolates untrusted string content as anything other than a string.
 
-With some minor exceptions (ServiceLoader technically uses reflection) Rainbow
+With some minor exceptions (`ServiceLoader` technically uses reflection) Rainbow
 Gum does not do the above. It does not mean Rainbow Gum is more secure than the
 others but just that its security surface is smaller and when there are problems
 you will know sooner. We believe too many features, moving parts and not knowing
-when things are misconfigured make some thing like Log4Shell more likely.
+when things are misconfigured make things like Log4Shell more likely.
 
 On the other hand Rainbow Gum has not been around for very long and does not
 have as many "eyeballs" on it yet on compared to Log4J2 and Logback. Logback
 also never had Log4Shell and the Logback author has kept venerable Log4j1 alive
-with security updates (reload4j).
+with security updates (reload4j). Logback is also the default framework
+for Spring Boot making heavily used and likely the most used logging framework.
+
+But on the other other hand we live in time of LLM agents so that gap of "eyeballs"
+is less of a problem these days. 
 
 ## Modern
 
 Rainbow Gum will continue to embrace modern JDK features and uses the latest JDK
 for building. The code uses newer JDK 21+ features such as sealed classes,
 triple quote strings, and pattern matching making contribution easier and safer.
+Advance static analysis tools such as Checkerframework, Error Prone and Nullaway
+are checked on every build. Rainbow Gum follows JSpecify.
 
-Rainbow Gum follows [Tip and Tail](https://openjdk.org/jeps/14) as well as
+Rainbow Gum also follows [Tip and Tail](https://openjdk.org/jeps/14) as well as
 semver. Expect frequent releases corresponding to improvements with the JDK or
 GraalVM native but with a core and configuration that is very backward
 compatible. The downside to this is that old versions will not get features
