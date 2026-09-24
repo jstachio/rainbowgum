@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
@@ -28,6 +30,12 @@ import jdk.jfr.consumer.RecordingFile;
 
 class JfrLogOutputTest {
 
+	private static JfrLogOutput createOutput() {
+		var config = LogConfig.builder().build();
+		var encoder = LogEncoder.of(LogFormatter.builder().message().build()).provide("test", config);
+		return new JfrLogOutput(encoder);
+	}
+
 	@Test
 	void testInfoEventIsRecorded(@TempDir Path dir) throws IOException {
 		Path recordingFile = dir.resolve("test.jfr");
@@ -35,7 +43,7 @@ class JfrLogOutputTest {
 			recording.enable(RainbowGumLogEvent.InfoEvent.class);
 			recording.start();
 
-			var output = new JfrLogOutput();
+			var output = createOutput();
 			Instant instant = Instant.ofEpochMilli(1);
 			LogEvent e = LogEvent
 				.ofAll(instant, "main", 1L, Level.INFO, "jfr-test", "hello", KeyValues.of(), null,
@@ -65,7 +73,7 @@ class JfrLogOutputTest {
 			recording.enable(RainbowGumLogEvent.InfoEvent.class);
 			recording.start();
 
-			var output = new JfrLogOutput();
+			var output = createOutput();
 			Instant instant = Instant.ofEpochMilli(1);
 			LogEvent e = LogEvent
 				.ofAll(instant, "main", 1L, Level.DEBUG, "jfr-test", "should not be recorded", KeyValues.of(), null,
@@ -88,7 +96,7 @@ class JfrLogOutputTest {
 			recording.enable(RainbowGumLogEvent.InfoEvent.class);
 			recording.start();
 
-			var output = new JfrLogOutput();
+			var output = createOutput();
 			Instant instant = Instant.ofEpochMilli(1);
 			var map = new LinkedHashMap<String, String>();
 			map.put("trace id", "abc/123");
@@ -113,7 +121,7 @@ class JfrLogOutputTest {
 			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
 			recording.start();
 
-			var output = new JfrLogOutput();
+			var output = createOutput();
 			Instant instant = Instant.ofEpochMilli(1);
 			Throwable t = new RuntimeException("boom");
 			LogEvent e = LogEvent.of(instant, "main", 1L, Level.ERROR, "jfr-test", "failed", KeyValues.of(), t)
@@ -127,12 +135,13 @@ class JfrLogOutputTest {
 		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
 		assertEquals(1, events.size());
 		String throwable = events.get(0).getValue("throwable");
+		assertNotNull(throwable);
 		assertTrue(throwable.contains("java.lang.RuntimeException: boom"), "Got: " + throwable);
 	}
 
 	@Test
 	void testNoActiveRecordingDoesNotThrow() {
-		var output = new JfrLogOutput();
+		var output = createOutput();
 		Instant instant = Instant.ofEpochMilli(1);
 		LogEvent e = LogEvent
 			.ofAll(instant, "main", 1L, Level.INFO, "jfr-test", "hello", KeyValues.of(), null,
@@ -143,7 +152,7 @@ class JfrLogOutputTest {
 
 	@Test
 	void testBufferHintsPreferString() {
-		var output = new JfrLogOutput();
+		var output = createOutput();
 		assertEquals(WriteMethod.STRING, output.bufferHints());
 	}
 
@@ -154,7 +163,7 @@ class JfrLogOutputTest {
 			recording.enable(RainbowGumLogEvent.InfoEvent.class);
 			recording.start();
 
-			var output = new JfrLogOutput();
+			var output = createOutput();
 			Instant instant = Instant.ofEpochMilli(1);
 			LogEvent e = LogEvent.of(instant, "main", 1L, Level.INFO, "jfr-test", "ignored", KeyValues.of(), null)
 				.freeze(instant);

@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum.jfr;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.LogProvider;
@@ -30,9 +32,12 @@ public class JfrConfigurator implements Configurator {
 
 	private static class JfrOutputProvider implements OutputProvider {
 
+		private static final LogProvider<LogEncoder> MESSAGE_ENCODER = LogEncoder
+			.of(LogFormatter.builder().message().build());
+
 		@Override
 		public LogProvider<LogOutput> provide(LogProviderRef ref) {
-			return (name, c) -> new JfrLogOutput();
+			return (name, c) -> new JfrLogOutput(MESSAGE_ENCODER.provide(name, c));
 		}
 
 	}
