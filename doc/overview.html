@@ -1130,26 +1130,83 @@ The optional {@linkplain io.jstach.rainbowgum.jfr/ JFR module} (inspired by
 bytes anywhere, with one event type per level ({@code io.jstach.rainbowgum.Trace}/{@code Debug}/{@code Info}/
 {@code Warn}/{@code Error}) so each can be independently enabled, thresholded, or given a stack trace setting
 through a Flight Recorder configuration (<code>.jfc</code> file or <code>-XX:StartFlightRecording</code>) the
-same way as any other JFR event - not through Rainbow Gum properties. If no recording is active (or the
-relevant event type is disabled in it) writing is a cheap noop.
-
-<p>
-The JFR output prefers string writes, so the configured appender encoder's formatted
-message is recorded directly without first converting it to bytes:
-</p>
+same way as any other JFR event, not through Rainbow Gum properties.
 
 {@snippet lang=properties :
 logging.appenders=myappender
 logging.appender.myappender.output=jfr:///
 }
 
+Leaving <code>encoder</code> unset picks up {@link io.jstach.rainbowgum.jfr.JfrLogOutput}'s own default encoder,
+which renders the message followed by any key values, e.g. <code>some message - {key=value}</code> - no
+timestamp/level/logger prefix, since the JFR event already carries those as separate fields. Set
+<code>logging.appender.myappender.encoder</code> explicitly to override it.
+
+<h4 id="jfr_starting">Starting A Recording</h4>
+
+<p>
+Events sitting in <code>io.jstach.rainbowgum.*</code> only get recorded somewhere if a Flight Recorder session
+that enables them is actually running - there are two ways to make that happen.
+</p>
+
+<p>
+The usual way is wiring JFR in at the JVM level, which works but has a rough edge: the flags are easy to get
+wrong, differ across JVM vendors/versions, and are yet another thing to remember to add to a container
+entrypoint or systemd unit, entirely separate from the rest of the application's logging configuration:
+</p>
+
 {@snippet :
 java -XX:StartFlightRecording:filename=recording.jfr,dumponexit=true,settings=profile -jar myapp.jar
 }
 
-<code>jfr print --events "io.jstach.rainbowgum.*" recording.jfr</code> then shows the recorded events. TRACE and
-DEBUG default to disabled (JFR events are opt-in per type and those two are usually too high volume to want on
-by default) so enable them explicitly in a custom <code>.jfc</code> settings file if needed.
+<p>
+The simpler alternative, and the one worth reaching for first, needs none of that: give the output's own URI a
+real file path instead of the bare <code>jfr:///</code>. No JVM flags, no <code>.jfc</code> file - nothing
+outside the <code>logging.appender.*.output</code> property already being set for any other output:
+</p>
+
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.output=jfr:///var/log/myapp.jfr
+}
+
+<p>
+This starts and owns a Flight Recorder session for the lifetime of the output, writing directly to that file,
+with every event type unconditionally enabled - unlike the bare <code>jfr:///</code> form, JFR's own per-event
+filtering does not apply here at all. Whether an event is captured is decided solely by Rainbow Gum's normal
+level resolver, the same one that already decides whether the output is written to in the first place.
+</p>
+
+<code>jfr print --events "io.jstach.rainbowgum.*" recording.jfr</code> then shows the recorded events regardless
+of which way the recording was started. TRACE and DEBUG defaulting to disabled (too high volume to want on by
+default) only matters for the bare <code>jfr:///</code> form - a URI-started recording enables every level
+unconditionally; enable them explicitly in a custom <code>.jfc</code> settings file if using
+<code>-XX:StartFlightRecording</code> instead.
+
+<h3 id="jfr_alerts">JFR Alert Listener</h3>
+
+<p>
+The same module can also commit Rainbow Gum's own {@link io.jstach.rainbowgum.LogAlerts alerts} (an appender
+failing to write, an async publisher's queue overflowing, and similar problems with the logging system itself,
+not application log lines) as JFR events, opt-in via:
+</p>
+
+{@snippet lang=properties :
+logging.jfr.alerts.enabled=true
+}
+
+<p>
+Disabled by default: unlike the output above, which stays inert until an appender explicitly selects the
+<code>jfr</code> URI scheme, this listener has no such per-appender opt-in moment - once enabled it commits
+every alert as a JFR event for the life of the process.
+</p>
+
+<p>
+Alerts use their own, separate JFR event type family ({@code io.jstach.rainbowgum.AlertTrace}/{@code AlertDebug}/
+{@code AlertInfo}/{@code AlertWarn}/{@code AlertError}) rather than reusing the event types above, so
+<code>jfr print --events io.jstach.rainbowgum.Error</code> only ever returns genuine application errors, never
+Rainbow Gum's own internal alerts - filter on <code>io.jstach.rainbowgum.Alert*</code> for those instead.
+</p>
 
 <h3 id="rolling">Rolling Files</h3>
 
