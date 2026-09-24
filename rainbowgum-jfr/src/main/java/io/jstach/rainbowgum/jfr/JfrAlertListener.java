@@ -8,11 +8,11 @@ import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
- * A {@link LogAlerts.Listener} that commits each alert as a JFR event (see
- * {@link RainbowGumLogEvent}), reusing the same per-level event types
- * {@link JfrLogOutput} uses for ordinary log events, so alerts (an appender failing to
- * write, an async publisher's queue overflowing, etc.) show up in a Flight Recording the
- * same way.
+ * A {@link LogAlerts.Listener} that commits each alert as its own
+ * {@link RainbowGumAlertEvent} - deliberately a separate JFR event type family from
+ * {@link JfrLogOutput}'s {@link RainbowGumLogEvent}, even though the shape (per-level
+ * split, same fields) and rendering are the same; see {@link RainbowGumAlertEvent} for
+ * why sharing one event type between alerts and application log lines was rejected.
  * <p>
  * Alerts are rare and already delivered synchronously one at a time (see
  * {@link LogAlerts#addListener(LogAlerts.Listener)}), so unlike {@link JfrLogOutput} this
@@ -55,7 +55,7 @@ public final class JfrAlertListener implements LogAlerts.Listener {
 
 	@Override
 	public void onAlert(LogEvent event) {
-		var jfrEvent = RainbowGumLogEvent.of(event.level());
+		var jfrEvent = RainbowGumAlertEvent.of(event.level());
 		if (jfrEvent == null || !jfrEvent.isEnabled()) {
 			return;
 		}

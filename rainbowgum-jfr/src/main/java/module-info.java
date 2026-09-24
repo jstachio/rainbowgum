@@ -16,6 +16,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @see io.jstach.rainbowgum.jfr.JfrLogOutput
  * @see io.jstach.rainbowgum.jfr.JfrAlertListener
  * @see io.jstach.rainbowgum.jfr.RainbowGumLogEvent
+ * @see io.jstach.rainbowgum.jfr.RainbowGumAlertEvent
  */
 module io.jstach.rainbowgum.jfr {
 

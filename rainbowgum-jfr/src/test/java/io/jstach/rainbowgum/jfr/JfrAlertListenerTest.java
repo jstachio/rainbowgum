@@ -33,7 +33,7 @@ class JfrAlertListenerTest {
 	void testAlertIsRecordedAsErrorEvent(@TempDir Path dir) throws IOException {
 		Path recordingFile = dir.resolve("test.jfr");
 		try (Recording recording = new Recording()) {
-			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
+			recording.enable(RainbowGumAlertEvent.ErrorEvent.class);
 			recording.start();
 
 			var listener = new JfrAlertListenerBuilder().build();
@@ -51,7 +51,7 @@ class JfrAlertListenerTest {
 		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
 		assertEquals(1, events.size(), "expected exactly one recorded event: " + events);
 		RecordedEvent recorded = events.get(0);
-		assertEquals("io.jstach.rainbowgum.Error", recorded.getEventType().getName());
+		assertEquals("io.jstach.rainbowgum.AlertError", recorded.getEventType().getName());
 		assertEquals("appender failed - {}", recorded.getValue("message"));
 		assertEquals("io.jstach.rainbowgum.LogAppender", recorded.getValue("logger"));
 	}
@@ -60,7 +60,7 @@ class JfrAlertListenerTest {
 	void testAlertRendersKeyValuesInMessage(@TempDir Path dir) throws IOException {
 		Path recordingFile = dir.resolve("test.jfr");
 		try (Recording recording = new Recording()) {
-			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
+			recording.enable(RainbowGumAlertEvent.ErrorEvent.class);
 			recording.start();
 
 			var listener = new JfrAlertListenerBuilder().build();
@@ -86,7 +86,7 @@ class JfrAlertListenerTest {
 	void testThrowableIsCapturedAsString(@TempDir Path dir) throws IOException {
 		Path recordingFile = dir.resolve("test.jfr");
 		try (Recording recording = new Recording()) {
-			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
+			recording.enable(RainbowGumAlertEvent.ErrorEvent.class);
 			recording.start();
 
 			var listener = new JfrAlertListenerBuilder().build();
@@ -116,6 +116,33 @@ class JfrAlertListenerTest {
 			.of(instant, "main", 1L, Level.ERROR, "io.jstach.rainbowgum.LogAppender", "failed", KeyValues.of(), null)
 			.freeze(instant);
 		listener.onAlert(e);
+	}
+
+	@Test
+	void testAlertEventTypeIsDistinctFromLogOutputEventType(@TempDir Path dir) throws IOException {
+		// Enables JfrLogOutput's own event type and explicitly disables
+		// JfrAlertListener's (both default enabled) - proves the two are genuinely
+		// separate JFR event types, not aliases of one another.
+		Path recordingFile = dir.resolve("test.jfr");
+		try (Recording recording = new Recording()) {
+			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
+			recording.disable(RainbowGumAlertEvent.ErrorEvent.class);
+			recording.start();
+
+			var listener = new JfrAlertListenerBuilder().build();
+			Instant instant = Instant.ofEpochMilli(1);
+			LogEvent e = LogEvent
+				.of(instant, "main", 1L, Level.ERROR, "io.jstach.rainbowgum.LogAppender", "failed", KeyValues.of(),
+						null)
+				.freeze(instant);
+			listener.onAlert(e);
+
+			recording.stop();
+			recording.dump(recordingFile);
+		}
+
+		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
+		assertTrue(events.isEmpty(), "Got: " + events);
 	}
 
 }
