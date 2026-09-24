@@ -6,8 +6,10 @@ import java.nio.charset.StandardCharsets;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
+import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogOutput;
@@ -30,8 +32,14 @@ import io.jstach.rainbowgum.LogOutput.WriteMethod;
  * {@code .jfc} settings file - not through Rainbow Gum properties. If a Flight Recorder
  * session that enables the relevant event type is not running, {@link #write} does
  * (cheaply) nothing.
+ * <p>
+ * This output also implements {@link LogEncoder} itself, rendering just the message (no
+ * timestamp/level/logger prefix - the JFR event already carries those as separate
+ * fields), so leaving {@code encoder} unset when {@code output=jfr:///} picks this up
+ * automatically instead of the default TTLL encoder formatting a whole line only to throw
+ * most of it away.
  */
-public final class JfrLogOutput implements LogOutput {
+public final class JfrLogOutput implements LogOutput, LogEncoder {
 
 	/**
 	 * JFR output URI scheme.
@@ -42,10 +50,16 @@ public final class JfrLogOutput implements LogOutput {
 
 	private static final LogFormatter KEY_VALUES_FORMATTER = LogFormatter.builder().encodedKeyValues().build();
 
+	private final LogEncoder encoder;
+
 	/**
 	 * Creates a JFR output.
+	 * @param encoder used only to render the message once per event (see
+	 * {@link #write(LogEvent, String)}) - this output never looks at the resulting
+	 * content type or bytes otherwise.
 	 */
-	public JfrLogOutput() {
+	public JfrLogOutput(LogEncoder encoder) {
+		this.encoder = encoder;
 	}
 
 	@Override
@@ -65,6 +79,16 @@ public final class JfrLogOutput implements LogOutput {
 	@Override
 	public BufferHints bufferHints() {
 		return WriteMethod.STRING;
+	}
+
+	@Override
+	public Buffer buffer(BufferHints hints) {
+		return encoder.buffer(hints);
+	}
+
+	@Override
+	public void encode(LogEvent event, Buffer buffer) {
+		encoder.encode(event, buffer);
 	}
 
 	@Override
