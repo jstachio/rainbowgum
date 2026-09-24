@@ -61,14 +61,19 @@ others but just that its security surface is smaller and when there are problems
 you will know sooner. We believe too many features, moving parts and not knowing
 when things are misconfigured make things like Log4Shell more likely.
 
+Rainbow Gum core library only has output to stdout and stderr. The file output
+as well as other outputs have thoughtfully been put in optional modules which
+means Rainbow Gum cannot output to something external you don't know about by
+just configuration.
+
 On the other hand Rainbow Gum has not been around for very long and does not
 have as many "eyeballs" on it yet on compared to Log4J2 and Logback. Logback
 also never had Log4Shell and the Logback author has kept venerable Log4j1 alive
 with security updates (reload4j). Logback is also the default framework
 for Spring Boot making heavily used and likely the most used logging framework.
 
-But on the other other hand we live in time of LLM agents so that gap of "eyeballs"
-is less of a problem these days. 
+But on the other other hand we live in time of LLM agents so that gap of
+"eyeballs" is less of a problem these days.
 
 ## Modern
 
