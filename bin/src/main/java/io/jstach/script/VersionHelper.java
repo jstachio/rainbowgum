@@ -178,6 +178,18 @@ enum Command implements HelpSupport {
 
 	public static final String VERSION_PROPERTIES = "version.properties";
 
+	/**
+	 * Extra, out-of-reactor project directories: each has its own {@code pom.xml} with a
+	 * {@code <parent>} pointing back at this project's parent pom, but is not reachable
+	 * via any {@code <module>} in the main reactor (usually because it needs its own
+	 * special build setup, e.g. a GraalVM native-image or JDK AOT cache smoke test), so
+	 * a plain {@code mvn versions:set} run from the project root never touches it. Edit
+	 * this list for whichever directories apply when copying this script to a different
+	 * project; leave it {@code List.of()} if there are none.
+	 */
+	public static final List<String> EXTRA_POM_DIRECTORIES = List.of("test/rainbowgum-test-native",
+			"test/rainbowgum-test-aot-cache");
+
 	private final String desc;
 
 	Command(String desc) {
@@ -264,8 +276,53 @@ enum Command implements HelpSupport {
 
 	static void pom(Version current, long timestamp) throws IOException {
 		run("mvn versions:set -DnewVersion=" + current.print(Version.PrintFlag.SNAPSHOT));
+		for (String dir : EXTRA_POM_DIRECTORIES) {
+			updateParentVersion(Path.of(dir, "pom.xml"), current);
+		}
 		updateTimestamp(timestamp);
 
+	}
+
+	/**
+	 * Directly rewrites a detached (non-reactor) pom's {@code <parent><version>} via
+	 * DOM/XPath, the same way {@link #updateTimestamp(long)} rewrites the root pom's
+	 * timestamp - {@code mvn versions:set}/{@code versions:update-parent} both assume
+	 * the target is resolvable in the usual reactor/repository sense, which a detached
+	 * pom (see {@link #EXTRA_POM_DIRECTORIES}) is not guaranteed to be at this point in
+	 * the release process.
+	 * @param pomFile path to the detached project's pom.xml.
+	 * @param version new parent version to write.
+	 */
+	static void updateParentVersion(Path pomFile, Version version) throws IOException {
+		try {
+			Document doc;
+			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder builder = factory.newDocumentBuilder();
+			try (InputStream is = Files.newInputStream(pomFile, StandardOpenOption.READ)) {
+				doc = builder.parse(is);
+				XPath xpath = XPathFactory.newInstance().newXPath();
+				String path = "/project/parent/version";
+				Node v = (Node) xpath.evaluate(path, doc, XPathConstants.NODE);
+				if (v == null) {
+					throw new IllegalStateException("No " + path + " found in " + pomFile);
+				}
+				v.setTextContent(version.print(Version.PrintFlag.SNAPSHOT));
+			}
+			try (OutputStream os = Files.newOutputStream(pomFile, StandardOpenOption.WRITE,
+					StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.SYNC)) {
+				DOMSource domSource = new DOMSource(doc);
+				StreamResult result = new StreamResult(os);
+				TransformerFactory tf = TransformerFactory.newInstance();
+				Transformer transformer = tf.newTransformer();
+				transformer.transform(domSource, result);
+			}
+		}
+		catch (IOException e) {
+			throw e;
+		}
+		catch (Exception e) {
+			throw new IOException(e);
+		}
 	}
 
 	static Version tag() throws IOException {
