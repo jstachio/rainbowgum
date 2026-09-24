@@ -36,7 +36,7 @@ class JfrAlertListenerTest {
 			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
 			recording.start();
 
-			var listener = new JfrAlertListener();
+			var listener = new JfrAlertListenerBuilder().build();
 			Instant instant = Instant.ofEpochMilli(1);
 			LogEvent e = LogEvent
 				.of(instant, "main", 1L, Level.ERROR, "io.jstach.rainbowgum.LogAppender", "appender failed",
@@ -63,7 +63,7 @@ class JfrAlertListenerTest {
 			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
 			recording.start();
 
-			var listener = new JfrAlertListener();
+			var listener = new JfrAlertListenerBuilder().build();
 			Instant instant = Instant.ofEpochMilli(1);
 			var map = new LinkedHashMap<String, String>();
 			map.put("appender", "console");
@@ -89,7 +89,7 @@ class JfrAlertListenerTest {
 			recording.enable(RainbowGumLogEvent.ErrorEvent.class);
 			recording.start();
 
-			var listener = new JfrAlertListener();
+			var listener = new JfrAlertListenerBuilder().build();
 			Instant instant = Instant.ofEpochMilli(1);
 			Throwable t = new RuntimeException("boom");
 			LogEvent e = LogEvent
@@ -110,7 +110,7 @@ class JfrAlertListenerTest {
 
 	@Test
 	void testNoActiveRecordingDoesNotThrow() {
-		var listener = new JfrAlertListener();
+		var listener = new JfrAlertListenerBuilder().build();
 		Instant instant = Instant.ofEpochMilli(1);
 		LogEvent e = LogEvent
 			.of(instant, "main", 1L, Level.ERROR, "io.jstach.rainbowgum.LogAppender", "failed", KeyValues.of(), null)

@@ -1,8 +1,11 @@
 package io.jstach.rainbowgum.jfr;
 
+import org.jspecify.annotations.Nullable;
+
 import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
+import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
  * A {@link LogAlerts.Listener} that commits each alert as a JFR event (see
@@ -22,10 +25,32 @@ import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
  */
 public final class JfrAlertListener implements LogAlerts.Listener {
 
+	private final boolean enabled;
+
 	/**
-	 * Creates a JFR alert listener.
+	 * Creates a JFR alert listener. Not gated on {@code enabled} itself - see
+	 * {@link JfrAlertListener#enabled()} and {@link JfrAlertListenerConfigurator}, which
+	 * builds this unconditionally and only then decides whether to register it.
+	 * @param enabled whether this listener should actually be registered; see
+	 * {@link JfrAlertListener#enabled()}. Default {@code false}.
+	 * @return listener.
 	 */
-	public JfrAlertListener() {
+	@LogConfigurable(name = "JfrAlertListenerBuilder", prefix = "logging.jfr.alerts.")
+	static JfrAlertListener of(@Nullable Boolean enabled) {
+		return new JfrAlertListener(enabled != null && enabled);
+	}
+
+	private JfrAlertListener(boolean enabled) {
+		this.enabled = enabled;
+	}
+
+	/**
+	 * Whether this listener should actually be registered with
+	 * {@link LogAlerts#addListener(LogAlerts.Listener)}.
+	 * @return enabled.
+	 */
+	public boolean enabled() {
+		return enabled;
 	}
 
 	@Override

@@ -24,6 +24,7 @@ module io.jstach.rainbowgum.jfr {
 	requires transitive io.jstach.rainbowgum;
 	requires jdk.jfr;
 
+	requires static io.jstach.rainbowgum.annotation;
 	requires static io.jstach.svc;
 	requires static org.jspecify;
 
