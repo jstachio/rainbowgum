@@ -19,11 +19,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
+import io.jstach.rainbowgum.LogOutput.ProvidesEncoder.Policy;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 
 import jdk.jfr.Recording;
@@ -33,9 +33,7 @@ import jdk.jfr.consumer.RecordingFile;
 class JfrLogOutputTest {
 
 	private static JfrLogOutput createOutput() {
-		var config = LogConfig.builder().build();
-		var encoder = LogEncoder.of(LogFormatter.builder().message().build()).provide("test", config);
-		return new JfrLogOutput(encoder);
+		return new JfrLogOutput();
 	}
 
 	@Test
@@ -92,20 +90,29 @@ class JfrLogOutputTest {
 	}
 
 	@Test
-	void testKeyValuesAreCapturedAsPercentEncodedString(@TempDir Path dir) throws IOException {
+	void testEncoderPolicyIsOverridableDefault() {
+		var output = createOutput();
+		assertEquals(Policy.DEFAULT, output.policy());
+	}
+
+	@Test
+	void testEncoderRendersMessageThenKeyValues(@TempDir Path dir) throws IOException {
 		Path recordingFile = dir.resolve("test.jfr");
 		try (Recording recording = new Recording()) {
 			recording.enable(RainbowGumLogEvent.InfoEvent.class);
 			recording.start();
 
 			var output = createOutput();
+			var config = LogConfig.builder().build();
+			var encoder = output.encoder("test", config);
+
 			Instant instant = Instant.ofEpochMilli(1);
 			var map = new LinkedHashMap<String, String>();
-			map.put("trace id", "abc/123");
-			map.put("empty", "");
+			map.put("traceId", "abc123");
+			map.put("userId", "42");
 			LogEvent e = LogEvent.of(instant, "main", 1L, Level.INFO, "jfr-test", "hello", KeyValues.of(map), null)
 				.freeze(instant);
-			output.write(e, "hello");
+			output.write(new LogEvent[] { e }, 1, encoder);
 
 			recording.stop();
 			recording.dump(recordingFile);
@@ -113,7 +120,32 @@ class JfrLogOutputTest {
 
 		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
 		assertEquals(1, events.size());
-		assertEquals("trace%20id=abc%2F123&empty=", events.get(0).getValue("keyValues"));
+		assertEquals("hello - {traceId=abc123, userId=42}", events.get(0).getValue("message"));
+	}
+
+	@Test
+	void testEncoderRendersMessageWithEmptyKeyValues(@TempDir Path dir) throws IOException {
+		Path recordingFile = dir.resolve("test.jfr");
+		try (Recording recording = new Recording()) {
+			recording.enable(RainbowGumLogEvent.InfoEvent.class);
+			recording.start();
+
+			var output = createOutput();
+			var config = LogConfig.builder().build();
+			var encoder = output.encoder("test", config);
+
+			Instant instant = Instant.ofEpochMilli(1);
+			LogEvent e = LogEvent.of(instant, "main", 1L, Level.INFO, "jfr-test", "hello", KeyValues.of(), null)
+				.freeze(instant);
+			output.write(new LogEvent[] { e }, 1, encoder);
+
+			recording.stop();
+			recording.dump(recordingFile);
+		}
+
+		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
+		assertEquals(1, events.size());
+		assertEquals("hello - {}", events.get(0).getValue("message"));
 	}
 
 	@Test
@@ -198,9 +230,8 @@ class JfrLogOutputTest {
 		Path recordingFile = dir.resolve("owned.jfr");
 		URI uri = URI.create("jfr://" + recordingFile.toUri().getRawSchemeSpecificPart());
 
+		var output = new JfrLogOutput(uri, recordingFile);
 		var config = LogConfig.builder().build();
-		var encoder = LogEncoder.of(LogFormatter.builder().message().build()).provide("test", config);
-		var output = new JfrLogOutput(encoder, uri, recordingFile);
 
 		// No externally started Recording here (unlike the other tests) - the output
 		// must own and start its own for events to be captured at all.

@@ -22,9 +22,10 @@ import jdk.jfr.StackTrace;
  * so it is disabled ({@link StackTrace @StackTrace(false)}) and the logged
  * {@link Throwable}, if any, is captured as a field instead.
  * <p>
- * MDC / key values are carried as one percent-encoded {@link String} field because JFR
- * custom event fields are limited to primitives, {@link String}, {@link Class} and
- * {@link Thread}, so there is no direct representation for an arbitrary map.
+ * MDC / key values have no field of their own - {@link JfrLogOutput}'s encoder renders
+ * them directly into {@link #message} instead, since JFR custom event fields are limited
+ * to primitives, {@link String}, {@link Class} and {@link Thread}, so there is no direct
+ * representation for an arbitrary map.
  */
 @Category("Rainbow Gum")
 @StackTrace(false)
@@ -41,12 +42,6 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	 */
 	@Label("Logger")
 	public @Nullable String logger;
-
-	/**
-	 * Key values percent-encoded in URI query format, or null if none were logged.
-	 */
-	@Label("Key Values")
-	public @Nullable String keyValues;
 
 	/**
 	 * The logged throwable formatted as a stack trace string, or null if none was logged.
