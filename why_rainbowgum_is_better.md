@@ -108,6 +108,27 @@ A notable caveat at the moment for Logbacks Scoped Values:
 
 Rainbow Gum scoped key values gets passed down the stack and is available to async publishers.
 
+Finally Rainbow Gum has been designed for smaller but more elastic cloud
+services where logging is likely aggregated and output should
+follow [12 Factor](https://12factor.net/logs) recommendations: *"unbuffered, to
+stdout"*. That is why file output, rolling file output, are not included in the
+core module (why pay for this when everyone is logging to stdout). 12 Factor
+also recommends [backing services be URI based](https://12factor.net/backing-services). 
+Rainbow Gum's output properties are actually URIs: `logging.appender.console.output=stdout:///`
+which allows for pretty powerful one line configuration.
+
+While the other logging frameworks can be configured for 12 factor we found
+disturbingly that **Log4J2 actually buffers events** and cannot be turned off.
+It is a small window but even on synchronous and immediate flush turned on it
+does buffer events waiting for a flush winner and the thread that produced the
+event may not be the one that finally writes it. In our testing we could only
+get this buffer to hold a maximum of 3 events but on different hardware this
+maybe much greater.
+
+Logback and Rainbow Gum flush on every event with the thread that created the
+event. In irony TinyLog uses what Log4J2 does as a form of asynchronous log
+writting with what it calls the writer thread.
+
 ## Small
 
 | Library | Version | Jar size(s) | Sum | Notes |
