@@ -1,0 +1,115 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>rainbowgum.helidon.example</groupId>
+  <artifactId>rainbowgum-helidon-example</artifactId>
+  <version>0.1</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <helidon.version>4.5.5</helidon.version>
+    <exec.mainClass>rainbowgum.helidon.example.Main</exec.mainClass>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.helidon</groupId>
+        <artifactId>helidon-bom</artifactId>
+        <version>${helidon.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.helidon.webserver</groupId>
+      <artifactId>helidon-webserver</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.helidon.logging</groupId>
+      <artifactId>helidon-logging-common</artifactId>
+    </dependency>
+
+    <!--
+      Rainbow Gum: rainbowgum-helidon4 implements Helidon's own
+      io.helidon.logging.common.spi.LoggingProvider extension point, so it activates
+      before any application log line (see this module's own module-info.java/
+      RainbowGumLoggingProvider javadoc) with no explicit RainbowGum.of() call, no
+      System.Logger indirection, and no rainbowgum-slf4j interference to work around
+      (unlike the earlier rainbowgum-jdk-based approach, this one does not defer to any
+      RainbowGumEagerLoad marker: it just bootstraps directly). It already pulls
+      rainbowgum-jul in transitively at runtime scope (the actual JUL Handler bridge)
+      and rainbowgum-core at compile scope. rainbowgum-simple-props is what makes
+      src/main/resources/logging.properties (Rainbow Gum's own property format, not
+      java.util.logging's) actually take effect: it looks for a classpath resource
+      literally named "logging.properties" by default. rainbowgum-pattern is what makes
+      the "encoder=pattern" line in that file resolve to a real encoder.
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum.helidon</groupId>
+      <artifactId>rainbowgum-helidon4</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-simple-props</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-pattern</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+
+    <!--
+      Baseline: Helidon's own default JulProvider, JUL config via logging.properties,
+      no Rainbow Gum. Swap this dependency for rainbowgum-helidon4 to try putting
+      Rainbow Gum underneath. See README.md.
+    -->
+  </dependencies>
+
+  <build>
+    <finalName>rainbowgum-helidon-example</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>${exec.mainClass}</mainClass>
+              <addClasspath>true</addClasspath>
+              <classpathPrefix>libs/</classpathPrefix>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-deps</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/libs</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
