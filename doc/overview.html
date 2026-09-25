@@ -1936,6 +1936,58 @@ Note that if one chooses to not use one of the <code>rainbowgum-spring-boot*-sta
 or the underlying <code>rainbowgum-spring-boot3</code>/<code>rainbowgum-spring-boot4</code> module directly,
 Spring will re-initialize <code>java.util.logging</code> and take over it so again the integration is recommended.
 
+<h3 id="helidon">Helidon</h3>
+
+Rainbow Gum provides Helidon SE support through <code>rainbowgum-helidon4</code>, a native
+implementation of Helidon's own <code>io.helidon.logging.common.spi.LoggingProvider</code> extension
+point (the same one <code>helidon-logging-jul</code>/<code>helidon-logging-log4j</code> implement).
+Like Spring Boot, each supported Helidon major version gets its own artifact rather than one module
+trying to track every release:
+
+<ul>
+  <li>{@link io.jstach.rainbowgum.helidon4/ } / <code>rainbowgum-helidon4</code>: for Helidon SE 4.x.</li>
+</ul>
+
+<p>
+Add the dependency and it activates automatically. No code change is needed at all: Helidon's own
+<code>LogConfig</code> selects and initializes the highest weighted <code>LoggingProvider</code> it
+finds before config, the service registry, or the webserver ever start, well before any application
+log line. See {@link io.jstach.rainbowgum.helidon4/ }'s own module Javadoc for the full mechanism.
+</p>
+
+The recommended setup with Maven is:
+
+{@snippet lang=xml :
+  <dependencies>
+    <dependency>
+      <groupId>io.jstach.rainbowgum.helidon</groupId>
+      <artifactId>rainbowgum-helidon4</artifactId>
+      <version>_VERSION_</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-simple-props</artifactId>
+      <version>_VERSION_</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-pattern</artifactId>
+      <version>_VERSION_</version>
+    </dependency>
+  </dependencies>
+}
+
+<code>rainbowgum-simple-props</code> and <code>rainbowgum-pattern</code> are not required by
+<code>rainbowgum-helidon4</code> itself. Together they give a classpath <code>logging.properties</code>
+file (Rainbow Gum's own property format, not <code>java.util.logging</code>'s) and a pattern based
+encoder, the same combination this repository's own <code>examples/helidon</code> uses.
+
+<p>
+Helidon's own facade is <code>java.util.logging</code>, so <code>rainbowgum-helidon4</code> pulls
+<code>rainbowgum-jul</code> in transitively at runtime scope. That module installs the actual bridge
+<code>Handler</code> once Rainbow Gum has bootstrapped.
+</p>
+
 <h3 id="jboss_logging">JBoss Logging</h3>
 
 <a href="https://github.com/jboss-logging/jboss-logging">JBoss Logging</a> is sadly another logging facade,
