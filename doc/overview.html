@@ -1802,11 +1802,18 @@ and you will not be able to figure out what happened otherwise.
 <p>
 The exception of the above is if {@linkplain io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumEagerLoad no other facade is detected} 
 the module will initialize Rainbow Gum. The idea is that your application only uses the JDK logging facilities 
-(the Rainbow Gum SLF4J implementation is not found in the module/classpath). Thus only having the dependencies 
-<code>rainbowgum-core</code>, and <code>rainbowgum-jdk</code> will work as normal.  
+(the Rainbow Gum SLF4J implementation is not found in the module/classpath). Thus only having the dependencies
+<code>rainbowgum-core</code>, and <code>rainbowgum-jdk</code> will work as normal.
 </p>
 <p>
-  SLF4J does 
+<strong>{@code rainbowgum-jul} by itself will not do this.</strong> Depend on
+{@code rainbowgum-jdk} instead (which pulls {@code rainbowgum-jul} in transitively) to get the JUL
+bridge activated automatically. If neither an existing {@code System.Logger}/SLF4J call site nor
+{@code rainbowgum-jdk} is an option, call {@link io.jstach.rainbowgum.RainbowGum#of()} explicitly
+before any JUL logging happens. See {@link io.jstach.rainbowgum.jul/}'s module Javadoc for why.
+</p>
+<p>
+  SLF4J does
   <a href="https://www.slf4j.org/manual.html#jep264">provide an adapter/bridge for the System.Logger (org.slf4j:slf4j-jdk-platform-logging)</a> 
   but its use may cause Rainbow Gum to initialize
   too early. <strong>However that maybe desirable if</strong>:
