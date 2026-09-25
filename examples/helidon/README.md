@@ -1,68 +1,80 @@
-# Helidon SE + Rainbow Gum example
+# Helidon SE + Rainbow Gum example (LogManager variant)
 
-Hand-built minimal Helidon SE 4.5.5 app (the Maven archetype for Helidon 4.x/27.x no
-longer works with the standard `maven-archetype-plugin` goal - it's moved to its own
-build-tool plugin - so this was written directly instead of generated). `Main`'s
-`/hello` route exercises `java.util.logging.Logger` (Helidon's own facade, per
-`doc/other-web-frameworks.md`'s Helidon section) with an INFO, a FINE (should be
-filtered), and a SEVERE-with-exception call.
+Same hand-built minimal Helidon SE 4.5.5 app as the `examples/helidon` branch this one
+forked from, but swaps Rainbow Gum's Handler-based `rainbowgum-jul` bridge for
+`rainbowgum-jul-logmanager`, a full `java.util.logging.LogManager` replacement - the
+"ideal" path per `rainbowgum-jul-logmanager`'s own module javadoc when an application
+inherently relies on `java.util.logging` itself, which Helidon does. `Main`'s `/hello`
+route exercises `java.util.logging.Logger` with an INFO, a FINE (should be filtered),
+and a SEVERE-with-exception call, same as the other branch.
 
-Not part of the normal reactor - build/run directly:
+Not part of the normal reactor - build/run directly. Unlike the Handler-bridge variant,
+**this one needs a real JVM `-D` argument**, not just a dependency (see Findings below):
 
 ```
 ../../mvnw -q -f pom.xml clean package
-java -jar target/rainbowgum-helidon-example.jar
+java -Djava.util.logging.manager=io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager \
+     -jar target/rainbowgum-helidon-example.jar
 curl http://localhost:8080/hello
 ```
 
 Needs Rainbow Gum installed in the local `.m2` first (`../../mvnw install` from the
 repo root).
 
-## What's in here vs. what the doc describes
+## What's in here vs. the `examples/helidon` branch
 
-This example takes the doc's "good enough for most apps" path: Rainbow Gum's existing
-Handler-based `rainbowgum-jul` bridge, not a custom `LogManager` (which the doc
-documents as not existing yet and being nontrivial new work - out of scope for this
-gap-finding pass).
+Same app, `rainbowgum-jul-logmanager` + `rainbowgum-jdk` instead of `rainbowgum-jul` +
+`rainbowgum-jdk`. This explores the second of two paths for apps that don't use SLF4J:
+predominantly-`System.Logger` apps with maybe some stray JUL calls want
+`rainbowgum-jdk` (+ `rainbowgum-jul` if any stray JUL calls exist at all - see the other
+branch), while apps that inherently rely on `java.util.logging` itself want
+`rainbowgum-jul-logmanager` instead, since it replaces the `LogManager` outright rather
+than just attaching a `Handler` to whatever the default one already is.
 
 ## Findings
 
-- **`rainbowgum-jul` alone does nothing by itself - but `rainbowgum-jdk` fixes that for
-  free.** Just adding `rainbowgum-jul` and calling `LogConfig.configureRuntime()`
-  changes nothing - JUL output stays completely default (verified: same plain
-  `Sep 24, 2026 ... INFO: ...` format with or without `rainbowgum-jul` on the
-  classpath). `JULConfigurator` (the `Configurator` that actually installs the bridge
-  `Handler` on JUL's root logger) only runs when something bootstraps Rainbow Gum
-  itself - and in a Helidon SE app that never touches SLF4J directly, *nothing* does
-  that automatically by default. The fix isn't an explicit `RainbowGum.of()` call
-  though: swapping the dependency from `rainbowgum-jul` alone to `rainbowgum-jdk`
-  (which pulls `rainbowgum-jul` in transitively at runtime scope, plus
-  `rainbowgum-systemlogger`) is enough on its own - **no code change needed at
-  all**. `rainbowgum-jdk` registers a `java.lang.System.LoggerFinder`
-  (`SystemLoggingFactory`) whose default `InitOption.CHECK` behavior eagerly calls
-  `RainbowGum.of()` the first time *anything* calls `System.getLogger(...)` - and the
-  JDK's own internals do that incidentally, from unrelated static init (`java.time`/
-  `java.util.Locale` formatting, per `rainbowgum-systemlogger`'s own javadoc), early
-  enough in this app's startup to activate the JUL bridge before Helidon logs its
-  first message. Confirmed by removing the explicit `RainbowGum.of()` call entirely
-  from `Main.java` and diffing output byte-for-byte against the version that still had
-  it - identical. **This isn't mentioned anywhere in `doc/other-web-frameworks.md`**,
-  which only discusses `rainbowgum-jul` and would leave a reader with the false
-  impression that an explicit bootstrap call is required.
-- **Once bootstrapped, it works exactly as the doc describes**: both Helidon's own
-  internal JUL logging (`io.helidon.webserver.ServerListener`,
-  `io.helidon.common.features.HelidonFeatures`, etc.) and the application's own
-  `java.util.logging.Logger` calls are captured, correctly level-filtered (the `FINE`
-  call is suppressed, confirmed absent from output), with exceptions rendered
-  correctly.
-- **A Helidon-specific nuance, not a Rainbow Gum gap**: a plain JUL
-  `logging.properties` on the classpath is *not* picked up by
-  `LogConfig.configureRuntime()` unless at least one Helidon `LoggingProvider` module
-  (e.g. `helidon-logging-jul`) is also present - without one, Helidon prints "There is
-  no Helidon logging implementation on classpath, skipping log configuration." and
-  does nothing with the file. Irrelevant once Rainbow Gum owns the output (as here),
-  but worth knowing if debugging "why isn't my logging.properties doing anything."
-- **Not attempted**: the full `java.util.logging.LogManager` replacement path the doc
-  describes as the way to get first-class fidelity (no missed early-boot messages,
-  automatic per-logger level sync) - that LogManager doesn't exist in Rainbow Gum today
-  and building one is real, separate work, not something this pass was meant to do.
+- **`rainbowgum-jdk` is still needed, even with the LogManager replacement.** Tried
+  `rainbowgum-jul-logmanager` completely alone first (no `rainbowgum-jdk`, JVM flag
+  set correctly) - same failure mode as the plain Handler bridge: every `INFO`/`FINE`
+  message vanishes silently, and only the app's own `SEVERE` call surfaces, via Rainbow
+  Gum's *internal* failsafe alert path (`[ERROR] - RAINBOW_GUM ...`, not a real,
+  correctly-formatted app log line). Root cause is identical to the Handler bridge's:
+  `RainbowGumJULLogger.log(LogRecord)` routes straight through
+  `io.jstach.rainbowgum.jul.JULBridge`, which dispatches via
+  `LogRouter.global()` - the *same* global entry point the Handler bridge uses, and
+  nothing in `rainbowgum-jul-logmanager` itself ever calls `RainbowGum.of()`. Adding
+  `rainbowgum-jdk` back (its `System.LoggerFinder` eagerly bootstraps Rainbow Gum, see
+  the other branch's README) fixes it completely, with **no code change** - confirmed
+  byte-for-byte identical output to the Handler-bridge branch, including correct `FINE`
+  suppression and exception rendering.
+- **The `-D` JVM argument is unavoidable, not just today's implementation choice.**
+  `java.util.logging.LogManager.getLogManager()` reads the `java.util.logging.manager`
+  system property exactly once, via a static bootstrap that runs the first time
+  *anything* in the JVM touches `java.util.logging` - `System.setProperty(...)` from
+  application code is always too late once that has already happened, and in a real
+  app there is no reliable way to guarantee it hasn't (the JDK's own internals, or any
+  dependency, may have already touched JUL before `main()` even starts). This
+  is a genuine, structural difference from the Handler-bridge path (which needs only a
+  dependency, no JVM flag) worth calling out clearly to anyone choosing between the two
+  - not a Rainbow Gum limitation, `log4j-jul`'s own `LogManager` (which
+  `rainbowgum-jul-logmanager` is modeled on) has the exact same requirement.
+- **No observed behavioral difference between the two paths in this particular app.**
+  Both the Handler-bridge branch and this one produce identical final output once
+  `rainbowgum-jdk` is present. The LogManager's real theoretical advantage - closing
+  the race where a JUL message logged very early (before RainbowGum's `Configurator`
+  pass has installed the bridge `Handler`) gets silently dropped - never actually
+  triggers here, since this app's own logging (and the Helidon internal logging it
+  captures) all happens comfortably after both bootstrap paths have completed. A
+  message logged from a `static { }` initializer or similar, ahead of *any* Rainbow Gum
+  involvement, would be the scenario that actually distinguishes the two; not
+  attempted here.
+- **A harmless nuance, not a bug**: `rainbowgum-jdk` pulls in the plain `rainbowgum-jul`
+  Handler bridge transitively (runtime scope) regardless of which JUL integration you
+  actually want. With the custom `LogManager` active, `JULConfigurator`'s
+  `Handler`-install call still runs (as part of Rainbow Gum's own bootstrap) and
+  targets `Logger.getLogger("")`, which the custom `LogManager` now resolves to a
+  `RainbowGumJULLogger` - a `Handler` gets attached to it, but `RainbowGumJULLogger`
+  overrides `log(LogRecord)` to bypass Handler dispatch entirely, so the attached
+  Handler is simply never invoked. No double-logging observed. Could be avoided with
+  an explicit `<exclusion>` on `rainbowgum-jul` in the `rainbowgum-jdk` dependency if a
+  fully "clean" dependency tree is wanted; left as-is here since it's inert.

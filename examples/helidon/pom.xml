@@ -36,24 +36,22 @@
     </dependency>
 
     <!--
-      Rainbow Gum: rainbowgum-jdk registers a java.lang.System.LoggerFinder
-      (SystemLoggingFactory) that - by default (InitOption.CHECK) - eagerly calls
-      RainbowGum.of() itself the first time anything calls System.getLogger(...), which
-      the JDK's own internals do incidentally from all sorts of unrelated static init
-      (see rainbowgum-systemlogger's own javadoc). rainbowgum-jul is the
-      Handler-based JUL bridge (see README.md); rainbowgum-jdk already pulls it in at
-      runtime scope, but it is also listed explicitly here since it's what actually
-      installs on JUL's root logger once something (rainbowgum-jdk's own eager
-      bootstrap, in this example) has triggered a real Rainbow Gum into existence.
+      Rainbow Gum: rainbowgum-jul-logmanager is a java.util.logging.LogManager
+      replacement (not just a Handler bridge) - the "ideal" path when the app inherently
+      relies on java.util.logging itself (Helidon is the motivating case, per this
+      module's own javadoc). Installed via -Djava.util.logging.manager=... JVM arg,
+      see README.md. Confirmed WITHOUT rainbowgum-jdk this has the exact same gap the
+      plain rainbowgum-jul bridge did (routes through the same LogRouter.global(),
+      which nothing here eagerly bootstraps) - rainbowgum-jdk is added back below.
     -->
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum-jdk</artifactId>
+      <artifactId>rainbowgum-jul-logmanager</artifactId>
       <version>1.0.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum-jul</artifactId>
+      <artifactId>rainbowgum-jdk</artifactId>
       <version>1.0.0-SNAPSHOT</version>
     </dependency>
 
