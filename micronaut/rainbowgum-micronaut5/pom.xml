@@ -1,0 +1,124 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum.micronaut</groupId>
+    <artifactId>rainbowgum-micronaut-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-micronaut5</artifactId>
+  <name>rainbowgum-micronaut5</name>
+  <!--
+    Deliberately no src/main/java/module-info.java, unlike every sibling module in this
+    reactor: micronaut-inject-java's own annotation processor (generating the compile
+    time BeanDefinition for the @Singleton RainbowGumLoggingSystem bean below) fails
+    under full JPMS modular compilation with "The argument does not represent an
+    annotation type: io.micronaut.core.annotation.Generated", confirmed reproducible
+    with a real module-info.java present and gone the moment it is removed. This
+    matches Micronaut's own generated example projects (see examples/micronaut in this
+    repository), which are also plain classpath, not modular.
+  -->
+  <properties>
+    <micronaut.version>5.1.5</micronaut.version>
+    <!--
+      A plain dependencyManagement <scope>import</scope> of micronaut-platform (unlike a
+      real <parent> inheritance) does not bring its own properties along, so the actual
+      module patch version needed by the annotationProcessorPaths entry below is pinned
+      here explicitly rather than assumed available as ${micronaut.core.version}.
+    -->
+    <micronaut.core.version>5.1.15</micronaut.core.version>
+    <doc.resources>../../</doc.resources>
+    <parent.root>${basedir}/../..</parent.root>
+  </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.micronaut.platform</groupId>
+        <artifactId>micronaut-platform</artifactId>
+        <version>${micronaut.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!--
+            Specifying annotationProcessorPaths at all switches the compiler plugin from
+            auto-discovering processors on the regular compile classpath to using only
+            what is listed here, so pistachio-svc-apt (normally auto-discovered from the
+            provided-scope dependency below) has to be listed explicitly too, or
+            RainbowGumMicronautPropertiesProvider's @ServiceProvider annotation silently
+            stops generating its META-INF/services entry.
+          -->
+          <annotationProcessorPaths combine.children="append">
+            <path>
+              <groupId>io.micronaut</groupId>
+              <artifactId>micronaut-inject-java</artifactId>
+              <version>${micronaut.core.version}</version>
+            </path>
+            <path>
+              <groupId>io.jstach.pistachio</groupId>
+              <artifactId>pistachio-svc-apt</artifactId>
+              <version>${pistachio.version}</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--
+            RainbowGum.of() only ever bootstraps for real once per JVM (every call after
+            the first just returns the already-bound instance), and
+            RainbowGumMicronautPropertiesProvider is only consulted during that first
+            real bootstrap. Every test class in this module gets its own fresh fork
+            (reuseForks=false) so a prior test class touching RainbowGum.of() first can
+            never poison this one's bootstrap moment.
+          -->
+          <reuseForks>false</reuseForks>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.micronaut</groupId>
+      <artifactId>micronaut-context</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micronaut</groupId>
+      <artifactId>micronaut-management</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc-apt</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-slf4j</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

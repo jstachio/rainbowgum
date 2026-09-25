@@ -1322,6 +1322,7 @@
     <module>rainbowgum-file</module>
     <module>spring</module>
     <module>helidon</module>
+    <module>micronaut</module>
     <module>rainbowgum-coverage-aggregate</module>
     <module>rainbowgum-maven-last</module>
   </modules>
