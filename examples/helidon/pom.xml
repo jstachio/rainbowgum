@@ -37,12 +37,12 @@
 
     <!--
       Rainbow Gum: rainbowgum-jul-logmanager is a java.util.logging.LogManager
-      replacement (not just a Handler bridge) - the "ideal" path when the app inherently
-      relies on java.util.logging itself (Helidon is the motivating case, per this
-      module's own javadoc). Installed via -Djava.util.logging.manager=... JVM arg,
-      see README.md. Confirmed WITHOUT rainbowgum-jdk this has the exact same gap the
-      plain rainbowgum-jul bridge did (routes through the same LogRouter.global(),
-      which nothing here eagerly bootstraps) - rainbowgum-jdk is added back below.
+      replacement (not just a Handler bridge). It is the "ideal" path when the app
+      inherently relies on java.util.logging itself (Helidon is the motivating case,
+      per this module's own javadoc). Installed via -Djava.util.logging.manager=... JVM
+      arg, see README.md. Confirmed WITHOUT rainbowgum-jdk this has the exact same gap
+      the plain rainbowgum-jul bridge did (routes through the same LogRouter.global(),
+      which nothing here eagerly bootstraps); rainbowgum-jdk is added back below.
     -->
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
@@ -58,7 +58,7 @@
     <!--
       Baseline: Helidon's own default JulProvider, JUL config via logging.properties,
       no Rainbow Gum. Swap this dependency for rainbowgum-jul (or rainbowgum) to try
-      putting Rainbow Gum underneath - see README.md.
+      putting Rainbow Gum underneath. See README.md.
     -->
   </dependencies>
 

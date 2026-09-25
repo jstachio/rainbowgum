@@ -13,7 +13,7 @@ public class Main {
 
     public static void main(String[] args) {
         LogConfig.configureRuntime();
-        // no explicit RainbowGum.of() call here - see README.md's LogManager findings
+        // No explicit RainbowGum.of() call here (see README.md's LogManager findings).
         WebServer server = WebServer.builder()
                 .routing(Main::routing)
                 .port(8080)
