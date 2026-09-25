@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
  * {@link Class} to the {@link org.apache.logging.log4j.spi.Provider} superclass, which
  * instantiates it reflectively via a public no-arg constructor on first use). Always
  * returns the single {@link RainbowGumLoggerContext#INSTANCE}, since RainbowGum's
- * {@link io.jstach.rainbowgum.LogRouter#global()} is itself process-global - there is no
+ * {@link io.jstach.rainbowgum.LogRouter#global()} is itself process-global. There is no
  * per-classloader/per-application context to separate here.
  */
 public final class RainbowGumLoggerContextFactory implements LoggerContextFactory {

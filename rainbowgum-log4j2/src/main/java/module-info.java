@@ -5,7 +5,7 @@ import io.jstach.rainbowgum.log4j.RainbowGumLog4jProvider;
  * native {@link org.apache.logging.log4j.spi.LoggerContextFactory} implementation, not a
  * bridge through SLF4J. Registered via {@link java.util.ServiceLoader}
  * ({@link org.apache.logging.log4j.spi.Provider}), not the older
- * {@code META-INF/log4j-provider.properties} mechanism - see
+ * {@code META-INF/log4j-provider.properties} mechanism. See
  * {@link io.jstach.rainbowgum.log4j.RainbowGumLog4jProvider}'s javadoc for why that
  * older path doesn't actually work on this version of {@code log4j-api}.
  * <p>

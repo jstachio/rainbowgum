@@ -11,8 +11,8 @@ import io.jstach.svc.ServiceProvider;
  * {@code log4j-api} shows that path's {@code Provider(Properties, URL, ClassLoader)}
  * constructor unconditionally sets {@code versions} to <code>null</code>, which
  * {@code ProviderUtil}/{@code validVersion} then rejects outright ("Ignoring provider for
- * incompatible version"), confirmed empirically - a properties-file-registered provider
- * is silently never selected. The subclass-plus-{@link java.util.ServiceLoader} path used
+ * incompatible version"), confirmed empirically: a properties-file-registered provider is
+ * silently never selected. The subclass-plus-{@link java.util.ServiceLoader} path used
  * here still populates {@link #getVersions()} correctly (from the
  * {@link Provider#Provider(Integer, String, Class) Provider(Integer, String, Class)}
  * constructor called below), so it is picked up correctly.

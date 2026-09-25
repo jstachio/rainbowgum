@@ -21,7 +21,7 @@ import io.jstach.rainbowgum.LogRouter;
  * Routes Log4j2 API calls straight into RainbowGum's {@link LogRouter#global()}.
  * <p>
  * {@link AbstractLogger} declares no abstract methods of its own (confirmed by
- * inspection: it tracks only a name and message factories, no level) - the two
+ * inspection: it tracks only a name and message factories, no level). The two
  * {@link #isEnabled(Level)}/{@link #isEnabled(Level, Marker)} overloads it exposes are
  * meaningless no-ops without a real backend, and every other {@code isEnabled}/
  * {@code logMessage} overload declared on
@@ -38,7 +38,7 @@ import io.jstach.rainbowgum.LogRouter;
  * {@link StackWalker} walk past the {@code fqcn} boundary Log4j2 itself always supplies.
  * <p>
  * Log4j2's {@link Marker} is accepted (required by the interfaces overridden here) but
- * otherwise ignored - RainbowGum's {@link LogRouter} has no marker-based filtering or
+ * otherwise ignored. RainbowGum's {@link LogRouter} has no marker-based filtering or
  * routing concept, matching {@code rainbowgum-jboss-logging}'s own treatment of markers.
  */
 final class RainbowGumLogger extends AbstractLogger implements LogEventFactory {
@@ -75,8 +75,8 @@ final class RainbowGumLogger extends AbstractLogger implements LogEventFactory {
 	/*
 	 * Most verbose first: RainbowGum's Route only answers isEnabled() for a level queried
 	 * on demand (no stored "configured level" to read back), so getLevel() below walks
-	 * this list and reports the most verbose level still enabled - the effective
-	 * threshold, assuming (as RainbowGum's own level filtering guarantees) enabling a
+	 * this list and reports the most verbose level still enabled (the effective
+	 * threshold), assuming (as RainbowGum's own level filtering guarantees) enabling a
 	 * level implies every less-verbose level is enabled too.
 	 */
 	private static final Level[] LEVELS_MOST_VERBOSE_FIRST = { Level.TRACE, Level.DEBUG, Level.INFO, Level.WARN,
@@ -104,13 +104,13 @@ final class RainbowGumLogger extends AbstractLogger implements LogEventFactory {
 
 	/*
 	 * ExtendedLogger declares ~15 further isEnabled(Level, Marker, <message-type>,
-	 * Throwable...) overloads as abstract - none implemented concretely by AbstractLogger
-	 * itself (confirmed against org.apache.logging.log4j:log4j-to-slf4j's own
-	 * SLF4JLogger, the upstream reference implementation for bridging AbstractLogger to a
-	 * backend with only level-based enablement: it implements the exact same set, every
-	 * one delegating to a single level+marker check, ignoring the message entirely).
-	 * RainbowGum's LogRouter has no message-content-based filtering, so all of these just
-	 * delegate to isEnabled(Level, Marker) too.
+	 * Throwable...) overloads as abstract. None are implemented concretely by
+	 * AbstractLogger itself (confirmed against org.apache.logging.log4j:log4j-to-slf4j's
+	 * own SLF4JLogger, the upstream reference implementation for bridging AbstractLogger
+	 * to a backend with only level-based enablement: it implements the exact same set,
+	 * every one delegating to a single level+marker check, ignoring the message
+	 * entirely). RainbowGum's LogRouter has no message-content-based filtering, so all of
+	 * these just delegate to isEnabled(Level, Marker) too.
 	 */
 	@Override
 	public boolean isEnabled(Level level, @Nullable Marker marker, @Nullable Message message,
@@ -217,7 +217,7 @@ final class RainbowGumLogger extends AbstractLogger implements LogEventFactory {
 	}
 
 	/*
-	 * ExtendedLogger's own abstract contract method (no location parameter) - the 6-arg
+	 * ExtendedLogger's own abstract contract method (no location parameter). The 6-arg
 	 * LocationAwareLogger#logMessage above just delegates here, since neither needs the
 	 * location: caller info is resolved via findCaller(fqcn) instead.
 	 */

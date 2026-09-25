@@ -24,7 +24,7 @@ import io.jstach.rainbowgum.RainbowGum;
  * {@link RainbowGum#of()}), Log4j2's
  * {@link org.apache.logging.log4j.spi.Provider}/{@link org.apache.logging.log4j.spi.LoggerContextFactory}
  * contract has no such callback. {@link #INSTANCE}'s lazy, once-only static field
- * initialization is used as the equivalent hook instead - confirmed empirically that
+ * initialization is used as the equivalent hook instead. Confirmed empirically that
  * without this call, a fresh
  * {@link org.apache.logging.log4j.LogManager#getLogger(String)} only reaches RainbowGum's
  * failsafe (errors-only) fallback until something else happens to bind a real
