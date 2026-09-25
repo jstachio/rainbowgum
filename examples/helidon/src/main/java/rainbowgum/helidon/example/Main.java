@@ -6,7 +6,6 @@ import java.util.logging.Logger;
 import io.helidon.logging.common.LogConfig;
 import io.helidon.webserver.WebServer;
 import io.helidon.webserver.http.HttpRouting;
-import io.jstach.rainbowgum.RainbowGum;
 
 public class Main {
 
@@ -14,7 +13,7 @@ public class Main {
 
     public static void main(String[] args) {
         LogConfig.configureRuntime();
-        RainbowGum.of(); // force Rainbow Gum to bootstrap (see README.md's finding)
+        // no explicit RainbowGum.of() call here - see README.md's rainbowgum-jdk finding
         WebServer server = WebServer.builder()
                 .routing(Main::routing)
                 .port(8080)

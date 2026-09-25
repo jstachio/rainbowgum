@@ -27,19 +27,28 @@ gap-finding pass).
 
 ## Findings
 
-- **A genuinely new, previously-undocumented gap: `rainbowgum-jul` does nothing by
-  itself.** Just adding the dependency and calling `LogConfig.configureRuntime()`
+- **`rainbowgum-jul` alone does nothing by itself - but `rainbowgum-jdk` fixes that for
+  free.** Just adding `rainbowgum-jul` and calling `LogConfig.configureRuntime()`
   changes nothing - JUL output stays completely default (verified: same plain
   `Sep 24, 2026 ... INFO: ...` format with or without `rainbowgum-jul` on the
   classpath). `JULConfigurator` (the `Configurator` that actually installs the bridge
   `Handler` on JUL's root logger) only runs when something bootstraps Rainbow Gum
-  itself - and in a Helidon SE app that never touches SLF4J or `System.Logger`,
-  *nothing* does that automatically. Adding one explicit line,
-  `RainbowGum.of();`, right after `LogConfig.configureRuntime()` in `main()`, is what
-  actually activates it - confirmed by comparing output with and without that line,
-  dependency set otherwise identical. **This one-liner isn't mentioned anywhere in
-  `doc/other-web-frameworks.md` or `rainbowgum-jul`'s own module javadoc** and would
-  trip up anyone following the doc's current wording literally.
+  itself - and in a Helidon SE app that never touches SLF4J directly, *nothing* does
+  that automatically by default. The fix isn't an explicit `RainbowGum.of()` call
+  though: swapping the dependency from `rainbowgum-jul` alone to `rainbowgum-jdk`
+  (which pulls `rainbowgum-jul` in transitively at runtime scope, plus
+  `rainbowgum-systemlogger`) is enough on its own - **no code change needed at
+  all**. `rainbowgum-jdk` registers a `java.lang.System.LoggerFinder`
+  (`SystemLoggingFactory`) whose default `InitOption.CHECK` behavior eagerly calls
+  `RainbowGum.of()` the first time *anything* calls `System.getLogger(...)` - and the
+  JDK's own internals do that incidentally, from unrelated static init (`java.time`/
+  `java.util.Locale` formatting, per `rainbowgum-systemlogger`'s own javadoc), early
+  enough in this app's startup to activate the JUL bridge before Helidon logs its
+  first message. Confirmed by removing the explicit `RainbowGum.of()` call entirely
+  from `Main.java` and diffing output byte-for-byte against the version that still had
+  it - identical. **This isn't mentioned anywhere in `doc/other-web-frameworks.md`**,
+  which only discusses `rainbowgum-jul` and would leave a reader with the false
+  impression that an explicit bootstrap call is required.
 - **Once bootstrapped, it works exactly as the doc describes**: both Helidon's own
   internal JUL logging (`io.helidon.webserver.ServerListener`,
   `io.helidon.common.features.HelidonFeatures`, etc.) and the application's own
