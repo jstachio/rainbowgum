@@ -1814,16 +1814,16 @@ before any JUL logging happens. See {@link io.jstach.rainbowgum.jul/}'s module J
 </p>
 <p>
   SLF4J does
-  <a href="https://www.slf4j.org/manual.html#jep264">provide an adapter/bridge for the System.Logger (org.slf4j:slf4j-jdk-platform-logging)</a> 
-  but its use may cause Rainbow Gum to initialize
-  too early. <strong>However that maybe desirable if</strong>:
+  <a href="https://www.slf4j.org/manual.html#jep264">provide an adapter/bridge for the System.Logger (org.slf4j:slf4j-jdk-platform-logging)</a>,
+  routing <code>System.Logger</code> calls into whatever SLF4J provider is bound (the SLF4J adapter
+  will initialize Rainbow Gum on <code>System.Logger</code> usage if using
+  {@link io.jstach.rainbowgum.slf4j/ }). <strong>Using it is not recommended</strong>: it is a
+  third party module maintained by the SLF4J project itself, not Rainbow Gum, so its own future
+  compatibility is outside Rainbow Gum's control. {@code rainbowgum-jul}/{@code rainbowgum-jdk}
+  (described above) give the same <code>System.Logger</code> coverage plus <code>java.util.logging</code>
+  bridging, are maintained directly by this project, and are the better choice for compatibility and
+  future proofing.
 </p>
-  <ul>
-    <li>You are sure that Rainbow Gum can initialize early</li>
-    <li>Your application uses System.Logger 
-      (the SLF4J adapter will initialize Rainbow Gum on System.Logger usage if using {@link io.jstach.rainbowgum.slf4j/ })
-    </li>
-  </ul>
 <p>
   The following System properties allow greater control of the queueing and initialization.
   Because of how early initialization can happen this configuration can only be done with System properties.
