@@ -1,0 +1,83 @@
+name: Example - Micronaut
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Minimal starting point recommended by GitHub's own Actions security review
+# (raised on the sibling native-image workflow, PR #528): this workflow only
+# checks out code and builds/tests, it never needs to write anything back to
+# the repository.
+permissions:
+  contents: read
+
+jobs:
+  micronaut-example:
+    runs-on: ubuntu-latest
+    env:
+      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 26
+        uses: actions/setup-java@v5
+        with:
+          java-version: '26'
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Install Rainbow Gum
+        run: ./mvnw $MAVEN_CLI_OPTS -DskipTests clean install
+      - name: Build the Micronaut example
+        run: ./mvnw $MAVEN_CLI_OPTS -f examples/micronaut/pom.xml clean package -DskipTests
+      - name: Run it and curl /hello
+        working-directory: examples/micronaut
+        run: |
+          set -e
+          java -jar target/rainbowgum-micronaut-example-0.1.jar > server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+
+          responded=0
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/hello > response.txt; then
+              responded=1
+              break
+            fi
+            sleep 0.5
+          done
+
+          echo "--- server.log ---"
+          cat server.log
+          echo "--- response.txt ---"
+          cat response.txt || true
+
+          if [ "$responded" -ne 1 ]; then
+            echo "FAIL: server never responded on :8080/hello"
+            exit 1
+          fi
+
+          # The whole point of this example: swapping logback-classic for
+          # rainbowgum-simple + rainbowgum-pattern needs no code change and no
+          # bootstrap gymnastics (Micronaut calls LoggerFactory.getLogger(...) itself,
+          # which is enough to trigger SLF4J's own initialize() callback). A plain
+          # HTTP 200 proves the server ran. It does not prove Rainbow Gum's pattern
+          # encoder and MDC actually activated. These checks are what actually kick
+          # the tires, including the "[RAINBOW_GUM]" tag from logging.properties's
+          # own pattern.
+          grep -qF "Hello, Rainbow Gum!" response.txt \
+            || { echo "FAIL: unexpected HTTP response body"; exit 1; }
+          grep -qE "\[RAINBOW_GUM\].*INFO +r\.micronaut\.example\.HelloController - handling /hello requestId=abc-123" server.log \
+            || { echo "FAIL: expected INFO line (with MDC) not captured"; exit 1; }
+          grep -qE "\[RAINBOW_GUM\].*ERROR +r\.micronaut\.example\.HelloController - something went wrong requestId=abc-123" server.log \
+            || { echo "FAIL: expected ERROR line (with MDC) not captured"; exit 1; }
+          grep -qF "java.lang.RuntimeException: boom" server.log \
+            || { echo "FAIL: exception not rendered"; exit 1; }
+          if grep -qi "this is a debug message" server.log; then
+            echo "FAIL: DEBUG message leaked through (level filtering broken)"
+            exit 1
+          fi
+
+          echo "All checks passed."

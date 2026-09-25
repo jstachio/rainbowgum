@@ -52,9 +52,24 @@
       <scope>compile</scope>
     </dependency>
 
+    <!--
+      rainbowgum-simple bundles rainbowgum (core+pattern+slf4j+systemlogger+jdk+jul)
+      with rainbowgum-simple-props for zero-config properties loading: it looks for a
+      classpath resource named "logging.properties" (Rainbow Gum's own property
+      format, not java.util.logging's) by default. rainbowgum-pattern is listed
+      explicitly too (it already rides along transitively via rainbowgum-simple) since
+      it is what makes the "encoder=pattern" line in that file resolve to a real
+      encoder.
+    -->
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum</artifactId>
+      <artifactId>rainbowgum-simple</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-pattern</artifactId>
       <version>1.0.0-SNAPSHOT</version>
       <scope>runtime</scope>
     </dependency>
