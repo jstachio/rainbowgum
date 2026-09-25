@@ -72,6 +72,25 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <!--
+                No real module-info.java in this module (see the note above), so
+                without this the module name a consumer running on the module path
+                would see is whatever javac infers from this jar's filename, unstable
+                across version bumps and not something to rely on. Pins it to exactly
+                what a real module-info.java would have declared, so nothing changes
+                for module path consumers if one is ever added later.
+              -->
+              <Automatic-Module-Name>io.jstach.rainbowgum.micronaut5</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <!--
