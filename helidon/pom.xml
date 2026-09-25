@@ -1,0 +1,32 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-maven-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <groupId>io.jstach.rainbowgum.helidon</groupId>
+  <artifactId>rainbowgum-helidon-parent</artifactId>
+  <name>rainbowgum-helidon-parent</name>
+  <packaging>pom</packaging>
+  <properties>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
+  </properties>
+  <!--
+    Deliberately its own groupId (io.jstach.rainbowgum.helidon), not
+    io.jstach.rainbowgum: Helidon major versions (4, then whatever comes after -
+    Helidon has already reached 27) force a new artifact each time, the same way Spring
+    Boot 3 vs 4 do (rainbowgum-spring-boot3/rainbowgum-spring-boot4), since this
+    project ships one shared version across every module (no independent per-module
+    semver) and an upstream-Helidon-driven break can't otherwise be expressed as
+    anything other than a whole new artifact. A dedicated groupId costs nothing now
+    and keeps the door open to moving this out to its own repository later with zero
+    consumer-facing coordinate change, unlike retrofitting one after the fact would be.
+  -->
+  <modules>
+    <module>rainbowgum-helidon4</module>
+  </modules>
+</project>

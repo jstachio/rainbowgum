@@ -1,0 +1,96 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum.helidon</groupId>
+    <artifactId>rainbowgum-helidon-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-helidon4</artifactId>
+  <name>rainbowgum-helidon4</name>
+  <properties>
+    <helidon.version>4.5.5</helidon.version>
+    <doc.resources>../../</doc.resources>
+    <parent.root>${basedir}/../..</parent.root>
+  </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.helidon</groupId>
+        <artifactId>helidon-bom</artifactId>
+        <version>${helidon.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!--
+            The module name is deliberately suffixed with the Helidon major version
+            (see module-info.java) so this specific, well-understood lint warning is
+            suppressed rather than uglifying the name, matching rainbowgum-spring-boot4's
+            own precedent for the exact same situation. It only matters for jars with no
+            explicit module-info.java (automatic module name inference), which we never
+            rely on.
+          -->
+          <compilerArgs combine.children="append">
+            <arg>-Xlint:-module</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!--
+            io.helidon.logging.common.LogConfig selects its LoggingProvider exactly
+            once, in its own static initializer, the first time anything in the JVM
+            touches that class. Every test class in this module gets its own fresh
+            fork (reuseForks=false) so a prior test class (or Surefire/Maven's own
+            incidental classloading) touching LogConfig first can never poison this
+            one's provider-selection moment, matching rainbowgum-jul-logmanager's own
+            precedent for the exact same one-time-static-init constraint.
+          -->
+          <reuseForks>false</reuseForks>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!--
+      The actual JUL -> Rainbow Gum Handler bridge: Helidon's own facade is
+      java.util.logging, so this module is only useful in combination with it.
+      Runtime scope, matching how rainbowgum-jdk itself depends on it. Nothing in
+      this module's own source references rainbowgum-jul directly.
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-jul</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.helidon.logging</groupId>
+      <artifactId>helidon-logging-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc-apt</artifactId>
+    </dependency>
+  </dependencies>
+</project>
