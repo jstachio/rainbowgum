@@ -75,9 +75,23 @@ jobs:
             || { echo "FAIL: expected ERROR line (with MDC) not captured"; exit 1; }
           grep -qF "java.lang.RuntimeException: boom" server.log \
             || { echo "FAIL: exception not rendered"; exit 1; }
-          if grep -qi "this is a debug message" server.log; then
-            echo "FAIL: DEBUG message leaked through (level filtering broken)"
+
+          # rainbowgum-micronaut5 (a real ManagedLoggingSystem bean): application.properties's
+          # logger.levels.rainbowgum.micronaut.example.HelloController=DEBUG should
+          # actually raise this controller's level at runtime, not just report it, and
+          # the /loggers endpoint (previously a 500, NoSuchBeanException) should now
+          # work and reflect that same level.
+          grep -qi "this is a debug message" server.log \
+            || { echo "FAIL: DEBUG message did not appear (logger.levels.* config not wired up)"; exit 1; }
+
+          loggers_status=$(curl -sf -o loggers.json -w '%{http_code}' http://localhost:8080/loggers) || true
+          echo "--- loggers.json (HTTP $loggers_status) ---"
+          cat loggers.json || true
+          if [ "$loggers_status" != "200" ]; then
+            echo "FAIL: /loggers returned $loggers_status, expected 200"
             exit 1
           fi
+          grep -qF '"rainbowgum.micronaut.example.HelloController":{"configuredLevel":"DEBUG"' loggers.json \
+            || { echo "FAIL: /loggers did not report HelloController at DEBUG"; exit 1; }
 
           echo "All checks passed."

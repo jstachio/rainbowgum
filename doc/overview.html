@@ -1995,6 +1995,59 @@ Helidon's own facade is <code>java.util.logging</code>, so <code>rainbowgum-heli
 <code>Handler</code> once Rainbow Gum has bootstrapped.
 </p>
 
+<h3 id="micronaut">Micronaut</h3>
+
+Micronaut fully embraces SLF4J as its own facade, so {@link io.jstach.rainbowgum.slf4j/ } alone
+is a complete, low effort integration: no bootstrap ordering to worry about, since Micronaut's own
+internals call <code>LoggerFactory.getLogger(...)</code> immediately on startup. Rainbow Gum also
+provides <code>rainbowgum-micronaut5</code>, a native
+<code>io.micronaut.management.endpoint.loggers.ManagedLoggingSystem</code> bean, closing two gaps
+that plain SLF4J alone leaves open:
+
+<ul>
+  <li>Micronaut's own <code>/loggers</code> management endpoint needs a bean of that type, and
+    the bundled candidates for Logback/Log4j2 both disable themselves once those frameworks are
+    not on the classpath, leaving nothing for a Rainbow Gum based application to fall back on.</li>
+  <li><code>application.properties</code>/<code>application.yml</code>'s own <code>logger.levels.*</code>
+    keys have no effect on Rainbow Gum without this bean: Micronaut's bundled
+    <code>PropertiesLoggingLevelsConfigurer</code> reads those keys and calls
+    <code>setLogLevel(...)</code> on whichever <code>LoggingSystem</code> bean it finds, and without
+    one, there is nothing to call.</li>
+</ul>
+
+<p>
+Add the dependency and both are closed automatically: being a Micronaut bean is the entire
+integration, no {@link java.util.ServiceLoader} registration or early lifecycle hook needed. See
+{@link io.jstach.rainbowgum.micronaut5/ }'s own module Javadoc for the full mechanism.
+</p>
+
+The recommended setup with Maven is:
+
+{@snippet lang=xml :
+  <dependencies>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-simple</artifactId>
+      <version>_VERSION_</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-pattern</artifactId>
+      <version>_VERSION_</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum.micronaut</groupId>
+      <artifactId>rainbowgum-micronaut5</artifactId>
+      <version>_VERSION_</version>
+    </dependency>
+  </dependencies>
+}
+
+<code>rainbowgum-simple</code>/<code>rainbowgum-pattern</code> give zero config classpath
+<code>logging.properties</code> support (Rainbow Gum's own property format, not
+<code>java.util.logging</code>'s), the same combination this repository's own
+<code>examples/micronaut</code> uses.
+
 <h3 id="jboss_logging">JBoss Logging</h3>
 
 <a href="https://github.com/jboss-logging/jboss-logging">JBoss Logging</a> is sadly another logging facade,
