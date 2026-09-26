@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
@@ -23,20 +24,9 @@ public class PreBootRainbowGumProvider implements RainbowGumProvider {
 
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
-		/*
-		 * TODO we really need to make this programmatic
-		 */
-		String changeProperties = """
-				logging.global.change=true
-				logging.change=level
-				""";
-
-		var properties = LogProperties.builder()
-			// .fromFunction(System::getProperty)
-			// .removeKeyPrefix("boot.logging.")
-			.fromProperties(changeProperties)
-			.description("PreBoot properties")
-			.build();
+		var properties = MutableLogProperties.builder().description("PreBoot properties").build();
+		properties.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true");
+		properties.put(LogProperties.CHANGE_PREFIX, "level");
 		var newConfig = LogConfig.builder().properties(properties).build();
 		newConfig.serviceRegistry().put(BootFlag.class, BootFlag.INSTANCE);
 		return Optional.of(RainbowGum.queued(newConfig));

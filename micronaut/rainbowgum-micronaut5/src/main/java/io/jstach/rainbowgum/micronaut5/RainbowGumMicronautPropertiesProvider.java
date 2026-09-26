@@ -38,8 +38,8 @@ public final class RainbowGumMicronautPropertiesProvider implements RainbowGumSe
 	@Override
 	public List<LogProperties> provideProperties(ServiceRegistry registry) {
 		var mutable = MutableLogProperties.builder().description("micronaut").build();
-		mutable.put("logging.global.change", "true");
-		mutable.put("logging.change", "level");
+		mutable.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true");
+		mutable.put(LogProperties.CHANGE_PREFIX, "level");
 		registry.put(MutableLogProperties.class, REGISTRY_NAME, mutable);
 		return List.of(mutable);
 	}
