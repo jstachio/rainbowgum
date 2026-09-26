@@ -825,6 +825,21 @@ public interface LogProperties {
 		MutableLogProperties put(String key, @Nullable String value);
 
 		/**
+		 * Sets {@value LogProperties#GLOBAL_CHANGE_PROPERTY} to <code>true</code> and a
+		 * bare (no logger name) {@value LogProperties#CHANGE_PREFIX} to
+		 * <code>level</code>, the combination needed for
+		 * {@link LogConfig#changePublisher()} to actually take effect and for every
+		 * logger, regardless of name, to be created as one eligible for a runtime level
+		 * change.
+		 * @return this.
+		 */
+		default MutableLogProperties allowLevelChanges() {
+			put(GLOBAL_CHANGE_PROPERTY, "true");
+			put(CHANGE_PREFIX, "level");
+			return this;
+		}
+
+		/**
 		 * Builder for MutableLogProperties.
 		 * @return builder.
 		 */
