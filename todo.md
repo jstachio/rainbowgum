@@ -120,6 +120,28 @@ unifying.
 
 ## 5. Whatever else before 1.0.0
 
+- [ ] **`requires static io.jstach.rainbowgum.annotation` is a real footgun, not just
+      theoretical.** `core`'s `module-info.java` declares this dependency optional at
+      runtime, but nothing in the build enforces that it stays safe: any future code
+      added to `core` that touches something in that module at runtime compiles clean
+      locally (the module is right there on the build classpath in-repo) and only fails
+      for a real downstream consumer who trimmed it from their own runtime module
+      graph, taking "static" at its word. Confirmed empirically while adding
+      `RainbowGumVersionReader`: a direct reference to
+      `RainbowGumVersion.VERSION` happens to be safe today only because it is a
+      compile time constant that javac inlines, not because of any real protection,
+      and `RainbowGumVersion.documentBaseUrl()` (an ordinary method call, not
+      inlinable) throws `NoClassDefFoundError`/`ClassNotFoundException` the moment the
+      module is actually absent at runtime, confirmed by running a real trimmed
+      module path build with the annotation jar removed. `test/rainbowgum-test-jlink`
+      already builds a real, trimmed custom runtime image and, as of this writing,
+      does not pull in `io.jstach.rainbowgum.annotation` at all, so it is positioned
+      to catch a regression here, but only for whatever code path it actually
+      exercises, not as a structural guarantee. Needs a deliberate decision (flip to a
+      hard `requires`, since the module is tiny; or make defensive access, the
+      `RainbowGumVersionReader` pattern, the required convention for anything in
+      `core` that reaches into it) rather than continuing to rely on incidental
+      compiler behavior.
 - [ ] **rainbowgum-tomcat throughput regression**: a reproducible ~15-20% regression
       (default/GELF scenarios) survived three separate rule-out investigations (raw-JUL
       bypass instrumentation, JFR CPU/allocation profiling, exhaustive reflective-
