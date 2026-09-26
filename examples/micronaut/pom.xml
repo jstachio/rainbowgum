@@ -74,6 +74,23 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!--
+      A real io.micronaut.management.endpoint.loggers.ManagedLoggingSystem bean: closes
+      the /loggers 500 gap this example originally found (no bean of that type existed
+      once Logback was gone), and wires application.properties's own logger.levels.*
+      keys to Rainbow Gum automatically via Micronaut's own bundled
+      PropertiesLoggingLevelsConfigurer. Runtime scope: nothing in this example's own
+      source compiles against it, Micronaut discovers the bean at runtime via its own
+      pre-compiled META-INF/micronaut/io.micronaut.inject.BeanDefinitionReference entry
+      already inside rainbowgum-micronaut5's own jar.
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum.micronaut</groupId>
+      <artifactId>rainbowgum-micronaut5</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <scope>runtime</scope>
+    </dependency>
+
     <dependency>
       <groupId>io.micronaut</groupId>
       <artifactId>micronaut-http-client</artifactId>

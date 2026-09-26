@@ -16,7 +16,10 @@ public class HelloController {
         MDC.put("requestId", "abc-123");
         try {
             log.info("handling /hello");
-            log.debug("this is a debug message, should be filtered by default level");
+            // Would be filtered at the default INFO level, but application.properties's
+            // logger.levels.rainbowgum.micronaut.example.HelloController=DEBUG raises
+            // it, proving rainbowgum-micronaut5 actually wires this up (see README.md).
+            log.debug("this is a debug message");
             try {
                 throw new RuntimeException("boom");
             } catch (RuntimeException e) {
