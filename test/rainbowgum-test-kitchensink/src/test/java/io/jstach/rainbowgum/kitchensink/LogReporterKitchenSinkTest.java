@@ -20,6 +20,7 @@ import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.LogReporter.Section;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.RainbowGumVersion;
 import io.jstach.rainbowgum.file.FileOutputBuilder;
 import io.jstach.rainbowgum.jfr.JfrLogOutput;
 import io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder;
@@ -129,7 +130,7 @@ class LogReporterKitchenSinkTest {
 			diagnosticsLogger.debug("boom");
 
 			var reporter = LogReporter.builder()
-				.sections(EnumSet.of(Section.COMPONENTS, Section.METRICS, Section.ALERTS))
+				.sections(EnumSet.of(Section.VERSION, Section.COMPONENTS, Section.METRICS, Section.ALERTS))
 				/*
 				 * The one alert recorded below carries a real Instant.now() timestamp:
 				 * genuinely non-deterministic, so this swaps in a formatter that omits it
@@ -142,6 +143,8 @@ class LogReporterKitchenSinkTest {
 			System.out.println(actual);
 
 			String expected = """
+					Rainbow Gum VERSION_PLACEHOLDER
+
 					Global Properties:
 					  logging.global.change = (unset)
 					  logging.global.queue.level = (unset)
@@ -195,7 +198,8 @@ class LogReporterKitchenSinkTest {
 					Alerts (total=1, capacity=128):
 					  ERROR io.jstach.rainbowgum.LockThreadLocalBufferLogAppender - appender 'diagnostics' failed to append event
 					"""
-				.replace("FILE_URI_PLACEHOLDER", "file:" + logFile);
+				.replace("FILE_URI_PLACEHOLDER", "file:" + logFile)
+				.replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);
 			assertEquals(expected, actual);
 		}
 	}
