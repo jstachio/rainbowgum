@@ -2017,8 +2017,10 @@ that plain SLF4J alone leaves open:
 
 <p>
 Add the dependency and both are closed automatically: being a Micronaut bean is the entire
-integration, no {@link java.util.ServiceLoader} registration or early lifecycle hook needed. See
-{@link io.jstach.rainbowgum.micronaut5/ }'s own module Javadoc for the full mechanism.
+integration, no {@link java.util.ServiceLoader} registration or early lifecycle hook needed.
+<code>rainbowgum-micronaut5</code> has no <code>module-info.java</code> of its own (see its
+Javadoc jar's <code>Automatic-Module-Name</code>), so it is not part of this aggregated
+Javadoc, but its source is on GitHub for the full mechanism.
 </p>
 
 The recommended setup with Maven is:

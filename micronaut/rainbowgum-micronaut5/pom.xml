@@ -106,6 +106,22 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <!--
+        This module has no module-info.java (see the note above the artifactId), only
+        an Automatic-Module-Name. The root aggregated javadoc report (mvn -Pdoc) refuses
+        to mix named and unnamed modules at all: "Creating an aggregated report for both
+        named and unnamed modules is not possible." Skipping javadoc here, matching
+        rainbowgum-apt's own doc-profile-only skip for its moditect-generated
+        module-info, which trips the same aggregator restriction for a different reason.
+      -->
+      <id>doc</id>
+      <properties>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+      </properties>
+    </profile>
+  </profiles>
   <dependencies>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
