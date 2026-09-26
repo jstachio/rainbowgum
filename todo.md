@@ -188,6 +188,26 @@ unifying.
       > help prototype if there's interest in something like this for `LoggingSystem`
       > itself.
 
+- [ ] **Validate `maxBufferSize`/`initialBufferSize` on `LogEncoder.Builder`**: for
+      `DirectByteBufferBuffer` specifically (the `WriteMethod.BYTES`/`BYTE_BUFFER` buffer
+      most outputs get), `isOversized()` sums all three backing buffers'
+      capacities (`stringBuilder` + `charBuffer` + `byteBuffer`), and a trim resets
+      `charBuffer`/`byteBuffer` back to `initialByteCapacity`, not down to near-zero the
+      way `StringBuilderBuffer`'s single-`StringBuilder` trim does. If `maxBufferSize` is
+      set at or below roughly `2 * initialBufferSize`, that reset floor alone stays
+      "oversized," so every subsequent `clear()` trims again, forever, incrementing
+      `BUFFER_TRIMMED_METRIC` on every single append once triggered - not a growth signal
+      anymore, just noise. `DirectByteBufferBuffer`'s constructor javadoc already warns
+      about this ("a low maxBufferSize can make isOversized() unconditionally true from
+      the very first event"), but nothing actually validates it - `LogEncoder.Builder`
+      should reject (or at least warn on) a `maxBufferSize` too close to
+      `initialBufferSize` instead of silently producing this behavior. Defaults are not
+      affected: `maxBufferSize` defaults to `-1` (disabled entirely) and
+      `initialBufferSize` defaults to `DirectByteBufferBuffer.DEFAULT_INITIAL_BYTE_CAPACITY`
+      (8192) - this only bites a caller who explicitly opts into a small `maxBufferSize`
+      without sizing `initialBufferSize` accordingly, which is exactly what happened
+      building `rainbowgum-test-kitchensink`'s `LogReporterKitchenSinkTest` diagnostics
+      route on `explore/static-configuration-report`.
 - [ ] **`console` as a scheme alias for `stdout`**: `LogOutput.STDOUT_SCHEME`/
       `STDERR_SCHEME` (`LogOutput.java`) are the only registered console output
       schemes today - `logging.appender.myapp.output=console` currently just fails

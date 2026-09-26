@@ -1,4 +1,4 @@
-package io.jstach.rainbowgum.annotation;
+package io.jstach.rainbowgum;
 
 /**
  * Provides the version information of Rainbow Gum as static literals.

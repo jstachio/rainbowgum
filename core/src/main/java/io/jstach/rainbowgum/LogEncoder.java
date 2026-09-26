@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -122,8 +123,24 @@ public interface LogEncoder {
 
 		private @Nullable Boolean useGetBytes;
 
+		private @Nullable String description;
+
 		private Builder(LogFormatter formatter) {
 			this.formatter = Objects.requireNonNull(formatter);
+		}
+
+		/**
+		 * A human readable description of the formatter/pattern this encoder was built
+		 * from (e.g. the actual pattern string), surfaced by
+		 * {@link LogReporter.Reportable} instead of the built encoder only ever showing
+		 * up as its bare concrete class name. Purely diagnostic: has no effect on
+		 * encoding itself.
+		 * @param description description, or <code>null</code> for none.
+		 * @return this.
+		 */
+		public Builder description(@Nullable String description) {
+			this.description = description;
+			return this;
 		}
 
 		/**
@@ -237,6 +254,7 @@ public interface LogEncoder {
 			var resolvedCharset = c;
 			var resolvedContentType = ct;
 			Boolean explicitUseGetBytes = useGetBytes;
+			String resolvedDescription = description;
 			return (n, config) -> {
 				/*
 				 * Resolved lazily, inside this lambda, not eagerly above: the global
@@ -248,7 +266,7 @@ public interface LogEncoder {
 				boolean resolvedUseGetBytes = explicitUseGetBytes != null ? explicitUseGetBytes
 						: AbstractLogAppender.globalOptimizeEnabled && AbstractLogAppender.isNativeImageRuntime();
 				return new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
-						initialBufferSize, resolvedUseGetBytes, config.metrics());
+						initialBufferSize, resolvedUseGetBytes, config.metrics(), resolvedDescription);
 			};
 		}
 
@@ -804,7 +822,7 @@ final class DirectByteBufferBuffer implements TextBuffer {
  * Not an AbstractEncoder since it needs to hand out either a StringBuilderBuffer or a
  * DirectByteBufferBuffer depending on the output's WriteMethod hint - see buffer(hints).
  */
-final class FormatterEncoder implements LogEncoder {
+final class FormatterEncoder implements LogEncoder, LogReporter.Reportable {
 
 	private final LogFormatter formatter;
 
@@ -820,8 +838,10 @@ final class FormatterEncoder implements LogEncoder {
 
 	private final LogMetrics metrics;
 
+	private final @Nullable String description;
+
 	FormatterEncoder(LogFormatter formatter, Charset charset, ContentType contentType, int maxBufferSize,
-			int initialBufferSize, boolean useGetBytes, LogMetrics metrics) {
+			int initialBufferSize, boolean useGetBytes, LogMetrics metrics, @Nullable String description) {
 		super();
 		this.formatter = formatter;
 		this.charset = charset;
@@ -830,6 +850,19 @@ final class FormatterEncoder implements LogEncoder {
 		this.initialBufferSize = initialBufferSize;
 		this.useGetBytes = useGetBytes;
 		this.metrics = metrics;
+		this.description = description;
+	}
+
+	@Override
+	public void report(Appendable out) throws IOException {
+		out.append("contentType=").append(contentType.contentType());
+		Charset cs = contentType.charsetOrNull();
+		if (cs != null) {
+			out.append("; charset=").append(cs.name());
+		}
+		if (description != null) {
+			out.append(", description=\"").append(description).append("\"");
+		}
 	}
 
 	@Override

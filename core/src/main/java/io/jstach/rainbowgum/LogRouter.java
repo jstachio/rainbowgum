@@ -457,9 +457,16 @@ public sealed interface LogRouter extends LogLifecycle {
 				var apps = new LogAppender.Appenders(name, config, appenders);
 				var pub = publisher.create(name, config, apps);
 				/*
-				 * Register the publisher for lookup like status checks.
+				 * Register the publisher and its appenders for lookup like status checks
+				 * (see LogReporter). Registering "apps" itself rather than its resolved
+				 * list lets a lookup happen after the fact regardless of whether the
+				 * publisher called asList()/asSingle() eagerly here or lazily later, and
+				 * Appenders.resolvedOrNull() returns null if the publisher never calls
+				 * either (meaning it does not use the appenders this ordinary way at
+				 * all).
 				 */
 				config.serviceRegistry().put(LogPublisher.class, name, pub);
+				config.serviceRegistry().put(LogAppender.Appenders.class, name, apps);
 				return factory.create(pub, levelResolver, name, config);
 			}
 

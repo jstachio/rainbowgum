@@ -52,8 +52,17 @@ Prefer interfaces over abstract classes. If an abstract adapter is worthwhile it
 should be prefixed with `Abstract`.
 
 Inner classes in public interfaces are public. Use top level package friendly
-classes in the same file instead. Most classes should be sealed or final or in
-other words not extendable.
+classes instead. Most classes should be sealed or final or in other words not
+extendable.
+
+Prefer putting a package friendly implementation class in the same file as
+the public interface/class it implements (Java allows multiple top level
+types per file as long as only one is public), rather than its own separate
+file. `LogRouter.java` and `LogAppender.java` are the existing examples:
+`SimpleRouter`/`CompositeLogAppender`/etc. all live alongside the public
+type they belong to. A separate file is fine once the implementation gets
+large enough that co-locating it would hurt readability, but that should be
+the exception, not the default.
 
 Prefer builders over getters and setters; builders are the only classes that
 get to be mutable. A builder does not need a strict one to one mapping with

@@ -253,7 +253,7 @@ configuration or writing a custom provider), see
 
 In the next sections we will cover
 <a href="#config">Config</a>,
-<a href="#alerts_metrics">Alerts and Metrics</a>,
+<a href="#alerts_metrics">Alerts, Metrics, and Reporting</a>,
 <a href="#publishers">Publishers</a>,
 <a href="#appenders">Appenders</a>,
 <a href="#encoders">Encoders</a>,
@@ -1356,7 +1356,7 @@ built-in {@code Marker} support otherwise):
 
 </p>
 
-<h2 id="alerts_metrics">Alerts and Metrics</h2>
+<h2 id="alerts_metrics">Alerts, Metrics, and Reporting</h2>
 
 Rainbow Gum's own internal health (as opposed to the application events flowing through
 the {@link io.jstach.rainbowgum.LogRouter Router}) is exposed through two small, separate
@@ -1366,7 +1366,9 @@ They are deliberately two different types rather than one combined API. An appen
 to write is a discrete event worth recording with a message (and possibly a throwable), while
 "how many times has this happened" is much cheaper to just keep as a running number. Each
 is meant to be independently replaceable later (a future Micrometer backed <code>LogMetrics</code>,
-say, without needing to also replace how alerts are recorded).
+say, without needing to also replace how alerts are recorded). A third piece,
+<a href="#reporting">Reporting</a>, ties both of these together with the wired component tree
+itself into one human (or agent) readable diagnostic snapshot.
 
 <h3 id="alerts">Alerts</h3>
 
@@ -1434,6 +1436,43 @@ itself is not bridged to Micrometer at all; only its metrics side effect is.
 
 <p>
 There is currently no Spring Boot 3 equivalent of this module; it is Boot 4 only.
+</p>
+
+<h3 id="reporting">Reporting</h3>
+
+{@link io.jstach.rainbowgum.LogReporter} renders a plain text diagnostic report of a bound
+{@link io.jstach.rainbowgum.RainbowGum}: the wired component tree itself (which concrete
+appender, encoder, and output actually got selected for each route, not just what was
+configured), plus <a href="#alerts">alerts</a> and <a href="#metrics">metrics</a> above, all in
+one place. It is meant to be read by a human, or an agent, while setting things up or
+debugging an incident, not parsed by anything expecting a stable schema - the rendered text
+carries no compatibility guarantee and may change between any two releases, including patch
+releases.
+
+<p>
+{@link io.jstach.rainbowgum.LogReporter.Builder} controls which
+{@link io.jstach.rainbowgum.LogReporter.Section sections} are printed
+({@code VERSION}, {@code COMPONENTS}, {@code METRICS}, {@code ALERTS}). The default is just
+{@code VERSION} and {@code COMPONENTS} - metrics and alerts are usually more useful pulled
+independently the way the sections above already show, so a report only includes them if asked.
+</p>
+
+{@snippet class="snippets.LogReporterExample" region="reportingExample" }
+
+<p>
+Since alerts are just {@link io.jstach.rainbowgum.LogEvent}s like any other,
+{@link io.jstach.rainbowgum.LogReporter.Builder#alertFormatter(io.jstach.rainbowgum.LogFormatter)}
+lets you swap in a different {@link io.jstach.rainbowgum.LogFormatter} for how each one is
+rendered, for example to leave the (otherwise non-deterministic) timestamp out of a report you
+intend to golden-string test.
+</p>
+
+<p>
+A component that wants to contribute its own description to a report instead of just its
+concrete class name - a custom {@link io.jstach.rainbowgum.LogOutput} or
+{@link io.jstach.rainbowgum.LogEncoder}, say - can opt in by implementing
+{@link io.jstach.rainbowgum.LogReporter.Reportable}. This is entirely optional and has no
+effect on anything except the rendered report.
 </p>
 
 <h2 id="example_configuration">Example Configuration</h2>
