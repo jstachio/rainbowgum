@@ -643,7 +643,7 @@ public sealed interface LogAppender extends LogLifecycle {
 	 * Provides appenders safely to the publisher. The providing calls of
 	 * <code>asXXX</code> can only be called once as they register the appenders.
 	 */
-	class Appenders {
+	final class Appenders {
 
 		private final AtomicBoolean created = new AtomicBoolean();
 
@@ -652,6 +652,15 @@ public sealed interface LogAppender extends LogLifecycle {
 		private final LogConfig config;
 
 		private final List<LogProvider<LogAppender>> appenders;
+
+		/*
+		 * Set once, inside asList()/asSingle(), so LogReporter can find out what a
+		 * publisher was actually given without asking the publisher itself (which would
+		 * mean every current and future publisher implementation cooperating): see
+		 * resolvedOrNull(). Not re-derivable by calling asList()/asSingle() again: both
+		 * are one-shot (see the created guard above).
+		 */
+		private @Nullable List<? extends LogAppender> resolved;
 
 		Appenders(String name, LogConfig config, List<LogProvider<LogAppender>> appenders) {
 			super();
@@ -672,6 +681,7 @@ public sealed interface LogAppender extends LogLifecycle {
 				for (var a : apps) {
 					appenders.add(register(a));
 				}
+				resolved = appenders;
 				return appenders;
 			}
 			else {
@@ -691,11 +701,23 @@ public sealed interface LogAppender extends LogLifecycle {
 			if (created.compareAndSet(false, true)) {
 				var apps = appenders();
 				var appender = composite(apps);
+				resolved = List.of(appender);
 				return register(appender);
 			}
 			else {
 				throw new IllegalStateException("Appenders already provided.");
 			}
+		}
+
+		/**
+		 * The appenders actually resolved by whichever of {@link #asList()}/
+		 * {@link #asSingle()} a publisher factory called, or <code>null</code> if neither
+		 * has been called yet (a publisher factory that never calls either one has no
+		 * real appenders to report on regardless).
+		 * @return resolved appenders, or <code>null</code>.
+		 */
+		@Nullable List<? extends LogAppender> resolvedOrNull() {
+			return resolved;
 		}
 
 		private LogAppender register(LogAppender appender) {

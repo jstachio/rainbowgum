@@ -210,11 +210,6 @@ public interface LogProperties {
 	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansi.disable";
 
 	/**
-	 * IF true will provide additional output on errors.
-	 */
-	static final String GLOBAL_VERBOSE = ROOT_PREFIX + "global.verbose";
-
-	/**
 	 * If true guarantees no appender will use {@code synchronized} for its locking,
 	 * regardless of an explicitly requested
 	 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER}: an explicit

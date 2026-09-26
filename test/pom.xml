@@ -24,6 +24,7 @@
   <module>rainbowgum-test-jboss-logging-bridge</module>
   <module>rainbowgum-test-jlink</module>
   <module>rainbowgum-test-file</module>
+  <module>rainbowgum-test-kitchensink</module>
   <module>rainbowgum-test-spring-boot3</module>
   <module>rainbowgum-test-spring-boot4</module>
   </modules>

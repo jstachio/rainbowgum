@@ -91,6 +91,7 @@ public final class PatternConfigurator implements Configurator {
 			}
 			var formatter = compiler.compile(pattern);
 			var builder = LogEncoder.builder(formatter);
+			builder.description(pattern);
 			if (charset != null) {
 				builder.charset(charset);
 			}
