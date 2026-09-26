@@ -3,7 +3,6 @@ package io.jstach.rainbowgum.spring.boot3;
 import java.util.Optional;
 
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -24,9 +23,7 @@ public class PreBootRainbowGumProvider implements RainbowGumProvider {
 
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
-		var properties = MutableLogProperties.builder().description("PreBoot properties").build();
-		properties.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true");
-		properties.put(LogProperties.CHANGE_PREFIX, "level");
+		var properties = MutableLogProperties.builder().description("PreBoot properties").build().allowLevelChanges();
 		var newConfig = LogConfig.builder().properties(properties).build();
 		newConfig.serviceRegistry().put(BootFlag.class, BootFlag.INSTANCE);
 		return Optional.of(RainbowGum.queued(newConfig));
