@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.micronaut.logging.LogLevel;
@@ -111,9 +112,9 @@ public final class RainbowGumLoggingSystem implements ManagedLoggingSystem {
 
 	private static String propertyKey(String name) {
 		if (ROOT_NAME.equals(name)) {
-			return "logging.level";
+			return LogProperties.LEVEL_PREFIX;
 		}
-		return "logging.level." + name;
+		return LogProperties.LEVEL_PREFIX + LogProperties.SEP + name;
 	}
 
 	private static String resolverName(String name) {
