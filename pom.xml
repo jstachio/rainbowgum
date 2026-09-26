@@ -24,7 +24,7 @@
     as well as let dependabot check for maven updates. 
     -->
     <maven.core.version>3.9.16</maven.core.version>
-    <jdk.release.version>26.0.2</jdk.release.version>
+    <jdk.release.version>27</jdk.release.version>
 
     <!--
       org.apache.maven.extensions:maven-build-cache-extension (see .mvn/extensions.xml)
