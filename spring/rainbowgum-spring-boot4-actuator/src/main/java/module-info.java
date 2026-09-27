@@ -12,6 +12,8 @@ module io.jstach.rainbowgum.spring.boot4.actuator {
 
 	requires spring.boot.autoconfigure;
 	requires spring.boot.micrometer.metrics;
+	requires spring.boot.actuator;
+	requires spring.boot.actuator.autoconfigure;
 	requires spring.context;
 	requires micrometer.core;
 
