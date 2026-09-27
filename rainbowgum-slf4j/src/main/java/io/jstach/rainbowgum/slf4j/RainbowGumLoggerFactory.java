@@ -15,6 +15,7 @@ import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
+import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
@@ -76,6 +77,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		}
 		else {
 			var currentRainbowGum = this.rainbowGum;
+			currentRainbowGum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.SLF4J, name);
 			var router = currentRainbowGum.router();
 			var changePublisher = currentRainbowGum.config().changePublisher();
 

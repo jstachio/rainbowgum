@@ -9,6 +9,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
+import io.jstach.rainbowgum.LoggerAPI;
+import io.jstach.rainbowgum.RainbowGum;
+
 /**
  * A {@link LogManager} implementation that vends {@link RainbowGumJULLogger}s, routing
  * every {@code java.util.logging.Logger} call directly through Rainbow Gum instead of the
@@ -98,7 +101,13 @@ public final class RainbowGumLogManager extends LogManager {
 			return new RainbowGumJULLogger(name);
 		}
 		try {
-			return loggers.computeIfAbsent(name, RainbowGumJULLogger::new);
+			return loggers.computeIfAbsent(name, n -> {
+				var gum = RainbowGum.getOrNull();
+				if (gum != null) {
+					gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.JUL, n);
+				}
+				return new RainbowGumJULLogger(n);
+			});
 		}
 		finally {
 			requests.remove(name);

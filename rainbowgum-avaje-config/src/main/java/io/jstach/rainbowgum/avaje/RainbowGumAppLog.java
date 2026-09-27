@@ -5,6 +5,8 @@ import java.util.ResourceBundle;
 
 import io.avaje.applog.AppLog;
 import io.jstach.rainbowgum.LogRouter;
+import io.jstach.rainbowgum.LoggerAPI;
+import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLogger;
 import io.jstach.svc.ServiceProvider;
 
@@ -22,6 +24,10 @@ public class RainbowGumAppLog implements AppLog.Provider {
 
 	@Override
 	public Logger getLogger(String name) {
+		var gum = RainbowGum.getOrNull();
+		if (gum != null) {
+			gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.AVAJE_APPLOG, name);
+		}
 		return RainbowGumSystemLogger.of(name, LogRouter.global());
 	}
 

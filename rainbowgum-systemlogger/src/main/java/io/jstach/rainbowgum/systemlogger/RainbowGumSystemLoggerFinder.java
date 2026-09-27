@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter;
+import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
@@ -212,6 +213,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 			if (gum == null) {
 				gum = this.gum = supplier.get();
 			}
+			gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.SYSTEM_LOGGER, loggerName);
 			if (gum.config().changePublisher().isEnabled(loggerName)) {
 				router = LogRouter.global();
 			}

@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -87,6 +88,16 @@ class RainbowGumLogManagerTest {
 			assertTrue(logger.isLoggable(Level.WARNING));
 			logger.info("should not be routed");
 			assertFalse(output.toString().contains("should not be routed"));
+		}
+	}
+
+	@Test
+	void testGetLoggerRegistersLoggerName() {
+		ListLogOutput output = new ListLogOutput();
+		try (var gum = rainbowGum(output, System.Logger.Level.INFO)) {
+			Logger.getLogger("test.jul.logmanager.registered");
+			var reporter = LogReporter.builder().section(LogReporter.Section.LOGGERS).build();
+			assertTrue(reporter.report(gum).contains("test.jul.logmanager.registered"));
 		}
 	}
 

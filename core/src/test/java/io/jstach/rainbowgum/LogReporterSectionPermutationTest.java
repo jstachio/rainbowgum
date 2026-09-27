@@ -69,6 +69,8 @@ class LogReporterSectionPermutationTest {
 					() -> "METRICS mismatch for " + sections + ": " + actual);
 			assertEquals(effective.contains(Section.ALERTS), actual.contains("Alerts ("),
 					() -> "ALERTS mismatch for " + sections + ": " + actual);
+			assertEquals(effective.contains(Section.LOGGERS), actual.contains("Loggers:"),
+					() -> "LOGGERS mismatch for " + sections + ": " + actual);
 		}
 	}
 
