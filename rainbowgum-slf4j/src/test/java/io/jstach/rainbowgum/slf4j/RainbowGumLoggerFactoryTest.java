@@ -19,6 +19,7 @@ import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
+import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -91,6 +92,15 @@ class RainbowGumLoggerFactoryTest {
 	 * happens when ChangeType.LEVEL is not allowed for the name (the default here, since
 	 * no logging.change property is set).
 	 */
+	@Test
+	void testGetLoggerRegistersLoggerName() {
+		var rainbowgum = gum(new ListLogOutput(), LogProperties.StandardProperties.EMPTY);
+		var factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
+		factory.getLogger("com.example.Foo");
+		var reporter = LogReporter.builder().section(LogReporter.Section.LOGGERS).build();
+		assertTrue(reporter.report(rainbowgum).contains("com.example.Foo"));
+	}
+
 	@Test
 	void testGetLoggerAtOffLevelUsesOffLogger() {
 		var gum = RainbowGum.builder().route(route -> {

@@ -97,4 +97,35 @@ class LogReporterTest {
 		}
 	}
 
+	@Test
+	void testLoggers() {
+		var reporter = LogReporter.builder().sections(EnumSet.of(Section.LOGGERS)).build();
+		try (var gum = RainbowGum.builder().build()) {
+			var registry = gum.config().loggerRegistry();
+			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Bar");
+			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
+			String actual = reporter.report(gum);
+			String expected = """
+					Loggers:
+					  com.example.Bar = ALL
+					  com.example.Foo = ALL
+					""";
+			assertEquals(expected, actual);
+		}
+	}
+
+	@Test
+	void testLoggersWithoutLevels() {
+		var reporter = LogReporter.builder().sections(EnumSet.of(Section.LOGGERS)).loggerLevels(false).build();
+		try (var gum = RainbowGum.builder().build()) {
+			gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
+			String actual = reporter.report(gum);
+			String expected = """
+					Loggers:
+					  com.example.Foo
+					""";
+			assertEquals(expected, actual);
+		}
+	}
+
 }

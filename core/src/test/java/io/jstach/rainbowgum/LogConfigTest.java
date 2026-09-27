@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.lang.System.Logger.Level;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -67,6 +68,44 @@ class LogConfigTest {
 		finally {
 			System.clearProperty("logging.level.stuff");
 		}
+	}
+
+	@Test
+	void loggerNamesEmptyByDefault() {
+		var config = LogConfig.builder().build();
+		assertEquals(Set.of(), loggerNames(config));
+	}
+
+	@Test
+	void registerLoggerNameIsIdempotent() {
+		var config = LogConfig.builder().build();
+		var registry = config.loggerRegistry();
+		registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
+		registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Bar");
+		registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
+
+		assertEquals(Set.of("com.example.Foo", "com.example.Bar"), loggerNames(config));
+	}
+
+	@Test
+	void registerLoggerNameIncrementsMetricOnceIfNewOnly() {
+		var config = LogConfig.builder().build();
+		var registry = config.loggerRegistry();
+		registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
+		registry.registerLoggerName(LoggerAPI.Standard.SYSTEM_LOGGER, "com.example.Bar");
+		registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
+
+		var counters = config.metrics().counters();
+		assertEquals(List.of(new LogMetrics.Counter(LogMetrics.LOGGER_NAMES_METRIC, Level.INFO, 2)), counters);
+	}
+
+	/*
+	 * LogConfig.LoggerRegistry deliberately does not expose the accumulated names itself
+	 * (see its javadoc); downcasting to the package-private implementation is the same
+	 * pattern DefaultLogReporter uses to reach it for the LOGGERS section.
+	 */
+	private static Set<String> loggerNames(LogConfig config) {
+		return ((DefaultLoggerRegistry) config.loggerRegistry()).loggerNames();
 	}
 
 }

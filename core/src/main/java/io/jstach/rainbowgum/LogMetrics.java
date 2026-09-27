@@ -56,6 +56,16 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	static final String EVENTS_FAILED_METRIC = "events.failed";
 
 	/**
+	 * Counter name for the running count of distinct logger names registered via
+	 * {@link LogConfig.LoggerRegistry#registerLoggerName(LoggerAPI, String)}. Not itself
+	 * a problem, hence {@link #infoCounter(String, long)} rather than
+	 * {@link #warnCounter(String, long)}, but worth watching: a count that keeps climbing
+	 * without bound is a sign something is using per-request/per-entity data (e.g. a
+	 * request id) as a logger name instead of a fixed, bounded set of names.
+	 */
+	static final String LOGGER_NAMES_METRIC = "logger.names";
+
+	/**
 	 * Increments a counter for something worth tracking as "this happens and it matters".
 	 * @param name counter name, e.g. {@link #EVENTS_DROPPED_METRIC} or a logger name.
 	 * @param increment amount to add, usually {@code 1}.
@@ -74,11 +84,24 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	public void warnCounter(String name, long increment);
 
 	/**
-	 * A snapshot of every counter recorded via {@link #errorCounter(String, long)} and
-	 * {@link #warnCounter(String, long)}. Counters are monotonically increasing for the
-	 * life of the process, like a Prometheus/Micrometer counter - there is no reset
-	 * method; a downstream metrics system computes rate of change rather than relying on
-	 * the counter itself being reset.
+	 * Like {@link #errorCounter(String, long)} but for a plain running total, not
+	 * inherently a problem or even a trend worth watching. Kept as a separate counter
+	 * namespace from
+	 * {@link #errorCounter(String, long)}/{@link #warnCounter(String, long)}: the same
+	 * {@code name} passed to more than one of these is a distinct counter per method, not
+	 * one shared one.
+	 * @param name counter name, e.g. {@link #LOGGER_NAMES_METRIC}.
+	 * @param increment amount to add, usually {@code 1}.
+	 */
+	public void infoCounter(String name, long increment);
+
+	/**
+	 * A snapshot of every counter recorded via {@link #errorCounter(String, long)},
+	 * {@link #warnCounter(String, long)}, and {@link #infoCounter(String, long)}.
+	 * Counters are monotonically increasing for the life of the process, like a
+	 * Prometheus/Micrometer counter - there is no reset method; a downstream metrics
+	 * system computes rate of change rather than relying on the counter itself being
+	 * reset.
 	 * @return immutable snapshot.
 	 */
 	public List<Counter> counters();
@@ -91,7 +114,8 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	 * @param level how much this counter matters - not a log level routing decision, just
 	 * a signal of significance, mirroring the counter method it came from (e.g.
 	 * {@link Level#ERROR} for {@link #errorCounter(String, long)}, {@link Level#WARNING}
-	 * for {@link #warnCounter(String, long)}).
+	 * for {@link #warnCounter(String, long)}, {@link Level#INFO} for
+	 * {@link #infoCounter(String, long)}).
 	 * @param count current value.
 	 */
 	record Counter(String name, Level level, long count) {
@@ -118,7 +142,11 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 		/**
 		 * See {@link #EVENTS_FAILED_METRIC}.
 		 */
-		EVENTS_FAILED(EVENTS_FAILED_METRIC, Level.ERROR);
+		EVENTS_FAILED(EVENTS_FAILED_METRIC, Level.ERROR),
+		/**
+		 * See {@link #LOGGER_NAMES_METRIC}.
+		 */
+		LOGGER_NAMES(LOGGER_NAMES_METRIC, Level.INFO);
 
 		private final String metricName;
 
@@ -141,7 +169,8 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 		/**
 		 * Which counter method this metric is recorded through - {@link Level#ERROR} for
 		 * {@link #errorCounter(String, long)}, {@link Level#WARNING} for
-		 * {@link #warnCounter(String, long)} - and so also which {@link Counter#level()}
+		 * {@link #warnCounter(String, long)}, {@link Level#INFO} for
+		 * {@link #infoCounter(String, long)} - and so also which {@link Counter#level()}
 		 * it shows up under in {@link #counters()}.
 		 * @return level.
 		 */
@@ -159,6 +188,8 @@ final class DefaultLogMetrics implements LogMetrics {
 
 	private final ConcurrentHashMap<String, LongAdder> warnCounters = new ConcurrentHashMap<>();
 
+	private final ConcurrentHashMap<String, LongAdder> infoCounters = new ConcurrentHashMap<>();
+
 	@Override
 	public void errorCounter(String name, long increment) {
 		errorCounters.computeIfAbsent(name, k -> new LongAdder()).add(increment);
@@ -170,13 +201,21 @@ final class DefaultLogMetrics implements LogMetrics {
 	}
 
 	@Override
+	public void infoCounter(String name, long increment) {
+		infoCounters.computeIfAbsent(name, k -> new LongAdder()).add(increment);
+	}
+
+	@Override
 	public List<Counter> counters() {
-		List<Counter> list = new ArrayList<>(errorCounters.size() + warnCounters.size());
+		List<Counter> list = new ArrayList<>(errorCounters.size() + warnCounters.size() + infoCounters.size());
 		for (var e : errorCounters.entrySet()) {
 			list.add(new Counter(e.getKey(), Level.ERROR, e.getValue().sum()));
 		}
 		for (var e : warnCounters.entrySet()) {
 			list.add(new Counter(e.getKey(), Level.WARNING, e.getValue().sum()));
+		}
+		for (var e : infoCounters.entrySet()) {
+			list.add(new Counter(e.getKey(), Level.INFO, e.getValue().sum()));
 		}
 		return List.copyOf(list);
 	}

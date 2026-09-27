@@ -7,6 +7,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.jspecify.annotations.Nullable;
 
@@ -107,7 +108,13 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		 * Recent entries from {@link LogConfig#alerts()}, see
 		 * {@link Builder#maxAlerts(int)}.
 		 */
-		ALERTS;
+		ALERTS,
+		/**
+		 * Logger names registered via
+		 * {@link LogConfig.LoggerRegistry#registerLoggerName(LoggerAPI, String)}, each
+		 * with its resolved level, see {@link Builder#loggerLevels(boolean)}.
+		 */
+		LOGGERS;
 
 	}
 
@@ -142,6 +149,8 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		private int maxAlerts = 5;
 
 		private LogFormatter alertFormatter = DEFAULT_ALERT_FORMATTER;
+
+		private boolean loggerLevels = true;
 
 		private Builder() {
 		}
@@ -199,20 +208,32 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		}
 
 		/**
+		 * Whether to resolve and print each logger's level, via
+		 * {@link LogConfig#levelResolver()}, next to its name when
+		 * {@link Section#LOGGERS} is included. Default is <code>true</code>.
+		 * @param loggerLevels false to print just the bare logger names.
+		 * @return this.
+		 */
+		public Builder loggerLevels(boolean loggerLevels) {
+			this.loggerLevels = loggerLevels;
+			return this;
+		}
+
+		/**
 		 * Builds the reporter.
 		 * @return reporter.
 		 */
 		public LogReporter build() {
 			Set<Section> resolved = sections.isEmpty() ? DEFAULT_SECTIONS : EnumSet.copyOf(sections);
-			return new DefaultLogReporter(resolved, maxAlerts, alertFormatter);
+			return new DefaultLogReporter(resolved, maxAlerts, alertFormatter, loggerLevels);
 		}
 
 	}
 
 }
 
-record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts,
-		LogFormatter alertFormatter) implements LogReporter {
+record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogFormatter alertFormatter,
+		boolean loggerLevels) implements LogReporter {
 
 	/*
 	 * Every one of these is already a named constant in LogProperties, printed as
@@ -239,6 +260,9 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts,
 		}
 		if (sections.contains(LogReporter.Section.ALERTS)) {
 			appendAlerts(out, config.alerts());
+		}
+		if (sections.contains(LogReporter.Section.LOGGERS)) {
+			appendLoggers(out, config);
 		}
 	}
 
@@ -413,6 +437,24 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts,
 			line.setLength(0);
 			alertFormatter.format(line, event);
 			out.append("  ").append(line).append("\n");
+		}
+	}
+
+	private void appendLoggers(Appendable out, LogConfig config) throws IOException {
+		out.append("Loggers:\n");
+		/*
+		 * DefaultLoggerRegistry is the only implementation (LogConfig.LoggerRegistry
+		 * deliberately does not expose the accumulated names itself, see its javadoc);
+		 * downcasting here is the same pattern DefaultLogConfig's own constructor uses to
+		 * reach DefaultLogAlerts#addInternalListener.
+		 */
+		var registry = (DefaultLoggerRegistry) config.loggerRegistry();
+		for (String name : new TreeSet<>(registry.loggerNames())) {
+			out.append("  ").append(name);
+			if (loggerLevels) {
+				out.append(" = ").append(config.levelResolver().resolveLevel(name).toString());
+			}
+			out.append("\n");
 		}
 	}
 

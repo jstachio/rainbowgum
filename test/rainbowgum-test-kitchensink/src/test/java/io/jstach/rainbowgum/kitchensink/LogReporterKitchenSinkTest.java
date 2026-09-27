@@ -194,6 +194,7 @@ class LogReporterKitchenSinkTest {
 					  io.jstach.rainbowgum.LockThreadLocalBufferLogAppender = 1 (ERROR)
 					  events.dropped = 1 (ERROR)
 					  buffer.trimmed = 1 (WARNING)
+					  logger.names = 1 (INFO)
 
 					Alerts (total=1, capacity=128):
 					  ERROR io.jstach.rainbowgum.LockThreadLocalBufferLogAppender - appender 'diagnostics' failed to append event

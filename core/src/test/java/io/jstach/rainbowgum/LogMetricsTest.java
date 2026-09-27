@@ -34,4 +34,19 @@ class LogMetricsTest {
 		assertTrue(counters.contains(new LogMetrics.Counter("buffer.trimmed", Level.WARNING, 2)));
 	}
 
+	@Test
+	void infoCounterAccumulatesByNameSeparatelyFromErrorAndWarnCounters() {
+		var metrics = LogConfig.builder().build().metrics();
+		metrics.errorCounter("logger.names", 1);
+		metrics.warnCounter("logger.names", 2);
+		metrics.infoCounter("logger.names", 3);
+		metrics.infoCounter("logger.names", 4);
+
+		var counters = metrics.counters();
+		assertEquals(3, counters.size());
+		assertTrue(counters.contains(new LogMetrics.Counter("logger.names", Level.ERROR, 1)));
+		assertTrue(counters.contains(new LogMetrics.Counter("logger.names", Level.WARNING, 2)));
+		assertTrue(counters.contains(new LogMetrics.Counter("logger.names", Level.INFO, 7)));
+	}
+
 }

@@ -3,6 +3,9 @@ package io.jstach.rainbowgum.jbosslogging;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Objects;
 
 import org.jboss.logging.Logger;
 import org.jboss.logging.MDC;
@@ -11,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -72,7 +76,7 @@ class RainbowGumJBossLoggerProviderTest {
 			}
 
 			String expected = "INFO hello kv=acme <caller>io.jstach.rainbowgum.jbosslogging.RainbowGumJBossLoggerProviderTest"
-					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:68</caller>\n";
+					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:72</caller>\n";
 			assertEquals(expected, list.toString());
 		}
 		finally {
@@ -102,6 +106,23 @@ class RainbowGumJBossLoggerProviderTest {
 			assertFalse(log.isDebugEnabled());
 			log.debug("should not appear");
 			assertEquals("", list.toString());
+		}
+		finally {
+			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
+	@Test
+	void testGetLoggerRegistersLoggerName() {
+		String name = "jboss.native.registered";
+		var config = LogConfig.builder().build();
+		RainbowGum.builder(config).route(route -> route.appender("list", a -> a.output(list))).set();
+
+		try {
+			Logger.getLogger(name);
+			var gum = Objects.requireNonNull(RainbowGum.getOrNull());
+			var reporter = LogReporter.builder().section(LogReporter.Section.LOGGERS).build();
+			assertTrue(reporter.report(gum).contains(name));
 		}
 		finally {
 			RainbowGum.builder(LogConfig.builder().build()).unset();

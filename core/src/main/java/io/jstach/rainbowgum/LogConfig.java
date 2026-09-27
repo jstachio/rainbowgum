@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -93,6 +94,34 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	 * @return metrics.
 	 */
 	public LogMetrics metrics();
+
+	/**
+	 * Accounts for every logger name a facade implementation has vended.
+	 * @return logger registry.
+	 */
+	public LoggerRegistry loggerRegistry();
+
+	/**
+	 * Accounts for logger names registered via
+	 * {@link #registerLoggerName(LoggerAPI, String)}, deliberately without exposing the
+	 * accumulated names themselves: the one supported way to see them is
+	 * {@link LogReporter.Section#LOGGERS}.
+	 */
+	interface LoggerRegistry {
+
+		/**
+		 * Registers that a logger with this name exists. Idempotent: registering the same
+		 * name more than once has no additional effect. The first time a given name is
+		 * registered this also increments {@link LogMetrics#LOGGER_NAMES_METRIC} on
+		 * {@link LogConfig#metrics()}, so the running total is cheap to observe (e.g. to
+		 * catch unbounded logger name usage) without ever having to size the accumulated
+		 * names themselves.
+		 * @param api which facade this name came through.
+		 * @param loggerName logger name.
+		 */
+		void registerLoggerName(LoggerAPI api, String loggerName);
+
+	}
 
 	/**
 	 * Mixin for config support.
@@ -599,6 +628,8 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogMetrics metrics;
 
+	private final LoggerRegistry loggerRegistry;
+
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
 			LogMetrics metrics) {
 		super();
@@ -607,6 +638,7 @@ final class DefaultLogConfig implements LogConfig {
 		this.levelResolver = levelResolver;
 		this.alerts = alerts;
 		this.metrics = metrics;
+		this.loggerRegistry = new DefaultLoggerRegistry(metrics);
 		boolean changeable = properties.forKey(LogProperties.GLOBAL_CHANGE_PROPERTY)
 			.ofBoolean()
 			.or(false)
@@ -763,6 +795,41 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogMetrics metrics() {
 		return this.metrics;
+	}
+
+	@Override
+	public LoggerRegistry loggerRegistry() {
+		return this.loggerRegistry;
+	}
+
+}
+
+final class DefaultLoggerRegistry implements LogConfig.LoggerRegistry {
+
+	private final Set<String> loggerNames = ConcurrentHashMap.newKeySet();
+
+	private final LogMetrics metrics;
+
+	DefaultLoggerRegistry(LogMetrics metrics) {
+		this.metrics = metrics;
+	}
+
+	@Override
+	public void registerLoggerName(LoggerAPI api, String loggerName) {
+		Objects.requireNonNull(api);
+		if (loggerNames.add(loggerName)) {
+			metrics.infoCounter(LogMetrics.LOGGER_NAMES_METRIC, 1);
+		}
+	}
+
+	/*
+	 * Deliberately not on the LogConfig.LoggerRegistry interface itself (see its
+	 * javadoc): DefaultLogReporter downcasts to this package-private type to reach it,
+	 * the same pattern DefaultLogConfig's own constructor already uses to reach
+	 * DefaultLogAlerts#addInternalListener.
+	 */
+	Set<String> loggerNames() {
+		return Set.copyOf(loggerNames);
 	}
 
 }
