@@ -75,7 +75,6 @@ class LogReporterTest {
 					Metrics:
 					  events.dropped = 3 (ERROR)
 					  buffer.trimmed = 12 (WARNING)
-
 					""";
 			assertEquals(expected, actual);
 		}
@@ -123,6 +122,24 @@ class LogReporterTest {
 			String expected = """
 					Loggers:
 					  com.example.Foo
+					""";
+			assertEquals(expected, actual);
+		}
+	}
+
+	@Test
+	void testFacades() {
+		var reporter = LogReporter.builder().sections(EnumSet.of(Section.FACADES)).build();
+		try (var gum = RainbowGum.builder().build()) {
+			var registry = gum.config().loggerRegistry();
+			registry.registerLoggerName(LoggerAPI.Standard.JUL, "com.example.Foo");
+			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Bar");
+			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Baz");
+			String actual = reporter.report(gum);
+			String expected = """
+					Facades:
+					  JUL
+					  SLF4J
 					""";
 			assertEquals(expected, actual);
 		}
