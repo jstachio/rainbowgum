@@ -341,7 +341,17 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				if (props.isEmpty() && serviceLoader != null) {
 					props.addAll(provideProperties(serviceRegistry, serviceLoader));
 				}
-				logProperties = LogProperties.of(props, LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+				/*
+				 * LogProperties.of(List, LogProperties)'s fallback argument is only used
+				 * when the list is empty, so SYSTEM_PROPERTIES has to be a real member of
+				 * the list itself to always be included, not passed as that fallback:
+				 * otherwise it silently disappears the moment any PropertiesProvider
+				 * contributes anything at all (e.g. rainbowgum-micronaut5's own
+				 * GLOBAL_CHANGE_PROPERTY layer), breaking every -D system property
+				 * override for such an application with no warning.
+				 */
+				props.add(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+				logProperties = LogProperties.of(props);
 
 			}
 			/*
