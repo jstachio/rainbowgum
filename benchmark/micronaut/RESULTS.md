@@ -21,10 +21,9 @@ benchmark deliberately does not use `logstash-logback-encoder`.
 `GET /api/config-report` on `rainbowgum-benchmark-micronaut-rainbowgum`
 (`ReportController`, using the real `LogReporter`) confirms the route resolves to a
 single `LockThreadLocalBufferLogAppender` (`console`) with `Encoder: LogbackJsonEncoder`,
-not the pattern encoder `PatternConfigurator` would otherwise install by default. See
-`results/rainbowgum-config-report.txt` and `FINDINGS.md`'s system-properties bug for why
-this needed a `-D` flag in `run.sh` rather than the usual classpath `logging.properties`
-file.
+not the pattern encoder `PatternConfigurator` would otherwise install by default,
+selected via the classpath `logging.properties` resource (`rainbowgum-simple-props`'s
+zero-config convention). See `results/rainbowgum-config-report.txt`.
 
 **Threading confirmed, not assumed**: `BenchController`'s response body includes the
 actual thread name that handled the request. Every request in this run, for both apps,
@@ -43,19 +42,25 @@ closely:
 
 | label | req/s | p50 ms | p90 ms | p99 ms | max ms | RSS avg MB |
 |---|---:|---:|---:|---:|---:|---:|
-| logback | 22,926.8 | 1.86 | 4.33 | 7.21 | 19.10 | 586.4 |
-| rainbowgum | 30,964.9 | 1.35 | 3.27 | 5.66 | 23.20 | 600.1 |
+| logback | 23,261.7 | 1.82 | 4.29 | 7.15 | 24.57 | 567.5 |
+| rainbowgum | 31,448.0 | 1.33 | 3.21 | 5.53 | 18.15 | 609.1 |
 
 ### Run 2
 
 | label | req/s | p50 ms | p90 ms | p99 ms | max ms | RSS avg MB |
 |---|---:|---:|---:|---:|---:|---:|
-| logback | 23,136.8 | 1.84 | 4.29 | 7.11 | 20.14 | 593.3 |
-| rainbowgum | 30,921.0 | 1.35 | 3.27 | 5.65 | 18.71 | 585.7 |
+| logback | 23,215.5 | 1.83 | 4.29 | 7.13 | 20.16 | 574.4 |
+| rainbowgum | 30,940.2 | 1.34 | 3.28 | 5.72 | 19.48 | 603.3 |
 
 RainbowGum leads throughput by **+33-35%** and every latency percentile, both runs
-agreeing within noise. RSS is a wash: within ~15 MB either direction across both runs,
-not a meaningful difference at this sample size.
+agreeing within noise. RSS runs somewhat higher for RainbowGum in both runs here (roughly
+30-40 MB), the opposite direction from the wash seen in an earlier (later invalidated,
+see `FINDINGS.md`) pair of runs. Worth another look with more samples before treating
+either direction as a real effect.
+
+Every run in this file's numbers was confirmed, via `results/rainbowgum-config-report.txt`,
+to have actually resolved `Encoder: LogbackJsonEncoder` before being recorded. See
+`FINDINGS.md`'s build-cache note for why that confirmation step is not optional here.
 
 ## Not yet done
 

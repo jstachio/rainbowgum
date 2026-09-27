@@ -17,7 +17,12 @@ URL_PATH="/api/greet/world"
 PORT=8080
 
 echo "Building..."
-( cd ../.. && ./mvnw -q -f benchmark/micronaut/pom.xml clean package -DskipTests )
+# -Dmaven.build.cache.enabled=false: the build cache extension has been observed to
+# serve a stale/incomplete compiled artifact for rainbowgum-simple-props on a cache hit,
+# silently dropping its annotation-processor-generated META-INF/services entry (see
+# FINDINGS.md) - non-deterministic across otherwise-identical builds, so always disabled
+# here rather than only when chasing it down by hand.
+( cd ../.. && ./mvnw -q -f benchmark/micronaut/pom.xml clean package -DskipTests -Dmaven.build.cache.enabled=false )
 
 RESULTS_DIR="$(pwd)/results"
 mkdir -p "$RESULTS_DIR"

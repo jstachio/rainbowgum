@@ -27,15 +27,12 @@
     </dependency>
 
     <!--
-      rainbowgum-simple bundles core+pattern+slf4j+systemlogger+jdk+jul. No
+      rainbowgum-simple bundles core+pattern+slf4j+systemlogger+jdk+jul, plus
+      rainbowgum-simple-props for zero-config properties loading (a classpath
+      "logging.properties" resource, Rainbow Gum's own property format). No
       logback-classic dependency here at all - unlike Spring Boot,
       micronaut-http-server-netty does not pull it in transitively, so this is a clean
-      SLF4J provider swap, confirmed already in examples/micronaut. The bundled
-      rainbowgum-simple-props module's classpath "logging.properties" zero-config
-      convention is NOT used here (see run.sh's -D flag and FINDINGS.md instead): its
-      SimplePropertiesProvider is never discovered via ServiceLoader once shaded onto a
-      plain classpath - a real bug, confirmed reproducing in examples/micronaut too, not
-      specific to this benchmark.
+      SLF4J provider swap, confirmed already in examples/micronaut.
     -->
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>

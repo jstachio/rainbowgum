@@ -52,37 +52,45 @@ MDC/fluent-key-value distinction). Both are reasonable, readable JSON; they are 
 byte-for-byte the same schema, which matters if something downstream parses these fields
 by name.
 
-## Two real config-loading bugs found while wiring this up (both outside this benchmark)
+## A real config-loading bug found while wiring this up (outside this benchmark)
 
-**`rainbowgum-simple-props`'s `SimplePropertiesProvider` is never discovered once shaded
-onto a plain classpath.** It only declares itself via `module-info.java`'s `provides`
-clause, with no generated `META-INF/services` entry the way every other
-`RainbowGumServiceProvider` in this codebase has (confirmed: `rainbowgum-pattern`'s
-`PatternConfigurator` has both `module-info.class` and a real services file in its
-installed jar; `rainbowgum-simple-props` has only the former). `module-info.class`
-`provides` declarations are not consulted by `ServiceLoader` for a jar placed on a plain
-classpath (as opposed to the module path), which is exactly what happens once
-`maven-shade-plugin` merges everything into a Micronaut app's runnable fat jar. Confirmed
-reproducing in the already-existing `examples/micronaut` too: its README claims a
-`[RAINBOW_GUM]`-tagged pattern from `logging.properties` should appear in the output, but
-a real `mvn package && java -jar` run shows Micronaut's plain default instead, with
-`logging.properties` silently never read. This benchmark works around it by setting
-`-Dlogging.appender.console.encoder=logback` as a JVM system property in `run.sh` instead
-of relying on the classpath `logging.properties` convention. Not yet root-caused inside
-`pistachio-svc-apt` itself (a separate project): flagged, not fixed, here.
-
-**`LogConfig.Builder.build()` silently dropped `SYSTEM_PROPERTIES` (every `-D` override)
-once any `PropertiesProvider` contributed anything at all**: `rainbowgum-micronaut5`'s
-own `GLOBAL_CHANGE_PROPERTY` layer was enough to trigger it, which is exactly what broke
-the `-D` workaround above on the first attempt. Root-caused to
+`LogConfig.Builder.build()` silently dropped `SYSTEM_PROPERTIES` (every `-D` override)
+once any `PropertiesProvider` contributed anything at all. `rainbowgum-micronaut5`'s own
+`GLOBAL_CHANGE_PROPERTY` layer was enough to trigger it. Root-caused to
 `LogProperties.of(List, LogProperties)` only using its second (fallback) argument when
 the list is empty, while `LogConfig.Builder.build()` passed `SYSTEM_PROPERTIES` as that
 fallback instead of adding it to the list unconditionally. **Fixed** on
 `fix/system-properties-dropped-with-custom-provider` (not yet merged as of this
 benchmark), with a regression test (`LogConfigTest`) and a golden-string update
 (`AvajePropertiesProviderTest`, which was hitting the identical bug independently via
-`AvajePropertiesProvider`). This benchmark's `run.sh` workaround remains in place either
-way since it targets whatever is on `main` right now, not the unmerged fix.
+`AvajePropertiesProvider`). This benchmark's `rainbowgum` app does not need a workaround
+for it (it configures the encoder via the classpath `logging.properties` convention, not
+a `-D` flag), but the bug is worth knowing about if a future pass adds a `-D` override
+here while running against a `main` that predates the fix.
+
+## The Maven build cache silently drops annotation-processor-generated resources, non-deterministically
+
+Not a code bug: a build tooling reliability issue, but a genuinely disruptive one. Maven's
+build-cache extension can serve a stale or incompletely-restored compiled artifact on a
+cache hit, silently dropping annotation-processor-generated resources like
+`META-INF/services` entries, with no warning or error. First surfaced as what looked
+exactly like a `rainbowgum-simple-props` code bug (`SimplePropertiesProvider` never
+discovered by `ServiceLoader` once shaded onto a plain classpath): it resolved itself
+completely, both in this benchmark and in the pre-existing `examples/micronaut`, once
+re-tested with `-Dmaven.build.cache.enabled=false`.
+
+**This is not just a "when investigating by hand" problem.** `run-all.sh`'s own build
+step reproduced the identical symptom in a real, unattended run, non-deterministically:
+one full `clean package` produced a working jar (`Encoder: LogbackJsonEncoder`), and the
+very next `clean package` of the exact same sources produced a jar silently missing
+`SimplePropertiesProvider` from its merged services file, falling back to the plain
+pattern encoder with no error anywhere in the build log. `run-all.sh` now always passes
+`-Dmaven.build.cache.enabled=false` for its own build step to keep this benchmark's
+numbers trustworthy, and every recorded run's `results/rainbowgum-config-report.txt` is
+checked to confirm `Encoder: LogbackJsonEncoder` actually resolved before the numbers are
+treated as real (this is what caught it the second time). Worth raising as its own
+concern: this could just as easily bite a real release or CI build of any module using
+`pistachio-svc-apt`-generated services, not just this benchmark.
 
 ## Micronaut's out-of-the-box threading, confirmed not assumed
 
