@@ -3,6 +3,7 @@ package io.jstach.rainbowgum;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
@@ -114,7 +115,14 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		 * {@link LogConfig.LoggerRegistry#registerLoggerName(LoggerAPI, String)}, each
 		 * with its resolved level, see {@link Builder#loggerLevels(boolean)}.
 		 */
-		LOGGERS;
+		LOGGERS,
+		/**
+		 * The distinct set of {@link LoggerAPI}s registered via
+		 * {@link LogConfig.LoggerRegistry#registerLoggerName(LoggerAPI, String)}, e.g.
+		 * seeing both {@code SLF4J} and {@code JUL} means both facades are in active use
+		 * (not just on the classpath).
+		 */
+		FACADES;
 
 	}
 
@@ -246,28 +254,53 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 			LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY, LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY,
 			LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY, LogProperties.GLOBAL_OPTIMIZE_PROPERTY);
 
+	/*
+	 * Every section is separated from the next by exactly one blank line, added here
+	 * rather than left to each appendXxx method to manage its own leading/trailing
+	 * newline: that previously meant whether a blank line actually showed up between two
+	 * sections was an accident of which of the two happened to append one (VERSION and
+	 * METRICS did, COMPONENTS/ALERTS/LOGGERS did not), so e.g. COMPONENTS immediately
+	 * followed by METRICS printed with no separating blank line at all.
+	 */
 	@Override
 	public void report(RainbowGum gum, Appendable out) throws IOException {
+		boolean first = true;
 		if (sections.contains(LogReporter.Section.VERSION)) {
+			first = appendSeparator(out, first);
 			appendVersion(out);
 		}
 		var config = gum.config();
 		if (sections.contains(LogReporter.Section.COMPONENTS)) {
+			first = appendSeparator(out, first);
 			appendComponents(out, gum, config);
 		}
 		if (sections.contains(LogReporter.Section.METRICS)) {
+			first = appendSeparator(out, first);
 			appendMetrics(out, config.metrics());
 		}
 		if (sections.contains(LogReporter.Section.ALERTS)) {
+			first = appendSeparator(out, first);
 			appendAlerts(out, config.alerts());
 		}
 		if (sections.contains(LogReporter.Section.LOGGERS)) {
+			first = appendSeparator(out, first);
 			appendLoggers(out, config);
+		}
+		if (sections.contains(LogReporter.Section.FACADES)) {
+			first = appendSeparator(out, first);
+			appendFacades(out, config);
 		}
 	}
 
+	private static boolean appendSeparator(Appendable out, boolean first) throws IOException {
+		if (!first) {
+			out.append("\n");
+		}
+		return false;
+	}
+
 	private void appendVersion(Appendable out) throws IOException {
-		out.append("Rainbow Gum ").append(RainbowGumVersion.VERSION).append("\n\n");
+		out.append("Rainbow Gum ").append(RainbowGumVersion.VERSION).append("\n");
 	}
 
 	private void appendComponents(Appendable out, RainbowGum gum, LogConfig config) throws IOException {
@@ -420,7 +453,6 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 				.append(counter.level().toString())
 				.append(")\n");
 		}
-		out.append("\n");
 	}
 
 	private void appendAlerts(Appendable out, LogAlerts alerts) throws IOException {
@@ -455,6 +487,16 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 				out.append(" = ").append(config.levelResolver().resolveLevel(name).toString());
 			}
 			out.append("\n");
+		}
+	}
+
+	private void appendFacades(Appendable out, LogConfig config) throws IOException {
+		out.append("Facades:\n");
+		var registry = (DefaultLoggerRegistry) config.loggerRegistry();
+		var apis = new TreeSet<LoggerAPI>(Comparator.comparing(Object::toString));
+		apis.addAll(registry.loggerAPIs());
+		for (var api : apis) {
+			out.append("  ").append(api.toString()).append("\n");
 		}
 	}
 

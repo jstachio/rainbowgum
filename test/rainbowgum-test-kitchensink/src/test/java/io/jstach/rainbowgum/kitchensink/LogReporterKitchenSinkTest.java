@@ -130,7 +130,8 @@ class LogReporterKitchenSinkTest {
 			diagnosticsLogger.debug("boom");
 
 			var reporter = LogReporter.builder()
-				.sections(EnumSet.of(Section.VERSION, Section.COMPONENTS, Section.METRICS, Section.ALERTS))
+				.sections(EnumSet.of(Section.VERSION, Section.COMPONENTS, Section.METRICS, Section.ALERTS,
+						Section.LOGGERS, Section.FACADES))
 				/*
 				 * The one alert recorded below carries a real Instant.now() timestamp:
 				 * genuinely non-deterministic, so this swaps in a formatter that omits it
@@ -189,6 +190,7 @@ class LogReporterKitchenSinkTest {
 					      Flags: [REENTRY_DROP]
 					      Output: ListLogOutput (type=MEMORY)
 					      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8)
+
 					Metrics:
 					  events.failed = 1 (ERROR)
 					  io.jstach.rainbowgum.LockThreadLocalBufferLogAppender = 1 (ERROR)
@@ -198,6 +200,12 @@ class LogReporterKitchenSinkTest {
 
 					Alerts (total=1, capacity=128):
 					  ERROR io.jstach.rainbowgum.LockThreadLocalBufferLogAppender - appender 'diagnostics' failed to append event
+
+					Loggers:
+					  io.jstach.rainbowgum.kitchensink.diagnostics = ALL
+
+					Facades:
+					  SLF4J
 					"""
 				.replace("FILE_URI_PLACEHOLDER", "file:" + logFile)
 				.replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);

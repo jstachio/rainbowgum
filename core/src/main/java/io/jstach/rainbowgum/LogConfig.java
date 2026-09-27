@@ -102,10 +102,10 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	public LoggerRegistry loggerRegistry();
 
 	/**
-	 * Accounts for logger names registered via
+	 * Accounts for logger names, and which {@link LoggerAPI} vended them, registered via
 	 * {@link #registerLoggerName(LoggerAPI, String)}, deliberately without exposing the
-	 * accumulated names themselves: the one supported way to see them is
-	 * {@link LogReporter.Section#LOGGERS}.
+	 * accumulated names/APIs themselves: the one supported way to see them is
+	 * {@link LogReporter.Section#LOGGERS}/{@link LogReporter.Section#FACADES}.
 	 */
 	interface LoggerRegistry {
 
@@ -808,6 +808,8 @@ final class DefaultLoggerRegistry implements LogConfig.LoggerRegistry {
 
 	private final Set<String> loggerNames = ConcurrentHashMap.newKeySet();
 
+	private final Set<LoggerAPI> loggerAPIs = ConcurrentHashMap.newKeySet();
+
 	private final LogMetrics metrics;
 
 	DefaultLoggerRegistry(LogMetrics metrics) {
@@ -817,6 +819,7 @@ final class DefaultLoggerRegistry implements LogConfig.LoggerRegistry {
 	@Override
 	public void registerLoggerName(LoggerAPI api, String loggerName) {
 		Objects.requireNonNull(api);
+		loggerAPIs.add(api);
 		if (loggerNames.add(loggerName)) {
 			metrics.infoCounter(LogMetrics.LOGGER_NAMES_METRIC, 1);
 		}
@@ -830,6 +833,16 @@ final class DefaultLoggerRegistry implements LogConfig.LoggerRegistry {
 	 */
 	Set<String> loggerNames() {
 		return Set.copyOf(loggerNames);
+	}
+
+	/**
+	 * Every {@link LoggerAPI} registered so far via {@link #registerLoggerName}, not just
+	 * {@link LoggerAPI.Standard}: an application-provided {@link LoggerAPI} works too.
+	 * Same downcast-only visibility as {@link #loggerNames()}.
+	 * @return immutable snapshot.
+	 */
+	Set<LoggerAPI> loggerAPIs() {
+		return Set.copyOf(loggerAPIs);
 	}
 
 }

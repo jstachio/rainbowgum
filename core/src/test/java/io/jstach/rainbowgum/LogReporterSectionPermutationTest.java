@@ -71,6 +71,8 @@ class LogReporterSectionPermutationTest {
 					() -> "ALERTS mismatch for " + sections + ": " + actual);
 			assertEquals(effective.contains(Section.LOGGERS), actual.contains("Loggers:"),
 					() -> "LOGGERS mismatch for " + sections + ": " + actual);
+			assertEquals(effective.contains(Section.FACADES), actual.contains("Facades:"),
+					() -> "FACADES mismatch for " + sections + ": " + actual);
 		}
 	}
 
