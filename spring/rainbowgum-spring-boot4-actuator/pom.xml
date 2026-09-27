@@ -84,5 +84,21 @@
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-core</artifactId>
     </dependency>
+    <!--
+      For InfoContributor/Info (spring-boot-actuator) and
+      ConditionalOnEnabledInfoContributor/InfoContributorAutoConfiguration
+      (spring-boot-actuator-autoconfigure), backing RainbowGumInfoAutoConfiguration.
+      Same "opting into this module at all is already the opt in" reasoning as
+      micrometer-core above: both are hard, non-optional dependencies rather than an
+      app-supplied, @ConditionalOnClass-gated pair.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-actuator-autoconfigure</artifactId>
+    </dependency>
   </dependencies>
 </project>

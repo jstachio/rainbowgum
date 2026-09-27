@@ -1,1 +1,2 @@
 io.jstach.rainbowgum.spring.boot4.actuator.RainbowGumMetricsAutoConfiguration
+io.jstach.rainbowgum.spring.boot4.actuator.RainbowGumInfoAutoConfiguration
