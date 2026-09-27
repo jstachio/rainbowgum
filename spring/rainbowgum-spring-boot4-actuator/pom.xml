@@ -100,5 +100,22 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-actuator-autoconfigure</artifactId>
     </dependency>
+    <!--
+      Not used directly by this module's own code: needed only because
+      org.springframework.boot.actuate.info.Info (used in RainbowGumInfoContributor)
+      carries a class level @JsonInclude annotation, and a JDK 25 javac (as used by
+      .github/workflows/native-image.yml, which deliberately tracks the newest GraalVM
+      rather than this project's own JDK 21 baseline) fails the build under -Werror when
+      it cannot resolve that annotation's own class file to read it: "unknown enum
+      constant ... class file for JsonInclude$Include not found". provided, not compile:
+      a real application already has Jackson at runtime through its own web/actuator
+      starter, so this is purely a compile time-visibility fix, not a real dependency of
+      this module.
+    -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>
