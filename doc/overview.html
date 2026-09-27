@@ -1414,28 +1414,11 @@ every well known counter to an external metrics system without hand listing each
 
 {@snippet class="snippets.AlertsMetricsExample" region="metricsExample" }
 
-<h4 id="metrics_spring_boot_actuator">Spring Boot Actuator (Micrometer)</h4>
-
-For Spring Boot 4 applications, {@link io.jstach.rainbowgum.spring.boot4.actuator/ } bridges
-every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric} above to Micrometer as a
-<code>rainbowgum.&lt;name&gt;</code> counter (e.g. <code>rainbowgum.events.dropped</code>), tagged
-with its level. It activates automatically (no properties to set, no bean to register) as long
-as Micrometer is on the classpath, which it already is once
-<code>spring-boot-starter-micrometer-metrics</code> (Spring Boot 4's own dedicated metrics
-starter) is a dependency; add just the module and the counters show up under
-<code>/actuator/metrics</code> and any Micrometer registry the application already has configured
-(Prometheus, etc.).
-
 <p>
-Only the fixed <code>StandardMetric</code> set above is bound: deliberately not the
-per-logger-name counters {@link io.jstach.rainbowgum.LogMetrics} also accumulates as a side
-effect of every alert, since logger names are application-chosen and effectively unbounded, which
-would be an unbounded cardinality source in a metrics backend. {@link io.jstach.rainbowgum.LogAlerts}
-itself is not bridged to Micrometer at all; only its metrics side effect is.
-</p>
-
-<p>
-There is currently no Spring Boot 3 equivalent of this module; it is Boot 4 only.
+For a Spring Boot 4 application, these <code>StandardMetric</code> counters, and the
+<a href="#reporting">diagnostic report</a> below, are both surfaced through Spring Boot's own
+<code>/actuator</code> endpoints: see <a href="#spring_boot_actuator">Actuator</a> under
+<a href="#spring_boot">Spring Boot</a>.
 </p>
 
 <h3 id="reporting">Reporting</h3>
@@ -1981,6 +1964,48 @@ For Spring Boot 3 substitute <code>rainbowgum-spring-boot4-starter</code> with
 Note that if one chooses to not use one of the <code>rainbowgum-spring-boot*-starter</code> artifacts
 or the underlying <code>rainbowgum-spring-boot3</code>/<code>rainbowgum-spring-boot4</code> module directly,
 Spring will re-initialize <code>java.util.logging</code> and take over it so again the integration is recommended.
+
+<h4 id="spring_boot_actuator">Actuator</h4>
+
+{@link io.jstach.rainbowgum.spring.boot4.actuator/ } bridges Rainbow Gum's own diagnostics into
+Spring Boot 4's Actuator endpoints: every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric}
+as a Micrometer counter, and the <a href="#reporting">diagnostic report</a> as Actuator info.
+Both activate independently of each other; neither requires a bean to register.
+
+<p>
+<strong>Metrics.</strong> Every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric} is bridged to
+Micrometer as a <code>rainbowgum.&lt;name&gt;</code> counter (e.g. <code>rainbowgum.events.dropped</code>),
+tagged with its level. It activates automatically (no properties to set) as long as Micrometer is on
+the classpath, which it already is once <code>spring-boot-starter-micrometer-metrics</code> (Spring
+Boot 4's own dedicated metrics starter) is a dependency; add just the module and the counters show
+up under <code>/actuator/metrics</code> and any Micrometer registry the application already has
+configured (Prometheus, etc.).
+</p>
+
+<p>
+Only the fixed <code>StandardMetric</code> set is bound: deliberately not the per-logger-name counters
+{@link io.jstach.rainbowgum.LogMetrics} also accumulates as a side effect of every alert, since logger
+names are application-chosen and effectively unbounded, which would be an unbounded cardinality source
+in a metrics backend. {@link io.jstach.rainbowgum.LogAlerts} itself is not bridged to Micrometer at
+all; only its metrics side effect is.
+</p>
+
+<p>
+<strong>Info.</strong> An {@code InfoContributor} renders the <a href="#reporting">
+{@link io.jstach.rainbowgum.LogReporter}</a> to <code>/actuator/info</code>: one map entry per
+{@link io.jstach.rainbowgum.LogReporter.Section} (<code>version</code>, <code>components</code>,
+<code>metrics</code>, <code>alerts</code>, <code>loggers</code>, <code>facades</code>), nested under a
+single <code>rainbowgum</code> key so it cannot collide with any other contributor's own top level
+keys. Unlike the metrics bridge above, this is <strong>disabled by default</strong> and needs
+<code>management.info.rainbowgum.enabled=true</code> set explicitly: the report can include internal
+detail (appender/output/encoder names, URIs), matching how Spring Boot's own
+<code>env</code>/<code>java</code>/<code>os</code>/<code>process</code> info contributors are also
+disabled unless explicitly enabled, for the same reason.
+</p>
+
+<p>
+There is currently no Spring Boot 3 equivalent of this module; it is Boot 4 only.
+</p>
 
 <h3 id="helidon">Helidon</h3>
 
