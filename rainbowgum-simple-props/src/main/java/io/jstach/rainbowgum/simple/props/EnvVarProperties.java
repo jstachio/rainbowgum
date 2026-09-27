@@ -1,10 +1,12 @@
 package io.jstach.rainbowgum.simple.props;
 
+import java.io.IOException;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogReporter;
 
 /**
  * Environment variable backed {@link LogProperties} with a configurable prefix instead of
@@ -12,7 +14,7 @@ import io.jstach.rainbowgum.LogProperties;
  * {@link LogProperties.StandardProperties#ENVIRONMENT_VARIABLES} but with a configurable
  * prefix in place of a plain <code>.</code>-to-<code>_</code> replace of the whole key.
  */
-final class EnvVarProperties implements LogProperties {
+final class EnvVarProperties implements LogProperties, LogReporter.Reportable {
 
 	/**
 	 * higher than {@link LogProperties.StandardProperties#ENVIRONMENT_VARIABLES}'s 300
@@ -44,6 +46,11 @@ final class EnvVarProperties implements LogProperties {
 	@Override
 	public int order() {
 		return ORDER;
+	}
+
+	@Override
+	public void report(Appendable out) throws IOException {
+		out.append("ENV[").append(prefix).append("]");
 	}
 
 	/*

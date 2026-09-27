@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -754,7 +755,7 @@ public interface LogProperties {
 			return LogProperties.of(combined);
 		}
 
-		static abstract class AbstractLogProperties implements LogProperties {
+		static abstract class AbstractLogProperties implements LogProperties, LogReporter.Reportable {
 
 			protected final String description;
 
@@ -778,6 +779,11 @@ public interface LogProperties {
 			public String description(String key) {
 				String rename = renameKey.apply(key);
 				return descriptionForKey(description, rename);
+			}
+
+			@Override
+			public void report(Appendable out) throws IOException {
+				out.append(description);
 			}
 
 			@Override
@@ -1154,7 +1160,7 @@ public interface LogProperties {
 	 * Common static log properties such as System properties ane environment variables.
 	 */
 	@CaseChanging
-	enum StandardProperties implements LogProperties {
+	enum StandardProperties implements LogProperties, LogReporter.Reportable {
 
 		/**
 		 * Empty properties. The order is <code>-1</code>.
@@ -1212,6 +1218,19 @@ public interface LogProperties {
 		public String description(String key) {
 			String k = translateKey(key);
 			return name() + "[" + k + "]";
+		}
+
+		/*
+		 * Each constant's own per-constant class body (see EMPTY/SYSTEM_PROPERTIES/
+		 * ENVIRONMENT_VARIABLES above) makes getClass() an anonymous subclass with no
+		 * canonical name, so without this LogPropertiesReporting's fallback chain would
+		 * land on the description(dummyKey) branch instead: name() alone is a cleaner
+		 * report for the single most common LogProperties in practice (the default when
+		 * nothing else is configured).
+		 */
+		@Override
+		public void report(Appendable out) throws IOException {
+			out.append(name());
 		}
 
 		/**
@@ -1485,7 +1504,7 @@ final class MultiMapProperties extends AbstractLogProperties {
 
 }
 
-interface ListLogProperties extends LogProperties {
+interface ListLogProperties extends LogProperties, LogReporter.Reportable {
 
 	@Override
 	default @Nullable String valueOrNull(String key) {
@@ -1532,6 +1551,60 @@ interface ListLogProperties extends LogProperties {
 		sb.append(getClass().getSimpleName());
 		sb.append("[properties=").append(Arrays.deepToString(properties())).append("]");
 		return sb;
+	}
+
+	/*
+	 * Mirrors description(String)'s own comma separated shape above, but per component
+	 * (via LogPropertiesReporting.describe, the same fallback chain
+	 * LogReporter#appendGlobalProperties uses for the top level LogProperties a LogConfig
+	 * was built with) rather than per key.
+	 */
+	@Override
+	default void report(Appendable out) throws IOException {
+		boolean first = true;
+		for (var p : properties()) {
+			if (first) {
+				first = false;
+			}
+			else {
+				out.append(", ");
+			}
+			LogPropertiesReporting.describe(out, p);
+		}
+	}
+
+}
+
+/*
+ * Shared by ListLogProperties#report(Appendable) (recursively, per component) and
+ * LogReporter's own appendGlobalProperties(Appendable, LogProperties) (for the top level
+ * LogProperties a LogConfig was built with), so there is exactly one fallback chain for
+ * "how do we describe an arbitrary LogProperties for a report": an explicit
+ * Reportable#report(...) if implemented, else the concrete class' fully qualified name
+ * (stable and free: no override needed), else, only for the rare case where the FQCN
+ * itself is null (e.g. one of StandardProperties' own per constant enum bodies, which are
+ * anonymous classes under the hood, before it implemented Reportable directly),
+ * description(key) with a dummy key, since that is the only description() such a
+ * LogProperties is guaranteed to answer at all.
+ */
+final class LogPropertiesReporting {
+
+	static final String DESCRIBE_KEY = "logging.reporter.describe";
+
+	private LogPropertiesReporting() {
+	}
+
+	static void describe(Appendable out, LogProperties properties) throws IOException {
+		if (properties instanceof LogReporter.Reportable r) {
+			r.report(out);
+			return;
+		}
+		String fqcn = properties.getClass().getCanonicalName();
+		if (fqcn != null) {
+			out.append(fqcn);
+			return;
+		}
+		out.append(properties.description(DESCRIBE_KEY));
 	}
 
 }
