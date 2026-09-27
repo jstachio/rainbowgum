@@ -1,0 +1,6 @@
+target/
+.micronaut/
+*.iml
+.idea
+benchmark.log*
+results/

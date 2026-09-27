@@ -1,0 +1,21 @@
+<configuration>
+  <!--
+    Logback's own built-in JSON encoder (ch.qos.logback.classic.encoder.JsonEncoder,
+    part of logback-classic since 1.5.x), not the third-party
+    net.logstash.logback:logstash-logback-encoder: that encoder showed unbounded memory
+    growth on HotSpot under sustained load in an earlier benchmark
+    (feature/graalvm-native-benchmark's benchmark/native/0-11-2-RESULTS.md), traced to
+    its Jackson-based allocation profile, not to Logback itself - see this benchmark's
+    own FINDINGS.md for the full writeup. Deliberately left at its plain defaults (no
+    <withXxx> field toggles): see FINDINGS.md for how its field set compares to
+    RainbowGum's LogbackJsonEncoder, which mirrors it but is not byte-identical.
+  -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="ch.qos.logback.classic.encoder.JsonEncoder" />
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE" />
+  </root>
+
+</configuration>

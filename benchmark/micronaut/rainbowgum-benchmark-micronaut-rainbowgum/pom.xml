@@ -1,0 +1,125 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum.benchmark.micronaut</groupId>
+    <artifactId>rainbowgum-benchmark-micronaut-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-benchmark-micronaut-rainbowgum</artifactId>
+  <packaging>${packaging}</packaging>
+
+  <properties>
+    <exec.mainClass>io.jstach.rainbowgum.benchmark.micronaut.rainbowgum.App</exec.mainClass>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.micronaut</groupId>
+      <artifactId>micronaut-http-server-netty</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.micronaut.serde</groupId>
+      <artifactId>micronaut-serde-jackson</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
+    <!--
+      rainbowgum-simple bundles core+pattern+slf4j+systemlogger+jdk+jul. No
+      logback-classic dependency here at all - unlike Spring Boot,
+      micronaut-http-server-netty does not pull it in transitively, so this is a clean
+      SLF4J provider swap, confirmed already in examples/micronaut. The bundled
+      rainbowgum-simple-props module's classpath "logging.properties" zero-config
+      convention is NOT used here (see run.sh's -D flag and FINDINGS.md instead): its
+      SimplePropertiesProvider is never discovered via ServiceLoader once shaded onto a
+      plain classpath - a real bug, confirmed reproducing in examples/micronaut too, not
+      specific to this benchmark.
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-simple</artifactId>
+      <version>${rainbowgum.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <!--
+      For LogbackJsonEncoder (mirrors Logback's own built-in JsonEncoder field-for-field,
+      see this benchmark's logging.properties and FINDINGS.md), auto-discovered via
+      ServiceLoader once on the classpath - no code wiring needed.
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-json</artifactId>
+      <version>${rainbowgum.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <!--
+      A real io.micronaut.management.endpoint.loggers.ManagedLoggingSystem bean, so
+      /loggers works the same as it would for the Logback app (see examples/micronaut's
+      README for why this is otherwise a gap once Logback is gone).
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum.micronaut</groupId>
+      <artifactId>rainbowgum-micronaut5</artifactId>
+      <version>${rainbowgum.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <!--
+      rainbowgum-simple only exposes this at runtime scope, but ReportController needs
+      RainbowGum/LogReporter at compile time. Already on the runtime classpath
+      transitively; this just adds compile-time visibility.
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+      <version>${rainbowgum.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-benchmark-micronaut-share</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.micronaut.maven</groupId>
+        <artifactId>micronaut-maven-plugin</artifactId>
+        <configuration>
+          <configFile>aot-${packaging}.properties</configFile>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <annotationProcessorPaths combine.children="append">
+            <path>
+              <groupId>io.micronaut</groupId>
+              <artifactId>micronaut-http-validation</artifactId>
+              <version>${micronaut.core.version}</version>
+            </path>
+            <path>
+              <groupId>io.micronaut.serde</groupId>
+              <artifactId>micronaut-serde-processor</artifactId>
+              <version>${micronaut.serialization.version}</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>io.micronaut</groupId>
+                  <artifactId>micronaut-inject</artifactId>
+                </exclusion>
+              </exclusions>
+            </path>
+          </annotationProcessorPaths>
+          <compilerArgs>
+            <arg>-Amicronaut.processing.group=io.jstach.rainbowgum.benchmark.micronaut.rainbowgum</arg>
+            <arg>-Amicronaut.processing.module=rainbowgum-benchmark-micronaut-rainbowgum</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
