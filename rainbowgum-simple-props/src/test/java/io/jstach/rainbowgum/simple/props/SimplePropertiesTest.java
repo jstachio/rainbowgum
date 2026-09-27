@@ -102,6 +102,14 @@ class SimplePropertiesTest {
 	}
 
 	@Test
+	void testEnvVarReportIncludesThePrefix() throws Exception {
+		var env = new EnvVarProperties("MYCO_", k -> null);
+		var sb = new StringBuilder();
+		env.report(sb);
+		assertEquals("ENV[MYCO_]", sb.toString());
+	}
+
+	@Test
 	void testEnvVarBadIntValueFailsLoudlyWithEnvDescription() {
 		var props = SimpleProperties.builder()
 			.envLookup(Map.of("RAINBOWGUM_threshold", "not-a-number")::get)

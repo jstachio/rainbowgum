@@ -1,12 +1,14 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -18,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -620,6 +623,76 @@ class LogPropertiesTest {
 			.build();
 		composite.put("logging.testCompositeSkipsNonMutable", "1");
 		assertEquals("1", composite.valueOrNull("logging.testCompositeSkipsNonMutable"));
+	}
+
+	@Test
+	void testAbstractLogPropertiesReportsItsDescriptionField() throws IOException {
+		var properties = LogProperties.builder().fromFunction(k -> null).description("MY_DESC").build();
+		assertInstanceOf(LogReporter.Reportable.class, properties);
+		var sb = new StringBuilder();
+		((LogReporter.Reportable) properties).report(sb);
+		assertEquals("MY_DESC", sb.toString());
+	}
+
+	@Test
+	void testStandardPropertiesReportsItsOwnName() throws IOException {
+		var sb = new StringBuilder();
+		LogProperties.StandardProperties.SYSTEM_PROPERTIES.report(sb);
+		assertEquals("SYSTEM_PROPERTIES", sb.toString());
+	}
+
+	/*
+	 * Each StandardProperties constant's own per constant enum body (see EMPTY/
+	 * SYSTEM_PROPERTIES/ENVIRONMENT_VARIABLES) makes getClass() an anonymous subclass
+	 * with no canonical name: confirmed directly here, since it is exactly the case
+	 * StandardProperties#report() exists to give a clean name to instead of falling
+	 * through to LogPropertiesReporting's dummy key branch (see
+	 * testDescribeFallsBackToDescribeDummyKeyWhenFqcnIsNull below for that branch
+	 * exercised against something that does not implement Reportable).
+	 */
+	@Test
+	@SuppressWarnings("GetClassOnEnum") // the point of this test is the actual per
+										// constant anonymous subclass, not
+										// StandardProperties.class
+	void testStandardPropertiesConstantsHaveNoCanonicalName() {
+		assertNull(LogProperties.StandardProperties.SYSTEM_PROPERTIES.getClass().getCanonicalName());
+	}
+
+	@Test
+	void testListLogPropertiesReportsCommaSeparatedChildDescriptions() throws IOException {
+		var a = LogProperties.builder().fromFunction(k -> null).description("A_DESC").order(1000).build();
+		var composite = LogProperties.of(List.of(a, LogProperties.StandardProperties.SYSTEM_PROPERTIES));
+		assertInstanceOf(LogReporter.Reportable.class, composite);
+		var sb = new StringBuilder();
+		((LogReporter.Reportable) composite).report(sb);
+		assertEquals("A_DESC, SYSTEM_PROPERTIES", sb.toString());
+	}
+
+	static class NamedNotReportableProperties implements LogProperties {
+
+		@Override
+		public @Nullable String valueOrNull(String key) {
+			return null;
+		}
+
+	}
+
+	@Test
+	void testDescribeFallsBackToFqcnWhenNotReportable() throws IOException {
+		var sb = new StringBuilder();
+		LogPropertiesReporting.describe(sb, new NamedNotReportableProperties());
+		assertEquals(NamedNotReportableProperties.class.getCanonicalName(), sb.toString());
+	}
+
+	@Test
+	void testDescribeFallsBackToDescribeDummyKeyWhenFqcnIsNull() throws IOException {
+		// A lambda has no canonical name, same as an anonymous class: confirmed
+		// directly, not assumed.
+		LogProperties properties = key -> null;
+		assertNull(properties.getClass().getCanonicalName());
+		var sb = new StringBuilder();
+		LogPropertiesReporting.describe(sb, properties);
+		assertEquals(LogPropertiesReporting.DESCRIBE_KEY, sb.toString());
 	}
 
 }

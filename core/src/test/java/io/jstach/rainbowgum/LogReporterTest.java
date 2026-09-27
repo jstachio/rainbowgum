@@ -24,6 +24,7 @@ class LogReporterTest {
 		try (var gum = RainbowGum.builder().build()) {
 			String actual = reporter.report(gum);
 			String expected = """
+					Properties: SYSTEM_PROPERTIES
 					Global Properties:
 					  logging.global.change = (unset)
 					  logging.global.queue.level = (unset)

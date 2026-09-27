@@ -13,8 +13,9 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogReporter;
 
-class SimpleLogProperties implements LogProperties {
+class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
 
 	private final String resource;
 
@@ -54,6 +55,11 @@ class SimpleLogProperties implements LogProperties {
 			return LogProperties.descriptionForResource(DESCRIPTION, this.resource, key, v.line());
 		}
 		return LogProperties.descriptionForResource(DESCRIPTION, this.resource, key);
+	}
+
+	@Override
+	public void report(Appendable out) throws IOException {
+		out.append(DESCRIPTION).append("[").append(resource).append("]");
 	}
 
 	/*

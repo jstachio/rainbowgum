@@ -111,4 +111,12 @@ class SimpleLogPropertiesTest {
 		assertTrue(props.order() < LogProperties.StandardProperties.SYSTEM_PROPERTIES.order());
 	}
 
+	@Test
+	void testReportIncludesTheResourceName() throws Exception {
+		var props = SimpleLogProperties.read(new StringReader("logging.first=1"), "classpath:/example.properties");
+		var sb = new StringBuilder();
+		props.report(sb);
+		assertEquals("SIMPLE_PROPS[classpath:/example.properties]", sb.toString());
+	}
+
 }

@@ -312,6 +312,9 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 	}
 
 	private void appendGlobalProperties(Appendable out, LogProperties properties) throws IOException {
+		out.append("Properties: ");
+		LogPropertiesReporting.describe(out, properties);
+		out.append("\n");
 		out.append("Global Properties:\n");
 		for (String key : GLOBAL_PROPERTY_KEYS) {
 			String value = properties.valueOrNull(key);

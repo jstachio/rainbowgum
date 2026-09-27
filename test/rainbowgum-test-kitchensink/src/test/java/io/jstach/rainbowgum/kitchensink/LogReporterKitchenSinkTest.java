@@ -146,6 +146,7 @@ class LogReporterKitchenSinkTest {
 			String expected = """
 					Rainbow Gum VERSION_PLACEHOLDER
 
+					Properties: SYSTEM_PROPERTIES, io.jstach.rainbowgum.avaje.AvajeProperties
 					Global Properties:
 					  logging.global.change = (unset)
 					  logging.global.queue.level = (unset)
