@@ -153,7 +153,19 @@
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-slf4j</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-jdk</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-pattern</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
     </dependency>
   </dependencies>
 </project>

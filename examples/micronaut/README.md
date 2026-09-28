@@ -23,12 +23,16 @@ Central.
 ## What changed from the generated baseline
 
 `pom.xml`: replaced the `ch.qos.logback:logback-classic` runtime dependency with
-`io.jstach.rainbowgum:rainbowgum-simple` (bundles core, pattern, slf4j, systemlogger,
-jdk, jul, plus `rainbowgum-simple-props` for zero-config properties loading),
-`rainbowgum-pattern` explicitly (it already rides along transitively via
-`rainbowgum-simple`, but is what makes the pattern encoder below actually resolve),
-and `io.jstach.rainbowgum.micronaut:rainbowgum-micronaut5` (a real
-`ManagedLoggingSystem` bean, see Findings below). Deleted
+`io.jstach.rainbowgum.micronaut:rainbowgum-micronaut5`, which supplies the
+`ManagedLoggingSystem` bean and runtime dependencies on `rainbowgum-slf4j`,
+`rainbowgum-jdk` (System.Logger and JUL), and `rainbowgum-pattern`.
+The example also includes `io.jstach.rainbowgum:rainbowgum-simple-props` at runtime
+to load its classpath `logging.properties` for both the running application and
+smoke tests. No separate `rainbowgum-simple` or `rainbowgum-pattern` dependency is
+needed. The Micronaut integration handles `logger.levels.*`; it does not load general
+Rainbow Gum appender/encoder properties from Micronaut's environment.
+
+Deleted
 `src/main/resources/logback.xml` (confirmed first that leaving it in place is
 genuinely harmless: no warning, no double logging, matches the doc's claim). Added
 `src/main/resources/logging.properties`: Rainbow Gum's own property format
@@ -43,7 +47,7 @@ round-trips correctly. `application.properties` sets
 ## Findings
 
 - **The swap is exactly as low-effort as the doc says, and stayed that way even after
-  moving to `rainbowgum-simple` + a real properties file.** Unlike the Helidon example
+  using `rainbowgum-micronaut5` + `rainbowgum-simple-props`.** Unlike the Helidon example
   (see `examples/helidon`'s own README), Micronaut fully embraces SLF4J as its own
   facade, so there is no `System.LoggerFinder`/`RainbowGumEagerLoad` bootstrap
   ambiguity to work around here at all: Micronaut's own internals call
