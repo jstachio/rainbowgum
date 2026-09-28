@@ -60,7 +60,7 @@ jobs:
           fi
 
           # The whole point of this example: swapping logback-classic for
-          # rainbowgum-simple + rainbowgum-pattern needs no code change and no
+          # rainbowgum-micronaut5 + rainbowgum-simple-props needs no code change and no
           # bootstrap gymnastics (Micronaut calls LoggerFactory.getLogger(...) itself,
           # which is enough to trigger SLF4J's own initialize() callback). A plain
           # HTTP 200 proves the server ran. It does not prove Rainbow Gum's pattern

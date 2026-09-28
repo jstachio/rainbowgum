@@ -2091,32 +2091,46 @@ Javadoc jar's <code>Automatic-Module-Name</code>), so it is not part of this agg
 Javadoc, but its source is on GitHub for the full mechanism.
 </p>
 
-The recommended setup with Maven is:
+<p>
+<code>rainbowgum-micronaut5</code> includes <code>rainbowgum-slf4j</code>,
+<code>rainbowgum-jdk</code>, and <code>rainbowgum-pattern</code> as runtime dependencies.
+This provides the SLF4J implementation, <code>System.Logger</code> support, JUL bridging,
+and pattern encoding. Remove the application's existing logging implementation
+(e.g. <code>logback-classic</code>) and add the Micronaut integration:
+</p>
 
 {@snippet lang=xml :
-  <dependencies>
-    <dependency>
-      <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum-simple</artifactId>
-      <version>_VERSION_</version>
-    </dependency>
-    <dependency>
-      <groupId>io.jstach.rainbowgum</groupId>
-      <artifactId>rainbowgum-pattern</artifactId>
-      <version>_VERSION_</version>
-    </dependency>
-    <dependency>
-      <groupId>io.jstach.rainbowgum.micronaut</groupId>
-      <artifactId>rainbowgum-micronaut5</artifactId>
-      <version>_VERSION_</version>
-    </dependency>
-  </dependencies>
+  <dependency>
+    <groupId>io.jstach.rainbowgum.micronaut</groupId>
+    <artifactId>rainbowgum-micronaut5</artifactId>
+    <version>_VERSION_</version>
+    <scope>runtime</scope>
+  </dependency>
 }
 
-<code>rainbowgum-simple</code>/<code>rainbowgum-pattern</code> give zero config classpath
-<code>logging.properties</code> support (Rainbow Gum's own property format, not
-<code>java.util.logging</code>'s), the same combination this repository's own
-<code>examples/micronaut</code> uses.
+<p>
+For classpath <code>logging.properties</code> loading, optionally add
+<code>rainbowgum-simple-props</code>, as this repository's <code>examples/micronaut</code>
+does for its configuration and smoke tests:
+</p>
+
+{@snippet lang=xml :
+  <dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-simple-props</artifactId>
+    <version>_VERSION_</version>
+    <scope>runtime</scope>
+  </dependency>
+}
+
+<p>
+That file uses Rainbow Gum's own property format, not <code>java.util.logging</code>'s.
+The Micronaut integration supports <code>logger.levels.*</code> in
+<code>application.properties</code>/<code>application.yml</code>, but does not expose
+Micronaut's environment as a general source of Rainbow Gum properties. Appender,
+output, and encoder settings can be supplied through <code>logging.properties</code>
+with <code>rainbowgum-simple-props</code>.
+</p>
 
 <h3 id="jboss_logging">JBoss Logging</h3>
 
