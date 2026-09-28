@@ -10,6 +10,12 @@ import io.jstach.rainbowgum.helidon4.RainbowGumLoggingProvider;
  * explanation of why this activates before any application log line, and beats
  * {@code JulProvider} automatically with no configuration needed.
  * <p>
+ * The runtime dependency {@code rainbowgum-jdk} supplies both
+ * {@link java.lang.System.Logger} support through {@code rainbowgum-systemlogger}
+ * and {@link java.util.logging} bridging through {@code rainbowgum-jul}. The Helidon
+ * provider bootstraps Rainbow Gum, which installs the JUL bridge; no separate JDK
+ * logging dependency is needed in the application.
+ * <p>
  * Named {@code helidon4}, not {@code helidon}: Helidon's own major-version releases
  * (4.x, then whatever comes after) force a new artifact each time this project's own
  * shared, single-version-across-every-module scheme can't otherwise express an

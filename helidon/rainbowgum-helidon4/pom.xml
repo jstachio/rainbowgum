@@ -69,11 +69,10 @@
       <version>${project.version}</version>
     </dependency>
     <!--
-      The actual JUL -> Rainbow Gum Handler bridge: Helidon's own facade is
-      java.util.logging, so this module is only useful in combination with it.
-      Runtime scope, matching how rainbowgum-jdk itself depends on it. Nothing in
-      this module's own source references rainbowgum-jul directly.
-      rainbowgum-jdk includes the system logger as we as JUL.
+      Both JDK logging APIs are needed: rainbowgum-jdk supplies System.Logger
+      support and pulls in rainbowgum-jul for Helidon's java.util.logging calls.
+      Runtime scope because this module's source references neither implementation;
+      its LoggingProvider bootstraps Rainbow Gum and activates the JUL bridge.
     -->
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>

@@ -2054,9 +2054,13 @@ file (Rainbow Gum's own property format, not <code>java.util.logging</code>'s) a
 encoder, the same combination this repository's own <code>examples/helidon</code> uses.
 
 <p>
-Helidon's own facade is <code>java.util.logging</code>, so <code>rainbowgum-helidon4</code> pulls
-<code>rainbowgum-jul</code> in transitively at runtime scope. That module installs the actual bridge
-<code>Handler</code> once Rainbow Gum has bootstrapped.
+<code>rainbowgum-helidon4</code> pulls in <code>rainbowgum-jdk</code> at runtime scope,
+providing both <code>java.lang.System.Logger</code> support through
+<code>rainbowgum-systemlogger</code> and <code>java.util.logging</code> (JUL) bridging through
+<code>rainbowgum-jul</code>. This covers JDK and library calls to <code>System.Logger</code>
+as well as Helidon's own JUL logging. The Helidon <code>LoggingProvider</code> bootstraps
+Rainbow Gum; <code>rainbowgum-jul</code> then installs the bridge <code>Handler</code>.
+No separate JDK logging dependency is needed.
 </p>
 
 <h3 id="micronaut">Micronaut</h3>

@@ -18,12 +18,14 @@ curl http://localhost:8080/hello
 Needs Rainbow Gum installed in the local `.m2` first (`../../mvnw install` from the
 repo root).
 
-## What's in here vs. what the doc describes
+## Logging dependencies
 
-This example takes the doc's "good enough for most apps" path: Rainbow Gum's existing
-Handler-based `rainbowgum-jul` bridge, not a custom `LogManager` (which the doc
-documents as not existing yet and being nontrivial new work, out of scope for this
-gap-finding pass).
+The example uses Rainbow Gum's native Helidon `LoggingProvider` integration and
+Handler-based JUL bridge. `rainbowgum-helidon4` brings in `rainbowgum-jdk` at runtime,
+which supplies both `rainbowgum-systemlogger` for `java.lang.System.Logger` and
+`rainbowgum-jul` for `java.util.logging`. This covers JDK and library logging as well
+as Helidon's JUL calls, without adding a separate JDK logging dependency. Helidon's
+provider initializes Rainbow Gum and activates the JUL bridge.
 
 Dependencies are `rainbowgum-helidon4` (implements Helidon's own `LoggingProvider`
 extension point, see Findings below for the full journey to this point),
@@ -36,6 +38,9 @@ TTLL-like format that tags every line with `[RAINBOW_GUM]`, so it is visually ob
 the output which system actually produced a given line.
 
 ## Findings
+
+The following records the original integration investigation; the setup above is
+the current dependency arrangement.
 
 - **Final state: `rainbowgum-helidon4` (Helidon's own `LoggingProvider` extension
   point).** Superseding every earlier finding below: `rainbowgum-helidon4` implements
