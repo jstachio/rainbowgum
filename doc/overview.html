@@ -88,12 +88,21 @@ configuration at all; drop a <code>logging.properties</code> file in
 <code>src/test/resources</code> if you want to customize it. See
 {@link io.jstach.rainbowgum.simple.props/} for the exact resolution order (System
 properties, then <code>RAINBOWGUM_</code>-prefixed environment variables, then the
-classpath file) and the environment variable naming convention. The classpath file is
+profile files, then the base classpath file) and the environment variable naming convention. The classpath file is
 one of the rare places Rainbow Gum does implicit resource loading (see the
 <a href="#description">Description</a> section above for why core itself avoids that).
 <code>rainbowgum-simple-props</code> bundles a GraalVM native image
-{@code resource-config.json} covering the default <code>logging.properties</code> name
-so this still works out of the box in a native image, not just on HotSpot.
+{@code resource-config.json} covering <code>logging.properties</code> and
+<code>logging-&lt;profile&gt;.properties</code> so this still works in a native image.
+<p>
+Set {@value io.jstach.rainbowgum.simple.props.SimpleProperties#PROFILES_PROPERTY}
+through system properties (for example <code>-Dlogging.profiles=local-dev,dev</code>)
+or <code>RAINBOWGUM_profiles</code> to select profiles. System properties take priority
+over environment variables, then profile files are searched in listed order, followed
+by <code>logging.properties</code>. Profile names allow ASCII letters, digits,
+underscores, and hyphens. Missing files are ignored; profile selection is resolved
+before any file is loaded, so a properties file cannot activate profiles.
+</p>
 <p>
 <strong>This is good for testing, simple applications, or older applications that
 prefer letting the logging system handle loading its own configuration.</strong> For

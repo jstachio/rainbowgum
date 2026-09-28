@@ -31,6 +31,10 @@ Prefer parameterized enum data driven tests over methods for more permutations.
 For faster builds slow tests get put in test modules in test directory.
 
 Golden strings of error messages or log output are desirable in this library.
+For error messages, always assert the complete message with `assertEquals` and a
+Java text block (`"""`). Do not use `contains` or other partial-message assertions.
+If a message includes nondeterministic values, replace only those values with stable
+placeholders before comparing the full string.
 
 Do not write unit tests that are not end to end just to improve code coverage.
 

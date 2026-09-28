@@ -153,4 +153,77 @@ class SimplePropertiesTest {
 		}
 	}
 
+	@Test
+	void testProfilesUseListedPriorityAndFallBackToBase() {
+		var props = SimpleProperties.builder()
+			.envLookup(Map.of("RAINBOWGUM_profiles", "profile-first,profile-second")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("first", composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals("second-only", composite.valueOrNull("logging.profile.test.fallback"));
+		assertEquals("WARN", composite.valueOrNull("logging.level.root"));
+	}
+
+	@Test
+	void testProfilesAreSelectedOnlyBeforeLoadingFiles() {
+		var base = SimpleProperties.builder().resource("custom.properties").envLookup(k -> null).build();
+		assertEquals(null, LogProperties.of(base.properties()).valueOrNull("logging.profile.test.shared"));
+		var profile = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_profiles", "profile-first")::get).build();
+		assertEquals(null, LogProperties.of(profile.properties()).valueOrNull("logging.profile.test.fallback"));
+	}
+
+	@Test
+	void testCustomResourceAndEnvironmentPrefix() {
+		var props = SimpleProperties.builder()
+			.resource("classpath:/custom.properties")
+			.envPrefix("CUSTOM_")
+			.envLookup(Map.of("CUSTOM_profiles", "missing,profile-first")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("custom", composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals("base", composite.valueOrNull("logging.profile.test.base"));
+	}
+
+	@Test
+	void testSystemProfileSelectionAndExternalOverrides() {
+		String previous = System.getProperty(SimpleProperties.PROFILES_PROPERTY);
+		String key = "logging.profile.test.shared";
+		String previousValue = System.getProperty(key);
+		try {
+			System.setProperty(SimpleProperties.PROFILES_PROPERTY, "profile-second");
+			var builder = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_profiles", "profile-first")::get);
+			assertEquals("second", LogProperties.of(builder.build().properties()).valueOrNull(key));
+			builder.envLookup(Map.of("RAINBOWGUM_profile_test_shared", "environment")::get);
+			assertEquals("environment", LogProperties.of(builder.build().properties()).valueOrNull(key));
+			System.setProperty(key, "system");
+			assertEquals("system", LogProperties.of(builder.build().properties()).valueOrNull(key));
+		}
+		finally {
+			if (previous == null) {
+				System.getProperties().remove(SimpleProperties.PROFILES_PROPERTY);
+			}
+			else {
+				System.setProperty(SimpleProperties.PROFILES_PROPERTY, previous);
+			}
+			if (previousValue == null) {
+				System.getProperties().remove(key);
+			}
+			else {
+				System.setProperty(key, previousValue);
+			}
+		}
+	}
+
+	@Test
+	void testInvalidProfileReportsItsSource() {
+		var builder = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_profiles", "../secret")::get);
+		var error = assertThrows(io.jstach.rainbowgum.LogProperty.ValidationException.class, builder::build);
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
+						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Invalid profile name '../secret': use only ASCII letters, digits, underscores, and hyphens
+						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
+				error.getMessage());
+	}
+
 }

@@ -5,26 +5,29 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
 
 /**
- * Resolves {@link LogProperties} from up to three layers, highest priority first:
+ * Resolves {@link LogProperties} from the following layers, highest priority first:
  * <ol>
  * <li>System properties
  * ({@link LogProperties.StandardProperties#SYSTEM_PROPERTIES}).</li>
  * <li>Environment variables, using {@value Builder#DEFAULT_ENV_PREFIX} (configurable) in
  * place of the {@code "logging."} lead segment of the key, remaining <code>.</code>s
- * replaced with <code>_</code>, and casing left exactly as-is - see
+ * replaced with <code>_</code>, and casing left exactly as-is; see
  * {@link Builder#envPrefix(String)}.</li>
+ * <li>Profile resources selected by {@value #PROFILES_PROPERTY}, first profile wins.</li>
  * <li>A classpath resource (default {@value Builder#DEFAULT_RESOURCE}, configurable)
  * parsed the same way {@link LogProperties.Builder#fromProperties(String)} parses any
- * other properties text - if the resource is not found this layer contributes
+ * other properties text; if the resource is not found this layer contributes
  * nothing.</li>
  * </ol>
  * Create one with {@link #builder()}, or just rely on {@link SimplePropertiesProvider}
@@ -32,15 +35,24 @@ import io.jstach.rainbowgum.LogProperties;
  * <p>
  * <b>GraalVM native image</b>: this module bundles a {@code resource-config.json} (at
  * {@code META-INF/native-image/io.jstach.rainbowgum/rainbowgum-simple-props/}) that
- * registers the default resource name, {@value Builder#DEFAULT_RESOURCE}, so a
- * {@code logging.properties} on the classpath is included in the native image
- * automatically - native-image's own embedded-configuration discovery picks this up from
- * any jar on the build classpath, no extra plugin or flag needed. A custom
- * {@link Builder#resource(String)} is a different resource name, so it is <em>not</em>
- * covered by that file - add your own {@code resource-config.json} entry (or pass
- * {@code -H:IncludeResources=...} directly) for it.
+ * includes {@code logging.properties} and {@code logging-<profile>.properties}
+ * automatically. Profile names contain only ASCII letters, digits, underscores, and
+ * hyphens. Custom {@link Builder#resource(String)} names and their profile variants need
+ * corresponding native-image resource metadata.
  */
 public final class SimpleProperties {
+
+	/**
+	 * Comma-separated profiles, in priority order. Resolved only from system properties
+	 * and environment variables before any classpath resources are loaded. With the
+	 * default environment prefix, use {@code RAINBOWGUM_profiles}. For example,
+	 * {@code logging.profiles=local-dev,dev} loads {@code logging-local-dev.properties}
+	 * before {@code logging-dev.properties}, with {@code logging.properties} as fallback.
+	 * Missing resources are ignored. Files cannot activate additional profiles.
+	 */
+	public static final String PROFILES_PROPERTY = LogProperties.ROOT_PREFIX + "profiles";
+
+	private static final Pattern PROFILE_NAME = Pattern.compile("[A-Za-z0-9_-]+");
 
 	private final List<LogProperties> properties;
 
@@ -49,7 +61,7 @@ public final class SimpleProperties {
 	}
 
 	/**
-	 * The three layers described in this class's javadoc, highest priority first.
+	 * The layers described in this class's javadoc, highest priority first.
 	 * @return properties, highest priority first.
 	 */
 	public List<LogProperties> properties() {
@@ -107,8 +119,9 @@ public final class SimpleProperties {
 		 * Sets the classpath resource to load properties from. A leading
 		 * {@code classpath:} scheme (with or without a following <code>/</code>) is
 		 * stripped before resolving; the remainder is resolved as a plain classpath
-		 * resource name. Not found is not an error - that layer simply contributes no
-		 * properties.
+		 * resource name. Profile names are inserted before a trailing {@code .properties}
+		 * extension, or appended with a hyphen if there is no such extension. Missing
+		 * base and profile resources simply contribute no properties.
 		 * @apiNote unlike the default resource name, a custom one here is not covered by
 		 * this module's bundled GraalVM {@code resource-config.json} - see this class's
 		 * javadoc.
@@ -136,8 +149,28 @@ public final class SimpleProperties {
 		public SimpleProperties build() {
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
-			var classpathProperties = loadResource(resource);
-			return new SimpleProperties(List.of(systemProperties, environmentVariables, classpathProperties));
+			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
+			var profiles = preProperties.forKey(PROFILES_PROPERTY).ofList().map(names -> {
+				for (var name : names) {
+					if (!PROFILE_NAME.matcher(name).matches()) {
+						throw new IllegalArgumentException("Invalid profile name '" + name
+								+ "': use only ASCII letters, digits, underscores, and hyphens");
+					}
+				}
+				return names;
+			}).or(List.of()).validateNow(SimpleProperties.class);
+			var properties = new ArrayList<LogProperties>();
+			properties.add(systemProperties);
+			properties.add(environmentVariables);
+			for (var profile : profiles) {
+				String profileResource = resource.endsWith(".properties")
+						? resource.substring(0, resource.length() - ".properties".length()) + "-" + profile
+								+ ".properties"
+						: resource + "-" + profile;
+				properties.add(loadResource(profileResource));
+			}
+			properties.add(loadResource(resource));
+			return new SimpleProperties(List.copyOf(properties));
 		}
 
 		private static LogProperties loadResource(String resource) {

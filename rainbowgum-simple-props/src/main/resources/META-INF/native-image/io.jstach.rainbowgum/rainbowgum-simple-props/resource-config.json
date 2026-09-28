@@ -3,6 +3,9 @@
     "includes": [
       {
         "pattern": "\\Qlogging.properties\\E"
+      },
+      {
+        "pattern": "\\Qlogging-\\E[A-Za-z0-9_-]+\\Q.properties\\E"
       }
     ]
   }

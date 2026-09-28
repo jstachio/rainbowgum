@@ -2,7 +2,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
  * Loads {@link io.jstach.rainbowgum.LogProperties} from system properties, environment
- * variables, and a classpath {@code logging.properties} resource.
+ * variables, profile resources, and a classpath {@code logging.properties} resource.
+ * See {@link io.jstach.rainbowgum.simple.props.SimpleProperties} for profile selection
+ * and precedence.
  * @provides RainbowGumServiceProvider
  */
 module io.jstach.rainbowgum.simple.props {
