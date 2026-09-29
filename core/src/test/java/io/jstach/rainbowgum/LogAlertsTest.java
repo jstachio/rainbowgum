@@ -245,6 +245,17 @@ class LogAlertsTest {
 	}
 
 	@Test
+	void informationalProviderAlertDoesNotTriggerUnobservedErrorsAction() {
+		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=FAIL").build();
+		var config = assertDoesNotThrow(() -> LogConfig.builder().propertiesProvider((registry, alerts) -> {
+			alerts.info(LogAlertsTest.class, "profile diagnostics");
+			return List.of(props);
+		}).build());
+		assertEquals(List.of("profile diagnostics"), config.alerts().dump().stream().map(LogEvent::message).toList());
+		assertEquals("", outputStream.toString(StandardCharsets.UTF_8));
+	}
+
+	@Test
 	void unobservedErrorsActionBadValueFailsLoudlyInsteadOfSilentlyResolvingToDefault() {
 		// resolved (and validated) at construction time now, alongside capacity, so this
 		// fails before any configurator ever runs - no need for one in this test.
