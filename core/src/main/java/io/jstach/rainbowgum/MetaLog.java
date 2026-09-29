@@ -30,7 +30,7 @@ final class MetaLog {
 	}
 
 	/**
-	 * Logs an error in the logging system.
+	 * Reports a logging system event at its original level.
 	 * @param event event to log.
 	 */
 	static void error(LogEvent event) {
@@ -70,19 +70,17 @@ enum FailsafeAppender implements LogEventLogger {
 
 	@Override
 	public void log(LogEvent event) {
-		if (event.level().compareTo(Level.ERROR) >= 0) {
-			var err = MetaLog.output.get();
-			if (err != null) {
-				err.append("[ERROR] - RAINBOW_GUM ");
-				StringBuilder sb = new StringBuilder();
-				event.formattedMessage(sb);
-				err.append(sb.toString());
+		var err = MetaLog.output.get();
+		if (err != null) {
+			err.append("[").append(event.level().name()).append("] - RAINBOW_GUM ");
+			StringBuilder sb = new StringBuilder();
+			event.formattedMessage(sb);
+			err.append(sb.toString());
 
-				var throwable = event.throwableOrNull();
-				if (throwable != null) {
-					err.append(" ");
-					throwable.printStackTrace(err);
-				}
+			var throwable = event.throwableOrNull();
+			if (throwable != null) {
+				err.append(" ");
+				throwable.printStackTrace(err);
 			}
 		}
 	}
