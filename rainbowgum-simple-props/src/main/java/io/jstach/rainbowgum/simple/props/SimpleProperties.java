@@ -29,8 +29,8 @@ import io.jstach.rainbowgum.LogProperties;
  * must exist.</li>
  * <li>A classpath resource (default {@value Builder#DEFAULT_RESOURCE}, configurable)
  * parsed the same way {@link LogProperties.Builder#fromProperties(String)} parses any
- * other properties text; if the resource is not found and no profiles are selected, no
- * classpath resources are loaded.</li>
+ * other properties text. If the base resource is absent, this module supplies no property
+ * sources at all.</li>
  * </ol>
  * Create one with {@link #builder()}, or just rely on {@link SimplePropertiesProvider}
  * picking up the defaults automatically via {@link java.util.ServiceLoader}.
@@ -47,13 +47,13 @@ public final class SimpleProperties {
 	/**
 	 * Comma-separated profiles, in priority order. Resolved from system properties,
 	 * environment variables, or {@link Builder#profiles(List)}, in that priority order,
-	 * before any classpath resources are loaded. With the default environment prefix, use
-	 * {@code RAINBOWGUM_profiles}. For example, {@code logging.profiles=local-dev,dev}
-	 * loads {@code logging-local-dev.properties} before {@code logging-dev.properties},
-	 * with {@code logging.properties} as fallback. A missing base resource disables
-	 * classpath loading when no profiles are selected. If profiles are selected, a
-	 * missing base or profile resource fails initialization. Files cannot activate
-	 * additional profiles.
+	 * after the base classpath resource is found. With the default environment prefix,
+	 * use {@code RAINBOWGUM_profiles}. For example,
+	 * {@code logging.profiles=local-dev,dev} loads {@code logging-local-dev.properties}
+	 * before {@code logging-dev.properties}, with {@code logging.properties} as fallback.
+	 * A missing base resource disables all property sources from this module, regardless
+	 * of profile selection. A missing selected profile resource fails initialization.
+	 * Files cannot activate additional profiles.
 	 */
 	public static final String PROFILES_PROPERTY = LogProperties.ROOT_PREFIX + "profiles";
 
@@ -128,9 +128,9 @@ public final class SimpleProperties {
 		 * stripped before resolving; the remainder is resolved as a plain classpath
 		 * resource name. Profile names are inserted before a trailing {@code .properties}
 		 * extension, or appended with a hyphen if there is no such extension. A missing
-		 * base resource disables classpath loading unless profiles were selected, in
-		 * which case it fails initialization. Missing selected profile resources also
-		 * fail.
+		 * base resource makes this module supply no property sources, regardless of
+		 * profile selection. Missing selected profile resources fail when the base
+		 * resource exists.
 		 * @apiNote unlike the default resource name, a custom one here is not covered by
 		 * this module's bundled GraalVM {@code resource-config.json} - see this class's
 		 * javadoc.
@@ -179,20 +179,13 @@ public final class SimpleProperties {
 		 * @return simple properties.
 		 */
 		public SimpleProperties build() {
+			var classpathProperties = loadResource(resource);
+			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
+				return new SimpleProperties(List.of());
+			}
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
-			var classpathProperties = loadResource(resource);
-			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
-				preProperties.forKey(PROFILES_PROPERTY).ofList().or(profiles).map(names -> {
-					if (!names.isEmpty()) {
-						throw new IllegalArgumentException(
-								"Missing base classpath resource '" + resource + "' required for selected profiles");
-					}
-					return names;
-				}).validateNow(SimpleProperties.class);
-				return new SimpleProperties(List.of(systemProperties, environmentVariables));
-			}
 			var profileLayers = preProperties.forKey(PROFILES_PROPERTY).ofList().or(profiles).map(names -> {
 				var layers = new ArrayList<LogProperties>();
 				for (var name : names) {
