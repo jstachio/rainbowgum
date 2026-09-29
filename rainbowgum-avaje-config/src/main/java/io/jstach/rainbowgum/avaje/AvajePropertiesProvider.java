@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.avaje.config.Config;
 import io.avaje.config.Configuration;
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
@@ -39,7 +40,7 @@ public final class AvajePropertiesProvider
 	}
 
 	@Override
-	public List<LogProperties> provideProperties(ServiceRegistry registry) {
+	public List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts) {
 		var config = registry.putIfAbsent(Configuration.class, configurationSupplier);
 		var props = new AvajeProperties(config);
 		registry.put(AvajeProperties.class, props);

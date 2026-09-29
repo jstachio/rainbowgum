@@ -356,6 +356,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		public LogConfig build() {
 			ServiceRegistry serviceRegistry = this.serviceRegistry;
 			LogProperties logProperties = this.logProperties;
+			var prePropertiesAlerts = new PrePropertiesLogAlerts();
 
 			var serviceLoader = this.serviceLoader;
 			var configurators = this.configurators;
@@ -365,10 +366,10 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			if (logProperties == null) {
 				List<LogProperties> props = new ArrayList<>();
 				for (var pp : propertiesProviders) {
-					props.addAll(pp.provideProperties(serviceRegistry));
+					props.addAll(pp.provideProperties(serviceRegistry, prePropertiesAlerts));
 				}
 				if (props.isEmpty() && serviceLoader != null) {
-					props.addAll(provideProperties(serviceRegistry, serviceLoader));
+					props.addAll(provideProperties(serviceRegistry, serviceLoader, prePropertiesAlerts));
 				}
 				/*
 				 * LogProperties.of(List, LogProperties)'s fallback argument is only used
@@ -399,6 +400,12 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			LogMetrics metrics = new DefaultLogMetrics();
 			var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics);
+			// The config constructor installs the metrics listener before these alerts
+			// replay.
+			for (var event : prePropertiesAlerts.dump()) {
+				alerts.error(event);
+			}
+			prePropertiesAlerts.close();
 			if (serviceLoader != null) {
 				configurators = new ArrayList<>(configurators);
 				findProviders(serviceLoader, Configurator.class).forEach(configurators::add);
@@ -439,9 +446,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		}
 
 		private static List<LogProperties> provideProperties(ServiceRegistry registry,
-				ServiceLoader<RainbowGumServiceProvider> loader) {
+				ServiceLoader<RainbowGumServiceProvider> loader, LogAlerts alerts) {
 			List<LogProperties> props = findProviders(loader, PropertiesProvider.class)
-				.flatMap(s -> s.provideProperties(registry).stream())
+				.flatMap(s -> s.provideProperties(registry, alerts).stream())
 				.toList();
 			return props;
 		}
@@ -654,10 +661,17 @@ final class DefaultLogConfig implements LogConfig {
 		 * addInternalListener, not addListener: a passive in-process counter nobody has
 		 * wired an exporter to does not count as "someone is watching" for
 		 * LogAlerts.UnobservedErrorsAction's purposes - see DefaultLogAlerts's own
-		 * comment on hasExternalListener. alerts is always a DefaultLogAlerts; LogAlerts
-		 * is sealed to permit only that one implementation.
+		 * comment on hasExternalListener. Config alerts is always a DefaultLogAlerts;
+		 * PrePropertiesLogAlerts is only passed to PropertiesProviders before config
+		 * exists.
 		 */
-		((DefaultLogAlerts) this.alerts).addInternalListener(event -> this.metrics.errorCounter(event.loggerName(), 1));
+		((DefaultLogAlerts) this.alerts).addInternalListener(event -> {
+			switch (event.level()) {
+				case ERROR -> this.metrics.errorCounter(event.loggerName(), 1);
+				case WARNING -> this.metrics.warnCounter(event.loggerName(), 1);
+				default -> this.metrics.infoCounter(event.loggerName(), 1);
+			}
+		});
 	}
 
 	/*

@@ -60,7 +60,7 @@ class LogConfigTest {
 		try {
 			var config = LogConfig.builder()
 				.propertiesProvider(
-						registry -> List.of((LogProperties) key -> "logging.other".equals(key) ? "1" : null))
+						(registry, alerts) -> List.of((LogProperties) key -> "logging.other".equals(key) ? "1" : null))
 				.build();
 			var resolver = config.levelResolver();
 			assertEquals(Level.TRACE, resolver.resolveLevel("stuff"));

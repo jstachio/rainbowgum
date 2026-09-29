@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.simple.props;
 
 import java.util.List;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -27,7 +28,7 @@ public final class SimplePropertiesProvider implements RainbowGumServiceProvider
 	}
 
 	@Override
-	public List<LogProperties> provideProperties(ServiceRegistry registry) {
+	public List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts) {
 		var simpleProperties = registry.putIfAbsent(SimpleProperties.class, () -> SimpleProperties.builder().build());
 		return simpleProperties.properties();
 	}

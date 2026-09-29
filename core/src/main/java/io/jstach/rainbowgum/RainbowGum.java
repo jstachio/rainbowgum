@@ -83,11 +83,13 @@ class RainbowGumProviderExample implements RainbowGumProvider {
  * {@link LogProperties} - manually added
  * {@link RainbowGumServiceProvider.PropertiesProvider}s, else (if a
  * {@link java.util.ServiceLoader} was supplied) SPI-discovered ones, with system
- * properties always layered in as a final fallback.</li>
+ * properties always layered in as a final fallback. Providers receive a temporary
+ * {@link LogAlerts} collector.</li>
  * <li>Build {@link LogAlerts} and {@link LogMetrics} from properties.</li>
  * <li>Build the global level resolver ({@code logging.level.*} and
  * {@code logging.group.*}, plus anything added directly on the builder).</li>
- * <li>Construct the {@link LogConfig} itself - this is also where a few
+ * <li>Construct the {@link LogConfig} itself and replay provider alerts into its
+ * configured {@link LogAlerts}. This is also where a few
  * process-wide flags get latched (config change support, the appender lock, and
  * thread-local-disabled globals) and the default output/encoder/publisher
  * registries are created.</li>
