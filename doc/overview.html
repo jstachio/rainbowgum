@@ -100,8 +100,13 @@ through system properties (for example <code>-Dlogging.profiles=local-dev,dev</c
 or <code>RAINBOWGUM_profiles</code> to select profiles. System properties take priority
 over environment variables, then profile files are searched in listed order, followed
 by <code>logging.properties</code>. Profile names allow ASCII letters, digits,
-underscores, and hyphens. Missing files are ignored; profile selection is resolved
-before any file is loaded, so a properties file cannot activate profiles.
+underscores, and hyphens. The base <code>logging.properties</code> file must exist
+before any profile resource is loaded. This keeps classpath configuration explicitly
+opted in. When profiles are selected, both the base file and every selected profile
+file must exist; a missing file fails startup instead of silently falling back to
+the wrong configuration. Without selected profiles, an absent base file simply
+leaves system properties and environment variables available. Profile selection is resolved before files are loaded, so a
+properties file cannot activate profiles.
 </p>
 <p>
 <strong>This is good for testing, simple applications, or older applications that

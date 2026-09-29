@@ -177,7 +177,7 @@ class SimplePropertiesTest {
 		var props = SimpleProperties.builder()
 			.resource("classpath:/custom.properties")
 			.envPrefix("CUSTOM_")
-			.envLookup(Map.of("CUSTOM_profiles", "missing,profile-first")::get)
+			.envLookup(Map.of("CUSTOM_profiles", "profile-first")::get)
 			.build();
 		var composite = LogProperties.of(props.properties());
 		assertEquals("custom", composite.valueOrNull("logging.profile.test.shared"));
@@ -222,6 +222,32 @@ class SimplePropertiesTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
 						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Invalid profile name '../secret': use only ASCII letters, digits, underscores, and hyphens
+						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
+				error.getMessage());
+	}
+
+	@Test
+	void testMissingSelectedProfileReportsItsSource() {
+		var builder = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_profiles", "not-present")::get);
+		var error = assertThrows(io.jstach.rainbowgum.LogProperty.ValidationException.class, builder::build);
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
+						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Missing classpath resource 'classpath:/logging-not-present.properties' for selected profile 'not-present'
+						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
+				error.getMessage());
+	}
+
+	@Test
+	void testSelectedProfileWithoutBaseResourceReportsItsSource() {
+		var builder = SimpleProperties.builder()
+			.resource("classpath:/unconfigured.properties")
+			.envLookup(Map.of("RAINBOWGUM_profiles", "profile-first", "RAINBOWGUM_level_root", "DEBUG")::get);
+		var error = assertThrows(io.jstach.rainbowgum.LogProperty.ValidationException.class, builder::build);
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
+						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Missing base classpath resource 'classpath:/unconfigured.properties' required for selected profiles
 						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
 				error.getMessage());
 	}

@@ -24,11 +24,13 @@ import io.jstach.rainbowgum.LogProperties;
  * place of the {@code "logging."} lead segment of the key, remaining <code>.</code>s
  * replaced with <code>_</code>, and casing left exactly as-is; see
  * {@link Builder#envPrefix(String)}.</li>
- * <li>Profile resources selected by {@value #PROFILES_PROPERTY}, first profile wins.</li>
+ * <li>Profile resources selected by {@value #PROFILES_PROPERTY}, first profile wins.
+ * These are loaded only when the base resource exists; every selected profile resource
+ * must exist.</li>
  * <li>A classpath resource (default {@value Builder#DEFAULT_RESOURCE}, configurable)
  * parsed the same way {@link LogProperties.Builder#fromProperties(String)} parses any
- * other properties text; if the resource is not found this layer contributes
- * nothing.</li>
+ * other properties text; if the resource is not found and no profiles are selected, no
+ * classpath resources are loaded.</li>
  * </ol>
  * Create one with {@link #builder()}, or just rely on {@link SimplePropertiesProvider}
  * picking up the defaults automatically via {@link java.util.ServiceLoader}.
@@ -48,7 +50,9 @@ public final class SimpleProperties {
 	 * default environment prefix, use {@code RAINBOWGUM_profiles}. For example,
 	 * {@code logging.profiles=local-dev,dev} loads {@code logging-local-dev.properties}
 	 * before {@code logging-dev.properties}, with {@code logging.properties} as fallback.
-	 * Missing resources are ignored. Files cannot activate additional profiles.
+	 * A missing base resource disables classpath loading when no profiles are selected.
+	 * If profiles are selected, a missing base or profile resource fails initialization.
+	 * Files cannot activate additional profiles.
 	 */
 	public static final String PROFILES_PROPERTY = LogProperties.ROOT_PREFIX + "profiles";
 
@@ -120,8 +124,10 @@ public final class SimpleProperties {
 		 * {@code classpath:} scheme (with or without a following <code>/</code>) is
 		 * stripped before resolving; the remainder is resolved as a plain classpath
 		 * resource name. Profile names are inserted before a trailing {@code .properties}
-		 * extension, or appended with a hyphen if there is no such extension. Missing
-		 * base and profile resources simply contribute no properties.
+		 * extension, or appended with a hyphen if there is no such extension. A missing
+		 * base resource disables classpath loading unless profiles were selected, in
+		 * which case it fails initialization. Missing selected profile resources also
+		 * fail.
 		 * @apiNote unlike the default resource name, a custom one here is not covered by
 		 * this module's bundled GraalVM {@code resource-config.json} - see this class's
 		 * javadoc.
@@ -150,26 +156,42 @@ public final class SimpleProperties {
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
+			var classpathProperties = loadResource(resource);
+			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
+				preProperties.forKey(PROFILES_PROPERTY).ofList().map(names -> {
+					if (!names.isEmpty()) {
+						throw new IllegalArgumentException(
+								"Missing base classpath resource '" + resource + "' required for selected profiles");
+					}
+					return names;
+				}).or(List.of()).validateNow(SimpleProperties.class);
+				return new SimpleProperties(List.of(systemProperties, environmentVariables));
+			}
 			var profiles = preProperties.forKey(PROFILES_PROPERTY).ofList().map(names -> {
+				var layers = new ArrayList<LogProperties>();
 				for (var name : names) {
 					if (!PROFILE_NAME.matcher(name).matches()) {
 						throw new IllegalArgumentException("Invalid profile name '" + name
 								+ "': use only ASCII letters, digits, underscores, and hyphens");
 					}
+					String profileResource = resource.endsWith(".properties")
+							? resource.substring(0, resource.length() - ".properties".length()) + "-" + name
+									+ ".properties"
+							: resource + "-" + name;
+					var profileProperties = loadResource(profileResource);
+					if (profileProperties == LogProperties.StandardProperties.EMPTY) {
+						throw new IllegalArgumentException("Missing classpath resource '" + profileResource
+								+ "' for selected profile '" + name + "'");
+					}
+					layers.add(profileProperties);
 				}
-				return names;
+				return List.copyOf(layers);
 			}).or(List.of()).validateNow(SimpleProperties.class);
 			var properties = new ArrayList<LogProperties>();
 			properties.add(systemProperties);
 			properties.add(environmentVariables);
-			for (var profile : profiles) {
-				String profileResource = resource.endsWith(".properties")
-						? resource.substring(0, resource.length() - ".properties".length()) + "-" + profile
-								+ ".properties"
-						: resource + "-" + profile;
-				properties.add(loadResource(profileResource));
-			}
-			properties.add(loadResource(resource));
+			properties.addAll(profiles);
+			properties.add(classpathProperties);
 			return new SimpleProperties(List.copyOf(properties));
 		}
 
