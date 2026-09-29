@@ -30,6 +30,7 @@ public final class SimplePropertiesProvider implements RainbowGumServiceProvider
 	@Override
 	public List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts) {
 		var simpleProperties = registry.putIfAbsent(SimpleProperties.class, () -> SimpleProperties.builder().build());
+		simpleProperties.reportAlerts(alerts);
 		return simpleProperties.properties();
 	}
 

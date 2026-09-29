@@ -1930,6 +1930,11 @@ builder profiles. Each source replaces the whole list. Profile names allow ASCII
 letters, digits, underscores, and hyphens. When the base file exists, every selected
 profile file must also exist or startup fails. Files cannot select additional profiles.
 <p>
+The provider records the selected profiles and each loaded resource as informational
+{@link io.jstach.rainbowgum.LogConfig#alerts() alerts}. If the base resource is absent,
+it records that instead. Informational alerts are retained without printing to stderr
+by default.
+<p>
 The module includes GraalVM native-image resource metadata for
 <code>logging.properties</code> and <code>logging-&lt;profile&gt;.properties</code>.
 Custom resource names need their own native-image metadata. For dynamic configuration

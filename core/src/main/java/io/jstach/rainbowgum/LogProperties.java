@@ -286,7 +286,7 @@ public interface LogProperties {
 
 	/**
 	 * What {@link LogAlerts} does, once on {@link LogLifecycle#start(LogConfig) start},
-	 * if it has recorded at least one alert and still has zero
+	 * if it has recorded at least one error alert and still has zero
 	 * {@link LogAlerts.Listener}s registered - see
 	 * {@link LogAlerts.UnobservedErrorsAction} for the three choices and
 	 * {@link LogAlerts.UnobservedErrorsAction#DUMP} for the default.

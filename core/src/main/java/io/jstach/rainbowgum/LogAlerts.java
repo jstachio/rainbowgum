@@ -19,7 +19,9 @@ import org.jspecify.annotations.Nullable;
  * appender failing to write, or an async publisher's queue overflowing. Because logging
  * itself may be broken these are not routed through the normal {@link LogRouter} but are
  * instead kept in a small in memory ring buffer (see {@link #dump()} and
- * {@link #stats()}) as well as immediately reported (currently to stderr).
+ * {@link #stats()}). Warning and error alerts are also reported immediately (currently to
+ * stderr); informational alerts remain available for diagnostics without producing output
+ * by default.
  * <p>
  * An instance is available from every {@link LogConfig#alerts()}. Components that are
  * {@linkplain LogProvider provided} config, or that are
@@ -160,10 +162,10 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	}
 
 	/**
-	 * What {@link #start(LogConfig)} does if, at that moment, at least one alert has been
-	 * recorded and still zero {@link Listener}s are registered - the situation Logback's
-	 * {@code StatusManager} calls an unobserved status: nothing is watching, so whatever
-	 * went wrong during property loading or a
+	 * What {@link #start(LogConfig)} does if, at that moment, at least one error alert
+	 * has been recorded and still zero {@link Listener}s are registered - the situation
+	 * Logback's {@code StatusManager} calls an unobserved status: nothing is watching, so
+	 * whatever went wrong during property loading or a
 	 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator} would
 	 * otherwise only ever have reached the individual, easy to miss stderr lines each
 	 * {@link #error(LogEvent)} call already produces.
@@ -176,7 +178,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	enum UnobservedErrorsAction {
 
 		/**
-		 * Do nothing beyond what {@link #error(LogEvent)} already does per event.
+		 * Do nothing beyond the immediate reporting of warning and error events.
 		 */
 		NONE,
 		/**
@@ -267,6 +269,8 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	private final AtomicLong total = new AtomicLong();
 
+	private final AtomicLong errors = new AtomicLong();
+
 	private final ReentrantLock lock = new ReentrantLock();
 
 	private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -342,6 +346,9 @@ final class DefaultLogAlerts implements LogAlerts {
 	public void error(LogEvent event) {
 		var frozen = event.freeze();
 		total.incrementAndGet();
+		if (frozen.level() == Level.ERROR) {
+			errors.incrementAndGet();
+		}
 		lock.lock();
 		try {
 			if (size < ring.length) {
@@ -364,7 +371,9 @@ final class DefaultLogAlerts implements LogAlerts {
 				FailsafeAppender.INSTANCE.log(eventFactory.eventNoArg(Level.ERROR, "LogAlerts.Listener threw", e));
 			}
 		}
-		FailsafeAppender.INSTANCE.log(frozen);
+		if (frozen.level() == Level.WARNING || frozen.level() == Level.ERROR) {
+			FailsafeAppender.INSTANCE.log(frozen);
+		}
 	}
 
 	@Override
@@ -384,7 +393,7 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	@Override
 	public void start(LogConfig config) {
-		if (unobservedErrorsAction == UnobservedErrorsAction.NONE || hasExternalListener || total.get() == 0) {
+		if (unobservedErrorsAction == UnobservedErrorsAction.NONE || hasExternalListener || errors.get() == 0) {
 			return;
 		}
 		var backlog = dump();

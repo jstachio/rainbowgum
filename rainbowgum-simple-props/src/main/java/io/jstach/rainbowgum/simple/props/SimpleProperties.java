@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogProperties;
 
 /**
@@ -33,7 +34,8 @@ import io.jstach.rainbowgum.LogProperties;
  * sources at all.</li>
  * </ol>
  * Create one with {@link #builder()}, or just rely on {@link SimplePropertiesProvider}
- * picking up the defaults automatically via {@link java.util.ServiceLoader}.
+ * picking up the defaults automatically via {@link java.util.ServiceLoader}. The provider
+ * reports selected profiles and classpath resource loading through {@link LogAlerts}.
  * <p>
  * <b>GraalVM native image</b>: this module bundles a {@code resource-config.json} (at
  * {@code META-INF/native-image/io.jstach.rainbowgum/rainbowgum-simple-props/}) that
@@ -61,8 +63,11 @@ public final class SimpleProperties {
 
 	private final List<LogProperties> properties;
 
-	private SimpleProperties(List<LogProperties> properties) {
+	private final List<String> infoMessages;
+
+	private SimpleProperties(List<LogProperties> properties, List<String> infoMessages) {
 		this.properties = properties;
+		this.infoMessages = infoMessages;
 	}
 
 	/**
@@ -71,6 +76,15 @@ public final class SimpleProperties {
 	 */
 	public List<LogProperties> properties() {
 		return properties;
+	}
+
+	void reportAlerts(LogAlerts alerts) {
+		for (var message : infoMessages) {
+			alerts.info(SimpleProperties.class, message);
+		}
+	}
+
+	private record ProfileResources(List<String> names, List<LogProperties> properties, List<String> resources) {
 	}
 
 	/**
@@ -181,13 +195,14 @@ public final class SimpleProperties {
 		public SimpleProperties build() {
 			var classpathProperties = loadResource(resource);
 			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
-				return new SimpleProperties(List.of());
+				return new SimpleProperties(List.of(), List.of("No properties resource found: " + resource));
 			}
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
-			var profileLayers = preProperties.forKey(PROFILES_PROPERTY).ofList().or(profiles).map(names -> {
+			var profileResources = preProperties.forKey(PROFILES_PROPERTY).ofList().or(profiles).map(names -> {
 				var layers = new ArrayList<LogProperties>();
+				var resources = new ArrayList<String>();
 				for (var name : names) {
 					if (!PROFILE_NAME.matcher(name).matches()) {
 						throw new IllegalArgumentException("Invalid profile name '" + name
@@ -203,15 +218,22 @@ public final class SimpleProperties {
 								+ "' for selected profile '" + name + "'");
 					}
 					layers.add(profileProperties);
+					resources.add(profileResource);
 				}
-				return List.copyOf(layers);
+				return new ProfileResources(List.copyOf(names), List.copyOf(layers), List.copyOf(resources));
 			}).validateNow(SimpleProperties.class);
 			var properties = new ArrayList<LogProperties>();
 			properties.add(systemProperties);
 			properties.add(environmentVariables);
-			properties.addAll(profileLayers);
+			properties.addAll(profileResources.properties());
 			properties.add(classpathProperties);
-			return new SimpleProperties(List.copyOf(properties));
+			var infoMessages = new ArrayList<String>();
+			infoMessages.add("Found profiles: " + profileResources.names());
+			infoMessages.add("Loaded properties resource: " + resource);
+			for (var profileResource : profileResources.resources()) {
+				infoMessages.add("Loaded properties resource: " + profileResource);
+			}
+			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages));
 		}
 
 		private static LogProperties loadResource(String resource) {
