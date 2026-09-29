@@ -165,6 +165,36 @@ class SimplePropertiesTest {
 	}
 
 	@Test
+	void testBuilderProfilesAreFallbackAndKeepListedPriority() {
+		var props = SimpleProperties.builder().profiles("profile-first", "profile-second").envLookup(k -> null).build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("first", composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals("second-only", composite.valueOrNull("logging.profile.test.fallback"));
+	}
+
+	@Test
+	void testEnvironmentProfilesReplaceBuilderProfiles() {
+		var props = SimpleProperties.builder()
+			.profiles(java.util.List.of("profile-second"))
+			.envLookup(Map.of("RAINBOWGUM_profiles", "profile-first")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("first", composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals(null, composite.valueOrNull("logging.profile.test.fallback"));
+	}
+
+	@Test
+	void testEmptyEnvironmentProfileListDisablesBuilderProfiles() {
+		var props = SimpleProperties.builder()
+			.profiles("profile-first")
+			.envLookup(Map.of("RAINBOWGUM_profiles", "")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals(null, composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals("WARN", composite.valueOrNull("logging.level.root"));
+	}
+
+	@Test
 	void testProfilesAreSelectedOnlyBeforeLoadingFiles() {
 		var base = SimpleProperties.builder().resource("custom.properties").envLookup(k -> null).build();
 		assertEquals(null, LogProperties.of(base.properties()).valueOrNull("logging.profile.test.shared"));
@@ -191,7 +221,9 @@ class SimplePropertiesTest {
 		String previousValue = System.getProperty(key);
 		try {
 			System.setProperty(SimpleProperties.PROFILES_PROPERTY, "profile-second");
-			var builder = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_profiles", "profile-first")::get);
+			var builder = SimpleProperties.builder()
+				.profiles("not-present")
+				.envLookup(Map.of("RAINBOWGUM_profiles", "profile-first")::get);
 			assertEquals("second", LogProperties.of(builder.build().properties()).valueOrNull(key));
 			builder.envLookup(Map.of("RAINBOWGUM_profile_test_shared", "environment")::get);
 			assertEquals("environment", LogProperties.of(builder.build().properties()).valueOrNull(key));
@@ -249,6 +281,20 @@ class SimplePropertiesTest {
 						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
 						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Missing base classpath resource 'classpath:/unconfigured.properties' required for selected profiles
 						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
+				error.getMessage());
+	}
+
+	@Test
+	void testBuilderSelectedProfileWithoutBaseResourceFails() {
+		var builder = SimpleProperties.builder()
+			.resource("classpath:/unconfigured.properties")
+			.profiles("profile-first")
+			.envLookup(k -> null);
+		var error = assertThrows(io.jstach.rainbowgum.LogProperty.ValidationException.class, builder::build);
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
+						Error for property. key: SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles], Missing base classpath resource 'classpath:/unconfigured.properties' required for selected profiles""",
 				error.getMessage());
 	}
 

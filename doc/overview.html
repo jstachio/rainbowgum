@@ -96,9 +96,12 @@ one of the rare places Rainbow Gum does implicit resource loading (see the
 <code>logging-&lt;profile&gt;.properties</code> so this still works in a native image.
 <p>
 Set {@value io.jstach.rainbowgum.simple.props.SimpleProperties#PROFILES_PROPERTY}
-through system properties (for example <code>-Dlogging.profiles=local-dev,dev</code>)
-or <code>RAINBOWGUM_profiles</code> to select profiles. System properties take priority
-over environment variables, then profile files are searched in listed order, followed
+through system properties (for example <code>-Dlogging.profiles=local-dev,dev</code>),
+<code>RAINBOWGUM_profiles</code>, or
+{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) SimpleProperties.builder().profiles(...)}.
+Each source replaces the complete profile list; system properties take priority,
+then environment variables, then builder profiles. Profile files are searched in
+listed order, followed
 by <code>logging.properties</code>. Profile names allow ASCII letters, digits,
 underscores, and hyphens. The base <code>logging.properties</code> file must exist
 before any profile resource is loaded. This keeps classpath configuration explicitly
