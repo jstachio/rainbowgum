@@ -2,8 +2,8 @@ package io.jstach.rainbowgum.simple.props;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -29,10 +29,7 @@ class SimplePropertiesTest {
 
 	@Test
 	void testEnvVarMappingDefaultPrefix() {
-		var props = SimpleProperties.builder()
-			.envLookup(Map.of("RAINBOWGUM_level_root", "DEBUG")::get)
-			.resource("classpath:/does-not-exist.properties")
-			.build();
+		var props = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_level_root", "DEBUG")::get).build();
 		var composite = LogProperties.of(props.properties());
 		assertEquals("DEBUG",
 				composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
@@ -43,7 +40,6 @@ class SimplePropertiesTest {
 		var props = SimpleProperties.builder()
 			.envPrefix("MYCO_")
 			.envLookup(Map.of("MYCO_level_root", "TRACE")::get)
-			.resource("classpath:/does-not-exist.properties")
 			.build();
 		var composite = LogProperties.of(props.properties());
 		assertEquals("TRACE",
@@ -72,13 +68,24 @@ class SimplePropertiesTest {
 	}
 
 	@Test
-	void testMissingResourceDoesNotThrowAndFallsThrough() {
+	void testMissingResourceSuppliesNoProperties() {
 		var props = SimpleProperties.builder()
 			.resource("classpath:/does-not-exist.properties")
-			.envLookup(k -> null)
+			.envLookup(Map.of("RAINBOWGUM_level_root", "DEBUG")::get)
 			.build();
-		var composite = LogProperties.of(props.properties());
-		assertTrue(composite.forKey("logging.level.root").ofString() instanceof Result.Missing<String>);
+		assertEquals(List.of(), props.properties());
+	}
+
+	@Test
+	void testMissingResourceDoesNotSelectProfiles() {
+		var props = SimpleProperties.builder()
+			.resource("classpath:/does-not-exist.properties")
+			.profiles("profile-first")
+			.envLookup(k -> {
+				throw new AssertionError("Environment should not be read without a base resource");
+			})
+			.build();
+		assertEquals(List.of(), props.properties());
 	}
 
 	@Test
@@ -112,17 +119,14 @@ class SimplePropertiesTest {
 
 	@Test
 	void testEnvVarBadIntValueFailsLoudlyWithEnvDescription() {
-		var props = SimpleProperties.builder()
-			.envLookup(Map.of("RAINBOWGUM_threshold", "not-a-number")::get)
-			.resource("classpath:/does-not-exist.properties")
-			.build();
+		var props = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_threshold", "not-a-number")::get).build();
 		var composite = LogProperties.of(props.properties());
 		var e = assertThrows(PropertyConvertException.class,
 				() -> ((Result.Error<Integer>) composite.forKey("logging.threshold").ofInt()).value());
 		assertEquals(
 				"""
 						Error for property. key: 'logging.threshold' from ENV[RAINBOWGUM_threshold], java.lang.NumberFormatException For input string: "not-a-number"
-						Tried: 'logging.threshold' from SYSTEM_PROPERTIES[logging.threshold], ENV[RAINBOWGUM_threshold]""",
+						Tried: 'logging.threshold' from SYSTEM_PROPERTIES[logging.threshold], ENV[RAINBOWGUM_threshold], SIMPLE_PROPS[classpath:/logging.properties][logging.threshold]""",
 				e.getMessage());
 	}
 
@@ -303,31 +307,22 @@ class SimplePropertiesTest {
 	}
 
 	@Test
-	void testSelectedProfileWithoutBaseResourceReportsItsSource() {
-		var builder = SimpleProperties.builder()
+	void testEnvironmentSelectedProfileWithoutBaseResourceSuppliesNoProperties() {
+		var props = SimpleProperties.builder()
 			.resource("classpath:/unconfigured.properties")
-			.envLookup(Map.of("RAINBOWGUM_profiles", "profile-first", "RAINBOWGUM_level_root", "DEBUG")::get);
-		var error = assertThrows(io.jstach.rainbowgum.LogProperty.ValidationException.class, builder::build);
-		assertEquals(
-				"""
-						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
-						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Missing base classpath resource 'classpath:/unconfigured.properties' required for selected profiles
-						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
-				error.getMessage());
+			.envLookup(Map.of("RAINBOWGUM_profiles", "profile-first", "RAINBOWGUM_level_root", "DEBUG")::get)
+			.build();
+		assertEquals(List.of(), props.properties());
 	}
 
 	@Test
-	void testBuilderSelectedProfileWithoutBaseResourceFails() {
-		var builder = SimpleProperties.builder()
+	void testBuilderSelectedProfileWithoutBaseResourceSuppliesNoProperties() {
+		var props = SimpleProperties.builder()
 			.resource("classpath:/unconfigured.properties")
 			.profiles("profile-first")
-			.envLookup(k -> null);
-		var error = assertThrows(io.jstach.rainbowgum.LogProperty.ValidationException.class, builder::build);
-		assertEquals(
-				"""
-						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
-						Error for property. key: SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles], Missing base classpath resource 'classpath:/unconfigured.properties' required for selected profiles""",
-				error.getMessage());
+			.envLookup(k -> null)
+			.build();
+		assertEquals(List.of(), props.properties());
 	}
 
 }

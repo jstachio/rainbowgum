@@ -1916,18 +1916,19 @@ It reads system properties first, then <code>RAINBOWGUM_</code>-prefixed environ
 variables, selected <code>logging-&lt;profile&gt;.properties</code> files in listed order,
 and finally <code>logging.properties</code> from the classpath. For example,
 <code>logging.level.root</code> maps to <code>RAINBOWGUM_level_root</code> with the
-default prefix. Classpath loading starts only when <code>logging.properties</code>
-exists. With no selected profiles, a missing base file leaves system properties and
-environment variables available.
+default prefix. <strong>To opt in, having <code>rainbowgum-simple-props</code> on the
+classpath or module path is not enough: <code>logging.properties</code> (or the base
+resource name chosen with {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#resource(String) SimpleProperties.builder().resource(...)})
+must exist.</strong> Otherwise this module contributes no properties, including system
+properties and environment variables, even when profiles were selected.
 <p>
 Select profiles with <code>-Dlogging.profiles=local-dev,dev</code>,
 <code>RAINBOWGUM_profiles</code>, or
 {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) SimpleProperties.builder().profiles(...)}.
 System properties take priority over environment variables, which take priority over
 builder profiles. Each source replaces the whole list. Profile names allow ASCII
-letters, digits, underscores, and hyphens. When profiles are selected, both the base
-file and every selected profile file must exist or startup fails. Files cannot select
-additional profiles.
+letters, digits, underscores, and hyphens. When the base file exists, every selected
+profile file must also exist or startup fails. Files cannot select additional profiles.
 <p>
 The module includes GraalVM native-image resource metadata for
 <code>logging.properties</code> and <code>logging-&lt;profile&gt;.properties</code>.

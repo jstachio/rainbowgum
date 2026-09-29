@@ -50,7 +50,7 @@ class SimplePropertiesProviderTest {
 		var custom = SimpleProperties.builder()
 			.envPrefix("CUSTOM_")
 			.envLookup(Map.of("CUSTOM_level_root", "TRACE")::get)
-			.resource("classpath:/does-not-exist.properties")
+			.resource("classpath:/custom.properties")
 			.build();
 		registry.putIfAbsent(SimpleProperties.class, () -> custom);
 		var config = LogConfig.builder().serviceRegistry(registry).serviceLoader().build();
