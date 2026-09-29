@@ -39,8 +39,7 @@ The long term goal of Rainbow Gum is to be a logging framework **for all** with 
 
 > [!WARNING]
 > While this readme does contain some documentation the above is the preferred documentation and
-> more likely to be up to date and correct! The rest of this readme is mainly for ~~propaganda~~
-> marketing purposes.
+> more likely to be up to date and correct!
 
 The doc is also on javadoc.io but is not aggregated like the above.
 
