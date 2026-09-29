@@ -14,6 +14,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
 import io.jstach.rainbowgum.LogProperty.Result;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 /*
  * testSystemPropertyWinsOverEverything sets a real System property (JVM-wide global
@@ -162,6 +163,37 @@ class SimplePropertiesTest {
 		assertEquals("first", composite.valueOrNull("logging.profile.test.shared"));
 		assertEquals("second-only", composite.valueOrNull("logging.profile.test.fallback"));
 		assertEquals("WARN", composite.valueOrNull("logging.level.root"));
+	}
+
+	@Test
+	void testInvalidPropertyFromSecondProfileReportsAllSources() {
+		var props = SimpleProperties.builder().profiles("profile-first", "profile-second").envLookup(k -> null).build();
+		var composite = LogProperties.of(props.properties());
+		var error = assertThrows(ValidationException.class,
+				() -> composite.forKey("logging.profile.test.fallback")
+					.ofInt()
+					.validateNow(SimplePropertiesTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.SimplePropertiesTest:
+						Error for property. key: 'logging.profile.test.fallback' from SIMPLE_PROPS[classpath:/logging-profile-second.properties:2][logging.profile.test.fallback], java.lang.NumberFormatException For input string: "second-only"
+						Tried: 'logging.profile.test.fallback' from SYSTEM_PROPERTIES[logging.profile.test.fallback], ENV[RAINBOWGUM_profile_test_fallback], SIMPLE_PROPS[classpath:/logging-profile-first.properties][logging.profile.test.fallback], SIMPLE_PROPS[classpath:/logging-profile-second.properties:2][logging.profile.test.fallback], SIMPLE_PROPS[classpath:/logging.properties][logging.profile.test.fallback]""",
+				error.getMessage());
+	}
+
+	@Test
+	void testMissingPropertyWithMultipleProfilesReportsAllSources() {
+		var props = SimpleProperties.builder().profiles("profile-first", "profile-second").envLookup(k -> null).build();
+		var composite = LogProperties.of(props.properties());
+		var error = assertThrows(ValidationException.class,
+				() -> composite.forKey("logging.profile.test.missing")
+					.ofString()
+					.validateNow(SimplePropertiesTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.SimplePropertiesTest:
+						Property missing. keys: ['logging.profile.test.missing' from SYSTEM_PROPERTIES[logging.profile.test.missing], ENV[RAINBOWGUM_profile_test_missing], SIMPLE_PROPS[classpath:/logging-profile-first.properties][logging.profile.test.missing], SIMPLE_PROPS[classpath:/logging-profile-second.properties][logging.profile.test.missing], SIMPLE_PROPS[classpath:/logging.properties][logging.profile.test.missing]]""",
+				error.getMessage());
 	}
 
 	@Test
