@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.micronaut5;
 
 import java.util.List;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
@@ -36,7 +37,7 @@ public final class RainbowGumMicronautPropertiesProvider implements RainbowGumSe
 	}
 
 	@Override
-	public List<LogProperties> provideProperties(ServiceRegistry registry) {
+	public List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts) {
 		var mutable = MutableLogProperties.builder().description("micronaut").build();
 		mutable.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true");
 		mutable.put(LogProperties.CHANGE_PREFIX, "level");

@@ -3,14 +3,19 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.lang.System.Logger.Level;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,6 +75,44 @@ class LogAlertsTest {
 		var dump = alerts.dump();
 		assertEquals(1, dump.size());
 		assertEquals("custom message", dump.get(0).message());
+	}
+
+	@Test
+	void propertyProviderAlertsAreReplayedBeforeConfigurators() {
+		var earlyAlerts = new AtomicReference<LogAlerts>();
+		var properties = LogProperties.builder()
+			.fromProperties("logging.alerts.capacity=2\nlogging.alerts.unobservedErrorsAction=NONE")
+			.build();
+		var config = LogConfig.builder().propertiesProvider((registry, alerts) -> {
+			earlyAlerts.set(alerts);
+			assertEquals("Listeners are unavailable before properties are loaded",
+					assertThrows(UnsupportedOperationException.class, () -> alerts.addListener(event -> {
+					})).getMessage());
+			alerts.warn(LogAlertsTest.class, "early warning");
+			return List.of();
+		}).propertiesProvider((registry, alerts) -> {
+			assertSame(earlyAlerts.get(), alerts);
+			alerts.info(LogAlertsTest.class, "early information");
+			return List.of(properties);
+		}).configurator((built, pass) -> {
+			assertEquals(List.of("early warning", "early information"),
+					built.alerts().dump().stream().map(LogEvent::message).toList());
+			return true;
+		}).build();
+
+		assertNotSame(earlyAlerts.get(), config.alerts());
+		assertEquals("Pre-properties alerts are no longer active",
+				assertThrows(IllegalStateException.class, () -> earlyAlerts.get().info(LogAlertsTest.class, "too late"))
+					.getMessage());
+		assertEquals(2, config.alerts().stats().total());
+		assertEquals(2, config.alerts().stats().capacity());
+		assertEquals(List.of(Level.WARNING, Level.INFO), config.alerts().dump().stream().map(LogEvent::level).toList());
+		assertNull(config.alerts().dump().get(0).throwableOrNull());
+		assertNull(config.alerts().dump().get(1).throwableOrNull());
+		assertEquals(
+				List.of(new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.WARNING, 1),
+						new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.INFO, 1)),
+				config.metrics().counters());
 	}
 
 	@Test

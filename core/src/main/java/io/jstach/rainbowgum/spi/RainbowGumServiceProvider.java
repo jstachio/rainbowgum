@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 import io.avaje.spi.Service;
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
@@ -65,9 +66,12 @@ public sealed interface RainbowGumServiceProvider {
 		 * Provides properties and or register services. <em>If just registering services
 		 * and not providing properies an empty list can be returned. </em>
 		 * @param registry registry is usually empty here.
+		 * @param alerts collects alerts until the configured {@link LogConfig#alerts()}
+		 * is available. Listener registration is not supported at this stage. Do not
+		 * retain this temporary instance after the provider returns.
 		 * @return list of properties.
 		 */
-		List<LogProperties> provideProperties(ServiceRegistry registry);
+		List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts);
 
 	}
 

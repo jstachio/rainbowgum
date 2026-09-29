@@ -11,6 +11,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Alerts (sometimes called errors or status events elsewhere) are for reporting problems
  * with the logging system itself rather than application logging - for example an
@@ -34,7 +36,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @see LogConfig#alerts()
  */
-public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts {
+public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts, PrePropertiesLogAlerts {
 
 	/**
 	 * Default capacity of the alert ring buffer.
@@ -43,8 +45,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts 
 
 	/**
 	 * Records an alert.
-	 * @param event event describing the alert. {@link Level#ERROR} or higher is expected
-	 * but not enforced.
+	 * @param event event describing the alert.
 	 */
 	public void error(LogEvent event);
 
@@ -65,9 +66,31 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts 
 	 * @param throwable cause of the alert.
 	 */
 	default void error(Class<?> loggerName, String message, Throwable throwable) {
+		error(event(loggerName, Level.ERROR, message, throwable));
+	}
+
+	/**
+	 * Records a warning alert.
+	 * @param loggerName usually the class where the alert originated.
+	 * @param message alert message.
+	 */
+	default void warn(Class<?> loggerName, String message) {
+		error(event(loggerName, Level.WARNING, message, null));
+	}
+
+	/**
+	 * Records an informational alert.
+	 * @param loggerName usually the class where the alert originated.
+	 * @param message alert message.
+	 */
+	default void info(Class<?> loggerName, String message) {
+		error(event(loggerName, Level.INFO, message, null));
+	}
+
+	private static LogEvent event(Class<?> loggerName, Level level, String message, @Nullable Throwable throwable) {
 		var currentThread = Thread.currentThread();
-		error(LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), Level.ERROR,
-				loggerName.getName(), message, KeyValues.of(), throwable));
+		return LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level,
+				loggerName.getName(), message, KeyValues.of(), throwable);
 	}
 
 	/**
@@ -176,6 +199,60 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts 
 			return UnobservedErrorsAction.valueOf(value.toUpperCase(Locale.ROOT));
 		}
 
+	}
+
+}
+
+/*
+ * Collects alerts before LogProperties is available to configure DefaultLogAlerts. Events
+ * are replayed after DefaultLogConfig has installed its metrics listener.
+ */
+final class PrePropertiesLogAlerts implements LogAlerts {
+
+	private final List<LogEvent> events = new ArrayList<>();
+
+	private long total;
+
+	private boolean closed;
+
+	@Override
+	public synchronized void error(LogEvent event) {
+		if (closed) {
+			throw new IllegalStateException("Pre-properties alerts are no longer active");
+		}
+		events.add(event.freeze());
+		total++;
+	}
+
+	@Override
+	public synchronized List<LogEvent> dump() {
+		return List.copyOf(events);
+	}
+
+	@Override
+	public synchronized void clear() {
+		events.clear();
+	}
+
+	@Override
+	public synchronized Stats stats() {
+		return new Stats(total, events.size(), Integer.MAX_VALUE);
+	}
+
+	@Override
+	public AutoCloseable addListener(Listener listener) {
+		throw new UnsupportedOperationException("Listeners are unavailable before properties are loaded");
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		throw new UnsupportedOperationException("Pre-properties alerts cannot be started");
+	}
+
+	@Override
+	public synchronized void close() {
+		events.clear();
+		closed = true;
 	}
 
 }

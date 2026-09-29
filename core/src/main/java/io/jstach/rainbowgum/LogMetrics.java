@@ -124,7 +124,7 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	/**
 	 * The fixed, well known set of counters RainbowGum itself records - as opposed to the
 	 * open ended, per logger name counters {@link LogAlerts#error(LogEvent)} also drives
-	 * into {@link #errorCounter(String, long)}. Enumerable on purpose: consumers that
+	 * into the counter matching the alert's level. Enumerable on purpose: consumers that
 	 * want to bind every well known counter to something else (a Micrometer
 	 * {@code FunctionCounter} per constant, for example) can loop over {@link #values()}
 	 * instead of hand listing each {@code String}/{@link Level} pair themselves.

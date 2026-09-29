@@ -37,7 +37,7 @@ class RainbowGumInitializationOrderTest {
 			return output;
 		};
 
-		RainbowGumServiceProvider.PropertiesProvider propertiesProvider = registry -> {
+		RainbowGumServiceProvider.PropertiesProvider propertiesProvider = (registry, alerts) -> {
 			order.add("logConfig.propertiesProvider");
 			return List.of();
 		};
