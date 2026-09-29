@@ -78,47 +78,11 @@ a service loader aware jar.
 
 <h3 id="simple_testing">Using rainbowgum-simple (Testing/Simple Apps)</h3>
 
-For unit testing a library module, or a very simple application, Rainbow Gum provides a
-zero-configuration bundle, <code>rainbowgum-simple</code>, analogous to
-<a href="https://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html">slf4j-simple</a>
-but considerably more capable: it also brings in <a href="#system_logger">
-java.lang.System.Logger support</a> (slf4j-simple does not). The usual way to use it is as a
-<code>test</code> scoped dependency on a library module: add it and logging works with no
-configuration at all; drop a <code>logging.properties</code> file in
-<code>src/test/resources</code> if you want to customize it. See
-{@link io.jstach.rainbowgum.simple.props/} for the exact resolution order (System
-properties, then <code>RAINBOWGUM_</code>-prefixed environment variables, then the
-profile files, then the base classpath file) and the environment variable naming convention. The classpath file is
-one of the rare places Rainbow Gum does implicit resource loading (see the
-<a href="#description">Description</a> section above for why core itself avoids that).
-<code>rainbowgum-simple-props</code> bundles a GraalVM native image
-{@code resource-config.json} covering <code>logging.properties</code> and
-<code>logging-&lt;profile&gt;.properties</code> so this still works in a native image.
-<p>
-Set {@value io.jstach.rainbowgum.simple.props.SimpleProperties#PROFILES_PROPERTY}
-through system properties (for example <code>-Dlogging.profiles=local-dev,dev</code>),
-<code>RAINBOWGUM_profiles</code>, or
-{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) SimpleProperties.builder().profiles(...)}.
-Each source replaces the complete profile list; system properties take priority,
-then environment variables, then builder profiles. Profile files are searched in
-listed order, followed
-by <code>logging.properties</code>. Profile names allow ASCII letters, digits,
-underscores, and hyphens. The base <code>logging.properties</code> file must exist
-before any profile resource is loaded. This keeps classpath configuration explicitly
-opted in. When profiles are selected, both the base file and every selected profile
-file must exist; a missing file fails startup instead of silently falling back to
-the wrong configuration. Without selected profiles, an absent base file simply
-leaves system properties and environment variables available. Profile selection is resolved before files are loaded, so a
-properties file cannot activate profiles.
-</p>
-<p>
-<strong>This is good for testing, simple applications, or older applications that
-prefer letting the logging system handle loading its own configuration.</strong> For
-finer control or dynamic configuration, <a href="#config">your own configuration
-system</a> (a custom
-{@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider}) or
-<a href="#simple_example_builder">the programmatic builders</a> above are also
-available.
+For tests and small applications, add <code>rainbowgum-simple</code> and logging works
+without configuration. Add <code>logging.properties</code> to
+<code>src/test/resources</code> (or <code>src/main/resources</code> for an application)
+when you need to customize it. See <a href="#simple_integration">Simple logging and properties</a>
+for the Maven dependency and profile options.
 
 <h2 id="description">Description</h2>
 
@@ -1906,6 +1870,69 @@ and GraalVM native-image notes. It is a more invasive, JVM-wide alternative to t
 default {@code rainbowgum-jul} bridge, worth reaching for only when the bridge genuinely
 cannot see a given {@code Logger} in time.
 </p>
+
+<h3 id="simple_integration">Simple logging and properties</h3>
+
+<h4 id="simple_bundle">rainbowgum-simple</h4>
+
+<code>rainbowgum-simple</code> is a ready-to-use bundle for tests and small applications.
+It includes Rainbow Gum's SLF4J and JDK logging integrations, pattern formatting, and
+<code>rainbowgum-simple-props</code>. Adding it activates logging without application
+code or a configuration file. For library tests, use Maven's <code>test</code> scope:
+
+{@snippet lang=xml :
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-simple</artifactId>
+    <version>_VERSION_</version>
+    <scope>test</scope>
+</dependency>
+}
+
+Use <code>runtime</code> scope instead when an application uses the bundle. Place an
+optional <code>logging.properties</code> in <code>src/test/resources</code> or
+<code>src/main/resources</code>, respectively. The bundle is similar in purpose to
+<a href="https://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html">slf4j-simple</a>,
+with <a href="#system_logger">JDK logging support</a> and the property sources described below.
+
+<h4 id="simple_props">rainbowgum-simple-props</h4>
+
+Add <code>rainbowgum-simple-props</code> to an existing Rainbow Gum setup when you want
+its property loading without the entire simple bundle. For example, alongside the
+<a href="#maven">standard <code>rainbowgum</code> dependency</a>:
+
+{@snippet lang=xml :
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-simple-props</artifactId>
+    <version>_VERSION_</version>
+    <scope>runtime</scope>
+</dependency>
+}
+
+It reads system properties first, then <code>RAINBOWGUM_</code>-prefixed environment
+variables, selected <code>logging-&lt;profile&gt;.properties</code> files in listed order,
+and finally <code>logging.properties</code> from the classpath. For example,
+<code>logging.level.root</code> maps to <code>RAINBOWGUM_level_root</code> with the
+default prefix. Classpath loading starts only when <code>logging.properties</code>
+exists. With no selected profiles, a missing base file leaves system properties and
+environment variables available.
+<p>
+Select profiles with <code>-Dlogging.profiles=local-dev,dev</code>,
+<code>RAINBOWGUM_profiles</code>, or
+{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) SimpleProperties.builder().profiles(...)}.
+System properties take priority over environment variables, which take priority over
+builder profiles. Each source replaces the whole list. Profile names allow ASCII
+letters, digits, underscores, and hyphens. When profiles are selected, both the base
+file and every selected profile file must exist or startup fails. Files cannot select
+additional profiles.
+<p>
+The module includes GraalVM native-image resource metadata for
+<code>logging.properties</code> and <code>logging-&lt;profile&gt;.properties</code>.
+Custom resource names need their own native-image metadata. For dynamic configuration
+or different property sources, use a custom
+{@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider} or
+<a href="#simple_example_builder">programmatic builders</a>.
 
 <h3 id="spring_boot">Spring Boot</h3>
 
