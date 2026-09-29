@@ -45,14 +45,15 @@ import io.jstach.rainbowgum.LogProperties;
 public final class SimpleProperties {
 
 	/**
-	 * Comma-separated profiles, in priority order. Resolved only from system properties
-	 * and environment variables before any classpath resources are loaded. With the
-	 * default environment prefix, use {@code RAINBOWGUM_profiles}. For example,
-	 * {@code logging.profiles=local-dev,dev} loads {@code logging-local-dev.properties}
-	 * before {@code logging-dev.properties}, with {@code logging.properties} as fallback.
-	 * A missing base resource disables classpath loading when no profiles are selected.
-	 * If profiles are selected, a missing base or profile resource fails initialization.
-	 * Files cannot activate additional profiles.
+	 * Comma-separated profiles, in priority order. Resolved from system properties,
+	 * environment variables, or {@link Builder#profiles(List)}, in that priority order,
+	 * before any classpath resources are loaded. With the default environment prefix, use
+	 * {@code RAINBOWGUM_profiles}. For example, {@code logging.profiles=local-dev,dev}
+	 * loads {@code logging-local-dev.properties} before {@code logging-dev.properties},
+	 * with {@code logging.properties} as fallback. A missing base resource disables
+	 * classpath loading when no profiles are selected. If profiles are selected, a
+	 * missing base or profile resource fails initialization. Files cannot activate
+	 * additional profiles.
 	 */
 	public static final String PROFILES_PROPERTY = LogProperties.ROOT_PREFIX + "profiles";
 
@@ -99,6 +100,8 @@ public final class SimpleProperties {
 
 		private String resource = DEFAULT_RESOURCE;
 
+		private List<String> profiles = List.of();
+
 		private Function<String, @Nullable String> envLookup = System::getenv;
 
 		private Builder() {
@@ -139,6 +142,29 @@ public final class SimpleProperties {
 			return this;
 		}
 
+		/**
+		 * Sets fallback profiles in priority order. A system property or environment
+		 * variable for {@value SimpleProperties#PROFILES_PROPERTY} overrides this list,
+		 * including when it selects no profiles. Profile names must contain only ASCII
+		 * letters, digits, underscores, and hyphens.
+		 * @param profiles fallback profile names, first profile wins.
+		 * @return this.
+		 */
+		public Builder profiles(List<String> profiles) {
+			this.profiles = List.copyOf(profiles);
+			return this;
+		}
+
+		/**
+		 * Sets fallback profiles in priority order.
+		 * @param profiles fallback profile names, first profile wins.
+		 * @return this.
+		 * @see #profiles(List)
+		 */
+		public Builder profiles(String... profiles) {
+			return profiles(List.of(profiles));
+		}
+
 		/*
 		 * Test-only hook so env var mapping can be tested without setting real
 		 * environment variables (which the JVM cannot do portably at test time).
@@ -158,16 +184,16 @@ public final class SimpleProperties {
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
 			var classpathProperties = loadResource(resource);
 			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
-				preProperties.forKey(PROFILES_PROPERTY).ofList().map(names -> {
+				preProperties.forKey(PROFILES_PROPERTY).ofList().or(profiles).map(names -> {
 					if (!names.isEmpty()) {
 						throw new IllegalArgumentException(
 								"Missing base classpath resource '" + resource + "' required for selected profiles");
 					}
 					return names;
-				}).or(List.of()).validateNow(SimpleProperties.class);
+				}).validateNow(SimpleProperties.class);
 				return new SimpleProperties(List.of(systemProperties, environmentVariables));
 			}
-			var profiles = preProperties.forKey(PROFILES_PROPERTY).ofList().map(names -> {
+			var profileLayers = preProperties.forKey(PROFILES_PROPERTY).ofList().or(profiles).map(names -> {
 				var layers = new ArrayList<LogProperties>();
 				for (var name : names) {
 					if (!PROFILE_NAME.matcher(name).matches()) {
@@ -186,11 +212,11 @@ public final class SimpleProperties {
 					layers.add(profileProperties);
 				}
 				return List.copyOf(layers);
-			}).or(List.of()).validateNow(SimpleProperties.class);
+			}).validateNow(SimpleProperties.class);
 			var properties = new ArrayList<LogProperties>();
 			properties.add(systemProperties);
 			properties.add(environmentVariables);
-			properties.addAll(profiles);
+			properties.addAll(profileLayers);
 			properties.add(classpathProperties);
 			return new SimpleProperties(List.copyOf(properties));
 		}
