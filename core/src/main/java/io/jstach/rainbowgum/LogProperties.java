@@ -197,8 +197,8 @@ public interface LogProperties {
 	static final String GLOBAL_QUEUE_LEVEL_PROPERTY = ROOT_PREFIX + "global.queue.level";
 
 	/**
-	 * The level threshold of events that will be outputted to standard error if Rainbow
-	 * Gum is not bound yet. events that are below <code>INFO</code> are not queued.
+	 * The level threshold of queued events reported to standard error before Rainbow Gum
+	 * is bound. Defaults to <code>ERROR</code>.
 	 */
 	static final String GLOBAL_QUEUE_ERROR_PROPERTY = ROOT_PREFIX + "global.queue.error";
 
