@@ -188,7 +188,11 @@ class SimplePropertiesTest {
 		assertEquals(
 				"""
 						Error for property. key: 'logging.threshold' from ENV[RAINBOWGUM_threshold], java.lang.NumberFormatException For input string: "not-a-number"
-						Tried: 'logging.threshold' from SYSTEM_PROPERTIES[logging.threshold], ENV[RAINBOWGUM_threshold], SIMPLE_PROPS[classpath:/logging.properties][logging.threshold]""",
+						Tried:
+						    'logging.threshold' from:
+						        SYSTEM_PROPERTIES[logging.threshold],
+						        ENV[RAINBOWGUM_threshold],
+						        SIMPLE_PROPS[classpath:/logging.properties][logging.threshold]""",
 				e.getMessage());
 	}
 
@@ -201,7 +205,11 @@ class SimplePropertiesTest {
 		assertEquals(
 				"""
 						Error for property. key: 'logging.threshold' from SIMPLE_PROPS[classpath:/bad-int.properties:4][logging.threshold], java.lang.NumberFormatException For input string: "not-a-number"
-						Tried: 'logging.threshold' from SYSTEM_PROPERTIES[logging.threshold], ENV[RAINBOWGUM_threshold], SIMPLE_PROPS[classpath:/bad-int.properties:4][logging.threshold]""",
+						Tried:
+						    'logging.threshold' from:
+						        SYSTEM_PROPERTIES[logging.threshold],
+						        ENV[RAINBOWGUM_threshold],
+						        SIMPLE_PROPS[classpath:/bad-int.properties:4][logging.threshold]""",
 				e.getMessage());
 	}
 
@@ -243,7 +251,13 @@ class SimplePropertiesTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.simple.props.SimplePropertiesTest:
 						Error for property. key: 'logging.profile.test.fallback' from SIMPLE_PROPS[classpath:/logging-profile-second.properties:2][logging.profile.test.fallback], java.lang.NumberFormatException For input string: "second-only"
-						Tried: 'logging.profile.test.fallback' from SYSTEM_PROPERTIES[logging.profile.test.fallback], ENV[RAINBOWGUM_profile_test_fallback], SIMPLE_PROPS[classpath:/logging-profile-first.properties][logging.profile.test.fallback], SIMPLE_PROPS[classpath:/logging-profile-second.properties:2][logging.profile.test.fallback], SIMPLE_PROPS[classpath:/logging.properties][logging.profile.test.fallback]""",
+						Tried:
+						    'logging.profile.test.fallback' from:
+						        SYSTEM_PROPERTIES[logging.profile.test.fallback],
+						        ENV[RAINBOWGUM_profile_test_fallback],
+						        SIMPLE_PROPS[classpath:/logging-profile-first.properties][logging.profile.test.fallback],
+						        SIMPLE_PROPS[classpath:/logging-profile-second.properties:2][logging.profile.test.fallback],
+						        SIMPLE_PROPS[classpath:/logging.properties][logging.profile.test.fallback]""",
 				error.getMessage());
 	}
 

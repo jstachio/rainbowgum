@@ -270,7 +270,16 @@ public interface LogProperty {
 		 */
 		String triedDescription = ps.topProperties().description(fqk);
 		if (!triedDescription.equals(badDescription)) {
-			own += "\nTried: '" + fqk + "' from " + triedDescription;
+			String tried = "Tried: '" + fqk + "' from " + triedDescription;
+			if (tried.length() > 120) {
+				var sources = new ArrayList<String>();
+				ps.topProperties().visit(fqk, (source, sourceKey) -> {
+					sources.add(source.description(sourceKey));
+					return null;
+				});
+				tried = "Tried:\n    '" + fqk + "' from:\n        " + String.join(",\n        ", sources);
+			}
+			own += "\n" + tried;
 		}
 		/*
 		 * Root cause first: e's own message already has everything beneath this layer
