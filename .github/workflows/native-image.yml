@@ -26,6 +26,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Maven cache
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@v1
         with:
@@ -35,7 +41,6 @@ jobs:
           java-version: '25'
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache: 'maven'
       - name: Install Rainbow Gum
         run: ./mvnw $MAVEN_CLI_OPTS -DskipTests clean install
       - name: Build and run rainbowgum-test-native as a native image
