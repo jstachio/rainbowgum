@@ -28,6 +28,68 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
 class SimplePropertiesTest {
 
 	@Test
+	void testDefaultProfileIsSelectedWhenNoProfilesAreSpecified() {
+		var props = SimpleProperties.builder().resource("default-profile.properties").envLookup(k -> null).build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("default-pattern", composite.valueOrNull("logging.pattern.console"));
+		assertEquals("default", composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals("base", composite.valueOrNull("logging.profile.test.base"));
+	}
+
+	@Test
+	void testSelectedProfileReplacesDefaultProfile() {
+		var props = SimpleProperties.builder()
+			.resource("default-profile.properties")
+			.profiles("selected")
+			.envLookup(k -> null)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals(null, composite.valueOrNull("logging.pattern.console"));
+		assertEquals("selected", composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals("base", composite.valueOrNull("logging.profile.test.base"));
+	}
+
+	@Test
+	void testEmptyEnvironmentProfilesSelectDefaultInsteadOfBuilderProfiles() {
+		var props = SimpleProperties.builder()
+			.resource("default-profile.properties")
+			.profiles("selected")
+			.envLookup(Map.of("RAINBOWGUM_profiles", "")::get)
+			.build();
+		assertEquals("default", LogProperties.of(props.properties()).valueOrNull("logging.profile.test.shared"));
+	}
+
+	@Test
+	void testEmptySystemProfilesSelectDefaultInsteadOfEnvironmentAndBuilderProfiles() {
+		String previous = System.getProperty(SimpleProperties.PROFILES_PROPERTY);
+		try {
+			System.setProperty(SimpleProperties.PROFILES_PROPERTY, "");
+			var props = SimpleProperties.builder()
+				.resource("default-profile.properties")
+				.profiles("selected")
+				.envLookup(Map.of("RAINBOWGUM_profiles", "selected")::get)
+				.build();
+			assertEquals("default", LogProperties.of(props.properties()).valueOrNull("logging.profile.test.shared"));
+		}
+		finally {
+			if (previous == null) {
+				System.getProperties().remove(SimpleProperties.PROFILES_PROPERTY);
+			}
+			else {
+				System.setProperty(SimpleProperties.PROFILES_PROPERTY, previous);
+			}
+		}
+	}
+
+	@Test
+	void testExplicitDefaultProfileMayBeMissing() {
+		var props = SimpleProperties.builder().profiles("default", "profile-first").envLookup(k -> null).build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("first", composite.valueOrNull("logging.profile.test.shared"));
+		assertEquals("WARN", composite.valueOrNull("logging.level.root"));
+	}
+
+	@Test
 	void testEnvVarMappingDefaultPrefix() {
 		var props = SimpleProperties.builder().envLookup(Map.of("RAINBOWGUM_level_root", "DEBUG")::get).build();
 		var composite = LogProperties.of(props.properties());

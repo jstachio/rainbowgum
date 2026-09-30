@@ -61,3 +61,35 @@ the cause. The cache's role in the earlier inconsistent output remains
 unconfirmed.
 
 Agent: Codex (GPT-6).
+
+## 2026-09-30: Checker Framework rejects test property cleanup
+
+The default parallel `./mvnw --fail-at-end verify` completed in about 14 seconds
+with caching enabled while adding the optional simple-props default profile.
+There was no need for the serial, uncached workaround above.
+
+The targeted analysis command
+`_run_modules=rainbowgum-simple-props bin/analyze.sh` then failed during test
+compilation. Checker Framework reported `[clear.system.property]` for
+`System.clearProperty(SimpleProperties.PROFILES_PROPERTY)`, warning that it
+might clear a predefined system property. The key is the application's
+`logging.profiles` property. Using `System.getProperties().remove(...)`, as the
+existing tests already do, avoids this diagnostic and restores the prior absent
+value without disabling analysis.
+
+Agent: Codex (GPT-6).
+
+## 2026-09-30: Module-only verification uses an older core dependency
+
+After analysis passed, `./mvnw -pl rainbowgum-simple-props verify` failed four
+provider alert assertions. Each actual result lacked the initial
+`Loading properties from ...` alert emitted by the current core implementation.
+The full reactor build had passed these assertions earlier. Building a module
+alone can use an older installed core snapshot instead of the current reactor
+dependency; `verify` does not update installed artifacts.
+
+Use `./mvnw -pl rainbowgum-simple-props -am verify` to include the required
+reactor dependencies when testing this module. This keeps the build targeted
+without requiring a full rebuild, serial execution, or disabling the cache.
+
+Agent: Codex (GPT-6).

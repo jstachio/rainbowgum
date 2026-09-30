@@ -1942,7 +1942,16 @@ Select profiles with <code>-Dlogging.profiles=local-dev,dev</code>,
 System properties take priority over environment variables, which take priority over
 builder profiles. Each source replaces the whole list. Profile names allow ASCII
 letters, digits, underscores, and hyphens. When the base file exists, every selected
-profile file must also exist or startup fails. Files cannot select additional profiles.
+profile file must also exist or startup fails, except for the optional
+<code>default</code> profile. Files cannot select additional profiles.
+<p>
+When no profiles are selected (including an explicitly empty list), the
+<code>default</code> profile loads <code>logging-default.properties</code> if it exists.
+Selecting other profiles replaces this default selection; values from
+<code>logging-default.properties</code> are then absent unless <code>default</code> is
+explicitly listed. Put settings such as a custom pattern in that file when another
+profile should be able to use Rainbow Gum's built-in defaults. Settings in
+<code>logging.properties</code> remain a fallback for every profile.
 <p>
 The provider records the selected profiles and each loaded resource as informational
 {@link io.jstach.rainbowgum.LogConfig#alerts() alerts}. If the base resource is absent,

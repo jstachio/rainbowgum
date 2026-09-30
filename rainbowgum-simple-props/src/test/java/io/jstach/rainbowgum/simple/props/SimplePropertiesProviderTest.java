@@ -29,6 +29,22 @@ import io.jstach.rainbowgum.ServiceRegistry;
 class SimplePropertiesProviderTest {
 
 	@Test
+	void testDefaultProfileResourceAlertsAreReportedInOrder() {
+		var registry = ServiceRegistry.of();
+		var selected = SimpleProperties.builder().resource("default-profile.properties").envLookup(k -> null).build();
+		registry.putIfAbsent(SimpleProperties.class, () -> selected);
+		var config = LogConfig.builder()
+			.serviceRegistry(registry)
+			.propertiesProvider(new SimplePropertiesProvider())
+			.build();
+		assertEquals(
+				List.of("Loading properties from io.jstach.rainbowgum.simple.props.SimplePropertiesProvider",
+						"Found profiles: [default]", "Loaded properties resource: default-profile.properties",
+						"Loaded properties resource: default-profile-default.properties"),
+				config.alerts().dump().stream().map(LogEvent::message).toList());
+	}
+
+	@Test
 	void testServiceLoaderDiscoversProviderAndResolvesFromClasspathFile() {
 		RainbowGum.set(RainbowGum::defaults);
 		try (var gum = RainbowGum.of()) {
@@ -41,7 +57,7 @@ class SimplePropertiesProviderTest {
 			assertEquals("WARN", value);
 			assertEquals(
 					List.of("Loading properties from io.jstach.rainbowgum.simple.props.SimplePropertiesProvider",
-							"Found profiles: []", "Loaded properties resource: classpath:/logging.properties"),
+							"Found profiles: [default]", "Loaded properties resource: classpath:/logging.properties"),
 					gum.config().alerts().dump().stream().map(LogEvent::message).toList());
 		}
 	}
