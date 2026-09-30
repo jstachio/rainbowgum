@@ -430,7 +430,7 @@ public sealed interface LogEvent {
 				return switch (v) {
 					case "TRUE" -> BASIC;
 					case "FALSE" -> NONE;
-					default -> CallerType.valueOf(v);
+					default -> LogProperty.enumValue(CallerType.class, value, "true", "false");
 				};
 			}
 

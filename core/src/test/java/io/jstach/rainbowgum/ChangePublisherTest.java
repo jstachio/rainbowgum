@@ -203,7 +203,7 @@ class ChangePublisherTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad], \
-						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE""",
+						java.lang.IllegalArgumentException 'nonsense' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType. Available values: none, level, true, false""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);
@@ -211,8 +211,8 @@ class ChangePublisherTest {
 		var cause = throwable.getCause();
 		assertNotNull(cause);
 		assertEquals(IllegalArgumentException.class, cause.getClass());
-		assertEquals("No enum constant io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType.NONSENSE",
-				cause.getMessage());
+		assertEquals("'nonsense' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType. "
+				+ "Available values: none, level, true, false", cause.getMessage());
 	}
 
 	/*
@@ -235,7 +235,7 @@ class ChangePublisherTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.caller.bad' from PROPERTIES_STRING[logging.caller.bad], \
-						java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogEvent.Caller.CallerType.NONSENSE""",
+						java.lang.IllegalArgumentException 'nonsense' is not a valid value for io.jstach.rainbowgum.LogEvent.Caller.CallerType. Available values: none, basic, true, false""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);
@@ -243,7 +243,8 @@ class ChangePublisherTest {
 		var cause = throwable.getCause();
 		assertNotNull(cause);
 		assertEquals(IllegalArgumentException.class, cause.getClass());
-		assertEquals("No enum constant io.jstach.rainbowgum.LogEvent.Caller.CallerType.NONSENSE", cause.getMessage());
+		assertEquals("'nonsense' is not a valid value for io.jstach.rainbowgum.LogEvent.Caller.CallerType. "
+				+ "Available values: none, basic, true, false", cause.getMessage());
 	}
 
 	@Test

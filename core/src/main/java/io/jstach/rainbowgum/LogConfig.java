@@ -245,7 +245,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				String v = value.toUpperCase(Locale.ROOT);
 				return switch (v) {
 					case "FALSE" -> NONE;
-					default -> ChangeType.valueOf(v);
+					default -> LogProperty.enumValue(ChangeType.class, value, "true", "false");
 				};
 			}
 
@@ -702,7 +702,7 @@ final class DefaultLogConfig implements LogConfig {
 		TRUE, FALSE;
 
 		static ThreadLocalDisabled parse(String value) {
-			return ThreadLocalDisabled.valueOf(value.toUpperCase(Locale.ROOT));
+			return LogProperty.enumValue(ThreadLocalDisabled.class, value);
 		}
 
 	}
@@ -738,7 +738,7 @@ final class DefaultLogConfig implements LogConfig {
 		TRUE, FALSE;
 
 		static GlobalOptimize parse(String value) {
-			return GlobalOptimize.valueOf(value.toUpperCase(Locale.ROOT));
+			return LogProperty.enumValue(GlobalOptimize.class, value);
 		}
 
 	}

@@ -38,8 +38,8 @@ class QueueRouterBothPropertiesInvalidTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.QueueEventsRouter:
-						Error for property. key: 'logging.global.queue.level' from SYSTEM_PROPERTIES[logging.global.queue.level], java.lang.IllegalArgumentException Cannot parse Level from input. input='BOGUS1'
-						Error for property. key: 'logging.global.queue.error' from SYSTEM_PROPERTIES[logging.global.queue.error], java.lang.IllegalArgumentException Cannot parse Level from input. input='BOGUS2'""",
+						Error for property. key: 'logging.global.queue.level' from SYSTEM_PROPERTIES[logging.global.queue.level], java.lang.IllegalArgumentException 'BOGUS1' is not a valid value for java.lang.System.Logger.Level. Available values: all, trace, debug, info, warning, error, off, finest, fine, warn, severe
+						Error for property. key: 'logging.global.queue.error' from SYSTEM_PROPERTIES[logging.global.queue.error], java.lang.IllegalArgumentException 'BOGUS2' is not a valid value for java.lang.System.Logger.Level. Available values: all, trace, debug, info, warning, error, off, finest, fine, warn, severe""",
 				cause.getMessage());
 	}
 

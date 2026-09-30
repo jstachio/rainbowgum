@@ -115,8 +115,7 @@ public sealed interface LogRouter extends LogLifecycle {
 		}
 
 		static RouteFlag parse(String value) {
-			String v = value.toUpperCase(Locale.ROOT);
-			return RouteFlag.valueOf(v);
+			return LogProperty.enumValue(RouteFlag.class, value);
 		}
 
 	}

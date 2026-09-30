@@ -138,8 +138,7 @@ public sealed interface LogAppender extends LogLifecycle {
 		}
 
 		static AppenderFlag parse(String value) {
-			String v = value.toUpperCase(Locale.ROOT);
-			return AppenderFlag.valueOf(v);
+			return LogProperty.enumValue(AppenderFlag.class, value);
 		}
 
 	}
@@ -271,8 +270,7 @@ public sealed interface LogAppender extends LogLifecycle {
 		AUTO_DETECT;
 
 		static AppenderType parse(String value) {
-			String v = value.toUpperCase(Locale.ROOT);
-			return AppenderType.valueOf(v);
+			return LogProperty.enumValue(AppenderType.class, value);
 		}
 
 	}
