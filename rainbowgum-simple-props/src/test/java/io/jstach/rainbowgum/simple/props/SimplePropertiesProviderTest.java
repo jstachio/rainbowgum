@@ -39,7 +39,9 @@ class SimplePropertiesProviderTest {
 				.ofString()
 				.validateNow(SimplePropertiesProviderTest.class);
 			assertEquals("WARN", value);
-			assertEquals(List.of("Found profiles: []", "Loaded properties resource: classpath:/logging.properties"),
+			assertEquals(
+					List.of("Loading properties from io.jstach.rainbowgum.simple.props.SimplePropertiesProvider",
+							"Found profiles: []", "Loaded properties resource: classpath:/logging.properties"),
 					gum.config().alerts().dump().stream().map(LogEvent::message).toList());
 		}
 	}
@@ -57,12 +59,13 @@ class SimplePropertiesProviderTest {
 			.propertiesProvider(new SimplePropertiesProvider())
 			.build();
 		assertEquals(
-				List.of("Found profiles: [profile-first, profile-second]",
+				List.of("Loading properties from io.jstach.rainbowgum.simple.props.SimplePropertiesProvider",
+						"Found profiles: [profile-first, profile-second]",
 						"Loaded properties resource: classpath:/logging.properties",
 						"Loaded properties resource: classpath:/logging-profile-first.properties",
 						"Loaded properties resource: classpath:/logging-profile-second.properties"),
 				config.alerts().dump().stream().map(LogEvent::message).toList());
-		assertEquals(List.of(Level.INFO, Level.INFO, Level.INFO, Level.INFO),
+		assertEquals(List.of(Level.INFO, Level.INFO, Level.INFO, Level.INFO, Level.INFO),
 				config.alerts().dump().stream().map(LogEvent::level).toList());
 	}
 
@@ -81,7 +84,9 @@ class SimplePropertiesProviderTest {
 			.serviceRegistry(registry)
 			.propertiesProvider(new SimplePropertiesProvider())
 			.build();
-		assertEquals(List.of("No properties resource found: classpath:/does-not-exist.properties"),
+		assertEquals(
+				List.of("Loading properties from io.jstach.rainbowgum.simple.props.SimplePropertiesProvider",
+						"No properties resource found: classpath:/does-not-exist.properties"),
 				config.alerts().dump().stream().map(LogEvent::message).toList());
 		assertEquals(Level.INFO, config.alerts().dump().get(0).level());
 	}

@@ -415,6 +415,20 @@ public sealed interface LogFormatter {
 		}
 
 		/**
+		 * Appends text if throwable is set.
+		 * @param text to append if the throwable is set.
+		 * @return this builder.
+		 */
+		public Builder textIfThrowable(String text) {
+			formatters.add(of((b, e) -> {
+				if (e.throwableOrNull() != null) {
+					b.append(text);
+				}
+			}));
+			return this;
+		}
+
+		/**
 		 * Appends a newline using the platforms line separator.
 		 * @return this builder.
 		 */

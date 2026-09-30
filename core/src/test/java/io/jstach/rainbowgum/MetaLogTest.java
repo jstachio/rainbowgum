@@ -44,13 +44,14 @@ class MetaLogTest {
 	void testError() {
 		MetaLog.error(MetaLogTest.class, new RuntimeException("expected"));
 		String actual = outputStream.toString(StandardCharsets.UTF_8).split("\n")[0];
-		assertEquals("[ERROR] - RAINBOW_GUM expected java.lang.RuntimeException: expected", actual);
+		assertEquals("[ERROR] - RAINBOW_GUM - MetaLogTest - expected java.lang.RuntimeException: expected", actual);
 	}
 
 	@Test
 	void eventLevelIsNotFilteredOrRelabeled() {
 		MetaLog.error(LogEventFactory.of("test").eventNoArg(Level.INFO, "startup info", KeyValues.of(), null));
-		assertEquals("[INFO] - RAINBOW_GUM startup info", outputStream.toString(StandardCharsets.UTF_8));
+		assertEquals("[INFO] - RAINBOW_GUM - test - startup info" + System.lineSeparator(),
+				outputStream.toString(StandardCharsets.UTF_8));
 	}
 
 	@Test
@@ -64,12 +65,14 @@ class MetaLogTest {
 			var router = QueueEventsRouter.of();
 			router.log(factory.eventNoArg(Level.INFO, "queued only", KeyValues.of(), null));
 			router.log(factory.eventNoArg(Level.WARNING, "reported warning", KeyValues.of(), null));
-			assertEquals("[WARNING] - RAINBOW_GUM reported warning", outputStream.toString(StandardCharsets.UTF_8));
+			assertEquals("[WARN] - RAINBOW_GUM - test - reported warning" + System.lineSeparator(),
+					outputStream.toString(StandardCharsets.UTF_8));
 
 			outputStream.reset();
 			System.setProperty(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY, "INFO");
 			QueueEventsRouter.of().log(factory.eventNoArg(Level.INFO, "reported info", KeyValues.of(), null));
-			assertEquals("[INFO] - RAINBOW_GUM reported info", outputStream.toString(StandardCharsets.UTF_8));
+			assertEquals("[INFO] - RAINBOW_GUM - test - reported info" + System.lineSeparator(),
+					outputStream.toString(StandardCharsets.UTF_8));
 		}
 		finally {
 			if (originalQueueLevel == null) {

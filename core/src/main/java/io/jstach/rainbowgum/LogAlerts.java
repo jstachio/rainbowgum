@@ -43,13 +43,13 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	/**
 	 * Default capacity of the alert ring buffer.
 	 */
-	static final int DEFAULT_CAPACITY = 128;
+	static final int DEFAULT_CAPACITY = 512;
 
 	/**
 	 * Records an alert.
 	 * @param event event describing the alert.
 	 */
-	public void error(LogEvent event);
+	public void alert(LogEvent event);
 
 	/**
 	 * Records an alert.
@@ -68,7 +68,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	 * @param throwable cause of the alert.
 	 */
 	default void error(Class<?> loggerName, String message, Throwable throwable) {
-		error(event(loggerName, Level.ERROR, message, throwable));
+		alert(event(loggerName, Level.ERROR, message, throwable));
 	}
 
 	/**
@@ -77,7 +77,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	 * @param message alert message.
 	 */
 	default void warn(Class<?> loggerName, String message) {
-		error(event(loggerName, Level.WARNING, message, null));
+		alert(event(loggerName, Level.WARNING, message, null));
 	}
 
 	/**
@@ -86,7 +86,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	 * @param message alert message.
 	 */
 	default void info(Class<?> loggerName, String message) {
-		error(event(loggerName, Level.INFO, message, null));
+		alert(event(loggerName, Level.INFO, message, null));
 	}
 
 	private static LogEvent event(Class<?> loggerName, Level level, String message, @Nullable Throwable throwable) {
@@ -118,7 +118,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 
 	/**
 	 * Registers a listener that is notified synchronously, in addition to the alert being
-	 * recorded in the ring buffer, every time {@link #error(LogEvent)} is called.
+	 * recorded in the ring buffer, every time {@link #alert(LogEvent)} is called.
 	 * <p>
 	 * <strong>Listeners are held with a normal (strong) reference and are not
 	 * automatically removed.</strong> This is deliberate: alert listeners are expected to
@@ -168,7 +168,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	 * whatever went wrong during property loading or a
 	 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator} would
 	 * otherwise only ever have reached the individual, easy to miss stderr lines each
-	 * {@link #error(LogEvent)} call already produces.
+	 * {@link #alert(LogEvent)} call already produces.
 	 * <p>
 	 * Deliberately keyed as
 	 * {@value LogProperties#ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY} (an enum, not a
@@ -218,7 +218,7 @@ final class PrePropertiesLogAlerts implements LogAlerts {
 	private boolean closed;
 
 	@Override
-	public synchronized void error(LogEvent event) {
+	public synchronized void alert(LogEvent event) {
 		if (closed) {
 			throw new IllegalStateException("Pre-properties alerts are no longer active");
 		}
@@ -343,7 +343,7 @@ final class DefaultLogAlerts implements LogAlerts {
 	}
 
 	@Override
-	public void error(LogEvent event) {
+	public void alert(LogEvent event) {
 		var frozen = event.freeze();
 		total.incrementAndGet();
 		if (frozen.level() == Level.ERROR) {

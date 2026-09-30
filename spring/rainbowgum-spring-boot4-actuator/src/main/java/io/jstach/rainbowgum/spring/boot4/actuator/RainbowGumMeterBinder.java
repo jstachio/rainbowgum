@@ -17,7 +17,7 @@ import io.micrometer.core.instrument.binder.MeterBinder;
  * <p>
  * Binds every {@link StandardMetric} by looping over {@link StandardMetric#values()},
  * <strong>not</strong> the per logger name counters that {@link LogMetrics} also
- * accumulates as a side effect of {@code LogAlerts#error(LogEvent)}. Logger names are
+ * accumulates as a side effect of {@code LogAlerts#alert(LogEvent)}. Logger names are
  * effectively unbounded (arbitrary class/category names, chosen by application code), so
  * turning each one into its own Micrometer meter would be an unbounded cardinality source
  * - exactly what Micrometer's own naming guidance warns against. Reporting that per

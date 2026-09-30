@@ -79,6 +79,33 @@ public sealed interface LogReporter permits DefaultLogReporter {
 	interface Reportable {
 
 		/**
+		 * Returns a concise description of a component. A {@link Reportable} supplies its
+		 * own description; ordinary named classes use their canonical name, while
+		 * anonymous, synthetic, and local classes use the supplied fallback.
+		 * @param component component to describe.
+		 * @param fallback description for a component without a stable class name.
+		 * @return component description.
+		 */
+		static String toString(Object component, String fallback) {
+			if (component instanceof Reportable reportable) {
+				var out = new StringBuilder();
+				try {
+					reportable.report(out);
+				}
+				catch (IOException e) {
+					return fallback;
+				}
+				return out.toString();
+			}
+			var type = component.getClass();
+			if (type.isAnonymousClass() || type.isLocalClass() || type.isSynthetic()) {
+				return fallback;
+			}
+			var name = type.getCanonicalName();
+			return name != null ? name : fallback;
+		}
+
+		/**
 		 * Writes this component's own description directly to the given appendable.
 		 * @param out destination.
 		 * @throws IOException if the appendable throws.
@@ -305,6 +332,7 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 
 	private void appendComponents(Appendable out, RainbowGum gum, LogConfig config) throws IOException {
 		appendGlobalProperties(out, config.properties());
+		out.append("Debug mode: ").append(config.debugMode().toString()).append("\n");
 		out.append("\n");
 		for (var router : routersOf(gum.router())) {
 			appendRouter(out, config, router);

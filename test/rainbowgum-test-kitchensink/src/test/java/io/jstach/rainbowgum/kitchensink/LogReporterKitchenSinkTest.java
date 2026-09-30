@@ -155,6 +155,7 @@ class LogReporterKitchenSinkTest {
 					  logging.global.appender.reentrantLock = (unset)
 					  logging.global.threadlocalDisabled = (unset)
 					  logging.global.optimize = true
+					Debug mode: OFF
 
 					Router: structured
 					  Publisher: DisruptorLogPublisher (asynchronous)
@@ -198,8 +199,13 @@ class LogReporterKitchenSinkTest {
 					  events.dropped = 1 (ERROR)
 					  buffer.trimmed = 1 (WARNING)
 					  logger.names = 1 (INFO)
+					  io.jstach.rainbowgum.LogConfig = 11 (INFO)
 
-					Alerts (total=1, capacity=128):
+					Alerts (total=12, capacity=512):
+					  INFO io.jstach.rainbowgum.LogConfig - Adding configurator: io.jstach.rainbowgum.jfr.JfrAlertListenerConfigurator
+					  INFO io.jstach.rainbowgum.LogConfig - Adding configurator: io.jstach.rainbowgum.jfr.JfrConfigurator
+					  INFO io.jstach.rainbowgum.LogConfig - Adding configurator: io.jstach.rainbowgum.disruptor.DisruptorConfigurator
+					  INFO io.jstach.rainbowgum.LogConfig - Adding configurator: io.jstach.rainbowgum.avaje.AvajePropertiesProvider
 					  ERROR io.jstach.rainbowgum.LockThreadLocalBufferLogAppender - appender 'diagnostics' failed to append event
 
 					Loggers:

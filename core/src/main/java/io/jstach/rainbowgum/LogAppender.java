@@ -1091,7 +1091,7 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		}
 		catch (Exception e) {
 			var event = errorEvent(getClass(), "appender '" + name + "' failed to reopen output", e);
-			alerts.error(event);
+			alerts.alert(event);
 			return List.of(event);
 		}
 	}
@@ -1104,7 +1104,7 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		}
 		catch (Exception e) {
 			var event = errorEvent(getClass(), "appender '" + name + "' failed to flush output", e);
-			alerts.error(event);
+			alerts.alert(event);
 			return List.of(event);
 		}
 	}
