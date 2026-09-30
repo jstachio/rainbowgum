@@ -137,3 +137,7 @@ An agent should coauthor commits that have novel additions to the code base.
 Novel being complicated logic. Novel is not unit tests, refactoring, trivial
 documentation adjustments, dependency updates and other mechanical things that
 IDE tools, bots or simple agents would do. If in doubt the agent asks.
+
+Read [Agent build issues](doc/agent-build-issues.md) and record build difficulties
+there, including symptoms, reasons for workarounds, and your identity. The goal
+is reliable feedback with as little time waiting for build tools as possible.
