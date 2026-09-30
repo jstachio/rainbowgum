@@ -28,6 +28,37 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
 class SimplePropertiesTest {
 
 	@Test
+	void testProfileSourcesWrapWithDuplicatedSystemProperties() {
+		var simple = SimpleProperties.builder().profiles("fail").envLookup(k -> null).build();
+		var properties = LogProperties
+			.of(List.of(LogProperties.StandardProperties.SYSTEM_PROPERTIES, LogProperties.of(simple.properties())));
+		String key = "logging.appender.console.encoder";
+		assertEquals("""
+				Sources:
+				    SYSTEM_PROPERTIES[logging.appender.console.encoder],
+				    SYSTEM_PROPERTIES[logging.appender.console.encoder],
+				    ENV[RAINBOWGUM_appender_console_encoder],
+				    SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder],
+				    SIMPLE_PROPS[classpath:/logging.properties][logging.appender.console.encoder]""",
+				"Sources:" + properties.description(key));
+		var error = assertThrows(ValidationException.class, () -> properties.forKey(key).ofString().map(value -> {
+			throw new IllegalArgumentException("Encoder failed");
+		}).validateNow(SimplePropertiesTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.SimplePropertiesTest:
+						Error for property. key: 'logging.appender.console.encoder' from SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder], Encoder failed
+						Tried:
+						    'logging.appender.console.encoder' from:
+						        SYSTEM_PROPERTIES[logging.appender.console.encoder],
+						        SYSTEM_PROPERTIES[logging.appender.console.encoder],
+						        ENV[RAINBOWGUM_appender_console_encoder],
+						        SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder],
+						        SIMPLE_PROPS[classpath:/logging.properties][logging.appender.console.encoder]""",
+				error.getMessage());
+	}
+
+	@Test
 	void testDefaultProfileIsSelectedWhenNoProfilesAreSpecified() {
 		var props = SimpleProperties.builder().resource("default-profile.properties").envLookup(k -> null).build();
 		var composite = LogProperties.of(props.properties());
