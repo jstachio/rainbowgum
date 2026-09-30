@@ -64,7 +64,7 @@ class LogAlertsTest {
 		assertEquals(1, stats.size());
 
 		String reported = outputStream.toString(StandardCharsets.UTF_8).split("\n")[0];
-		assertEquals("[ERROR] - RAINBOW_GUM expected java.lang.RuntimeException: expected", reported);
+		assertEquals("[ERROR] - RAINBOW_GUM - LogAlertsTest - expected java.lang.RuntimeException: expected", reported);
 	}
 
 	@Test
@@ -81,7 +81,7 @@ class LogAlertsTest {
 	void propertyProviderAlertsAreReplayedBeforeConfigurators() {
 		var earlyAlerts = new AtomicReference<LogAlerts>();
 		var properties = LogProperties.builder()
-			.fromProperties("logging.alerts.capacity=2\nlogging.alerts.unobservedErrorsAction=NONE")
+			.fromProperties("logging.alerts.capacity=5\nlogging.alerts.unobservedErrorsAction=NONE")
 			.build();
 		var config = LogConfig.builder().propertiesProvider((registry, alerts) -> {
 			earlyAlerts.set(alerts);
@@ -95,7 +95,10 @@ class LogAlertsTest {
 			alerts.info(LogAlertsTest.class, "early information");
 			return List.of(properties);
 		}).configurator((built, pass) -> {
-			assertEquals(List.of("early warning", "early information"),
+			assertEquals(
+					List.of("Loading properties from unknown PropertiesProvider", "early warning",
+							"Loading properties from unknown PropertiesProvider", "early information",
+							"Adding configurator: unknown Configurator"),
 					built.alerts().dump().stream().map(LogEvent::message).toList());
 			return true;
 		}).build();
@@ -104,15 +107,15 @@ class LogAlertsTest {
 		assertEquals("Pre-properties alerts are no longer active",
 				assertThrows(IllegalStateException.class, () -> earlyAlerts.get().info(LogAlertsTest.class, "too late"))
 					.getMessage());
-		assertEquals(2, config.alerts().stats().total());
-		assertEquals(2, config.alerts().stats().capacity());
-		assertEquals(List.of(Level.WARNING, Level.INFO), config.alerts().dump().stream().map(LogEvent::level).toList());
+		assertEquals(5, config.alerts().stats().total());
+		assertEquals(5, config.alerts().stats().capacity());
+		assertEquals(List.of(Level.INFO, Level.WARNING, Level.INFO, Level.INFO, Level.INFO),
+				config.alerts().dump().stream().map(LogEvent::level).toList());
 		assertNull(config.alerts().dump().get(0).throwableOrNull());
-		assertNull(config.alerts().dump().get(1).throwableOrNull());
-		assertEquals(
-				List.of(new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.WARNING, 1),
-						new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.INFO, 1)),
-				config.metrics().counters());
+		assertNull(config.alerts().dump().get(4).throwableOrNull());
+		assertEquals(List.of(new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.WARNING, 1),
+				new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.INFO, 1),
+				new LogMetrics.Counter(LogConfig.class.getName(), Level.INFO, 3)), config.metrics().counters());
 	}
 
 	@Test
@@ -148,9 +151,9 @@ class LogAlertsTest {
 	}
 
 	@Test
-	void defaultCapacityIs128() {
-		assertEquals(128, LogAlerts.DEFAULT_CAPACITY);
-		assertEquals(128, alerts().stats().capacity());
+	void defaultCapacityIs512() {
+		assertEquals(512, LogAlerts.DEFAULT_CAPACITY);
+		assertEquals(512, alerts().stats().capacity());
 	}
 
 	@Test
@@ -204,7 +207,7 @@ class LogAlertsTest {
 			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
 			return true;
 		}).build());
-		assertEquals(1, config.alerts().dump().size());
+		assertEquals(2, config.alerts().dump().size());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertTrue(reported.contains("boom"), () -> "the per-event stderr echo still happens: " + reported);
 		assertFalse(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
@@ -218,15 +221,15 @@ class LogAlertsTest {
 			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
 			return true;
 		}).build());
-		assertEquals(1, config.alerts().dump().size());
+		assertEquals(2, config.alerts().dump().size());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertTrue(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
 				() -> "expected the unobserved-backlog summary, got: " + reported);
 		// three separate FailsafeAppender.log(...) calls happened: the original
 		// per-event echo (from error() itself), the summary line, and the
 		// backlog-replay of that same event - each starts a fresh "RAINBOW_GUM" block.
-		assertEquals(3, reported.split("RAINBOW_GUM", -1).length - 1,
-				() -> "expected original + summary + replay, got: " + reported);
+		assertEquals(4, reported.split("RAINBOW_GUM", -1).length - 1,
+				() -> "expected original + summary + replay of two alerts, got: " + reported);
 	}
 
 	@Test
@@ -237,7 +240,7 @@ class LogAlertsTest {
 					c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
 					return true;
 				}).build());
-		assertEquals("1 alert(s) were recorded before any LogAlerts.Listener was registered and "
+		assertEquals("2 alert(s) were recorded before any LogAlerts.Listener was registered and "
 				+ "logging.alerts.unobservedErrorsAction=FAIL - refusing to start.", e.getMessage());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertTrue(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
@@ -251,7 +254,8 @@ class LogAlertsTest {
 			alerts.info(LogAlertsTest.class, "profile diagnostics");
 			return List.of(props);
 		}).build());
-		assertEquals(List.of("profile diagnostics"), config.alerts().dump().stream().map(LogEvent::message).toList());
+		assertEquals(List.of("Loading properties from unknown PropertiesProvider", "profile diagnostics"),
+				config.alerts().dump().stream().map(LogEvent::message).toList());
 		assertEquals("", outputStream.toString(StandardCharsets.UTF_8));
 	}
 
@@ -276,7 +280,7 @@ class LogAlertsTest {
 			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
 			return true;
 		}).build());
-		assertEquals(1, config.alerts().dump().size());
+		assertEquals(2, config.alerts().dump().size());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertFalse(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
 				() -> "an already-registered listener must suppress the summary/backlog-replay lines: " + reported);

@@ -64,24 +64,41 @@ final class MetaLog {
 
 }
 
+@SuppressWarnings("ImmutableEnumChecker")
 enum FailsafeAppender implements LogEventLogger {
 
 	INSTANCE;
+
+	private final LogFormatter formatter = LogFormatter.builder() //
+		.text("[")
+		.level()
+		.text("] - RAINBOW_GUM")
+		.text(" - ")
+		.add(LogFormatter.of((b, e) -> {
+			b.append(gumLoggerName(e.loggerName()));
+		}))
+		.text(" - ")
+		.message()
+		.textIfThrowable(" ")
+		.throwable()
+		.newline()
+		.build();
+
+	private static String gumLoggerName(String value) {
+		String prefix = "io.jstach.rainbowgum.";
+		if (value.startsWith(prefix)) {
+			value = value.substring(prefix.length());
+		}
+		return value;
+	}
 
 	@Override
 	public void log(LogEvent event) {
 		var err = MetaLog.output.get();
 		if (err != null) {
-			err.append("[").append(event.level().name()).append("] - RAINBOW_GUM ");
-			StringBuilder sb = new StringBuilder();
-			event.formattedMessage(sb);
-			err.append(sb.toString());
-
-			var throwable = event.throwableOrNull();
-			if (throwable != null) {
-				err.append(" ");
-				throwable.printStackTrace(err);
-			}
+			var sb = new StringBuilder();
+			formatter.format(sb, event);
+			err.append(sb);
 		}
 	}
 

@@ -11,6 +11,16 @@ import io.jstach.rainbowgum.LogReporter.Section;
 
 class LogReporterTest {
 
+	@Test
+	void reportableToStringUsesReportableDescriptionAndFallsBackForLambdas() {
+		LogReporter.Reportable reportable = out -> out.append("named component");
+		assertEquals("named component", LogReporter.Reportable.toString(reportable, "unknown component"));
+
+		Runnable lambda = () -> {
+		};
+		assertEquals("unknown component", LogReporter.Reportable.toString(lambda, "unknown component"));
+	}
+
 	/*
 	 * Golden string: no format guarantee to third parties, but still worth pinning here
 	 * so an accidental change to the output is caught, same convention already used for
@@ -21,7 +31,8 @@ class LogReporterTest {
 	@Test
 	void testComponentsOnly() {
 		var reporter = LogReporter.builder().sections(EnumSet.of(Section.COMPONENTS)).build();
-		try (var gum = RainbowGum.builder().build()) {
+		var config = LogConfig.builder().debug(LogConfig.DebugModeType.ERROR).build();
+		try (var gum = RainbowGum.builder(config).build()) {
 			String actual = reporter.report(gum);
 			String expected = """
 					Properties: SYSTEM_PROPERTIES
@@ -33,6 +44,7 @@ class LogReporterTest {
 					  logging.global.appender.reentrantLock = (unset)
 					  logging.global.threadlocalDisabled = (unset)
 					  logging.global.optimize = (unset)
+					Debug mode: ERROR
 
 					Router: default
 					  Publisher: DefaultSyncLogPublisher (synchronous)
@@ -90,7 +102,7 @@ class LogReporterTest {
 			alerts.error(LogReporterTest.class, "second", new IllegalStateException());
 			alerts.error(LogReporterTest.class, "third", new IllegalStateException());
 			String actual = reporter.report(gum);
-			assertTrue(actual.startsWith("Alerts (total=3, capacity=128):\n"), actual);
+			assertTrue(actual.startsWith("Alerts (total=3, capacity=512):\n"), actual);
 			assertTrue(actual.contains("second"), actual);
 			assertTrue(actual.contains("third"), actual);
 			assertTrue(!actual.contains("] ERROR io.jstach.rainbowgum.LogReporterTest - first"), actual);

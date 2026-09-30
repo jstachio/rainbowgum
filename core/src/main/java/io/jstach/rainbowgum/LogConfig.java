@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import static io.jstach.rainbowgum.spi.RainbowGumServiceProvider.findProviders;
 
+import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -30,11 +31,47 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
 public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 	/**
+	 * When to dump bootstrap alerts to the fail-safe output.
+	 */
+	public enum DebugModeType {
+
+		/**
+		 * Do not dump alerts beyond the normal alert startup policy.
+		 */
+		OFF,
+		/**
+		 * Dump the failure and collected alerts if building the config fails.
+		 */
+		ERROR,
+		/**
+		 * Dump collected alerts after every successful build and on build failure.
+		 */
+		ALL;
+
+		static DebugModeType parse(String value) {
+			String v = value.toUpperCase(Locale.ROOT);
+			return switch (v) {
+				case "FALSE" -> OFF;
+				case "TRUE" -> ALL;
+				default -> DebugModeType.valueOf(v);
+			};
+		}
+
+	}
+
+	/**
 	 * String key value properties.
 	 * @return properties.
 	 */
 	@Override
 	public LogProperties properties();
+
+	/**
+	 * Effective debug mode collected while this configuration was built. A system
+	 * property value, when present, takes precedence over the builder setting.
+	 * @return debug mode.
+	 */
+	public DebugModeType debugMode();
 
 	/**
 	 * Level resolver for resolving levels from logger names.
@@ -272,6 +309,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private final List<RainbowGumServiceProvider.PropertiesProvider> propertiesProviders = new ArrayList<>();
 
+		private DebugModeType debugMode = DebugModeType.OFF;
+
 		/**
 		 * Default constructor
 		 */
@@ -285,6 +324,17 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		public Builder properties(LogProperties logProperties) {
 			this.logProperties = logProperties;
+			return this;
+		}
+
+		/**
+		 * Sets the debug mode used when the system property
+		 * {@value LogProperties#DEBUG_PROPERTY} is absent.
+		 * @param debugMode debug mode.
+		 * @return this.
+		 */
+		public Builder debug(DebugModeType debugMode) {
+			this.debugMode = Objects.requireNonNull(debugMode);
 			return this;
 		}
 
@@ -354,85 +404,142 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 * @return log config
 		 */
 		public LogConfig build() {
-			ServiceRegistry serviceRegistry = this.serviceRegistry;
-			LogProperties logProperties = this.logProperties;
 			var prePropertiesAlerts = new PrePropertiesLogAlerts();
+			LogAlerts dumpAlerts = prePropertiesAlerts;
+			boolean startingAlerts = false;
+			DebugModeType debug = LogProperties.StandardProperties.SYSTEM_PROPERTIES
+				.forKey(LogProperties.DEBUG_PROPERTY)
+				.ofString()
+				.map(DebugModeType::parse)
+				.or(this.debugMode)
+				.validateNow(Builder.class);
+			try {
+				ServiceRegistry serviceRegistry = this.serviceRegistry;
+				LogProperties logProperties = this.logProperties;
 
-			var serviceLoader = this.serviceLoader;
-			var configurators = this.configurators;
-			if (serviceRegistry == null) {
-				serviceRegistry = ServiceRegistry.of();
-			}
-			if (logProperties == null) {
-				List<LogProperties> props = new ArrayList<>();
-				for (var pp : propertiesProviders) {
-					props.addAll(pp.provideProperties(serviceRegistry, prePropertiesAlerts));
+				var serviceLoader = this.serviceLoader;
+				var configurators = this.configurators;
+				if (serviceRegistry == null) {
+					serviceRegistry = ServiceRegistry.of();
 				}
-				if (props.isEmpty() && serviceLoader != null) {
-					props.addAll(provideProperties(serviceRegistry, serviceLoader, prePropertiesAlerts));
+				if (logProperties == null) {
+					List<LogProperties> props = new ArrayList<>();
+					for (var pp : propertiesProviders) {
+						prePropertiesAlerts.info(LogConfig.class, "Loading properties from "
+								+ LogReporter.Reportable.toString(pp, "unknown PropertiesProvider"));
+						props.addAll(pp.provideProperties(serviceRegistry, prePropertiesAlerts));
+					}
+					if (props.isEmpty() && serviceLoader != null) {
+						props.addAll(provideProperties(serviceRegistry, serviceLoader, prePropertiesAlerts));
+					}
+					/*
+					 * LogProperties.of(List, LogProperties)'s fallback argument is only
+					 * used when the list is empty, so SYSTEM_PROPERTIES has to be a real
+					 * member of the list itself to always be included, not passed as that
+					 * fallback: otherwise it silently disappears the moment any
+					 * PropertiesProvider contributes anything at all (e.g.
+					 * rainbowgum-micronaut5's own GLOBAL_CHANGE_PROPERTY layer), breaking
+					 * every -D system property override for such an application with no
+					 * warning.
+					 */
+					props.add(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+					logProperties = LogProperties.of(props);
+
 				}
 				/*
-				 * LogProperties.of(List, LogProperties)'s fallback argument is only used
-				 * when the list is empty, so SYSTEM_PROPERTIES has to be a real member of
-				 * the list itself to always be included, not passed as that fallback:
-				 * otherwise it silently disappears the moment any PropertiesProvider
-				 * contributes anything at all (e.g. rainbowgum-micronaut5's own
-				 * GLOBAL_CHANGE_PROPERTY layer), breaking every -D system property
-				 * override for such an application with no warning.
+				 * Built before DefaultLogConfig itself (rather than left for
+				 * DefaultLogConfig's constructor to create, as before) specifically so
+				 * buildGlobalResolver below can hand LogAlerts to the global level
+				 * resolver's alerting wrapper - the global resolver is built before a
+				 * full LogConfig exists to pull config.alerts() from, so alerts (and
+				 * metrics, via alerts' own listener wiring) are constructed directly here
+				 * instead. Capacity and logging.alerts.unobservedErrorsAction both come
+				 * from logProperties as already resolved above - before any configurator
+				 * runs, the same as everything else built directly in this method - see
+				 * DefaultLogAlerts.of(...) for how the two are validated together.
 				 */
-				props.add(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
-				logProperties = LogProperties.of(props);
-
-			}
-			/*
-			 * Built before DefaultLogConfig itself (rather than left for
-			 * DefaultLogConfig's constructor to create, as before) specifically so
-			 * buildGlobalResolver below can hand LogAlerts to the global level resolver's
-			 * alerting wrapper - the global resolver is built before a full LogConfig
-			 * exists to pull config.alerts() from, so alerts (and metrics, via alerts'
-			 * own listener wiring) are constructed directly here instead. Capacity and
-			 * logging.alerts.unobservedErrorsAction both come from logProperties as
-			 * already resolved above - before any configurator runs, the same as
-			 * everything else built directly in this method - see
-			 * DefaultLogAlerts.of(...) for how the two are validated together.
-			 */
-			LogAlerts alerts = DefaultLogAlerts.of(logProperties);
-			LogMetrics metrics = new DefaultLogMetrics();
-			var levelResolver = this.buildGlobalResolver(logProperties, alerts);
-			var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics);
-			// The config constructor installs the metrics listener before these alerts
-			// replay.
-			for (var event : prePropertiesAlerts.dump()) {
-				alerts.error(event);
-			}
-			prePropertiesAlerts.close();
-			if (serviceLoader != null) {
-				configurators = new ArrayList<>(configurators);
-				findProviders(serviceLoader, Configurator.class).forEach(configurators::add);
-			}
-			if (!configurators.isEmpty()) {
+				LogAlerts alerts = DefaultLogAlerts.of(logProperties);
+				LogMetrics metrics = new DefaultLogMetrics();
+				var levelResolver = this.buildGlobalResolver(logProperties, alerts);
+				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics,
+						debug);
+				// The config constructor installs the metrics listener before replay.
+				for (var event : prePropertiesAlerts.dump()) {
+					alerts.alert(event);
+				}
+				prePropertiesAlerts.close();
+				dumpAlerts = alerts;
+				if (serviceLoader != null) {
+					configurators = new ArrayList<>(configurators);
+					findProviders(serviceLoader, Configurator.class).forEach(configurators::add);
+				}
+				if (!configurators.isEmpty()) {
+					for (var configurator : configurators) {
+						alerts.info(LogConfig.class, "Adding configurator: "
+								+ LogReporter.Reportable.toString(configurator, "unknown Configurator"));
+					}
+					/*
+					 * TODO two-pass config: configurators run after config (and therefore
+					 * the global level resolver above) already exists, so a configurator
+					 * that contributes additional property sources or otherwise changes
+					 * what the level resolver should have seen is invisible to it - the
+					 * resolver was already built from logProperties as it stood before
+					 * any configurator ran. A more correct design would run configurators
+					 * first, then rebuild whatever is purely derived from properties
+					 * (starting with the level resolver) a second time against the
+					 * now-fully-configured LogConfig. Not done here - see todo.md.
+					 */
+					RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);
+				}
 				/*
-				 * TODO two-pass config: configurators run after config (and therefore the
-				 * global level resolver above) already exists, so a configurator that
-				 * contributes additional property sources or otherwise changes what the
-				 * level resolver should have seen is invisible to it - the resolver was
-				 * already built from logProperties as it stood before any configurator
-				 * ran. A more correct design would run configurators first, then rebuild
-				 * whatever is purely derived from properties (starting with the level
-				 * resolver) a second time against the now-fully-configured LogConfig. Not
-				 * done here - see todo.md.
+				 * Deliberately last: alerts already resolved
+				 * LogAlerts.UnobservedErrorsAction at construction above, but only now,
+				 * once configurators have had their chance to record alerts and/or
+				 * register a real Listener, does "should I report/refuse to start"
+				 * actually mean anything - by construction nothing has had a chance to
+				 * register one before this point.
 				 */
-				RainbowGumServiceProvider.Configurator.runConfigurators(configurators.stream(), config);
+				// start() itself reports the backlog before throwing for FAIL.
+				startingAlerts = true;
+				alerts.start(config);
+				if (debug == DebugModeType.ALL) {
+					dumpSuccessfulBuild(alerts);
+				}
+				return config;
 			}
-			/*
-			 * Deliberately last: alerts already resolved LogAlerts.UnobservedErrorsAction
-			 * at construction above, but only now, once configurators have had their
-			 * chance to record alerts and/or register a real Listener, does "should I
-			 * report/refuse to start" actually mean anything - by construction nothing
-			 * has had a chance to register one before this point.
-			 */
-			alerts.start(config);
-			return config;
+			catch (RuntimeException | Error e) {
+				if (debug != DebugModeType.OFF && !startingAlerts) {
+					dumpBuildFailure(dumpAlerts, e);
+				}
+				throw e;
+			}
+		}
+
+		private static void dumpSuccessfulBuild(LogAlerts alerts) {
+			var events = alerts.dump();
+			MetaLog.error(LogEventFactory.of(LogConfig.class.getName())
+				.eventNoArg(Level.INFO, "LogConfig built; dumping " + events.size() + " alert(s)", null));
+			for (var event : events) {
+				MetaLog.error(event);
+			}
+		}
+
+		/* Throwable.addSuppressed rejects self-suppression. */
+		@SuppressWarnings("ReferenceEquality")
+		private static void dumpBuildFailure(LogAlerts alerts, Throwable failure) {
+			try {
+				var events = alerts.dump();
+				MetaLog.error(LogConfig.class, "LogConfig build failed; dumping " + events.size() + " alert(s)",
+						failure);
+				for (var event : events) {
+					MetaLog.error(event);
+				}
+			}
+			catch (Throwable dumpFailure) {
+				if (dumpFailure != failure) {
+					failure.addSuppressed(dumpFailure);
+				}
+			}
 		}
 
 		LevelConfig buildGlobalResolver(LogProperties logProperties, LogAlerts alerts) {
@@ -447,9 +554,12 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private static List<LogProperties> provideProperties(ServiceRegistry registry,
 				ServiceLoader<RainbowGumServiceProvider> loader, LogAlerts alerts) {
-			List<LogProperties> props = findProviders(loader, PropertiesProvider.class)
-				.flatMap(s -> s.provideProperties(registry, alerts).stream())
-				.toList();
+			List<LogProperties> props = new ArrayList<>();
+			for (var provider : findProviders(loader, PropertiesProvider.class).toList()) {
+				alerts.info(LogConfig.class, "Loading properties from "
+						+ LogReporter.Reportable.toString(provider, "unknown PropertiesProvider"));
+				props.addAll(provider.provideProperties(registry, alerts));
+			}
 			return props;
 		}
 
@@ -621,6 +731,8 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LogProperties properties;
 
+	private final DebugModeType debugMode;
+
 	private final LevelConfig levelResolver;
 
 	private final ChangePublisher changePublisher;
@@ -638,10 +750,11 @@ final class DefaultLogConfig implements LogConfig {
 	private final LoggerRegistry loggerRegistry;
 
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
-			LogMetrics metrics) {
+			LogMetrics metrics, DebugModeType debugMode) {
 		super();
 		this.registry = registry;
 		this.properties = properties;
+		this.debugMode = debugMode;
 		this.levelResolver = levelResolver;
 		this.alerts = alerts;
 		this.metrics = metrics;
@@ -769,6 +882,11 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public LogProperties properties() {
 		return properties;
+	}
+
+	@Override
+	public DebugModeType debugMode() {
+		return debugMode;
 	}
 
 	@Override

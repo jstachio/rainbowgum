@@ -159,6 +159,16 @@ public interface LogProperties {
 	static final String ROOT_PREFIX = "logging" + SEP;
 
 	/**
+	 * Controls direct fail-safe alert dumps during {@link LogConfig.Builder#build()}.
+	 * {@code OFF} (also {@code false}) is the default; {@code ERROR} dumps on build
+	 * failure, while {@code ALL} (also {@code true}) also dumps after successful builds.
+	 * Read from system properties before properties providers run, so it remains
+	 * available when loading configuration fails. The system property overrides
+	 * {@link LogConfig.Builder#debug(LogConfig.DebugModeType)}.
+	 */
+	static final String DEBUG_PROPERTY = ROOT_PREFIX + "debug";
+
+	/**
 	 * Logging level properties prefix. The value should be the name of a
 	 * {@linkplain java.lang.System.Logger.Level level}.
 	 */

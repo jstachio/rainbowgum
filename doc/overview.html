@@ -1363,6 +1363,18 @@ Router but are instead kept in a small in memory ring buffer
 as well as immediately reported (currently to stderr).
 
 <p>
+Set <code>-Dlogging.debug=ERROR</code> to print the failure and collected alerts if building
+{@link io.jstach.rainbowgum.LogConfig} fails. Set <code>-Dlogging.debug=ALL</code> to also print
+the collected alerts after every successful build. These dumps include alerts recorded before
+properties were loaded and do not notify alert listeners. The switch is read before property
+providers run, so it cannot be set in <code>logging.properties</code>. <code>OFF</code> is the
+default; <code>true</code> and <code>false</code> are aliases for <code>ALL</code> and
+<code>OFF</code>, respectively. The
+{@link io.jstach.rainbowgum.LogConfig.Builder#debug(io.jstach.rainbowgum.LogConfig.DebugModeType)
+builder option} sets a fallback mode; the system property takes precedence.
+</p>
+
+<p>
 You can also subscribe to alerts as they happen with
 {@link io.jstach.rainbowgum.LogAlerts#addListener(io.jstach.rainbowgum.LogAlerts.Listener)},
 useful for bridging alerts to whatever alerting/paging system an application already has:
