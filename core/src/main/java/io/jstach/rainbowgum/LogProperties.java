@@ -159,11 +159,12 @@ public interface LogProperties {
 	static final String ROOT_PREFIX = "logging" + SEP;
 
 	/**
-	 * Controls direct fail-safe alert dumps during {@link LogConfig.Builder#build()}.
-	 * {@code OFF} (also {@code false}) is the default; {@code ERROR} dumps on build
-	 * failure, while {@code ALL} (also {@code true}) also dumps after successful builds.
-	 * Read from system properties before properties providers run, so it remains
-	 * available when loading configuration fails. The system property overrides
+	 * Controls direct fail-safe bootstrap diagnostics. {@code OFF} (also {@code false})
+	 * is the default; {@code ERROR} dumps on build failure, while {@code INFO} also dumps
+	 * after successful config builds. {@code ALL} (also {@code true}) additionally prints
+	 * a {@link LogReporter} report after {@link RainbowGum#start()} starts the logging
+	 * components. Read from system properties before properties providers run, so it
+	 * remains available when loading configuration fails. The system property overrides
 	 * {@link LogConfig.Builder#debug(LogConfig.DebugModeType)}.
 	 */
 	static final String DEBUG_PROPERTY = ROOT_PREFIX + "debug";

@@ -1364,8 +1364,10 @@ as well as immediately reported (currently to stderr).
 
 <p>
 Set <code>-Dlogging.debug=ERROR</code> to print the failure and collected alerts if building
-{@link io.jstach.rainbowgum.LogConfig} fails. Set <code>-Dlogging.debug=ALL</code> to also print
-the collected alerts after every successful build. These dumps include alerts recorded before
+{@link io.jstach.rainbowgum.LogConfig} fails. Set <code>-Dlogging.debug=INFO</code> to also print
+the collected alerts after every successful config build. Set <code>-Dlogging.debug=ALL</code>
+to additionally print the {@link io.jstach.rainbowgum.LogReporter} report after Rainbow Gum
+starts its logging components. These dumps include alerts recorded before
 properties were loaded and do not notify alert listeners. The switch is read before property
 providers run, so it cannot be set in <code>logging.properties</code>. <code>OFF</code> is the
 default; <code>true</code> and <code>false</code> are aliases for <code>ALL</code> and

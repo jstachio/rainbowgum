@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @Isolated
 @Execution(ExecutionMode.SAME_THREAD)
@@ -46,9 +48,10 @@ class LogConfigDebugTest {
 		MetaLog.output = () -> System.err;
 	}
 
-	@Test
-	void dumpsPrePropertiesAlertsWhenProviderFails() {
-		System.setProperty(LogProperties.DEBUG_PROPERTY, "ALL");
+	@ParameterizedTest
+	@ValueSource(strings = { "ERROR", "INFO", "ALL", "true" })
+	void dumpsPrePropertiesAlertsWhenProviderFails(String mode) {
+		System.setProperty(LogProperties.DEBUG_PROPERTY, mode);
 		var failure = new IllegalStateException("provider failed");
 		var thrown = assertThrows(IllegalStateException.class,
 				() -> LogConfig.builder().propertiesProvider((registry, alerts) -> {
@@ -124,6 +127,51 @@ class LogConfigDebugTest {
 				reportedEvents());
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "ALL", "true", "INFO", "info", "ERROR", "OFF", "false" })
+	void startupReportIsOnlyPrintedAfterStartingInAllMode(String mode) {
+		System.setProperty(LogProperties.DEBUG_PROPERTY, mode);
+		var config = LogConfig.builder().debug(LogConfig.DebugModeType.ALL).build();
+		boolean report = mode.equals("ALL") || mode.equals("true");
+		String expected = report || mode.equalsIgnoreCase("INFO")
+				? "[INFO] - RAINBOW_GUM - LogConfig - LogConfig built; dumping 0 alert(s)\n" : "";
+		assertEquals(expected, output.toString(StandardCharsets.UTF_8));
+		var listenerCalls = new AtomicInteger();
+		config.alerts().addListener(event -> listenerCalls.incrementAndGet());
+		try (var gum = RainbowGum.builder(config).build()) {
+			assertEquals(expected, output.toString(StandardCharsets.UTF_8));
+			gum.start();
+			if (report) {
+				expected += """
+						[INFO] - RAINBOW_GUM - RainbowGum - Rainbow Gum started:
+						Rainbow Gum VERSION_PLACEHOLDER
+
+						Properties: SYSTEM_PROPERTIES
+						Global Properties:
+						  logging.global.change = (unset)
+						  logging.global.queue.level = (unset)
+						  logging.global.queue.error = (unset)
+						  logging.global.ansi.disable = (unset)
+						  logging.global.appender.reentrantLock = (unset)
+						  logging.global.threadlocalDisabled = (unset)
+						  logging.global.optimize = (unset)
+						Debug mode: ALL
+
+						Router: default
+						  Publisher: DefaultSyncLogPublisher (synchronous)
+						    Appender: console
+						      Type: LockThreadLocalBufferLogAppender
+						      Flags: []
+						      Output: StdOutOutput (type=CONSOLE_OUT, uri=stdout:///)
+						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8)
+
+						""".replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);
+			}
+			assertEquals(expected, output.toString(StandardCharsets.UTF_8));
+			assertEquals(0, listenerCalls.get());
+		}
+	}
+
 	@Test
 	void trueAliasDumpsAfterSuccessfulBuildWithoutNotifyingListeners() {
 		System.setProperty(LogProperties.DEBUG_PROPERTY, "true");
@@ -186,7 +234,7 @@ class LogConfigDebugTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$Builder:
-						Error for property. key: 'logging.debug' from SYSTEM_PROPERTIES[logging.debug], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogConfig.DebugModeType.BOGUS""",
+						Error for property. key: 'logging.debug' from SYSTEM_PROPERTIES[logging.debug], java.lang.IllegalArgumentException 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogConfig.DebugModeType. Available values: off, error, info, all, true, false""",
 				thrown.getMessage());
 	}
 

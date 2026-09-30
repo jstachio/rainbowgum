@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.lang.System.Logger.Level;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
@@ -275,6 +276,11 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 */
 	default RainbowGum start() {
 		router().start(config());
+		if (config().debugMode() == LogConfig.DebugModeType.ALL) {
+			var report = LogReporter.builder().build().report(this);
+			MetaLog.error(LogEventFactory.of(RainbowGum.class.getName())
+				.eventNoArg(Level.INFO, "Rainbow Gum started:\n" + report, null));
+		}
 		return this;
 	}
 
