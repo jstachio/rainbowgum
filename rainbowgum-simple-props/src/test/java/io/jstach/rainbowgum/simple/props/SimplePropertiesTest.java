@@ -356,7 +356,7 @@ class SimplePropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
-						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Invalid profile name '../secret': use only ASCII letters, digits, underscores, and hyphens
+						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], Invalid profile name '../secret': use only ASCII letters, digits, underscores, and hyphens
 						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
 				error.getMessage());
 	}
@@ -368,7 +368,7 @@ class SimplePropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
-						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], java.lang.IllegalArgumentException Missing classpath resource 'classpath:/logging-not-present.properties' for selected profile 'not-present'
+						Error for property. key: 'logging.profiles' from ENV[RAINBOWGUM_profiles], Missing classpath resource 'classpath:/logging-not-present.properties' for selected profile 'not-present'
 						Tried: 'logging.profiles' from SYSTEM_PROPERTIES[logging.profiles], ENV[RAINBOWGUM_profiles]""",
 				error.getMessage());
 	}

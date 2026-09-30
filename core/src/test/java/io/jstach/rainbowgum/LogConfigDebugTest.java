@@ -77,7 +77,7 @@ class LogConfigDebugTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], capacity should be greater than 0
 						Tried: 'logging.alerts.capacity' from SYSTEM_PROPERTIES[logging.alerts.capacity], PROPERTIES_STRING[logging.alerts.capacity]""",
 				thrown.getMessage());
 		assertEquals(List.of("[ERROR] - RAINBOW_GUM - LogConfig - LogConfig build failed; dumping 2 alert(s) "
@@ -234,7 +234,7 @@ class LogConfigDebugTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$Builder:
-						Error for property. key: 'logging.debug' from SYSTEM_PROPERTIES[logging.debug], java.lang.IllegalArgumentException 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogConfig.DebugModeType. Available values: off, error, info, all, true, false""",
+						Error for property. key: 'logging.debug' from SYSTEM_PROPERTIES[logging.debug], 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogConfig.DebugModeType. Valid values: 'off', 'error', 'info', 'all', 'true', 'false'""",
 				thrown.getMessage());
 	}
 

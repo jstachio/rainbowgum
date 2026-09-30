@@ -114,7 +114,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAppender:
-						Error for property. key: 'logging.appender.myapp.flags' from PROPERTIES_STRING[logging.appender.myapp.flags], java.lang.IllegalArgumentException 'BOGUS_FLAG' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderFlag. Available values: disable_immediate_flush, reentry_drop, reentry_log
+						Error for property. key: 'logging.appender.myapp.flags' from PROPERTIES_STRING[logging.appender.myapp.flags], 'BOGUS_FLAG' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderFlag. Valid values: 'disable_immediate_flush', 'reentry_drop', 'reentry_log'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -125,7 +125,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAppender:
-						Error for property. key: 'logging.appender.myapp.type' from PROPERTIES_STRING[logging.appender.myapp.type], java.lang.IllegalArgumentException 'BOGUS_TYPE' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderType. Available values: reuse_buffer, lock_thread_local_buffer, synchronized_thread_local_buffer, lock_new_buffer, auto_detect
+						Error for property. key: 'logging.appender.myapp.type' from PROPERTIES_STRING[logging.appender.myapp.type], 'BOGUS_TYPE' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderType. Valid values: 'reuse_buffer', 'lock_thread_local_buffer', 'synchronized_thread_local_buffer', 'lock_new_buffer', 'auto_detect'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -248,7 +248,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], java.lang.IllegalArgumentException label must not be 'bad'
+						Error for property. key: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], label must not be 'bad'
 						Tried: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], [logging.appender.myapp.encoder]->URI(fake:///)[label]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -265,7 +265,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], java.lang.IllegalArgumentException tags must not contain 'bad'
+						Error for property. key: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], tags must not contain 'bad'
 						Tried: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], [logging.appender.myapp.encoder]->URI(fake:///)[tags]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -282,7 +282,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], java.lang.IllegalArgumentException headers must not contain key 'bad'
+						Error for property. key: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], headers must not contain key 'bad'
 						Tried: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], [logging.appender.myapp.encoder]->URI(fake:///)[headers]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -384,7 +384,7 @@ class ConfigFailureTest {
 				logging.fakeGlobal.mode3=bad
 				""",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'""") {
+						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], mode3 must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -407,7 +407,7 @@ class ConfigFailureTest {
 				logging.fakeGlobal.mode=bad
 				""",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode], java.lang.IllegalArgumentException mode must not be 'bad'""") {
+						Error for property. key: 'logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode], mode must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -431,7 +431,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Error for property. key: 'logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2], java.lang.IllegalArgumentException mode2 must not be 'bad'""") {
+						Error for property. key: 'logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2], mode2 must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -531,7 +531,7 @@ class ConfigFailureTest {
 		 */
 		globalConvertValueErrorAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode3' from B_PROPS[logging.fakeGlobal.mode3], java.lang.IllegalArgumentException mode3 must not be 'bad'
+						Error for property. key: 'logging.fakeGlobal.mode3' from B_PROPS[logging.fakeGlobal.mode3], mode3 must not be 'bad'
 						Tried: 'logging.fakeGlobal.mode3' from A_PROPS[logging.fakeGlobal.mode3], B_PROPS[logging.fakeGlobal.mode3]""") {
 			@Override
 			LogProperties properties() {
@@ -570,7 +570,7 @@ class ConfigFailureTest {
 		 */
 		globalFlagValueErrorAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode' from B_PROPS[logging.fakeGlobal.mode], java.lang.IllegalArgumentException mode must not be 'bad'
+						Error for property. key: 'logging.fakeGlobal.mode' from B_PROPS[logging.fakeGlobal.mode], mode must not be 'bad'
 						Tried: 'logging.fakeGlobal.mode' from A_PROPS[logging.fakeGlobal.mode], B_PROPS[logging.fakeGlobal.mode]""") {
 			@Override
 			LogProperties properties() {
@@ -599,7 +599,7 @@ class ConfigFailureTest {
 		globalValidateErrorAcrossChainedProperties("",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Error for property. key: 'logging.fakeGlobal.mode2' from B_PROPS[logging.fakeGlobal.mode2], java.lang.IllegalArgumentException mode2 must not be 'bad'
+						Error for property. key: 'logging.fakeGlobal.mode2' from B_PROPS[logging.fakeGlobal.mode2], mode2 must not be 'bad'
 						Tried: 'logging.fakeGlobal.mode2' from A_PROPS[logging.fakeGlobal.mode2], B_PROPS[logging.fakeGlobal.mode2]""") {
 			@Override
 			LogProperties properties() {

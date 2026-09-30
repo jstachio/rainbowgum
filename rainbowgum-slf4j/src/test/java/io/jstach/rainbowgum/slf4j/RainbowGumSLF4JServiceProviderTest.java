@@ -77,7 +77,7 @@ class RainbowGumSLF4JServiceProviderTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider:
-						Error for property. key: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type], java.lang.IllegalArgumentException 'BOGUS' is not a valid value for io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider.MDCType. Available values: thread_local, noop""",
+						Error for property. key: 'logging.mdc.type' from PROPERTIES_STRING[logging.mdc.type], 'BOGUS' is not a valid value for io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider.MDCType. Valid values: 'thread_local', 'noop'""",
 				e.getMessage());
 	}
 
