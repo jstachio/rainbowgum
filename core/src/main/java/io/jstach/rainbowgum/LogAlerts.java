@@ -198,7 +198,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 		FAIL;
 
 		static UnobservedErrorsAction parse(String value) {
-			return UnobservedErrorsAction.valueOf(value.toUpperCase(Locale.ROOT));
+			return LogProperty.enumValue(UnobservedErrorsAction.class, value);
 		}
 
 	}

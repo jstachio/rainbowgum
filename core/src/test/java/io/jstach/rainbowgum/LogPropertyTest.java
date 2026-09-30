@@ -24,6 +24,16 @@ import io.jstach.rainbowgum.LogProperty.Validator;
 class LogPropertyTest {
 
 	@Test
+	void enumValueReportsLowercaseOptionsAndAliases() {
+		var thrown = assertThrows(IllegalArgumentException.class,
+				() -> LogProperty.enumValue(LogAlerts.UnobservedErrorsAction.class, "BOGUS", "true", "false"));
+		assertEquals("'BOGUS' is not a valid value for io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction. "
+				+ "Available values: none, dump, fail, true, false", thrown.getMessage());
+		assertEquals(LogAlerts.UnobservedErrorsAction.DUMP,
+				LogProperty.enumValue(LogAlerts.UnobservedErrorsAction.class, "dUmP"));
+	}
+
+	@Test
 	void testValidatorAddIfErrorIgnoresMissingButKeepsError() {
 		Missing<Integer> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"), "missing");
 		Error<Integer> error = new Error<>("key", "bad value", new NumberFormatException("nope"));

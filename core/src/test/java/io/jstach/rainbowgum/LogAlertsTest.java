@@ -264,7 +264,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction.BOGUS""",
+						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], java.lang.IllegalArgumentException 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction. Available values: none, dump, fail""",
 				e.getMessage());
 	}
 

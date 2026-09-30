@@ -182,8 +182,8 @@ public interface LevelResolver {
 	 * @throws IllegalArgumentException if the input is not recognized as a level.
 	 */
 	public static Level parseLevel(String input) throws IllegalArgumentException {
-		input = input.toUpperCase(Locale.ROOT);
-		return switch (input) {
+		String normalized = input.toUpperCase(Locale.ROOT);
+		return switch (normalized) {
 			case "ALL" -> Level.TRACE;
 			case "TRACE", "FINEST" -> Level.TRACE;
 			case "DEBUG", "FINE" -> Level.DEBUG;
@@ -191,9 +191,7 @@ public interface LevelResolver {
 			case "WARN", "WARNING" -> Level.WARNING;
 			case "ERROR", "SEVERE" -> Level.ERROR;
 			case "OFF" -> Level.OFF;
-			default -> {
-				throw new IllegalArgumentException("Cannot parse Level from input. input='" + input + "'");
-			}
+			default -> LogProperty.enumValue(Level.class, input, "finest", "fine", "warn", "severe");
 		};
 	}
 

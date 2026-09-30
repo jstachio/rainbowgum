@@ -2,6 +2,9 @@ package io.jstach.rainbowgum;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -63,6 +66,29 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	public Result<Map<String, String>> ofMap();
+
+	/**
+	 * Parses a case-insensitive enum value and reports the available property values when
+	 * parsing fails. Enum names and additional values are shown in lowercase, as property
+	 * values conventionally are.
+	 * @param <E> enum type.
+	 * @param enumType enum class.
+	 * @param value input value.
+	 * @param additionalValues accepted aliases or other values supported by the property.
+	 * @return parsed enum value.
+	 */
+	static <E extends Enum<E>> E enumValue(Class<E> enumType, String value, String... additionalValues) {
+		try {
+			return Enum.valueOf(enumType, value.toUpperCase(Locale.ROOT));
+		}
+		catch (IllegalArgumentException e) {
+			var available = new LinkedHashSet<String>();
+			EnumSet.allOf(enumType).stream().map(v -> v.name().toLowerCase(Locale.ROOT)).forEach(available::add);
+			Arrays.stream(additionalValues).map(v -> v.toLowerCase(Locale.ROOT)).forEach(available::add);
+			throw new IllegalArgumentException("'" + value + "' is not a valid value for " + enumType.getCanonicalName()
+					+ ". Available values: " + String.join(", ", available), e);
+		}
+	}
 
 	/**
 	 * Resolves the property as an int.

@@ -110,7 +110,7 @@ class PatternConfiguratorTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
-						Error for property. key: 'logging.pattern.config.list.abbreviatorCache' from PROPERTIES_STRING[logging.pattern.config.list.abbreviatorCache], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType.NOTAREALCACHETYPE
+						Error for property. key: 'logging.pattern.config.list.abbreviatorCache' from PROPERTIES_STRING[logging.pattern.config.list.abbreviatorCache], java.lang.IllegalArgumentException 'notarealcachetype' is not a valid value for io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType. Available values: disabled, basic, true, default, false
 						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",

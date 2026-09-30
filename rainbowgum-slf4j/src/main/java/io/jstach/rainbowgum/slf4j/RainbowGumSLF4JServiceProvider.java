@@ -66,7 +66,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 		NOOP;
 
 		static MDCType parse(String value) {
-			return MDCType.valueOf(value.toUpperCase(Locale.ROOT));
+			return LogProperty.enumValue(MDCType.class, value);
 		}
 
 	}
@@ -102,7 +102,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 		TRUE, FALSE;
 
 		static GlobalThreadLocalDisabled parse(String value) {
-			return GlobalThreadLocalDisabled.valueOf(value.toUpperCase(Locale.ROOT));
+			return LogProperty.enumValue(GlobalThreadLocalDisabled.class, value);
 		}
 
 	}

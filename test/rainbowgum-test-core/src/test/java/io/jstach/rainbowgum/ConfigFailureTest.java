@@ -114,7 +114,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAppender:
-						Error for property. key: 'logging.appender.myapp.flags' from PROPERTIES_STRING[logging.appender.myapp.flags], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAppender.AppenderFlag.BOGUS_FLAG
+						Error for property. key: 'logging.appender.myapp.flags' from PROPERTIES_STRING[logging.appender.myapp.flags], java.lang.IllegalArgumentException 'BOGUS_FLAG' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderFlag. Available values: disable_immediate_flush, reentry_drop, reentry_log
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -125,7 +125,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAppender:
-						Error for property. key: 'logging.appender.myapp.type' from PROPERTIES_STRING[logging.appender.myapp.type], java.lang.IllegalArgumentException No enum constant io.jstach.rainbowgum.LogAppender.AppenderType.BOGUS_TYPE
+						Error for property. key: 'logging.appender.myapp.type' from PROPERTIES_STRING[logging.appender.myapp.type], java.lang.IllegalArgumentException 'BOGUS_TYPE' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderType. Available values: reuse_buffer, lock_thread_local_buffer, synchronized_thread_local_buffer, lock_new_buffer, auto_detect
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 

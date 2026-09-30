@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
@@ -108,7 +109,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 		public static InitOption parse(String input) {
 			if (input.isBlank())
 				return FALSE;
-			return InitOption.valueOf(input.toUpperCase(Locale.ROOT));
+			return LogProperty.enumValue(InitOption.class, input, "blank");
 		}
 
 	}

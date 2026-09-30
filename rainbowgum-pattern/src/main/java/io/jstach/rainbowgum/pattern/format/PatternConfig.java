@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
@@ -109,7 +110,7 @@ public sealed interface PatternConfig extends Configurator {
 			return switch (v) {
 				case "TRUE", "DEFAULT" -> BASIC;
 				case "FALSE" -> DISABLED;
-				default -> CacheType.valueOf(v);
+				default -> LogProperty.enumValue(CacheType.class, value, "true", "default", "false");
 			};
 		}
 
