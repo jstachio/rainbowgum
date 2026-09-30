@@ -1313,7 +1313,8 @@ final class DefaultLogProperty implements LogProperty {
 
 	<T> Result.Missing<T> missingResult(LogProperties props, List<String> keys) {
 		List<String> resolvedKeys = describeKeys(props, keys);
-		String message = "Property missing. keys: " + resolvedKeys;
+		String label = keys.size() == 1 ? "key" : "keys";
+		String message = "Property missing. " + label + ": " + resolvedKeys;
 		if (message.length() > 120) {
 			var descriptions = new ArrayList<String>();
 			for (var key : keys) {
@@ -1323,9 +1324,9 @@ final class DefaultLogProperty implements LogProperty {
 					sources.add(source.description(sourceKey));
 					return null;
 				});
-				descriptions.add("'" + fqk + "' from:\n    " + String.join(",\n    ", sources));
+				descriptions.add("'" + fqk + "' from:\n        " + String.join(",\n        ", sources));
 			}
-			message = "Property missing. keys:\n  " + String.join(",\n  ", descriptions);
+			message = "Property missing. " + label + ":\n    " + String.join(",\n    ", descriptions);
 		}
 		return new Result.Missing<>(props, keys, message);
 	}

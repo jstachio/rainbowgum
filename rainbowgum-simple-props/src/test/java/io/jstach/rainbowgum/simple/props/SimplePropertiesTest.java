@@ -257,13 +257,14 @@ class SimplePropertiesTest {
 					.validateNow(SimplePropertiesTest.class));
 		assertEquals("""
 				Validation failed for io.jstach.rainbowgum.simple.props.SimplePropertiesTest:
-				Property missing. keys:
-				  'logging.profile.test.missing' from:
-				    SYSTEM_PROPERTIES[logging.profile.test.missing],
-				    ENV[RAINBOWGUM_profile_test_missing],
-				    SIMPLE_PROPS[classpath:/logging-profile-first.properties][logging.profile.test.missing],
-				    SIMPLE_PROPS[classpath:/logging-profile-second.properties][logging.profile.test.missing],
-				    SIMPLE_PROPS[classpath:/logging.properties][logging.profile.test.missing]""", error.getMessage());
+				Property missing. key:
+				    'logging.profile.test.missing' from:
+				        SYSTEM_PROPERTIES[logging.profile.test.missing],
+				        ENV[RAINBOWGUM_profile_test_missing],
+				        SIMPLE_PROPS[classpath:/logging-profile-first.properties][logging.profile.test.missing],
+				        SIMPLE_PROPS[classpath:/logging-profile-second.properties][logging.profile.test.missing],
+				        SIMPLE_PROPS[classpath:/logging.properties][logging.profile.test.missing]""",
+				error.getMessage());
 	}
 
 	@Test
