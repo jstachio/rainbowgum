@@ -24,6 +24,28 @@ import io.jstach.rainbowgum.LogProperty.Validator;
 class LogPropertyTest {
 
 	@Test
+	void conversionErrorListsNestedSourcesWithoutSplittingDescriptionCommas() {
+		var first = LogProperties.builder()
+			.description("FIRST, SECOND")
+			.fromProperties("logging.encoder.console.pattern=bad")
+			.build();
+		var third = LogProperties.builder().description("THIRD").fromProperties("").build();
+		var fourth = LogProperties.builder().description("FOURTH").fromProperties("").build();
+		var properties = LogProperties.of(List.of(first, LogProperties.of(List.of(third, fourth))));
+		var error = assertThrows(PropertyConvertException.class,
+				() -> ((Error<Integer>) properties.forKey("logging.encoder.console.pattern").ofInt()).value());
+		assertEquals(
+				"""
+						Error for property. key: 'logging.encoder.console.pattern' from FIRST, SECOND[logging.encoder.console.pattern], java.lang.NumberFormatException For input string: "bad"
+						Tried:
+						    'logging.encoder.console.pattern' from:
+						        FIRST, SECOND[logging.encoder.console.pattern],
+						        THIRD[logging.encoder.console.pattern],
+						        FOURTH[logging.encoder.console.pattern]""",
+				error.getMessage());
+	}
+
+	@Test
 	void enumValueReportsLowercaseOptionsAndAliases() {
 		var thrown = assertThrows(IllegalArgumentException.class,
 				() -> LogProperty.enumValue(LogAlerts.UnobservedErrorsAction.class, "BOGUS", "true", "false"));

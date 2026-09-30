@@ -196,7 +196,10 @@ class GelfEncoderTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder:
 						Error for property. key: 'logging.encoder.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits], java.lang.NumberFormatException For input string: "notanumber"
-						Tried: 'logging.encoder.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits], [logging.appender.list.encoder]->URI(gelf:///)[timeFractionalDigits]
+						Tried:
+						    'logging.encoder.list.timeFractionalDigits' from:
+						        PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits],
+						        [logging.appender.list.encoder]->URI(gelf:///)[timeFractionalDigits]
 						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'gelf'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",

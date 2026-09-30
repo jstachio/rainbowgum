@@ -78,7 +78,10 @@ class LogConfigDebugTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
 						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], capacity should be greater than 0
-						Tried: 'logging.alerts.capacity' from SYSTEM_PROPERTIES[logging.alerts.capacity], PROPERTIES_STRING[logging.alerts.capacity]""",
+						Tried:
+						    'logging.alerts.capacity' from:
+						        SYSTEM_PROPERTIES[logging.alerts.capacity],
+						        PROPERTIES_STRING[logging.alerts.capacity]""",
 				thrown.getMessage());
 		assertEquals(List.of("[ERROR] - RAINBOW_GUM - LogConfig - LogConfig build failed; dumping 2 alert(s) "
 				+ "io.jstach.rainbowgum.LogProperty$ValidationException: Validation failed for io.jstach.rainbowgum.LogAlerts:",
