@@ -44,7 +44,12 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		ERROR,
 		/**
-		 * Dump collected alerts after every successful build and on build failure.
+		 * Dump collected alerts after every successful config build and on build failure.
+		 */
+		INFO,
+		/**
+		 * Dump collected alerts as in {@link #INFO}, and print a {@link LogReporter}
+		 * report after Rainbow Gum starts.
 		 */
 		ALL;
 
@@ -53,7 +58,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			return switch (v) {
 				case "FALSE" -> OFF;
 				case "TRUE" -> ALL;
-				default -> DebugModeType.valueOf(v);
+				default -> LogProperty.enumValue(DebugModeType.class, value, "true", "false");
 			};
 		}
 
@@ -502,7 +507,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				// start() itself reports the backlog before throwing for FAIL.
 				startingAlerts = true;
 				alerts.start(config);
-				if (debug == DebugModeType.ALL) {
+				if (debug == DebugModeType.INFO || debug == DebugModeType.ALL) {
 					dumpSuccessfulBuild(alerts);
 				}
 				return config;
