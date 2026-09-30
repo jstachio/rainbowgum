@@ -71,10 +71,10 @@ class LogPropertiesTest {
 		}
 		catch (PropertyMissingException e) {
 			String expected = """
-					Property missing. keys:
-					  'logging.some.ignoreMe' from:
-					    SYSTEM_PROPERTIES[logging.some.ignoreMe],
-					    ENVIRONMENT_VARIABLES[logging_some_ignoreMe]""";
+					Property missing. key:
+					    'logging.some.ignoreMe' from:
+					        SYSTEM_PROPERTIES[logging.some.ignoreMe],
+					        ENVIRONMENT_VARIABLES[logging_some_ignoreMe]""";
 			assertEquals(expected, e.getMessage());
 		}
 	}
@@ -87,11 +87,11 @@ class LogPropertiesTest {
 		var properties = LogProperties.of(List.of(first, LogProperties.of(List.of(third, fourth))));
 		var missing = assertInstanceOf(Missing.class, properties.forKey("logging.encoder.console.pattern").ofString());
 		assertEquals("""
-				Property missing. keys:
-				  'logging.encoder.console.pattern' from:
-				    FIRST, SECOND[logging.encoder.console.pattern],
-				    THIRD[logging.encoder.console.pattern],
-				    FOURTH[logging.encoder.console.pattern]""", missing.message());
+				Property missing. key:
+				    'logging.encoder.console.pattern' from:
+				        FIRST, SECOND[logging.encoder.console.pattern],
+				        THIRD[logging.encoder.console.pattern],
+				        FOURTH[logging.encoder.console.pattern]""", missing.message());
 	}
 
 	@Test
@@ -106,7 +106,7 @@ class LogPropertiesTest {
 		}
 		catch (PropertyMissingException e) {
 			assertEquals(
-					"Property missing. keys: ['logging.some.ignoreMe' from URI_QUERY(stuff:///?blah=hello)[some.ignoreMe]]",
+					"Property missing. key: ['logging.some.ignoreMe' from URI_QUERY(stuff:///?blah=hello)[some.ignoreMe]]",
 					e.getMessage());
 		}
 	}

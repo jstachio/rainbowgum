@@ -188,10 +188,10 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Property missing. keys:
-						  'logging.encoder.myapp.host' from:
-						    PROPERTIES_STRING[logging.encoder.myapp.host],
-						    [logging.appender.myapp.encoder]->URI(fake:///)[host]
+						Property missing. key:
+						    'logging.encoder.myapp.host' from:
+						        PROPERTIES_STRING[logging.encoder.myapp.host],
+						        [logging.appender.myapp.encoder]->URI(fake:///)[host]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
@@ -305,12 +305,11 @@ class ConfigFailureTest {
 		 * X:\n..."). FakeGlobalConfigurator instead reads its required property directly
 		 * off LogConfig.properties() - the same style JULConfigurator uses for its global
 		 * on/off switches - so a missing value here throws immediately and unwrapped: a
-		 * plain "Property missing. keys: [...]" with none of the Validator/builder
+		 * plain "Property missing. key: [...]" with none of the Validator/builder
 		 * machinery in between.
 		 */
-		globalFlagReadWithoutValidatorThrowsDirectly("",
-				"""
-						Property missing. keys: ['logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode]]""") {
+		globalFlagReadWithoutValidatorThrowsDirectly("", """
+				Property missing. key: ['logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode]]""") {
 			@Override
 			LogProperties properties() {
 				return LogProperties.builder().fromProperties("").build();
@@ -329,17 +328,17 @@ class ConfigFailureTest {
 		 * property read, no builder), but via a hand-built Validator +
 		 * Result.validate(Validator) instead of plain Result.value() - mode is set so
 		 * that first direct read succeeds and execution reaches mode2's read. Compare
-		 * this message to the plain "Property missing. keys: [...]" above: routing
-		 * through a Validator gets the same "Validation failed for X:" wrapper a
-		 * generated builder's own Validator would produce, naming FakeGlobalConfigurator
-		 * as the thing that wanted the property.
+		 * this message to the plain "Property missing. key: [...]" above: routing through
+		 * a Validator gets the same "Validation failed for X:" wrapper a generated
+		 * builder's own Validator would produce, naming FakeGlobalConfigurator as the
+		 * thing that wanted the property.
 		 */
 		globalFlagReadWithValidateBuildsRicherMissingMessage("""
 				logging.fakeGlobal.mode=x
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Property missing. keys: ['logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2]]""") {
+						Property missing. key: ['logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2]]""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -353,7 +352,7 @@ class ConfigFailureTest {
 		 * "Missing" case proves convert() adds nothing when the property is simply absent
 		 * - Result.convert()'s own switch passes a Missing straight through (case
 		 * Missing<T> m -> m.convert();) without ever reaching richError(), so the message
-		 * is the exact same plain "Property missing. keys: [...]" shape as
+		 * is the exact same plain "Property missing. key: [...]" shape as
 		 * globalFlagReadWithoutValidatorThrowsDirectly above, just naming a different
 		 * key.
 		 */
@@ -362,7 +361,7 @@ class ConfigFailureTest {
 				logging.fakeGlobal.mode2=y
 				""",
 				"""
-						Property missing. keys: ['logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3]]""") {
+						Property missing. key: ['logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3]]""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -424,7 +423,7 @@ class ConfigFailureTest {
 		 * (via Validator#add, same as Missing) instead of a Result.Missing - same
 		 * "Validation failed for X:" wrapper, but the inner line is mode2's richError()
 		 * message (see globalFlagValueError above) instead of
-		 * "Property missing. keys: [...]".
+		 * "Property missing. key: [...]".
 		 */
 		globalValidateError("""
 				logging.fakeGlobal.mode=x
@@ -449,10 +448,10 @@ class ConfigFailureTest {
 		 * to be exact about.
 		 */
 		globalConvertValueMissingAcrossChainedProperties("", """
-				Property missing. keys:
-				  'logging.fakeGlobal.mode3' from:
-				    A_PROPS[logging.fakeGlobal.mode3],
-				    B_PROPS[logging.fakeGlobal.mode3]""") {
+				Property missing. key:
+				    'logging.fakeGlobal.mode3' from:
+				        A_PROPS[logging.fakeGlobal.mode3],
+				        B_PROPS[logging.fakeGlobal.mode3]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
@@ -473,10 +472,10 @@ class ConfigFailureTest {
 		// chained-composite variant of globalFlagReadWithoutValidatorThrowsDirectly - see
 		// unregisteredOutputSchemeAcrossChainedProperties below for what this proves.
 		globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties("", """
-				Property missing. keys:
-				  'logging.fakeGlobal.mode' from:
-				    A_PROPS[logging.fakeGlobal.mode],
-				    B_PROPS[logging.fakeGlobal.mode]""") {
+				Property missing. key:
+				    'logging.fakeGlobal.mode' from:
+				        A_PROPS[logging.fakeGlobal.mode],
+				        B_PROPS[logging.fakeGlobal.mode]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("").build();
@@ -495,10 +494,10 @@ class ConfigFailureTest {
 		// globalFlagReadWithValidateBuildsRicherMissingMessage.
 		globalFlagReadWithValidateBuildsRicherMissingMessageAcrossChainedProperties("", """
 				Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-				Property missing. keys:
-				  'logging.fakeGlobal.mode2' from:
-				    A_PROPS[logging.fakeGlobal.mode2],
-				    B_PROPS[logging.fakeGlobal.mode2]""") {
+				Property missing. key:
+				    'logging.fakeGlobal.mode2' from:
+				        A_PROPS[logging.fakeGlobal.mode2],
+				        B_PROPS[logging.fakeGlobal.mode2]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
@@ -652,11 +651,11 @@ class ConfigFailureTest {
 		encoderMissingRequiredStringPropertyAcrossChainedProperties("",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Property missing. keys:
-						  'logging.encoder.myapp.host' from:
-						    PROPERTIES_STRING[logging.encoder.myapp.host],
-						    PROPERTIES_STRING[logging.encoder.myapp.host],
-						    [logging.appender.myapp.encoder]->URI(fake:///)[host]
+						Property missing. key:
+						    'logging.encoder.myapp.host' from:
+						        PROPERTIES_STRING[logging.encoder.myapp.host],
+						        PROPERTIES_STRING[logging.encoder.myapp.host],
+						        [logging.appender.myapp.encoder]->URI(fake:///)[host]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						    Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], PROPERTIES_STRING[logging.appender.myapp.encoder]
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].

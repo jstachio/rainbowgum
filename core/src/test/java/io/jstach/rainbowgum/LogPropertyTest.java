@@ -155,7 +155,7 @@ class LogPropertyTest {
 	@SuppressWarnings({ "null", "nullness", "NullAway" })
 	void testMissingOrWithFallbackSupplier() {
 		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"),
-				"Property missing. keys: [key]");
+				"Property missing. key: [key]");
 		assertEquals("fallback", missing.or(() -> "fallback").validateNow(LogPropertyTest.class));
 		assertThrows(PropertyMissingException.class, () -> ((Missing<String>) missing.or(() -> null)).value());
 	}
@@ -163,7 +163,7 @@ class LogPropertyTest {
 	@Test
 	void testMissingConvertAndDescribe() {
 		Missing<String> missing = new Missing<>(LogProperties.StandardProperties.EMPTY, List.of("key"),
-				"Property missing. keys: [key]");
+				"Property missing. key: [key]");
 		Missing<Integer> converted = missing.convert();
 		assertEquals("Missing[[key]]", converted.describe());
 		assertEquals(missing, missing.map(Integer::parseInt));
