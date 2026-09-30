@@ -1542,18 +1542,16 @@ interface ListLogProperties extends LogProperties, LogReporter.Reportable {
 
 	@Override
 	default String description(String key) {
-		StringBuilder sb = new StringBuilder();
-		boolean first = true;
-		for (var p : properties()) {
-			if (first) {
-				first = false;
-			}
-			else {
-				sb.append(", ");
-			}
-			sb.append(p.description(key));
+		var descriptions = new ArrayList<String>();
+		visit(key, (source, sourceKey) -> {
+			descriptions.add(source.description(sourceKey));
+			return null;
+		});
+		String description = String.join(", ", descriptions);
+		if (description.length() > 120) {
+			return "\n    " + String.join(",\n    ", descriptions);
 		}
-		return sb.toString();
+		return description;
 	}
 
 	LogProperties[] properties();
@@ -1565,8 +1563,8 @@ interface ListLogProperties extends LogProperties, LogReporter.Reportable {
 	}
 
 	/*
-	 * Mirrors description(String)'s own comma separated shape above, but per component
-	 * (via LogPropertiesReporting.describe, the same fallback chain
+	 * Reports components separated by commas without the error description's line
+	 * wrapping (via LogPropertiesReporting.describe, the same fallback chain
 	 * LogReporter#appendGlobalProperties uses for the top level LogProperties a LogConfig
 	 * was built with) rather than per key.
 	 */
