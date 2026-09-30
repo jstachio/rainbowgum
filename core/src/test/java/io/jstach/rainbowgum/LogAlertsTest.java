@@ -185,7 +185,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0""",
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], capacity should be greater than 0""",
 				e.getMessage());
 	}
 
@@ -196,7 +196,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], java.lang.IllegalArgumentException capacity should be greater than 0""",
+						Error for property. key: 'logging.alerts.capacity' from PROPERTIES_STRING[logging.alerts.capacity], capacity should be greater than 0""",
 				e.getMessage());
 	}
 
@@ -268,7 +268,7 @@ class LogAlertsTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAlerts:
-						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], java.lang.IllegalArgumentException 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction. Available values: none, dump, fail""",
+						Error for property. key: 'logging.alerts.unobservedErrorsAction' from PROPERTIES_STRING[logging.alerts.unobservedErrorsAction], 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction. Valid values: 'none', 'dump', 'fail'""",
 				e.getMessage());
 	}
 

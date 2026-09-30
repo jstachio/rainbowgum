@@ -28,7 +28,7 @@ class LogPropertyTest {
 		var thrown = assertThrows(IllegalArgumentException.class,
 				() -> LogProperty.enumValue(LogAlerts.UnobservedErrorsAction.class, "BOGUS", "true", "false"));
 		assertEquals("'BOGUS' is not a valid value for io.jstach.rainbowgum.LogAlerts.UnobservedErrorsAction. "
-				+ "Available values: none, dump, fail, true, false", thrown.getMessage());
+				+ "Valid values: 'none', 'dump', 'fail', 'true', 'false'", thrown.getMessage());
 		assertEquals(LogAlerts.UnobservedErrorsAction.DUMP,
 				LogProperty.enumValue(LogAlerts.UnobservedErrorsAction.class, "dUmP"));
 	}

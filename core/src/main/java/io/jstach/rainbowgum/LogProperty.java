@@ -68,7 +68,7 @@ public interface LogProperty {
 	public Result<Map<String, String>> ofMap();
 
 	/**
-	 * Parses a case-insensitive enum value and reports the available property values when
+	 * Parses a case-insensitive enum value and reports the valid property values when
 	 * parsing fails. Enum names and additional values are shown in lowercase, as property
 	 * values conventionally are.
 	 * @param <E> enum type.
@@ -86,7 +86,7 @@ public interface LogProperty {
 			EnumSet.allOf(enumType).stream().map(v -> v.name().toLowerCase(Locale.ROOT)).forEach(available::add);
 			Arrays.stream(additionalValues).map(v -> v.toLowerCase(Locale.ROOT)).forEach(available::add);
 			throw new IllegalArgumentException("'" + value + "' is not a valid value for " + enumType.getCanonicalName()
-					+ ". Available values: " + String.join(", ", available), e);
+					+ ". Valid values: " + String.join(", ", available.stream().map(v -> "'" + v + "'").toList()), e);
 		}
 	}
 
@@ -258,7 +258,8 @@ public interface LogProperty {
 			own = chainedLabel + ". key: " + resolvedKey + ", value: '" + ps.valueDescription() + "'";
 		}
 		else {
-			own = "Error for property. key: " + resolvedKey + ", " + errorName(e) + " " + e.getMessage();
+			String exceptionPrefix = e.getClass() == IllegalArgumentException.class ? "" : errorName(e) + " ";
+			own = "Error for property. key: " + resolvedKey + ", " + exceptionPrefix + e.getMessage();
 		}
 		/*
 		 * Only worth a "Tried:" line if topProperties actually searched more broadly than

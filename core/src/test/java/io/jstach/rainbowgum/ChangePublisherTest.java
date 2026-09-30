@@ -203,7 +203,7 @@ class ChangePublisherTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad], \
-						java.lang.IllegalArgumentException 'nonsense' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType. Available values: none, level, true, false""",
+						'nonsense' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType. Valid values: 'none', 'level', 'true', 'false'""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);
@@ -212,7 +212,7 @@ class ChangePublisherTest {
 		assertNotNull(cause);
 		assertEquals(IllegalArgumentException.class, cause.getClass());
 		assertEquals("'nonsense' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType. "
-				+ "Available values: none, level, true, false", cause.getMessage());
+				+ "Valid values: 'none', 'level', 'true', 'false'", cause.getMessage());
 	}
 
 	/*
@@ -235,7 +235,7 @@ class ChangePublisherTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
 						Error for property. key: 'logging.caller.bad' from PROPERTIES_STRING[logging.caller.bad], \
-						java.lang.IllegalArgumentException 'nonsense' is not a valid value for io.jstach.rainbowgum.LogEvent.Caller.CallerType. Available values: none, basic, true, false""",
+						'nonsense' is not a valid value for io.jstach.rainbowgum.LogEvent.Caller.CallerType. Valid values: 'none', 'basic', 'true', 'false'""",
 				event.message());
 		var throwable = event.throwableOrNull();
 		assertNotNull(throwable);
@@ -244,7 +244,7 @@ class ChangePublisherTest {
 		assertNotNull(cause);
 		assertEquals(IllegalArgumentException.class, cause.getClass());
 		assertEquals("'nonsense' is not a valid value for io.jstach.rainbowgum.LogEvent.Caller.CallerType. "
-				+ "Available values: none, basic, true, false", cause.getMessage());
+				+ "Valid values: 'none', 'basic', 'true', 'false'", cause.getMessage());
 	}
 
 	@Test

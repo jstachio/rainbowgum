@@ -174,7 +174,7 @@ class AbbreviatorTest {
 	void cacheTypeParseRejectsUnrecognizedValue() {
 		var e = assertThrows(IllegalArgumentException.class, () -> PatternConfig.CacheType.parse("nonsense"));
 		assertEquals("'nonsense' is not a valid value for io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType. "
-				+ "Available values: disabled, basic, true, default, false", e.getMessage());
+				+ "Valid values: 'disabled', 'basic', 'true', 'default', 'false'", e.getMessage());
 	}
 
 	// --- LogbackCache (generic caching layer backing Abbreviator.cache) ---
