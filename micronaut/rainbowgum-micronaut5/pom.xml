@@ -20,7 +20,7 @@
     repository), which are also plain classpath, not modular.
   -->
   <properties>
-    <micronaut.version>5.1.5</micronaut.version>
+    <micronaut.version>5.2.0</micronaut.version>
     <!--
       A plain dependencyManagement <scope>import</scope> of micronaut-platform (unlike a
       real <parent> inheritance) does not bring its own properties along, so the actual
