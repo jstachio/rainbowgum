@@ -246,7 +246,13 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable String exceptionMessage() {
 				return """
-						Property missing. keys: ['logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name], 'logging.appender.file.output' from ENVIRONMENT_VARIABLES[logging_appender_file_output], PROPERTIES_STRING[logging.appender.file.output]]
+						Property missing. keys:
+						  'logging.file.name' from:
+						    ENVIRONMENT_VARIABLES[logging_file_name],
+						    PROPERTIES_STRING[logging.file.name],
+						  'logging.appender.file.output' from:
+						    ENVIRONMENT_VARIABLES[logging_appender_file_output],
+						    PROPERTIES_STRING[logging.appender.file.output]
 						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 						  ↳ Failure providing Appenders for route: 'default'.""";
 			}
