@@ -71,9 +71,27 @@ class LogPropertiesTest {
 		}
 		catch (PropertyMissingException e) {
 			String expected = """
-					Property missing. keys: ['logging.some.ignoreMe' from SYSTEM_PROPERTIES[logging.some.ignoreMe], ENVIRONMENT_VARIABLES[logging_some_ignoreMe]]""";
+					Property missing. keys:
+					  'logging.some.ignoreMe' from:
+					    SYSTEM_PROPERTIES[logging.some.ignoreMe],
+					    ENVIRONMENT_VARIABLES[logging_some_ignoreMe]""";
 			assertEquals(expected, e.getMessage());
 		}
+	}
+
+	@Test
+	void testMissingSourcesKeepCommasWithinDescriptions() {
+		var first = LogProperties.builder().description("FIRST, SECOND").fromProperties("").build();
+		var third = LogProperties.builder().description("THIRD").fromProperties("").build();
+		var fourth = LogProperties.builder().description("FOURTH").fromProperties("").build();
+		var properties = LogProperties.of(List.of(first, LogProperties.of(List.of(third, fourth))));
+		var missing = assertInstanceOf(Missing.class, properties.forKey("logging.encoder.console.pattern").ofString());
+		assertEquals("""
+				Property missing. keys:
+				  'logging.encoder.console.pattern' from:
+				    FIRST, SECOND[logging.encoder.console.pattern],
+				    THIRD[logging.encoder.console.pattern],
+				    FOURTH[logging.encoder.console.pattern]""", missing.message());
 	}
 
 	@Test

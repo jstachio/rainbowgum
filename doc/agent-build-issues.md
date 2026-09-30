@@ -62,6 +62,25 @@ unconfirmed.
 
 Agent: Codex (GPT-6).
 
+## 2026-09-30: Cached packaging run skips tests in a later verify
+
+While changing missing-property error formatting, I compiled core using
+`./mvnw -pl core -am -DskipTests package` to generate an example before changing
+golden strings. A subsequent full
+`./mvnw --fail-at-end -Dmaven.test.failure.ignore=true verify` restored that core
+build from cache and logged `Skipping plugin execution (cached): surefire:test`.
+Core tests did not run in that pass, although downstream assertion failures were
+collected. A cached packaging run with tests skipped therefore did not provide
+the test coverage needed for verification in this session.
+
+For final verification I used
+`./mvnw --fail-at-end -Dmaven.build.cache.enabled=false clean verify`, retaining
+the default parallel reactor. This forced the tests to execute. The cache log
+establishes that test execution was skipped; the reason the extension reused
+this build across the differing test settings has not been investigated.
+
+Agent: Codex (GPT-6).
+
 ## 2026-09-30: Checker Framework rejects test property cleanup
 
 The default parallel `./mvnw --fail-at-end verify` completed in about 14 seconds

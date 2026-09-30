@@ -188,7 +188,10 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Property missing. keys: ['logging.encoder.myapp.host' from PROPERTIES_STRING[logging.encoder.myapp.host], [logging.appender.myapp.encoder]->URI(fake:///)[host]]
+						Property missing. keys:
+						  'logging.encoder.myapp.host' from:
+						    PROPERTIES_STRING[logging.encoder.myapp.host],
+						    [logging.appender.myapp.encoder]->URI(fake:///)[host]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
@@ -445,9 +448,11 @@ class ConfigFailureTest {
 		 * "keys:" line lists both members' descriptions since nothing was found anywhere
 		 * to be exact about.
 		 */
-		globalConvertValueMissingAcrossChainedProperties("",
-				"""
-						Property missing. keys: ['logging.fakeGlobal.mode3' from A_PROPS[logging.fakeGlobal.mode3], B_PROPS[logging.fakeGlobal.mode3]]""") {
+		globalConvertValueMissingAcrossChainedProperties("", """
+				Property missing. keys:
+				  'logging.fakeGlobal.mode3' from:
+				    A_PROPS[logging.fakeGlobal.mode3],
+				    B_PROPS[logging.fakeGlobal.mode3]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
@@ -467,9 +472,11 @@ class ConfigFailureTest {
 		// permutation: chained,missing,value
 		// chained-composite variant of globalFlagReadWithoutValidatorThrowsDirectly - see
 		// unregisteredOutputSchemeAcrossChainedProperties below for what this proves.
-		globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties("",
-				"""
-						Property missing. keys: ['logging.fakeGlobal.mode' from A_PROPS[logging.fakeGlobal.mode], B_PROPS[logging.fakeGlobal.mode]]""") {
+		globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties("", """
+				Property missing. keys:
+				  'logging.fakeGlobal.mode' from:
+				    A_PROPS[logging.fakeGlobal.mode],
+				    B_PROPS[logging.fakeGlobal.mode]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("").build();
@@ -486,10 +493,12 @@ class ConfigFailureTest {
 		// permutation: chained,missing,validator
 		// chained-composite variant of
 		// globalFlagReadWithValidateBuildsRicherMissingMessage.
-		globalFlagReadWithValidateBuildsRicherMissingMessageAcrossChainedProperties("",
-				"""
-						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Property missing. keys: ['logging.fakeGlobal.mode2' from A_PROPS[logging.fakeGlobal.mode2], B_PROPS[logging.fakeGlobal.mode2]]""") {
+		globalFlagReadWithValidateBuildsRicherMissingMessageAcrossChainedProperties("", """
+				Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
+				Property missing. keys:
+				  'logging.fakeGlobal.mode2' from:
+				    A_PROPS[logging.fakeGlobal.mode2],
+				    B_PROPS[logging.fakeGlobal.mode2]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
@@ -643,7 +652,11 @@ class ConfigFailureTest {
 		encoderMissingRequiredStringPropertyAcrossChainedProperties("",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Property missing. keys: ['logging.encoder.myapp.host' from PROPERTIES_STRING[logging.encoder.myapp.host], PROPERTIES_STRING[logging.encoder.myapp.host], [logging.appender.myapp.encoder]->URI(fake:///)[host]]
+						Property missing. keys:
+						  'logging.encoder.myapp.host' from:
+						    PROPERTIES_STRING[logging.encoder.myapp.host],
+						    PROPERTIES_STRING[logging.encoder.myapp.host],
+						    [logging.appender.myapp.encoder]->URI(fake:///)[host]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						    Tried: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], PROPERTIES_STRING[logging.appender.myapp.encoder]
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
