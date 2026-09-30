@@ -26,8 +26,8 @@ import io.jstach.rainbowgum.LogProperties;
  * replaced with <code>_</code>, and casing left exactly as-is; see
  * {@link Builder#envPrefix(String)}.</li>
  * <li>Profile resources selected by {@value #PROFILES_PROPERTY}, first profile wins.
- * These are loaded only when the base resource exists; every selected profile resource
- * must exist.</li>
+ * These are loaded only when the base resource exists. An empty selection uses the
+ * optional {@code default} profile; all other profile resources must exist.</li>
  * <li>A classpath resource (default {@value Builder#DEFAULT_RESOURCE}, configurable)
  * parsed the same way {@link LogProperties.Builder#fromProperties(String)} parses any
  * other properties text. If the base resource is absent, this module supplies no property
@@ -54,8 +54,10 @@ public final class SimpleProperties {
 	 * {@code logging.profiles=local-dev,dev} loads {@code logging-local-dev.properties}
 	 * before {@code logging-dev.properties}, with {@code logging.properties} as fallback.
 	 * A missing base resource disables all property sources from this module, regardless
-	 * of profile selection. A missing selected profile resource fails initialization.
-	 * Files cannot activate additional profiles.
+	 * of profile selection. With no profiles selected, the optional {@code default}
+	 * profile is used. It is not included automatically when other profiles are selected.
+	 * A missing selected profile resource fails initialization unless its name is
+	 * {@code default}. Files cannot activate additional profiles.
 	 */
 	public static final String PROFILES_PROPERTY = LogProperties.ROOT_PREFIX + "profiles";
 
@@ -144,7 +146,7 @@ public final class SimpleProperties {
 		 * extension, or appended with a hyphen if there is no such extension. A missing
 		 * base resource makes this module supply no property sources, regardless of
 		 * profile selection. Missing selected profile resources fail when the base
-		 * resource exists.
+		 * resource exists, except for the optional {@code default} profile.
 		 * @apiNote unlike the default resource name, a custom one here is not covered by
 		 * this module's bundled GraalVM {@code resource-config.json} - see this class's
 		 * javadoc.
@@ -160,7 +162,8 @@ public final class SimpleProperties {
 		 * Sets fallback profiles in priority order. A system property or environment
 		 * variable for {@value SimpleProperties#PROFILES_PROPERTY} overrides this list,
 		 * including when it selects no profiles. Profile names must contain only ASCII
-		 * letters, digits, underscores, and hyphens.
+		 * letters, digits, underscores, and hyphens. An empty selection uses the optional
+		 * {@code default} profile.
 		 * @param profiles fallback profile names, first profile wins.
 		 * @return this.
 		 */
@@ -201,6 +204,9 @@ public final class SimpleProperties {
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
 			var profileResources = preProperties.forKey(PROFILES_PROPERTY).ofList().or(profiles).map(names -> {
+				if (names.isEmpty()) {
+					names = List.of("default");
+				}
 				var layers = new ArrayList<LogProperties>();
 				var resources = new ArrayList<String>();
 				for (var name : names) {
@@ -214,6 +220,9 @@ public final class SimpleProperties {
 							: resource + "-" + name;
 					var profileProperties = loadResource(profileResource);
 					if (profileProperties == LogProperties.StandardProperties.EMPTY) {
+						if (name.equals("default")) {
+							continue;
+						}
 						throw new IllegalArgumentException("Missing classpath resource '" + profileResource
 								+ "' for selected profile '" + name + "'");
 					}
