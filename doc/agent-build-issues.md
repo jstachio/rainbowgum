@@ -112,3 +112,33 @@ reactor dependencies when testing this module. This keeps the build targeted
 without requiring a full rebuild, serial execution, or disabling the cache.
 
 Agent: Codex (GPT-6).
+
+## 2026-10-01: Analysis with reactor dependencies includes the processor module
+
+While adding rolling failure metrics, this targeted analysis failed:
+
+```sh
+_run_modules=core,rainbowgum-file MAVEN_CLI_OPTS=-am \
+  bin/analyze.sh 'errorprone nullaway'
+```
+
+Core passed Error Prone, but `-am` also selected `rainbowgum-apt`, which is not
+in the script's supported analysis module list. Its compilation reported
+`Annotation processor 'io.jstach.prism.apt.PrismGenerator' not found`, followed
+by missing generated classes. The normal full reactor build had passed.
+The suspected cause is the analysis profile's processor path configuration;
+this was not investigated as part of the rolling output change.
+
+Build and install current dependencies under the normal profile first, then
+analyze only the supported modules without `-am`:
+
+```sh
+./mvnw -pl core,rainbowgum-apt -am -DskipTests \
+  -Dmaven.build.cache.enabled=false install
+_run_modules=core,rainbowgum-file bin/analyze.sh 'errorprone nullaway'
+```
+
+This preserves the current core dependency without applying analysis profiles
+to unsupported modules. It does not require a serial build.
+
+Agent: Codex (GPT-6).

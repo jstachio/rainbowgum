@@ -9,12 +9,14 @@ import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogMetrics;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
 import io.jstach.rainbowgum.file.FileOutput;
+import io.jstach.rainbowgum.file.FileOutputBuilder;
 
 /**
  * A {@link FileOutput} that rolls (renames the active file to a numbered archive and
@@ -33,7 +35,19 @@ import io.jstach.rainbowgum.file.FileOutput;
  * Every property below lives under the same {@link LogProperties#OUTPUT_PREFIX} as
  * {@link FileOutput} itself - {@code uri}/{@code fileName}/{@code append}/
  * {@code prudent}/{@code bufferSize} all still apply and are passed straight through to
- * the underlying {@link FileOutput} this wraps.
+ * the underlying {@link FileOutput} this wraps. The {@code append} setting applies when
+ * the output is first opened. Replacement outputs always append so recovery preserves any
+ * active contents left behind by a failed rotation.
+ * <p>
+ * Failed automatic rotation attempts record {@link LogMetrics#ROLL_FAIL_METRIC} and an
+ * error alert identifying the active file. The event that triggered the failed rotation
+ * is not retried and also counts toward {@link LogMetrics#EVENTS_FAILED_METRIC}. The next
+ * write attempts to recover the output. Archive changes already completed before a
+ * failure are not rolled back. An explicit {@link #reopen()} after external rotation
+ * instead uses {@link LogMetrics#REOPEN_FAIL_METRIC}.
+ * <p>
+ * Only one process should rotate these files. Prudent mode locks individual writes, but
+ * does not coordinate archive rotation between processes.
  */
 public interface RollingFileOutput extends FileOutput {
 
@@ -159,10 +173,16 @@ public interface RollingFileOutput extends FileOutput {
 		int totalSizeCap_ = totalSizeCap;
 		boolean cleanHistoryOnStart_ = cleanHistoryOnStart;
 		return (n, config) -> {
-			Supplier<FileOutput> supplier = () -> FileOutput.of(fb -> fb.fileName(fileNameForDelegate).append(true))
-				.provide(n, config);
+			var fileBuilder = new FileOutputBuilder(n).fileName(fileNameForDelegate)
+				.append(true)
+				.fromProperties(config.properties());
+			var initialOutput = fileBuilder.build().provide(n, config);
+			// append=false applies only to initial opening. Recovery must preserve any
+			// active contents left behind by a failed rotation.
+			var replacementProvider = fileBuilder.append(true).build();
+			Supplier<FileOutput> supplier = () -> replacementProvider.provide(n, config);
 			return new DefaultRollingFileOutput(activeFile, parsedPattern, maxFileSize_, maxHistory_, totalSizeCap_,
-					cleanHistoryOnStart_, supplier);
+					cleanHistoryOnStart_, supplier, initialOutput, config);
 		};
 	}
 
