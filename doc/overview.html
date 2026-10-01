@@ -1892,7 +1892,8 @@ cannot see a given {@code Logger} in time.
 <h4 id="simple_bundle">rainbowgum-simple</h4>
 
 <code>rainbowgum-simple</code> is a ready-to-use bundle for tests and small applications.
-It includes Rainbow Gum's SLF4J and JDK logging integrations, pattern formatting, and
+It pulls in <code>rainbowgum-slf4j</code> through the <code>rainbowgum</code> dependency,
+along with JDK logging integrations, pattern formatting, and
 <code>rainbowgum-simple-props</code>. Adding it activates logging without application
 code or a configuration file. For library tests, use Maven's <code>test</code> scope:
 
@@ -1926,37 +1927,70 @@ its property loading without the entire simple bundle. For example, alongside th
 </dependency>
 }
 
-It reads system properties first, then <code>RAINBOWGUM_</code>-prefixed environment
-variables, selected <code>logging-&lt;profile&gt;.properties</code> files in listed order,
-and finally <code>logging.properties</code> from the classpath. For example,
-<code>logging.level.root</code> maps to <code>RAINBOWGUM_level_root</code> with the
-default prefix. <strong>To opt in, having <code>rainbowgum-simple-props</code> on the
-classpath or module path is not enough: <code>logging.properties</code> (or the base
-resource name chosen with {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#resource(String) SimpleProperties.builder().resource(...)})
-must exist.</strong> Otherwise this module contributes no properties, including system
-properties and environment variables, even when profiles were selected.
+<h5 id="simple_props_loading">Loading order</h5>
+
 <p>
-Select profiles with <code>-Dlogging.profiles=local-dev,dev</code>,
-<code>RAINBOWGUM_profiles</code>, or
-{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) SimpleProperties.builder().profiles(...)}.
-System properties take priority over environment variables, which take priority over
-builder profiles. Each source replaces the whole list. Profile names allow ASCII
-letters, digits, underscores, and hyphens. When the base file exists, every selected
-profile file must also exist or startup fails, except for the optional
-<code>default</code> profile. Files cannot select additional profiles.
+<strong>To opt in, having <code>rainbowgum-simple-props</code> on the classpath or module
+path is not enough: <code>logging.properties</code> (or the base resource name chosen
+with {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#resource(String) SimpleProperties.builder().resource(...)})
+must exist.</strong> Without that resource, this module contributes no properties,
+including system properties and environment variables, even when profiles were selected.
+</p>
+
+<p>Once the base resource is found, property values resolve in this order (highest priority first):</p>
+<ol>
+<li>System properties.</li>
+<li><code>RAINBOWGUM_</code>-prefixed environment variables. For example,
+<code>logging.level.root</code> maps to <code>RAINBOWGUM_level_root</code>.</li>
+<li>Selected <code>logging-&lt;profile&gt;.properties</code> classpath resources,
+with the first listed profile taking priority.</li>
+<li>The base <code>logging.properties</code> classpath resource.</li>
+</ol>
+
+<h5 id="simple_props_profiles">Profiles</h5>
+
+<p>Profile selection uses the first configured source in this order:</p>
+<ol>
+<li>The <code>logging.profiles</code> system property, such as
+<code>-Dlogging.profiles=local-dev,dev</code>.</li>
+<li>The <code>RAINBOWGUM_profiles</code> environment variable.</li>
+<li>{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) SimpleProperties.builder().profiles(...)}.</li>
+</ol>
+
+<ul>
+<li>Each source replaces the whole profile list, including an explicitly empty list.
+Files cannot select additional profiles.</li>
+<li>Profile names allow ASCII letters, digits, underscores, and hyphens.</li>
+<li>When the base resource exists, every selected profile resource must also exist or
+startup fails, except for the optional <code>default</code> profile.</li>
+</ul>
+
 <p>
-When no profiles are selected (including an explicitly empty list), the
-<code>default</code> profile loads <code>logging-default.properties</code> if it exists.
-Selecting other profiles replaces this default selection; values from
-<code>logging-default.properties</code> are then absent unless <code>default</code> is
-explicitly listed. Put settings such as a custom pattern in that file when another
-profile should be able to use Rainbow Gum's built-in defaults. Settings in
+When no profiles are selected, the <code>default</code> profile loads
+<code>logging-default.properties</code> if it exists. Selecting other profiles replaces
+this default selection; values from that file are absent unless <code>default</code>
+is explicitly listed. Put settings such as a custom pattern there when another profile
+should be able to use Rainbow Gum's built-in defaults. Settings in
 <code>logging.properties</code> remain a fallback for every profile.
+</p>
+
+<h5 id="simple_props_diagnostics">Diagnostics and native images</h5>
+
 <p>
 The provider records the selected profiles and each loaded resource as informational
 {@link io.jstach.rainbowgum.LogConfig#alerts() alerts}. If the base resource is absent,
 it records that instead. Informational alerts are retained without printing to stderr
 by default.
+</p>
+<p>
+Keys in the base resource are checked by default and must start with <code>logging.</code>.
+Each unprefixed property produces an error alert that includes its resource and line number.
+Set <code>logging.simpleprops.strict=off</code> in the base resource, or call
+{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#strict(io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType) SimpleProperties.builder().strict(StrictType.OFF)},
+to disable this check. The resource setting takes precedence over the builder. The accepted
+values are <code>error</code> (default) and <code>off</code>, with <code>true</code> and
+<code>false</code> aliases.
+</p>
 <p>
 The module includes GraalVM native-image resource metadata for
 <code>logging.properties</code> and <code>logging-&lt;profile&gt;.properties</code>.
@@ -1964,6 +1998,7 @@ Custom resource names need their own native-image metadata. For dynamic configur
 or different property sources, use a custom
 {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider} or
 <a href="#simple_example_builder">programmatic builders</a>.
+</p>
 
 <h3 id="spring_boot">Spring Boot</h3>
 
