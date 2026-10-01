@@ -70,6 +70,15 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	static final String REOPEN_METRIC = "reopen";
 
 	/**
+	 * Counter name for failed automatic file rotation attempts, including closing the
+	 * active output, rotating archives, and opening the replacement output. Recovery
+	 * attempts that fail also increment this counter. External rotation followed by an
+	 * explicit reopen is counted by {@link #REOPEN_FAIL_METRIC} instead. Events lost
+	 * because rotation failed are also counted by {@link #EVENTS_FAILED_METRIC}.
+	 */
+	static final String ROLL_FAIL_METRIC = "errors.roll";
+
+	/**
 	 * Counter name for the running count of distinct logger names registered via
 	 * {@link LogConfig.LoggerRegistry#registerLoggerName(LoggerAPI, String)}. Not itself
 	 * a problem, hence {@link #infoCounter(String, long)} rather than
@@ -168,7 +177,11 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 		/**
 		 * See {@link #REOPEN_METRIC}.
 		 */
-		REOPEN(REOPEN_METRIC, Level.INFO);
+		REOPEN(REOPEN_METRIC, Level.INFO),
+		/**
+		 * See {@link #ROLL_FAIL_METRIC}.
+		 */
+		ROLL_FAIL(ROLL_FAIL_METRIC, Level.ERROR);
 
 		private final String metricName;
 

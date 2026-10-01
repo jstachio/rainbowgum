@@ -91,7 +91,9 @@ final class RollingPolicy {
 	 */
 	static void roll(Path activeFile, ParsedPattern pattern, int maxHistory, long totalSizeCap) {
 		try {
-			Files.deleteIfExists(pattern.archivePath(activeFile, maxHistory));
+			if (maxHistory > 0) {
+				Files.deleteIfExists(pattern.archivePath(activeFile, maxHistory));
+			}
 			for (int n = maxHistory - 1; n >= 1; n--) {
 				Path from = pattern.archivePath(activeFile, n);
 				if (Files.exists(from)) {
@@ -192,8 +194,22 @@ final class RollingPolicy {
 	}
 
 	private static void gzip(Path source, Path target) throws IOException {
-		try (var in = Files.newInputStream(source); var out = new GZIPOutputStream(Files.newOutputStream(target))) {
-			in.transferTo(out);
+		Path temporary = Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
+		try {
+			try (var in = Files.newInputStream(source);
+					var out = new GZIPOutputStream(Files.newOutputStream(temporary))) {
+				in.transferTo(out);
+			}
+			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+		}
+		catch (IOException | RuntimeException e) {
+			try {
+				Files.deleteIfExists(temporary);
+			}
+			catch (IOException cleanupFailure) {
+				e.addSuppressed(cleanupFailure);
+			}
+			throw e;
 		}
 	}
 
