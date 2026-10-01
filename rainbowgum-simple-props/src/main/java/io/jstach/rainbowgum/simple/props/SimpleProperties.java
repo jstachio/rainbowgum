@@ -52,8 +52,8 @@ public final class SimpleProperties {
 
 	/**
 	 * Base-resource key validation. The base resource overrides
-	 * {@link Builder#strict(StrictType)}. Accepts {@code error} or {@code true}
-	 * (default), and {@code off} or {@code false}.
+	 * {@link Builder#strict(StrictType)}. Accepts {@code off} or {@code false},
+	 * {@code alert}, and {@code fail} or {@code true} (default).
 	 */
 	public static final String STRICT_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.strict";
 
@@ -66,11 +66,16 @@ public final class SimpleProperties {
 		/** Disables prefix validation. */
 		OFF,
 		/** Records an error alert for each key without the logging prefix. */
-		ERROR;
+		ALERT,
+		/**
+		 * Records error alerts and fails when supplying properties if any key lacks the
+		 * logging prefix.
+		 */
+		FAIL;
 
 		static StrictType parse(String value) {
 			return switch (value.toLowerCase(java.util.Locale.ROOT)) {
-				case "true" -> ERROR;
+				case "true" -> FAIL;
 				case "false" -> OFF;
 				default -> LogProperty.enumValue(StrictType.class, value, "true", "false");
 			};
@@ -101,17 +106,27 @@ public final class SimpleProperties {
 
 	private final List<String> errorMessages;
 
-	private SimpleProperties(List<LogProperties> properties, List<String> infoMessages, List<String> errorMessages) {
+	private final StrictType strict;
+
+	private SimpleProperties(List<LogProperties> properties, List<String> infoMessages, List<String> errorMessages,
+			StrictType strict) {
 		this.properties = properties;
 		this.infoMessages = infoMessages;
 		this.errorMessages = errorMessages;
+		this.strict = strict;
 	}
 
 	/**
 	 * The layers described in this class's javadoc, highest priority first.
 	 * @return properties, highest priority first.
+	 * @throws IllegalArgumentException if strict validation is {@link StrictType#FAIL}
+	 * and the base resource has unprefixed keys.
 	 */
 	public List<LogProperties> properties() {
+		if (strict == StrictType.FAIL && !errorMessages.isEmpty()) {
+			throw new IllegalArgumentException(
+					"Invalid simple-props base resource:\n" + String.join("\n", errorMessages));
+		}
 		return properties;
 	}
 
@@ -157,13 +172,14 @@ public final class SimpleProperties {
 
 		private List<String> profiles = List.of();
 
-		private StrictType strict = StrictType.ERROR;
+		private StrictType strict = StrictType.FAIL;
 
 		/**
 		 * Sets base-resource key validation. The base resource's
 		 * {@value SimpleProperties#STRICT_PROPERTY} overrides this setting. Validation
-		 * records error alerts, whose handling is controlled by {@link LogAlerts}.
-		 * @param strict validation mode, default {@link StrictType#ERROR}.
+		 * records error alerts. {@link StrictType#FAIL} also stops initialization when
+		 * properties are supplied.
+		 * @param strict validation mode, default {@link StrictType#FAIL}.
 		 * @return this.
 		 */
 		public Builder strict(StrictType strict) {
@@ -251,14 +267,15 @@ public final class SimpleProperties {
 		public SimpleProperties build() {
 			var classpathProperties = loadResource(resource);
 			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
-				return new SimpleProperties(List.of(), List.of("No properties resource found: " + resource), List.of());
+				return new SimpleProperties(List.of(), List.of("No properties resource found: " + resource), List.of(),
+						strict);
 			}
 			var strictType = classpathProperties.forKey(STRICT_PROPERTY)
 				.ofString()
 				.map(StrictType::parse)
 				.or(strict)
 				.validateNow(SimpleProperties.class);
-			var errorMessages = strictType == StrictType.ERROR
+			var errorMessages = strictType != StrictType.OFF
 					&& classpathProperties instanceof SimpleLogProperties simple ? simple.prefixErrors()
 							: List.<String>of();
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
@@ -303,7 +320,7 @@ public final class SimpleProperties {
 			for (var profileResource : profileResources.resources()) {
 				infoMessages.add("Loaded properties resource: " + profileResource);
 			}
-			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages), errorMessages);
+			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages), errorMessages, strictType);
 		}
 
 		private static LogProperties loadResource(String resource) {
