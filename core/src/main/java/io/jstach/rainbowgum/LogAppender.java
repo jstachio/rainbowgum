@@ -1085,11 +1085,13 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 
 	@Override
 	public List<LogEvent> reopen() {
+		metrics.infoCounter(LogMetrics.REOPEN_METRIC, 1);
 		try {
 			output.reopen();
 			return List.of();
 		}
 		catch (Exception e) {
+			metrics.errorCounter(LogMetrics.REOPEN_FAIL_METRIC, 1);
 			var event = errorEvent(getClass(), "appender '" + name + "' failed to reopen output", e);
 			alerts.alert(event);
 			return List.of(event);
