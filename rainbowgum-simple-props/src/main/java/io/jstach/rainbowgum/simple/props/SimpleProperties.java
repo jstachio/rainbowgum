@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.lang.System.Logger.Level;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,9 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.LogEventFactory;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
  * Resolves {@link LogProperties} from the following layers, highest priority first:
@@ -47,6 +51,34 @@ import io.jstach.rainbowgum.LogProperties;
 public final class SimpleProperties {
 
 	/**
+	 * Base-resource key validation. The base resource overrides
+	 * {@link Builder#strict(StrictType)}. Accepts {@code error} or {@code true}
+	 * (default), and {@code off} or {@code false}.
+	 */
+	public static final String STRICT_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.strict";
+
+	/**
+	 * Controls prefix validation of the base resource's property keys.
+	 */
+	@CaseChanging
+	public enum StrictType {
+
+		/** Disables prefix validation. */
+		OFF,
+		/** Records an error alert for each key without the logging prefix. */
+		ERROR;
+
+		static StrictType parse(String value) {
+			return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+				case "true" -> ERROR;
+				case "false" -> OFF;
+				default -> LogProperty.enumValue(StrictType.class, value, "true", "false");
+			};
+		}
+
+	}
+
+	/**
 	 * Comma-separated profiles, in priority order. Resolved from system properties,
 	 * environment variables, or {@link Builder#profiles(List)}, in that priority order,
 	 * after the base classpath resource is found. With the default environment prefix,
@@ -67,9 +99,12 @@ public final class SimpleProperties {
 
 	private final List<String> infoMessages;
 
-	private SimpleProperties(List<LogProperties> properties, List<String> infoMessages) {
+	private final List<String> errorMessages;
+
+	private SimpleProperties(List<LogProperties> properties, List<String> infoMessages, List<String> errorMessages) {
 		this.properties = properties;
 		this.infoMessages = infoMessages;
+		this.errorMessages = errorMessages;
 	}
 
 	/**
@@ -83,6 +118,10 @@ public final class SimpleProperties {
 	void reportAlerts(LogAlerts alerts) {
 		for (var message : infoMessages) {
 			alerts.info(SimpleProperties.class, message);
+		}
+		var eventFactory = LogEventFactory.of(SimpleProperties.class.getName());
+		for (var message : errorMessages) {
+			alerts.alert(eventFactory.eventNoArg(Level.ERROR, message, null));
 		}
 	}
 
@@ -117,6 +156,20 @@ public final class SimpleProperties {
 		private String resource = DEFAULT_RESOURCE;
 
 		private List<String> profiles = List.of();
+
+		private StrictType strict = StrictType.ERROR;
+
+		/**
+		 * Sets base-resource key validation. The base resource's
+		 * {@value SimpleProperties#STRICT_PROPERTY} overrides this setting. Validation
+		 * records error alerts, whose handling is controlled by {@link LogAlerts}.
+		 * @param strict validation mode, default {@link StrictType#ERROR}.
+		 * @return this.
+		 */
+		public Builder strict(StrictType strict) {
+			this.strict = Objects.requireNonNull(strict);
+			return this;
+		}
 
 		private Function<String, @Nullable String> envLookup = System::getenv;
 
@@ -198,8 +251,16 @@ public final class SimpleProperties {
 		public SimpleProperties build() {
 			var classpathProperties = loadResource(resource);
 			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
-				return new SimpleProperties(List.of(), List.of("No properties resource found: " + resource));
+				return new SimpleProperties(List.of(), List.of("No properties resource found: " + resource), List.of());
 			}
+			var strictType = classpathProperties.forKey(STRICT_PROPERTY)
+				.ofString()
+				.map(StrictType::parse)
+				.or(strict)
+				.validateNow(SimpleProperties.class);
+			var errorMessages = strictType == StrictType.ERROR
+					&& classpathProperties instanceof SimpleLogProperties simple ? simple.prefixErrors()
+							: List.<String>of();
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
@@ -242,7 +303,7 @@ public final class SimpleProperties {
 			for (var profileResource : profileResources.resources()) {
 				infoMessages.add("Loaded properties resource: " + profileResource);
 			}
-			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages));
+			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages), errorMessages);
 		}
 
 		private static LogProperties loadResource(String resource) {

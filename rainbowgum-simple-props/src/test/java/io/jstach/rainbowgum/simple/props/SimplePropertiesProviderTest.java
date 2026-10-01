@@ -29,6 +29,42 @@ import io.jstach.rainbowgum.ServiceRegistry;
 class SimplePropertiesProviderTest {
 
 	@Test
+	void testStrictPropertyReportsEachUnprefixedBaseResourceEntry() {
+		var registry = ServiceRegistry.of();
+		var simple = SimpleProperties.builder()
+			.resource("strict.properties")
+			.strict(SimpleProperties.StrictType.OFF)
+			.envLookup(k -> null)
+			.build();
+		registry.putIfAbsent(SimpleProperties.class, () -> simple);
+		var config = LogConfig.builder()
+			.serviceRegistry(registry)
+			.propertiesProvider(new SimplePropertiesProvider())
+			.build();
+		var errors = config.alerts().dump().stream().filter(e -> e.level() == Level.ERROR).toList();
+		assertEquals(List.of(
+				"Property key should start with: 'logging.'. key: 'handlers' from SIMPLE_PROPS[strict.properties:1][handlers]",
+				"Property key should start with: 'logging.'. key: 'unqualified.setting' from SIMPLE_PROPS[strict.properties:2][unqualified.setting]"),
+				errors.stream().map(LogEvent::message).toList());
+	}
+
+	@Test
+	void testBuilderCanDisableStrictPropertyValidation() {
+		var registry = ServiceRegistry.of();
+		var simple = SimpleProperties.builder()
+			.resource("strict-off.properties")
+			.strict(SimpleProperties.StrictType.OFF)
+			.envLookup(k -> null)
+			.build();
+		registry.putIfAbsent(SimpleProperties.class, () -> simple);
+		var config = LogConfig.builder()
+			.serviceRegistry(registry)
+			.propertiesProvider(new SimplePropertiesProvider())
+			.build();
+		assertEquals(List.of(), config.alerts().dump().stream().filter(e -> e.level() == Level.ERROR).toList());
+	}
+
+	@Test
 	void testDefaultProfileResourceAlertsAreReportedInOrder() {
 		var registry = ServiceRegistry.of();
 		var selected = SimpleProperties.builder().resource("default-profile.properties").envLookup(k -> null).build();

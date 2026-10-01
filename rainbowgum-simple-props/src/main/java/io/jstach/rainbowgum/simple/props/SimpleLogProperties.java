@@ -6,6 +6,8 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Consumer;
@@ -21,13 +23,17 @@ class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
 
 	private final Map<String, PropertyEntry> entries;
 
+	private final List<PropertyEntry> invalidEntries;
+
 	record PropertyEntry(String key, String value, long line) {
 	}
 
-	private SimpleLogProperties(String resource, Map<String, PropertyEntry> entries) {
+	private SimpleLogProperties(String resource, Map<String, PropertyEntry> entries,
+			List<PropertyEntry> invalidEntries) {
 		super();
 		this.resource = resource;
 		this.entries = entries;
+		this.invalidEntries = invalidEntries;
 	}
 
 	@Override
@@ -40,10 +46,21 @@ class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
 
 	static SimpleLogProperties read(Reader reader, String resource) throws IOException {
 		Map<String, PropertyEntry> m = new LinkedHashMap<>();
+		var invalidEntries = new ArrayList<PropertyEntry>();
 		readProperties(reader, e -> {
 			m.put(e.key, e);
+			if (!e.key().startsWith(LogProperties.ROOT_PREFIX)) {
+				invalidEntries.add(e);
+			}
 		});
-		return new SimpleLogProperties(resource, m);
+		return new SimpleLogProperties(resource, m, List.copyOf(invalidEntries));
+	}
+
+	List<String> prefixErrors() {
+		return invalidEntries.stream()
+			.map(e -> "Property key should start with: '" + LogProperties.ROOT_PREFIX + "'. key: '" + e.key()
+					+ "' from " + LogProperties.descriptionForResource(DESCRIPTION, resource, e.key(), e.line()))
+			.toList();
 	}
 
 	private static final String DESCRIPTION = "SIMPLE_PROPS";
