@@ -29,7 +29,7 @@ module io.jstach.rainbowgum.signal {
 	requires io.jstach.rainbowgum;
 
 	requires static jdk.unsupported;
-	requires static org.eclipse.jdt.annotation;
+	requires static org.jspecify;
 	requires static io.jstach.svc;
 
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.signal.SignalConfigurator;

@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.signal;
 
 import java.util.Objects;
 
-import org.eclipse.jdt.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
@@ -103,7 +103,7 @@ public final class SignalConfigurator implements Configurator, AutoCloseable {
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		boolean resolvedEnabled = enabled != null ? enabled
-				: config.properties().forKey(SIGNAL_ENABLE).ofBoolean().or(false).value();
+				: config.properties().forKey(SIGNAL_ENABLE).ofBoolean().or(false).validateNow(SignalConfigurator.class);
 		if (!resolvedEnabled) {
 			return true;
 		}
@@ -115,7 +115,11 @@ public final class SignalConfigurator implements Configurator, AutoCloseable {
 			return true;
 		}
 		String name = signalName != null ? signalName
-				: config.properties().forKey(SIGNAL_NAME).ofString().or(DEFAULT_SIGNAL_NAME).value();
+				: config.properties()
+					.forKey(SIGNAL_NAME)
+					.ofString()
+					.or(DEFAULT_SIGNAL_NAME)
+					.validateNow(SignalConfigurator.class);
 		install(config, name);
 		return true;
 	}

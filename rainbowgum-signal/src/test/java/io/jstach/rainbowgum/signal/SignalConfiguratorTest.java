@@ -14,7 +14,6 @@ import org.junit.jupiter.api.condition.OS;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogResponse;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -123,10 +122,9 @@ class SignalConfiguratorTest {
 	private static ListLogOutput countingOutput(CountDownLatch latch, AtomicInteger reopenCount) {
 		return new ListLogOutput() {
 			@Override
-			public LogResponse.Status reopen() {
+			public void reopen() {
 				reopenCount.incrementAndGet();
 				latch.countDown();
-				return LogResponse.Status.StandardStatus.OK;
 			}
 		};
 	}
