@@ -1985,11 +1985,13 @@ by default.
 <p>
 Keys in the base resource are checked by default and must start with <code>logging.</code>.
 Each unprefixed property produces an error alert that includes its resource and line number.
+By default, invalid keys also stop initialization with an exception. Set
+<code>logging.simpleprops.strict=alert</code> to report errors and continue initialization.
 Set <code>logging.simpleprops.strict=off</code> in the base resource, or call
 {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#strict(io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType) SimpleProperties.builder().strict(StrictType.OFF)},
 to disable this check. The resource setting takes precedence over the builder. The accepted
-values are <code>error</code> (default) and <code>off</code>, with <code>true</code> and
-<code>false</code> aliases.
+values are <code>off</code>, <code>alert</code>, and <code>fail</code> (default).
+<code>false</code> is an alias for <code>off</code>; <code>true</code> is an alias for <code>fail</code>.
 </p>
 <p>
 The module includes GraalVM native-image resource metadata for

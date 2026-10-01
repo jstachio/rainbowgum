@@ -1,8 +1,10 @@
 package io.jstach.rainbowgum.simple.props;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -10,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
@@ -27,6 +31,49 @@ import io.jstach.rainbowgum.ServiceRegistry;
 @Isolated
 @Execution(ExecutionMode.SAME_THREAD)
 class SimplePropertiesProviderTest {
+
+	@ParameterizedTest
+	@ValueSource(strings = { "strict-off.properties", "strict-fail.properties" })
+	void testStrictFailureRecordsAlertsAndStopsBeforeConfigurators(String resource) {
+		var registry = ServiceRegistry.of();
+		var builder = SimpleProperties.builder().resource(resource).envLookup(k -> null);
+		if (resource.equals("strict-fail.properties")) {
+			builder.strict(SimpleProperties.StrictType.OFF);
+		}
+		var simple = builder.build();
+		registry.putIfAbsent(SimpleProperties.class, () -> simple);
+		var recorded = new ArrayList<LogEvent>();
+		var error = assertThrows(IllegalArgumentException.class,
+				() -> LogConfig.builder().serviceRegistry(registry).propertiesProvider((services, alerts) -> {
+					try {
+						return new SimplePropertiesProvider().provideProperties(services, alerts);
+					}
+					finally {
+						recorded.addAll(alerts.dump());
+					}
+				}).configurator((config, pass) -> {
+					throw new AssertionError("Configurators must not run after strict validation fails");
+				}).build());
+		assertEquals(
+				"""
+						Invalid simple-props base resource:
+						Property key should start with: 'logging.'. key: 'handlers' from SIMPLE_PROPS[%s:1][handlers]
+						Property key should start with: 'logging.'. key: 'unqualified.setting' from SIMPLE_PROPS[%s:2][unqualified.setting]"""
+					.formatted(resource, resource),
+				error.getMessage());
+		assertEquals(List.of(
+				"Property key should start with: 'logging.'. key: 'handlers' from SIMPLE_PROPS[%s:1][handlers]"
+					.formatted(resource),
+				"Property key should start with: 'logging.'. key: 'unqualified.setting' from SIMPLE_PROPS[%s:2][unqualified.setting]"
+					.formatted(resource)),
+				recorded.stream().filter(e -> e.level() == Level.ERROR).map(LogEvent::message).toList());
+	}
+
+	@Test
+	void testStrictBooleanAliases() {
+		assertEquals(SimpleProperties.StrictType.OFF, SimpleProperties.StrictType.parse("false"));
+		assertEquals(SimpleProperties.StrictType.FAIL, SimpleProperties.StrictType.parse("true"));
+	}
 
 	@Test
 	void testStrictPropertyReportsEachUnprefixedBaseResourceEntry() {
