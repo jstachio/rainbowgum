@@ -80,9 +80,28 @@ public interface LogProvider<T> {
 			catch (Exception e) {
 				@SuppressWarnings("null")
 				String desc = description.apply(n, e);
-				throw new ProvisionException(desc, e);
+				throw new ProvisionException(desc, rootCause(e));
 			}
 		};
+	}
+
+	/*
+	 * describe()'s own message building (above) always copies e.getMessage() verbatim as
+	 * this new exception's own prefix, so e is fully redundant with the exception being
+	 * thrown here, by construction and unconditionally, not just usually: every bit of
+	 * information in e.getMessage() already reappears in the new ProvisionException's own
+	 * message. Setting cause to e anyway would make the default stack trace printer print
+	 * e's own "Caused by:" block too, repeating everything the outer message already
+	 * said. Skip straight to e's own cause instead, so repeated describe() calls (one per
+	 * layer of appender/route provisioning) collapse down to the single, fully cumulative
+	 * top level message plus one real "Caused by:": the one underlying, non-redundant
+	 * failure (e.g. a NotFoundException), with its own distinct stack trace. If e has no
+	 * cause of its own, it IS that underlying failure (nothing above it to skip to), so
+	 * it stays.
+	 */
+	private static Throwable rootCause(Throwable e) {
+		var cause = e.getCause();
+		return cause != null ? cause : e;
 	}
 
 	/**
