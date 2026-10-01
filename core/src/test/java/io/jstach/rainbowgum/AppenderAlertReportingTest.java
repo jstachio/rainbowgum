@@ -116,6 +116,11 @@ class AppenderAlertReportingTest {
 		assertTrue(errors.get(0).message().contains("failed to reopen"));
 		assertEquals(1, config.alerts().dump().size());
 		assertTrue(config.alerts().dump().get(0).message().contains("failed to reopen"));
+		assertEquals(1, reopenErrorsCount(config));
+		assertEquals(1, reopenCount(config));
+		assertDoesNotThrow(appender::reopen);
+		assertEquals(2, reopenErrorsCount(config));
+		assertEquals(2, reopenCount(config));
 	}
 
 	@ParameterizedTest
@@ -151,6 +156,31 @@ class AppenderAlertReportingTest {
 		assertEquals(List.of(), appender.reopen());
 		assertEquals(List.of(), appender.flush());
 		assertEquals(0, config.alerts().dump().size());
+		assertEquals(0, reopenErrorsCount(config));
+		assertEquals(1, reopenCount(config));
+	}
+
+	@ParameterizedTest
+	@MethodSource("appenderTypes")
+	void reopenAttemptsMinusFailuresCountsSuccesses(AppenderType type, Class<?> expectedType) {
+		var output = new ListLogOutput() {
+			private int attempts;
+
+			@Override
+			public void reopen() {
+				if (++attempts == 2) {
+					throw new RuntimeException("reopen boom");
+				}
+			}
+		};
+		var config = LogConfig.builder().build();
+		var appender = directAppender(type, output, encoder(), config);
+		assertEquals(expectedType, appender.getClass());
+		assertEquals(List.of(), appender.reopen());
+		assertEquals(1, appender.reopen().size());
+		assertEquals(2, reopenCount(config));
+		assertEquals(1, reopenErrorsCount(config));
+		assertEquals(1, reopenCount(config) - reopenErrorsCount(config));
 	}
 
 	private static DirectLogAppender directAppender(AppenderType type, ListLogOutput output, LogEncoder encoder,
@@ -171,6 +201,24 @@ class AppenderAlertReportingTest {
 			.counters()
 			.stream()
 			.filter(c -> c.name().equals(LogMetrics.EVENTS_FAILED_METRIC))
+			.mapToLong(LogMetrics.Counter::count)
+			.sum();
+	}
+
+	private static long reopenErrorsCount(LogConfig config) {
+		return config.metrics()
+			.counters()
+			.stream()
+			.filter(c -> c.name().equals(LogMetrics.REOPEN_FAIL_METRIC) && c.level() == System.Logger.Level.ERROR)
+			.mapToLong(LogMetrics.Counter::count)
+			.sum();
+	}
+
+	private static long reopenCount(LogConfig config) {
+		return config.metrics()
+			.counters()
+			.stream()
+			.filter(c -> c.name().equals(LogMetrics.REOPEN_METRIC) && c.level() == System.Logger.Level.INFO)
 			.mapToLong(LogMetrics.Counter::count)
 			.sum();
 	}

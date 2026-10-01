@@ -56,6 +56,20 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	static final String EVENTS_FAILED_METRIC = "events.failed";
 
 	/**
+	 * Counter name for the global count of failed appender output reopen attempts. Each
+	 * failed attempt increments this counter in addition to recording an alert,
+	 * regardless of the appender or output type.
+	 */
+	static final String REOPEN_FAIL_METRIC = "errors.reopen";
+
+	/**
+	 * Counter name for the global count of appender output reopen attempts, whether
+	 * successful or failed. Subtract {@link #REOPEN_FAIL_METRIC} to obtain the number of
+	 * successful attempts.
+	 */
+	static final String REOPEN_METRIC = "reopen";
+
+	/**
 	 * Counter name for the running count of distinct logger names registered via
 	 * {@link LogConfig.LoggerRegistry#registerLoggerName(LoggerAPI, String)}. Not itself
 	 * a problem, hence {@link #infoCounter(String, long)} rather than
@@ -146,7 +160,15 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 		/**
 		 * See {@link #LOGGER_NAMES_METRIC}.
 		 */
-		LOGGER_NAMES(LOGGER_NAMES_METRIC, Level.INFO);
+		LOGGER_NAMES(LOGGER_NAMES_METRIC, Level.INFO),
+		/**
+		 * See {@link #REOPEN_FAIL_METRIC}.
+		 */
+		REOPEN_FAIL(REOPEN_FAIL_METRIC, Level.ERROR),
+		/**
+		 * See {@link #REOPEN_METRIC}.
+		 */
+		REOPEN(REOPEN_METRIC, Level.INFO);
 
 		private final String metricName;
 
