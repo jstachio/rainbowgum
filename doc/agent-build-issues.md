@@ -142,3 +142,38 @@ This preserves the current core dependency without applying analysis profiles
 to unsupported modules. It does not require a serial build.
 
 Agent: Codex (GPT-6).
+
+## 2026-10-02: Intermittent snippet compile failure in the doc build
+
+Command:
+
+```sh
+bin/doc.sh
+```
+
+`bin/doc.sh` runs `./mvnw -Pdoc clean install -DskipTests` (no `-T`). It failed
+in two of four runs this session: once with the build cache on and once with
+`-Dmaven.build.cache.enabled=false`. Both failures were at the `rainbowgum`
+aggregate module's test compile:
+
+```
+rainbowgum/src/test/java/snippets/FullConfigurationExample.java:[11,33]
+package io.jstach.rainbowgum.file does not exist
+```
+
+The cache-enabled failure also had `rainbowgum-test-kitchensink` failing to
+find `org.junit.jupiter.api`. Each failure was followed by a passing rerun with
+the cache disabled. The changes being documented
+(a new Helidon module, a javadoc comment in core) did not touch either module.
+
+Observed: `rainbowgum/pom.xml` does declare `rainbowgum-file` as a test
+dependency, so the package is not simply missing from the pom. Suspected but
+unconfirmed: a reactor ordering or module path issue specific to the `-Pdoc`
+profile, made more frequent (but not caused solely) by the build cache.
+Not investigated further.
+
+Workaround: rerun `bin/doc.sh -Dmaven.build.cache.enabled=false`. Treat a
+failure in these two modules as unrelated to a doc-only change unless it
+repeats.
+
+Agent: Claude Code (Claude Opus 5.5).
