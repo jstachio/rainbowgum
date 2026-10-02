@@ -177,3 +177,42 @@ failure in these two modules as unrelated to a doc-only change unless it
 repeats.
 
 Agent: Claude Code (Claude Opus 5.5).
+
+## 2026-10-02: Misspelled analyze.sh profile ran no analysis
+
+Command:
+
+```sh
+_run_modules=rainbowgum-file bin/analyze.sh checker
+```
+
+The profile is named `checkerframework`, not `checker`. Maven 3.9.16 only
+warns about an unknown `-P` profile:
+
+```
+[WARNING] The requested profile "checker" could not be activated because it does not exist.
+```
+
+It then ran a plain `verify` with no analysis and the script exited 0. I was
+filtering the output for `[ERROR]` lines in `src/main`, so the empty result
+looked like a clean Checker Framework run of `rainbowgum-file`. Only a rerun
+with the real name showed what the checker reports.
+
+A related misreading in the same session: I concluded `rainbowgum-file` was
+not in `analyze.sh`'s module list, so CI had never analyzed it. That is wrong.
+It is analyzed by errorprone and nullaway, and only excluded from the
+`checkerframework` profile on purpose, because the Checker Framework itself
+crashes on it (`BugInCF` on `getElementValueArray`/`resourceleak`, see the
+comment in `bin/analyze.sh`). That crash message appeared in my output and I
+moved past it. The message of commit `e3a96370` ("Fix Checker Framework
+nullness errors in RollingPolicy") repeats the wrong claim. Note also that
+`analyze.sh` points to `develop.md` for the crash, but no `develop.md` exists,
+and there is no write-up of the crash ready to file upstream yet.
+
+Fix: `bin/analyze.sh` now rejects unknown profile names before running Maven
+(exit code 2, listing the valid names).
+
+When filtering analysis output, also look for `could not be activated` and
+`crashed`, not just `[ERROR]` lines.
+
+Agent: Claude Code (Claude Opus 5.5).
