@@ -14,7 +14,9 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
+import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
+import io.jstach.rainbowgum.file.DataSize;
 import io.jstach.rainbowgum.file.FileOutput;
 import io.jstach.rainbowgum.file.FileOutputBuilder;
 
@@ -57,10 +59,10 @@ public interface RollingFileOutput extends FileOutput {
 	static final String ROLLING_SCHEME = "rolling";
 
 	/**
-	 * Default max file size in bytes before a roll is triggered - 10MB, matching
-	 * Logback/Spring Boot's own default.
+	 * Default max file size before a roll is triggered: 10MB, matching Logback and Spring
+	 * Boot's own default.
 	 */
-	static final int DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024;
+	static final DataSize DEFAULT_MAX_FILE_SIZE = DataSize.ofMegabytes(10);
 
 	/**
 	 * Default number of archives to retain - 7, matching Logback/Spring Boot's own
@@ -69,9 +71,9 @@ public interface RollingFileOutput extends FileOutput {
 	static final int DEFAULT_MAX_HISTORY = 7;
 
 	/**
-	 * Default total archive size cap in bytes. {@code 0} means unlimited.
+	 * Default total archive size cap. {@link DataSize#ZERO} means unlimited.
 	 */
-	static final int DEFAULT_TOTAL_SIZE_CAP = 0;
+	static final DataSize DEFAULT_TOTAL_SIZE_CAP = DataSize.ZERO;
 
 	/**
 	 * Default for whether archive pruning ({@code maxHistory}/{@code totalSizeCap}) also
@@ -139,9 +141,10 @@ public interface RollingFileOutput extends FileOutput {
 	 * @param name name of output, not file name.
 	 * @param uri file uri.
 	 * @param fileName file name.
-	 * @param maxFileSize max file size in bytes before a roll is triggered.
+	 * @param maxFileSize max file size before a roll is triggered, in
+	 * {@link DataSize#parse(String)} format when set by property, e.g. {@code 10MB}.
 	 * @param maxHistory number of archives to retain.
-	 * @param totalSizeCap total archive size cap in bytes; {@code <= 0} means unlimited.
+	 * @param totalSizeCap total archive size cap; zero means unlimited.
 	 * @param cleanHistoryOnStart whether pruning also runs once at start, not just after
 	 * each roll.
 	 * @param fileNamePattern archive naming pattern; must contain <code>%i</code> and
@@ -150,9 +153,10 @@ public interface RollingFileOutput extends FileOutput {
 	 */
 	@LogConfigurable(name = "RollingFileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
 	public static LogProvider<RollingFileOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI uri,
-			@Nullable String fileName, @DefaultParameter("DEFAULT_MAX_FILE_SIZE") Integer maxFileSize,
+			@Nullable String fileName,
+			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_MAX_FILE_SIZE") DataSize maxFileSize,
 			@DefaultParameter("DEFAULT_MAX_HISTORY") Integer maxHistory,
-			@DefaultParameter("DEFAULT_TOTAL_SIZE_CAP") Integer totalSizeCap,
+			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_TOTAL_SIZE_CAP") DataSize totalSizeCap,
 			@DefaultParameter("DEFAULT_CLEAN_HISTORY_ON_START") Boolean cleanHistoryOnStart,
 			@DefaultParameter("DEFAULT_FILE_NAME_PATTERN") String fileNamePattern) {
 		var parsedPattern = RollingPolicy.ParsedPattern.parse(fileNamePattern);
@@ -168,9 +172,9 @@ public interface RollingFileOutput extends FileOutput {
 		}
 		Path activeFile = file.toPath().toAbsolutePath();
 		String fileNameForDelegate = file.getPath();
-		int maxFileSize_ = maxFileSize;
+		long maxFileSize_ = maxFileSize.toBytes();
 		int maxHistory_ = maxHistory;
-		int totalSizeCap_ = totalSizeCap;
+		long totalSizeCap_ = totalSizeCap.toBytes();
 		boolean cleanHistoryOnStart_ = cleanHistoryOnStart;
 		return (n, config) -> {
 			var fileBuilder = new FileOutputBuilder(n).fileName(fileNameForDelegate)
@@ -184,6 +188,16 @@ public interface RollingFileOutput extends FileOutput {
 			return new DefaultRollingFileOutput(activeFile, parsedPattern, maxFileSize_, maxHistory_, totalSizeCap_,
 					cleanHistoryOnStart_, supplier, initialOutput, config);
 		};
+	}
+
+	/**
+	 * Converts a {@code maxFileSize} or {@code totalSizeCap} property value.
+	 * @param value property value.
+	 * @return data size.
+	 * @see DataSize#parse(String)
+	 */
+	static DataSize parseDataSize(String value) {
+		return DataSize.parse(value);
 	}
 
 }

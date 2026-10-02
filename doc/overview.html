@@ -329,11 +329,11 @@ its own properties up the same way. The built-in rolling file output is another 
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10485760
+logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10MB
 
 # the above is equivalent to the more verbose:
 logging.appender.myapp.output=rolling:///var/log/app.log
-logging.output.myapp.maxFileSize=10485760
+logging.output.myapp.maxFileSize=10MB
 }
 
 <strong>
@@ -1201,7 +1201,7 @@ size based rolling file output under the "rolling" URI scheme,
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10485760&maxHistory=7
+logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10MB&maxHistory=7
 }
 
 See {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder} for the full list of
@@ -1209,6 +1209,13 @@ properties (<code>maxFileSize</code>, <code>maxHistory</code>, <code>totalSizeCa
 <code>cleanHistoryOnStart</code>, <code>fileNamePattern</code>) and their defaults. They
 work equally well as query parameters above or as
 <code>logging.output.{name}.*</code> properties.
+
+<p>
+<code>maxFileSize</code> and <code>totalSizeCap</code> use the same size format as Logback:
+a whole number with an optional <code>kb</code>, <code>mb</code>, or <code>gb</code> unit
+(case insensitive, powers of 1024), for example <code>10MB</code> or <code>512 kb</code>.
+A number without a unit is bytes. See {@link io.jstach.rainbowgum.file.DataSize}.
+</p>
 
 <p>
 <strong>This is deliberately basic: just enough to keep a small/desktop app's disk

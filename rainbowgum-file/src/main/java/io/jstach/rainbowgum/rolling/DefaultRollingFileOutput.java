@@ -28,11 +28,11 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 
 	private final RollingPolicy.ParsedPattern pattern;
 
-	private final int maxFileSize;
+	final long maxFileSize;
 
 	private final int maxHistory;
 
-	private final int totalSizeCap;
+	final long totalSizeCap;
 
 	private final boolean cleanHistoryOnStart;
 
@@ -52,8 +52,8 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 
 	private boolean closed;
 
-	DefaultRollingFileOutput(Path activeFile, RollingPolicy.ParsedPattern pattern, int maxFileSize, int maxHistory,
-			int totalSizeCap, boolean cleanHistoryOnStart, Supplier<FileOutput> supplier, FileOutput delegate,
+	DefaultRollingFileOutput(Path activeFile, RollingPolicy.ParsedPattern pattern, long maxFileSize, int maxHistory,
+			long totalSizeCap, boolean cleanHistoryOnStart, Supplier<FileOutput> supplier, FileOutput delegate,
 			LogConfig config) {
 		this.activeFile = activeFile;
 		this.pattern = pattern;

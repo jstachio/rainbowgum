@@ -58,12 +58,12 @@ easy to lose in a normal amount of startup log noise.
 
 ```
 Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], java.lang.NumberFormatException For input string: "notanumber"
+Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], Invalid data size: 'notanumber'. Expected a whole number with an optional unit of kb, mb, or gb (case insensitive, powers of 1024). Examples: '10mb', '512 KB', '1048576'.
 ```
 
 Thrown as an actual exception at startup - the application does not start with a broken
-logger. Names the exact property key, which underlying exception caused the failure, and
-where the value was read from.
+logger. Names the exact property key and where the value was read from, and says which
+formats are accepted, with examples.
 
 ## Scenario 2: an unrecognized time zone
 
