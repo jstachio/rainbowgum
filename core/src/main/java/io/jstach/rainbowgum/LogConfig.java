@@ -13,6 +13,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
@@ -27,6 +28,10 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
 /**
  * The configuration of a RainbowGum. In some other logging implementations this is called
  * "context".
+ * <p>
+ * A config can be used by only one {@link RainbowGum}, even after that RainbowGum is
+ * closed. Using it for another {@link RainbowGum.Builder} throws
+ * {@link IllegalStateException}; build a new config instead.
  */
 public sealed interface LogConfig extends LogProperty.PropertySupport {
 
@@ -754,6 +759,18 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LoggerRegistry loggerRegistry;
 
+	/*
+	 * Registered outputs/appenders, alert listeners, and service registry closeables are
+	 * never reset when a RainbowGum closes, so a second RainbowGum on this config would
+	 * fail on duplicate output names, flush/reopen the first one's closed appenders, and
+	 * lose alert listeners. Ownership and built state change together in one CAS so
+	 * concurrent build() calls cannot both win.
+	 */
+	private final AtomicReference<@Nullable Claim> claim = new AtomicReference<>();
+
+	private record Claim(Object owner, boolean built) {
+	}
+
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
 			LogMetrics metrics, DebugModeType debugMode) {
 		super();
@@ -790,6 +807,36 @@ final class DefaultLogConfig implements LogConfig {
 				default -> this.metrics.infoCounter(event.loggerName(), 1);
 			}
 		});
+	}
+
+	void bind(Object owner) {
+		acquire(owner, false);
+	}
+
+	void markBuilt(Object owner) {
+		acquire(owner, true);
+	}
+
+	@SuppressWarnings("ReferenceEquality") // owner is a specific builder instance
+	private void acquire(Object owner, boolean build) {
+		while (true) {
+			var current = claim.get();
+			if (current != null && current.owner() != owner) {
+				throw new IllegalStateException("LogConfig is already used by another RainbowGum. "
+						+ "A LogConfig can only be used by one RainbowGum, even after that RainbowGum is closed. "
+						+ "Build a new LogConfig instead.");
+			}
+			if (current != null && current.built() && build) {
+				throw new IllegalStateException("This builder already built a RainbowGum. "
+						+ "A LogConfig can only be used by one RainbowGum. Build a new LogConfig instead.");
+			}
+			if (current != null && (current.built() || !build)) {
+				return;
+			}
+			if (claim.compareAndSet(current, new Claim(owner, build))) {
+				return;
+			}
+		}
 	}
 
 	/*

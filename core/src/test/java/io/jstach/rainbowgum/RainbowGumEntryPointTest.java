@@ -7,10 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
+import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -22,6 +21,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+
+import io.jstach.rainbowgum.LogRouter.Router;
+import io.jstach.rainbowgum.output.ListLogOutput;
 
 /*
  * RainbowGumHolder is static, JVM-wide state (the same concern JDKSetupTest in
@@ -38,7 +40,8 @@ import org.junit.jupiter.api.parallel.Isolated;
  * running the "fast" profile's parallel suite, which raced the two classes against each
  * other (RainbowGumEntryPointTest saw a different instance than it just set, and a missed
  * IllegalStateException; RainbowGumTest saw stray shutdown hooks). @Isolated is required,
- * not just SAME_THREAD.
+ * not just SAME_THREAD. RainbowGumTest now lives in test/rainbowgum-test-core with the
+ * other thread based tests, but other classes here still touch the holder.
  */
 @Isolated
 @Execution(ExecutionMode.SAME_THREAD)
@@ -233,42 +236,6 @@ class RainbowGumEntryPointTest {
 	}
 
 	@Test
-	void currentDoesNotBlockAndReturnsNullWhileAnotherThreadIsResolving() throws Exception {
-		var resolving = new CountDownLatch(1);
-		var proceed = new CountDownLatch(1);
-		var built = new AtomicReference<RainbowGum>();
-		Supplier<RainbowGum> slow = () -> {
-			resolving.countDown();
-			try {
-				proceed.await();
-			}
-			catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-			var gum = RainbowGum.builder(LogConfig.builder().build()).build();
-			built.set(gum);
-			return gum;
-		};
-		RainbowGum.set(slow);
-		var resolverThread = new Thread(RainbowGum::of, "rainbowgum-resolver");
-		resolverThread.start();
-		try {
-			assertTrue(resolving.await(5, TimeUnit.SECONDS));
-			// The resolver thread now holds the write lock inside
-			// RainbowGumHolder.get() - current()/getOrNull() must not block on it.
-			assertNull(RainbowGum.getOrNull());
-		}
-		finally {
-			proceed.countDown();
-			resolverThread.join(5000);
-			var gum = built.get();
-			if (gum != null) {
-				gum.close();
-			}
-		}
-	}
-
-	@Test
 	void reentrantSetWhileResolvingThrowsTriedToLogTooEarly() {
 		RainbowGum.set(() -> {
 			// Re-enters RainbowGumHolder.set() while the write lock from the outer
@@ -337,6 +304,52 @@ class RainbowGumEntryPointTest {
 		finally {
 			gum.close();
 		}
+	}
+
+	private static final String CONFIG_IN_USE_MESSAGE = "LogConfig is already used by another RainbowGum. "
+			+ "A LogConfig can only be used by one RainbowGum, even after that RainbowGum is closed. "
+			+ "Build a new LogConfig instead.";
+
+	@Test
+	void reusingConfigForAnotherBuilderAfterCloseThrows() {
+		var config = LogConfig.builder().build();
+		RainbowGum.builder(config).route(r -> r.appender("a", a -> a.output(new ListLogOutput()))).build().close();
+		var second = RainbowGum.builder(config);
+		var ex = assertThrows(IllegalStateException.class, second::build);
+		assertEquals(CONFIG_IN_USE_MESSAGE, ex.getMessage());
+	}
+
+	@Test
+	void reusingConfigFailsBeforeRouteProvisionsDuplicateOutput() {
+		// Without the guard the second route fails deep in provisioning with a
+		// "Name is already in use" output registry error instead.
+		var config = LogConfig.builder().build();
+		Consumer<Router.Builder> route = r -> r.appender("a",
+				a -> a.output(config.outputRegistry().provide(LogProviderRef.of(URI.create("list:///")))));
+		RainbowGum.builder(config).route(route).build().close();
+		var second = RainbowGum.builder(config);
+		var ex = assertThrows(IllegalStateException.class, () -> second.route(route));
+		assertEquals(CONFIG_IN_USE_MESSAGE, ex.getMessage());
+	}
+
+	@Test
+	void buildingTwiceFromTheSameBuilderThrows() {
+		var builder = RainbowGum.builder(LogConfig.builder().build());
+		builder.build().close();
+		var ex = assertThrows(IllegalStateException.class, builder::build);
+		assertEquals(
+				"This builder already built a RainbowGum. "
+						+ "A LogConfig can only be used by one RainbowGum. Build a new LogConfig instead.",
+				ex.getMessage());
+	}
+
+	@Test
+	void declinedOptionalDoesNotClaimTheConfig() {
+		// Mirrors RainbowGumServiceProvider.provide: providers that decline must leave
+		// the shared config usable by the next provider or the default fallback.
+		var config = LogConfig.builder().build();
+		assertTrue(RainbowGum.builder(config).optional(c -> false).isEmpty());
+		RainbowGum.builder(config).build().close();
 	}
 
 }

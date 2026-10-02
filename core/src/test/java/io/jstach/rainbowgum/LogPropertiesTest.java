@@ -41,8 +41,8 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
 /*
  * RainbowGumHolder is static, JVM-wide state (see RainbowGumEntryPointTest's own comment
  * on this) - reset it around the findGlobalProperties() tests below so they do not depend
- * on whatever other tests in this JVM fork left behind. RainbowGumTest and
- * RainbowGumEntryPointTest touch the same holder, so under the "fast" profile's parallel
+ * on whatever other tests in this JVM fork left behind. RainbowGumEntryPointTest touches
+ * the same holder, so under the "fast" profile's parallel
  * test execution this class also needs @Isolated (confirmed by an intermittent failure in
  * testFindGlobalPropertiesUsesBoundRainbowGum when it wasn't present), not just the
  * @BeforeEach/@AfterEach reset.
