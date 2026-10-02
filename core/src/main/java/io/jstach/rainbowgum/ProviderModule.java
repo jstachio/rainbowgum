@@ -2,6 +2,8 @@ package io.jstach.rainbowgum;
 
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Catalogs the optional modules (not bundled in {@code rainbowgum-core}) that are known
  * to register a particular URI scheme for a particular kind of provider registry
@@ -13,19 +15,24 @@ import java.util.Optional;
  */
 enum ProviderModule {
 
-	FILE_OUTPUT(ComponentType.OUTPUT, "file", "io.jstach.rainbowgum.file", "io.jstach.rainbowgum:rainbowgum-file"),
-	ROLLING_OUTPUT(ComponentType.OUTPUT, "rolling", "io.jstach.rainbowgum.file",
-			"io.jstach.rainbowgum:rainbowgum-file"),
-	GELF_ENCODER(ComponentType.ENCODER, "gelf", "io.jstach.rainbowgum.json", "io.jstach.rainbowgum:rainbowgum-json"),
-	ECS_ENCODER(ComponentType.ENCODER, "ecs", "io.jstach.rainbowgum.json", "io.jstach.rainbowgum:rainbowgum-json"),
+	FILE_OUTPUT(ComponentType.OUTPUT, "file", "io.jstach.rainbowgum.file", "io.jstach.rainbowgum:rainbowgum-file",
+			"file"),
+	ROLLING_OUTPUT(ComponentType.OUTPUT, "rolling", "io.jstach.rainbowgum.file", "io.jstach.rainbowgum:rainbowgum-file",
+			"rolling"),
+	GELF_ENCODER(ComponentType.ENCODER, "gelf", "io.jstach.rainbowgum.json", "io.jstach.rainbowgum:rainbowgum-json",
+			"gelf"),
+	ECS_ENCODER(ComponentType.ENCODER, "ecs", "io.jstach.rainbowgum.json", "io.jstach.rainbowgum:rainbowgum-json",
+			"ecs"),
 	LOGSTASH_ENCODER(ComponentType.ENCODER, "logstash", "io.jstach.rainbowgum.json",
-			"io.jstach.rainbowgum:rainbowgum-json"),
+			"io.jstach.rainbowgum:rainbowgum-json", "logstash"),
 	LOGBACK_JSON_ENCODER(ComponentType.ENCODER, "logback", "io.jstach.rainbowgum.json",
-			"io.jstach.rainbowgum:rainbowgum-json"),
+			"io.jstach.rainbowgum:rainbowgum-json", "logback_json"),
 	PATTERN_ENCODER(ComponentType.ENCODER, "pattern", "io.jstach.rainbowgum.pattern",
-			"io.jstach.rainbowgum:rainbowgum-pattern"),
+			"io.jstach.rainbowgum:rainbowgum-pattern", "pattern_encoder"),
+	JFR_OUTPUT(ComponentType.OUTPUT, "jfr", "io.jstach.rainbowgum.jfr", "io.jstach.rainbowgum:rainbowgum-jfr", "jfr"),
+	// No overview section of its own, so links to the module page instead.
 	DISRUPTOR_PUBLISHER(ComponentType.PUBLISHER, "disruptor", "io.jstach.rainbowgum.disruptor",
-			"io.jstach.rainbowgum:rainbowgum-disruptor");
+			"io.jstach.rainbowgum:rainbowgum-disruptor", null);
 
 	private final ComponentType componentType;
 
@@ -33,13 +40,17 @@ enum ProviderModule {
 
 	private final String moduleName;
 
-	private final String mavenGav;
+	private final String mavenGroupArtifact;
 
-	private ProviderModule(ComponentType componentType, String scheme, String moduleName, String mavenGav) {
+	private final @Nullable String overviewAnchor;
+
+	private ProviderModule(ComponentType componentType, String scheme, String moduleName, String mavenGroupArtifact,
+			@Nullable String overviewAnchor) {
 		this.componentType = componentType;
 		this.scheme = scheme;
 		this.moduleName = moduleName;
-		this.mavenGav = mavenGav;
+		this.mavenGroupArtifact = mavenGroupArtifact;
+		this.overviewAnchor = overviewAnchor;
 	}
 
 	/**
@@ -67,11 +78,27 @@ enum ProviderModule {
 	}
 
 	/**
-	 * The Maven {@code groupId:artifactId} that provides {@link #moduleName()}.
-	 * @return maven GAV (without version).
+	 * The Maven {@code groupId:artifactId:version} that provides {@link #moduleName()},
+	 * using this Rainbow Gum's own {@link RainbowGumVersion#VERSION}.
+	 * @return maven GAV.
 	 */
 	String mavenGav() {
-		return mavenGav;
+		return mavenGroupArtifact + ":" + RainbowGumVersion.VERSION;
+	}
+
+	/**
+	 * The documentation for this scheme at {@link RainbowGumVersion#documentBaseUrl()}:
+	 * its section of the overview if it has one, otherwise the javadoc page of
+	 * {@link #moduleName()}.
+	 * @return doc URL.
+	 */
+	String docUrl() {
+		String base = RainbowGumVersion.documentBaseUrl();
+		var anchor = overviewAnchor;
+		if (anchor != null) {
+			return base + "/index.html#" + anchor;
+		}
+		return base + "/" + moduleName + "/module-summary.html";
 	}
 
 	/**

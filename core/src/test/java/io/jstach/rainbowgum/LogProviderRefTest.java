@@ -65,9 +65,33 @@ class LogProviderRefTest {
 	void testNotFoundExceptionOfKnownSchemeHasModuleHint() {
 		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.ENCODER, "gelf",
 				URI.create("gelf:///"));
+		String v = RainbowGumVersion.VERSION;
 		assertEquals("No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. "
 				+ "Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' "
-				+ "(Maven: 'io.jstach.rainbowgum:rainbowgum-json') - add that dependency.", e.getMessage());
+				+ "(Maven: 'io.jstach.rainbowgum:rainbowgum-json:" + v + "'). Add that dependency. "
+				+ "See https://jstach.io/doc/rainbowgum/" + v + "/apidocs/index.html#gelf", e.getMessage());
+	}
+
+	@Test
+	void testNotFoundExceptionOfJfrOutputHasModuleHint() {
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "jfr", URI.create("jfr:///"));
+		String v = RainbowGumVersion.VERSION;
+		assertEquals("No output found. Scheme not registered. scheme: 'jfr', URI: 'jfr:///'. "
+				+ "Scheme 'jfr' is provided by module 'io.jstach.rainbowgum.jfr' "
+				+ "(Maven: 'io.jstach.rainbowgum:rainbowgum-jfr:" + v + "'). Add that dependency. "
+				+ "See https://jstach.io/doc/rainbowgum/" + v + "/apidocs/index.html#jfr", e.getMessage());
+	}
+
+	@Test
+	void testNotFoundExceptionWithoutOverviewSectionLinksModulePage() {
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.PUBLISHER, "disruptor",
+				URI.create("disruptor:///"));
+		String v = RainbowGumVersion.VERSION;
+		assertEquals("No publisher found. Scheme not registered. scheme: 'disruptor', URI: 'disruptor:///'. "
+				+ "Scheme 'disruptor' is provided by module 'io.jstach.rainbowgum.disruptor' "
+				+ "(Maven: 'io.jstach.rainbowgum:rainbowgum-disruptor:" + v + "'). Add that dependency. "
+				+ "See https://jstach.io/doc/rainbowgum/" + v
+				+ "/apidocs/io.jstach.rainbowgum.disruptor/module-summary.html", e.getMessage());
 	}
 
 	@Test
