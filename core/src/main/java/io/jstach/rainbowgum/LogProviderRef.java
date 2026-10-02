@@ -88,7 +88,7 @@ public sealed interface LogProviderRef {
 			if (module.isPresent()) {
 				var m = module.get();
 				message += ". Scheme '" + scheme + "' is provided by module '" + m.moduleName() + "' (Maven: '"
-						+ m.mavenGav() + "') - add that dependency.";
+						+ m.mavenGav() + "'). Add that dependency. See " + m.docUrl();
 			}
 			return new NotFoundException(message);
 		}

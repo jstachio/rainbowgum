@@ -177,9 +177,10 @@ class ConfigFailureTest {
 				logging.appender.myapp.encoder=gelf:///
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' (Maven: 'io.jstach.rainbowgum:rainbowgum-json') - add that dependency.
+						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' (Maven: 'io.jstach.rainbowgum:rainbowgum-json:%1$s'). Add that dependency. See https://jstach.io/doc/rainbowgum/%1$s/apidocs/index.html#gelf
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
-						  ↳ Failure providing Appenders for route: 'default'."""),
+						  ↳ Failure providing Appenders for route: 'default'."""
+					.formatted(RainbowGumVersion.VERSION)),
 
 		encoderMissingRequiredStringProperty("""
 				logging.appenders=myapp
