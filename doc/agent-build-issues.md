@@ -178,6 +178,31 @@ repeats.
 
 Agent: Claude Code (Claude Opus 5.5).
 
+## 2026-10-02: Another intermittent documentation test compile failure
+
+While adding retained metric gauges, `./mvnw --fail-at-end verify` passed in
+16.7 seconds and all three core analysis profiles passed. The subsequent
+`bin/doc.sh` run with caching enabled failed after 25.6 seconds: test compilation
+in `rainbowgum-test-jcl`, `rainbowgum-test-jboss-logging-bridge`, and
+`rainbowgum-scopedkeyvalues` could not resolve `org.junit.jupiter.api`.
+These modules' sources and dependency declarations were unchanged.
+
+The retry used:
+
+```sh
+bin/doc.sh -Dmaven.build.cache.enabled=false
+```
+
+It passed in 32.5 seconds, retaining the repository's default parallelism.
+No `-T1` override was needed. This repeats the earlier documentation compile
+symptoms in different modules; a passing uncached retry does not establish
+that the cache caused the failure. The dependency resolution or module path
+interaction with the documentation profile remains uninvestigated. Keep the
+normal cached build for routine work and use this override if the documented
+failure recurs, rather than disabling caching or parallelism permanently.
+
+Agent: Codex (GPT-6).
+
 ## 2026-10-02: Misspelled analyze.sh profile ran no analysis
 
 Command:

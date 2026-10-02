@@ -1417,20 +1417,30 @@ buffer.
 <p>
 {@link io.jstach.rainbowgum.LogMetrics#errorCounter(String, long)} and
 {@link io.jstach.rainbowgum.LogMetrics#warnCounter(String, long)} increment a named counter;
-{@link io.jstach.rainbowgum.LogMetrics#counters()} returns a snapshot of every counter recorded
-so far. Counters are monotonically increasing for the life of the process. Like a
-Prometheus/Micrometer counter, there is no reset method; a downstream metrics system is expected
-to compute the rate of change instead.
+{@link io.jstach.rainbowgum.LogMetrics#counters()} returns a snapshot of every named value
+recorded so far. Counters increase over time; a downstream metrics system computes their rate
+of change.
 </p>
 
-The fixed, well known set of counters Rainbow Gum itself records is enumerable through
+<p>
+For values that can rise and fall, retain a handle from
+{@link io.jstach.rainbowgum.LogMetrics#gauge(String, java.lang.System.Logger.Level)} and call
+its <code>increment</code> and <code>decrement</code> methods. Updates go directly to the retained
+value without a name lookup. The blocking async publisher uses
+{@value io.jstach.rainbowgum.LogMetrics#EVENTS_QUEUED_METRIC} at <code>INFO</code> to count events
+waiting in its queues across all publishers sharing the config. An event stops being counted
+when removed for processing. Snapshots are approximate during concurrent queue activity.
+</p>
+
+The fixed, well known set of metrics Rainbow Gum itself records is enumerable through
 {@link io.jstach.rainbowgum.LogMetrics.StandardMetric}, useful for something wanting to bind
-every well known counter to an external metrics system without hand listing each name/level pair:
+every standard metric to an external system without hand listing each name/level pair.
+{@link io.jstach.rainbowgum.LogMetrics.StandardMetric#isGauge()} distinguishes gauges from counters:
 
 {@snippet class="snippets.AlertsMetricsExample" region="metricsExample" }
 
 <p>
-For a Spring Boot 4 application, these <code>StandardMetric</code> counters, and the
+For a Spring Boot 4 application, these <code>StandardMetric</code> values, and the
 <a href="#reporting">diagnostic report</a> below, are both surfaced through Spring Boot's own
 <code>/actuator</code> endpoints: see <a href="#spring_boot_actuator">Actuator</a> under
 <a href="#spring_boot">Spring Boot</a>.
@@ -2099,15 +2109,16 @@ Spring will re-initialize <code>java.util.logging</code> and take over it so aga
 
 {@link io.jstach.rainbowgum.spring.boot4.actuator/ } bridges Rainbow Gum's own diagnostics into
 Spring Boot 4's Actuator endpoints: every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric}
-as a Micrometer counter, and the <a href="#reporting">diagnostic report</a> as Actuator info.
+as a Micrometer counter or gauge, and the <a href="#reporting">diagnostic report</a> as Actuator info.
 Both activate independently of each other; neither requires a bean to register.
 
 <p>
 <strong>Metrics.</strong> Every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric} is bridged to
-Micrometer as a <code>rainbowgum.&lt;name&gt;</code> counter (e.g. <code>rainbowgum.events.dropped</code>),
-tagged with its level. It activates automatically (no properties to set) as long as Micrometer is on
+Micrometer as <code>rainbowgum.&lt;name&gt;</code>, tagged with its level. Increasing metrics use
+counters (e.g. <code>rainbowgum.events.dropped</code>); <code>rainbowgum.events.queued</code> uses
+a gauge. It activates automatically (no properties to set) as long as Micrometer is on
 the classpath, which it already is once <code>spring-boot-starter-micrometer-metrics</code> (Spring
-Boot 4's own dedicated metrics starter) is a dependency; add just the module and the counters show
+Boot 4's own dedicated metrics starter) is a dependency; add just the module and the metrics show
 up under <code>/actuator/metrics</code> and any Micrometer registry the application already has
 configured (Prometheus, etc.).
 </p>

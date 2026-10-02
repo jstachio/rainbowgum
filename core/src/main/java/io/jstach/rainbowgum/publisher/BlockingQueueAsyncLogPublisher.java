@@ -5,17 +5,22 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.AbstractCollection;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jspecify.annotations.Nullable;
+
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogMetrics.Gauge;
+import io.jstach.rainbowgum.LogMetrics.StandardMetric;
 import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisherRegistry;
 
@@ -42,6 +47,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	private final Worker worker;
 
 	private final LogAlerts alerts;
+
+	private @Nullable Gauge eventsQueued;
 
 	private final Duration shutdownTimeout;
 
@@ -121,6 +128,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 				throw new IllegalStateException();
 			}
 			queue.put(event);
+			Objects.requireNonNull(eventsQueued).increment();
 		}
 		catch (InterruptedException e) {
 			alerts.error(BlockingQueueAsyncLogPublisher.class, e);
@@ -185,6 +193,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			throw new IllegalStateException();
 		}
 
+		eventsQueued = config.metrics()
+			.gauge(StandardMetric.EVENTS_QUEUED.metricName(), StandardMetric.EVENTS_QUEUED.level());
 		worker.setDaemon(true);
 		worker.setName(BlockingQueueAsyncLogPublisher.class.getSimpleName());
 		running = true;
@@ -233,8 +243,10 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 		private int drain() {
 			try {
-				int added = queue.drainTo(fake, bufferSize - fake.size);
+				int size = fake.size;
+				int added = queue.drainTo(fake, bufferSize - size);
 				if (fake.size > 0) {
+					Objects.requireNonNull(eventsQueued).decrement(fake.size);
 					append(buffer, fake.size);
 				}
 				return added;
