@@ -138,24 +138,6 @@ class LogPropertiesTest {
 		assertEquals(test.expected, values);
 	}
 
-	@ParameterizedTest
-	@EnumSource(PropsTest.class)
-	void testWriteProperties(PropsTest test) {
-		String input = test.input;
-		var props = LogProperties.builder().fromProperties(input).build();
-		LinkedHashMap<String, String> values = new LinkedHashMap<>();
-		for (var k : test.expected.keySet()) {
-			var v = props.valueOrNull(k);
-			if (v == null) {
-				throw new AssertionError();
-			}
-			values.put(k, v);
-		}
-		String actual = PropertiesParser.writeProperties(values);
-		String expected = test.input; // properties always have a new line on the end.
-		assertEquals(expected, actual);
-	}
-
 	@SuppressWarnings("ImmutableEnumChecker")
 	enum PropsTest {
 

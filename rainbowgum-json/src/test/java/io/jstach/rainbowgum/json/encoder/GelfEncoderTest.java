@@ -23,7 +23,6 @@ import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
-import io.jstach.rainbowgum.PropertiesParser;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -50,8 +49,7 @@ class GelfEncoderTest {
 				logging.encoder.gelf.headers=header1\\=1
 				logging.encoder.gelf.prettyPrint=true
 				""";
-		var props = PropertiesParser.readProperties(propString);
-		b.fromProperties(props::get);
+		b.fromProperties(LogProperties.builder().fromProperties(propString).build());
 
 		GelfEncoder encoder = b.build();
 
