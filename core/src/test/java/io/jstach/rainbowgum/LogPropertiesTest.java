@@ -382,6 +382,30 @@ class LogPropertiesTest {
 		return success.valueDescription();
 	}
 
+	@Test
+	void uriPropertyDescriptionRedactsCredentialsWithoutChangingValue() {
+		String value = "custom://alice:kenny@example.com/path?password=kenny&mode=append";
+		var props = LogProperties.MutableLogProperties.builder().build().put("logging.output.custom.uri", value);
+		var result = props.forKey("logging.output.custom.uri").ofURI();
+		assertEquals(URI.create(value), result.validateNow(LogPropertiesTest.class));
+		assertEquals(
+				"""
+						Property[logging.output.custom.uri]=custom://<REDACTED>@example.com/path?password=<REDACTED>&mode=append""",
+				result.describe());
+	}
+
+	@Test
+	void uriQuerySourceDescriptionRedactsCredentialsWithoutChangingProperties() {
+		var props = LogProperties.builder()
+			.fromURIQuery(URI.create("custom:///?password=kenny"))
+			.removeKeyPrefix("logging.output.custom.")
+			.build();
+		assertEquals("""
+				URI_QUERY(custom:///?password=<REDACTED>)[host]""", props.description("logging.output.custom.host"));
+		assertEquals("kenny",
+				props.forKey("logging.output.custom.password").ofString().validateNow(LogPropertiesTest.class));
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { "logging.password", "logging.PASSWORD", "logging.output.password",
 			"logging.output.PASSWORD", "logging.output.apikey", "logging.output.api_key", "logging.output.api-key",

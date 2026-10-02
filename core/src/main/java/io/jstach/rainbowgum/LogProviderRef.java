@@ -83,7 +83,7 @@ public sealed interface LogProviderRef {
 		 */
 		static NotFoundException of(ProviderModule.ComponentType component, String scheme, URI uri) {
 			String message = "No " + component.label() + " found. Scheme not registered. scheme: '" + scheme
-					+ "', URI: '" + uri + "'";
+					+ "', URI: '" + LogRedactor.redactUri(uri) + "'";
 			var module = ProviderModule.find(component, scheme);
 			if (module.isPresent()) {
 				var m = module.get();
@@ -104,7 +104,7 @@ record DefaultLogProviderRef(URI uri, @Nullable String keyOrNull) implements Log
 		try {
 			if (scheme == null) {
 				if (path == null) {
-					throw new IllegalArgumentException("URI is not proper: " + uri);
+					throw new IllegalArgumentException("URI is not proper: " + LogRedactor.redactUri(uri));
 				}
 				uri = new URI(path + ":///");
 				if (uri.getScheme() == null) {
@@ -114,12 +114,12 @@ record DefaultLogProviderRef(URI uri, @Nullable String keyOrNull) implements Log
 					 * another scheme-less URI instead of throwing. Fail clearly here
 					 * rather than letting an unresolvable URI reach a provider registry.
 					 */
-					throw new IllegalArgumentException("URI is not proper: " + uri);
+					throw new IllegalArgumentException("URI is not proper: " + LogRedactor.redactUri(uri));
 				}
 			}
 		}
 		catch (URISyntaxException e) {
-			throw new IllegalArgumentException("URI is not proper: " + uri);
+			throw new IllegalArgumentException("URI is not proper: " + LogRedactor.redactUri(uri));
 		}
 		return uri;
 	}
