@@ -363,8 +363,17 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		 * @return builder.
 		 */
 		public Builder route(Router route) {
+			bind();
 			this.routes.add(route);
 			return this;
+		}
+
+		/*
+		 * Routers provision outputs/appenders into the config as soon as they are built,
+		 * so the config must be claimed before that, not just at build().
+		 */
+		private void bind() {
+			((DefaultLogConfig) config).bind(this);
 		}
 
 		/**
@@ -376,6 +385,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		 * @see io.jstach.rainbowgum.LogRouter.Router.Builder
 		 */
 		public Builder route(String name, Consumer<Router.Builder> consumer) {
+			bind();
 			var builder = Router.builder(name, config);
 			consumer.accept(builder);
 			return route(builder.build());
@@ -389,6 +399,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		 * @see io.jstach.rainbowgum.LogRouter.Router.Builder
 		 */
 		public Builder route(Consumer<Router.Builder> consumer) {
+			bind();
 			var builder = Router.builder(Router.DEFAULT_ROUTER_NAME, config);
 			consumer.accept(builder);
 			return route(builder.build());
@@ -408,6 +419,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		 * @return an un-started {@link RainbowGum}.
 		 */
 		private RainbowGum build(UUID instanceId) {
+			((DefaultLogConfig) config).markBuilt(this);
 			var routes = this.routes;
 			var config = this.config;
 			if (routes.isEmpty()) {
