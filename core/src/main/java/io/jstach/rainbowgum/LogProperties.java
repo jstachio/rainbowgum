@@ -715,8 +715,18 @@ public interface LogProperties {
 
 		/**
 		 * Parses a string as {@link Properties}.
-		 * @param properties properties as a string.
+		 * <p>
+		 * The parameter is the <strong>contents</strong> of a properties file, not a
+		 * resource, path, or file name. Passing a name such as
+		 * {@code "logging.properties"} does not load that file; it is parsed as a single
+		 * key with an empty value.
+		 * @param properties properties content as a string, for example
+		 * {@code "logging.level=INFO"}.
 		 * @return this.
+		 * @apiNote Rainbow Gum core does not read resources from the filesystem or the
+		 * classpath. If external properties are needed, it is the caller's responsibility
+		 * to read them into a string (or use a module that does, like
+		 * {@code rainbowgum-simple-props}).
 		 */
 		public Builder fromProperties(String properties) {
 			if (description == null) {
