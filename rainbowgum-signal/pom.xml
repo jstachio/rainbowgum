@@ -1,0 +1,60 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-maven-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-signal</artifactId>
+  <name>rainbowgum-signal</name>
+  <properties>
+    <doc.resources>../</doc.resources>
+    <parent.root>${basedir}/..</parent.root>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.pistachio</groupId>
+      <artifactId>pistachio-svc-apt</artifactId>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!--
+            javac warns "X is internal proprietary API and may be removed in a future
+            release" on every sun.misc.Signal/SignalHandler reference. @SuppressWarnings,
+            -nowarn, and -Xlint cannot suppress it (JDK-8349848 was closed Won't Fix).
+            -XDignore.symbol.file does suppress it, but only without release: with
+            release, javac reads the proprietary flag from the JDK's ct.sym. So this
+            module alone compiles with source/target 21 instead of release, and
+            -Xlint:-options silences the resulting "location of system modules is not
+            set" warning. Tradeoff: javac checks this module against the running JDK's
+            API rather than Java 21's, so an accidental newer API call would not be
+            caught here. fork is required: the in-process compiler still reports the
+            warnings with the same flags, only the javac executable honors them.
+            failOnWarning stays on to catch the warnings coming back.
+          -->
+          <fork>true</fork>
+          <release combine.self="override"></release>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <compilerArgs combine.children="append">
+            <arg>-XDignore.symbol.file</arg>
+            <arg>-Xlint:-options</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
