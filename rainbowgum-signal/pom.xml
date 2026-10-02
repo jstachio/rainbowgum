@@ -32,16 +32,27 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <!--
-            javac unconditionally warns "X is internal proprietary API and may be
-            removed in a future release" on every sun.misc.Signal/SignalHandler
-            reference, even when the module properly declares `requires jdk.unsupported`
-            - confirmed neither -nowarn, -Xlint:-removal, nor -XDignore.symbol.file
-            suppress it (tested directly with javac 26 both on the classpath and as a
-            proper module). This is that module's entire purpose (legacy/unsupported
-            API kept alive on purpose) so the warning is expected and unavoidable here;
-            failOnWarning is relaxed for this module only rather than repo wide.
+            javac warns "X is internal proprietary API and may be removed in a future
+            release" on every sun.misc.Signal/SignalHandler reference. @SuppressWarnings,
+            -nowarn, and -Xlint cannot suppress it (JDK-8349848 was closed Won't Fix).
+            -XDignore.symbol.file does suppress it, but only without release: with
+            release, javac reads the proprietary flag from the JDK's ct.sym. So this
+            module alone compiles with source/target 21 instead of release, and
+            -Xlint:-options silences the resulting "location of system modules is not
+            set" warning. Tradeoff: javac checks this module against the running JDK's
+            API rather than Java 21's, so an accidental newer API call would not be
+            caught here. fork is required: the in-process compiler still reports the
+            warnings with the same flags, only the javac executable honors them.
+            failOnWarning stays on to catch the warnings coming back.
           -->
-          <failOnWarning>false</failOnWarning>
+          <fork>true</fork>
+          <release combine.self="override"></release>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <compilerArgs combine.children="append">
+            <arg>-XDignore.symbol.file</arg>
+            <arg>-Xlint:-options</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
     </plugins>
