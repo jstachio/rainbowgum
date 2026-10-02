@@ -84,10 +84,10 @@ class RollingFileOutputTest {
 			assertEquals(2, metric(config, StandardMetric.ROLL_FAIL));
 			assertEquals(2, metric(config, StandardMetric.EVENTS_FAILED));
 			assertEquals("""
-					errors.roll=2
 					events.failed=2
 					io.jstach.rainbowgum.ReuseBufferLogAppender=2
 					io.jstach.rainbowgum.rolling.DefaultRollingFileOutput=2
+					roll.fail=2
 					""",
 					config.metrics()
 						.counters()
