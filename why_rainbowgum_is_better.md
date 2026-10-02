@@ -57,8 +57,15 @@ Rainbow Gum also limits what configuration can do:
   evaluation or lookup interpolation. Message lookups enabled
   [Log4Shell](https://en.wikipedia.org/wiki/Log4Shell) in affected Log4j2 versions.
 * **Fewer implicit mechanisms:** core has no XML configuration parser and avoids
-  reflection apart from mechanisms such as `ServiceLoader`. Classpath configuration
-  loading is an optional integration, not core's default behavior.
+  reflection apart from mechanisms such as `ServiceLoader`.
+* **Explicit input sources:** apart from `ServiceLoader` discovery, core does not
+  read resources from the classpath. It also does not read files from the filesystem
+  or read environment variables on its own. Its default configuration source is Java
+  system properties. Environment variables are read only when you add them as a
+  property source, and loading a `logging.properties` file is the job of an optional
+  module such as `rainbowgum-simple-props`. The only environment check in core's
+  code is ANSI color detection (`NO_COLOR` and `TERM`), which runs only when
+  `rainbowgum-pattern` asks for it.
 * **Explicit output capabilities:** core writes only to stdout and stderr. File
   output and other destinations require additional modules; configuration alone
   cannot enable an output implementation that is not installed.
