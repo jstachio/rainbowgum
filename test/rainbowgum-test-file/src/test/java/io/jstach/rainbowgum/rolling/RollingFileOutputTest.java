@@ -27,6 +27,7 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.TestLogEventFactory;
+import io.jstach.rainbowgum.file.DataSize;
 
 /*
  * Real appender/RainbowGum end to end - not just the pure algorithm RollingPolicyTest
@@ -63,7 +64,7 @@ class RollingFileOutputTest {
 		Path obstruction = Files.createDirectory(dir.resolve("app.log.7"));
 		Files.writeString(obstruction.resolve("keep"), "obstruction");
 		var config = mode.config();
-		var provider = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(5));
+		var provider = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(5)));
 		var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("file",
 					a -> a.output(provider).formatter(FORMATTER).appenderType(AppenderType.REUSE_BUFFER)))
@@ -118,7 +119,8 @@ class RollingFileOutputTest {
 		Path obstruction = Files.createDirectory(dir.resolve("app.log.4"));
 		Files.writeString(obstruction.resolve("keep"), "obstruction");
 		var config = mode.config();
-		var provider = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(5).totalSizeCap(6));
+		var provider = RollingFileOutput
+			.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(5)).totalSizeCap(DataSize.ofBytes(6)));
 		var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("file",
 					a -> a.output(provider).formatter(FORMATTER).appenderType(AppenderType.REUSE_BUFFER)))
@@ -164,7 +166,7 @@ class RollingFileOutputTest {
 		Path active = dir.resolve("app.log");
 		var config = mode.config();
 		var provider = RollingFileOutput
-			.of(b -> b.fileName(active.toString()).maxFileSize(5).fileNamePattern(".%i/archive.gz"));
+			.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(5)).fileNamePattern(".%i/archive.gz"));
 		var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("file",
 					a -> a.output(provider).formatter(FORMATTER).appenderType(AppenderType.REUSE_BUFFER)))
@@ -202,7 +204,7 @@ class RollingFileOutputTest {
 	void externalReopenRefreshesSizeAndReportsFailuresSeparately(FileMode mode) throws IOException {
 		Path active = dir.resolve("app.log");
 		var config = mode.config();
-		var provider = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(5));
+		var provider = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(5)));
 		var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("file",
 					a -> a.output(provider).formatter(FORMATTER).appenderType(AppenderType.REUSE_BUFFER)))
@@ -241,7 +243,7 @@ class RollingFileOutputTest {
 	void closedOutputDoesNotRotateOrReopenOnLateWrite(FileMode mode) throws IOException {
 		Path active = dir.resolve("app.log");
 		var config = mode.config();
-		try (var output = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(5))
+		try (var output = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(5)))
 			.provide("file", config)) {
 			output.start(config);
 			var event = TestLogEventFactory.of().event("first");
@@ -261,7 +263,8 @@ class RollingFileOutputTest {
 		Path active = dir.resolve("app.log");
 		Files.writeString(dir.resolve("app.log.0"), "unrelated");
 		var config = LogConfig.builder().build();
-		var provider = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(5).maxHistory(0));
+		var provider = RollingFileOutput
+			.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(5)).maxHistory(0));
 		var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("file", a -> a.output(provider).formatter(FORMATTER)))
 			.build();
@@ -301,7 +304,7 @@ class RollingFileOutputTest {
 		Path active = dir.resolve("app.log");
 		var provider = RollingFileOutput.of(b -> {
 			b.fileName(active.toString());
-			b.maxFileSize(50);
+			b.maxFileSize(DataSize.ofBytes(50));
 			b.maxHistory(20);
 		});
 		var config = LogConfig.builder().build();
@@ -341,7 +344,7 @@ class RollingFileOutputTest {
 		Path active = dir.resolve("app.log");
 		var provider = RollingFileOutput.of(b -> {
 			b.fileName(active.toString());
-			b.maxFileSize(10);
+			b.maxFileSize(DataSize.ofBytes(10));
 			b.maxHistory(2);
 		});
 		var config = LogConfig.builder().build();
@@ -395,7 +398,7 @@ class RollingFileOutputTest {
 		var config = LogConfig.builder().properties(props).build();
 		var provider = RollingFileOutput.of(b -> {
 			b.fileName(active.toString());
-			b.maxFileSize(10);
+			b.maxFileSize(DataSize.ofBytes(10));
 			b.maxHistory(2);
 		});
 		var gum = RainbowGum.builder(config)
@@ -417,7 +420,7 @@ class RollingFileOutputTest {
 		Path active = dir.resolve("app.log");
 		var provider = RollingFileOutput.of(b -> {
 			b.fileName(active.toString());
-			b.maxFileSize(1000);
+			b.maxFileSize(DataSize.ofBytes(1000));
 		});
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config)
@@ -450,9 +453,9 @@ class RollingFileOutputTest {
 		Path active = dir.resolve("app.log");
 		var provider = RollingFileOutput.of(b -> {
 			b.fileName(active.toString());
-			b.maxFileSize(5);
+			b.maxFileSize(DataSize.ofBytes(5));
 			b.maxHistory(7);
-			b.totalSizeCap(10);
+			b.totalSizeCap(DataSize.ofBytes(10));
 			b.fileNamePattern("-%i.archive");
 		});
 		var config = LogConfig.builder().build();

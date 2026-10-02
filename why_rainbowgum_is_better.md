@@ -469,7 +469,7 @@ RainbowGum.builder()
         r.appender("rolling", a -> a.output(
             RollingFileOutput.of(b -> {
                 b.fileName("app.log");
-                b.maxFileSize(10 * 1024 * 1024);
+                b.maxFileSize(DataSize.ofMegabytes(10));
                 b.maxHistory(7);
             })));
         r.level(Level.INFO);
