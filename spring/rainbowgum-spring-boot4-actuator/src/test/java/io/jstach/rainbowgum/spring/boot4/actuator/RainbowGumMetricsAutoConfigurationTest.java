@@ -2,6 +2,8 @@ package io.jstach.rainbowgum.spring.boot4.actuator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.lang.System.Logger.Level;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -39,6 +41,8 @@ class RainbowGumMetricsAutoConfigurationTest {
 		try (var gum = RainbowGum.builder(config).set()) {
 			config.metrics().errorCounter(LogMetrics.EVENTS_DROPPED_METRIC, 3);
 			config.metrics().warnCounter(LogMetrics.BUFFER_TRIMMED_METRIC, 5);
+			var queued = config.metrics().gauge(LogMetrics.EVENTS_QUEUED_METRIC, Level.INFO);
+			queued.increment(2);
 
 			try (var context = new AnnotationConfigApplicationContext()) {
 				context.register(CompositeMeterRegistryAutoConfiguration.class, MetricsAutoConfiguration.class,
@@ -46,6 +50,12 @@ class RainbowGumMetricsAutoConfigurationTest {
 				context.refresh();
 
 				var registry = context.getBean(MeterRegistry.class);
+				var queuedMeter = registry.get(RainbowGumMeterBinder.METRIC_PREFIX + LogMetrics.EVENTS_QUEUED_METRIC)
+					.tag("level", "INFO")
+					.gauge();
+				assertEquals(2.0, queuedMeter.value());
+				queued.decrement();
+				assertEquals(1.0, queuedMeter.value());
 
 				assertEquals(3.0,
 						registry.get(RainbowGumMeterBinder.METRIC_PREFIX + LogMetrics.EVENTS_DROPPED_METRIC)

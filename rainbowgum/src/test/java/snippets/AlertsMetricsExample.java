@@ -19,7 +19,7 @@ public class AlertsMetricsExample {
 
 	// @start region = "metricsExample"
 	/*
-	 * Binds every well known counter (see LogMetrics.StandardMetric) to your own metrics
+	 * Binds every well known metric (see LogMetrics.StandardMetric) to your own metrics
 	 * system without hand listing each name/level pair - a future new StandardMetric
 	 * constant is picked up automatically.
 	 */

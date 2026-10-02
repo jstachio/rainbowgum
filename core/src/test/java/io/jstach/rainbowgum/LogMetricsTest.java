@@ -1,13 +1,44 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class LogMetricsTest {
+
+	@ParameterizedTest
+	@EnumSource(Level.class)
+	void gaugeHandlesAreDistinctAndShareTheNamedValue(Level level) {
+		var metrics = LogConfig.builder().build().metrics();
+		var first = metrics.gauge("queue", level);
+		var second = metrics.gauge("queue", level);
+		assertNotSame(first, second);
+		assertEquals(List.of(new LogMetrics.Counter("queue", level, 0)), metrics.counters());
+		first.increment();
+		first.increment(4);
+		second.decrement();
+		second.decrement(2);
+		assertEquals(List.of(new LogMetrics.Counter("queue", level, 2)), metrics.counters());
+		first.decrement(3);
+		assertEquals(List.of(new LogMetrics.Counter("queue", level, -1)), metrics.counters());
+	}
+
+	@Test
+	void gaugeSharesItsValueWithTheMatchingCounterMethod() {
+		var metrics = LogConfig.builder().build().metrics();
+		metrics.infoCounter("queue", 3);
+		var gauge = metrics.gauge("queue", Level.INFO);
+		gauge.decrement();
+		metrics.infoCounter("queue", 2);
+		assertEquals(List.of(new LogMetrics.Counter("queue", Level.INFO, 4)), metrics.counters());
+	}
 
 	@Test
 	void errorCounterAccumulatesByName() {
