@@ -29,4 +29,19 @@
   <modules>
     <module>rainbowgum-helidon4</module>
   </modules>
+  <profiles>
+    <!--
+      Helidon 27 is compiled for Java 27, so its module only builds on JDK 27+.
+      Keeps older JDK builds (e.g. the GraalVM 25 native-image job) working.
+    -->
+    <profile>
+      <id>helidon27</id>
+      <activation>
+        <jdk>[27,)</jdk>
+      </activation>
+      <modules>
+        <module>rainbowgum-helidon27</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

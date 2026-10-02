@@ -2121,14 +2121,16 @@ There is currently no Spring Boot 3 equivalent of this module; it is Boot 4 only
 
 <h3 id="helidon">Helidon</h3>
 
-Rainbow Gum provides Helidon SE support through <code>rainbowgum-helidon4</code>, a native
-implementation of Helidon's own <code>io.helidon.logging.common.spi.LoggingProvider</code> extension
+Rainbow Gum provides Helidon SE support through <code>rainbowgum-helidon4</code> and
+<code>rainbowgum-helidon27</code>, native implementations of Helidon's own <code>io.helidon.logging.common.spi.LoggingProvider</code> extension
 point (the same one <code>helidon-logging-jul</code>/<code>helidon-logging-log4j</code> implement).
 Like Spring Boot, each supported Helidon major version gets its own artifact rather than one module
 trying to track every release:
 
 <ul>
   <li>{@link io.jstach.rainbowgum.helidon4/ } / <code>rainbowgum-helidon4</code>: for Helidon SE 4.x.</li>
+  <li>{@link io.jstach.rainbowgum.helidon27/ } / <code>rainbowgum-helidon27</code>: for Helidon SE 27.x,
+  which requires Java 27.</li>
 </ul>
 
 <p>
@@ -2138,7 +2140,7 @@ finds before config, the service registry, or the webserver ever start, well bef
 log line. See {@link io.jstach.rainbowgum.helidon4/ }'s own module Javadoc for the full mechanism.
 </p>
 
-The recommended setup with Maven is:
+The recommended setup with Maven is (use <code>rainbowgum-helidon27</code> for Helidon 27):
 
 {@snippet lang=xml :
   <dependencies>
@@ -2161,12 +2163,12 @@ The recommended setup with Maven is:
 }
 
 <code>rainbowgum-simple-props</code> and <code>rainbowgum-pattern</code> are not required by
-<code>rainbowgum-helidon4</code> itself. Together they give a classpath <code>logging.properties</code>
+the Helidon modules themselves. Together they give a classpath <code>logging.properties</code>
 file (Rainbow Gum's own property format, not <code>java.util.logging</code>'s) and a pattern based
 encoder, the same combination this repository's own <code>examples/helidon</code> uses.
 
 <p>
-<code>rainbowgum-helidon4</code> pulls in <code>rainbowgum-jdk</code> at runtime scope,
+Both Helidon modules pull in <code>rainbowgum-jdk</code> at runtime scope,
 providing both <code>java.lang.System.Logger</code> support through
 <code>rainbowgum-systemlogger</code> and <code>java.util.logging</code> (JUL) bridging through
 <code>rainbowgum-jul</code>. This covers JDK and library calls to <code>System.Logger</code>
