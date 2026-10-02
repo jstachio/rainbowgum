@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -1228,14 +1229,21 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 	@Override
 	public String describe() {
 		if (kind == Kind.VALUE) {
-			return "Fallback[" + key + "]=" + maybeRedact(String.valueOf(value));
+			return "Fallback[" + key + "]=" + LogRedactor.redactProperty(key, String.valueOf(value));
 		}
 		return "Property[" + key + "]=" + valueDescription();
 	}
 
 	String valueDescription() {
 		String s = kind == Kind.STRING ? (String) rawValue : String.valueOf(rawValue);
-		return maybeRedact(s);
+		return LogRedactor.redactProperty(key, s);
+	}
+
+}
+
+final class LogRedactor {
+
+	private LogRedactor() {
 	}
 
 	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token", "passwd",
@@ -1243,7 +1251,7 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 
 	private static final String REDACTED_VALUE = "<REDACTED>";
 
-	private String maybeRedact(String input) {
+	static String redactProperty(String key, String input) {
 		String normalizedKey = key.toLowerCase(Locale.ROOT).replace(".", "").replace("_", "").replace("-", "");
 		for (var k : REDACTED_KEYS) {
 			if (normalizedKey.contains(k)) {
@@ -1251,6 +1259,50 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 			}
 		}
 		return input;
+	}
+
+	static String redactUri(URI uri) {
+		String source = uri.toString();
+		var result = new StringBuilder(source);
+		String query = uri.getRawQuery();
+		if (query != null) {
+			int queryStart = source.indexOf('?') + 1;
+			result.replace(queryStart, queryStart + query.length(), redactQuery(query));
+		}
+		String authority = uri.getRawAuthority();
+		if (authority != null) {
+			int userInfoEnd = authority.lastIndexOf('@');
+			if (userInfoEnd >= 0) {
+				String scheme = uri.getScheme();
+				int authorityStart = scheme == null ? 2 : scheme.length() + 3;
+				result.replace(authorityStart, authorityStart + userInfoEnd, REDACTED_VALUE);
+			}
+		}
+		return result.toString();
+	}
+
+	private static String redactQuery(String query) {
+		var result = new StringBuilder();
+		int start = 0;
+		for (int i = 0; i <= query.length(); i++) {
+			if (i == query.length() || query.charAt(i) == '&' || query.charAt(i) == ',') {
+				String pair = query.substring(start, i);
+				int equals = pair.indexOf('=');
+				if (equals >= 0) {
+					String key = pair.substring(0, equals);
+					String decodedKey = PercentCodec.decode(key, StandardCharsets.UTF_8);
+					result.append(key).append('=').append(redactProperty(decodedKey, pair.substring(equals + 1)));
+				}
+				else {
+					result.append(pair);
+				}
+				if (i < query.length()) {
+					result.append(query.charAt(i));
+				}
+				start = i + 1;
+			}
+		}
+		return result.toString();
 	}
 
 }
