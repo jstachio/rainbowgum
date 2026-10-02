@@ -21,7 +21,6 @@ import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
-import io.jstach.rainbowgum.PropertiesParser;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -88,8 +87,7 @@ class EcsEncoderTest {
 				logging.encoder.ecs.serviceName=myapp
 				logging.encoder.ecs.prettyPrint=true
 				""";
-		var props = PropertiesParser.readProperties(propString);
-		b.fromProperties(props::get);
+		b.fromProperties(LogProperties.builder().fromProperties(propString).build());
 
 		EcsEncoder encoder = b.build();
 
