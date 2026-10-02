@@ -383,22 +383,54 @@ class LogPropertiesTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { "password", "PASSWORD", "apikey", "secret", "token" })
-	void testStringPropertyValueDescriptionRedactsExactMatch(String value) {
+	@ValueSource(strings = { "logging.password", "logging.PASSWORD", "logging.output.password",
+			"logging.output.PASSWORD", "logging.output.apikey", "logging.output.api_key", "logging.output.api-key",
+			"logging.output.api.key", "logging.output.clientSecret", "logging.output.refresh_token",
+			"logging.output.passwd", "logging.output.passphrase", "logging.output.credentials",
+			"logging.output.privateKey", "logging.output.private_key", "logging.output.private-key",
+			"logging.output.private.key", "logging.output.accessKey", "logging.output.access_key",
+			"logging.output.access-key", "logging.output.access.key", "logging.output.AUTHORIZATION" })
+	void testStringPropertyValueDescriptionRedactsSensitiveKeys(String key) {
+		var props = LogProperties.MutableLogProperties.builder().build().put(key, "abc123");
+		var result = props.forKey(key).ofString();
+		assertEquals("abc123", result.validateNow(LogPropertiesTest.class));
+		assertEquals("<REDACTED>", valueDescriptionOf(result));
+		assertEquals("Property[" + key + "]=<REDACTED>", result.describe());
+	}
+
+	@ParameterizedTest
+	@EnumSource(PropertySuccess.Kind.class)
+	void testSensitiveKeyRedactionForAllPropertyKinds(PropertySuccess.Kind kind) {
+		String key = "logging.output.credentials";
+		var props = LogProperties.MutableLogProperties.builder().build();
+		if (kind != PropertySuccess.Kind.VALUE) {
+			props.put(key, "x=y");
+		}
+		Result<?> result = switch (kind) {
+			case STRING -> props.forKey(key).ofString();
+			case LIST -> props.forKey(key).ofList();
+			case MAP -> props.forKey(key).ofMap();
+			case VALUE -> props.forKey(key).ofString().or("x=y");
+		};
+		assertEquals("<REDACTED>", valueDescriptionOf(result));
+		String prefix = kind == PropertySuccess.Kind.VALUE ? "Fallback" : "Property";
+		assertEquals(prefix + "[" + key + "]=<REDACTED>", result.describe());
+		assertEquals(prefix + "[" + key + "]=<REDACTED>", result.map(String::valueOf).describe());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "hello", "password", "PASSWORD", "my-password-123", "apikey", "secret", "token" })
+	void testStringPropertyValueDescriptionPassesThroughValuesForOrdinaryKeys(String value) {
 		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", value);
-		assertEquals("<REDACTED>", valueDescriptionOf(props.forKey("logging.p1").ofString()));
+		assertEquals(value, valueDescriptionOf(props.forKey("logging.p1").ofString()));
 	}
 
-	@Test
-	void testStringPropertyValueDescriptionRedactsSubstringMatch() {
-		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "my-password-123");
-		assertEquals("<REDACTED>", valueDescriptionOf(props.forKey("logging.p1").ofString()));
-	}
-
-	@Test
-	void testStringPropertyValueDescriptionPassesThroughOrdinaryValues() {
-		var props = LogProperties.MutableLogProperties.builder().build().put("logging.p1", "hello");
-		assertEquals("hello", valueDescriptionOf(props.forKey("logging.p1").ofString()));
+	@ParameterizedTest
+	@ValueSource(strings = { "logging.output.key", "logging.output.auth", "logging.output.pass",
+			"logging.output.session", "logging.output.monkey", "logging.output.bypass" })
+	void testStringPropertyValueDescriptionDoesNotRedactBroadKeyMatches(String key) {
+		var props = LogProperties.MutableLogProperties.builder().build().put(key, "hello");
+		assertEquals("hello", valueDescriptionOf(props.forKey(key).ofString()));
 	}
 
 	@Test
