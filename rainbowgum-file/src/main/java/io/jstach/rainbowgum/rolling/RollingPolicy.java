@@ -184,7 +184,7 @@ final class RollingPolicy {
 		List<Integer> indexes = new ArrayList<>();
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(parent)) {
 			for (Path candidate : stream) {
-				var matcher = regex.matcher(candidate.getFileName().toString());
+				var matcher = regex.matcher(Objects.requireNonNull(candidate.getFileName()).toString());
 				if (matcher.matches()) {
 					indexes.add(Integer.parseInt(Objects.requireNonNull(matcher.group(1))));
 				}
@@ -194,7 +194,9 @@ final class RollingPolicy {
 	}
 
 	private static void gzip(Path source, Path target) throws IOException {
-		Path temporary = Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
+		Path directory = Objects.requireNonNull(target.getParent());
+		Path fileName = Objects.requireNonNull(target.getFileName());
+		Path temporary = Files.createTempFile(directory, fileName.toString(), ".tmp");
 		try {
 			try (var in = Files.newInputStream(source);
 					var out = new GZIPOutputStream(Files.newOutputStream(temporary))) {
