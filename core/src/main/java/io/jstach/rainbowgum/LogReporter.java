@@ -438,7 +438,7 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 			.append(output.type().toString());
 		URI uri = uriOrNull(output);
 		if (uri != null) {
-			out.append(", uri=").append(uri.toString());
+			out.append(", uri=").append(LogRedactor.redactUri(uri));
 		}
 		if (output instanceof Reportable r) {
 			out.append(", ");
