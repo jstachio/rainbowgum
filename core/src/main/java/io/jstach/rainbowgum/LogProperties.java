@@ -744,8 +744,8 @@ public interface LogProperties {
 		 */
 		public Builder fromURIQuery(URI uri) {
 			String query = uri.getRawQuery();
-			return provider(
-					(b) -> queryToProperties(query, Objects.requireNonNullElse(description, "URI_QUERY(" + uri + ")")));
+			return provider((b) -> queryToProperties(query,
+					Objects.requireNonNullElse(description, "URI_QUERY(" + LogRedactor.redactUri(uri) + ")")));
 		}
 
 		private MultiMapProperties queryToProperties(@Nullable String query, String description) {
@@ -1058,7 +1058,7 @@ public interface LogProperties {
 		 * TODO this should be integrated with the whole providers and registries.
 		 */
 		String propDesc = uriKey != null ? "[" + uriKey + "]->" : "";
-		String description = propDesc + "URI(" + uri + ")";
+		String description = propDesc + "URI(" + LogRedactor.redactUri(uri) + ")";
 		var uriProperties = LogProperties.builder()
 			.description(description)
 			.fromURIQuery(uri)

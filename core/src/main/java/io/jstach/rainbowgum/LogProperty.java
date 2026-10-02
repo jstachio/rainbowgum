@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1252,13 +1253,28 @@ final class LogRedactor {
 	private static final String REDACTED_VALUE = "<REDACTED>";
 
 	static String redactProperty(String key, String input) {
+		if (sensitiveKey(key)) {
+			return REDACTED_VALUE;
+		}
+		if (input.indexOf('?') < 0 && input.indexOf('@') < 0) {
+			return input;
+		}
+		try {
+			return redactUri(new URI(input));
+		}
+		catch (URISyntaxException e) {
+			return input;
+		}
+	}
+
+	private static boolean sensitiveKey(String key) {
 		String normalizedKey = key.toLowerCase(Locale.ROOT).replace(".", "").replace("_", "").replace("-", "");
 		for (var k : REDACTED_KEYS) {
 			if (normalizedKey.contains(k)) {
-				return REDACTED_VALUE;
+				return true;
 			}
 		}
-		return input;
+		return false;
 	}
 
 	static String redactUri(URI uri) {
@@ -1291,7 +1307,9 @@ final class LogRedactor {
 				if (equals >= 0) {
 					String key = pair.substring(0, equals);
 					String decodedKey = PercentCodec.decode(key, StandardCharsets.UTF_8);
-					result.append(key).append('=').append(redactProperty(decodedKey, pair.substring(equals + 1)));
+					result.append(key)
+						.append('=')
+						.append(sensitiveKey(decodedKey) ? REDACTED_VALUE : pair.substring(equals + 1));
 				}
 				else {
 					result.append(pair);

@@ -132,7 +132,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		String query = uri.getRawQuery();
 		if (scheme == null) {
 			if (path == null) {
-				throw new IllegalArgumentException("URI is not proper: " + uri);
+				throw new IllegalArgumentException("URI is not proper: " + LogRedactor.redactUri(uri));
 			}
 			if (path.startsWith("./")) {
 				uri = Paths.get(path).toUri();

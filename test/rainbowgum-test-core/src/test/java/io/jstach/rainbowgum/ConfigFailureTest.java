@@ -83,8 +83,7 @@ class ConfigFailureTest {
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
-		// Records the current URI credential exposure without fixing it.
-		outputValidationFailureExposesPasswordInUri("""
+		outputValidationFailureRedactsPasswordInUri("""
 				logging.appenders=myapp
 				logging.appender.myapp.output=custom:///?password=kenny
 				""",
@@ -93,16 +92,18 @@ class ConfigFailureTest {
 						Property missing. key:
 						    'logging.output.myapp.host' from:
 						        PROPERTIES_STRING[logging.output.myapp.host],
-						        [logging.appender.myapp.output]->URI(custom:///?password=kenny)[host]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], value: 'custom:///?password=kenny'
+						        [logging.appender.myapp.output]->URI(custom:///?password=<REDACTED>)[host]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], value: 'custom:///?password=<REDACTED>'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'.""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of((config, pass) -> {
 					config.outputRegistry().register("custom", ref -> (name, c) -> {
+						assertEquals("custom:///?password=kenny", ref.uri().toString());
 						String prefix = "logging.output." + name + ".";
 						var properties = LogProperties.of(ref.uri(), prefix, c.properties(), ref.keyOrNull());
+						assertEquals("kenny", properties.valueOrNull(prefix + "password"));
 						var validator = LogProperty.Validator.of(LogOutput.class);
 						properties.forKey(prefix + "password").ofString().validate(validator);
 						properties.forKey(prefix + "host").ofString().validate(validator);
@@ -113,6 +114,15 @@ class ConfigFailureTest {
 				});
 			}
 		},
+
+		unregisteredOutputSchemeRedactsUriCredentials("""
+				logging.appenders=myapp
+				logging.appender.myapp.output=bogus://alice:kenny@example.com/path?token=kenny&mode=append
+				""",
+				"""
+						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus://<REDACTED>@example.com/path?token=<REDACTED>&mode=append'
+						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
+						  ↳ Failure providing Appenders for route: 'default'."""),
 
 		unregisteredPublisherScheme("""
 				logging.route.default.publisher=bogus:///
