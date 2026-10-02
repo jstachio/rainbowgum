@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.file;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -9,21 +11,35 @@ import org.jspecify.annotations.Nullable;
 /**
  * A non negative amount of data in bytes, such as a maximum file size.
  * <p>
- * {@link #parse(String)} accepts the same format as Logback's {@code FileSize}: a whole
- * number followed by an optional unit of {@code kb}, {@code mb}, or {@code gb} (case
- * insensitive, optional whitespace between number and unit, optional trailing {@code s}).
- * Units are powers of 1024, so {@code 10MB} is {@code 10485760} bytes. A number without a
- * unit is bytes.
+ * {@link #parse(String)} accepts a number followed by an optional unit, with optional
+ * whitespace around and between them. Every unit is a power of 1024 and units are case
+ * insensitive:
+ * <ul>
+ * <li>none or {@code b}: bytes</li>
+ * <li>{@code k}, {@code kb}, {@code kib}: 1024 bytes</li>
+ * <li>{@code m}, {@code mb}, {@code mib}: 1024<sup>2</sup> bytes</li>
+ * <li>{@code g}, {@code gb}, {@code gib}: 1024<sup>3</sup> bytes</li>
+ * <li>{@code t}, {@code tb}, {@code tib}: 1024<sup>4</sup> bytes</li>
+ * </ul>
+ * The number may have a decimal part using {@code .} (never {@code ,}), for example
+ * {@code 1.5GB}; a result that is not a whole number of bytes is rounded down. Every
+ * value Logback's {@code FileSize} accepts, including its optional trailing {@code s} as
+ * in {@code 10MBs}, parses to the same number of bytes. Unlike some other formats,
+ * {@code MB} never means 1000<sup>2</sup>.
  */
 public final class DataSize implements Comparable<DataSize> {
 
-	private static final Pattern PATTERN = Pattern.compile("([0-9]+)\\s*(|kb|mb|gb)s?", Pattern.CASE_INSENSITIVE);
+	private static final Pattern PATTERN = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)\\s*([a-zA-Z]*)");
+
+	private static final String FORMAT_HINT = "Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.";
 
 	private static final long KB = 1024L;
 
 	private static final long MB = KB * 1024L;
 
 	private static final long GB = MB * 1024L;
+
+	private static final long TB = GB * 1024L;
 
 	/**
 	 * Zero bytes.
@@ -80,31 +96,33 @@ public final class DataSize implements Comparable<DataSize> {
 	}
 
 	/**
-	 * Parses a data size such as {@code 10MB}, {@code 512 kb}, or {@code 1048576}.
+	 * Parses a data size such as {@code 10MB}, {@code 512 kb}, {@code 1.5g}, or
+	 * {@code 1048576}. See the class documentation for the format.
 	 * @param value text to parse.
 	 * @return data size.
 	 * @throws IllegalArgumentException if the text is not a valid data size.
 	 */
 	public static DataSize parse(String value) {
-		var m = PATTERN.matcher(value);
+		var m = PATTERN.matcher(value.strip());
 		if (!m.matches()) {
-			throw new IllegalArgumentException("Invalid data size: '" + value
-					+ "'. Expected a whole number with an optional unit of kb, mb, or gb (case insensitive, powers of 1024). Examples: '10mb', '512 KB', '1048576'.");
+			throw new IllegalArgumentException("Invalid data size: '" + value + "'. " + FORMAT_HINT);
 		}
-		long number;
-		try {
-			number = Long.parseLong(Objects.requireNonNull(m.group(1)));
-		}
-		catch (NumberFormatException e) {
+		String number = Objects.requireNonNull(m.group(1));
+		String unit = Objects.requireNonNullElse(m.group(2), "");
+		long multiplier = switch (unit.toLowerCase(Locale.ROOT)) {
+			case "", "b", "s" -> 1L;
+			case "k", "kb", "kib", "kbs" -> KB;
+			case "m", "mb", "mib", "mbs" -> MB;
+			case "g", "gb", "gib", "gbs" -> GB;
+			case "t", "tb", "tib", "tbs" -> TB;
+			default -> throw new IllegalArgumentException(
+					"Invalid data size: '" + value + "'. Unknown unit '" + unit + "'. " + FORMAT_HINT);
+		};
+		BigInteger bytes = new BigDecimal(number).multiply(BigDecimal.valueOf(multiplier)).toBigInteger();
+		if (bytes.bitLength() >= Long.SIZE) {
 			throw tooLarge(value);
 		}
-		long multiplier = switch (Objects.requireNonNullElse(m.group(2), "").toLowerCase(Locale.ROOT)) {
-			case "kb" -> KB;
-			case "mb" -> MB;
-			case "gb" -> GB;
-			default -> 1L;
-		};
-		return ofBytes(multiply(number, multiplier, value));
+		return ofBytes(bytes.longValue());
 	}
 
 	private static long multiply(long number, long multiplier, String description) {
@@ -155,6 +173,9 @@ public final class DataSize implements Comparable<DataSize> {
 	@Override
 	public String toString() {
 		if (bytes != 0) {
+			if (bytes % TB == 0) {
+				return (bytes / TB) + "TB";
+			}
 			if (bytes % GB == 0) {
 				return (bytes / GB) + "GB";
 			}
