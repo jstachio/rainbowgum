@@ -58,7 +58,7 @@ easy to lose in a normal amount of startup log noise.
 
 ```
 Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], Invalid data size: 'notanumber'. Expected a whole number with an optional unit of kb, mb, or gb (case insensitive, powers of 1024). Examples: '10mb', '512 KB', '1048576'.
+Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
 ```
 
 Thrown as an actual exception at startup - the application does not start with a broken

@@ -1211,10 +1211,11 @@ work equally well as query parameters above or as
 <code>logging.output.{name}.*</code> properties.
 
 <p>
-<code>maxFileSize</code> and <code>totalSizeCap</code> use the same size format as Logback:
-a whole number with an optional <code>kb</code>, <code>mb</code>, or <code>gb</code> unit
-(case insensitive, powers of 1024), for example <code>10MB</code> or <code>512 kb</code>.
-A number without a unit is bytes. See {@link io.jstach.rainbowgum.file.DataSize}.
+<code>maxFileSize</code> and <code>totalSizeCap</code> take a number with an optional unit,
+for example <code>10MB</code>, <code>512k</code>, or <code>1.5 GiB</code>. Units are case
+insensitive and always powers of 1024 (<code>MB</code> is 1024<sup>2</sup> bytes, never
+1000<sup>2</sup>), and a number without a unit is bytes. Every size Logback accepts means
+the same thing here. See {@link io.jstach.rainbowgum.file.DataSize} for the full format.
 </p>
 
 <p>
