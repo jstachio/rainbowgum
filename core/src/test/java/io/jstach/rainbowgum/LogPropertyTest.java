@@ -24,6 +24,25 @@ import io.jstach.rainbowgum.LogProperty.Validator;
 class LogPropertyTest {
 
 	@Test
+	void chainedConversionErrorRedactsSensitivePropertyValue() {
+		var properties = LogProperties.builder().description("TEST").fromProperties("""
+				logging.password=abc123
+				logging.count=bad
+				""").build();
+		var result = properties.forKey("logging.password")
+			.ofString()
+			.map(value -> properties.forKey("logging.count").ofInt().validateNow(LogPropertyTest.class));
+		var error = assertThrows(ValidationException.class, () -> result.validateNow(LogPropertyTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogPropertyTest:
+						Validation failed for io.jstach.rainbowgum.LogPropertyTest:
+						Error for property. key: 'logging.count' from TEST[logging.count], java.lang.NumberFormatException For input string: "bad"
+						  ↳ Error converting property. key: 'logging.password' from TEST[logging.password], value: '<REDACTED>'""",
+				error.getMessage());
+	}
+
+	@Test
 	void conversionErrorListsNestedSourcesWithoutSplittingDescriptionCommas() {
 		var first = LogProperties.builder()
 			.description("FIRST, SECOND")

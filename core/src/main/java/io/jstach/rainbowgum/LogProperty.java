@@ -1228,7 +1228,7 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 	@Override
 	public String describe() {
 		if (kind == Kind.VALUE) {
-			return "Fallback[" + key + "]=" + value;
+			return "Fallback[" + key + "]=" + maybeRedact(String.valueOf(value));
 		}
 		return "Property[" + key + "]=" + valueDescription();
 	}
@@ -1238,17 +1238,15 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 		return maybeRedact(s);
 	}
 
-	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token");
+	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token", "passwd",
+			"passphrase", "credential", "privatekey", "accesskey", "authorization");
 
 	private static final String REDACTED_VALUE = "<REDACTED>";
 
-	private static String maybeRedact(String input) {
-		String lower = input.toLowerCase(Locale.ROOT);
-		if (REDACTED_KEYS.contains(lower)) {
-			return REDACTED_VALUE;
-		}
+	private String maybeRedact(String input) {
+		String normalizedKey = key.toLowerCase(Locale.ROOT).replace(".", "").replace("_", "").replace("-", "");
 		for (var k : REDACTED_KEYS) {
-			if (input.contains(k)) {
+			if (normalizedKey.contains(k)) {
 				return REDACTED_VALUE;
 			}
 		}
