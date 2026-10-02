@@ -12,7 +12,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Paths;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -26,6 +25,7 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
+import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
 
 /**
@@ -34,9 +34,9 @@ import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
 public interface FileOutput extends LogOutput {
 
 	/**
-	 * Default file buffer size. This size was chosen based on Logbacks default.
+	 * Default file buffer size: 8KB, based on Logback's default.
 	 */
-	public static final int DEFAULT_BUFFER_SIZE = 8192;
+	public static final DataSize DEFAULT_BUFFER_SIZE = DataSize.ofKilobytes(8);
 
 	@Override
 	default OutputType type() {
@@ -100,7 +100,9 @@ public interface FileOutput extends LogOutput {
 	 * @param fileName file name.
 	 * @param append whether or not to append to existing file.
 	 * @param prudent logback prudent mode where files are locked on each write.
-	 * @param bufferSize buffer size in bytes.
+	 * @param bufferSize buffer size, in {@link DataSize#parse(String)} format when set by
+	 * property, e.g. {@code 8KB}. Zero means unbuffered. Must be at most
+	 * {@value Integer#MAX_VALUE} bytes.
 	 * @return file output provider whose <code>provide(...)</code> throws
 	 * {@link java.io.UncheckedIOException} if the file cannot be opened.
 	 */
@@ -108,8 +110,14 @@ public interface FileOutput extends LogOutput {
 	@LogConfigurable(name = "FileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
 	public static LogProvider<FileOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI uri,
 			@Nullable String fileName, @Nullable Boolean append, @Nullable Boolean prudent,
-			@DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize) {
+			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_BUFFER_SIZE") DataSize bufferSize) {
 		boolean prudent_ = prudent == null ? false : prudent;
+		long bufferBytes = bufferSize.toBytes();
+		if (bufferBytes > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException("bufferSize is too large: '" + bufferSize + "' (" + bufferBytes
+					+ " bytes). Maximum is " + Integer.MAX_VALUE + " bytes.");
+		}
+		int bufferSize_ = (int) bufferBytes;
 		boolean append_ = append == null ? true : append;
 		return (n, config) -> {
 			IOSupplier<FileOutput> supplier = () -> {
@@ -137,18 +145,27 @@ public interface FileOutput extends LogOutput {
 					return new FileChannelOutput(uri_, stream.getChannel());
 				}
 				OutputStream s;
-				Objects.requireNonNull(bufferSize);
-				if (bufferSize <= 0) {
+				if (bufferSize_ == 0) {
 					s = stream;
 				}
 				else {
-					s = new BufferedOutputStream(stream, bufferSize);
+					s = new BufferedOutputStream(stream, bufferSize_);
 				}
 				return new FileOutputStreamOutput(uri_, s);
 			};
 
 			return new ReopenableFileOutput(supplier);
 		};
+	}
+
+	/**
+	 * Converts a {@code bufferSize} property value.
+	 * @param value property value.
+	 * @return data size.
+	 * @see DataSize#parse(String)
+	 */
+	static DataSize parseDataSize(String value) {
+		return DataSize.parse(value);
 	}
 
 	/**
