@@ -225,7 +225,7 @@ class LogAlertsTest {
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertTrue(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
 				() -> "expected the unobserved-backlog summary, got: " + reported);
-		// three separate FailsafeAppender.log(...) calls happened: the original
+		// three separate MetaLog.log(...) calls happened: the original
 		// per-event echo (from error() itself), the summary line, and the
 		// backlog-replay of that same event - each starts a fresh "RAINBOW_GUM" block.
 		assertEquals(4, reported.split("RAINBOW_GUM", -1).length - 1,
