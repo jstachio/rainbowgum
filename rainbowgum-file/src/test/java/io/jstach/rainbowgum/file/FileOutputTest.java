@@ -143,7 +143,7 @@ class FileOutputTest {
 
 	private LogProvider<FileOutput> file(FileArg fileArg, Events test, BufferArg buffer, PrudentArg prudentArg,
 			AppendArg appendArg) {
-		Integer bufferSize = BufferArg.NULL == buffer ? null : buffer.bufferSize;
+		DataSize bufferSize = buffer.bufferSize;
 		Boolean prudent = prudentArg.prudent();
 		var file = FileOutput.of(b -> {
 			fileArg.set(b);
@@ -304,13 +304,14 @@ class FileOutputTest {
 
 	}
 
+	@SuppressWarnings("ImmutableEnumChecker") // DataSize is immutable
 	enum BufferArg {
 
-		NULL(Integer.MIN_VALUE), NEGATIVE(-1), ZERO(0), ONE(1);
+		NULL(null), ZERO(DataSize.ZERO), ONE(DataSize.ofBytes(1));
 
-		final Integer bufferSize;
+		final @Nullable DataSize bufferSize;
 
-		private BufferArg(Integer bufferSize) {
+		private BufferArg(@Nullable DataSize bufferSize) {
 			this.bufferSize = bufferSize;
 		}
 

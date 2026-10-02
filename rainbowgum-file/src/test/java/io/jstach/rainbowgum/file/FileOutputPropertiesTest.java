@@ -29,6 +29,40 @@ import io.jstach.rainbowgum.RainbowGum;
 
 class FileOutputPropertiesTest {
 
+	@Test
+	void bufferSizeAcceptsDataSizeFormat() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.output.file.fileName=%s\nlogging.output.file.bufferSize=8KB".formatted(FILE_PATH))
+			.build();
+		new FileOutputBuilder("file").fromProperties(properties).build();
+	}
+
+	@Test
+	void bufferSizeLargerThanIntFailsFromProperty() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.output.file.fileName=%s\nlogging.output.file.bufferSize=3GB".formatted(FILE_PATH))
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new FileOutputBuilder("file").fromProperties(properties).build());
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder: "
+						+ "bufferSize is too large: '3GB' (3221225472 bytes). Maximum is 2147483647 bytes.",
+				e.getMessage());
+	}
+
+	@Test
+	void bufferSizeLimitIsIntMaxFromBuilder() {
+		new FileOutputBuilder("file").fileName(FILE_PATH).bufferSize(DataSize.ofBytes(Integer.MAX_VALUE)).build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new FileOutputBuilder("file").fileName(FILE_PATH)
+					.bufferSize(DataSize.ofBytes(Integer.MAX_VALUE + 1L))
+					.build());
+		assertEquals(
+				"Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder: "
+						+ "bufferSize is too large: '2GB' (2147483648 bytes). Maximum is 2147483647 bytes.",
+				e.getMessage());
+	}
+
 	/*
 	 * This is the exact scenario Spring Boot users hit: logging.file.name set to a bare
 	 * relative filename with no "./" prefix and no scheme. Before the fix RainbowGum
@@ -88,7 +122,7 @@ class FileOutputPropertiesTest {
 					"""
 							Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
 							Error for property. key: 'logging.output.file.uri' from PROPERTIES_STRING[logging.output.file.uri], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
-							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], java.lang.NumberFormatException For input string: "blah"
+							Error for property. key: 'logging.output.file.bufferSize' from PROPERTIES_STRING[logging.output.file.bufferSize], Invalid data size: 'blah'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
 							  ↳ Failure providing from property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: './target/FileOutputPropertiesTest/file.log'
 							  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 							  ↳ Failure providing Appenders for route: 'default'.""",
@@ -193,7 +227,7 @@ class FileOutputPropertiesTest {
 				String uri = Paths.get(FILE_PATH).toUri().toString();
 				String message = """
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
-						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], java.lang.NumberFormatException For input string: "blah"
+						Error for property. key: 'logging.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], Invalid data size: 'blah'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
 						Tried:
 						    'logging.output.file.bufferSize' from:
 						        ENVIRONMENT_VARIABLES[logging_output_file_bufferSize],
