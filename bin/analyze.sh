@@ -37,7 +37,7 @@ _modules="core,rainbowgum-annotation,rainbowgum-jul,rainbowgum-scopedkeyvalues-a
 # - rainbowgum-file, rainbowgum-tomcat, :rainbowgum-spring-boot4: Checker Framework itself
 #   crashes (BugInCF on getElementValueArray/resourceleak, reproducibly, analyzing a
 #   close() call against a freshly-compiled - not stub/bytecode - declaring class - not a
-#   code problem here, see develop.md).
+#   code problem here, see doc/checker-framework-bugs.md).
 # - rainbowgum-slf4j: checkerframework's own test-compile has never actually succeeded for
 #   this module - its checkerframework profile (rainbowgum-slf4j/pom.xml) never wired
 #   jstachio-apt's own processor (io.jstach.apt.GenerateRendererProcessor) into the

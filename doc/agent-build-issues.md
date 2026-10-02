@@ -207,7 +207,8 @@ comment in `bin/analyze.sh`). That crash message appeared in my output and I
 moved past it. The message of commit `e3a96370` ("Fix Checker Framework
 nullness errors in RollingPolicy") repeats the wrong claim. Note also that
 `analyze.sh` points to `develop.md` for the crash, but no `develop.md` exists,
-and there is no write-up of the crash ready to file upstream yet.
+and there is no write-up of the crash ready to file upstream yet (now tracked
+in [checker-framework-bugs.md](checker-framework-bugs.md)).
 
 Fix: `bin/analyze.sh` now rejects unknown profile names before running Maven
 (exit code 2, listing the valid names).
