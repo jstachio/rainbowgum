@@ -60,7 +60,7 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	 * failed attempt increments this counter in addition to recording an alert,
 	 * regardless of the appender or output type.
 	 */
-	static final String REOPEN_FAIL_METRIC = "errors.reopen";
+	static final String REOPEN_FAIL_METRIC = "reopen.fail";
 
 	/**
 	 * Counter name for the global count of appender output reopen attempts, whether
@@ -76,7 +76,7 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	 * explicit reopen is counted by {@link #REOPEN_FAIL_METRIC} instead. Events lost
 	 * because rotation failed are also counted by {@link #EVENTS_FAILED_METRIC}.
 	 */
-	static final String ROLL_FAIL_METRIC = "errors.roll";
+	static final String ROLL_FAIL_METRIC = "roll.fail";
 
 	/**
 	 * Counter name for the running count of distinct logger names registered via
