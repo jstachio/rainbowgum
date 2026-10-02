@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 /**
@@ -81,6 +82,37 @@ class ConfigFailureTest {
 						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
+
+		// Records the current URI credential exposure without fixing it.
+		outputValidationFailureExposesPasswordInUri("""
+				logging.appenders=myapp
+				logging.appender.myapp.output=custom:///?password=kenny
+				""",
+				"""
+						Validation failed for io.jstach.rainbowgum.LogOutput:
+						Property missing. key:
+						    'logging.output.myapp.host' from:
+						        PROPERTIES_STRING[logging.output.myapp.host],
+						        [logging.appender.myapp.output]->URI(custom:///?password=kenny)[host]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], value: 'custom:///?password=kenny'
+						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
+						  ↳ Failure providing Appenders for route: 'default'.""") {
+			@Override
+			List<Configurator> configurators() {
+				return List.of((config, pass) -> {
+					config.outputRegistry().register("custom", ref -> (name, c) -> {
+						String prefix = "logging.output." + name + ".";
+						var properties = LogProperties.of(ref.uri(), prefix, c.properties(), ref.keyOrNull());
+						var validator = LogProperty.Validator.of(LogOutput.class);
+						properties.forKey(prefix + "password").ofString().validate(validator);
+						properties.forKey(prefix + "host").ofString().validate(validator);
+						validator.validate();
+						return new ListLogOutput();
+					});
+					return true;
+				});
+			}
+		},
 
 		unregisteredPublisherScheme("""
 				logging.route.default.publisher=bogus:///
