@@ -156,7 +156,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.LogAppender:
-						Error for property. key: 'logging.appender.myapp.flags' from PROPERTIES_STRING[logging.appender.myapp.flags], 'BOGUS_FLAG' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderFlag. Valid values: 'disable_immediate_flush', 'reentry_drop', 'reentry_log'
+						Error for property. key: 'logging.appender.myapp.flags' from PROPERTIES_STRING[logging.appender.myapp.flags], 'BOGUS_FLAG' is not a valid value for io.jstach.rainbowgum.LogAppender.AppenderFlag. Valid values: 'disable_immediate_flush', 'parallel_encode', 'reentry_drop', 'reentry_log'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 

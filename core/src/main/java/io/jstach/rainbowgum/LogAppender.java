@@ -93,6 +93,15 @@ public sealed interface LogAppender extends LogLifecycle {
 		 */
 		DISABLE_IMMEDIATE_FLUSH,
 		/**
+		 * Batches (from an asynchronous publisher) are encoded in parallel on the common
+		 * {@link java.util.concurrent.ForkJoinPool} into one buffer per event, and the
+		 * already encoded batch is then written by a single thread through
+		 * {@link LogOutput#write(LogEvent[], LogEncoder.Buffer[], int)}. Single events
+		 * are not affected. Requires an encoder that can encode on several threads at
+		 * once with separate buffers, which every built in encoder can.
+		 */
+		PARALLEL_ENCODE,
+		/**
 		 * The appender will drop events on reentry which happens if an appender during
 		 * its append causes recursive appending in the same thread. This is an analog to
 		 * what
@@ -1048,8 +1057,76 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 		this.encoder = encoder;
 		this.flags = flags;
 		this.immediateFlush = !flags.contains(LogAppender.AppenderFlag.DISABLE_IMMEDIATE_FLUSH);
+		this.parallelEncode = flags.contains(LogAppender.AppenderFlag.PARALLEL_ENCODE);
 		this.alerts = alerts;
 		this.metrics = metrics;
+	}
+
+	private final boolean parallelEncode;
+
+	/*
+	 * One buffer per batch slot for PARALLEL_ENCODE, reused across batches. Only touched
+	 * while the appender's lock (or monitor) is held.
+	 */
+	private LogEncoder.Buffer[] batchBuffers = new LogEncoder.Buffer[0];
+
+	/*
+	 * Must be called with the appender's lock (or monitor) held.
+	 */
+	final void writeBatch(LogEvent[] events, int count, LogEncoder.Buffer buffer) {
+		if (!parallelEncode || count < ParallelEncode.MIN_RANGE * 2) {
+			output.write(events, count, encoder, buffer);
+			return;
+		}
+		if (batchBuffers.length < count) {
+			var old = batchBuffers;
+			batchBuffers = java.util.stream.IntStream.range(0, count)
+				.mapToObj(i -> i < old.length ? old[i] : encoder.buffer(output.bufferHints()))
+				.toArray(LogEncoder.Buffer[]::new);
+		}
+		java.util.concurrent.ForkJoinPool.commonPool()
+			.invoke(new ParallelEncode(encoder, events, batchBuffers, 0, count));
+		output.write(events, batchBuffers, count);
+	}
+
+	@SuppressWarnings("serial")
+	private static final class ParallelEncode extends java.util.concurrent.RecursiveAction {
+
+		static final int MIN_RANGE = 16;
+
+		private final LogEncoder encoder;
+
+		private final LogEvent[] events;
+
+		private final LogEncoder.Buffer[] buffers;
+
+		private final int from;
+
+		private final int to;
+
+		ParallelEncode(LogEncoder encoder, LogEvent[] events, LogEncoder.Buffer[] buffers, int from, int to) {
+			this.encoder = encoder;
+			this.events = events;
+			this.buffers = buffers;
+			this.from = from;
+			this.to = to;
+		}
+
+		@Override
+		protected void compute() {
+			if (to - from <= MIN_RANGE) {
+				for (int i = from; i < to; i++) {
+					var b = buffers[i];
+					b.clear();
+					encoder.encode(events[i], b);
+				}
+				return;
+			}
+			int mid = (from + to) >>> 1;
+			invokeAll(new ParallelEncode(encoder, events, buffers, from, mid),
+					new ParallelEncode(encoder, events, buffers, mid, to));
+		}
+
 	}
 
 	@Override
@@ -1060,6 +1137,9 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	@Override
 	public void close() {
 		output.close();
+		for (var b : batchBuffers) {
+			b.close();
+		}
 	}
 
 	@Override
@@ -1264,7 +1344,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 		try {
 			lock.lock();
 			try {
-				output.write(events, count, encoder, buffer);
+				writeBatch(events, count, buffer);
 				if (immediateFlush) {
 					output.flush();
 				}
@@ -1359,7 +1439,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 		try {
 			lock.lock();
 			try {
-				output.write(events, count, encoder, bufferThreadLocal.get());
+				writeBatch(events, count, bufferThreadLocal.get());
 				if (immediateFlush) {
 					output.flush();
 				}
@@ -1427,7 +1507,7 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 			var buffer = encoder.buffer(output.bufferHints());
 			lock.lock();
 			try {
-				output.write(events, count, encoder, buffer);
+				writeBatch(events, count, buffer);
 				if (immediateFlush) {
 					output.flush();
 				}
@@ -1499,7 +1579,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 		}
 		try {
 			synchronized (monitor) {
-				output.write(events, count, encoder, bufferThreadLocal.get());
+				writeBatch(events, count, bufferThreadLocal.get());
 				if (immediateFlush) {
 					output.flush();
 				}
