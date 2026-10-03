@@ -691,7 +691,8 @@ logging.publisher.example.shutdownTimeout=10000
 <p>
 On close the default async publisher stops accepting events and writes everything still queued
 before closing its appenders, waiting up to <code>shutdownTimeout</code> milliseconds (10 seconds by
-default). Its worker thread is never interrupted, so an output is not cut off in the middle of a
+default). Calls already waiting to enqueue are allowed to finish; new calls are rejected once
+shutdown begins. Its worker thread is never interrupted, so an output is not cut off in the middle of a
 write. If writing does not finish in time, close returns and records an
 <a href="#alerts">alert</a> with the number of events still queued.
 </p>
