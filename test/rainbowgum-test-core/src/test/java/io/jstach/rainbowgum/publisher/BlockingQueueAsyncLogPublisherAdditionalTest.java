@@ -59,6 +59,41 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 	}
 
 	@Test
+	void testStartStartsTheAppendersOutput() {
+		var started = new java.util.concurrent.atomic.AtomicReference<LogConfig>();
+		var output = new ListLogOutput() {
+			@Override
+			public void start(LogConfig config) {
+				started.set(config);
+			}
+		};
+		var pub = BlockingQueueAsyncLogPublisher.of(appender(output), 10);
+		var config = LogConfig.builder().build();
+		pub.start(config);
+		try {
+			assertTrue(started.get() == config, "the output must be started with the publisher's config");
+		}
+		finally {
+			pub.close();
+		}
+	}
+
+	@Test
+	void testAppenderStartFailureLeavesThePublisherStopped() {
+		var output = new ListLogOutput() {
+			@Override
+			public void start(LogConfig config) {
+				throw new IllegalStateException("cannot open");
+			}
+		};
+		var pub = BlockingQueueAsyncLogPublisher.of(appender(output), 10);
+		var config = LogConfig.builder().build();
+		assertEquals("cannot open", assertThrows(IllegalStateException.class, () -> pub.start(config)).getMessage());
+		assertThrows(IllegalStateException.class, () -> pub.log(TestLogEventFactory.of().event("x")));
+		pub.close();
+	}
+
+	@Test
 	void testStartTwiceThrows() {
 		var pub = BlockingQueueAsyncLogPublisher.of(appender(new ListLogOutput()), 10);
 		var config = LogConfig.builder().build();
