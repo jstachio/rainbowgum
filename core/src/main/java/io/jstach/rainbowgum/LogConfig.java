@@ -414,7 +414,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 * @return log config
 		 */
 		public LogConfig build() {
-			var prePropertiesAlerts = new PrePropertiesLogAlerts();
+			var prePropertiesAlerts = new SwappableLogAlerts();
 			LogAlerts dumpAlerts = prePropertiesAlerts;
 			boolean startingAlerts = false;
 			DebugModeType debug = LogProperties.StandardProperties.SYSTEM_PROPERTIES
@@ -474,10 +474,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics,
 						debug);
 				// The config constructor installs the metrics listener before replay.
-				for (var event : prePropertiesAlerts.dump()) {
-					alerts.alert(event);
-				}
-				prePropertiesAlerts.close();
+				prePropertiesAlerts.drainTo(alerts);
 				dumpAlerts = alerts;
 				if (serviceLoader != null) {
 					configurators = new ArrayList<>(configurators);
@@ -797,8 +794,7 @@ final class DefaultLogConfig implements LogConfig {
 		 * wired an exporter to does not count as "someone is watching" for
 		 * LogAlerts.UnobservedErrorsAction's purposes - see DefaultLogAlerts's own
 		 * comment on hasExternalListener. Config alerts is always a DefaultLogAlerts;
-		 * PrePropertiesLogAlerts is only passed to PropertiesProviders before config
-		 * exists.
+		 * SwappableLogAlerts is only passed to PropertiesProviders before config exists.
 		 */
 		((DefaultLogAlerts) this.alerts).addInternalListener(event -> {
 			switch (event.level()) {
