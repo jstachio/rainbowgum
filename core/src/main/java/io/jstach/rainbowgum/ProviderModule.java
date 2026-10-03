@@ -30,6 +30,10 @@ enum ProviderModule {
 	PATTERN_ENCODER(ComponentType.ENCODER, "pattern", "io.jstach.rainbowgum.pattern",
 			"io.jstach.rainbowgum:rainbowgum-pattern", "pattern_encoder"),
 	JFR_OUTPUT(ComponentType.OUTPUT, "jfr", "io.jstach.rainbowgum.jfr", "io.jstach.rainbowgum:rainbowgum-jfr", "jfr"),
+	OTLP_OUTPUT(ComponentType.OUTPUT, "otlp", "io.jstach.rainbowgum.otlp", "io.jstach.rainbowgum:rainbowgum-otlp",
+			"otlp_output"),
+	OTLP_ENCODER(ComponentType.ENCODER, "otlp", "io.jstach.rainbowgum.otlp", "io.jstach.rainbowgum:rainbowgum-otlp",
+			"otlp_encoder"),
 	// No overview section of its own, so links to the module page instead.
 	DISRUPTOR_PUBLISHER(ComponentType.PUBLISHER, "disruptor", "io.jstach.rainbowgum.disruptor",
 			"io.jstach.rainbowgum:rainbowgum-disruptor", null);

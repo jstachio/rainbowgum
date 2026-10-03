@@ -1338,6 +1338,64 @@ We might have a logrotate script that looks like:
 }
 }
 
+<h3 id="otlp">OpenTelemetry (OTLP)</h3>
+
+The optional {@link io.jstach.rainbowgum.otlp/ } module (<code>rainbowgum-otlp</code>) exports logs in the
+OpenTelemetry Protocol without the OpenTelemetry SDK or any protobuf library. Its only dependencies are
+Rainbow Gum itself (core and <code>rainbowgum-json</code>) and the JDK's own HTTP client.
+
+<h4 id="otlp_output">OTLP/HTTP Output</h4>
+
+{@link io.jstach.rainbowgum.otlp.OtlpOutput} posts batches to an OTLP/HTTP endpoint (<code>/v1/logs</code>) as
+protobuf (the OTLP default) or JSON. Pair it with the asynchronous publisher so a log call never waits on the
+network:
+
+{@snippet lang=properties :
+logging.appenders=otel
+logging.appender.otel.output=otlp:///
+logging.output.otel.endpoint=http://collector:4318/v1/logs
+logging.output.otel.serviceName=orders
+logging.route.default.publisher=async
+}
+
+Other properties are <code>protocol</code> (<code>http/protobuf</code> or <code>http/json</code>),
+<code>headers</code>, <code>compression</code> (<code>gzip</code>), <code>timeout</code> (milliseconds),
+<code>maxBatchSize</code>, <code>resourceAttributes</code>, and <code>traceIdKey</code>/<code>spanIdKey</code>.
+Retryable responses (429, 502, 503, 504) and network errors are retried with backoff. A batch that still fails
+is dropped and reported as an <a href="#alerts">alert</a> and the <code>otlp.records.failed</code>
+<a href="#metrics">metric</a>.
+
+<p>
+<strong>The standard <code>OTEL_*</code> environment variables are not read unless you opt in</strong>, since
+reading the process environment is not something Rainbow Gum does by default:
+</p>
+
+{@snippet lang=properties :
+logging.output.otel.environmentVariables=on
+}
+
+With that set, <code>OTEL_SERVICE_NAME</code>, <code>OTEL_RESOURCE_ATTRIBUTES</code>, and the
+<code>OTEL_EXPORTER_OTLP_*</code> (and <code>OTEL_EXPORTER_OTLP_LOGS_*</code>) endpoint, protocol, headers,
+compression, and timeout variables fill in anything not set by a property.
+
+<h4 id="otlp_encoder">OTLP/JSON Encoder</h4>
+
+{@link io.jstach.rainbowgum.otlp.OtlpJsonEncoder} writes each event as one line of OTLP/JSON, the
+OpenTelemetry file format. Use it with any output, for example standard out in a container, and let the
+OpenTelemetry Collector read it with its <code>otlpjsonfile</code> receiver or its <code>filelog</code>
+receiver and <code>otlpjson</code> connector:
+
+{@snippet lang=properties :
+logging.appender.console.encoder=otlp:///
+logging.encoder.console.serviceName=orders
+}
+
+Both carry the same record content: the formatted message as the body, the logger name as the
+instrumentation scope, <code>thread.name</code>, <code>thread.id</code>, every key value as an attribute, and
+<code>exception.*</code> attributes for a throwable. Key values named <code>traceId</code> and
+<code>spanId</code> (as Micrometer Tracing puts them in the MDC) become the record's trace context when they
+are valid W3C ids.
+
 <h2 id="filter">Filtering</h2>
 
 Like logback Rainbow Gum provides two types of filtering through functional composition:
