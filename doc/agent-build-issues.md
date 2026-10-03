@@ -242,3 +242,34 @@ When filtering analysis output, also look for `could not be activated` and
 `crashed`, not just `[ERROR]` lines.
 
 Agent: Claude Code (Claude Opus 5.5).
+
+## 2026-10-03: Documentation test compilation failed with caching disabled
+
+While renaming the metrics snapshot API, the full `./mvnw --fail-at-end verify`
+passed in 16.6 seconds with the normal cache settings. The documentation check
+used the earlier workaround:
+
+```sh
+bin/doc.sh -Dmaven.build.cache.enabled=false
+```
+
+It failed after 12.5 seconds because core test compilation could not resolve
+`org.junit.jupiter.api`. This repeats the earlier documentation symptoms even
+with the cache disabled, so disabling the cache alone is not a reliable fix.
+The renamed API documentation had already been generated successfully.
+
+The retry used:
+
+```sh
+bin/doc.sh -Dmaven.build.cache.enabled=false -Dmaven.test.skip=true
+```
+
+It passed in 31.8 seconds with the default parallelism. `maven.test.skip` skips
+test compilation as well as execution, avoiding the failing documentation
+step. The full build had already compiled and run tests before this retry;
+the retry itself is only documentation validation. Snippets are read from
+their source files, and the generated `Metric.value()` and `snapshot()` links
+were checked. The documentation profile's test dependency resolution remains
+uninvestigated. This does not justify changing routine build cache settings.
+
+Agent: Codex (GPT-6).

@@ -39,9 +39,9 @@ class LogConfigTest {
 		config.alerts().error(LogConfigTest.class, "first", new RuntimeException());
 		config.alerts().error(LogConfigTest.class, "second", new RuntimeException());
 
-		var counters = config.metrics().counters();
-		assertEquals(1, counters.size());
-		assertEquals(new LogMetrics.Counter(LogConfigTest.class.getName(), Level.ERROR, 2), counters.get(0));
+		var snapshot = config.metrics().snapshot();
+		assertEquals(1, snapshot.size());
+		assertEquals(new LogMetrics.Metric(LogConfigTest.class.getName(), Level.ERROR, 2), snapshot.get(0));
 	}
 
 	/*
@@ -95,8 +95,8 @@ class LogConfigTest {
 		registry.registerLoggerName(LoggerAPI.Standard.SYSTEM_LOGGER, "com.example.Bar");
 		registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
 
-		var counters = config.metrics().counters();
-		assertEquals(List.of(new LogMetrics.Counter(LogMetrics.LOGGER_NAMES_METRIC, Level.INFO, 2)), counters);
+		var snapshot = config.metrics().snapshot();
+		assertEquals(List.of(new LogMetrics.Metric(LogMetrics.LOGGER_NAMES_METRIC, Level.INFO, 2)), snapshot);
 	}
 
 	/*

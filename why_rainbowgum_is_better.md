@@ -339,8 +339,8 @@ Rainbow Gum tracks a small, well known set of counters about the logging system 
 dependency beyond `java.base`:
 
 ```java
-var counters = config.metrics().counters();
-// [Counter[name=events.dropped, level=ERROR, count=3], ...]
+var snapshot = config.metrics().snapshot();
+// [Metric[name=events.dropped, level=ERROR, value=3], ...]
 ```
 
 Neither Logback nor Log4j2 ship anything like this: finding out how many events

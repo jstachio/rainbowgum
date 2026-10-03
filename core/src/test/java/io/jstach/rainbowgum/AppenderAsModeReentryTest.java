@@ -129,10 +129,10 @@ class AppenderAsModeReentryTest {
 		// separate from (and happens regardless of) whether the drop is also logged via
 		// REENTRY_LOG.
 		long dropped = config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(c -> c.name().equals(LogMetrics.EVENTS_DROPPED_METRIC))
-			.mapToLong(LogMetrics.Counter::count)
+			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 		assertEquals(1, dropped, () -> "expected exactly one dropped event for flag " + reentryFlag);
 

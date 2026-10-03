@@ -44,10 +44,10 @@ class BufferSelfShrinkTest {
 
 	private static long trimmedCount(LogConfig config) {
 		return config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(c -> c.name().equals(LogMetrics.BUFFER_TRIMMED_METRIC))
-			.mapToLong(LogMetrics.Counter::count)
+			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 	}
 

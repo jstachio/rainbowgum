@@ -129,7 +129,7 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		 */
 		COMPONENTS,
 		/**
-		 * Counters from {@link LogConfig#metrics()}.
+		 * Metrics from {@link LogConfig#metrics()}.
 		 */
 		METRICS,
 		/**
@@ -475,13 +475,13 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 
 	private void appendMetrics(Appendable out, LogMetrics metrics) throws IOException {
 		out.append("Metrics:\n");
-		for (var counter : metrics.counters()) {
+		for (var metric : metrics.snapshot()) {
 			out.append("  ")
-				.append(counter.name())
+				.append(metric.name())
 				.append(" = ")
-				.append(Long.toString(counter.count()))
+				.append(Long.toString(metric.value()))
 				.append(" (")
-				.append(counter.level().toString())
+				.append(metric.level().toString())
 				.append(")\n");
 		}
 	}

@@ -24,11 +24,11 @@ public class AlertsMetricsExample {
 	 * constant is picked up automatically.
 	 */
 	public void reportMetrics(LogConfig config) {
-		List<LogMetrics.Counter> counters = config.metrics().counters();
+		List<LogMetrics.Metric> snapshot = config.metrics().snapshot();
 		for (var metric : LogMetrics.StandardMetric.values()) {
-			long value = counters.stream()
+			long value = snapshot.stream()
 				.filter(c -> c.name().equals(metric.metricName()) && c.level() == metric.level())
-				.mapToLong(LogMetrics.Counter::count)
+				.mapToLong(LogMetrics.Metric::value)
 				.findFirst()
 				.orElse(0);
 			reportToMetricsSystem(metric.metricName(), value);

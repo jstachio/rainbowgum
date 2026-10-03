@@ -131,7 +131,7 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	 * Creates a handle for updating a named value directly. For INFO, WARNING, and ERROR,
 	 * each call returns a new handle sharing the value for the same name and level;
 	 * retain the handle for frequent updates without repeated name lookups. The value is
-	 * initially zero and appears in {@link #counters()} as soon as the handle is created.
+	 * initially zero and appears in {@link #snapshot()} as soon as the handle is created.
 	 * Counter methods for the same name and level share this value too. Levels below INFO
 	 * and OFF return a shared no-op handle and do not register a metric.
 	 * @param name metric name.
@@ -142,7 +142,7 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 
 	/**
 	 * A retained handle for incrementing or decrementing a metric. Updates are thread
-	 * safe and do not perform a name lookup. Read the value through {@link #counters()}.
+	 * safe and do not perform a name lookup. Read the value through {@link #snapshot()}.
 	 */
 	sealed interface Gauge permits DefaultGauge, NoopGauge {
 
@@ -180,25 +180,25 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	}
 
 	/**
-	 * A snapshot of every counter recorded via {@link #errorCounter(String, long)},
+	 * A snapshot of every metric recorded via {@link #errorCounter(String, long)},
 	 * {@link #warnCounter(String, long)}, {@link #infoCounter(String, long)}, and
 	 * {@link #gauge(String, Level)}. Counter values increase over time; gauge values can
 	 * also decrease. Snapshots are approximate while updates are concurrent.
 	 * @return immutable snapshot.
 	 */
-	public List<Counter> counters();
+	public List<Metric> snapshot();
 
 	/**
-	 * A single named counter's current value, as returned by {@link #counters()}.
+	 * A single named metric's current value, as returned by {@link #snapshot()}.
 	 *
 	 * @param name metric name, as passed to a counter method or
 	 * {@link #gauge(String, Level)}.
 	 * @param level significance of the metric. Counter methods use {@link Level#ERROR},
 	 * {@link Level#WARNING}, or {@link Level#INFO}; gauges use the level supplied to
 	 * {@link #gauge(String, Level)}.
-	 * @param count current value, which can decrease for a gauge.
+	 * @param value current value, which can decrease for a gauge.
 	 */
-	record Counter(String name, Level level, long count) {
+	record Metric(String name, Level level, long value) {
 	}
 
 	/**
@@ -263,7 +263,7 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 
 		/**
 		 * The metric name, as passed to a counter method or {@link #gauge(String, Level)}
-		 * and matched against {@link Counter#name()}.
+		 * and matched against {@link Metric#name()}.
 		 * @return metric name.
 		 */
 		public String metricName() {
@@ -271,8 +271,8 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 		}
 
 		/**
-		 * The significance of this metric, also exposed through {@link Counter#level()}
-		 * in {@link #counters()}.
+		 * The significance of this metric, also exposed through {@link Metric#level()} in
+		 * {@link #snapshot()}.
 		 * @return level.
 		 */
 		public Level level() {
@@ -326,16 +326,16 @@ final class DefaultLogMetrics implements LogMetrics {
 	}
 
 	@Override
-	public List<Counter> counters() {
-		List<Counter> list = new ArrayList<>(errorCounters.size() + warnCounters.size() + infoCounters.size());
+	public List<Metric> snapshot() {
+		List<Metric> list = new ArrayList<>(errorCounters.size() + warnCounters.size() + infoCounters.size());
 		for (var e : errorCounters.entrySet()) {
-			list.add(new Counter(e.getKey(), Level.ERROR, e.getValue().sum()));
+			list.add(new Metric(e.getKey(), Level.ERROR, e.getValue().sum()));
 		}
 		for (var e : warnCounters.entrySet()) {
-			list.add(new Counter(e.getKey(), Level.WARNING, e.getValue().sum()));
+			list.add(new Metric(e.getKey(), Level.WARNING, e.getValue().sum()));
 		}
 		for (var e : infoCounters.entrySet()) {
-			list.add(new Counter(e.getKey(), Level.INFO, e.getValue().sum()));
+			list.add(new Metric(e.getKey(), Level.INFO, e.getValue().sum()));
 		}
 		return List.copyOf(list);
 	}

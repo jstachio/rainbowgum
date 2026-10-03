@@ -1417,7 +1417,7 @@ buffer.
 <p>
 {@link io.jstach.rainbowgum.LogMetrics#errorCounter(String, long)} and
 {@link io.jstach.rainbowgum.LogMetrics#warnCounter(String, long)} increment a named counter;
-{@link io.jstach.rainbowgum.LogMetrics#counters()} returns a snapshot of every named value
+{@link io.jstach.rainbowgum.LogMetrics#snapshot()} returns a snapshot of every named value
 recorded so far. Counters increase over time; a downstream metrics system computes their rate
 of change.
 </p>

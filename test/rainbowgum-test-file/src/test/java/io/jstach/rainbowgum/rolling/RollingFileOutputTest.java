@@ -91,10 +91,10 @@ class RollingFileOutputTest {
 					roll.fail=2
 					""",
 					config.metrics()
-						.counters()
+						.snapshot()
 						.stream()
 						.filter(c -> c.level() == Level.ERROR)
-						.map(c -> c.name() + "=" + c.count() + "\n")
+						.map(c -> c.name() + "=" + c.value() + "\n")
 						.sorted()
 						.collect(Collectors.joining()));
 			assertEquals(0, metric(config, StandardMetric.REOPEN_FAIL));
@@ -292,10 +292,10 @@ class RollingFileOutputTest {
 
 	private static long metric(LogConfig config, StandardMetric metric) {
 		return config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(c -> c.name().equals(metric.metricName()) && c.level() == metric.level())
-			.mapToLong(c -> c.count())
+			.mapToLong(c -> c.value())
 			.sum();
 	}
 
