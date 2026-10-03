@@ -182,6 +182,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-otlp</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-disruptor</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1327,6 +1332,7 @@
     <module>etc</module>
     <module>rainbowgum-apt</module>
     <module>rainbowgum-json</module>
+    <module>rainbowgum-otlp</module>
     <module>rainbowgum-annotation</module>
     <module>rainbowgum-pattern</module>
     <module>rainbowgum-systemlogger</module>
