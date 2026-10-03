@@ -95,8 +95,8 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 
 	/*
 	 * close()'s InterruptUtil masks a pre-existing interrupt on the calling thread before
-	 * worker.join(1000) (so a stale interrupt doesn't make the join fail immediately) and
-	 * restores it afterwards in a finally block.
+	 * worker.join(shutdownTimeout) (so a stale interrupt doesn't make the join fail
+	 * immediately) and restores it afterwards in a finally block.
 	 */
 	@Test
 	void testCloseRestoresAPreExistingInterruptOnTheCallingThread() {
@@ -160,27 +160,27 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 	}
 
 	/*
-	 * close()'s own catch (InterruptedException e) around worker.join(1000) - as opposed
-	 * to the mask/unmask tests above, which only cover a *pre-existing* interrupt getting
-	 * restored without ever actually interrupting the join itself. Uses a LogOutput whose
-	 * close() blocks on a latch so the worker thread stays alive long enough for a second
-	 * thread to observe the closing thread reach TIMED_WAITING (i.e. actually inside
-	 * worker.join(1000)) before interrupting it - deterministic rather than a sleep-based
-	 * guess, since there is real work (the worker draining and reaching its own close)
-	 * filling that window.
+	 * close()'s own catch (InterruptedException e) around worker.join(shutdownTimeout) -
+	 * as opposed to the mask/unmask tests above, which only cover a *pre-existing*
+	 * interrupt getting restored without ever actually interrupting the join itself. Uses
+	 * a LogOutput whose close() blocks on a latch so the worker thread stays alive long
+	 * enough for a second thread to observe the closing thread reach TIMED_WAITING (i.e.
+	 * actually inside worker.join(shutdownTimeout)) before interrupting it -
+	 * deterministic rather than a sleep-based guess, since there is real work (the worker
+	 * draining and reaching its own close) filling that window.
 	 *
-	 * The detection window itself is bounded above by worker.join(1000)'s own hardcoded
-	 * 1-second timeout in production code (once that elapses, close() moves on and closer
-	 * naturally terminates without ever being interrupted) - so the poll below needs to
-	 * actually observe TIMED_WAITING within roughly that first second after closer
-	 * starts, not just before some outer deadline. A busy spin-wait (Thread.onSpinWait())
-	 * burns a whole core doing so, which under contended/throttled CI runners can itself
-	 * starve the closer thread from ever getting scheduled in time - seen in practice as
-	 * this test failing with "closer thread never reached worker.join(1000) in time"
-	 * purely from CI slowness, not a real regression. Sleeping briefly between checks
-	 * instead yields the CPU rather than fighting the closer thread for it, and the outer
-	 * deadline is widened well past the 5 seconds that were apparently not always enough
-	 * on a loaded runner.
+	 * The detection window itself is bounded above by the publisher's shutdown timeout (a
+	 * hardcoded 1 second when this was written, 10 seconds by default now; once that
+	 * elapses, close() moves on and closer naturally terminates without ever being
+	 * interrupted) - so the poll below needs to actually observe TIMED_WAITING within
+	 * roughly that first second after closer starts, not just before some outer deadline.
+	 * A busy spin-wait (Thread.onSpinWait()) burns a whole core doing so, which under
+	 * contended/throttled CI runners can itself starve the closer thread from ever
+	 * getting scheduled in time - seen in practice as this test failing with
+	 * "closer thread never reached worker.join(1000) in time" purely from CI slowness,
+	 * not a real regression. Sleeping briefly between checks instead yields the CPU
+	 * rather than fighting the closer thread for it, and the outer deadline is widened
+	 * well past the 5 seconds that were apparently not always enough on a loaded runner.
 	 *
 	 * That widening still was not enough - it failed again on GitHub Actions (with the
 	 * same message) even at 30s, while never failing locally or on any other CI this
@@ -195,7 +195,7 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 	void testCloseHandlesInterruptedExceptionFromWorkerJoin() throws Exception {
 		Assumptions.assumeTrue(System.getenv("GITHUB_ACTIONS") == null,
 				"flaky on GitHub Actions runners specifically - this test needs to observe the closer thread "
-						+ "inside worker.join(1000)'s fixed 1-second window, which contended shared runners can "
+						+ "inside worker.join's bounded window, which contended shared runners can "
 						+ "apparently miss entirely even with a generous outer deadline; passes reliably locally "
 						+ "and everywhere else");
 		CountDownLatch releaseWorkerClose = new CountDownLatch(1);
@@ -221,7 +221,7 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 			long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
 			while (closer.getState() != Thread.State.TIMED_WAITING) {
 				if (System.nanoTime() > deadlineNanos) {
-					throw new AssertionError("closer thread never reached worker.join(1000) in time");
+					throw new AssertionError("closer thread never reached worker.join in time");
 				}
 				Thread.sleep(1);
 			}
@@ -232,6 +232,83 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 		}
 		finally {
 			releaseWorkerClose.countDown();
+		}
+	}
+
+	@Test
+	void testCloseNeverInterruptsWorkerAndWritesEveryQueuedEvent() throws Exception {
+		var interruptedWrites = new java.util.concurrent.atomic.AtomicInteger();
+		var interruptedClose = new java.util.concurrent.atomic.AtomicBoolean();
+		ListLogOutput output = new ListLogOutput() {
+			@Override
+			public void write(LogEvent event, String s) {
+				if (Thread.currentThread().isInterrupted()) {
+					interruptedWrites.incrementAndGet();
+				}
+				try {
+					Thread.sleep(1);
+				}
+				catch (InterruptedException e) {
+					interruptedWrites.incrementAndGet();
+					Thread.currentThread().interrupt();
+				}
+				super.write(event, s);
+			}
+
+			@Override
+			public void close() {
+				interruptedClose.set(Thread.currentThread().isInterrupted());
+				super.close();
+			}
+		};
+		var pub = BlockingQueueAsyncLogPublisher.of(appender(output), 4);
+		pub.start(LogConfig.builder().build());
+		int count = 200;
+		for (int i = 0; i < count; i++) {
+			pub.log(TestLogEventFactory.of().event("" + i));
+		}
+		pub.close();
+		var messages = output.events().stream().map(e -> e.getValue().trim().replaceFirst(".* - ", "")).toList();
+		assertEquals(java.util.stream.IntStream.range(0, count).mapToObj(String::valueOf).toList(), messages);
+		assertEquals(0, interruptedWrites.get());
+		assertFalse(interruptedClose.get());
+	}
+
+	@Test
+	void testCloseThatTimesOutReportsQueuedEvents() throws Exception {
+		CountDownLatch writing = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		ListLogOutput output = new ListLogOutput() {
+			@Override
+			public void write(LogEvent event, String s) {
+				writing.countDown();
+				try {
+					release.await(30, TimeUnit.SECONDS);
+				}
+				catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+				super.write(event, s);
+			}
+		};
+		var config = LogConfig.builder().build();
+		var pub = BlockingQueueAsyncLogPublisher.of(appender(output), 10, config.alerts(),
+				java.time.Duration.ofMillis(100));
+		pub.start(config);
+		try {
+			pub.log(TestLogEventFactory.of().event("first"));
+			assertTrue(writing.await(5, TimeUnit.SECONDS));
+			pub.log(TestLogEventFactory.of().event("second"));
+			pub.log(TestLogEventFactory.of().event("third"));
+			long start = System.nanoTime();
+			pub.close();
+			assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 5_000);
+			var alert = config.alerts().dump().get(config.alerts().dump().size() - 1);
+			assertEquals("java.util.concurrent.TimeoutException: Async publisher did not finish writing within 100ms "
+					+ "of close; 2 events still queued", String.valueOf(alert.throwableOrNull()));
+		}
+		finally {
+			release.countDown();
 		}
 	}
 
