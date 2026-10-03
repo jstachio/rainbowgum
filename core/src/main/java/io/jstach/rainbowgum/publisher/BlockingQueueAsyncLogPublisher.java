@@ -9,7 +9,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogAlerts;
@@ -22,9 +22,10 @@ import io.jstach.rainbowgum.LogPublisherRegistry;
 /**
  * An async publisher that uses a blocking queue and a single thread consumer.
  * <p>
- * {@link #close()} stops accepting events, waits up to the shutdown timeout for every
- * queued event to be written, then closes the appender. The worker thread is never
- * interrupted, so outputs are not interrupted in the middle of I/O.
+ * {@link #close()} stops accepting new calls and waits up to the shutdown timeout for
+ * queued events and calls already waiting to enqueue to be written, then closes the
+ * appender. The worker thread is never interrupted, so outputs are not interrupted in the
+ * middle of I/O.
  */
 public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncLogPublisher {
 
@@ -33,6 +34,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 	private final LogAppender appender;
 
 	private volatile boolean running = false;
+
+	private final AtomicInteger activeProducers = new AtomicInteger();
 
 	private final int bufferSize;
 
@@ -111,13 +114,24 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 		if (!running) {
 			throw new IllegalStateException();
 		}
+		activeProducers.incrementAndGet();
 		try {
+			// Close may have begun between the first check and registration.
+			if (!running) {
+				throw new IllegalStateException();
+			}
 			queue.put(event);
 		}
 		catch (InterruptedException e) {
 			alerts.error(BlockingQueueAsyncLogPublisher.class, e);
 			Thread.currentThread().interrupt();
-
+		}
+		finally {
+			if (activeProducers.decrementAndGet() == 0 && !running) {
+				// Wake a shutdown drain waiting for the last producer, even if its
+				// put was interrupted. A full queue already gives the worker work.
+				queue.offer(STOP);
+			}
 		}
 	}
 
@@ -132,17 +146,18 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			tool.maskInterruptFlag();
 			long deadline = System.nanoTime() + shutdownTimeout.toNanos();
 			/*
-			 * If the queue stays full the worker is busy writing, and it checks running
-			 * between batches anyway, so a stop marker that does not fit is fine.
+			 * A full queue already gives the worker work. Do not wait for space or allow
+			 * an interrupted closer to skip waking an idle worker.
 			 */
-			queue.offer(STOP, shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS);
-			long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
-			if (remainingMillis > 0) {
-				worker.join(remainingMillis);
+			queue.offer(STOP);
+			long remainingNanos = deadline - System.nanoTime();
+			if (remainingNanos > 0) {
+				TimeUnit.NANOSECONDS.timedJoin(worker, remainingNanos);
 			}
 		}
 		catch (InterruptedException e) {
 			alerts.error(BlockingQueueAsyncLogPublisher.class, e);
+			Thread.currentThread().interrupt();
 			return;
 		}
 		finally {
@@ -208,6 +223,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 						alerts.error(BlockingQueueAsyncLogPublisher.class, e);
 					}
 				}
+				running = false;
 				drainRemaining();
 			}
 			finally {
@@ -235,7 +251,17 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 		private void drainRemaining() {
 			while (true) {
 				try {
-					if (drain() == 0) {
+					/*
+					 * Check producer completion before the final drain: a producer can
+					 * enqueue and finish between an empty drain and a later check. Once
+					 * close has stopped admission and this count is zero, no producer can
+					 * enqueue another event.
+					 */
+					if (activeProducers.get() != 0) {
+						fake.add(queue.take());
+						drain();
+					}
+					else if (drain() == 0) {
 						return;
 					}
 				}
