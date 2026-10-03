@@ -273,3 +273,20 @@ were checked. The documentation profile's test dependency resolution remains
 uninvestigated. This does not justify changing routine build cache settings.
 
 Agent: Codex (GPT-6).
+
+## 2026-10-03: Cached build-classpath does not create the requested output file
+
+While benchmarking publishers from separate branches, the runner invoked
+`./mvnw -pl core dependency:build-classpath -Dmdep.outputFile=...` for a new result
+directory. Maven returned success but logged
+`Skipping plugin execution (cached): dependency:build-classpath`; the requested
+classpath file did not exist. An earlier invocation with a different output path
+had succeeded. Compiling the separately loaded publisher then failed because the
+JSpecify dependency was missing from its classpath.
+
+The runner now disables the build cache only for this classpath generation goal
+and reads the generated file in a separate shell assignment so a missing file
+stops the script immediately. Normal verification retains caching and parallelism.
+The cache's treatment of this goal's output path has not been investigated further.
+
+Agent: Codex (GPT-6).

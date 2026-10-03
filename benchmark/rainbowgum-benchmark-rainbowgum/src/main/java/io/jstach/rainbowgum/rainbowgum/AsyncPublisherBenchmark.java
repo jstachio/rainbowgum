@@ -2,10 +2,10 @@ package io.jstach.rainbowgum.rainbowgum;
 
 import java.lang.System.Logger.Level;
 import java.net.URI;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.SplittableRandom;
@@ -39,14 +39,30 @@ public final class AsyncPublisherBenchmark {
 
 	enum Implementation {
 
-		BLOCKING, CODEX;
+		BLOCKING, CODEX, OPUS;
 
 		PublisherFactory factory(int capacity) {
-			return this == CODEX
-					? CodexAsyncPublisher.builder().bufferSize(capacity).shutdownTimeout(Duration.ofSeconds(30)).build()
-					: PublisherFactory.ofAsync(capacity);
+			return switch (this) {
+				case CODEX -> CodexAsyncPublisher.builder().bufferSize(capacity).build();
+				case BLOCKING -> PublisherFactory.ofAsync(capacity);
+				case OPUS -> opusFactory(capacity);
+			};
 		}
 
+	}
+
+	// Load the independently compiled, pinned source without adding it to this branch.
+	static PublisherFactory opusFactory(int capacity) {
+		try {
+			var type = Class.forName("io.jstach.rainbowgum.publisher.OpusAsyncPublisher");
+			var builder = type.getMethod("builder").invoke(null);
+			builder.getClass().getMethod("bufferSize", int.class).invoke(builder, capacity);
+			return (PublisherFactory) builder.getClass().getMethod("build").invoke(builder);
+		}
+		catch (ReflectiveOperationException e) {
+			throw new IllegalStateException(
+					"Compile the pinned Opus publisher with run-async.sh before selecting OPUS.", e);
+		}
 	}
 
 	enum Threads {
@@ -72,7 +88,8 @@ public final class AsyncPublisherBenchmark {
 	/**
 	 * Runs the matrix and emits CSV to stdout.
 	 * @param args total events per run, warmups, measured repetitions, capacity, and
-	 * optional order seed. Defaults: 500000, 2, 5, 1024, 0.
+	 * optional order seed and comma separated implementations. Defaults: 500000, 2, 5,
+	 * 1024, 0, BLOCKING,CODEX.
 	 * @throws Exception if delivery or validation fails.
 	 */
 	public static void main(String[] args) throws Exception {
@@ -81,6 +98,8 @@ public final class AsyncPublisherBenchmark {
 		int repetitions = args.length > 2 ? Integer.parseInt(args[2]) : 5;
 		int capacity = args.length > 3 ? Integer.parseInt(args[3]) : 1024;
 		int seed = args.length > 4 ? Integer.parseInt(args[4]) : 0;
+		var implementations = args.length > 5 ? Arrays.stream(args[5].split(",")).map(Implementation::valueOf).toList()
+				: List.of(Implementation.BLOCKING, Implementation.CODEX);
 		if (events < 16384 || warmups < 0 || repetitions < 1 || capacity < 1) {
 			throw new IllegalArgumentException(
 					"Require at least 16384 events, nonnegative warmups, positive repetitions and positive capacity.");
@@ -94,9 +113,8 @@ public final class AsyncPublisherBenchmark {
 			for (var format : Format.values()) {
 				for (int producers : new int[] { 1, 4, 16 }) {
 					for (int iteration = -warmups; iteration < repetitions; iteration++) {
-						var order = (iteration + warmups + seed) % 2 == 0
-								? List.of(Implementation.BLOCKING, Implementation.CODEX)
-								: List.of(Implementation.CODEX, Implementation.BLOCKING);
+						var order = new ArrayList<>(implementations);
+						Collections.rotate(order, iteration + warmups + seed);
 						for (var implementation : order) {
 							var result = run(implementation, threads, format, producers, capacity, events);
 							if (iteration >= 0) {

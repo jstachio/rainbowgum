@@ -1,5 +1,8 @@
 # CodexAsyncPublisher experiment
 
+For the subsequent comparison with Opus, including a common benchmark and
+lifecycle findings, see [Codex and Opus comparison](codex-opus-async-comparison.md).
+
 `CodexAsyncPublisher` is an experimental publisher selected through its builder.
 It does not replace the default async publisher or register a new URI scheme.
 This implementation was written from the publisher, appender, event, lifecycle,

@@ -1,0 +1,6 @@
+CODEX startup-failure: output-close-calls=1; error=java.lang.IllegalStateException: probe startup failure
+CODEX interrupted-with-space: delivered=0; dropped-metric=0; interrupt-preserved=true; alerts=1; thrown=null
+CODEX close-with-waiter: delivered=[first, queued, waiting]; dropped-metric=0; output-close-calls=1; thrown=null
+OPUS startup-failure: output-close-calls=0; error=java.lang.IllegalStateException: probe startup failure
+OPUS interrupted-with-space: delivered=1; dropped-metric=0; interrupt-preserved=true; alerts=0; thrown=null
+OPUS close-with-waiter: delivered=[first, queued]; dropped-metric=1; output-close-calls=1; thrown=null
