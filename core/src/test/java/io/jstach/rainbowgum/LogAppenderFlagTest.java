@@ -118,10 +118,10 @@ class LogAppenderFlagTest {
 
 		assertEquals(List.of("original"), output.events().stream().map(e -> e.getKey().message()).toList());
 		long dropped = config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(c -> c.name().equals(LogMetrics.EVENTS_DROPPED_METRIC))
-			.mapToLong(LogMetrics.Counter::count)
+			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 		assertEquals(3, dropped);
 	}

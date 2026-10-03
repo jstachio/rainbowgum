@@ -110,9 +110,9 @@ class LogAlertsTest {
 				config.alerts().dump().stream().map(LogEvent::level).toList());
 		assertNull(config.alerts().dump().get(0).throwableOrNull());
 		assertNull(config.alerts().dump().get(4).throwableOrNull());
-		assertEquals(List.of(new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.WARNING, 1),
-				new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.INFO, 1),
-				new LogMetrics.Counter(LogConfig.class.getName(), Level.INFO, 3)), config.metrics().counters());
+		assertEquals(List.of(new LogMetrics.Metric(LogAlertsTest.class.getName(), Level.WARNING, 1),
+				new LogMetrics.Metric(LogAlertsTest.class.getName(), Level.INFO, 1),
+				new LogMetrics.Metric(LogConfig.class.getName(), Level.INFO, 3)), config.metrics().snapshot());
 
 		// A retained provider instance keeps forwarding to the configured alerts.
 		var retained = earlyAlerts.get();
@@ -121,9 +121,9 @@ class LogAlertsTest {
 		assertEquals(6, config.alerts().stats().total());
 		assertEquals(config.alerts().dump(), retained.dump());
 		assertEquals(config.alerts().stats(), retained.stats());
-		assertEquals(List.of(new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.WARNING, 2),
-				new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.INFO, 1),
-				new LogMetrics.Counter(LogConfig.class.getName(), Level.INFO, 3)), config.metrics().counters());
+		assertEquals(List.of(new LogMetrics.Metric(LogAlertsTest.class.getName(), Level.WARNING, 2),
+				new LogMetrics.Metric(LogAlertsTest.class.getName(), Level.INFO, 1),
+				new LogMetrics.Metric(LogConfig.class.getName(), Level.INFO, 3)), config.metrics().snapshot());
 		assertEquals("Properties providers cannot register alert listeners",
 				assertThrows(UnsupportedOperationException.class, () -> retained.addListener(event -> {
 				})).getMessage());

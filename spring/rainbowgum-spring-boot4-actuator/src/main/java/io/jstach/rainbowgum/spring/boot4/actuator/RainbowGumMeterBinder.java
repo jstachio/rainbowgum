@@ -57,9 +57,9 @@ final class RainbowGumMeterBinder implements MeterBinder {
 	}
 
 	private static long currentValue(LogMetrics metrics, StandardMetric metric) {
-		for (var counter : metrics.counters()) {
-			if (counter.name().equals(metric.metricName()) && counter.level() == metric.level()) {
-				return counter.count();
+		for (var reading : metrics.snapshot()) {
+			if (reading.name().equals(metric.metricName()) && reading.level() == metric.level()) {
+				return reading.value();
 			}
 		}
 		return 0;

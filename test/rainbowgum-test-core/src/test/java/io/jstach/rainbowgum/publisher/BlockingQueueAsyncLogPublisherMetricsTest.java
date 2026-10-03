@@ -129,12 +129,12 @@ class BlockingQueueAsyncLogPublisherMetricsTest {
 
 	private static long queued(LogConfig config) {
 		return config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(counter -> counter.name().equals(LogMetrics.EVENTS_QUEUED_METRIC) && counter.level() == Level.INFO)
 			.findFirst()
 			.orElseThrow()
-			.count();
+			.value();
 	}
 
 	enum Scenario {

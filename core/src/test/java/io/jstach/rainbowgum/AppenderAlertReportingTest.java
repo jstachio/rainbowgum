@@ -198,28 +198,28 @@ class AppenderAlertReportingTest {
 
 	private static long failedEventsCount(LogConfig config) {
 		return config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(c -> c.name().equals(LogMetrics.EVENTS_FAILED_METRIC))
-			.mapToLong(LogMetrics.Counter::count)
+			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 	}
 
 	private static long reopenErrorsCount(LogConfig config) {
 		return config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(c -> c.name().equals(LogMetrics.REOPEN_FAIL_METRIC) && c.level() == System.Logger.Level.ERROR)
-			.mapToLong(LogMetrics.Counter::count)
+			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 	}
 
 	private static long reopenCount(LogConfig config) {
 		return config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
 			.filter(c -> c.name().equals(LogMetrics.REOPEN_METRIC) && c.level() == System.Logger.Level.INFO)
-			.mapToLong(LogMetrics.Counter::count)
+			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 	}
 
