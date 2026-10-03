@@ -3,8 +3,6 @@ package io.jstach.rainbowgum;
 import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -130,14 +128,15 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	public void infoCounter(String name, long increment);
 
 	/**
-	 * Creates a handle for updating a named value directly. Each call returns a new
-	 * handle sharing the value for the same name and level; retain the handle for
-	 * frequent updates without repeated name lookups. The value is initially zero and
-	 * appears in {@link #counters()} as soon as the handle is created. Counter methods
-	 * for the same name and level share this value too.
+	 * Creates a handle for updating a named value directly. For INFO, WARNING, and ERROR,
+	 * each call returns a new handle sharing the value for the same name and level;
+	 * retain the handle for frequent updates without repeated name lookups. The value is
+	 * initially zero and appears in {@link #counters()} as soon as the handle is created.
+	 * Counter methods for the same name and level share this value too. Levels below INFO
+	 * and OFF return a shared no-op handle and do not register a metric.
 	 * @param name metric name.
 	 * @param level significance of the metric.
-	 * @return a new handle to the shared value.
+	 * @return a handle to the shared value, or a no-op handle.
 	 */
 	public Gauge gauge(String name, Level level);
 
@@ -145,43 +144,29 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	 * A retained handle for incrementing or decrementing a metric. Updates are thread
 	 * safe and do not perform a name lookup. Read the value through {@link #counters()}.
 	 */
-	final class Gauge {
-
-		private final LongAdder value;
-
-		Gauge(LongAdder value) {
-			this.value = value;
-		}
+	sealed interface Gauge permits DefaultGauge, NoopGauge {
 
 		/**
 		 * Increments the value by one.
 		 */
-		public void increment() {
-			value.increment();
-		}
+		public void increment();
 
 		/**
 		 * Adds the supplied amount.
 		 * @param increment amount to add.
 		 */
-		public void increment(long increment) {
-			value.add(increment);
-		}
+		public void increment(long increment);
 
 		/**
 		 * Decrements the value by one.
 		 */
-		public void decrement() {
-			value.decrement();
-		}
+		public void decrement();
 
 		/**
 		 * Subtracts the supplied amount.
 		 * @param decrement amount to subtract.
 		 */
-		public void decrement(long decrement) {
-			value.add(-decrement);
-		}
+		public void decrement(long decrement);
 
 	}
 
@@ -300,23 +285,20 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 
 final class DefaultLogMetrics implements LogMetrics {
 
-	private static final List<Level> COUNTER_LEVELS = List.of(Level.ERROR, Level.WARNING, Level.INFO, Level.ALL,
-			Level.TRACE, Level.DEBUG, Level.OFF);
-
 	private final ConcurrentHashMap<String, LongAdder> errorCounters = new ConcurrentHashMap<>();
 
 	private final ConcurrentHashMap<String, LongAdder> warnCounters = new ConcurrentHashMap<>();
 
 	private final ConcurrentHashMap<String, LongAdder> infoCounters = new ConcurrentHashMap<>();
 
-	private final Map<Level, ConcurrentHashMap<String, LongAdder>> countersByLevel = Map.of(Level.ERROR, errorCounters,
-			Level.WARNING, warnCounters, Level.INFO, infoCounters, Level.ALL, new ConcurrentHashMap<>(), Level.TRACE,
-			new ConcurrentHashMap<>(), Level.DEBUG, new ConcurrentHashMap<>(), Level.OFF, new ConcurrentHashMap<>());
-
 	@Override
 	public Gauge gauge(String name, Level level) {
-		var counters = Objects.requireNonNull(countersByLevel.get(level));
-		return new Gauge(counters.computeIfAbsent(name, k -> new LongAdder()));
+		return switch (level) {
+			case ERROR -> new DefaultGauge(errorCounters.computeIfAbsent(name, k -> new LongAdder()));
+			case WARNING -> new DefaultGauge(warnCounters.computeIfAbsent(name, k -> new LongAdder()));
+			case INFO -> new DefaultGauge(infoCounters.computeIfAbsent(name, k -> new LongAdder()));
+			case ALL, TRACE, DEBUG, OFF -> NoopGauge.NOOP;
+		};
 	}
 
 	@Override
@@ -336,14 +318,69 @@ final class DefaultLogMetrics implements LogMetrics {
 
 	@Override
 	public List<Counter> counters() {
-		List<Counter> list = new ArrayList<>();
-		for (Level level : COUNTER_LEVELS) {
-			var counters = Objects.requireNonNull(countersByLevel.get(level));
-			for (var e : counters.entrySet()) {
-				list.add(new Counter(e.getKey(), level, e.getValue().sum()));
-			}
+		List<Counter> list = new ArrayList<>(errorCounters.size() + warnCounters.size() + infoCounters.size());
+		for (var e : errorCounters.entrySet()) {
+			list.add(new Counter(e.getKey(), Level.ERROR, e.getValue().sum()));
+		}
+		for (var e : warnCounters.entrySet()) {
+			list.add(new Counter(e.getKey(), Level.WARNING, e.getValue().sum()));
+		}
+		for (var e : infoCounters.entrySet()) {
+			list.add(new Counter(e.getKey(), Level.INFO, e.getValue().sum()));
 		}
 		return List.copyOf(list);
+	}
+
+}
+
+final class DefaultGauge implements LogMetrics.Gauge {
+
+	private final LongAdder value;
+
+	DefaultGauge(LongAdder value) {
+		this.value = value;
+	}
+
+	@Override
+	public void increment() {
+		value.increment();
+	}
+
+	@Override
+	public void increment(long increment) {
+		value.add(increment);
+	}
+
+	@Override
+	public void decrement() {
+		value.decrement();
+	}
+
+	@Override
+	public void decrement(long decrement) {
+		value.add(-decrement);
+	}
+
+}
+
+enum NoopGauge implements LogMetrics.Gauge {
+
+	NOOP;
+
+	@Override
+	public void increment() {
+	}
+
+	@Override
+	public void increment(long increment) {
+	}
+
+	@Override
+	public void decrement() {
+	}
+
+	@Override
+	public void decrement(long decrement) {
 	}
 
 }
