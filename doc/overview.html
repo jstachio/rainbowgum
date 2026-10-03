@@ -1426,7 +1426,8 @@ of change.
 For values that can rise and fall, retain a handle from
 {@link io.jstach.rainbowgum.LogMetrics#gauge(String, java.lang.System.Logger.Level)} and call
 its <code>increment</code> and <code>decrement</code> methods. Updates go directly to the retained
-value without a name lookup. The blocking async publisher uses
+value without a name lookup. Levels below <code>INFO</code> and <code>OFF</code> return a no-op
+handle without registering a metric. The blocking async publisher uses
 {@value io.jstach.rainbowgum.LogMetrics#EVENTS_QUEUED_METRIC} at <code>INFO</code> to count events
 waiting in its queues across all publishers sharing the config. An event stops being counted
 when removed for processing. Snapshots are approximate during concurrent queue activity.
