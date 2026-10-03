@@ -79,6 +79,24 @@ class BlockingQueueAsyncLogPublisherAdditionalTest {
 	}
 
 	@Test
+	void testStartAfterCloseDoesNotRestartTheAppender() {
+		var starts = new java.util.concurrent.atomic.AtomicInteger();
+		var output = new ListLogOutput() {
+			@Override
+			public void start(LogConfig config) {
+				starts.incrementAndGet();
+			}
+		};
+		var pub = BlockingQueueAsyncLogPublisher.of(appender(output), 10);
+		var config = LogConfig.builder().build();
+		pub.start(config);
+		pub.close();
+		assertEquals("BlockingQueueAsyncLogPublisher can only be started once",
+				assertThrows(IllegalStateException.class, () -> pub.start(config)).getMessage());
+		assertEquals(1, starts.get());
+	}
+
+	@Test
 	void testAppenderStartFailureLeavesThePublisherStopped() {
 		var output = new ListLogOutput() {
 			@Override

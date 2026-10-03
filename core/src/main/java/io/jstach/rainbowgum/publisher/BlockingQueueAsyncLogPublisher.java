@@ -186,8 +186,9 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 	@Override
 	public void start(LogConfig config) {
-		if (running) {
-			throw new IllegalStateException();
+		// The worker thread can only run once, so this also rejects start after close.
+		if (running || worker.getState() != Thread.State.NEW) {
+			throw new IllegalStateException("BlockingQueueAsyncLogPublisher can only be started once");
 		}
 
 		// Like the synchronous publisher, the publisher owns starting its appender.
