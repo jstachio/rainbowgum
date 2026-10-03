@@ -5,14 +5,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.AbstractCollection;
 import java.util.Iterator;
-import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogAlerts;
@@ -48,7 +45,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 
 	private final LogAlerts alerts;
 
-	private @Nullable Gauge eventsQueued;
+	private Gauge eventsQueued = Gauge.noop();
 
 	private final Duration shutdownTimeout;
 
@@ -128,7 +125,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 				throw new IllegalStateException();
 			}
 			queue.put(event);
-			Objects.requireNonNull(eventsQueued).increment();
+			eventsQueued.increment();
 		}
 		catch (InterruptedException e) {
 			alerts.error(BlockingQueueAsyncLogPublisher.class, e);
@@ -193,6 +190,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			throw new IllegalStateException();
 		}
 
+		// Publish the gauge before enabling producers and starting the worker.
 		eventsQueued = config.metrics()
 			.gauge(StandardMetric.EVENTS_QUEUED.metricName(), StandardMetric.EVENTS_QUEUED.level());
 		worker.setDaemon(true);
@@ -246,7 +244,7 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 				int size = fake.size;
 				int added = queue.drainTo(fake, bufferSize - size);
 				if (fake.size > 0) {
-					Objects.requireNonNull(eventsQueued).decrement(fake.size);
+					eventsQueued.decrement(fake.size);
 					append(buffer, fake.size);
 				}
 				return added;

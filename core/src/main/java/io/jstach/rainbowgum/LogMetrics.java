@@ -147,6 +147,15 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	sealed interface Gauge permits DefaultGauge, NoopGauge {
 
 		/**
+		 * Returns a shared gauge that ignores all updates. Use it until a metric is
+		 * available, or when metric collection is disabled.
+		 * @return no-op gauge.
+		 */
+		public static Gauge noop() {
+			return NoopGauge.NOOP;
+		}
+
+		/**
 		 * Increments the value by one.
 		 */
 		public void increment();
