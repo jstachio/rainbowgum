@@ -50,7 +50,7 @@ class BlockingQueueAsyncLogPublisherMetricsTest {
 			}
 			if (scenario == Scenario.CLOSE_DRAIN) {
 				closer.start();
-				assertTrue(output.interrupted.await(5, TimeUnit.SECONDS));
+				awaitClosing(closer);
 				assertEquals(3, queued(config));
 			}
 			output.release.countDown();
@@ -62,6 +62,7 @@ class BlockingQueueAsyncLogPublisherMetricsTest {
 				publisher.close();
 			}
 			assertTrue(output.closed.await(5, TimeUnit.SECONDS));
+			assertEquals(1, output.interrupted.getCount(), "shutdown must not interrupt the worker");
 			assertEquals(0, queued(config));
 			assertEquals(4, output.events().size());
 		}
@@ -125,6 +126,15 @@ class BlockingQueueAsyncLogPublisherMetricsTest {
 		assertTrue(firstOutput.closed.await(5, TimeUnit.SECONDS));
 		assertTrue(secondOutput.closed.await(5, TimeUnit.SECONDS));
 		assertEquals(0, queued(config));
+	}
+
+	private static void awaitClosing(Thread closer) throws InterruptedException {
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		while (closer.getState() != Thread.State.TIMED_WAITING) {
+			assertTrue(closer.isAlive());
+			assertTrue(System.nanoTime() < deadline, "close did not begin waiting for the worker");
+			Thread.sleep(1);
+		}
 	}
 
 	private static long queued(LogConfig config) {
