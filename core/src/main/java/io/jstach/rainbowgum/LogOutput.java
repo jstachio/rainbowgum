@@ -352,6 +352,25 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
+	 * Writes a batch whose events are already encoded: {@code buffers[i]} holds the
+	 * encoding of {@code events[i]}. By default calls {@link #write(LogEvent, Buffer)}
+	 * for each event in order. Called on a single thread, after the encoding (possibly
+	 * done in parallel, see {@link LogAppender.AppenderFlag#PARALLEL_ENCODE}) is
+	 * complete.
+	 * <p>
+	 * <strong>DO NOT MODIFY THE ARRAYS</strong>. Use {@code count}, not their
+	 * {@code length}, and do not keep the buffers after returning.
+	 * @param events the events.
+	 * @param buffers filled buffers, one per event.
+	 * @param count the number of events.
+	 */
+	default void write(LogEvent[] events, Buffer[] buffers, int count) {
+		for (int i = 0; i < count; i++) {
+			write(events[i], buffers[i]);
+		}
+	}
+
+	/**
 	 * Writes a prepared buffer and by default drains the buffer to this output.
 	 * @param event event.
 	 * @param buffer buffer that is already filled. Do not share it with other threads!
