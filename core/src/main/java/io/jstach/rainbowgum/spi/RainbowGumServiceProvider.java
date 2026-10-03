@@ -66,9 +66,10 @@ public sealed interface RainbowGumServiceProvider {
 		 * Provides properties and or register services. <em>If just registering services
 		 * and not providing properies an empty list can be returned. </em>
 		 * @param registry registry is usually empty here.
-		 * @param alerts collects alerts until the configured {@link LogConfig#alerts()}
-		 * is available. Listener registration is not supported at this stage. Do not
-		 * retain this temporary instance after the provider returns.
+		 * @param alerts records alerts into the configured {@link LogConfig#alerts()}.
+		 * Alerts recorded before it exists are replayed into it once it does, and this
+		 * instance keeps forwarding afterwards, so it may be retained and used after the
+		 * provider returns. Listener registration is not supported.
 		 * @return list of properties.
 		 */
 		List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts);

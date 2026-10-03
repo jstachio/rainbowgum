@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @see LogConfig#alerts()
  */
-public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts, PrePropertiesLogAlerts {
+public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts, SwappableLogAlerts {
 
 	/**
 	 * Default capacity of the alert ring buffer.
@@ -208,55 +208,87 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 }
 
 /*
- * Collects alerts before LogProperties is available to configure DefaultLogAlerts. Events
- * are replayed after DefaultLogConfig has installed its metrics listener.
+ * Handed to PropertiesProviders. Buffers alerts until the configured LogAlerts exists,
+ * then drainTo replays the buffer into it and forwards every later call, so a provider
+ * may keep this instance and alert after provideProperties returns. Replay and swap
+ * happen under one lock so a concurrent alert is neither lost nor reordered. Listener
+ * registration is never supported: providers record alerts but cannot observe them.
  */
-final class PrePropertiesLogAlerts implements LogAlerts {
+final class SwappableLogAlerts implements LogAlerts {
 
 	private final List<LogEvent> events = new ArrayList<>();
 
 	private long total;
 
-	private boolean closed;
+	private volatile @Nullable LogAlerts delegate;
 
 	@Override
-	public synchronized void alert(LogEvent event) {
-		if (closed) {
-			throw new IllegalStateException("Pre-properties alerts are no longer active");
+	public void alert(LogEvent event) {
+		var d = delegate;
+		if (d == null) {
+			synchronized (this) {
+				d = delegate;
+				if (d == null) {
+					events.add(event.freeze());
+					total++;
+					return;
+				}
+			}
 		}
-		events.add(event.freeze());
-		total++;
+		d.alert(event);
+	}
+
+	synchronized void drainTo(LogAlerts target) {
+		if (delegate != null) {
+			throw new IllegalStateException("Alerts have already been drained");
+		}
+		for (var event : events) {
+			target.alert(event);
+		}
+		events.clear();
+		delegate = target;
 	}
 
 	@Override
 	public synchronized List<LogEvent> dump() {
-		return List.copyOf(events);
+		var d = delegate;
+		return d != null ? d.dump() : List.copyOf(events);
 	}
 
 	@Override
 	public synchronized void clear() {
-		events.clear();
+		var d = delegate;
+		if (d != null) {
+			d.clear();
+		}
+		else {
+			events.clear();
+		}
 	}
 
 	@Override
 	public synchronized Stats stats() {
-		return new Stats(total, events.size(), Integer.MAX_VALUE);
+		var d = delegate;
+		return d != null ? d.stats() : new Stats(total, events.size(), Integer.MAX_VALUE);
 	}
 
 	@Override
 	public AutoCloseable addListener(Listener listener) {
-		throw new UnsupportedOperationException("Listeners are unavailable before properties are loaded");
+		throw new UnsupportedOperationException("Properties providers cannot register alert listeners");
 	}
 
 	@Override
 	public void start(LogConfig config) {
-		throw new UnsupportedOperationException("Pre-properties alerts cannot be started");
+		throw new UnsupportedOperationException("Properties provider alerts cannot be started");
 	}
 
 	@Override
 	public synchronized void close() {
-		events.clear();
-		closed = true;
+		// The drained delegate belongs to LogConfig, so only an undrained buffer is
+		// dropped.
+		if (delegate == null) {
+			events.clear();
+		}
 	}
 
 }

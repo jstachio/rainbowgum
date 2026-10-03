@@ -85,7 +85,7 @@ class LogAlertsTest {
 			.build();
 		var config = LogConfig.builder().propertiesProvider((registry, alerts) -> {
 			earlyAlerts.set(alerts);
-			assertEquals("Listeners are unavailable before properties are loaded",
+			assertEquals("Properties providers cannot register alert listeners",
 					assertThrows(UnsupportedOperationException.class, () -> alerts.addListener(event -> {
 					})).getMessage());
 			alerts.warn(LogAlertsTest.class, "early warning");
@@ -104,9 +104,6 @@ class LogAlertsTest {
 		}).build();
 
 		assertNotSame(earlyAlerts.get(), config.alerts());
-		assertEquals("Pre-properties alerts are no longer active",
-				assertThrows(IllegalStateException.class, () -> earlyAlerts.get().info(LogAlertsTest.class, "too late"))
-					.getMessage());
 		assertEquals(5, config.alerts().stats().total());
 		assertEquals(5, config.alerts().stats().capacity());
 		assertEquals(List.of(Level.INFO, Level.WARNING, Level.INFO, Level.INFO, Level.INFO),
@@ -116,6 +113,53 @@ class LogAlertsTest {
 		assertEquals(List.of(new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.WARNING, 1),
 				new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.INFO, 1),
 				new LogMetrics.Counter(LogConfig.class.getName(), Level.INFO, 3)), config.metrics().counters());
+
+		// A retained provider instance keeps forwarding to the configured alerts.
+		var retained = earlyAlerts.get();
+		retained.warn(LogAlertsTest.class, "after build");
+		assertEquals("after build", config.alerts().dump().get(4).message());
+		assertEquals(6, config.alerts().stats().total());
+		assertEquals(config.alerts().dump(), retained.dump());
+		assertEquals(config.alerts().stats(), retained.stats());
+		assertEquals(List.of(new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.WARNING, 2),
+				new LogMetrics.Counter(LogAlertsTest.class.getName(), Level.INFO, 1),
+				new LogMetrics.Counter(LogConfig.class.getName(), Level.INFO, 3)), config.metrics().counters());
+		assertEquals("Properties providers cannot register alert listeners",
+				assertThrows(UnsupportedOperationException.class, () -> retained.addListener(event -> {
+				})).getMessage());
+	}
+
+	@Test
+	void swappableAlertsBufferThenDrainThenForward() {
+		var swappable = new SwappableLogAlerts();
+		swappable.info(LogAlertsTest.class, "first");
+		swappable.warn(LogAlertsTest.class, "second");
+		assertEquals(new LogAlerts.Stats(2, 2, Integer.MAX_VALUE), swappable.stats());
+
+		var target = alerts();
+		swappable.drainTo(target);
+		swappable.info(LogAlertsTest.class, "third");
+		assertEquals(List.of("first", "second", "third"), target.dump().stream().map(LogEvent::message).toList());
+		assertEquals("Alerts have already been drained",
+				assertThrows(IllegalStateException.class, () -> swappable.drainTo(target)).getMessage());
+		assertEquals("Properties provider alerts cannot be started",
+				assertThrows(UnsupportedOperationException.class, () -> swappable.start(LogConfig.builder().build()))
+					.getMessage());
+
+		swappable.close();
+		assertEquals(3, target.dump().size());
+		swappable.info(LogAlertsTest.class, "fourth");
+		assertEquals(4, target.dump().size());
+	}
+
+	@Test
+	void swappableAlertsCloseBeforeDrainDropsBuffer() {
+		var swappable = new SwappableLogAlerts();
+		swappable.info(LogAlertsTest.class, "dropped");
+		swappable.close();
+		var target = alerts();
+		swappable.drainTo(target);
+		assertEquals(List.of(), target.dump());
 	}
 
 	@Test
