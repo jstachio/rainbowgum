@@ -36,7 +36,7 @@ class LogMetricsTest {
 	void disabledGaugeDoesNotRegisterOrUpdateMetrics(Level level) {
 		var metrics = LogConfig.builder().build().metrics();
 		var gauge = metrics.gauge("queue", level);
-		assertSame(gauge, metrics.gauge("other", Level.DEBUG));
+		assertSame(LogMetrics.Gauge.noop(), gauge);
 		assertEquals(List.of(), metrics.counters());
 		metrics.infoCounter("queue", 3);
 		gauge.increment();
