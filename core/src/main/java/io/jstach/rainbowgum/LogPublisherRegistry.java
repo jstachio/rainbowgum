@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -75,6 +76,22 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	 * Buffer Size Property for Async publishers.
 	 */
 	public static final String BUFFER_SIZE_PROPERTY = LogProperties.PUBLISHER_PREFIX + BUFFER_SIZE_NAME;
+
+	/**
+	 * Default time in milliseconds an async publisher's close waits for queued events to
+	 * be written.
+	 */
+	public static final int ASYNC_SHUTDOWN_TIMEOUT = 10_000;
+
+	/**
+	 * Shutdown timeout property name.
+	 */
+	public static final String SHUTDOWN_TIMEOUT_NAME = "shutdownTimeout";
+
+	/**
+	 * Milliseconds an async publisher's close waits for queued events to be written.
+	 */
+	public static final String SHUTDOWN_TIMEOUT_PROPERTY = LogProperties.PUBLISHER_PREFIX + SHUTDOWN_TIMEOUT_NAME;
 
 }
 
@@ -155,8 +172,12 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 				.ofInt() //
 				.or(LogPublisherRegistry.ASYNC_BUFFER_SIZE)
 				.validateNow(DefaultPublisherProviders.class);
+			int _shutdownTimeout = properties.forKey(LogPublisherRegistry.SHUTDOWN_TIMEOUT_PROPERTY, name)
+				.ofInt() //
+				.or(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT)
+				.validateNow(DefaultPublisherProviders.class);
 			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize,
-					config.alerts());
+					config.alerts(), Duration.ofMillis(_shutdownTimeout));
 		}
 	};
 
