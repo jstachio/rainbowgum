@@ -190,6 +190,8 @@ public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncL
 			throw new IllegalStateException();
 		}
 
+		// Like the synchronous publisher, the publisher owns starting its appender.
+		appender.start(config);
 		// Publish the gauge before enabling producers and starting the worker.
 		eventsQueued = config.metrics()
 			.gauge(StandardMetric.EVENTS_QUEUED.metricName(), StandardMetric.EVENTS_QUEUED.level());
