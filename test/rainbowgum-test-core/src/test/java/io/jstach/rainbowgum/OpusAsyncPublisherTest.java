@@ -45,11 +45,15 @@ class OpusAsyncPublisherTest {
 	}
 
 	static long dropped(LogConfig config) {
+		return metric(config, LogMetrics.EVENTS_DROPPED_METRIC);
+	}
+
+	static long metric(LogConfig config, String name) {
 		return config.metrics()
-			.counters()
+			.snapshot()
 			.stream()
-			.filter(c -> c.name().equals(LogMetrics.EVENTS_DROPPED_METRIC))
-			.mapToLong(LogMetrics.Counter::count)
+			.filter(c -> c.name().equals(name))
+			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 	}
 
@@ -181,6 +185,23 @@ class OpusAsyncPublisherTest {
 		finally {
 			output.release.countDown();
 		}
+	}
+
+	@Test
+	void eventsQueuedGaugeTracksWaitingEvents() throws Exception {
+		var output = new BlockingOutput();
+		var config = LogConfig.builder().build();
+		var pub = publisher(config, output, 10, Duration.ofSeconds(10));
+		pub.log(event("before start"));
+		pub.start(config);
+		assertTrue(output.writing.await(5, TimeUnit.SECONDS));
+		pub.log(event("second"));
+		pub.log(event("third"));
+		assertEquals(2, metric(config, LogMetrics.EVENTS_QUEUED_METRIC));
+		output.release.countDown();
+		pub.close();
+		assertEquals(0, metric(config, LogMetrics.EVENTS_QUEUED_METRIC));
+		assertEquals(List.of("before start", "second", "third"), messages(output));
 	}
 
 	@Test

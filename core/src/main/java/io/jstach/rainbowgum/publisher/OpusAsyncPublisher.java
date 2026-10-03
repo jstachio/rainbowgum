@@ -17,6 +17,8 @@ import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMetrics;
+import io.jstach.rainbowgum.LogMetrics.Gauge;
+import io.jstach.rainbowgum.LogMetrics.StandardMetric;
 import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisherRegistry;
 
@@ -35,6 +37,8 @@ import io.jstach.rainbowgum.LogPublisherRegistry;
  * while the queue is full (waiting there would deadlock).</li>
  * <li>The consumer thread is never interrupted, so outputs are not interrupted in the
  * middle of I/O, and it survives anything an appender throws.</li>
+ * <li>{@link LogMetrics.StandardMetric#EVENTS_QUEUED} reports how many accepted events
+ * are waiting to be appended.</li>
  * <li>{@link #close()} stops accepting events and waits up to the shutdown timeout for
  * every accepted event to be appended before the appender is closed. If that does not
  * finish in time, or the closing thread is interrupted, an error alert reports how many
@@ -84,6 +88,9 @@ public final class OpusAsyncPublisher implements LogPublisher.AsyncLogPublisher 
 	private int state = NEW;
 
 	private @Nullable Thread consumer;
+
+	// Created at start; until then accepted events are only counted in the ring.
+	private Gauge eventsQueued = Gauge.noop();
 
 	private final CountDownLatch terminated = new CountDownLatch(1);
 
@@ -169,6 +176,9 @@ public final class OpusAsyncPublisher implements LogPublisher.AsyncLogPublisher 
 			if (state != NEW) {
 				throw new IllegalStateException("OpusAsyncPublisher '" + name + "' can only be started once");
 			}
+			eventsQueued = metrics.gauge(StandardMetric.EVENTS_QUEUED.metricName(),
+					StandardMetric.EVENTS_QUEUED.level());
+			eventsQueued.increment(count);
 			thread = new Thread(this::consume, "rainbowgum-async-" + name);
 			thread.setDaemon(true);
 			consumer = thread;
@@ -241,6 +251,7 @@ public final class OpusAsyncPublisher implements LogPublisher.AsyncLogPublisher 
 		}
 		ring[(head + count) % ring.length] = event;
 		count++;
+		eventsQueued.increment();
 		if (count == 1) {
 			notEmpty.signal();
 		}
@@ -298,6 +309,7 @@ public final class OpusAsyncPublisher implements LogPublisher.AsyncLogPublisher 
 		}
 		head = (head + n) % ring.length;
 		count = 0;
+		eventsQueued.decrement(n);
 		return n;
 	}
 
@@ -337,6 +349,7 @@ public final class OpusAsyncPublisher implements LogPublisher.AsyncLogPublisher 
 		}
 		count = 0;
 		head = 0;
+		eventsQueued.decrement(n);
 		return n;
 	}
 
