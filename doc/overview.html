@@ -698,7 +698,7 @@ logging.route.example.publisher=batchswap:///?bufferSize=1024&shutdownTimeout=10
 }
 
 <p>
-The default async implementation is {@link io.jstach.rainbowgum.BatchSwapAsyncLogPublisher}.
+The default async implementation is {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher}.
 Producers fill a bounded buffer while a single worker writes the previous batch to its appenders.
 Producers block when the pending buffer is full. Each buffer holds up to <code>bufferSize</code>
 events (1024 by default), so up to two batches may be retained, plus events held by blocked callers.
@@ -706,7 +706,7 @@ The <code>events.queued</code> metric counts pending events, excluding the batch
 </p>
 <p>
 For programmatic configuration, use
-{@link io.jstach.rainbowgum.BatchSwapAsyncLogPublisher#builder(String)}. Its generated builder
+{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher#builder(String)}. Its generated builder
 can load the same properties with <code>fromProperties(properties)</code>; present properties
 override values already set on the builder. The <code>shutdownTimeout</code> setter accepts a
 <code>Duration</code>, while the property is expressed in milliseconds.

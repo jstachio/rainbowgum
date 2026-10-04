@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
+import io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
