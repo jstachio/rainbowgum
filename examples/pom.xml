@@ -1,0 +1,28 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-maven-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>rainbowgum-examples-parent</artifactId>
+  <packaging>pom</packaging>
+  <!--
+    Aggregator only, built with the rest of the reactor but never deployed. The examples
+    deliberately do not inherit from this pom: each is written the way an application
+    would use Rainbow Gum (Micronaut's own parent, Helidon's BOM), so each one skips
+    deployment itself and declares its Rainbow Gum version in a rainbowgum.version
+    property that bin/vh updates on release.
+  -->
+  <properties>
+    <parent.root>${basedir}/..</parent.root>
+    <maven.javadoc.skip>true</maven.javadoc.skip>
+    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+  </properties>
+  <modules>
+    <module>helidon</module>
+    <module>micronaut</module>
+  </modules>
+</project>

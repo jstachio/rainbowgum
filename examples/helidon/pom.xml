@@ -11,6 +11,17 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <helidon.version>4.5.5</helidon.version>
     <exec.mainClass>rainbowgum.helidon.example.Main</exec.mainClass>
+    <!-- Updated by bin/vh on release. -->
+    <rainbowgum.version>1.0.0-SNAPSHOT</rainbowgum.version>
+    <!-- Built with the Rainbow Gum reactor but never published. -->
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+    <!--
+      The Maven build cache restores only the main jar, not target/libs, which the
+      jar's manifest classpath needs to run. The example builds in seconds anyway.
+    -->
+    <maven.build.cache.skipCache>true</maven.build.cache.skipCache>
+    <maven.build.cache.skipSave>true</maven.build.cache.skipSave>
   </properties>
 
   <dependencyManagement>
@@ -53,17 +64,17 @@
     <dependency>
       <groupId>io.jstach.rainbowgum.helidon</groupId>
       <artifactId>rainbowgum-helidon4</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>${rainbowgum.version}</version>
     </dependency>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-simple-props</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>${rainbowgum.version}</version>
     </dependency>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-pattern</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>${rainbowgum.version}</version>
     </dependency>
 
     <!--
@@ -79,10 +90,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.16.0</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
+        <version>3.5.1</version>
         <configuration>
           <archive>
             <manifest>

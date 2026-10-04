@@ -190,6 +190,21 @@ enum Command implements HelpSupport {
 	public static final List<String> EXTRA_POM_DIRECTORIES = List.of("test/rainbowgum-test-native",
 			"test/rainbowgum-test-aot-cache");
 
+	/**
+	 * Project directories whose {@code pom.xml} declares this project's version in a
+	 * {@value #VERSION_POM_PROPERTY} property instead of inheriting it, because they are
+	 * written like an application using the project (for example an example app with its
+	 * own framework parent). {@code mvn versions:set} does not update properties, so it
+	 * is rewritten directly. Leave it {@code List.of()} if there are none.
+	 */
+	public static final List<String> VERSION_PROPERTY_POM_DIRECTORIES = List.of("examples/helidon",
+			"examples/micronaut");
+
+	/**
+	 * The property {@link #VERSION_PROPERTY_POM_DIRECTORIES} poms declare the version in.
+	 */
+	public static final String VERSION_POM_PROPERTY = "rainbowgum.version";
+
 	private final String desc;
 
 	Command(String desc) {
@@ -279,6 +294,9 @@ enum Command implements HelpSupport {
 		for (String dir : EXTRA_POM_DIRECTORIES) {
 			updateParentVersion(Path.of(dir, "pom.xml"), current);
 		}
+		for (String dir : VERSION_PROPERTY_POM_DIRECTORIES) {
+			updatePomProperty(Path.of(dir, "pom.xml"), VERSION_POM_PROPERTY, current);
+		}
 		updateTimestamp(timestamp);
 
 	}
@@ -323,6 +341,30 @@ enum Command implements HelpSupport {
 		catch (Exception e) {
 			throw new IOException(e);
 		}
+	}
+
+	/**
+	 * Rewrites the single {@code <name>value</name>} element of a pom property as text,
+	 * leaving the rest of the file byte for byte unchanged.
+	 * @param pomFile path to the pom.xml.
+	 * @param name property name.
+	 * @param version new value.
+	 */
+	static void updatePomProperty(Path pomFile, String name, Version version) throws IOException {
+		String content = Files.readString(pomFile, StandardCharsets.UTF_8);
+		var matcher = Pattern.compile("<" + Pattern.quote(name) + ">[^<]*</" + Pattern.quote(name) + ">")
+			.matcher(content);
+		if (!matcher.find()) {
+			throw new IllegalStateException("No <" + name + "> property found in " + pomFile);
+		}
+		int start = matcher.start();
+		int end = matcher.end();
+		if (matcher.find()) {
+			throw new IllegalStateException("More than one <" + name + "> property found in " + pomFile);
+		}
+		String updated = content.substring(0, start) + "<" + name + ">" + version.print(Version.PrintFlag.SNAPSHOT)
+				+ "</" + name + ">" + content.substring(end);
+		Files.writeString(pomFile, updated, StandardCharsets.UTF_8);
 	}
 
 	static Version tag() throws IOException {

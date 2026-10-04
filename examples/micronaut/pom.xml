@@ -11,6 +11,7 @@
     <groupId>io.micronaut.platform</groupId>
     <artifactId>micronaut-parent</artifactId>
     <version>5.1.5</version>
+    <relativePath/>
   </parent>
 
   <properties>
@@ -22,6 +23,11 @@
     <micronaut.aot.packageName>rainbowgum.micronaut.example.aot.generated</micronaut.aot.packageName>
     <micronaut.runtime>netty</micronaut.runtime>
     <exec.mainClass>rainbowgum.micronaut.example.Application</exec.mainClass>
+    <!-- Updated by bin/vh on release. -->
+    <rainbowgum.version>1.0.0-SNAPSHOT</rainbowgum.version>
+    <!-- Built with the Rainbow Gum reactor but never published. -->
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
   </properties>
 
   <repositories>
@@ -59,7 +65,7 @@
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-simple-props</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>${rainbowgum.version}</version>
       <scope>runtime</scope>
     </dependency>
 
@@ -76,7 +82,7 @@
     <dependency>
       <groupId>io.jstach.rainbowgum.micronaut</groupId>
       <artifactId>rainbowgum-micronaut5</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>${rainbowgum.version}</version>
       <scope>runtime</scope>
     </dependency>
 
