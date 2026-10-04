@@ -103,7 +103,10 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	/**
 	 * Standard out output. The default implementation <em>uses whatever is set to
 	 * {@link System#out} at provision time</em>. <strong>If {@link System#out} is rebound
-	 * the output will not be updated!</strong>
+	 * the output will not be updated!</strong> Use
+	 * {@link io.jstach.rainbowgum.output.StdOutOutputBuilder} with
+	 * {@link io.jstach.rainbowgum.output.ConsoleStream#FOLLOW} to read it on every write
+	 * instead.
 	 * @return output.
 	 */
 	public static LogProvider<LogOutput> ofStandardOut() {
@@ -113,7 +116,10 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	/**
 	 * Standard err output. The default implementation <em>uses whatever is set to
 	 * {@link System#err} at provision time</em>. <strong>If {@link System#err} is rebound
-	 * the output will not be updated!</strong>
+	 * the output will not be updated!</strong> Use
+	 * {@link io.jstach.rainbowgum.output.StdErrOutputBuilder} with
+	 * {@link io.jstach.rainbowgum.output.ConsoleStream#FOLLOW} to read it on every write
+	 * instead.
 	 * @return output.
 	 */
 	public static LogProvider<LogOutput> ofStandardErr() {
@@ -610,38 +616,4 @@ public interface LogOutput extends LogLifecycle, Flushable {
  * @param charsetOrNull charset or <code>null</code> if not fixed/known.
  */
 record SimpleContentType(String contentType, @Nullable Charset charsetOrNull) implements LogOutput.ContentType {
-}
-
-class StdOutOutput extends LogOutput.AbstractOutputStreamOutput {
-
-	public StdOutOutput() {
-		super(LogOutput.STDOUT_URI, Objects.requireNonNull(System.out));
-	}
-
-	@Override
-	public LogOutput.OutputType type() {
-		return OutputType.CONSOLE_OUT;
-	}
-
-	@Override
-	public void close() {
-	}
-
-}
-
-class StdErrOutput extends LogOutput.AbstractOutputStreamOutput {
-
-	protected StdErrOutput() {
-		super(LogOutput.STDERR_URI, Objects.requireNonNull(System.err));
-	}
-
-	@Override
-	public OutputType type() {
-		return OutputType.CONSOLE_ERR;
-	}
-
-	@Override
-	public void close() {
-	}
-
 }

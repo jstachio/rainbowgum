@@ -11,6 +11,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import io.jstach.rainbowgum.LogOutput.OutputProvider;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.output.StdErrOutputBuilder;
+import io.jstach.rainbowgum.output.StdOutOutputBuilder;
 
 /**
  * Register output providers by URI scheme.
@@ -177,8 +179,8 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 
 		STDOUT {
 			@Override
-			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
-				return new StdOutOutput();
+			public LogProvider<LogOutput> provide(LogProviderRef ref) {
+				return (s, c) -> new StdOutOutputBuilder(s).fromProperties(c.properties(), ref).build().provide(s, c);
 			}
 
 			@Override
@@ -189,8 +191,8 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		},
 		STDERR {
 			@Override
-			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
-				return new StdErrOutput();
+			public LogProvider<LogOutput> provide(LogProviderRef ref) {
+				return (s, c) -> new StdErrOutputBuilder(s).fromProperties(c.properties(), ref).build().provide(s, c);
 			}
 
 			@Override
@@ -201,8 +203,8 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		},
 		LIST {
 			@Override
-			public LogOutput provide(LogProviderRef ref, String name, LogProperties properties) {
-				return new ListLogOutput();
+			public LogProvider<LogOutput> provide(LogProviderRef ref) {
+				return (s, c) -> new ListLogOutput();
 			}
 
 			@Override
@@ -211,15 +213,6 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 			}
 
 		};
-
-		@Override
-		public LogProvider<LogOutput> provide(LogProviderRef ref) {
-			return (s, c) -> {
-				return provide(ref, s, c.properties());
-			};
-		}
-
-		public abstract LogOutput provide(LogProviderRef ref, String name, LogProperties properties);
 
 		public abstract String scheme();
 

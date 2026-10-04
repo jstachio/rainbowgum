@@ -1120,6 +1120,29 @@ logging.appenders=myapp
 logging.appender.myapp.output=stderr
 }
 
+<p>
+By default the console outputs use whatever <code>System.out</code> or
+<code>System.err</code> is when the output is created, so rebinding it later with
+<code>System.setOut</code> is not seen. To read the stream on every write instead (for
+example so a test that captures standard out also captures log output), set the
+<code>stream</code> parameter to <code>follow</code> in the URI or as an output property:
+</p>
+
+{@snippet lang=properties :
+logging.appenders=myapp
+logging.appender.myapp.output=stdout:///?stream=follow
+# or equivalently
+logging.output.myapp.stream=follow
+}
+
+<p>
+Do not use <code>follow</code> if something redirects standard out into logging, since
+the output would then log to itself. Programmatically, use
+{@link io.jstach.rainbowgum.output.StdOutOutputBuilder} or
+{@link io.jstach.rainbowgum.output.StdErrOutputBuilder} with
+{@link io.jstach.rainbowgum.output.ConsoleStream}.
+</p>
+
 <h3 id="file">File Output</h3>
 
 The <code>rainbowgum-file</code> module (not included by default;
