@@ -45,7 +45,7 @@ public final class AsyncPublisherBenchmark {
 
 		PublisherFactory factory(int capacity) {
 			return switch (this) {
-				case BATCH_SWAP -> BatchSwapAsyncLogPublisher.builder().bufferSize(capacity).build();
+				case BATCH_SWAP -> BatchSwapAsyncLogPublisher.builder("benchmark").bufferSize(capacity).build();
 				case BLOCKING -> (name, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(),
 						capacity, config.alerts(), Duration.ofSeconds(10));
 				case OPUS -> opusFactory(capacity);

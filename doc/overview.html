@@ -696,6 +696,13 @@ events (1024 by default), so up to two batches may be retained, plus events held
 The <code>events.queued</code> metric counts pending events, excluding the batch being written.
 </p>
 <p>
+For programmatic configuration, use
+{@link io.jstach.rainbowgum.BatchSwapAsyncLogPublisher#builder(String)}. Its generated builder
+can load the same properties with <code>fromProperties(properties)</code>; present properties
+override values already set on the builder. The <code>shutdownTimeout</code> setter accepts a
+<code>Duration</code>, while the property is expressed in milliseconds.
+</p>
+<p>
 On close, the publisher drains queued events and calls already waiting for space before closing its
 appenders. New calls are rejected once shutdown begins. Close waits up to
 <code>shutdownTimeout</code> milliseconds (10 seconds by default). If delivery takes longer,

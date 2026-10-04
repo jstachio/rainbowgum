@@ -382,7 +382,7 @@ class BatchSwapAsyncLogPublisherTest {
 
 	enum Configuration {
 
-		ASYNC, CORE_ASYNC, URI, PROPERTIES_OVERRIDE, BUILDER
+		ASYNC, CORE_ASYNC, URI, PROPERTIES_OVERRIDE, BUILDER, GENERATED_BUILDER
 
 	}
 
@@ -412,6 +412,11 @@ class BatchSwapAsyncLogPublisherTest {
 				.provide(LogProviderRef.of(URI.create("async:///?bufferSize=1&shutdownTimeout=0")));
 			case PROPERTIES_OVERRIDE -> config.publisherRegistry()
 				.provide(LogProviderRef.of(URI.create("async:///?bufferSize=17&shutdownTimeout=10000")));
+			case GENERATED_BUILDER -> BatchSwapAsyncLogPublisher.builder("test")
+				.bufferSize(17)
+				.shutdownTimeout(Duration.ofSeconds(10))
+				.fromProperties(config.properties())
+				.build();
 			case BUILDER -> LogPublisher.AsyncLogPublisher.builder().bufferSize(1).build();
 		};
 		var appender = LogAppender.builder("test")
@@ -450,13 +455,63 @@ class BatchSwapAsyncLogPublisherTest {
 		}
 	}
 
+	@Test
+	void generatedBuilderReportsInvalidPropertyValues() {
+		var properties = LogProperties.builder().fromProperties("""
+				logging.publisher.test.bufferSize=bad
+				logging.publisher.test.shutdownTimeout=bad
+				""").build();
+		var failure = assertThrows(LogProperty.ValidationException.class,
+				() -> BatchSwapAsyncLogPublisher.builder("test").fromProperties(properties).build());
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder:
+						Error for property. key: 'logging.publisher.test.bufferSize' from PROPERTIES_STRING[logging.publisher.test.bufferSize], java.lang.NumberFormatException For input string: "bad"
+						Error for property. key: 'logging.publisher.test.shutdownTimeout' from PROPERTIES_STRING[logging.publisher.test.shutdownTimeout], java.lang.NumberFormatException For input string: "bad"\
+						""",
+				failure.getMessage());
+	}
+
+	enum InvalidOptions {
+
+		BUFFER_ZERO, TIMEOUT_NEGATIVE, TIMEOUT_OVERFLOW
+
+	}
+
+	@ParameterizedTest
+	@EnumSource
+	void generatedBuilderValidatesBeforeCreatingPublisher(InvalidOptions mode) {
+		var builder = BatchSwapAsyncLogPublisher.builder("test");
+		String expected = switch (mode) {
+			case BUFFER_ZERO -> {
+				builder.bufferSize(0);
+				yield """
+						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder: bufferSize must be positive.\
+						""";
+			}
+			case TIMEOUT_NEGATIVE -> {
+				builder.shutdownTimeout(Duration.ofMillis(-1));
+				yield """
+						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder: shutdownTimeout must not be negative.\
+						""";
+			}
+			case TIMEOUT_OVERFLOW -> {
+				builder.shutdownTimeout(Duration.ofSeconds(Long.MAX_VALUE));
+				yield """
+						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder: shutdownTimeout is too large.\
+						""";
+			}
+		};
+		assertEquals(expected, assertThrows(LogProperty.ValidationException.class, builder::build).getMessage());
+	}
+
 	private static BatchSwapAsyncLogPublisher publisher(LogConfig config, LogOutput output, int capacity,
 			Duration timeout) {
 		var appender = LogAppender.builder("test")
 			.output(output)
 			.formatter(LogFormatter.builder().message().build())
 			.build();
-		return (BatchSwapAsyncLogPublisher) BatchSwapAsyncLogPublisher.builder()
+		return (BatchSwapAsyncLogPublisher) BatchSwapAsyncLogPublisher.builder("test")
 			.bufferSize(capacity)
 			.shutdownTimeout(timeout)
 			.build()

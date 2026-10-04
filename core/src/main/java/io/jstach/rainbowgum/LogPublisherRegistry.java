@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -167,18 +166,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 
 		@Override
 		protected PublisherFactory provide(String name, LogProperties properties) {
-			int _bufferSize = properties.forKey(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name)
-				.ofInt() //
-				.or(LogPublisherRegistry.ASYNC_BUFFER_SIZE)
-				.validateNow(DefaultPublisherProviders.class);
-			int _shutdownTimeout = properties.forKey(LogPublisherRegistry.SHUTDOWN_TIMEOUT_PROPERTY, name)
-				.ofInt() //
-				.or(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT)
-				.validateNow(DefaultPublisherProviders.class);
-			return BatchSwapAsyncLogPublisher.builder()
-				.bufferSize(_bufferSize)
-				.shutdownTimeout(Duration.ofMillis(_shutdownTimeout))
-				.build();
+			return BatchSwapAsyncLogPublisher.builder(name).fromProperties(properties).build();
 		}
 	};
 

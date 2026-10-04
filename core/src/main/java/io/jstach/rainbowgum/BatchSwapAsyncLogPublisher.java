@@ -13,16 +13,18 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogMetrics.Gauge;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
+import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
  * The default bounded async publisher with one output worker. Producers block when the
  * pending buffer is full. Events are delivered in insertion order, including calls
  * already waiting for space when shutdown begins. New calls are rejected during shutdown.
  * <p>
- * Up to {@link Builder#bufferSize(int) bufferSize} events may wait for delivery while
- * another batch of up to that size is being written. The queued metric excludes the batch
- * currently being written. Events passed directly to {@link #log(LogEvent)} must already
- * be {@linkplain LogEvent#freeze() frozen}, as required by async publishers.
+ * Up to {@link BatchSwapAsyncLogPublisherBuilder#bufferSize(Integer) bufferSize} events
+ * may wait for delivery while another batch of up to that size is being written. The
+ * queued metric excludes the batch currently being written. Events passed directly to
+ * {@link #log(LogEvent)} must already be {@linkplain LogEvent#freeze() frozen}, as
+ * required by async publishers.
  * <p>
  * Closing waits for the configured timeout without interrupting output operations. If it
  * times out, an error alert is recorded and the worker continues draining before closing
@@ -89,66 +91,60 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 	}
 
 	/**
-	 * Creates a builder. Select its factory with
+	 * Default pending buffer capacity.
+	 */
+	public static final int DEFAULT_BUFFER_SIZE = LogPublisherRegistry.ASYNC_BUFFER_SIZE;
+
+	/**
+	 * Default time to wait for delivery and appender closure.
+	 */
+	public static final Duration DEFAULT_SHUTDOWN_TIMEOUT = Duration
+		.ofMillis(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT);
+
+	/**
+	 * Creates a named builder. Call
+	 * {@link BatchSwapAsyncLogPublisherBuilder#fromProperties(LogProperties)} to read
+	 * {@code logging.publisher.<name>.bufferSize} and
+	 * {@code logging.publisher.<name>.shutdownTimeout}. Properties override builder
+	 * values when present. Select its factory with
 	 * {@link LogRouter.Router.Builder#publisher(LogPublisher.PublisherFactory)}.
+	 * @param name publisher name used for property lookup.
 	 * @return builder.
 	 */
-	public static Builder builder() {
-		return new Builder();
+	public static BatchSwapAsyncLogPublisherBuilder builder(String name) {
+		return new BatchSwapAsyncLogPublisherBuilder(name);
 	}
 
 	/**
-	 * Builds a publisher factory. Options are programmatic and do not read properties.
+	 * Creates a publisher factory with validated options.
+	 * @param name publisher name used for property lookup.
+	 * @param bufferSize positive pending capacity, excluding the batch being written.
+	 * @param shutdownTimeout nonnegative close timeout (property unit: milliseconds).
+	 * @return publisher factory.
 	 */
-	public static final class Builder extends LogPublisher.AbstractBuilder<Builder> {
-
-		private int bufferSize = 1024;
-
-		private long shutdownNanos = Duration.ofSeconds(10).toNanos();
-
-		private Builder() {
+	@LogConfigurable(name = "BatchSwapAsyncLogPublisherBuilder", prefix = LogProperties.PUBLISHER_PREFIX)
+	static PublisherFactory of(@LogConfigurable.KeyParameter String name,
+			@LogConfigurable.DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize,
+			@LogConfigurable.DefaultParameter("DEFAULT_SHUTDOWN_TIMEOUT") @LogConfigurable.ConvertParameter("parseShutdownTimeout") Duration shutdownTimeout) {
+		if (bufferSize < 1) {
+			throw new IllegalArgumentException("bufferSize must be positive.");
 		}
-
-		/**
-		 * Sets the maximum number of pending events, excluding the batch being written.
-		 * @param bufferSize positive capacity, defaults to 1024.
-		 * @return this builder.
-		 */
-		public Builder bufferSize(int bufferSize) {
-			if (bufferSize < 1) {
-				throw new IllegalArgumentException("bufferSize must be positive.");
-			}
-			this.bufferSize = bufferSize;
-			return this;
+		if (shutdownTimeout.isNegative()) {
+			throw new IllegalArgumentException("shutdownTimeout must not be negative.");
 		}
-
-		/**
-		 * Sets how long each close call waits for delivery and appender closure.
-		 * @param timeout nonnegative timeout, defaults to ten seconds. Zero does not
-		 * wait.
-		 * @return this builder.
-		 */
-		public Builder shutdownTimeout(Duration timeout) {
-			if (timeout.isNegative()) {
-				throw new IllegalArgumentException("shutdownTimeout must not be negative.");
-			}
-			this.shutdownNanos = timeout.toNanos();
-			return this;
+		long shutdownNanos;
+		try {
+			shutdownNanos = shutdownTimeout.toNanos();
 		}
-
-		@Override
-		protected Builder self() {
-			return this;
+		catch (ArithmeticException e) {
+			throw new IllegalArgumentException("shutdownTimeout is too large.", e);
 		}
+		return (n, config, appenders) -> new BatchSwapAsyncLogPublisher(n, config, appenders.asSingle(), bufferSize,
+				shutdownNanos);
+	}
 
-		@Override
-		public PublisherFactory build() {
-			int capacity = bufferSize;
-			long timeout = shutdownNanos;
-			return (name, config, appenders) -> new BatchSwapAsyncLogPublisher(name, config, appenders.asSingle(),
-					capacity, timeout);
-		}
-
+	static Duration parseShutdownTimeout(String value) {
+		return Duration.ofMillis(Long.parseLong(value));
 	}
 
 	@Override
