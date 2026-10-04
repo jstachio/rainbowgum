@@ -37,8 +37,8 @@ final class ScopedKeyValuesProviderImpl implements ScopedKeyValuesProvider {
 
 	/**
 	 * Whatever is currently bound, already fully merged - the accessor
-	 * {@code rainbowgum-slf4j} integration actually consults on every log call, never
-	 * going through the generic {@link Map}-shaped {@link #currentMerged()}.
+	 * {@link ScopedKeyValuesContributor} consults on every log call, never going through
+	 * the generic {@link Map}-shaped {@link #currentMerged()}.
 	 * @return current key values, {@link KeyValues#of()} (empty) if nothing is currently
 	 * pushed.
 	 */

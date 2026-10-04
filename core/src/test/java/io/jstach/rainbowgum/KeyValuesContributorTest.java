@@ -1,0 +1,91 @@
+package io.jstach.rainbowgum;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard;
+
+class KeyValuesContributorTest {
+
+	private static KeyValuesContributor contributor(Map<String, String> m) {
+		var kvs = KeyValues.of(m);
+		return () -> kvs;
+	}
+
+	private static String render(KeyValues kvs) {
+		var sb = new StringBuilder();
+		kvs.forEach((k, v) -> sb.append(k).append('=').append(v).append(' '));
+		return sb.toString().strip();
+	}
+
+	@Test
+	void nothingRegisteredIsEmpty() {
+		var registry = ServiceRegistry.of();
+		assertTrue(KeyValuesContributor.of(registry).keyValues().isEmpty());
+	}
+
+	@Test
+	void contributorsMergeInEnumOrderSoTheLaterConstantWins() {
+		var registry = ServiceRegistry.of();
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "slf4j", "onlySlf4j", "1")));
+		KeyValuesContributor.register(registry, Standard.SCOPED_KEY_VALUES,
+				contributor(Map.of("env", "scoped", "onlyScoped", "1")));
+		KeyValuesContributor.register(registry, Standard.LOG4J2, contributor(Map.of("env", "log4j2")));
+		var kvs = KeyValuesContributor.of(registry).keyValues();
+		assertEquals("slf4j", kvs.getValueOrNull("env"));
+		assertEquals("1", kvs.getValueOrNull("onlySlf4j"));
+		assertEquals("1", kvs.getValueOrNull("onlyScoped"));
+		assertEquals(3, kvs.size());
+	}
+
+	@Test
+	void excludedSourcesAreSkipped() {
+		var registry = ServiceRegistry.of();
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "slf4j")));
+		KeyValuesContributor.register(registry, Standard.JBOSS_LOGGING, contributor(Map.of("env", "jboss")));
+		assertEquals("env=jboss", render(KeyValuesContributor.of(registry, Standard.SLF4J).keyValues()));
+		assertTrue(KeyValuesContributor.of(registry, Standard.SLF4J, Standard.JBOSS_LOGGING).keyValues().isEmpty());
+	}
+
+	@Test
+	void contributorsNotRegisteredForAStandardSourceAreIgnored() {
+		var registry = ServiceRegistry.of();
+		registry.put(KeyValuesContributor.class, "thirdParty", contributor(Map.of("env", "thirdParty")));
+		assertTrue(KeyValuesContributor.of(registry).keyValues().isEmpty());
+	}
+
+	@Test
+	void aRegisteredSourceIsNotReplaced() {
+		var registry = ServiceRegistry.of();
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "first")));
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "second")));
+		assertEquals("env=first", render(KeyValuesContributor.of(registry).keyValues()));
+	}
+
+	@Test
+	void registryIsReadWhenResolved() {
+		var registry = ServiceRegistry.of();
+		var resolved = KeyValuesContributor.of(registry);
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "late")));
+		assertTrue(resolved.keyValues().isEmpty());
+	}
+
+	@Test
+	void globalFollowsTheBoundGumAndDefaultKeyValuesUsesIt() {
+		var config = LogConfig.builder().build();
+		KeyValuesContributor.register(config.serviceRegistry(), Standard.SLF4J,
+				contributor(Map.of("requestId", "abc")));
+		var factory = LogEventFactory.of("test");
+		try (var gum = RainbowGum.builder(config).set()) {
+			assertEquals("requestId=abc", render(factory.defaultKeyValues()));
+			assertEquals("requestId=abc", render(KeyValuesContributor.global().keyValues()));
+			assertTrue(KeyValuesContributor.global(Standard.SLF4J).keyValues().isEmpty());
+		}
+	}
+
+}

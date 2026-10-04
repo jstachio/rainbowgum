@@ -36,6 +36,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-slf4j</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.jstach.pistachio</groupId>
@@ -46,4 +47,16 @@
       <artifactId>pistachio-svc-apt</artifactId>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- SLF4J is only a test dependency: the end to end SLF4J test needs to read it. -->
+          <argLine>--add-reads io.jstach.rainbowgum.scopedkeyvalues.provider=io.jstach.rainbowgum.slf4j,org.slf4j</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
