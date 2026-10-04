@@ -1,9 +1,11 @@
 package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
+import java.lang.ref.WeakReference;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 
@@ -543,10 +545,16 @@ final class KeyValuesContributors {
 
 		private final Set<Source> excluded;
 
-		private volatile @Nullable Resolved resolved;
+		private final String registryName;
+
+		private volatile WeakReference<Resolved> resolved = new WeakReference<>(null);
 
 		Global(Set<Source> excluded) {
 			this.excluded = excluded;
+			this.registryName = excluded.stream()
+				.map(KeyValuesContributors::registryName)
+				.sorted()
+				.collect(Collectors.joining(","));
 		}
 
 		@Override
@@ -570,10 +578,16 @@ final class KeyValuesContributors {
 			if (gum == null) {
 				return Empty.INSTANCE;
 			}
-			var r = resolved;
+			var r = resolved.get();
 			if (r == null || r.gum() != gum) {
-				r = new Resolved(gum, of(gum.config().serviceRegistry(), excluded));
-				resolved = r;
+				var registry = gum.config().serviceRegistry();
+				/*
+				 * The gum owns the strong reference, so an idle global contributor cannot
+				 * retain a closed gum or its context stores. While bound, the weak cache
+				 * stays live and avoids a registry lookup on every event.
+				 */
+				r = registry.putIfAbsent(Resolved.class, registryName, () -> new Resolved(gum, of(registry, excluded)));
+				resolved = new WeakReference<>(r);
 			}
 			return r.contributor();
 		}

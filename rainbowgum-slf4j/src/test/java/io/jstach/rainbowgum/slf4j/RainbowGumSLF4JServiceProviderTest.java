@@ -16,13 +16,6 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 
-/*
- * Never referenced by any test - this is the real org.slf4j.spi.SLF4JServiceProvider
- * implementation SLF4J's own ServiceLoader discovers. Its parameterless initialize()
- * has real global side effects (System properties, full RainbowGum.of() service
- * discovery), which is exactly why the class provides initialize(RainbowGum) as a
- * dedicated test seam (see its own javadoc) - tested through that instead.
- */
 class RainbowGumSLF4JServiceProviderTest {
 
 	@Test
@@ -41,22 +34,23 @@ class RainbowGumSLF4JServiceProviderTest {
 
 	/*
 	 * The MDC contributor the module's configurator registers exposes and clears the MDC
-	 * of the most recently initialized provider, which is what org.slf4j.MDC uses.
+	 * used by org.slf4j.MDC, even after an isolated provider is initialized.
 	 */
 	@Test
 	void testKeyValuesContributorExposesAndClearsMdc() {
 		var config = LogConfig.builder().serviceLoader().build();
-		var gum = RainbowGum.builder(config).build();
-		var provider = new RainbowGumSLF4JServiceProvider();
-		provider.initialize(gum);
-		var mdc = provider.getMDCAdapter();
-		var contributor = KeyValuesContributor.of(config.serviceRegistry());
-		mdc.put("requestId", "abc");
-		try {
+		var mdc = org.slf4j.MDC.getMDCAdapter();
+		try (var gum = RainbowGum.builder(config).set()) {
+			var provider = new RainbowGumSLF4JServiceProvider();
+			provider.initialize(gum);
+			provider.getMDCAdapter().put("requestId", "isolated");
+			var contributor = KeyValuesContributor.global();
+			mdc.put("requestId", "abc");
 			assertEquals("abc", contributor.keyValues().getValueOrNull("requestId"));
 			contributor.clear();
 			assertNull(mdc.get("requestId"));
 			assertTrue(contributor.keyValues().isEmpty());
+			assertEquals("isolated", provider.getMDCAdapter().get("requestId"));
 		}
 		finally {
 			mdc.clear();

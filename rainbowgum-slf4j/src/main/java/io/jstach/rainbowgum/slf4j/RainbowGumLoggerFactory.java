@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
@@ -35,14 +36,17 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * are a separate concern: ones allowed to change level (ReplaceableLogger, below) are
 	 * kept current independently via the router's own RouteChangePublisher, which is how
 	 * a bootstrap-era ReplaceableLogger stops pointing at the queued placeholder router
-	 * once a real router replaces it (see subscribe()). Loggers that were not allowed to
-	 * change (LevelLogger) are not, and never were, revisited after creation.
+	 * once a real router replaces it (see subscribe()). Routing for loggers that were not
+	 * allowed to change (LevelLogger) is not revisited after creation. Context
+	 * contributors follow the current gum for every handler through ChangingContributor.
 	 */
 	private volatile RainbowGum rainbowGum;
 
 	private final LoggerDecorator decorator;
 
 	private final RainbowGumMDCAdapter mdc;
+
+	private final ChangingContributor contributor;
 
 	/*
 	 * Held here (as opposed to inline at the subscribe call below) so this factory keeps
@@ -63,10 +67,12 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		this.rainbowGum = rainbowGum;
 		this.decorator = LoggerDecorator.of(rainbowGum);
 		this.mdc = mdc;
+		this.contributor = new ChangingContributor(rainbowGum);
 		RainbowGum.onGlobalChange(onGlobalChange);
 	}
 
 	private void setRainbowGum(RainbowGum gum) {
+		contributor.setRainbowGum(gum);
 		this.rainbowGum = gum;
 	}
 
@@ -175,12 +181,48 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		 * underneath MDC, and the application's USER contributor above it. With nothing
 		 * else registered the contributor hands back MDC's own unchanged.
 		 */
-		var contributor = KeyValuesContributor.of(rainbowGum.config().serviceRegistry(),
-				KeyValuesContributor.Source.Standard.SLF4J);
 		if (callerInfoEnabled) {
 			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth, contributor);
 		}
 		return LogEventHandler.of(loggerName, logger, mdc, contributor);
+	}
+
+	/*
+	 * Router callbacks can replace a bootstrap handler before the global gum change
+	 * reaches this factory. All handlers share this delegate so those already created
+	 * also receive the real configuration's contributors once it is bound.
+	 */
+	private static final class ChangingContributor implements KeyValuesContributor {
+
+		private volatile KeyValuesContributor delegate;
+
+		ChangingContributor(RainbowGum gum) {
+			this.delegate = resolve(gum);
+		}
+
+		void setRainbowGum(RainbowGum gum) {
+			delegate = resolve(gum);
+		}
+
+		private static KeyValuesContributor resolve(RainbowGum gum) {
+			return KeyValuesContributor.of(gum.config().serviceRegistry(), KeyValuesContributor.Source.Standard.SLF4J);
+		}
+
+		@Override
+		public KeyValues keyValues() {
+			return delegate.keyValues();
+		}
+
+		@Override
+		public KeyValues keyValues(KeyValues own) {
+			return delegate.keyValues(own);
+		}
+
+		@Override
+		public void clear() {
+			delegate.clear();
+		}
+
 	}
 
 	sealed interface LoggerDecorator {

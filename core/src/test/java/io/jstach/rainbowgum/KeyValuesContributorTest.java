@@ -2,12 +2,17 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard;
@@ -178,6 +183,63 @@ class KeyValuesContributorTest {
 		user.local.set(KeyValues.of(Map.of("a", "1")));
 		KeyValuesContributor.of(registry).clear();
 		assertTrue(user.keyValues().isEmpty());
+	}
+
+	enum GlobalContextCase {
+
+		ALL, EXCLUDE_SLF4J;
+
+		KeyValuesContributor contributor() {
+			return this == ALL ? KeyValuesContributor.global() : KeyValuesContributor.global(Standard.SLF4J);
+		}
+
+	}
+
+	@ParameterizedTest
+	@EnumSource(GlobalContextCase.class)
+	void globalContributorDoesNotRetainClosedGum(GlobalContextCase testCase) throws InterruptedException {
+		var contributor = testCase.contributor();
+		try {
+			var closed = closedGum(contributor);
+			/* No subsequent context lookup should be required to release a closed gum. */
+			for (int i = 0; i < 100 && !closed.refersTo(null); i++) {
+				System.gc();
+				Thread.sleep(25);
+			}
+			assertNull(closed.get(), "reading context must not retain a closed gum");
+		}
+		finally {
+			Reference.reachabilityFence(contributor);
+		}
+	}
+
+	private static WeakReference<@Nullable RainbowGum> closedGum(KeyValuesContributor contributor) {
+		var config = LogConfig.builder().build();
+		/* Capture the config as a real context store may do. */
+		KeyValuesContributor.register(config.serviceRegistry(), Standard.USER,
+				() -> KeyValues.of(Map.of("config", config.toString())));
+		try (var gum = RainbowGum.builder(config).set()) {
+			assertEquals(config.toString(), contributor.keyValues().getValueOrNull("config"));
+			return new WeakReference<>(gum);
+		}
+	}
+
+	@ParameterizedTest
+	@EnumSource(GlobalContextCase.class)
+	void globalContributorFollowsRebinding(GlobalContextCase testCase) {
+		var contributor = testCase.contributor();
+		for (String value : new String[] { "first", "second" }) {
+			var config = LogConfig.builder().build();
+			KeyValuesContributor.register(config.serviceRegistry(), Standard.USER, contributor(Map.of("env", value)));
+			KeyValuesContributor.register(config.serviceRegistry(), Standard.SLF4J,
+					contributor(Map.of("slf4j", "present")));
+			try (var gum = RainbowGum.builder(config).set()) {
+				assertEquals(value, contributor.keyValues().getValueOrNull("env"));
+				assertEquals(testCase == GlobalContextCase.ALL ? "present" : null,
+						contributor.keyValues().getValueOrNull("slf4j"));
+			}
+			assertTrue(contributor.keyValues().isEmpty());
+		}
 	}
 
 }
