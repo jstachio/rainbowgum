@@ -217,14 +217,16 @@ class RainbowGumLog4j2Test {
 		var config = LogConfig.builder().serviceLoader().build();
 		var contributor = KeyValuesContributor.of(config.serviceRegistry());
 		ThreadContext.put("tenant", "acme");
+		ThreadContext.push("request");
 		try {
 			assertEquals("acme", contributor.keyValues().getValueOrNull("tenant"));
 			contributor.clear();
 			assertNull(ThreadContext.get("tenant"));
+			assertEquals(0, ThreadContext.getDepth());
 			assertTrue(contributor.keyValues().isEmpty());
 		}
 		finally {
-			ThreadContext.clearMap();
+			ThreadContext.clearAll();
 		}
 	}
 

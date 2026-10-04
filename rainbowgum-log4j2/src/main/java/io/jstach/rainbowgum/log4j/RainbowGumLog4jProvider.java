@@ -40,9 +40,12 @@ public final class RainbowGumLog4jProvider extends Provider {
 		initialized = true;
 	}
 
-	static void clearThreadContextMap() {
+	/*
+	 * Both the map (key values) and the stack (NDC).
+	 */
+	static void clearThreadContext() {
 		if (initialized) {
-			ThreadContext.clearMap();
+			ThreadContext.clearAll();
 		}
 	}
 

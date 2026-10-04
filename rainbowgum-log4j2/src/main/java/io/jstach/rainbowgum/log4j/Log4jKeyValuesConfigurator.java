@@ -27,9 +27,6 @@ public final class Log4jKeyValuesConfigurator implements RainbowGumServiceProvid
 		return true;
 	}
 
-	/*
-	 * Only ThreadContext's map is key values; its stack (NDC) is left alone.
-	 */
 	private enum ThreadContextContributor implements KeyValuesContributor {
 
 		INSTANCE;
@@ -41,7 +38,7 @@ public final class Log4jKeyValuesConfigurator implements RainbowGumServiceProvid
 
 		@Override
 		public void clear() {
-			RainbowGumLog4jProvider.clearThreadContextMap();
+			RainbowGumLog4jProvider.clearThreadContext();
 		}
 
 	}

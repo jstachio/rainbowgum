@@ -109,6 +109,15 @@ class ArrayMDCAdapter implements MDCAdapter {
 		copyOnThreadLocal.remove();
 	}
 
+	/*
+	 * Like clear() but leaves no thread local value behind at all, for pooled threads. A
+	 * null last operation is treated like a read, so the next put copies as usual.
+	 */
+	void removeThreadLocals() {
+		copyOnThreadLocal.remove();
+		lastOperation.remove();
+	}
+
 	@Override
 	public @Nullable String get(String key) {
 		if (Objects.isNull(key)) {

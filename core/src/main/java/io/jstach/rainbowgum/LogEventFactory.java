@@ -315,10 +315,12 @@ public interface LogEventFactory {
 		KeyValues keyValues();
 
 		/**
-		 * Clears the current thread's key values in the underlying context store, as if
-		 * that store's own clear method was called. A store that cannot be cleared this
-		 * way, such as one bound to a scope, does nothing. Like {@link #keyValues()} it
-		 * must not throw or log. The default does nothing.
+		 * Clears all of the current thread's state in the underlying context store,
+		 * including state that is not exposed as key values such as a nested diagnostic
+		 * context (NDC) stack, so a pooled thread starts its next task with no context
+		 * left over. A store that cannot be cleared this way, such as one bound to a
+		 * scope, does nothing. Like {@link #keyValues()} it must not throw or log. The
+		 * default does nothing.
 		 */
 		default void clear() {
 		}

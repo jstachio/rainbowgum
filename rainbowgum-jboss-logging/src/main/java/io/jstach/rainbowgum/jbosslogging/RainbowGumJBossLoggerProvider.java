@@ -47,10 +47,15 @@ public final class RainbowGumJBossLoggerProvider implements LoggerProvider {
 		current = this;
 	}
 
-	static void clearCurrentMDC() {
+	/*
+	 * Removes both thread locals (MDC and NDC) rather than emptying them, so a pooled
+	 * thread keeps nothing.
+	 */
+	static void clearCurrentThreadContext() {
 		var provider = current;
 		if (provider != null) {
-			provider.clearMdc();
+			provider.mdcMap.remove();
+			provider.ndcStack.remove();
 		}
 	}
 
