@@ -18,4 +18,12 @@ enum ScopedKeyValuesContributor implements KeyValuesContributor {
 		return ScopedKeyValuesProviderImpl.currentMergedKeyValues();
 	}
 
+	@Override
+	public void clear() {
+		/*
+		 * Scoped values are unbound when their scope exits, so there is nothing left on a
+		 * thread to clear.
+		 */
+	}
+
 }

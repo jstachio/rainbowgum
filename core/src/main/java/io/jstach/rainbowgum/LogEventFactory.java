@@ -290,9 +290,16 @@ public interface LogEventFactory {
 	 * facade that has its own context store excludes its own {@link Source} when
 	 * resolving the rest and merges its own on top so its own values win.
 	 *
+	 * <p>
+	 * {@link #clear()} clears the current thread's context in every store, for example
+	 * when a pooled thread finishes a task:
+	 * {@snippet :
+	 * KeyValuesContributor.global().clear();
+	 * }
+	 *
 	 * @apiNote Rainbow Gum core deliberately has no API for putting key values into a
-	 * context. Contributors only expose whatever context store the application already
-	 * uses.
+	 * context. Contributors only expose (and clear) whatever context store the
+	 * application already uses.
 	 */
 	@FunctionalInterface
 	public interface KeyValuesContributor {
@@ -306,6 +313,15 @@ public interface LogEventFactory {
 		 * @return key values, never {@code null}.
 		 */
 		KeyValues keyValues();
+
+		/**
+		 * Clears the current thread's key values in the underlying context store, as if
+		 * that store's own clear method was called. A store that cannot be cleared this
+		 * way, such as one bound to a scope, does nothing. Like {@link #keyValues()} it
+		 * must not throw or log. The default does nothing.
+		 */
+		default void clear() {
+		}
 
 		/**
 		 * Identifies a context store that contributes key values.
@@ -451,6 +467,13 @@ final class KeyValuesContributors {
 			return result;
 		}
 
+		@Override
+		public void clear() {
+			for (var c : contributors) {
+				c.clear();
+			}
+		}
+
 	}
 
 	/*
@@ -471,18 +494,27 @@ final class KeyValuesContributors {
 		}
 
 		@Override
-		@SuppressWarnings("ReferenceEquality") // identity of the bound gum is the point
 		public KeyValues keyValues() {
+			return contributor().keyValues();
+		}
+
+		@Override
+		public void clear() {
+			contributor().clear();
+		}
+
+		@SuppressWarnings("ReferenceEquality") // identity of the bound gum is the point
+		private KeyValuesContributor contributor() {
 			var gum = RainbowGumHolder.peek();
 			if (gum == null) {
-				return KeyValues.of();
+				return Empty.INSTANCE;
 			}
 			var r = resolved;
 			if (r == null || r.gum() != gum) {
 				r = new Resolved(gum, of(gum.config().serviceRegistry(), excluded));
 				resolved = r;
 			}
-			return r.contributor().keyValues();
+			return r.contributor();
 		}
 
 	}

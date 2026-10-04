@@ -38,6 +38,13 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 		return mdc == null ? KeyValues.of() : mdc.keyValues();
 	}
 
+	static void clearCurrentMDC() {
+		var mdc = currentMDC;
+		if (mdc != null) {
+			mdc.clear();
+		}
+	}
+
 	/**
 	 * Which {@link RainbowGumMDCAdapter} implementation to use - {@code THREAD_LOCAL}
 	 * (the default) is today's existing {@link ArrayMDCAdapter} behavior; {@code NOOP}

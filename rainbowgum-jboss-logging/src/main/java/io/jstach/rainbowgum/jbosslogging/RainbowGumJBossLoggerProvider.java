@@ -47,6 +47,13 @@ public final class RainbowGumJBossLoggerProvider implements LoggerProvider {
 		current = this;
 	}
 
+	static void clearCurrentMDC() {
+		var provider = current;
+		if (provider != null) {
+			provider.clearMdc();
+		}
+	}
+
 	static KeyValues currentMDCKeyValues() {
 		var provider = current;
 		if (provider == null) {
