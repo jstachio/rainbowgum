@@ -435,14 +435,18 @@ exactly as they are; trying Rainbow Gum is a dependency change (for example,
 replacing Logback with `rainbowgum-slf4j`), and going back is the same change in
 reverse.
 
-This differs from the alternatives in how much they ask of your code:
+The alternatives are each coupled to a logging API:
 
-* Log4j2 has its own API (`log4j-api`) alongside its SLF4J binding, and tinylog has
-  its own `org.tinylog.Logger`. Code written against those APIs is tied to that
-  family of implementations.
+* Log4j2 has its own API (`log4j-api`), and tinylog has its own
+  `org.tinylog.Logger`. Code written against those APIs is tied to that family of
+  implementations.
 * Reload4j keeps the Log4j 1 API for applications that still call it.
-* Logback, like Rainbow Gum, implements SLF4J directly instead of adding another
-  facade.
+* Logback is built on SLF4J: `logback-classic` requires `slf4j-api` and uses its
+  types as Logback's own logger API. SLF4J is a facade, but for Logback it plays the
+  same role `log4j-api` plays for Log4j2.
+
+Rainbow Gum core requires only `java.base`. Each facade is supported by a separate,
+optional module, so an application includes only the APIs it actually calls.
 
 Only configuration is specific to Rainbow Gum, and for most applications that is a
 handful of properties rather than an XML file to port.
