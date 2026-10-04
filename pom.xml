@@ -1329,6 +1329,7 @@
     <module>rainbowgum-simple-props</module>
     <module>rainbowgum-simple</module>
     <module>test</module>
+    <module>examples</module>
     <module>etc</module>
     <module>rainbowgum-apt</module>
     <module>rainbowgum-json</module>

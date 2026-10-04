@@ -28,10 +28,10 @@ jobs:
           java-version: '27'
           distribution: 'temurin'
           cache: 'maven'
-      - name: Install Rainbow Gum
-        run: ./mvnw $MAVEN_CLI_OPTS -DskipTests clean install
-      - name: Build the Micronaut example
-        run: ./mvnw $MAVEN_CLI_OPTS -f examples/micronaut/pom.xml clean package -DskipTests
+      # The example is a module of the main build (never deployed), so building it
+      # with -am builds exactly the Rainbow Gum modules it depends on.
+      - name: Build Rainbow Gum and the Micronaut example
+        run: ./mvnw $MAVEN_CLI_OPTS -DskipTests clean install -pl examples/micronaut -am
       - name: Run it and curl /hello
         working-directory: examples/micronaut
         run: |
