@@ -73,9 +73,10 @@ public sealed interface LogPublisher extends LogEventLogger, LogLifecycle {
 
 		/**
 		 * Provides the default async publisher.
-		 * @param bufferSize maybe null provided as convenience as almost all async
-		 * publishers have some buffer.
+		 * @param bufferSize requested buffer capacity, or {@code null} to use the
+		 * provider's default.
 		 * @return async publisher.
+		 * @see LogPublisherRegistry#ASYNC_SCHEME
 		 */
 		static PublisherFactory ofAsync(@Nullable Integer bufferSize) {
 			String query = bufferSize == null ? "" : "?" + LogPublisherRegistry.BUFFER_SIZE_NAME + "=" + bufferSize;
