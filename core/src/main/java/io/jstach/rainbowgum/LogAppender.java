@@ -37,6 +37,29 @@ public sealed interface LogAppender extends LogLifecycle {
 	static final String CONSOLE_APPENDER_NAME = "console";
 
 	/**
+	 * Removes the current thread's encoding buffers from every appender of the globally
+	 * bound {@link RainbowGum}, so a pooled thread does not keep a buffer it may never
+	 * use again. Only {@link AppenderType#LOCK_THREAD_LOCAL_BUFFER} and
+	 * {@link AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} appenders keep per thread
+	 * buffers; the next event the thread logs simply creates a new one. Does nothing if
+	 * no Rainbow Gum is bound. Logging context such as MDC is cleared separately with
+	 * {@link LogEventFactory.KeyValuesContributor#clear()}.
+	 * {@snippet :
+	 * LogAppender.clearThreadLocals();
+	 * KeyValuesContributor.global().clear();
+	 * }
+	 */
+	public static void clearThreadLocals() {
+		var gum = RainbowGumHolder.peek();
+		if (gum == null) {
+			return;
+		}
+		for (var appender : gum.config().serviceRegistry().find(LogAppender.class)) {
+			InternalLogAppender.of(appender).clearThreadLocals();
+		}
+	}
+
+	/**
 	 * Default output file appender name.
 	 */
 	static final String FILE_APPENDER_NAME = "file";
@@ -787,6 +810,13 @@ sealed interface InternalLogAppender extends LogAppender, Actor {
 	@Override
 	public List<LogEvent> act(LogAction action);
 
+	/**
+	 * Removes the current thread's thread local state, if any. Unlike {@link #act} this
+	 * takes no lock since only the calling thread's state is touched.
+	 */
+	default void clearThreadLocals() {
+	}
+
 }
 
 sealed interface DirectLogAppender extends InternalLogAppender {
@@ -1178,6 +1208,13 @@ record CompositeLogAppender(DirectLogAppender[] appenders) implements InternalLo
 	}
 
 	@Override
+	public void clearThreadLocals() {
+		for (var appender : appenders) {
+			appender.clearThreadLocals();
+		}
+	}
+
+	@Override
 	public String toString() {
 		return getClass().getName() + "[appenders=" + Arrays.toString(appenders) + "]";
 	}
@@ -1319,6 +1356,11 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 			Set<LogAppender.AppenderFlag> flags, ReentrantLock lock, LogAlerts alerts, LogMetrics metrics) {
 		super(name, output, encoder, flags, lock, alerts, metrics);
 		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
+	}
+
+	@Override
+	public void clearThreadLocals() {
+		bufferThreadLocal.remove();
 	}
 
 	@Override
@@ -1464,6 +1506,11 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 			Set<LogAppender.AppenderFlag> flags, LogAlerts alerts, LogMetrics metrics) {
 		super(name, output, encoder, flags, alerts, metrics);
 		this.bufferThreadLocal = ThreadLocal.withInitial(() -> encoder.buffer(output.bufferHints()));
+	}
+
+	@Override
+	public void clearThreadLocals() {
+		bufferThreadLocal.remove();
 	}
 
 	@Override
