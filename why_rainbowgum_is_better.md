@@ -289,32 +289,6 @@ Logback and Rainbow Gum flush on every event with the thread that created the
 event. In irony TinyLog uses what Log4J2 does as a form of asynchronous log
 writting with what it calls the writer thread.
 
-### Framework integration
-
-Rainbow Gum provides dedicated integrations for Spring Boot 3/4, Micronaut 5, and
-Helidon SE 4. These participate in framework initialization or logging management,
-in addition to accepting log calls through a facade.
-
-| Logging implementation | Spring Boot | Micronaut | Helidon SE |
-| --- | --- | --- | --- |
-| **Rainbow Gum** | Dedicated `LoggingSystem` (Boot 3/4) | Dedicated `ManagedLoggingSystem` (5.x) | Dedicated `LoggingProvider` (4.x) |
-| Logback | Built-in support; default backend | Built-in logging and management support | Through Helidon's SLF4J integration |
-| Log4j2 | Built-in support | Built-in logging and management support | Dedicated Helidon Log4j provider |
-| tinylog | Adapter-based setup | SLF4J adapter; no dedicated management integration identified | Adapter-based setup; no dedicated Helidon provider identified |
-
-Spring Boot documents its [Logback and Log4j2 integrations](https://docs.spring.io/spring-boot/how-to/logging.html),
-and Micronaut supplies [management implementations for both](https://docs.micronaut.io/4.9.1/api/io/micronaut/management/endpoint/loggers/impl/package-summary.html).
-Helidon provides [SLF4J integration](https://helidon.io/docs/4.0.7/apidocs/io.helidon.logging.slf4j/io/helidon/logging/slf4j/package-summary.html)
-and a [Log4j provider](https://helidon.io/docs/v4/apidocs/io.helidon.logging.log4j/io/helidon/logging/log4j/Log4jProvider.html).
-tinylog offers [logging adapters](https://tinylog.org/download-preview/) and links to a
-[Spring Boot example](https://tinylog.org/external-resources/); routing log calls does
-not by itself integrate framework configuration or management endpoints.
-
-Rainbow Gum's [integration guide](https://jstach.io/rainbowgum/#spring_boot) covers
-the modules and setup. Its Micronaut module supports `logger.levels.*` and
-`/loggers`, while the Helidon provider handles bootstrap. Spring Boot 4 also has an
-optional Actuator module for Rainbow Gum metrics and diagnostic reports.
-
 ### Scoped Key Values
 
 Both Logback and Rainbow Gum are exploring Scoped Values:
@@ -451,6 +425,53 @@ cases) over hand-crafted unit tests aimed at specific lines. The percentage is a
 byproduct of testing real behavior thoroughly, not the target itself.
 
 ## Easy
+
+### No new logging API, low risk to try
+
+Rainbow Gum does not ship a logging API of its own for application code. It
+implements the facades applications and libraries already call: SLF4J,
+`System.Logger`, JUL, the Log4j2 API, and JBoss Logging. Log statements stay
+exactly as they are; trying Rainbow Gum is a dependency change (for example,
+replacing Logback with `rainbowgum-slf4j`), and going back is the same change in
+reverse.
+
+This differs from the alternatives in how much they ask of your code:
+
+* Log4j2 has its own API (`log4j-api`) alongside its SLF4J binding, and tinylog has
+  its own `org.tinylog.Logger`. Code written against those APIs is tied to that
+  family of implementations.
+* Reload4j keeps the Log4j 1 API for applications that still call it.
+* Logback, like Rainbow Gum, implements SLF4J directly instead of adding another
+  facade.
+
+Only configuration is specific to Rainbow Gum, and for most applications that is a
+handful of properties rather than an XML file to port.
+
+### Framework integration
+
+Rainbow Gum provides dedicated integrations for Spring Boot 3/4, Micronaut 5, and
+Helidon SE 4. These participate in framework initialization or logging management,
+in addition to accepting log calls through a facade.
+
+| Logging implementation | Spring Boot | Micronaut | Helidon SE |
+| --- | --- | --- | --- |
+| **Rainbow Gum** | Dedicated `LoggingSystem` (Boot 3/4) | Dedicated `ManagedLoggingSystem` (5.x) | Dedicated `LoggingProvider` (4.x) |
+| Logback | Built-in support; default backend | Built-in logging and management support | Through Helidon's SLF4J integration |
+| Log4j2 | Built-in support | Built-in logging and management support | Dedicated Helidon Log4j provider |
+| tinylog | Adapter-based setup | SLF4J adapter; no dedicated management integration identified | Adapter-based setup; no dedicated Helidon provider identified |
+
+Spring Boot documents its [Logback and Log4j2 integrations](https://docs.spring.io/spring-boot/how-to/logging.html),
+and Micronaut supplies [management implementations for both](https://docs.micronaut.io/4.9.1/api/io/micronaut/management/endpoint/loggers/impl/package-summary.html).
+Helidon provides [SLF4J integration](https://helidon.io/docs/4.0.7/apidocs/io.helidon.logging.slf4j/io/helidon/logging/slf4j/package-summary.html)
+and a [Log4j provider](https://helidon.io/docs/v4/apidocs/io.helidon.logging.log4j/io/helidon/logging/log4j/Log4jProvider.html).
+tinylog offers [logging adapters](https://tinylog.org/download-preview/) and links to a
+[Spring Boot example](https://tinylog.org/external-resources/); routing log calls does
+not by itself integrate framework configuration or management endpoints.
+
+Rainbow Gum's [integration guide](https://jstach.io/rainbowgum/#spring_boot) covers
+the modules and setup. Its Micronaut module supports `logger.levels.*` and
+`/loggers`, while the Helidon provider handles bootstrap. Spring Boot 4 also has an
+optional Actuator module for Rainbow Gum metrics and diagnostic reports.
 
 ### Programmatic configuration is dramatically less verbose
 
