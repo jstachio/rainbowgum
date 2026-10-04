@@ -36,10 +36,9 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	static final String EVENTS_DROPPED_METRIC = "events.dropped";
 
 	/**
-	 * Gauge name for the aggregate number of events waiting in blocking async publisher
-	 * queues. Events removed for processing are no longer counted, even while their
-	 * output is being written. Concurrent snapshots can briefly lead or lag queue
-	 * activity.
+	 * Gauge name for the aggregate number of events waiting in async publisher buffers.
+	 * Events removed for processing are no longer counted, even while their output is
+	 * being written. Concurrent snapshots can briefly lead or lag queue activity.
 	 */
 	static final String EVENTS_QUEUED_METRIC = "events.queued";
 

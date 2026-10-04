@@ -1,13 +1,11 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
-import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
@@ -16,6 +14,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * <ul>
  * <li>{@value #SYNC_SCHEME} - default sync publisher</li>
  * <li>{@value #ASYNC_SCHEME} - default async publisher</li>
+ * <li>{@value #BATCH_SWAP_SCHEME} - {@link BatchSwapAsyncLogPublisher}</li>
  * <li>{@value #DEFAULT_SCHEME} - by default this is the same as
  * {@link #SYNC_SCHEME}.</li>
  * </ul>
@@ -37,8 +36,20 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	 * This is URI scheme for the async publisher used by the publisher builder. Call
 	 * {@link #register(String, io.jstach.rainbowgum.LogPublisher.PublisherProvider)} with
 	 * this scheme to replace the default async publisher.
+	 * <p>
+	 * A module registering a replacement must support the {@value #BUFFER_SIZE_NAME} URI
+	 * query parameter. Both {@link PublisherFactory#ofAsync(Integer)} and
+	 * {@link LogPublisher.AsyncLogPublisher.Builder#bufferSize(int)} pass the requested
+	 * capacity through that parameter. The corresponding named property is
+	 * {@value #BUFFER_SIZE_PROPERTY}.
 	 */
 	public static String ASYNC_SCHEME = "async";
+
+	/**
+	 * Explicit scheme for {@link BatchSwapAsyncLogPublisher}, independent of which
+	 * implementation is registered as the default {@link #ASYNC_SCHEME} publisher.
+	 */
+	public static String BATCH_SWAP_SCHEME = "batchswap";
 
 	/**
 	 * This is the URI scheme for the sync publisher builder to find a sync publisher.
@@ -168,16 +179,19 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 
 		@Override
 		protected PublisherFactory provide(String name, LogProperties properties) {
-			int _bufferSize = properties.forKey(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name)
-				.ofInt() //
-				.or(LogPublisherRegistry.ASYNC_BUFFER_SIZE)
-				.validateNow(DefaultPublisherProviders.class);
-			int _shutdownTimeout = properties.forKey(LogPublisherRegistry.SHUTDOWN_TIMEOUT_PROPERTY, name)
-				.ofInt() //
-				.or(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT)
-				.validateNow(DefaultPublisherProviders.class);
-			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize,
-					config.alerts(), Duration.ofMillis(_shutdownTimeout));
+			return BATCH_SWAP.provide(name, properties);
+		}
+	},
+	BATCH_SWAP {
+
+		@Override
+		public String scheme() {
+			return LogPublisherRegistry.BATCH_SWAP_SCHEME;
+		}
+
+		@Override
+		protected PublisherFactory provide(String name, LogProperties properties) {
+			return BatchSwapAsyncLogPublisher.builder(name).fromProperties(properties).build();
 		}
 	};
 
