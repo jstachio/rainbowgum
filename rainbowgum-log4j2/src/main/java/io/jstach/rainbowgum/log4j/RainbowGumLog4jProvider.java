@@ -1,7 +1,11 @@
 package io.jstach.rainbowgum.log4j;
 
+import java.util.Map;
+
+import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.spi.Provider;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.svc.ServiceProvider;
 
 /**
@@ -20,11 +24,28 @@ import io.jstach.svc.ServiceProvider;
 @ServiceProvider(Provider.class)
 public final class RainbowGumLog4jProvider extends Provider {
 
+	/*
+	 * Log4j creates its provider before ThreadContext can hold anything. Reading
+	 * ThreadContext before then would make an unrelated logging API (JUL, ...) initialize
+	 * Log4j as a side effect.
+	 */
+	private static volatile boolean initialized;
+
 	/**
 	 * For {@link java.util.ServiceLoader}.
 	 */
+	@SuppressWarnings("StaticAssignmentInConstructor") // see initialized
 	public RainbowGumLog4jProvider() {
 		super(10, CURRENT_VERSION, RainbowGumLoggerContextFactory.class);
+		initialized = true;
+	}
+
+	static KeyValues currentThreadContextKeyValues() {
+		if (!initialized) {
+			return KeyValues.of();
+		}
+		Map<String, String> context = ThreadContext.getImmutableContext();
+		return context.isEmpty() ? KeyValues.of() : KeyValues.of(context);
 	}
 
 }

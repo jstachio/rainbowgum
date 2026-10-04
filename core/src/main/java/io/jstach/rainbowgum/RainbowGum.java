@@ -520,6 +520,14 @@ final class RainbowGumHolder {
 
 	static final GlobalChangePublisher globalChangePublisher = new GlobalChangePublisher();
 
+	/*
+	 * Lock free read for per event hot paths (see KeyValuesContributor.global()) where
+	 * possibly seeing the previous gum while another one binds is harmless.
+	 */
+	static @Nullable RainbowGum peek() {
+		return rainbowGum;
+	}
+
 	static @Nullable RainbowGum current() {
 		if (lock.readLock().tryLock()) {
 			try {

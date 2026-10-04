@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 import java.lang.System.Logger.Level;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -17,10 +18,12 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -37,15 +40,21 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LevelResolver;
+import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
+import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;
+import io.jstach.rainbowgum.jul.JULBridge;
 import io.jstach.rainbowgum.jul.JULConfigurator;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption;
 
 @TestMethodOrder(OrderAnnotation.class)
@@ -210,6 +219,60 @@ class JDKSetupTest {
 			Bundle bundle) throws InterruptedException {
 		doInLock(() -> {
 			_testBundleArgs(tester, level, loggerLevel, bundle, Arg.STRING);
+		});
+	}
+
+	/*
+	 * JUL and System.Logger have no context API of their own, so events from them carry
+	 * whatever registered KeyValuesContributors (SLF4J MDC, scoped key values, ...)
+	 * report for the logging thread.
+	 */
+	@Order(14)
+	@Test
+	void testKeyValuesContributed() throws InterruptedException {
+		doInLock(() -> {
+			ThreadLocal<KeyValues> context = new ThreadLocal<>();
+			ListLogOutput output = new ListLogOutput();
+			var config = LogConfig.builder()
+				.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class))
+				.level(Level.INFO)
+				.build();
+			KeyValuesContributor.register(config.serviceRegistry(),
+					KeyValuesContributor.Source.Standard.SCOPED_KEY_VALUES, () -> {
+						var kvs = context.get();
+						return kvs == null ? KeyValues.of() : kvs;
+					});
+			RainbowGum.set(() -> RainbowGum.builder(config).route(r -> {
+				r.appender("list", a -> a.output(output));
+				r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+			}).build());
+			try (var gum = RainbowGum.of()) {
+				context.set(KeyValues.of(Map.of("requestId", "abc")));
+				try {
+					Logger.getLogger("kv.jul").info("from jul");
+					new SystemLoggingFactory().getLogger("kv.system", null).log(Level.INFO, "from system logger");
+					var record = new LogRecord(java.util.logging.Level.INFO, "published elsewhere");
+					record.setLoggerName("kv.async");
+					Thread other = new Thread(() -> JULBridge.publish(record));
+					other.start();
+					try {
+						other.join();
+					}
+					catch (InterruptedException e) {
+						throw new AssertionError(e);
+					}
+				}
+				finally {
+					context.remove();
+				}
+				Logger.getLogger("kv.jul").info("after context removed");
+			}
+			var actual = output.events()
+				.stream()
+				.map(e -> e.getKey().loggerName() + " " + e.getKey().keyValues().getValueOrNull("requestId"))
+				.toList();
+			var expected = List.of("kv.jul abc", "kv.system abc", "kv.async null", "kv.jul null");
+			assertEquals(expected, actual);
 		});
 	}
 

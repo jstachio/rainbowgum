@@ -16,6 +16,7 @@ import io.jstach.rainbowgum.log4j.RainbowGumLog4jProvider;
  * same undigited {@code org.apache.logging.log4j} package/module name for its entire
  * 2.x line for the same reason.
  *
+ * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.apache.logging.log4j.spi.Provider
  */
 module io.jstach.rainbowgum.log4j {
@@ -29,5 +30,7 @@ module io.jstach.rainbowgum.log4j {
 	requires static io.jstach.svc;
 
 	provides org.apache.logging.log4j.spi.Provider with RainbowGumLog4jProvider;
+
+	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.log4j.Log4jKeyValuesConfigurator;
 
 }

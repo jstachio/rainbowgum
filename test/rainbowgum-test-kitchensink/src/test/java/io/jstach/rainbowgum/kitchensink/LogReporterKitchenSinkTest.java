@@ -199,9 +199,9 @@ class LogReporterKitchenSinkTest {
 					  events.dropped = 1 (ERROR)
 					  buffer.trimmed = 1 (WARNING)
 					  logger.names = 1 (INFO)
-					  io.jstach.rainbowgum.LogConfig = 11 (INFO)
+					  io.jstach.rainbowgum.LogConfig = 12 (INFO)
 
-					Alerts (total=12, capacity=512):
+					Alerts (total=13, capacity=512):
 					  INFO io.jstach.rainbowgum.LogConfig - Adding configurator: io.jstach.rainbowgum.jfr.JfrAlertListenerConfigurator
 					  INFO io.jstach.rainbowgum.LogConfig - Adding configurator: io.jstach.rainbowgum.jfr.JfrConfigurator
 					  INFO io.jstach.rainbowgum.LogConfig - Adding configurator: io.jstach.rainbowgum.disruptor.DisruptorConfigurator

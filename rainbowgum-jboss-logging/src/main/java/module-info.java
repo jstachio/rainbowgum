@@ -13,6 +13,7 @@ import io.jstach.rainbowgum.jbosslogging.RainbowGumJBossLoggerProvider;
  * {@code findProvider()} already does before falling back to any of that, so no extra
  * configuration is required.
  *
+ * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.jboss.logging.LoggerProvider
  */
 module io.jstach.rainbowgum.jbosslogging {
@@ -26,5 +27,7 @@ module io.jstach.rainbowgum.jbosslogging {
 	requires static io.jstach.svc;
 
 	provides org.jboss.logging.LoggerProvider with RainbowGumJBossLoggerProvider;
+
+	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.jbosslogging.JBossKeyValuesConfigurator;
 
 }

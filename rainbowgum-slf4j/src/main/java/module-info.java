@@ -48,6 +48,7 @@ import io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider;
  * Rainbow Gum's is mutable: each fluent call mutates and returns the same instance
  * rather than a new one.
  *
+ * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.slf4j.spi.SLF4JServiceProvider
  * @see io.jstach.rainbowgum.LogConfig.ChangePublisher
  */
@@ -63,5 +64,6 @@ module io.jstach.rainbowgum.slf4j {
 	requires transitive io.jstach.rainbowgum;
 	
 	provides org.slf4j.spi.SLF4JServiceProvider with RainbowGumSLF4JServiceProvider;
-	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.slf4j.SLF4JRainbowGumEagerLoad;
+	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with io.jstach.rainbowgum.slf4j.SLF4JRainbowGumEagerLoad,
+		io.jstach.rainbowgum.slf4j.SLF4JKeyValuesConfigurator;
 }

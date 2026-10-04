@@ -2,10 +2,13 @@ package io.jstach.rainbowgum.scopedkeyvalues.provider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues;
@@ -73,6 +76,22 @@ class ScopedKeyValuesConfiguratorTest {
 
 		assertEquals(1, list.events().size());
 		assertNull(list.events().get(0).getKey().keyValues().getValueOrNull("requestId"));
+	}
+
+	/*
+	 * No SLF4J involved: what JUL and System.Logger events see.
+	 */
+	@Test
+	void scopedKeyValuesAreContributedWithoutSlf4j() {
+		var config = LogConfig.builder().serviceLoader().build();
+		var contributor = KeyValuesContributor.of(config.serviceRegistry(), KeyValuesContributor.Source.Standard.SLF4J);
+		assertTrue(contributor.keyValues().isEmpty());
+		@Nullable String[] seen = new @Nullable String[1];
+		ScopedKeyValues.builder()
+			.add("requestId", "abc123")
+			.run(() -> seen[0] = contributor.keyValues().getValueOrNull("requestId"));
+		assertEquals("abc123", seen[0]);
+		assertTrue(contributor.keyValues().isEmpty());
 	}
 
 }

@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogRouter;
 
@@ -27,6 +28,12 @@ public final class JULBridge {
 
 	private JULBridge() {
 	}
+
+	/*
+	 * JUL has no context of its own so every registered contributor (SLF4J MDC, scoped
+	 * key values, ...) applies.
+	 */
+	private static final KeyValuesContributor KEY_VALUES = KeyValuesContributor.global();
 
 	private static final int TRACE_LEVEL_THRESHOLD = java.util.logging.Level.FINEST.intValue();
 
@@ -110,13 +117,19 @@ public final class JULBridge {
 		Instant timestamp = rec.getInstant();
 		long threadId = rec.getLongThreadID();
 		String threadName = "";
+		/*
+		 * Ambient key values are only meaningful on the thread that made the record. A
+		 * handler publishing on another thread (async) would otherwise attach the
+		 * publishing thread's context to someone else's record.
+		 */
+		KeyValues keyValues = KeyValues.of();
 		long currentThreadId = Thread.currentThread().threadId();
 		if (currentThreadId == threadId) {
 			threadName = Thread.currentThread().getName();
+			keyValues = KEY_VALUES.keyValues();
 		}
-		// TODO fix key values aka MDC
 		// TODO fix caller info
-		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, msg, KeyValues.of(), cause,
+		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, msg, keyValues, cause,
 				StandardMessageFormatter.JUL, args);
 		route.log(event);
 	}
