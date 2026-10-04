@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -14,8 +15,8 @@ import io.jstach.rainbowgum.LogMetrics.Gauge;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
 
 /**
- * An experimental bounded async publisher with one output worker. Producers block when
- * the pending buffer is full. Events are delivered in insertion order, including calls
+ * The default bounded async publisher with one output worker. Producers block when the
+ * pending buffer is full. Events are delivered in insertion order, including calls
  * already waiting for space when shutdown begins. New calls are rejected during shutdown.
  * <p>
  * Up to {@link Builder#bufferSize(int) bufferSize} events may wait for delivery while
@@ -26,8 +27,18 @@ import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
  * Closing waits for the configured timeout without interrupting output operations. If it
  * times out, an error alert is recorded and the worker continues draining before closing
  * the appender. Logging recursively from the worker is rejected to prevent deadlock.
+ * Rejected events increment {@link LogMetrics#EVENTS_DROPPED_METRIC}, with one error
+ * alert per rejection reason for each publisher. An interrupted producer can enqueue when
+ * space is available; interruption while waiting for space drops the event and preserves
+ * the interrupt flag.
  */
-public final class CodexAsyncPublisher implements AsyncLogPublisher {
+public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
+
+	private final String name;
+
+	private final LogMetrics metrics;
+
+	private final AtomicInteger alertedReasons = new AtomicInteger();
 
 	private final LogAppender appender;
 
@@ -64,13 +75,16 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 
 	// The method reference is invoked only by start(), after construction has finished.
 	@SuppressWarnings("methodref.receiver.bound")
-	private CodexAsyncPublisher(String name, LogConfig config, LogAppender appender, int capacity, long shutdownNanos) {
+	private BatchSwapAsyncLogPublisher(String name, LogConfig config, LogAppender appender, int capacity,
+			long shutdownNanos) {
+		this.name = name;
+		this.metrics = config.metrics();
 		this.appender = appender;
 		this.alerts = config.alerts();
 		this.queued = config.metrics().gauge(LogMetrics.EVENTS_QUEUED_METRIC, Level.INFO);
 		this.pending = new LogEvent[capacity];
 		this.shutdownNanos = shutdownNanos;
-		this.worker = new Thread(this::consume, "rainbowgum-codex-async-" + name);
+		this.worker = new Thread(this::consume, "rainbowgum-batch-swap-async-" + name);
 		this.worker.setDaemon(true);
 	}
 
@@ -131,8 +145,8 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 		public PublisherFactory build() {
 			int capacity = bufferSize;
 			long timeout = shutdownNanos;
-			return (name, config, appenders) -> new CodexAsyncPublisher(name, config, appenders.asSingle(), capacity,
-					timeout);
+			return (name, config, appenders) -> new BatchSwapAsyncLogPublisher(name, config, appenders.asSingle(),
+					capacity, timeout);
 		}
 
 	}
@@ -145,7 +159,7 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 				return;
 			}
 			if (state != State.NEW) {
-				throw new IllegalStateException("CodexAsyncPublisher cannot be restarted.");
+				throw new IllegalStateException("BatchSwapAsyncLogPublisher cannot be restarted.");
 			}
 			state = State.STARTING;
 			try {
@@ -172,53 +186,102 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 	@Override
 	public void log(LogEvent event) {
 		Objects.requireNonNull(event);
+		@Nullable Drop reason;
 		if (Thread.currentThread().equals(worker)) {
-			throw new IllegalStateException("Cannot publish recursively from the async worker.");
+			reason = Drop.REENTRANT;
 		}
-		try {
-			lock.lockInterruptibly();
+		else {
+			lock.lock();
 			try {
-				if (state != State.RUNNING) {
-					throw new IllegalStateException("CodexAsyncPublisher is not running.");
-				}
-				producers++;
-				try {
-					while (count == pending.length && state != State.FAILED && state != State.CLOSED) {
-						writable.await();
-					}
-					if (state == State.FAILED || state == State.CLOSED) {
-						throw new IllegalStateException(
-								"CodexAsyncPublisher worker stopped before accepting the event.");
-					}
-					pending[count++] = event;
-					queued.increment();
-					if (count == 1) {
-						readable.signal();
-					}
-				}
-				finally {
-					producers--;
-					// Pass available space to one waiter, including when this caller
-					// was interrupted. Avoid waking a herd that races to refill a batch.
-					if (producers != 0 && count < pending.length) {
-						writable.signal();
-					}
-					if (state == State.CLOSING && producers == 0) {
-						readable.signal();
-					}
-				}
+				reason = enqueueOrNull(event);
 			}
 			finally {
 				lock.unlock();
 			}
 		}
-		catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			alerts.error(CodexAsyncPublisher.class, "Interrupted while waiting to publish an event.", e);
+		// Alert listeners can themselves log. Never call them under the queue lock.
+		if (reason != null) {
+			dropped(reason, 1);
 		}
 	}
 
+	// Called with lock held. Null means the event was accepted.
+	private @Nullable Drop enqueueOrNull(LogEvent event) {
+		if (state != State.RUNNING) {
+			return switch (state) {
+				case NEW, STARTING -> Drop.NOT_STARTED;
+				case FAILED -> Drop.WORKER_FAILED;
+				default -> Drop.CLOSED;
+			};
+		}
+		producers++;
+		try {
+			while (count == pending.length && state != State.FAILED && state != State.CLOSED) {
+				writable.await();
+			}
+			if (state == State.FAILED || state == State.CLOSED) {
+				return Drop.WORKER_FAILED;
+			}
+			pending[count++] = event;
+			queued.increment();
+			if (count == 1) {
+				readable.signal();
+			}
+			return null;
+		}
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return Drop.INTERRUPTED;
+		}
+		finally {
+			producers--;
+			// Pass available space to one waiter, including when this caller
+			// was interrupted. Avoid waking a herd that races to refill a batch.
+			if (producers != 0 && count < pending.length) {
+				writable.signal();
+			}
+			if (state == State.CLOSING && producers == 0) {
+				readable.signal();
+			}
+		}
+	}
+
+	private enum Drop {
+
+		NOT_STARTED(1 << 0, "the publisher has not been started"), CLOSED(1 << 1, "the publisher is closing or closed"),
+		INTERRUPTED(1 << 2, "the logging thread was interrupted while the buffer was full"),
+		REENTRANT(1 << 3, "the publisher's own thread logged recursively"),
+		WORKER_FAILED(1 << 4, "the worker stopped before delivering the event");
+
+		final String description;
+
+		final int bit;
+
+		Drop(int bit, String description) {
+			this.description = description;
+			this.bit = bit;
+		}
+
+	}
+
+	private void dropped(Drop reason, int size) {
+		metrics.errorCounter(LogMetrics.EVENTS_DROPPED_METRIC, size);
+		int previous;
+		do {
+			previous = alertedReasons.get();
+			if ((previous & reason.bit) != 0) {
+				return;
+			}
+		}
+		while (!alertedReasons.compareAndSet(previous, previous | reason.bit));
+		alerts.error(BatchSwapAsyncLogPublisher.class,
+				new IllegalStateException("Async publisher '" + name + "' dropped " + size + " event(s): "
+						+ reason.description + ". Further drops for this reason are only counted in "
+						+ LogMetrics.EVENTS_DROPPED_METRIC + "."));
+	}
+
 	private void consume() {
+		@Nullable Throwable failure = null;
 		try {
 			LogEvent[] batch = new LogEvent[pending.length];
 			while (true) {
@@ -247,23 +310,29 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 				try {
 					appender.append(batch, size);
 				}
+				catch (RuntimeException | Error e) {
+					metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, size);
+					throw e;
+				}
 				finally {
 					Arrays.fill(batch, 0, size, null);
 				}
 			}
 		}
 		catch (RuntimeException | Error e) {
-			alerts.error(CodexAsyncPublisher.class, "Async worker failed.", e);
+			failure = e;
 		}
 		finally {
-			finish();
+			finish(failure);
 		}
 	}
 
-	private void finish() {
+	private void finish(@Nullable Throwable failure) {
+		int discarded;
 		lock.lock();
 		try {
-			state = State.FAILED;
+			state = failure == null ? State.CLOSING : State.FAILED;
+			discarded = count;
 			queued.decrement(count);
 			Arrays.fill(pending, null);
 			count = 0;
@@ -273,10 +342,25 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 			lock.unlock();
 		}
 		try {
+			// Stop admission and release waiters before notifying listeners.
+			if (failure != null) {
+				alerts.error(BatchSwapAsyncLogPublisher.class, "Async worker failed.", failure);
+			}
+			if (discarded != 0) {
+				dropped(Drop.WORKER_FAILED, discarded);
+			}
+		}
+		finally {
+			closeAppender();
+		}
+	}
+
+	private void closeAppender() {
+		try {
 			appender.close();
 		}
 		catch (RuntimeException | Error e) {
-			alerts.error(CodexAsyncPublisher.class, "Failed to close async appender.", e);
+			alerts.error(BatchSwapAsyncLogPublisher.class, "Failed to close async appender.", e);
 		}
 		finally {
 			lock.lock();
@@ -302,7 +386,7 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 				return;
 			}
 			if (state == State.STARTING) {
-				throw new IllegalStateException("Cannot close CodexAsyncPublisher during appender startup.");
+				throw new IllegalStateException("Cannot close BatchSwapAsyncLogPublisher during appender startup.");
 			}
 			if (state == State.NEW) {
 				state = State.CLOSING;
@@ -337,14 +421,14 @@ public final class CodexAsyncPublisher implements AsyncLogPublisher {
 			}
 		}
 		if (closeUnstarted) {
-			finish();
+			finish(null);
 		}
 		else if (interruptedWait != null) {
-			alerts.error(CodexAsyncPublisher.class, "Interrupted while waiting for async publisher shutdown.",
+			alerts.error(BatchSwapAsyncLogPublisher.class, "Interrupted while waiting for async publisher shutdown.",
 					interruptedWait);
 		}
 		else if (timedOut) {
-			alerts.error(CodexAsyncPublisher.class, "Async publisher is still draining after close.",
+			alerts.error(BatchSwapAsyncLogPublisher.class, "Async publisher is still draining after close.",
 					new TimeoutException("Shutdown wait ended before the appender closed."));
 		}
 	}

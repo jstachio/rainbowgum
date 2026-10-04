@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
+import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 @Timeout(30)
-class CodexAsyncPublisherTest {
+class BatchSwapAsyncLogPublisherTest {
 
 	enum Producers {
 
@@ -137,9 +138,11 @@ class CodexAsyncPublisherTest {
 					threads.getFirst().interrupt();
 					join(threads.getFirst());
 					assertTrue(producerInterrupted.get());
-					assertEquals("""
-							Interrupted while waiting to publish an event.\
-							""", config.alerts().dump().getFirst().message());
+					assertEquals(
+							"""
+									Async publisher 'test' dropped 1 event(s): the logging thread was interrupted while the buffer was full. Further drops for this reason are only counted in events.dropped.\
+									""",
+							config.alerts().dump().getFirst().message());
 				}
 				var closer = Thread.ofPlatform().start(() -> {
 					if (mode == Shutdown.PRE_INTERRUPTED_CLOSER) {
@@ -159,10 +162,12 @@ class CodexAsyncPublisherTest {
 					join(closer);
 				}
 				assertEquals(0, output.closes.get());
-				assertEquals("""
-						CodexAsyncPublisher is not running.\
-						""",
-						assertThrows(IllegalStateException.class, () -> publisher.log(event("late"))).getMessage());
+				publisher.log(event("late"));
+				assertEquals(
+						"""
+								Async publisher 'test' dropped 1 event(s): the publisher is closing or closed. Further drops for this reason are only counted in events.dropped.\
+								""",
+						config.alerts().dump().getLast().message());
 				release.countDown();
 				for (var thread : threads) {
 					join(thread);
@@ -173,6 +178,8 @@ class CodexAsyncPublisherTest {
 						closerInterrupted.get());
 				assertEquals(null, failure.get());
 				assertEquals(mode == Shutdown.INTERRUPTED_PRODUCER ? 17 : 18, output.events().size());
+				assertEquals(mode == Shutdown.INTERRUPTED_PRODUCER ? 2 : 1,
+						metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
 				assertEquals(0, queued(config));
 				assertEquals(1, output.closes.get());
 			}
@@ -196,7 +203,20 @@ class CodexAsyncPublisherTest {
 		var config = LogConfig.builder().build();
 		var publisher = publisher(config, output, 1, Duration.ofSeconds(5));
 		publisher.start(config);
-		try {
+		var listenerCompleted = new AtomicBoolean();
+		try (var registration = config.alerts().addListener(alert -> {
+			if (alert.message().equals("Async worker failed.")) {
+				var thread = Thread.ofVirtual().start(() -> publisher.log(event("from alert listener")));
+				try {
+					join(thread);
+					listenerCompleted.set(true);
+				}
+				catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new AssertionError(e);
+				}
+			}
+		})) {
 			publisher.log(event("first"));
 			await(entered);
 			publisher.log(event("pending"));
@@ -213,12 +233,21 @@ class CodexAsyncPublisherTest {
 			release.countDown();
 			join(producer);
 			publisher.close();
-			assertEquals("""
-					CodexAsyncPublisher worker stopped before accepting the event.\
-					""", java.util.Objects.requireNonNull(failure.get()).getMessage());
-			assertEquals("""
-					Async worker failed.\
-					""", config.alerts().dump().getFirst().message());
+			assertEquals(null, failure.get());
+			assertEquals(
+					"""
+							Async publisher 'test' dropped 1 event(s): the worker stopped before delivering the event. Further drops for this reason are only counted in events.dropped.
+							Async worker failed.
+							""",
+					config.alerts()
+						.dump()
+						.stream()
+						.map(LogEvent::message)
+						.sorted()
+						.collect(java.util.stream.Collectors.joining("\n", "", "\n")));
+			assertTrue(listenerCompleted.get());
+			assertEquals(3, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+			assertEquals(1, metric(config, LogMetrics.EVENTS_FAILED_METRIC));
 			assertEquals(0, queued(config));
 			assertEquals(1, output.closes.get());
 		}
@@ -233,9 +262,15 @@ class CodexAsyncPublisherTest {
 		var output = new LifecycleOutput();
 		var config = LogConfig.builder().build();
 		var publisher = publisher(config, output, 1, Duration.ofSeconds(5));
-		assertEquals("""
-				CodexAsyncPublisher is not running.\
-				""", assertThrows(IllegalStateException.class, () -> publisher.log(event("early"))).getMessage());
+		publisher.log(event("early"));
+		publisher.log(event("early again"));
+		assertEquals(
+				"""
+						Async publisher 'test' dropped 1 event(s): the publisher has not been started. Further drops for this reason are only counted in events.dropped.\
+						""",
+				config.alerts().dump().getFirst().message());
+		assertEquals(1, config.alerts().dump().size());
+		assertEquals(2, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
 		publisher.start(config);
 		publisher.start(config);
 		publisher.log(event("one"));
@@ -245,7 +280,7 @@ class CodexAsyncPublisherTest {
 		assertEquals(1, output.closes.get());
 		assertEquals(1, output.events().size());
 		assertEquals("""
-				CodexAsyncPublisher cannot be restarted.\
+				BatchSwapAsyncLogPublisher cannot be restarted.\
 				""", assertThrows(IllegalStateException.class, () -> publisher.start(config)).getMessage());
 	}
 
@@ -278,27 +313,150 @@ class CodexAsyncPublisherTest {
 		var output = new LifecycleOutput();
 		var config = LogConfig.builder().build();
 		var publisher = publisher(config, output, 1, Duration.ofSeconds(5));
-		var result = new AtomicReference<String>();
 		output.setConsumer((event, text) -> {
-			result.set(assertThrows(IllegalStateException.class, () -> publisher.log(event("recursive"))).getMessage());
+			publisher.log(event("recursive"));
+			publisher.log(event("recursive again"));
 			publisher.close();
 		});
 		publisher.start(config);
 		publisher.log(event("one"));
 		publisher.close();
-		assertEquals("""
-				Cannot publish recursively from the async worker.\
-				""", result.get());
+		assertEquals(
+				"""
+						Async publisher 'test' dropped 1 event(s): the publisher's own thread logged recursively. Further drops for this reason are only counted in events.dropped.\
+						""",
+				config.alerts().dump().getFirst().message());
+		assertEquals(1, config.alerts().dump().size());
+		assertEquals(2, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
 		assertEquals(1, output.events().size());
 		assertEquals(1, output.closes.get());
 	}
 
-	private static CodexAsyncPublisher publisher(LogConfig config, LogOutput output, int capacity, Duration timeout) {
+	@Test
+	void concurrentDropsAreCountedButAlertedOnce() throws Exception {
+		var config = LogConfig.builder().build();
+		var publisher = publisher(config, new LifecycleOutput(), 1, Duration.ofSeconds(5));
+		publisher.close();
+		var start = new CountDownLatch(1);
+		var threads = new ArrayList<Thread>();
+		for (int i = 0; i < 16; i++) {
+			threads.add(Thread.ofVirtual().start(() -> {
+				await(start);
+				for (int n = 0; n < 100; n++) {
+					publisher.log(event("closed"));
+				}
+			}));
+		}
+		start.countDown();
+		for (var thread : threads) {
+			join(thread);
+		}
+		assertEquals(1600, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+		assertEquals(1, config.alerts().dump().size());
+		assertEquals(
+				"""
+						Async publisher 'test' dropped 1 event(s): the publisher is closing or closed. Further drops for this reason are only counted in events.dropped.\
+						""",
+				config.alerts().dump().getFirst().message());
+	}
+
+	@Test
+	void interruptedCallerEnqueuesWhenSpaceIsAvailable() throws Exception {
+		var output = new LifecycleOutput();
+		var config = LogConfig.builder().build();
+		var publisher = publisher(config, output, 1, Duration.ofSeconds(5));
+		publisher.start(config);
+		var interrupted = new AtomicBoolean();
+		var producer = Thread.ofPlatform().start(() -> {
+			Thread.currentThread().interrupt();
+			publisher.log(event("interrupted"));
+			interrupted.set(Thread.currentThread().isInterrupted());
+		});
+		join(producer);
+		publisher.close();
+		assertTrue(interrupted.get());
+		assertEquals(1, output.events().size());
+		assertEquals(0, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+		assertEquals(List.of(), config.alerts().dump());
+	}
+
+	enum Configuration {
+
+		ASYNC, CORE_ASYNC, URI, PROPERTIES_OVERRIDE, BUILDER
+
+	}
+
+	@ParameterizedTest
+	@EnumSource
+	void defaultPublisherHonorsConfiguration(Configuration mode) throws Exception {
+		var output = new LifecycleOutput();
+		var entered = new CountDownLatch(1);
+		var release = new CountDownLatch(1);
+		output.setConsumer((event, text) -> {
+			if (event.message().equals("first")) {
+				entered.countDown();
+				await(release);
+			}
+		});
+		// Named properties take precedence over URI defaults.
+		var properties = LogProperties.builder().fromProperties(mode == Configuration.URI ? """
+				""" : """
+				logging.publisher.test.bufferSize=1
+				logging.publisher.test.shutdownTimeout=0
+				""").build();
+		var config = LogConfig.builder().properties(properties).build();
+		LogPublisher.PublisherFactory factory = switch (mode) {
+			case ASYNC -> config.publisherRegistry().provide(LogProviderRef.of(URI.create("async")));
+			case CORE_ASYNC -> config.publisherRegistry().provide(LogProviderRef.of(URI.create("core.async")));
+			case URI -> config.publisherRegistry()
+				.provide(LogProviderRef.of(URI.create("async:///?bufferSize=1&shutdownTimeout=0")));
+			case PROPERTIES_OVERRIDE -> config.publisherRegistry()
+				.provide(LogProviderRef.of(URI.create("async:///?bufferSize=17&shutdownTimeout=10000")));
+			case BUILDER -> LogPublisher.AsyncLogPublisher.builder().bufferSize(1).build();
+		};
 		var appender = LogAppender.builder("test")
 			.output(output)
 			.formatter(LogFormatter.builder().message().build())
 			.build();
-		return (CodexAsyncPublisher) CodexAsyncPublisher.builder()
+		var publisher = factory.create("test", config, new LogAppender.Appenders("test", config, List.of(appender)));
+		assertEquals(BatchSwapAsyncLogPublisher.class, publisher.getClass());
+		publisher.start(config);
+		try {
+			publisher.log(event("first"));
+			await(entered);
+			publisher.log(event("second"));
+			var producer = Thread.ofPlatform().start(() -> publisher.log(event("third")));
+			awaitState(producer, Thread.State.WAITING);
+			assertEquals(1, queued(config));
+			publisher.close();
+			assertEquals("""
+					Async publisher is still draining after close.\
+					""", config.alerts().dump().getFirst().message());
+			assertEquals(0, output.closes.get());
+			release.countDown();
+			join(producer);
+			long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+			while (output.closes.get() == 0 && System.nanoTime() < deadline) {
+				Thread.sleep(1);
+			}
+			assertEquals(1, output.closes.get());
+			assertEquals(List.of("first", "second", "third"),
+					output.events().stream().map(e -> e.getKey().message()).toList());
+			assertEquals(0, queued(config));
+		}
+		finally {
+			release.countDown();
+			publisher.close();
+		}
+	}
+
+	private static BatchSwapAsyncLogPublisher publisher(LogConfig config, LogOutput output, int capacity,
+			Duration timeout) {
+		var appender = LogAppender.builder("test")
+			.output(output)
+			.formatter(LogFormatter.builder().message().build())
+			.build();
+		return (BatchSwapAsyncLogPublisher) BatchSwapAsyncLogPublisher.builder()
 			.bufferSize(capacity)
 			.shutdownTimeout(timeout)
 			.build()
@@ -310,10 +468,14 @@ class CodexAsyncPublisherTest {
 	}
 
 	private static long queued(LogConfig config) {
+		return metric(config, LogMetrics.EVENTS_QUEUED_METRIC);
+	}
+
+	private static long metric(LogConfig config, String name) {
 		return config.metrics()
 			.snapshot()
 			.stream()
-			.filter(m -> m.name().equals(LogMetrics.EVENTS_QUEUED_METRIC))
+			.filter(m -> m.name().equals(name))
 			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 	}

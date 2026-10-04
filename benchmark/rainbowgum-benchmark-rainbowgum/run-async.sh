@@ -16,14 +16,14 @@ results=$(realpath "$results")
 
 ./mvnw -pl benchmark/rainbowgum-benchmark-rainbowgum -am verify > "$results/build.log" 2>&1
 classpath=core/target/classes:rainbowgum-annotation/target/classes:benchmark/rainbowgum-benchmark-rainbowgum/target/classes
-implementations=BLOCKING,CODEX
+implementations=BLOCKING,BATCH_SWAP
 if [[ -n "$opus_ref" ]]; then
     opus_commit=$(git rev-parse --verify "${opus_ref}^{commit}")
     opus_source=core/src/main/java/io/jstach/rainbowgum/publisher/OpusAsyncPublisher.java
     mkdir -p "$results/opus-source" "$results/opus-classes"
     git show "$opus_commit:$opus_source" > "$results/opus-source/OpusAsyncPublisher.java"
     printf '%s\n' "$opus_commit" > "$results/opus-commit.txt"
-    git rev-parse HEAD > "$results/codex-commit.txt"
+    git rev-parse HEAD > "$results/batch-swap-commit.txt"
     ./mvnw -pl core -Dmaven.build.cache.enabled=false dependency:build-classpath \
         -Dmdep.outputFile="$results/core-classpath.txt" \
         > "$results/classpath.log" 2>&1
@@ -31,7 +31,7 @@ if [[ -n "$opus_ref" ]]; then
     javac --release 21 -cp "$classpath:$core_dependencies" \
         -d "$results/opus-classes" "$results/opus-source/OpusAsyncPublisher.java"
     classpath="$classpath:$results/opus-classes"
-    implementations=BLOCKING,CODEX,OPUS
+    implementations=BLOCKING,BATCH_SWAP,OPUS
     java -cp "$classpath" io.jstach.rainbowgum.rainbowgum.AsyncPublisherBehaviorProbe \
         > "$results/behavior.txt" 2> "$results/behavior.log"
 fi

@@ -7,7 +7,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
-import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
@@ -176,8 +175,10 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 				.ofInt() //
 				.or(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT)
 				.validateNow(DefaultPublisherProviders.class);
-			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize,
-					config.alerts(), Duration.ofMillis(_shutdownTimeout));
+			return BatchSwapAsyncLogPublisher.builder()
+				.bufferSize(_bufferSize)
+				.shutdownTimeout(Duration.ofMillis(_shutdownTimeout))
+				.build();
 		}
 	};
 

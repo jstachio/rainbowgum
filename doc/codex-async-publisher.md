@@ -1,5 +1,13 @@
 # CodexAsyncPublisher experiment
 
+This document records the original experiment and its measurements. The successor,
+`BatchSwapAsyncLogPublisher`, now provides the default `async` publisher, with counted
+drops and delivery for interrupted callers when space is available. The historical
+results and behavior descriptions below refer to the original revisions. The current
+benchmark runner labels the successor `BATCH_SWAP` and selects the old blocking queue
+baseline explicitly. Check out the documented historical revision to reproduce the
+original comparison.
+
 For the subsequent comparison with Opus, including a common benchmark and
 lifecycle findings, see [Codex and Opus comparison](codex-opus-async-comparison.md).
 

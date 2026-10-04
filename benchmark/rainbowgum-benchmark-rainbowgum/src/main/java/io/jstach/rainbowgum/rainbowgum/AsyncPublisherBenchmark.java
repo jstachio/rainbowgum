@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.rainbowgum;
 
 import java.lang.System.Logger.Level;
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,7 +14,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.jstach.rainbowgum.CodexAsyncPublisher;
+import io.jstach.rainbowgum.BatchSwapAsyncLogPublisher;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogAppender.AppenderType;
 import io.jstach.rainbowgum.LogConfig;
@@ -26,6 +27,7 @@ import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
+import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 
 /**
  * Standalone comparison through public publisher factories. Times complete delivery,
@@ -39,12 +41,13 @@ public final class AsyncPublisherBenchmark {
 
 	enum Implementation {
 
-		BLOCKING, CODEX, OPUS;
+		BLOCKING, BATCH_SWAP, OPUS;
 
 		PublisherFactory factory(int capacity) {
 			return switch (this) {
-				case CODEX -> CodexAsyncPublisher.builder().bufferSize(capacity).build();
-				case BLOCKING -> PublisherFactory.ofAsync(capacity);
+				case BATCH_SWAP -> BatchSwapAsyncLogPublisher.builder().bufferSize(capacity).build();
+				case BLOCKING -> (name, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(),
+						capacity, config.alerts(), Duration.ofSeconds(10));
 				case OPUS -> opusFactory(capacity);
 			};
 		}
@@ -89,7 +92,7 @@ public final class AsyncPublisherBenchmark {
 	 * Runs the matrix and emits CSV to stdout.
 	 * @param args total events per run, warmups, measured repetitions, capacity, and
 	 * optional order seed and comma separated implementations. Defaults: 500000, 2, 5,
-	 * 1024, 0, BLOCKING,CODEX.
+	 * 1024, 0, BLOCKING,BATCH_SWAP.
 	 * @throws Exception if delivery or validation fails.
 	 */
 	public static void main(String[] args) throws Exception {
@@ -99,7 +102,7 @@ public final class AsyncPublisherBenchmark {
 		int capacity = args.length > 3 ? Integer.parseInt(args[3]) : 1024;
 		int seed = args.length > 4 ? Integer.parseInt(args[4]) : 0;
 		var implementations = args.length > 5 ? Arrays.stream(args[5].split(",")).map(Implementation::valueOf).toList()
-				: List.of(Implementation.BLOCKING, Implementation.CODEX);
+				: List.of(Implementation.BLOCKING, Implementation.BATCH_SWAP);
 		if (events < 16384 || warmups < 0 || repetitions < 1 || capacity < 1) {
 			throw new IllegalArgumentException(
 					"Require at least 16384 events, nonnegative warmups, positive repetitions and positive capacity.");

@@ -32,7 +32,7 @@ public final class AsyncPublisherBehaviorProbe {
 	 * @throws Exception if coordination fails.
 	 */
 	public static void main(String[] args) throws Exception {
-		for (var implementation : new Implementation[] { Implementation.CODEX, Implementation.OPUS }) {
+		for (var implementation : new Implementation[] { Implementation.BATCH_SWAP, Implementation.OPUS }) {
 			startupFailure(implementation);
 			interruptedWithSpace(implementation);
 			closeWithWaitingProducer(implementation);
