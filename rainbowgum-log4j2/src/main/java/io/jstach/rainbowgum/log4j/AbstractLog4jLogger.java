@@ -63,7 +63,8 @@ abstract class AbstractLog4jLogger extends AbstractLogger implements LogEventFac
 	private static final int MAX_FRAMES = 32;
 
 	/*
-	 * Every other registered context store goes underneath ThreadContext.
+	 * Every other registered context store goes underneath ThreadContext, except the
+	 * application's USER contributor which goes above it.
 	 */
 	private static final KeyValuesContributor OTHER_KEY_VALUES = KeyValuesContributor
 		.global(KeyValuesContributor.Source.Standard.LOG4J2);
@@ -83,7 +84,7 @@ abstract class AbstractLog4jLogger extends AbstractLogger implements LogEventFac
 	@Override
 	public final KeyValues defaultKeyValues() {
 		Map<String, String> mdc = ThreadContext.getImmutableContext();
-		return KeyValues.merge(OTHER_KEY_VALUES.keyValues(), mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc));
+		return OTHER_KEY_VALUES.keyValues(mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc));
 	}
 
 	@Override

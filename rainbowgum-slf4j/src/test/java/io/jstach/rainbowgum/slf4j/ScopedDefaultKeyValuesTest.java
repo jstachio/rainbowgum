@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
-import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -30,17 +29,10 @@ class ScopedDefaultKeyValuesTest {
 	 * point being tested; "scopedOnly" is present only in scoped, to confirm it actually
 	 * comes through at all, not just "doesn't clobber MDC".
 	 */
-	private static final LogEventFactory SCOPED = new LogEventFactory() {
-		@Override
-		public String loggerName() {
-			throw new UnsupportedOperationException();
-		}
+	private static final KeyValues SCOPED_KEY_VALUES = KeyValues
+		.of(java.util.Map.of("env", "scoped-env", "scopedOnly", "present"));
 
-		@Override
-		public KeyValues defaultKeyValues() {
-			return KeyValues.of(java.util.Map.of("env", "scoped-env", "scopedOnly", "present"));
-		}
-	};
+	private static final KeyValuesContributor SCOPED = () -> SCOPED_KEY_VALUES;
 
 	private static void assertMerged(KeyValues kvs) {
 		assertEquals("mdc-env", kvs.getValueOrNull("env"), "MDC must win the collision, not scoped");
@@ -68,7 +60,7 @@ class ScopedDefaultKeyValuesTest {
 	@Test
 	void plainHandlerIsUnchangedWithNothingRegistered() {
 		var handler = LogEventHandler.of("test", e -> {
-		}, mdcWithEnv(), NoopLogEventFactory.INSTANCE);
+		}, mdcWithEnv(), NoopKeyValuesContributor.INSTANCE);
 		assertMdcOnly(handler.defaultKeyValues());
 	}
 
@@ -117,7 +109,7 @@ class ScopedDefaultKeyValuesTest {
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config).route(route -> route.appender("list", a -> a.output(list))).build();
 		KeyValuesContributor.register(config.serviceRegistry(), KeyValuesContributor.Source.Standard.SCOPED_KEY_VALUES,
-				SCOPED::defaultKeyValues);
+				SCOPED);
 		var mdc = mdcWithEnv();
 		try (var g = gum.start()) {
 			var factory = new RainbowGumLoggerFactory(g, mdc);
@@ -139,6 +131,33 @@ class ScopedDefaultKeyValuesTest {
 		}
 		assertEquals(1, list.events().size());
 		assertMdcOnly(list.events().get(0).getKey().keyValues());
+	}
+
+	/*
+	 * The application's USER contributor wins over MDC, which wins over the others.
+	 */
+	@Test
+	void userContributorWinsOverMdc() {
+		var list = new ListLogOutput();
+		var config = LogConfig.builder().build();
+		var gum = RainbowGum.builder(config).route(route -> route.appender("list", a -> a.output(list))).build();
+		KeyValuesContributor.register(config.serviceRegistry(), KeyValuesContributor.Source.Standard.SCOPED_KEY_VALUES,
+				SCOPED);
+		var user = KeyValues.of(java.util.Map.of("env", "user-env"));
+		KeyValuesContributor.register(config.serviceRegistry(), KeyValuesContributor.Source.Standard.USER, () -> user);
+		var mdc = mdcWithEnv();
+		try (var g = gum.start()) {
+			var factory = new RainbowGumLoggerFactory(g, mdc);
+			factory.getLogger("test").info("hello");
+			factory.getLogger("test").atInfo().addKeyValue("extra", "fromBuilder").log("fluent");
+		}
+		assertEquals(2, list.events().size());
+		for (var e : list.events()) {
+			var kvs = e.getKey().keyValues();
+			assertEquals("user-env", kvs.getValueOrNull("env"));
+			assertEquals("present", kvs.getValueOrNull("scopedOnly"));
+		}
+		assertEquals("fromBuilder", list.events().get(1).getKey().keyValues().getValueOrNull("extra"));
 	}
 
 }

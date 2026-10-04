@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
-import io.jstach.rainbowgum.LogEventFactory;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogEventLogger;
 
 final class CallerInfoEventDecorator implements LogEventHandler {
@@ -19,19 +19,19 @@ final class CallerInfoEventDecorator implements LogEventHandler {
 
 	private final RainbowGumMDCAdapter mdc;
 
-	private final LogEventFactory delegate;
+	private final KeyValuesContributor contributor;
 
 	public CallerInfoEventDecorator(String loggerName, RainbowGumMDCAdapter mdc, LogEventLogger logger) {
-		this(loggerName, mdc, logger, NoopLogEventFactory.INSTANCE, CALLER_DEPTH_DELTA);
+		this(loggerName, mdc, logger, NoopKeyValuesContributor.INSTANCE, CALLER_DEPTH_DELTA);
 	}
 
 	public CallerInfoEventDecorator(String loggerName, RainbowGumMDCAdapter mdc, LogEventLogger logger,
-			LogEventFactory delegate, int depth) {
+			KeyValuesContributor contributor, int depth) {
 		super();
 		this.loggerName = loggerName;
 		this.mdc = mdc;
 		this.logger = logger;
-		this.delegate = delegate;
+		this.contributor = contributor;
 		this.depth = depth;
 	}
 
@@ -42,12 +42,12 @@ final class CallerInfoEventDecorator implements LogEventHandler {
 
 	@Override
 	public LogEventHandler withDepth(int depth) {
-		return new CallerInfoEventDecorator(loggerName, mdc, logger, delegate, CALLER_DEPTH_DELTA + depth);
+		return new CallerInfoEventDecorator(loggerName, mdc, logger, contributor, CALLER_DEPTH_DELTA + depth);
 	}
 
 	@Override
-	public LogEventFactory delegate() {
-		return delegate;
+	public KeyValuesContributor contributor() {
+		return contributor;
 	}
 
 	@Override

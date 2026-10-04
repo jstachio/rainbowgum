@@ -11,6 +11,7 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventFactory;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogEventLogger;
 
 interface LogEventHandler extends LogEventFactory, LogEventLogger {
@@ -62,28 +63,27 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 	public boolean isCallerAware();
 
 	/**
-	 * Lower precedence key values source consulted underneath {@link #mdc()}'s current
-	 * key values by {@link #defaultKeyValues()} and {@link #copyDefaultKeyValues()}.
-	 * Defaults to a no-op factory (empty key values) so no call site ever needs to null
-	 * check - a real, non-default delegate is only ever supplied at handler-construction
-	 * time in {@link RainbowGumLoggerFactory}, by looking one up in the
-	 * {@code ServiceRegistry}.
-	 * @return delegate, never {@code null}.
+	 * The other registered key values contributors, merged with {@link #mdc()}'s current
+	 * key values by {@link #defaultKeyValues()} and {@link #copyDefaultKeyValues()}: MDC
+	 * wins over all of them except the application's own USER contributor. Defaults to a
+	 * no-op contributor so no call site ever needs to null check. A real one is only ever
+	 * supplied at handler-construction time in {@link RainbowGumLoggerFactory}.
+	 * @return contributor, never {@code null}.
 	 */
-	default LogEventFactory delegate() {
-		return NoopLogEventFactory.INSTANCE;
+	default KeyValuesContributor contributor() {
+		return NoopKeyValuesContributor.INSTANCE;
 	}
 
 	@Override
 	default KeyValues defaultKeyValues() {
 		/*
-		 * KeyValues.merge itself returns mdc().keyValues() unchanged when delegate() is
-		 * the no-op default (the overwhelming majority of log calls) - no composite, no
-		 * copy, for that common case. Router.log() (LogRouter.java) freezes the event -
-		 * which defensively copies the key values - only when the route is actually
+		 * The contributor hands back mdc().keyValues() unchanged when nothing else
+		 * contributes (the overwhelming majority of log calls) - no composite, no copy,
+		 * for that common case. Router.log() (LogRouter.java) freezes the event - which
+		 * defensively copies the key values - only when the route is actually
 		 * asynchronous, i.e. only when a copy is ever needed at all.
 		 */
-		return KeyValues.merge(delegate().defaultKeyValues(), mdc().keyValues());
+		return contributor().keyValues(mdc().keyValues());
 	}
 
 	/**
@@ -94,14 +94,15 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 	 * mutates it.
 	 * @return a new mutable key values, safe to mutate.
 	 */
+	@SuppressWarnings("ReferenceEquality") // unchanged MDC means nothing else contributed
 	default MutableKeyValues copyDefaultKeyValues() {
-		var extra = delegate().defaultKeyValues();
-		if (extra.isEmpty()) {
+		var own = mdc().keyValues();
+		var merged = contributor().keyValues(own);
+		if (merged == own) {
 			return mdc().copyMutableKeyValues();
 		}
 		var buf = MutableKeyValues.of();
-		extra.forEach(buf);
-		mdc().keyValues().forEach(buf);
+		merged.forEach(buf);
 		return buf;
 	}
 
@@ -114,9 +115,9 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 	public LogEventHandler withDepth(int depth);
 
 	static LogEventHandler of(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc,
-			LogEventFactory delegate) {
+			KeyValuesContributor contributor) {
 		record DefaultLogEventHandler(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc,
-				LogEventFactory delegate) implements LogEventHandler {
+				KeyValuesContributor contributor) implements LogEventHandler {
 
 			@Override
 			public void handle(LogEvent event) {
@@ -133,12 +134,12 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 				return false;
 			}
 		}
-		return new DefaultLogEventHandler(loggerName, logger, mdc, delegate);
+		return new DefaultLogEventHandler(loggerName, logger, mdc, contributor);
 	}
 
 	static LogEventHandler ofCallerInfo(String loggerName, LogEventLogger logger, RainbowGumMDCAdapter mdc, int depth,
-			LogEventFactory delegate) {
-		return new CallerInfoEventDecorator(loggerName, mdc, logger, delegate, depth + CALLER_DEPTH_DELTA);
+			KeyValuesContributor contributor) {
+		return new CallerInfoEventDecorator(loggerName, mdc, logger, contributor, depth + CALLER_DEPTH_DELTA);
 	}
 
 	static final int CALLER_DEPTH_DELTA = 2;

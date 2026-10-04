@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -134,6 +135,49 @@ class KeyValuesContributorTest {
 			KeyValuesContributor.global().clear();
 			assertTrue(KeyValuesContributor.global().keyValues().isEmpty());
 		}
+	}
+
+	@Test
+	void userWinsOverEveryOtherSource() {
+		var registry = ServiceRegistry.of();
+		KeyValuesContributor.register(registry, Standard.USER, contributor(Map.of("env", "user")));
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "slf4j", "onlySlf4j", "1")));
+		var kvs = KeyValuesContributor.of(registry).keyValues();
+		assertEquals("user", kvs.getValueOrNull("env"));
+		assertEquals("1", kvs.getValueOrNull("onlySlf4j"));
+	}
+
+	@Test
+	void facadeOwnKeyValuesGoAboveOtherSourcesButBelowUser() {
+		var registry = ServiceRegistry.of();
+		KeyValuesContributor.register(registry, Standard.SLF4J,
+				contributor(Map.of("env", "slf4j", "other", "slf4j", "onlySlf4j", "1")));
+		KeyValuesContributor.register(registry, Standard.USER, contributor(Map.of("env", "user")));
+		var others = KeyValuesContributor.of(registry, Standard.JBOSS_LOGGING);
+		var own = KeyValues.of(Map.of("env", "jboss", "other", "jboss"));
+		var kvs = others.keyValues(own);
+		assertEquals("user", kvs.getValueOrNull("env"));
+		assertEquals("jboss", kvs.getValueOrNull("other"));
+		assertEquals("1", kvs.getValueOrNull("onlySlf4j"));
+	}
+
+	@Test
+	void facadeOwnKeyValuesAreReturnedAsIsWhenNothingElseContributes() {
+		var own = KeyValues.of(Map.of("env", "jboss"));
+		assertSame(own, KeyValuesContributor.of(ServiceRegistry.of()).keyValues(own));
+		var registry = ServiceRegistry.of();
+		KeyValuesContributor.register(registry, Standard.JBOSS_LOGGING, contributor(Map.of("env", "x")));
+		assertSame(own, KeyValuesContributor.of(registry, Standard.JBOSS_LOGGING).keyValues(own));
+	}
+
+	@Test
+	void clearAlsoClearsUser() {
+		var registry = ServiceRegistry.of();
+		var user = new ThreadLocalContributor();
+		KeyValuesContributor.register(registry, Standard.USER, user);
+		user.local.set(KeyValues.of(Map.of("a", "1")));
+		KeyValuesContributor.of(registry).clear();
+		assertTrue(user.keyValues().isEmpty());
 	}
 
 }

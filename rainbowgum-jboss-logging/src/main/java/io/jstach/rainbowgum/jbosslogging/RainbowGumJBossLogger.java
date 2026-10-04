@@ -45,7 +45,8 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 	private static final int MAX_FRAMES = 32;
 
 	/*
-	 * Every other registered context store goes underneath JBoss Logging's own MDC.
+	 * Every other registered context store goes underneath JBoss Logging's own MDC,
+	 * except the application's USER contributor which goes above it.
 	 */
 	private static final KeyValuesContributor OTHER_KEY_VALUES = KeyValuesContributor
 		.global(KeyValuesContributor.Source.Standard.JBOSS_LOGGING);
@@ -73,7 +74,7 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 	@Override
 	public KeyValues defaultKeyValues() {
 		var mdc = provider.mdcSnapshot();
-		return KeyValues.merge(OTHER_KEY_VALUES.keyValues(), mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc));
+		return OTHER_KEY_VALUES.keyValues(mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc));
 	}
 
 	@Override
