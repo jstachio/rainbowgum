@@ -288,7 +288,8 @@ public interface LogEventFactory {
 	 * one is registered they are merged in the declaration order of
 	 * {@link Source.Standard}, so on a key collision the later constant wins. A logging
 	 * facade that has its own context store excludes its own {@link Source} when
-	 * resolving the rest and merges its own on top so its own values win.
+	 * resolving the rest and passes its own key values to {@link #keyValues(KeyValues)},
+	 * which places them above every other source except {@link Source.Standard#USER}.
 	 *
 	 * <p>
 	 * {@link #clear()} clears the current thread's context in every store, for example
@@ -315,6 +316,17 @@ public interface LogEventFactory {
 		 * @return key values, never {@code null}.
 		 */
 		KeyValues keyValues();
+
+		/**
+		 * Like {@link #keyValues()} but with a logging facade's own key values merged in
+		 * above every contributor except {@link Source.Standard#USER}, which still wins.
+		 * @param own the calling facade's own context, for example its MDC.
+		 * @return merged key values, which is {@code own} itself when nothing else
+		 * contributes.
+		 */
+		default KeyValues keyValues(KeyValues own) {
+			return KeyValues.merge(keyValues(), own);
+		}
 
 		/**
 		 * Clears all of the current thread's state in the underlying context store,
@@ -360,7 +372,14 @@ public interface LogEventFactory {
 				/**
 				 * {@code rainbowgum-slf4j} ({@code org.slf4j.MDC}).
 				 */
-				SLF4J;
+				SLF4J,
+				/**
+				 * The application's own contributor, which wins over every other source
+				 * including a logging facade's own context store. Only for applications:
+				 * a library must not register a {@code USER} contributor, since there is
+				 * only one per Rainbow Gum and the application decides what it is.
+				 */
+				USER;
 
 			}
 
@@ -427,21 +446,27 @@ final class KeyValuesContributors {
 	}
 
 	static KeyValuesContributor of(ServiceRegistry registry, Set<Source> excluded) {
-		var found = new ArrayList<KeyValuesContributor>();
+		var below = new ArrayList<KeyValuesContributor>();
+		KeyValuesContributor user = null;
 		for (var source : Source.Standard.values()) {
 			if (excluded.contains(source)) {
 				continue;
 			}
 			var c = registry.findOrNull(KeyValuesContributor.class, registryName(source));
-			if (c != null) {
-				found.add(c);
+			if (c == null) {
+				continue;
+			}
+			if (source == Source.Standard.USER) {
+				user = c;
+			}
+			else {
+				below.add(c);
 			}
 		}
-		return switch (found.size()) {
-			case 0 -> Empty.INSTANCE;
-			case 1 -> found.get(0);
-			default -> new Composite(found.toArray(new KeyValuesContributor[0]));
-		};
+		if (below.isEmpty() && user == null) {
+			return Empty.INSTANCE;
+		}
+		return new Composite(below.toArray(new KeyValuesContributor[0]), user);
 	}
 
 	enum Empty implements KeyValuesContributor {
@@ -453,29 +478,55 @@ final class KeyValuesContributors {
 			return KeyValues.of();
 		}
 
+		@Override
+		public KeyValues keyValues(KeyValues own) {
+			return own;
+		}
+
 	}
 
+	/*
+	 * Merge order, lowest first: the non USER contributors in Source.Standard order, the
+	 * caller's own key values, then USER.
+	 */
 	static final class Composite implements KeyValuesContributor {
 
-		private final KeyValuesContributor[] contributors;
+		private final KeyValuesContributor[] below;
 
-		Composite(KeyValuesContributor[] contributors) {
-			this.contributors = contributors;
+		private final @Nullable KeyValuesContributor user;
+
+		Composite(KeyValuesContributor[] below, @Nullable KeyValuesContributor user) {
+			this.below = below;
+			this.user = user;
 		}
 
 		@Override
 		public KeyValues keyValues() {
+			return keyValues(KeyValues.of());
+		}
+
+		@Override
+		public KeyValues keyValues(KeyValues own) {
 			KeyValues result = KeyValues.of();
-			for (var c : contributors) {
+			for (var c : below) {
 				result = KeyValues.merge(result, c.keyValues());
+			}
+			result = KeyValues.merge(result, own);
+			var u = user;
+			if (u != null) {
+				result = KeyValues.merge(result, u.keyValues());
 			}
 			return result;
 		}
 
 		@Override
 		public void clear() {
-			for (var c : contributors) {
+			for (var c : below) {
 				c.clear();
+			}
+			var u = user;
+			if (u != null) {
+				u.clear();
 			}
 		}
 
@@ -501,6 +552,11 @@ final class KeyValuesContributors {
 		@Override
 		public KeyValues keyValues() {
 			return contributor().keyValues();
+		}
+
+		@Override
+		public KeyValues keyValues(KeyValues own) {
+			return contributor().keyValues(own);
 		}
 
 		@Override

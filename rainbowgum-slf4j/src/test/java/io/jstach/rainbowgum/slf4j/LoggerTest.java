@@ -20,7 +20,8 @@ public class LoggerTest {
 			e.formattedMessage(sb);
 			System.out.append(sb);
 		};
-		var handler = LogEventHandler.of("stuff", appender, new RainbowGumMDCAdapter(), NoopLogEventFactory.INSTANCE);
+		var handler = LogEventHandler.of("stuff", appender, new RainbowGumMDCAdapter(),
+				NoopKeyValuesContributor.INSTANCE);
 		var logger = LevelLogger.of(Level.ERROR, handler);
 
 		logger.error("Crap {} {} {}", "1", "2", "3");
@@ -45,7 +46,7 @@ public class LoggerTest {
 
 		List<LogEvent> captured = new ArrayList<>();
 		LogEventLogger appender = captured::add;
-		var handler = LogEventHandler.of("stuff", appender, mdc, NoopLogEventFactory.INSTANCE);
+		var handler = LogEventHandler.of("stuff", appender, mdc, NoopKeyValuesContributor.INSTANCE);
 		var logger = LevelLogger.of(Level.INFO, handler);
 
 		logger.info("start");

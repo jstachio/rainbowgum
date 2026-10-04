@@ -172,16 +172,15 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			int depth) {
 		/*
 		 * Every other registered context store (scoped key values, JBoss MDC, ...) goes
-		 * underneath MDC. With nothing else registered the contributor returns empty key
-		 * values and KeyValues.merge hands back MDC's own unchanged.
+		 * underneath MDC, and the application's USER contributor above it. With nothing
+		 * else registered the contributor hands back MDC's own unchanged.
 		 */
 		var contributor = KeyValuesContributor.of(rainbowGum.config().serviceRegistry(),
 				KeyValuesContributor.Source.Standard.SLF4J);
-		LogEventFactory delegate = new ContributorLogEventFactory(contributor);
 		if (callerInfoEnabled) {
-			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth, delegate);
+			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth, contributor);
 		}
-		return LogEventHandler.of(loggerName, logger, mdc, delegate);
+		return LogEventHandler.of(loggerName, logger, mdc, contributor);
 	}
 
 	sealed interface LoggerDecorator {
