@@ -41,7 +41,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	static void clearCurrentMDC() {
 		var mdc = currentMDC;
 		if (mdc != null) {
-			mdc.clear();
+			mdc.removeThreadLocals();
 		}
 	}
 

@@ -10,6 +10,7 @@ import java.util.Objects;
 
 import org.jboss.logging.Logger;
 import org.jboss.logging.MDC;
+import org.jboss.logging.NDC;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig;
@@ -78,7 +79,7 @@ class RainbowGumJBossLoggerProviderTest {
 			}
 
 			String expected = "INFO hello kv=acme <caller>io.jstach.rainbowgum.jbosslogging.RainbowGumJBossLoggerProviderTest"
-					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:74</caller>\n";
+					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:75</caller>\n";
 			assertEquals(expected, list.toString());
 		}
 		finally {
@@ -140,14 +141,17 @@ class RainbowGumJBossLoggerProviderTest {
 		var config = LogConfig.builder().serviceLoader().build();
 		var contributor = KeyValuesContributor.of(config.serviceRegistry());
 		MDC.put("tenant", "acme");
+		NDC.push("request");
 		try {
 			assertEquals("acme", contributor.keyValues().getValueOrNull("tenant"));
 			contributor.clear();
 			assertNull(MDC.get("tenant"));
+			assertEquals(0, NDC.getDepth());
 			assertTrue(contributor.keyValues().isEmpty());
 		}
 		finally {
 			MDC.clear();
+			NDC.clear();
 		}
 	}
 

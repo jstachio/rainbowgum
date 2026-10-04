@@ -38,7 +38,7 @@ public final class JBossKeyValuesConfigurator implements RainbowGumServiceProvid
 
 		@Override
 		public void clear() {
-			RainbowGumJBossLoggerProvider.clearCurrentMDC();
+			RainbowGumJBossLoggerProvider.clearCurrentThreadContext();
 		}
 
 	}
