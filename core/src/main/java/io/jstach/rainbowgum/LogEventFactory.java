@@ -296,6 +296,8 @@ public interface LogEventFactory {
 	 * {@snippet :
 	 * KeyValuesContributor.global().clear();
 	 * }
+	 * Appender buffers kept per thread are cleared separately with
+	 * {@link LogAppender#clearThreadLocals()}.
 	 *
 	 * @apiNote Rainbow Gum core deliberately has no API for putting key values into a
 	 * context. Contributors only expose (and clear) whatever context store the
@@ -321,6 +323,7 @@ public interface LogEventFactory {
 		 * left over. A store that cannot be cleared this way, such as one bound to a
 		 * scope, does nothing. Like {@link #keyValues()} it must not throw or log. The
 		 * default does nothing.
+		 * @see LogAppender#clearThreadLocals()
 		 */
 		default void clear() {
 		}
