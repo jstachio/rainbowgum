@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventFactory;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LoggerAPI;
@@ -170,16 +171,13 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	private LogEventHandler maybeAddCallerInfo(String loggerName, boolean callerInfoEnabled, LogEventLogger logger,
 			int depth) {
 		/*
-		 * Optional, deliberately opt-in: nothing registered under this name (the
-		 * overwhelming majority of setups) means findOrNull returns null, normalized to
-		 * NoopLogEventFactory.INSTANCE here so every downstream LogEventHandler path
-		 * behaves exactly as before this lookup existed - see
-		 * RainbowGumSLF4JServiceProvider#SCOPED_KEY_VALUES_SERVICE_NAME.
+		 * Every other registered context store (scoped key values, JBoss MDC, ...) goes
+		 * underneath MDC. With nothing else registered the contributor returns empty key
+		 * values and KeyValues.merge hands back MDC's own unchanged.
 		 */
-		var found = rainbowGum.config()
-			.serviceRegistry()
-			.findOrNull(LogEventFactory.class, RainbowGumSLF4JServiceProvider.SCOPED_KEY_VALUES_SERVICE_NAME);
-		var delegate = found != null ? found : NoopLogEventFactory.INSTANCE;
+		var contributor = KeyValuesContributor.of(rainbowGum.config().serviceRegistry(),
+				RainbowGumSLF4JServiceProvider.KEY_VALUES_CONTRIBUTOR_NAME);
+		LogEventFactory delegate = new ContributorLogEventFactory(contributor);
 		if (callerInfoEnabled) {
 			return LogEventHandler.ofCallerInfo(loggerName, logger, mdc, depth, delegate);
 		}

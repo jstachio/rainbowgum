@@ -9,6 +9,7 @@ import org.slf4j.helpers.BasicMarkerFactory;
 import org.slf4j.spi.MDCAdapter;
 import org.slf4j.spi.SLF4JServiceProvider;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
@@ -26,19 +27,24 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	private static final String REQUESTED_API_VERSION = "2.0";
 
 	/**
-	 * The name this module looks up in {@link io.jstach.rainbowgum.ServiceRegistry}
-	 * (keyed by {@link io.jstach.rainbowgum.LogEventFactory}) for an optional factory
-	 * whose {@link io.jstach.rainbowgum.LogEventFactory#defaultKeyValues()} is merged as
-	 * the lowest-precedence source underneath MDC for every event this module builds -
-	 * MDC's own key values, and anything a fluent builder's own {@code addKeyValue(...)}
-	 * adds on top, always win on a key collision. Entirely optional: if nothing is
-	 * registered under this name (the default, and the overwhelming majority of setups),
-	 * behavior is unchanged - just MDC, as always.
-	 * @apiNote provisional - reusing the existing {@code LogEventFactory} extension point
-	 * directly rather than introducing a dedicated SPI type for this specific purpose,
-	 * for now.
+	 * The name SLF4J's MDC is registered under as a
+	 * {@link io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor}. Events built by
+	 * this module merge every other registered contributor underneath MDC, so MDC wins on
+	 * a key collision.
 	 */
-	public static final String SCOPED_KEY_VALUES_SERVICE_NAME = "scopedKeyValues";
+	public static final String KEY_VALUES_CONTRIBUTOR_NAME = "slf4j";
+
+	/*
+	 * The MDC adapter of the most recently initialized provider, which is the one
+	 * org.slf4j.MDC uses. Null until SLF4J initializes, in which case nothing can have
+	 * been put in MDC yet.
+	 */
+	private static volatile @Nullable RainbowGumMDCAdapter currentMDC;
+
+	static KeyValues currentMDCKeyValues() {
+		var mdc = currentMDC;
+		return mdc == null ? KeyValues.of() : mdc.keyValues();
+	}
 
 	/**
 	 * Which {@link RainbowGumMDCAdapter} implementation to use - {@code THREAD_LOCAL}
@@ -196,6 +202,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 			mdcAdapter = new NoopMDCAdapter();
 		}
 		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdcAdapter);
+		currentMDC = mdcAdapter;
 	}
 
 }

@@ -15,6 +15,7 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventFactory;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 
@@ -61,6 +62,12 @@ abstract class AbstractLog4jLogger extends AbstractLogger implements LogEventFac
 	 */
 	private static final int MAX_FRAMES = 32;
 
+	/*
+	 * Every other registered context store goes underneath ThreadContext.
+	 */
+	private static final KeyValuesContributor OTHER_KEY_VALUES = KeyValuesContributor
+		.global(RainbowGumLog4jProvider.KEY_VALUES_CONTRIBUTOR_NAME);
+
 	final RootRouter router;
 
 	AbstractLog4jLogger(String name, @Nullable MessageFactory messageFactory, RootRouter router) {
@@ -76,7 +83,7 @@ abstract class AbstractLog4jLogger extends AbstractLogger implements LogEventFac
 	@Override
 	public final KeyValues defaultKeyValues() {
 		Map<String, String> mdc = ThreadContext.getImmutableContext();
-		return mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc);
+		return KeyValues.merge(OTHER_KEY_VALUES.keyValues(), mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc));
 	}
 
 	@Override

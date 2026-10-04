@@ -5,9 +5,9 @@
  * values backed by {@code java.lang.ScopedValue} instead of {@code ThreadLocal}. Simply
  * being on the classpath is enough: this module's
  * {@link io.jstach.rainbowgum.scopedkeyvalues.provider.ScopedKeyValuesConfigurator}
- * registers a {@code LogEventFactory} that {@code rainbowgum-slf4j} picks up
- * automatically, merging the current scoped key values underneath MDC for every event it
- * builds.
+ * registers a {@code LogEventFactory.KeyValuesContributor}, so every event from any
+ * logging API (SLF4J, JUL, System.Logger, ...) carries the current scoped key values.
+ * SLF4J's MDC wins over scoped key values on a key collision.
  * <p>
  * Requires a JVM supporting {@code java.lang.ScopedValue} (finalized in JDK 25,
  * <a href="https://openjdk.org/jeps/506">JEP 506</a>) - newer than this project's usual
@@ -24,7 +24,6 @@ module io.jstach.rainbowgum.scopedkeyvalues.provider {
 
 	requires io.jstach.rainbowgum.scopedkeyvalues;
 	requires io.jstach.rainbowgum;
-	requires io.jstach.rainbowgum.slf4j;
 
 	requires static org.jspecify;
 	requires static io.jstach.svc;

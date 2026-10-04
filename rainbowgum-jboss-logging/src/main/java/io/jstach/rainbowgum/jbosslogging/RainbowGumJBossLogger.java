@@ -9,6 +9,7 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventFactory;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogRouter;
@@ -43,6 +44,12 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 	 */
 	private static final int MAX_FRAMES = 32;
 
+	/*
+	 * Every other registered context store goes underneath JBoss Logging's own MDC.
+	 */
+	private static final KeyValuesContributor OTHER_KEY_VALUES = KeyValuesContributor
+		.global(RainbowGumJBossLoggerProvider.KEY_VALUES_CONTRIBUTOR_NAME);
+
 	private final LogRouter router;
 
 	private final RainbowGumJBossLoggerProvider provider;
@@ -66,7 +73,7 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 	@Override
 	public KeyValues defaultKeyValues() {
 		var mdc = provider.mdcSnapshot();
-		return mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc);
+		return KeyValues.merge(OTHER_KEY_VALUES.keyValues(), mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc));
 	}
 
 	@Override

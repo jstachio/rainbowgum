@@ -9,13 +9,14 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEventFactory;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
 
 /*
  * Covers the fix for the "MDC everywhere" problem: a LogEventFactory registered in
- * ServiceRegistry under RainbowGumSLF4JServiceProvider#SCOPED_KEY_VALUES_SERVICE_NAME is
+ * ServiceRegistry as a KeyValuesContributor is
  * supposed to have its own defaultKeyValues() merged as the lowest-precedence source
  * underneath MDC, for *every* shape of log call - plain, fluent (with and without its
  * own addKeyValue(...)), and caller-info-enabled. Before this fix, only the plain-call
@@ -115,8 +116,7 @@ class ScopedDefaultKeyValuesTest {
 		var list = new ListLogOutput();
 		var config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config).route(route -> route.appender("list", a -> a.output(list))).build();
-		config.serviceRegistry()
-			.put(LogEventFactory.class, RainbowGumSLF4JServiceProvider.SCOPED_KEY_VALUES_SERVICE_NAME, SCOPED);
+		config.serviceRegistry().put(KeyValuesContributor.class, "scoped", SCOPED::defaultKeyValues);
 		var mdc = mdcWithEnv();
 		try (var g = gum.start()) {
 			var factory = new RainbowGumLoggerFactory(g, mdc);

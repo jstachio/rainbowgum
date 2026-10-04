@@ -9,6 +9,7 @@ import org.jboss.logging.Logger;
 import org.jboss.logging.LoggerProvider;
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
@@ -33,9 +34,32 @@ public final class RainbowGumJBossLoggerProvider implements LoggerProvider {
 	private final ThreadLocal<ArrayDeque<NdcEntry>> ndcStack = new ThreadLocal<>();
 
 	/**
+	 * The name JBoss Logging's MDC is registered under as a
+	 * {@link io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor}.
+	 */
+	public static final String KEY_VALUES_CONTRIBUTOR_NAME = "jbossLogging";
+
+	/*
+	 * JBoss Logging creates one provider and org.jboss.logging.MDC goes through it. Null
+	 * until then, in which case nothing can have been put in its MDC yet.
+	 */
+	private static volatile @Nullable RainbowGumJBossLoggerProvider current;
+
+	/**
 	 * For {@link java.util.ServiceLoader}.
 	 */
+	@SuppressWarnings("StaticAssignmentInConstructor") // see current
 	public RainbowGumJBossLoggerProvider() {
+		current = this;
+	}
+
+	static KeyValues currentMDCKeyValues() {
+		var provider = current;
+		if (provider == null) {
+			return KeyValues.of();
+		}
+		var mdc = provider.mdcSnapshot();
+		return mdc.isEmpty() ? KeyValues.of() : KeyValues.of(mdc);
 	}
 
 	@Override

@@ -2,8 +2,13 @@ package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeMap;
 
 import org.jspecify.annotations.Nullable;
+
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 
 /**
  * A dynamic version of {@link LogEvent}'s static "<code>of</code>" factory methods - same
@@ -91,11 +96,14 @@ public interface LogEventFactory {
 
 	/**
 	 * Key values to use for the next event created by this factory when a caller does not
-	 * supply an explicit {@link KeyValues}. Default is {@link KeyValues#of()}.
+	 * supply an explicit {@link KeyValues}. Default is every {@link KeyValuesContributor}
+	 * registered with the currently bound {@link RainbowGum} merged together (see
+	 * {@link KeyValuesContributor#global(String...)}), which is empty if none are
+	 * registered or no Rainbow Gum is bound.
 	 * @return key values.
 	 */
 	default KeyValues defaultKeyValues() {
-		return KeyValues.of();
+		return KeyValuesContributors.GLOBAL.keyValues();
 	}
 
 	/**
@@ -268,7 +276,160 @@ public interface LogEventFactory {
 		return eventArgs(level, message, defaultKeyValues(), args, null);
 	}
 
+	/**
+	 * A source of ambient key values (MDC like context) for events whose logging API has
+	 * no context of its own, such as JUL or {@link System.Logger}. Each store of ambient
+	 * key values (SLF4J's MDC, JBoss Logging's MDC, Log4j's ThreadContext, scoped key
+	 * values, ...) registers one in {@link LogConfig#serviceRegistry()} under a unique
+	 * name, usually from a
+	 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}:
+	 * {@snippet :
+	 * config.serviceRegistry().put(KeyValuesContributor.class, "myContext", () -> currentKeyValues());
+	 * }
+	 * <p>
+	 * When more than one contributor is registered they are merged in order of
+	 * registration name, so on a key collision the contributor whose name sorts last
+	 * wins. A logging facade that has its own context store registers that store as a
+	 * contributor, excludes it by name when resolving the rest, and merges its own on top
+	 * so its own values win.
+	 *
+	 * @apiNote Rainbow Gum core deliberately has no API for putting key values into a
+	 * context. Contributors only expose whatever context store the application already
+	 * uses.
+	 */
+	@FunctionalInterface
+	public interface KeyValuesContributor {
+
+		/**
+		 * Key values for an event being created on the current thread. Called once per
+		 * event on the logging thread so it should be cheap. It must not throw or log and
+		 * should return {@link KeyValues#of()} when there is nothing to contribute. The
+		 * returned key values may be live (not a copy) as long as they are not modified
+		 * while the event is being created.
+		 * @return key values, never {@code null}.
+		 */
+		KeyValues keyValues();
+
+		/**
+		 * Combines the contributors currently registered in a service registry, skipping
+		 * the excluded names. The registry is read once on this call, so contributors
+		 * registered afterward are not included.
+		 * @param registry where contributors are registered.
+		 * @param excludedNames registration names to skip, usually the caller's own.
+		 * @return combined contributor, which returns {@link KeyValues#of()} if nothing
+		 * is registered.
+		 */
+		public static KeyValuesContributor of(ServiceRegistry registry, String... excludedNames) {
+			return KeyValuesContributors.of(registry, Set.of(excludedNames));
+		}
+
+		/**
+		 * Combines the contributors registered with whichever {@link RainbowGum} is bound
+		 * globally at the time key values are requested, skipping the excluded names.
+		 * Meant for logging facades that route through {@link LogRouter#global()} and so
+		 * cannot hold a reference to a particular Rainbow Gum.
+		 * @param excludedNames registration names to skip, usually the caller's own.
+		 * @return contributor that follows the globally bound Rainbow Gum and returns
+		 * {@link KeyValues#of()} while none is bound.
+		 */
+		public static KeyValuesContributor global(String... excludedNames) {
+			if (excludedNames.length == 0) {
+				return KeyValuesContributors.GLOBAL;
+			}
+			return new KeyValuesContributors.Global(Set.of(excludedNames));
+		}
+
+	}
+
 }
 
 record DefaultLogEventFactory(String loggerName) implements LogEventFactory {
+}
+
+final class KeyValuesContributors {
+
+	static final Global GLOBAL = new Global(Set.of());
+
+	private KeyValuesContributors() {
+	}
+
+	static KeyValuesContributor of(ServiceRegistry registry, Set<String> excludedNames) {
+		var found = new TreeMap<String, KeyValuesContributor>();
+		registry.forEach(KeyValuesContributor.class, (name, c) -> {
+			if (!excludedNames.contains(name)) {
+				found.put(name, c);
+			}
+		});
+		var list = List.copyOf(found.values());
+		return switch (list.size()) {
+			case 0 -> Empty.INSTANCE;
+			case 1 -> list.get(0);
+			default -> new Composite(list.toArray(new KeyValuesContributor[0]));
+		};
+	}
+
+	enum Empty implements KeyValuesContributor {
+
+		INSTANCE;
+
+		@Override
+		public KeyValues keyValues() {
+			return KeyValues.of();
+		}
+
+	}
+
+	static final class Composite implements KeyValuesContributor {
+
+		private final KeyValuesContributor[] contributors;
+
+		Composite(KeyValuesContributor[] contributors) {
+			this.contributors = contributors;
+		}
+
+		@Override
+		public KeyValues keyValues() {
+			KeyValues result = KeyValues.of();
+			for (var c : contributors) {
+				result = KeyValues.merge(result, c.keyValues());
+			}
+			return result;
+		}
+
+	}
+
+	/*
+	 * Resolves the registered contributors once per bound gum instead of per event. The
+	 * registry is complete by the time a gum is bound since configurators run before.
+	 */
+	static final class Global implements KeyValuesContributor {
+
+		private record Resolved(RainbowGum gum, KeyValuesContributor contributor) {
+		}
+
+		private final Set<String> excludedNames;
+
+		private volatile @Nullable Resolved resolved;
+
+		Global(Set<String> excludedNames) {
+			this.excludedNames = excludedNames;
+		}
+
+		@Override
+		@SuppressWarnings("ReferenceEquality") // identity of the bound gum is the point
+		public KeyValues keyValues() {
+			var gum = RainbowGumHolder.peek();
+			if (gum == null) {
+				return KeyValues.of();
+			}
+			var r = resolved;
+			if (r == null || r.gum() != gum) {
+				r = new Resolved(gum, of(gum.config().serviceRegistry(), excludedNames));
+				resolved = r;
+			}
+			return r.contributor().keyValues();
+		}
+
+	}
+
 }
