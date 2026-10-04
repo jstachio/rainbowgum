@@ -34,8 +34,8 @@ import io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder;
  * (rainbowgum-json), a real file output (rainbowgum-file), a JFR output (rainbowgum-jfr,
  * self-providing its own encoder), and an async publisher that resolves to
  * rainbowgum-disruptor's DisruptorLogPublisher rather than the default
- * BlockingQueueAsyncLogPublisher, since rainbowgum-disruptor registers itself as the
- * default "async" scheme handler.
+ * BatchSwapAsyncLogPublisher, since rainbowgum-disruptor registers itself as the default
+ * "async" scheme handler.
  * <p>
  * Deliberately plain classpath (see this module's own pom.xml): the point is testing what
  * a real application pulling in this many optional modules at once actually looks like,
@@ -70,7 +70,7 @@ class LogReporterKitchenSinkTest {
 					.build());
 			});
 		}).route("structured", r -> {
-			// Resolves to DisruptorLogPublisher, not BlockingQueueAsyncLogPublisher:
+			// Resolves to DisruptorLogPublisher, not BatchSwapAsyncLogPublisher:
 			// rainbowgum-disruptor registers itself as the default "async" scheme
 			// handler (see DisruptorConfigurator), and this module has it on the
 			// classpath with LogConfig.builder().serviceLoader() enabled above.

@@ -1,13 +1,11 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
-import io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
@@ -168,16 +166,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 
 		@Override
 		protected PublisherFactory provide(String name, LogProperties properties) {
-			int _bufferSize = properties.forKey(LogPublisherRegistry.BUFFER_SIZE_PROPERTY, name)
-				.ofInt() //
-				.or(LogPublisherRegistry.ASYNC_BUFFER_SIZE)
-				.validateNow(DefaultPublisherProviders.class);
-			int _shutdownTimeout = properties.forKey(LogPublisherRegistry.SHUTDOWN_TIMEOUT_PROPERTY, name)
-				.ofInt() //
-				.or(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT)
-				.validateNow(DefaultPublisherProviders.class);
-			return (n, config, appenders) -> BlockingQueueAsyncLogPublisher.of(appenders.asSingle(), _bufferSize,
-					config.alerts(), Duration.ofMillis(_shutdownTimeout));
+			return BatchSwapAsyncLogPublisher.builder(name).fromProperties(properties).build();
 		}
 	};
 
