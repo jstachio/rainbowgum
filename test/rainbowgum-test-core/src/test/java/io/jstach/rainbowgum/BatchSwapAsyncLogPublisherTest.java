@@ -23,6 +23,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher;
 
 @Timeout(30)
 class BatchSwapAsyncLogPublisherTest {
@@ -473,7 +474,7 @@ class BatchSwapAsyncLogPublisherTest {
 				() -> BatchSwapAsyncLogPublisher.builder("test").fromProperties(properties).build());
 		assertEquals(
 				"""
-						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder:
+						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder:
 						Error for property. key: 'logging.publisher.test.bufferSize' from PROPERTIES_STRING[logging.publisher.test.bufferSize], java.lang.NumberFormatException For input string: "bad"
 						Error for property. key: 'logging.publisher.test.shutdownTimeout' from PROPERTIES_STRING[logging.publisher.test.shutdownTimeout], java.lang.NumberFormatException For input string: "bad"\
 						""",
@@ -494,19 +495,19 @@ class BatchSwapAsyncLogPublisherTest {
 			case BUFFER_ZERO -> {
 				builder.bufferSize(0);
 				yield """
-						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder: bufferSize must be positive.\
+						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder: bufferSize must be positive.\
 						""";
 			}
 			case TIMEOUT_NEGATIVE -> {
 				builder.shutdownTimeout(Duration.ofMillis(-1));
 				yield """
-						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder: shutdownTimeout must not be negative.\
+						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder: shutdownTimeout must not be negative.\
 						""";
 			}
 			case TIMEOUT_OVERFLOW -> {
 				builder.shutdownTimeout(Duration.ofSeconds(Long.MAX_VALUE));
 				yield """
-						Validation failed for io.jstach.rainbowgum.BatchSwapAsyncLogPublisherBuilder: shutdownTimeout is too large.\
+						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder: shutdownTimeout is too large.\
 						""";
 			}
 		};
