@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.log4j;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.RainbowGum;
@@ -78,7 +80,7 @@ class RainbowGumLog4j2Test {
 			}
 
 			String expected = "INFO hello kv=acme <caller>io.jstach.rainbowgum.log4j.RainbowGumLog4j2Test"
-					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:74</caller>\n";
+					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:76</caller>\n";
 			assertEquals(expected, list.toString());
 		}
 		finally {
@@ -203,6 +205,26 @@ class RainbowGumLog4j2Test {
 		}
 		finally {
 			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
+	/*
+	 * The contributor the module's configurator registers exposes and clears Log4j's
+	 * ThreadContext map, so other logging APIs see it and thread pools can clear it.
+	 */
+	@Test
+	void testKeyValuesContributorExposesAndClears() {
+		var config = LogConfig.builder().serviceLoader().build();
+		var contributor = KeyValuesContributor.of(config.serviceRegistry());
+		ThreadContext.put("tenant", "acme");
+		try {
+			assertEquals("acme", contributor.keyValues().getValueOrNull("tenant"));
+			contributor.clear();
+			assertNull(ThreadContext.get("tenant"));
+			assertTrue(contributor.keyValues().isEmpty());
+		}
+		finally {
+			ThreadContext.clearMap();
 		}
 	}
 

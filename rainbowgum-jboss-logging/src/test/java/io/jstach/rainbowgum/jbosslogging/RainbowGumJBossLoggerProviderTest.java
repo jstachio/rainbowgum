@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.jbosslogging;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Objects;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.RainbowGum;
@@ -76,7 +78,7 @@ class RainbowGumJBossLoggerProviderTest {
 			}
 
 			String expected = "INFO hello kv=acme <caller>io.jstach.rainbowgum.jbosslogging.RainbowGumJBossLoggerProviderTest"
-					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:72</caller>\n";
+					+ ".testCallerInfoAndMdcRoundTripWithNoSystemPropertyRequired:74</caller>\n";
 			assertEquals(expected, list.toString());
 		}
 		finally {
@@ -126,6 +128,26 @@ class RainbowGumJBossLoggerProviderTest {
 		}
 		finally {
 			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
+	/*
+	 * The contributor the module's configurator registers exposes and clears JBoss
+	 * Logging's MDC, so other logging APIs see it and thread pools can clear it.
+	 */
+	@Test
+	void testKeyValuesContributorExposesAndClears() {
+		var config = LogConfig.builder().serviceLoader().build();
+		var contributor = KeyValuesContributor.of(config.serviceRegistry());
+		MDC.put("tenant", "acme");
+		try {
+			assertEquals("acme", contributor.keyValues().getValueOrNull("tenant"));
+			contributor.clear();
+			assertNull(MDC.get("tenant"));
+			assertTrue(contributor.keyValues().isEmpty());
+		}
+		finally {
+			MDC.clear();
 		}
 	}
 

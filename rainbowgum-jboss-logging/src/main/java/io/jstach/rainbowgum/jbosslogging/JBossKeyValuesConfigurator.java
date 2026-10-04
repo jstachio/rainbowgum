@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.jbosslogging;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -22,8 +23,24 @@ public final class JBossKeyValuesConfigurator implements RainbowGumServiceProvid
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		KeyValuesContributor.register(config.serviceRegistry(), KeyValuesContributor.Source.Standard.JBOSS_LOGGING,
-				RainbowGumJBossLoggerProvider::currentMDCKeyValues);
+				MDCContributor.INSTANCE);
 		return true;
+	}
+
+	private enum MDCContributor implements KeyValuesContributor {
+
+		INSTANCE;
+
+		@Override
+		public KeyValues keyValues() {
+			return RainbowGumJBossLoggerProvider.currentMDCKeyValues();
+		}
+
+		@Override
+		public void clear() {
+			RainbowGumJBossLoggerProvider.clearCurrentMDC();
+		}
+
 	}
 
 }

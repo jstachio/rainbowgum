@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.log4j;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -22,8 +23,27 @@ public final class Log4jKeyValuesConfigurator implements RainbowGumServiceProvid
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		KeyValuesContributor.register(config.serviceRegistry(), KeyValuesContributor.Source.Standard.LOG4J2,
-				RainbowGumLog4jProvider::currentThreadContextKeyValues);
+				ThreadContextContributor.INSTANCE);
 		return true;
+	}
+
+	/*
+	 * Only ThreadContext's map is key values; its stack (NDC) is left alone.
+	 */
+	private enum ThreadContextContributor implements KeyValuesContributor {
+
+		INSTANCE;
+
+		@Override
+		public KeyValues keyValues() {
+			return RainbowGumLog4jProvider.currentThreadContextKeyValues();
+		}
+
+		@Override
+		public void clear() {
+			RainbowGumLog4jProvider.clearThreadContextMap();
+		}
+
 	}
 
 }

@@ -40,6 +40,12 @@ public final class RainbowGumLog4jProvider extends Provider {
 		initialized = true;
 	}
 
+	static void clearThreadContextMap() {
+		if (initialized) {
+			ThreadContext.clearMap();
+		}
+	}
+
 	static KeyValues currentThreadContextKeyValues() {
 		if (!initialized) {
 			return KeyValues.of();

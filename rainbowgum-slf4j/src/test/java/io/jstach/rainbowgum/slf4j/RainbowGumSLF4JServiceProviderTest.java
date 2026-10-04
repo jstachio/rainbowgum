@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.helpers.BasicMarkerFactory;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
@@ -35,6 +37,30 @@ class RainbowGumSLF4JServiceProviderTest {
 		var provider = new RainbowGumSLF4JServiceProvider();
 		provider.initialize(RainbowGum.builder().build());
 		assertInstanceOf(RainbowGumLoggerFactory.class, provider.getLoggerFactory());
+	}
+
+	/*
+	 * The MDC contributor the module's configurator registers exposes and clears the MDC
+	 * of the most recently initialized provider, which is what org.slf4j.MDC uses.
+	 */
+	@Test
+	void testKeyValuesContributorExposesAndClearsMdc() {
+		var config = LogConfig.builder().serviceLoader().build();
+		var gum = RainbowGum.builder(config).build();
+		var provider = new RainbowGumSLF4JServiceProvider();
+		provider.initialize(gum);
+		var mdc = provider.getMDCAdapter();
+		var contributor = KeyValuesContributor.of(config.serviceRegistry());
+		mdc.put("requestId", "abc");
+		try {
+			assertEquals("abc", contributor.keyValues().getValueOrNull("requestId"));
+			contributor.clear();
+			assertNull(mdc.get("requestId"));
+			assertTrue(contributor.keyValues().isEmpty());
+		}
+		finally {
+			mdc.clear();
+		}
 	}
 
 	@Test

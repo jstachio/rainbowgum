@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.slf4j;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -22,8 +23,24 @@ public final class SLF4JKeyValuesConfigurator implements RainbowGumServiceProvid
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		KeyValuesContributor.register(config.serviceRegistry(), KeyValuesContributor.Source.Standard.SLF4J,
-				RainbowGumSLF4JServiceProvider::currentMDCKeyValues);
+				MDCContributor.INSTANCE);
 		return true;
+	}
+
+	private enum MDCContributor implements KeyValuesContributor {
+
+		INSTANCE;
+
+		@Override
+		public KeyValues keyValues() {
+			return RainbowGumSLF4JServiceProvider.currentMDCKeyValues();
+		}
+
+		@Override
+		public void clear() {
+			RainbowGumSLF4JServiceProvider.clearCurrentMDC();
+		}
+
 	}
 
 }

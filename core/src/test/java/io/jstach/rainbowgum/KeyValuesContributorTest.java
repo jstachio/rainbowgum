@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
@@ -85,6 +86,53 @@ class KeyValuesContributorTest {
 			assertEquals("requestId=abc", render(factory.defaultKeyValues()));
 			assertEquals("requestId=abc", render(KeyValuesContributor.global().keyValues()));
 			assertTrue(KeyValuesContributor.global(Standard.SLF4J).keyValues().isEmpty());
+		}
+	}
+
+	private static final class ThreadLocalContributor implements KeyValuesContributor {
+
+		@SuppressWarnings("ThreadLocalUsage") // one per store under test
+		final ThreadLocal<@Nullable KeyValues> local = new ThreadLocal<>();
+
+		@Override
+		public KeyValues keyValues() {
+			var kvs = local.get();
+			return kvs == null ? KeyValues.of() : kvs;
+		}
+
+		@Override
+		public void clear() {
+			local.remove();
+		}
+
+	}
+
+	@Test
+	void clearClearsEveryRegisteredStore() {
+		var registry = ServiceRegistry.of();
+		var slf4j = new ThreadLocalContributor();
+		var jboss = new ThreadLocalContributor();
+		KeyValuesContributor.register(registry, Standard.SLF4J, slf4j);
+		KeyValuesContributor.register(registry, Standard.JBOSS_LOGGING, jboss);
+		KeyValuesContributor.register(registry, Standard.SCOPED_KEY_VALUES, contributor(Map.of("scoped", "1")));
+		slf4j.local.set(KeyValues.of(Map.of("a", "1")));
+		jboss.local.set(KeyValues.of(Map.of("b", "2")));
+		var all = KeyValuesContributor.of(registry);
+		assertEquals("scoped=1 b=2 a=1", render(all.keyValues()));
+		all.clear();
+		assertEquals("scoped=1", render(all.keyValues()));
+	}
+
+	@Test
+	void globalClearClearsTheBoundGumsStores() {
+		var config = LogConfig.builder().build();
+		var slf4j = new ThreadLocalContributor();
+		KeyValuesContributor.register(config.serviceRegistry(), Standard.SLF4J, slf4j);
+		KeyValuesContributor.global().clear(); // nothing bound: does nothing
+		try (var gum = RainbowGum.builder(config).set()) {
+			slf4j.local.set(KeyValues.of(Map.of("requestId", "abc")));
+			KeyValuesContributor.global().clear();
+			assertTrue(KeyValuesContributor.global().keyValues().isEmpty());
 		}
 	}
 
