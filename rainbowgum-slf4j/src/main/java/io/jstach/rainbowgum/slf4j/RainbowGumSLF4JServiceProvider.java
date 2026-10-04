@@ -27,9 +27,9 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	private static final String REQUESTED_API_VERSION = "2.0";
 
 	/*
-	 * The MDC adapter of the most recently initialized provider, which is the one
-	 * org.slf4j.MDC uses. Null until SLF4J initializes, in which case nothing can have
-	 * been put in MDC yet.
+	 * The MDC adapter initialized through SLF4J's provider lifecycle. Isolated providers
+	 * initialized with initialize(RainbowGum) must not replace it. Null until SLF4J
+	 * initializes, in which case nothing can have been put in MDC yet.
 	 */
 	private static volatile @Nullable RainbowGumMDCAdapter currentMDC;
 
@@ -170,6 +170,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 		}
 		RainbowGum rainbowGum = RainbowGum.of();
 		initialize(rainbowGum);
+		currentMDC = mdcAdapter;
 		System.setProperty("SLF4J_LOGGING_LOADED", "true");
 	}
 
@@ -201,7 +202,6 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 			mdcAdapter = new NoopMDCAdapter();
 		}
 		loggerFactory = new RainbowGumLoggerFactory(rainbowGum, mdcAdapter);
-		currentMDC = mdcAdapter;
 	}
 
 }

@@ -11,9 +11,14 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.spi.LocationAwareLogger;
 
+import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
+import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
@@ -364,6 +369,49 @@ class RainbowGumLoggerFactoryTest {
 		}
 		finally {
 			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
+	enum BootstrapContextCase {
+
+		PLAIN, CALLER, FLUENT;
+
+	}
+
+	@ParameterizedTest
+	@EnumSource(BootstrapContextCase.class)
+	void bootstrapLoggerGetsRealGumContributor(BootstrapContextCase testCase) {
+		RainbowGum.builder(LogConfig.builder().build()).unset();
+		var bootstrapConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.global.change=true
+				logging.change=level
+				logging.caller=%s
+				""".formatted(testCase == BootstrapContextCase.CALLER)).build()).build();
+		KeyValuesContributor.register(bootstrapConfig.serviceRegistry(), Standard.USER,
+				() -> KeyValues.of(Map.of("tenant", "bootstrap")));
+		var mdc = new RainbowGumMDCAdapter();
+		mdc.put("tenant", "mdc");
+		var factory = new RainbowGumLoggerFactory(RainbowGum.queued(bootstrapConfig), mdc);
+		var early = factory.getLogger("early");
+		var config = LogConfig.builder().build();
+		KeyValuesContributor.register(config.serviceRegistry(), Standard.USER,
+				() -> KeyValues.of(Map.of("tenant", "real")));
+		var output = new ListLogOutput();
+		try (var gum = RainbowGum.builder(config).route(r -> r.appender("list", a -> a.output(output))).set()) {
+			if (testCase == BootstrapContextCase.FLUENT) {
+				early.atInfo().log("existing logger");
+			}
+			else {
+				early.info("existing logger");
+			}
+			factory.getLogger("late").info("new logger");
+			assertEquals(2, output.events().size());
+			for (var event : output.events()) {
+				assertEquals("real", event.getKey().keyValues().getValueOrNull("tenant"));
+			}
+		}
+		finally {
+			mdc.clear();
 		}
 	}
 
