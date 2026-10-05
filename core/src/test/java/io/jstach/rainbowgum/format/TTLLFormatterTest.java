@@ -158,18 +158,18 @@ class TTLLFormatterTest {
 		String actual = log("ttll", "logging.encoder.list.color=rainbowgum\nlogging.encoder.list.keyValues=logfmt\n",
 				event(requestKeyValues()));
 		String keyValues = " " + E + "2;39m{requestId=42 user=\"Ada Lovelace\"}" + R;
-		assertEquals(coloredLine("34", "INFO ", keyValues), actual);
+		assertEquals(coloredLine("1;34", "INFO ", keyValues), actual);
 	}
 
 	@Test
 	void rainbowgumThemeWithoutKeyValuesLeavesBracesOut() {
 		String actual = log("ttll", "logging.encoder.list.color=rainbowgum\nlogging.encoder.list.keyValues=logfmt\n",
 				event(KeyValues.of()));
-		assertEquals(coloredLine("34", "INFO ", ""), actual);
+		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "ERROR,1;31,ERROR", "WARNING,1;31,'WARN '", "INFO,34,'INFO '", "DEBUG,39,DEBUG", "TRACE,39,TRACE" })
+	@CsvSource({ "ERROR,1;31,ERROR", "WARNING,31,'WARN '", "INFO,1;34,'INFO '", "DEBUG,39,DEBUG", "TRACE,39,TRACE" })
 	void levelsAreHighlightedLikeThePatternEncoder(Level level, String code, String text) {
 		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
 		var output = new ListLogOutput();
@@ -203,13 +203,13 @@ class TTLLFormatterTest {
 	void explicitColorWinsOverGlobalAnsiDisable() {
 		String actual = log("ttll", "logging.global.ansi.disable=true\nlogging.encoder.list.color=rainbowgum\n",
 				event(KeyValues.of()));
-		assertEquals(coloredLine("34", "INFO ", ""), actual);
+		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}
 
 	@Test
 	void nonConsoleDefaultEncoderHonorsColorProperty() {
 		// ListLogOutput is not a console output, so its default TTLL is off unless set.
-		assertEquals(coloredLine("34", "INFO ", ""),
+		assertEquals(coloredLine("1;34", "INFO ", ""),
 				log("", "logging.encoder.list.color=true\n", event(KeyValues.of())));
 	}
 

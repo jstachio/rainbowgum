@@ -272,8 +272,8 @@ public sealed interface TTLL permits TTLLFormatter {
 		OFF,
 		/**
 		 * The Rainbow Gum colors, the same as the pattern encoder's default: cyan time,
-		 * faint thread and key values, level highlighted (error and warn bold red, info
-		 * blue) and magenta logger name. Alias <code>true</code>.
+		 * faint thread and key values, level highlighted (error bold red, warn red, info
+		 * bold blue) and magenta logger name. Alias <code>true</code>.
 		 */
 		RAINBOWGUM;
 
