@@ -221,7 +221,7 @@ class PatternConfiguratorTest {
 		 */
 		DEFAULT("""
 				[36m00:00:00.001[0;39m [2;39m[main][0;39m [1;34mINFO [0;39m [35mcom.pattern.test.Test[0;39m - hello
-				[36m00:00:00.001[0;39m [2;39m[main][0;39m [31mWARN [0;39m [35mcom.pattern.test.Test[0;39m - hello
+				[36m00:00:00.001[0;39m [2;39m[main][0;39m [1;31mWARN [0;39m [35mcom.pattern.test.Test[0;39m - hello
 				[36m00:00:00.001[0;39m [2;39m[main][0;39m [1;31mERROR[0;39m [35mcom.pattern.test.Test[0;39m - hello
 								""") {
 

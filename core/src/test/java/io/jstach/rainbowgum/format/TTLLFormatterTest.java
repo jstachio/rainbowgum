@@ -169,7 +169,7 @@ class TTLLFormatterTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "ERROR,1;31,ERROR", "WARNING,31,'WARN '", "INFO,1;34,'INFO '", "DEBUG,39,DEBUG", "TRACE,39,TRACE" })
+	@CsvSource({ "ERROR,1;31,ERROR", "WARNING,1;31,'WARN '", "INFO,1;34,'INFO '", "DEBUG,39,DEBUG", "TRACE,39,TRACE" })
 	void levelsAreHighlightedLikeThePatternEncoder(Level level, String code, String text) {
 		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
 		var output = new ListLogOutput();

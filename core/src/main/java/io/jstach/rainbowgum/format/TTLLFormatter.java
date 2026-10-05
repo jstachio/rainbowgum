@@ -194,8 +194,6 @@ final class Ansi {
 
 	static final String BOLD_RED = "1;31";
 
-	static final String RED = "31";
-
 	static final String BOLD_BLUE = "1;34";
 
 	static final String DEFAULT = "39";
@@ -219,16 +217,15 @@ final class Ansi {
 }
 
 /*
- * Colors the level by severity like the pattern encoder's default highlight: error bold
- * red, warn red, info bold blue, others the default color.
+ * Colors the level by severity like the pattern encoder's default highlight: error and
+ * warn bold red, info bold blue, others the default color.
  */
 record LevelHighlightFormatter(LogFormatter level) implements LogFormatter.EventFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		String code = switch (event.level()) {
-			case ERROR -> Ansi.BOLD_RED;
-			case WARNING -> Ansi.RED;
+			case ERROR, WARNING -> Ansi.BOLD_RED;
 			case INFO -> Ansi.BOLD_BLUE;
 			default -> Ansi.DEFAULT;
 		};
