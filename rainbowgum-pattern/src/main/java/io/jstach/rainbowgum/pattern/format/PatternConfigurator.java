@@ -53,7 +53,7 @@ public final class PatternConfigurator implements Configurator {
 	}
 
 	static final String DEFAULT_PATTERN = """
-			%cyan(%date{HH:mm:ss.SSS}) %clr([%thread]){faint} %highlight(%-5level){ERROR=red bold, INFO=blue bold, WARN=red} %magenta(%logger{36}) - %msg%n%ex""";
+			%cyan(%date{HH:mm:ss.SSS}) %clr([%thread]){faint} %highlight(%-5level){ERROR=red bold, INFO=blue bold, WARN=red bold} %magenta(%logger{36}) - %msg%n%ex""";
 
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
