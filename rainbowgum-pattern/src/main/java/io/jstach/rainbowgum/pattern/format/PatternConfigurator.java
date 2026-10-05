@@ -52,7 +52,7 @@ public final class PatternConfigurator implements Configurator {
 		return -1 << 2; // internal group 2
 	}
 
-	private static final String DEFAULT_PATTERN = """
+	static final String DEFAULT_PATTERN = """
 			%cyan(%date{HH:mm:ss.SSS}) %clr([%thread]){faint} %highlight(%-5level){ERROR=red bold, INFO=blue bold, WARN=red} %magenta(%logger{36}) - %msg%n%ex""";
 
 	@Override

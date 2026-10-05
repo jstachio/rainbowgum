@@ -256,4 +256,35 @@ public sealed interface TTLL permits TTLLFormatter {
 
 	}
 
+	/**
+	 * ANSI color theme. When not set, {@link #RAINBOWGUM} is used if the console supports
+	 * ANSI (see {@link AnsiSupport#isAnsiSupported()}) and {@link #OFF} otherwise; the
+	 * default encoder of outputs that are not a console is always {@link #OFF} unless
+	 * set. As a property <code>true</code> and <code>false</code> are aliases for
+	 * <code>rainbowgum</code> and <code>off</code>.
+	 */
+	@CaseChanging
+	enum ColorTheme {
+
+		/**
+		 * No color. Alias <code>false</code>.
+		 */
+		OFF,
+		/**
+		 * The Rainbow Gum colors, the same as the pattern encoder's default: cyan time,
+		 * faint thread and key values, level highlighted (error and warn bold red, info
+		 * blue) and magenta logger name. Alias <code>true</code>.
+		 */
+		RAINBOWGUM;
+
+		static ColorTheme parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "true" -> RAINBOWGUM;
+				case "false" -> OFF;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(ColorTheme.class, value, "true", "false");
+			};
+		}
+
+	}
+
 }

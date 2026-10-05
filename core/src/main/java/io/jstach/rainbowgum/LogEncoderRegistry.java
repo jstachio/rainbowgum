@@ -9,6 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
+import io.jstach.rainbowgum.format.TTLL;
 import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
 /**
@@ -53,7 +54,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 		var registry = new DefaultEncoderRegistry();
 		registry.register(AbstractStandardEventFormatter.SCHEMA,
 				ref -> (name, config) -> LogEncoder
-					.of(new TTLLFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.of(ttll(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
 		registry.register(LogfmtFormatter.SCHEME,
 				ref -> (name, config) -> LogEncoder
@@ -94,6 +95,23 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 
 	private final EnumMap<OutputType, LogProvider<? extends LogEncoder>> formatters = new EnumMap<>(OutputType.class);
 
+	/*
+	 * A TTLL builder that honors the global ANSI disable property: when it is set the
+	 * color theme defaults to off, while an explicit color property still wins.
+	 */
+	static TTLLFormatterBuilder ttll(String name, LogConfig config) {
+		var b = new TTLLFormatterBuilder(name);
+		boolean ansiDisabled = config.properties()
+			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
+			.ofBoolean()
+			.or(false)
+			.validateNow(LogEncoderRegistry.class);
+		if (ansiDisabled) {
+			b.color(TTLL.ColorTheme.OFF);
+		}
+		return b;
+	}
+
 	/**
 	 * Associates a default formatter with a specific output type
 	 * @param outputType output type to use for finding best default formatter.
@@ -105,7 +123,16 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 		try {
 			var formatter = formatters.get(outputType);
 			if (formatter == null) {
-				return LogEncoder.ofTTLL();
+				if (outputType == OutputType.CONSOLE_OUT || outputType == OutputType.CONSOLE_ERR) {
+					return LogEncoder.ofTTLL();
+				}
+				/*
+				 * Never color a file or other non console output unless asked: ANSI
+				 * detection only knows about the console.
+				 */
+				return (name, config) -> LogEncoder
+					.of(ttll(name, config).color(TTLL.ColorTheme.OFF).fromProperties(config.properties()).build())
+					.provide(name, config);
 			}
 			return Objects.requireNonNull(formatter);
 		}

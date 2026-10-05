@@ -937,6 +937,10 @@ logging.encoder.console.keyValues=logfmt
 <code>none</code>.</li>
 <li><code>keyValues</code>: <code>none</code> (default), <code>logfmt</code>, <code>percent</code>, or
 <code>logback</code>. Key values are written in braces, which are left out when an event has none.</li>
+<li><code>color</code>: <code>rainbowgum</code> (alias <code>true</code>) or <code>off</code> (alias
+<code>false</code>). The rainbowgum theme is the same coloring as the pattern encoder's default. When not set it is
+used if the console supports ANSI (and <code>logging.global.ansi.disable</code> is not set), and the default encoder
+of outputs that are not a console, such as files, is never colored unless set.</li>
 </ul>
 The same settings work as a URI query (<code>logging.appender.console.encoder=ttll:///?keyValues=logfmt</code>) and
 programmatically through {@link io.jstach.rainbowgum.format.TTLLFormatterBuilder}. See
