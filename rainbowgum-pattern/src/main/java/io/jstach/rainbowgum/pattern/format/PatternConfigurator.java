@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
@@ -79,17 +80,31 @@ public final class PatternConfigurator implements Configurator {
 		return true;
 	}
 
+	/**
+	 * Creates a pattern encoder.
+	 * @param name encoder name, used for property lookup.
+	 * @param pattern the pattern to format events with.
+	 * @param patternCompiler compiler to use instead of a default one.
+	 * @param charset charset to encode with, default UTF-8.
+	 * @param maxBufferSize soft maximum buffer size.
+	 * @param levelPrefix severity prefix for every line: none (default) or journald.
+	 * @return encoder provider.
+	 */
 	@LogConfigurable(name = "PatternEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX)
 	static LogProvider<LogEncoder> provideEncoder(@KeyParameter String name, String pattern,
 			@PassThroughParameter @Nullable PatternCompiler patternCompiler,
-			@ConvertParameter("convertCharset") @Nullable Charset charset, @Nullable Integer maxBufferSize) {
+			@ConvertParameter("convertCharset") @Nullable Charset charset, @Nullable Integer maxBufferSize,
+			@ConvertParameter("convertLevelPrefix") @Nullable LevelPrefix levelPrefix) {
 		return (n, config) -> {
 			var compiler = patternCompiler;
 			if (compiler == null) {
 				compiler = PatternCompiler.of(b -> {
 				}).provide(name, config);
 			}
-			var formatter = compiler.compile(pattern);
+			LogFormatter formatter = compiler.compile(pattern);
+			if (levelPrefix == LevelPrefix.JOURNALD) {
+				formatter = new LevelPrefixFormatter(formatter);
+			}
 			var builder = LogEncoder.builder(formatter);
 			builder.description(pattern);
 			if (charset != null) {
@@ -100,6 +115,10 @@ public final class PatternConfigurator implements Configurator {
 			}
 			return builder.build().provide(n, config);
 		};
+	}
+
+	static LevelPrefix convertLevelPrefix(String levelPrefix) {
+		return LevelPrefix.parse(levelPrefix);
 	}
 
 	static Charset convertCharset(String charset) {

@@ -958,6 +958,20 @@ To stop the pattern encoder from being used as the default for console output (f
 encoder) set {@value io.jstach.rainbowgum.pattern.format.PatternConfigurator#LOGGING_PATTERN_DISABLE_PROPERTY}
 to <code>true</code>.
 
+<h4 id="pattern_journald">systemd journal severity</h4>
+
+When a service runs under systemd, its standard out goes to the journal, which records every line at the same
+default priority. Set <code>levelPrefix</code> to <code>journald</code> and the pattern encoder starts every line
+with the event's syslog severity (for example <code>&lt;3&gt;</code> for error), which the journal reads as the
+line's priority, so <code>journalctl -p err</code> works. Stack trace lines get the prefix too, since the journal
+stores each line as its own entry:
+
+{@snippet lang=properties :
+logging.encoder.console.levelPrefix=journald
+}
+
+See {@link io.jstach.rainbowgum.pattern.format.LevelPrefix}.
+
 <h4 id="pattern_config">Configuring PatternConfig with Properties</h4>
 
 {@link io.jstach.rainbowgum.pattern.format.PatternConfig} carries the platform specific settings that keywords
