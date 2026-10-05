@@ -26,6 +26,13 @@ class OtlpJsonEncoderTest {
 		kvs.put("traceId", OtlpProtobufTest.TRACE_ID);
 		kvs.put("spanId", OtlpProtobufTest.SPAN_ID);
 		kvs.put("quote\"key", "line\nbreak");
+		// Context must not duplicate or override the event's standard attributes.
+		kvs.put("thread.name", "wrong-thread");
+		kvs.put("thread.id", "wrong-id");
+		kvs.put("exception.type", "wrong-type");
+		kvs.put("exception.message", "wrong-message");
+		kvs.put("exception.stacktrace", "wrong-stack");
+
 		var event = OtlpProtobufTest.event("com.example.A", Level.ERROR, "boom", kvs,
 				new OtlpProtobufTest.NoStackException("bad"));
 		var encoder = OtlpJsonEncoder.of("otlp", "orders", Map.of("host.name", "h1"), null, null, null);

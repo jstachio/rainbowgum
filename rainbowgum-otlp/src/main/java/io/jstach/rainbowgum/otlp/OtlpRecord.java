@@ -38,31 +38,31 @@ record OtlpRecord(String scopeName, long timeUnixNano, int severityNumber, Strin
 		var kvs = event.keyValues();
 		String traceId = validId(kvs.getValueOrNull(traceIdKey), 32);
 		String spanId = traceId == null ? null : validId(kvs.getValueOrNull(spanIdKey), 16);
-		List<Attribute> attributes = new ArrayList<>();
-		attributes.add(Attribute.of("thread.name", event.threadName()));
-		attributes.add(Attribute.of("thread.id", event.threadId()));
+		Map<String, Attribute> attributes = new LinkedHashMap<>();
+		attributes.put("thread.name", Attribute.of("thread.name", event.threadName()));
+		attributes.put("thread.id", Attribute.of("thread.id", event.threadId()));
 		kvs.forEach((k, v) -> {
 			if (v == null || (traceId != null && k.equals(traceIdKey)) || (spanId != null && k.equals(spanIdKey))) {
 				return;
 			}
-			attributes.add(Attribute.of(k, v));
+			attributes.putIfAbsent(k, Attribute.of(k, v));
 		});
 		var t = event.throwableOrNull();
 		if (t != null) {
-			attributes.add(Attribute.of("exception.type", t.getClass().getName()));
+			attributes.put("exception.type", Attribute.of("exception.type", t.getClass().getName()));
 			var message = t.getMessage();
 			if (message != null) {
-				attributes.add(Attribute.of("exception.message", message));
+				attributes.put("exception.message", Attribute.of("exception.message", message));
 			}
 			var stackTrace = new StringBuilder();
 			ThrowableFormatter.appendThrowable(stackTrace, t);
-			attributes.add(Attribute.of("exception.stacktrace", stackTrace.toString()));
+			attributes.put("exception.stacktrace", Attribute.of("exception.stacktrace", stackTrace.toString()));
 		}
 		var body = new StringBuilder();
 		event.formattedMessage(body);
 		var level = event.level();
 		return new OtlpRecord(event.loggerName(), unixNanos(event.timestamp()), severityNumber(level),
-				severityText(level), body.toString(), traceId, spanId, List.copyOf(attributes));
+				severityText(level), body.toString(), traceId, spanId, List.copyOf(attributes.values()));
 	}
 
 	/*

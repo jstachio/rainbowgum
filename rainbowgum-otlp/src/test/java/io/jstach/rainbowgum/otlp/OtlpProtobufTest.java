@@ -54,6 +54,13 @@ class OtlpProtobufTest {
 		kvs.put("traceId", TRACE_ID);
 		kvs.put("spanId", SPAN_ID);
 		kvs.put("requestId", "abc-123");
+		// Context must not duplicate or override the event's standard attributes.
+		kvs.put("thread.name", "wrong-thread");
+		kvs.put("thread.id", "wrong-id");
+		kvs.put("exception.type", "wrong-type");
+		kvs.put("exception.message", "wrong-message");
+		kvs.put("exception.stacktrace", "wrong-stack");
+
 		var first = event("com.example.A", Level.ERROR, "boom", kvs, new NoStackException("bad"));
 		var second = event("com.example.B", Level.WARNING, "careful", Map.of(), null);
 		var resource = OtlpResource.of("orders", Map.of("deployment.environment", "prod"), EnvironmentVariables.OFF);

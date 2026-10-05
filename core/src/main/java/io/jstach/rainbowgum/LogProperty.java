@@ -93,6 +93,16 @@ public interface LogProperty {
 	}
 
 	/**
+	 * Renders a URI for diagnostics with user information and sensitive query values
+	 * redacted. The returned text is for display, not for making requests.
+	 * @param uri URI to display.
+	 * @return redacted URI text.
+	 */
+	static String redactUri(URI uri) {
+		return LogRedactor.redactUri(uri);
+	}
+
+	/**
 	 * Resolves the property as an int.
 	 * @return result.
 	 */

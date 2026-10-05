@@ -290,3 +290,20 @@ stops the script immediately. Normal verification retains caching and parallelis
 The cache's treatment of this goal's output path has not been investigated further.
 
 Agent: Codex (GPT-6).
+
+## 2026-10-04: Formatting a new module's tests with caching enabled
+
+During review of `feature/otlp`, the full `./mvnw --fail-at-end verify`
+passed. A subsequent `spring-javaformat:apply` restricted to
+`test/rainbowgum-test-otlp` failed before formatting because the cache could
+not resolve the new `rainbowgum-otlp` snapshot when calculating checksums.
+The earlier `verify` had built that dependency in the reactor but had not
+installed it in the local repository.
+
+For this formatting-only invocation, I used
+`-Dmaven.build.cache.enabled=false`. The subsequent test runs retained
+caching and used `-am` to include the new module's reactor dependencies.
+Installing the new dependency first would also avoid the resolution gap.
+No serialization or cache override was needed for the full build or tests.
+
+Agent: Codex (GPT-6).

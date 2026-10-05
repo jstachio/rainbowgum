@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.otlp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -15,12 +16,17 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import com.sun.net.httpserver.HttpServer;
 
@@ -253,6 +259,194 @@ class OtlpOutputHttpTest {
 		assertEquals(1, metric(config, OtlpOutput.REJECTED_METRIC));
 		var alert = config.alerts().dump().get(config.alerts().dump().size() - 1);
 		assertEquals("OTLP endpoint " + endpoint + " rejected 1 of 1 log records: dup", alert.message());
+	}
+
+	@Test
+	void endpointCredentialsAreRedactedInFailureDiagnostics() {
+		endpoint = URI
+			.create(endpoint.toString().replace("http://", "http://user:kenny@") + "?password=kenny&tenant=test");
+		reply(new Reply(400, "bad request".getBytes(StandardCharsets.UTF_8), Map.of()));
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> {
+		});
+		output.write(event("a"), new byte[0], 0, 0, null);
+		output.close();
+		var alert = config.alerts().dump().getLast();
+		assertEquals(
+				"""
+						OTLP export to http://<REDACTED>@localhost/v1/logs?password=<REDACTED>&tenant=test failed; dropped 1 log records""",
+				normalizeEndpoint(alert.message()));
+		assertEquals(
+				"""
+						java.io.IOException: HTTP 400 from http://<REDACTED>@localhost/v1/logs?password=<REDACTED>&tenant=test: bad request""",
+				normalizeEndpoint(String.valueOf(alert.throwableOrNull())));
+	}
+
+	@Test
+	void invalidCredentialEndpointDoesNotLeakThroughExceptionCause() {
+		endpoint = URI.create("ftp://user:kenny@localhost/v1/logs?token=secret");
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> {
+		});
+		output.write(event("a"), new byte[0], 0, 0, null);
+		output.close();
+		var alert = config.alerts().dump().getLast();
+		assertEquals("""
+				OTLP export to ftp://<REDACTED>@localhost/v1/logs?token=<REDACTED> failed; dropped 1 log records""",
+				alert.message());
+		var cause = java.util.Objects.requireNonNull(alert.throwableOrNull());
+		assertEquals(
+				"""
+						java.io.IOException: OTLP request failed (java.lang.IllegalArgumentException); endpoint credentials omitted""",
+				cause.toString());
+		assertNull(cause.getCause());
+	}
+
+	private String normalizeEndpoint(String message) {
+		return message.replace("127.0.0.1:" + server.getAddress().getPort(), "localhost");
+	}
+
+	@ParameterizedTest
+	@EnumSource(OtlpProtocol.class)
+	void warningsWithoutRejectionsAreReportedAndRedacted(OtlpProtocol protocol) {
+		endpoint = URI.create(endpoint + "?token=secret");
+		byte[] response = switch (protocol) {
+			case HTTP_JSON -> """
+					{"partialSuccess":{"rejectedLogRecords":"0","errorMessage":"deprecated"}}"""
+				.getBytes(StandardCharsets.UTF_8);
+			case HTTP_PROTOBUF -> ExportLogsServiceResponse.newBuilder()
+				.setPartialSuccess(ExportLogsPartialSuccess.newBuilder().setErrorMessage("deprecated"))
+				.build()
+				.toByteArray();
+		};
+		reply(new Reply(200, response, Map.of("Content-Type", protocol.contentType())));
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> b.protocol(protocol));
+		output.write(event("a"), new byte[0], 0, 0, null);
+		output.close();
+		assertEquals(1, received.size());
+		assertEquals(0, metric(config, OtlpOutput.REJECTED_METRIC));
+		assertEquals(0, metric(config, OtlpOutput.FAILED_METRIC));
+		var alert = config.alerts().dump().getLast();
+		assertEquals(Level.WARNING, alert.level());
+		assertEquals("""
+				OTLP endpoint http://localhost/v1/logs?token=<REDACTED> rejected 0 of 1 log records: deprecated""",
+				normalizeEndpoint(alert.message()));
+	}
+
+	@Test
+	void malformedResponseIsReportedWithoutRetryingAcceptedRecords() {
+		reply(new Reply(200, new byte[] { 10, 5, 8 }, Map.of("Content-Type", "application/x-protobuf")));
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> {
+		});
+		output.write(event("a"), new byte[0], 0, 0, null);
+		output.flush();
+		var alert = config.alerts().dump().getLast();
+		assertEquals("""
+				Invalid OTLP response from http://localhost/v1/logs""", normalizeEndpoint(alert.message()));
+		assertEquals("""
+				java.lang.IllegalArgumentException: Invalid protobuf field length""",
+				String.valueOf(alert.throwableOrNull()));
+		output.write(event("b"), new byte[0], 0, 0, null);
+		output.close();
+		assertEquals(2, received.size());
+	}
+
+	@Test
+	void timeoutBoundsResponseBodyWaitAndClose() throws Exception {
+		var headersSent = new CountDownLatch(1);
+		var releaseBody = new CountDownLatch(1);
+		server.removeContext("/");
+		server.createContext("/", exchange -> {
+			exchange.getRequestBody().readAllBytes();
+			exchange.sendResponseHeaders(200, 2);
+			exchange.getResponseBody().flush();
+			headersSent.countDown();
+			try {
+				releaseBody.await(5, TimeUnit.SECONDS);
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			finally {
+				exchange.close();
+			}
+		});
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> b.timeout(250));
+		output.write(event("a"), new byte[0], 0, 0, null);
+		var future = CompletableFuture.runAsync(output::close);
+		try {
+			assertTrue(headersSent.await(2, TimeUnit.SECONDS));
+			// Completion must not depend on the server releasing its response body.
+			future.get(2, TimeUnit.SECONDS);
+			assertEquals(1, metric(config, OtlpOutput.FAILED_METRIC));
+			assertEquals("""
+					java.net.http.HttpTimeoutException: OTLP export timed out after 250 ms""",
+					String.valueOf(config.alerts().dump().getLast().throwableOrNull()));
+		}
+		finally {
+			releaseBody.countDown();
+			future.get(5, TimeUnit.SECONDS);
+		}
+	}
+
+	@Test
+	void retryAfterCannotExtendExportDeadline() throws Exception {
+		reply(new Reply(503, new byte[0], Map.of("Retry-After", "30")));
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> b.timeout(250));
+		output.write(event("a"), new byte[0], 0, 0, null);
+		CompletableFuture.runAsync(output::close).get(2, TimeUnit.SECONDS);
+		assertEquals(1, received.size());
+		assertEquals(1, metric(config, OtlpOutput.FAILED_METRIC));
+	}
+
+	@Test
+	void interruptedWorkerStillFinishesItsCurrentRequest() throws Exception {
+		var requestReceived = new CountDownLatch(1);
+		var releaseResponse = new CountDownLatch(1);
+		server.removeContext("/");
+		server.createContext("/", exchange -> {
+			exchange.getRequestBody().readAllBytes();
+			requestReceived.countDown();
+			try {
+				releaseResponse.await(5, TimeUnit.SECONDS);
+				exchange.sendResponseHeaders(200, -1);
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+			}
+			finally {
+				exchange.close();
+			}
+		});
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> b.timeout(2000));
+		output.write(event("a"), new byte[0], 0, 0, null);
+		var result = new CompletableFuture<Boolean>();
+		var worker = Thread.ofPlatform().start(() -> {
+			try {
+				output.flush();
+				result.complete(Thread.currentThread().isInterrupted());
+			}
+			catch (Throwable e) {
+				result.completeExceptionally(e);
+			}
+		});
+		try {
+			assertTrue(requestReceived.await(2, TimeUnit.SECONDS));
+			worker.interrupt();
+			releaseResponse.countDown();
+			assertEquals(true, result.get(3, TimeUnit.SECONDS));
+			assertEquals(0, metric(config, OtlpOutput.FAILED_METRIC));
+		}
+		finally {
+			releaseResponse.countDown();
+			worker.join(5000);
+			output.close();
+		}
 	}
 
 }
