@@ -53,6 +53,13 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
 public interface LogEncoder {
 
 	/**
+	 * Comma separated names of the {@link LogFormatter.PostProcessor post processors}
+	 * applied, in order, to an encoder backed by a formatter: {@value}.
+	 * @see LogFormatter.StandardPostProcessor
+	 */
+	static final String ENCODER_POST_PROCESSORS_PROPERTY = LogProperties.ENCODER_PREFIX + "postProcessors";
+
+	/**
 	 * Creates a <strong>new</strong> buffer. The encoder should not try to reuse buffers
 	 * as that is the responsibility of the {@linkplain LogAppender appender} (and
 	 * possibly {@link LogOutput} but usually not). Hints can be retrieved by call
@@ -265,7 +272,8 @@ public interface LogEncoder {
 				 */
 				boolean resolvedUseGetBytes = explicitUseGetBytes != null ? explicitUseGetBytes
 						: AbstractLogAppender.globalOptimizeEnabled && AbstractLogAppender.isNativeImageRuntime();
-				return new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
+				LogFormatter resolvedFormatter = PostProcessors.decorate(formatter, n, config);
+				return new FormatterEncoder(resolvedFormatter, resolvedCharset, resolvedContentType, maxBufferSize,
 						initialBufferSize, resolvedUseGetBytes, config.metrics(), resolvedDescription);
 			};
 		}
