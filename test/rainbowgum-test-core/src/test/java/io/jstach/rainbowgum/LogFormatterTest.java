@@ -462,7 +462,8 @@ class LogFormatterTest {
 		// "missing" is never added at all; "explicitNull" is added but mapped to null -
 		// getValueOrNull() can't tell these apart, so SelectedEncodedKeyValuesFormatter's
 		// default KEEP strategy prints both as a bare key (no "="), matching
-		// DefaultKeyValuesFormatter's key-only-no-equals handling of a real null entry.
+		// PercentEncodingKeyValuesFormatter's key-only-no-equals handling of a real null
+		// entry.
 		var kvs = KeyValues.MutableKeyValues.of().add("present", "v").add("explicitNull", null);
 		var event = TestLogEventFactory.of()
 			.eventNoArg(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
