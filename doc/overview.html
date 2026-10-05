@@ -912,6 +912,36 @@ Pattern Encoder is a mostly compatible to logback format encoder that renders lo
 
 See <a href="#pattern">Pattern Formatter</a> section and {@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}
 
+<h4 id="ttll">TTLL Encoder</h4>
+
+TTLL (Time, Thread, Level, Logger) is the default text format and needs no extra module. Each part can be changed
+with properties of the encoder, much like slf4j-simple's options, so showing key values (MDC) or dropping the time
+does not require the pattern module:
+
+{@snippet lang=properties :
+logging.encoder.console.timestamp=iso
+logging.encoder.console.keyValues=logfmt
+}
+
+{@snippet :
+2026-10-05T12:00:00.123Z [main] INFO  com.example.App {requestId=42 user="Ada Lovelace"} - hello world
+}
+
+<ul>
+<li><code>timestamp</code>: <code>ttll</code> (default, <code>HH:mm:ss.SSS</code> UTC), <code>iso</code>,
+<code>none</code>, or a <code>DateTimeFormatter</code> pattern in UTC.</li>
+<li><code>thread</code>: <code>name</code> (default), <code>id</code>, or <code>none</code>.</li>
+<li><code>level</code>: <code>padded</code> (default), <code>plain</code>, <code>bracketed</code>, or
+<code>none</code>.</li>
+<li><code>logger</code>: <code>full</code> (default), <code>short</code> (last name component), or
+<code>none</code>.</li>
+<li><code>keyValues</code>: <code>none</code> (default), <code>logfmt</code>, <code>percent</code>, or
+<code>logback</code>. Key values are written in braces, which are left out when an event has none.</li>
+</ul>
+The same settings work as a URI query (<code>logging.appender.console.encoder=ttll:///?keyValues=logfmt</code>) and
+programmatically through {@link io.jstach.rainbowgum.format.TTLLFormatterBuilder}. See
+{@link io.jstach.rainbowgum.format.TTLL}.
+
 <h4 id="logfmt">logfmt Encoder</h4>
 
 <a href="https://brandur.org/logfmt">logfmt</a> writes each event as one line of <code>key=value</code> pairs,

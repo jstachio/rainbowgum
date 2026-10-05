@@ -156,9 +156,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 		b.add(nameFormatter);
 		if (!keyValuesFormatter.isNoop()) {
-			b.text(" {");
-			b.add(keyValuesFormatter);
-			b.text("}");
+			b.add(new BracedKeyValuesFormatter(keyValuesFormatter));
 		}
 		if (!messageFormatter.isNoop()) {
 			b.text(" - ");
@@ -323,7 +321,16 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	 * @param registry encoder registry.
 	 */
 	public void register(LogEncoderRegistry registry) {
-		registry.register(SCHEMA, toEncoderProvider());
+		register(registry, SCHEMA);
+	}
+
+	/**
+	 * Registers this TTLL like encoder with the given uri schema.
+	 * @param registry encoder registry.
+	 * @param schema uri schema to register under.
+	 */
+	public void register(LogEncoderRegistry registry, String schema) {
+		registry.register(schema, toEncoderProvider());
 	}
 
 	@Override

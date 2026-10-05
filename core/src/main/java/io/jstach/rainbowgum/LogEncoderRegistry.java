@@ -9,7 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
-import io.jstach.rainbowgum.format.StandardEventFormatter;
+import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
 /**
  * Encoder registry. Only one encoder is registered by default which has the URI schema of
@@ -51,7 +51,10 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 */
 	public static LogEncoderRegistry of() {
 		var registry = new DefaultEncoderRegistry();
-		StandardEventFormatter.builder().build().register(registry);
+		registry.register(AbstractStandardEventFormatter.SCHEMA,
+				ref -> (name, config) -> LogEncoder
+					.of(new TTLLFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.provide(name, config));
 		registry.register(LogfmtFormatter.SCHEME,
 				ref -> (name, config) -> LogEncoder
 					.of(new LogfmtFormatterBuilder(name).fromProperties(config.properties(), ref).build())
