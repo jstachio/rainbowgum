@@ -144,4 +144,86 @@ class TTLLFormatterTest {
 		assertEquals(expected, e.getMessage());
 	}
 
+	static final String E = "\033[";
+
+	static final String R = E + "0;39m";
+
+	private static String coloredLine(String levelCode, String level, String keyValues) {
+		return E + "36m12:00:00.123" + R + " " + E + "2;39m[main]" + R + " " + E + levelCode + "m" + level + R + " " + E
+				+ "35mcom.example.App" + R + keyValues + " - hello world\n";
+	}
+
+	@Test
+	void rainbowgumTheme() {
+		String actual = log("ttll", "logging.encoder.list.color=rainbowgum\nlogging.encoder.list.keyValues=logfmt\n",
+				event(requestKeyValues()));
+		String keyValues = " " + E + "2;39m{requestId=42 user=\"Ada Lovelace\"}" + R;
+		assertEquals(coloredLine("34", "INFO ", keyValues), actual);
+	}
+
+	@Test
+	void rainbowgumThemeWithoutKeyValuesLeavesBracesOut() {
+		String actual = log("ttll", "logging.encoder.list.color=rainbowgum\nlogging.encoder.list.keyValues=logfmt\n",
+				event(KeyValues.of()));
+		assertEquals(coloredLine("34", "INFO ", ""), actual);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "ERROR,1;31,ERROR", "WARNING,1;31,'WARN '", "INFO,34,'INFO '", "DEBUG,39,DEBUG", "TRACE,39,TRACE" })
+	void levelsAreHighlightedLikeThePatternEncoder(Level level, String code, String text) {
+		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
+		var output = new ListLogOutput();
+		String all = """
+				logging.level=TRACE
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.appender.list.encoder=ttll
+				logging.encoder.list.color=rainbowgum
+				""";
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(all).build()).build();
+		config.outputRegistry().register("list", ref -> LogProvider.of(output));
+		try (var g = RainbowGum.builder(config).build().start()) {
+			g.log(event);
+		}
+		assertEquals(coloredLine(code, text, ""), output.toString());
+	}
+
+	@Test
+	void trueAndFalseAreAliases() {
+		var event = event(requestKeyValues());
+		assertEquals(log("ttll", "logging.encoder.list.color=rainbowgum\n", event),
+				log("ttll", "logging.encoder.list.color=true\n", event));
+		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
+				log("ttll", "logging.encoder.list.color=false\n", event));
+		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
+				log("ttll", "logging.encoder.list.color=off\n", event));
+	}
+
+	@Test
+	void explicitColorWinsOverGlobalAnsiDisable() {
+		String actual = log("ttll", "logging.global.ansi.disable=true\nlogging.encoder.list.color=rainbowgum\n",
+				event(KeyValues.of()));
+		assertEquals(coloredLine("34", "INFO ", ""), actual);
+	}
+
+	@Test
+	void nonConsoleDefaultEncoderHonorsColorProperty() {
+		// ListLogOutput is not a console output, so its default TTLL is off unless set.
+		assertEquals(coloredLine("34", "INFO ", ""),
+				log("", "logging.encoder.list.color=true\n", event(KeyValues.of())));
+	}
+
+	@Test
+	void invalidColorFails() {
+		var properties = LogProperties.builder().fromProperties("logging.encoder.list.color=pink").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.encoder.list.color' from PROPERTIES_STRING[logging.encoder.list.color], \
+				'pink' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
+				Valid values: 'off', 'rainbowgum', 'true', 'false'""";
+		assertEquals(expected, e.getMessage());
+	}
+
 }
