@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import io.jstach.rainbowgum.LogFormatter.PostProcessor;
 import io.jstach.rainbowgum.LogFormatter.StandardPostProcessor;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 class PostProcessorTest {
 
@@ -84,7 +85,7 @@ class PostProcessorTest {
 		String actual = log("""
 				logging.encoder.app.postProcessors=tag
 				greeting=hi
-				""", config -> config.serviceRegistry().put(PostProcessor.Provider.class, "tag", (name, c) -> {
+				""", config -> PostProcessor.register(config.serviceRegistry(), "tag", (name, c) -> {
 			String greeting = c.properties().valueOrNull("greeting");
 			return (event, output, start) -> output.insert(start, "[" + name + " " + greeting + "] ");
 		}), Level.INFO, "hello", null);
@@ -94,11 +95,56 @@ class PostProcessorTest {
 	@Test
 	void registeredPostProcessorTakesPrecedenceOverAStandardName() {
 		String actual = log("logging.encoder.app.postProcessors=journald",
-				config -> config.serviceRegistry()
-					.put(PostProcessor.Provider.class, "journald",
-							(name, c) -> (event, output, start) -> output.insert(start, "custom ")),
+				config -> PostProcessor.register(config.serviceRegistry(), "journald",
+						(name, c) -> (event, output, start) -> output.insert(start, "custom ")),
 				Level.INFO, "hello", null);
 		assertEquals("custom INFO hello\n", actual);
+	}
+
+	/*
+	 * A custom post processor as a plugin would ship it: its own class, registered by a
+	 * configurator, and selected purely by property alongside a standard one.
+	 */
+	static final class MaskDigits implements PostProcessor {
+
+		@Override
+		public void process(LogEvent event, StringBuilder output, int start) {
+			for (int i = start; i < output.length(); i++) {
+				if (Character.isDigit(output.charAt(i))) {
+					output.setCharAt(i, '#');
+				}
+			}
+		}
+
+	}
+
+	static final class MaskDigitsConfigurator implements RainbowGumServiceProvider.Configurator {
+
+		@Override
+		public boolean configure(LogConfig config, Pass pass) {
+			PostProcessor.register(config.serviceRegistry(), "maskDigits", (name, c) -> new MaskDigits());
+			return true;
+		}
+
+	}
+
+	@Test
+	void customPostProcessorRegisteredByAConfigurator() {
+		var output = new ListLogOutput();
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties("logging.encoder.app.postProcessors=maskDigits,journald")
+				.build())
+			.configurator(new MaskDigitsConfigurator())
+			.build();
+		try (var gum = RainbowGum.builder(config)
+			.route(r -> r.appender("app", a -> a.output(output).formatter(FORMATTER)))
+			.build()
+			.start()) {
+			gum.log(LogEventFactory.of("test")
+				.eventNoArg(Level.ERROR, "card 4111 1111\nexpires 12/30", KeyValues.of(), (Throwable) null));
+		}
+		assertEquals("<3>ERROR card #### ####\n<3>expires ##/##\n", output.toString());
 	}
 
 	@Test

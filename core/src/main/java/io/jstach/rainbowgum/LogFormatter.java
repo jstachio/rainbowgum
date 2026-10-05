@@ -992,6 +992,21 @@ public sealed interface LogFormatter {
 		}
 
 		/**
+		 * Registers a post processor under a name so encoders can select it with
+		 * {@value LogEncoder#ENCODER_POST_PROCESSORS_PROPERTY}, usually from a
+		 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}. A name
+		 * that is already registered is not replaced; a registered name takes precedence
+		 * over a {@link StandardPostProcessor} of the same name.
+		 * @param registry usually {@link LogConfig#serviceRegistry()}.
+		 * @param name the name used in the property.
+		 * @param provider creates the post processor, given the encoder's name and
+		 * config.
+		 */
+		public static void register(ServiceRegistry registry, String name, Provider provider) {
+			registry.put(Provider.class, name, provider);
+		}
+
+		/**
 		 * Creates a post processor for an encoder, given the encoder's name and config.
 		 */
 		@FunctionalInterface
