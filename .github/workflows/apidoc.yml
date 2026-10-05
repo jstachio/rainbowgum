@@ -40,7 +40,19 @@ jobs:
           cache: 'maven'
       - name: mvn install
         # -T1: opt back out of the -T2C default in .mvn/maven.config for CI.
-        run: ./mvnw --batch-mode --no-transfer-progress -T1 -Pdoc clean install -DskipTests=true
+        # Tests run (unlike the release doc build) only to produce the coverage report;
+        # a failing test must not stop the snapshot docs from publishing.
+        run: >
+          ./mvnw --batch-mode --no-transfer-progress -T1 -Pdoc -Dcodecover=true
+          -Dmaven.test.failure.ignore=true clean install
+      - name: Add coverage report
+        if: hashFiles('rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml') != ''
+        run: |
+          cp -r rainbowgum-coverage-aggregate/target/site/jacoco-aggregate target/reports/apidocs/coverage
+          java bin/src/main/java/io/jstach/script/CoverageReport.java \
+            target/reports/apidocs/coverage/jacoco.xml \
+            --badge target/reports/apidocs/coverage/badge.svg \
+            --summary "$GITHUB_STEP_SUMMARY"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

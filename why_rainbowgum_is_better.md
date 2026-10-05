@@ -422,16 +422,19 @@ Log4j2's public API carries any nullability annotations at all.
 
 ### Test coverage
 
-Rainbow Gum sits at **92% test coverage** (aggregated across every module, tracked
-continuously; see the [Codecov badge](https://app.codecov.io/gh/jstachio/rainbowgum)),
-including end-to-end golden-string tests of what happens when a component is
-misconfigured, not just the happy path. See
+Rainbow Gum sits at **95% line coverage** (JaCoCo, aggregated across every module and
+republished with every snapshot build; see the
+[coverage report](https://jstach.io/rainbowgum/coverage/)), including end-to-end
+golden-string tests of what happens when a component is misconfigured, not just the
+happy path. See
 [error_messages_comparison.md](error_messages_comparison.md) for what that buys you in
 practice.
 
 Credit where due again: tinylog does the same thing, and does it well. Its
 [Codecov badge](https://app.codecov.io/gh/tinylog-org/tinylog/tree/v2.8) shows **94%**,
-tracked continuously the same way Rainbow Gum's is. Logback's and Log4j2's actual
+tracked continuously. That figure uses Codecov's stricter metric, which counts a line
+with partially covered branches as a miss; by that metric Rainbow Gum measured **92%**
+when it still reported to Codecov, so the two projects are close. Logback's and Log4j2's actual
 coverage, by contrast, is not something you can just go look up: neither publishes a
 number anywhere. The obvious place to check, Codecov, returns "unknown" for both
 ([logback](https://codecov.io/gh/qos-ch/logback), [log4j2](https://codecov.io/gh/apache/logging-log4j2)),
@@ -440,7 +443,7 @@ untested (both have large, long-running test suites); it means there is no publi
 number to compare against, favorable or not, the way there is for Rainbow Gum and
 tinylog.
 
-To be clear, 92% is not a number Rainbow Gum is chasing toward 100 for its own sake.
+To be clear, 95% is not a number Rainbow Gum is chasing toward 100 for its own sake.
 Line coverage measures which lines *ran* during a test, not which lines were actually
 *verified*. A test that only exists to touch a line pads the percentage without proving
 anything, and 100% can just as easily mean "we wrote a trivial test for every line"

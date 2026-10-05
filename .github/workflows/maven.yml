@@ -32,11 +32,17 @@ jobs:
         with:
           name: test-results
           path: '**/target/surefire-reports/TEST-*.xml'
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+      # Coverage is self-hosted: no external service in the CI path. The HTML report is
+      # published with the snapshot docs by apidoc.yml and attached to every run here.
+      - name: Coverage summary
+        if: always() && hashFiles('rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml') != ''
+        run: >
+          java bin/src/main/java/io/jstach/script/CoverageReport.java
+          rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml
+          --summary "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always() && hashFiles('rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml') != ''
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: jstachio/rainbowgum
-          fail_ci_if_error: true
-          disable_search: true
-          files: ${{ github.workspace }}/rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml
+          name: coverage-report
+          path: rainbowgum-coverage-aggregate/target/site/jacoco-aggregate
