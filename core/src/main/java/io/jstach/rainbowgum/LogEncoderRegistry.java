@@ -52,6 +52,10 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	public static LogEncoderRegistry of() {
 		var registry = new DefaultEncoderRegistry();
 		StandardEventFormatter.builder().build().register(registry);
+		registry.register(LogfmtFormatter.SCHEME,
+				ref -> (name, config) -> LogEncoder
+					.of(new LogfmtFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.provide(name, config));
 		return registry;
 	}
 

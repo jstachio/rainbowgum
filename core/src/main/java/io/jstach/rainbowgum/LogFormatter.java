@@ -350,7 +350,53 @@ public sealed interface LogFormatter {
 		 * @return formatter.
 		 */
 		public Builder encodedKeyValues() {
-			return add(DefaultKeyValuesFormatter.INSTANCE);
+			return add(PercentEncodingKeyValuesFormatter.INSTANCE);
+		}
+
+		/**
+		 * Creates a formatter that will print <strong>ALL</strong> of the key values as
+		 * <a href="https://brandur.org/logfmt">logfmt</a>: space separated
+		 * <code>key=value</code> pairs, quoted and escaped only when needed, for example
+		 * <code>requestId=42 user="Ada Lovelace"</code>. Keys mapped to <code>null</code>
+		 * are written as <code>key=</code>, distinct from an empty string
+		 * (<code>key=""</code>).
+		 * @return this.
+		 */
+		public Builder logfmtKeyValues() {
+			return add(LogfmtFormatter.keyValues());
+		}
+
+		/**
+		 * Creates a formatter that will print the given keys, in order, as logfmt,
+		 * preserving the <code>null</code>/empty-string distinction
+		 * ({@link KeyValueNullStrategy#KEEP}): a key whose value is <code>null</code> or
+		 * absent is written as <code>key=</code>. <strong>An empty {@code keys} list is a
+		 * noop.</strong> If you want all keys use {@link #logfmtKeyValues()}.
+		 * @param keys keys where order is important.
+		 * @return this.
+		 * @see #logfmtKeyValues(List, KeyValueNullStrategy)
+		 */
+		public Builder logfmtKeyValues(List<String> keys) {
+			return logfmtKeyValues(keys, KeyValueNullStrategy.KEEP);
+		}
+
+		/**
+		 * Creates a formatter that will print the given keys, in order, as logfmt,
+		 * handling a key whose value is <code>null</code> or absent according to
+		 * <code>nullStrategy</code>: {@link KeyValueNullStrategy#KEEP} writes
+		 * <code>key=</code>, {@link KeyValueNullStrategy#EMPTY} writes
+		 * <code>key=""</code>, and {@link KeyValueNullStrategy#SKIP} leaves the key out.
+		 * <strong>An empty {@code keys} list is a noop.</strong>
+		 * @param keys keys where order is important.
+		 * @param nullStrategy how to handle a key whose value is <code>null</code> or
+		 * absent.
+		 * @return this.
+		 */
+		public Builder logfmtKeyValues(List<String> keys, KeyValueNullStrategy nullStrategy) {
+			if (keys.isEmpty()) {
+				return this;
+			}
+			return add(LogfmtFormatter.keyValues(keys, nullStrategy));
 		}
 
 		/**
@@ -1521,7 +1567,7 @@ final class PackagingDataResolver {
 
 }
 
-enum DefaultKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<StringBuilder> {
+enum PercentEncodingKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<StringBuilder> {
 
 	INSTANCE;
 
@@ -1590,7 +1636,7 @@ final class SelectedEncodedKeyValuesFormatter implements LogFormatter {
 			else {
 				output.append("&");
 			}
-			DefaultKeyValuesFormatter.formatKeyValue(output, k, v);
+			PercentEncodingKeyValuesFormatter.formatKeyValue(output, k, v);
 		}
 	}
 
@@ -1608,7 +1654,7 @@ record SingleKeyValueFormatter(String key, @Nullable String fallback) implements
 		if (v == null) {
 			v = fallback;
 		}
-		DefaultKeyValuesFormatter.formatKeyValue(output, key, v);
+		PercentEncodingKeyValuesFormatter.formatKeyValue(output, key, v);
 	}
 
 }
