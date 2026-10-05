@@ -24,9 +24,11 @@ import io.jstach.rainbowgum.json.JsonBuffer.ExtendedFieldPrefix;
  * Each record carries the formatted message as its body, the logger name as its
  * instrumentation scope, {@code thread.name}, {@code thread.id}, every key value, and for
  * a throwable {@code exception.type}, {@code exception.message}, and
- * {@code exception.stacktrace} attributes. Key values named by {@code traceIdKey} and
- * {@code spanIdKey} (default {@code traceId} and {@code spanId}, as Micrometer Tracing
- * puts them in the MDC) become the record's trace context when they are valid W3C ids.
+ * {@code exception.stacktrace} attributes. Event thread and exception attributes take
+ * precedence over context values with the same names. Key values named by
+ * {@code traceIdKey} and {@code spanIdKey} (default {@code traceId} and {@code spanId},
+ * as Micrometer Tracing puts them in the MDC) become the record's trace context when they
+ * are valid W3C ids.
  */
 public final class OtlpJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 

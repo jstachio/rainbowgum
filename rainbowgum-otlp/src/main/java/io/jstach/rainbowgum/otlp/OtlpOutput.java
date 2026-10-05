@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -18,7 +19,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
@@ -33,6 +37,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMetrics;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
@@ -47,9 +52,10 @@ import io.jstach.rainbowgum.json.JsonBuffer.ExtendedFieldPrefix;
  * {@code maxBatchSize} events are pending. Use an asynchronous publisher: with the
  * default synchronous one every log call waits for its own HTTP request. HTTP 429, 502,
  * 503, and 504 responses and network errors are retried up to three times with
- * exponential backoff, honoring {@code Retry-After}. A batch that still fails is dropped,
- * recorded as an error alert, and counted in {@value #FAILED_METRIC}. Records the
- * endpoint reports as rejected (partial success) are a warning alert and counted in
+ * exponential backoff with jitter, honoring {@code Retry-After}. The timeout bounds the
+ * whole export, including retries and response-body reads. A batch that still fails is
+ * dropped, recorded as an error alert, and counted in {@value #FAILED_METRIC}. Records
+ * the endpoint reports as rejected (partial success) are a warning alert and counted in
  * {@value #REJECTED_METRIC}.
  * <p>
  * This output encodes events itself, so it does not use an appender encoder. Records have
@@ -78,7 +84,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	public static final int DEFAULT_MAX_BATCH_SIZE = 512;
 
 	/**
-	 * Default request timeout in milliseconds.
+	 * Default export timeout in milliseconds.
 	 */
 	public static final int DEFAULT_TIMEOUT = 10_000;
 
@@ -97,6 +103,8 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 			null);
 
 	private final URI endpoint;
+
+	private final String displayEndpoint;
 
 	private final OtlpProtocol protocol;
 
@@ -125,6 +133,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	OtlpOutput(URI endpoint, OtlpProtocol protocol, Map<String, String> headers, boolean gzip, Duration timeout,
 			int maxBatchSize, OtlpResource resource, String traceIdKey, String spanIdKey, LogConfig config) {
 		this.endpoint = endpoint;
+		this.displayEndpoint = LogProperty.redactUri(endpoint);
 		this.protocol = protocol;
 		this.headers = Map.copyOf(headers);
 		this.gzip = gzip;
@@ -160,7 +169,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	 * @param protocol {@code http/protobuf} (default) or {@code http/json}.
 	 * @param headers extra request headers, for example authentication.
 	 * @param compression {@code gzip} or {@code none} (default).
-	 * @param timeout request timeout in milliseconds, default
+	 * @param timeout export timeout in milliseconds, including retries, default
 	 * {@value OtlpOutput#DEFAULT_TIMEOUT}.
 	 * @param maxBatchSize maximum events per request, default
 	 * {@value OtlpOutput#DEFAULT_MAX_BATCH_SIZE}.
@@ -347,38 +356,109 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		var records = List.copyOf(pending);
 		pending.clear();
 		int count = records.size();
+		long deadline = System.nanoTime() + timeout.toNanos();
 		HttpRequest request;
 		try {
 			request = request(encode(records));
 		}
 		catch (RuntimeException ex) {
-			failed(count, ex);
+			requestFailed(count, ex);
 			return;
 		}
 		for (int attempt = 0;; attempt++) {
 			HttpResponse<byte[]> response;
 			try {
-				// join() is not interruptible; the request timeout bounds the wait.
-				response = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray()).join();
+				response = sendRequest(request, deadline);
 			}
-			catch (CompletionException ex) {
-				Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-				if (attempt < maxRetries && sleep(backoff(attempt))) {
+			catch (IOException | RuntimeException ex) {
+				if (attempt < maxRetries && sleep(backoff(attempt), deadline)) {
 					continue;
 				}
-				failed(count, cause instanceof Exception e ? e : ex);
+				requestFailed(count, ex);
 				return;
 			}
 			int status = response.statusCode();
 			if (status >= 200 && status < 300) {
-				partialSuccess(response.body(), count);
+				try {
+					partialSuccess(response.body(), count);
+				}
+				catch (IllegalArgumentException ex) {
+					// A successful HTTP response must not be retried after a decoding
+					// failure: the collector may already have accepted these records.
+					alerts.error(OtlpOutput.class, "Invalid OTLP response from " + displayEndpoint, ex);
+				}
 				return;
 			}
-			if (RETRYABLE.contains(status) && attempt < maxRetries && sleep(retryDelay(attempt, response))) {
+			if (RETRYABLE.contains(status) && attempt < maxRetries && sleep(retryDelay(attempt, response), deadline)) {
 				continue;
 			}
-			failed(count, new IOException("HTTP " + status + " from " + endpoint + ": " + preview(response.body())));
+			failed(count,
+					new IOException("HTTP " + status + " from " + displayEndpoint + ": " + preview(response.body())));
 			return;
+		}
+	}
+
+	private HttpResponse<byte[]> sendRequest(HttpRequest request, long deadline) throws IOException {
+		long remaining = deadline - System.nanoTime();
+		if (remaining <= 0) {
+			throw exportTimeout();
+		}
+		var future = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray());
+		boolean interrupted = false;
+		try {
+			while (true) {
+				try {
+					return future.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+				}
+				catch (InterruptedException ex) {
+					// Preserve shutdown draining even if a publisher interrupts its
+					// worker.
+					// The deadline still bounds this wait; the flag prevents later
+					// retries.
+					interrupted = true;
+				}
+			}
+		}
+		catch (TimeoutException ex) {
+			throw exportTimeout();
+		}
+		catch (ExecutionException ex) {
+			var cause = ex.getCause();
+			if (cause instanceof HttpTimeoutException) {
+				throw exportTimeout();
+			}
+			if (cause instanceof IOException io) {
+				throw io;
+			}
+			throw new IOException("OTLP request failed", cause);
+		}
+		finally {
+			// HttpRequest.timeout does not cover the response body on Java 21.
+			// Cancel the actual HTTP operation so close() cannot wait for it forever.
+			if (!future.isDone()) {
+				future.cancel(true);
+			}
+			if (interrupted) {
+				Thread.currentThread().interrupt();
+			}
+		}
+	}
+
+	private HttpTimeoutException exportTimeout() {
+		return new HttpTimeoutException("OTLP export timed out after " + timeout.toMillis() + " ms");
+	}
+
+	private void requestFailed(int count, Exception cause) {
+		if (!displayEndpoint.equals(endpoint.toString())) {
+			// HTTP client exception messages and their causes may include credentials.
+			// Keep the failure type and stack without retaining unsafe diagnostic text.
+			var safe = new IOException(
+					"OTLP request failed (" + cause.getClass().getName() + "); endpoint credentials omitted");
+			safe.setStackTrace(cause.getStackTrace());
+			failed(count, safe);
+		}
+		else {
+			failed(count, cause);
 		}
 	}
 
@@ -415,14 +495,21 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	}
 
 	private static long backoff(int attempt) {
-		return retryBaseMillis << attempt;
+		return backoff(attempt, ThreadLocalRandom.current().nextDouble());
+	}
+
+	static long backoff(int attempt, double random) {
+		long cap = retryBaseMillis << attempt;
+		// Equal jitter keeps a minimum delay while spreading clients across the
+		// upper half of the exponentially increasing interval.
+		return cap / 2 + (long) ((cap - cap / 2) * random);
 	}
 
 	private static long retryDelay(int attempt, HttpResponse<?> response) {
 		var retryAfter = response.headers().firstValue("Retry-After");
 		if (retryAfter.isPresent()) {
 			try {
-				return Math.min(Long.parseLong(retryAfter.get().strip()) * 1000, 30_000);
+				return Math.min(Math.max(0, Long.parseLong(retryAfter.get().strip())), 30) * 1000;
 			}
 			catch (NumberFormatException ex) {
 				// HTTP date form is not supported; fall back to exponential backoff.
@@ -431,7 +518,10 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		return backoff(attempt);
 	}
 
-	private static boolean sleep(long millis) {
+	private static boolean sleep(long millis, long deadline) {
+		if (TimeUnit.MILLISECONDS.toNanos(millis) >= deadline - System.nanoTime()) {
+			return false;
+		}
 		try {
 			Thread.sleep(millis);
 			return true;
@@ -444,8 +534,8 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 
 	private void failed(int count, Exception cause) {
 		metrics.errorCounter(FAILED_METRIC, count);
-		alerts.error(OtlpOutput.class, "OTLP export to " + endpoint + " failed; dropped " + count + " log records",
-				cause);
+		alerts.error(OtlpOutput.class,
+				"OTLP export to " + displayEndpoint + " failed; dropped " + count + " log records", cause);
 	}
 
 	private void partialSuccess(byte[] body, int count) {
@@ -468,7 +558,9 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		}
 		if (rejected > 0) {
 			metrics.warnCounter(REJECTED_METRIC, rejected);
-			alerts.warn(OtlpOutput.class, "OTLP endpoint " + endpoint + " rejected " + rejected + " of " + count
+		}
+		if (rejected > 0 || !message.isEmpty()) {
+			alerts.warn(OtlpOutput.class, "OTLP endpoint " + displayEndpoint + " rejected " + rejected + " of " + count
 					+ " log records" + (message.isEmpty() ? "" : ": " + message));
 		}
 	}
@@ -492,18 +584,15 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 			while (outer.hasMore()) {
 				int tag = (int) outer.varint();
 				if (tag >>> 3 == 1 && (tag & 7) == 2) {
-					int len = (int) outer.varint();
-					var inner = new ProtoReader(body, outer.pos, outer.pos + len);
-					outer.pos += len;
+					var inner = outer.message();
 					while (inner.hasMore()) {
 						int t = (int) inner.varint();
 						if (t >>> 3 == 1 && (t & 7) == 0) {
 							rejected = inner.varint();
 						}
 						else if (t >>> 3 == 2 && (t & 7) == 2) {
-							int l = (int) inner.varint();
-							message = new String(body, inner.pos, l, StandardCharsets.UTF_8);
-							inner.pos += l;
+							var text = inner.message();
+							message = new String(body, text.pos, text.end - text.pos, StandardCharsets.UTF_8);
 						}
 						else {
 							inner.skip(t & 7);
@@ -544,6 +633,9 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 					throw new IllegalArgumentException("Truncated protobuf varint");
 				}
 				byte b = buf[pos++];
+				if (shift == 63 && (b & 0xFE) != 0) {
+					throw new IllegalArgumentException("Malformed protobuf varint");
+				}
 				result |= (long) (b & 0x7F) << shift;
 				if ((b & 0x80) == 0) {
 					return result;
@@ -552,12 +644,37 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 			throw new IllegalArgumentException("Malformed protobuf varint");
 		}
 
+		ProtoReader message() {
+			int length = length();
+			var message = new ProtoReader(buf, pos, pos + length);
+			pos += length;
+			return message;
+		}
+
+		private int length() {
+			long length = varint();
+			if (length < 0 || length > end - pos) {
+				throw new IllegalArgumentException("Invalid protobuf field length");
+			}
+			return (int) length;
+		}
+
+		private void advance(int length) {
+			if (length > end - pos) {
+				throw new IllegalArgumentException("Truncated protobuf field");
+			}
+			pos += length;
+		}
+
 		void skip(int wireType) {
 			switch (wireType) {
 				case 0 -> varint();
-				case 1 -> pos += 8;
-				case 2 -> pos += (int) varint();
-				case 5 -> pos += 4;
+				case 1 -> advance(8);
+				case 2 -> {
+					int length = length();
+					advance(length);
+				}
+				case 5 -> advance(4);
 				default -> throw new IllegalArgumentException("Unsupported protobuf wire type: " + wireType);
 			}
 		}

@@ -1361,7 +1361,8 @@ logging.route.default.publisher=async
 Other properties are <code>protocol</code> (<code>http/protobuf</code> or <code>http/json</code>),
 <code>headers</code>, <code>compression</code> (<code>gzip</code>), <code>timeout</code> (milliseconds),
 <code>maxBatchSize</code>, <code>resourceAttributes</code>, and <code>traceIdKey</code>/<code>spanIdKey</code>.
-Retryable responses (429, 502, 503, 504) and network errors are retried with backoff. A batch that still fails
+Retryable responses (429, 502, 503, 504) and network errors are retried with randomized backoff.
+The timeout bounds the whole export, including retries and response-body reads. A batch that still fails
 is dropped and reported as an <a href="#alerts">alert</a> and the <code>otlp.records.failed</code>
 <a href="#metrics">metric</a>.
 
@@ -1392,7 +1393,8 @@ logging.encoder.console.serviceName=orders
 
 Both carry the same record content: the formatted message as the body, the logger name as the
 instrumentation scope, <code>thread.name</code>, <code>thread.id</code>, every key value as an attribute, and
-<code>exception.*</code> attributes for a throwable. Key values named <code>traceId</code> and
+<code>exception.*</code> attributes for a throwable. Event thread and exception attributes take precedence
+when context contains the same names. Key values named <code>traceId</code> and
 <code>spanId</code> (as Micrometer Tracing puts them in the MDC) become the record's trace context when they
 are valid W3C ids.
 
