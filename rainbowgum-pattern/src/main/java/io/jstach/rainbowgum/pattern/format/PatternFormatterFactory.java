@@ -589,15 +589,36 @@ final class ANSIConstants {
 
 }
 
-record HighlightFormatter(@Nullable LogFormatter child) implements LogFormatter.EventFormatter {
+/*
+ * Colors the child by the event's level. With no options the colors are Logback's: error
+ * bold red, warn red, info blue, everything else the default color. Options are Log4j2
+ * style LEVEL=style pairs, for example {ERROR=red bold, INFO=blue bold}, where a style is
+ * a color and optionally bold or faint; levels not listed keep their default.
+ */
+record HighlightFormatter(@Nullable LogFormatter child, String error, String warn, String info, String debug,
+		String trace) implements LogFormatter.EventFormatter {
+
+	static final HighlightFormatter LOGBACK_COLORS = new HighlightFormatter(null, BOLD + RED_FG, RED_FG, BLUE_FG,
+			DEFAULT_FG, DEFAULT_FG);
+
+	HighlightFormatter(@Nullable LogFormatter child) {
+		this(child, LOGBACK_COLORS.error, LOGBACK_COLORS.warn, LOGBACK_COLORS.info, LOGBACK_COLORS.debug,
+				LOGBACK_COLORS.trace);
+	}
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		/*
 		 * TODO should a null child be a noop? Need to see what logback does for compat.
 		 */
-		var level = event.level();
-		String code = levelToANSI(level);
+		String code = switch (event.level()) {
+			case ERROR -> error;
+			case WARNING -> warn;
+			case INFO -> info;
+			case DEBUG -> debug;
+			case TRACE -> trace;
+			default -> DEFAULT_FG;
+		};
 		output.append(ANSIConstants.ESC_START);
 		output.append(code);
 		output.append(ANSIConstants.ESC_END);
@@ -607,12 +628,97 @@ record HighlightFormatter(@Nullable LogFormatter child) implements LogFormatter.
 		output.append(ANSIConstants.SET_DEFAULT_COLOR);
 	}
 
-	private static String levelToANSI(Level level) {
-		return switch (level) {
-			case ERROR -> BOLD + RED_FG;
-			case WARNING -> BOLD + RED_FG;
-			case INFO -> BLUE_FG;
-			default -> DEFAULT_FG;
+	static HighlightFormatter of(@Nullable LogFormatter child, List<String> options) {
+		String error = LOGBACK_COLORS.error;
+		String warn = LOGBACK_COLORS.warn;
+		String info = LOGBACK_COLORS.info;
+		String debug = LOGBACK_COLORS.debug;
+		String trace = LOGBACK_COLORS.trace;
+		for (String option : options) {
+			if (option.isBlank()) {
+				continue;
+			}
+			int eq = option.indexOf('=');
+			if (eq < 0) {
+				throw new IllegalArgumentException(
+						"highlight option '" + option.strip() + "' should be LEVEL=style, for example ERROR=red bold");
+			}
+			String level = option.substring(0, eq).strip().toUpperCase(Locale.ROOT);
+			String code = parseStyle(option.substring(eq + 1));
+			switch (level) {
+				case "ERROR" -> error = code;
+				case "WARN", "WARNING" -> warn = code;
+				case "INFO" -> info = code;
+				case "DEBUG" -> debug = code;
+				case "TRACE" -> trace = code;
+				default -> throw new IllegalArgumentException("highlight option '" + option.strip()
+						+ "' has an unknown level. Valid levels: ERROR, WARN, INFO, DEBUG, TRACE");
+			}
+		}
+		return new HighlightFormatter(child, error, warn, info, debug, trace);
+	}
+
+	/*
+	 * A style is space separated words: at most one color plus bold and/or faint.
+	 */
+	static String parseStyle(String style) {
+		String attributes = "";
+		String color = null;
+		for (String word : words(style)) {
+			String w = word.toLowerCase(Locale.ROOT);
+			switch (w) {
+				case "bold" -> attributes += BOLD;
+				case "faint" -> attributes += FAINT;
+				default -> {
+					if (color != null) {
+						throw new IllegalArgumentException(
+								"highlight style '" + style.strip() + "' has more than one color");
+					}
+					color = colorCode(w, style);
+				}
+			}
+		}
+		return attributes + (color == null ? DEFAULT_FG : color);
+	}
+
+	private static List<String> words(String text) {
+		var words = new java.util.ArrayList<String>();
+		int start = -1;
+		for (int i = 0; i <= text.length(); i++) {
+			boolean space = i == text.length() || Character.isWhitespace(text.charAt(i));
+			if (space && start >= 0) {
+				words.add(text.substring(start, i));
+				start = -1;
+			}
+			else if (!space && start < 0) {
+				start = i;
+			}
+		}
+		return words;
+	}
+
+	private static String colorCode(String color, String style) {
+		return switch (color) {
+			case "black" -> BLACK_FG;
+			case "red" -> RED_FG;
+			case "green" -> GREEN_FG;
+			case "yellow" -> YELLOW_FG;
+			case "blue" -> BLUE_FG;
+			case "magenta" -> MAGENTA_FG;
+			case "cyan" -> CYAN_FG;
+			case "white" -> WHITE_FG;
+			case "default" -> DEFAULT_FG;
+			case "bright_black" -> BRIGHT_BLACK;
+			case "bright_red" -> BRIGHT_RED;
+			case "bright_green" -> BRIGHT_GREEN;
+			case "bright_yellow" -> BRIGHT_YELLOW;
+			case "bright_blue" -> BRIGHT_BLUE;
+			case "bright_magenta" -> BRIGHT_MAGENTA;
+			case "bright_cyan" -> BRIGHT_CYAN;
+			case "bright_white" -> BRIGHT_WHITE;
+			default -> throw new IllegalArgumentException("highlight style '" + style.strip()
+					+ "' has an unknown word '" + color + "'. Use a color (black, red, green, yellow, blue, magenta, "
+					+ "cyan, white, default, or bright_ variants) and optionally bold or faint");
 		};
 	}
 
@@ -679,7 +785,7 @@ enum HighlightCompositeFactory implements CompositeFactory {
 				}
 				return child;
 			}
-			return new HighlightFormatter(child);
+			return HighlightFormatter.of(child, node.optionList());
 		}
 
 	},

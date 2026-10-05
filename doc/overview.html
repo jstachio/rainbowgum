@@ -994,6 +994,16 @@ already the default encoder for console output.
     {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} to <code>true</code>, which disables
     both the <em>default</em> pattern formatter's ANSI output and JAnsi if that module is in use.
 </p>
+<p>
+  <code>%highlight</code> colors its content by level. With no options it uses Logback's colors (error bold red,
+  warn red, info blue). As a Rainbow Gum extension it also accepts Log4j2 style <code>LEVEL=style</code> options,
+  where a style is a color plus optionally <code>bold</code> or <code>faint</code>; levels not listed keep their
+  default:
+</p>
+
+{@snippet lang=properties :
+logging.encoder.console.pattern=%highlight(%-5level){ERROR=red bold, INFO=blue bold, WARN=red} %msg%n
+}
 
 <h4 id="pattern_encoder_config">Selecting and Configuring the Pattern Encoder</h4>
 
