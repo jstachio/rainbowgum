@@ -1076,7 +1076,9 @@ or {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} bool
 </p>
 <p>
   The module is kept around for the remaining edge cases where its Win32 console translation is still relevant
-  (e.g. genuinely legacy Windows environments), but new users should not need to add it.
+  (e.g. genuinely legacy Windows environments), but new users should not need to add it. It only installs JAnsi's
+  console wrapper and no longer provides its own console format: colors come from the pattern encoder or the
+  default encoder, the same as without the module.
 </p>
 
 <h2 id="outputs">Outputs</h2>
