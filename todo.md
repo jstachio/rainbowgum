@@ -218,6 +218,14 @@ unifying.
       adding the `doc/overview.html` "Console" output subsection.
       (ADAM: Is this even worth doing given 99/100 output defaults to stdout?)
 
+- [ ] **`@LogConfigurable` drops wrapped `@param` text**: `ConfigProcessor.ConfigJavadoc`
+      (`rainbowgum-apt`) reads the factory method's doc comment line by line and keeps
+      only the line starting with `@param`, so a description that wraps (which
+      spring-javaformat does at 90 columns) is cut to its first line in the generated
+      builder's javadoc and property table. Collect continuation lines until the next
+      `@` tag. Workaround today: keep `@param` descriptions to one line. Found while
+      adding `PatternEncoderBuilder.levelPrefix`.
+
 ## 6. Reconsider depth-based caller-info tracking (SLF4J 3.0 research)
 
 Adam's hunch, prompted by noticing "CallerData" work upstream: `rainbowgum-slf4j`'s
