@@ -559,9 +559,16 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		if (rejected > 0) {
 			metrics.warnCounter(REJECTED_METRIC, rejected);
 		}
-		if (rejected > 0 || !message.isEmpty()) {
+		String detail = message.isEmpty() ? "" : ": " + message;
+		if (rejected > 0) {
 			alerts.warn(OtlpOutput.class, "OTLP endpoint " + displayEndpoint + " rejected " + rejected + " of " + count
-					+ " log records" + (message.isEmpty() ? "" : ": " + message));
+					+ " log records" + detail);
+		}
+		else if (!message.isEmpty()) {
+			// A partial success with nothing rejected is a warning about accepted
+			// records.
+			alerts.warn(OtlpOutput.class,
+					"OTLP endpoint " + displayEndpoint + " returned a warning for " + count + " log records" + detail);
 		}
 	}
 

@@ -329,8 +329,9 @@ class OtlpOutputHttpTest {
 		assertEquals(0, metric(config, OtlpOutput.FAILED_METRIC));
 		var alert = config.alerts().dump().getLast();
 		assertEquals(Level.WARNING, alert.level());
-		assertEquals("""
-				OTLP endpoint http://localhost/v1/logs?token=<REDACTED> rejected 0 of 1 log records: deprecated""",
+		assertEquals(
+				"""
+						OTLP endpoint http://localhost/v1/logs?token=<REDACTED> returned a warning for 1 log records: deprecated""",
 				normalizeEndpoint(alert.message()));
 	}
 
