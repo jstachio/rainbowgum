@@ -13,7 +13,7 @@ import io.jstach.rainbowgum.RainbowGum;
 class JAnsiConfiguratorTest {
 
 	@Test
-	void testInstallJansiLogFormatter() {
+	void testConfiguratorWithJansiDisabled() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				%s=true
 				""".formatted(JAnsiConfigurator.JANSI_DISABLE)).build()).configurator(new JAnsiConfigurator()).build();
