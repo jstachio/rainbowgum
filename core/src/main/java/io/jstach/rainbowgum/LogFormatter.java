@@ -957,6 +957,84 @@ public sealed interface LogFormatter {
 
 	}
 
+	/**
+	 * Rewrites the text a formatter has just written for an event, for example to prefix
+	 * every line or to escape line breaks. Unlike a formatter, a post processor sees the
+	 * finished text of the whole event, including message arguments and stack traces.
+	 * <p>
+	 * Post processors apply to encoders backed by a formatter (see
+	 * {@link LogEncoder#of(LogFormatter)}) and are selected by name with the
+	 * {@value LogEncoder#ENCODER_POST_PROCESSORS_PROPERTY} property, applied in the order
+	 * listed: <pre>
+	 * logging.encoder.console.postProcessors=crlf,journald
+	 * </pre> The names of {@link StandardPostProcessor} are always available. Others are
+	 * registered as a {@link Provider} in {@link LogConfig#serviceRegistry()} under their
+	 * name, which takes precedence over a standard post processor of the same name.
+	 */
+	public interface PostProcessor {
+
+		/**
+		 * Rewrites the event's text in place.
+		 * @param event the event that was formatted.
+		 * @param output the output, whose text from <code>start</code> to its end is the
+		 * event's text.
+		 * @param start index where the event's text begins.
+		 */
+		void process(LogEvent event, StringBuilder output, int start);
+
+		/**
+		 * Wraps a formatter so this post processor rewrites everything it writes.
+		 * @param formatter formatter to wrap.
+		 * @return formatter.
+		 */
+		default LogFormatter decorate(LogFormatter formatter) {
+			return new PostProcessingFormatter(formatter, this);
+		}
+
+		/**
+		 * Creates a post processor for an encoder, given the encoder's name and config.
+		 */
+		@FunctionalInterface
+		public interface Provider extends LogProvider<PostProcessor> {
+
+		}
+
+	}
+
+	/**
+	 * The built in post processors, selected by their lowercase names.
+	 */
+	@CaseChanging
+	public enum StandardPostProcessor implements PostProcessor {
+
+		/**
+		 * Starts every line of the event with its syslog severity as
+		 * <code>&lt;N&gt;</code> (error 3, warning 4, info 6, debug and trace 7), which
+		 * systemd's journal reads as the line's priority when standard out or standard
+		 * err is connected to it. Every line is prefixed, including stack trace lines,
+		 * because the journal stores each line as its own entry.
+		 */
+		JOURNALD {
+			@Override
+			public void process(LogEvent event, StringBuilder output, int start) {
+				PostProcessors.prefixLines(output, start, PostProcessors.journaldPrefix(event.level()));
+			}
+		},
+		/**
+		 * Escapes carriage returns and line feeds inside the event's text as backslash
+		 * <code>r</code> and backslash <code>n</code>, so each event stays on one line
+		 * and text logged from untrusted input cannot start a forged line. A trailing
+		 * line separator ending the event is kept.
+		 */
+		CRLF {
+			@Override
+			public void process(LogEvent event, StringBuilder output, int start) {
+				PostProcessors.escapeLineBreaks(output, start);
+			}
+		};
+
+	}
+
 }
 
 @SuppressWarnings("ArrayRecordComponent")
@@ -1697,6 +1775,113 @@ record LogbackSingleKeyValueFormatter(String key, @Nullable String fallback) imp
 		if (v != null) {
 			output.append(v);
 		}
+	}
+
+}
+
+/*
+ * Applies a post processor to the region of the output a formatter wrote for an event.
+ */
+record PostProcessingFormatter(LogFormatter formatter,
+		LogFormatter.PostProcessor postProcessor) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		int start = output.length();
+		formatter.format(output, event);
+		if (output.length() > start) {
+			postProcessor.process(event, output, start);
+		}
+	}
+
+}
+
+final class PostProcessors {
+
+	private PostProcessors() {
+	}
+
+	/*
+	 * Resolves the post processors named by the encoder's postProcessors property, in
+	 * order, and wraps the formatter with them. Registered providers take precedence over
+	 * the standard post processors.
+	 */
+	static LogFormatter decorate(LogFormatter formatter, String encoderName, LogConfig config) {
+		String key = LogProperties.interpolateKey(LogEncoder.ENCODER_POST_PROCESSORS_PROPERTY,
+				java.util.Map.of(LogProperties.NAME, encoderName));
+		List<String> names = config.properties().forKey(key).ofList().or(List.of()).validateNow(LogEncoder.class);
+		LogFormatter result = formatter;
+		for (String name : names) {
+			result = resolve(name.strip(), encoderName, config).decorate(result);
+		}
+		return result;
+	}
+
+	private static LogFormatter.PostProcessor resolve(String name, String encoderName, LogConfig config) {
+		var provider = config.serviceRegistry().findOrNull(LogFormatter.PostProcessor.Provider.class, name);
+		if (provider != null) {
+			return provider.provide(encoderName, config);
+		}
+		for (var standard : LogFormatter.StandardPostProcessor.values()) {
+			if (standard.name().equalsIgnoreCase(name)) {
+				return standard;
+			}
+		}
+		var available = new java.util.TreeSet<String>();
+		for (var standard : LogFormatter.StandardPostProcessor.values()) {
+			available.add(standard.name().toLowerCase(java.util.Locale.ROOT));
+		}
+		config.serviceRegistry().forEach(LogFormatter.PostProcessor.Provider.class, (n, p) -> available.add(n));
+		throw new IllegalArgumentException("Unknown post processor '" + name + "' for encoder '" + encoderName
+				+ "'. Available post processors: " + String.join(", ", available));
+	}
+
+	/*
+	 * Inserts the prefix at the start of the region and after each line break that is
+	 * followed by more text. Works backwards so earlier indexes stay valid.
+	 */
+	static void prefixLines(StringBuilder output, int start, String prefix) {
+		for (int i = output.length() - 2; i >= start; i--) {
+			if (output.charAt(i) == '\n') {
+				output.insert(i + 1, prefix);
+			}
+		}
+		output.insert(start, prefix);
+	}
+
+	/*
+	 * Escapes CR and LF in the region except a single trailing line separator.
+	 */
+	static void escapeLineBreaks(StringBuilder output, int start) {
+		int end = output.length();
+		if (end > start && output.charAt(end - 1) == '\n') {
+			end--;
+			if (end > start && output.charAt(end - 1) == '\r') {
+				end--;
+			}
+		}
+		for (int i = end - 1; i >= start; i--) {
+			char c = output.charAt(i);
+			if (c == '\n') {
+				output.replace(i, i + 1, "\\n");
+			}
+			else if (c == '\r') {
+				output.replace(i, i + 1, "\\r");
+			}
+		}
+	}
+
+	/*
+	 * Syslog severities. OFF is not a real event level; it maps to info rather than 0
+	 * (emergency), which journald broadcasts to every logged in terminal.
+	 */
+	static String journaldPrefix(Level level) {
+		return switch (level) {
+			case ERROR -> "<3>";
+			case WARNING -> "<4>";
+			case INFO, OFF -> "<6>";
+			case DEBUG, TRACE, ALL -> "<7>";
+		};
 	}
 
 }

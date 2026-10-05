@@ -912,6 +912,28 @@ Pattern Encoder is a mostly compatible to logback format encoder that renders lo
 
 See <a href="#pattern">Pattern Formatter</a> section and {@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}
 
+<h4 id="post_processors">Post Processors</h4>
+
+Encoders backed by a formatter (the default TTLL encoder, the pattern encoder, and any
+{@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}) can rewrite the finished text of each
+event with {@linkplain io.jstach.rainbowgum.LogFormatter.PostProcessor post processors}, listed by name and applied in
+order:
+
+{@snippet lang=properties :
+logging.encoder.console.postProcessors=crlf,journald
+}
+
+The built in ones are {@link io.jstach.rainbowgum.LogFormatter.StandardPostProcessor}:
+<ul>
+<li><code>journald</code> starts every line, including stack trace lines, with the event's syslog severity
+(<code>&lt;3&gt;</code> for error), which systemd's journal reads as the line's priority.</li>
+<li><code>crlf</code> escapes line breaks inside an event so it stays on one line and untrusted input cannot forge
+extra log lines.</li>
+</ul>
+Custom post processors are registered as a {@link io.jstach.rainbowgum.LogFormatter.PostProcessor.Provider} in
+{@link io.jstach.rainbowgum.LogConfig#serviceRegistry()} under the name used in the property. Encoders that write
+bytes directly, such as the JSON encoders, do not use post processors.
+
 
 <h2 id="formatters">Formatters</h2>
 
