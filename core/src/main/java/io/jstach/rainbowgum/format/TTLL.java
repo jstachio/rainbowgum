@@ -280,7 +280,15 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * Spring Boot's console colors: faint time and thread, level colored by severity
 		 * (error red, warn yellow, the rest green) and cyan logger name.
 		 */
-		SPRING;
+		SPRING,
+		/**
+		 * Atom One Dark's colors in 24 bit color, so they show the same in any terminal
+		 * that supports it: cyan time, gray thread and key values, magenta logger name,
+		 * and level bold red, yellow, or blue (error, warn, info) with debug and trace
+		 * gray. Meant for a dark terminal background. Property value
+		 * <code>one_dark</code>.
+		 */
+		ONE_DARK;
 
 		static ColorTheme parse(String value) {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {

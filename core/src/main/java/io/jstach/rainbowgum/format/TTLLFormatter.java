@@ -220,11 +220,28 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 	 */
 	static final Palette SPRING = new Palette("2;39", "2;39", "36", "2;39", "31", "33", "32", "32", "32");
 
+	/*
+	 * Atom One Dark in 24 bit color, from the One Dark IntelliJ and Eclipse themes: cyan
+	 * time, comment gray thread and key values, keyword magenta logger name, and levels
+	 * bold red, yellow and blue (error, warn, info) or foreground gray.
+	 */
+	static final Palette ONE_DARK = new Palette(rgb("56b6c2"), rgb("969896"), rgb("c678dd"), rgb("969896"),
+			"1;" + rgb("e06c75"), "1;" + rgb("e5c07b"), "1;" + rgb("61afef"), rgb("abb2bf"), rgb("abb2bf"));
+
+	/*
+	 * The 24 bit foreground color code for a hex RGB value like c678dd.
+	 */
+	static String rgb(String hex) {
+		int value = Integer.parseInt(hex, 16);
+		return "38;2;" + (value >> 16 & 0xff) + ";" + (value >> 8 & 0xff) + ";" + (value & 0xff);
+	}
+
 	static Palette of(TTLL.ColorTheme theme) {
 		return switch (theme) {
 			case OFF -> OFF;
 			case RAINBOWGUM -> RAINBOWGUM;
 			case SPRING -> SPRING;
+			case ONE_DARK -> ONE_DARK;
 		};
 	}
 
