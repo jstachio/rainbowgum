@@ -365,6 +365,17 @@ logging.appender.appender2.output=...
 logging.appender.appender3.output=....
 }
 
+One empty element at the start or end of a list is ignored, so a value assembled from parts that may be missing
+(<code>appender1,${optional}</code>) still works, while an empty element in the middle is kept and reported by
+whatever reads the list. Map properties are either a single value (<code>a=1&amp;b=2</code>) or, for sources that
+only hold flat values such as environment variables, a list of keys with one property per value:
+
+{@snippet lang=properties :
+logging.encoder.gelf.headers.keys=environment,region
+logging.encoder.gelf.headers.environment=prod
+logging.encoder.gelf.headers.region=us east
+}
+
 In the above the configuration of <code>appender3</code> will not be used
 and will not produce a configuration error if incorrect. This pattern
 allows large groups of configuration to be turned on or off similar to

@@ -202,18 +202,25 @@ class LogPropertiesTest {
 	@EnumSource(ParseListTest.class)
 	void testEncode(ParseListTest test) {
 
-		var encoded = test.output.stream()
-			.map(k -> PercentCodec.encode(k, StandardCharsets.UTF_8))
-			.collect(Collectors.joining("&"));
+		// separators at both ends keep a first or last empty element
+		var encoded = test.output.isEmpty() ? ""
+				: test.output.stream()
+					.map(k -> PercentCodec.encode(k, StandardCharsets.UTF_8))
+					.collect(Collectors.joining("&", "&", "&"));
 		var actual = LogProperties.parseList(encoded);
 		assertEquals(test.output, actual);
 	}
 
+	/*
+	 * URI query keys keep URI rules, unlike lists: empty pairs are skipped and a pair is
+	 * split at its equals sign.
+	 */
 	@ParameterizedTest
-	@EnumSource(ParseListTest.class)
-	void testParseMultiMapEmptyList(ParseListTest test) {
-		var actual = LogProperties.parseMultiMap(test.input).keySet().stream().toList();
-		var expected = test.output.stream().distinct().toList();
+	@CsvSource(delimiter = '|',
+			value = { "a&b&c&|a,b,c", "a,b|a,b", ",,a|a", "a,,b|a,b", "a=&b=&c=|a,b,c", "a=b,c|a,c", "a&a|a", "''|''" })
+	void testParseMultiMapKeys(String input, String expectedKeys) {
+		var actual = LogProperties.parseMultiMap(input).keySet().stream().toList();
+		var expected = expectedKeys.isEmpty() ? List.of() : List.of(expectedKeys.split(","));
 		assertEquals(expected, actual);
 	}
 
@@ -260,11 +267,22 @@ class LogPropertiesTest {
 		TRAILING_AMP("a&", "a"), //
 		STARTING_COMMA(",a", "a"), //
 		STARTING_AMP("&a", "a"), //
-		STARTING_DOUBLE_COMMA(",,a", "a"), // TODO this is probably bad
-		STARTING_DOUBLE_AMP("&&a", "a"), // TODO this is probably bad
-		TRAILING_DOUBLE_COMMA("a,,", "a"), // TODO this is probably bad
-		TRAILING_DOUBLE_AMP("a&&", "a"), // TODO this is probably bad
-		EQUAL_INGORED("a=&b=&c=", "a", "b", "c"), PERCENT_ESCAPING("a%20,b%20", "a ", "b "),
+		// one empty element at each end is dropped, every other one is kept
+		STARTING_DOUBLE_COMMA(",,a", "", "a"), //
+		STARTING_DOUBLE_AMP("&&a", "", "a"), //
+		TRAILING_DOUBLE_COMMA("a,,", "a", ""), //
+		TRAILING_DOUBLE_AMP("a&&", "a", ""), //
+		TRAILING_TRIPLE_COMMA("a,,,", "a", "", ""), //
+		BOTH_ENDS(",a,", "a"), //
+		MIDDLE_EMPTY("a,,b", "a", "", "b"), //
+		EMPTY(""), //
+		ONLY_COMMA(","), //
+		ONE_EMPTY_ELEMENT(",,", ""), //
+		TWO_EMPTY_ELEMENTS(",,,", "", ""), //
+		EQUALS_KEPT("a=&b=&c=", "a=", "b=", "c="), //
+		EQUALS_INSIDE("a=b,c", "a=b", "c"), //
+		ENCODED_COMMA("a%2Cb,c", "a,b", "c"), //
+		PERCENT_ESCAPING("a%20,b%20", "a ", "b "),
 		CHINESE_UNICODE("%E7%94%B0%E9%97%BB,%E7%94%B0%E9%97%BB", "\u7530\u95fb", "\u7530\u95fb");
 
 		private final String input;
@@ -284,6 +302,86 @@ class LogPropertiesTest {
 		var actual = LogProperties.parseMultiMap(test.input);
 		var expected = test.expected;
 		assertEquals(expected, actual);
+	}
+
+	private static LogProperties props(String properties) {
+		return LogProperties.builder().fromProperties(properties).build();
+	}
+
+	@Test
+	void mapFromKeysKeepsKeyOrderAndNeedsNoEncoding() {
+		var props = props("""
+				logging.headers.keys=region,environment
+				logging.headers.environment=prod
+				logging.headers.region=us east
+				""");
+		var map = props.forKey("logging.headers").ofMap().validateNow(LogPropertiesTest.class);
+		assertEquals(List.of("region", "environment"), List.copyOf(map.keySet()));
+		assertEquals("us east", map.get("region"));
+		assertEquals("prod", map.get("environment"));
+	}
+
+	@Test
+	void mapSingleValueWinsOverKeys() {
+		var props = props("""
+				logging.headers=a=1
+				logging.headers.keys=b
+				logging.headers.b=2
+				""");
+		assertEquals(Map.of("a", "1"), props.mapOrNull("logging.headers"));
+	}
+
+	@Test
+	void mapIsMissingWithoutValueOrKeys() {
+		assertNull(props("logging.other=1").mapOrNull("logging.headers"));
+	}
+
+	@Test
+	void mapKeyListedWithoutValueFails() {
+		var props = props("""
+				logging.headers.keys=region,environment
+				logging.headers.region=us
+				""");
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> props.forKey("logging.headers").ofMap().validateNow(LogPropertiesTest.class));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.LogPropertiesTest:
+				Error for property. key: 'logging.headers' from PROPERTIES_STRING[logging.headers], \
+				map key 'environment' is listed in 'logging.headers.keys' but 'logging.headers.environment' is missing""";
+		assertEquals(expected, e.getMessage());
+	}
+
+	@Test
+	void mapEmptyKeyFails() {
+		var props = props("""
+				logging.headers.keys=region,,environment
+				logging.headers.region=us
+				logging.headers.environment=prod
+				""");
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> props.forKey("logging.headers").ofMap().validateNow(LogPropertiesTest.class));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.LogPropertiesTest:
+				Error for property. key: 'logging.headers' from PROPERTIES_STRING[logging.headers], \
+				'logging.headers.keys' has an empty map key""";
+		assertEquals(expected, e.getMessage());
+	}
+
+	@Test
+	void uriWithoutTheMapLetsLaterSourcesProvideIt() {
+		var uri = LogProperties.builder().fromURIQuery(URI.create("stuff:///?logging.other=1")).build();
+		var later = props("logging.headers=a=1");
+		var combined = LogProperties.of(List.of(uri, later));
+		assertNull(uri.mapOrNull("logging.headers"));
+		assertEquals(Map.of("a", "1"), combined.forKey("logging.headers").ofMap().validateNow(LogPropertiesTest.class));
+	}
+
+	@Test
+	void uriMapAsSingleEncodedValue() {
+		var uri = LogProperties.builder().fromURIQuery(URI.create("stuff:///?logging.headers=a%3D1%26b%3D2")).build();
+		var map = uri.mapOrNull("logging.headers");
+		assertEquals(Map.of("a", "1", "b", "2"), map);
+		assertEquals(List.of("a", "b"), map == null ? List.of() : List.copyOf(map.keySet()));
 	}
 
 	@Test
