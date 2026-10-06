@@ -254,7 +254,7 @@ Roughly the hiearchy (through composition) of components is:
 </ol>
 
 For most <a href="#level_resolvers">level resolving</a>, <a href="#formatters">formatters</a> (which are simplified encoders),
-and <a href="outputs">Outputs</a> are the main points of interest in customizing and configuring.
+and <a href="#outputs">Outputs</a> are the main points of interest in customizing and configuring.
 
 <h2 id="config">Config</h2>
 
@@ -768,7 +768,7 @@ or through properties.
 <dl class="notes">
   <dt><a href="#outputs">Output</a></dt>
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_OUTPUT_PROPERTY} = URI</dd>
-  <dt><a href="#encoder">Encoder</a></dt>
+  <dt><a href="#encoders">Encoder</a></dt>
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_ENCODER_PROPERTY} = URI</dd>
   <dt>{@linkplain io.jstach.rainbowgum.LogAppender.AppenderType Type}</dt>
   <dd>{@value io.jstach.rainbowgum.LogAppender#APPENDER_TYPE_PROPERTY} = a single {@link io.jstach.rainbowgum.LogAppender.AppenderType}</dd>
@@ -832,7 +832,7 @@ Encoders should have a builder as well to configure programmatically
 and the builders javadoc has the string properties that can configure it.
 </p>
 
-A typical practice is to use a <a href="pattern_encoder">pattern encoder</a> that produces human readable logs for development 
+A typical practice is to use a <a href="#pattern_encoder">pattern encoder</a> that produces human readable logs for development 
 and a <a href="#json_encoders">JSON encoder</a> for production switched out based on configuration.
 
 <h3 id="json_encoders">JSON Encoders</h3>
