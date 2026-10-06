@@ -257,23 +257,54 @@ public sealed interface TTLL permits TTLLFormatter {
 	}
 
 	/**
-	 * ANSI color theme. When not set, {@link #RAINBOWGUM} is used if the console supports
-	 * ANSI (see {@link AnsiSupport#isAnsiSupported()}) and {@link #OFF} otherwise; the
-	 * default encoder of outputs that are not a console is always {@link #OFF} unless
-	 * set. As a property <code>true</code> and <code>false</code> are aliases for
-	 * <code>rainbowgum</code> and <code>off</code>.
+	 * Whether to color, see {@link ColorTheme} for which colors. Color detection uses
+	 * {@link AnsiSupport#isAnsiSupported()}, which only knows about the console, so the
+	 * default encoder of outputs that are not a console is {@link #OFF} unless set. As a
+	 * property <code>true</code> and <code>false</code> are aliases for
+	 * <code>default</code> and <code>off</code>.
 	 */
 	@CaseChanging
-	enum ColorTheme {
+	enum ColorMode {
 
 		/**
 		 * No color. Alias <code>false</code>.
 		 */
 		OFF,
 		/**
+		 * The theme, or {@link ColorTheme#RAINBOWGUM} when no theme is set, if ANSI is
+		 * detected. The default. Alias <code>true</code>.
+		 */
+		DEFAULT,
+		/**
+		 * The theme if one is set and ANSI is detected; no color without a theme.
+		 */
+		DETECT,
+		/**
+		 * The theme, or {@link ColorTheme#RAINBOWGUM} when no theme is set, regardless of
+		 * ANSI detection.
+		 */
+		FORCE;
+
+		static ColorMode parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "true" -> DEFAULT;
+				case "false" -> OFF;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(ColorMode.class, value, "true", "false");
+			};
+		}
+
+	}
+
+	/**
+	 * ANSI color theme, the colors used when {@link ColorMode} decides to color.
+	 */
+	@CaseChanging
+	enum ColorTheme {
+
+		/**
 		 * The Rainbow Gum colors, the same as the pattern encoder's default: cyan time,
 		 * faint thread and key values, level highlighted (error and warn bold red, info
-		 * bold blue) and magenta logger name. Alias <code>true</code>.
+		 * bold blue) and magenta logger name. Used when no theme is set.
 		 */
 		RAINBOWGUM,
 		/**
@@ -295,14 +326,6 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * info) with debug and trace gray. Meant for a dark terminal background.
 		 */
 		DARCULA;
-
-		static ColorTheme parse(String value) {
-			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
-				case "true" -> RAINBOWGUM;
-				case "false" -> OFF;
-				default -> io.jstach.rainbowgum.LogProperty.enumValue(ColorTheme.class, value, "true", "false");
-			};
-		}
 
 	}
 

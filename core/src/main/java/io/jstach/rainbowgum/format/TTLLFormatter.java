@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.format;
 
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.function.BooleanSupplier;
 
 import org.jspecify.annotations.Nullable;
 
@@ -43,16 +44,17 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 	 * separating space. As properties of the encoder, each part is one of the lowercase
 	 * names of its {@link TTLL} enum, for example
 	 * <code>logging.encoder.console.keyValues=logfmt</code>. The timestamp property also
-	 * accepts a DateTimeFormatter pattern in UTC. The color property is a TTLL.ColorTheme
-	 * name, with <code>true</code> and <code>false</code> as aliases; when not set the
-	 * rainbowgum theme is used if the console supports ANSI.
+	 * accepts a DateTimeFormatter pattern in UTC. The color property decides whether to
+	 * color and the theme property which colors; when neither is set the rainbowgum theme
+	 * is used if the console supports ANSI.
 	 * @param name encoder name, used for property lookup.
 	 * @param timestamp time formatter, see TTLL.TimestampFormat.
 	 * @param thread thread formatter in square brackets, see TTLL.ThreadFormat.
 	 * @param level level formatter, see TTLL.LevelFormat.
 	 * @param logger logger name formatter, see TTLL.LoggerFormat.
 	 * @param keyValues key values formatter in braces, see TTLL.KeyValuesFormat.
-	 * @param color ANSI color theme, see TTLL.ColorTheme.
+	 * @param color whether to color, see TTLL.ColorMode.
+	 * @param theme ANSI color theme, see TTLL.ColorTheme.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "TTLLFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
@@ -62,10 +64,9 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("convertLevel") LogFormatter level,
 			@LogConfigurable.DefaultParameter("DEFAULT_LOGGER") @LogConfigurable.ConvertParameter("convertLogger") LogFormatter logger,
 			@LogConfigurable.DefaultParameter("DEFAULT_KEY_VALUES") @LogConfigurable.ConvertParameter("convertKeyValues") LogFormatter keyValues,
-			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorTheme color) {
-		var theme = color != null ? color
-				: AnsiSupport.isAnsiSupported() ? TTLL.ColorTheme.RAINBOWGUM : TTLL.ColorTheme.OFF;
-		var palette = Palette.of(theme);
+			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
+			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme) {
+		var palette = Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color, theme, AnsiSupport::isAnsiSupported);
 		var b = LogFormatter.builder();
 		boolean empty = true;
 		empty = part(b, palette.color(palette.timestamp(), timestamp), empty);
@@ -126,8 +127,12 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 		return LogProperty.enumValue(TTLL.LoggerFormat.class, value).formatter();
 	}
 
-	static TTLL.ColorTheme convertColor(String value) {
-		return TTLL.ColorTheme.parse(value);
+	static TTLL.ColorMode convertColor(String value) {
+		return TTLL.ColorMode.parse(value);
+	}
+
+	static TTLL.ColorTheme convertTheme(String value) {
+		return LogProperty.enumValue(TTLL.ColorTheme.class, value);
 	}
 
 	static LogFormatter convertKeyValues(String value) {
@@ -244,9 +249,22 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 		return "38;2;" + (value >> 16 & 0xff) + ";" + (value >> 8 & 0xff) + ";" + (value & 0xff);
 	}
 
+	/*
+	 * The palette for the color mode and theme. ANSI detection is only asked for when the
+	 * mode needs it.
+	 */
+	static Palette of(TTLL.ColorMode mode, TTLL.@Nullable ColorTheme theme, BooleanSupplier ansi) {
+		var selected = switch (mode) {
+			case OFF -> null;
+			case DEFAULT -> ansi.getAsBoolean() ? theme == null ? TTLL.ColorTheme.RAINBOWGUM : theme : null;
+			case DETECT -> theme != null && ansi.getAsBoolean() ? theme : null;
+			case FORCE -> theme == null ? TTLL.ColorTheme.RAINBOWGUM : theme;
+		};
+		return selected == null ? OFF : of(selected);
+	}
+
 	static Palette of(TTLL.ColorTheme theme) {
 		return switch (theme) {
-			case OFF -> OFF;
 			case RAINBOWGUM -> RAINBOWGUM;
 			case SPRING -> SPRING;
 			case ONE_DARK -> ONE_DARK;

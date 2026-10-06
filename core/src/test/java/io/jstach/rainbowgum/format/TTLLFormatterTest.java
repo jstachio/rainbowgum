@@ -1,10 +1,13 @@
 package io.jstach.rainbowgum.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+
+import org.jspecify.annotations.Nullable;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -160,7 +163,7 @@ class TTLLFormatterTest {
 
 	@Test
 	void rainbowgumTheme() {
-		String actual = log("ttll", "logging.encoder.list.color=rainbowgum\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.keyValues=logfmt\n",
 				event(requestKeyValues()));
 		String keyValues = " " + E + "2;39m{requestId=42 user=\"Ada Lovelace\"}" + R;
 		assertEquals(coloredLine("1;34", "INFO ", keyValues), actual);
@@ -168,7 +171,7 @@ class TTLLFormatterTest {
 
 	@Test
 	void rainbowgumThemeWithoutKeyValuesLeavesBracesOut() {
-		String actual = log("ttll", "logging.encoder.list.color=rainbowgum\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.keyValues=logfmt\n",
 				event(KeyValues.of()));
 		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}
@@ -183,7 +186,7 @@ class TTLLFormatterTest {
 				logging.appenders=list
 				logging.appender.list.output=list
 				logging.appender.list.encoder=ttll
-				logging.encoder.list.color=rainbowgum
+				logging.encoder.list.color=force
 				""";
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(all).build()).build();
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
@@ -197,13 +200,15 @@ class TTLLFormatterTest {
 	@CsvSource({ "ERROR,31,ERROR", "WARNING,33,'WARN '", "INFO,32,'INFO '", "DEBUG,32,DEBUG", "TRACE,32,TRACE" })
 	void springThemeColorsLevelsLikeSpringBoot(Level level, String code, String text) {
 		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
-		assertEquals(springLine(code, text, ""),
-				format(new TTLLFormatterBuilder("test").color(TTLL.ColorTheme.SPRING).build(), event));
+		assertEquals(springLine(code, text, ""), format(
+				new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE).theme(TTLL.ColorTheme.SPRING).build(),
+				event));
 	}
 
 	@Test
 	void springThemeByProperty() {
-		String actual = log("ttll", "logging.encoder.list.color=spring\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll",
+				"logging.encoder.list.color=force\nlogging.encoder.list.theme=spring\nlogging.encoder.list.keyValues=logfmt\n",
 				event(requestKeyValues()));
 		String keyValues = " " + E + "2;39m{requestId=42 user=\"Ada Lovelace\"}" + R;
 		assertEquals(springLine("32", "INFO ", keyValues), actual);
@@ -216,12 +221,15 @@ class TTLLFormatterTest {
 		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
 		String expected = E + "38;2;86;182;194m12:00:00.123" + R + " " + E + "38;2;150;152;150m[main]" + R + " " + E
 				+ code + "m" + text + R + " " + E + "38;2;198;120;221mcom.example.App" + R + " - hello world\n";
-		assertEquals(expected, format(new TTLLFormatterBuilder("test").color(TTLL.ColorTheme.ONE_DARK).build(), event));
+		assertEquals(expected, format(
+				new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE).theme(TTLL.ColorTheme.ONE_DARK).build(),
+				event));
 	}
 
 	@Test
 	void oneDarkThemeByProperty() {
-		String actual = log("ttll", "logging.encoder.list.color=one_dark\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll",
+				"logging.encoder.list.color=force\nlogging.encoder.list.theme=one_dark\nlogging.encoder.list.keyValues=logfmt\n",
 				event(requestKeyValues()));
 		String expected = E + "38;2;86;182;194m12:00:00.123" + R + " " + E + "38;2;150;152;150m[main]" + R + " " + E
 				+ "1;38;2;97;175;239mINFO " + R + " " + E + "38;2;198;120;221mcom.example.App" + R + " " + E
@@ -236,12 +244,15 @@ class TTLLFormatterTest {
 		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
 		String expected = E + "38;2;104;151;187m12:00:00.123" + R + " " + E + "38;2;128;128;128m[main]" + R + " " + E
 				+ code + "m" + text + R + " " + E + "38;2;204;120;50mcom.example.App" + R + " - hello world\n";
-		assertEquals(expected, format(new TTLLFormatterBuilder("test").color(TTLL.ColorTheme.DARCULA).build(), event));
+		assertEquals(expected, format(
+				new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE).theme(TTLL.ColorTheme.DARCULA).build(),
+				event));
 	}
 
 	@Test
 	void darculaThemeByProperty() {
-		String actual = log("ttll", "logging.encoder.list.color=darcula\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll",
+				"logging.encoder.list.color=force\nlogging.encoder.list.theme=darcula\nlogging.encoder.list.keyValues=logfmt\n",
 				event(requestKeyValues()));
 		String expected = E + "38;2;104;151;187m12:00:00.123" + R + " " + E + "38;2;128;128;128m[main]" + R + " " + E
 				+ "1;38;2;106;135;89mINFO " + R + " " + E + "38;2;204;120;50mcom.example.App" + R + " " + E
@@ -249,10 +260,35 @@ class TTLLFormatterTest {
 		assertEquals(expected, actual);
 	}
 
+	@ParameterizedTest
+	@CsvSource(nullValues = "null", value = { //
+			"OFF,null,false,OFF", "OFF,SPRING,true,OFF", //
+			"DEFAULT,null,false,OFF", "DEFAULT,null,true,RAINBOWGUM", "DEFAULT,SPRING,false,OFF",
+			"DEFAULT,SPRING,true,SPRING", //
+			"DETECT,null,false,OFF", "DETECT,null,true,OFF", "DETECT,SPRING,false,OFF", "DETECT,SPRING,true,SPRING", //
+			"FORCE,null,false,RAINBOWGUM", "FORCE,SPRING,false,SPRING", "FORCE,DARCULA,true,DARCULA" })
+	void colorModeDecidesWhetherAndThemeDecidesWhich(TTLL.ColorMode mode, TTLL.@Nullable ColorTheme theme, boolean ansi,
+			String expected) {
+		var palette = switch (expected) {
+			case "RAINBOWGUM" -> Palette.RAINBOWGUM;
+			case "SPRING" -> Palette.SPRING;
+			case "DARCULA" -> Palette.DARCULA;
+			default -> Palette.OFF;
+		};
+		assertSame(palette, Palette.of(mode, theme, () -> ansi));
+	}
+
+	@Test
+	void themeAloneStillDetectsAnsi() {
+		// Tests run without a console, so ANSI is never detected.
+		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
+				log("ttll", "logging.encoder.list.theme=spring\n", event(KeyValues.of())));
+	}
+
 	@Test
 	void trueAndFalseAreAliases() {
 		var event = event(requestKeyValues());
-		assertEquals(log("ttll", "logging.encoder.list.color=rainbowgum\n", event),
+		assertEquals(log("ttll", "logging.encoder.list.color=default\n", event),
 				log("ttll", "logging.encoder.list.color=true\n", event));
 		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
 				log("ttll", "logging.encoder.list.color=false\n", event));
@@ -262,7 +298,7 @@ class TTLLFormatterTest {
 
 	@Test
 	void explicitColorWinsOverGlobalAnsiDisable() {
-		String actual = log("ttll", "logging.global.ansi.disable=true\nlogging.encoder.list.color=rainbowgum\n",
+		String actual = log("ttll", "logging.global.ansi.disable=true\nlogging.encoder.list.color=force\n",
 				event(KeyValues.of()));
 		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}
@@ -271,7 +307,7 @@ class TTLLFormatterTest {
 	void nonConsoleDefaultEncoderHonorsColorProperty() {
 		// ListLogOutput is not a console output, so its default TTLL is off unless set.
 		assertEquals(coloredLine("1;34", "INFO ", ""),
-				log("", "logging.encoder.list.color=true\n", event(KeyValues.of())));
+				log("", "logging.encoder.list.color=force\n", event(KeyValues.of())));
 	}
 
 	@Test
@@ -282,8 +318,21 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.color' from PROPERTIES_STRING[logging.encoder.list.color], \
-				'pink' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
-				Valid values: 'off', 'rainbowgum', 'spring', 'one_dark', 'darcula', 'true', 'false'""";
+				'pink' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorMode. \
+				Valid values: 'off', 'default', 'detect', 'force', 'true', 'false'""";
+		assertEquals(expected, e.getMessage());
+	}
+
+	@Test
+	void invalidThemeFails() {
+		var properties = LogProperties.builder().fromProperties("logging.encoder.list.theme=true").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.encoder.list.theme' from PROPERTIES_STRING[logging.encoder.list.theme], \
+				'true' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
+				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula'""";
 		assertEquals(expected, e.getMessage());
 	}
 
