@@ -989,10 +989,21 @@ formatters. This allows describing an output format using <code>String.format</c
 far less overhead. The builtin keywords are listed in
 {@link io.jstach.rainbowgum.pattern.format.PatternRegistry.KeywordKey} and
 {@link io.jstach.rainbowgum.pattern.format.PatternRegistry.ColorKey}.
-<strong>The pattern module is pulled in by default with the aggregate rainbow gum dependency</strong> and is
-already the default encoder for console output.
+<strong>The pattern module is not part of the aggregate rainbow gum dependency</strong>; add it to use
+patterns, and while it is present it is the default encoder for console output. Without it the console uses the
+<a href="#ttll">TTLL encoder</a>, whose default rainbowgum color theme writes the same colors as the pattern
+module's default pattern.
+
+{@snippet lang=xml :
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-pattern</artifactId>
+    <version>_VERSION_</version>
+</dependency>
+}
+
 <p>
-  <strong>NOTE:</strong> <em>The <strong>color</strong> pattern keywords work out of the box with no extra module.</em>
+  <strong>NOTE:</strong> <em>The <strong>color</strong> pattern keywords need no further module such as JAnsi.</em>
     Rainbow Gum detects whether the process is attached to an ANSI capable terminal using only
     {@link java.lang.System#console()} and well known environment variables ({@code NO_COLOR}, {@code TERM};
     see {@link io.jstach.rainbowgum.format.AnsiSupport}), and simply does not emit ANSI escape sequences when it is not.
@@ -1015,8 +1026,8 @@ logging.encoder.console.pattern=%highlight(%-5level){ERROR=red bold, INFO=blue b
 <h4 id="pattern_encoder_config">Selecting and Configuring the Pattern Encoder</h4>
 
 The pattern encoder's URI scheme is {@value io.jstach.rainbowgum.pattern.format.PatternEncoder#PATTERN_SCHEME}.
-Because it is already the default for console output, setting a pattern on an appender is often all that is
-needed:
+Because it is the default for console output when the module is present, setting a pattern on an appender is
+often all that is needed:
 
 {@snippet lang=properties :
 logging.appenders=myappender
