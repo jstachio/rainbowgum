@@ -22,7 +22,8 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-pattern</artifactId>
-      <scope>compile</scope>
+      <!-- not part of the bundle: only the pattern doc snippets in src/test use it -->
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>

@@ -9,6 +9,5 @@ module io.jstach.rainbowgum.bundle {
 	 * The following static is to placate maven javadoc
 	 * issues with scope compile.
 	 */
-	requires static io.jstach.rainbowgum.pattern;
 	requires static io.jstach.rainbowgum.slf4j;
 }
