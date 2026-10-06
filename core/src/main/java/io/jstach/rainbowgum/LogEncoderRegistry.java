@@ -96,8 +96,8 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	private final EnumMap<OutputType, LogProvider<? extends LogEncoder>> formatters = new EnumMap<>(OutputType.class);
 
 	/*
-	 * A TTLL builder that honors the global ANSI disable property: when it is set the
-	 * color theme defaults to off, while an explicit color property still wins.
+	 * A TTLL builder that honors the global ANSI disable property: when it is set color
+	 * defaults to off, while an explicit color property still wins.
 	 */
 	static TTLLFormatterBuilder ttll(String name, LogConfig config) {
 		var b = new TTLLFormatterBuilder(name);
@@ -107,7 +107,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 			.or(false)
 			.validateNow(LogEncoderRegistry.class);
 		if (ansiDisabled) {
-			b.color(TTLL.ColorTheme.OFF);
+			b.color(TTLL.ColorMode.OFF);
 		}
 		return b;
 	}
@@ -131,7 +131,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 				 * detection only knows about the console.
 				 */
 				return (name, config) -> LogEncoder
-					.of(ttll(name, config).color(TTLL.ColorTheme.OFF).fromProperties(config.properties()).build())
+					.of(ttll(name, config).color(TTLL.ColorMode.OFF).fromProperties(config.properties()).build())
 					.provide(name, config);
 			}
 			return Objects.requireNonNull(formatter);
