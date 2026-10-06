@@ -479,6 +479,9 @@ public interface LogProperties {
 	 * rely on their own parsing or the data type is built-in to the backing configuration
 	 * system.
 	 * <p>
+	 * The returned map must iterate in a stable order, the same every time for the same
+	 * configuration, preferably the order its entries were declared.
+	 * <p>
 	 * The default format is a single property value that is comma or ampersand separated
 	 * <code>key=value</code> pairs, percent-encoded (<a href=
 	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
