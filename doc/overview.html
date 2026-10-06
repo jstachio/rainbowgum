@@ -938,10 +938,10 @@ logging.encoder.console.keyValues=logfmt
 <li><code>keyValues</code>: <code>none</code> (default), <code>logfmt</code>, <code>percent</code>, or
 <code>logback</code>. Key values are written in braces, which are left out when an event has none.</li>
 <li><code>color</code>: <code>rainbowgum</code> (alias <code>true</code>), <code>spring</code>,
-<code>one_dark</code>, or <code>off</code> (alias <code>false</code>). The rainbowgum theme is the same coloring as
+<code>one_dark</code>, <code>darcula</code>, or <code>off</code> (alias <code>false</code>). The rainbowgum theme is the same coloring as
 the pattern encoder's default; the spring theme follows Spring Boot's console colors (faint time and thread, green,
-yellow, or red level, cyan logger); the one_dark theme uses Atom One Dark's colors in 24 bit color (magenta logger),
-which needs a terminal with true color support. When
+yellow, or red level, cyan logger); the one_dark and darcula themes use Atom One Dark's (magenta logger) and IntelliJ
+Darcula's (orange logger) colors in 24 bit color, which needs a terminal with true color support. When
 no theme is set, rainbowgum is
 used if the console supports ANSI (and <code>logging.global.ansi.disable</code> is not set), and the default encoder
 of outputs that are not a console, such as files, is never colored unless set.</li>

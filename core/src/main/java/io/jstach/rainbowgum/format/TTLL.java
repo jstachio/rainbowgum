@@ -288,7 +288,13 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * gray. Meant for a dark terminal background. Property value
 		 * <code>one_dark</code>.
 		 */
-		ONE_DARK;
+		ONE_DARK,
+		/**
+		 * IntelliJ Darcula's colors in 24 bit color: blue time, gray thread and key
+		 * values, orange logger name, and level bold red, yellow, or green (error, warn,
+		 * info) with debug and trace gray. Meant for a dark terminal background.
+		 */
+		DARCULA;
 
 		static ColorTheme parse(String value) {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {

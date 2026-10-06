@@ -229,6 +229,14 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 			"1;" + rgb("e06c75"), "1;" + rgb("e5c07b"), "1;" + rgb("61afef"), rgb("abb2bf"), rgb("abb2bf"));
 
 	/*
+	 * IntelliJ Darcula in 24 bit color: number blue time, comment gray thread and key
+	 * values, keyword orange logger name, and levels bold in Darcula's log console red,
+	 * yellow and string green (error, warn, info) or foreground gray.
+	 */
+	static final Palette DARCULA = new Palette(rgb("6897bb"), rgb("808080"), rgb("cc7832"), rgb("808080"),
+			"1;" + rgb("ff6b68"), "1;" + rgb("bbb529"), "1;" + rgb("6a8759"), rgb("a9b7c6"), rgb("a9b7c6"));
+
+	/*
 	 * The 24 bit foreground color code for a hex RGB value like c678dd.
 	 */
 	static String rgb(String hex) {
@@ -242,6 +250,7 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 			case RAINBOWGUM -> RAINBOWGUM;
 			case SPRING -> SPRING;
 			case ONE_DARK -> ONE_DARK;
+			case DARCULA -> DARCULA;
 		};
 	}
 
