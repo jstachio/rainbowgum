@@ -458,7 +458,8 @@ public interface LogProperties {
 	 * </code></pre> resolves to <code>["console", "file"]</code>, and: <pre><code>
 	 * logging.appenders=one%20two,three%2Cfour
 	 * </code></pre> (a space and an escaped comma) resolves to
-	 * <code>["one two", "three,four"]</code>.
+	 * <code>["one two", "three,four"]</code>. See {@link #parseList(String)} for empty
+	 * elements.
 	 * @param key property name.
 	 * @return list or <code>null</code>.
 	 * @apiNote the reason empty list is not returned for missing key is that it creates
@@ -493,18 +494,34 @@ public interface LogProperties {
 	 * logging.encoder.gelf.headers=region=us%20east
 	 * </code></pre> (a percent-encoded space) resolves to
 	 * <code>{"region": "us east"}</code>.
+	 * <p>
+	 * When that property is not set, the map can instead be given as a list of its keys
+	 * in <code>key.keys</code> and each value in <code>key.</code><em>mapKey</em>, which
+	 * works with sources that only hold flat values such as system properties or
+	 * environment variables, keeps the declared order, and needs no encoding: <pre><code>
+	 * logging.encoder.gelf.headers.keys=environment,region
+	 * logging.encoder.gelf.headers.environment=prod
+	 * logging.encoder.gelf.headers.region=us east
+	 * </code></pre> A key listed without a value is an error.
 	 * @param key property name.
 	 * @return map or <code>null</code>.
+	 * @throws IllegalArgumentException if a key listed in <code>key.keys</code> is empty
+	 * or has no value.
 	 * @apiNote the reason empty map is not returned for missing key is that it creates
 	 * ambiguity so null is returned when key is missing.
 	 */
 	default @Nullable Map<String, String> mapOrNull(String key) {
 		String s = valueOrNull(key);
 		if (s == null) {
-			return null;
+			return PropertyMaps.fromKeys(this, key);
 		}
 		return parseMap(s);
 	}
+
+	/**
+	 * Suffix of the property listing a map's keys, see {@link #mapOrNull(String)}.
+	 */
+	static final String MAP_KEYS_SUFFIX = "keys";
 
 	/**
 	 * Visits this properties with visitor, by default just applying visitor to this and
@@ -1138,12 +1155,38 @@ public interface LogProperties {
 	 *  </code> </pre> and comma: <pre><code>
 	 *  "a,b,c" -> ["a","b","c"]
 	 *  </code> </pre>
-	 * @param query the comma or ampersand delimited string that is in URI query format.
+	 * <p>
+	 * An element may be empty. One empty element at the start and one at the end are
+	 * dropped, so a value assembled from parts that may be missing still works
+	 * (<code>"a,"</code> and <code>",a,"</code> are <code>["a"]</code>), while every
+	 * other empty element is kept: <pre><code>
+	 *  "" -> []
+	 *  ",," -> [""]
+	 *  "a,,b" -> ["a","","b"]
+	 *  "a,," -> ["a",""]
+	 *  </code> </pre> An equals sign is part of the element: <code>"a=b"</code> is
+	 * <code>["a=b"]</code>.
+	 * @param query the comma or ampersand delimited string.
 	 * @return list of strings
 	 */
 	public static List<String> parseList(String query) {
 		List<String> list = new ArrayList<>();
-		parseUriQuery(query, (k, v) -> list.add(k));
+		int start = 0;
+		for (int i = 0; i < query.length(); i++) {
+			char c = query.charAt(i);
+			if (c == ',' || c == '&') {
+				list.add(query.substring(start, i));
+				start = i + 1;
+			}
+		}
+		list.add(query.substring(start));
+		if (list.get(0).isEmpty()) {
+			list.remove(0);
+		}
+		if (!list.isEmpty() && list.get(list.size() - 1).isEmpty()) {
+			list.remove(list.size() - 1);
+		}
+		list.replaceAll(e -> PercentCodec.decode(e, StandardCharsets.UTF_8));
 		return list;
 	}
 
@@ -1516,6 +1559,14 @@ final class MultiMapProperties extends AbstractLogProperties {
 
 	@Override
 	public @Nullable Map<String, String> mapOrNull(String key) {
+		String s = valueOrNull(key);
+		if (s != null) {
+			return LogProperties.parseMap(s);
+		}
+		var map = PropertyMaps.fromKeys(this, key);
+		if (map != null) {
+			return map;
+		}
 		/*
 		 * Now we check for dotted notation since key was not set. key.subkey=value
 		 */
@@ -1530,7 +1581,7 @@ final class MultiMapProperties extends AbstractLogProperties {
 				}
 			}
 		}
-		return m;
+		return m.isEmpty() ? null : m;
 	}
 
 }
@@ -1813,6 +1864,39 @@ final class PercentCodec {
 		}
 		bb.flip();
 		return charset.decode(bb).toString();
+	}
+
+}
+
+/*
+ * The key.keys form of LogProperties.mapOrNull, shared with implementations that override
+ * it.
+ */
+final class PropertyMaps {
+
+	private PropertyMaps() {
+	}
+
+	static @Nullable Map<String, String> fromKeys(LogProperties properties, String key) {
+		String keysKey = key + LogProperties.SEP + LogProperties.MAP_KEYS_SUFFIX;
+		List<String> keys = properties.listOrNull(keysKey);
+		if (keys == null) {
+			return null;
+		}
+		Map<String, String> m = new LinkedHashMap<>();
+		for (String k : keys) {
+			if (k.isEmpty()) {
+				throw new IllegalArgumentException("'" + keysKey + "' has an empty map key");
+			}
+			String valueKey = key + LogProperties.SEP + k;
+			String v = properties.valueOrNull(valueKey);
+			if (v == null) {
+				throw new IllegalArgumentException(
+						"map key '" + k + "' is listed in '" + keysKey + "' but '" + valueKey + "' is missing");
+			}
+			m.put(k, v);
+		}
+		return m;
 	}
 
 }

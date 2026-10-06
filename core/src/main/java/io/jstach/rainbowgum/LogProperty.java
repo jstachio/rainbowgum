@@ -1383,10 +1383,42 @@ final class DefaultLogProperty implements LogProperty {
 
 	@Override
 	public Result<Map<String, String>> ofMap() {
-		return resolve(k -> properties.visit(k, (p, kk) -> {
-			var v = p.mapOrNull(kk);
-			return v == null ? null : new PropertySuccess<>(properties, p, kk, v, PropertySuccess.Kind.MAP, v);
-		}));
+		try {
+			return resolve(k -> properties.visit(k, (p, kk) -> {
+				Map<String, String> v;
+				try {
+					v = p.mapOrNull(kk);
+				}
+				catch (IllegalArgumentException e) {
+					throw new MapFormException("'" + kk + "' from " + p.description(kk), e);
+				}
+				return v == null ? null : new PropertySuccess<>(properties, p, kk, v, PropertySuccess.Kind.MAP, v);
+			}));
+		}
+		catch (MapFormException e) {
+			var cause = e.cause;
+			return new Result.Error<>(e.resolvedKey,
+					"Error for property. key: " + e.resolvedKey + ", " + cause.getMessage(), cause);
+		}
+	}
+
+	/*
+	 * Carries which source rejected a map's form out of the visit, so the error names the
+	 * key and source the way every other property error does.
+	 */
+	@SuppressWarnings("serial")
+	private static final class MapFormException extends RuntimeException {
+
+		final String resolvedKey;
+
+		final IllegalArgumentException cause;
+
+		MapFormException(String resolvedKey, IllegalArgumentException cause) {
+			super(null, cause, false, false);
+			this.resolvedKey = resolvedKey;
+			this.cause = cause;
+		}
+
 	}
 
 	private <T> Result<T> resolve(java.util.function.Function<String, Result.@Nullable Success<T>> lookup) {

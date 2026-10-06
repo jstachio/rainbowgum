@@ -13,8 +13,11 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
  * Key Value Pairs similar to a {@code Map<String,String>} but optimized for memory and
  * less garbage (no iterators).
  * <p>
- * The observed order of the current default Key Value Pairs is insertion based ordering
- * but that should not be relied on as other implementations may change that.
+ * Key values iterate in a stable order: key values built the same way from the same input
+ * always iterate the same way, so formatted output does not reorder from one event to the
+ * next. The current implementations use insertion order, and
+ * {@link #merge(KeyValues, KeyValues)} keeps an overridden key at its original position,
+ * but insertion order itself is not part of this contract.
  * <p>
  * The preferred way to get all or most of the key values out for formatting is to use
  * {@link KeyValuesConsumer}. There is deliberately no low-level, index-based access
