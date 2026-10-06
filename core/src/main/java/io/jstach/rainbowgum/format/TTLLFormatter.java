@@ -1,7 +1,9 @@
 package io.jstach.rainbowgum.format;
 
+import java.io.IOException;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.function.BooleanSupplier;
 
 import org.jspecify.annotations.Nullable;
@@ -11,13 +13,14 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /*
  * The TTLL format assembled from its parts. Package private: the public API is the
  * generated TTLLFormatterBuilder, the ttll encoder scheme, and the TTLL choice enums.
  */
-final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
+final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogReporter.Reportable {
 
 	static final LogFormatter DEFAULT_TIMESTAMP = TTLL.TimestampFormat.TTLL.formatter();
 
@@ -31,8 +34,11 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 
 	private final LogFormatter formatter;
 
-	private TTLLFormatter(LogFormatter formatter) {
+	private final String description;
+
+	private TTLLFormatter(LogFormatter formatter, String description) {
 		this.formatter = formatter;
+		this.description = description;
 	}
 
 	/**
@@ -67,7 +73,8 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter("DEFAULT_KEY_VALUES") @LogConfigurable.ConvertParameter("convertKeyValues") LogFormatter keyValues,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme) {
-		var palette = Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color, theme, AnsiSupport::isAnsiSupported);
+		var mode = color == null ? TTLL.ColorMode.DEFAULT : color;
+		var palette = Palette.of(mode, theme, AnsiSupport::isAnsiSupported);
 		var b = LogFormatter.builder();
 		boolean empty = true;
 		empty = part(b, palette.color(palette.timestamp(), timestamp), empty);
@@ -86,7 +93,24 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 		b.message();
 		b.newline();
 		b.throwable();
-		return new TTLLFormatter(b.build());
+		return new TTLLFormatter(b.build(), describe(mode, theme, palette));
+	}
+
+	/*
+	 * What the reporter shows: the color settings and whether they resulted in color,
+	 * since "why is my console not colored" is the question it answers. The parts are
+	 * already formatters here and their choices are not tracked.
+	 */
+	static String describe(TTLL.ColorMode mode, TTLL.@Nullable ColorTheme theme, Palette palette) {
+		String themeName = theme != null ? theme.name() : mode == TTLL.ColorMode.OFF || mode == TTLL.ColorMode.DETECT
+				? "none" : TTLL.ColorTheme.RAINBOWGUM.name();
+		return TTLL.SCHEMA + " color=" + mode.name().toLowerCase(Locale.ROOT) + " theme="
+				+ themeName.toLowerCase(Locale.ROOT) + " colored=" + palette.colored();
+	}
+
+	@Override
+	public void report(Appendable out) throws IOException {
+		out.append(description);
 	}
 
 	private static boolean part(LogFormatter.Builder b, LogFormatter part, boolean empty) {
@@ -271,6 +295,10 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 			case ONE_DARK -> ONE_DARK;
 			case DARCULA -> DARCULA;
 		};
+	}
+
+	boolean colored() {
+		return !error.isEmpty();
 	}
 
 	LogFormatter color(String code, LogFormatter formatter) {

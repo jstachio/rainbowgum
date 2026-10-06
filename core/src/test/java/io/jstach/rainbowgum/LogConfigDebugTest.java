@@ -166,9 +166,10 @@ class LogConfigDebugTest {
 						      Type: LockThreadLocalBufferLogAppender
 						      Flags: []
 						      Output: StdOutOutput (type=CONSOLE_OUT, uri=stdout:///)
-						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8)
+						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=default theme=rainbowgum colored=false")
 
-						""".replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);
+						"""
+					.replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);
 			}
 			assertEquals(expected, output.toString(StandardCharsets.UTF_8));
 			assertEquals(0, listenerCalls.get());

@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
-import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
+import io.jstach.rainbowgum.format.TTLL;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 
 /**
@@ -286,7 +286,7 @@ public interface LogEncoder {
 	 * @return provider of encoder.
 	 */
 	public static LogProvider<LogEncoder> ofTTLL() {
-		return of(LogProviderRef.of(URI.create(AbstractStandardEventFormatter.SCHEMA)));
+		return of(LogProviderRef.of(URI.create(TTLL.SCHEMA)));
 	}
 
 	/**
@@ -860,8 +860,16 @@ final class FormatterEncoder implements LogEncoder, LogReporter.Reportable {
 		if (cs != null) {
 			out.append("; charset=").append(cs.name());
 		}
-		if (description != null) {
-			out.append(", description=\"").append(description).append("\"");
+		/*
+		 * A formatter that is Reportable, such as TTLL, describes itself when the encoder
+		 * was not given a description.
+		 */
+		String d = description;
+		if (d == null && formatter instanceof LogReporter.Reportable r) {
+			d = LogReporter.Reportable.toString(r, "");
+		}
+		if (d != null && !d.isEmpty()) {
+			out.append(", description=\"").append(d).append("\"");
 		}
 	}
 

@@ -8,14 +8,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
-import io.jstach.rainbowgum.format.AbstractStandardEventFormatter;
 import io.jstach.rainbowgum.format.TTLL;
 import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
 /**
  * Encoder registry. Only one encoder is registered by default which has the URI schema of
- * {@value AbstractStandardEventFormatter#SCHEMA} and is used if no encoder is found for
- * the {@link OutputType} of the resolved output.
+ * {@value TTLL#SCHEMA} and is used if no encoder is found for the {@link OutputType} of
+ * the resolved output.
  */
 public sealed interface LogEncoderRegistry extends EncoderProvider {
 
@@ -52,7 +51,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 */
 	public static LogEncoderRegistry of() {
 		var registry = new DefaultEncoderRegistry();
-		registry.register(AbstractStandardEventFormatter.SCHEMA,
+		registry.register(TTLL.SCHEMA,
 				ref -> (name, config) -> LogEncoder
 					.of(ttll(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
