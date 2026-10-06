@@ -16,10 +16,12 @@ import org.junit.jupiter.params.provider.CsvSource;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
+import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -291,6 +293,33 @@ class TTLLFormatterTest {
 			default -> Palette.OFF;
 		};
 		assertSame(palette, Palette.of(mode, theme, () -> ansi));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"|ttll color=default theme=rainbowgum colored=false", //
+			"logging.encoder.list.color=force|ttll color=force theme=rainbowgum colored=true", //
+			"logging.encoder.list.color=force;logging.encoder.list.theme=spring|ttll color=force theme=spring colored=true", //
+			"logging.encoder.list.theme=darcula|ttll color=default theme=darcula colored=false", //
+			"logging.encoder.list.color=detect|ttll color=detect theme=none colored=false", //
+			"logging.encoder.list.color=off|ttll color=off theme=none colored=false" })
+	void reportsColorSettingsAndWhetherTheyColored(@Nullable String properties, String expected) {
+		var props = LogProperties.builder()
+			.fromProperties(properties == null ? "" : properties.replace(';', '\n'))
+			.build();
+		var formatter = new TTLLFormatterBuilder("list").fromProperties(props).build();
+		assertEquals(expected, LogReporter.Reportable.toString(formatter, "not reportable"));
+	}
+
+	@Test
+	void encoderReportIncludesTheDescription() {
+		var formatter = new TTLLFormatterBuilder("list").color(TTLL.ColorMode.FORCE)
+			.theme(TTLL.ColorTheme.ONE_DARK)
+			.build();
+		var encoder = LogEncoder.of(formatter).provide("list", LogConfig.builder().build());
+		assertEquals(
+				"contentType=text/plain; charset=UTF-8, description=\"ttll color=force theme=one_dark colored=true\"",
+				LogReporter.Reportable.toString(encoder, "not reportable"));
 	}
 
 	@Test

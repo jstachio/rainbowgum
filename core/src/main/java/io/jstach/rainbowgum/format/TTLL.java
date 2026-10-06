@@ -8,8 +8,8 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
 /**
  * The choices for each part of the TTLL (Time, Thread, Level, Logger) format, the default
  * text format, configured with {@link TTLLFormatterBuilder} or properties of the
- * {@value AbstractStandardEventFormatter#SCHEMA} encoder. Property values are the
- * lowercase constant names, for example: <pre>
+ * {@value #SCHEMA} encoder. Property values are the lowercase constant names, for
+ * example: <pre>
  * logging.encoder.console.timestamp=iso
  * logging.encoder.console.keyValues=logfmt
  * </pre> The defaults produce the classic layout
@@ -19,6 +19,11 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
  * <code>12:00:00.123 [main] INFO  com.example.App {requestId=42} - hello</code>.
  */
 public sealed interface TTLL permits TTLLFormatter {
+
+	/**
+	 * URI scheme of the TTLL encoder, the default encoder when no other is configured.
+	 */
+	String SCHEMA = "ttll";
 
 	/**
 	 * Time part. A property value that is not one of these names is used as a

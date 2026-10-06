@@ -25,26 +25,29 @@ class LogReporterTest {
 		try (var gum = RainbowGum.builder(config)
 			.route(route -> route.appender("custom", appender -> appender.output(output)))
 			.build()) {
-			assertEquals("""
-					Properties: EMPTY
-					Global Properties:
-					  logging.global.change = (unset)
-					  logging.global.queue.level = (unset)
-					  logging.global.queue.error = (unset)
-					  logging.global.ansi.disable = (unset)
-					  logging.global.appender.reentrantLock = (unset)
-					  logging.global.threadlocalDisabled = (unset)
-					  logging.global.optimize = (unset)
-					Debug mode: OFF
+			assertEquals(
+					"""
+							Properties: EMPTY
+							Global Properties:
+							  logging.global.change = (unset)
+							  logging.global.queue.level = (unset)
+							  logging.global.queue.error = (unset)
+							  logging.global.ansi.disable = (unset)
+							  logging.global.appender.reentrantLock = (unset)
+							  logging.global.threadlocalDisabled = (unset)
+							  logging.global.optimize = (unset)
+							Debug mode: OFF
 
-					Router: default
-					  Publisher: DefaultSyncLogPublisher (synchronous)
-					    Appender: custom
-					      Type: LockThreadLocalBufferLogAppender
-					      Flags: []
-					      Output: UriOutput (type=MEMORY, uri=%s)
-					      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8)
-					""".formatted(test.expected), reporter.report(gum));
+							Router: default
+							  Publisher: DefaultSyncLogPublisher (synchronous)
+							    Appender: custom
+							      Type: LockThreadLocalBufferLogAppender
+							      Flags: []
+							      Output: UriOutput (type=MEMORY, uri=%s)
+							      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=off theme=none colored=false")
+							"""
+						.formatted(test.expected),
+					reporter.report(gum));
 			assertEquals(uri, output.uri());
 		}
 	}
@@ -135,7 +138,7 @@ class LogReporterTest {
 					      Type: LockThreadLocalBufferLogAppender
 					      Flags: []
 					      Output: StdOutOutput (type=CONSOLE_OUT, uri=stdout:///)
-					      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8)
+					      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=default theme=rainbowgum colored=false")
 					""";
 			assertEquals(expected, actual);
 		}

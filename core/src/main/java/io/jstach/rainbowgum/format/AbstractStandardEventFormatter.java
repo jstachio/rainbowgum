@@ -33,8 +33,10 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	 * Recommended URI schema for this type of encoder.
 	 * @see LogEncoderRegistry#register(String,
 	 * io.jstach.rainbowgum.LogEncoder.EncoderProvider)
+	 * @deprecated use {@link TTLL#SCHEMA}.
 	 */
-	public static final String SCHEMA = "ttll";
+	@Deprecated
+	public static final String SCHEMA = TTLL.SCHEMA;
 
 	/**
 	 * immutable field
@@ -309,19 +311,19 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 	/**
 	 * Convenience to register the encoder.
 	 * @return encoder provider.
-	 * @see AbstractStandardEventFormatter#SCHEMA
+	 * @see TTLL#SCHEMA
 	 */
 	public EncoderProvider toEncoderProvider() {
 		return EncoderProvider.of(LogEncoder.of(eventFormatter));
 	}
 
 	/**
-	 * Will register this TTLL like encoder with the uri schema {@value #SCHEMA} and will
-	 * be used as the default encoder if other encoders are not found.
+	 * Will register this TTLL like encoder with the uri schema {@value TTLL#SCHEMA} and
+	 * will be used as the default encoder if other encoders are not found.
 	 * @param registry encoder registry.
 	 */
 	public void register(LogEncoderRegistry registry) {
-		register(registry, SCHEMA);
+		register(registry, TTLL.SCHEMA);
 	}
 
 	/**
