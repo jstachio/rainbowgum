@@ -229,6 +229,26 @@ class TTLLFormatterTest {
 		assertEquals(expected, actual);
 	}
 
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { "ERROR|1;38;2;255;107;104|ERROR", "WARNING|1;38;2;187;181;41|'WARN '",
+			"INFO|1;38;2;106;135;89|'INFO '", "DEBUG|38;2;169;183;198|DEBUG", "TRACE|38;2;169;183;198|TRACE" })
+	void darculaThemeUsesTrueColor(Level level, String code, String text) {
+		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
+		String expected = E + "38;2;104;151;187m12:00:00.123" + R + " " + E + "38;2;128;128;128m[main]" + R + " " + E
+				+ code + "m" + text + R + " " + E + "38;2;204;120;50mcom.example.App" + R + " - hello world\n";
+		assertEquals(expected, format(new TTLLFormatterBuilder("test").color(TTLL.ColorTheme.DARCULA).build(), event));
+	}
+
+	@Test
+	void darculaThemeByProperty() {
+		String actual = log("ttll", "logging.encoder.list.color=darcula\nlogging.encoder.list.keyValues=logfmt\n",
+				event(requestKeyValues()));
+		String expected = E + "38;2;104;151;187m12:00:00.123" + R + " " + E + "38;2;128;128;128m[main]" + R + " " + E
+				+ "1;38;2;106;135;89mINFO " + R + " " + E + "38;2;204;120;50mcom.example.App" + R + " " + E
+				+ "38;2;128;128;128m{requestId=42 user=\"Ada Lovelace\"}" + R + " - hello world\n";
+		assertEquals(expected, actual);
+	}
+
 	@Test
 	void trueAndFalseAreAliases() {
 		var event = event(requestKeyValues());
@@ -263,7 +283,7 @@ class TTLLFormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.color' from PROPERTIES_STRING[logging.encoder.list.color], \
 				'pink' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
-				Valid values: 'off', 'rainbowgum', 'spring', 'one_dark', 'true', 'false'""";
+				Valid values: 'off', 'rainbowgum', 'spring', 'one_dark', 'darcula', 'true', 'false'""";
 		assertEquals(expected, e.getMessage());
 	}
 
