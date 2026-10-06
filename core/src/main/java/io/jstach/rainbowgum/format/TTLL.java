@@ -275,7 +275,12 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * faint thread and key values, level highlighted (error and warn bold red, info
 		 * bold blue) and magenta logger name. Alias <code>true</code>.
 		 */
-		RAINBOWGUM;
+		RAINBOWGUM,
+		/**
+		 * Spring Boot's console colors: faint time and thread, level colored by severity
+		 * (error red, warn yellow, the rest green) and cyan logger name.
+		 */
+		SPRING;
 
 		static ColorTheme parse(String value) {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {

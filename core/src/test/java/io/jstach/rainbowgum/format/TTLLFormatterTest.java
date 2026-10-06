@@ -153,6 +153,11 @@ class TTLLFormatterTest {
 				+ "35mcom.example.App" + R + keyValues + " - hello world\n";
 	}
 
+	private static String springLine(String levelCode, String level, String keyValues) {
+		return E + "2;39m12:00:00.123" + R + " " + E + "2;39m[main]" + R + " " + E + levelCode + "m" + level + R + " "
+				+ E + "36mcom.example.App" + R + keyValues + " - hello world\n";
+	}
+
 	@Test
 	void rainbowgumTheme() {
 		String actual = log("ttll", "logging.encoder.list.color=rainbowgum\nlogging.encoder.list.keyValues=logfmt\n",
@@ -186,6 +191,22 @@ class TTLLFormatterTest {
 			g.log(event);
 		}
 		assertEquals(coloredLine(code, text, ""), output.toString());
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "ERROR,31,ERROR", "WARNING,33,'WARN '", "INFO,32,'INFO '", "DEBUG,32,DEBUG", "TRACE,32,TRACE" })
+	void springThemeColorsLevelsLikeSpringBoot(Level level, String code, String text) {
+		var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
+		assertEquals(springLine(code, text, ""),
+				format(new TTLLFormatterBuilder("test").color(TTLL.ColorTheme.SPRING).build(), event));
+	}
+
+	@Test
+	void springThemeByProperty() {
+		String actual = log("ttll", "logging.encoder.list.color=spring\nlogging.encoder.list.keyValues=logfmt\n",
+				event(requestKeyValues()));
+		String keyValues = " " + E + "2;39m{requestId=42 user=\"Ada Lovelace\"}" + R;
+		assertEquals(springLine("32", "INFO ", keyValues), actual);
 	}
 
 	@Test
@@ -222,7 +243,7 @@ class TTLLFormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.color' from PROPERTIES_STRING[logging.encoder.list.color], \
 				'pink' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
-				Valid values: 'off', 'rainbowgum', 'true', 'false'""";
+				Valid values: 'off', 'rainbowgum', 'spring', 'true', 'false'""";
 		assertEquals(expected, e.getMessage());
 	}
 

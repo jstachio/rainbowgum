@@ -63,19 +63,20 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter("DEFAULT_LOGGER") @LogConfigurable.ConvertParameter("convertLogger") LogFormatter logger,
 			@LogConfigurable.DefaultParameter("DEFAULT_KEY_VALUES") @LogConfigurable.ConvertParameter("convertKeyValues") LogFormatter keyValues,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorTheme color) {
-		boolean ansi = color == null ? AnsiSupport.isAnsiSupported() : color == TTLL.ColorTheme.RAINBOWGUM;
+		var theme = color != null ? color
+				: AnsiSupport.isAnsiSupported() ? TTLL.ColorTheme.RAINBOWGUM : TTLL.ColorTheme.OFF;
+		var palette = Palette.of(theme);
 		var b = LogFormatter.builder();
 		boolean empty = true;
-		empty = part(b, ansi ? Ansi.colored(Ansi.CYAN, timestamp) : timestamp, empty);
+		empty = part(b, palette.color(palette.timestamp(), timestamp), empty);
 		if (!thread.isNoop()) {
 			var bracketed = LogFormatter.builder().text("[").add(thread).text("]").build();
-			empty = part(b, ansi ? Ansi.colored(Ansi.FAINT, bracketed) : bracketed, empty);
+			empty = part(b, palette.color(palette.thread(), bracketed), empty);
 		}
-		empty = part(b, ansi && !level.isNoop() ? new LevelHighlightFormatter(level) : level, empty);
-		empty = part(b, ansi ? Ansi.colored(Ansi.MAGENTA, logger) : logger, empty);
+		empty = part(b, palette.level(level), empty);
+		empty = part(b, palette.color(palette.logger(), logger), empty);
 		if (!keyValues.isNoop()) {
-			b.add(ansi ? new BracedKeyValuesFormatter(keyValues, " " + Ansi.start(Ansi.FAINT) + "{", "}" + Ansi.RESET)
-					: new BracedKeyValuesFormatter(keyValues));
+			b.add(palette.keyValues(keyValues));
 		}
 		if (!empty) {
 			b.text(" - ");
@@ -186,18 +187,6 @@ record BracedKeyValuesFormatter(LogFormatter keyValuesFormatter, String open,
  */
 final class Ansi {
 
-	static final String CYAN = "36";
-
-	static final String MAGENTA = "35";
-
-	static final String FAINT = "2;39";
-
-	static final String BOLD_RED = "1;31";
-
-	static final String BOLD_BLUE = "1;34";
-
-	static final String DEFAULT = "39";
-
 	static final String RESET = "\033[0;39m";
 
 	private Ansi() {
@@ -207,29 +196,80 @@ final class Ansi {
 		return "\033[" + code + "m";
 	}
 
-	static LogFormatter colored(String code, LogFormatter formatter) {
-		if (formatter.isNoop()) {
+}
+
+/*
+ * The ANSI codes a color theme uses for each part of the TTLL layout and for each level.
+ * Adding a theme is adding a palette. The codes are the same sequences the pattern
+ * encoder writes for the equivalent pattern. An empty code means no color.
+ */
+record Palette(String timestamp, String thread, String logger, String keyValues, String error, String warn, String info,
+		String debug, String trace) {
+
+	static final Palette OFF = new Palette("", "", "", "", "", "", "", "", "");
+
+	/*
+	 * The pattern encoder's default: cyan time, faint thread, %highlight level with the
+	 * default pattern's options and magenta logger name.
+	 */
+	static final Palette RAINBOWGUM = new Palette("36", "2;39", "35", "2;39", "1;31", "1;31", "1;34", "39", "39");
+
+	/*
+	 * Spring Boot's console colors: faint time and thread, %clr level colors (error red,
+	 * warn yellow, the rest green) and cyan logger name.
+	 */
+	static final Palette SPRING = new Palette("2;39", "2;39", "36", "2;39", "31", "33", "32", "32", "32");
+
+	static Palette of(TTLL.ColorTheme theme) {
+		return switch (theme) {
+			case OFF -> OFF;
+			case RAINBOWGUM -> RAINBOWGUM;
+			case SPRING -> SPRING;
+		};
+	}
+
+	LogFormatter color(String code, LogFormatter formatter) {
+		if (code.isEmpty() || formatter.isNoop()) {
 			return formatter;
 		}
-		return LogFormatter.builder().text(start(code)).add(formatter).text(RESET).build();
+		return LogFormatter.builder().text(Ansi.start(code)).add(formatter).text(Ansi.RESET).build();
+	}
+
+	LogFormatter level(LogFormatter level) {
+		if (error.isEmpty() || level.isNoop()) {
+			return level;
+		}
+		return new LevelColorFormatter(level, this);
+	}
+
+	LogFormatter keyValues(LogFormatter keyValues) {
+		if (keyValues().isEmpty()) {
+			return new BracedKeyValuesFormatter(keyValues);
+		}
+		return new BracedKeyValuesFormatter(keyValues, " " + Ansi.start(keyValues()) + "{", "}" + Ansi.RESET);
+	}
+
+	String levelCode(java.lang.System.Logger.Level level) {
+		return switch (level) {
+			case ERROR -> error;
+			case WARNING -> warn;
+			case INFO -> info;
+			case DEBUG -> debug;
+			case TRACE -> trace;
+			default -> "39";
+		};
 	}
 
 }
 
 /*
- * Colors the level by severity like the pattern encoder's default highlight: error and
- * warn bold red, info bold blue, others the default color.
+ * Colors the level with the palette's color for the event's level.
  */
-record LevelHighlightFormatter(LogFormatter level) implements LogFormatter.EventFormatter {
+record LevelColorFormatter(LogFormatter level, Palette palette) implements LogFormatter.EventFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
-		String code = switch (event.level()) {
-			case ERROR, WARNING -> Ansi.BOLD_RED;
-			case INFO -> Ansi.BOLD_BLUE;
-			default -> Ansi.DEFAULT;
-		};
-		output.append(Ansi.start(code));
+		output.append(Ansi.start(palette.levelCode(event.level())));
 		level.format(output, event);
 		output.append(Ansi.RESET);
 	}
