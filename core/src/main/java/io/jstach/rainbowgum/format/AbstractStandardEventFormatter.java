@@ -30,15 +30,6 @@ import io.jstach.rainbowgum.LogFormatter;
 public class AbstractStandardEventFormatter implements LogFormatter.EventFormatter {
 
 	/**
-	 * Recommended URI schema for this type of encoder.
-	 * @see LogEncoderRegistry#register(String,
-	 * io.jstach.rainbowgum.LogEncoder.EncoderProvider)
-	 * @deprecated use {@link TTLL#SCHEMA}.
-	 */
-	@Deprecated
-	public static final String SCHEMA = TTLL.SCHEMA;
-
-	/**
 	 * immutable field
 	 */
 	protected final LogFormatter timestampFormatter;
