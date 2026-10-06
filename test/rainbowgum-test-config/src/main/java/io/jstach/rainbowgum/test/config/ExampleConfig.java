@@ -14,7 +14,8 @@ public record ExampleConfig(String name, Integer count, @Nullable URI uri, @Null
 	 * @param name parameter name.
 	 * @param count parameter count.
 	 * @param uri parameter uri.
-	 * @param tags parameter tags.
+	 * @param tags parameter tags, a description long enough to continue on the next line,
+	 * see {@link ExampleConfig}.
 	 * @return config
 	 */
 	@LogConfigurable(name = "ExampleConfigBuilder", prefix = "logging.example.{name}.")

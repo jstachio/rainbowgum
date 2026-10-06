@@ -86,7 +86,9 @@ class TTLLFormatterTest {
 			"logger=none|12:00:00.123 [main] INFO  - hello world", //
 			"keyValues=logfmt|12:00:00.123 [main] INFO  com.example.App {requestId=42 user=\"Ada Lovelace\"} - hello world", //
 			"keyValues=percent|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
-			"keyValues=LOGBACK|12:00:00.123 [main] INFO  com.example.App {requestId=42, user=Ada Lovelace} - hello world" })
+			"keyValues=LOGBACK|12:00:00.123 [main] INFO  com.example.App {requestId=42, user=Ada Lovelace} - hello world", //
+			"keyValues=true|12:00:00.123 [main] INFO  com.example.App {requestId=42 user=\"Ada Lovelace\"} - hello world", //
+			"keyValues=false|12:00:00.123 [main] INFO  com.example.App - hello world" })
 	void eachPartIsConfigurableByProperty(String property, String expected) {
 		assertEquals(expected + "\n",
 				log("ttll", "logging.encoder.list." + property + "\n", event(requestKeyValues())));
@@ -131,6 +133,19 @@ class TTLLFormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.thread' from PROPERTIES_STRING[logging.encoder.list.thread], \
 				'both' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'none'""";
+		assertEquals(expected, e.getMessage());
+	}
+
+	@Test
+	void invalidKeyValuesFails() {
+		var properties = LogProperties.builder().fromProperties("logging.encoder.list.keyValues=yes").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.encoder.list.keyValues' from PROPERTIES_STRING[logging.encoder.list.keyValues], \
+				'yes' is not a valid value for io.jstach.rainbowgum.format.TTLL.KeyValuesFormat. \
+				Valid values: 'none', 'logfmt', 'percent', 'logback', 'true', 'false'""";
 		assertEquals(expected, e.getMessage());
 	}
 

@@ -142,7 +142,8 @@ public interface RollingFileOutput extends FileOutput {
 	 * @param uri file uri.
 	 * @param fileName file name.
 	 * @param maxFileSize max file size before a roll is triggered, in
-	 * {@link DataSize#parse(String)} format when set by property, e.g. {@code 10MB}.
+	 * {@link io.jstach.rainbowgum.file.DataSize#parse(String)} format when set by
+	 * property, e.g. {@code 10MB}.
 	 * @param maxHistory number of archives to retain.
 	 * @param totalSizeCap total archive size cap; zero means unlimited.
 	 * @param cleanHistoryOnStart whether pruning also runs once at start, not just after
