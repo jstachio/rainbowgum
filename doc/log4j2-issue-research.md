@@ -139,12 +139,55 @@ were loaded. This is an area to advertise.
 
 ## Suggested 1.0 checklist from this research
 
-1. Replace the default async publisher with `OpusAsyncPublisher`, or port its handling of
-   `Error`, reentrant logging, and never throwing from `log()`.
-2. Publish a BOM.
-3. Add a startup concurrency test (many threads initializing and getting loggers at once).
-4. Review and merge the OTLP module.
-5. Carry MDC through the JUL bridge.
-6. Confirm Logback compatible trailing throwable handling in the SLF4J facade.
+| Item | Status |
+|---|---|
+| Replace the default async publisher, or port its handling of `Error`, reentrant logging, and never throwing from `log()` | done: `BatchSwapAsyncLogPublisher` |
+| Publish a BOM | decided against for now, see below |
+| Startup concurrency test (many threads initializing and getting loggers at once) | done: `RainbowGumEntryPointConcurrencyTest`, `LogConfigConcurrentBindTest` |
+| Review and merge the OTLP module | done: `rainbowgum-otlp` |
+| Carry MDC through the JUL bridge | done: `JULBridge` reads `KeyValuesContributor.global()` |
+| Confirm Logback compatible trailing throwable handling in the SLF4J facade | done: permanent test |
+
+### Why no BOM yet
+
+A BOM is imported with `<scope>import</scope>`, and Maven's dependency guide says the
+import is replaced with "the effective list of dependencies in the specified POM's
+`<dependencyManagement>` section". Properties are not imported. The problem is the word
+effective: a BOM module that simply inherits the project's parent publishes everything
+the parent manages along with our own artifacts.
+
+For Rainbow Gum that is real. The root `pom.xml` manages 23 of our artifacts and 19 third
+party ones, including `slf4j-api`, `log4j-api`, `jboss-logging`, `junit-jupiter`, `jansi`,
+and `disruptor`. A naive BOM would pin those versions in every application that imports
+it, which a logging library has no business doing.
+
+The fix does not need the usual restructuring (an empty aggregator, a separate real
+parent, and a separate BOM module that does not inherit it). Three smaller options exist:
+
+1. The `flatten-maven-plugin` `bom` mode: the BOM module keeps inheriting the real parent
+   for versions and release metadata, and the published POM has no parent and keeps its
+   own `dependencyManagement` "as-is without resolving parent influences".
+2. A BOM module with no parent that is still listed in the reactor, so release tooling
+   sets its version; the cost is repeating the Central metadata (name, URL, licenses, SCM,
+   developers) in that one POM.
+3. Maven 4's `bom` packaging, which publishes a flattened consumer POM, once the build
+   moves to Maven 4.
+
+Without a BOM users set one property:
+
+```xml
+<properties>
+    <rainbowgum.version>1.0.0</rainbowgum.version>
+</properties>
+```
+
+That is fine here because every Rainbow Gum artifact is released together with the same
+version. What a BOM would add is alignment of Rainbow Gum artifacts a user only gets
+transitively, for example a third party library built against an older `rainbowgum-core`.
+That is unlikely today, so the BOM can wait; if it is added, option 1 is the least work.
+
+Sources: [Maven dependency mechanism](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html),
+[flatten:flatten](https://www.mojohaus.org/flatten-maven-plugin/flatten-mojo.html),
+[What's new in Maven 4](https://maven.apache.org/whatsnewinmaven4.html).
 
 Researched and written by Claude Opus 5.5.
