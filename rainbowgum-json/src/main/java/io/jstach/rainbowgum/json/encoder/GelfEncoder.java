@@ -106,15 +106,15 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
 	 * @param timeFractionalDigits number of fractional second digits (0-9) the
 	 * non-standard <code>_time</code> field is rendered with, default
-	 * {@value #DEFAULT_TIME_FRACTIONAL_DIGITS} (milliseconds). Values above 3 render
-	 * genuine sub-millisecond precision (most JVMs' {@link Instant#now()} has real
-	 * nanosecond resolution) but cannot be cached the way millisecond-or-coarser
-	 * precision can, since it can legitimately differ between two events in the same
-	 * millisecond.
+	 * {@value GelfEncoder#DEFAULT_TIME_FRACTIONAL_DIGITS} (milliseconds). Values above 3
+	 * render genuine sub-millisecond precision (most JVMs'
+	 * {@link java.time.Instant#now()} has real nanosecond resolution) but cannot be
+	 * cached the way millisecond-or-coarser precision can, since it can legitimately
+	 * differ between two events in the same millisecond.
 	 * @param maxBufferSize maximum buffer size - a soft ceiling checked between events,
 	 * not a hard cap enforced on any single event (see
-	 * {@link LogEncoder.Buffer#isOversized()}). A negative value (the default) disables
-	 * this entirely.
+	 * {@link io.jstach.rainbowgum.LogEncoder.Buffer#isOversized()}). A negative value
+	 * (the default) disables this entirely.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)

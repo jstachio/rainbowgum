@@ -37,24 +37,25 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 
 	/**
 	 * The TTLL (Time, Thread, Level, Logger) text format, the default encoder, with each
-	 * part configurable, see TTLL.
+	 * part configurable, see {@link TTLL}.
 	 * <p>
 	 * The defaults produce <code>12:00:00.123 [main] INFO  com.example.App - hello</code>
 	 * followed by any stack trace. Parts set to none are left out along with their
 	 * separating space. As properties of the encoder, each part is one of the lowercase
 	 * names of its {@link TTLL} enum, for example
-	 * <code>logging.encoder.console.keyValues=logfmt</code>. The timestamp property also
-	 * accepts a DateTimeFormatter pattern in UTC. The color property decides whether to
-	 * color and the theme property which colors; when neither is set the rainbowgum theme
-	 * is used if the console supports ANSI.
+	 * <code>logging.encoder.console.keyValues=logfmt</code>; keyValues also accepts
+	 * <code>true</code> (logfmt) and <code>false</code> (none). The timestamp property
+	 * also accepts a DateTimeFormatter pattern in UTC. The color property decides whether
+	 * to color and the theme property which colors; when neither is set the rainbowgum
+	 * theme is used if the console supports ANSI.
 	 * @param name encoder name, used for property lookup.
-	 * @param timestamp time formatter, see TTLL.TimestampFormat.
-	 * @param thread thread formatter in square brackets, see TTLL.ThreadFormat.
-	 * @param level level formatter, see TTLL.LevelFormat.
-	 * @param logger logger name formatter, see TTLL.LoggerFormat.
-	 * @param keyValues key values formatter in braces, see TTLL.KeyValuesFormat.
-	 * @param color whether to color, see TTLL.ColorMode.
-	 * @param theme ANSI color theme, see TTLL.ColorTheme.
+	 * @param timestamp time formatter, see {@link TTLL.TimestampFormat}.
+	 * @param thread thread formatter in square brackets, see {@link TTLL.ThreadFormat}.
+	 * @param level level formatter, see {@link TTLL.LevelFormat}.
+	 * @param logger logger name formatter, see {@link TTLL.LoggerFormat}.
+	 * @param keyValues key values formatter in braces, see {@link TTLL.KeyValuesFormat}.
+	 * @param color whether to color, see {@link TTLL.ColorMode}.
+	 * @param theme ANSI color theme, see {@link TTLL.ColorTheme}.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "TTLLFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
@@ -136,7 +137,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter {
 	}
 
 	static LogFormatter convertKeyValues(String value) {
-		return LogProperty.enumValue(TTLL.KeyValuesFormat.class, value).formatter();
+		return TTLL.KeyValuesFormat.parse(value).formatter();
 	}
 
 	@Override

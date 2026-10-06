@@ -367,26 +367,34 @@ public class ConfigProcessor extends AbstractProcessor {
 			if (docComment == null) {
 				return new ConfigJavadoc("", Map.of());
 			}
-			// Parse @param tags
+			// Parse @param tags, which can continue over several lines until the next
+			// tag.
 			boolean inDescription = true;
 			StringBuilder desc = new StringBuilder();
-			Map<String, String> properties = new LinkedHashMap<>();
+			Map<String, String> params = new LinkedHashMap<>();
+			@Nullable String paramName = null;
 			for (String line : docComment.split("\\R")) {
-				if (line.trim().startsWith("@")) {
+				String trimmed = line.trim();
+				if (trimmed.startsWith("@")) {
 					inDescription = false;
+					paramName = null;
+					if (trimmed.startsWith("@param")) {
+						String[] parts = trimmed.split("\\s+", 3);
+						if (parts.length >= 3) {
+							paramName = parts[1];
+							params.put(paramName, parts[2]);
+						}
+					}
 				}
 				else if (inDescription) {
 					desc.append(line).append("\n");
 				}
-				if (line.trim().startsWith("@param")) {
-					String[] parts = line.trim().split("\\s+", 3);
-					if (parts.length >= 3) {
-						String paramName = parts[1];
-						String paramDescription = parts[2];
-						properties.put(paramName, processParamDescription(paramDescription));
-					}
+				else if (paramName != null && !trimmed.isEmpty()) {
+					params.merge(paramName, trimmed, (previous, more) -> previous + " " + more);
 				}
 			}
+			Map<String, String> properties = new LinkedHashMap<>();
+			params.forEach((name, description) -> properties.put(name, processParamDescription(description)));
 			return new ConfigJavadoc(desc.toString(), properties);
 		}
 	}

@@ -37,6 +37,11 @@ class final SomeFactory {
  * The builder will try the property <code>logging.myplugin.example.myParameter</code> and
  * use it if it exists to override the <code>80</code> value.
  * <p>
+ * The factory method's description and <code>@param</code> descriptions are copied into
+ * the generated builder's javadoc. The builder is in the same package but has none of the
+ * factory's imports, so a <code>{@literal @}link</code> or <code>{@literal @}value</code>
+ * in them must be fully qualified unless it names a type in that package.
+ * <p>
  * If the annotated factory method throws {@link IllegalArgumentException} (or a
  * subclass), the generated builder's <code>build()</code> treats that as a validation
  * failure: it is caught and rewrapped as a

@@ -90,8 +90,8 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	 * @param prettyPrint <code>true</code> will pretty print the JSON, default is false.
 	 * @param maxBufferSize maximum buffer size - a soft ceiling checked between events,
 	 * not a hard cap enforced on any single event (see
-	 * {@link LogEncoder.Buffer#isOversized()}). A negative value (the default) disables
-	 * this entirely.
+	 * {@link io.jstach.rainbowgum.LogEncoder.Buffer#isOversized()}). A negative value
+	 * (the default) disables this entirely.
 	 * @return encoder.
 	 */
 	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)

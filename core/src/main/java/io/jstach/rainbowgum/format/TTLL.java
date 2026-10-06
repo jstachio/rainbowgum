@@ -204,13 +204,14 @@ public sealed interface TTLL permits TTLLFormatter {
 
 	/**
 	 * Key values part, written in braces after the logger name and left out when an event
-	 * has no key values.
+	 * has no key values. As a property <code>true</code> and <code>false</code> are
+	 * aliases for <code>logfmt</code> and <code>none</code>.
 	 */
 	@CaseChanging
 	enum KeyValuesFormat {
 
 		/**
-		 * Key values are not shown. The default.
+		 * Key values are not shown. The default. Alias <code>false</code>.
 		 */
 		NONE {
 			@Override
@@ -220,7 +221,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		},
 		/**
 		 * <a href="https://brandur.org/logfmt">logfmt</a>:
-		 * <code>requestId=42 user="Ada Lovelace"</code>.
+		 * <code>requestId=42 user="Ada Lovelace"</code>. Alias <code>true</code>.
 		 */
 		LOGFMT {
 			@Override
@@ -253,6 +254,14 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * @return formatter.
 		 */
 		public abstract LogFormatter formatter();
+
+		static KeyValuesFormat parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "true" -> LOGFMT;
+				case "false" -> NONE;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(KeyValuesFormat.class, value, "true", "false");
+			};
+		}
 
 	}
 
