@@ -101,7 +101,7 @@ public sealed interface PatternConfig extends Configurator {
 		 * No caching - every call recomputes.
 		 */
 		@EnumAlias("false")
-		DISABLED,
+		OFF,
 		/**
 		 * The default cache.
 		 */
@@ -112,7 +112,7 @@ public sealed interface PatternConfig extends Configurator {
 			String v = value.toUpperCase(Locale.ROOT);
 			return switch (v) {
 				case "TRUE", "DEFAULT" -> BASIC;
-				case "FALSE" -> DISABLED;
+				case "FALSE" -> OFF;
 				default -> LogProperty.enumValue(CacheType.class, value, "true", "default", "false");
 			};
 		}
