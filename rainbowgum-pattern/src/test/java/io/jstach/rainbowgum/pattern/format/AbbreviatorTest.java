@@ -20,11 +20,8 @@ import org.junit.jupiter.api.Test;
  * TargetLengthBasedClassNameAbbreviatorTest to confirm this port behaves
  * identically.
  *
- * LogbackCache is likewise a port of the private cache (NameCache /
- * CacheMissCalculator) embedded in Logback's NamedConverter, generalized into a
- * standalone Cache<K, V>. Logback has no dedicated unit test for that internal
- * cache, so the tests in the "cache" section below are original, written
- * directly against the ported algorithm.
+ * The cache is not Logback's: it is a plain ConcurrentHashMap keyed by logger name,
+ * since logger names are as bounded as the loggers that are kept anyway.
  *
  * Caching used to be an all-or-nothing JVM-wide system property
  * (Abbreviator.DISABLE_CACHE_SYSTEM_PROPERTY); Abbreviator.of(int) now always returns an
@@ -177,69 +174,43 @@ class AbbreviatorTest {
 				+ "Valid values: 'off', 'basic', 'true', 'default', 'false'", e.getMessage());
 	}
 
-	// --- LogbackCache (generic caching layer backing Abbreviator.cache) ---
+	// --- Abbreviator.cache(...) ---
 
 	@Test
 	void cacheHitAvoidsRecomputation() {
 		AtomicInteger calls = new AtomicInteger();
-		var cache = new LogbackCache<String, String>(k -> {
+		var abbreviator = Abbreviator.cache(in -> {
 			calls.incrementAndGet();
-			return k + "!";
+			return in + "!";
 		});
-		assertEquals("a!", cache.value("a"));
-		assertEquals("a!", cache.value("a"));
-		assertEquals(1, calls.get());
+		assertEquals("a!", abbreviator.abbreviate("a"));
+		assertEquals("a!", abbreviator.abbreviate("a"));
+		assertEquals("b!", abbreviator.abbreviate("b"));
+		assertEquals(2, calls.get());
 	}
 
 	@Test
-	void disableCacheBypassesCachingGoingForward() {
+	void cacheIsSafeAcrossThreads() throws Exception {
 		AtomicInteger calls = new AtomicInteger();
-		var cache = new LogbackCache<String, String>(k -> {
+		var abbreviator = Abbreviator.cache(in -> {
 			calls.incrementAndGet();
-			return k + "!";
+			return in.toUpperCase(java.util.Locale.ROOT);
 		});
-		cache.value("a");
-		cache.disableCache();
-		cache.disableCache(); // idempotent - must not throw or double-clear
-		cache.value("a");
-		cache.value("a");
-		assertEquals(3, calls.get());
-	}
-
-	@Test
-	void sustainedLowMissRateDoesNotDoubleRemovalThreshold() {
-		// A miss (new distinct key) happens on every 10th call - spread across
-		// the whole run rather than front-loaded - keeping the miss rate around
-		// 10%, well under the 30% trigger. Spreading the misses out matters:
-		// shouldDoubleRemovalThreshold is only re-checked on a put (i.e. a
-		// miss), so if all misses happened before the 1024-call sample window
-		// even filled, the check would never run with a computable (non
-		// negative) rate at all.
-		var cache = new LogbackCache<String, String>(k -> k);
-		int uniqueCounter = 0;
-		for (int i = 0; i < 2000; i++) {
-			String key = (i % 10 == 0) ? "unique-" + uniqueCounter++ : "shared-" + (i % 3);
-			cache.value(key);
+		try (var executor = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+			var futures = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+			for (int t = 0; t < 8; t++) {
+				futures.add(executor.submit(() -> {
+					for (int i = 0; i < 10_000; i++) {
+						assertEquals("LOGGER." + (i % 50), abbreviator.abbreviate("logger." + (i % 50)));
+					}
+				}));
+			}
+			for (var f : futures) {
+				f.get();
+			}
 		}
-		assertTrue(cache.getCacheMissRate() < 0.3d);
-		assertEquals(384, cache.removalThreshold);
-	}
-
-	@Test
-	void sustainedHighMissRateDoublesThresholdThenDisablesCacheAtMax() {
-		// Every key is unique, so the miss rate is a constant 100% - each time a
-		// 1024-call sample window fills, shouldDoubleRemovalThreshold doubles
-		// the removal threshold: 384 -> 768 (at call 1024) -> 1536 (at call
-		// 2048). At call 3072 the threshold is already at the 1536 max, so
-		// instead of doubling again the cache disables itself outright. Once
-		// disabled, totalCalls/cacheMisses stop being tracked, so
-		// getCacheMisses() freezes at 3072 even though 3200 calls are made.
-		var cache = new LogbackCache<String, String>(k -> k);
-		for (int i = 0; i < 3200; i++) {
-			cache.value("key-" + i);
-		}
-		assertEquals(3072, cache.getCacheMisses());
-		assertEquals(1536, cache.removalThreshold);
+		// computeIfAbsent computes each key at most once.
+		assertEquals(50, calls.get());
 	}
 
 }

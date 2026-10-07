@@ -1,9 +1,6 @@
 package io.jstach.rainbowgum.pattern.format;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Function;
+import java.util.concurrent.ConcurrentHashMap;
 
 interface Abbreviator {
 
@@ -31,15 +28,44 @@ interface Abbreviator {
 	 * @return cached abbreviator.
 	 */
 	public static Abbreviator cache(Abbreviator a) {
-		Cache<String, String> cache = Cache.of(a::abbreviate);
-		return new CacheAbbreviator(cache);
+		return new CacheAbbreviator(a);
 	}
 
-	record CacheAbbreviator(Cache<String, String> cache) implements Abbreviator {
+	/*
+	 * Why a plain ConcurrentHashMap and not an LRU or Logback's cache:
+	 *
+	 * The key is the logger name, and logger names are as bounded as the loggers
+	 * themselves, which the logging facades keep for the life of the process anyway. So
+	 * this map never holds more than one short string per logger that already exists. An
+	 * LRU only protects against an unbounded key set; here eviction would just recompute
+	 * abbreviations for loggers that are still in use.
+	 *
+	 * Logger names that are not bounded, for example a request id used as a logger name,
+	 * are a bug in the application that would leak loggers first. Rainbow Gum reports
+	 * them through LogMetrics.LOGGER_NAMES_METRIC instead of guarding every cache.
+	 *
+	 * Logback's NamedConverter cache, which this replaced, took a lock on every call (hit
+	 * or miss) to count calls, and grew or disabled itself based on its miss rate; all of
+	 * that exists for the unbounded case. Here a hit is a lock free read and a miss locks
+	 * only its own bin in computeIfAbsent.
+	 */
+	final class CacheAbbreviator implements Abbreviator {
+
+		private final Abbreviator abbreviator;
+
+		private final ConcurrentHashMap<String, String> cache = new ConcurrentHashMap<>();
+
+		CacheAbbreviator(Abbreviator abbreviator) {
+			this.abbreviator = abbreviator;
+		}
 
 		@Override
 		public String abbreviate(String in) {
-			return cache.value(in);
+			String abbreviated = cache.get(in);
+			if (abbreviated != null) {
+				return abbreviated;
+			}
+			return cache.computeIfAbsent(in, abbreviator::abbreviate);
 		}
 
 	}
@@ -130,189 +156,6 @@ interface Abbreviator {
 			// append from the position of i which may include the last seen DOT
 			buf.append(fqClassName.substring(i));
 			return buf.toString();
-		}
-
-	}
-
-}
-
-interface Cache<K, V> {
-
-	public V value(K key);
-
-	public static <K, V> Cache<K, V> of(Function<K, V> function) {
-		return new LogbackCache<>(function);
-	}
-
-}
-
-class LogbackCache<K, V> extends LinkedHashMap<K, V> implements Cache<K, V> {
-
-	private static final long serialVersionUID = 1050866539278406045L;
-
-	private static final int INITIAL_CACHE_SIZE = 512;
-
-	private static final double LOAD_FACTOR = 0.75; // this is the JDK
-													// implementation default
-
-	/**
-	 * We don't let the cache map size to go over MAX_ALLOWED_REMOVAL_THRESHOLD elements
-	 */
-	private static final int MAX_ALLOWED_REMOVAL_THRESHOLD = (int) (2048 * LOAD_FACTOR);
-
-	/**
-	 * When the cache miss rate is above 30%, the cache is deemed inefficient.
-	 */
-	private static final double CACHE_MISSRATE_TRIGGER = 0.3d;
-
-	/**
-	 * We should have a sample size of minimal length before computing the cache miss
-	 * rate.
-	 */
-	private static final int MIN_SAMPLE_SIZE = 1024;
-
-	private static final double NEGATIVE = -1;
-
-	private volatile boolean cacheEnabled = true;
-
-	private final Function<K, V> function;
-
-	private volatile int cacheMisses = 0;
-
-	private volatile int totalCalls = 0;
-
-	int removalThreshold;
-
-	CacheMissCalculator cacheMissCalculator = new CacheMissCalculator();
-
-	private final ReentrantLock lock = new ReentrantLock();
-
-	LogbackCache(Function<K, V> function) {
-		this(INITIAL_CACHE_SIZE, function);
-	}
-
-	LogbackCache(int initialCapacity, Function<K, V> function) {
-		super(initialCapacity);
-		this.removalThreshold = (int) (initialCapacity * LOAD_FACTOR);
-		this.function = function;
-	}
-
-	/**
-	 * In the JDK tested, this method is called for every map insertion.
-	 *
-	 */
-	@Override
-	protected boolean removeEldestEntry(Map.Entry<K, V> entry) {
-		if (shouldDoubleRemovalThreshold()) {
-			removalThreshold *= 2;
-
-			// int missRate = (int) (cacheMissCalculator.getCacheMissRate() *
-			// 100);
-			//
-			// NamedConverter.this.addInfo("Doubling nameCache removalThreshold
-			// to " + removalThreshold
-			// + " previous cacheMissRate=" + missRate + "%");
-			cacheMissCalculator.updateMilestones();
-		}
-
-		if (size() >= removalThreshold) {
-			return true;
-		}
-		else
-			return false;
-	}
-
-	@Override
-	public V value(K key) {
-		if (!cacheEnabled) {
-			return function.apply(key);
-		}
-		return _value(key);
-	}
-
-	/*
-	 * totalCalls/cacheMisses are volatile only so getCacheMisses()/getCacheMissRate() can
-	 * be read by any thread without taking lock - every write happens here, always under
-	 * lock, so the increments themselves are already serialized and can't race.
-	 */
-	@SuppressWarnings("NonAtomicVolatileUpdate")
-	V _value(K fqn) {
-		lock.lock();
-		try {
-			totalCalls++;
-			V abbreviated = get(fqn);
-			if (abbreviated == null) {
-				cacheMisses++;
-				abbreviated = function.apply(fqn);
-				put(fqn, abbreviated);
-			}
-			return abbreviated;
-		}
-		finally {
-			lock.unlock();
-		}
-	}
-
-	void disableCache() {
-		if (!cacheEnabled)
-			return;
-		this.cacheEnabled = false;
-		clear();
-		// addInfo("Disabling cache at totalCalls=" + totalCalls);
-	}
-
-	public double getCacheMissRate() {
-		return cacheMissCalculator.getCacheMissRate();
-	}
-
-	public int getCacheMisses() {
-		return cacheMisses;
-	}
-
-	private boolean shouldDoubleRemovalThreshold() {
-
-		double rate = cacheMissCalculator.getCacheMissRate();
-
-		// negative rate indicates insufficient sample size
-		if (rate < 0)
-			return false;
-
-		if (rate < CACHE_MISSRATE_TRIGGER)
-			return false;
-
-		// cannot double removalThreshold is already at max allowed size
-		if (this.removalThreshold >= MAX_ALLOWED_REMOVAL_THRESHOLD) {
-			this.disableCache();
-			return false;
-		}
-
-		return true;
-	}
-
-	class CacheMissCalculator {
-
-		int totalsMilestone = 0;
-
-		int cacheMissesMilestone = 0;
-
-		void updateMilestones() {
-			this.totalsMilestone = LogbackCache.this.totalCalls;
-			this.cacheMissesMilestone = LogbackCache.this.cacheMisses;
-		}
-
-		double getCacheMissRate() {
-
-			int effectiveTotal = LogbackCache.this.totalCalls - totalsMilestone;
-
-			if (effectiveTotal < MIN_SAMPLE_SIZE) {
-				// cache miss rate cannot be negative. With a negative value, we
-				// signal the
-				// caller of insufficient sample size.
-				return NEGATIVE;
-			}
-
-			int effectiveCacheMisses = LogbackCache.this.cacheMisses - cacheMissesMilestone;
-			return (1.0d * effectiveCacheMisses / effectiveTotal);
 		}
 
 	}
