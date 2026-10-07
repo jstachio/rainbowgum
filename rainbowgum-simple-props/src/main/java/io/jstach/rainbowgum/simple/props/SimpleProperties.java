@@ -78,7 +78,10 @@ public final class SimpleProperties {
 		 * Keys without the logging prefix get it, in the base resource and profile
 		 * resources: <code>level.com.myco=debug</code> is
 		 * <code>logging.level.com.myco=debug</code>. When both forms of a key are given,
-		 * the later line wins, as with any repeated key.
+		 * the later line wins, as with any repeated key. A base resource with keys only
+		 * java.util.logging uses, such as <code>handlers</code> or <code>.level</code>,
+		 * fails like {@link #FAIL}, since its configuration file is also named
+		 * <code>logging.properties</code>.
 		 */
 		SHORT;
 
@@ -129,10 +132,11 @@ public final class SimpleProperties {
 	 * The layers described in this class's javadoc, highest priority first.
 	 * @return properties, highest priority first.
 	 * @throws IllegalArgumentException if strict validation is {@link StrictType#FAIL}
-	 * and the base resource has unprefixed keys.
+	 * and the base resource has unprefixed keys, or is {@link StrictType#SHORT} and the
+	 * base resource has java.util.logging keys.
 	 */
 	public List<LogProperties> properties() {
-		if (strict == StrictType.FAIL && !errorMessages.isEmpty()) {
+		if ((strict == StrictType.FAIL || strict == StrictType.SHORT) && !errorMessages.isEmpty()) {
 			throw new IllegalArgumentException(
 					"Invalid simple-props base resource:\n" + String.join("\n", errorMessages));
 		}
@@ -284,9 +288,14 @@ public final class SimpleProperties {
 				.map(StrictType::parse)
 				.or(strict)
 				.validateNow(SimpleProperties.class);
-			var errorMessages = (strictType == StrictType.ALERT || strictType == StrictType.FAIL)
-					&& classpathProperties instanceof SimpleLogProperties simple ? simple.prefixErrors()
-							: List.<String>of();
+			List<String> errorMessages = List.of();
+			if (classpathProperties instanceof SimpleLogProperties simple) {
+				errorMessages = switch (strictType) {
+					case OFF -> List.of();
+					case ALERT, FAIL -> simple.prefixErrors();
+					case SHORT -> simple.julErrors();
+				};
+			}
 			boolean shortKeys = strictType == StrictType.SHORT;
 			if (shortKeys) {
 				classpathProperties = withShortKeys(classpathProperties);

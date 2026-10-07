@@ -73,11 +73,39 @@ class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
 		return new SimpleLogProperties(resource, m, List.of());
 	}
 
+	/*
+	 * An error for every key without the logging prefix, saying so plainly when the key
+	 * is one only java.util.logging uses.
+	 */
 	List<String> prefixErrors() {
-		return invalidEntries.stream()
-			.map(e -> "Property key should start with: '" + LogProperties.ROOT_PREFIX + "'. key: '" + e.key()
-					+ "' from " + LogProperties.descriptionForResource(DESCRIPTION, resource, e.key(), e.line()))
-			.toList();
+		return invalidEntries.stream().map(e -> isJulKey(e.key()) ? julError(e) : prefixError(e)).toList();
+	}
+
+	/*
+	 * An error for every key without the logging prefix that only java.util.logging uses,
+	 * since its configuration file shares the logging.properties name.
+	 */
+	List<String> julErrors() {
+		return invalidEntries.stream().filter(e -> isJulKey(e.key())).map(this::julError).toList();
+	}
+
+	/*
+	 * Keys no Rainbow Gum property has, even written without the logging prefix: a key
+	 * ending in .level is not one of them because Rainbow Gum has such keys.
+	 */
+	static boolean isJulKey(String key) {
+		return key.equals("handlers") || key.endsWith(".handlers") || key.endsWith(".useParentHandlers")
+				|| key.startsWith(".") || key.equals("config") || key.startsWith("java.util.logging.");
+	}
+
+	private String prefixError(PropertyEntry e) {
+		return "Property key should start with: '" + LogProperties.ROOT_PREFIX + "'. key: '" + e.key() + "' from "
+				+ LogProperties.descriptionForResource(DESCRIPTION, resource, e.key(), e.line());
+	}
+
+	private String julError(PropertyEntry e) {
+		return "Property key looks like java.util.logging configuration, which Rainbow Gum does not read. key: '"
+				+ e.key() + "' from " + LogProperties.descriptionForResource(DESCRIPTION, resource, e.key(), e.line());
 	}
 
 	private static final String DESCRIPTION = "SIMPLE_PROPS";

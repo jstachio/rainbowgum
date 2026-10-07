@@ -61,12 +61,12 @@ class SimplePropertiesProviderTest {
 		assertEquals(
 				"""
 						Invalid simple-props base resource:
-						Property key should start with: 'logging.'. key: 'handlers' from SIMPLE_PROPS[%s:1][handlers]
+						Property key looks like java.util.logging configuration, which Rainbow Gum does not read. key: 'handlers' from SIMPLE_PROPS[%s:1][handlers]
 						Property key should start with: 'logging.'. key: 'unqualified.setting' from SIMPLE_PROPS[%s:2][unqualified.setting]"""
 					.formatted(resource, resource),
 				error.getMessage());
 		assertEquals(List.of(
-				"Property key should start with: 'logging.'. key: 'handlers' from SIMPLE_PROPS[%s:1][handlers]"
+				"Property key looks like java.util.logging configuration, which Rainbow Gum does not read. key: 'handlers' from SIMPLE_PROPS[%s:1][handlers]"
 					.formatted(resource),
 				"Property key should start with: 'logging.'. key: 'unqualified.setting' from SIMPLE_PROPS[%s:2][unqualified.setting]"
 					.formatted(resource)),
@@ -94,7 +94,7 @@ class SimplePropertiesProviderTest {
 			.build();
 		var errors = config.alerts().dump().stream().filter(e -> e.level() == Level.ERROR).toList();
 		assertEquals(List.of(
-				"Property key should start with: 'logging.'. key: 'handlers' from SIMPLE_PROPS[strict.properties:1][handlers]",
+				"Property key looks like java.util.logging configuration, which Rainbow Gum does not read. key: 'handlers' from SIMPLE_PROPS[strict.properties:1][handlers]",
 				"Property key should start with: 'logging.'. key: 'unqualified.setting' from SIMPLE_PROPS[strict.properties:2][unqualified.setting]"),
 				errors.stream().map(LogEvent::message).toList());
 	}
