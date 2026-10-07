@@ -18,6 +18,13 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * they appear in braces after the logger name, and the braces are left out when an event
  * has none:
  * <code>12:00:00.123 [main] INFO  com.example.App {requestId=42} - hello</code>.
+ * <p>
+ * Every part also accepts <code>default</code>, which restores its default without naming
+ * it, and <code>true</code> and <code>false</code> to show or hide it; the
+ * {@link io.jstach.rainbowgum.annotation.EnumAlias} on each constant lists them. Key
+ * values are hidden by default, so for them <code>true</code> means
+ * {@link KeyValuesFormat#LOGFMT} while <code>default</code> means
+ * {@link KeyValuesFormat#NONE}.
  */
 public sealed interface TTLL permits TTLLFormatter {
 
@@ -37,6 +44,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * <code>HH:mm:ss.SSS</code> in UTC. The default.
 		 */
+		@EnumAlias({ "default", "true" })
 		TTLL {
 			@Override
 			public LogFormatter formatter() {
@@ -55,6 +63,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * No time.
 		 */
+		@EnumAlias("false")
 		NONE {
 			@Override
 			public LogFormatter formatter() {
@@ -68,6 +77,15 @@ public sealed interface TTLL permits TTLLFormatter {
 		 */
 		public abstract LogFormatter formatter();
 
+		static TimestampFormat parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "default", "true" -> TTLL;
+				case "false" -> NONE;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(TimestampFormat.class, value, "true", "false",
+						"default");
+			};
+		}
+
 	}
 
 	/**
@@ -79,6 +97,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * Thread name. The default.
 		 */
+		@EnumAlias({ "default", "true" })
 		NAME {
 			@Override
 			public LogFormatter formatter() {
@@ -97,6 +116,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * No thread.
 		 */
+		@EnumAlias("false")
 		NONE {
 			@Override
 			public LogFormatter formatter() {
@@ -110,6 +130,15 @@ public sealed interface TTLL permits TTLLFormatter {
 		 */
 		public abstract LogFormatter formatter();
 
+		static ThreadFormat parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "default", "true" -> NAME;
+				case "false" -> NONE;
+				default ->
+					io.jstach.rainbowgum.LogProperty.enumValue(ThreadFormat.class, value, "true", "false", "default");
+			};
+		}
+
 	}
 
 	/**
@@ -121,6 +150,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * Upper case, right padded to five characters so messages line up. The default.
 		 */
+		@EnumAlias({ "default", "true" })
 		PADDED {
 			@Override
 			public LogFormatter formatter() {
@@ -149,6 +179,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * No level.
 		 */
+		@EnumAlias("false")
 		NONE {
 			@Override
 			public LogFormatter formatter() {
@@ -162,6 +193,15 @@ public sealed interface TTLL permits TTLLFormatter {
 		 */
 		public abstract LogFormatter formatter();
 
+		static LevelFormat parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "default", "true" -> PADDED;
+				case "false" -> NONE;
+				default ->
+					io.jstach.rainbowgum.LogProperty.enumValue(LevelFormat.class, value, "true", "false", "default");
+			};
+		}
+
 	}
 
 	/**
@@ -173,6 +213,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * Full logger name. The default.
 		 */
+		@EnumAlias({ "default", "true" })
 		FULL {
 			@Override
 			public LogFormatter formatter() {
@@ -193,6 +234,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * No logger name.
 		 */
+		@EnumAlias("false")
 		NONE {
 			@Override
 			public LogFormatter formatter() {
@@ -206,12 +248,20 @@ public sealed interface TTLL permits TTLLFormatter {
 		 */
 		public abstract LogFormatter formatter();
 
+		static LoggerFormat parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "default", "true" -> FULL;
+				case "false" -> NONE;
+				default ->
+					io.jstach.rainbowgum.LogProperty.enumValue(LoggerFormat.class, value, "true", "false", "default");
+			};
+		}
+
 	}
 
 	/**
 	 * Key values part, written in braces after the logger name and left out when an event
-	 * has no key values. As a property <code>true</code> and <code>false</code> are
-	 * aliases for <code>logfmt</code> and <code>none</code>.
+	 * has no key values.
 	 */
 	@CaseChanging
 	enum KeyValuesFormat {
@@ -219,7 +269,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		/**
 		 * Key values are not shown. The default.
 		 */
-		@EnumAlias("false")
+		@EnumAlias({ "false", "default" })
 		NONE {
 			@Override
 			public LogFormatter formatter() {
@@ -266,8 +316,9 @@ public sealed interface TTLL permits TTLLFormatter {
 		static KeyValuesFormat parse(String value) {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
 				case "true" -> LOGFMT;
-				case "false" -> NONE;
-				default -> io.jstach.rainbowgum.LogProperty.enumValue(KeyValuesFormat.class, value, "true", "false");
+				case "false", "default" -> NONE;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(KeyValuesFormat.class, value, "true", "false",
+						"default");
 			};
 		}
 
@@ -325,6 +376,7 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * faint thread and key values, level highlighted (error and warn bold red, info
 		 * bold blue) and magenta logger name. Used when no theme is set.
 		 */
+		@EnumAlias("default")
 		RAINBOWGUM,
 		/**
 		 * Spring Boot's console colors: faint time and thread, level colored by severity
@@ -345,6 +397,13 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * info) with debug and trace gray. Meant for a dark terminal background.
 		 */
 		DARCULA;
+
+		static ColorTheme parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "default" -> RAINBOWGUM;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(ColorTheme.class, value, "default");
+			};
+		}
 
 	}
 
