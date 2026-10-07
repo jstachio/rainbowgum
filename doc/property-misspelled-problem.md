@@ -34,16 +34,23 @@ Why it is hard in Rainbow Gum:
 
 Rainbow Gum has three kinds of users, and only one of them is ours to help here.
 
-1. **Framework users.** Spring Boot users, most users, configure logging through the
-   framework. The framework owns their configuration and its tooling, so the help
-   belongs there: Spring Boot's own approach is IDE metadata, not startup checks
+1. **Framework users.** Spring Boot users and other framework users configure logging
+   through the framework. The framework owns their configuration and its tooling, so the
+   help belongs there: Spring Boot's own approach is IDE metadata, not startup checks
    (idea 7).
 2. **Advanced users.** They know Java and use the programmatic builders, where a
    misspelled key cannot exist. They are minimalists and do not want startup spent on
    checking they do not need (idea 9 is their answer).
 3. **New and legacy users.** They use simple props: a `logging.properties` file,
    profiles, system properties, and environment variables. This is where the silent typo
-   happens and where nothing else will catch it. How large this group is is unknown.
+   happens and where nothing else will catch it.
+
+From loose observation so far, advanced users are the largest group today, then simple
+props users. Framework users are expected to outgrow both once the framework
+integrations are better known. That makes groups 2 and 3 the early adopters, the people
+who will recommend Rainbow Gum or not, so both need a good experience now: group 2
+must not pay for checking it does not need, and group 3 must not be left guessing why a
+property did nothing.
 
 Simple props is also the part we control most, which is why it already validates the
 `logging.` prefix and sniffs `java.util.logging` files. Its checks run only for its
@@ -199,6 +206,11 @@ Aiming at the simple props user changes what is hard:
 - **The catalog only has to be good enough for files.** False positives from third party
   components (the Quarkus lesson) are still possible, but an alert naming the file and
   line, which `off` silences, is a small cost for a user who wrote the file by hand.
+
+- **Advanced users stay at zero cost.** They are the largest group today, so nothing in
+  this plan runs for them: the catalog is read only by simple props, and tracking keys
+  that were read (idea 1), if done at all, runs only in debug mode, where a user has
+  asked for diagnostics.
 
 ## A possible order
 
