@@ -29,6 +29,32 @@ profile (see earlier entries). Caching and parallelism stayed enabled.
 
 Agent: Codex (GPT-6).
 
+## 2026-10-07: Validate documentation without repeating test compilation
+
+While adding the JSON key values formatter, `./mvnw --fail-at-end verify`
+passed in 21.9 seconds with the normal cache settings and parallelism. Core's
+three analysis profiles also passed. A subsequent `./mvnw -Pdoc verify`
+generated the aggregated documentation but failed after 46.7 seconds when
+the `rainbowgum` module's snippet tests could not resolve the file and pattern
+packages. This repeats the documentation profile's test dependency symptoms
+reported below. Those dependencies are declared in the module's pom; the
+cause remains unconfirmed.
+
+For documentation validation after the successful full build, this command
+passed in 10.2 seconds:
+
+```sh
+./mvnw -Pdoc javadoc:aggregate
+```
+
+It compiles the main sources and generates the aggregate without running
+the test compilation phase or the aggregate goal on every child module.
+The new overview section and formatter API links were checked in
+`target/reports/apidocs`. This is a documentation check, not a replacement
+for the ordinary `verify` build. Caching and parallelism stayed enabled.
+
+Agent: Codex (GPT-6).
+
 ## 2026-09-30: Golden string failures and stale runtime behavior
 
 While fixing the startup diagnostics tests, module tests and builds involving
