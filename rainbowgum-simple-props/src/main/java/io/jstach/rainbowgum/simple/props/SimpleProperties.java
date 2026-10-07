@@ -19,6 +19,7 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.annotation.CaseChanging;
+import io.jstach.rainbowgum.annotation.EnumAlias;
 
 /**
  * Resolves {@link LogProperties} from the following layers, highest priority first:
@@ -66,6 +67,7 @@ public final class SimpleProperties {
 	public enum StrictType {
 
 		/** Disables prefix validation. */
+		@EnumAlias("false")
 		OFF,
 		/** Records an error alert for each key without the logging prefix. */
 		ALERT,
@@ -73,6 +75,7 @@ public final class SimpleProperties {
 		 * Records error alerts and fails when supplying properties if any key lacks the
 		 * logging prefix.
 		 */
+		@EnumAlias("true")
 		FAIL,
 		/**
 		 * Keys without the logging prefix get it, in the base resource and profile

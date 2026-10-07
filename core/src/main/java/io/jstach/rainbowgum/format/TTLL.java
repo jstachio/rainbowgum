@@ -4,6 +4,7 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.annotation.CaseChanging;
+import io.jstach.rainbowgum.annotation.EnumAlias;
 
 /**
  * The choices for each part of the TTLL (Time, Thread, Level, Logger) format, the default
@@ -216,8 +217,9 @@ public sealed interface TTLL permits TTLLFormatter {
 	enum KeyValuesFormat {
 
 		/**
-		 * Key values are not shown. The default. Alias <code>false</code>.
+		 * Key values are not shown. The default.
 		 */
+		@EnumAlias("false")
 		NONE {
 			@Override
 			public LogFormatter formatter() {
@@ -226,8 +228,9 @@ public sealed interface TTLL permits TTLLFormatter {
 		},
 		/**
 		 * <a href="https://brandur.org/logfmt">logfmt</a>:
-		 * <code>requestId=42 user="Ada Lovelace"</code>. Alias <code>true</code>.
+		 * <code>requestId=42 user="Ada Lovelace"</code>.
 		 */
+		@EnumAlias("true")
 		LOGFMT {
 			@Override
 			public LogFormatter formatter() {
@@ -281,13 +284,15 @@ public sealed interface TTLL permits TTLLFormatter {
 	enum ColorMode {
 
 		/**
-		 * No color. Alias <code>false</code>.
+		 * No color.
 		 */
+		@EnumAlias("false")
 		OFF,
 		/**
 		 * The theme, or {@link ColorTheme#RAINBOWGUM} when no theme is set, if ANSI is
-		 * detected. The default. Alias <code>true</code>.
+		 * detected. The default.
 		 */
+		@EnumAlias("true")
 		DEFAULT,
 		/**
 		 * The theme if one is set and ANSI is detected; no color without a theme.

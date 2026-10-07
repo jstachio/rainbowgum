@@ -2,6 +2,9 @@ package io.jstach.rainbowgum.otlp;
 
 import java.util.Locale;
 
+import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.annotation.EnumAlias;
+
 /**
  * Whether the standard OpenTelemetry environment variables ({@code OTEL_SERVICE_NAME},
  * {@code OTEL_RESOURCE_ATTRIBUTES}, and {@code OTEL_EXPORTER_OTLP_*}) are read. Off by
@@ -13,10 +16,12 @@ public enum EnvironmentVariables {
 	/**
 	 * Environment variables are ignored (the default).
 	 */
+	@EnumAlias("false")
 	OFF,
 	/**
 	 * Environment variables are read for any value not set by a property.
 	 */
+	@EnumAlias("true")
 	ON;
 
 	/**
@@ -27,11 +32,11 @@ public enum EnvironmentVariables {
 	 * @throws IllegalArgumentException if the value is not recognized.
 	 */
 	public static EnvironmentVariables parse(String value) {
-		return switch (value.strip().toLowerCase(Locale.ROOT)) {
-			case "on", "true" -> ON;
-			case "off", "false" -> OFF;
-			default -> throw new IllegalArgumentException(
-					"Invalid environmentVariables value: '" + value + "'. Expected one of: on, off, true, false.");
+		String v = value.strip();
+		return switch (v.toLowerCase(Locale.ROOT)) {
+			case "true" -> ON;
+			case "false" -> OFF;
+			default -> LogProperty.enumValue(EnvironmentVariables.class, v, "true", "false");
 		};
 	}
 

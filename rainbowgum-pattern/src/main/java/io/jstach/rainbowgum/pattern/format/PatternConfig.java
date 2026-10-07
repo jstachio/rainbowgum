@@ -12,6 +12,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
+import io.jstach.rainbowgum.annotation.EnumAlias;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 /**
@@ -99,10 +100,12 @@ public sealed interface PatternConfig extends Configurator {
 		/**
 		 * No caching - every call recomputes.
 		 */
+		@EnumAlias("false")
 		DISABLED,
 		/**
 		 * The default cache.
 		 */
+		@EnumAlias({ "true", "default" })
 		BASIC;
 
 		static CacheType parse(String value) {
