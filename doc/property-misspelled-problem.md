@@ -30,6 +30,25 @@ Why it is hard in Rainbow Gum:
    names lose dots and case meaning), simple props files, URI queries, Spring's
    `Environment`, Avaje config.
 
+## Who has the problem
+
+Rainbow Gum has three kinds of users, and only one of them is ours to help here.
+
+1. **Framework users.** Spring Boot users, most users, configure logging through the
+   framework. The framework owns their configuration and its tooling, so the help
+   belongs there: Spring Boot's own approach is IDE metadata, not startup checks
+   (idea 7).
+2. **Advanced users.** They know Java and use the programmatic builders, where a
+   misspelled key cannot exist. They are minimalists and do not want startup spent on
+   checking they do not need (idea 9 is their answer).
+3. **New and legacy users.** They use simple props: a `logging.properties` file,
+   profiles, system properties, and environment variables. This is where the silent typo
+   happens and where nothing else will catch it. How large this group is is unknown.
+
+Simple props is also the part we control most, which is why it already validates the
+`logging.` prefix and sniffs `java.util.logging` files. Its checks run only for its
+users, so nobody else pays for them.
+
 ## What others do
 
 - **Log4j2** checks configuration *files*: an element or attribute no plugin accepts is
@@ -156,7 +175,43 @@ needs checked configuration has it already. The cost is that most users start wi
 properties, which is exactly where the silent typo happens, and debug mode would still
 not explain why a property had no effect.
 
+## Thoughts on focusing on simple props users
+
+Aiming at the simple props user changes what is hard:
+
+- **Enumeration is already solved there.** `SimpleLogProperties` reads every entry of
+  the file with its line number, so idea 6 is not needed in core to check the files.
+  Messages can point at the line, like the `java.util.logging` sniffing does:
+  `SIMPLE_PROPS[logging.properties:7][logging.encoder.console.keyvalues]`.
+- **The files are the place to check.** The same user may also set system properties
+  and environment variables, but the file is where most of the configuration and most
+  of the typos are. Checking only the files simple props loads (base and profiles) keeps
+  the scope clear.
+- **Only simple props loads the catalog.** With a shipped catalog (idea 3), simple props
+  can read the `META-INF/rainbowgum/properties.txt` resources at startup and compare the
+  file's keys. Core stays unchanged at runtime, so advanced and framework users pay
+  nothing; the cost is compile time in the annotation processor.
+- **It fits the existing switch.** Simple props already has a key checking enum,
+  `logging.simpleprops.strict`. The default `short` mode could add an alert for keys that
+  match nothing, with a near miss suggestion (idea 4), while `fail` fails on them for CI
+  (idea 5). Or the unknown key check gets its own enum if mixing it with the prefix modes
+  is confusing.
+- **The catalog only has to be good enough for files.** False positives from third party
+  components (the Quarkus lesson) are still possible, but an alert naming the file and
+  line, which `off` silences, is a small cost for a user who wrote the file by hand.
+
 ## A possible order
+
+For the simple props user, which these notes suggest focusing on:
+
+1. Ship the catalog (3): move `ConfigProcessor`'s property list to the class output and
+   mark the hand written constants.
+2. In simple props, alert for file keys under `logging.` that match no catalog entry,
+   with case only and near miss suggestions (4) and the file and line.
+3. Let the strict enum, or a new one, turn those alerts into failures for CI (5).
+
+The broader version, for every source and every user:
+
 
 1. Key enumeration (6), since everything else needs it.
 2. Track reads and show them in debug mode (1). No false positives because it only
