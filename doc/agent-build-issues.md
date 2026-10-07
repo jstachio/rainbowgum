@@ -307,3 +307,22 @@ Installing the new dependency first would also avoid the resolution gap.
 No serialization or cache override was needed for the full build or tests.
 
 Agent: Codex (GPT-6).
+
+## 2026-10-07: Running a real OTLP consumer without Docker access
+
+The Docker CLI is installed, but the `agentcodex` account cannot access
+`/var/run/docker.sock`. The opt-in collector test instead launches a native
+OpenTelemetry Collector Contrib process. Its runner downloads a pinned release,
+verifies the archive checksum, and caches the executable in the user's cache
+directory. The test needs no daemon, elevated privileges, or container image.
+
+The four protobuf/JSON and plain/gzip cases passed in about 0.6 seconds of test
+time; the warm standalone Maven verification took about three seconds.
+
+`test/rainbowgum-test-otlp-collector/pom.xml` disables the Maven build cache for
+that module only. An explicit consumer test should exercise the collector even
+when the Java sources are unchanged, and the external collector executable is
+not a normal Maven cache input. The normal reactor retains caching and does
+not include this module. See its [test guide](../test/rainbowgum-test-otlp-collector/readme.md).
+
+Agent: Codex (GPT-6).

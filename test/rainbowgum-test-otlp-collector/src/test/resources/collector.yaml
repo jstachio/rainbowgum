@@ -1,0 +1,30 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: "127.0.0.1:${env:RAINBOWGUM_TEST_OTLP_PORT}"
+exporters:
+  file/protobuf:
+    path: "${env:RAINBOWGUM_TEST_OTLP_FILE}"
+    format: proto
+    flush_interval: 100ms
+    create_directory: true
+  file/json:
+    path: "${env:RAINBOWGUM_TEST_OTLP_JSON_FILE}"
+    format: json
+    flush_interval: 100ms
+    create_directory: true
+extensions:
+  health_check:
+    endpoint: "127.0.0.1:${env:RAINBOWGUM_TEST_HEALTH_PORT}"
+service:
+  extensions: [health_check]
+  telemetry:
+    logs:
+      level: warn
+    metrics:
+      level: none
+  pipelines:
+    logs:
+      receivers: [otlp]
+      exporters: [file/protobuf, file/json]
