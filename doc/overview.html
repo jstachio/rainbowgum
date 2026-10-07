@@ -1436,13 +1436,32 @@ We might have a logrotate script that looks like:
 }
 }
 
-<h3 id="otlp">OpenTelemetry (OTLP)</h3>
+<h3 id="otlp">OpenTelemetry</h3>
 
-The optional {@link io.jstach.rainbowgum.otlp/ } module (<code>rainbowgum-otlp</code>) exports logs in the
-OpenTelemetry Protocol without the OpenTelemetry SDK or any protobuf library. Its only dependencies are
-Rainbow Gum itself (core and <code>rainbowgum-json</code>) and the JDK's own HTTP client.
+The optional {@link io.jstach.rainbowgum.opentelemetry/} module (<code>rainbowgum-opentelemetry</code>)
+adds the current OpenTelemetry span's <code>traceId</code> and <code>spanId</code> to log events through a
+{@link io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor key values contributor}.
+It works with any output or encoder and can be used independently of <code>rainbowgum-otlp</code>.
+
+{@snippet lang=xml :
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-opentelemetry</artifactId>
+    <version>_VERSION_</version>
+    <scope>runtime</scope>
+</dependency>
+}
+
+Adding the module enables the contributor. IDs are captured from a valid current span when the event is
+created on the logging thread, so they remain available during asynchronous publishing.
+The OpenTelemetry context can come from application code, a framework, the SDK, or a Java agent;
+an agent is not required. If there is no valid current span, the contributor adds no key values.
 
 <h4 id="otlp_output">OTLP/HTTP Output</h4>
+
+The optional {@link io.jstach.rainbowgum.otlp/} module (<code>rainbowgum-otlp</code>) exports logs in the
+OpenTelemetry Protocol without the OpenTelemetry SDK or any protobuf library. Its only dependencies are
+Rainbow Gum itself (core and <code>rainbowgum-json</code>) and the JDK's own HTTP client.
 
 {@link io.jstach.rainbowgum.otlp.OtlpOutput} posts batches to an OTLP/HTTP endpoint (<code>/v1/logs</code>) as
 protobuf (the OTLP default) or JSON. Pair it with the asynchronous publisher so a log call never waits on the
@@ -1489,24 +1508,12 @@ logging.appender.console.encoder=otlp:///
 logging.encoder.console.serviceName=orders
 }
 
-Both carry the same record content: the formatted message as the body, the logger name as the
-instrumentation scope, <code>thread.name</code>, <code>thread.id</code>, every key value as an attribute, and
-<code>exception.*</code> attributes for a throwable. Event thread and exception attributes take precedence
+The OTLP/HTTP output and OTLP/JSON encoder carry the same record content: the formatted message as the body,
+the logger name as the instrumentation scope, <code>thread.name</code>, <code>thread.id</code>, other key
+values as attributes, and <code>exception.*</code> attributes for a throwable. Event thread and exception attributes take precedence
 when context contains the same names. Key values named <code>traceId</code> and
-<code>spanId</code> (as Micrometer Tracing puts them in the MDC) become the record's trace context when they
-are valid W3C ids.
-Without Micrometer Tracing, add {@link io.jstach.rainbowgum.opentelemetry/} (<strong>EXPERIMENTAL</strong>): it
-adds the current OpenTelemetry span's <code>traceId</code> and <code>spanId</code> to every event, read when the
-event is created, from whatever set the OpenTelemetry context (the Java agent, the SDK, or a bridge).
-
-{@snippet lang=xml :
-<dependency>
-    <groupId>io.jstach.rainbowgum</groupId>
-    <artifactId>rainbowgum-opentelemetry</artifactId>
-    <version>_VERSION_</version>
-    <scope>runtime</scope>
-</dependency>
-}
+<code>spanId</code> become the record's trace context when they are valid W3C ids. These can come from the
+OpenTelemetry contributor above or from Micrometer Tracing's MDC integration.
 
 <h2 id="filter">Filtering</h2>
 
