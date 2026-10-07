@@ -96,7 +96,7 @@ class OtlpConfigTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.otlp.OtlpOutputBuilder:
-						Error for property. key: 'logging.output.otlp.environmentVariables' from PROPERTIES_STRING[logging.output.otlp.environmentVariables], Invalid environmentVariables value: 'maybe'. Expected one of: on, off, true, false.
+						Error for property. key: 'logging.output.otlp.environmentVariables' from PROPERTIES_STRING[logging.output.otlp.environmentVariables], 'maybe' is not a valid value for io.jstach.rainbowgum.otlp.EnvironmentVariables. Valid values: 'off', 'on', 'true', 'false'
 						Tried:
 						    'logging.output.otlp.environmentVariables' from:
 						        PROPERTIES_STRING[logging.output.otlp.environmentVariables],

@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogEvent.Caller.CallerType;
+import io.jstach.rainbowgum.annotation.EnumAlias;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider;
@@ -43,6 +44,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		/**
 		 * Do not dump alerts beyond the normal alert startup policy.
 		 */
+		@EnumAlias("false")
 		OFF,
 		/**
 		 * Dump the failure and collected alerts if building the config fails.
@@ -56,6 +58,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 * Dump collected alerts as in {@link #INFO}, and print a {@link LogReporter}
 		 * report after Rainbow Gum starts.
 		 */
+		@EnumAlias("true")
 		ALL;
 
 		static DebugModeType parse(String value) {
@@ -264,6 +267,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			 * be told apart while parsing, and so <code>false</code> is a real,
 			 * documented enum member rather than only a magic string.
 			 */
+			@EnumAlias("false")
 			NONE,
 			/**
 			 * The logger is allowed to change levels.

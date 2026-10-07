@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent.Caller;
+import io.jstach.rainbowgum.annotation.EnumAlias;
 
 /**
  * A LogEvent is a container for a single call to a logger. An event should not be created
@@ -419,10 +420,12 @@ public sealed interface LogEvent {
 			/**
 			 * Caller info is not computed.
 			 */
+			@EnumAlias("false")
 			NONE,
 			/**
 			 * Caller info is computed as a single stack frame (class, method, line).
 			 */
+			@EnumAlias("true")
 			BASIC;
 
 			static CallerType parse(String value) {
