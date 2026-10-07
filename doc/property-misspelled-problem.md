@@ -30,6 +30,28 @@ Why it is hard in Rainbow Gum:
    names lose dots and case meaning), simple props files, URI queries, Spring's
    `Environment`, Avaje config.
 
+## Key naming
+
+Rainbow Gum keys follow Java naming, not the kebab case Micronaut and Spring Boot use:
+
+- **Namespaces are all lowercase**, like package and module names:
+  `logging.encoder.`, `logging.simpleprops.`, `logging.keyvalues.contributor.`. This is
+  the prefix of a `@LogConfigurable` builder, so the processor can enforce it; every
+  prefix and literal key today already complies. `{name}` segments are user data
+  (`logging.appender.myAppender.output`) and are not covered.
+- **Leaves are camel case**, like Java fields and methods: `keyValues`,
+  `environmentVariables`.
+
+Kebab case is lossy. `keyValues` converts to `key-values` exactly, but `key-values` could
+mean `keyValues` or `keyvalues`, and kebab conventions allow dashes almost anywhere with
+their own casing rules. So the Java form is the canonical one, and a kebab form can always
+be derived from it, for example as an accepted alias or in IDE metadata, while the reverse
+cannot be done reliably.
+
+For misspellings this is useful: given a canonical camel case catalog, a kebab or all
+lowercase spelling of a known key is a recognizable near miss (idea 4), not an unknown
+key.
+
 ## Who has the problem
 
 Rainbow Gum has three kinds of users, and only one of them is ours to help here.
