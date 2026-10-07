@@ -8,6 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
@@ -92,6 +95,56 @@ class KeyValuesContributorTest {
 				'mdc' is not a valid value for io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard. \
 				Valid values: 'defaults', 'scoped_key_values', 'jboss_logging', 'log4j2', 'slf4j', 'user'""";
 		assertEquals(expected, e.getMessage());
+	}
+
+	@ParameterizedTest
+	@EnumSource(Standard.class)
+	void disabledSourceCleanupFollowsItsPolicy(Standard source) {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.keyvalues.disabled=" + source.name().toLowerCase(Locale.ROOT))
+			.build();
+		var config = LogConfig.builder().properties(properties).build();
+		var calls = new ArrayList<String>();
+		KeyValuesContributor.register(config.serviceRegistry(), source, new KeyValuesContributor() {
+			@Override
+			public KeyValues keyValues() {
+				calls.add("keyValues");
+				return KeyValues.of(Map.of("requestId", "previous-request"));
+			}
+
+			@Override
+			public void clear() {
+				calls.add("clear");
+			}
+		});
+		try (var gum = RainbowGum.builder(config).set()) {
+			var global = KeyValuesContributor.global();
+			assertTrue(global.keyValues().isEmpty());
+			var own = KeyValues.of(Map.of("requestId", "own"));
+			assertSame(own, global.keyValues(own));
+			global.clear();
+			var expected = switch (source) {
+				case SLF4J, LOG4J2, JBOSS_LOGGING -> List.of("clear");
+				case DEFAULTS, SCOPED_KEY_VALUES, USER -> List.<String>of();
+			};
+			assertEquals(expected, calls);
+			KeyValuesContributor.global(source).clear();
+			assertEquals(expected, calls, "Explicitly excluded sources must not be cleared");
+		}
+	}
+
+	@ParameterizedTest
+	@EnumSource(Standard.class)
+	void enabledSourceStillClearsRegardlessOfItsDisabledPolicy(Standard source) {
+		var config = LogConfig.builder().build();
+		var store = new ThreadLocalContributor();
+		store.local.set(KeyValues.of(Map.of("requestId", "previous-request")));
+		KeyValuesContributor.register(config.serviceRegistry(), source, store);
+		try (var gum = RainbowGum.builder(config).set()) {
+			assertEquals("previous-request", KeyValuesContributor.global().keyValues().getValueOrNull("requestId"));
+			KeyValuesContributor.global().clear();
+			assertNull(store.local.get());
+		}
 	}
 
 	@Test

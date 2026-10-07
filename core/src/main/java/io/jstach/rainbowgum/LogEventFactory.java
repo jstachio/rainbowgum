@@ -296,8 +296,9 @@ public interface LogEventFactory {
 	 * which places them above every other source except {@link Source.Standard#USER}.
 	 *
 	 * <p>
-	 * {@link #clear()} clears the current thread's context in every store, for example
-	 * when a pooled thread finishes a task:
+	 * {@link #clear()} clears the current thread's context in every enabled store and
+	 * disabled stores whose {@link Source.Standard#clearWhenDisabled()} policy permits
+	 * it, for example when a pooled thread finishes a task:
 	 * {@snippet :
 	 * KeyValuesContributor.global().clear();
 	 * }
@@ -506,14 +507,22 @@ final class KeyValuesContributors {
 
 	static KeyValuesContributor of(ServiceRegistry registry, Set<Source> excluded) {
 		var below = new ArrayList<KeyValuesContributor>();
+		var clearable = new ArrayList<KeyValuesContributor>();
 		KeyValuesContributor user = null;
 		var disabled = registry.findOrNull(Disabled.class);
 		for (var source : Source.Standard.values()) {
-			if (excluded.contains(source) || (disabled != null && disabled.sources().contains(source))) {
+			if (excluded.contains(source)) {
 				continue;
 			}
 			var c = registry.findOrNull(KeyValuesContributor.class, registryName(source));
 			if (c == null) {
+				continue;
+			}
+			boolean isDisabled = disabled != null && disabled.sources().contains(source);
+			if (!isDisabled || source.clearWhenDisabled()) {
+				clearable.add(c);
+			}
+			if (isDisabled) {
 				continue;
 			}
 			if (source == Source.Standard.USER) {
@@ -523,10 +532,11 @@ final class KeyValuesContributors {
 				below.add(c);
 			}
 		}
-		if (below.isEmpty() && user == null) {
+		if (below.isEmpty() && user == null && clearable.isEmpty()) {
 			return Empty.INSTANCE;
 		}
-		return new Composite(below.toArray(new KeyValuesContributor[0]), user);
+		return new Composite(below.toArray(new KeyValuesContributor[0]), user,
+				clearable.toArray(new KeyValuesContributor[0]));
 	}
 
 	enum Empty implements KeyValuesContributor {
@@ -555,9 +565,12 @@ final class KeyValuesContributors {
 
 		private final @Nullable KeyValuesContributor user;
 
-		Composite(KeyValuesContributor[] below, @Nullable KeyValuesContributor user) {
+		private final KeyValuesContributor[] clearable;
+
+		Composite(KeyValuesContributor[] below, @Nullable KeyValuesContributor user, KeyValuesContributor[] clearable) {
 			this.below = below;
 			this.user = user;
+			this.clearable = clearable;
 		}
 
 		@Override
@@ -581,12 +594,8 @@ final class KeyValuesContributors {
 
 		@Override
 		public void clear() {
-			for (var c : below) {
+			for (var c : clearable) {
 				c.clear();
-			}
-			var u = user;
-			if (u != null) {
-				u.clear();
 			}
 		}
 
