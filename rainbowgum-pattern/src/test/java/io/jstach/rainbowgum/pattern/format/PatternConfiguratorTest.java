@@ -110,7 +110,7 @@ class PatternConfiguratorTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
-						Error for property. key: 'logging.pattern.config.list.abbreviatorCache' from PROPERTIES_STRING[logging.pattern.config.list.abbreviatorCache], 'notarealcachetype' is not a valid value for io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType. Valid values: 'disabled', 'basic', 'true', 'default', 'false'
+						Error for property. key: 'logging.pattern.config.list.abbreviatorCache' from PROPERTIES_STRING[logging.pattern.config.list.abbreviatorCache], 'notarealcachetype' is not a valid value for io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType. Valid values: 'off', 'basic', 'true', 'default', 'false'
 						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
@@ -200,7 +200,7 @@ class PatternConfiguratorTest {
 		 * abbreviated output itself (see AbbreviatorTest for cache-identity-level
 		 * coverage), only whether Abbreviator.cache(...) wraps the result.
 		 */
-		ABBREVIATOR_CACHE_DISABLED_FROM_PROPERTY("""
+		ABBREVIATOR_CACHE_OFF_FROM_PROPERTY("""
 				c.p.test.Test
 				c.p.test.Test
 				c.p.test.Test
@@ -211,7 +211,7 @@ class PatternConfiguratorTest {
 						logging.appenders=list
 						logging.appender.list.output=list
 						logging.appender.list.encoder=pattern
-						logging.pattern.config.list.abbreviatorCache=DISABLED
+						logging.pattern.config.list.abbreviatorCache=OFF
 						logging.encoder.list.pattern=%logger{15}%n
 						""";
 			}
