@@ -217,6 +217,17 @@ unifying.
       output `STDOUT_SCHEME` does would be a small, low-risk win. Surfaced while
       adding the `doc/overview.html` "Console" output subsection.
       (ADAM: Is this even worth doing given 99/100 output defaults to stdout?)
+- [ ] **Document the property key naming convention.** Decided 2026-10-07: keys follow
+      Java naming, not kebab case. Namespace segments are all lowercase like package
+      and module names (`logging.keyvalues.contributor.`), leaves are camel case like
+      Java members (`keyValues`); kebab is lossy (`key-values` could be `keyValues` or
+      `keyvalues`), so it can only ever be a derived alias. Write it up in two places:
+      the `LogProperties` class javadoc, next to its existing rationale on separators
+      and leaves ("The fully qualified keys are like leaves on a tree"), and the
+      overview's extension development guide (`plugin_guide`), since it is the rule
+      for a `@LogConfigurable` prefix. Optionally have `rainbowgum-apt` enforce the
+      lowercase prefix; every prefix and literal key already complies. Background:
+      `doc/property-misspelled-problem.md` ("Key naming").
 
 ## 6. Reconsider depth-based caller-info tracking (SLF4J 3.0 research)
 
