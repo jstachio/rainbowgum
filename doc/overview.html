@@ -1495,6 +1495,18 @@ instrumentation scope, <code>thread.name</code>, <code>thread.id</code>, every k
 when context contains the same names. Key values named <code>traceId</code> and
 <code>spanId</code> (as Micrometer Tracing puts them in the MDC) become the record's trace context when they
 are valid W3C ids.
+Without Micrometer Tracing, add {@link io.jstach.rainbowgum.opentelemetry/} (<strong>EXPERIMENTAL</strong>): it
+adds the current OpenTelemetry span's <code>traceId</code> and <code>spanId</code> to every event, read when the
+event is created, from whatever set the OpenTelemetry context (the Java agent, the SDK, or a bridge).
+
+{@snippet lang=xml :
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-opentelemetry</artifactId>
+    <version>_VERSION_</version>
+    <scope>runtime</scope>
+</dependency>
+}
 
 <h2 id="filter">Filtering</h2>
 
