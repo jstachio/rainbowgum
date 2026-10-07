@@ -19,6 +19,7 @@
   <module>rainbowgum-test-avaje</module>
   <module>rainbowgum-test-config</module>
   <module>rainbowgum-test-core</module>
+  <module>rainbowgum-test-enum-aliases</module>
   <module>rainbowgum-test-jdk</module>
   <module>rainbowgum-test-jcl</module>
   <module>rainbowgum-test-jboss-logging-bridge</module>

@@ -1,6 +1,6 @@
 /**
  * Rainbow Gum annotation processors.
- * @provides javax.annotation.processing.Processor with config processor.
+ * @provides javax.annotation.processing.Processor with config and enum alias processors.
  */
 module io.jstach.rainbowgum.apt {
 	requires jdk.compiler;
@@ -12,5 +12,6 @@ module io.jstach.rainbowgum.apt {
 	// rainbowgum-apt/pom.xml's comment on the org.eclipse.jdt.annotation dependency.
 	requires static org.eclipse.jdt.annotation;
 	requires static io.jstach.jstache;
-	provides javax.annotation.processing.Processor with io.jstach.rainbowgum.apt.ConfigProcessor;
+	provides javax.annotation.processing.Processor with io.jstach.rainbowgum.apt.ConfigProcessor,
+			io.jstach.rainbowgum.apt.EnumAliasProcessor;
 }
