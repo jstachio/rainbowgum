@@ -82,7 +82,12 @@ class EnumAliasesTest {
 				"io.jstach.rainbowgum.LogConfig$DebugModeType", //
 				"io.jstach.rainbowgum.LogEvent$Caller$CallerType", //
 				"io.jstach.rainbowgum.format.TTLL$ColorMode", //
+				"io.jstach.rainbowgum.format.TTLL$ColorTheme", //
 				"io.jstach.rainbowgum.format.TTLL$KeyValuesFormat", //
+				"io.jstach.rainbowgum.format.TTLL$LevelFormat", //
+				"io.jstach.rainbowgum.format.TTLL$LoggerFormat", //
+				"io.jstach.rainbowgum.format.TTLL$ThreadFormat", //
+				"io.jstach.rainbowgum.format.TTLL$TimestampFormat", //
 				"io.jstach.rainbowgum.pattern.format.PatternConfig$CacheType", //
 				"io.jstach.rainbowgum.simple.props.SimpleProperties$StrictType", //
 				"io.jstach.rainbowgum.otlp.EnvironmentVariables"), aliases().keySet());

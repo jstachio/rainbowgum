@@ -90,7 +90,17 @@ class TTLLFormatterTest {
 			"keyValues=percent|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"keyValues=LOGBACK|12:00:00.123 [main] INFO  com.example.App {requestId=42, user=Ada Lovelace} - hello world", //
 			"keyValues=true|12:00:00.123 [main] INFO  com.example.App {requestId=42 user=\"Ada Lovelace\"} - hello world", //
-			"keyValues=false|12:00:00.123 [main] INFO  com.example.App - hello world" })
+			"keyValues=false|12:00:00.123 [main] INFO  com.example.App - hello world", //
+			"keyValues=default|12:00:00.123 [main] INFO  com.example.App - hello world", //
+			"timestamp=false|[main] INFO  com.example.App - hello world", //
+			"timestamp=default|12:00:00.123 [main] INFO  com.example.App - hello world", //
+			"thread=false|12:00:00.123 INFO  com.example.App - hello world", //
+			"thread=true|12:00:00.123 [main] INFO  com.example.App - hello world", //
+			"level=false|12:00:00.123 [main] com.example.App - hello world", //
+			"level=default|12:00:00.123 [main] INFO  com.example.App - hello world", //
+			"logger=false|12:00:00.123 [main] INFO  - hello world", //
+			"logger=true|12:00:00.123 [main] INFO  com.example.App - hello world", //
+			"theme=default|12:00:00.123 [main] INFO  com.example.App - hello world" })
 	void eachPartIsConfigurableByProperty(String property, String expected) {
 		assertEquals(expected + "\n",
 				log("ttll", "logging.encoder.list." + property + "\n", event(requestKeyValues())));
@@ -134,7 +144,7 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.thread' from PROPERTIES_STRING[logging.encoder.list.thread], \
-				'both' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'none'""";
+				'both' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'none', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -147,7 +157,7 @@ class TTLLFormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.keyValues' from PROPERTIES_STRING[logging.encoder.list.keyValues], \
 				'yes' is not a valid value for io.jstach.rainbowgum.format.TTLL.KeyValuesFormat. \
-				Valid values: 'none', 'logfmt', 'percent', 'logback', 'true', 'false'""";
+				Valid values: 'none', 'logfmt', 'percent', 'logback', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -159,7 +169,7 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.timestamp' from PROPERTIES_STRING[logging.encoder.list.timestamp], \
-				'bogus{' is neither a timestamp format (ttll, iso, none) nor a valid DateTimeFormatter pattern: \
+				'bogus{' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: \
 				Unknown pattern letter: b""";
 		assertEquals(expected, e.getMessage());
 	}
@@ -376,7 +386,7 @@ class TTLLFormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.theme' from PROPERTIES_STRING[logging.encoder.list.theme], \
 				'true' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
-				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula'""";
+				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula', 'default'""";
 		assertEquals(expected, e.getMessage());
 	}
 

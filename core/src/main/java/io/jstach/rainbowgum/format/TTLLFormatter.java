@@ -125,31 +125,32 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	}
 
 	static LogFormatter convertTimestamp(String value) {
-		for (var choice : TTLL.TimestampFormat.values()) {
-			if (choice.name().equalsIgnoreCase(value)) {
-				return choice.formatter();
-			}
+		try {
+			return TTLL.TimestampFormat.parse(value).formatter();
+		}
+		catch (IllegalArgumentException notAChoice) {
+			// not a choice name or alias, so a DateTimeFormatter pattern
 		}
 		try {
 			return TimestampFormatter.of(DateTimeFormatter.ofPattern(value).withZone(ZoneOffset.UTC));
 		}
 		catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("'" + value
-					+ "' is neither a timestamp format (ttll, iso, none) nor a valid DateTimeFormatter pattern: "
+					+ "' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: "
 					+ e.getMessage(), e);
 		}
 	}
 
 	static LogFormatter convertThread(String value) {
-		return LogProperty.enumValue(TTLL.ThreadFormat.class, value).formatter();
+		return TTLL.ThreadFormat.parse(value).formatter();
 	}
 
 	static LogFormatter convertLevel(String value) {
-		return LogProperty.enumValue(TTLL.LevelFormat.class, value).formatter();
+		return TTLL.LevelFormat.parse(value).formatter();
 	}
 
 	static LogFormatter convertLogger(String value) {
-		return LogProperty.enumValue(TTLL.LoggerFormat.class, value).formatter();
+		return TTLL.LoggerFormat.parse(value).formatter();
 	}
 
 	static TTLL.ColorMode convertColor(String value) {
@@ -157,7 +158,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	}
 
 	static TTLL.ColorTheme convertTheme(String value) {
-		return LogProperty.enumValue(TTLL.ColorTheme.class, value);
+		return TTLL.ColorTheme.parse(value);
 	}
 
 	static LogFormatter convertKeyValues(String value) {
