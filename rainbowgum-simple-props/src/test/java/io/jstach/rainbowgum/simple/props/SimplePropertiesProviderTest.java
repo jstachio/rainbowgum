@@ -38,7 +38,11 @@ class SimplePropertiesProviderTest {
 		var registry = ServiceRegistry.of();
 		var builder = SimpleProperties.builder().resource(resource).envLookup(k -> null);
 		if (resource.equals("strict-fail.properties")) {
+			// the resource's strict=true overrides the builder
 			builder.strict(SimpleProperties.StrictType.OFF);
+		}
+		else {
+			builder.strict(SimpleProperties.StrictType.FAIL);
 		}
 		var simple = builder.build();
 		registry.putIfAbsent(SimpleProperties.class, () -> simple);

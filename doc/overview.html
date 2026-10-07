@@ -2198,23 +2198,11 @@ it records that instead. Informational alerts are retained without printing to s
 by default.
 </p>
 <p>
-Keys in the base resource are checked by default and must start with <code>logging.</code>.
-Each unprefixed property produces an error alert that includes its resource and line number.
-By default, invalid keys also stop initialization with an exception. Set
-<code>logging.simpleprops.strict=alert</code> to report errors and continue initialization.
-Set <code>logging.simpleprops.strict=off</code> in the base resource, or call
-{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#strict(io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType) SimpleProperties.builder().strict(StrictType.OFF)},
-to disable this check. The resource setting takes precedence over the builder. The accepted
-values are <code>off</code>, <code>alert</code>, <code>fail</code> (default), and <code>short</code>.
-<code>false</code> is an alias for <code>off</code>; <code>true</code> is an alias for <code>fail</code>.
-</p>
-<p>
-With <code>logging.simpleprops.strict=short</code>, which itself is written with its full key, keys without the
-<code>logging.</code> prefix get it, in the base resource and in profile resources, so the file can leave it out:
+Keys without the <code>logging.</code> prefix get it by default, in the base resource and in profile resources,
+so the file can leave it out:
 </p>
 
 {@snippet lang=properties :
-logging.simpleprops.strict=short
 level.com.myco=debug
 appenders=console
 }
@@ -2222,6 +2210,13 @@ appenders=console
 <p>
 is the same as <code>logging.level.com.myco=debug</code> and <code>logging.appenders=console</code>. When a key is
 given both ways the later line wins, as with any repeated key, and errors name the key as it is written in the file.
+This is the <code>short</code> mode of <code>logging.simpleprops.strict</code>, which itself is always written with its
+full key. Set <code>logging.simpleprops.strict=fail</code> in the base resource, or call
+{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#strict(io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType) SimpleProperties.builder().strict(StrictType.FAIL)},
+to require the prefix instead: each unprefixed key then produces an error alert that includes its resource and line
+number, and initialization stops with an exception. <code>alert</code> reports the same errors and continues, and
+<code>off</code> ignores unprefixed keys. The resource setting takes precedence over the builder.
+<code>false</code> is an alias for <code>off</code>; <code>true</code> is an alias for <code>fail</code>.
 </p>
 <p>
 The module includes GraalVM native-image resource metadata for

@@ -51,11 +51,11 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
 public final class SimpleProperties {
 
 	/**
-	 * Base-resource key validation. The base resource overrides
-	 * {@link Builder#strict(StrictType)}. Accepts {@code off} or {@code false},
-	 * {@code alert}, {@code fail} or {@code true} (default), and {@code short}. It is
-	 * always written with its full key, even when {@code short} allows other keys without
-	 * the logging prefix.
+	 * How resource keys without the logging prefix are treated. The base resource
+	 * overrides {@link Builder#strict(StrictType)}. Accepts {@code short} (default),
+	 * {@code off} or {@code false}, {@code alert}, and {@code fail} or {@code true}. It
+	 * is always written with its full key, even when {@code short} allows other keys
+	 * without the logging prefix.
 	 */
 	public static final String STRICT_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.strict";
 
@@ -181,14 +181,14 @@ public final class SimpleProperties {
 
 		private List<String> profiles = List.of();
 
-		private StrictType strict = StrictType.FAIL;
+		private StrictType strict = StrictType.SHORT;
 
 		/**
-		 * Sets base-resource key validation. The base resource's
-		 * {@value SimpleProperties#STRICT_PROPERTY} overrides this setting. Validation
-		 * records error alerts. {@link StrictType#FAIL} also stops initialization when
-		 * properties are supplied.
-		 * @param strict validation mode, default {@link StrictType#FAIL}.
+		 * Sets how resource keys without the logging prefix are treated. The base
+		 * resource's {@value SimpleProperties#STRICT_PROPERTY} overrides this setting.
+		 * {@link StrictType#ALERT} and {@link StrictType#FAIL} record error alerts, and
+		 * {@link StrictType#FAIL} also stops initialization when properties are supplied.
+		 * @param strict mode, default {@link StrictType#SHORT}.
 		 * @return this.
 		 */
 		public Builder strict(StrictType strict) {
