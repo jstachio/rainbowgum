@@ -1,9 +1,10 @@
 /**
- * <strong>EXPERIMENTAL</strong> Adds the trace and span id of the current OpenTelemetry span
+ * Adds the trace and span id of the current OpenTelemetry span
  * to every event as the key values {@code traceId} and {@code spanId}, the names Micrometer
  * Tracing uses and the OTLP output reads. Simply being on the classpath is enough: the
  * span is read when the event is created, on the logging thread, from whatever set the
  * OpenTelemetry context (the Java agent, the SDK, or a bridge), with no MDC involved.
+ * This module can be used with any output or encoder, independently of the OTLP module.
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */

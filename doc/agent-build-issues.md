@@ -11,6 +11,24 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-10-07: Incremental Javadoc misses documentation-only changes
+
+While clarifying the OpenTelemetry integration documentation,
+`./mvnw -Pdoc javadoc:aggregate` returned success in 4.3 seconds while the
+generated overview and module summary still contained the old text. Removing
+`target/maven-javadoc-plugin-stale-data.txt` before repeating the aggregate
+goal regenerated both pages in 6.7 seconds. The plugin's stale-data check
+can therefore miss documentation changes; inspect the generated content
+before accepting a successful incremental Javadoc run. This workaround
+removes only generated state and preserves compiled classes and the build cache.
+
+The aggregate goal is a documentation check, not a replacement for the
+ordinary `verify` build. It generates documentation without the test
+compilation phase that has intermittently failed under the documentation
+profile (see earlier entries). Caching and parallelism stayed enabled.
+
+Agent: Codex (GPT-6).
+
 ## 2026-09-30: Golden string failures and stale runtime behavior
 
 While fixing the startup diagnostics tests, module tests and builds involving
