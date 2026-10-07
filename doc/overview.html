@@ -2205,8 +2205,23 @@ By default, invalid keys also stop initialization with an exception. Set
 Set <code>logging.simpleprops.strict=off</code> in the base resource, or call
 {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#strict(io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType) SimpleProperties.builder().strict(StrictType.OFF)},
 to disable this check. The resource setting takes precedence over the builder. The accepted
-values are <code>off</code>, <code>alert</code>, and <code>fail</code> (default).
+values are <code>off</code>, <code>alert</code>, <code>fail</code> (default), and <code>short</code>.
 <code>false</code> is an alias for <code>off</code>; <code>true</code> is an alias for <code>fail</code>.
+</p>
+<p>
+With <code>logging.simpleprops.strict=short</code>, which itself is written with its full key, keys without the
+<code>logging.</code> prefix get it, in the base resource and in profile resources, so the file can leave it out:
+</p>
+
+{@snippet lang=properties :
+logging.simpleprops.strict=short
+level.com.myco=debug
+appenders=console
+}
+
+<p>
+is the same as <code>logging.level.com.myco=debug</code> and <code>logging.appenders=console</code>. When a key is
+given both ways the later line wins, as with any repeated key, and errors name the key as it is written in the file.
 </p>
 <p>
 The module includes GraalVM native-image resource metadata for

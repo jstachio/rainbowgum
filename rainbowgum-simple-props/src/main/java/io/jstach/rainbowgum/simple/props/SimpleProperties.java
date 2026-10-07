@@ -53,12 +53,14 @@ public final class SimpleProperties {
 	/**
 	 * Base-resource key validation. The base resource overrides
 	 * {@link Builder#strict(StrictType)}. Accepts {@code off} or {@code false},
-	 * {@code alert}, and {@code fail} or {@code true} (default).
+	 * {@code alert}, {@code fail} or {@code true} (default), and {@code short}. It is
+	 * always written with its full key, even when {@code short} allows other keys without
+	 * the logging prefix.
 	 */
 	public static final String STRICT_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.strict";
 
 	/**
-	 * Controls prefix validation of the base resource's property keys.
+	 * Controls how resource property keys without the logging prefix are treated.
 	 */
 	@CaseChanging
 	public enum StrictType {
@@ -71,7 +73,14 @@ public final class SimpleProperties {
 		 * Records error alerts and fails when supplying properties if any key lacks the
 		 * logging prefix.
 		 */
-		FAIL;
+		FAIL,
+		/**
+		 * Keys without the logging prefix get it, in the base resource and profile
+		 * resources: <code>level.com.myco=debug</code> is
+		 * <code>logging.level.com.myco=debug</code>. When both forms of a key are given,
+		 * the later line wins, as with any repeated key.
+		 */
+		SHORT;
 
 		static StrictType parse(String value) {
 			return switch (value.toLowerCase(java.util.Locale.ROOT)) {
@@ -275,9 +284,13 @@ public final class SimpleProperties {
 				.map(StrictType::parse)
 				.or(strict)
 				.validateNow(SimpleProperties.class);
-			var errorMessages = strictType != StrictType.OFF
+			var errorMessages = (strictType == StrictType.ALERT || strictType == StrictType.FAIL)
 					&& classpathProperties instanceof SimpleLogProperties simple ? simple.prefixErrors()
 							: List.<String>of();
+			boolean shortKeys = strictType == StrictType.SHORT;
+			if (shortKeys) {
+				classpathProperties = withShortKeys(classpathProperties);
+			}
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));
@@ -297,6 +310,9 @@ public final class SimpleProperties {
 									+ ".properties"
 							: resource + "-" + name;
 					var profileProperties = loadResource(profileResource);
+					if (shortKeys) {
+						profileProperties = withShortKeys(profileProperties);
+					}
 					if (profileProperties == LogProperties.StandardProperties.EMPTY) {
 						if (name.equals("default")) {
 							continue;
@@ -321,6 +337,10 @@ public final class SimpleProperties {
 				infoMessages.add("Loaded properties resource: " + profileResource);
 			}
 			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages), errorMessages, strictType);
+		}
+
+		private static LogProperties withShortKeys(LogProperties properties) {
+			return properties instanceof SimpleLogProperties simple ? simple.withShortKeys() : properties;
 		}
 
 		private static LogProperties loadResource(String resource) {

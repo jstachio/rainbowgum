@@ -160,6 +160,64 @@ class SimplePropertiesTest {
 		assertEquals("INFO", composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
 	}
 
+	private static String value(SimpleProperties props, String key) {
+		return LogProperties.of(props.properties()).forKey(key).ofString().validateNow(SimplePropertiesTest.class);
+	}
+
+	@Test
+	void shortKeysGetTheLoggingPrefix() {
+		var props = SimpleProperties.builder().resource("short-keys.properties").envLookup(k -> null).build();
+		assertEquals("debug", value(props, "logging.level.com.myco"));
+		assertEquals("WARN", value(props, "logging.level.root"));
+	}
+
+	@Test
+	void shortKeyGivenBothWaysKeepsTheLaterLine() {
+		var props = SimpleProperties.builder().resource("short-keys.properties").envLookup(k -> null).build();
+		assertEquals("ERROR", value(props, "logging.level.com.other"));
+	}
+
+	@Test
+	void shortKeyDescriptionShowsTheKeyAsWritten() {
+		var props = SimpleProperties.builder().resource("short-keys.properties").envLookup(k -> null).build();
+		var file = props.properties().get(props.properties().size() - 1);
+		assertEquals("SIMPLE_PROPS[short-keys.properties:2][level.com.myco]",
+				file.description("logging.level.com.myco"));
+	}
+
+	@Test
+	void shortKeysApplyToProfileResources() {
+		var props = SimpleProperties.builder()
+			.resource("short-keys.properties")
+			.profiles("dev")
+			.envLookup(k -> null)
+			.build();
+		assertEquals("trace", value(props, "logging.level.com.myco"));
+	}
+
+	@Test
+	void shortFromTheBuilderAcceptsUnprefixedKeys() {
+		var props = SimpleProperties.builder()
+			.resource("strict-off.properties")
+			.strict(SimpleProperties.StrictType.SHORT)
+			.envLookup(k -> null)
+			.build();
+		assertEquals("value", value(props, "logging.unqualified.setting"));
+	}
+
+	@Test
+	void invalidStrictValueFails() {
+		var e = assertThrows(ValidationException.class,
+				() -> SimpleProperties.builder().resource("strict-invalid.properties").envLookup(k -> null).build());
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
+				Error for property. key: 'logging.simpleprops.strict' from \
+				SIMPLE_PROPS[strict-invalid.properties:1][logging.simpleprops.strict], \
+				'prefixed' is not a valid value for io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType. \
+				Valid values: 'off', 'alert', 'fail', 'short', 'true', 'false'""";
+		assertEquals(expected, e.getMessage());
+	}
+
 	@Test
 	void testMissingResourceSuppliesNoProperties() {
 		var props = SimpleProperties.builder()

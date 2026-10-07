@@ -56,6 +56,23 @@ class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
 		return new SimpleLogProperties(resource, m, List.copyOf(invalidEntries));
 	}
 
+	/*
+	 * The same entries with the logging prefix added to keys that lack it, each keeping
+	 * its key as written for descriptions. A key given both ways keeps the later line, as
+	 * putting into the map in file order does for any repeated key.
+	 */
+	SimpleLogProperties withShortKeys() {
+		Map<String, PropertyEntry> m = new LinkedHashMap<>();
+		for (var e : entries.values()) {
+			String key = e.key().startsWith(LogProperties.ROOT_PREFIX) ? e.key() : LogProperties.ROOT_PREFIX + e.key();
+			var previous = m.get(key);
+			if (previous == null || previous.line() <= e.line()) {
+				m.put(key, e);
+			}
+		}
+		return new SimpleLogProperties(resource, m, List.of());
+	}
+
 	List<String> prefixErrors() {
 		return invalidEntries.stream()
 			.map(e -> "Property key should start with: '" + LogProperties.ROOT_PREFIX + "'. key: '" + e.key()
@@ -69,7 +86,7 @@ class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
 	public String description(String key) {
 		var v = entries.get(key);
 		if (v != null) {
-			return LogProperties.descriptionForResource(DESCRIPTION, this.resource, key, v.line());
+			return LogProperties.descriptionForResource(DESCRIPTION, this.resource, v.key(), v.line());
 		}
 		return LogProperties.descriptionForResource(DESCRIPTION, this.resource, key);
 	}
