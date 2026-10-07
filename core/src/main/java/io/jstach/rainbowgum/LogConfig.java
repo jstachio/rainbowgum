@@ -790,6 +790,7 @@ final class DefaultLogConfig implements LogConfig {
 		applyGlobalAppenderReentrantLockProperty(properties);
 		applyGlobalThreadLocalDisabledProperty(properties);
 		applyGlobalOptimizeProperty(properties);
+		registry.put(KeyValuesContributors.Disabled.class, KeyValuesContributors.Disabled.of(properties));
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();

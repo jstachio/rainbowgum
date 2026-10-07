@@ -294,6 +294,21 @@ public interface LogProperties {
 	static final String GLOBAL_OPTIMIZE_PROPERTY = ROOT_PREFIX + "global.optimize";
 
 	/**
+	 * Key values namespace, for properties that configure where an event's key values
+	 * come from.
+	 */
+	static final String KEY_VALUES_PREFIX = ROOT_PREFIX + "keyvalues" + SEP;
+
+	/**
+	 * A comma separated list of key value sources (the lowercase names of
+	 * {@link LogEventFactory.KeyValuesContributor.Source.Standard}, for example
+	 * <code>defaults,slf4j</code>) whose contributors are left out of every event's key
+	 * values. A logging facade's own context store is still used for events logged
+	 * through that facade.
+	 */
+	static final String KEY_VALUES_DISABLED_PROPERTY = KEY_VALUES_PREFIX + "disabled";
+
+	/**
 	 * Maximum number of alerts {@link LogAlerts} holds in its ring buffer. Read once,
 	 * from whatever {@link LogProperties} {@link LogConfig.Builder#build()} has already
 	 * resolved by the time it constructs {@link LogAlerts} - before any
