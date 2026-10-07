@@ -196,12 +196,8 @@ class SimplePropertiesTest {
 	}
 
 	@Test
-	void shortFromTheBuilderAcceptsUnprefixedKeys() {
-		var props = SimpleProperties.builder()
-			.resource("strict-off.properties")
-			.strict(SimpleProperties.StrictType.SHORT)
-			.envLookup(k -> null)
-			.build();
+	void shortIsTheDefault() {
+		var props = SimpleProperties.builder().resource("strict-off.properties").envLookup(k -> null).build();
 		assertEquals("value", value(props, "logging.unqualified.setting"));
 	}
 
