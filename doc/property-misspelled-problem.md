@@ -146,6 +146,16 @@ appender with no configuration. Check what happens today; a name that no
 `logging.appender.{name}.` key and no built in default explains is as silent as a
 misspelled key.
 
+### 9. Do nothing
+
+Keep properties as they are and point users who want certainty at the programmatic
+builders. In Java a misspelled key does not exist: `new TTLLFormatterBuilder("console")
+.keyValues(...)` fails to compile if misspelled, the IDE completes it, and values are
+typed. Properties then stay the quick, forgiving path for simple setups, and anyone who
+needs checked configuration has it already. The cost is that most users start with
+properties, which is exactly where the silent typo happens, and debug mode would still
+not explain why a property had no effect.
+
 ## A possible order
 
 1. Key enumeration (6), since everything else needs it.
