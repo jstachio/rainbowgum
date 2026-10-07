@@ -76,6 +76,49 @@ users, so nobody else pays for them.
   IDEs flag unknown keys while editing; startup does not complain. The separate
   properties migrator reports renamed and removed keys at startup.
 
+## IDE metadata
+
+Several frameworks generate configuration metadata with an annotation processor, the
+same way Rainbow Gum generates builders. There is no shared standard:
+
+- **Spring Boot** writes `META-INF/spring-configuration-metadata.json` from
+  `@ConfigurationProperties`
+  ([annotation processor](https://docs.spring.io/spring-boot/specification/configuration-metadata/annotation-processor.html)).
+  This is the closest thing to a de facto format: IntelliJ IDEA Ultimate and the Spring
+  tools for VS Code read it for completion and unknown key warnings in
+  `application.properties` and `application.yml`.
+- **Micronaut** builds the same kind of metadata from its own `@ConfigurationProperties`,
+  and its `ConfigurationMetadataBuilder` is documented as producing data that can be
+  written to a format IDEs read, "like spring-configuration-metadata.json"
+  ([API](https://docs.micronaut.io/4.0.x/api/io/micronaut/inject/configuration/ConfigurationMetadataBuilder.html)).
+  Micronaut 5 can also generate JSON Schema documents from `@ConfigurationProperties`
+  for IDE completion and validation.
+- **Helidon** is the closest to how Rainbow Gum works: builders configured from config.
+  Its `helidon-config-metadata-processor` reads `@Configured` on a builder and
+  `@ConfiguredOption` on its methods and writes its own format,
+  `META-INF/helidon/config-metadata.json`, with each key's type, default, and
+  description (taken from the javadoc), linking nested configured types
+  ([wiki](https://github.com/helidon-io/helidon/wiki/Generated-config-documentation)).
+  Its documented use is generating the reference documentation; Helidon 4's builder
+  codegen took over this role. Helidon had an IntelliJ plugin with config key
+  completion, but JetBrains now lists it as
+  [no longer supported](https://www.jetbrains.com/help/idea/helidon.html), and I could
+  not confirm it read this file.
+
+What this means for Rainbow Gum:
+
+- `ConfigProcessor` already has everything Helidon's processor collects (key, type,
+  default, javadoc description) for every `@LogConfigurable` builder; it renders them
+  into the builders' javadoc today. Writing them to a shipped resource (idea 3) is a
+  small step, and the same data could feed the overview's property tables.
+- IDE metadata only helps where an IDE knows the file. Spring's metadata applies to a
+  Spring Boot project's `application.properties`, not to a simple props
+  `logging.properties`, so it helps framework users (idea 7) but not simple props users,
+  who still need the runtime check.
+- If one format is picked for IDEs, Spring's is the one tools already read; a Rainbow
+  Gum specific format (like Helidon's) is simpler to own but only useful to our own
+  tools. JSON Schema is neutral but fits YAML and JSON files better than `.properties`.
+
 ## What Rainbow Gum already has
 
 - **One lookup path.** Every typed lookup goes through `LogProperty` (`forKey(...)` then
@@ -162,8 +205,10 @@ mapping.
 ### 7. IDE metadata for Spring Boot (my addition)
 
 Spring Boot users edit `application.properties`, where IDEs read Spring configuration
-metadata. The Spring modules could ship metadata for Rainbow Gum's `logging.` keys, built
-from the same catalog, so typos are flagged while editing at no runtime cost.
+metadata. The Spring modules could ship `META-INF/additional-spring-configuration-metadata.json`
+for Rainbow Gum's own `logging.` keys, built from the same catalog as idea 3, so typos are
+flagged while editing at no runtime cost. See "IDE metadata" above for why Spring's
+format rather than one of our own.
 
 ### 8. Misspelled names, not keys (my addition, to check)
 
