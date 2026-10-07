@@ -205,7 +205,7 @@ mapping.
 ### 7. IDE metadata for Spring Boot (my addition)
 
 Spring Boot users edit `application.properties`, where IDEs read Spring configuration
-metadata. The Spring modules could ship `META-INF/additional-spring-configuration-metadata.json`
+metadata. The Spring modules could ship `META-INF/spring-configuration-metadata.json`
 for Rainbow Gum's own `logging.` keys, built from the same catalog as idea 3, so typos are
 flagged while editing at no runtime cost. See "IDE metadata" above for why Spring's
 format rather than one of our own.
