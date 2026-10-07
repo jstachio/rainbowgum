@@ -2210,7 +2210,9 @@ appenders=console
 <p>
 is the same as <code>logging.level.com.myco=debug</code> and <code>logging.appenders=console</code>. When a key is
 given both ways the later line wins, as with any repeated key, and errors name the key as it is written in the file.
-This is the <code>short</code> mode of <code>logging.simpleprops.strict</code>, which itself is always written with its
+Since a <code>java.util.logging</code> configuration file has the same name, a base resource with keys only it uses,
+such as <code>handlers</code>, <code>.level</code>, or <code>java.util.logging.ConsoleHandler.level</code>, stops
+initialization with an error saying it looks like <code>java.util.logging</code> configuration. This is the <code>short</code> mode of <code>logging.simpleprops.strict</code>, which itself is always written with its
 full key. Set <code>logging.simpleprops.strict=fail</code> in the base resource, or call
 {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#strict(io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType) SimpleProperties.builder().strict(StrictType.FAIL)},
 to require the prefix instead: each unprefixed key then produces an error alert that includes its resource and line

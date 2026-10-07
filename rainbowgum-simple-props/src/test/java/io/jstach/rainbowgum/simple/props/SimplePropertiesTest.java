@@ -197,8 +197,24 @@ class SimplePropertiesTest {
 
 	@Test
 	void shortIsTheDefault() {
-		var props = SimpleProperties.builder().resource("strict-off.properties").envLookup(k -> null).build();
+		var props = SimpleProperties.builder().resource("short-default.properties").envLookup(k -> null).build();
 		assertEquals("value", value(props, "logging.unqualified.setting"));
+	}
+
+	@Test
+	void javaUtilLoggingFileFailsByDefault() {
+		var props = SimpleProperties.builder().resource("jul.properties").envLookup(k -> null).build();
+		var e = assertThrows(IllegalArgumentException.class, props::properties);
+		String expected = """
+				Invalid simple-props base resource:
+				Property key looks like java.util.logging configuration, which Rainbow Gum does not read. \
+				key: 'handlers' from SIMPLE_PROPS[jul.properties:1][handlers]
+				Property key looks like java.util.logging configuration, which Rainbow Gum does not read. \
+				key: '.level' from SIMPLE_PROPS[jul.properties:2][.level]
+				Property key looks like java.util.logging configuration, which Rainbow Gum does not read. \
+				key: 'java.util.logging.ConsoleHandler.level' from \
+				SIMPLE_PROPS[jul.properties:3][java.util.logging.ConsoleHandler.level]""";
+		assertEquals(expected, e.getMessage());
 	}
 
 	@Test
