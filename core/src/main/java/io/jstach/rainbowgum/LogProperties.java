@@ -304,7 +304,9 @@ public interface LogProperties {
 	 * {@link LogEventFactory.KeyValuesContributor.Source.Standard}, for example
 	 * <code>defaults,slf4j</code>) whose contributors are left out of every event's key
 	 * values. A logging facade's own context store is still used for events logged
-	 * through that facade.
+	 * through that facade, and {@link LogEventFactory.KeyValuesContributor#clear()} still
+	 * clears it according to
+	 * {@link LogEventFactory.KeyValuesContributor.Source.Standard#clearWhenDisabled()}.
 	 */
 	static final String KEY_VALUES_DISABLED_PROPERTY = KEY_VALUES_PREFIX + "disabled";
 

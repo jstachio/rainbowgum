@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.helpers.BasicMarkerFactory;
 
 import io.jstach.rainbowgum.LogConfig;
@@ -15,6 +17,7 @@ import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.output.ListLogOutput;
 
 class RainbowGumSLF4JServiceProviderTest {
 
@@ -54,6 +57,34 @@ class RainbowGumSLF4JServiceProviderTest {
 		}
 		finally {
 			mdc.clear();
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void globalCleanupPreventsMdcLeakingToNextRequest(boolean disabled) {
+		var properties = LogProperties.builder()
+			.fromProperties(disabled ? "logging.keyvalues.disabled=slf4j" : "")
+			.build();
+		var config = LogConfig.builder().properties(properties).serviceLoader().build();
+		var output = new ListLogOutput();
+		try (var gum = RainbowGum.builder(config)
+			.route(route -> route.appender("list", appender -> appender.output(output)))
+			.set()) {
+			var logger = org.slf4j.LoggerFactory.getLogger(getClass().getName() + "." + disabled);
+			org.slf4j.MDC.put("requestId", "previous-request");
+			logger.info("previous request");
+			assertEquals(1, output.events().size());
+			assertEquals("previous-request",
+					output.events().getFirst().getKey().keyValues().getValueOrNull("requestId"));
+			KeyValuesContributor.global().clear();
+			logger.info("next request");
+			assertNull(org.slf4j.MDC.get("requestId"));
+			assertEquals(2, output.events().size());
+			assertNull(output.events().getLast().getKey().keyValues().getValueOrNull("requestId"));
+		}
+		finally {
+			org.slf4j.MDC.clear();
 		}
 	}
 
