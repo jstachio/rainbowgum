@@ -995,6 +995,38 @@ Formatting of log events as textual data is so common that Rainbow Gum has speci
 an encoder for technical API reasons they are not. However any formatter can be converted to an
 encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}.
 
+<h3 id="json_key_values_formatter">JSON Key Values Formatter</h3>
+
+{@link io.jstach.rainbowgum.format.KeyValuesFormatterBuilder} builds a {@code LogFormatter}
+that appends key values as JSON or JSON5 text directly to a {@code StringBuilder}.
+It requires no JSON library and can be composed with other formatters:
+
+{@snippet :
+LogFormatter formatter = LogFormatter.builder()
+    .message()
+    .text(" ")
+    .add(new KeyValuesFormatterBuilder()
+        .format(KeyValuesFormatterBuilder.Format.JSON5)
+        .nullStrategy(LogFormatter.KeyValueNullStrategy.SKIP)
+        .build())
+    .newline()
+    .build();
+}
+
+For a message of <code>hello</code> and a <code>requestId</code> key value of <code>42</code>,
+this writes <code>hello {requestId:"42"}</code> followed by a newline.
+
+<ul>
+  <li>The default is JSON, with all keys quoted. JSON5 leaves valid identifier keys unquoted;
+      keys containing spaces, dots, or hyphens remain quoted. All non-null values are strings.</li>
+  <li>All keys are written in event order by default. Use <code>keys(List.of("requestId", "user"))</code>
+      to select keys and their order.</li>
+  <li>The null strategy defaults to <code>KEEP</code>, which writes <code>null</code>.
+      <code>EMPTY</code> writes <code>""</code> and <code>SKIP</code> omits the key.
+      Missing selected keys follow the same strategy.</li>
+  <li>The text includes object braces, including <code>{}</code> when no keys are written.</li>
+</ul>
+
 <h3 id="pattern">Pattern Formatter</h3>
 
 For those coming from Logback or Log4j2 Rainbow Gum has an {@linkplain io.jstach.rainbowgum.pattern/ optional module}
