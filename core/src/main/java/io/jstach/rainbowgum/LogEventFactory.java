@@ -366,31 +366,50 @@ public interface LogEventFactory {
 				 * {@link #USER} it belongs to the application;
 				 * {@code rainbowgum-keyvalues} provides one configured by properties.
 				 */
-				DEFAULTS,
+				DEFAULTS(false),
 				/**
 				 * {@code rainbowgum-scopedkeyvalues} ({@code ScopedKeyValues}).
 				 */
-				SCOPED_KEY_VALUES,
+				SCOPED_KEY_VALUES(false),
 				/**
 				 * {@code rainbowgum-jboss-logging} ({@code org.jboss.logging.MDC}).
 				 */
-				JBOSS_LOGGING,
+				JBOSS_LOGGING(true),
 				/**
 				 * {@code rainbowgum-log4j2}
 				 * ({@code org.apache.logging.log4j.ThreadContext}).
 				 */
-				LOG4J2,
+				LOG4J2(true),
 				/**
 				 * {@code rainbowgum-slf4j} ({@code org.slf4j.MDC}).
 				 */
-				SLF4J,
+				SLF4J(true),
 				/**
 				 * The application's own contributor, which wins over every other source
 				 * including a logging facade's own context store. Only for applications:
 				 * a library must not register a {@code USER} contributor, since there is
 				 * only one per Rainbow Gum and the application decides what it is.
 				 */
-				USER;
+				USER(false);
+
+				private final boolean clearWhenDisabled;
+
+				Standard(boolean clearWhenDisabled) {
+					this.clearWhenDisabled = clearWhenDisabled;
+				}
+
+				/**
+				 * Whether this source's contributor should still be cleared when its
+				 * contribution is disabled with
+				 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY}. Logging facades
+				 * still use their own context stores when their contributions to other
+				 * facades are disabled. Application callbacks and stores with no
+				 * clearable thread state are not invoked when disabled.
+				 * @return whether to clear the contributor when disabled.
+				 */
+				public boolean clearWhenDisabled() {
+					return clearWhenDisabled;
+				}
 
 			}
 
