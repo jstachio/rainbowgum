@@ -19,6 +19,11 @@
       <artifactId>rainbowgum-core</artifactId>
     </dependency>
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-slf4j</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-api</artifactId>
     </dependency>
@@ -31,4 +36,15 @@
       <artifactId>pistachio-svc-apt</artifactId>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>--add-reads io.jstach.rainbowgum.opentelemetry=io.jstach.rainbowgum.slf4j,org.slf4j</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
