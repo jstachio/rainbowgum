@@ -34,6 +34,9 @@ import io.jstach.svc.ServiceProvider;
  * in the class output resource {@value #RESOURCE}, which source retention otherwise
  * leaves nowhere for tests to find. Each line is the enum's binary name, the constant,
  * and one alias, separated by tabs, sorted.
+ *
+ * @apiNote The generated resource is not public API: its name, location, and format may
+ * change in any release and must not be relied on.
  */
 @SupportedAnnotationTypes(EnumAliasProcessor.ENUM_ALIAS)
 @ServiceProvider(value = Processor.class)
@@ -42,7 +45,8 @@ public class EnumAliasProcessor extends AbstractProcessor {
 	static final String ENUM_ALIAS = "io.jstach.rainbowgum.annotation.EnumAlias";
 
 	/**
-	 * The resource listing the aliases of the compiled module.
+	 * The resource listing the aliases of the compiled module. Not public API, see the
+	 * class description.
 	 */
 	public static final String RESOURCE = "META-INF/rainbowgum/enum-aliases.txt";
 
