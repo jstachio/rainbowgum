@@ -1202,6 +1202,7 @@
               <annotationProcessors>
                 <!-- Add all the checkers you want to enable here -->
                 <annotationProcessor>io.jstach.rainbowgum.apt.ConfigProcessor</annotationProcessor>
+                <annotationProcessor>io.jstach.rainbowgum.apt.EnumAliasProcessor</annotationProcessor>
                 <annotationProcessor>org.checkerframework.checker.nullness.NullnessChecker</annotationProcessor>
               </annotationProcessors>
             </configuration>
