@@ -162,6 +162,11 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-keyvalues-contributor</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-tomcat</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1319,6 +1324,7 @@
     <module>rainbowgum-log4j2</module>
     <module>rainbowgum-scopedkeyvalues-api</module>
     <module>rainbowgum-scopedkeyvalues</module>
+    <module>rainbowgum-keyvalues-contributor</module>
     <module>rainbowgum-jul-logmanager</module>
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>

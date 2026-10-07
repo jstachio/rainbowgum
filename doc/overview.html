@@ -2033,6 +2033,37 @@ code is not meant to compile directly against implementation classes:
 </dependency>
 }
 
+<h3 id="default_key_values">Default Key Values</h3>
+
+<strong>EXPERIMENTAL</strong> {@link io.jstach.rainbowgum.keyvalues.contributor/} adds the same key values to every
+event, such as a build version or an instance id, without putting them in every thread's context. Every other
+key values source (SLF4J MDC, scoped key values, ...) overrides them on a key collision. Values come from a property,
+in the order they are declared:
+
+{@snippet lang=properties :
+logging.keyvalues.contributor.defaults=git.commit=abc123&instance.id=i-42
+}
+
+or from code, where they may change at any time; a property value wins over a value set in code for the same key:
+
+{@snippet :
+DefaultKeyValues.of(config.serviceRegistry()).put("app_status", "READY");
+}
+
+Each change is copied once into an immutable snapshot that events share. Turn them off with
+<code>logging.keyvalues.disabled=defaults</code>; that property takes any of the key values source names and leaves
+those sources out of every event. When logs go through a collector such as the OpenTelemetry Collector, per process
+values like these usually belong in resource attributes instead, which the OTLP output and JSON encoders support.
+
+{@snippet lang=xml :
+<dependency>
+    <groupId>io.jstach.rainbowgum</groupId>
+    <artifactId>rainbowgum-keyvalues-contributor</artifactId>
+    <version>_VERSION_</version>
+    <scope>runtime</scope>
+</dependency>
+}
+
 <h3 id="system_logger">java.lang.System.Logger and java.util.logging</h3>
 
 Rainbow Gum {@link io.jstach.rainbowgum.jdk/} module provides special integration and adapters for the builtin JDK logging facilities.

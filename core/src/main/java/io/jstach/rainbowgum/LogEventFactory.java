@@ -4,6 +4,8 @@ import java.lang.System.Logger.Level;
 import java.lang.ref.WeakReference;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -359,6 +361,13 @@ public interface LogEventFactory {
 			enum Standard implements Source {
 
 				/**
+				 * Key values added to every event, such as a build version or instance
+				 * id, which every other source overrides on a key collision. Like
+				 * {@link #USER} it belongs to the application;
+				 * {@code rainbowgum-keyvalues} provides one configured by properties.
+				 */
+				DEFAULTS,
+				/**
 				 * {@code rainbowgum-scopedkeyvalues} ({@code ScopedKeyValues}).
 				 */
 				SCOPED_KEY_VALUES,
@@ -400,8 +409,9 @@ public interface LogEventFactory {
 
 		/**
 		 * Combines the contributors currently registered in a service registry, skipping
-		 * the excluded sources. The registry is read once on this call, so contributors
-		 * registered afterward are not included.
+		 * the excluded sources and those disabled with
+		 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY}. The registry is read once
+		 * on this call, so contributors registered afterward are not included.
 		 * @param registry where contributors are registered.
 		 * @param excluded sources to skip, usually the caller's own.
 		 * @return combined contributor, which returns {@link KeyValues#of()} if nothing
@@ -447,11 +457,40 @@ final class KeyValuesContributors {
 		};
 	}
 
+	/*
+	 * The sources disabled by property, parsed and validated when the config is built and
+	 * kept in its service registry so that combining contributors needs only the
+	 * registry.
+	 */
+	record Disabled(Set<Source> sources) {
+
+		static final Disabled NONE = new Disabled(Set.of());
+
+		static Disabled of(LogProperties properties) {
+			var sources = properties.forKey(LogProperties.KEY_VALUES_DISABLED_PROPERTY)
+				.ofList()
+				.map(Disabled::parse)
+				.or(Set.of())
+				.validateNow(LogConfig.class);
+			return sources.isEmpty() ? NONE : new Disabled(sources);
+		}
+
+		private static Set<Source> parse(List<String> names) {
+			var sources = new LinkedHashSet<Source>();
+			for (String name : names) {
+				sources.add(LogProperty.enumValue(Source.Standard.class, name));
+			}
+			return Set.copyOf(sources);
+		}
+
+	}
+
 	static KeyValuesContributor of(ServiceRegistry registry, Set<Source> excluded) {
 		var below = new ArrayList<KeyValuesContributor>();
 		KeyValuesContributor user = null;
+		var disabled = registry.findOrNull(Disabled.class);
 		for (var source : Source.Standard.values()) {
-			if (excluded.contains(source)) {
+			if (excluded.contains(source) || (disabled != null && disabled.sources().contains(source))) {
 				continue;
 			}
 			var c = registry.findOrNull(KeyValuesContributor.class, registryName(source));

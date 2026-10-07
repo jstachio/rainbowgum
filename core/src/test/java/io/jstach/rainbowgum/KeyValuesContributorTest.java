@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,6 +49,49 @@ class KeyValuesContributorTest {
 		assertEquals("1", kvs.getValueOrNull("onlySlf4j"));
 		assertEquals("1", kvs.getValueOrNull("onlyScoped"));
 		assertEquals(3, kvs.size());
+	}
+
+	@Test
+	void defaultsLoseToEveryOtherSourceAndTheCallersOwn() {
+		var registry = ServiceRegistry.of();
+		KeyValuesContributor.register(registry, Standard.DEFAULTS,
+				contributor(Map.of("env", "default", "version", "1.0", "status", "default")));
+		KeyValuesContributor.register(registry, Standard.SCOPED_KEY_VALUES, contributor(Map.of("env", "scoped")));
+		var own = KeyValues.of(Map.of("status", "own"));
+		var kvs = KeyValuesContributor.of(registry).keyValues(own);
+		assertEquals("scoped", kvs.getValueOrNull("env"));
+		assertEquals("own", kvs.getValueOrNull("status"));
+		assertEquals("1.0", kvs.getValueOrNull("version"));
+	}
+
+	@Test
+	void disabledPropertyLeavesSourcesOut() {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties("logging.keyvalues.disabled=defaults,scoped_key_values")
+				.build())
+			.build();
+		var registry = config.serviceRegistry();
+		KeyValuesContributor.register(registry, Standard.DEFAULTS, contributor(Map.of("version", "1.0")));
+		KeyValuesContributor.register(registry, Standard.SCOPED_KEY_VALUES, contributor(Map.of("scoped", "1")));
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "slf4j")));
+		assertEquals("env=slf4j", render(KeyValuesContributor.of(registry).keyValues()));
+		// a facade's own context is still used
+		assertEquals("env=slf4j own=1",
+				render(KeyValuesContributor.of(registry).keyValues(KeyValues.of(Map.of("own", "1")))));
+	}
+
+	@Test
+	void invalidDisabledSourceFailsTheConfig() {
+		var properties = LogProperties.builder().fromProperties("logging.keyvalues.disabled=defaults,mdc").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> LogConfig.builder().properties(properties).build());
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.LogConfig:
+				Error for property. key: 'logging.keyvalues.disabled' from PROPERTIES_STRING[logging.keyvalues.disabled], \
+				'mdc' is not a valid value for io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard. \
+				Valid values: 'defaults', 'scoped_key_values', 'jboss_logging', 'log4j2', 'slf4j', 'user'""";
+		assertEquals(expected, e.getMessage());
 	}
 
 	@Test
