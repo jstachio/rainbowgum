@@ -93,7 +93,7 @@ class KeyValuesContributorTest {
 				Validation failed for io.jstach.rainbowgum.LogConfig:
 				Error for property. key: 'logging.keyvalues.disabled' from PROPERTIES_STRING[logging.keyvalues.disabled], \
 				'mdc' is not a valid value for io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard. \
-				Valid values: 'defaults', 'scoped_key_values', 'jboss_logging', 'log4j2', 'slf4j', 'user'""";
+				Valid values: 'defaults', 'opentelemetry', 'scoped_key_values', 'jboss_logging', 'log4j2', 'slf4j', 'user'""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -125,7 +125,7 @@ class KeyValuesContributorTest {
 			global.clear();
 			var expected = switch (source) {
 				case SLF4J, LOG4J2, JBOSS_LOGGING -> List.of("clear");
-				case DEFAULTS, SCOPED_KEY_VALUES, USER -> List.<String>of();
+				case DEFAULTS, OPENTELEMETRY, SCOPED_KEY_VALUES, USER -> List.<String>of();
 			};
 			assertEquals(expected, calls);
 			KeyValuesContributor.global(source).clear();

@@ -369,6 +369,12 @@ public interface LogEventFactory {
 				 */
 				DEFAULTS(false),
 				/**
+				 * {@code rainbowgum-opentelemetry}: the trace and span id of the current
+				 * OpenTelemetry span. Not cleared: the OpenTelemetry context belongs to
+				 * the application, not to Rainbow Gum.
+				 */
+				OPENTELEMETRY(false),
+				/**
 				 * {@code rainbowgum-scopedkeyvalues} ({@code ScopedKeyValues}).
 				 */
 				SCOPED_KEY_VALUES(false),

@@ -167,6 +167,16 @@
       </dependency>
       <dependency>
         <groupId>${project.groupId}</groupId>
+        <artifactId>rainbowgum-opentelemetry</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-api</artifactId>
+        <version>1.65.0</version>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
         <artifactId>rainbowgum-tomcat</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1325,6 +1335,7 @@
     <module>rainbowgum-scopedkeyvalues-api</module>
     <module>rainbowgum-scopedkeyvalues</module>
     <module>rainbowgum-keyvalues-contributor</module>
+    <module>rainbowgum-opentelemetry</module>
     <module>rainbowgum-jul-logmanager</module>
     <module>rainbowgum-jdk</module>
     <module>rainbowgum</module>
