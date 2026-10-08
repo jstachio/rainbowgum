@@ -43,7 +43,7 @@ class DefaultParameterTest {
 		assertEquals(List.of(), result.errors());
 		String builder = Files.readString(out.resolve("demo/DemoBuilder.java"));
 		assertTrue(builder.contains("private demo.Mode mode = demo.Mode.SLOW;"), builder);
-		assertTrue(builder.contains("Default is {@link demo.Mode#SLOW }."), builder);
+		assertTrue(builder.contains("Default is {@link demo.Mode#SLOW slow}."), builder);
 	}
 
 	@Test

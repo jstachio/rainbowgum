@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -405,6 +406,9 @@ public class ConfigProcessor extends AbstractProcessor {
 				// the
 				// factory class is not public.
 				defaultValue = type + "." + constant;
+				// Shown as the property value people write, which enum properties parse
+				// case insensitively.
+				defaultDoc = "{@link " + type + "#" + constant + " " + constant.toLowerCase(Locale.ROOT) + "}";
 			}
 			else {
 				if (field.isBlank()) {
