@@ -62,8 +62,9 @@ class LogfmtFormatterTest {
 		kvs.putKeyValue("user name", "ada");
 		kvs.putKeyValue("a=b", "c");
 		kvs.putKeyValue("q\"k", "v");
+		kvs.putKeyValue("back\\slash", "w");
 		assertEquals(
-				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x user_name=ada a_b=c q_k=v\n",
+				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x user_name=ada a_b=c q_k=v back_slash=w\n",
 				format(event(Level.INFO, "main", "x", kvs, null)));
 	}
 
