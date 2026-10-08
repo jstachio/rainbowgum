@@ -27,7 +27,7 @@
       module patch version needed by the annotationProcessorPaths entry below is pinned
       here explicitly rather than assumed available as ${micronaut.core.version}.
     -->
-    <micronaut.core.version>5.2.8</micronaut.core.version>
+    <micronaut.core.version>5.2.14</micronaut.core.version>
     <doc.resources>../../</doc.resources>
     <parent.root>${basedir}/../..</parent.root>
   </properties>
