@@ -54,6 +54,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.apt.BuilderModel.PropertyModel;
 import io.jstach.rainbowgum.apt.prism.ConvertParameterPrism;
+import io.jstach.rainbowgum.apt.prism.DefaultDocPrism;
 import io.jstach.rainbowgum.apt.prism.DefaultParameterPrism;
 import io.jstach.rainbowgum.apt.prism.KeyParameterPrism;
 import io.jstach.rainbowgum.apt.prism.LogConfigurablePrism;
@@ -300,6 +301,61 @@ public class ConfigProcessor extends AbstractProcessor {
 		return true;
 	}
 
+	/*
+	 * Javadoc for a default static field. Javadoc cannot link to a field that is not
+	 * public, so a default that is neither a compile time constant ({@value} works) nor
+	 * public must be documented with @DefaultDoc or a one line javadoc on the field. Null
+	 * keeps the generated link.
+	 */
+	private static @Nullable String defaultFieldDoc(Helper h, TypeElement enclosingType, String fieldName,
+			String parameter) throws DefaultDocException {
+		var field = enclosingType.getEnclosedElements()
+			.stream()
+			.filter(e -> e.getKind() == ElementKind.FIELD && e.getSimpleName().contentEquals(fieldName))
+			.map(VariableElement.class::cast)
+			.findFirst()
+			.orElse(null);
+		if (field == null) {
+			throw new DefaultDocException("@DefaultParameter on parameter '" + parameter + "' references static field '"
+					+ fieldName + "' which does not exist on " + enclosingType.getQualifiedName() + ".");
+		}
+		var defaultDoc = DefaultDocPrism.getInstanceOn(field);
+		if (defaultDoc != null) {
+			return defaultDoc.value();
+		}
+		if (field.getConstantValue() != null || isPublicAccessible(field)) {
+			return null;
+		}
+		@Nullable String javadoc = h.getJavadoc(field);
+		String description = javadoc == null ? "" : javadoc.strip();
+		if (description.isEmpty() || description.contains("\n")) {
+			throw new DefaultDocException("Default field " + enclosingType.getQualifiedName() + "." + fieldName
+					+ " for parameter '" + parameter
+					+ "' is not public or a constant so its value cannot be linked in the builder javadoc. "
+					+ "Add @LogConfigurable.DefaultDoc or a one line javadoc to the field, or use "
+					+ "@DefaultParameter(constant = ...) for an enum parameter.");
+		}
+		return description;
+	}
+
+	private static boolean isPublicAccessible(Element element) {
+		for (Element e = element; e != null && e.getKind() != ElementKind.PACKAGE; e = e.getEnclosingElement()) {
+			if (!e.getModifiers().contains(Modifier.PUBLIC)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	@SuppressWarnings("serial")
+	private static final class DefaultDocException extends Exception {
+
+		DefaultDocException(String message) {
+			super(message);
+		}
+
+	}
+
 	private static @Nullable String validateEnumConstant(VariableElement p, String field, String constant) {
 		String parameter = p.getSimpleName().toString();
 		if (!field.isBlank()) {
@@ -332,6 +388,7 @@ public class ConfigProcessor extends AbstractProcessor {
 		String typeWithNoAnnotation = ToStringTypeVisitor.toCodeNoAnnotations(p.asType());
 
 		String defaultValue = "null";
+		@Nullable String defaultDoc = null;
 		var defaultParameter = DefaultParameterPrism.getInstanceOn(p);
 		TypeElement enclosingType = (TypeElement) ee.getEnclosingElement();
 		String fqnEnclosing = h.getFullyQualifiedClassName(enclosingType.asType());
@@ -354,6 +411,13 @@ public class ConfigProcessor extends AbstractProcessor {
 					field = "DEFAULT_" + name;
 				}
 				defaultValue = fqnEnclosing + "." + field;
+				try {
+					defaultDoc = defaultFieldDoc(h, enclosingType, field, name);
+				}
+				catch (DefaultDocException e) {
+					processingEnv.getMessager().printMessage(Kind.ERROR, e.getMessage(), p, defaultParameter.mirror);
+					return null;
+				}
 			}
 		}
 		boolean required = !h.isNullable(p.asType());
@@ -386,7 +450,7 @@ public class ConfigProcessor extends AbstractProcessor {
 		}
 
 		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, typeWithNoAnnotation, fieldType,
-				classRef, defaultValue, required, javadoc, converter);
+				classRef, defaultValue, defaultDoc, required, javadoc, converter);
 		return prop;
 	}
 
@@ -494,7 +558,7 @@ public class ConfigProcessor extends AbstractProcessor {
 			return filer.createResource(StandardLocation.CLASS_OUTPUT, "", file);
 		}
 
-		public String getJavadoc(Element e) {
+		public @Nullable String getJavadoc(Element e) {
 			return elements.getDocComment(e);
 		}
 

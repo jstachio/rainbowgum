@@ -181,6 +181,26 @@ public @interface LogConfigurable {
 	}
 
 	/**
+	 * Documents the default value of a static field referenced by
+	 * {@link DefaultParameter#value()} for when the field's value cannot be shown in the
+	 * generated builder's javadoc. Without this annotation a default that is neither a
+	 * literal nor an enum constant is documented by the field's javadoc if it is one
+	 * line.
+	 */
+	@Retention(CLASS)
+	@Target({ ElementType.FIELD })
+	@Documented
+	public @interface DefaultDoc {
+
+		/**
+		 * Javadoc text for the default. Links must use fully qualified names.
+		 * @return javadoc text like <code>10MB</code>.
+		 */
+		String value();
+
+	}
+
+	/**
 	 * A parameter not to be configured with properties that will just pass through to the
 	 * build method.
 	 */
