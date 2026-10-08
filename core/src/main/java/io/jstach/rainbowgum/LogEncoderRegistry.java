@@ -9,6 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.TTLL;
+import io.jstach.rainbowgum.format.JsonFormatterBuilder;
 import io.jstach.rainbowgum.format.LogfmtFormatterBuilder;
 import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
@@ -49,6 +50,11 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 */
 	static final String LOGFMT_SCHEME = "logfmt";
 
+	/*
+	 * The core JSON encoder's URI scheme.
+	 */
+	static final String JSON_SCHEME = "json";
+
 	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	/**
@@ -64,6 +70,10 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 		registry.register(LOGFMT_SCHEME,
 				ref -> (name, config) -> LogEncoder
 					.of(new LogfmtFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.provide(name, config));
+		registry.register(JSON_SCHEME,
+				ref -> (name, config) -> LogEncoder
+					.of(new JsonFormatterBuilder(name).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
 		return registry;
 	}

@@ -1028,6 +1028,39 @@ breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum
 <code>logging.encoder.myappender.levelFormatter=right_pad_level_formatter</code>.
 
 
+<h4 id="core_json">JSON Encoder</h4>
+
+The <code>json</code> encoder writes each event as one line holding a JSON object, so an application that normally
+logs TTLL can switch to structured logging, for example while hunting a bug, by flipping one property and without
+adding a module:
+
+{@snippet lang=properties :
+logging.appender.console.encoder=json
+}
+
+{@snippet :
+{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main","msg":"hello world","requestId":"42"}
+}
+
+The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code>,
+<code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
+<code>null</code> for a key value without one. Properties of the encoder:
+
+<ul>
+<li><code>format</code>: <code>json</code> (default) or <code>json5</code>, which leaves identifier keys unquoted
+(<code>{time:"...",level:"INFO",...}</code>).</li>
+<li><code>keyValues</code>: <code>merged</code> (default) writes key values alongside the event's fields, the way
+logfmt and most aggregators expect, and places any key value named like one of those fields in a nested
+<code>keyValues</code> object instead, so nothing is dropped, renamed, or written twice; <code>nested</code> always
+writes them in the <code>keyValues</code> object (<code>{}</code> when there are none); <code>none</code> leaves them
+out.</li>
+</ul>
+
+This encoder is a convenience, not a replacement for {@link io.jstach.rainbowgum.json/}: it has one fixed set of
+fields, no pretty printing, and no particular schema. For production structured logging, especially into a system
+that expects ECS, GELF, or Logstash fields, use that module's encoders instead. See
+{@link io.jstach.rainbowgum.format.JsonFormatterBuilder}.
+
 <h2 id="formatters">Formatters</h2>
 
 Formatting of log events as textual data is so common that Rainbow Gum has special support for that with
