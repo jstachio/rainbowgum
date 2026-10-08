@@ -28,7 +28,7 @@ enum ProviderModule {
 	LOGBACK_JSON_ENCODER(ComponentType.ENCODER, "logback", "io.jstach.rainbowgum.json",
 			"io.jstach.rainbowgum:rainbowgum-json", "logback_json"),
 	PATTERN_ENCODER(ComponentType.ENCODER, "pattern", "io.jstach.rainbowgum.pattern",
-			"io.jstach.rainbowgum:rainbowgum-pattern", "pattern_encoder"),
+			"io.jstach.rainbowgum:rainbowgum-pattern", "pattern"),
 	JFR_OUTPUT(ComponentType.OUTPUT, "jfr", "io.jstach.rainbowgum.jfr", "io.jstach.rainbowgum:rainbowgum-jfr", "jfr"),
 	OTLP_OUTPUT(ComponentType.OUTPUT, "otlp", "io.jstach.rainbowgum.otlp", "io.jstach.rainbowgum:rainbowgum-otlp",
 			"otlp_output"),

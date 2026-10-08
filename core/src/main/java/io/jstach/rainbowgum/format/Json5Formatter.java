@@ -17,12 +17,14 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder.Format;
 
 /*
- * Each event as one JSON or JSON5 object, with logfmt's field names. Package private: the
- * public API is the generated JsonFormatterBuilder and the json encoder scheme.
+ * Each event as one JSON5 (or JSON) object, with logfmt's field names. Named json5 rather
+ * than json so it is not mistaken for the way to log JSON, which is the rainbowgum-json
+ * encoders. Package private: the public API is the generated Json5FormatterBuilder and the
+ * json5 encoder scheme.
  */
-final class JsonFormatter implements LogFormatter.EventFormatter {
+final class Json5Formatter implements LogFormatter.EventFormatter {
 
-	static final Format DEFAULT_FORMAT = Format.JSON;
+	static final Format DEFAULT_FORMAT = Format.JSON5;
 
 	static final KeyValuesPlacement DEFAULT_KEY_VALUES = KeyValuesPlacement.MERGED;
 
@@ -51,7 +53,7 @@ final class JsonFormatter implements LogFormatter.EventFormatter {
 
 	private final Members nestedColliding;
 
-	private JsonFormatter(boolean json5, KeyValuesPlacement keyValues) {
+	private Json5Formatter(boolean json5, KeyValuesPlacement keyValues) {
 		this.json5 = json5;
 		this.keyValues = keyValues;
 		this.flat = new Members(json5, Members.Mode.FLAT);
@@ -60,9 +62,9 @@ final class JsonFormatter implements LogFormatter.EventFormatter {
 	}
 
 	/**
-	 * Formats each event as one line holding a JSON (or JSON5) object, for switching an
+	 * Formats each event as one line holding a JSON5 (or JSON) object, for switching an
 	 * application to structured logging without adding a module, for example:
-	 * <code>{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main","msg":"hello world","requestId":"42"}</code>.
+	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO",logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
 	 * <code>level</code>, <code>logger</code>, <code>thread</code>, <code>msg</code>, and
@@ -71,17 +73,17 @@ final class JsonFormatter implements LogFormatter.EventFormatter {
 	 * <code>null</code> for a key value without one. For a specific schema (ECS, GELF,
 	 * Logstash) and more options use the <code>rainbowgum-json</code> module.
 	 * @param name encoder name, used for property lookup.
-	 * @param format JSON or JSON5, which leaves identifier keys unquoted.
+	 * @param format JSON5 (default), which leaves identifier keys unquoted, or JSON.
 	 * @param keyValues where key values go, see {@link KeyValuesPlacement}.
 	 * @return formatter.
 	 */
-	@LogConfigurable(name = "JsonFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(name = "Json5FormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter("DEFAULT_FORMAT") @LogConfigurable.ConvertParameter("convertFormat") Format format,
 			@LogConfigurable.DefaultParameter("DEFAULT_KEY_VALUES") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues) {
 		return switch (format) {
-			case JSON -> new JsonFormatter(false, keyValues);
-			case JSON5 -> new JsonFormatter(true, keyValues);
+			case JSON -> new Json5Formatter(false, keyValues);
+			case JSON5 -> new Json5Formatter(true, keyValues);
 			case PERCENT, LOGFMT -> throw new IllegalArgumentException(
 					"format=" + format.name().toLowerCase(java.util.Locale.ROOT) + " is not JSON. Use json or json5.");
 		};
