@@ -1,19 +1,25 @@
-package io.jstach.rainbowgum;
+package io.jstach.rainbowgum.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
-import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.LogProvider;
+import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
-import io.jstach.rainbowgum.LogFormatter.KeyValueNullStrategy;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogfmtFormatterTest {
@@ -104,55 +110,6 @@ class LogfmtFormatterTest {
 	}
 
 	@Test
-	void logfmtKeyValuesFormatter() {
-		var formatter = LogFormatter.builder().text("[").logfmtKeyValues().text("]").build();
-		var kvs = MutableKeyValues.of();
-		kvs.putKeyValue("requestId", "42");
-		kvs.putKeyValue("user", "Ada Lovelace");
-		kvs.putKeyValue("missing", null);
-		kvs.putKeyValue("empty", "");
-		var sb = new StringBuilder();
-		formatter.format(sb, event(Level.INFO, "main", "x", kvs, null));
-		assertEquals("[requestId=42 user=\"Ada Lovelace\" missing= empty=\"\"]", sb.toString());
-	}
-
-	@Test
-	void logfmtKeyValuesFormatterWritesNothingWithoutKeyValues() {
-		var formatter = LogFormatter.builder().text("[").logfmtKeyValues().text("]").build();
-		var sb = new StringBuilder();
-		formatter.format(sb, event(Level.INFO, "main", "x", KeyValues.of(), null));
-		assertEquals("[]", sb.toString());
-	}
-
-	@ParameterizedTest
-	@CsvSource(delimiter = '|', value = { "KEEP|[user=ada missing= empty=\"\"]",
-			"EMPTY|[user=ada missing=\"\" empty=\"\"]", "SKIP|[user=ada empty=\"\"]" })
-	void selectedKeysUseTheNullStrategy(KeyValueNullStrategy strategy, String expected) {
-		var formatter = LogFormatter.builder()
-			.text("[")
-			.logfmtKeyValues(List.of("user", "missing", "empty"), strategy)
-			.text("]")
-			.build();
-		var kvs = MutableKeyValues.of();
-		kvs.putKeyValue("empty", "");
-		kvs.putKeyValue("user", "ada");
-		kvs.putKeyValue("ignored", "x");
-		var sb = new StringBuilder();
-		formatter.format(sb, event(Level.INFO, "main", "x", kvs, null));
-		assertEquals(expected, sb.toString());
-	}
-
-	@Test
-	void selectedKeysDefaultToKeep() {
-		var formatter = LogFormatter.builder().logfmtKeyValues(List.of("missing", "user")).build();
-		var kvs = MutableKeyValues.of();
-		kvs.putKeyValue("user", "ada");
-		var sb = new StringBuilder();
-		formatter.format(sb, event(Level.INFO, "main", "x", kvs, null));
-		assertEquals("missing= user=ada", sb.toString());
-	}
-
-	@Test
 	void builderTakesALevelFormatter() {
 		var sb = new StringBuilder();
 		new LogfmtFormatterBuilder("test").levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
@@ -186,9 +143,9 @@ class LogfmtFormatterTest {
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new LogfmtFormatterBuilder("list").fromProperties(properties));
 		String expected = """
-				Validation failed for io.jstach.rainbowgum.LogfmtFormatterBuilder:
+				Validation failed for io.jstach.rainbowgum.format.LogfmtFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.levelFormatter' from PROPERTIES_STRING[logging.encoder.list.levelFormatter], \
-				'lower' is not a valid value for io.jstach.rainbowgum.DefaultLevelFormatter. \
+				'lower' is not a valid value for io.jstach.rainbowgum.format.LogfmtFormatter.LevelFormatterChoice. \
 				Valid values: 'level_formatter', 'right_pad_level_formatter'""";
 		assertEquals(expected, e.getMessage());
 	}

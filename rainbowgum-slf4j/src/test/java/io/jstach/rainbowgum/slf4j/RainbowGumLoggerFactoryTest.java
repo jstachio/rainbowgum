@@ -22,6 +22,7 @@ import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogReporter;
@@ -54,7 +55,9 @@ class RainbowGumLoggerFactoryTest {
 				a.formatter((output, event) -> {
 					event.formattedMessage(output);
 					output.append(" {");
-					LogFormatter.builder().keyValues().build().format(output, event);
+					new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.LOGFMT)
+						.build()
+						.format(output, event);
 					output.append("}");
 					output.append("\n");
 				});

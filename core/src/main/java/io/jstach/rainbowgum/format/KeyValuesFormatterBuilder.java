@@ -14,13 +14,16 @@ import io.jstach.rainbowgum.LogFormatter.KeyValueNullStrategy;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 
 /**
- * Builds a {@link LogFormatter} that appends event key values as JSON or JSON5 text
- * directly to a {@link StringBuilder}. The default writes all keys as JSON, preserving
- * their order and writing null values as the JSON literal {@code null}. Non-null values
- * are always strings, even when they look like numbers, booleans, or JSON.
+ * Builds a {@link LogFormatter} that appends event key values percent encoded, or as
+ * JSON, JSON5, or logfmt text, directly to a {@link StringBuilder}. The default writes
+ * all keys percent encoded, preserving their order, which reads back exactly with
+ * {@link io.jstach.rainbowgum.PercentCodec#decode(CharSequence, java.nio.charset.Charset)}.
+ * In JSON and JSON5 non-null values are always strings, even when they look like numbers,
+ * booleans, or JSON.
  * <p>
  * Compose it with other formatters through
- * {@link LogFormatter.Builder#add(LogFormatter)}:
+ * {@link LogFormatter.Builder#keyValues(java.util.function.Consumer)}, or
+ * {@link LogFormatter.Builder#add(LogFormatter)} with a built formatter:
  * {@snippet :
  * LogFormatter formatter = LogFormatter.builder()
  * 	.message()
@@ -32,8 +35,9 @@ import io.jstach.rainbowgum.annotation.CaseChanging;
  * 	.build();
  * }
  * <p>
- * The result includes braces, including {@code {}} when no keys are written. The builder
- * is mutable; each built formatter is immutable and thread-safe.
+ * JSON and JSON5 results include braces, including {@code {}} when no keys are written;
+ * percent encoding and logfmt have no braces and write nothing when no keys are written.
+ * The builder is mutable; each built formatter is immutable and thread-safe.
  */
 public final class KeyValuesFormatterBuilder {
 
@@ -44,6 +48,13 @@ public final class KeyValuesFormatterBuilder {
 	public enum Format {
 
 		/**
+		 * Percent encoded like a URI query, the default:
+		 * <code>requestId=42&amp;user=Ada%20Lovelace</code>. Keys and values are encoded
+		 * with {@link io.jstach.rainbowgum.PercentCodec}, so every key value is
+		 * reversible and on one line.
+		 */
+		PERCENT,
+		/**
 		 * JSON, with every key enclosed in double quotes.
 		 */
 		JSON,
@@ -52,7 +63,15 @@ public final class KeyValuesFormatterBuilder {
 		 * still use JSON double quotes and escaping. Identifier keys follow the
 		 * <a href="https://spec.json5.org/#objects">JSON5 object syntax</a>.
 		 */
-		JSON5;
+		JSON5,
+		/**
+		 * <a href="https://brandur.org/logfmt">logfmt</a>: space separated
+		 * <code>key=value</code> pairs, <code>requestId=42 user="Ada Lovelace"</code>. A
+		 * value is quoted only when it is empty or contains a space, <code>=</code>,
+		 * <code>"</code>, or a control character, and characters logfmt does not allow in
+		 * keys are replaced with <code>_</code>.
+		 */
+		LOGFMT;
 
 	}
 
@@ -60,10 +79,10 @@ public final class KeyValuesFormatterBuilder {
 
 	private KeyValueNullStrategy nullStrategy = KeyValueNullStrategy.KEEP;
 
-	private Format format = Format.JSON;
+	private Format format = Format.PERCENT;
 
 	/**
-	 * Creates a builder that writes all event key values as JSON.
+	 * Creates a builder that writes all event key values percent encoded.
 	 */
 	public KeyValuesFormatterBuilder() {
 	}
@@ -92,9 +111,10 @@ public final class KeyValuesFormatterBuilder {
 
 	/**
 	 * Controls null values, and missing keys when a selection is supplied:
-	 * {@link KeyValueNullStrategy#KEEP} writes {@code null},
-	 * {@link KeyValueNullStrategy#EMPTY} writes an empty JSON string, and
-	 * {@link KeyValueNullStrategy#SKIP} omits the member. The default is KEEP.
+	 * {@link KeyValueNullStrategy#KEEP} writes {@code null} (logfmt: <code>key=</code>,
+	 * percent encoding: the key alone), {@link KeyValueNullStrategy#EMPTY} writes an
+	 * empty string, and {@link KeyValueNullStrategy#SKIP} omits the key. The default is
+	 * KEEP.
 	 * @param nullStrategy null value strategy.
 	 * @return this builder.
 	 */
@@ -104,7 +124,7 @@ public final class KeyValuesFormatterBuilder {
 	}
 
 	/**
-	 * Selects JSON or JSON5 syntax. The default is JSON.
+	 * Selects the syntax. The default is {@link Format#PERCENT}.
 	 * @param format syntax to write.
 	 * @return this builder.
 	 */
@@ -118,20 +138,33 @@ public final class KeyValuesFormatterBuilder {
 	 * @return key values formatter.
 	 */
 	public LogFormatter build() {
-		return new JsonKeyValuesFormatter(keys, nullStrategy, format);
+		return build(true);
+	}
+
+	/* TTLL supplies the braces and suppresses empty key values. */
+	LogFormatter buildUnbraced() {
+		return build(false);
+	}
+
+	private LogFormatter build(boolean braces) {
+		return switch (format) {
+			case JSON, JSON5 -> new JsonKeyValuesFormatter(keys, nullStrategy, format, braces);
+			case PERCENT -> new PercentKeyValuesFormatter(keys, nullStrategy);
+			case LOGFMT -> new LogfmtKeyValuesFormatter(keys, nullStrategy);
+		};
 	}
 
 }
 
 record JsonKeyValuesFormatter(@Nullable List<String> keys, KeyValueNullStrategy nullStrategy,
-		KeyValuesFormatterBuilder.Format syntax)
-		implements
-			LogFormatter.EventFormatter,
-			KeyValuesConsumer<StringBuilder> {
+		KeyValuesFormatterBuilder.Format syntax,
+		boolean braces) implements LogFormatter.EventFormatter, KeyValuesConsumer<StringBuilder> {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
-		output.append('{');
+		if (braces) {
+			output.append('{');
+		}
 		var keyValues = event.keyValues();
 		var selected = keys;
 		if (selected == null) {
@@ -143,7 +176,9 @@ record JsonKeyValuesFormatter(@Nullable List<String> keys, KeyValueNullStrategy 
 				count = accept(keyValues, key, keyValues.getValueOrNull(key), count, output);
 			}
 		}
-		output.append('}');
+		if (braces) {
+			output.append('}');
+		}
 	}
 
 	@Override

@@ -12,19 +12,17 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * {@value #SCHEMA} encoder. Property values are the lowercase constant names, for
  * example: <pre>
  * logging.encoder.console.timestamp=iso
- * logging.encoder.console.keyValues=logfmt
- * </pre> The defaults produce the classic layout
- * <code>12:00:00.123 [main] INFO  com.example.App - hello</code>. With key values shown
- * they appear in braces after the logger name, and the braces are left out when an event
- * has none:
- * <code>12:00:00.123 [main] INFO  com.example.App {requestId=42} - hello</code>.
+ * logging.encoder.console.keyValues=json5
+ * </pre> The defaults produce the classic layout with the event's key values, percent
+ * encoded, in braces after the logger name:
+ * <code>12:00:00.123 [main] INFO  com.example.App {requestId=42} - hello</code>. When an
+ * event has no key values the braces are left out, or written as <code>{}</code>,
+ * according to {@link KeyValuesWhenEmpty}, and {@link KeyValuesFormat#NONE} leaves the
+ * key values out entirely.
  * <p>
  * Every part also accepts <code>default</code>, which restores its default without naming
  * it, and <code>true</code> and <code>false</code> to show or hide it; the
- * {@link io.jstach.rainbowgum.annotation.EnumAlias} on each constant lists them. Key
- * values are hidden by default, so for them <code>true</code> means
- * {@link KeyValuesFormat#LOGFMT} while <code>default</code> means
- * {@link KeyValuesFormat#NONE}.
+ * {@link io.jstach.rainbowgum.annotation.EnumAlias} on each constant lists them.
  */
 public sealed interface TTLL permits TTLLFormatter {
 
@@ -260,16 +258,17 @@ public sealed interface TTLL permits TTLLFormatter {
 	}
 
 	/**
-	 * Key values part, written in braces after the logger name and left out when an event
-	 * has no key values.
+	 * Key values part, written in braces after the logger name; see
+	 * {@link KeyValuesWhenEmpty} for events with no key values. {@link #NONE} leaves out
+	 * the key values and their braces.
 	 */
 	@CaseChanging
 	enum KeyValuesFormat {
 
 		/**
-		 * Key values are not shown. The default.
+		 * Key values and their braces are left out.
 		 */
-		@EnumAlias({ "false", "default" })
+		@EnumAlias("false")
 		NONE {
 			@Override
 			public LogFormatter formatter() {
@@ -277,47 +276,85 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
-		 * <a href="https://brandur.org/logfmt">logfmt</a>:
-		 * <code>requestId=42 user="Ada Lovelace"</code>.
-		 */
-		@EnumAlias("true")
-		LOGFMT {
-			@Override
-			public LogFormatter formatter() {
-				return LogFormatter.builder().logfmtKeyValues().build();
-			}
-		},
-		/**
 		 * Percent encoded like a URI query:
-		 * <code>requestId=42&amp;user=Ada%20Lovelace</code>.
+		 * <code>requestId=42&amp;user=Ada%20Lovelace</code>. The default.
 		 */
+		@EnumAlias({ "true", "default" })
 		PERCENT {
 			@Override
 			public LogFormatter formatter() {
-				return LogFormatter.builder().encodedKeyValues().build();
+				return new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.PERCENT).build();
 			}
 		},
 		/**
-		 * Logback's <code>%X</code> style: <code>requestId=42, user=Ada Lovelace</code>.
+		 * JSON: <code>{"requestId":"42","user":"Ada Lovelace"}</code>. Null values are
+		 * written as {@code null}.
 		 */
-		LOGBACK {
+		JSON {
 			@Override
 			public LogFormatter formatter() {
-				return LogFormatter.builder().keyValues().build();
+				return new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.JSON).buildUnbraced();
+			}
+		},
+		/**
+		 * JSON5, with valid identifier keys left unquoted:
+		 * <code>{requestId:"42",user:"Ada Lovelace"}</code>. Null values are written as
+		 * {@code null}.
+		 */
+		JSON5 {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.JSON5).buildUnbraced();
 			}
 		};
 
 		/**
-		 * The formatter for this choice.
+		 * The formatter for this choice, without the enclosing braces supplied by TTLL.
 		 * @return formatter.
 		 */
 		public abstract LogFormatter formatter();
 
 		static KeyValuesFormat parse(String value) {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
-				case "true" -> LOGFMT;
-				case "false", "default" -> NONE;
+				case "true", "default" -> PERCENT;
+				case "false" -> NONE;
 				default -> io.jstach.rainbowgum.LogProperty.enumValue(KeyValuesFormat.class, value, "true", "false",
+						"default");
+			};
+		}
+
+	}
+
+	/**
+	 * Whether the key values braces are written when an event has no key values.
+	 */
+	@CaseChanging
+	enum KeyValuesWhenEmpty {
+
+		/**
+		 * Left out for percent encoding and JSON5; <code>{}</code> for JSON, since
+		 * whatever reads JSON key values expects an object on every line. The default.
+		 */
+		@EnumAlias("default")
+		AUTO,
+		/**
+		 * Left out. Not allowed with {@link KeyValuesFormat#JSON}, whose readers expect
+		 * an object on every line.
+		 */
+		@EnumAlias("false")
+		OMIT,
+		/**
+		 * Always written, <code>{}</code> when there are no key values.
+		 */
+		@EnumAlias("true")
+		SHOW;
+
+		static KeyValuesWhenEmpty parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "default" -> AUTO;
+				case "false" -> OMIT;
+				case "true" -> SHOW;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(KeyValuesWhenEmpty.class, value, "true", "false",
 						"default");
 			};
 		}

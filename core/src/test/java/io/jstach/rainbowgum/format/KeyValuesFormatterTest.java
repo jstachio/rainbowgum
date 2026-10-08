@@ -52,7 +52,7 @@ class KeyValuesFormatterTest {
 		kvs.putKeyValue("null", null);
 		assertEquals("""
 				{"number":"42","boolean":"true","textNull":"null","nested":"{\\\"x\\\":1}","empty":"","null":null}""",
-				log(new KeyValuesFormatterBuilder().build(), kvs));
+				log(new KeyValuesFormatterBuilder().format(Format.JSON).build(), kvs));
 	}
 
 	static Stream<Arguments> identifiers() {
@@ -79,7 +79,7 @@ class KeyValuesFormatterTest {
 	}
 
 	@ParameterizedTest
-	@EnumSource(Format.class)
+	@EnumSource(value = Format.class, names = { "JSON", "JSON5" })
 	void quotesAndBackslashesAreEscapedInKeysAndValues(Format format) {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("say\"hi\\", "a\"b\\c/d");
@@ -88,7 +88,7 @@ class KeyValuesFormatterTest {
 	}
 
 	@ParameterizedTest
-	@EnumSource(Format.class)
+	@EnumSource(value = Format.class, names = { "JSON", "JSON5" })
 	void allControlCharactersStayOnOneLine(Format format) {
 		var controls = new StringBuilder();
 		for (char c = 0; c < 32; c++) {
@@ -104,7 +104,7 @@ class KeyValuesFormatterTest {
 	}
 
 	@ParameterizedTest
-	@EnumSource(Format.class)
+	@EnumSource(value = Format.class, names = { "JSON", "JSON5" })
 	void unicodeSurvivesEncodingAndInvalidSurrogatesAreEscaped(Format format) {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("text", "café 用户 😀\u2028\u2029\ud800x\udc00");
@@ -128,7 +128,8 @@ class KeyValuesFormatterTest {
 			case EMPTY -> "{\"first\":\"\",\"user\":\"ada\",\"middle\":\"\",\"empty\":\"\",\"last\":\"\"}";
 			case SKIP -> "{\"user\":\"ada\",\"empty\":\"\"}";
 		};
-		assertEquals(expected, log(new KeyValuesFormatterBuilder().nullStrategy(strategy).build(), kvs));
+		assertEquals(expected,
+				log(new KeyValuesFormatterBuilder().format(Format.JSON).nullStrategy(strategy).build(), kvs));
 	}
 
 	@ParameterizedTest
@@ -152,7 +153,7 @@ class KeyValuesFormatterTest {
 	}
 
 	@ParameterizedTest
-	@EnumSource(Format.class)
+	@EnumSource(value = Format.class, names = { "JSON", "JSON5" })
 	void emptyAndFullySkippedSelectionsStillProduceAnObject(Format format) {
 		var builder = new KeyValuesFormatterBuilder().format(format);
 		assertEquals("{}", log(builder.build(), KeyValues.of()));
@@ -168,7 +169,7 @@ class KeyValuesFormatterTest {
 	@Test
 	void selectionAndBuiltFormattersAreIndependentOfLaterChanges() {
 		var keys = new ArrayList<>(List.of("missing", "user"));
-		var builder = new KeyValuesFormatterBuilder().keys(keys);
+		var builder = new KeyValuesFormatterBuilder().format(Format.JSON).keys(keys);
 		keys.clear();
 		var formatter = builder.build();
 		builder.allKeys().format(Format.JSON5).nullStrategy(KeyValueNullStrategy.SKIP);
@@ -193,6 +194,98 @@ class KeyValuesFormatterTest {
 		var output = new StringBuilder("prefix: ");
 		formatter.format(output, event(kvs));
 		assertEquals("prefix: hello {requestId:\"42\"}\n", output.toString());
+	}
+
+	private static String format(LogFormatter formatter, KeyValues keyValues) {
+		var sb = new StringBuilder();
+		formatter.format(sb, event(keyValues));
+		return sb.toString();
+	}
+
+	private static KeyValuesFormatterBuilder logfmt() {
+		return new KeyValuesFormatterBuilder().format(Format.LOGFMT);
+	}
+
+	@Test
+	void logfmtWritesAllKeysQuotingOnlyWhenNeeded() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		kvs.putKeyValue("user", "Ada Lovelace");
+		kvs.putKeyValue("missing", null);
+		kvs.putKeyValue("empty", "");
+		kvs.putKeyValue("path", "C:\\temp");
+		kvs.putKeyValue("bad key", "x");
+		kvs.putKeyValue("say\"hi\\", "y");
+		assertEquals("requestId=42 user=\"Ada Lovelace\" missing= empty=\"\" path=\"C:\\\\temp\" bad_key=x say_hi_=y",
+				format(logfmt().build(), kvs));
+	}
+
+	@Test
+	void logfmtWritesNothingWithoutKeyValuesAndHasNoBraces() {
+		assertEquals("", format(logfmt().build(), KeyValues.of()));
+	}
+
+	@ParameterizedTest
+	@org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = { "KEEP|user=ada missing= empty=\"\"",
+			"EMPTY|user=ada missing=\"\" empty=\"\"", "SKIP|user=ada empty=\"\"" })
+	void logfmtSelectedKeysUseTheNullStrategy(KeyValueNullStrategy strategy, String expected) {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("empty", "");
+		kvs.putKeyValue("user", "ada");
+		kvs.putKeyValue("ignored", "x");
+		assertEquals(expected,
+				format(logfmt().keys(List.of("user", "missing", "empty")).nullStrategy(strategy).build(), kvs));
+	}
+
+	@Test
+	void percentEncodingIsTheDefaultAndDecodesBackExactly() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		kvs.putKeyValue("user", "Ada Lovelace");
+		kvs.putKeyValue("a=b&c", "x\ny\u7530");
+		kvs.putKeyValue("missing", null);
+		kvs.putKeyValue("empty", "");
+		String written = format(new KeyValuesFormatterBuilder().build(), kvs);
+		assertEquals("requestId=42&user=Ada%20Lovelace&a%3Db%26c=x%0Ay%E7%94%B0&missing&empty=", written);
+		var decoded = new java.util.ArrayList<String>();
+		var pairs = new java.util.ArrayList<String>();
+		for (int start = 0;;) {
+			int amp = written.indexOf('&', start);
+			pairs.add(written.substring(start, amp < 0 ? written.length() : amp));
+			if (amp < 0) {
+				break;
+			}
+			start = amp + 1;
+		}
+		for (String pair : pairs) {
+			int eq = pair.indexOf('=');
+			String key = io.jstach.rainbowgum.PercentCodec.decode(eq < 0 ? pair : pair.substring(0, eq),
+					java.nio.charset.StandardCharsets.UTF_8);
+			String value = eq < 0 ? null : io.jstach.rainbowgum.PercentCodec.decode(pair.substring(eq + 1),
+					java.nio.charset.StandardCharsets.UTF_8);
+			decoded.add(key + "->" + value);
+		}
+		assertEquals(List.of("requestId->42", "user->Ada Lovelace", "a=b&c->x\ny\u7530", "missing->null", "empty->"),
+				decoded);
+	}
+
+	@ParameterizedTest
+	@org.junit.jupiter.params.provider.CsvSource(delimiter = '|',
+			value = { "KEEP|user=ada&missing&empty=", "EMPTY|user=ada&missing=&empty=", "SKIP|user=ada&empty=" })
+	void percentSelectedKeysUseTheNullStrategy(KeyValueNullStrategy strategy, String expected) {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("empty", "");
+		kvs.putKeyValue("user", "ada");
+		kvs.putKeyValue("ignored", "x");
+		assertEquals(expected,
+				format(new KeyValuesFormatterBuilder().keys(List.of("user", "missing", "empty"))
+					.nullStrategy(strategy)
+					.build(), kvs));
+	}
+
+	@Test
+	void percentWritesNothingWithoutKeyValues() {
+		assertEquals("", format(new KeyValuesFormatterBuilder().build(), KeyValues.of()));
 	}
 
 }

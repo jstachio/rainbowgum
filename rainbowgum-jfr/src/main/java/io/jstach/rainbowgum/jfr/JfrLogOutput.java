@@ -13,6 +13,7 @@ import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
@@ -68,14 +69,14 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 	private static final URI JFR_URI = URI.create(JFR_SCHEME + ":///");
 
 	/**
-	 * Renders the message followed by any key values, e.g. {@code some message -
-	 * {key=value}}. Shared with {@link JfrAlertListener}, which renders alerts the same
-	 * way.
+	 * Renders the message followed by any key values in logfmt, e.g. {@code some message
+	 * - {key=value other="a b"}}. Shared with {@link JfrAlertListener}, which renders
+	 * alerts the same way.
 	 */
 	static final LogFormatter MESSAGE_FORMATTER = LogFormatter.builder()
 		.message()
 		.text(" - {")
-		.keyValues()
+		.add(new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.LOGFMT).build())
 		.text("}")
 		.build();
 

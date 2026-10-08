@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,6 +30,7 @@ import io.jstach.rainbowgum.LogFormatter.EventFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
+import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder;
 
 /**
  * Formats a log event using a {@link StringBuilder}. <strong>All formatters should be
@@ -158,13 +160,10 @@ public sealed interface LogFormatter {
 	}
 
 	/**
-	 * Controls how a <code>null</code> key value is handled by formatters that print a
-	 * <strong>selected</strong> subset of keys (e.g.
-	 * {@link Builder#encodedKeyValues(List, KeyValueNullStrategy)}), as opposed to
-	 * formatters that print whatever the underlying {@link KeyValues} actually contains
-	 * (e.g. {@link Builder#encodedKeyValues()}), which always {@link #KEEP} the
-	 * <code>null</code>/empty-string distinction since they have no "selection" step to
-	 * apply a strategy to.
+	 * Controls how a <code>null</code> key value is written by key values formatters, see
+	 * {@link io.jstach.rainbowgum.format.KeyValuesFormatterBuilder#nullStrategy(KeyValueNullStrategy)}.
+	 * The examples below are the default percent encoding; other formats write the same
+	 * choices in their own syntax.
 	 * <p>
 	 * A selected key is treated identically whether it is missing from the
 	 * {@link KeyValues} entirely or present but mapped to <code>null</code> -
@@ -189,11 +188,9 @@ public sealed interface LogFormatter {
 		/**
 		 * The <code>null</code>/empty-string distinction is preserved: a
 		 * <code>null</code> value prints just the key with no <code>=</code>, while an
-		 * empty string prints <code>key=</code>. This is the same behavior as
-		 * {@link Builder#encodedKeyValues()} and is the default for
-		 * {@link Builder#encodedKeyValues(List)} - most key values (e.g. MDC) are never
-		 * actually mapped to <code>null</code> in practice, so {@link #SKIP} and
-		 * {@link #KEEP} behave identically until they are.
+		 * empty string prints <code>key=</code>. The default; most key values (e.g. MDC)
+		 * are never actually mapped to <code>null</code> in practice, so {@link #SKIP}
+		 * and {@link #KEEP} behave identically until they are.
 		 */
 		KEEP;
 
@@ -294,38 +291,6 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Creates a formatter that will print <strong>ALL</strong> of the key values the
-		 * same way Logback's <code>%X</code>/<code>%mdc</code> does: comma-space
-		 * separated <code>key=value</code> pairs with no surrounding braces (unlike
-		 * Log4j2, which wraps the same pairs in <code>{}</code>), and no percent
-		 * encoding. An empty map renders as an empty string. Keys that are mapped to
-		 * <code>null</code> will only have the key printed and no separating equal sign
-		 * (<code>=</code>), to differentiate empty string and <code>null</code>. For the
-		 * percent-encoded RFC 3986 URI query style instead, see
-		 * {@link #encodedKeyValues()}.
-		 * @return formatter.
-		 */
-		public Builder keyValues() {
-			return add(LogbackKeyValuesFormatter.INSTANCE);
-		}
-
-		/**
-		 * Creates a formatter that will print the key values in order of the passed in
-		 * keys if they exist, Logback <code>%X</code> style (see {@link #keyValues()} for
-		 * the exact format). <strong>An empty list is considered a noop and no keys will
-		 * be ommitted!</strong> If you want all keys use {@link #keyValues()}. For the
-		 * percent-encoded style instead, see {@link #encodedKeyValues(List)}.
-		 * @param keys keys where order is important.
-		 * @return this.
-		 */
-		public Builder keyValues(List<String> keys) {
-			if (keys.isEmpty()) {
-				return this;
-			}
-			return add(new LogbackListKeyValuesFormatter(keys));
-		}
-
-		/**
 		 * Creates a formatter that will print a single key's value, Logback/Log4j2
 		 * <code>%X{key}</code> style: just the raw value (or the fallback, or an empty
 		 * string if neither is present) - no key prefix, no percent encoding. For the
@@ -340,102 +305,34 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Creates a formatter that will print <strong>ALL</strong> of the key values by
-		 * percent encoding (RFC 3986 URI aka the format usually used in
-		 * {@link URI#getQuery()}). Keys that are mapped to <code>null</code> will only
-		 * have the key printed and no separating equal sign (<code>=</code>). This is to
-		 * differentiate empty string and <code>null</code> - the same behavior as
-		 * {@link KeyValueNullStrategy#KEEP}. For Logback's <code>%X</code> style instead,
-		 * see {@link #keyValues()}.
-		 * @return formatter.
+		 * Adds all of the event's key values in the default key values format, percent
+		 * encoded like a URI query: <code>requestId=42&amp;user=Ada%20Lovelace</code>. A
+		 * key mapped to <code>null</code> is written alone, without <code>=</code>. This
+		 * is {@link io.jstach.rainbowgum.format.KeyValuesFormatterBuilder} with its
+		 * defaults; use {@link #keyValues(Consumer)} for another format, a selection of
+		 * keys, or other null handling.
+		 * @return this.
 		 */
-		public Builder encodedKeyValues() {
-			return add(PercentEncodingKeyValuesFormatter.INSTANCE);
+		public Builder keyValues() {
+			return add(new KeyValuesFormatterBuilder().build());
 		}
 
 		/**
-		 * Creates a formatter that will print <strong>ALL</strong> of the key values as
-		 * <a href="https://brandur.org/logfmt">logfmt</a>: space separated
-		 * <code>key=value</code> pairs, quoted and escaped only when needed, for example
-		 * <code>requestId=42 user="Ada Lovelace"</code>. Keys mapped to <code>null</code>
-		 * are written as <code>key=</code>, distinct from an empty string
-		 * (<code>key=""</code>).
+		 * Adds the event's key values as configured on a
+		 * {@link io.jstach.rainbowgum.format.KeyValuesFormatterBuilder}, which sets the
+		 * format (percent encoding by default, JSON, JSON5, or logfmt), the keys, and the
+		 * null handling, for example:
+		 * {@snippet :
+		 * LogFormatter.builder()
+		 * 	.keyValues(kv -> kv.format(KeyValuesFormatterBuilder.Format.LOGFMT).keys(List.of("requestId", "user")));
+		 * }
+		 * @param consumer configures the key values formatter.
 		 * @return this.
 		 */
-		public Builder logfmtKeyValues() {
-			return add(LogfmtFormatter.keyValues());
-		}
-
-		/**
-		 * Creates a formatter that will print the given keys, in order, as logfmt,
-		 * preserving the <code>null</code>/empty-string distinction
-		 * ({@link KeyValueNullStrategy#KEEP}): a key whose value is <code>null</code> or
-		 * absent is written as <code>key=</code>. <strong>An empty {@code keys} list is a
-		 * noop.</strong> If you want all keys use {@link #logfmtKeyValues()}.
-		 * @param keys keys where order is important.
-		 * @return this.
-		 * @see #logfmtKeyValues(List, KeyValueNullStrategy)
-		 */
-		public Builder logfmtKeyValues(List<String> keys) {
-			return logfmtKeyValues(keys, KeyValueNullStrategy.KEEP);
-		}
-
-		/**
-		 * Creates a formatter that will print the given keys, in order, as logfmt,
-		 * handling a key whose value is <code>null</code> or absent according to
-		 * <code>nullStrategy</code>: {@link KeyValueNullStrategy#KEEP} writes
-		 * <code>key=</code>, {@link KeyValueNullStrategy#EMPTY} writes
-		 * <code>key=""</code>, and {@link KeyValueNullStrategy#SKIP} leaves the key out.
-		 * <strong>An empty {@code keys} list is a noop.</strong>
-		 * @param keys keys where order is important.
-		 * @param nullStrategy how to handle a key whose value is <code>null</code> or
-		 * absent.
-		 * @return this.
-		 */
-		public Builder logfmtKeyValues(List<String> keys, KeyValueNullStrategy nullStrategy) {
-			if (keys.isEmpty()) {
-				return this;
-			}
-			return add(LogfmtFormatter.keyValues(keys, nullStrategy));
-		}
-
-		/**
-		 * Creates a formatter that will print the key values in order of the passed in
-		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
-		 * used in {@link URI#getQuery()}), preserving the <code>null</code>/empty-string
-		 * distinction for a key whose value is <code>null</code>
-		 * ({@link KeyValueNullStrategy#KEEP} - most key values, e.g. MDC, are never
-		 * actually mapped to <code>null</code> in practice, so this only matters if yours
-		 * are). <strong>An empty {@code keys} list is a noop - no formatter is added at
-		 * all.</strong> If you want all keys use {@link #encodedKeyValues()}. For
-		 * Logback's <code>%X</code> style instead, see {@link #keyValues(List)}.
-		 * @param keys keys where order is important.
-		 * @return this.
-		 * @see #encodedKeyValues(List, KeyValueNullStrategy)
-		 */
-		public Builder encodedKeyValues(List<String> keys) {
-			return encodedKeyValues(keys, KeyValueNullStrategy.KEEP);
-		}
-
-		/**
-		 * Creates a formatter that will print the key values in order of the passed in
-		 * keys if they exist in percent encoding (RFC 3986 URI aka the format usually
-		 * used in {@link URI#getQuery()}), handling keys whose value is <code>null</code>
-		 * (or simply absent - the two are indistinguishable, see
-		 * {@link KeyValueNullStrategy}) according to <code>nullStrategy</code>.
-		 * <strong>An empty {@code keys} list is a noop - no formatter is added at
-		 * all.</strong> If you want all keys use {@link #encodedKeyValues()}. For
-		 * Logback's <code>%X</code> style instead, see {@link #keyValues(List)}.
-		 * @param keys keys where order is important.
-		 * @param nullStrategy how to handle a key whose value is <code>null</code> or
-		 * absent.
-		 * @return this.
-		 */
-		public Builder encodedKeyValues(List<String> keys, KeyValueNullStrategy nullStrategy) {
-			if (keys.isEmpty()) {
-				return this;
-			}
-			return add(new SelectedEncodedKeyValuesFormatter(keys, nullStrategy));
+		public Builder keyValues(Consumer<KeyValuesFormatterBuilder> consumer) {
+			var builder = new KeyValuesFormatterBuilder();
+			consumer.accept(builder);
+			return add(builder.build());
 		}
 
 		/**
@@ -1567,81 +1464,6 @@ final class PackagingDataResolver {
 
 }
 
-enum PercentEncodingKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<StringBuilder> {
-
-	INSTANCE;
-
-	@Override
-	public void format(StringBuilder output, LogEvent event) {
-		var keyValues = event.keyValues();
-		keyValues.forEach(this, 0, output);
-	}
-
-	static void formatKeyValue(StringBuilder output, String k, @Nullable String v) {
-		PercentCodec.encode(output, k, StandardCharsets.UTF_8);
-		if (v != null) {
-			output.append("=");
-			PercentCodec.encode(output, v, StandardCharsets.UTF_8);
-		}
-	}
-
-	@Override
-	public int accept(KeyValues values, String key, @Nullable String value, int index, StringBuilder storage) {
-		if (index > 0) {
-			storage.append("&");
-		}
-		formatKeyValue(storage, key, value);
-		return index + 1;
-	}
-
-}
-
-final class SelectedEncodedKeyValuesFormatter implements LogFormatter {
-
-	private final String[] keys;
-
-	private final KeyValueNullStrategy nullStrategy;
-
-	@SuppressWarnings("nullness")
-	SelectedEncodedKeyValuesFormatter(List<String> keys, KeyValueNullStrategy nullStrategy) {
-		var ks = List.copyOf(keys);
-		this.keys = ks.toArray(new String[] {});
-		this.nullStrategy = nullStrategy;
-	}
-
-	@Override
-	public void format(StringBuilder output, LogEvent event) {
-		var kvs = event.keyValues();
-		formatKeyValues(output, kvs);
-	}
-
-	void formatKeyValues(StringBuilder output, KeyValues keyValues) {
-		boolean first = true;
-		for (String k : keys) {
-			@Nullable String v = keyValues.getValueOrNull(k);
-			if (v == null) {
-				switch (nullStrategy) {
-					case SKIP -> {
-						continue;
-					}
-					case EMPTY -> v = "";
-					case KEEP -> {
-						/* leave v null - formatKeyValue will print the key only. */
-					}
-				}
-			}
-			if (first) {
-				first = false;
-			}
-			else {
-				output.append("&");
-			}
-			PercentEncodingKeyValuesFormatter.formatKeyValue(output, k, v);
-		}
-	}
-
-}
-
 record SingleKeyValueFormatter(String key, @Nullable String fallback) implements LogFormatter {
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
@@ -1654,73 +1476,10 @@ record SingleKeyValueFormatter(String key, @Nullable String fallback) implements
 		if (v == null) {
 			v = fallback;
 		}
-		PercentEncodingKeyValuesFormatter.formatKeyValue(output, key, v);
-	}
-
-}
-
-/**
- * Logback <code>%X</code> style: comma-space separated <code>key=value</code> pairs, no
- * surrounding braces, no percent encoding. See {@link LogFormatter.Builder#keyValues()}.
- */
-enum LogbackKeyValuesFormatter implements LogFormatter, KeyValuesConsumer<StringBuilder> {
-
-	INSTANCE;
-
-	@Override
-	public void format(StringBuilder output, LogEvent event) {
-		var keyValues = event.keyValues();
-		keyValues.forEach(this, 0, output);
-	}
-
-	static void formatKeyValue(StringBuilder output, String k, @Nullable String v) {
-		output.append(k);
+		PercentCodec.encode(output, key, StandardCharsets.UTF_8);
 		if (v != null) {
-			output.append("=").append(v);
-		}
-	}
-
-	@Override
-	public int accept(KeyValues values, String key, @Nullable String value, int index, StringBuilder storage) {
-		if (index > 0) {
-			storage.append(", ");
-		}
-		formatKeyValue(storage, key, value);
-		return index + 1;
-	}
-
-}
-
-final class LogbackListKeyValuesFormatter implements LogFormatter {
-
-	private final String[] keys;
-
-	@SuppressWarnings("nullness")
-	LogbackListKeyValuesFormatter(List<String> keys) {
-		var ks = List.copyOf(keys);
-		this.keys = ks.toArray(new String[] {});
-	}
-
-	@Override
-	public void format(StringBuilder output, LogEvent event) {
-		var kvs = event.keyValues();
-		formatKeyValues(output, kvs);
-	}
-
-	void formatKeyValues(StringBuilder output, KeyValues keyValues) {
-		boolean first = true;
-		for (String k : keys) {
-			String v = keyValues.getValueOrNull(k);
-			if (v == null) {
-				continue;
-			}
-			if (first) {
-				first = false;
-			}
-			else {
-				output.append(", ");
-			}
-			LogbackKeyValuesFormatter.formatKeyValue(output, k, v);
+			output.append('=');
+			PercentCodec.encode(output, v, StandardCharsets.UTF_8);
 		}
 	}
 

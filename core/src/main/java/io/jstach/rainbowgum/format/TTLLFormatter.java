@@ -30,7 +30,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 
 	static final LogFormatter DEFAULT_LOGGER = TTLL.LoggerFormat.FULL.formatter();
 
-	static final LogFormatter DEFAULT_KEY_VALUES = TTLL.KeyValuesFormat.NONE.formatter();
+	static final LogFormatter DEFAULT_KEY_VALUES = TTLL.KeyValuesFormat.PERCENT.formatter();
 
 	private final LogFormatter formatter;
 
@@ -49,11 +49,12 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	 * followed by any stack trace. Parts set to none are left out along with their
 	 * separating space. As properties of the encoder, each part is one of the lowercase
 	 * names of its {@link TTLL} enum, for example
-	 * <code>logging.encoder.console.keyValues=logfmt</code>; keyValues also accepts
-	 * <code>true</code> (logfmt) and <code>false</code> (none). The timestamp property
-	 * also accepts a DateTimeFormatter pattern in UTC. The color property decides whether
-	 * to color and the theme property which colors; when neither is set the rainbowgum
-	 * theme is used if the console supports ANSI.
+	 * <code>logging.encoder.console.keyValues=json5</code>; keyValues accepts
+	 * <code>json</code> and <code>json5</code> as well as <code>true</code> (logfmt) and
+	 * <code>false</code> (none). The timestamp property also accepts a DateTimeFormatter
+	 * pattern in UTC. The color property decides whether to color and the theme property
+	 * which colors; when neither is set the rainbowgum theme is used if the console
+	 * supports ANSI.
 	 * @param name encoder name, used for property lookup.
 	 * @param timestamp time formatter, see {@link TTLL.TimestampFormat}.
 	 * @param thread thread formatter in square brackets, see {@link TTLL.ThreadFormat}.
@@ -62,6 +63,8 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	 * @param keyValues key values formatter in braces, see {@link TTLL.KeyValuesFormat}.
 	 * @param color whether to color, see {@link TTLL.ColorMode}.
 	 * @param theme ANSI color theme, see {@link TTLL.ColorTheme}.
+	 * @param keyValuesWhenEmpty braces for no key values, see
+	 * {@link TTLL.KeyValuesWhenEmpty}.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "TTLLFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
@@ -72,7 +75,8 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 			@LogConfigurable.DefaultParameter("DEFAULT_LOGGER") @LogConfigurable.ConvertParameter("convertLogger") LogFormatter logger,
 			@LogConfigurable.DefaultParameter("DEFAULT_KEY_VALUES") @LogConfigurable.ConvertParameter("convertKeyValues") LogFormatter keyValues,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
-			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme) {
+			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
+			@LogConfigurable.ConvertParameter("convertKeyValuesWhenEmpty") TTLL.@Nullable KeyValuesWhenEmpty keyValuesWhenEmpty) {
 		var mode = color == null ? TTLL.ColorMode.DEFAULT : color;
 		var palette = Palette.of(mode, theme, AnsiSupport::isAnsiSupported);
 		var b = LogFormatter.builder();
@@ -85,15 +89,24 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 		empty = part(b, palette.level(level), empty);
 		empty = part(b, palette.color(palette.logger(), logger), empty);
 		if (!keyValues.isNoop()) {
-			b.add(palette.keyValues(keyValues));
+			boolean json = keyValues instanceof JsonKeyValuesFormatter j
+					&& j.syntax() == KeyValuesFormatterBuilder.Format.JSON;
+			var whenEmpty = keyValuesWhenEmpty == null ? TTLL.KeyValuesWhenEmpty.AUTO : keyValuesWhenEmpty;
+			if (json && whenEmpty == TTLL.KeyValuesWhenEmpty.OMIT) {
+				throw new IllegalArgumentException("keyValuesWhenEmpty=omit cannot be used with keyValues=json, "
+						+ "since JSON readers expect an object on every line. Use keyValues=json5 or keyValues=percent, "
+						+ "or keyValuesWhenEmpty=auto or show.");
+			}
+			boolean writeEmpty = whenEmpty == TTLL.KeyValuesWhenEmpty.SHOW
+					|| (whenEmpty == TTLL.KeyValuesWhenEmpty.AUTO && json);
+			/*
+			 * Key values can write nothing, so they carry their own leading space rather
+			 * than being a part, and the " - " below only follows text actually written.
+			 */
+			b.add(palette.keyValues(keyValues, writeEmpty, !empty));
 		}
-		if (!empty) {
-			b.text(" - ");
-		}
-		b.message();
-		b.newline();
-		b.throwable();
-		return new TTLLFormatter(b.build(), describe(mode, theme, palette));
+		var line = LogFormatter.builder().add(new LinePrefixFormatter(b.build())).message().newline().throwable();
+		return new TTLLFormatter(line.build(), describe(mode, theme, palette));
 	}
 
 	/*
@@ -157,6 +170,10 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 		return TTLL.ColorMode.parse(value);
 	}
 
+	static TTLL.KeyValuesWhenEmpty convertKeyValuesWhenEmpty(String value) {
+		return TTLL.KeyValuesWhenEmpty.parse(value);
+	}
+
 	static TTLL.ColorTheme convertTheme(String value) {
 		return TTLL.ColorTheme.parse(value);
 	}
@@ -188,14 +205,42 @@ enum ShortLoggerNameFormatter implements LogFormatter.EventFormatter {
 }
 
 /*
- * Writes " {" key values "}" but leaves the braces out entirely when the key values
- * formatter writes nothing, for example an event without key values.
+ * Everything before the message, followed by " - " only if it wrote something.
  */
-record BracedKeyValuesFormatter(LogFormatter keyValuesFormatter, String open,
-		String close) implements LogFormatter.EventFormatter {
+record LinePrefixFormatter(LogFormatter prefix) implements LogFormatter.EventFormatter {
 
-	BracedKeyValuesFormatter(LogFormatter keyValuesFormatter) {
-		this(keyValuesFormatter, " {", "}");
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		int start = output.length();
+		prefix.format(output, event);
+		if (output.length() > start) {
+			output.append(" - ");
+		}
+	}
+
+}
+
+/*
+ * Writes key values between an open and close text, and when there are none writes the
+ * empty braces or leaves them out; the standard event formatter always leaves them out,
+ * with their leading space.
+ */
+record BracedKeyValuesFormatter(LogFormatter keyValuesFormatter, String open, String close,
+		boolean writeEmpty) implements LogFormatter.EventFormatter {
+
+	/*
+	 * TTLL: "{...}", with a leading space when it follows another part.
+	 */
+	static BracedKeyValuesFormatter ofTTLL(LogFormatter keyValuesFormatter, String open, String close,
+			boolean writeEmpty) {
+		return new BracedKeyValuesFormatter(keyValuesFormatter, open, close, writeEmpty);
+	}
+
+	/*
+	 * Standard event formatter: " {...}", left out entirely when there are no key values.
+	 */
+	static BracedKeyValuesFormatter ofStandard(LogFormatter keyValuesFormatter) {
+		return new BracedKeyValuesFormatter(keyValuesFormatter, " {", "}", false);
 	}
 
 	@Override
@@ -203,7 +248,7 @@ record BracedKeyValuesFormatter(LogFormatter keyValuesFormatter, String open,
 		int start = output.length();
 		output.append(open);
 		keyValuesFormatter.format(output, event);
-		if (output.length() == start + open.length()) {
+		if (!writeEmpty && output.length() == start + open.length()) {
 			output.setLength(start);
 		}
 		else {
@@ -316,11 +361,13 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 		return new LevelColorFormatter(level, this);
 	}
 
-	LogFormatter keyValues(LogFormatter keyValues) {
+	LogFormatter keyValues(LogFormatter keyValues, boolean writeEmpty, boolean afterPart) {
+		String space = afterPart ? " " : "";
 		if (keyValues().isEmpty()) {
-			return new BracedKeyValuesFormatter(keyValues);
+			return BracedKeyValuesFormatter.ofTTLL(keyValues, space + "{", "}", writeEmpty);
 		}
-		return new BracedKeyValuesFormatter(keyValues, " " + Ansi.start(keyValues()) + "{", "}" + Ansi.RESET);
+		return BracedKeyValuesFormatter.ofTTLL(keyValues, space + Ansi.start(keyValues()) + "{", "}" + Ansi.RESET,
+				writeEmpty);
 	}
 
 	String levelCode(java.lang.System.Logger.Level level) {

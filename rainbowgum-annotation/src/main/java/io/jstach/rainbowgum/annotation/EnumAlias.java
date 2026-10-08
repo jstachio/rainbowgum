@@ -16,8 +16,8 @@ import java.lang.annotation.Target;
  * looking them up:
  * <ul>
  * <li><code>true</code> turns the thing on or shows it, usually in its default form; when
- * the default is off, <code>true</code> selects the usual on choice instead (TTLL key
- * values: <code>logfmt</code>).</li>
+ * the default is off, <code>true</code> selects the usual on choice instead (caller info:
+ * <code>basic</code>).</li>
  * <li><code>false</code> turns the thing off or hides it, selecting the constant named
  * <code>OFF</code> or <code>NONE</code>.</li>
  * <li><code>default</code> restores the default without naming it, so a later property
