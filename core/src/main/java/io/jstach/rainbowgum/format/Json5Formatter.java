@@ -24,10 +24,6 @@ import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder.Format;
  */
 final class Json5Formatter implements LogFormatter.EventFormatter {
 
-	static final Format DEFAULT_FORMAT = Format.JSON5;
-
-	static final KeyValuesPlacement DEFAULT_KEY_VALUES = KeyValuesPlacement.MERGED;
-
 	static final String KEY_VALUES_FIELD = "keyValues";
 
 	/*
@@ -79,8 +75,10 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 */
 	@LogConfigurable(name = "Json5FormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
-			@LogConfigurable.DefaultParameter("DEFAULT_FORMAT") @LogConfigurable.ConvertParameter("convertFormat") Format format,
-			@LogConfigurable.DefaultParameter("DEFAULT_KEY_VALUES") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues) {
+			@LogConfigurable.DefaultParameter(
+					constant = "JSON5") @LogConfigurable.ConvertParameter("convertFormat") Format format,
+			@LogConfigurable.DefaultParameter(
+					constant = "MERGED") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues) {
 		return switch (format) {
 			case JSON -> new Json5Formatter(false, keyValues);
 			case JSON5 -> new Json5Formatter(true, keyValues);
