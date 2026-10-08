@@ -22,14 +22,19 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  */
 final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogReporter.Reportable {
 
+	/** {@link io.jstach.rainbowgum.format.TTLL.TimestampFormat#TTLL ttll} */
 	static final LogFormatter DEFAULT_TIMESTAMP = TTLL.TimestampFormat.TTLL.formatter();
 
+	/** {@link io.jstach.rainbowgum.format.TTLL.ThreadFormat#NAME name} */
 	static final LogFormatter DEFAULT_THREAD = TTLL.ThreadFormat.NAME.formatter();
 
+	/** {@link io.jstach.rainbowgum.format.TTLL.LevelFormat#PADDED padded} */
 	static final LogFormatter DEFAULT_LEVEL = TTLL.LevelFormat.PADDED.formatter();
 
+	/** {@link io.jstach.rainbowgum.format.TTLL.LoggerFormat#FULL full} */
 	static final LogFormatter DEFAULT_LOGGER = TTLL.LoggerFormat.FULL.formatter();
 
+	/** {@link io.jstach.rainbowgum.format.TTLL.KeyValuesFormat#PERCENT percent} */
 	static final LogFormatter DEFAULT_KEY_VALUES = TTLL.KeyValuesFormat.PERCENT.formatter();
 
 	private final LogFormatter formatter;

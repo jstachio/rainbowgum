@@ -17,6 +17,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  */
 final class LogfmtFormatter implements LogFormatter.EventFormatter {
 
+	/** {@link io.jstach.rainbowgum.LogFormatter.LevelFormatter#of() level_formatter} */
 	static final LevelFormatter DEFAULT_LEVEL_FORMATTER = LevelFormatter.of();
 
 	/*

@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.apt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.io.File;
 import java.net.URI;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -20,8 +22,11 @@ import javax.tools.ToolProvider;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-class DefaultParameterConstantTest {
+class DefaultParameterTest {
 
 	@TempDir
 	Path out;
@@ -64,11 +69,62 @@ class DefaultParameterConstantTest {
 				+ "and constant (enum constant)."), result.errors());
 	}
 
+	static Stream<Arguments> defaultDocs() {
+		String uri = "static final java.net.URI DEFAULT_MODE = java.net.URI.create(\"x:y\");";
+		String integer = "static final int DEFAULT_MODE = 7;";
+		String uriParameter = "@LogConfigurable.DefaultParameter(\"DEFAULT_MODE\") java.net.URI mode";
+		String integerParameter = "@LogConfigurable.DefaultParameter(\"DEFAULT_MODE\") Integer mode";
+		return Stream.of( //
+				arguments("@LogConfigurable.DefaultDoc(\"10MB\") " + uri, uriParameter, "10MB"),
+				arguments("/** The {@code x:y} URI. */ " + uri, uriParameter, "The {@code x:y} URI."),
+				arguments("public " + uri, uriParameter, "{@link demo.Demo#DEFAULT_MODE }"),
+				arguments("/** Seven. */ " + integer, integerParameter, "{@value demo.Demo#DEFAULT_MODE }"),
+				arguments("@LogConfigurable.DefaultDoc(\"seven\") " + integer, integerParameter, "seven"));
+	}
+
+	@ParameterizedTest
+	@MethodSource("defaultDocs")
+	void defaultFieldDoc(String field, String parameter, String expectedDoc) throws Exception {
+		var result = compile(factory(field, parameter));
+		assertEquals(List.of(), result.errors());
+		String builder = Files.readString(out.resolve("demo/DemoBuilder.java"));
+		assertTrue(builder.contains("Default is " + expectedDoc + "."), builder);
+	}
+
+	static Stream<Arguments> undocumentedDefaults() {
+		String uri = "static final java.net.URI DEFAULT_MODE = java.net.URI.create(\"x:y\");";
+		return Stream.of( //
+				arguments(uri), //
+				arguments("/**\n * The x:y\n * URI.\n */ " + uri));
+	}
+
+	@ParameterizedTest
+	@MethodSource("undocumentedDefaults")
+	void undocumentedDefaultFieldFails(String field) throws Exception {
+		var result = compile(factory(field, "@LogConfigurable.DefaultParameter(\"DEFAULT_MODE\") java.net.URI mode"));
+		assertEquals(List.of("Default field demo.Demo.DEFAULT_MODE for parameter 'mode' is not public or a constant "
+				+ "so its value cannot be linked in the builder javadoc. Add @LogConfigurable.DefaultDoc or a one line "
+				+ "javadoc to the field, or use @DefaultParameter(constant = ...) for an enum parameter."),
+				result.errors());
+	}
+
+	@Test
+	void missingDefaultFieldFails() throws Exception {
+		var result = compile(factory("@LogConfigurable.DefaultParameter(\"DEFAULT_MISSING\") java.net.URI mode"));
+		assertEquals(List.of("@DefaultParameter on parameter 'mode' references static field 'DEFAULT_MISSING' "
+				+ "which does not exist on demo.Demo."), result.errors());
+	}
+
 	private static String factory(String parameter) {
+		return factory("", parameter);
+	}
+
+	private static String factory(String field, String parameter) {
 		return """
 				package demo;
 				import io.jstach.rainbowgum.annotation.LogConfigurable;
-				class Demo {
+				public class Demo {
+					%s
 					/**
 					 * Demo.
 					 * @param mode the mode.
@@ -82,7 +138,7 @@ class DefaultParameterConstantTest {
 						return Mode.valueOf(value);
 					}
 				}
-				""".formatted(parameter);
+				""".formatted(field, parameter);
 	}
 
 	record Result(List<String> errors) {

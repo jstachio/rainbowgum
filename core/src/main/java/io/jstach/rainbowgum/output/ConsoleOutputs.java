@@ -21,8 +21,6 @@ final class ConsoleOutputs {
 	private ConsoleOutputs() {
 	}
 
-	static final ConsoleStream DEFAULT_STREAM = ConsoleStream.CACHED;
-
 	static ConsoleStream parseStream(String value) {
 		return ConsoleStream.parse(value);
 	}
@@ -36,8 +34,8 @@ final class ConsoleOutputs {
 	 * @return output provider.
 	 */
 	@LogConfigurable(name = "StdOutOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
-	static LogProvider<LogOutput> stdout(@LogConfigurable.KeyParameter String name,
-			@LogConfigurable.DefaultParameter("DEFAULT_STREAM") @LogConfigurable.ConvertParameter("parseStream") ConsoleStream stream) {
+	static LogProvider<LogOutput> stdout(@LogConfigurable.KeyParameter String name, @LogConfigurable.DefaultParameter(
+			constant = "CACHED") @LogConfigurable.ConvertParameter("parseStream") ConsoleStream stream) {
 		return switch (stream) {
 			case CACHED -> (n, c) -> new StdOutOutput();
 			case FOLLOW -> (n, c) -> new FollowStdOutOutput();
@@ -53,8 +51,8 @@ final class ConsoleOutputs {
 	 * @return output provider.
 	 */
 	@LogConfigurable(name = "StdErrOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
-	static LogProvider<LogOutput> stderr(@LogConfigurable.KeyParameter String name,
-			@LogConfigurable.DefaultParameter("DEFAULT_STREAM") @LogConfigurable.ConvertParameter("parseStream") ConsoleStream stream) {
+	static LogProvider<LogOutput> stderr(@LogConfigurable.KeyParameter String name, @LogConfigurable.DefaultParameter(
+			constant = "CACHED") @LogConfigurable.ConvertParameter("parseStream") ConsoleStream stream) {
 		return switch (stream) {
 			case CACHED -> (n, c) -> new StdErrOutput();
 			case FOLLOW -> (n, c) -> new FollowStdErrOutput();

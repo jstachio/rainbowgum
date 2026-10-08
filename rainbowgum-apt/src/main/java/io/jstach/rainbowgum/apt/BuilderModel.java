@@ -92,6 +92,7 @@ record BuilderModel( //
 			String fieldType, //
 			ClassRef classRef, //
 			String defaultValue, //
+			@Nullable String defaultDoc, //
 			boolean required, //
 			String javadoc, //
 			@Nullable Converter converter) {
@@ -211,6 +212,9 @@ record BuilderModel( //
 		}
 
 		public String defaultValueDoc() {
+			if (defaultDoc != null) {
+				return defaultDoc;
+			}
 			if (defaultValue.equals("null")) {
 				return "<code>null</code>";
 			}
