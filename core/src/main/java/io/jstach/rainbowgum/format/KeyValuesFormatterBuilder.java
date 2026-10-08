@@ -213,7 +213,7 @@ record JsonKeyValuesFormatter(@Nullable List<String> keys, KeyValueNullStrategy 
 	}
 
 	/* JSON5 uses ECMAScript IdentifierName, not Java identifier rules. */
-	private static boolean isIdentifier(String key) {
+	static boolean isIdentifier(String key) {
 		if (key.isEmpty()) {
 			return false;
 		}
@@ -248,7 +248,26 @@ record JsonKeyValuesFormatter(@Nullable List<String> keys, KeyValueNullStrategy 
 		};
 	}
 
-	private static void appendString(StringBuilder output, String value) {
+	/*
+	 * Quotes and escapes, as a JSON string, the text from start to the end of the output.
+	 * Text needing no escapes, the common case, is only wrapped in quotes.
+	 */
+	static void quoteInPlace(StringBuilder output, int start) {
+		int end = output.length();
+		for (int i = start; i < end; i++) {
+			char c = output.charAt(i);
+			if (c == '"' || c == '\\' || c < 0x20 || c == '\u2028' || c == '\u2029' || Character.isSurrogate(c)) {
+				String raw = output.substring(start);
+				output.setLength(start);
+				appendString(output, raw);
+				return;
+			}
+		}
+		output.insert(start, '"');
+		output.append('"');
+	}
+
+	static void appendString(StringBuilder output, String value) {
 		output.append('"');
 		for (int i = 0; i < value.length(); i++) {
 			char c = value.charAt(i);
