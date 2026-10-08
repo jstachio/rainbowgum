@@ -917,13 +917,20 @@ logging.appenders=myappender
 logging.appender.myappender.encoder=logback
     }
 
-<h4 id="pattern_encoder">Pattern Encoder</h4>
 
-Pattern Encoder is a mostly compatible to logback format encoder that renders logs as text based on a pattern.
+<h2 id="formatters">Formatters</h2>
 
-See <a href="#pattern">Pattern Formatter</a> section and {@link io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder}
+Formatting of log events as textual data is so common that Rainbow Gum has special support for that with
+{@link io.jstach.rainbowgum.LogFormatter}. While formatters can at high-level be considered
+an encoder for technical API reasons they are not. However any formatter can be converted to an
+encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}.
 
-<h4 id="ttll">TTLL Encoder</h4>
+<p>
+
+<strong>Many of the following formatters are also encoders and can thus be
+referenced liked normal encoders using URIs</strong>
+
+<h3 id="ttll">TTLL Formatter</h3>
 
 TTLL (Time, Thread, Level, Logger) is the default text format and needs no extra module. By default each line also
 carries the event's key values (MDC and other context), percent encoded in braces after the logger name:
@@ -1008,7 +1015,7 @@ The same settings work as a URI query (<code>logging.appender.console.encoder=tt
 programmatically through {@link io.jstach.rainbowgum.format.TTLLFormatterBuilder}. See
 {@link io.jstach.rainbowgum.format.TTLL}.
 
-<h4 id="logfmt">logfmt Encoder</h4>
+<h3 id="logfmt">logfmt Formatter</h3>
 
 <a href="https://brandur.org/logfmt">logfmt</a> writes each event as one line of <code>key=value</code> pairs,
 the format of Go's <code>log/slog</code> text handler. It is readable in a terminal and parsed directly by Grafana
@@ -1028,9 +1035,9 @@ breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum
 <code>logging.encoder.myappender.levelFormatter=right_pad_level_formatter</code>.
 
 
-<h4 id="core_json">JSON Encoder</h4>
+<h3 id="core_json">JSON5 Formatter</h3>
 
-The <code>json</code> encoder writes each event as one line holding a JSON object, so an application that normally
+The <code>json</code> encoder writes each event as one line holding a JSON/JSON5 object, so an application that normally
 logs TTLL can switch to structured logging, for example while hunting a bug, by flipping one property and without
 adding a module:
 
@@ -1061,12 +1068,6 @@ fields, no pretty printing, and no particular schema. For production structured 
 that expects ECS, GELF, or Logstash fields, use that module's encoders instead. See
 {@link io.jstach.rainbowgum.format.JsonFormatterBuilder}.
 
-<h2 id="formatters">Formatters</h2>
-
-Formatting of log events as textual data is so common that Rainbow Gum has special support for that with
-{@link io.jstach.rainbowgum.LogFormatter}. While formatters can at high-level be considered
-an encoder for technical API reasons they are not. However any formatter can be converted to an
-encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}.
 
 <h3 id="json_key_values_formatter">JSON Key Values Formatter</h3>
 
