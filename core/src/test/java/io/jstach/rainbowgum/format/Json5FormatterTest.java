@@ -20,7 +20,7 @@ import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
-class JsonFormatterTest {
+class Json5FormatterTest {
 
 	static final Instant TIME = Instant.parse("2026-10-05T15:04:05.123Z");
 
@@ -59,24 +59,26 @@ class JsonFormatterTest {
 	@Test
 	void keyValuesAreMergedByDefault() {
 		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
-				format(new JsonFormatterBuilder("test").build(), event("hello world", requestKeyValues(), null)));
+				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build(),
+						event("hello world", requestKeyValues(), null)));
 	}
 
 	@Test
-	void json5LeavesIdentifierKeysUnquoted() {
+	void json5IsTheDefaultAndLeavesIdentifierKeysUnquoted() {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("requestId", "42");
 		kvs.putKeyValue("user name", "Ada");
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",thread:\"main\","
 						+ "msg:\"hello world\",requestId:\"42\",\"user name\":\"Ada\"}\n",
-				format(new JsonFormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON5).build(),
-						event("hello world", kvs, null)));
+				format(new Json5FormatterBuilder("test").build(), event("hello world", kvs, null)));
 	}
 
 	@Test
 	void nestedKeyValuesAreAnObjectEvenWhenEmpty() {
-		var formatter = new JsonFormatterBuilder("test").keyValues(KeyValuesPlacement.NESTED).build();
+		var formatter = new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON)
+			.keyValues(KeyValuesPlacement.NESTED)
+			.build();
 		assertEquals(PREFIX + ",\"keyValues\":{\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}}\n",
 				format(formatter, event("hello world", requestKeyValues(), null)));
 		assertEquals(PREFIX + ",\"keyValues\":{}}\n", format(formatter, event("hello world", KeyValues.of(), null)));
@@ -84,8 +86,10 @@ class JsonFormatterTest {
 
 	@Test
 	void noKeyValues() {
-		assertEquals(PREFIX + "}\n", format(new JsonFormatterBuilder("test").keyValues(KeyValuesPlacement.NONE).build(),
-				event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + "}\n",
+				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON)
+					.keyValues(KeyValuesPlacement.NONE)
+					.build(), event("hello world", requestKeyValues(), null)));
 	}
 
 	@Test
@@ -95,7 +99,8 @@ class JsonFormatterTest {
 		kvs.putKeyValue("requestId", "42");
 		kvs.putKeyValue("level", null);
 		assertEquals(PREFIX + ",\"requestId\":\"42\",\"keyValues\":{\"msg\":\"shadow\",\"level\":null}}\n",
-				format(new JsonFormatterBuilder("test").build(), event("hello world", kvs, null)));
+				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build(),
+						event("hello world", kvs, null)));
 	}
 
 	@Test
@@ -103,13 +108,15 @@ class JsonFormatterTest {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("missing", null);
 		assertEquals(PREFIX + ",\"missing\":null}\n",
-				format(new JsonFormatterBuilder("test").build(), event("hello world", kvs, null)));
+				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build(),
+						event("hello world", kvs, null)));
 	}
 
 	@Test
 	void messageIsEscaped() {
-		String actual = format(new JsonFormatterBuilder("test").keyValues(KeyValuesPlacement.NONE).build(),
-				event("say \"hi\"\n\tback\\slash \u7530 \uD800", KeyValues.of(), null));
+		String actual = format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON)
+			.keyValues(KeyValuesPlacement.NONE)
+			.build(), event("say \"hi\"\n\tback\\slash \u7530 \uD800", KeyValues.of(), null));
 		assertEquals(PREFIX.replace("\"hello world\"", "\"say \\\"hi\\\"\\n\\tback\\\\slash \u7530 \\ud800\"") + "}\n",
 				actual);
 	}
@@ -120,30 +127,31 @@ class JsonFormatterTest {
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
 		assertEquals(PREFIX + ",\"error\":\"java.lang.IllegalStateException: boom\","
 				+ "\"stacktrace\":\"java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\"}\n",
-				format(new JsonFormatterBuilder("test").keyValues(KeyValuesPlacement.NONE).build(),
-						event("hello world", KeyValues.of(), ex)));
+				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON)
+					.keyValues(KeyValuesPlacement.NONE)
+					.build(), event("hello world", KeyValues.of(), ex)));
 	}
 
 	@Test
 	void jsonEncoderSchemeAndProperties() {
 		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
-				log("json", "", event("hello world", requestKeyValues(), null)));
+				log("json5", "logging.encoder.list.format=json\n", event("hello world", requestKeyValues(), null)));
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",thread:\"main\","
 						+ "msg:\"hello world\",keyValues:{requestId:\"42\",user:\"Ada Lovelace\"}}\n",
-				log("json", "logging.encoder.list.format=json5\nlogging.encoder.list.keyValues=nested\n",
+				log("json5", "logging.encoder.list.keyValues=nested\n",
 						event("hello world", requestKeyValues(), null)));
 		assertEquals(PREFIX + "}\n",
-				log("json:///?keyValues=false", "", event("hello world", requestKeyValues(), null)));
+				log("json5:///?format=json&keyValues=false", "", event("hello world", requestKeyValues(), null)));
 	}
 
 	@Test
 	void nonJsonFormatFails() {
 		var properties = LogProperties.builder().fromProperties("logging.encoder.list.format=percent").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
-				() -> new JsonFormatterBuilder("list").fromProperties(properties).build());
+				() -> new Json5FormatterBuilder("list").fromProperties(properties).build());
 		assertEquals(
-				"Validation failed for io.jstach.rainbowgum.format.JsonFormatterBuilder: format=percent is not JSON. Use json or json5.",
+				"Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder: format=percent is not JSON. Use json or json5.",
 				e.getMessage());
 	}
 
@@ -151,9 +159,9 @@ class JsonFormatterTest {
 	void invalidKeyValuesFails() {
 		var properties = LogProperties.builder().fromProperties("logging.encoder.list.keyValues=flat").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
-				() -> new JsonFormatterBuilder("list").fromProperties(properties));
+				() -> new Json5FormatterBuilder("list").fromProperties(properties));
 		String expected = """
-				Validation failed for io.jstach.rainbowgum.format.JsonFormatterBuilder:
+				Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder:
 				Error for property. key: 'logging.encoder.list.keyValues' from PROPERTIES_STRING[logging.encoder.list.keyValues], \
 				'flat' is not a valid value for io.jstach.rainbowgum.format.KeyValuesPlacement. \
 				Valid values: 'merged', 'nested', 'none', 'true', 'false', 'default'""";

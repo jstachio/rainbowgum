@@ -9,7 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.TTLL;
-import io.jstach.rainbowgum.format.JsonFormatterBuilder;
+import io.jstach.rainbowgum.format.Json5FormatterBuilder;
 import io.jstach.rainbowgum.format.LogfmtFormatterBuilder;
 import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
@@ -51,9 +51,9 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	static final String LOGFMT_SCHEME = "logfmt";
 
 	/*
-	 * The core JSON encoder's URI scheme.
+	 * The core JSON5 encoder's URI scheme.
 	 */
-	static final String JSON_SCHEME = "json";
+	static final String JSON5_SCHEME = "json5";
 
 	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
@@ -71,9 +71,9 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 				ref -> (name, config) -> LogEncoder
 					.of(new LogfmtFormatterBuilder(name).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
-		registry.register(JSON_SCHEME,
+		registry.register(JSON5_SCHEME,
 				ref -> (name, config) -> LogEncoder
-					.of(new JsonFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.of(new Json5FormatterBuilder(name).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
 		return registry;
 	}

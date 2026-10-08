@@ -843,7 +843,7 @@ Encoders should have a builder as well to configure programmatically
 and the builders javadoc has the string properties that can configure it.
 </p>
 
-A typical practice is to use a <a href="#pattern_encoder">pattern encoder</a> that produces human readable logs for development 
+A typical practice is to use a <a href="#pattern">pattern encoder</a> that produces human readable logs for development 
 and a <a href="#json_encoders">JSON encoder</a> for production switched out based on configuration.
 
 <h3 id="json_encoders">JSON Encoders</h3>
@@ -928,7 +928,7 @@ encoder with {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogF
 <p>
 
 <strong>Many of the following formatters are also encoders and can thus be
-referenced liked normal encoders using URIs</strong>
+referenced like normal encoders using URIs.</strong>
 
 <h3 id="ttll">TTLL Formatter</h3>
 
@@ -958,30 +958,30 @@ logging.encoder.console.keyValues=json5
 }
 
 <ul>
-<li><code>timestamp</code>: <code>ttll</code> (default, <code>HH:mm:ss.SSS</code> UTC), <code>iso</code>,
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#timestamp(io.jstach.rainbowgum.LogFormatter) timestamp}: <code>ttll</code> (default, <code>HH:mm:ss.SSS</code> UTC), <code>iso</code>,
 <code>none</code>, or a <code>DateTimeFormatter</code> pattern in UTC.</li>
-<li><code>thread</code>: <code>name</code> (default), <code>id</code>, or <code>none</code>.</li>
-<li><code>level</code>: <code>padded</code> (default), <code>plain</code>, <code>bracketed</code>, or
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#thread(io.jstach.rainbowgum.LogFormatter) thread}: <code>name</code> (default), <code>id</code>, or <code>none</code>.</li>
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#level(io.jstach.rainbowgum.LogFormatter) level}: <code>padded</code> (default), <code>plain</code>, <code>bracketed</code>, or
 <code>none</code>.</li>
-<li><code>logger</code>: <code>full</code> (default), <code>short</code> (last name component), or
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#logger(io.jstach.rainbowgum.LogFormatter) logger}: <code>full</code> (default), <code>short</code> (last name component), or
 <code>none</code>.</li>
-<li><code>keyValues</code>: <code>percent</code> (default), <code>json</code>,
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#keyValues(io.jstach.rainbowgum.LogFormatter) keyValues}: <code>percent</code> (default), <code>json</code>,
 <code>json5</code>, or <code>none</code>. JSON writes <code>{"requestId":"42"}</code>; JSON5 leaves valid identifier
 keys unquoted, as in <code>{requestId:"42"}</code>. Key values are written in braces; <code>none</code> leaves out the
 key values and their braces.</li>
-<li><code>keyValuesWhenEmpty</code>: whether the braces are written for an event with no key values.
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#keyValuesWhenEmpty(io.jstach.rainbowgum.format.TTLL.KeyValuesWhenEmpty) keyValuesWhenEmpty}: whether the braces are written for an event with no key values.
 <code>auto</code> (default) leaves them out for <code>percent</code> and <code>json5</code> and writes <code>{}</code>
 for <code>json</code>, since whatever reads JSON key values expects an object on every line; <code>omit</code> (alias
 <code>false</code>) leaves them out and is rejected with <code>json</code> for the same reason, so a production
 profile that switches to JSON cannot silently drop objects; <code>show</code> (alias <code>true</code>) always writes
 them, for a fixed line shape.</li>
-<li><code>color</code>: whether to color. <code>default</code> (alias <code>true</code>, used when not set)
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#color(io.jstach.rainbowgum.format.TTLL.ColorMode) color}: whether to color. <code>default</code> (alias <code>true</code>, used when not set)
 colors with the theme, or rainbowgum when no theme is set, if the console supports ANSI; <code>detect</code> colors
 the same way but only when a theme is set; <code>force</code> colors with the theme, or rainbowgum, regardless of
 ANSI support; <code>off</code> (alias <code>false</code>) never colors. <code>logging.global.ansi.disable</code>
 turns the default to off, and the default encoder of outputs that are not a console, such as files, is never colored
 unless <code>color</code> is set.</li>
-<li><code>theme</code>: which colors. <code>rainbowgum</code> (used when not set) is the same coloring as the
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#theme(io.jstach.rainbowgum.format.TTLL.ColorTheme) theme}: which colors. <code>rainbowgum</code> (used when not set) is the same coloring as the
 pattern encoder's default; <code>spring</code> follows Spring Boot's console colors (faint time and thread, green,
 yellow, or red level, cyan logger); <code>one_dark</code> and <code>darcula</code> use Atom One Dark's (magenta
 logger) and IntelliJ Darcula's (orange logger) colors in 24 bit color, which needs a terminal with true color
@@ -1037,25 +1037,29 @@ breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum
 
 <h3 id="core_json">JSON5 Formatter</h3>
 
-The <code>json</code> encoder writes each event as one line holding a JSON/JSON5 object, so an application that normally
+The <code>json5</code> encoder writes each event as one line holding a JSON5 object, so an application that normally
 logs TTLL can switch to structured logging, for example while hunting a bug, by flipping one property and without
 adding a module:
 
 {@snippet lang=properties :
-logging.appender.console.encoder=json
+logging.appender.console.encoder=json5
 }
 
 {@snippet :
-{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main","msg":"hello world","requestId":"42"}
+{time:"2026-10-05T15:04:05.123Z",level:"INFO",logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}
 }
+
+It is named <code>json5</code>, and writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
+other text formatters it is mostly for people reading logs, and the <a href="#json_encoders">JSON encoders</a> are
+for JSON logging.
 
 The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code>,
 <code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
 <code>null</code> for a key value without one. Properties of the encoder:
 
 <ul>
-<li><code>format</code>: <code>json</code> (default) or <code>json5</code>, which leaves identifier keys unquoted
-(<code>{time:"...",level:"INFO",...}</code>).</li>
+<li><code>format</code>: <code>json5</code> (default), which leaves identifier keys unquoted, or <code>json</code>
+(<code>{"time":"...","level":"INFO",...}</code>).</li>
 <li><code>keyValues</code>: <code>merged</code> (default) writes key values alongside the event's fields, the way
 logfmt and most aggregators expect, and places any key value named like one of those fields in a nested
 <code>keyValues</code> object instead, so nothing is dropped, renamed, or written twice; <code>nested</code> always
@@ -1066,7 +1070,7 @@ out.</li>
 This encoder is a convenience, not a replacement for {@link io.jstach.rainbowgum.json/}: it has one fixed set of
 fields, no pretty printing, and no particular schema. For production structured logging, especially into a system
 that expects ECS, GELF, or Logstash fields, use that module's encoders instead. See
-{@link io.jstach.rainbowgum.format.JsonFormatterBuilder}.
+{@link io.jstach.rainbowgum.format.Json5FormatterBuilder}.
 
 
 <h3 id="json_key_values_formatter">JSON Key Values Formatter</h3>
