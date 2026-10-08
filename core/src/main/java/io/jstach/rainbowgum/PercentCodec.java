@@ -3,6 +3,7 @@ package io.jstach.rainbowgum;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 
 /**
@@ -90,7 +91,73 @@ public final class PercentCodec {
 	 * @param charset charset of the bytes to encode, usually UTF-8.
 	 */
 	public static void encode(final StringBuilder buf, final CharSequence content, final Charset charset) {
-		encode(buf, content, charset, UNRESERVED);
+		if (charset.equals(StandardCharsets.UTF_8)) {
+			encodeUtf8(buf, content);
+		}
+		else {
+			encode(buf, content, charset, UNRESERVED);
+		}
+	}
+
+	/*
+	 * UTF-8, the charset key values are always encoded with, straight from the chars: no
+	 * CharBuffer view (whose per char charAt dispatch is what made CharBuffer.wrap slow
+	 * in DirectByteBufferBuffer) and no ByteBuffer per call. A lone surrogate is written
+	 * as ? (%3F), the same replacement Charset.encode uses, so the output is identical to
+	 * the general path.
+	 */
+	static void encodeUtf8(final StringBuilder buf, final CharSequence content) {
+		final int length = content.length();
+		for (int i = 0; i < length; i++) {
+			char c = content.charAt(i);
+			if (c < 0x80 && UNRESERVED_ASCII[c]) {
+				// copy a run of unreserved characters at once, the common case for key
+				// values
+				final int start = i;
+				while (i + 1 < length && (c = content.charAt(i + 1)) < 0x80 && UNRESERVED_ASCII[c]) {
+					i++;
+				}
+				buf.append(content, start, i + 1);
+			}
+			else if (c < 0x80) {
+				appendByte(buf, c);
+			}
+			else if (c < 0x800) {
+				appendByte(buf, 0xC0 | (c >> 6));
+				appendByte(buf, 0x80 | (c & 0x3F));
+			}
+			else if (Character.isSurrogate(c)) {
+				if (Character.isHighSurrogate(c) && i + 1 < length && Character.isLowSurrogate(content.charAt(i + 1))) {
+					final int cp = Character.toCodePoint(c, content.charAt(++i));
+					appendByte(buf, 0xF0 | (cp >> 18));
+					appendByte(buf, 0x80 | ((cp >> 12) & 0x3F));
+					appendByte(buf, 0x80 | ((cp >> 6) & 0x3F));
+					appendByte(buf, 0x80 | (cp & 0x3F));
+				}
+				else {
+					appendByte(buf, '?');
+				}
+			}
+			else {
+				appendByte(buf, 0xE0 | (c >> 12));
+				appendByte(buf, 0x80 | ((c >> 6) & 0x3F));
+				appendByte(buf, 0x80 | (c & 0x3F));
+			}
+		}
+	}
+
+	private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
+	private static final boolean[] UNRESERVED_ASCII = new boolean[0x80];
+
+	static {
+		for (int i = 0; i < 0x80; i++) {
+			UNRESERVED_ASCII[i] = UNRESERVED.get(i);
+		}
+	}
+
+	private static void appendByte(final StringBuilder buf, final int b) {
+		buf.append('%').append(HEX[(b >> 4) & 0xF]).append(HEX[b & 0xF]);
 	}
 
 	/**
