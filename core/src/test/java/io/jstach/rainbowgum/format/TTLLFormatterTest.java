@@ -6,12 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
@@ -63,44 +65,44 @@ class TTLLFormatterTest {
 
 	@Test
 	void defaultsAreTheClassicLayout() {
-		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
+		assertEquals("12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world\n",
 				format(new TTLLFormatterBuilder("test").build(), event(requestKeyValues())));
 	}
 
 	@Test
-	void defaultsMatchTheStandardEventFormatter() {
+	void withoutKeyValuesMatchesTheStandardEventFormatter() {
 		var event = event(requestKeyValues());
-		assertEquals(format(StandardEventFormatter.builder().build(), event),
-				format(new TTLLFormatterBuilder("test").build(), event));
+		assertEquals(format(StandardEventFormatter.builder().build(), event), format(
+				new TTLLFormatterBuilder("test").keyValues(TTLL.KeyValuesFormat.NONE.formatter()).build(), event));
 	}
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', value = { //
-			"timestamp=iso|2026-10-05T12:00:00.123Z [main] INFO  com.example.App - hello world", //
-			"timestamp=none|[main] INFO  com.example.App - hello world", //
-			"timestamp=HH:mm|12:00 [main] INFO  com.example.App - hello world", //
-			"thread=id|12:00:00.123 [7] INFO  com.example.App - hello world", //
-			"thread=none|12:00:00.123 INFO  com.example.App - hello world", //
-			"level=plain|12:00:00.123 [main] INFO com.example.App - hello world", //
-			"level=bracketed|12:00:00.123 [main] [INFO] com.example.App - hello world", //
-			"level=none|12:00:00.123 [main] com.example.App - hello world", //
-			"logger=short|12:00:00.123 [main] INFO  App - hello world", //
-			"logger=none|12:00:00.123 [main] INFO  - hello world", //
-			"keyValues=logfmt|12:00:00.123 [main] INFO  com.example.App {requestId=42 user=\"Ada Lovelace\"} - hello world", //
+			"timestamp=iso|2026-10-05T12:00:00.123Z [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"timestamp=none|[main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"timestamp=HH:mm|12:00 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=id|12:00:00.123 [7] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=none|12:00:00.123 INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=plain|12:00:00.123 [main] INFO com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=bracketed|12:00:00.123 [main] [INFO] com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=none|12:00:00.123 [main] com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"logger=short|12:00:00.123 [main] INFO  App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"logger=none|12:00:00.123 [main] INFO  {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"keyValues=percent|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
-			"keyValues=LOGBACK|12:00:00.123 [main] INFO  com.example.App {requestId=42, user=Ada Lovelace} - hello world", //
-			"keyValues=true|12:00:00.123 [main] INFO  com.example.App {requestId=42 user=\"Ada Lovelace\"} - hello world", //
+			"keyValues=json|12:00:00.123 [main] INFO  com.example.App {\"requestId\":\"42\",\"user\":\"Ada Lovelace\"} - hello world", //
+			"keyValues=JSON5|12:00:00.123 [main] INFO  com.example.App {requestId:\"42\",user:\"Ada Lovelace\"} - hello world", //
+			"keyValues=true|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"keyValues=false|12:00:00.123 [main] INFO  com.example.App - hello world", //
-			"keyValues=default|12:00:00.123 [main] INFO  com.example.App - hello world", //
-			"timestamp=false|[main] INFO  com.example.App - hello world", //
-			"timestamp=default|12:00:00.123 [main] INFO  com.example.App - hello world", //
-			"thread=false|12:00:00.123 INFO  com.example.App - hello world", //
-			"thread=true|12:00:00.123 [main] INFO  com.example.App - hello world", //
-			"level=false|12:00:00.123 [main] com.example.App - hello world", //
-			"level=default|12:00:00.123 [main] INFO  com.example.App - hello world", //
-			"logger=false|12:00:00.123 [main] INFO  - hello world", //
-			"logger=true|12:00:00.123 [main] INFO  com.example.App - hello world", //
-			"theme=default|12:00:00.123 [main] INFO  com.example.App - hello world" })
+			"keyValues=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"timestamp=false|[main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"timestamp=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=false|12:00:00.123 INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=true|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=false|12:00:00.123 [main] com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"logger=false|12:00:00.123 [main] INFO  {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"logger=true|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"theme=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world" })
 	void eachPartIsConfigurableByProperty(String property, String expected) {
 		assertEquals(expected + "\n",
 				log("ttll", "logging.encoder.list." + property + "\n", event(requestKeyValues())));
@@ -114,25 +116,101 @@ class TTLLFormatterTest {
 				logging.encoder.list.level=none
 				logging.encoder.list.logger=none
 				""";
-		assertEquals("hello world\n", log("ttll", properties, event(requestKeyValues())));
+		assertEquals("{requestId=42&user=Ada%20Lovelace} - hello world\n",
+				log("ttll", properties, event(requestKeyValues())));
+		assertEquals("hello world\n",
+				log("ttll", properties + "logging.encoder.list.keyValues=none\n", event(requestKeyValues())));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"none|auto|", "none|show|", "none|omit|", //
+			"percent|auto|", "percent|omit|", "percent|show|' {}'", //
+			"json5|auto|", "json5|omit|", "json5|show|' {}'", //
+			"json|auto|' {}'", "json|show|' {}'", //
+			"percent|default|", "percent|false|", "percent|true|' {}'" })
+	void emptyKeyValuesFollowKeyValuesWhenEmpty(String format, String whenEmpty, @Nullable String braces) {
+		String properties = "logging.encoder.list.keyValues=" + format + "\nlogging.encoder.list.keyValuesWhenEmpty="
+				+ whenEmpty + "\n";
+		String b = braces == null ? "" : braces;
+		assertEquals("12:00:00.123 [main] INFO  com.example.App" + b + " - hello world\n",
+				log("ttll", properties, event(KeyValues.of())));
+		String colored = b.isEmpty() ? "" : " " + E + "2;39m{}" + R;
+		assertEquals(coloredLine("1;34", "INFO ", colored),
+				log("ttll", properties + "logging.encoder.list.color=force\n", event(KeyValues.of())));
 	}
 
 	@Test
-	void keyValueBracesAreLeftOutWithoutKeyValues() {
-		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
-				log("ttll", "logging.encoder.list.keyValues=logfmt\n", event(KeyValues.of())));
+	void omitWithJsonFails() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.encoder.list.keyValues=json\nlogging.encoder.list.keyValuesWhenEmpty=omit")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				keyValuesWhenEmpty=omit cannot be used with keyValues=json, since JSON readers expect an object on \
+				every line. Use keyValues=json5 or keyValues=percent, or keyValuesWhenEmpty=auto or show.""",
+				e.getMessage());
+	}
+
+	@Test
+	void everyPartNoneWithoutKeyValuesIsJustTheMessage() {
+		String properties = """
+				logging.encoder.list.timestamp=none
+				logging.encoder.list.thread=none
+				logging.encoder.list.level=none
+				logging.encoder.list.logger=none
+				""";
+		assertEquals("hello world\n", log("ttll", properties, event(KeyValues.of())));
+		assertEquals("{} - hello world\n",
+				log("ttll", properties + "logging.encoder.list.keyValuesWhenEmpty=show\n", event(KeyValues.of())));
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = TTLL.KeyValuesFormat.class, names = { "JSON", "JSON5" })
+	void jsonKeyValuesWorkWithTheDefaultEncoderAndUriQuery(TTLL.KeyValuesFormat format) {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		kvs.putKeyValue("user name", "Ada\n\"Lovelace\"");
+		kvs.putKeyValue("missing", null);
+		String object = format == TTLL.KeyValuesFormat.JSON
+				? "{\"requestId\":\"42\",\"user name\":\"Ada\\n\\\"Lovelace\\\"\",\"missing\":null}"
+				: "{requestId:\"42\",\"user name\":\"Ada\\n\\\"Lovelace\\\"\",missing:null}";
+		String expected = "12:00:00.123 [main] INFO  com.example.App " + object + " - hello world\n";
+		assertEquals(expected, log("", "logging.encoder.list.keyValues=" + format.name() + "\n", event(kvs)));
+		assertEquals(expected, log("ttll:///?keyValues=" + format.name(), "", event(kvs)));
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = TTLL.KeyValuesFormat.class, names = { "JSON", "JSON5" })
+	void jsonChoicesWorkWithTheBuilderAndColorTheWholeObject(TTLL.KeyValuesFormat format) {
+		var formatter = new TTLLFormatterBuilder("list").keyValues(format.formatter())
+			.color(TTLL.ColorMode.FORCE)
+			.build();
+		var output = new ListLogOutput();
+		try (var gum = RainbowGum.builder()
+			.route(r -> r.appender("list", a -> a.output(output).encoder(LogEncoder.of(formatter))))
+			.build()
+			.start()) {
+			gum.log(event(requestKeyValues()));
+		}
+		String object = format == TTLL.KeyValuesFormat.JSON ? "{\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}"
+				: "{requestId:\"42\",user:\"Ada Lovelace\"}";
+		assertEquals(coloredLine("1;34", "INFO ", " " + E + "2;39m" + object + R), output.toString());
 	}
 
 	@Test
 	void uriQueryConfiguresTheEncoder() {
-		assertEquals("12:00:00.123 [main] INFO  com.example.App {requestId=42 user=\"Ada Lovelace\"} - hello world\n",
-				log("ttll:///?keyValues=logfmt", "", event(requestKeyValues())));
+		assertEquals(
+				"12:00:00.123 [main] INFO  com.example.App {requestId:\"42\",user:\"Ada Lovelace\"} - hello world\n",
+				log("ttll:///?keyValues=json5", "", event(requestKeyValues())));
 	}
 
 	@Test
 	void defaultEncoderHonorsTheProperties() {
-		assertEquals("12:00:00.123 [main] INFO  App {requestId=42 user=\"Ada Lovelace\"} - hello world\n",
-				log("", "logging.encoder.list.keyValues=logfmt\nlogging.encoder.list.logger=short\n",
+		assertEquals("12:00:00.123 [main] INFO  App {requestId:\"42\",user:\"Ada Lovelace\"} - hello world\n",
+				log("", "logging.encoder.list.keyValues=json5\nlogging.encoder.list.logger=short\n",
 						event(requestKeyValues())));
 	}
 
@@ -157,7 +235,7 @@ class TTLLFormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.encoder.list.keyValues' from PROPERTIES_STRING[logging.encoder.list.keyValues], \
 				'yes' is not a valid value for io.jstach.rainbowgum.format.TTLL.KeyValuesFormat. \
-				Valid values: 'none', 'logfmt', 'percent', 'logback', 'true', 'false', 'default'""";
+				Valid values: 'none', 'percent', 'json', 'json5', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -190,16 +268,14 @@ class TTLLFormatterTest {
 
 	@Test
 	void rainbowgumTheme() {
-		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.keyValues=logfmt\n",
-				event(requestKeyValues()));
-		String keyValues = " " + E + "2;39m{requestId=42 user=\"Ada Lovelace\"}" + R;
+		String actual = log("ttll", "logging.encoder.list.color=force\n", event(requestKeyValues()));
+		String keyValues = " " + E + "2;39m{requestId=42&user=Ada%20Lovelace}" + R;
 		assertEquals(coloredLine("1;34", "INFO ", keyValues), actual);
 	}
 
 	@Test
 	void rainbowgumThemeWithoutKeyValuesLeavesBracesOut() {
-		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.keyValues=logfmt\n",
-				event(KeyValues.of()));
+		String actual = log("ttll", "logging.encoder.list.color=force\n", event(KeyValues.of()));
 		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}
 
@@ -234,10 +310,9 @@ class TTLLFormatterTest {
 
 	@Test
 	void springThemeByProperty() {
-		String actual = log("ttll",
-				"logging.encoder.list.color=force\nlogging.encoder.list.theme=spring\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.theme=spring\n",
 				event(requestKeyValues()));
-		String keyValues = " " + E + "2;39m{requestId=42 user=\"Ada Lovelace\"}" + R;
+		String keyValues = " " + E + "2;39m{requestId=42&user=Ada%20Lovelace}" + R;
 		assertEquals(springLine("32", "INFO ", keyValues), actual);
 	}
 
@@ -255,12 +330,11 @@ class TTLLFormatterTest {
 
 	@Test
 	void oneDarkThemeByProperty() {
-		String actual = log("ttll",
-				"logging.encoder.list.color=force\nlogging.encoder.list.theme=one_dark\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.theme=one_dark\n",
 				event(requestKeyValues()));
 		String expected = E + "38;2;86;182;194m12:00:00.123" + R + " " + E + "38;2;150;152;150m[main]" + R + " " + E
 				+ "1;38;2;97;175;239mINFO " + R + " " + E + "38;2;198;120;221mcom.example.App" + R + " " + E
-				+ "38;2;150;152;150m{requestId=42 user=\"Ada Lovelace\"}" + R + " - hello world\n";
+				+ "38;2;150;152;150m{requestId=42&user=Ada%20Lovelace}" + R + " - hello world\n";
 		assertEquals(expected, actual);
 	}
 
@@ -278,12 +352,11 @@ class TTLLFormatterTest {
 
 	@Test
 	void darculaThemeByProperty() {
-		String actual = log("ttll",
-				"logging.encoder.list.color=force\nlogging.encoder.list.theme=darcula\nlogging.encoder.list.keyValues=logfmt\n",
+		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.theme=darcula\n",
 				event(requestKeyValues()));
 		String expected = E + "38;2;104;151;187m12:00:00.123" + R + " " + E + "38;2;128;128;128m[main]" + R + " " + E
 				+ "1;38;2;106;135;89mINFO " + R + " " + E + "38;2;204;120;50mcom.example.App" + R + " " + E
-				+ "38;2;128;128;128m{requestId=42 user=\"Ada Lovelace\"}" + R + " - hello world\n";
+				+ "38;2;128;128;128m{requestId=42&user=Ada%20Lovelace}" + R + " - hello world\n";
 		assertEquals(expected, actual);
 	}
 
@@ -344,9 +417,9 @@ class TTLLFormatterTest {
 		var event = event(requestKeyValues());
 		assertEquals(log("ttll", "logging.encoder.list.color=default\n", event),
 				log("ttll", "logging.encoder.list.color=true\n", event));
-		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
+		assertEquals("12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world\n",
 				log("ttll", "logging.encoder.list.color=false\n", event));
-		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
+		assertEquals("12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world\n",
 				log("ttll", "logging.encoder.list.color=off\n", event));
 	}
 

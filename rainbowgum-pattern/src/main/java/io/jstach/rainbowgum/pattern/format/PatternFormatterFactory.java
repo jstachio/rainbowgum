@@ -284,10 +284,10 @@ enum StandardKeywordFactory implements KeywordFactory {
 
 	},
 	/**
-	 * Logback/Log4j2 <code>%X</code>/<code>%mdc</code> style - see
-	 * {@link LogFormatter.Builder#keyValues()} and
-	 * {@link LogFormatter.Builder#keyValue(String, String)} for the exact format. For
-	 * RainbowGum's own percent-encoded style instead, see {@link #ENCODED_MDC}.
+	 * Logback/Log4j2 <code>%X</code>/<code>%mdc</code> style: with no key every key value
+	 * as comma space separated <code>key=value</code> pairs, and with a key see
+	 * {@link LogFormatter.Builder#keyValue(String, String)}. For RainbowGum's own
+	 * percent-encoded style instead, see {@link #ENCODED_MDC}.
 	 */
 	MDC() {
 
@@ -295,7 +295,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			String key = node.optOrNull(0);
 			if (key == null) {
-				return LogFormatter.builder().keyValues().build();
+				return LogbackKeyValuesFormatter.INSTANCE;
 			}
 			var kf = keyAndFallback(key);
 			return LogFormatter.builder().keyValue(kf.key(), kf.fallback()).build();
@@ -304,7 +304,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 	},
 	/**
 	 * RainbowGum's percent-encoded (RFC 3986 URI query) MDC style - see
-	 * {@link LogFormatter.Builder#encodedKeyValues()} and
+	 * {@link LogFormatter.Builder#keyValues()} and
 	 * {@link LogFormatter.Builder#encodedKeyValue(String, String)} for the exact format.
 	 * For Logback/Log4j2's <code>%X</code> style instead, see {@link #MDC}.
 	 */
@@ -314,7 +314,7 @@ enum StandardKeywordFactory implements KeywordFactory {
 		protected LogFormatter _create(PatternConfig config, PatternKeyword node) {
 			String key = node.optOrNull(0);
 			if (key == null) {
-				return LogFormatter.builder().encodedKeyValues().build();
+				return LogFormatter.builder().keyValues().build();
 			}
 			var kf = keyAndFallback(key);
 			return LogFormatter.builder().encodedKeyValue(kf.key(), kf.fallback()).build();

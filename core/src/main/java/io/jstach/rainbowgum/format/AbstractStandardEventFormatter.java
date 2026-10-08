@@ -149,7 +149,7 @@ public class AbstractStandardEventFormatter implements LogFormatter.EventFormatt
 		}
 		b.add(nameFormatter);
 		if (!keyValuesFormatter.isNoop()) {
-			b.add(new BracedKeyValuesFormatter(keyValuesFormatter));
+			b.add(BracedKeyValuesFormatter.ofStandard(keyValuesFormatter));
 		}
 		if (!messageFormatter.isNoop()) {
 			b.text(" - ");

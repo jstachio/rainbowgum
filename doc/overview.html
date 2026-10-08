@@ -925,17 +925,29 @@ See <a href="#pattern">Pattern Formatter</a> section and {@link io.jstach.rainbo
 
 <h4 id="ttll">TTLL Encoder</h4>
 
-TTLL (Time, Thread, Level, Logger) is the default text format and needs no extra module. Each part can be changed
-with properties of the encoder, much like slf4j-simple's options, so showing key values (MDC) or dropping the time
-does not require the pattern module:
+TTLL (Time, Thread, Level, Logger) is the default text format and needs no extra module. By default each line also
+carries the event's key values (MDC and other context), percent encoded in braces after the logger name:
+
+{@snippet :
+12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world
+12:00:00.123 [main] INFO  com.example.App - started
+}
+
+Key values are on by default because modern logging relies on them. Seeing them shows developers that context such
+as request and trace ids is actually reaching their logs, and a feature that is never shown is a feature nobody
+knows exists. Agents reading logs also benefit from the extra context. With wide screens and color the extra text
+costs little, and <code>keyValues=none</code> turns it off.
+
+Each part can be changed with properties of the encoder, much like slf4j-simple's options, so changing the key
+values format or dropping the time does not require the pattern module:
 
 {@snippet lang=properties :
 logging.encoder.console.timestamp=iso
-logging.encoder.console.keyValues=logfmt
+logging.encoder.console.keyValues=json5
 }
 
 {@snippet :
-2026-10-05T12:00:00.123Z [main] INFO  com.example.App {requestId=42 user="Ada Lovelace"} - hello world
+2026-10-05T12:00:00.123Z [main] INFO  com.example.App {requestId:"42",user:"Ada Lovelace"} - hello world
 }
 
 <ul>
@@ -946,8 +958,16 @@ logging.encoder.console.keyValues=logfmt
 <code>none</code>.</li>
 <li><code>logger</code>: <code>full</code> (default), <code>short</code> (last name component), or
 <code>none</code>.</li>
-<li><code>keyValues</code>: <code>none</code> (default), <code>logfmt</code>, <code>percent</code>, or
-<code>logback</code>. Key values are written in braces, which are left out when an event has none.</li>
+<li><code>keyValues</code>: <code>percent</code> (default), <code>json</code>,
+<code>json5</code>, or <code>none</code>. JSON writes <code>{"requestId":"42"}</code>; JSON5 leaves valid identifier
+keys unquoted, as in <code>{requestId:"42"}</code>. Key values are written in braces; <code>none</code> leaves out the
+key values and their braces.</li>
+<li><code>keyValuesWhenEmpty</code>: whether the braces are written for an event with no key values.
+<code>auto</code> (default) leaves them out for <code>percent</code> and <code>json5</code> and writes <code>{}</code>
+for <code>json</code>, since whatever reads JSON key values expects an object on every line; <code>omit</code> (alias
+<code>false</code>) leaves them out and is rejected with <code>json</code> for the same reason, so a production
+profile that switches to JSON cannot silently drop objects; <code>show</code> (alias <code>true</code>) always writes
+them, for a fixed line shape.</li>
 <li><code>color</code>: whether to color. <code>default</code> (alias <code>true</code>, used when not set)
 colors with the theme, or rainbowgum when no theme is set, if the console supports ANSI; <code>detect</code> colors
 the same way but only when a theme is set; <code>force</code> colors with the theme, or rainbowgum, regardless of
@@ -961,10 +981,30 @@ logger) and IntelliJ Darcula's (orange logger) colors in 24 bit color, which nee
 support.</li>
 </ul>
 Every part also accepts <code>default</code>, which restores the default without naming it (for example when a
-profile overrides a base setting), and <code>true</code> or <code>false</code> to show or hide it. Key values are
-hidden by default, so for them <code>true</code> means <code>logfmt</code> while <code>default</code> means
-<code>none</code>; <code>theme</code> accepts <code>default</code> only.
-The same settings work as a URI query (<code>logging.appender.console.encoder=ttll:///?keyValues=logfmt</code>) and
+profile overrides a base setting), and <code>true</code> or <code>false</code> to show or hide it;
+<code>theme</code> accepts <code>default</code> only.
+<p>
+Percent encoding (<code>requestId=42&amp;user=Ada%20Lovelace</code>) is the default key values format, both for
+TTLL and for {@link io.jstach.rainbowgum.format.KeyValuesFormatterBuilder}, because:
+</p>
+<ul>
+<li>It is reversible: every key and value reads back exactly with
+{@link io.jstach.rainbowgum.PercentCodec#decode(CharSequence, java.nio.charset.Charset)}, including separators,
+newlines, and Unicode, and a key with a null value (written as the key alone) stays distinct from an empty one.</li>
+<li>It always stays on one line and needs no quoting decisions, so no value can break the line or confuse a parser
+reading it.</li>
+<li>It is a standard (RFC 3986, the URI query form) that every language can decode, and the same encoding Rainbow
+Gum reads its own URI query properties with.</li>
+<li>It adds no escaping noise when the line ends up in JSON. Many applications write TTLL to the console and let a
+collector or aggregator turn each line into a JSON document. Percent encoded text has no quotes or backslashes, so
+it is stored exactly as written, while logfmt or JSON key values would be stored with every quote escaped
+(<code>\"Ada Lovelace\"</code>).</li>
+</ul>
+<p>
+Use <code>json</code> or <code>json5</code> when a tool downstream reads that format
+instead.
+</p>
+The same settings work as a URI query (<code>logging.appender.console.encoder=ttll:///?keyValues=json5</code>) and
 programmatically through {@link io.jstach.rainbowgum.format.TTLLFormatterBuilder}. See
 {@link io.jstach.rainbowgum.format.TTLL}.
 
@@ -984,7 +1024,7 @@ time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=
 }
 
 Key values follow the message, and a throwable adds <code>error</code> and <code>stacktrace</code> with line
-breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum.LogfmtFormatterBuilder}, which also sets the level format, for example
+breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum.format.LogfmtFormatterBuilder}, which also sets the level format, for example
 <code>logging.encoder.myappender.levelFormatter=right_pad_level_formatter</code>.
 
 

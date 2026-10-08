@@ -356,7 +356,7 @@ class LogFormatterTest {
 		var kvs = KeyValues.MutableKeyValues.of().add("a b", "c/d").add("nullValued", null);
 		var event = TestLogEventFactory.of()
 			.eventNoArg(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
-		LogFormatter.builder().encodedKeyValues().build().format(sb, event);
+		LogFormatter.builder().keyValues().build().format(sb, event);
 		assertEquals("a%20b=c%2Fd&nullValued", sb.toString());
 	}
 
@@ -452,7 +452,7 @@ class LogFormatterTest {
 		var event = TestLogEventFactory.of()
 			.eventNoArg(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		// requested order (c, a) differs from insertion order (a, b, c); "b" is omitted.
-		LogFormatter.builder().encodedKeyValues(List.of("c", "a")).build().format(sb, event);
+		LogFormatter.builder().keyValues(kv -> kv.keys(List.of("c", "a"))).build().format(sb, event);
 		assertEquals("c=3&a=1", sb.toString());
 	}
 
@@ -468,7 +468,7 @@ class LogFormatterTest {
 		var event = TestLogEventFactory.of()
 			.eventNoArg(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
-			.encodedKeyValues(List.of("missing", "present", "explicitNull"))
+			.keyValues(kv -> kv.keys(List.of("missing", "present", "explicitNull")))
 			.build()
 			.format(sb, event);
 		assertEquals("missing&present=v&explicitNull", sb.toString());
@@ -481,7 +481,8 @@ class LogFormatterTest {
 		var event = TestLogEventFactory.of()
 			.eventNoArg(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
-			.encodedKeyValues(List.of("present", "missing"), LogFormatter.KeyValueNullStrategy.SKIP)
+			.keyValues(
+					kv -> kv.keys(List.of("present", "missing")).nullStrategy(LogFormatter.KeyValueNullStrategy.SKIP))
 			.build()
 			.format(sb, event);
 		assertEquals("present=v", sb.toString());
@@ -494,7 +495,8 @@ class LogFormatterTest {
 		var event = TestLogEventFactory.of()
 			.eventNoArg(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
-			.encodedKeyValues(List.of("present", "missing"), LogFormatter.KeyValueNullStrategy.EMPTY)
+			.keyValues(
+					kv -> kv.keys(List.of("present", "missing")).nullStrategy(LogFormatter.KeyValueNullStrategy.EMPTY))
 			.build()
 			.format(sb, event);
 		assertEquals("present=v&missing=", sb.toString());
@@ -507,12 +509,13 @@ class LogFormatterTest {
 		var event = TestLogEventFactory.of()
 			.eventNoArg(Level.INFO, TestLogEventFactory.DEFAULT_MESSAGE, kvs, (Throwable) null);
 		LogFormatter.builder()
-			.encodedKeyValues(List.of("present", "missing", "emptyValued"), LogFormatter.KeyValueNullStrategy.KEEP)
+			.keyValues(kv -> kv.keys(List.of("present", "missing", "emptyValued"))
+				.nullStrategy(LogFormatter.KeyValueNullStrategy.KEEP))
 			.build()
 			.format(sb, event);
 		// "missing" (null, indistinguishable from absent) prints key-only; "emptyValued"
 		// (an actual empty string) prints "key=" - the same distinction
-		// encodedKeyValues()
+		// keyValues()
 		// makes for every real entry.
 		assertEquals("present=v&missing&emptyValued=", sb.toString());
 	}
@@ -523,7 +526,7 @@ class LogFormatterTest {
 		var event = TestLogEventFactory.of().event();
 		LogFormatter.builder()
 			.text("before:")
-			.encodedKeyValues(List.of(), LogFormatter.KeyValueNullStrategy.KEEP)
+			.keyValues(kv -> kv.keys(List.of()).nullStrategy(LogFormatter.KeyValueNullStrategy.KEEP))
 			.text(":after")
 			.build()
 			.format(sb, event);

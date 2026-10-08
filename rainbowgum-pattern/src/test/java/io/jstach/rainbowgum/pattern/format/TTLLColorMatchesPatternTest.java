@@ -43,7 +43,11 @@ class TTLLColorMatchesPatternTest {
 				"hello world", KeyValues.of(), null);
 		var config = PatternConfig.builder("test").ansiDisabled(false).zoneId(ZoneOffset.UTC).build();
 		LogFormatter pattern = PatternCompiler.builder().patternConfig(config).build().compile(patternString);
-		LogFormatter ttll = new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE).theme(theme).build();
+		// the patterns have no key values
+		LogFormatter ttll = new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.theme(theme)
+			.keyValues(TTLL.KeyValuesFormat.NONE.formatter())
+			.build();
 		var expected = new StringBuilder();
 		pattern.format(expected, event);
 		var actual = new StringBuilder();

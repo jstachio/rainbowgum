@@ -21,6 +21,7 @@ import org.slf4j.spi.MDCAdapter;
 
 import io.jstach.rainbowgum.LogEventLogger;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder;
 import io.jstach.rainbowgum.format.StandardEventFormatter;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareEventBuilder;
@@ -171,10 +172,10 @@ class RainbowGumEventBuilderTest {
 
 	enum _Test {
 
-		LEVEL_LOGGER("logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]\n") {
+		LEVEL_LOGGER("logger {mdcKey1=mdcValue1 key1=value1} - hello [arg0]\n") {
 		},
 		REPLACEABLE_LOGGER("""
-				ERROR logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]
+				ERROR logger {mdcKey1=mdcValue1 key1=value1} - hello [arg0]
 				io.jstach.rainbowgum.slf4j.RainbowGumEventBuilderTest$_Test.log
 				""") {
 
@@ -193,7 +194,7 @@ class RainbowGumEventBuilderTest {
 				return LogFormatter.builder().level().space().add(formatter).build();
 			}
 		},
-		OVERRIDE_MDC("logger {mdcKey1=value2, key1=value1} - hello [arg0]\n") {
+		OVERRIDE_MDC("logger {mdcKey1=value2 key1=value1} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				super.build(builder);
@@ -213,7 +214,7 @@ class RainbowGumEventBuilderTest {
 			}
 
 		},
-		TWO_ARG("logger {mdcKey1=mdcValue1, key1=value1} - hello two [arg0] [arg1]\n" + "") {
+		TWO_ARG("logger {mdcKey1=mdcValue1 key1=value1} - hello two [arg0] [arg1]\n" + "") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello two {} {}")
@@ -222,7 +223,7 @@ class RainbowGumEventBuilderTest {
 					.addKeyValue("key1", () -> "value1");
 			}
 		},
-		TWO_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello two [arg0] [arg1]\n" + "") {
+		TWO_ARG_LOG("logger {mdcKey1=mdcValue1 key1=value1} - hello two [arg0] [arg1]\n" + "") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -233,7 +234,7 @@ class RainbowGumEventBuilderTest {
 				builder.log("hello two {} {}", "[arg0]", "[arg1]");
 			}
 		},
-		ONE_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello one [arg0]\n" + "") {
+		ONE_ARG_LOG("logger {mdcKey1=mdcValue1 key1=value1} - hello one [arg0]\n" + "") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -244,7 +245,7 @@ class RainbowGumEventBuilderTest {
 				builder.log("hello one {}", "[arg0]");
 			}
 		},
-		THREE_ARG("logger {mdcKey1=mdcValue1, key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
+		THREE_ARG("logger {mdcKey1=mdcValue1 key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello three {} {} {}")
@@ -254,7 +255,7 @@ class RainbowGumEventBuilderTest {
 					.addKeyValue("key1", "value1");
 			}
 		},
-		THREE_ARG_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
+		THREE_ARG_LOG("logger {mdcKey1=mdcValue1 key1=value1} - hello three [arg0] [arg1] [arg2]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -265,7 +266,7 @@ class RainbowGumEventBuilderTest {
 				builder.log("hello three {} {} {}", "[arg0]", "[arg1]", "[arg2]");
 			}
 		},
-		SUPPLIER_MESSAGE_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello supplier\n") {
+		SUPPLIER_MESSAGE_LOG("logger {mdcKey1=mdcValue1 key1=value1} - hello supplier\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -282,7 +283,7 @@ class RainbowGumEventBuilderTest {
 				builder.setMessage("hello no arg");
 			}
 		},
-		THROWABLE("logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]\n" + "fail") {
+		THROWABLE("logger {mdcKey1=mdcValue1 key1=value1} - hello [arg0]\n" + "fail") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				super.build(builder);
@@ -290,7 +291,7 @@ class RainbowGumEventBuilderTest {
 			}
 		},
 		CALLER_INFO("""
-				logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]
+				logger {mdcKey1=mdcValue1 key1=value1} - hello [arg0]
 				io.jstach.rainbowgum.slf4j.RainbowGumEventBuilderTest$_Test$13.callerLog
 								""") {
 			@Override
@@ -309,13 +310,13 @@ class RainbowGumEventBuilderTest {
 				builder.log();
 			}
 		},
-		NULL_KEY_VALUE("logger {mdcKey1=mdcValue1, key1} - hello [arg0]\n") {
+		NULL_KEY_VALUE("logger {mdcKey1=mdcValue1 key1=} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello {}").addArgument("[arg0]").addKeyValue("key1", (Object) null);
 			}
 		},
-		NULL_KEY_VALUE_SUPPLIER("logger {mdcKey1=mdcValue1, key1} - hello [arg0]\n") {
+		NULL_KEY_VALUE_SUPPLIER("logger {mdcKey1=mdcValue1 key1=} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.setMessage("hello {}").addArgument("[arg0]").addKeyValue("key1", () -> null);
@@ -327,7 +328,7 @@ class RainbowGumEventBuilderTest {
 		 * how a decorator can surface a marker as a key value instead), but the call
 		 * itself was never exercised anywhere.
 		 */
-		ADD_MARKER("logger {mdcKey1=mdcValue1, key1=value1} - hello [arg0]\n") {
+		ADD_MARKER("logger {mdcKey1=mdcValue1 key1=value1} - hello [arg0]\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				super.build(builder);
@@ -339,7 +340,7 @@ class RainbowGumEventBuilderTest {
 		 * itself is null (as opposed to empty), e.g. logger.info(msg, (Object[]) null) -
 		 * distinct from the array simply having zero elements.
 		 */
-		NULL_ARGS_LOG("logger {mdcKey1=mdcValue1, key1=value1} - hello null args\n") {
+		NULL_ARGS_LOG("logger {mdcKey1=mdcValue1 key1=value1} - hello null args\n") {
 			@Override
 			protected void build(LoggingEventBuilder builder) {
 				builder.addKeyValue("key1", "value1");
@@ -387,7 +388,8 @@ class RainbowGumEventBuilderTest {
 				.threadFormatter(LogFormatter.noop())
 				.levelFormatter(LogFormatter.noop())
 				.timestampFormatter(LogFormatter.noop())
-				.keyValuesFormatter(LogFormatter.builder().keyValues().build())
+				.keyValuesFormatter(
+						new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.LOGFMT).build())
 				.throwableFormatter((sb, t) -> {
 					sb.append(t.getMessage());
 				})

@@ -15,10 +15,13 @@ import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder;
 
 class RainbowGumMDCAdapterTest {
 
-	private static final LogFormatter formatter = LogFormatter.builder().keyValues().build();
+	private static final LogFormatter formatter = new KeyValuesFormatterBuilder()
+		.format(KeyValuesFormatterBuilder.Format.LOGFMT)
+		.build();
 
 	@ParameterizedTest
 	@EnumSource(MdcTest.class)
@@ -119,7 +122,7 @@ class RainbowGumMDCAdapterTest {
 	@SuppressWarnings("ImmutableEnumChecker")
 	enum MdcTest {
 
-		put("k1=v1, k2=v2", a -> a.put("k2", "v2")), //
+		put("k1=v1 k2=v2", a -> a.put("k2", "v2")), //
 		remove("", a -> a.remove("k1")), //
 		clear("", a -> a.clear()), //
 		get("k1=v1", a -> {

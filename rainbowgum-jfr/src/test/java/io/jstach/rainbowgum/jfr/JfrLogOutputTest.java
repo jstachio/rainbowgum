@@ -126,7 +126,7 @@ class JfrLogOutputTest {
 
 		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
 		assertEquals(1, events.size());
-		assertEquals("hello - {traceId=abc123, userId=42}", events.get(0).getValue("message"));
+		assertEquals("hello - {traceId=abc123 userId=42}", events.get(0).getValue("message"));
 	}
 
 	@Test
