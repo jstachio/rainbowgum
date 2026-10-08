@@ -225,6 +225,9 @@ public class ConfigProcessor extends AbstractProcessor {
 		String description = methodDoc.description;
 		for (var p : parameters) {
 			var prop = propertyModel(ee, p, h, methodDoc, foundParams);
+			if (prop == null) {
+				return null;
+			}
 			properties.add(prop);
 		}
 		if (!validatePrefix(ee, propertyPrefix, foundParams)) {
@@ -297,8 +300,31 @@ public class ConfigProcessor extends AbstractProcessor {
 		return true;
 	}
 
-	private PropertyModel propertyModel(ExecutableElement ee, VariableElement p, Helper h, ConfigJavadoc methodDoc,
-			Map<String, VariableElement> foundParams) {
+	private static @Nullable String validateEnumConstant(VariableElement p, String field, String constant) {
+		String parameter = p.getSimpleName().toString();
+		if (!field.isBlank()) {
+			return "@DefaultParameter on parameter '" + parameter
+					+ "' cannot set both value (static field) and constant (enum constant).";
+		}
+		if (!(p.asType() instanceof DeclaredType dt) || dt.asElement().getKind() != ElementKind.ENUM) {
+			return "@DefaultParameter constant requires an enum parameter but parameter '" + parameter + "' is of type "
+					+ p.asType() + ".";
+		}
+		var enumType = (TypeElement) dt.asElement();
+		var constants = enumType.getEnclosedElements()
+			.stream()
+			.filter(e -> e.getKind() == ElementKind.ENUM_CONSTANT)
+			.map(e -> e.getSimpleName().toString())
+			.toList();
+		if (!constants.contains(constant)) {
+			return "@DefaultParameter constant '" + constant + "' is not a constant of " + enumType.getQualifiedName()
+					+ ". Valid constants: " + String.join(", ", constants);
+		}
+		return null;
+	}
+
+	private @Nullable PropertyModel propertyModel(ExecutableElement ee, VariableElement p, Helper h,
+			ConfigJavadoc methodDoc, Map<String, VariableElement> foundParams) {
 		String name = p.getSimpleName().toString();
 		String type = h.getFullyQualifiedClassName(p.asType());
 		ClassRef classRef = ClassRef.of(h.elements, p.asType());
@@ -311,11 +337,24 @@ public class ConfigProcessor extends AbstractProcessor {
 		String fqnEnclosing = h.getFullyQualifiedClassName(enclosingType.asType());
 		if (defaultParameter != null) {
 			String field = defaultParameter.value();
-			if (field.isBlank()) {
-				field = "DEFAULT_" + name;
+			String constant = defaultParameter.constant();
+			if (!constant.isBlank()) {
+				@Nullable String error = validateEnumConstant(p, field, constant);
+				if (error != null) {
+					processingEnv.getMessager().printMessage(Kind.ERROR, error, p, defaultParameter.mirror);
+					return null;
+				}
+				// The enum is referenced directly so its javadoc link resolves even when
+				// the
+				// factory class is not public.
+				defaultValue = type + "." + constant;
 			}
-			defaultValue = fqnEnclosing + "." + field;
-
+			else {
+				if (field.isBlank()) {
+					field = "DEFAULT_" + name;
+				}
+				defaultValue = fqnEnclosing + "." + field;
+			}
 		}
 		boolean required = !h.isNullable(p.asType());
 		BuilderModel.PropertyKind kind;

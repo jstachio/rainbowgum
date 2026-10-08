@@ -144,6 +144,15 @@ public @interface LogConfigurable {
 		 */
 		String value() default "";
 
+		/**
+		 * Uses the named constant of the parameter's enum type as the default instead of
+		 * a static field. The parameter must be an enum and the constant must exist on
+		 * it, otherwise compilation fails. Cannot be combined with {@link #value()}.
+		 * @return enum constant name like <code>JSON5</code>, or empty to use
+		 * {@link #value()}.
+		 */
+		String constant() default "";
+
 	}
 
 	/**
