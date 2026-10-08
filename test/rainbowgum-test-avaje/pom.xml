@@ -40,6 +40,15 @@
     </dependency>
     <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-scopedkeyvalues-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-scopedkeyvalues</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-avaje-config</artifactId>
     </dependency>
   </dependencies>
