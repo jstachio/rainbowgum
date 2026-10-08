@@ -128,7 +128,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 		}
 		for (int i = 0; i < key.length(); i++) {
 			char c = key.charAt(i);
-			output.append(isSpecial(c) ? '_' : c);
+			output.append(isSpecial(c) || c == '\\' ? '_' : c);
 		}
 	}
 
