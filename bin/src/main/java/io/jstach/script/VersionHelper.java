@@ -195,10 +195,12 @@ enum Command implements HelpSupport {
 	 * {@value #VERSION_POM_PROPERTY} property instead of inheriting it, because they are
 	 * written like an application using the project (for example an example app with its
 	 * own framework parent). {@code mvn versions:set} does not update properties, so it
-	 * is rewritten directly. Leave it {@code List.of()} if there are none.
+	 * is rewritten directly, along with the pom's own {@code <version>}, which matches
+	 * the project version so reactor builds do not print a version per module. Leave it
+	 * {@code List.of()} if there are none.
 	 */
 	public static final List<String> VERSION_PROPERTY_POM_DIRECTORIES = List.of("examples/helidon",
-			"examples/micronaut");
+			"examples/micronaut", "examples/simple-props");
 
 	/**
 	 * The property {@link #VERSION_PROPERTY_POM_DIRECTORIES} poms declare the version in.
@@ -296,6 +298,7 @@ enum Command implements HelpSupport {
 		}
 		for (String dir : VERSION_PROPERTY_POM_DIRECTORIES) {
 			updatePomProperty(Path.of(dir, "pom.xml"), VERSION_POM_PROPERTY, current);
+			updateProjectVersion(Path.of(dir, "pom.xml"), current);
 		}
 		updateTimestamp(timestamp);
 
@@ -365,6 +368,29 @@ enum Command implements HelpSupport {
 		String updated = content.substring(0, start) + "<" + name + ">" + version.print(Version.PrintFlag.SNAPSHOT)
 				+ "</" + name + ">" + content.substring(end);
 		Files.writeString(pomFile, updated, StandardCharsets.UTF_8);
+	}
+
+	/**
+	 * Rewrites a pom's own {@code <version>}, the first one outside its
+	 * {@code <parent>}, as text, leaving the rest of the file byte for byte unchanged.
+	 * @param pomFile path to the pom.xml.
+	 * @param version new value.
+	 */
+	static void updateProjectVersion(Path pomFile, Version version) throws IOException {
+		String content = Files.readString(pomFile, StandardCharsets.UTF_8);
+		int parentStart = content.indexOf("<parent>");
+		int parentEnd = parentStart < 0 ? -1 : content.indexOf("</parent>", parentStart);
+		var matcher = Pattern.compile("<version>[^<]*</version>").matcher(content);
+		while (matcher.find()) {
+			if (parentStart >= 0 && matcher.start() > parentStart && matcher.start() < parentEnd) {
+				continue;
+			}
+			String updated = content.substring(0, matcher.start()) + "<version>"
+					+ version.print(Version.PrintFlag.SNAPSHOT) + "</version>" + content.substring(matcher.end());
+			Files.writeString(pomFile, updated, StandardCharsets.UTF_8);
+			return;
+		}
+		throw new IllegalStateException("No project <version> found in " + pomFile);
 	}
 
 	static Version tag() throws IOException {
