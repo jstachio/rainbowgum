@@ -423,6 +423,47 @@ the end of start: the only lazy reads are the level keys, which are excluded any
 The check runs from `RainbowGum.onGlobalChange` right after the global `RainbowGum`
 starts and sends each message as a warning alert.
 
+#### System properties: the discovery case
+
+Playing with the spike from the command line changed the priority. The common story is:
+you want something turned on, you pass `-Dlogging...` and nothing happens, so you rerun
+with `-Dlogging.debug=true` to find out why. That is discovery, and an unused key report
+with a suggestion answers it directly:
+
+```
+java -Dlogging.encoder.console.levle=plain -jar app.jar
+[WARN] ... Property key 'logging.encoder.console.levle' from SYSTEM_PROPERTIES[logging.encoder.console.levle] was set but not read during startup. Did you mean 'logging.encoder.console.level'?
+```
+
+So system properties are now checked too (the spike does this), and they may deserve the
+most stringent check of all:
+
+- **They can be listed.** `System.getProperties()` gives every name, like a simple props
+  file and unlike environment variables (whose names lose the dots).
+- **Only `logging.` keys**, the same prefix rule as the files.
+- **Intent is explicit.** A `-D` was typed for this run, on purpose. A dormant group in a
+  file may be switched off deliberately; a `-D` nothing read almost never is. Profiles
+  and `logging.properties` have reasons to carry keys that are not read (the profile
+  encoder switch above, dormant groups); a system property does not.
+- **Suggest from every key read, not only missed ones.** A `-D` usually overrides a key
+  already set in a file, so the key it was meant to be was *found*, not missed. The spike
+  first suggested only missed keys and gave `levle` no suggestion for exactly this
+  reason; it now suggests from every key read, which is still only keys some component
+  asked for.
+
+Two lists keep it honest:
+
+- **Read before or outside `LogConfig`**, so the recorder never sees them:
+  `logging.debug`, `logging.global.queue.level`, `logging.global.queue.error`,
+  `logging.systemlogger.initialize`.
+- **Other libraries' system properties under `logging.`** (a whitelist that will need
+  to grow): Spring Boot's `logging.config` and JBoss LogManager's
+  `logging.configuration`.
+
+With `-Dlogging.debug=true` already the tool people reach for, alerts may be all that is
+needed for now; failing (below) can wait. If anything does fail one day, unread system
+properties with a suggestion are the strongest candidate.
+
 #### Failing is the hard part now
 
 Alerting is easy and done. Failing is not, because the check can only run after start:
