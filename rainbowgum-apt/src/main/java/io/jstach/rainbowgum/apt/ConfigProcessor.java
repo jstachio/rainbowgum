@@ -232,6 +232,11 @@ public class ConfigProcessor extends AbstractProcessor {
 			}
 			properties.add(prop);
 		}
+		@Nullable String prefixError = prefixFormatError(propertyPrefix);
+		if (prefixError != null) {
+			processingEnv.getMessager().printMessage(Kind.ERROR, prefixError, ee, prism.mirror);
+			return null;
+		}
 		if (!validatePrefix(ee, propertyPrefix, foundParams)) {
 			return null;
 		}
@@ -305,6 +310,43 @@ public class ConfigProcessor extends AbstractProcessor {
 			}
 		}
 		return valid;
+	}
+
+	private static final Pattern PREFIX_PARAMETER_SEGMENT = Pattern.compile("\\{[^{}.]+\\}");
+
+	private static final Pattern PREFIX_SEPARATOR = Pattern.compile("\\.");
+
+	/*
+	 * Prefixes start with "logging." so every property key is greppable, and follow Java
+	 * package name rules (lowercase, each segment an identifier that is not a keyword)
+	 * except that a segment may be a {parameter} and the prefix must end in "." so
+	 * property names can be appended directly.
+	 */
+	static @Nullable String prefixFormatError(String prefix) {
+		String start = "@LogConfigurable prefix '" + prefix + "' ";
+		if (!prefix.endsWith(".")) {
+			return start + "must end with '.'.";
+		}
+		if (!prefix.startsWith("logging.")) {
+			return start + "must start with 'logging.'.";
+		}
+		String[] segments = PREFIX_SEPARATOR.split(prefix.substring(0, prefix.length() - 1), -1);
+		for (String segment : segments) {
+			if (segment.isEmpty()) {
+				return start + "has an empty segment.";
+			}
+			if (PREFIX_PARAMETER_SEGMENT.matcher(segment).matches()) {
+				continue;
+			}
+			if (!segment.equals(segment.toLowerCase(Locale.ROOT))) {
+				return start + "has segment '" + segment + "' which must be lowercase.";
+			}
+			if (!SourceVersion.isIdentifier(segment) || SourceVersion.isKeyword(segment)) {
+				return start + "has segment '" + segment
+						+ "' which is not a valid Java package name segment (an identifier that is not a keyword).";
+			}
+		}
+		return null;
 	}
 
 	private boolean validatePrefix(ExecutableElement ee, String propertyPrefix,
