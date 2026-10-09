@@ -91,6 +91,9 @@ final class UnusedKeyCheck {
 	 * @return recording layer.
 	 */
 	LogProperties wrap(LogProperties properties) {
+		if (properties instanceof LogProperties.MutableLogProperties mutable) {
+			return new MutableRecordingProperties(mutable, reads);
+		}
 		return new RecordingProperties(properties, reads);
 	}
 
@@ -197,7 +200,7 @@ final class UnusedKeyCheck {
 	 * Records the key of every lookup. visit records the key asked for, since a layer
 	 * that renames keys may answer through another properties.
 	 */
-	private static final class RecordingProperties extends ForwardingLogProperties {
+	private static sealed class RecordingProperties extends ForwardingLogProperties permits MutableRecordingProperties {
 
 		private final LogProperties delegate;
 
@@ -228,7 +231,19 @@ final class UnusedKeyCheck {
 		@Override
 		public @Nullable Map<String, String> mapOrNull(String key) {
 			reads.add(key);
-			return super.mapOrNull(key);
+			var map = super.mapOrNull(key);
+			/*
+			 * Keep the delegate's map parsing, including native map support. When no
+			 * single value supplies the map, its .keys and member properties supply it.
+			 * Those nested reads happen inside the delegate rather than this decorator.
+			 */
+			if (map != null && delegate.valueOrNull(key) == null) {
+				reads.add(key + LogProperties.SEP + LogProperties.MAP_KEYS_SUFFIX);
+				for (var member : map.keySet()) {
+					reads.add(key + LogProperties.SEP + member);
+				}
+			}
+			return map;
 		}
 
 		@Override
@@ -236,6 +251,24 @@ final class UnusedKeyCheck {
 				BiFunction<LogProperties, String, @Nullable R> visitor) {
 			reads.add(key);
 			return super.visit(key, visitor);
+		}
+
+	}
+
+	private static final class MutableRecordingProperties extends RecordingProperties
+			implements LogProperties.MutableLogProperties {
+
+		private final LogProperties.MutableLogProperties mutable;
+
+		MutableRecordingProperties(LogProperties.MutableLogProperties mutable, Set<String> reads) {
+			super(mutable, reads);
+			this.mutable = mutable;
+		}
+
+		@Override
+		public LogProperties.MutableLogProperties put(String key, @Nullable String value) {
+			mutable.put(key, value);
+			return this;
 		}
 
 	}

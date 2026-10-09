@@ -507,7 +507,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				 * runs, the same as everything else built directly in this method - see
 				 * DefaultLogAlerts.of(...) for how the two are validated together.
 				 */
-				LogAlerts alerts = DefaultLogAlerts.of(logProperties, alertsFail, debug == DebugModeType.HELP);
+				var alerts = DefaultLogAlerts.of(logProperties, alertsFail, debug == DebugModeType.HELP);
 				LogMetrics metrics = new DefaultLogMetrics();
 				var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
@@ -545,7 +545,11 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				 * actually mean anything - by construction nothing has had a chance to
 				 * register one before this point.
 				 */
-				// start() itself reports the backlog before throwing for FAIL.
+				// Failure here uses the builder's debug dump, including informational
+				// context.
+				alerts.failIfAlerted("building the configuration");
+				// start() itself reports the backlog before throwing for unobserved
+				// errors.
 				startingAlerts = true;
 				alerts.start(config);
 				if (debug == DebugModeType.INFO || debug.checksUnusedKeys()) {
@@ -580,20 +584,22 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		}
 
 		/*
-		 * The same properties with every layer recording its reads. Mutable layers are
-		 * left alone so they stay mutable.
+		 * Preserve composite precedence and mutability while recording every layer.
 		 */
 		private static LogProperties recording(LogProperties properties, UnusedKeyCheck check) {
-			var wrapped = layers(properties).stream()
-				.map(layer -> layer instanceof LogProperties.MutableLogProperties ? layer : check.wrap(layer))
-				.toList();
-			return LogProperties.of(wrapped);
+			if (properties instanceof ListLogProperties list) {
+				var wrapped = java.util.Arrays.stream(list.properties())
+					.map(layer -> recording(layer, check))
+					.toArray(LogProperties[]::new);
+				return properties instanceof LogProperties.MutableLogProperties
+						? new CompositeMutableLogProperties(wrapped) : new CompositeLogProperties(wrapped);
+			}
+			return check.wrap(properties);
 		}
 
 		private static List<LogProperties> layers(LogProperties properties) {
 			var layers = new ArrayList<LogProperties>();
-			if (properties instanceof ListLogProperties list
-					&& !(properties instanceof LogProperties.MutableLogProperties)) {
+			if (properties instanceof ListLogProperties list) {
 				for (var layer : list.properties()) {
 					layers.addAll(layers(layer));
 				}

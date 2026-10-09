@@ -290,7 +290,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		}
 		if (config().alerts() instanceof DefaultLogAlerts alerts) {
 			try {
-				alerts.failIfAlerted("starting");
+				alerts.finishStartup();
 			}
 			catch (RuntimeException e) {
 				close();
@@ -310,7 +310,11 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		var eventFactory = LogEventFactory.of(LogConfig.class.getName());
 		for (var u : check.unused()) {
 			var level = u.suggestion() == null ? Level.INFO : Level.WARNING;
-			config().alerts().alert(eventFactory.eventNoArg(level, u.message(), null));
+			var event = eventFactory.eventNoArg(level, u.message(), null);
+			config().alerts().alert(event);
+			if (level == Level.INFO && config().debugMode().checksUnusedKeys()) {
+				MetaLog.error(event);
+			}
 		}
 	}
 
