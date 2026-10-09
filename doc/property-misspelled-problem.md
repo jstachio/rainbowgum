@@ -413,6 +413,65 @@ This leaves the `@Misspelling` hints only for sources that cannot list their key
 (system properties, Spring's `Environment`), which these notes do not focus on, so they
 are probably unnecessary.
 
+#### Spike result
+
+Branch `spike/unused-property-check` implements this in simple props. Against a real
+file and a real started `RainbowGum` it reported `keyvalues`, `KEYVALUES`, and
+`key-values` as `keyValues`, `therad` as `thread`, `levle` as `level`, and a made up key
+with no suggestion. It did not flag any valid key or the level key. Reads did happen by
+the end of start: the only lazy reads are the level keys, which are excluded anyway.
+The check runs from `RainbowGum.onGlobalChange` right after the global `RainbowGum`
+starts and sends each message as a warning alert.
+
+#### Failing is the hard part now
+
+Alerting is easy and done. Failing is not, because the check can only run after start:
+
+- **Everything is already running.** Outputs are open, publisher threads started, and
+  the router is live. A failure has to close that `RainbowGum` cleanly, not just throw.
+- **It happens on someone else's call.** The global `RainbowGum` starts lazily, usually
+  inside the application's first `LoggerFactory.getLogger` or log call. Throwing there
+  fails a random line of application code, possibly in a static initializer, with an
+  error about a properties file.
+- **Before start is too early.** Components read most of their keys while being built
+  and started, so a check before start would report almost everything as unused.
+
+Options:
+
+1. **A core hook between "configured" and "started"**, if most reads happen while the
+   router and components are created rather than when they start. Failing there leaves
+   nothing running. Needs measuring which reads happen in which phase.
+2. **Close then throw**: close the just started `RainbowGum` and throw from global
+   initialization, the same place strict `fail` already throws for prefix errors today
+   (`SimpleProperties.properties()` during property loading). Brutal, but it is the same
+   kind of failure users of strict `fail` already opted into.
+3. **Fail only where failing is cheap**: CI and tests. A test helper or a build plugin
+   that starts Rainbow Gum with the application's `logging.properties` and fails the
+   build, while production only alerts (idea 5).
+
+#### Tying it to strict mode
+
+Simple props' `logging.simpleprops.strict` enum already decides how bad prefix keys are
+treated. The unused key check could hang off the same modes:
+
+| Mode | Prefix keys today | Unused keys |
+|---|---|---|
+| `off` | ignored | not checked (no recorder, zero cost) |
+| `alert` | alert | alert |
+| `short` (default) | add prefix, fail on `java.util.logging` keys | alert |
+| `fail` | fail | fail, at least for keys with a suggestion |
+
+Notes:
+
+- **Fail on what.** A key with a case only or near miss suggestion is almost certainly a
+  mistake; a key with no suggestion may belong to a third party component read lazily.
+  `fail` could fail on the first kind and only alert on the second.
+- **Different timing in one enum.** `fail` for prefix keys fails while properties load;
+  `fail` for unused keys can only fail after start (option 2). That is visible to users
+  as two different stack traces from one setting, which may argue for a separate enum
+  (for example `logging.simpleprops.unused=off|alert|fail`).
+- **`off` turns off the recorder too**, so a user who wants zero overhead gets it.
+
 ## Thoughts on focusing on simple props users
 
 Aiming at the simple props user changes what is hard:
