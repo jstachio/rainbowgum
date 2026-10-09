@@ -485,6 +485,35 @@ Exceptions to rule 2:
   will not produce a configuration error if incorrect", so groups can be switched on
   and off. See "Dormant groups" below.
 
+#### Found by the simple props example: keys for a component type not chosen
+
+Running `examples/simple-props` against the spike with `-Dlogging.profiles=json`
+reported two keys as unused:
+
+```
+Property key 'logging.encoder.console.level' from SIMPLE_PROPS[classpath:/logging.properties:15][...] was set but not read during startup.
+Property key 'logging.encoder.console.logger' from SIMPLE_PROPS[classpath:/logging.properties:16][...] was set but not read during startup.
+```
+
+Both are correct TTLL options in the base file. The `json` profile switched the
+console encoder to `json5`, which does not read them. This is the normal way to use
+profiles, and it breaks rule 2 above: the keys are under `logging.encoder.{name}.` with
+no suggestion, so `fail` would fail a perfectly valid setup.
+
+So rule 2 cannot be "any unread key under a component namespace". A key can be unread
+because the component under that name is a different type than the one the key was
+written for. Options:
+
+- **Only fail with a suggestion**, even under component namespaces (rule 1 only). The
+  json profile case then alerts at most, and `colour` against `color` still fails.
+- **Know which keys each type accepts** (the catalog, idea 3): unread but valid for some
+  other encoder type is "configured for a different type", not a mistake.
+- **Do not alert at all** for keys under a namespace when they would be read by another
+  type, which also needs the catalog.
+
+The first is simplest and keeps `fail` predictable, at the cost of not catching a key
+under a component namespace that is wrong for every type.
+
 #### Dormant groups: possibly the biggest problem
 
 Because of plural keys, "no key under this `{name}` was read" is normal, and it looks
