@@ -403,23 +403,26 @@ public sealed interface TTLL permits TTLLFormatter {
 	}
 
 	/**
-	 * ANSI color theme, the colors used when {@link ColorMode} decides to color.
+	 * ANSI color theme, the colors used when {@link ColorMode} decides to color. The
+	 * built in themes are the constants of this interface.
 	 */
-	@CaseChanging
-	enum ColorTheme {
+	sealed interface ColorTheme permits StandardColorTheme {
 
 		/**
 		 * The Rainbow Gum colors, the same as the pattern encoder's default: cyan time,
 		 * faint thread and key values, level highlighted (error and warn bold red, info
-		 * bold blue) and magenta logger name. Used when no theme is set.
+		 * bold blue) and magenta logger name. Used when no theme is set. Property value
+		 * <code>rainbowgum</code> or <code>default</code>.
 		 */
-		@EnumAlias("default")
-		RAINBOWGUM,
+		ColorTheme RAINBOWGUM = StandardColorTheme.RAINBOWGUM;
+
 		/**
 		 * Spring Boot's console colors: faint time and thread, level colored by severity
-		 * (error red, warn yellow, the rest green) and cyan logger name.
+		 * (error red, warn yellow, the rest green) and cyan logger name. Property value
+		 * <code>spring</code>.
 		 */
-		SPRING,
+		ColorTheme SPRING = StandardColorTheme.SPRING;
+
 		/**
 		 * Atom One Dark's colors in 24 bit color, so they show the same in any terminal
 		 * that supports it: cyan time, gray thread and key values, magenta logger name,
@@ -427,20 +430,21 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * gray. Meant for a dark terminal background. Property value
 		 * <code>one_dark</code>.
 		 */
-		ONE_DARK,
+		ColorTheme ONE_DARK = StandardColorTheme.ONE_DARK;
+
 		/**
 		 * IntelliJ Darcula's colors in 24 bit color: blue time, gray thread and key
 		 * values, orange logger name, and level bold red, yellow, or green (error, warn,
-		 * info) with debug and trace gray. Meant for a dark terminal background.
+		 * info) with debug and trace gray. Meant for a dark terminal background. Property
+		 * value <code>darcula</code>.
 		 */
-		DARCULA;
+		ColorTheme DARCULA = StandardColorTheme.DARCULA;
 
-		static ColorTheme parse(String value) {
-			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
-				case "default" -> RAINBOWGUM;
-				default -> io.jstach.rainbowgum.LogProperty.enumValue(ColorTheme.class, value, "default");
-			};
-		}
+		/**
+		 * The theme's name, which is its property value.
+		 * @return name like <code>one_dark</code>.
+		 */
+		String name();
 
 	}
 
