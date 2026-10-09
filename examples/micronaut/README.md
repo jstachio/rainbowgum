@@ -12,7 +12,7 @@ on `micronaut-parent`, not `rainbowgum-maven-parent`). Build/run it directly:
 
 ```
 ../../mvnw -q -f pom.xml clean package -DskipTests
-java -jar target/rainbowgum-micronaut-example-0.1.jar
+java -jar target/rainbowgum-micronaut-example.jar
 curl http://localhost:8080/hello
 ```
 
