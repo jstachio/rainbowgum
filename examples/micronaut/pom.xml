@@ -112,6 +112,7 @@
 
   </dependencies>
   <build>
+    <finalName>rainbowgum-micronaut-example</finalName>
     <plugins>
       <plugin>
         <groupId>io.micronaut.maven</groupId>

@@ -36,7 +36,7 @@ jobs:
         working-directory: examples/micronaut
         run: |
           set -e
-          java -jar target/rainbowgum-micronaut-example-0.1.jar > server.log 2>&1 &
+          java -jar target/rainbowgum-micronaut-example.jar > server.log 2>&1 &
           server_pid=$!
           trap 'kill $server_pid 2>/dev/null || true' EXIT
 
