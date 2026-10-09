@@ -16,6 +16,7 @@
     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
   </properties>
   <modules>
+  <module>rainbowgum-test-apt</module>
   <module>rainbowgum-test-avaje</module>
   <module>rainbowgum-test-config</module>
   <module>rainbowgum-test-core</module>
