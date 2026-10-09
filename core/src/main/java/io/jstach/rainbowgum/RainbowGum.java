@@ -276,12 +276,42 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 */
 	default RainbowGum start() {
 		router().start(config());
-		if (config().debugMode() == LogConfig.DebugModeType.ALL) {
+		var debugMode = config().debugMode();
+		if (debugMode == LogConfig.DebugModeType.ALL || debugMode == LogConfig.DebugModeType.HELP) {
 			var report = LogReporter.builder().build().report(this);
 			MetaLog.error(LogEventFactory.of(RainbowGum.class.getName())
 				.eventNoArg(Level.INFO, "Rainbow Gum started:\n" + report, null));
 		}
+		if (config() instanceof DefaultLogConfig c) {
+			var check = c.unusedKeyCheck();
+			if (check != null) {
+				reportUnusedKeys(check);
+			}
+		}
+		if (config().alerts() instanceof DefaultLogAlerts alerts) {
+			try {
+				alerts.failIfAlerted("starting");
+			}
+			catch (RuntimeException e) {
+				close();
+				throw e;
+			}
+		}
 		return this;
+	}
+
+	/*
+	 * An unused key with a suggestion is almost always a typo, so it is a warning, which
+	 * logging.alerts.fail=warning (and logging.debug=help) turns into a failure. One
+	 * without is only information: the key may be for a component type that was not
+	 * chosen, such as encoder options left behind by a profile that switches encoder.
+	 */
+	private void reportUnusedKeys(UnusedKeyCheck check) {
+		var eventFactory = LogEventFactory.of(LogConfig.class.getName());
+		for (var u : check.unused()) {
+			var level = u.suggestion() == null ? Level.INFO : Level.WARNING;
+			config().alerts().alert(eventFactory.eventNoArg(level, u.message(), null));
+		}
 	}
 
 	/**

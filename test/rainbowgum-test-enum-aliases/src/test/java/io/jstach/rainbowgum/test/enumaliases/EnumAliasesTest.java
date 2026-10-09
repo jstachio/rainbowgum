@@ -78,6 +78,7 @@ class EnumAliasesTest {
 	@Test
 	void everyModuleRecordsItsAliases() {
 		assertEquals(Set.of( //
+				"io.jstach.rainbowgum.LogAlerts$FailLevel", //
 				"io.jstach.rainbowgum.LogConfig$ChangePublisher$ChangeType", //
 				"io.jstach.rainbowgum.LogConfig$DebugModeType", //
 				"io.jstach.rainbowgum.LogEvent$Caller$CallerType", //

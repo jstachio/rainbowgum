@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogReporter;
 
-class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
+class SimpleLogProperties implements LogProperties.Listable, LogReporter.Reportable {
 
 	private final String resource;
 
@@ -42,6 +42,14 @@ class SimpleLogProperties implements LogProperties, LogReporter.Reportable {
 		if (e == null)
 			return null;
 		return e.value();
+	}
+
+	/*
+	 * Every key in file order, with the logging prefix when short keys added it.
+	 */
+	@Override
+	public List<String> keys() {
+		return List.<String>copyOf(entries.keySet());
 	}
 
 	static SimpleLogProperties read(Reader reader, String resource) throws IOException {
