@@ -479,12 +479,44 @@ Exceptions to rule 2:
 
 - **Level keys inside a namespace**, `logging.route.{name}.level.*`, are read lazily per
   logger like `logging.level.*` and are ignored.
-- **A component that was not created at all.** If `file` is not in `logging.appenders`,
-  none of the `logging.appender.file.` keys are read. Keeping a disabled appender's
-  configuration around to switch it on later is normal, so when no key under a
-  `{name}` was read, that is one alert ("appender file is configured but not used"),
-  not a failure per key. This is idea 8 (misspelled names) falling out of the same
-  data: `logging.appenders=consol` produces exactly that alert for `console`.
+- **A component that was not created at all.** This is a feature, not a mistake: the
+  overview's [plural keys](https://jstach.io/rainbowgum/#config_plural) section promises
+  that a group left out of `logging.appenders` (its `appender3`) "will not be used and
+  will not produce a configuration error if incorrect", so groups can be switched on
+  and off. See "Dormant groups" below.
+
+#### Dormant groups: possibly the biggest problem
+
+Because of plural keys, "no key under this `{name}` was read" is normal, and it looks
+exactly the same whether the group was disabled on purpose or its name was mistyped:
+
+```properties
+logging.appenders=console
+logging.appender.consle.encoder=json   # meant console: silently ignored
+logging.appender.file.output=file:///var/log/app.log   # disabled on purpose
+```
+
+`console` starts on its defaults and both other groups are dormant. Note the opposite
+mistake is already caught today: `logging.appenders=consol` fails, because a named
+appender has no default output unless it is `console` or `file`.
+
+The same matching helps here, applied to the `{name}` segment instead of the leaf:
+
+- **Dormant name close to a created name** in the same namespace (`consle` against the
+  created `console`) is a misspelling, with a suggestion, so it follows rule 1 and fails
+  under `fail`.
+- **Dormant name close to nothing** (`file` when only `console` was created, or
+  `appender3`) is a disabled group. It is not an error; at most an info alert listing
+  the dormant groups, so a user can see what is switched off.
+
+The same applies to every plural driven namespace: `logging.routes` and route names,
+appender names (which also name their encoder and output keys), and publishers.
+
+For simple props users this is less of a problem than it sounds: profiles (including the
+optional `default` profile) are the better tool for switching groups on and off, since a
+group kept in `logging-file.properties` is simply not loaded unless the `file` profile
+is selected. So dormant groups in the files that are loaded should be rare, and the docs
+can point people at profiles instead of dormant groups.
 
 Open: whether `fail` is ever the default. The notes so far say alert by default, `fail`
 for CI.
