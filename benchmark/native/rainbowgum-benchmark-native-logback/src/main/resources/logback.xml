@@ -1,0 +1,19 @@
+<configuration>
+  <!--
+    A <statusListener class="ch.qos.logback.core.status.NopStatusListener" /> here would
+    normally suppress Logback's own startup status noise ("Found logback-core version
+    ?", "NOTE: writing to console can be slow", etc.), but under native-image that
+    listener class itself is not reflectively instantiable without its own explicit
+    reflect-config entry (a second, separate GraalVM registration gap from the resource
+    one worked around below) - not worth chasing for noise that only appears once at
+    startup and never during the actual measured load.
+  -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger - %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="${bench.log.level:-INFO}">
+    <appender-ref ref="CONSOLE" />
+  </root>
+</configuration>
