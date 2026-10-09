@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 import java.util.function.BooleanSupplier;
 
 import org.jspecify.annotations.Nullable;
@@ -14,6 +15,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -72,6 +74,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	 * @param theme ANSI color theme, see {@link TTLL.ColorTheme}.
 	 * @param keyValuesWhenEmpty braces for no key values, see
 	 * {@link TTLL.KeyValuesWhenEmpty}.
+	 * @param serviceRegistry where themes chosen by name in properties are looked up.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "TTLLFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
@@ -83,9 +86,11 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 			@LogConfigurable.DefaultParameter("DEFAULT_KEY_VALUES") @LogConfigurable.ConvertParameter("convertKeyValues") LogFormatter keyValues,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
-			@LogConfigurable.ConvertParameter("convertKeyValuesWhenEmpty") TTLL.@Nullable KeyValuesWhenEmpty keyValuesWhenEmpty) {
+			@LogConfigurable.ConvertParameter("convertKeyValuesWhenEmpty") TTLL.@Nullable KeyValuesWhenEmpty keyValuesWhenEmpty,
+			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
 		var mode = color == null ? TTLL.ColorMode.DEFAULT : color;
-		var palette = Palette.of(mode, theme, AnsiSupport::isAnsiSupported);
+		var resolvedTheme = PaletteColorTheme.resolve(theme, serviceRegistry);
+		var palette = Palette.of(mode, resolvedTheme, AnsiSupport::isAnsiSupported);
 		var b = LogFormatter.builder();
 		boolean empty = true;
 		empty = part(b, palette.color(palette.timestamp(), timestamp), empty);
@@ -113,7 +118,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 			b.add(palette.keyValues(keyValues, writeEmpty, !empty));
 		}
 		var line = LogFormatter.builder().add(new LinePrefixFormatter(b.build())).message().newline().throwable();
-		return new TTLLFormatter(line.build(), describe(mode, theme, palette));
+		return new TTLLFormatter(line.build(), describe(mode, resolvedTheme, palette));
 	}
 
 	/*
@@ -182,7 +187,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	}
 
 	static TTLL.ColorTheme convertTheme(String value) {
-		return StandardColorTheme.parse(value);
+		return PaletteColorTheme.parse(value);
 	}
 
 	static LogFormatter convertKeyValues(String value) {
@@ -282,42 +287,103 @@ final class Ansi {
 }
 
 /*
- * The built in color themes: a name and the palette it colors with.
+ * A theme with its colors: the built in themes and those made with
+ * TTLL.ColorTheme.builder.
  */
-record StandardColorTheme(String name, Palette palette) implements TTLL.ColorTheme {
+record PaletteColorTheme(String name, Palette palette) implements TTLL.ColorTheme {
 
-	static final StandardColorTheme RAINBOWGUM = new StandardColorTheme("rainbowgum", Palette.RAINBOWGUM);
+	static final PaletteColorTheme RAINBOWGUM = new PaletteColorTheme("rainbowgum", Palette.RAINBOWGUM);
 
-	static final StandardColorTheme SPRING = new StandardColorTheme("spring", Palette.SPRING);
+	static final PaletteColorTheme SPRING = new PaletteColorTheme("spring", Palette.SPRING);
 
-	static final StandardColorTheme ONE_DARK = new StandardColorTheme("one_dark", Palette.ONE_DARK);
+	static final PaletteColorTheme ONE_DARK = new PaletteColorTheme("one_dark", Palette.ONE_DARK);
 
-	static final StandardColorTheme DARCULA = new StandardColorTheme("darcula", Palette.DARCULA);
+	static final PaletteColorTheme DARCULA = new PaletteColorTheme("darcula", Palette.DARCULA);
 
-	static final List<StandardColorTheme> ALL = List.of(RAINBOWGUM, SPRING, ONE_DARK, DARCULA);
+	static final List<PaletteColorTheme> BUILT_IN = List.of(RAINBOWGUM, SPRING, ONE_DARK, DARCULA);
+
+	private static final Pattern NAME = Pattern.compile("[a-z][a-z0-9_]*");
 
 	/*
-	 * Same values and error as when this was an enum, including the default alias.
+	 * A built in theme, or a name to find among registered themes when the formatter is
+	 * created, since converting the property cannot see the service registry.
 	 */
-	static StandardColorTheme parse(String value) {
+	static TTLL.ColorTheme parse(String value) {
 		String name = value.strip().toLowerCase(Locale.ROOT);
 		if (name.equals("default")) {
 			return RAINBOWGUM;
 		}
-		for (var theme : ALL) {
+		for (var theme : BUILT_IN) {
 			if (theme.name().equals(name)) {
 				return theme;
 			}
 		}
+		if (!NAME.matcher(name).matches()) {
+			throw invalid(value, List.of());
+		}
+		return new NamedColorTheme(name);
+	}
+
+	/*
+	 * The theme for a name from properties, looked up among themes registered under their
+	 * name.
+	 */
+	static TTLL.@Nullable ColorTheme resolve(TTLL.@Nullable ColorTheme theme, @Nullable ServiceRegistry registry) {
+		if (!(theme instanceof NamedColorTheme named)) {
+			return theme;
+		}
+		var registered = new ArrayList<String>();
+		if (registry != null) {
+			var found = registry.findOrNull(TTLL.ColorTheme.class, named.name());
+			if (found instanceof PaletteColorTheme) {
+				return found;
+			}
+			registry.forEach(TTLL.ColorTheme.class, (n, t) -> registered.add(n));
+		}
+		throw invalid(named.name(), registered);
+	}
+
+	static String requireThemeName(String name) {
+		if (!NAME.matcher(name).matches()) {
+			throw new IllegalArgumentException("Color theme name '" + name
+					+ "' should be lowercase letters, digits, and underscores, starting with a letter.");
+		}
+		if (name.equals("default") || BUILT_IN.stream().anyMatch(t -> t.name().equals(name))) {
+			throw new IllegalArgumentException("Color theme name '" + name + "' is taken by a built in theme.");
+		}
+		return name;
+	}
+
+	static Palette paletteOf(TTLL.ColorTheme theme) {
+		return switch (theme) {
+			case PaletteColorTheme t -> t.palette();
+			case NamedColorTheme t ->
+				throw new IllegalArgumentException("Color theme '" + t.name() + "' has not been looked up yet.");
+		};
+	}
+
+	/*
+	 * Same message as when this was an enum, with registered theme names after the built
+	 * in ones.
+	 */
+	private static IllegalArgumentException invalid(String value, List<String> registered) {
 		var valid = new ArrayList<String>();
-		for (var theme : ALL) {
+		for (var theme : BUILT_IN) {
 			valid.add("'" + theme.name() + "'");
 		}
 		valid.add("'default'");
-		throw new IllegalArgumentException("'" + value + "' is not a valid value for "
+		registered.stream().sorted().forEach(n -> valid.add("'" + n + "'"));
+		return new IllegalArgumentException("'" + value + "' is not a valid value for "
 				+ TTLL.ColorTheme.class.getCanonicalName() + ". Valid values: " + String.join(", ", valid));
 	}
 
+}
+
+/*
+ * A theme name from properties that is not built in, looked up when the formatter is
+ * created.
+ */
+record NamedColorTheme(String name) implements TTLL.ColorTheme {
 }
 
 /*
@@ -381,9 +447,7 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 	}
 
 	static Palette of(TTLL.ColorTheme theme) {
-		return switch (theme) {
-			case StandardColorTheme t -> t.palette();
-		};
+		return PaletteColorTheme.paletteOf(theme);
 	}
 
 	boolean colored() {
