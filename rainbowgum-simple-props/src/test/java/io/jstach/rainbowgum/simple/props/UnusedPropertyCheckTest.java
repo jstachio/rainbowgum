@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogAlerts.FailLevel;
@@ -128,6 +130,50 @@ class UnusedPropertyCheckTest {
 				        ENV[RAINBOWGUM_alerts_fail],
 				        SIMPLE_PROPS[classpath:/alerts-fail-invalid.properties:1][logging.alerts.fail]""";
 		assertEquals(expected, e.getMessage());
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "HELP, false", "HELP, true", "OFF, false", "OFF, true" })
+	void consumedMapMembersAreNotUnusedProperties(DebugModeType debug, boolean mutable) {
+		var simple = SimpleProperties.builder().resource("classpath:/used-map.properties").envLookup(k -> null).build();
+		LogProperties properties = LogProperties.of(simple.properties());
+		if (mutable) {
+			properties = LogProperties.MutableLogProperties.builder().with(properties).build();
+		}
+		var config = LogConfig.builder()
+			.properties(properties)
+			.debug(debug)
+			.alertsFail(FailLevel.WARNING)
+			.configurator((c, pass) -> {
+				var headers = c.properties().forKey("logging.headers").ofMap().validateNow(getClass());
+				assertEquals(Map.of("a", "production", "region", "us east"), headers);
+				return true;
+			})
+			.build();
+		config.outputRegistry().register("list", ref -> LogProvider.of(new ListLogOutput()));
+		try (var gum = RainbowGum.builder(config).build().start()) {
+			assertEquals("", unusedKeyAlerts(gum));
+		}
+	}
+
+	@Test
+	void mutableCompositeStillChecksFileKeys() {
+		var simple = SimpleProperties.builder()
+			.resource("classpath:/alerts-fail-warning.properties")
+			.envLookup(k -> null)
+			.build();
+		var properties = LogProperties.MutableLogProperties.builder()
+			.with(LogProperties.of(simple.properties()))
+			.build();
+		var config = LogConfig.builder().properties(properties).build();
+		config.outputRegistry().register("list", ref -> LogProvider.of(new ListLogOutput()));
+		var gum = RainbowGum.builder(config).build();
+		var e = assertThrows(IllegalStateException.class, gum::start);
+		assertEquals(
+				"""
+						1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
+						[WARNING] Property key 'logging.encoder.list.therad' from SIMPLE_PROPS[classpath:/alerts-fail-warning.properties:5][logging.encoder.list.therad] was set but not read during startup. Did you mean 'logging.encoder.list.thread'?""",
+				e.getMessage());
 	}
 
 	private static String unusedKeyAlerts(RainbowGum gum) {

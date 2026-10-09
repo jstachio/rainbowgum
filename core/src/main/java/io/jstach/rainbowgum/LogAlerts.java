@@ -110,7 +110,8 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	 * Clears the ring buffer. Does not reset {@link Stats#total()} - like a
 	 * Prometheus/Micrometer counter, that is meant to be monotonically increasing for the
 	 * life of the process; a downstream metrics system computes rate of change rather
-	 * than relying on the counter itself being reset.
+	 * than relying on the counter itself being reset. Clearing diagnostics does not undo
+	 * an alert that fails startup under {@link FailLevel}.
 	 */
 	public void clear();
 
@@ -166,10 +167,11 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	}
 
 	/**
-	 * What {@link #start(LogConfig)} and Rainbow Gum's own start do with alerts recorded
-	 * while starting, set by {@value LogProperties#ALERTS_FAIL_PROPERTY}. Checked once
-	 * when {@link LogConfig} is built and once right after Rainbow Gum starts; alerts
-	 * after that never fail anything.
+	 * What building LogConfig and starting Rainbow Gum do with alerts recorded while
+	 * starting, set by {@value LogProperties#ALERTS_FAIL_PROPERTY}. Checked once when
+	 * {@link LogConfig} is built and once right after Rainbow Gum starts; alerts after
+	 * that never fail anything. Evicting or clearing an alert from the diagnostic queue
+	 * does not prevent it from failing startup.
 	 */
 	enum FailLevel {
 
@@ -387,6 +389,17 @@ final class DefaultLogAlerts implements LogAlerts {
 	 */
 	private final String failLevelSource;
 
+	/*
+	 * Startup failure is independent of the bounded diagnostic queue. Keep the first
+	 * failure and the count until startup ends, even if clear() or eviction removes it
+	 * from the queue. All three fields are protected by lock.
+	 */
+	private long startupFailures;
+
+	private @Nullable LogEvent firstStartupFailure;
+
+	private boolean startupComplete;
+
 	private DefaultLogAlerts(int capacity, UnobservedErrorsAction unobservedErrorsAction, FailLevel failLevel,
 			String failLevelSource) {
 		this.ring = new LogEvent[capacity];
@@ -400,31 +413,58 @@ final class DefaultLogAlerts implements LogAlerts {
 	}
 
 	/*
-	 * Throws listing every alert at or above the fail level. Called when LogConfig is
-	 * built and right after Rainbow Gum starts; the second call sees the same alerts as
-	 * the first, which did not fail, plus those recorded while starting.
+	 * Checks the startup failure count and lists retained failing alerts, including the
+	 * first failure even if it left the queue. Called when LogConfig is built and right
+	 * after Rainbow Gum starts.
 	 */
 	void failIfAlerted(String phase) {
-		if (failLevel == FailLevel.OFF) {
-			return;
+		checkStartup(phase, false);
+	}
+
+	void finishStartup() {
+		checkStartup("starting", true);
+	}
+
+	private void checkStartup(String phase, boolean complete) {
+		lock.lock();
+		try {
+			if (startupComplete) {
+				return;
+			}
+			startupComplete = complete;
+			var first = firstStartupFailure;
+			if (first == null) {
+				return;
+			}
+			var failing = new ArrayList<>(dump().stream().filter(e -> failLevel.fails(e.level())).toList());
+			if (!failing.contains(first)) {
+				failing.addFirst(first);
+			}
+			var sb = new StringBuilder();
+			sb.append(startupFailures)
+				.append(" alert(s) at ")
+				.append(failLevel.name().toLowerCase(Locale.ROOT))
+				.append(" or above were recorded while ")
+				.append(phase)
+				.append(" and ")
+				.append(failLevelSource)
+				.append(":");
+			for (var e : failing) {
+				sb.append("\n[").append(e.level()).append("] ").append(e.message());
+			}
+			if (startupFailures > failing.size()) {
+				sb.append("\n")
+					.append(startupFailures - failing.size())
+					.append(" additional failing alert(s) are no longer retained.");
+			}
+			throw new IllegalStateException(sb.toString());
 		}
-		var failing = dump().stream().filter(e -> failLevel.fails(e.level())).toList();
-		if (failing.isEmpty()) {
-			return;
+		finally {
+			if (complete) {
+				firstStartupFailure = null;
+			}
+			lock.unlock();
 		}
-		var sb = new StringBuilder();
-		sb.append(failing.size())
-			.append(" alert(s) at ")
-			.append(failLevel.name().toLowerCase(Locale.ROOT))
-			.append(" or above were recorded while ")
-			.append(phase)
-			.append(" and ")
-			.append(failLevelSource)
-			.append(":");
-		for (var e : failing) {
-			sb.append("\n[").append(e.level()).append("] ").append(e.message());
-		}
-		throw new IllegalStateException(sb.toString());
 	}
 
 	/*
@@ -454,7 +494,7 @@ final class DefaultLogAlerts implements LogAlerts {
 	 * lambda body passed through a generic method like map(...) - the one and only `new
 	 * DefaultLogAlerts(...)` call stays a plain, unconditional statement here instead.
 	 */
-	static LogAlerts of(LogProperties properties, FailLevel failLevelFallback, boolean help) {
+	static DefaultLogAlerts of(LogProperties properties, FailLevel failLevelFallback, boolean help) {
 		var validator = LogProperty.Validator.of(LogAlerts.class);
 		var failLevelResult = properties.forKey(LogProperties.ALERTS_FAIL_PROPERTY)
 			.ofString()
@@ -498,6 +538,12 @@ final class DefaultLogAlerts implements LogAlerts {
 		}
 		lock.lock();
 		try {
+			if (!startupComplete && failLevel.fails(frozen.level())) {
+				startupFailures++;
+				if (firstStartupFailure == null) {
+					firstStartupFailure = frozen;
+				}
+			}
 			if (size < ring.length) {
 				ring[(start + size) % ring.length] = frozen;
 				size++;
@@ -540,7 +586,6 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	@Override
 	public void start(LogConfig config) {
-		failIfAlerted("building the configuration");
 		if (unobservedErrorsAction == UnobservedErrorsAction.NONE || hasExternalListener || errors.get() == 0) {
 			return;
 		}
@@ -562,6 +607,14 @@ final class DefaultLogAlerts implements LogAlerts {
 	@Override
 	public void close() {
 		listeners.clear();
+		lock.lock();
+		try {
+			startupComplete = true;
+			firstStartupFailure = null;
+		}
+		finally {
+			lock.unlock();
+		}
 	}
 
 	@Override

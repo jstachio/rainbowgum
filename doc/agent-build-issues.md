@@ -11,6 +11,23 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-10-09: Targeted analysis needs current annotation processor dependencies
+
+During review of `spike/unused-property-check`, the full
+`./mvnw --fail-at-end verify` passed. Targeted analysis with
+`_run_modules=core,rainbowgum-simple-props bin/analyze.sh` then failed because
+`DefaultParameter.constant()` and newly generated default constants could not
+be resolved. Targeted analysis uses installed annotation and processor jars;
+the preceding `verify` had built their current versions without installing them.
+
+Installing those dependencies with
+`./mvnw -pl rainbowgum-annotation,rainbowgum-apt -am install` took 1.6 seconds.
+Repeating the targeted analysis passed Checker Framework, Error Prone, and
+NullAway. Caching and normal parallelism remained enabled. Refresh these build
+dependencies after annotation or processor changes before targeted analysis.
+
+Agent: Codex (GPT-6).
+
 ## 2026-10-07: Incremental Javadoc misses documentation-only changes
 
 While clarifying the OpenTelemetry integration documentation,

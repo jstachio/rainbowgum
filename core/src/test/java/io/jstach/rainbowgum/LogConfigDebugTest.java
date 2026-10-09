@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -310,6 +311,89 @@ class LogConfigDebugTest {
 				"[INFO] - RAINBOW_GUM - LogConfig - Adding configurator: unknown Configurator",
 				"[ERROR] - RAINBOW_GUM - LogConfigDebugTest - failure java.lang.IllegalStateException: cause"),
 				reportedEvents());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "ERROR", "INFO", "ALL", "HELP" })
+	void failOnAlertsDumpsInformationalContextWithoutNotifyingListenersAgain(String mode) {
+		System.setProperty(LogProperties.DEBUG_PROPERTY, mode);
+		var listenerCalls = new AtomicInteger();
+		var thrown = assertThrows(IllegalStateException.class,
+				() -> LogConfig.builder().alertsFail(LogAlerts.FailLevel.WARNING).configurator((config, pass) -> {
+					config.alerts().addListener(event -> listenerCalls.incrementAndGet());
+					config.alerts().info(LogConfigDebugTest.class, "startup context");
+					config.alerts().warn(LogConfigDebugTest.class, "startup warning");
+					return true;
+				}).build());
+		assertEquals(
+				"""
+						1 alert(s) at warning or above were recorded while building the configuration and logging.alerts.fail=warning:
+						[WARNING] startup warning""",
+				thrown.getMessage());
+		// Only stack frames vary between build tools and JDKs.
+		String actual = output.toString(StandardCharsets.UTF_8)
+			.lines()
+			.filter(line -> !line.startsWith("\tat "))
+			.collect(Collectors.joining("\n"));
+		assertEquals(
+				"""
+						[WARN] - RAINBOW_GUM - LogConfigDebugTest - startup warning
+						[ERROR] - RAINBOW_GUM - LogConfig - LogConfig build failed; dumping 3 alert(s) java.lang.IllegalStateException: 1 alert(s) at warning or above were recorded while building the configuration and logging.alerts.fail=warning:
+						[WARNING] startup warning
+
+						[INFO] - RAINBOW_GUM - LogConfig - Adding configurator: unknown Configurator
+						[INFO] - RAINBOW_GUM - LogConfigDebugTest - startup context
+						[WARN] - RAINBOW_GUM - LogConfigDebugTest - startup warning""",
+				actual);
+		assertEquals(2, listenerCalls.get());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "ALL", "HELP" })
+	void unknownKeysArePrintedInDebugOutputWithoutAListener(String mode) {
+		System.setProperty(LogProperties.DEBUG_PROPERTY, mode);
+		System.setProperty("logging.encoder.console.made.up", "unused");
+		try {
+			var config = LogConfig.builder().build();
+			try (var gum = RainbowGum.builder(config).build().start()) {
+				String expected = """
+						[INFO] - RAINBOW_GUM - LogConfig - LogConfig built; dumping 0 alert(s)
+						[INFO] - RAINBOW_GUM - RainbowGum - Rainbow Gum started:
+						Rainbow Gum VERSION_PLACEHOLDER
+
+						Properties: SYSTEM_PROPERTIES
+						Global Properties:
+						  logging.global.change = (unset)
+						  logging.global.queue.level = (unset)
+						  logging.global.queue.error = (unset)
+						  logging.global.ansi.disable = (unset)
+						  logging.global.appender.reentrantLock = (unset)
+						  logging.global.threadlocalDisabled = (unset)
+						  logging.global.optimize = (unset)
+						Debug mode: DEBUG_MODE
+
+						Router: default
+						  Publisher: DefaultSyncLogPublisher (synchronous)
+						    Appender: console
+						      Type: LockThreadLocalBufferLogAppender
+						      Flags: []
+						      Output: StdOutOutput (type=CONSOLE_OUT, uri=stdout:///)
+						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=default theme=rainbowgum colored=false")
+
+						[INFO] - RAINBOW_GUM - LogConfig - Property key 'logging.encoder.console.made.up' from SYSTEM_PROPERTIES[logging.encoder.console.made.up] was set but not read during startup.
+						"""
+					.replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION)
+					.replace("DEBUG_MODE", mode);
+				assertEquals(expected, output.toString(StandardCharsets.UTF_8));
+				assertEquals(
+						"""
+								Property key 'logging.encoder.console.made.up' from SYSTEM_PROPERTIES[logging.encoder.console.made.up] was set but not read during startup.""",
+						gum.config().alerts().dump().getFirst().message());
+			}
+		}
+		finally {
+			System.getProperties().remove("logging.encoder.console.made.up");
+		}
 	}
 
 	@Test
