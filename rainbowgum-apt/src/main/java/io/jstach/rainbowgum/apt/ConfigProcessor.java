@@ -235,6 +235,9 @@ public class ConfigProcessor extends AbstractProcessor {
 		if (!validatePrefix(ee, propertyPrefix, foundParams)) {
 			return null;
 		}
+		if (!validatePropertyNamesIgnoringCase(parameters, properties)) {
+			return null;
+		}
 		var exceptions = ee.getThrownTypes().stream().map(tm -> h.getFullyQualifiedClassName(tm)).toList();
 		var m = new BuilderModel(builderName, propertyPrefix, packageName, targetType, factoryMethod, description,
 				properties, exceptions);
@@ -277,6 +280,31 @@ public class ConfigProcessor extends AbstractProcessor {
 			sb.append(ex.getClass().getSimpleName()).append(":").append(ex.getMessage());
 		}
 		return sb;
+	}
+
+	/*
+	 * Property names that differ only by case are too easy to confuse when written in
+	 * properties files or URI query parameters, so they are rejected.
+	 */
+	private boolean validatePropertyNamesIgnoringCase(List<? extends VariableElement> parameters,
+			List<BuilderModel.PropertyModel> properties) {
+		Map<String, String> seen = new HashMap<>();
+		boolean valid = true;
+		for (int i = 0; i < properties.size(); i++) {
+			var prop = properties.get(i);
+			if (!prop.isNormal()) {
+				continue;
+			}
+			String name = prop.name();
+			String existing = seen.putIfAbsent(name.toLowerCase(Locale.ROOT), name);
+			if (existing != null) {
+				processingEnv.getMessager()
+					.printMessage(Kind.ERROR, "Property '" + name + "' differs from property '" + existing
+							+ "' only by case. Property names must differ ignoring case.", parameters.get(i));
+				valid = false;
+			}
+		}
+		return valid;
 	}
 
 	private boolean validatePrefix(ExecutableElement ee, String propertyPrefix,
