@@ -13,6 +13,7 @@ import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder.Format;
 
@@ -119,6 +120,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * @param prettyPrint JSON5 only, added whitespace, see {@link Json5PrettyPrint}.
 	 * @param color JSON5 only, whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme JSON5 only, which colors, see {@link TTLL.ColorTheme}.
+	 * @param serviceRegistry where themes chosen by name in properties are looked up.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "Json5FormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "json5.")
@@ -130,11 +132,13 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter(
 					constant = "LEVEL_PADDING") @LogConfigurable.ConvertParameter("convertPrettyPrint") Json5PrettyPrint prettyPrint,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
-			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme) {
+			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
+			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
 		return switch (format) {
 			case JSON -> new Json5Formatter(false, keyValues, Json5PrettyPrint.OFF, Palette.OFF);
 			case JSON5 -> new Json5Formatter(true, keyValues, prettyPrint,
-					Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color, theme, AnsiSupport::isAnsiSupported));
+					Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
+							PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 			case PERCENT, LOGFMT -> throw new IllegalArgumentException(
 					"format=" + format.name().toLowerCase(java.util.Locale.ROOT) + " is not JSON. Use json or json5.");
 		};

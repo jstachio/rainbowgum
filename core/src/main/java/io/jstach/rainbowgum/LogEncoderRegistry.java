@@ -115,7 +115,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 * when it is set color defaults to off, while an explicit color property still wins.
 	 */
 	static TTLLFormatterBuilder ttll(String name, LogConfig config) {
-		var b = new TTLLFormatterBuilder(name);
+		var b = new TTLLFormatterBuilder(name).serviceRegistry(config.serviceRegistry());
 		if (ansiDisabled(config)) {
 			b.color(TTLL.ColorMode.OFF);
 		}
@@ -123,7 +123,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	}
 
 	static LogfmtFormatterBuilder logfmt(String name, LogConfig config) {
-		var b = new LogfmtFormatterBuilder(name);
+		var b = new LogfmtFormatterBuilder(name).serviceRegistry(config.serviceRegistry());
 		if (ansiDisabled(config)) {
 			b.color(TTLL.ColorMode.OFF);
 		}
@@ -131,7 +131,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	}
 
 	static Json5FormatterBuilder json5(String name, LogConfig config) {
-		var b = new Json5FormatterBuilder(name);
+		var b = new Json5FormatterBuilder(name).serviceRegistry(config.serviceRegistry());
 		if (ansiDisabled(config)) {
 			b.color(TTLL.ColorMode.OFF);
 		}
