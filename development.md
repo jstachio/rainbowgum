@@ -28,7 +28,11 @@ Prefer end to end tests over unit tests.
 
 Prefer parameterized enum data driven tests over methods for more permutations.
 
-For faster builds slow tests get put in test modules in test directory.
+Tests belong in a test module in the test directory, not in the module they test,
+unless they are very fast. This matters most for modules that many others depend on:
+in the parallel build a dependent module cannot start until its dependencies finish
+their tests, so even a second or two of tests there delays the entire build. Slow
+tests always go in a test module.
 
 Golden strings of error messages or log output are desirable in this library.
 For error messages, always assert the complete message with `assertEquals` and a
