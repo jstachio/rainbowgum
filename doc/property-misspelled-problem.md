@@ -490,6 +490,42 @@ Options:
    that starts Rainbow Gum with the application's `logging.properties` and fails the
    build, while production only alerts (idea 5).
 
+#### Where fail lives: `logging.debug=help` (agreed direction)
+
+Agreed with Adam: the fail switch belongs on `logging.debug`, as a new value rather than
+a simple props enum. Working name `help`, since it behaves almost like `--help` for
+configuration:
+
+- **Everything `all` does**: dump alerts and print the `LogReporter` report.
+- **Then fail** on unread keys with a suggestion, closing the just started `RainbowGum`
+  and throwing from global initialization (option 2 above), so the run stops with the
+  report and the reasons in front of you.
+- **Print javadoc links** for the components that were configured (the builders, so
+  their property tables are one click away). This is the parked validation doc URL idea
+  (branch `feature/validation-doc-url`): in `help` mode the links are wanted, so the open
+  questions there (snapshot URLs, third party builders) matter less.
+
+Why `logging.debug`:
+
+- **It is already the discovery switch.** People reach for it when something does not
+  work, which is when stopping is welcome.
+- **It is set on purpose, per run or in CI**, never left in a shipped
+  `logging.properties`, so failing never surprises production.
+- **It is read from system properties before `LogConfig` exists**, so it works with or
+  without simple props and can cover more checks later.
+- **The existing values stay print only.** Turning on diagnostics must not change
+  behavior by itself, which is why failing is a new, explicitly named value and not part
+  of `all`.
+
+This replaces the separate `logging.simpleprops.unused` enum below: simple props always
+alerts, and `help` is the one way to fail.
+
+**Later, not yet: other configuration sources.** The misspelling check could extend
+beyond simple props (Spring Boot, Avaje, Micronaut, Helidon users), but only for
+`logging.` system properties there, since those can always be listed and a `-D` is
+always deliberate. The framework's own configuration stays the framework's business
+(and its IDE metadata).
+
 #### Its own enum, with predictable failure rules
 
 Decided with Adam: unused keys get their own enum rather than sharing
