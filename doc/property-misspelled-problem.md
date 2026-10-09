@@ -52,6 +52,68 @@ For misspellings this is useful: given a canonical camel case catalog, a kebab o
 lowercase spelling of a known key is a recognizable near miss (idea 4), not an unknown
 key.
 
+## Only leaves have case
+
+The annotation processor now requires every `@LogConfigurable` prefix to start with
+`logging.` and to be lowercase (Java package rules). So the only part of a generated key
+whose case a user can get wrong is the leaf: `keyValues`, `keyValuesWhenEmpty`,
+`maxFileSize`, `cleanHistoryOnStart`. That makes the leaf the likeliest source of a case
+typo (`logging.encoder.console.keyvalues`), and it is worse for people coming from
+Spring Boot or environment variables, where keys are effectively case insensitive.
+
+The processor also now rejects two properties on one builder that differ only by case
+(`Say` and `SAY`). So within a builder, a leaf lowercased is still unique, which is what
+makes either option below unambiguous.
+
+Two things are excluded:
+
+- **Level keys.** `logging.level.com.MyCo` names a logger, and logger names are case
+  sensitive data, not a leaf to normalize.
+- **`{name}` segments.** `logging.appender.myAppender.output` has a user chosen name;
+  only `output` is ours.
+
+### Option A: property aliases as an annotation
+
+Let a parameter declare extra accepted leaves, for example
+`@LogConfigurable.Alias("keyvalues")`, generated as fallback lookups the same way kebab
+case aliases were planned (the apt `.or()` fallback keys). It is explicit and documented
+in the builder's property table, but someone has to remember to add it to every camel
+case leaf, and each alias is another lookup.
+
+### Option B: normalize every leaf
+
+Accept any casing of a leaf for every generated builder, with no annotation. Sources that
+can list their keys (simple props files, URI queries, maps) can normalize when loaded.
+Lookup only sources (system properties, Spring's `Environment`) cannot be asked "any key
+equal ignoring case", so the generated lookup would try a fixed set: the canonical leaf,
+then all lowercase, then all uppercase. Three variants, not every possible casing.
+
+### The worry: painful errors
+
+If one property can be found under three spellings, its errors could become noisy:
+
+```
+Error for property. key: 'logging.encoder.console.keyValues' (or 'keyvalues' or 'KEYVALUES') ...
+```
+
+I think most of the pain can be avoided:
+
+- **An invalid value** was found under exactly one spelling, so the error names that
+  key only, the one the user actually wrote.
+- **A missing required property** names only the canonical key. Users should be told
+  the spelling we want, not every spelling we tolerate.
+- **Two spellings set at once** (`keyValues=json` and `keyvalues=percent`) is the one
+  truly confusing case. That should be its own error naming both keys and where each
+  came from, rather than silently picking one.
+- **A non canonical spelling that works** could raise a low priority alert ("found
+  keyvalues, the documented key is keyValues") so typos get corrected without breaking
+  anything. That overlaps with idea 4 and might be all that is needed.
+
+That last point suggests a middle ground: do not accept other spellings at all, but
+recognize them. A case only near miss is almost never a false positive, so the error or
+alert can be specific and actionable without making three spellings legal. Accepting
+spellings is hard to take back later; detecting them is not.
+
 ## Who has the problem
 
 Rainbow Gum has three kinds of users, and only one of them is ours to help here.
