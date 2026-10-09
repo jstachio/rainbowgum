@@ -1,0 +1,69 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>rainbowgum.simpleprops.example</groupId>
+  <artifactId>rainbowgum-simple-props-example</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <exec.mainClass>rainbowgum.simpleprops.example.Main</exec.mainClass>
+    <!-- Updated by bin/vh on release. -->
+    <rainbowgum.version>1.0.0-SNAPSHOT</rainbowgum.version>
+    <!-- Built with the Rainbow Gum reactor but never published. -->
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+  </properties>
+
+  <dependencies>
+    <!--
+      rainbowgum-slf4j is the SLF4J 2 provider and brings in rainbowgum-core.
+      rainbowgum-simple-props loads logging.properties (and logging-<profile>.properties)
+      from the classpath.
+    -->
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-slf4j</artifactId>
+      <version>${rainbowgum.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-simple-props</artifactId>
+      <version>${rainbowgum.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>rainbowgum-simple-props-example</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.16.0</version>
+      </plugin>
+      <!--
+        The manifest Class-Path points straight at the jars in the local Maven repository,
+        so java -jar runs with no copying or fat jar step. This is the fastest build and
+        HotSpot startup; the jar only works on the machine that built it.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.5.1</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <addClasspath>true</addClasspath>
+              <mainClass>${exec.mainClass}</mainClass>
+              <classpathPrefix>${settings.localRepository}</classpathPrefix>
+              <classpathLayoutType>repository</classpathLayoutType>
+              <useUniqueVersions>false</useUniqueVersions>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
