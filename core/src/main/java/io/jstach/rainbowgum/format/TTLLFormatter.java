@@ -3,6 +3,8 @@ package io.jstach.rainbowgum.format;
 import java.io.IOException;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.BooleanSupplier;
 
@@ -180,7 +182,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	}
 
 	static TTLL.ColorTheme convertTheme(String value) {
-		return TTLL.ColorTheme.parse(value);
+		return StandardColorTheme.parse(value);
 	}
 
 	static LogFormatter convertKeyValues(String value) {
@@ -280,6 +282,45 @@ final class Ansi {
 }
 
 /*
+ * The built in color themes: a name and the palette it colors with.
+ */
+record StandardColorTheme(String name, Palette palette) implements TTLL.ColorTheme {
+
+	static final StandardColorTheme RAINBOWGUM = new StandardColorTheme("rainbowgum", Palette.RAINBOWGUM);
+
+	static final StandardColorTheme SPRING = new StandardColorTheme("spring", Palette.SPRING);
+
+	static final StandardColorTheme ONE_DARK = new StandardColorTheme("one_dark", Palette.ONE_DARK);
+
+	static final StandardColorTheme DARCULA = new StandardColorTheme("darcula", Palette.DARCULA);
+
+	static final List<StandardColorTheme> ALL = List.of(RAINBOWGUM, SPRING, ONE_DARK, DARCULA);
+
+	/*
+	 * Same values and error as when this was an enum, including the default alias.
+	 */
+	static StandardColorTheme parse(String value) {
+		String name = value.strip().toLowerCase(Locale.ROOT);
+		if (name.equals("default")) {
+			return RAINBOWGUM;
+		}
+		for (var theme : ALL) {
+			if (theme.name().equals(name)) {
+				return theme;
+			}
+		}
+		var valid = new ArrayList<String>();
+		for (var theme : ALL) {
+			valid.add("'" + theme.name() + "'");
+		}
+		valid.add("'default'");
+		throw new IllegalArgumentException("'" + value + "' is not a valid value for "
+				+ TTLL.ColorTheme.class.getCanonicalName() + ". Valid values: " + String.join(", ", valid));
+	}
+
+}
+
+/*
  * The ANSI codes a color theme uses for each part of the TTLL layout and for each level.
  * Adding a theme is adding a palette. The codes are the same sequences the pattern
  * encoder writes for the equivalent pattern. An empty code means no color.
@@ -341,10 +382,7 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 
 	static Palette of(TTLL.ColorTheme theme) {
 		return switch (theme) {
-			case RAINBOWGUM -> RAINBOWGUM;
-			case SPRING -> SPRING;
-			case ONE_DARK -> ONE_DARK;
-			case DARCULA -> DARCULA;
+			case StandardColorTheme t -> t.palette();
 		};
 	}
 

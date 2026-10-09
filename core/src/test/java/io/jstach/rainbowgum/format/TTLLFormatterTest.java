@@ -367,8 +367,9 @@ class TTLLFormatterTest {
 			"DEFAULT,SPRING,true,SPRING", //
 			"DETECT,null,false,OFF", "DETECT,null,true,OFF", "DETECT,SPRING,false,OFF", "DETECT,SPRING,true,SPRING", //
 			"FORCE,null,false,RAINBOWGUM", "FORCE,SPRING,false,SPRING", "FORCE,DARCULA,true,DARCULA" })
-	void colorModeDecidesWhetherAndThemeDecidesWhich(TTLL.ColorMode mode, TTLL.@Nullable ColorTheme theme, boolean ansi,
+	void colorModeDecidesWhetherAndThemeDecidesWhich(TTLL.ColorMode mode, @Nullable String themeName, boolean ansi,
 			String expected) {
+		TTLL.@Nullable ColorTheme theme = themeName == null ? null : TTLLFormatter.convertTheme(themeName);
 		var palette = switch (expected) {
 			case "RAINBOWGUM" -> Palette.RAINBOWGUM;
 			case "SPRING" -> Palette.SPRING;
