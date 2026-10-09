@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -327,6 +328,14 @@ public interface LogProperties {
 	 * {@link LogAlerts.UnobservedErrorsAction#DUMP} for the default.
 	 */
 	static final String ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY = ROOT_PREFIX + "alerts.unobservedErrorsAction";
+
+	/**
+	 * Alert level at which starting Rainbow Gum fails, like treating compiler warnings as
+	 * errors: see {@link LogAlerts.FailLevel}. Unlike
+	 * {@value #ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY} it fails whether or not a
+	 * {@link LogAlerts.Listener} is registered.
+	 */
+	static final String ALERTS_FAIL_PROPERTY = ROOT_PREFIX + "alerts.fail";
 
 	/**
 	 * Logging change properties prefix.
@@ -874,6 +883,21 @@ public interface LogProperties {
 			}
 
 		}
+
+	}
+
+	/**
+	 * Properties that can list the keys they hold, so that with
+	 * {@link LogConfig.DebugModeType#HELP} (or {@link LogConfig.DebugModeType#ALL}) keys
+	 * that were set but never read can be reported.
+	 */
+	public interface Listable extends LogProperties {
+
+		/**
+		 * The keys this source holds.
+		 * @return keys.
+		 */
+		Collection<String> keys();
 
 	}
 

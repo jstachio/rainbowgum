@@ -15,6 +15,8 @@ import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.annotation.EnumAlias;
+
 /**
  * Alerts (sometimes called errors or status events elsewhere) are for reporting problems
  * with the logging system itself rather than application logging - for example an
@@ -161,6 +163,47 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	 * @param capacity maximum number of alerts the ring buffer holds.
 	 */
 	record Stats(long total, int size, int capacity) {
+	}
+
+	/**
+	 * What {@link #start(LogConfig)} and Rainbow Gum's own start do with alerts recorded
+	 * while starting, set by {@value LogProperties#ALERTS_FAIL_PROPERTY}. Checked once
+	 * when {@link LogConfig} is built and once right after Rainbow Gum starts; alerts
+	 * after that never fail anything.
+	 */
+	enum FailLevel {
+
+		/**
+		 * Default. Alerts never fail startup.
+		 */
+		@EnumAlias("false")
+		OFF,
+		/**
+		 * Fail if an error alert is recorded while starting.
+		 */
+		ERROR,
+		/**
+		 * Fail if a warning or error alert is recorded while starting.
+		 */
+		@EnumAlias("true")
+		WARNING;
+
+		static FailLevel parse(String value) {
+			return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+				case "true" -> WARNING;
+				case "false" -> OFF;
+				default -> LogProperty.enumValue(FailLevel.class, value, "true", "false");
+			};
+		}
+
+		boolean fails(Level level) {
+			return switch (this) {
+				case OFF -> false;
+				case ERROR -> level == Level.ERROR;
+				case WARNING -> level == Level.ERROR || level == Level.WARNING;
+			};
+		}
+
 	}
 
 	/**
@@ -336,9 +379,67 @@ final class DefaultLogAlerts implements LogAlerts {
 	 * would be defensive programming duplicating what was already a real, reported
 	 * validation failure one call up - see of(...)'s own comment.
 	 */
-	private DefaultLogAlerts(int capacity, UnobservedErrorsAction unobservedErrorsAction) {
+	private final FailLevel failLevel;
+
+	/*
+	 * Names what set the fail level, for the failure message: the property, or
+	 * logging.debug=help raising it.
+	 */
+	private final String failLevelSource;
+
+	private DefaultLogAlerts(int capacity, UnobservedErrorsAction unobservedErrorsAction, FailLevel failLevel,
+			String failLevelSource) {
 		this.ring = new LogEvent[capacity];
 		this.unobservedErrorsAction = unobservedErrorsAction;
+		this.failLevel = failLevel;
+		this.failLevelSource = failLevelSource;
+	}
+
+	FailLevel failLevel() {
+		return failLevel;
+	}
+
+	/*
+	 * Throws listing every alert at or above the fail level. Called when LogConfig is
+	 * built and right after Rainbow Gum starts; the second call sees the same alerts as
+	 * the first, which did not fail, plus those recorded while starting.
+	 */
+	void failIfAlerted(String phase) {
+		if (failLevel == FailLevel.OFF) {
+			return;
+		}
+		var failing = dump().stream().filter(e -> failLevel.fails(e.level())).toList();
+		if (failing.isEmpty()) {
+			return;
+		}
+		var sb = new StringBuilder();
+		sb.append(failing.size())
+			.append(" alert(s) at ")
+			.append(failLevel.name().toLowerCase(Locale.ROOT))
+			.append(" or above were recorded while ")
+			.append(phase)
+			.append(" and ")
+			.append(failLevelSource)
+			.append(":");
+		for (var e : failing) {
+			sb.append("\n[").append(e.level()).append("] ").append(e.message());
+		}
+		throw new IllegalStateException(sb.toString());
+	}
+
+	/*
+	 * The fail level as resolved from properties, before LogAlerts exists, so LogConfig
+	 * can decide whether to record property reads. Resolved again, and validated, by
+	 * of(...).
+	 */
+	static FailLevel failLevelOr(LogProperties properties, FailLevel fallback) {
+		var value = properties.valueOrNull(LogProperties.ALERTS_FAIL_PROPERTY);
+		try {
+			return value == null ? fallback : FailLevel.parse(value);
+		}
+		catch (RuntimeException e) {
+			return fallback;
+		}
 	}
 
 	/*
@@ -353,8 +454,13 @@ final class DefaultLogAlerts implements LogAlerts {
 	 * lambda body passed through a generic method like map(...) - the one and only `new
 	 * DefaultLogAlerts(...)` call stays a plain, unconditional statement here instead.
 	 */
-	static LogAlerts of(LogProperties properties) {
+	static LogAlerts of(LogProperties properties, FailLevel failLevelFallback, boolean help) {
 		var validator = LogProperty.Validator.of(LogAlerts.class);
+		var failLevelResult = properties.forKey(LogProperties.ALERTS_FAIL_PROPERTY)
+			.ofString()
+			.map(FailLevel::parse)
+			.or(failLevelFallback)
+			.validateIfError(validator);
 		var unobservedErrorsActionResult = properties.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
 			.ofString()
 			.map(UnobservedErrorsAction::parse)
@@ -366,7 +472,14 @@ final class DefaultLogAlerts implements LogAlerts {
 			.map(DefaultLogAlerts::requirePositiveCapacity)
 			.validateIfError(validator);
 		validator.validate();
-		return new DefaultLogAlerts(capacityResult.value(), unobservedErrorsActionResult.value());
+		var failLevel = failLevelResult.value();
+		String failLevelSource = LogProperties.ALERTS_FAIL_PROPERTY + "=" + failLevel.name().toLowerCase(Locale.ROOT);
+		if (help && failLevel != FailLevel.WARNING) {
+			failLevel = FailLevel.WARNING;
+			failLevelSource = "logging.debug=help";
+		}
+		return new DefaultLogAlerts(capacityResult.value(), unobservedErrorsActionResult.value(), failLevel,
+				failLevelSource);
 	}
 
 	private static int requirePositiveCapacity(int capacity) {
@@ -427,6 +540,7 @@ final class DefaultLogAlerts implements LogAlerts {
 
 	@Override
 	public void start(LogConfig config) {
+		failIfAlerted("building the configuration");
 		if (unobservedErrorsAction == UnobservedErrorsAction.NONE || hasExternalListener || errors.get() == 0) {
 			return;
 		}

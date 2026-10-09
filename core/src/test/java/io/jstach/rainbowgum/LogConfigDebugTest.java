@@ -238,7 +238,7 @@ class LogConfigDebugTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$Builder:
-						Error for property. key: 'logging.debug' from SYSTEM_PROPERTIES[logging.debug], 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogConfig.DebugModeType. Valid values: 'off', 'error', 'info', 'all', 'true', 'false'""",
+						Error for property. key: 'logging.debug' from SYSTEM_PROPERTIES[logging.debug], 'BOGUS' is not a valid value for io.jstach.rainbowgum.LogConfig.DebugModeType. Valid values: 'off', 'error', 'info', 'all', 'help', 'true', 'false'""",
 				thrown.getMessage());
 	}
 

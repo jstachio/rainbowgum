@@ -165,7 +165,7 @@ class LogAlertsTest {
 	@Test
 	void ringBufferEvictsOldestFirstOnceAtCapacity() {
 		var props = LogProperties.builder().fromProperties("logging.alerts.capacity=2").build();
-		var alerts = DefaultLogAlerts.of(props);
+		var alerts = DefaultLogAlerts.of(props, LogAlerts.FailLevel.OFF, false);
 
 		alerts.error(LogAlertsTest.class, "first", new RuntimeException());
 		alerts.error(LogAlertsTest.class, "second", new RuntimeException());

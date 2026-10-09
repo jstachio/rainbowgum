@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
@@ -59,7 +60,18 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 * report after Rainbow Gum starts.
 		 */
 		@EnumAlias("true")
-		ALL;
+		ALL,
+		/**
+		 * Everything {@link #ALL} does, then fails after Rainbow Gum starts if a property
+		 * key set in a source that can list its keys (system properties, property files)
+		 * was never read and is close to a key that was, which is almost always a typo.
+		 * Meant for trying configuration on the command line and in CI.
+		 */
+		HELP;
+
+		boolean checksUnusedKeys() {
+			return this == ALL || this == HELP;
+		}
 
 		static DebugModeType parse(String value) {
 			String v = value.toUpperCase(Locale.ROOT);
@@ -325,6 +337,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private DebugModeType debugMode = DebugModeType.OFF;
 
+		private LogAlerts.FailLevel alertsFail = LogAlerts.FailLevel.OFF;
+
 		/**
 		 * Default constructor
 		 */
@@ -349,6 +363,17 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		public Builder debug(DebugModeType debugMode) {
 			this.debugMode = Objects.requireNonNull(debugMode);
+			return this;
+		}
+
+		/**
+		 * Sets the alert level at which starting fails, used when the property
+		 * {@value LogProperties#ALERTS_FAIL_PROPERTY} is absent.
+		 * @param failLevel fail level, default {@link LogAlerts.FailLevel#OFF}.
+		 * @return this.
+		 */
+		public Builder alertsFail(LogAlerts.FailLevel failLevel) {
+			this.alertsFail = Objects.requireNonNull(failLevel);
 			return this;
 		}
 
@@ -460,6 +485,16 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 					logProperties = LogProperties.of(props);
 
 				}
+				@Nullable UnusedKeyCheck unusedKeyCheck = null;
+				/*
+				 * Reads are recorded for the debug modes that report unused keys, and for
+				 * logging.alerts.fail=warning, where a misspelled key's warning fails.
+				 */
+				if (debug.checksUnusedKeys()
+						|| DefaultLogAlerts.failLevelOr(logProperties, alertsFail) == LogAlerts.FailLevel.WARNING) {
+					unusedKeyCheck = unusedKeyCheck(logProperties);
+					logProperties = recording(logProperties, unusedKeyCheck);
+				}
 				/*
 				 * Built before DefaultLogConfig itself (rather than left for
 				 * DefaultLogConfig's constructor to create, as before) specifically so
@@ -472,11 +507,11 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				 * runs, the same as everything else built directly in this method - see
 				 * DefaultLogAlerts.of(...) for how the two are validated together.
 				 */
-				LogAlerts alerts = DefaultLogAlerts.of(logProperties);
+				LogAlerts alerts = DefaultLogAlerts.of(logProperties, alertsFail, debug == DebugModeType.HELP);
 				LogMetrics metrics = new DefaultLogMetrics();
 				var levelResolver = this.buildGlobalResolver(logProperties, alerts);
-				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics,
-						debug);
+				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
+						unusedKeyCheck);
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);
 				dumpAlerts = alerts;
@@ -513,7 +548,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				// start() itself reports the backlog before throwing for FAIL.
 				startingAlerts = true;
 				alerts.start(config);
-				if (debug == DebugModeType.INFO || debug == DebugModeType.ALL) {
+				if (debug == DebugModeType.INFO || debug.checksUnusedKeys()) {
 					dumpSuccessfulBuild(alerts);
 				}
 				return config;
@@ -524,6 +559,49 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				}
 				throw e;
 			}
+		}
+
+		/*
+		 * Layers that can list their keys, highest priority first. System properties are
+		 * always listed, even when the properties given do not include them, since a -D
+		 * that nothing reads is exactly what this is meant to catch.
+		 */
+		private static UnusedKeyCheck unusedKeyCheck(LogProperties properties) {
+			var sources = new ArrayList<UnusedKeyCheck.KeySource>();
+			var system = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+			sources.add(new UnusedKeyCheck.KeySource(system,
+					() -> new TreeSet<>(System.getProperties().stringPropertyNames())));
+			for (var layer : layers(properties)) {
+				if (layer instanceof LogProperties.Listable listable) {
+					sources.add(new UnusedKeyCheck.KeySource(listable, listable::keys));
+				}
+			}
+			return new UnusedKeyCheck(sources);
+		}
+
+		/*
+		 * The same properties with every layer recording its reads. Mutable layers are
+		 * left alone so they stay mutable.
+		 */
+		private static LogProperties recording(LogProperties properties, UnusedKeyCheck check) {
+			var wrapped = layers(properties).stream()
+				.map(layer -> layer instanceof LogProperties.MutableLogProperties ? layer : check.wrap(layer))
+				.toList();
+			return LogProperties.of(wrapped);
+		}
+
+		private static List<LogProperties> layers(LogProperties properties) {
+			var layers = new ArrayList<LogProperties>();
+			if (properties instanceof ListLogProperties list
+					&& !(properties instanceof LogProperties.MutableLogProperties)) {
+				for (var layer : list.properties()) {
+					layers.addAll(layers(layer));
+				}
+			}
+			else {
+				layers.add(properties);
+			}
+			return layers;
 		}
 
 		private static void dumpSuccessfulBuild(LogAlerts alerts) {
@@ -738,6 +816,13 @@ enum IgnoreChangePublisher implements ChangePublisher {
 
 final class DefaultLogConfig implements LogConfig {
 
+	/*
+	 * Present only in debug modes that check for unused keys.
+	 */
+	@Nullable UnusedKeyCheck unusedKeyCheck() {
+		return unusedKeyCheck;
+	}
+
 	private final ServiceRegistry registry;
 
 	private final LogProperties properties;
@@ -772,9 +857,12 @@ final class DefaultLogConfig implements LogConfig {
 	private record Claim(Object owner, boolean built) {
 	}
 
+	private final @Nullable UnusedKeyCheck unusedKeyCheck;
+
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
-			LogMetrics metrics, DebugModeType debugMode) {
+			LogMetrics metrics, DebugModeType debugMode, @Nullable UnusedKeyCheck unusedKeyCheck) {
 		super();
+		this.unusedKeyCheck = unusedKeyCheck;
 		this.registry = registry;
 		this.properties = properties;
 		this.debugMode = debugMode;

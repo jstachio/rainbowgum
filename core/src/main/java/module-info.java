@@ -15,6 +15,7 @@ module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum;
 	exports io.jstach.rainbowgum.format;
 	exports io.jstach.rainbowgum.output;
+	exports io.jstach.rainbowgum.properties;
 	exports io.jstach.rainbowgum.publisher;
 	exports io.jstach.rainbowgum.spi;
 
