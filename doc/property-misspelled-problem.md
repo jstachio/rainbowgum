@@ -114,6 +114,47 @@ recognize them. A case only near miss is almost never a false positive, so the e
 alert can be specific and actionable without making three spellings legal. Accepting
 spellings is hard to take back later; detecting them is not.
 
+### Direction: fail on hinted misspellings, never accept them
+
+Agreed with Adam: a known misspelling fails, it is never accepted as an alias. The
+"alias" is a hint of how a key is likely to be misspelled, not a second legal spelling.
+
+Checking every camel case leaf for every misspelling is too expensive for lookup only
+sources. Most properties are optional with defaults, so a missing canonical key is the
+normal case, not the exception: every unset property on every builder would pay one
+extra lookup per variant (two for lowercase and uppercase) on every startup. So the
+check is opt in, per property, on the leaves that are likely to be mistyped:
+
+```java
+@LogConfigurable.Misspelling({ "keyvalues", "KEYVALUES" }) @ConvertParameter("convertKeyValues") LogFormatter keyValues
+```
+
+The generated lookup checks the hinted keys only when the canonical key is missing,
+so a correctly configured property costs nothing extra. If a hinted key is set, the
+builder fails with the same kind of validation error as a bad value:
+
+```
+Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+Property key 'logging.encoder.console.keyvalues' from PROPERTIES_STRING[...] is a misspelling of 'logging.encoder.console.keyValues'.
+```
+
+Notes:
+
+- **Name.** `Misspelling` (or `MisspelledAs`) says what it is; `Alias` would suggest the
+  key is accepted.
+- **Which leaves.** Leaves with an inner capital that people commonly lowercase or
+  hyphenate: `keyValues`, `keyValuesWhenEmpty`, `maxFileSize`. A kebab form
+  (`key-values`) is just another hint, which also covers people coming from Spring Boot.
+- **The processor can help.** It can reject a hint equal to the canonical leaf, and it
+  could default the hints (lowercase, kebab) when the annotation is present with no
+  value, so most uses are just `@Misspelling`.
+- **Enumerable sources need no hints.** Simple props files, URI queries, and maps can
+  list their keys, so they can check every leaf for case only and near misses against
+  the catalog (ideas 3 and 4) at no per lookup cost. The hints exist for the sources
+  that can only be asked about one key at a time.
+- **Environment variables** are already uppercase with no dots, so case hints do not
+  apply to them.
+
 ## Who has the problem
 
 Rainbow Gum has three kinds of users, and only one of them is ours to help here.
