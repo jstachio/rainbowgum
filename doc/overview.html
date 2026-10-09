@@ -1720,7 +1720,9 @@ Set <code>-Dlogging.debug=ERROR</code> to print the failure and collected alerts
 {@link io.jstach.rainbowgum.LogConfig} fails. Set <code>-Dlogging.debug=INFO</code> to also print
 the collected alerts after every successful config build. Set <code>-Dlogging.debug=ALL</code>
 to additionally print the {@link io.jstach.rainbowgum.LogReporter} report after Rainbow Gum
-starts its logging components. These dumps include alerts recorded before
+starts its logging components. Set <code>-Dlogging.debug=HELP</code> to do everything
+<code>ALL</code> does and also report misspelled property keys and fail startup on warnings; see
+<a href="#troubleshooting">Troubleshooting</a>. These dumps include alerts recorded before
 properties were loaded and do not notify alert listeners. The switch is read before property
 providers run, so it cannot be set in <code>logging.properties</code>. <code>OFF</code> is the
 default; <code>true</code> and <code>false</code> are aliases for <code>ALL</code> and
@@ -2942,6 +2944,126 @@ end-to-end example: a small application depending only on {@code rainbowgum-simp
 a custom, ServiceLoader-discovered {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider},
 built to a real native executable and run as a black-box smoke test in CI, with no
 manual native-image flags of its own.
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+When logging does not do what you expect, run the application once with
+<code>-Dlogging.debug=help</code>:
+
+{@snippet :
+java -Dlogging.debug=help -jar app.jar
+}
+
+In <code>help</code> mode Rainbow Gum:
+
+<ul>
+  <li>prints the alerts it collected while loading properties and building its configuration,
+  and the <a href="#reporting">diagnostic report</a> of the components it actually wired up
+  (the same output as <code>-Dlogging.debug=all</code>, see <a href="#alerts">Alerts</a>);</li>
+  <li>reports every property key that was set but not read during startup, with the key it
+  was probably meant to be (see <a href="#troubleshooting_unused_keys">below</a>);</li>
+  <li>fails startup if any warning or error alert was recorded, including a misspelled key,
+  so the run stops with the reasons in front of you.</li>
+</ul>
+
+For example, misspelling a property on the command line:
+
+{@snippet :
+java -Dlogging.debug=help -Dlogging.encoder.console.levle=plain -jar app.jar
+}
+
+prints the report and then:
+
+{@snippet :
+[WARN] - RAINBOW_GUM - LogConfig - Property key 'logging.encoder.console.levle' from SYSTEM_PROPERTIES[logging.encoder.console.levle] was set but not read during startup. Did you mean 'logging.encoder.console.level'?
+java.lang.IllegalStateException: 1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+[WARNING] Property key 'logging.encoder.console.levle' from SYSTEM_PROPERTIES[logging.encoder.console.levle] was set but not read during startup. Did you mean 'logging.encoder.console.level'?
+}
+
+Because Rainbow Gum usually starts on the first logger an application asks for, the failure
+often surfaces wrapped in another exception (for example an
+<code>ExceptionInInitializerError</code> from a static logger field). The reason is in the
+cause, and it is also printed on its own just before the stack trace.
+
+<p>
+Like the other debug modes, <code>logging.debug</code> is read before any property source is
+loaded, so it is a system property (or the
+{@link io.jstach.rainbowgum.LogConfig.Builder#debug(io.jstach.rainbowgum.LogConfig.DebugModeType)
+builder option}) and cannot be set in <code>logging.properties</code>. To fail on alerts without
+printing anything extra, for example in CI, use
+<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> instead.
+</p>
+
+<h3 id="troubleshooting_unused_keys">Misspelled and unused property keys</h3>
+
+A misspelled property key is otherwise silently ignored: Rainbow Gum looks properties up by
+key, so a key nothing asks for does nothing. With <code>-Dlogging.debug=all</code>,
+<code>-Dlogging.debug=help</code>, or <code>logging.alerts.fail=warning</code>, Rainbow Gum
+records every key it reads, and right after it starts it reports each key that was set but
+never read:
+
+<ul>
+  <li>An unread key close to a key that was read is reported as a <strong>warning</strong>
+  with a suggestion. Close means the same key ignoring case, <code>-</code>, and <code>_</code>
+  (<code>keyvalues</code>, <code>KEYVALUES</code>, and <code>key-values</code> all suggest
+  <code>keyValues</code>), or at most two characters different (<code>apenders</code> suggests
+  <code>appenders</code>). Suggestions only ever name keys that something actually read.</li>
+  <li>Any other unread key is reported as <strong>information</strong>. It may be a mistake,
+  or it may be meant for a component that was not chosen, such as TTLL options left in
+  <code>logging.properties</code> by a profile that switches the encoder to
+  <code>json5</code>. Only warnings fail startup.</li>
+</ul>
+
+Keys are checked where Rainbow Gum can list them:
+
+<ul>
+  <li>System properties starting with <code>logging.</code>, always. A <code>-D</code> typo is
+  the most common case and is caught without any other module.</li>
+  <li><code>logging.properties</code> and its profile files when using
+  <a href="#simple_props">rainbowgum-simple-props</a>.</li>
+  <li>Any other property source implementing {@link io.jstach.rainbowgum.LogProperties.Listable}.
+  Environment variables are not checked, because their names do not keep the dots and case
+  of the keys.</li>
+</ul>
+
+Some keys are never reported: <code>logging.level</code> keys (and route level keys), which are
+read per logger as loggers are created; keys read before properties load, such as
+<code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
+properties that happen to start with <code>logging.</code>, such as Spring Boot's
+<code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. Without
+those settings nothing is recorded, so normal runs pay nothing for the check.
+
+<h3 id="troubleshooting_alerts_fail">Failing on alerts</h3>
+
+<code>logging.alerts.fail</code> fails startup when an <a href="#alerts">alert</a> at or above a
+level is recorded while starting, similar to treating compiler warnings as errors. It is
+<code>off</code> by default; <code>error</code> fails on errors; <code>warning</code> (or
+<code>true</code>) fails on warnings too, including misspelled keys. Unlike
+<code>logging.debug</code> it is an ordinary property, so it can be set in
+<code>logging.properties</code>, a profile, a system property, or an environment variable, and
+{@link io.jstach.rainbowgum.LogConfig.Builder#alertsFail(io.jstach.rainbowgum.LogAlerts.FailLevel)}
+sets the default it overrides:
+
+{@snippet lang=properties :
+# logging-ci.properties, selected with -Dlogging.profiles=ci
+logging.alerts.fail=warning
+}
+
+Alerts are checked when the configuration is built and again right after Rainbow Gum starts
+its components, which it closes again before failing. Alerts recorded after startup never fail
+anything. The failure lists only the alerts that crossed the level; unlike debug mode it
+prints no report. <code>logging.alerts.unobservedErrorsAction</code> is different: it only acts
+on errors, and only when no alert listener is registered.
+
+<h3 id="troubleshooting_bug_report">Reporting a bug</h3>
+
+If the problem is still unclear, run with <code>-Dlogging.debug=help</code> (or
+<code>-Dlogging.debug=all</code> if you do not want the run to stop) and paste the printed
+alerts and report, from <code>Rainbow Gum started:</code> on, into a
+<a href="https://github.com/jstachio/rainbowgum/issues">GitHub issue</a>, along with the
+properties you set. The report shows the Rainbow Gum version, where properties came from, and
+which appenders, encoders, and outputs were actually chosen, which usually answers the first
+questions. Look it over before posting: alerts and errors can include property values.
 
 <h2 id="FAQ">FAQ</h2>
 
