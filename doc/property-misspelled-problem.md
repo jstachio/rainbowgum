@@ -352,6 +352,67 @@ needs checked configuration has it already. The cost is that most users start wi
 properties, which is exactly where the silent typo happens, and debug mode would still
 not explain why a property had no effect.
 
+### 10. Used, missed, and unused keys (Adam's direction)
+
+No annotations and no catalog. A small decorator on `LogProperties` records every key
+passed to `valueOrNull` and whether any source answered. Every typed lookup ends there
+(the `listOrNull`, `mapOrNull`, and `visit` defaults build on it), so this also sees the
+few reads that bypass `LogProperty`. That splits keys into three sets:
+
+- **Used:** read and found.
+- **Missed:** read but not set anywhere. Mostly optional properties left at their
+  defaults, which is normal.
+- **Unused:** set in a source that can list its keys, but never read.
+
+Simple props can list every key in its files, so for simple props users the unused set
+is exact. A misspelling is an unused key that is close to a missed key:
+
+```
+logging.encoder.console.keyvalues (logging.properties:7) is set but never read.
+Did you mean logging.encoder.console.keyValues?
+```
+
+Matching only unused against missed keeps it cheap and precise: both sets are small, and
+the "did you mean" candidate is a key some component actually asked for, so it is never
+a stale or third party guess. In order:
+
+1. **Same key ignoring case and `-`/`_`:** `keyvalues`, `KEYVALUES`, `key-values` all
+   match `keyValues`. Almost never a false positive.
+2. **Small edit distance** (Levenshtein, for example at most 2, compared within the same
+   prefix): `apenders` against `appenders`.
+3. **Otherwise** just "set but never read", which also catches keys for a component
+   that is not on the classpath.
+
+Why this is better than the per property `@Misspelling` hints above:
+
+- **Nothing to maintain.** Every builder, generated or hand written, third party or ours,
+  is covered by being read.
+- **No lookup cost.** Recording a key is a set insert per lookup; nothing is looked up
+  twice. The comparison runs once, after start.
+- **No catalog drift.** The missed set is what the running configuration actually asked
+  for, so a misspelling of a key from a component that is not installed is not
+  "corrected" to it.
+
+Things to settle:
+
+- **When to decide.** Reads are lazy, so the check runs after `RainbowGum` starts, when
+  every configured component has been built. A key read later (a component created on
+  demand) could be reported unused at start; those should be rare and the message says
+  "never read during startup".
+- **Level keys.** `logging.level.*` keys are read per logger name as loggers are created,
+  so they are excluded from unused. A level key whose logger never appears is a separate
+  question (see open questions).
+- **Fail or alert.** This is where simple props' strict enum fits: alert by default,
+  fail for CI (idea 5). A case only match is safe to fail on.
+- **Scope.** Only keys under `logging.` from simple props files (base and profiles), so
+  the decorator and the comparison run only for simple props users; advanced and
+  framework users pay nothing. The decorator itself is general, so idea 1 (debug mode
+  reporting of used keys) falls out of it.
+
+This leaves the `@Misspelling` hints only for sources that cannot list their keys
+(system properties, Spring's `Environment`), which these notes do not focus on, so they
+are probably unnecessary.
+
 ## Thoughts on focusing on simple props users
 
 Aiming at the simple props user changes what is hard:
@@ -386,11 +447,14 @@ Aiming at the simple props user changes what is hard:
 
 For the simple props user, which these notes suggest focusing on:
 
-1. Ship the catalog (3): move `ConfigProcessor`'s property list to the class output and
-   mark the hand written constants.
-2. In simple props, alert for file keys under `logging.` that match no catalog entry,
-   with case only and near miss suggestions (4) and the file and line.
+1. Add the recording decorator on `LogProperties` (10), installed only by simple props.
+2. After start, report simple props file keys under `logging.` that were never read,
+   matched against missed keys: case only first, then near misses (4), with the file and
+   line.
 3. Let the strict enum, or a new one, turn those alerts into failures for CI (5).
+
+The shipped catalog (3) is no longer needed for this; it stays useful for IDE metadata
+(7) and documentation.
 
 The broader version, for every source and every user:
 
