@@ -1364,7 +1364,9 @@ logging.appender.myapp.output=file:///var/log/app.log
 }
 
 See {@link io.jstach.rainbowgum.file.FileOutputBuilder} for the full list of supported
-properties (e.g. <code>append</code>, <code>prudent</code>, <code>bufferSize</code>) and
+properties (e.g. {@link io.jstach.rainbowgum.file.FileOutputBuilder#append(Boolean) append},
+{@link io.jstach.rainbowgum.file.FileOutputBuilder#prudent(Boolean) prudent},
+{@link io.jstach.rainbowgum.file.FileOutputBuilder#bufferSize(io.jstach.rainbowgum.file.DataSize) bufferSize}) and
 their defaults.
 
 <h3 id="jfr">JDK Flight Recorder (JFR)</h3>
@@ -1466,8 +1468,11 @@ logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10MB&maxHis
 }
 
 See {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder} for the full list of
-properties (<code>maxFileSize</code>, <code>maxHistory</code>, <code>totalSizeCap</code>,
-<code>cleanHistoryOnStart</code>, <code>fileNamePattern</code>) and their defaults. They
+properties ({@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#maxFileSize(io.jstach.rainbowgum.file.DataSize) maxFileSize},
+{@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#maxHistory(Integer) maxHistory},
+{@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#totalSizeCap(io.jstach.rainbowgum.file.DataSize) totalSizeCap},
+{@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#cleanHistoryOnStart(Boolean) cleanHistoryOnStart},
+{@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#fileNamePattern(String) fileNamePattern}) and their defaults. They
 work equally well as query parameters above or as
 <code>logging.output.{name}.*</code> properties.
 
@@ -1486,8 +1491,8 @@ policy.</strong> There is no calendar/date based rotation, no compression on a
 schedule independent of rotation, and no coordination across multiple processes
 writing the same file. If you need any of that, use the external-tool approach
 below instead (typically
-<a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a>)
-- it remains the recommended approach for anything beyond preventing a disk from
+<a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a>).
+It remains the recommended approach for anything beyond preventing a disk from
 filling up, and does not depend on the <code>rainbowgum-file</code> module at all.
 
 <h4 id="rolling_external">External Tool Support (logrotate)</h4>
