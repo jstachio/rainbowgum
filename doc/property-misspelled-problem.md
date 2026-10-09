@@ -505,6 +505,13 @@ configuration:
   (branch `feature/validation-doc-url`): in `help` mode the links are wanted, so the open
   questions there (snapshot URLs, third party builders) matter less.
 
+**Documented as troubleshooting.** The overview gets a "Troubleshooting" section built
+around `-Dlogging.debug=help`: run with it, read the suggestions and links, and if it is
+still unclear, paste the printed report into a bug report. That makes the report part
+of the support flow, so it should be complete and safe to paste: versions, modules,
+sources and which one answered each key, and no secret values (keys are fine, values
+from sources like environment variables may need masking).
+
 Why `logging.debug`:
 
 - **It is already the discovery switch.** People reach for it when something does not
