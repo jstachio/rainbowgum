@@ -449,28 +449,45 @@ Options:
    that starts Rainbow Gum with the application's `logging.properties` and fails the
    build, while production only alerts (idea 5).
 
-#### Tying it to strict mode
+#### Its own enum, with predictable failure rules
 
-Simple props' `logging.simpleprops.strict` enum already decides how bad prefix keys are
-treated. The unused key check could hang off the same modes:
+Decided with Adam: unused keys get their own enum rather than sharing
+`logging.simpleprops.strict`, because prefix checks fail while properties load and unused
+key checks can only fail after start. For example `logging.simpleprops.unused`:
 
-| Mode | Prefix keys today | Unused keys |
-|---|---|---|
-| `off` | ignored | not checked (no recorder, zero cost) |
-| `alert` | alert | alert |
-| `short` (default) | add prefix, fail on `java.util.logging` keys | alert |
-| `fail` | fail | fail, at least for keys with a suggestion |
+| Mode | Behavior |
+|---|---|
+| `off` | not checked, and no recorder (zero cost) |
+| `alert` | every unused key is an alert |
+| `fail` | the keys below fail; other unused keys alert |
 
-Notes:
+What `fail` fails on should be predictable from the key alone, not from how clever the
+matching was:
 
-- **Fail on what.** A key with a case only or near miss suggestion is almost certainly a
-  mistake; a key with no suggestion may belong to a third party component read lazily.
-  `fail` could fail on the first kind and only alert on the second.
-- **Different timing in one enum.** `fail` for prefix keys fails while properties load;
-  `fail` for unused keys can only fail after start (option 2). That is visible to users
-  as two different stack traces from one setting, which may argue for a separate enum
-  (for example `logging.simpleprops.unused=off|alert|fail`).
-- **`off` turns off the recorder too**, so a user who wants zero overhead gets it.
+1. **Any unused key with a suggestion.** A case only or near miss match of a key some
+   component asked for is almost certainly a typo.
+2. **Any unused key under a component namespace**, suggestion or not:
+   `logging.appender.{name}.`, `logging.encoder.{name}.`, `logging.output.{name}.`,
+   `logging.publisher.{name}.`, `logging.route.{name}.`. Every component under these is
+   created at start and reads its keys then, third party ones included, so a key there
+   that nothing read is wrong: `logging.encoder.console.colour` fails even though no
+   suggestion is close enough.
+3. **Everything else alerts**: an unknown key like `logging.something` with no
+   suggestion may belong to a module that reads it later or is not installed.
+
+Exceptions to rule 2:
+
+- **Level keys inside a namespace**, `logging.route.{name}.level.*`, are read lazily per
+  logger like `logging.level.*` and are ignored.
+- **A component that was not created at all.** If `file` is not in `logging.appenders`,
+  none of the `logging.appender.file.` keys are read. Keeping a disabled appender's
+  configuration around to switch it on later is normal, so when no key under a
+  `{name}` was read, that is one alert ("appender file is configured but not used"),
+  not a failure per key. This is idea 8 (misspelled names) falling out of the same
+  data: `logging.appenders=consol` produces exactly that alert for `console`.
+
+Open: whether `fail` is ever the default. The notes so far say alert by default, `fail`
+for CI.
 
 ## Thoughts on focusing on simple props users
 
