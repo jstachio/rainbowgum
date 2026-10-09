@@ -9,6 +9,7 @@ import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /*
@@ -67,15 +68,17 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * name.
 	 * @param color whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme which colors, see {@link TTLL.ColorTheme}.
+	 * @param serviceRegistry where themes chosen by name in properties are looked up.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "LogfmtFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "logfmt.")
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL_FORMATTER") @LogConfigurable.ConvertParameter("convertLevelFormatter") LevelFormatter levelFormatter,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
-			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme) {
-		return new LogfmtFormatter(levelFormatter,
-				Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color, theme, AnsiSupport::isAnsiSupported));
+			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
+			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
+		return new LogfmtFormatter(levelFormatter, Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
+				PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 	}
 
 	static TTLL.ColorMode convertColor(String value) {
