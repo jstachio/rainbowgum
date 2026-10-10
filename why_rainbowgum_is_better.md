@@ -60,7 +60,8 @@ Rainbow Gum also limits what configuration can do:
   reflection apart from mechanisms such as `ServiceLoader`.
 * **Explicit input sources:** apart from `ServiceLoader` discovery, core does not
   read resources from the classpath. It also does not read files from the filesystem
-  or read environment variables on its own. Its default configuration source is Java
+  or, apart from color detection below, environment variables on its own. Its
+  default configuration source is Java
   system properties. Environment variables are read only when you add them as a
   property source, and loading a `logging.properties` file is the job of an optional
   module such as `rainbowgum-simple-props`. The only environment variables core
