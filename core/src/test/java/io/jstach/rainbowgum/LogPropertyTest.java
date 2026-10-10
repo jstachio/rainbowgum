@@ -255,4 +255,23 @@ class LogPropertyTest {
 		assertEquals(-1, LogProperties.StandardProperties.EMPTY.order());
 	}
 
+	@Test
+	void factoryConvertErrorWithoutPropertiesNamesOnlyTheKey() {
+		var e = LogProperty.ValidationException.of(LogPropertyTest.class, "logging.encoder.list.theme", null,
+				LogProperty.PropertyConvertException.of("logging.encoder.{name}.theme", "'x' is not a theme."));
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.LogPropertyTest:
+				Error for property. key: 'logging.encoder.list.theme', 'x' is not a theme.""", e.getMessage());
+	}
+
+	@Test
+	void factoryConvertErrorForAValueNotFromPropertiesNamesOnlyTheKey() {
+		var properties = LogProperties.builder().fromProperties("logging.other=x").build();
+		var e = LogProperty.ValidationException.of(LogPropertyTest.class, "logging.encoder.list.theme", properties,
+				LogProperty.PropertyConvertException.of("logging.encoder.{name}.theme", "'x' is not a theme."));
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.LogPropertyTest:
+				Error for property. key: 'logging.encoder.list.theme', 'x' is not a theme.""", e.getMessage());
+	}
+
 }

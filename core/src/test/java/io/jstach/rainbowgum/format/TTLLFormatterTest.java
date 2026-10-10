@@ -457,7 +457,8 @@ class TTLLFormatterTest {
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
 		String expected = """
-				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.encoder.list.theme' from PROPERTIES_STRING[logging.encoder.list.theme], \
 				'true' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
 				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula', 'default'""";
 		assertEquals(expected, e.getMessage());
@@ -506,7 +507,8 @@ class TTLLFormatterTest {
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").serviceRegistry(registry).fromProperties(properties).build());
 		String expected = """
-				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.encoder.list.theme' from PROPERTIES_STRING[logging.encoder.list.theme], \
 				'minee' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
 				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula', 'default', 'mine'""";
 		assertEquals(expected, e.getMessage());
@@ -529,6 +531,25 @@ class TTLLFormatterTest {
 		var e = assertThrows(IllegalArgumentException.class,
 				() -> TTLL.ColorTheme.builder("mine").level(Level.ALL, "31"));
 		assertEquals("Level ALL has no color. Use error, warning, info, debug, or trace.", e.getMessage());
+	}
+
+	@Test
+	void unknownThemeFromOneOfSeveralSourcesSaysWhichAndWhatWasTried() {
+		var empty = LogProperties.builder().fromProperties("logging.other=x").description("FIRST").build();
+		var themed = LogProperties.builder()
+			.fromProperties("logging.encoder.list.theme=minee")
+			.description("SECOND")
+			.build();
+		var properties = LogProperties.of(java.util.List.of(empty, themed));
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.encoder.list.theme' from SECOND[logging.encoder.list.theme], \
+				'minee' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
+				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula', 'default'
+				Tried: 'logging.encoder.list.theme' from FIRST[logging.encoder.list.theme], SECOND[logging.encoder.list.theme]""";
+		assertEquals(expected, e.getMessage());
 	}
 
 }

@@ -319,7 +319,7 @@ record PaletteColorTheme(String name, Palette palette) implements TTLL.ColorThem
 			}
 		}
 		if (!NAME.matcher(name).matches()) {
-			throw invalid(value, List.of());
+			throw new IllegalArgumentException(invalidMessage(value, List.of()));
 		}
 		return new NamedColorTheme(name);
 	}
@@ -340,7 +340,8 @@ record PaletteColorTheme(String name, Palette palette) implements TTLL.ColorThem
 			}
 			registry.forEach(TTLL.ColorTheme.class, (n, t) -> registered.add(n));
 		}
-		throw invalid(named.name(), registered);
+		throw LogProperty.PropertyConvertException.of(TTLLFormatterBuilder.PROPERTY_theme,
+				invalidMessage(named.name(), registered));
 	}
 
 	static String requireThemeName(String name) {
@@ -366,15 +367,15 @@ record PaletteColorTheme(String name, Palette palette) implements TTLL.ColorThem
 	 * Same message as when this was an enum, with registered theme names after the built
 	 * in ones.
 	 */
-	private static IllegalArgumentException invalid(String value, List<String> registered) {
+	private static String invalidMessage(String value, List<String> registered) {
 		var valid = new ArrayList<String>();
 		for (var theme : BUILT_IN) {
 			valid.add("'" + theme.name() + "'");
 		}
 		valid.add("'default'");
 		registered.stream().sorted().forEach(n -> valid.add("'" + n + "'"));
-		return new IllegalArgumentException("'" + value + "' is not a valid value for "
-				+ TTLL.ColorTheme.class.getCanonicalName() + ". Valid values: " + String.join(", ", valid));
+		return "'" + value + "' is not a valid value for " + TTLL.ColorTheme.class.getCanonicalName()
+				+ ". Valid values: " + String.join(", ", valid);
 	}
 
 }
