@@ -115,7 +115,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 * defaults to off, while an explicit color property still wins.
 	 */
 	static TTLLFormatterBuilder ttll(String name, LogConfig config) {
-		var b = new TTLLFormatterBuilder(name);
+		var b = new TTLLFormatterBuilder(name).serviceRegistry(config.serviceRegistry());
 		boolean ansiDisabled = config.properties()
 			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
 			.ofBoolean()

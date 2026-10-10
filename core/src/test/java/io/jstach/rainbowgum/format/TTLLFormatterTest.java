@@ -367,8 +367,9 @@ class TTLLFormatterTest {
 			"DEFAULT,SPRING,true,SPRING", //
 			"DETECT,null,false,OFF", "DETECT,null,true,OFF", "DETECT,SPRING,false,OFF", "DETECT,SPRING,true,SPRING", //
 			"FORCE,null,false,RAINBOWGUM", "FORCE,SPRING,false,SPRING", "FORCE,DARCULA,true,DARCULA" })
-	void colorModeDecidesWhetherAndThemeDecidesWhich(TTLL.ColorMode mode, TTLL.@Nullable ColorTheme theme, boolean ansi,
+	void colorModeDecidesWhetherAndThemeDecidesWhich(TTLL.ColorMode mode, @Nullable String themeName, boolean ansi,
 			String expected) {
+		TTLL.@Nullable ColorTheme theme = themeName == null ? null : TTLLFormatter.convertTheme(themeName);
 		var palette = switch (expected) {
 			case "RAINBOWGUM" -> Palette.RAINBOWGUM;
 			case "SPRING" -> Palette.SPRING;
@@ -454,13 +455,80 @@ class TTLLFormatterTest {
 	void invalidThemeFails() {
 		var properties = LogProperties.builder().fromProperties("logging.encoder.list.theme=true").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
-				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
 		String expected = """
-				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
-				Error for property. key: 'logging.encoder.list.theme' from PROPERTIES_STRING[logging.encoder.list.theme], \
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
 				'true' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
 				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula', 'default'""";
 		assertEquals(expected, e.getMessage());
+	}
+
+	static final TTLL.ColorTheme MINE = TTLL.ColorTheme.builder("mine")
+		.from(TTLL.ColorTheme.SPRING)
+		.logger("35")
+		.level(Level.INFO, "1;34")
+		.build();
+
+	@Test
+	void customThemeGivenToTheBuilder() {
+		var formatter = new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE).theme(MINE).build();
+		String expected = E + "2;39m12:00:00.123" + R + " " + E + "2;39m[main]" + R + " " + E + "1;34mINFO " + R + " "
+				+ E + "35mcom.example.App" + R + " " + E + "2;39m{requestId=42&user=Ada%20Lovelace}" + R
+				+ " - hello world\n";
+		assertEquals(expected, format(formatter, event(requestKeyValues())));
+	}
+
+	@Test
+	void registeredThemeChosenByProperty() {
+		var output = new ListLogOutput();
+		String all = """
+				logging.appenders=list
+				logging.appender.list.output=list
+				logging.appender.list.encoder=ttll
+				logging.encoder.list.color=force
+				logging.encoder.list.theme=mine
+				""";
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(all).build()).build();
+		config.serviceRegistry().put(TTLL.ColorTheme.class, MINE.name(), MINE);
+		config.outputRegistry().register("list", ref -> LogProvider.of(output));
+		try (var g = RainbowGum.builder(config).build().start()) {
+			g.log(event(requestKeyValues()));
+		}
+		assertEquals(format(new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE).theme(MINE).build(),
+				event(requestKeyValues())), output.toString());
+	}
+
+	@Test
+	void unknownThemeNameListsRegisteredThemes() {
+		var registry = io.jstach.rainbowgum.ServiceRegistry.of();
+		registry.put(TTLL.ColorTheme.class, MINE.name(), MINE);
+		var properties = LogProperties.builder().fromProperties("logging.encoder.list.theme=minee").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").serviceRegistry(registry).fromProperties(properties).build());
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				'minee' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
+				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula', 'default', 'mine'""";
+		assertEquals(expected, e.getMessage());
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"Mine|Color theme name 'Mine' should be lowercase letters, digits, and underscores, starting with a letter.",
+			"one dark|Color theme name 'one dark' should be lowercase letters, digits, and underscores, starting with a letter.",
+			"1st|Color theme name '1st' should be lowercase letters, digits, and underscores, starting with a letter.",
+			"spring|Color theme name 'spring' is taken by a built in theme.",
+			"default|Color theme name 'default' is taken by a built in theme." })
+	void themeNamesThatAreNotAllowed(String name, String expected) {
+		var e = assertThrows(IllegalArgumentException.class, () -> TTLL.ColorTheme.builder(name));
+		assertEquals(expected, e.getMessage());
+	}
+
+	@Test
+	void onlyLevelsWithColorsCanBeSet() {
+		var e = assertThrows(IllegalArgumentException.class,
+				() -> TTLL.ColorTheme.builder("mine").level(Level.ALL, "31"));
+		assertEquals("Level ALL has no color. Use error, warning, info, debug, or trace.", e.getMessage());
 	}
 
 }

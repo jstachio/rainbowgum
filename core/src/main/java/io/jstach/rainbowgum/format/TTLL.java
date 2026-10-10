@@ -403,23 +403,29 @@ public sealed interface TTLL permits TTLLFormatter {
 	}
 
 	/**
-	 * ANSI color theme, the colors used when {@link ColorMode} decides to color.
+	 * ANSI color theme, the colors used when {@link ColorMode} decides to color. The
+	 * built in themes are the constants of this interface; others are made with
+	 * {@link #builder(String)}. A theme put in the
+	 * {@link io.jstach.rainbowgum.ServiceRegistry} as a {@code ColorTheme} under its name
+	 * can be chosen by name with the theme property.
 	 */
-	@CaseChanging
-	enum ColorTheme {
+	sealed interface ColorTheme permits PaletteColorTheme, NamedColorTheme {
 
 		/**
 		 * The Rainbow Gum colors, the same as the pattern encoder's default: cyan time,
 		 * faint thread and key values, level highlighted (error and warn bold red, info
-		 * bold blue) and magenta logger name. Used when no theme is set.
+		 * bold blue) and magenta logger name. Used when no theme is set. Property value
+		 * <code>rainbowgum</code> or <code>default</code>.
 		 */
-		@EnumAlias("default")
-		RAINBOWGUM,
+		ColorTheme RAINBOWGUM = PaletteColorTheme.RAINBOWGUM;
+
 		/**
 		 * Spring Boot's console colors: faint time and thread, level colored by severity
-		 * (error red, warn yellow, the rest green) and cyan logger name.
+		 * (error red, warn yellow, the rest green) and cyan logger name. Property value
+		 * <code>spring</code>.
 		 */
-		SPRING,
+		ColorTheme SPRING = PaletteColorTheme.SPRING;
+
 		/**
 		 * Atom One Dark's colors in 24 bit color, so they show the same in any terminal
 		 * that supports it: cyan time, gray thread and key values, magenta logger name,
@@ -427,19 +433,153 @@ public sealed interface TTLL permits TTLLFormatter {
 		 * gray. Meant for a dark terminal background. Property value
 		 * <code>one_dark</code>.
 		 */
-		ONE_DARK,
+		ColorTheme ONE_DARK = PaletteColorTheme.ONE_DARK;
+
 		/**
 		 * IntelliJ Darcula's colors in 24 bit color: blue time, gray thread and key
 		 * values, orange logger name, and level bold red, yellow, or green (error, warn,
-		 * info) with debug and trace gray. Meant for a dark terminal background.
+		 * info) with debug and trace gray. Meant for a dark terminal background. Property
+		 * value <code>darcula</code>.
 		 */
-		DARCULA;
+		ColorTheme DARCULA = PaletteColorTheme.DARCULA;
 
-		static ColorTheme parse(String value) {
-			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
-				case "default" -> RAINBOWGUM;
-				default -> io.jstach.rainbowgum.LogProperty.enumValue(ColorTheme.class, value, "default");
-			};
+		/**
+		 * The theme's name, which is its property value.
+		 * @return name like <code>one_dark</code>.
+		 */
+		String name();
+
+		/**
+		 * Starts a theme. Parts not set are not colored.
+		 * @param name theme name: lowercase letters, digits, and underscores, starting
+		 * with a letter, and not the name of a built in theme or <code>default</code>.
+		 * @return builder.
+		 * @throws IllegalArgumentException if the name is not allowed.
+		 */
+		static Builder builder(String name) {
+			return new Builder(PaletteColorTheme.requireThemeName(name));
+		}
+
+		/**
+		 * Builds a {@link ColorTheme}. Colors are ANSI SGR parameters, the part of an
+		 * escape sequence between <code>ESC[</code> and <code>m</code>, such as
+		 * <code>36</code> for cyan, <code>1;31</code> for bold red, or
+		 * <code>38;2;198;120;221</code> for a 24 bit color.
+		 */
+		final class Builder {
+
+			private final String name;
+
+			private String timestamp = "";
+
+			private String thread = "";
+
+			private String logger = "";
+
+			private String keyValues = "";
+
+			private String error = "";
+
+			private String warn = "";
+
+			private String info = "";
+
+			private String debug = "";
+
+			private String trace = "";
+
+			private Builder(String name) {
+				this.name = name;
+			}
+
+			/**
+			 * Starts from another theme's colors.
+			 * @param theme theme to copy.
+			 * @return this.
+			 */
+			public Builder from(ColorTheme theme) {
+				var p = PaletteColorTheme.paletteOf(theme);
+				this.timestamp = p.timestamp();
+				this.thread = p.thread();
+				this.logger = p.logger();
+				this.keyValues = p.keyValues();
+				this.error = p.error();
+				this.warn = p.warn();
+				this.info = p.info();
+				this.debug = p.debug();
+				this.trace = p.trace();
+				return this;
+			}
+
+			/**
+			 * Timestamp color.
+			 * @param color SGR parameters.
+			 * @return this.
+			 */
+			public Builder timestamp(String color) {
+				this.timestamp = color;
+				return this;
+			}
+
+			/**
+			 * Thread color.
+			 * @param color SGR parameters.
+			 * @return this.
+			 */
+			public Builder thread(String color) {
+				this.thread = color;
+				return this;
+			}
+
+			/**
+			 * Logger name color.
+			 * @param color SGR parameters.
+			 * @return this.
+			 */
+			public Builder logger(String color) {
+				this.logger = color;
+				return this;
+			}
+
+			/**
+			 * Key values color.
+			 * @param color SGR parameters.
+			 * @return this.
+			 */
+			public Builder keyValues(String color) {
+				this.keyValues = color;
+				return this;
+			}
+
+			/**
+			 * Color of a level.
+			 * @param level error, warning, info, debug, or trace.
+			 * @param color SGR parameters.
+			 * @return this.
+			 * @throws IllegalArgumentException for any other level.
+			 */
+			public Builder level(System.Logger.Level level, String color) {
+				switch (level) {
+					case ERROR -> this.error = color;
+					case WARNING -> this.warn = color;
+					case INFO -> this.info = color;
+					case DEBUG -> this.debug = color;
+					case TRACE -> this.trace = color;
+					default -> throw new IllegalArgumentException(
+							"Level " + level + " has no color. Use error, warning, info, debug, or trace.");
+				}
+				return this;
+			}
+
+			/**
+			 * Builds the theme.
+			 * @return theme.
+			 */
+			public ColorTheme build() {
+				return new PaletteColorTheme(name,
+						new Palette(timestamp, thread, logger, keyValues, error, warn, info, debug, trace));
+			}
+
 		}
 
 	}
