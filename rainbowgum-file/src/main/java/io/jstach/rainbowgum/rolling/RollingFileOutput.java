@@ -34,12 +34,13 @@ import io.jstach.rainbowgum.file.FileOutputBuilder;
  * <p>
  * Registered under the {@value #ROLLING_SCHEME} URI scheme (see
  * {@code RollingConfigurator}), e.g. {@code rolling:///var/log/app.log?maxFileSize=...}.
- * Every property below lives under the same {@link LogProperties#OUTPUT_PREFIX} as
- * {@link FileOutput} itself - {@code uri}/{@code fileName}/{@code append}/
- * {@code prudent}/{@code bufferSize} all still apply and are passed straight through to
- * the underlying {@link FileOutput} this wraps. The {@code append} setting applies when
- * the output is first opened. Replacement outputs always append so recovery preserves any
- * active contents left behind by a failed rotation.
+ * Its properties are <code>logging.output.rolling.{name}.</code> followed by a
+ * {@link RollingFileOutputBuilder} property name. {@code uri}, {@code fileName},
+ * {@code append}, {@code prudent} and {@code bufferSize} mean the same as for
+ * {@link FileOutput} and are passed to the underlying file output this wraps. The
+ * {@code append} setting applies when the output is first opened. Replacement outputs
+ * always append so recovery preserves any active contents left behind by a failed
+ * rotation.
  * <p>
  * Failed automatic rotation attempts record {@link LogMetrics#ROLL_FAIL_METRIC} and an
  * error alert identifying the active file. The event that triggered the failed rotation
@@ -57,6 +58,11 @@ public interface RollingFileOutput extends FileOutput {
 	 * URI scheme for rolling file outputs.
 	 */
 	static final String ROLLING_SCHEME = "rolling";
+
+	/**
+	 * Default buffer size, the same as {@link FileOutput#DEFAULT_BUFFER_SIZE}.
+	 */
+	static final DataSize DEFAULT_BUFFER_SIZE = FileOutput.DEFAULT_BUFFER_SIZE;
 
 	/**
 	 * Default max file size before a roll is triggered: 10MB, matching Logback and Spring
@@ -141,6 +147,11 @@ public interface RollingFileOutput extends FileOutput {
 	 * @param name name of output, not file name.
 	 * @param uri file uri.
 	 * @param fileName file name.
+	 * @param append whether or not to append to an existing file when first opened.
+	 * @param prudent logback prudent mode where files are locked on each write.
+	 * @param bufferSize buffer size, in
+	 * {@link io.jstach.rainbowgum.file.DataSize#parse(String)} format when set by
+	 * property, e.g. {@code 8KB}. Zero means unbuffered.
 	 * @param maxFileSize max file size before a roll is triggered, in
 	 * {@link io.jstach.rainbowgum.file.DataSize#parse(String)} format when set by
 	 * property, e.g. {@code 10MB}.
@@ -152,9 +163,10 @@ public interface RollingFileOutput extends FileOutput {
 	 * must not contain <code>%d</code> (date based rotation is not supported).
 	 * @return rolling file output provider.
 	 */
-	@LogConfigurable(name = "RollingFileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	@LogConfigurable(name = "RollingFileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "rolling.{name}.")
 	public static LogProvider<RollingFileOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI uri,
-			@Nullable String fileName,
+			@Nullable String fileName, @Nullable Boolean append, @Nullable Boolean prudent,
+			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_BUFFER_SIZE") DataSize bufferSize,
 			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_MAX_FILE_SIZE") DataSize maxFileSize,
 			@DefaultParameter("DEFAULT_MAX_HISTORY") Integer maxHistory,
 			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_TOTAL_SIZE_CAP") DataSize totalSizeCap,
@@ -179,8 +191,9 @@ public interface RollingFileOutput extends FileOutput {
 		boolean cleanHistoryOnStart_ = cleanHistoryOnStart;
 		return (n, config) -> {
 			var fileBuilder = new FileOutputBuilder(n).fileName(fileNameForDelegate)
-				.append(true)
-				.fromProperties(config.properties());
+				.append(append == null ? true : append)
+				.prudent(prudent)
+				.bufferSize(bufferSize);
 			var initialOutput = fileBuilder.build().provide(n, config);
 			// append=false applies only to initial opening. Recovery must preserve any
 			// active contents left behind by a failed rotation.

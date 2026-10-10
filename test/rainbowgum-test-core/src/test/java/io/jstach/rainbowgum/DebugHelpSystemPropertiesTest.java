@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
@@ -41,9 +43,11 @@ class DebugHelpSystemPropertiesTest {
 		}
 	}
 
-	@Test
-	void encoderKeyWithoutItsTypeSuggestsTheTypedKey() {
-		System.setProperty("logging.encoder.console.level", "plain");
+	@ParameterizedTest
+	@CsvSource({ "logging.encoder.console.level, plain, logging.encoder.ttll.console.level",
+			"logging.output.console.stream, follow, logging.output.stdout.console.stream" })
+	void keyWithoutItsTypeSuggestsTheTypedKey(String key, String value, String typedKey) {
+		System.setProperty(key, value);
 		try {
 			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
 			var gum = RainbowGum.builder(config).build();
@@ -51,11 +55,13 @@ class DebugHelpSystemPropertiesTest {
 			assertEquals(
 					"""
 							1 alert(s) at warning or above were recorded while starting and logging.debug=help:
-							[WARNING] Property key 'logging.encoder.console.level' from SYSTEM_PROPERTIES[logging.encoder.console.level] was set but not read during startup. Did you mean 'logging.encoder.ttll.console.level'?""",
+							[WARNING] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup. Did you mean 'TYPED'?"""
+						.replace("KEY", key)
+						.replace("TYPED", typedKey),
 					e.getMessage());
 		}
 		finally {
-			System.getProperties().remove("logging.encoder.console.level");
+			System.getProperties().remove(key);
 		}
 	}
 

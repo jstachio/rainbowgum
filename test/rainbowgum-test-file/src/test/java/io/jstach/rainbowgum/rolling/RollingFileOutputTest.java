@@ -48,9 +48,9 @@ class RollingFileOutputTest {
 
 		LogConfig config() {
 			return LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-					logging.output.file.prudent=%s
-					logging.output.file.bufferSize=%s
-					logging.output.file.append=false
+					logging.output.rolling.file.prudent=%s
+					logging.output.rolling.file.bufferSize=%s
+					logging.output.rolling.file.append=false
 					""".formatted(this == PRUDENT, this == UNBUFFERED ? 0 : 8192)).build()).build();
 		}
 
@@ -389,12 +389,11 @@ class RollingFileOutputTest {
 
 	@Test
 	void prudentPropertyReachesInnerFileOutputAndRollsCorrectly() throws IOException {
-		// prudent is not a RollingFileOutputBuilder property; it only reaches the
-		// delegate FileOutput because both builders share the same
-		// logging.output.{name}. prefix and DefaultRollingFileOutput.write(ByteBuffer,
-		// ...) forwards straight through - this is the only way to reach that overload.
+		// prudent is passed through to the delegate FileOutput and
+		// DefaultRollingFileOutput.write(ByteBuffer, ...) forwards straight through -
+		// this is the only way to reach that overload.
 		Path active = dir.resolve("app.log");
-		var props = LogProperties.builder().fromProperties("logging.output.file.prudent=true").build();
+		var props = LogProperties.builder().fromProperties("logging.output.rolling.file.prudent=true").build();
 		var config = LogConfig.builder().properties(props).build();
 		var provider = RollingFileOutput.of(b -> {
 			b.fileName(active.toString());
@@ -482,7 +481,7 @@ class RollingFileOutputTest {
 	void rollingUriSchemeWithoutQueryParamsUsesPlainConfigProperties() throws IOException {
 		Path active = dir.resolve("noquery.log");
 		var props = LogProperties.builder()
-			.fromProperties("logging.output.file.maxFileSize=1\nlogging.output.file.maxHistory=1")
+			.fromProperties("logging.output.rolling.file.maxFileSize=1\nlogging.output.rolling.file.maxHistory=1")
 			.build();
 		var config = LogConfig.builder().serviceLoader().properties(props).build();
 		var uri = URI.create("rolling://" + active.toAbsolutePath());

@@ -107,7 +107,7 @@ public interface FileOutput extends LogOutput {
 	 * {@link java.io.UncheckedIOException} if the file cannot be opened.
 	 */
 	@SuppressWarnings("resource")
-	@LogConfigurable(name = "FileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	@LogConfigurable(name = "FileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "file.{name}.")
 	public static LogProvider<FileOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI uri,
 			@Nullable String fileName, @Nullable Boolean append, @Nullable Boolean prudent,
 			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_BUFFER_SIZE") DataSize bufferSize) {

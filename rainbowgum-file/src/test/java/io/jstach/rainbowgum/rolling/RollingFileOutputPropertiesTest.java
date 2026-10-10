@@ -33,7 +33,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
+						Error for property. key: 'logging.output.rolling.file.maxFileSize' from PROPERTIES_STRING[logging.output.rolling.file.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
 				e.getMessage());
 	}
 
@@ -43,7 +43,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.maxHistory' from PROPERTIES_STRING[logging.output.file.maxHistory], java.lang.NumberFormatException For input string: "notanumber\"""",
+						Error for property. key: 'logging.output.rolling.file.maxHistory' from PROPERTIES_STRING[logging.output.rolling.file.maxHistory], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 
@@ -53,7 +53,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.totalSizeCap' from PROPERTIES_STRING[logging.output.file.totalSizeCap], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
+						Error for property. key: 'logging.output.rolling.file.totalSizeCap' from PROPERTIES_STRING[logging.output.rolling.file.totalSizeCap], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
 				e.getMessage());
 	}
 
@@ -80,9 +80,12 @@ class RollingFileOutputPropertiesTest {
 	}
 
 	private DefaultRollingFileOutput buildWith(String... propertyValues) {
-		StringBuilder props = new StringBuilder("logging.output.file.fileName=" + dir.resolve("app.log"));
+		StringBuilder props = new StringBuilder("logging.output.rolling.file.fileName=" + dir.resolve("app.log"));
 		for (int i = 0; i < propertyValues.length; i += 2) {
-			props.append("\nlogging.output.file.").append(propertyValues[i]).append('=').append(propertyValues[i + 1]);
+			props.append("\nlogging.output.rolling.file.")
+				.append(propertyValues[i])
+				.append('=')
+				.append(propertyValues[i + 1]);
 		}
 		var properties = LogProperties.builder().fromProperties(props.toString()).build();
 		var config = LogConfig.builder().properties(properties).build();

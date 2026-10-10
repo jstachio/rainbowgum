@@ -128,7 +128,8 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <tr>
  * <td>{@value #APPENDER_OUTPUT_PROPERTY } = <code>URI</code></td>
  * <td>Looks up an output by URI scheme using the {@link LogOutputRegistry}. The output is
- * then configured by properties with {@value #OUTPUT_PREFIX}.</td>
+ * then configured by properties with {@value #OUTPUT_PREFIX} + <code>scheme</code> +
+ * <code>.{name}.</code>.</td>
  * </tr>
  * <tr>
  * <td>{@value #APPENDER_ENCODER_PROPERTY } = <code>URI</code></td>
@@ -137,10 +138,11 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <code>.{name}.</code>.</td>
  * </tr>
  * <tr>
- * <tr>
- * <td>{@value #OUTPUT_PREFIX} + <code>propertyName</code></td>
- * <td>Configures the named output. The name of the output usually comes from the
- * appender.</td>
+ * <td>{@value #OUTPUT_PREFIX} + <code>scheme</code> + <code>.{name}.</code> +
+ * <code>propertyName</code></td>
+ * <td>Configures the named output of the type selected by the URI scheme, for example
+ * <code>logging.output.file.file.bufferSize</code>. The name of the output usually comes
+ * from the appender.</td>
  * </tr>
  * <tr>
  * <td>{@value #ENCODER_PREFIX} + <code>scheme</code> + <code>.{name}.</code> +
@@ -370,9 +372,10 @@ public interface LogProperties {
 	static final String DEFAULT_NAME = "default";
 
 	/**
-	 * Logging output prefix for configuration.
+	 * Logging output prefix for configuration, followed by the output's URI scheme and
+	 * then <code>.{name}.</code>, for example <code>logging.output.file.{name}.</code>.
 	 */
-	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.{" + NAME + "}.";
+	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.";
 
 	/**
 	 * Logging encoder prefix for configuration, followed by the encoder's URI scheme and

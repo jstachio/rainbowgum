@@ -57,7 +57,7 @@ class OtlpConfigTest {
 	void genericEndpointGetsLogsPathAppended() {
 		env(Map.of("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318/", "OTEL_EXPORTER_OTLP_PROTOCOL",
 				"http/json"));
-		var output = output("logging.output.otlp.environmentVariables=on");
+		var output = output("logging.output.otlp.otlp.environmentVariables=on");
 		assertEquals(URI.create("http://collector:4318/v1/logs"), output.endpoint());
 		assertEquals(OtlpProtocol.HTTP_JSON, output.protocol());
 	}
@@ -67,11 +67,11 @@ class OtlpConfigTest {
 		env(Map.of("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://collector:4318/custom", "OTEL_EXPORTER_OTLP_ENDPOINT",
 				"http://ignored:4318", "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL", "http/json"));
 		assertEquals(URI.create("http://collector:4318/custom"),
-				output("logging.output.otlp.environmentVariables=true").endpoint());
+				output("logging.output.otlp.otlp.environmentVariables=true").endpoint());
 		var explicit = output("""
-				logging.output.otlp.environmentVariables=on
-				logging.output.otlp.endpoint=http://explicit:9999/v1/logs
-				logging.output.otlp.protocol=http/protobuf
+				logging.output.otlp.otlp.environmentVariables=on
+				logging.output.otlp.otlp.endpoint=http://explicit:9999/v1/logs
+				logging.output.otlp.otlp.protocol=http/protobuf
 				""");
 		assertEquals(URI.create("http://explicit:9999/v1/logs"), explicit.endpoint());
 		assertEquals(OtlpProtocol.HTTP_PROTOBUF, explicit.protocol());
@@ -92,14 +92,14 @@ class OtlpConfigTest {
 	@Test
 	void invalidValuesFailWithPropertyContext() {
 		var e = assertThrows(LogProperty.ValidationException.class,
-				() -> output("logging.output.otlp.environmentVariables=maybe"));
+				() -> output("logging.output.otlp.otlp.environmentVariables=maybe"));
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.otlp.OtlpOutputBuilder:
-						Error for property. key: 'logging.output.otlp.environmentVariables' from PROPERTIES_STRING[logging.output.otlp.environmentVariables], 'maybe' is not a valid value for io.jstach.rainbowgum.otlp.EnvironmentVariables. Valid values: 'off', 'on', 'true', 'false'
+						Error for property. key: 'logging.output.otlp.otlp.environmentVariables' from PROPERTIES_STRING[logging.output.otlp.otlp.environmentVariables], 'maybe' is not a valid value for io.jstach.rainbowgum.otlp.EnvironmentVariables. Valid values: 'off', 'on', 'true', 'false'
 						Tried:
-						    'logging.output.otlp.environmentVariables' from:
-						        PROPERTIES_STRING[logging.output.otlp.environmentVariables],
+						    'logging.output.otlp.otlp.environmentVariables' from:
+						        PROPERTIES_STRING[logging.output.otlp.otlp.environmentVariables],
 						        URI(otlp:///)[environmentVariables]""",
 				e.getMessage());
 		assertEquals("OTLP protocol 'grpc' is not supported. Use http/protobuf or http/json.",

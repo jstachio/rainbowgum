@@ -54,11 +54,11 @@ One line, printed to the console without any extra setup - better than Logback's
 default. But it names neither the appender nor the config file/property path, and it's
 easy to lose in a normal amount of startup log noise.
 
-**Rainbow Gum** (`logging.output.file.maxFileSize=notanumber`):
+**Rainbow Gum** (`logging.output.rolling.file.maxFileSize=notanumber`):
 
 ```
 Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
+Error for property. key: 'logging.output.rolling.file.maxFileSize' from PROPERTIES_STRING[logging.output.rolling.file.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
 ```
 
 Thrown as an actual exception at startup - the application does not start with a broken

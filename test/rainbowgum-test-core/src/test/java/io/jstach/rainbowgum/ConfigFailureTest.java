@@ -90,8 +90,8 @@ class ConfigFailureTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.LogOutput:
 						Property missing. key:
-						    'logging.output.myapp.host' from:
-						        PROPERTIES_STRING[logging.output.myapp.host],
+						    'logging.output.custom.myapp.host' from:
+						        PROPERTIES_STRING[logging.output.custom.myapp.host],
 						        [logging.appender.myapp.output]->URI(custom:///?password=<REDACTED>)[host]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], value: 'custom:///?password=<REDACTED>'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -101,7 +101,7 @@ class ConfigFailureTest {
 				return List.of((config, pass) -> {
 					config.outputRegistry().register("custom", ref -> (name, c) -> {
 						assertEquals("custom:///?password=kenny", ref.uri().toString());
-						String prefix = "logging.output." + name + ".";
+						String prefix = "logging.output.custom." + name + ".";
 						var properties = LogProperties.of(ref.uri(), prefix, c.properties(), ref.keyOrNull());
 						assertEquals("kenny", properties.valueOrNull(prefix + "password"));
 						var validator = LogProperty.Validator.of(LogOutput.class);

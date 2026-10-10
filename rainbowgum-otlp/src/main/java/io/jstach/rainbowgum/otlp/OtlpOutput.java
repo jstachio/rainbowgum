@@ -182,7 +182,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	 * variables are read, default off.
 	 * @return output provider.
 	 */
-	@LogConfigurable(name = "OtlpOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	@LogConfigurable(name = "OtlpOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "otlp.{name}.")
 	static LogProvider<OtlpOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI endpoint,
 			@ConvertParameter("parseProtocol") @Nullable OtlpProtocol protocol, @Nullable Map<String, String> headers,
 			@Nullable String compression, @Nullable Integer timeout, @Nullable Integer maxBatchSize,

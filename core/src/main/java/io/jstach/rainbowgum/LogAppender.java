@@ -642,10 +642,10 @@ public sealed interface LogAppender extends LogLifecycle {
 		 * Resolves APPENDER_OUTPUT_PROPERTY all the way to a concrete LogOutput (not just
 		 * a LogProvider), via LogProperty.provideValue so a failure inside the provided
 		 * LogOutput's own construction (its own separate property tree, e.g.
-		 * logging.output.file.bufferSize) is not relabeled "Error converting property" as
-		 * if APPENDER_OUTPUT_PROPERTY's own value had failed to convert - see
-		 * LogProperty#providingError. Moved here since output resolution is now entirely
-		 * this Builder's concern.
+		 * logging.output.file.file.bufferSize) is not relabeled
+		 * "Error converting property" as if APPENDER_OUTPUT_PROPERTY's own value had
+		 * failed to convert - see LogProperty#providingError. Moved here since output
+		 * resolution is now entirely this Builder's concern.
 		 */
 		private static LogProperty.Result<LogOutput> outputProperty(String name, LogConfig config) {
 			return LogProperty.provideValue(

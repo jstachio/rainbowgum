@@ -64,7 +64,7 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		 * leaves it as-is) instead of a plain path, which would resolve to plain
 		 * (non-rolling) file output.
 		 */
-		private static final String OUTPUT_FILE_PREFIX = "logging.output.file.";
+		private static final String OUTPUT_FILE_PREFIX = "logging.output.rolling.file.";
 
 		// Spring Boot's own rollingpolicy.file-name-pattern default embeds this
 		// literal token for the active file's own name/path - RainbowGum's pattern is

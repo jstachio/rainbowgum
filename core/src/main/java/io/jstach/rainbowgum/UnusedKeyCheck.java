@@ -166,7 +166,7 @@ final class UnusedKeyCheck {
 	/*
 	 * Whether the key is the candidate with one inner segment left out, such as
 	 * logging.encoder.console.level for logging.encoder.ttll.console.level, the form
-	 * before encoder keys named their type.
+	 * before encoder and output keys named their type.
 	 */
 	static boolean isMissingOneSegment(String key, String candidate) {
 		if (candidate.length() <= key.length()) {

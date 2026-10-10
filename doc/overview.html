@@ -302,12 +302,13 @@ logging.{componentType}.{name}.{subComponent}=URI
 logging.{subComponent}.{name}.{propertyName}=someStringThatIsConverted
 }
 
-Encoders are the exception: their keys also name the encoder type, the URI scheme, before the name, so each
-type has its own keys and switching an appender's encoder leaves the other type's settings unread instead of
-misreading them:
+Encoders and outputs are the exception: their keys also name the type, the URI scheme, before the name, so
+each type has its own keys and switching an appender's encoder or output leaves the other type's settings
+unread instead of misreading them:
 
 {@snippet lang=properties :
 logging.encoder.{scheme}.{name}.{propertyName}=someStringThatIsConverted
+logging.output.{scheme}.{name}.{propertyName}=someStringThatIsConverted
 }
 
 An interpolated key (note key not value) example might be:
@@ -326,7 +327,7 @@ logging.encoder.gelf.example.prettyPrint=true
 
 Because the first property is a URI, its query string is also searched for the second line's properties,
 using <code>{propertyName}</code> as a bare query parameter with no <code>logging.{subComponent}.{name}.</code>
-(or <code>logging.encoder.{scheme}.{name}.</code>) prefix. So instead of two separate properties, one can write everything on the URI line:
+(or <code>logging.encoder.{scheme}.{name}.</code> and <code>logging.output.{scheme}.{name}.</code>) prefix. So instead of two separate properties, one can write everything on the URI line:
 
 {@snippet lang=properties :
 logging.appender.example.encoder=gelf:///?prettyPrint=true
@@ -341,7 +342,7 @@ logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10MB
 
 # the above is equivalent to the more verbose:
 logging.appender.myapp.output=rolling:///var/log/app.log
-logging.output.myapp.maxFileSize=10MB
+logging.output.rolling.myapp.maxFileSize=10MB
 }
 
 <strong>
@@ -1368,7 +1369,7 @@ example so a test that captures standard out also captures log output), set the
 logging.appenders=myapp
 logging.appender.myapp.output=stdout:///?stream=follow
 # or equivalently
-logging.output.myapp.stream=follow
+logging.output.stdout.myapp.stream=follow
 }
 
 <p>
@@ -1502,7 +1503,7 @@ properties ({@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#maxFile
 {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#cleanHistoryOnStart(Boolean) cleanHistoryOnStart},
 {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#fileNamePattern(String) fileNamePattern}) and their defaults. They
 work equally well as query parameters above or as
-<code>logging.output.{name}.*</code> properties.
+<code>logging.output.rolling.{name}.*</code> properties.
 
 <p>
 <code>maxFileSize</code> and <code>totalSizeCap</code> take a number with an optional unit,
@@ -1613,8 +1614,8 @@ network:
 {@snippet lang=properties :
 logging.appenders=otel
 logging.appender.otel.output=otlp:///
-logging.output.otel.endpoint=http://collector:4318/v1/logs
-logging.output.otel.serviceName=orders
+logging.output.otlp.otel.endpoint=http://collector:4318/v1/logs
+logging.output.otlp.otel.serviceName=orders
 logging.route.default.publisher=async
 }
 
@@ -1632,7 +1633,7 @@ reading the process environment is not something Rainbow Gum does by default:
 </p>
 
 {@snippet lang=properties :
-logging.output.otel.environmentVariables=on
+logging.output.otlp.otel.environmentVariables=on
 }
 
 With that set, <code>OTEL_SERVICE_NAME</code>, <code>OTEL_RESOURCE_ATTRIBUTES</code>, and the
@@ -1943,7 +1944,7 @@ properties.</strong> <code>logging.appender.errorfile.output</code> above is set
 <code>?</code> is still resolved as the file path exactly as with a bare path, and everything
 after <code>?</code> is parsed the same way a query string would be and made available as
 properties scoped to that output: here, <code>bufferSize</code>, equivalent to also having
-written <code>logging.output.errorfile.bufferSize=10000</code> on its own line. This works for a
+written <code>logging.output.file.errorfile.bufferSize=10000</code> on its own line. This works for a
 relative, scheme-less path just as well as it does for an explicit <code>file://</code> URI; which
 style to use is purely a matter of preference for how compact versus explicit the properties file
 should read.

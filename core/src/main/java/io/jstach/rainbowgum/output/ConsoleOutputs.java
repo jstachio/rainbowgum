@@ -33,7 +33,7 @@ final class ConsoleOutputs {
 	 * write.
 	 * @return output provider.
 	 */
-	@LogConfigurable(name = "StdOutOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	@LogConfigurable(name = "StdOutOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "stdout.{name}.")
 	static LogProvider<LogOutput> stdout(@LogConfigurable.KeyParameter String name, @LogConfigurable.DefaultParameter(
 			constant = "CACHED") @LogConfigurable.ConvertParameter("parseStream") ConsoleStream stream) {
 		return switch (stream) {
@@ -50,7 +50,7 @@ final class ConsoleOutputs {
 	 * write.
 	 * @return output provider.
 	 */
-	@LogConfigurable(name = "StdErrOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	@LogConfigurable(name = "StdErrOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "stderr.{name}.")
 	static LogProvider<LogOutput> stderr(@LogConfigurable.KeyParameter String name, @LogConfigurable.DefaultParameter(
 			constant = "CACHED") @LogConfigurable.ConvertParameter("parseStream") ConsoleStream stream) {
 		return switch (stream) {

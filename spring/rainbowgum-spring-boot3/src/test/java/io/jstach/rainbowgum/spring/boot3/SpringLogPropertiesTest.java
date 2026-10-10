@@ -52,38 +52,38 @@ class SpringLogPropertiesTest {
 	@Test
 	void rollingPolicyMaxFileSizeTranslatesDataSizeToBytes() {
 		var p = properties(Map.of(SpringBootSupportedProperties.ROLLINGPOLICY_MAX_FILE_SIZE, "10MB"));
-		assertEquals(String.valueOf(10 * 1024 * 1024), p.valueOrNull("logging.output.file.maxFileSize"));
+		assertEquals(String.valueOf(10 * 1024 * 1024), p.valueOrNull("logging.output.rolling.file.maxFileSize"));
 	}
 
 	@Test
 	void rollingPolicyTotalSizeCapTranslatesDataSizeToBytes() {
 		var p = properties(Map.of(SpringBootSupportedProperties.ROLLINGPOLICY_TOTAL_SIZE_CAP, "100MB"));
-		assertEquals(String.valueOf(100L * 1024 * 1024), p.valueOrNull("logging.output.file.totalSizeCap"));
+		assertEquals(String.valueOf(100L * 1024 * 1024), p.valueOrNull("logging.output.rolling.file.totalSizeCap"));
 	}
 
 	@Test
 	void rollingPolicySizePropertiesAbsentReturnNull() {
 		var p = properties(Map.of());
-		assertNull(p.valueOrNull("logging.output.file.maxFileSize"));
-		assertNull(p.valueOrNull("logging.output.file.totalSizeCap"));
+		assertNull(p.valueOrNull("logging.output.rolling.file.maxFileSize"));
+		assertNull(p.valueOrNull("logging.output.rolling.file.totalSizeCap"));
 	}
 
 	@Test
 	void rollingPolicyMaxHistoryPassesThrough() {
 		var p = properties(Map.of(SpringBootSupportedProperties.ROLLINGPOLICY_MAX_HISTORY, "5"));
-		assertEquals("5", p.valueOrNull("logging.output.file.maxHistory"));
+		assertEquals("5", p.valueOrNull("logging.output.rolling.file.maxHistory"));
 	}
 
 	@Test
 	void rollingPolicyCleanHistoryOnStartPassesThrough() {
 		var p = properties(Map.of(SpringBootSupportedProperties.ROLLINGPOLICY_CLEAN_HISTORY_ON_START, "true"));
-		assertEquals("true", p.valueOrNull("logging.output.file.cleanHistoryOnStart"));
+		assertEquals("true", p.valueOrNull("logging.output.rolling.file.cleanHistoryOnStart"));
 	}
 
 	@Test
 	void rollingPolicyFileNamePatternStripsLogFileToken() {
 		var p = properties(Map.of(SpringBootSupportedProperties.ROLLINGPOLICY_FILE_NAME_PATTERN, "${LOG_FILE}.%i.gz"));
-		assertEquals(".%i.gz", p.valueOrNull("logging.output.file.fileNamePattern"));
+		assertEquals(".%i.gz", p.valueOrNull("logging.output.rolling.file.fileNamePattern"));
 	}
 
 	@Test
@@ -93,7 +93,7 @@ class SpringLogPropertiesTest {
 		// is not supported, so this must not throw at startup.
 		var p = properties(Map.of(SpringBootSupportedProperties.ROLLINGPOLICY_FILE_NAME_PATTERN,
 				"${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz"));
-		assertNull(p.valueOrNull("logging.output.file.fileNamePattern"));
+		assertNull(p.valueOrNull("logging.output.rolling.file.fileNamePattern"));
 	}
 
 	@Test
