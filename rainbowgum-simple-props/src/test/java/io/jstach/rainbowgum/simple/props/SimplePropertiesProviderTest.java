@@ -144,7 +144,8 @@ class SimplePropertiesProviderTest {
 			assertEquals("WARN", value);
 			assertEquals(
 					List.of("Loading properties from io.jstach.rainbowgum.simple.props.SimplePropertiesProvider",
-							"Found profiles: [default]", "Loaded properties resource: classpath:/logging.properties"),
+							"Found profiles: [default]", "Loaded properties resource: classpath:/logging.properties",
+							"Adding configurator: io.jstach.rainbowgum.simple.props.SimplePropertiesProvider"),
 					gum.config().alerts().dump().stream().map(LogEvent::message).toList());
 		}
 	}
