@@ -63,9 +63,12 @@ Rainbow Gum also limits what configuration can do:
   or read environment variables on its own. Its default configuration source is Java
   system properties. Environment variables are read only when you add them as a
   property source, and loading a `logging.properties` file is the job of an optional
-  module such as `rainbowgum-simple-props`. The only environment check in core's
-  code is ANSI color detection (`NO_COLOR` and `TERM`), which runs only when
-  `rainbowgum-pattern` asks for it.
+  module such as `rainbowgum-simple-props`. The only environment variables core
+  reads on its own are two standard ones, `NO_COLOR` (the
+  [no-color.org](https://no-color.org/) convention) and `TERM`, for ANSI color
+  detection. That check runs only when a formatter that colors asks for it: the
+  TTLL formatter when its `color` property is `default` or `detect`, or
+  `rainbowgum-pattern`.
 * **Explicit output capabilities:** core writes only to stdout and stderr. File
   output and other destinations require additional modules; configuration alone
   cannot enable an output implementation that is not installed.
