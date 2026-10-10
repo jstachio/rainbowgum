@@ -34,14 +34,16 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 
 	private static final TimestampFormatter TIME = TimestampFormatter.ofISO();
 
-	/** {@link io.jstach.rainbowgum.LogFormatter.LevelFormatter#of() level_formatter} */
-	static final LevelFormatter DEFAULT_LEVEL_FORMATTER = LevelFormatter.of();
-
 	private final boolean json5;
 
 	private final KeyValuesPlacement keyValues;
 
 	private final LevelFormatter levelFormatter;
+
+	/*
+	 * Written between members: a comma, followed by a space when spacing.
+	 */
+	private final String separator;
 
 	private final Palette palette;
 
@@ -54,21 +56,24 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 
 	private final Members nestedColliding;
 
-	private Json5Formatter(boolean json5, KeyValuesPlacement keyValues, LevelFormatter levelFormatter,
-			Palette palette) {
+	private Json5Formatter(boolean json5, KeyValuesPlacement keyValues, Json5PrettyPrint prettyPrint, Palette palette) {
 		this.json5 = json5;
 		this.keyValues = keyValues;
-		this.levelFormatter = levelFormatter;
+		this.levelFormatter = switch (prettyPrint) {
+			case OFF -> LevelFormatter.of();
+			case LEVEL_PADDING, SPACING -> LevelFormatter.ofRightPadded();
+		};
+		this.separator = prettyPrint == Json5PrettyPrint.SPACING ? ", " : ",";
 		this.palette = palette;
-		this.flat = new Members(json5, Members.Mode.FLAT);
-		this.nestedAll = new Members(json5, Members.Mode.NESTED_ALL);
-		this.nestedColliding = new Members(json5, Members.Mode.NESTED_COLLIDING);
+		this.flat = new Members(json5, separator, Members.Mode.FLAT);
+		this.nestedAll = new Members(json5, separator, Members.Mode.NESTED_ALL);
+		this.nestedColliding = new Members(json5, separator, Members.Mode.NESTED_COLLIDING);
 	}
 
 	/**
 	 * Formats each event as one line holding a JSON5 (or JSON) object, for switching an
 	 * application to structured logging without adding a module, for example:
-	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO",logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}</code>.
+	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
 	 * <code>level</code>, <code>logger</code>, <code>thread</code>, <code>msg</code>, and
@@ -77,15 +82,14 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * <code>null</code> for a key value without one. For a specific schema (ECS, GELF,
 	 * Logstash) and more options use the <code>rainbowgum-json</code> module.
 	 * <p>
-	 * With JSON5, values can be colored like the TTLL formatter, and a padding level
-	 * formatter pads after the level's closing quote so the value stays the level name:
-	 * <code>level:"INFO" ,logger:...</code>. With JSON the color, theme, and level
-	 * formatter are ignored, so the output stays plain JSON.
+	 * With JSON5, values can be colored like the TTLL formatter, and by default the level
+	 * is padded after its closing quote so the value stays the level name:
+	 * <code>level:"INFO" ,logger:...</code>. With JSON the color, theme, and pretty print
+	 * are ignored, so the output stays plain JSON.
 	 * @param name encoder name, used for property lookup.
 	 * @param format JSON5 (default), which leaves identifier keys unquoted, or JSON.
 	 * @param keyValues where key values go, see {@link KeyValuesPlacement}.
-	 * @param levelFormatter JSON5 only, level formatter; as a property,
-	 * <code>level_formatter</code> or <code>right_pad_level_formatter</code>.
+	 * @param prettyPrint JSON5 only, added whitespace, see {@link Json5PrettyPrint}.
 	 * @param color JSON5 only, whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme JSON5 only, which colors, see {@link TTLL.ColorTheme}.
 	 * @return formatter.
@@ -96,12 +100,13 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 					constant = "JSON5") @LogConfigurable.ConvertParameter("convertFormat") Format format,
 			@LogConfigurable.DefaultParameter(
 					constant = "MERGED") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues,
-			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL_FORMATTER") @LogConfigurable.ConvertParameter("convertLevelFormatter") LevelFormatter levelFormatter,
+			@LogConfigurable.DefaultParameter(
+					constant = "LEVEL_PADDING") @LogConfigurable.ConvertParameter("convertPrettyPrint") Json5PrettyPrint prettyPrint,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme) {
 		return switch (format) {
-			case JSON -> new Json5Formatter(false, keyValues, LevelFormatter.of(), Palette.OFF);
-			case JSON5 -> new Json5Formatter(true, keyValues, levelFormatter,
+			case JSON -> new Json5Formatter(false, keyValues, Json5PrettyPrint.OFF, Palette.OFF);
+			case JSON5 -> new Json5Formatter(true, keyValues, prettyPrint,
 					Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color, theme, AnsiSupport::isAnsiSupported));
 			case PERCENT, LOGFMT -> throw new IllegalArgumentException(
 					"format=" + format.name().toLowerCase(java.util.Locale.ROOT) + " is not JSON. Use json or json5.");
@@ -116,8 +121,8 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 		return KeyValuesPlacement.parse(value);
 	}
 
-	static LevelFormatter convertLevelFormatter(String value) {
-		return LogProperty.enumValue(LevelFormatterChoice.class, value).levelFormatter();
+	static Json5PrettyPrint convertPrettyPrint(String value) {
+		return Json5PrettyPrint.parse(value);
 	}
 
 	static TTLL.ColorMode convertColor(String value) {
@@ -126,23 +131,6 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 
 	static TTLL.ColorTheme convertTheme(String value) {
 		return TTLLFormatter.convertTheme(value);
-	}
-
-	/*
-	 * The level formatter property's values, the same as the logfmt formatter's. Its own
-	 * copy so this formatter does not depend on logfmt, which may move to its own module.
-	 */
-	enum LevelFormatterChoice {
-
-		LEVEL_FORMATTER, RIGHT_PAD_LEVEL_FORMATTER;
-
-		LevelFormatter levelFormatter() {
-			return switch (this) {
-				case LEVEL_FORMATTER -> LevelFormatter.of();
-				case RIGHT_PAD_LEVEL_FORMATTER -> LevelFormatter.ofRightPadded();
-			};
-		}
-
 	}
 
 	@Override
@@ -156,7 +144,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 		TIME.formatTimestamp(output, event.timestamp());
 		output.append('"');
 		Palette.end(output, p.timestamp());
-		output.append(',');
+		output.append(separator);
 		appendKey(output, "level", json5);
 		output.append(':');
 		String levelColor = p.levelColor(event.level());
@@ -168,19 +156,19 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 		output.append('"');
 		Palette.end(output, levelColor);
 		Palette.spaces(output, padding);
-		output.append(',');
+		output.append(separator);
 		appendKey(output, "logger", json5);
 		output.append(':');
 		Palette.start(output, p.logger());
 		JsonKeyValuesFormatter.appendString(output, event.loggerName());
 		Palette.end(output, p.logger());
-		output.append(',');
+		output.append(separator);
 		appendKey(output, "thread", json5);
 		output.append(':');
 		Palette.start(output, p.thread());
 		JsonKeyValuesFormatter.appendString(output, event.threadName());
 		Palette.end(output, p.thread());
-		output.append(',');
+		output.append(separator);
 		appendKey(output, "msg", json5);
 		output.append(':');
 		int start = output.length();
@@ -200,18 +188,19 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			}
 		}
 		if (output.length() > keyValuesStart && !p.keyValues().isEmpty()) {
-			// Key values start with the comma separating them from msg, left uncolored.
-			int colorStart = output.charAt(keyValuesStart) == ',' ? keyValuesStart + 1 : keyValuesStart;
+			// Key values start with the separator from msg, left uncolored.
+			int colorStart = output.indexOf(separator, keyValuesStart) == keyValuesStart
+					? keyValuesStart + separator.length() : keyValuesStart;
 			output.insert(colorStart, Ansi.start(p.keyValues()));
 			output.append(Ansi.RESET);
 		}
 		var throwable = event.throwableOrNull();
 		if (throwable != null) {
-			output.append(',');
+			output.append(separator);
 			appendKey(output, "error", json5);
 			output.append(':');
 			JsonKeyValuesFormatter.appendString(output, throwable.toString());
-			output.append(',');
+			output.append(separator);
 			appendKey(output, "stacktrace", json5);
 			output.append(':');
 			start = output.length();
@@ -227,7 +216,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	}
 
 	private void appendNested(StringBuilder output, KeyValues kvs, Members members) {
-		output.append(',');
+		output.append(separator);
 		appendKey(output, KEY_VALUES_FIELD, json5);
 		output.append(":{");
 		kvs.forEach(members, 0, output);
@@ -249,7 +238,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * many it skipped; the nested modes write comma separated members and return how many
 	 * they wrote.
 	 */
-	record Members(boolean json5, Mode mode) implements KeyValuesConsumer<StringBuilder> {
+	record Members(boolean json5, String separator, Mode mode) implements KeyValuesConsumer<StringBuilder> {
 
 		enum Mode {
 
@@ -265,7 +254,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 					if (field) {
 						return count + 1;
 					}
-					output.append(',');
+					output.append(separator);
 					appendMember(output, key, value);
 					return count;
 				}
@@ -278,7 +267,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 				}
 			}
 			if (count > 0) {
-				output.append(',');
+				output.append(separator);
 			}
 			appendMember(output, key, value);
 			return count + 1;

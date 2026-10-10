@@ -1053,7 +1053,7 @@ logging.appender.console.encoder=json5
 }
 
 {@snippet :
-{time:"2026-10-05T15:04:05.123Z",level:"INFO",logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}
+{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}
 }
 
 It is named <code>json5</code>, and writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
@@ -1072,20 +1072,22 @@ logfmt and most aggregators expect, and places any key value named like one of t
 <code>keyValues</code> object instead, so nothing is dropped, renamed, or written twice; <code>nested</code> always
 writes them in the <code>keyValues</code> object (<code>{}</code> when there are none); <code>none</code> leaves them
 out.</li>
-<li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#levelFormatter(io.jstach.rainbowgum.LogFormatter.LevelFormatter)
-levelFormatter}: <code>level_formatter</code> (default) or <code>right_pad_level_formatter</code>, which pads after the
-level's closing quote so the value stays the level name: <code>level:"INFO" ,logger:...</code>.</li>
+<li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#prettyPrint(io.jstach.rainbowgum.format.Json5PrettyPrint)
+prettyPrint}: <code>level_padding</code> (default) pads after the level's closing quote so the fields after it line
+up and the value stays the level name: <code>level:"INFO" ,logger:...</code>; <code>spacing</code> also adds a space
+after every comma: <code>level:"INFO" , logger:"com.example.App", thread:...</code>; <code>off</code> adds no
+whitespace.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#color(io.jstach.rainbowgum.format.TTLL.ColorMode) color}
 and {@link io.jstach.rainbowgum.format.Json5FormatterBuilder#theme(io.jstach.rainbowgum.format.TTLL.ColorTheme) theme}:
 color values the same way the <a href="#ttll">TTLL formatter</a> does, by default when the console supports ANSI.
 Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are never colored.</li>
 </ul>
 
-<code>levelFormatter</code>, <code>color</code>, and <code>theme</code> only apply to JSON5. With
+<code>prettyPrint</code>, <code>color</code>, and <code>theme</code> only apply to JSON5. With
 <code>format=json</code> they are ignored, so the output stays plain JSON.
 
 This encoder is a convenience, not a replacement for {@link io.jstach.rainbowgum.json/}: it has one fixed set of
-fields, no pretty printing, and no particular schema. For production structured logging, especially into a system
+fields, no multi-line pretty printing, and no particular schema. For production structured logging, especially into a system
 that expects ECS, GELF, or Logstash fields, use that module's encoders instead. See
 {@link io.jstach.rainbowgum.format.Json5FormatterBuilder}.
 
