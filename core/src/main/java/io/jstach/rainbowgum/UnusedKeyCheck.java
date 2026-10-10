@@ -103,7 +103,6 @@ final class UnusedKeyCheck {
 	 * @return unused keys in source order.
 	 */
 	List<Unused> unused() {
-		var candidates = new TreeSet<>(reads);
 		var seen = new LinkedHashSet<String>();
 		var unused = new ArrayList<Unused>();
 		for (var source : sources) {
@@ -111,7 +110,7 @@ final class UnusedKeyCheck {
 				if (isIgnored(key) || reads.contains(key) || !seen.add(key)) {
 					continue;
 				}
-				unused.add(new Unused(key, source.properties().description(key), suggestion(key, candidates)));
+				unused.add(new Unused(key, source.properties().description(key), suggestion(key, reads)));
 			}
 		}
 		return unused;
@@ -126,29 +125,49 @@ final class UnusedKeyCheck {
 				|| OTHER_LIBRARY_KEYS.contains(key)) {
 			return true;
 		}
-		if (key.startsWith("logging.level")) {
-			return true;
-		}
-		return key.startsWith("logging.route.") && key.contains(".level");
+		return key.equals(LEVEL_KEY) || isLoggerLevelKey(key);
+	}
+
+	static final String LEVEL_KEY = LogProperties.LEVEL_PREFIX;
+
+	/*
+	 * A level for one logger name, which is any name, so it is neither reported nor
+	 * suggested.
+	 */
+	static boolean isLoggerLevelKey(String key) {
+		return key.startsWith(LEVEL_KEY + LogProperties.SEP)
+				|| (key.startsWith("logging.route.") && key.contains(".level"));
 	}
 
 	/*
 	 * Suggestions come from every key read, not only those read but not set: a system
 	 * property meant to override a key set in a file is close to a key that was found.
 	 */
-	static @Nullable String suggestion(String key, Set<String> candidates) {
+	static @Nullable String suggestion(String key, Set<String> reads) {
+		var candidates = new TreeSet<String>();
+		for (String read : reads) {
+			if (!isLoggerLevelKey(read) && !OTHER_LIBRARY_KEYS.contains(read)) {
+				candidates.add(read);
+			}
+		}
+		/*
+		 * The recorder never sees these reads, but they are the keys most often typed.
+		 */
+		candidates.addAll(READ_BEFORE_CONFIG_KEYS);
+		candidates.add(LEVEL_KEY);
 		String normalized = normalize(key);
 		for (String candidate : candidates) {
 			if (normalize(candidate).equals(normalized)) {
 				return candidate;
 			}
 		}
+		String levelSuggestion = levelSuggestion(key);
+		if (levelSuggestion != null) {
+			return levelSuggestion;
+		}
 		String best = null;
 		int bestDistance = MAX_DISTANCE + 1;
 		for (String candidate : candidates) {
-			if (isIgnored(candidate)) {
-				continue;
-			}
 			int distance = distance(key, candidate, bestDistance);
 			if (distance < bestDistance) {
 				best = candidate;
@@ -156,6 +175,23 @@ final class UnusedKeyCheck {
 			}
 		}
 		return best;
+	}
+
+	/*
+	 * A logger level key with a misspelled prefix, such as logging.levels.com.example,
+	 * keeps the logger name.
+	 */
+	static @Nullable String levelSuggestion(String key) {
+		int first = key.indexOf(LogProperties.SEP);
+		int second = first < 0 ? -1 : key.indexOf(LogProperties.SEP, first + 1);
+		if (second < 0) {
+			return null;
+		}
+		String prefix = key.substring(0, second);
+		if (prefix.equals(LEVEL_KEY) || distance(prefix, LEVEL_KEY, MAX_DISTANCE + 1) > MAX_DISTANCE) {
+			return null;
+		}
+		return LEVEL_KEY + key.substring(second);
 	}
 
 	/*

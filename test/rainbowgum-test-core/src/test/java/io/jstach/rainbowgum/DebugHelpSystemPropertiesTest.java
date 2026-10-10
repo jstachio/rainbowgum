@@ -42,6 +42,30 @@ class DebugHelpSystemPropertiesTest {
 	}
 
 	@Test
+	void misspelledLevelAndProfileKeysSuggestTheRealKey() {
+		var properties = Map.of( //
+				"logging.levle", "DEBUG", // root level, read lazily
+				"logging.levels.com.example", "DEBUG", // logger level with a plural
+														// prefix
+				"logging.profile", "json"); // read by simple props before LogConfig
+		properties.forEach(System::setProperty);
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			var gum = RainbowGum.builder(config).build();
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			String expected = """
+					3 alert(s) at warning or above were recorded while starting and logging.debug=help:
+					[WARNING] Property key 'logging.levels.com.example' from SYSTEM_PROPERTIES[logging.levels.com.example] was set but not read during startup. Did you mean 'logging.level.com.example'?
+					[WARNING] Property key 'logging.levle' from SYSTEM_PROPERTIES[logging.levle] was set but not read during startup. Did you mean 'logging.level'?
+					[WARNING] Property key 'logging.profile' from SYSTEM_PROPERTIES[logging.profile] was set but not read during startup. Did you mean 'logging.profiles'?""";
+			assertEquals(expected, e.getMessage());
+		}
+		finally {
+			properties.keySet().forEach(System::clearProperty);
+		}
+	}
+
+	@Test
 	void mutableCompositesStillCheckSystemPropertyTypos() {
 		System.setProperty("logging.appendrs", "console");
 		try {
