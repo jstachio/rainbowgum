@@ -69,11 +69,11 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 					.provide(name, config));
 		registry.register(LOGFMT_SCHEME,
 				ref -> (name, config) -> LogEncoder
-					.of(new LogfmtFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.of(logfmt(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
 		registry.register(JSON5_SCHEME,
 				ref -> (name, config) -> LogEncoder
-					.of(new Json5FormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.of(json5(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
 		return registry;
 	}
@@ -111,20 +111,39 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	private final EnumMap<OutputType, LogProvider<? extends LogEncoder>> formatters = new EnumMap<>(OutputType.class);
 
 	/*
-	 * A TTLL builder that honors the global ANSI disable property: when it is set color
-	 * defaults to off, while an explicit color property still wins.
+	 * Builders for the coloring formatters that honor the global ANSI disable property:
+	 * when it is set color defaults to off, while an explicit color property still wins.
 	 */
 	static TTLLFormatterBuilder ttll(String name, LogConfig config) {
 		var b = new TTLLFormatterBuilder(name);
-		boolean ansiDisabled = config.properties()
+		if (ansiDisabled(config)) {
+			b.color(TTLL.ColorMode.OFF);
+		}
+		return b;
+	}
+
+	static LogfmtFormatterBuilder logfmt(String name, LogConfig config) {
+		var b = new LogfmtFormatterBuilder(name);
+		if (ansiDisabled(config)) {
+			b.color(TTLL.ColorMode.OFF);
+		}
+		return b;
+	}
+
+	static Json5FormatterBuilder json5(String name, LogConfig config) {
+		var b = new Json5FormatterBuilder(name);
+		if (ansiDisabled(config)) {
+			b.color(TTLL.ColorMode.OFF);
+		}
+		return b;
+	}
+
+	private static boolean ansiDisabled(LogConfig config) {
+		return config.properties()
 			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
 			.ofBoolean()
 			.or(false)
 			.validateNow(LogEncoderRegistry.class);
-		if (ansiDisabled) {
-			b.color(TTLL.ColorMode.OFF);
-		}
-		return b;
 	}
 
 	/**

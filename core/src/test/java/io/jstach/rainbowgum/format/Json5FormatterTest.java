@@ -168,4 +168,62 @@ class Json5FormatterTest {
 		assertEquals(expected, e.getMessage());
 	}
 
+	static final String E = "\033[";
+
+	static final String R = E + "0;39m";
+
+	@Test
+	void json5ColorsValuesWithTheTheme() {
+		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE).build();
+		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "1;34m\"INFO\"" + R
+				+ ",logger:" + E + "35m\"com.example.App\"" + R + ",thread:" + E + "2;39m\"main\"" + R
+				+ ",msg:\"hello\"," + E + "2;39mrequestId:\"42\",user:\"Ada Lovelace\"" + R + "}\n";
+		assertEquals(expected, format(formatter, event("hello", requestKeyValues(), null)));
+	}
+
+	@Test
+	void json5RightPadsTheLevelAfterTheQuote() {
+		var formatter = new Json5FormatterBuilder("test").levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
+			.build();
+		assertEquals(
+				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",thread:\"main\","
+						+ "msg:\"hello\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
+				format(formatter, event("hello", requestKeyValues(), null)));
+	}
+
+	@Test
+	void json5ColoredAndPaddedKeepsThePaddingOutsideTheColor() {
+		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
+			.build();
+		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "1;34m\"INFO\"" + R
+				+ " ,logger:" + E + "35m\"com.example.App\"" + R + ",thread:" + E + "2;39m\"main\"" + R
+				+ ",msg:\"hello\"}\n";
+		assertEquals(expected, format(formatter, event("hello", KeyValues.of(), null)));
+	}
+
+	@Test
+	void jsonIgnoresColorThemeAndLevelFormatter() {
+		var plain = new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build();
+		var configured = new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON)
+			.color(TTLL.ColorMode.FORCE)
+			.theme(TTLL.ColorTheme.DARCULA)
+			.levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
+			.build();
+		var event = event("hello", requestKeyValues(), null);
+		assertEquals(format(plain, event), format(configured, event));
+	}
+
+	@Test
+	void levelFormatterAndColorProperties() {
+		String expected = "{time:" + E + "2;39m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "32m\"INFO\"" + R
+				+ " ,logger:" + E + "36m\"com.example.App\"" + R + ",thread:" + E + "2;39m\"main\"" + R
+				+ ",msg:\"hello\"}\n";
+		assertEquals(expected, log("json5", """
+				logging.encoder.list.levelFormatter=right_pad_level_formatter
+				logging.encoder.list.color=force
+				logging.encoder.list.theme=spring
+				""", event("hello", KeyValues.of(), null)));
+	}
+
 }

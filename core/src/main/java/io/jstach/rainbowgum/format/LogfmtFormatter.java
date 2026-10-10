@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.format;
 
+import org.jspecify.annotations.Nullable;
+
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
@@ -27,8 +29,11 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 
 	private final LevelFormatter levelFormatter;
 
-	private LogfmtFormatter(LevelFormatter levelFormatter) {
+	private final Palette palette;
+
+	private LogfmtFormatter(LevelFormatter levelFormatter, Palette palette) {
 		this.levelFormatter = levelFormatter;
+		this.palette = palette;
 	}
 
 	/**
@@ -53,15 +58,32 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * control characters are written as <code>\</code><code>uXXXX</code>, so every event
 	 * stays on one line. Characters in keys that logfmt does not allow are replaced with
 	 * <code>_</code>.
+	 * <p>
+	 * Values can be colored like the TTLL formatter; keys, <code>msg</code>,
+	 * <code>error</code>, and <code>stacktrace</code> are not. Padding from a padding
+	 * level formatter is written after the level's color.
 	 * @param name encoder name, used for property lookup.
 	 * @param levelFormatter level formatter; as a property, a level formatter constant
 	 * name.
+	 * @param color whether to color values, see {@link TTLL.ColorMode}.
+	 * @param theme which colors, see {@link TTLL.ColorTheme}.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "LogfmtFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
-			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL_FORMATTER") @LogConfigurable.ConvertParameter("convertLevelFormatter") LevelFormatter levelFormatter) {
-		return new LogfmtFormatter(levelFormatter);
+			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL_FORMATTER") @LogConfigurable.ConvertParameter("convertLevelFormatter") LevelFormatter levelFormatter,
+			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
+			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme) {
+		return new LogfmtFormatter(levelFormatter,
+				Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color, theme, AnsiSupport::isAnsiSupported));
+	}
+
+	static TTLL.ColorMode convertColor(String value) {
+		return TTLLFormatter.convertColor(value);
+	}
+
+	static TTLL.ColorTheme convertTheme(String value) {
+		return TTLLFormatter.convertTheme(value);
 	}
 
 	static LevelFormatter convertLevelFormatter(String value) {
@@ -87,14 +109,29 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
+		var p = palette;
 		output.append("time=");
+		Palette.start(output, p.timestamp());
 		TIME.formatTimestamp(output, event.timestamp());
+		Palette.end(output, p.timestamp());
 		output.append(" level=");
+		String levelColor = p.levelColor(event.level());
+		Palette.start(output, levelColor);
+		int levelStart = output.length();
 		levelFormatter.formatLevel(output, event.level());
+		if (!levelColor.isEmpty()) {
+			int padding = Palette.removeTrailingSpaces(output, levelStart);
+			Palette.end(output, levelColor);
+			Palette.spaces(output, padding);
+		}
 		output.append(" logger=");
+		Palette.start(output, p.logger());
 		LogfmtKeyValuesFormatter.appendValue(output, event.loggerName());
+		Palette.end(output, p.logger());
 		output.append(" thread=");
+		Palette.start(output, p.thread());
 		LogfmtKeyValuesFormatter.appendValue(output, event.threadName());
+		Palette.end(output, p.thread());
 		output.append(" msg=");
 		int start = output.length();
 		event.formattedMessage(output);
@@ -102,7 +139,9 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 		var keyValues = event.keyValues();
 		if (!keyValues.isEmpty()) {
 			output.append(' ');
+			Palette.start(output, p.keyValues());
 			keyValues.forEach(LogfmtKeyValuesFormatter.ALL, 0, output);
+			Palette.end(output, p.keyValues());
 		}
 		var throwable = event.throwableOrNull();
 		if (throwable != null) {
