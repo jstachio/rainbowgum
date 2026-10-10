@@ -54,7 +54,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	 * followed by any stack trace. Parts set to none are left out along with their
 	 * separating space. As properties of the encoder, each part is one of the lowercase
 	 * names of its {@link TTLL} enum, for example
-	 * <code>logging.encoder.console.keyValues=json5</code>; keyValues accepts
+	 * <code>logging.encoder.ttll.console.keyValues=json5</code>; keyValues accepts
 	 * <code>json</code> and <code>json5</code> as well as <code>true</code> (logfmt) and
 	 * <code>false</code> (none). The timestamp property also accepts a DateTimeFormatter
 	 * pattern in UTC. The color property decides whether to color and the theme property
@@ -72,7 +72,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	 * {@link TTLL.KeyValuesWhenEmpty}.
 	 * @return formatter.
 	 */
-	@LogConfigurable(name = "TTLLFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(name = "TTLLFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "ttll.{name}.")
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter("DEFAULT_TIMESTAMP") @LogConfigurable.ConvertParameter("convertTimestamp") LogFormatter timestamp,
 			@LogConfigurable.DefaultParameter("DEFAULT_THREAD") @LogConfigurable.ConvertParameter("convertThread") LogFormatter thread,

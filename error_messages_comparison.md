@@ -97,14 +97,14 @@ The zone is silently ignored and the default system zone is used instead - the l
 comes out with a perfectly normal-looking timestamp, giving no indication anything was
 misconfigured.
 
-**Rainbow Gum** (`logging.encoder.list.zoneId=Not/AZone`), shown here as the full
+**Rainbow Gum** (`logging.encoder.logstash.list.zoneId=Not/AZone`), shown here as the full
 end-to-end message a real misconfigured `RainbowGum.builder(config).build()` actually
 produces, not just the innermost builder's own message:
 
 ```
 Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder:
-Error for property. key: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
-Tried: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], [logging.appender.list.encoder]->URI(logstash:///)[zoneId]
+Error for property. key: 'logging.encoder.logstash.list.zoneId' from PROPERTIES_STRING[logging.encoder.logstash.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
+Tried: 'logging.encoder.logstash.list.zoneId' from PROPERTIES_STRING[logging.encoder.logstash.list.zoneId], [logging.appender.list.encoder]->URI(logstash:///)[zoneId]
   ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash'
   ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
   ↳ Failure providing Appenders for route: 'default'.
@@ -118,11 +118,11 @@ in the order it wrapped the failure, for whoever wants to trace it back up.
 
 ## Scenario 3: an unrecognized charset name
 
-**Rainbow Gum** (`logging.encoder.list.charset=not-a-charset`):
+**Rainbow Gum** (`logging.encoder.pattern.list.charset=not-a-charset`):
 
 ```
 Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
-Error for property. key: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset
+Error for property. key: 'logging.encoder.pattern.list.charset' from PROPERTIES_STRING[logging.encoder.pattern.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset
 ```
 
 Logback and Log4j2 equivalents not yet captured here - a good next addition to this

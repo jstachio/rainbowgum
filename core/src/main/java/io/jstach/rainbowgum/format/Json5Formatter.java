@@ -121,7 +121,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * @param theme JSON5 only, which colors, see {@link TTLL.ColorTheme}.
 	 * @return formatter.
 	 */
-	@LogConfigurable(name = "Json5FormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(name = "Json5FormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "json5.{name}.")
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter(
 					constant = "JSON5") @LogConfigurable.ConvertParameter("convertFormat") Format format,

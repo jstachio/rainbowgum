@@ -143,6 +143,11 @@ final class UnusedKeyCheck {
 				return candidate;
 			}
 		}
+		for (String candidate : candidates) {
+			if (isMissingOneSegment(normalized, normalize(candidate))) {
+				return candidate;
+			}
+		}
 		String best = null;
 		int bestDistance = MAX_DISTANCE + 1;
 		for (String candidate : candidates) {
@@ -156,6 +161,30 @@ final class UnusedKeyCheck {
 			}
 		}
 		return best;
+	}
+
+	/*
+	 * Whether the key is the candidate with one inner segment left out, such as
+	 * logging.encoder.console.level for logging.encoder.ttll.console.level, the form
+	 * before encoder keys named their type.
+	 */
+	static boolean isMissingOneSegment(String key, String candidate) {
+		if (candidate.length() <= key.length()) {
+			return false;
+		}
+		int start = candidate.indexOf(LogProperties.SEP);
+		while (start >= 0) {
+			int end = candidate.indexOf(LogProperties.SEP, start + 1);
+			if (end < 0) {
+				return false;
+			}
+			if (key.length() == candidate.length() - (end - start) && candidate.regionMatches(0, key, 0, start)
+					&& candidate.regionMatches(end, key, start, key.length() - start)) {
+				return true;
+			}
+			start = end;
+		}
+		return false;
 	}
 
 	/*

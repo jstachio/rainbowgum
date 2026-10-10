@@ -77,7 +77,7 @@ public final class LogbackJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuf
 	 * (the default) disables this entirely.
 	 * @return encoder.
 	 */
-	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX + "logback.{name}.")
 	static LogbackJsonEncoder of(@LogConfigurable.KeyParameter String name, @Nullable Boolean prettyPrint,
 			@Nullable Integer maxBufferSize) {
 		prettyPrint = prettyPrint == null ? false : prettyPrint;

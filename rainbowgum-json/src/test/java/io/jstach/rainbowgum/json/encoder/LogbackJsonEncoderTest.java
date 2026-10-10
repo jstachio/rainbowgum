@@ -35,7 +35,7 @@ class LogbackJsonEncoderTest {
 	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
 		var e = assertThrows(LogProperty.ValidationException.class, () -> new LogbackJsonEncoderBuilder("bad name"));
 		assertEquals(
-				"Validation failed for io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				"Validation failed for io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder: \"logging.encoder.logback.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
 				e.getMessage());
 	}
 

@@ -105,21 +105,21 @@ class TTLLFormatterTest {
 			"theme=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world" })
 	void eachPartIsConfigurableByProperty(String property, String expected) {
 		assertEquals(expected + "\n",
-				log("ttll", "logging.encoder.list." + property + "\n", event(requestKeyValues())));
+				log("ttll", "logging.encoder.ttll.list." + property + "\n", event(requestKeyValues())));
 	}
 
 	@Test
 	void everyPartNoneLeavesTheMessage() {
 		String properties = """
-				logging.encoder.list.timestamp=none
-				logging.encoder.list.thread=none
-				logging.encoder.list.level=none
-				logging.encoder.list.logger=none
+				logging.encoder.ttll.list.timestamp=none
+				logging.encoder.ttll.list.thread=none
+				logging.encoder.ttll.list.level=none
+				logging.encoder.ttll.list.logger=none
 				""";
 		assertEquals("{requestId=42&user=Ada%20Lovelace} - hello world\n",
 				log("ttll", properties, event(requestKeyValues())));
 		assertEquals("hello world\n",
-				log("ttll", properties + "logging.encoder.list.keyValues=none\n", event(requestKeyValues())));
+				log("ttll", properties + "logging.encoder.ttll.list.keyValues=none\n", event(requestKeyValues())));
 	}
 
 	@ParameterizedTest
@@ -130,20 +130,21 @@ class TTLLFormatterTest {
 			"json|auto|' {}'", "json|show|' {}'", //
 			"percent|default|", "percent|false|", "percent|true|' {}'" })
 	void emptyKeyValuesFollowKeyValuesWhenEmpty(String format, String whenEmpty, @Nullable String braces) {
-		String properties = "logging.encoder.list.keyValues=" + format + "\nlogging.encoder.list.keyValuesWhenEmpty="
-				+ whenEmpty + "\n";
+		String properties = "logging.encoder.ttll.list.keyValues=" + format
+				+ "\nlogging.encoder.ttll.list.keyValuesWhenEmpty=" + whenEmpty + "\n";
 		String b = braces == null ? "" : braces;
 		assertEquals("12:00:00.123 [main] INFO  com.example.App" + b + " - hello world\n",
 				log("ttll", properties, event(KeyValues.of())));
 		String colored = b.isEmpty() ? "" : " " + E + "2;39m{}" + R;
 		assertEquals(coloredLine("1;34", "INFO ", colored),
-				log("ttll", properties + "logging.encoder.list.color=force\n", event(KeyValues.of())));
+				log("ttll", properties + "logging.encoder.ttll.list.color=force\n", event(KeyValues.of())));
 	}
 
 	@Test
 	void omitWithJsonFails() {
 		var properties = LogProperties.builder()
-			.fromProperties("logging.encoder.list.keyValues=json\nlogging.encoder.list.keyValuesWhenEmpty=omit")
+			.fromProperties(
+					"logging.encoder.ttll.list.keyValues=json\nlogging.encoder.ttll.list.keyValuesWhenEmpty=omit")
 			.build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
@@ -157,14 +158,14 @@ class TTLLFormatterTest {
 	@Test
 	void everyPartNoneWithoutKeyValuesIsJustTheMessage() {
 		String properties = """
-				logging.encoder.list.timestamp=none
-				logging.encoder.list.thread=none
-				logging.encoder.list.level=none
-				logging.encoder.list.logger=none
+				logging.encoder.ttll.list.timestamp=none
+				logging.encoder.ttll.list.thread=none
+				logging.encoder.ttll.list.level=none
+				logging.encoder.ttll.list.logger=none
 				""";
 		assertEquals("hello world\n", log("ttll", properties, event(KeyValues.of())));
 		assertEquals("{} - hello world\n",
-				log("ttll", properties + "logging.encoder.list.keyValuesWhenEmpty=show\n", event(KeyValues.of())));
+				log("ttll", properties + "logging.encoder.ttll.list.keyValuesWhenEmpty=show\n", event(KeyValues.of())));
 	}
 
 	@ParameterizedTest
@@ -178,7 +179,7 @@ class TTLLFormatterTest {
 				? "{\"requestId\":\"42\",\"user name\":\"Ada\\n\\\"Lovelace\\\"\",\"missing\":null}"
 				: "{requestId:\"42\",\"user name\":\"Ada\\n\\\"Lovelace\\\"\",missing:null}";
 		String expected = "12:00:00.123 [main] INFO  com.example.App " + object + " - hello world\n";
-		assertEquals(expected, log("", "logging.encoder.list.keyValues=" + format.name() + "\n", event(kvs)));
+		assertEquals(expected, log("", "logging.encoder.ttll.list.keyValues=" + format.name() + "\n", event(kvs)));
 		assertEquals(expected, log("ttll:///?keyValues=" + format.name(), "", event(kvs)));
 	}
 
@@ -210,30 +211,30 @@ class TTLLFormatterTest {
 	@Test
 	void defaultEncoderHonorsTheProperties() {
 		assertEquals("12:00:00.123 [main] INFO  App {requestId:\"42\",user:\"Ada Lovelace\"} - hello world\n",
-				log("", "logging.encoder.list.keyValues=json5\nlogging.encoder.list.logger=short\n",
+				log("", "logging.encoder.ttll.list.keyValues=json5\nlogging.encoder.ttll.list.logger=short\n",
 						event(requestKeyValues())));
 	}
 
 	@Test
 	void invalidPartNameFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.list.thread=both").build();
+		var properties = LogProperties.builder().fromProperties("logging.encoder.ttll.list.thread=both").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
-				Error for property. key: 'logging.encoder.list.thread' from PROPERTIES_STRING[logging.encoder.list.thread], \
+				Error for property. key: 'logging.encoder.ttll.list.thread' from PROPERTIES_STRING[logging.encoder.ttll.list.thread], \
 				'both' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'none', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
 	}
 
 	@Test
 	void invalidKeyValuesFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.list.keyValues=yes").build();
+		var properties = LogProperties.builder().fromProperties("logging.encoder.ttll.list.keyValues=yes").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
-				Error for property. key: 'logging.encoder.list.keyValues' from PROPERTIES_STRING[logging.encoder.list.keyValues], \
+				Error for property. key: 'logging.encoder.ttll.list.keyValues' from PROPERTIES_STRING[logging.encoder.ttll.list.keyValues], \
 				'yes' is not a valid value for io.jstach.rainbowgum.format.TTLL.KeyValuesFormat. \
 				Valid values: 'none', 'percent', 'json', 'json5', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
@@ -241,12 +242,12 @@ class TTLLFormatterTest {
 
 	@Test
 	void invalidTimestampPatternFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.list.timestamp=bogus{").build();
+		var properties = LogProperties.builder().fromProperties("logging.encoder.ttll.list.timestamp=bogus{").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
-				Error for property. key: 'logging.encoder.list.timestamp' from PROPERTIES_STRING[logging.encoder.list.timestamp], \
+				Error for property. key: 'logging.encoder.ttll.list.timestamp' from PROPERTIES_STRING[logging.encoder.ttll.list.timestamp], \
 				'bogus{' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: \
 				Unknown pattern letter: b""";
 		assertEquals(expected, e.getMessage());
@@ -268,14 +269,14 @@ class TTLLFormatterTest {
 
 	@Test
 	void rainbowgumTheme() {
-		String actual = log("ttll", "logging.encoder.list.color=force\n", event(requestKeyValues()));
+		String actual = log("ttll", "logging.encoder.ttll.list.color=force\n", event(requestKeyValues()));
 		String keyValues = " " + E + "2;39m{requestId=42&user=Ada%20Lovelace}" + R;
 		assertEquals(coloredLine("1;34", "INFO ", keyValues), actual);
 	}
 
 	@Test
 	void rainbowgumThemeWithoutKeyValuesLeavesBracesOut() {
-		String actual = log("ttll", "logging.encoder.list.color=force\n", event(KeyValues.of()));
+		String actual = log("ttll", "logging.encoder.ttll.list.color=force\n", event(KeyValues.of()));
 		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}
 
@@ -289,7 +290,7 @@ class TTLLFormatterTest {
 				logging.appenders=list
 				logging.appender.list.output=list
 				logging.appender.list.encoder=ttll
-				logging.encoder.list.color=force
+				logging.encoder.ttll.list.color=force
 				""";
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(all).build()).build();
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
@@ -310,7 +311,7 @@ class TTLLFormatterTest {
 
 	@Test
 	void springThemeByProperty() {
-		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.theme=spring\n",
+		String actual = log("ttll", "logging.encoder.ttll.list.color=force\nlogging.encoder.ttll.list.theme=spring\n",
 				event(requestKeyValues()));
 		String keyValues = " " + E + "2;39m{requestId=42&user=Ada%20Lovelace}" + R;
 		assertEquals(springLine("32", "INFO ", keyValues), actual);
@@ -330,7 +331,7 @@ class TTLLFormatterTest {
 
 	@Test
 	void oneDarkThemeByProperty() {
-		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.theme=one_dark\n",
+		String actual = log("ttll", "logging.encoder.ttll.list.color=force\nlogging.encoder.ttll.list.theme=one_dark\n",
 				event(requestKeyValues()));
 		String expected = E + "38;2;86;182;194m12:00:00.123" + R + " " + E + "38;2;150;152;150m[main]" + R + " " + E
 				+ "1;38;2;97;175;239mINFO " + R + " " + E + "38;2;198;120;221mcom.example.App" + R + " " + E
@@ -352,7 +353,7 @@ class TTLLFormatterTest {
 
 	@Test
 	void darculaThemeByProperty() {
-		String actual = log("ttll", "logging.encoder.list.color=force\nlogging.encoder.list.theme=darcula\n",
+		String actual = log("ttll", "logging.encoder.ttll.list.color=force\nlogging.encoder.ttll.list.theme=darcula\n",
 				event(requestKeyValues()));
 		String expected = E + "38;2;104;151;187m12:00:00.123" + R + " " + E + "38;2;128;128;128m[main]" + R + " " + E
 				+ "1;38;2;106;135;89mINFO " + R + " " + E + "38;2;204;120;50mcom.example.App" + R + " " + E
@@ -381,11 +382,11 @@ class TTLLFormatterTest {
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', value = { //
 			"|ttll color=default theme=rainbowgum colored=false", //
-			"logging.encoder.list.color=force|ttll color=force theme=rainbowgum colored=true", //
-			"logging.encoder.list.color=force;logging.encoder.list.theme=spring|ttll color=force theme=spring colored=true", //
-			"logging.encoder.list.theme=darcula|ttll color=default theme=darcula colored=false", //
-			"logging.encoder.list.color=detect|ttll color=detect theme=none colored=false", //
-			"logging.encoder.list.color=off|ttll color=off theme=none colored=false" })
+			"logging.encoder.ttll.list.color=force|ttll color=force theme=rainbowgum colored=true", //
+			"logging.encoder.ttll.list.color=force;logging.encoder.ttll.list.theme=spring|ttll color=force theme=spring colored=true", //
+			"logging.encoder.ttll.list.theme=darcula|ttll color=default theme=darcula colored=false", //
+			"logging.encoder.ttll.list.color=detect|ttll color=detect theme=none colored=false", //
+			"logging.encoder.ttll.list.color=off|ttll color=off theme=none colored=false" })
 	void reportsColorSettingsAndWhetherTheyColored(@Nullable String properties, String expected) {
 		var props = LogProperties.builder()
 			.fromProperties(properties == null ? "" : properties.replace(';', '\n'))
@@ -409,23 +410,23 @@ class TTLLFormatterTest {
 	void themeAloneStillDetectsAnsi() {
 		// Tests run without a console, so ANSI is never detected.
 		assertEquals("12:00:00.123 [main] INFO  com.example.App - hello world\n",
-				log("ttll", "logging.encoder.list.theme=spring\n", event(KeyValues.of())));
+				log("ttll", "logging.encoder.ttll.list.theme=spring\n", event(KeyValues.of())));
 	}
 
 	@Test
 	void trueAndFalseAreAliases() {
 		var event = event(requestKeyValues());
-		assertEquals(log("ttll", "logging.encoder.list.color=default\n", event),
-				log("ttll", "logging.encoder.list.color=true\n", event));
+		assertEquals(log("ttll", "logging.encoder.ttll.list.color=default\n", event),
+				log("ttll", "logging.encoder.ttll.list.color=true\n", event));
 		assertEquals("12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world\n",
-				log("ttll", "logging.encoder.list.color=false\n", event));
+				log("ttll", "logging.encoder.ttll.list.color=false\n", event));
 		assertEquals("12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world\n",
-				log("ttll", "logging.encoder.list.color=off\n", event));
+				log("ttll", "logging.encoder.ttll.list.color=off\n", event));
 	}
 
 	@Test
 	void explicitColorWinsOverGlobalAnsiDisable() {
-		String actual = log("ttll", "logging.global.ansi.disable=true\nlogging.encoder.list.color=force\n",
+		String actual = log("ttll", "logging.global.ansi.disable=true\nlogging.encoder.ttll.list.color=force\n",
 				event(KeyValues.of()));
 		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}
@@ -434,17 +435,17 @@ class TTLLFormatterTest {
 	void nonConsoleDefaultEncoderHonorsColorProperty() {
 		// ListLogOutput is not a console output, so its default TTLL is off unless set.
 		assertEquals(coloredLine("1;34", "INFO ", ""),
-				log("", "logging.encoder.list.color=force\n", event(KeyValues.of())));
+				log("", "logging.encoder.ttll.list.color=force\n", event(KeyValues.of())));
 	}
 
 	@Test
 	void invalidColorFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.list.color=pink").build();
+		var properties = LogProperties.builder().fromProperties("logging.encoder.ttll.list.color=pink").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
-				Error for property. key: 'logging.encoder.list.color' from PROPERTIES_STRING[logging.encoder.list.color], \
+				Error for property. key: 'logging.encoder.ttll.list.color' from PROPERTIES_STRING[logging.encoder.ttll.list.color], \
 				'pink' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorMode. \
 				Valid values: 'off', 'default', 'detect', 'force', 'true', 'false'""";
 		assertEquals(expected, e.getMessage());
@@ -452,12 +453,12 @@ class TTLLFormatterTest {
 
 	@Test
 	void invalidThemeFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.list.theme=true").build();
+		var properties = LogProperties.builder().fromProperties("logging.encoder.ttll.list.theme=true").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
-				Error for property. key: 'logging.encoder.list.theme' from PROPERTIES_STRING[logging.encoder.list.theme], \
+				Error for property. key: 'logging.encoder.ttll.list.theme' from PROPERTIES_STRING[logging.encoder.ttll.list.theme], \
 				'true' is not a valid value for io.jstach.rainbowgum.format.TTLL.ColorTheme. \
 				Valid values: 'rainbowgum', 'spring', 'one_dark', 'darcula', 'default'""";
 		assertEquals(expected, e.getMessage());

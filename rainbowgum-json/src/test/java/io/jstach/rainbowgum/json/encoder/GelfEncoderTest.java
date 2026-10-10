@@ -37,7 +37,7 @@ class GelfEncoderTest {
 	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
 		var e = assertThrows(LogProperty.ValidationException.class, () -> new GelfEncoderBuilder("bad name"));
 		assertEquals(
-				"Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				"Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder: \"logging.encoder.gelf.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
 				e.getMessage());
 	}
 
@@ -45,9 +45,9 @@ class GelfEncoderTest {
 	void testBuilder() {
 		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
 		String propString = """
-				logging.encoder.gelf.host=localhost
-				logging.encoder.gelf.headers=header1\\=1
-				logging.encoder.gelf.prettyPrint=true
+				logging.encoder.gelf.gelf.host=localhost
+				logging.encoder.gelf.gelf.headers=header1\\=1
+				logging.encoder.gelf.gelf.prettyPrint=true
 				""";
 		b.fromProperties(LogProperties.builder().fromProperties(propString).build());
 
@@ -145,7 +145,7 @@ class GelfEncoderTest {
 		GelfEncoderBuilder b = new GelfEncoderBuilder("gelf");
 		var e = assertThrows(LogProperty.ValidationException.class, b::build);
 		assertEquals("Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder: "
-				+ "Value is required not null. property key='logging.encoder.gelf.host'", e.getMessage());
+				+ "Value is required not null. property key='logging.encoder.gelf.gelf.host'", e.getMessage());
 		assertInstanceOf(LogProperty.PropertyMissingException.class, e.getCause());
 	}
 
@@ -182,8 +182,8 @@ class GelfEncoderTest {
 				logging.appenders=list
 				logging.appender.list.output=list:///
 				logging.appender.list.encoder=gelf
-				logging.encoder.list.host=localhost
-				logging.encoder.list.timeFractionalDigits=notanumber
+				logging.encoder.gelf.list.host=localhost
+				logging.encoder.gelf.list.timeFractionalDigits=notanumber
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -193,10 +193,10 @@ class GelfEncoderTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.json.encoder.GelfEncoderBuilder:
-						Error for property. key: 'logging.encoder.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits], java.lang.NumberFormatException For input string: "notanumber"
+						Error for property. key: 'logging.encoder.gelf.list.timeFractionalDigits' from PROPERTIES_STRING[logging.encoder.gelf.list.timeFractionalDigits], java.lang.NumberFormatException For input string: "notanumber"
 						Tried:
-						    'logging.encoder.list.timeFractionalDigits' from:
-						        PROPERTIES_STRING[logging.encoder.list.timeFractionalDigits],
+						    'logging.encoder.gelf.list.timeFractionalDigits' from:
+						        PROPERTIES_STRING[logging.encoder.gelf.list.timeFractionalDigits],
 						        [logging.appender.list.encoder]->URI(gelf:///)[timeFractionalDigits]
 						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'gelf'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
@@ -208,9 +208,9 @@ class GelfEncoderTest {
 	void testFullLoad() throws Exception {
 		String properties = """
 				logging.appender.console.encoder=gelf:///
-				logging.encoder.console.host=localhost
-				logging.encoder.console.headers=header1\\=1
-				logging.encoder.console.prettyPrint=true
+				logging.encoder.gelf.console.host=localhost
+				logging.encoder.gelf.console.headers=header1\\=1
+				logging.encoder.gelf.console.prettyPrint=true
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())

@@ -52,7 +52,7 @@ class PatternConfiguratorTest {
 				logging.appender.list.output=list
 				logging.appender.list.encoder=pattern
 				logging.pattern.config.list.zoneId=Not/AZone
-				logging.encoder.list.pattern=%msg%n
+				logging.encoder.pattern.list.pattern=%msg%n
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -76,7 +76,7 @@ class PatternConfiguratorTest {
 				logging.appender.list.output=list
 				logging.appender.list.encoder=pattern
 				logging.pattern.config.list.sequenceNumberStart=notanumber
-				logging.encoder.list.pattern=%lsn%n
+				logging.encoder.pattern.list.pattern=%lsn%n
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -100,7 +100,7 @@ class PatternConfiguratorTest {
 				logging.appender.list.output=list
 				logging.appender.list.encoder=pattern
 				logging.pattern.config.list.abbreviatorCache=notarealcachetype
-				logging.encoder.list.pattern=%logger{15}%n
+				logging.encoder.pattern.list.pattern=%logger{15}%n
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -139,8 +139,8 @@ class PatternConfiguratorTest {
 						logging.appender.list.encoder=pattern
 						logging.appender.console.output=stdout
 						logging.appender.console.encoder=pattern
-						logging.encoder.console.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
-						logging.encoder.list.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+						logging.encoder.pattern.console.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+						logging.encoder.pattern.list.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
 						logging.global.ansi.disable=true
 						""";
 			}
@@ -156,7 +156,7 @@ class PatternConfiguratorTest {
 						logging.appenders=list
 						logging.appender.list.output=list
 						logging.appender.list.encoder=pattern
-						logging.encoder.list.pattern=%-5level %stuff{}%n
+						logging.encoder.pattern.list.pattern=%-5level %stuff{}%n
 						""";
 			}
 
@@ -189,7 +189,7 @@ class PatternConfiguratorTest {
 						logging.appender.list.output=list
 						logging.appender.list.encoder=pattern
 						logging.pattern.config.list.sequenceNumberStart=5
-						logging.encoder.list.pattern=%lsn%n
+						logging.encoder.pattern.list.pattern=%lsn%n
 						""";
 			}
 		},
@@ -212,7 +212,7 @@ class PatternConfiguratorTest {
 						logging.appender.list.output=list
 						logging.appender.list.encoder=pattern
 						logging.pattern.config.list.abbreviatorCache=OFF
-						logging.encoder.list.pattern=%logger{15}%n
+						logging.encoder.pattern.list.pattern=%logger{15}%n
 						""";
 			}
 		},
@@ -276,8 +276,8 @@ class PatternConfiguratorTest {
 					logging.appender.list.encoder=pattern
 					logging.appender.console.output=stdout
 					logging.appender.console.encoder=pattern
-					logging.encoder.console.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
-					logging.encoder.list.pattern=[%thread] %-5level %logger{15} - %msg%n
+					logging.encoder.pattern.console.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+					logging.encoder.pattern.list.pattern=[%thread] %-5level %logger{15} - %msg%n
 					""";
 		}
 

@@ -126,7 +126,7 @@ class LogfmtFormatterTest {
 				logging.appenders=list
 				logging.appender.list.output=list
 				logging.appender.list.encoder=logfmt
-				logging.encoder.list.levelFormatter=right_pad_level_formatter
+				logging.encoder.logfmt.list.levelFormatter=right_pad_level_formatter
 				""";
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
@@ -139,12 +139,14 @@ class LogfmtFormatterTest {
 
 	@Test
 	void invalidLevelFormatterPropertyFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.list.levelFormatter=lower").build();
+		var properties = LogProperties.builder()
+			.fromProperties("logging.encoder.logfmt.list.levelFormatter=lower")
+			.build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new LogfmtFormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.LogfmtFormatterBuilder:
-				Error for property. key: 'logging.encoder.list.levelFormatter' from PROPERTIES_STRING[logging.encoder.list.levelFormatter], \
+				Error for property. key: 'logging.encoder.logfmt.list.levelFormatter' from PROPERTIES_STRING[logging.encoder.logfmt.list.levelFormatter], \
 				'lower' is not a valid value for io.jstach.rainbowgum.format.LogfmtFormatter.LevelFormatterChoice. \
 				Valid values: 'level_formatter', 'right_pad_level_formatter'""";
 		assertEquals(expected, e.getMessage());
