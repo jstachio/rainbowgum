@@ -1044,7 +1044,7 @@ is written after the level's color.
 
 <h3 id="core_json">JSON5 Formatter</h3>
 
-The <code>json5</code> encoder writes each event as one line holding a JSON5 object, so an application that normally
+The <code>json5</code> encoder writes each event as one line (unless <code>prettyPrint=full</code>) holding a JSON5 object, so an application that normally
 logs TTLL can switch to structured logging, for example while hunting a bug, by flipping one property and without
 adding a module:
 
@@ -1075,8 +1075,9 @@ out.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#prettyPrint(io.jstach.rainbowgum.format.Json5PrettyPrint)
 prettyPrint}: <code>level_padding</code> (default) pads after the level's closing quote so the fields after it line
 up and the value stays the level name: <code>level:"INFO" ,logger:...</code>; <code>spacing</code> also adds a space
-after every comma: <code>level:"INFO" , logger:"com.example.App", thread:...</code>; <code>off</code> adds no
-whitespace.</li>
+after every comma: <code>level:"INFO" , logger:"com.example.App", thread:...</code>; <code>full</code> (or <code>true</code>) puts each
+field on its own line, indented one space like the <code>rainbowgum-json</code> encoders' pretty print, so an event
+is no longer one line; <code>off</code> adds no whitespace.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#color(io.jstach.rainbowgum.format.TTLL.ColorMode) color}
 and {@link io.jstach.rainbowgum.format.Json5FormatterBuilder#theme(io.jstach.rainbowgum.format.TTLL.ColorTheme) theme}:
 color values the same way the <a href="#ttll">TTLL formatter</a> does, by default when the console supports ANSI.
