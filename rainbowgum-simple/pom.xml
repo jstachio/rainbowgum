@@ -9,7 +9,7 @@
   </parent>
   <artifactId>rainbowgum-simple</artifactId>
   <name>rainbowgum-simple</name>
-  <description>A slightly more capable slf4j-simple: bundles rainbowgum (core+pattern+slf4j+systemlogger+jdk+jul) with rainbowgum-simple-props for zero-config logging, typically added as a test-scope dependency.</description>
+  <description>A slightly more capable slf4j-simple: bundles rainbowgum (core+slf4j+systemlogger+jdk+jul) with rainbowgum-simple-props for zero-config logging, typically added as a test-scope dependency.</description>
   <properties>
     <doc.resources>../</doc.resources>
     <parent.root>${basedir}/..</parent.root>

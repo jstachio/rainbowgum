@@ -2290,9 +2290,11 @@ cannot see a given {@code Logger} in time.
 
 <code>rainbowgum-simple</code> is a ready-to-use bundle for tests and small applications.
 It pulls in <code>rainbowgum-slf4j</code> through the <code>rainbowgum</code> dependency,
-along with JDK logging integrations, pattern formatting, and
+along with JDK logging integrations and
 <code>rainbowgum-simple-props</code>. Adding it activates logging without application
-code or a configuration file. For library tests, use Maven's <code>test</code> scope:
+code or a configuration file. It formats with the core <a href="#formatters">formatters</a>,
+<a href="#ttll">TTLL</a> by default; add <code>rainbowgum-pattern</code> for
+<a href="#pattern">pattern encoders</a>. For library tests, use Maven's <code>test</code> scope:
 
 {@snippet lang=xml :
 <dependency>
