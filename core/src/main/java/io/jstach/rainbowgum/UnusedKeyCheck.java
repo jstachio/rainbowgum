@@ -32,8 +32,7 @@ final class UnusedKeyCheck {
 	 * rainbowgum-simple-props reads while loading its files.
 	 */
 	static final Set<String> READ_BEFORE_CONFIG_KEYS = Set.of("logging.debug", "logging.global.queue.level",
-			"logging.global.queue.error", "logging.systemlogger.initialize", "logging.profiles",
-			"logging.simpleprops.strict");
+			"logging.global.queue.error", "logging.systemlogger.initialize", "logging.profiles");
 
 	/*
 	 * System properties other libraries read that happen to start with logging.: Spring
@@ -126,7 +125,7 @@ final class UnusedKeyCheck {
 				|| OTHER_LIBRARY_KEYS.contains(key)) {
 			return true;
 		}
-		if (key.startsWith("logging.level")) {
+		if (key.startsWith("logging.level") || key.startsWith("logging.simpleprops.")) {
 			return true;
 		}
 		return key.startsWith("logging.route.") && key.contains(".level");

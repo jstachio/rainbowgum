@@ -92,6 +92,7 @@ class EnumAliasesTest {
 				"io.jstach.rainbowgum.format.TTLL$ThreadFormat", //
 				"io.jstach.rainbowgum.format.TTLL$TimestampFormat", //
 				"io.jstach.rainbowgum.pattern.format.PatternConfig$CacheType", //
+				"io.jstach.rainbowgum.simple.props.SimpleProperties$LevelFileType", //
 				"io.jstach.rainbowgum.simple.props.SimpleProperties$StrictType", //
 				"io.jstach.rainbowgum.otlp.EnvironmentVariables"), aliases().keySet());
 	}

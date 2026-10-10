@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.simple.props;
 import java.util.List;
 
 import io.jstach.rainbowgum.LogAlerts;
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -19,7 +20,8 @@ import io.jstach.svc.ServiceProvider;
  * SimpleProperties.builder().build()}.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
-public final class SimplePropertiesProvider implements RainbowGumServiceProvider.PropertiesProvider {
+public final class SimplePropertiesProvider
+		implements RainbowGumServiceProvider.PropertiesProvider, RainbowGumServiceProvider.Configurator {
 
 	/**
 	 * For service loader.
@@ -32,6 +34,21 @@ public final class SimplePropertiesProvider implements RainbowGumServiceProvider
 		var simpleProperties = registry.putIfAbsent(SimpleProperties.class, () -> SimpleProperties.builder().build());
 		simpleProperties.reportAlerts(alerts);
 		return simpleProperties.properties();
+	}
+
+	/*
+	 * Starts watching the level file, if enabled, once the configuration exists to
+	 * publish changes to; the watcher stops when the configuration closes.
+	 */
+	@Override
+	public boolean configure(LogConfig config, Pass pass) {
+		var simpleProperties = config.serviceRegistry().findOrNull(SimpleProperties.class);
+		var levelFile = simpleProperties == null ? null : simpleProperties.levelFile();
+		if (levelFile != null) {
+			levelFile.watch(config);
+			config.serviceRegistry().onClose(levelFile);
+		}
+		return true;
 	}
 
 }
