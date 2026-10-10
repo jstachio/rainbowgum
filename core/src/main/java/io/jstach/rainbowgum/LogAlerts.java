@@ -187,14 +187,14 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 		/**
 		 * Fail if a warning or error alert is recorded while starting.
 		 */
-		@EnumAlias("true")
+		@EnumAlias({ "true", "warn" })
 		WARNING;
 
 		static FailLevel parse(String value) {
 			return switch (value.toLowerCase(java.util.Locale.ROOT)) {
-				case "true" -> WARNING;
+				case "true", "warn" -> WARNING;
 				case "false" -> OFF;
-				default -> LogProperty.enumValue(FailLevel.class, value, "true", "false");
+				default -> LogProperty.enumValue(FailLevel.class, value, "true", "false", "warn");
 			};
 		}
 
