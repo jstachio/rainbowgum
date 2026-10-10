@@ -69,7 +69,7 @@ class Json5FormatterTest {
 		kvs.putKeyValue("requestId", "42");
 		kvs.putKeyValue("user name", "Ada");
 		assertEquals(
-				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",thread:\"main\","
+				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",thread:\"main\","
 						+ "msg:\"hello world\",requestId:\"42\",\"user name\":\"Ada\"}\n",
 				format(new Json5FormatterBuilder("test").build(), event("hello world", kvs, null)));
 	}
@@ -137,7 +137,7 @@ class Json5FormatterTest {
 		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
 				log("json5", "logging.encoder.list.format=json\n", event("hello world", requestKeyValues(), null)));
 		assertEquals(
-				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",thread:\"main\","
+				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",thread:\"main\","
 						+ "msg:\"hello world\",keyValues:{requestId:\"42\",user:\"Ada Lovelace\"}}\n",
 				log("json5", "logging.encoder.list.keyValues=nested\n",
 						event("hello world", requestKeyValues(), null)));
@@ -153,6 +153,31 @@ class Json5FormatterTest {
 		assertEquals(
 				"Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder: format=percent is not JSON. Use json or json5.",
 				e.getMessage());
+	}
+
+	@Test
+	void prettyPrintPropertyAliases() {
+		var event = event("hello", KeyValues.of(), null);
+		String off = "{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",thread:\"main\","
+				+ "msg:\"hello\"}\n";
+		String padded = off.replace("\"INFO\",", "\"INFO\" ,");
+		assertEquals(off, log("json5", "logging.encoder.list.prettyPrint=false\n", event));
+		assertEquals(padded, log("json5", "logging.encoder.list.prettyPrint=true\n", event));
+		assertEquals(padded, log("json5:///?prettyPrint=default", "", event));
+		assertEquals(padded, log("json5", "logging.encoder.list.prettyPrint=level_padding\n", event));
+	}
+
+	@Test
+	void invalidPrettyPrintFails() {
+		var properties = LogProperties.builder().fromProperties("logging.encoder.list.prettyPrint=pretty").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new Json5FormatterBuilder("list").fromProperties(properties));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder:
+				Error for property. key: 'logging.encoder.list.prettyPrint' from PROPERTIES_STRING[logging.encoder.list.prettyPrint], \
+				'pretty' is not a valid value for io.jstach.rainbowgum.format.Json5PrettyPrint. \
+				Valid values: 'off', 'level_padding', 'spacing', 'true', 'false', 'default'""";
+		assertEquals(expected, e.getMessage());
 	}
 
 	@Test
@@ -174,7 +199,9 @@ class Json5FormatterTest {
 
 	@Test
 	void json5ColorsValuesWithTheTheme() {
-		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE).build();
+		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.prettyPrint(Json5PrettyPrint.OFF)
+			.build();
 		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "1;34m\"INFO\"" + R
 				+ ",logger:" + E + "35m\"com.example.App\"" + R + ",thread:" + E + "2;39m\"main\"" + R
 				+ ",msg:\"hello\"," + E + "2;39mrequestId:\"42\",user:\"Ada Lovelace\"" + R + "}\n";
@@ -182,20 +209,42 @@ class Json5FormatterTest {
 	}
 
 	@Test
-	void json5RightPadsTheLevelAfterTheQuote() {
-		var formatter = new Json5FormatterBuilder("test").levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
-			.build();
+	void json5PadsTheLevelAfterTheQuoteByDefault() {
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",thread:\"main\","
 						+ "msg:\"hello\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
-				format(formatter, event("hello", requestKeyValues(), null)));
+				format(new Json5FormatterBuilder("test").build(), event("hello", requestKeyValues(), null)));
+	}
+
+	@Test
+	void json5PrettyPrintOffAddsNoWhitespace() {
+		assertEquals(
+				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",thread:\"main\","
+						+ "msg:\"hello\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
+				format(new Json5FormatterBuilder("test").prettyPrint(Json5PrettyPrint.OFF).build(),
+						event("hello", requestKeyValues(), null)));
+	}
+
+	@Test
+	void json5SpacingPadsTheLevelAndSpacesEveryComma() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		kvs.putKeyValue("msg", "shadow");
+		kvs.putKeyValue("level", null);
+		var ex = new IllegalStateException("boom");
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		assertEquals(
+				"{time:\"2026-10-05T15:04:05.123Z\", level:\"INFO\" , logger:\"com.example.App\", "
+						+ "thread:\"main\", msg:\"hello\", requestId:\"42\", keyValues:{msg:\"shadow\", level:null}, "
+						+ "error:\"java.lang.IllegalStateException: boom\", "
+						+ "stacktrace:\"java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\"}\n",
+				format(new Json5FormatterBuilder("test").prettyPrint(Json5PrettyPrint.SPACING).build(),
+						event("hello", kvs, ex)));
 	}
 
 	@Test
 	void json5ColoredAndPaddedKeepsThePaddingOutsideTheColor() {
-		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE)
-			.levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
-			.build();
+		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE).build();
 		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "1;34m\"INFO\"" + R
 				+ " ,logger:" + E + "35m\"com.example.App\"" + R + ",thread:" + E + "2;39m\"main\"" + R
 				+ ",msg:\"hello\"}\n";
@@ -203,24 +252,35 @@ class Json5FormatterTest {
 	}
 
 	@Test
-	void jsonIgnoresColorThemeAndLevelFormatter() {
+	void json5ColoredSpacingLeavesTheSeparatorBeforeKeyValuesUncolored() {
+		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.prettyPrint(Json5PrettyPrint.SPACING)
+			.build();
+		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ", level:" + E + "1;34m\"INFO\"" + R
+				+ " , logger:" + E + "35m\"com.example.App\"" + R + ", thread:" + E + "2;39m\"main\"" + R
+				+ ", msg:\"hello\", " + E + "2;39mrequestId:\"42\", user:\"Ada Lovelace\"" + R + "}\n";
+		assertEquals(expected, format(formatter, event("hello", requestKeyValues(), null)));
+	}
+
+	@Test
+	void jsonIgnoresColorThemeAndPrettyPrint() {
 		var plain = new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build();
 		var configured = new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON)
 			.color(TTLL.ColorMode.FORCE)
 			.theme(TTLL.ColorTheme.DARCULA)
-			.levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
+			.prettyPrint(Json5PrettyPrint.SPACING)
 			.build();
 		var event = event("hello", requestKeyValues(), null);
 		assertEquals(format(plain, event), format(configured, event));
 	}
 
 	@Test
-	void levelFormatterAndColorProperties() {
-		String expected = "{time:" + E + "2;39m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "32m\"INFO\"" + R
-				+ " ,logger:" + E + "36m\"com.example.App\"" + R + ",thread:" + E + "2;39m\"main\"" + R
-				+ ",msg:\"hello\"}\n";
+	void prettyPrintAndColorProperties() {
+		String expected = "{time:" + E + "2;39m\"2026-10-05T15:04:05.123Z\"" + R + ", level:" + E + "32m\"INFO\"" + R
+				+ " , logger:" + E + "36m\"com.example.App\"" + R + ", thread:" + E + "2;39m\"main\"" + R
+				+ ", msg:\"hello\"}\n";
 		assertEquals(expected, log("json5", """
-				logging.encoder.list.levelFormatter=right_pad_level_formatter
+				logging.encoder.list.prettyPrint=spacing
 				logging.encoder.list.color=force
 				logging.encoder.list.theme=spring
 				""", event("hello", KeyValues.of(), null)));
