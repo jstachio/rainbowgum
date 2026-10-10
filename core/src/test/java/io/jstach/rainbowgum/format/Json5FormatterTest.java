@@ -162,9 +162,19 @@ class Json5FormatterTest {
 				+ "msg:\"hello\"}\n";
 		String padded = off.replace("\"INFO\",", "\"INFO\" ,");
 		assertEquals(off, log("json5", "logging.encoder.list.prettyPrint=false\n", event));
-		assertEquals(padded, log("json5", "logging.encoder.list.prettyPrint=true\n", event));
 		assertEquals(padded, log("json5:///?prettyPrint=default", "", event));
 		assertEquals(padded, log("json5", "logging.encoder.list.prettyPrint=level_padding\n", event));
+		String full = """
+				{
+				 time:"2026-10-05T15:04:05.123Z",
+				 level:"INFO",
+				 logger:"com.example.App",
+				 thread:"main",
+				 msg:"hello"
+				}
+				""";
+		assertEquals(full, log("json5", "logging.encoder.list.prettyPrint=full\n", event));
+		assertEquals(full, log("json5", "logging.encoder.list.prettyPrint=true\n", event));
 	}
 
 	@Test
@@ -176,7 +186,7 @@ class Json5FormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder:
 				Error for property. key: 'logging.encoder.list.prettyPrint' from PROPERTIES_STRING[logging.encoder.list.prettyPrint], \
 				'pretty' is not a valid value for io.jstach.rainbowgum.format.Json5PrettyPrint. \
-				Valid values: 'off', 'level_padding', 'spacing', 'true', 'false', 'default'""";
+				Valid values: 'off', 'level_padding', 'spacing', 'full', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -240,6 +250,42 @@ class Json5FormatterTest {
 						+ "stacktrace:\"java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\"}\n",
 				format(new Json5FormatterBuilder("test").prettyPrint(Json5PrettyPrint.SPACING).build(),
 						event("hello", kvs, ex)));
+	}
+
+	@Test
+	void json5FullPutsEachFieldOnItsOwnLine() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		kvs.putKeyValue("msg", "shadow");
+		kvs.putKeyValue("level", null);
+		var ex = new IllegalStateException("boom");
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		String expected = """
+				{
+				 time:"2026-10-05T15:04:05.123Z",
+				 level:"INFO",
+				 logger:"com.example.App",
+				 thread:"main",
+				 msg:"hello",
+				 requestId:"42",
+				 keyValues:{msg:"shadow",level:null},
+				 error:"java.lang.IllegalStateException: boom",
+				 stacktrace:"java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)"
+				}
+				""";
+		assertEquals(expected, format(new Json5FormatterBuilder("test").prettyPrint(Json5PrettyPrint.FULL).build(),
+				event("hello", kvs, ex)));
+	}
+
+	@Test
+	void json5FullColoredLeavesTheIndentBeforeKeyValuesUncolored() {
+		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.prettyPrint(Json5PrettyPrint.FULL)
+			.build();
+		String expected = "{\n time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",\n level:" + E + "1;34m\"INFO\""
+				+ R + ",\n logger:" + E + "35m\"com.example.App\"" + R + ",\n thread:" + E + "2;39m\"main\"" + R
+				+ ",\n msg:\"hello\",\n " + E + "2;39mrequestId:\"42\",\n user:\"Ada Lovelace\"" + R + "\n}\n";
+		assertEquals(expected, format(formatter, event("hello", requestKeyValues(), null)));
 	}
 
 	@Test

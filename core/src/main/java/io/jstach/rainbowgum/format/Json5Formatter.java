@@ -32,6 +32,11 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	static final Set<String> FIELDS = Set.of("time", "level", "logger", "thread", "msg", "error", "stacktrace",
 			KEY_VALUES_FIELD);
 
+	/*
+	 * One space, the same as the rainbowgum-json encoders' pretty print.
+	 */
+	private static final String INDENT = " ";
+
 	private static final TimestampFormatter TIME = TimestampFormatter.ofISO();
 
 	private final boolean json5;
@@ -41,9 +46,22 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	private final LevelFormatter levelFormatter;
 
 	/*
-	 * Written between members: a comma, followed by a space when spacing.
+	 * Written between the event object's members: a comma, followed by a space when
+	 * spacing or by a newline and indent when full.
 	 */
 	private final String separator;
+
+	/*
+	 * Written between the nested key values object's members, which stay on one line.
+	 */
+	private final String nestedSeparator;
+
+	/*
+	 * After the opening brace and before the closing one: a newline when full.
+	 */
+	private final String open;
+
+	private final String close;
 
 	private final Palette palette;
 
@@ -60,19 +78,28 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 		this.json5 = json5;
 		this.keyValues = keyValues;
 		this.levelFormatter = switch (prettyPrint) {
-			case OFF -> LevelFormatter.of();
+			case OFF, FULL -> LevelFormatter.of();
 			case LEVEL_PADDING, SPACING -> LevelFormatter.ofRightPadded();
 		};
-		this.separator = prettyPrint == Json5PrettyPrint.SPACING ? ", " : ",";
+		this.separator = switch (prettyPrint) {
+			case OFF, LEVEL_PADDING -> ",";
+			case SPACING -> ", ";
+			case FULL -> ",\n" + INDENT;
+		};
+		this.nestedSeparator = prettyPrint == Json5PrettyPrint.SPACING ? ", " : ",";
+		boolean full = prettyPrint == Json5PrettyPrint.FULL;
+		this.open = full ? "{\n" + INDENT : "{";
+		this.close = full ? "\n}\n" : "}\n";
 		this.palette = palette;
 		this.flat = new Members(json5, separator, Members.Mode.FLAT);
-		this.nestedAll = new Members(json5, separator, Members.Mode.NESTED_ALL);
-		this.nestedColliding = new Members(json5, separator, Members.Mode.NESTED_COLLIDING);
+		this.nestedAll = new Members(json5, nestedSeparator, Members.Mode.NESTED_ALL);
+		this.nestedColliding = new Members(json5, nestedSeparator, Members.Mode.NESTED_COLLIDING);
 	}
 
 	/**
-	 * Formats each event as one line holding a JSON5 (or JSON) object, for switching an
-	 * application to structured logging without adding a module, for example:
+	 * Formats each event as a JSON5 (or JSON) object, one line unless pretty printed in
+	 * full, for switching an application to structured logging without adding a module,
+	 * for example:
 	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
@@ -136,7 +163,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		var p = palette;
-		output.append('{');
+		output.append(open);
 		appendKey(output, "time", json5);
 		output.append(':');
 		Palette.start(output, p.timestamp());
@@ -212,7 +239,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			output.setLength(end);
 			JsonKeyValuesFormatter.quoteInPlace(output, start);
 		}
-		output.append("}\n");
+		output.append(close);
 	}
 
 	private void appendNested(StringBuilder output, KeyValues kvs, Members members) {
