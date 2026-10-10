@@ -69,7 +69,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * @param theme which colors, see {@link TTLL.ColorTheme}.
 	 * @return formatter.
 	 */
-	@LogConfigurable(name = "LogfmtFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(name = "LogfmtFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "logfmt.{name}.")
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL_FORMATTER") @LogConfigurable.ConvertParameter("convertLevelFormatter") LevelFormatter levelFormatter,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,

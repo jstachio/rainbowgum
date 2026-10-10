@@ -42,6 +42,24 @@ class DebugHelpSystemPropertiesTest {
 	}
 
 	@Test
+	void encoderKeyWithoutItsTypeSuggestsTheTypedKey() {
+		System.setProperty("logging.encoder.console.level", "plain");
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			var gum = RainbowGum.builder(config).build();
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+							[WARNING] Property key 'logging.encoder.console.level' from SYSTEM_PROPERTIES[logging.encoder.console.level] was set but not read during startup. Did you mean 'logging.encoder.ttll.console.level'?""",
+					e.getMessage());
+		}
+		finally {
+			System.getProperties().remove("logging.encoder.console.level");
+		}
+	}
+
+	@Test
 	void mutableCompositesStillCheckSystemPropertyTypos() {
 		System.setProperty("logging.appendrs", "console");
 		try {

@@ -94,7 +94,7 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	 * (the default) disables this entirely.
 	 * @return encoder.
 	 */
-	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX + "logstash.{name}.")
 	static LogstashEncoder of(@LogConfigurable.KeyParameter String name,
 			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, @Nullable Boolean prettyPrint,
 			@Nullable Integer maxBufferSize) {

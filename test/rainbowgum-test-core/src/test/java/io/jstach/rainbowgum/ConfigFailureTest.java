@@ -232,8 +232,8 @@ class ConfigFailureTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Property missing. key:
-						    'logging.encoder.myapp.host' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.host],
+						    'logging.encoder.fake.myapp.host' from:
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.host],
 						        [logging.appender.myapp.encoder]->URI(fake:///)[host]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -243,15 +243,15 @@ class ConfigFailureTest {
 				logging.appenders=myapp
 				logging.appender.myapp.output=list:///
 				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.port=notanumber
+				logging.encoder.fake.myapp.host=h
+				logging.encoder.fake.myapp.port=notanumber
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.port' from PROPERTIES_STRING[logging.encoder.myapp.port], java.lang.NumberFormatException For input string: "notanumber"
+						Error for property. key: 'logging.encoder.fake.myapp.port' from PROPERTIES_STRING[logging.encoder.fake.myapp.port], java.lang.NumberFormatException For input string: "notanumber"
 						Tried:
-						    'logging.encoder.myapp.port' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.port],
+						    'logging.encoder.fake.myapp.port' from:
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.port],
 						        [logging.appender.myapp.encoder]->URI(fake:///)[port]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -261,15 +261,15 @@ class ConfigFailureTest {
 				logging.appenders=myapp
 				logging.appender.myapp.output=list:///
 				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.endpoint=not a uri with spaces
+				logging.encoder.fake.myapp.host=h
+				logging.encoder.fake.myapp.endpoint=not a uri with spaces
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.myapp.endpoint], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
+						Error for property. key: 'logging.encoder.fake.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.fake.myapp.endpoint], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 						Tried:
-						    'logging.encoder.myapp.endpoint' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.endpoint],
+						    'logging.encoder.fake.myapp.endpoint' from:
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.endpoint],
 						        [logging.appender.myapp.encoder]->URI(fake:///)[endpoint]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -292,15 +292,15 @@ class ConfigFailureTest {
 				logging.appenders=myapp
 				logging.appender.myapp.output=list:///
 				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.label=bad
+				logging.encoder.fake.myapp.host=h
+				logging.encoder.fake.myapp.label=bad
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], label must not be 'bad'
+						Error for property. key: 'logging.encoder.fake.myapp.label' from PROPERTIES_STRING[logging.encoder.fake.myapp.label], label must not be 'bad'
 						Tried:
-						    'logging.encoder.myapp.label' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.label],
+						    'logging.encoder.fake.myapp.label' from:
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.label],
 						        [logging.appender.myapp.encoder]->URI(fake:///)[label]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -312,15 +312,15 @@ class ConfigFailureTest {
 				logging.appenders=myapp
 				logging.appender.myapp.output=list:///
 				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.tags=good,bad
+				logging.encoder.fake.myapp.host=h
+				logging.encoder.fake.myapp.tags=good,bad
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], tags must not contain 'bad'
+						Error for property. key: 'logging.encoder.fake.myapp.tags' from PROPERTIES_STRING[logging.encoder.fake.myapp.tags], tags must not contain 'bad'
 						Tried:
-						    'logging.encoder.myapp.tags' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.tags],
+						    'logging.encoder.fake.myapp.tags' from:
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.tags],
 						        [logging.appender.myapp.encoder]->URI(fake:///)[tags]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -332,15 +332,15 @@ class ConfigFailureTest {
 				logging.appenders=myapp
 				logging.appender.myapp.output=list:///
 				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.headers=bad=1
+				logging.encoder.fake.myapp.host=h
+				logging.encoder.fake.myapp.headers=bad=1
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], headers must not contain key 'bad'
+						Error for property. key: 'logging.encoder.fake.myapp.headers' from PROPERTIES_STRING[logging.encoder.fake.myapp.headers], headers must not contain key 'bad'
 						Tried:
-						    'logging.encoder.myapp.headers' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.headers],
+						    'logging.encoder.fake.myapp.headers' from:
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.headers],
 						        [logging.appender.myapp.encoder]->URI(fake:///)[headers]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
@@ -713,9 +713,9 @@ class ConfigFailureTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Property missing. key:
-						    'logging.encoder.myapp.host' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.host],
-						        PROPERTIES_STRING[logging.encoder.myapp.host],
+						    'logging.encoder.fake.myapp.host' from:
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.host],
+						        PROPERTIES_STRING[logging.encoder.fake.myapp.host],
 						        [logging.appender.myapp.encoder]->URI(fake:///)[host]
 						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
 						    Tried:

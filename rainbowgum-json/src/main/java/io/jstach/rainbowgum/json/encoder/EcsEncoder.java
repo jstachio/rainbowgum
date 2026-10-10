@@ -123,7 +123,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * (the default) disables this entirely.
 	 * @return encoder.
 	 */
-	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX + "ecs.{name}.")
 	static EcsEncoder of(@LogConfigurable.KeyParameter String name, @Nullable String serviceName,
 			@Nullable String serviceVersion, @Nullable String serviceEnvironment, @Nullable String serviceNodeName,
 			@Nullable String eventDataset, @Nullable Boolean structured, @Nullable Boolean prettyPrint,

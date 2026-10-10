@@ -84,7 +84,7 @@ public final class OtlpJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	 * {@code OTEL_RESOURCE_ATTRIBUTES} are read, default off.
 	 * @return encoder.
 	 */
-	@LogConfigurable(name = "OtlpJsonEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX)
+	@LogConfigurable(name = "OtlpJsonEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX + "otlp.{name}.")
 	static OtlpJsonEncoder of(@LogConfigurable.KeyParameter String name, @Nullable String serviceName,
 			@Nullable Map<String, String> resourceAttributes, @Nullable String traceIdKey, @Nullable String spanIdKey,
 			@ConvertParameter("parseEnvironmentVariables") @Nullable EnvironmentVariables environmentVariables) {

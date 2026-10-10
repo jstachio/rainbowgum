@@ -133,7 +133,8 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <tr>
  * <td>{@value #APPENDER_ENCODER_PROPERTY } = <code>URI</code></td>
  * <td>Looks up an encoder by URI scheme using the {@link LogEncoderRegistry}. The encoder
- * is then configured by properties with {@value #ENCODER_PREFIX}.</td>
+ * is then configured by properties with {@value #ENCODER_PREFIX} + <code>scheme</code> +
+ * <code>.{name}.</code>.</td>
  * </tr>
  * <tr>
  * <tr>
@@ -142,9 +143,12 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * appender.</td>
  * </tr>
  * <tr>
- * <td>{@value #ENCODER_PREFIX} + <code>propertyName</code></td>
- * <td>Configures the named encoder. The name of the encoder usually comes from the
- * appender.</td>
+ * <td>{@value #ENCODER_PREFIX} + <code>scheme</code> + <code>.{name}.</code> +
+ * <code>propertyName</code></td>
+ * <td>Configures the named encoder of the type selected by the URI scheme, for example
+ * <code>logging.encoder.json5.console.keyValues</code>. Each type has its own keys, so
+ * switching an appender's encoder leaves the other type's settings unread rather than
+ * misread. The name of the encoder usually comes from the appender.</td>
  * </tr>
  * <tr>
  * <td>{@value #FILE_PROPERTY} = URI</td>
@@ -371,9 +375,10 @@ public interface LogProperties {
 	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.{" + NAME + "}.";
 
 	/**
-	 * Logging output prefix for configuration.
+	 * Logging encoder prefix for configuration, followed by the encoder's URI scheme and
+	 * then <code>.{name}.</code>, for example <code>logging.encoder.json5.{name}.</code>.
 	 */
-	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.{" + NAME + "}.";
+	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.";
 
 	/**
 	 * Enabled Logging appenders. The value should be a list of names. This is equivalent
@@ -514,10 +519,10 @@ public interface LogProperties {
 	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
 	 * application/x-www-form-urlencoded</a>) for entries needing to contain the separator
 	 * or an equals sign, for example: <pre><code>
-	 * logging.encoder.gelf.headers=environment=prod,region=us-east
+	 * logging.encoder.gelf.console.headers=environment=prod,region=us-east
 	 * </code></pre> resolves to
 	 * <code>{"environment": "prod", "region": "us-east"}</code>, and: <pre><code>
-	 * logging.encoder.gelf.headers=region=us%20east
+	 * logging.encoder.gelf.console.headers=region=us%20east
 	 * </code></pre> (a percent-encoded space) resolves to
 	 * <code>{"region": "us east"}</code>.
 	 * <p>

@@ -48,7 +48,7 @@ final class FakeEncoderConfigurator implements Configurator {
  */
 final class FakeEncoderBuilder implements LogBuilder<FakeEncoderBuilder, LogEncoder> {
 
-	static final String PROPERTY_PREFIX = "logging.encoder.{name}.";
+	static final String PROPERTY_PREFIX = "logging.encoder.fake.{name}.";
 
 	static final String PROPERTY_host = PROPERTY_PREFIX + "host";
 

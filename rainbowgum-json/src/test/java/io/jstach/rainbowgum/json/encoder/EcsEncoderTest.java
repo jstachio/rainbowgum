@@ -53,7 +53,7 @@ class EcsEncoderTest {
 	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
 		var e = assertThrows(LogProperty.ValidationException.class, () -> new EcsEncoderBuilder("bad name"));
 		assertEquals(
-				"Validation failed for io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				"Validation failed for io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder: \"logging.encoder.ecs.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
 				e.getMessage());
 	}
 
@@ -84,8 +84,8 @@ class EcsEncoderTest {
 	void testBuilder() {
 		EcsEncoderBuilder b = new EcsEncoderBuilder("ecs");
 		String propString = """
-				logging.encoder.ecs.serviceName=myapp
-				logging.encoder.ecs.prettyPrint=true
+				logging.encoder.ecs.ecs.serviceName=myapp
+				logging.encoder.ecs.ecs.prettyPrint=true
 				""";
 		b.fromProperties(LogProperties.builder().fromProperties(propString).build());
 

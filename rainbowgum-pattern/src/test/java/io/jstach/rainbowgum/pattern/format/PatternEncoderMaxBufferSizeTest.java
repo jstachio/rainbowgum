@@ -18,9 +18,9 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
 
 /**
  * The generated PatternEncoderBuilder.maxBufferSize(...) property/setter - proves
- * logging.encoder.{name}.maxBufferSize actually threads through to the LogEncoder.Buffer
- * handed out and its isOversized() answer, the same way charset threads through to
- * encoding (see PatternEncoderCharsetTest). This is the encoder-side half of
+ * logging.encoder.pattern.{name}.maxBufferSize actually threads through to the
+ * LogEncoder.Buffer handed out and its isOversized() answer, the same way charset threads
+ * through to encoding (see PatternEncoderCharsetTest). This is the encoder-side half of
  * BufferSelfShrinkTest (core) - the appender never sees maxBufferSize itself, only the
  * boolean isOversized() the buffer computes from it.
  * <p>
@@ -48,14 +48,14 @@ class PatternEncoderMaxBufferSizeTest {
 
 	@Test
 	void messagePastMaxBufferSizeReportsOversizedBuffer() {
-		var buffer = bufferAfterEncoding("logging.encoder.list.maxBufferSize=5\n",
+		var buffer = bufferAfterEncoding("logging.encoder.pattern.list.maxBufferSize=5\n",
 				"a message well past five characters");
 		assertTrue(buffer.isOversized());
 	}
 
 	@Test
 	void messageUnderMaxBufferSizeDoesNotReportOversized() {
-		var buffer = bufferAfterEncoding("logging.encoder.list.maxBufferSize=1000\n", "short");
+		var buffer = bufferAfterEncoding("logging.encoder.pattern.list.maxBufferSize=1000\n", "short");
 		assertFalse(buffer.isOversized());
 	}
 
@@ -67,15 +67,15 @@ class PatternEncoderMaxBufferSizeTest {
 	}
 
 	/*
-	 * logging.encoder.{name}.maxBufferSize had only happy-path coverage before this -
-	 * nothing exercised a malformed value, even though it is a plain Integer and so can
-	 * genuinely fail conversion - found by grepping the property list
+	 * logging.encoder.pattern.{name}.maxBufferSize had only happy-path coverage before
+	 * this - nothing exercised a malformed value, even though it is a plain Integer and
+	 * so can genuinely fail conversion - found by grepping the property list
 	 * ConfigProcessor#PROPERTY_LIST_OPTION generates against the test tree.
 	 */
 	@Test
 	void badMaxBufferSizeFailsLoudlyWithPropertyDescription() {
 		var properties = LogProperties.builder()
-			.fromProperties("logging.encoder.list.maxBufferSize=notanumber\n")
+			.fromProperties("logging.encoder.pattern.list.maxBufferSize=notanumber\n")
 			.build();
 		var b = new PatternEncoderBuilder("list");
 		b.pattern("%msg");
@@ -83,7 +83,7 @@ class PatternEncoderMaxBufferSizeTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
-						Error for property. key: 'logging.encoder.list.maxBufferSize' from PROPERTIES_STRING[logging.encoder.list.maxBufferSize], java.lang.NumberFormatException For input string: "notanumber\"""",
+						Error for property. key: 'logging.encoder.pattern.list.maxBufferSize' from PROPERTIES_STRING[logging.encoder.pattern.list.maxBufferSize], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 
@@ -94,13 +94,13 @@ class PatternEncoderMaxBufferSizeTest {
 	 * PatternConfigurator's own CONSOLE_OUT registration below, not through an explicit
 	 * logging.appender.console.encoder property - is built with
 	 * PatternEncoderBuilder(name).fromProperties(...) using the SAME name ("console") a
-	 * real appender would pass, so logging.encoder.console.maxBufferSize is picked up
-	 * exactly the same way logging.encoder.console.charset already was, with no separate
-	 * wiring needed.
+	 * real appender would pass, so logging.encoder.pattern.console.maxBufferSize is
+	 * picked up exactly the same way logging.encoder.pattern.console.charset already was,
+	 * with no separate wiring needed.
 	 */
 	@Test
 	void consoleDefaultEncoderPicksUpMaxBufferSizeTheSameWayAsAnyOtherEncoder() {
-		String properties = "logging.encoder.console.maxBufferSize=5\n";
+		String properties = "logging.encoder.pattern.console.maxBufferSize=5\n";
 		var config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
 			.configurator(new PatternConfigurator())
