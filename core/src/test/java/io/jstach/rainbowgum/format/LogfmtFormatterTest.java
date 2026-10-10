@@ -150,4 +150,45 @@ class LogfmtFormatterTest {
 		assertEquals(expected, e.getMessage());
 	}
 
+	static final String E = "\033[";
+
+	static final String R = E + "0;39m";
+
+	@Test
+	void colorsValuesWithTheTheme() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		var sb = new StringBuilder();
+		new LogfmtFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.build()
+			.format(sb, event(Level.INFO, "pool 1", "hello world", kvs, null));
+		String expected = "time=" + E + "36m2026-10-05T15:04:05.123Z" + R + " level=" + E + "1;34mINFO" + R + " logger="
+				+ E + "35mcom.example.App" + R + " thread=" + E + "2;39m\"pool 1\"" + R + " msg=\"hello world\" " + E
+				+ "2;39mrequestId=42" + R + "\n";
+		assertEquals(expected, sb.toString());
+	}
+
+	@Test
+	void coloredPaddingIsWrittenAfterTheLevelColor() {
+		var sb = new StringBuilder();
+		new LogfmtFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
+			.build()
+			.format(sb, event(Level.WARNING, "main", "x", KeyValues.of(), null));
+		String expected = "time=" + E + "36m2026-10-05T15:04:05.123Z" + R + " level=" + E + "1;31mWARN" + R
+				+ "  logger=" + E + "35mcom.example.App" + R + " thread=" + E + "2;39mmain" + R + " msg=x\n";
+		assertEquals(expected, sb.toString());
+	}
+
+	@Test
+	void colorOffWritesNoEscapes() {
+		var sb = new StringBuilder();
+		new LogfmtFormatterBuilder("test").color(TTLL.ColorMode.OFF)
+			.theme(TTLL.ColorTheme.ONE_DARK)
+			.build()
+			.format(sb, event(Level.INFO, "main", "x", KeyValues.of(), null));
+		assertEquals("time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x\n",
+				sb.toString());
+	}
+
 }

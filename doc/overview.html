@@ -1034,6 +1034,13 @@ Key values follow the message, and a throwable adds <code>error</code> and <code
 breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum.format.LogfmtFormatterBuilder}, which also sets the level format, for example
 <code>logging.encoder.myappender.levelFormatter=right_pad_level_formatter</code>.
 
+<p>
+Values are colored with the same <code>color</code> and <code>theme</code> properties as the
+<a href="#ttll">TTLL formatter</a>: by default when the console supports ANSI, with the <code>rainbowgum</code>
+theme. Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are never colored, and level padding
+is written after the level's color.
+</p>
+
 
 <h3 id="core_json">JSON5 Formatter</h3>
 
@@ -1065,7 +1072,17 @@ logfmt and most aggregators expect, and places any key value named like one of t
 <code>keyValues</code> object instead, so nothing is dropped, renamed, or written twice; <code>nested</code> always
 writes them in the <code>keyValues</code> object (<code>{}</code> when there are none); <code>none</code> leaves them
 out.</li>
+<li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#levelFormatter(io.jstach.rainbowgum.LogFormatter.LevelFormatter)
+levelFormatter}: <code>level_formatter</code> (default) or <code>right_pad_level_formatter</code>, which pads after the
+level's closing quote so the value stays the level name: <code>level:"INFO" ,logger:...</code>.</li>
+<li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#color(io.jstach.rainbowgum.format.TTLL.ColorMode) color}
+and {@link io.jstach.rainbowgum.format.Json5FormatterBuilder#theme(io.jstach.rainbowgum.format.TTLL.ColorTheme) theme}:
+color values the same way the <a href="#ttll">TTLL formatter</a> does, by default when the console supports ANSI.
+Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are never colored.</li>
 </ul>
+
+<code>levelFormatter</code>, <code>color</code>, and <code>theme</code> only apply to JSON5. With
+<code>format=json</code> they are ignored, so the output stays plain JSON.
 
 This encoder is a convenience, not a replacement for {@link io.jstach.rainbowgum.json/}: it has one fixed set of
 fields, no pretty printing, and no particular schema. For production structured logging, especially into a system

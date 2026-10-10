@@ -375,6 +375,49 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 				writeEmpty);
 	}
 
+	/*
+	 * The level's color, or none when this palette does not color.
+	 */
+	String levelColor(java.lang.System.Logger.Level level) {
+		return colored() ? levelCode(level) : "";
+	}
+
+	/*
+	 * Starts and ends a value colored with code, writing nothing for an empty code. Used
+	 * by formatters that color values rather than whole parts.
+	 */
+	static void start(StringBuilder output, String code) {
+		if (!code.isEmpty()) {
+			output.append(Ansi.start(code));
+		}
+	}
+
+	static void end(StringBuilder output, String code) {
+		if (!code.isEmpty()) {
+			output.append(Ansi.RESET);
+		}
+	}
+
+	/*
+	 * Removes the spaces a padding level formatter wrote after start and returns how
+	 * many, so they can be written after a closing quote or color instead.
+	 */
+	static int removeTrailingSpaces(StringBuilder output, int start) {
+		int end = output.length();
+		int i = end;
+		while (i > start && output.charAt(i - 1) == ' ') {
+			i--;
+		}
+		output.setLength(i);
+		return end - i;
+	}
+
+	static void spaces(StringBuilder output, int count) {
+		for (int i = 0; i < count; i++) {
+			output.append(' ');
+		}
+	}
+
 	String levelCode(java.lang.System.Logger.Level level) {
 		return switch (level) {
 			case ERROR -> error;
