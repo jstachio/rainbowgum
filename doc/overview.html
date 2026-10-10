@@ -3057,7 +3057,7 @@ those settings nothing is recorded, so normal runs pay nothing for the check.
 <code>logging.alerts.fail</code> fails startup when an <a href="#alerts">alert</a> at or above a
 level is recorded while starting, similar to treating compiler warnings as errors. It is
 <code>off</code> by default; <code>error</code> fails on errors; <code>warning</code> (or
-<code>true</code>) fails on warnings too, including misspelled keys. Unlike
+<code>warn</code> or <code>true</code>) fails on warnings too, including misspelled keys. Unlike
 <code>logging.debug</code> it is an ordinary property, so it can be set in
 <code>logging.properties</code>, a profile, a system property, or an environment variable, and
 {@link io.jstach.rainbowgum.LogConfig.Builder#alertsFail(io.jstach.rainbowgum.LogAlerts.FailLevel)}
