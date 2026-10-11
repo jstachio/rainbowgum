@@ -52,10 +52,17 @@ class TTLLFormatterTest {
 	 * Logs one event through a gum whose appender uses the given encoder properties.
 	 */
 	private static String log(String encoder, String properties, LogEvent event) {
+		return log(encoder, properties, event, null);
+	}
+
+	private static String log(String encoder, String properties, LogEvent event, TTLL.@Nullable ColorTheme theme) {
 		var output = new ListLogOutput();
 		String all = "logging.appenders=list\nlogging.appender.list.output.uri=list\n"
 				+ (encoder.isEmpty() ? "" : "logging.appender.list.encoder.uri=" + encoder + "\n") + properties;
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(all).build()).build();
+		if (theme != null) {
+			config.serviceRegistry().put(TTLL.ColorTheme.class, theme.name(), theme);
+		}
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
 		try (var g = RainbowGum.builder(config).build().start()) {
 			g.log(event);
@@ -484,6 +491,63 @@ class TTLLFormatterTest {
 		.logger("35")
 		.level(Level.INFO, "1;34")
 		.build();
+
+	@ParameterizedTest
+	@EnumSource(value = Level.class, names = { "ERROR", "WARNING", "INFO", "DEBUG", "TRACE" })
+	void partialThemeColorsOnlyItsSelectedLevel(Level coloredLevel) {
+		var theme = TTLL.ColorTheme.builder("partial").level(coloredLevel, "35").build();
+		for (String scheme : java.util.List.of("ttll", "logfmt", "json5")) {
+			String properties = "logging.level=trace\nlogging.appender.list.encoder." + scheme + ".color=force\n"
+					+ "logging.appender.list.encoder." + scheme + ".theme=partial\n";
+			for (Level level : java.util.List.of(Level.ERROR, Level.WARNING, Level.INFO, Level.DEBUG, Level.TRACE)) {
+				var event = LogEvent.of(TIME, "main", 7, level, "com.example.App", "hello world", KeyValues.of(), null);
+				String text = level == Level.WARNING ? "WARN" : level.name();
+				String start = level == coloredLevel ? E + "35m" : "";
+				String end = level == coloredLevel ? R : "";
+				String expected = switch (scheme) {
+					case "ttll" -> """
+							12:00:00.123 [main] LEVEL com.example.App - hello world
+							""".replace("LEVEL", start + String.format(Locale.ROOT, "%-5s", text) + end);
+					case "logfmt" ->
+						"""
+								time=2026-10-05T12:00:00.123Z level=LEVEL logger=com.example.App thread=main msg="hello world"
+								"""
+							.replace("LEVEL", start + text + end);
+					case "json5" ->
+						"""
+								{time:"2026-10-05T12:00:00.123Z",level:LEVEL,logger:"com.example.App",thread:"main",msg:"hello world"}
+								"""
+							.replace("LEVEL", start + "\"" + text + "\"" + end + (text.length() < 5 ? " " : ""));
+					default -> throw new AssertionError(scheme);
+				};
+				assertEquals(expected, log(scheme, properties, event, theme),
+						scheme + ": " + coloredLevel + "/" + level);
+			}
+		}
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "timestamp", "thread", "logger", "keyValues", "error", "warn", "info", "debug", "trace", "none" })
+	void reportsAnyConfiguredColorInAPartialTheme(String part) {
+		var builder = TTLL.ColorTheme.builder("partial");
+		switch (part) {
+			case "timestamp" -> builder.timestamp("35");
+			case "thread" -> builder.thread("35");
+			case "logger" -> builder.logger("35");
+			case "keyValues" -> builder.keyValues("35");
+			case "error" -> builder.level(Level.ERROR, "35");
+			case "warn" -> builder.level(Level.WARNING, "35");
+			case "info" -> builder.level(Level.INFO, "35");
+			case "debug" -> builder.level(Level.DEBUG, "35");
+			case "trace" -> builder.level(Level.TRACE, "35");
+			case "none" -> {
+			}
+			default -> throw new AssertionError(part);
+		}
+		var formatter = new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE).theme(builder.build()).build();
+		assertEquals("ttll color=force theme=partial colored=" + !part.equals("none"),
+				LogReporter.Reportable.toString(formatter, "not reportable"));
+	}
 
 	@Test
 	void customThemeGivenToTheBuilder() {

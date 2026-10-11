@@ -451,7 +451,12 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 	}
 
 	boolean colored() {
-		return !error.isEmpty();
+		return !timestamp.isEmpty() || !thread.isEmpty() || !logger.isEmpty() || !keyValues.isEmpty()
+				|| levelsColored();
+	}
+
+	private boolean levelsColored() {
+		return !error.isEmpty() || !warn.isEmpty() || !info.isEmpty() || !debug.isEmpty() || !trace.isEmpty();
 	}
 
 	LogFormatter color(String code, LogFormatter formatter) {
@@ -462,7 +467,7 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 	}
 
 	LogFormatter level(LogFormatter level) {
-		if (error.isEmpty() || level.isNoop()) {
+		if (!levelsColored() || level.isNoop()) {
 			return level;
 		}
 		return new LevelColorFormatter(level, this);
@@ -481,7 +486,14 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 	 * The level's color, or none when this palette does not color.
 	 */
 	String levelColor(java.lang.System.Logger.Level level) {
-		return colored() ? levelCode(level) : "";
+		return switch (level) {
+			case ERROR -> error;
+			case WARNING -> warn;
+			case INFO -> info;
+			case DEBUG -> debug;
+			case TRACE -> trace;
+			default -> levelsColored() ? "39" : "";
+		};
 	}
 
 	/*
@@ -520,17 +532,6 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 		}
 	}
 
-	String levelCode(java.lang.System.Logger.Level level) {
-		return switch (level) {
-			case ERROR -> error;
-			case WARNING -> warn;
-			case INFO -> info;
-			case DEBUG -> debug;
-			case TRACE -> trace;
-			default -> "39";
-		};
-	}
-
 }
 
 /*
@@ -540,9 +541,10 @@ record LevelColorFormatter(LogFormatter level, Palette palette) implements LogFo
 
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
-		output.append(Ansi.start(palette.levelCode(event.level())));
+		String code = palette.levelColor(event.level());
+		Palette.start(output, code);
 		level.format(output, event);
-		output.append(Ansi.RESET);
+		Palette.end(output, code);
 	}
 
 }
