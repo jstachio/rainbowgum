@@ -143,8 +143,8 @@ class RainbowGumProviderExample implements RainbowGumProvider {
  * <li>Each named appender then resolves independently. {@code file} and
  * {@code console} are the two built-in special cases, each with its own output
  * property/fallback ({@code logging.file.name} then
- * {@code logging.appender.file.output} for {@code file};
- * {@code logging.appender.console.output} falling back to standard-out for
+ * {@code logging.appender.file.output.uri} for {@code file};
+ * {@code logging.appender.console.output.uri} falling back to standard-out for
  * {@code console}). Any other name is fully generic:
  * {@code logging.appender.<name>.output}/{@code .encoder}/{@code .flags}/
  * {@code .type}, with the output's own URI scheme choosing which registered

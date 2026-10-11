@@ -32,7 +32,7 @@ extension point, see Findings below for the full journey to this point),
 `rainbowgum-simple-props` (zero-config classpath `logging.properties` loading), and
 `rainbowgum-pattern` (resolves the `encoder=pattern` line in that file to a real
 encoder). `src/main/resources/logging.properties` is Rainbow Gum's own property
-format (`logging.level`, `logging.appender.*`, `logging.encoder.*`), not
+format (`logging.level`, `logging.appender.*`), not
 `java.util.logging`'s: it sets the console appender's encoder to `pattern` with a
 TTLL-like format that tags every line with `[RAINBOW_GUM]`, so it is visually obvious in
 the output which system actually produced a given line.

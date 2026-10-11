@@ -49,10 +49,10 @@ class PatternConfiguratorTest {
 	void testMalformedZoneIdReportsErrorViaAddIfError() {
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list
-				logging.appender.list.encoder=pattern
+				logging.appender.list.output.uri=list
+				logging.appender.list.encoder.uri=pattern
 				logging.pattern.config.list.zoneId=Not/AZone
-				logging.encoder.pattern.list.pattern=%msg%n
+				logging.appender.list.encoder.pattern=%msg%n
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -63,7 +63,7 @@ class PatternConfiguratorTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.zoneId' from PROPERTIES_STRING[logging.pattern.config.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
-						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder.uri' from PROPERTIES_STRING[logging.appender.list.encoder.uri], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
@@ -73,10 +73,10 @@ class PatternConfiguratorTest {
 	void testMalformedSequenceNumberStartReportsErrorViaAddIfError() {
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list
-				logging.appender.list.encoder=pattern
+				logging.appender.list.output.uri=list
+				logging.appender.list.encoder.uri=pattern
 				logging.pattern.config.list.sequenceNumberStart=notanumber
-				logging.encoder.pattern.list.pattern=%lsn%n
+				logging.appender.list.encoder.pattern=%lsn%n
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -87,7 +87,7 @@ class PatternConfiguratorTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.sequenceNumberStart' from PROPERTIES_STRING[logging.pattern.config.list.sequenceNumberStart], java.lang.NumberFormatException For input string: "notanumber"
-						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder.uri' from PROPERTIES_STRING[logging.appender.list.encoder.uri], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
@@ -97,10 +97,10 @@ class PatternConfiguratorTest {
 	void testMalformedAbbreviatorCacheReportsErrorViaAddIfError() {
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list
-				logging.appender.list.encoder=pattern
+				logging.appender.list.output.uri=list
+				logging.appender.list.encoder.uri=pattern
 				logging.pattern.config.list.abbreviatorCache=notarealcachetype
-				logging.encoder.pattern.list.pattern=%logger{15}%n
+				logging.appender.list.encoder.pattern=%logger{15}%n
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -111,7 +111,7 @@ class PatternConfiguratorTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternConfigBuilder:
 						Error for property. key: 'logging.pattern.config.list.abbreviatorCache' from PROPERTIES_STRING[logging.pattern.config.list.abbreviatorCache], 'notarealcachetype' is not a valid value for io.jstach.rainbowgum.pattern.format.PatternConfig.CacheType. Valid values: 'off', 'basic', 'true', 'default', 'false'
-						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'pattern'
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder.uri' from PROPERTIES_STRING[logging.appender.list.encoder.uri], value: 'pattern'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
@@ -135,12 +135,12 @@ class PatternConfiguratorTest {
 			String properties() {
 				return """
 						logging.appenders=console,list
-						logging.appender.list.output=list
-						logging.appender.list.encoder=pattern
-						logging.appender.console.output=stdout
-						logging.appender.console.encoder=pattern
-						logging.encoder.pattern.console.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
-						logging.encoder.pattern.list.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+						logging.appender.list.output.uri=list
+						logging.appender.list.encoder.uri=pattern
+						logging.appender.console.output.uri=stdout
+						logging.appender.console.encoder.uri=pattern
+						logging.appender.console.encoder.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+						logging.appender.list.encoder.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
 						logging.global.ansi.disable=true
 						""";
 			}
@@ -154,9 +154,9 @@ class PatternConfiguratorTest {
 			String properties() {
 				return """
 						logging.appenders=list
-						logging.appender.list.output=list
-						logging.appender.list.encoder=pattern
-						logging.encoder.pattern.list.pattern=%-5level %stuff{}%n
+						logging.appender.list.output.uri=list
+						logging.appender.list.encoder.uri=pattern
+						logging.appender.list.encoder.pattern=%-5level %stuff{}%n
 						""";
 			}
 
@@ -186,10 +186,10 @@ class PatternConfiguratorTest {
 			String properties() {
 				return """
 						logging.appenders=list
-						logging.appender.list.output=list
-						logging.appender.list.encoder=pattern
+						logging.appender.list.output.uri=list
+						logging.appender.list.encoder.uri=pattern
 						logging.pattern.config.list.sequenceNumberStart=5
-						logging.encoder.pattern.list.pattern=%lsn%n
+						logging.appender.list.encoder.pattern=%lsn%n
 						""";
 			}
 		},
@@ -209,10 +209,10 @@ class PatternConfiguratorTest {
 			String properties() {
 				return """
 						logging.appenders=list
-						logging.appender.list.output=list
-						logging.appender.list.encoder=pattern
+						logging.appender.list.output.uri=list
+						logging.appender.list.encoder.uri=pattern
 						logging.pattern.config.list.abbreviatorCache=OFF
-						logging.encoder.pattern.list.pattern=%logger{15}%n
+						logging.appender.list.encoder.pattern=%logger{15}%n
 						""";
 			}
 		},
@@ -272,12 +272,12 @@ class PatternConfiguratorTest {
 		String properties() {
 			return """
 					logging.appenders=console,list
-					logging.appender.list.output=list
-					logging.appender.list.encoder=pattern
-					logging.appender.console.output=stdout
-					logging.appender.console.encoder=pattern
-					logging.encoder.pattern.console.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
-					logging.encoder.pattern.list.pattern=[%thread] %-5level %logger{15} - %msg%n
+					logging.appender.list.output.uri=list
+					logging.appender.list.encoder.uri=pattern
+					logging.appender.console.output.uri=stdout
+					logging.appender.console.encoder.uri=pattern
+					logging.appender.console.encoder.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
+					logging.appender.list.encoder.pattern=[%thread] %-5level %logger{15} - %msg%n
 					""";
 		}
 

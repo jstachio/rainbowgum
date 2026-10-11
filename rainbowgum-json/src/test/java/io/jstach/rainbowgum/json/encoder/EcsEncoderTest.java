@@ -53,7 +53,7 @@ class EcsEncoderTest {
 	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
 		var e = assertThrows(LogProperty.ValidationException.class, () -> new EcsEncoderBuilder("bad name"));
 		assertEquals(
-				"Validation failed for io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder: \"logging.encoder.ecs.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				"Validation failed for io.jstach.rainbowgum.json.encoder.EcsEncoderBuilder: \"logging.appender.{name}.encoder.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
 				e.getMessage());
 	}
 
@@ -84,8 +84,8 @@ class EcsEncoderTest {
 	void testBuilder() {
 		EcsEncoderBuilder b = new EcsEncoderBuilder("ecs");
 		String propString = """
-				logging.encoder.ecs.ecs.serviceName=myapp
-				logging.encoder.ecs.ecs.prettyPrint=true
+				logging.appender.ecs.encoder.serviceName=myapp
+				logging.appender.ecs.encoder.prettyPrint=true
 				""";
 		b.fromProperties(LogProperties.builder().fromProperties(propString).build());
 
@@ -121,8 +121,8 @@ class EcsEncoderTest {
 	void testFullLoadUri() throws Exception {
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list:///
-				logging.appender.list.encoder=ecs:///?serviceName=myapp
+				logging.appender.list.output.uri=list:///
+				logging.appender.list.encoder.uri=ecs:///?serviceName=myapp
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())

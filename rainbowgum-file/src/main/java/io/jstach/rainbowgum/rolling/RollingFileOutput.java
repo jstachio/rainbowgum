@@ -34,13 +34,12 @@ import io.jstach.rainbowgum.file.FileOutputBuilder;
  * <p>
  * Registered under the {@value #ROLLING_SCHEME} URI scheme (see
  * {@code RollingConfigurator}), e.g. {@code rolling:///var/log/app.log?maxFileSize=...}.
- * Its properties are <code>logging.output.rolling.{name}.</code> followed by a
- * {@link RollingFileOutputBuilder} property name. {@code uri}, {@code fileName},
- * {@code append}, {@code prudent} and {@code bufferSize} mean the same as for
- * {@link FileOutput} and are passed to the underlying file output this wraps. The
- * {@code append} setting applies when the output is first opened. Replacement outputs
- * always append so recovery preserves any active contents left behind by a failed
- * rotation.
+ * Its properties are <code>logging.appender.{name}.output.uri.</code> followed by a
+ * {@link RollingFileOutputBuilder} property name. {@code fileName}, {@code append},
+ * {@code prudent} and {@code bufferSize} mean the same as for {@link FileOutput} and are
+ * passed to the underlying file output this wraps. The {@code append} setting applies
+ * when the output is first opened. Replacement outputs always append so recovery
+ * preserves any active contents left behind by a failed rotation.
  * <p>
  * Failed automatic rotation attempts record {@link LogMetrics#ROLL_FAIL_METRIC} and an
  * error alert identifying the active file. The event that triggered the failed rotation
@@ -145,7 +144,7 @@ public interface RollingFileOutput extends FileOutput {
 	/**
 	 * Creates a rolling file output provider.
 	 * @param name name of output, not file name.
-	 * @param uri file uri.
+	 * @param uri file uri, set by the appender from its <code>output.uri</code>.
 	 * @param fileName file name.
 	 * @param append whether or not to append to an existing file when first opened.
 	 * @param prudent logback prudent mode where files are locked on each write.
@@ -163,9 +162,10 @@ public interface RollingFileOutput extends FileOutput {
 	 * must not contain <code>%d</code> (date based rotation is not supported).
 	 * @return rolling file output provider.
 	 */
-	@LogConfigurable(name = "RollingFileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "rolling.{name}.")
-	public static LogProvider<RollingFileOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI uri,
-			@Nullable String fileName, @Nullable Boolean append, @Nullable Boolean prudent,
+	@LogConfigurable(name = "RollingFileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	public static LogProvider<RollingFileOutput> of(@LogConfigurable.KeyParameter String name,
+			@LogConfigurable.PassThroughParameter @Nullable URI uri, @Nullable String fileName,
+			@Nullable Boolean append, @Nullable Boolean prudent,
 			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_BUFFER_SIZE") DataSize bufferSize,
 			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_MAX_FILE_SIZE") DataSize maxFileSize,
 			@DefaultParameter("DEFAULT_MAX_HISTORY") Integer maxHistory,

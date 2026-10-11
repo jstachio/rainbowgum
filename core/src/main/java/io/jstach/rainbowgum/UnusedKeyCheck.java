@@ -143,8 +143,9 @@ final class UnusedKeyCheck {
 				return candidate;
 			}
 		}
+		var moved = movedKeys(key).stream().map(UnusedKeyCheck::normalize).toList();
 		for (String candidate : candidates) {
-			if (isMissingOneSegment(normalized, normalize(candidate))) {
+			if (moved.contains(normalize(candidate))) {
 				return candidate;
 			}
 		}
@@ -164,27 +165,30 @@ final class UnusedKeyCheck {
 	}
 
 	/*
-	 * Whether the key is the candidate with one inner segment left out, such as
-	 * logging.encoder.console.level for logging.encoder.ttll.console.level, the form
-	 * before encoder and output keys named their type.
+	 * Where a key from before encoder and output keys moved under their appender is now:
+	 * logging.encoder.console.level and logging.encoder.ttll.console.level are
+	 * logging.appender.console.encoder.level, and logging.appender.console.encoder is
+	 * logging.appender.console.encoder.uri.
 	 */
-	static boolean isMissingOneSegment(String key, String candidate) {
-		if (candidate.length() <= key.length()) {
-			return false;
+	static List<String> movedKeys(String key) {
+		var segments = List.of(key.split("\\.", -1));
+		if (segments.size() < 3 || !segments.get(0).equals("logging")) {
+			return List.of();
 		}
-		int start = candidate.indexOf(LogProperties.SEP);
-		while (start >= 0) {
-			int end = candidate.indexOf(LogProperties.SEP, start + 1);
-			if (end < 0) {
-				return false;
+		String component = segments.get(1);
+		if (component.equals("encoder") || component.equals("output")) {
+			var moved = new ArrayList<String>();
+			for (int name = 2; name <= 3 && name < segments.size() - 1; name++) {
+				String rest = String.join(LogProperties.SEP, segments.subList(name + 1, segments.size()));
+				moved.add("logging.appender." + segments.get(name) + "." + component + "." + rest);
 			}
-			if (key.length() == candidate.length() - (end - start) && candidate.regionMatches(0, key, 0, start)
-					&& candidate.regionMatches(end, key, start, key.length() - start)) {
-				return true;
-			}
-			start = end;
+			return moved;
 		}
-		return false;
+		if (component.equals("appender") && segments.size() == 4
+				&& (segments.get(3).equals("encoder") || segments.get(3).equals("output"))) {
+			return List.of(key + ".uri");
+		}
+		return List.of();
 	}
 
 	/*

@@ -53,8 +53,8 @@ Assuming we have <a href="#installation">installed RainbowGum as a dependency</a
 
 {@snippet :
   java \
-  -Dlogging.appender.console.encoder=pattern \ 
-  -Dlogging.encoder.pattern.console.pattern="[%thread] %-5level %logger{15} - %msg%n" \
+  -Dlogging.appender.console.encoder.uri=pattern \ 
+  -Dlogging.appender.console.encoder.pattern="[%thread] %-5level %logger{15} - %msg%n" \
   -Dlogging.level.com.myapp=DEBUG \
   myapp.jar 
 }
@@ -302,20 +302,24 @@ logging.{componentType}.{name}.{subComponent}=URI
 logging.{subComponent}.{name}.{propertyName}=someStringThatIsConverted
 }
 
-Encoders and outputs are the exception: their keys also name the type, the URI scheme, before the name, so
-each type has its own keys and switching an appender's encoder or output leaves the other type's settings
-unread instead of misreading them:
+An appender's encoder and output are configured under the appender itself: <code>uri</code> picks the
+type and every other key configures it, so one appender's settings line up in one block:
 
 {@snippet lang=properties :
-logging.encoder.{scheme}.{name}.{propertyName}=someStringThatIsConverted
-logging.output.{scheme}.{name}.{propertyName}=someStringThatIsConverted
+logging.appender.{name}.encoder.uri=URI
+logging.appender.{name}.encoder.{propertyName}=someStringThatIsConverted
+logging.appender.{name}.output.uri=URI
+logging.appender.{name}.output.{propertyName}=someStringThatIsConverted
 }
+
+An encoder or output built in code without an appender uses the same keys with its own name in place of the
+appender's.
 
 An interpolated key (note key not value) example might be:
 
 {@snippet lang=properties :
-logging.appender.example.encoder=gelf
-logging.encoder.gelf.example.prettyPrint=true
+logging.appender.example.encoder.uri=gelf
+logging.appender.example.encoder.prettyPrint=true
 }
 
 <em>
@@ -327,10 +331,10 @@ logging.encoder.gelf.example.prettyPrint=true
 
 Because the first property is a URI, its query string is also searched for the second line's properties,
 using <code>{propertyName}</code> as a bare query parameter with no <code>logging.{subComponent}.{name}.</code>
-(or <code>logging.encoder.{scheme}.{name}.</code> and <code>logging.output.{scheme}.{name}.</code>) prefix. So instead of two separate properties, one can write everything on the URI line:
+(or <code>logging.appender.{name}.encoder.</code> and <code>logging.appender.{name}.output.</code>) prefix. So instead of two separate properties, one can write everything on the URI line:
 
 {@snippet lang=properties :
-logging.appender.example.encoder=gelf:///?prettyPrint=true
+logging.appender.example.encoder.uri=gelf:///?prettyPrint=true
 }
 
 This is not special-cased to <code>encoder</code>/<code>gelf</code>: every URI-configured sub-component looks
@@ -338,17 +342,17 @@ its own properties up the same way. The built-in rolling file output is another 
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10MB
+logging.appender.myapp.output.uri=rolling:///var/log/app.log?maxFileSize=10MB
 
 # the above is equivalent to the more verbose:
-logging.appender.myapp.output=rolling:///var/log/app.log
-logging.output.rolling.myapp.maxFileSize=10MB
+logging.appender.myapp.output.uri=rolling:///var/log/app.log
+logging.appender.myapp.output.maxFileSize=10MB
 }
 
 <strong>
   Precedence: the plain, separately named property is tried first and the URI query parameter is only
   consulted as a fallback when it is missing. If both
-  <code>logging.encoder.gelf.example.prettyPrint</code> and a <code>?prettyPrint=</code> query parameter on the
+  <code>logging.appender.example.encoder.prettyPrint</code> and a <code>?prettyPrint=</code> query parameter on the
   encoder URI are set, the plain property wins and the URI's value is ignored. This lets a URI act as a
   terse, single-line default that a separately set property can still override without editing the URI
   itself. This is not configurable: every {@link io.jstach.rainbowgum.LogBuilder} resolves its properties
@@ -369,9 +373,9 @@ These keys canonical end in <code>"s"</code> and are comma separated.
 
 {@snippet lang=properties :
 logging.appenders=appender1,appender2 # appenders that are enabled.
-logging.appender.appender1.encoder=...
-logging.appender.appender2.output=...
-logging.appender.appender3.output=....
+logging.appender.appender1.encoder.uri=...
+logging.appender.appender2.output.uri=...
+logging.appender.appender3.output.uri=....
 }
 
 One empty element at the start or end of a list is ignored, so a value assembled from parts that may be missing
@@ -380,9 +384,9 @@ whatever reads the list. Map properties are either a single value (<code>a=1&amp
 only hold flat values such as environment variables, a list of keys with one property per value:
 
 {@snippet lang=properties :
-logging.encoder.gelf.myappender.headers.keys=environment,region
-logging.encoder.gelf.myappender.headers.environment=prod
-logging.encoder.gelf.myappender.headers.region=us east
+logging.appender.myappender.encoder.headers.keys=environment,region
+logging.appender.myappender.encoder.headers.environment=prod
+logging.appender.myappender.encoder.headers.region=us east
 }
 
 In the above the configuration of <code>appender3</code> will not be used
@@ -405,8 +409,8 @@ logging.route.default.publisher=sync
 # logging.appenders is shorthand for logging.route.default.appenders: it only
 # works as a fallback for the "default" route, not any other route name.
 logging.appenders=console
-logging.appender.console.output=stdout
-logging.appender.console.encoder=ttll
+logging.appender.console.output.uri=stdout
+logging.appender.console.encoder.uri=ttll
 }
 
 A few things worth calling out about the above:
@@ -632,8 +636,8 @@ logging.route.mycompany.appenders=mycompany
 logging.route.mycompany.level.com.mycompany=DEBUG
 logging.route.console.level=WARN
 logging.route.console.appenders=console
-logging.appender.mycompany.output=file:///./mycompany.log
-logging.appender.console.output=stdout
+logging.appender.mycompany.output.uri=file:///./mycompany.log
+logging.appender.console.output.uri=stdout
 }
 
 In the above the route <em>"console"</em> will output log entries that
@@ -842,8 +846,8 @@ looks something like:
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.encoder=gelf
-logging.encoder.gelf.myappender.prettyPrint=true
+logging.appender.myappender.encoder.uri=gelf
+logging.appender.myappender.encoder.prettyPrint=true
 }
 
 The above will use the GELF JSON encoder and configure it to pretty print.
@@ -875,8 +879,8 @@ require <a href="https://jsonlines.org/">JSON Lines</a> this encoder will keep e
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.encoder=gelf
-logging.encoder.gelf.myappender.host=somehost
+logging.appender.myappender.encoder.uri=gelf
+logging.appender.myappender.encoder.host=somehost
 }
 
 <h4 id="ecs">ECS JSON Encoder</h4>
@@ -886,16 +890,16 @@ logging.encoder.gelf.myappender.host=somehost
     JSON, URI scheme {@value io.jstach.rainbowgum.json.encoder.EcsEncoder#ECS_SCHEME}. Two shapes are supported:
     by default field names are the flattened, dotted ECS names (e.g. <code>"log.level"</code>) as the reference
     <a href="https://github.com/elastic/ecs-logging-java">ecs-logging-java</a> implementation writes them; setting
-    <code>logging.encoder.ecs.{name}.structured=true</code> instead nests fields as JSON objects (e.g.
+    <code>logging.appender.{name}.encoder.structured=true</code> instead nests fields as JSON objects (e.g.
     <code>"log":{"level":...}</code>) matching
     <a href="https://docs.spring.io/spring-boot/reference/features/logging.html">Spring Boot's ECS structured
     logging format</a>. MDC / key values have no reserved ECS field in either shape so, matching both reference
     implementations, they are written as top-level fields using their own key name:
     {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.encoder=ecs
-logging.encoder.ecs.myappender.serviceName=myapp
-logging.encoder.ecs.myappender.structured=true
+logging.appender.myappender.encoder.uri=ecs
+logging.appender.myappender.encoder.serviceName=myapp
+logging.appender.myappender.encoder.structured=true
     }
 
 <h4 id="logstash">Logstash JSON Encoder</h4>
@@ -909,8 +913,8 @@ logging.encoder.ecs.myappender.structured=true
     (defaults to the system default zone):
     {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.encoder=logstash
-logging.encoder.logstash.myappender.zoneId=UTC
+logging.appender.myappender.encoder.uri=logstash
+logging.appender.myappender.encoder.zoneId=UTC
     }
 
 <h4 id="logback_json">Logback JSON Encoder</h4>
@@ -923,7 +927,7 @@ logging.encoder.logstash.myappender.zoneId=UTC
 
     {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.encoder=logback
+logging.appender.myappender.encoder.uri=logback
     }
 
 
@@ -958,8 +962,8 @@ Each part can be changed with properties of the encoder, much like slf4j-simple'
 values format or dropping the time does not require the pattern module:
 
 {@snippet lang=properties :
-logging.encoder.ttll.console.timestamp=iso
-logging.encoder.ttll.console.keyValues=json5
+logging.appender.console.encoder.timestamp=iso
+logging.appender.console.encoder.keyValues=json5
 }
 
 {@snippet :
@@ -1020,7 +1024,7 @@ it is stored exactly as written, while logfmt or JSON key values would be stored
 Use <code>json</code> or <code>json5</code> when a tool downstream reads that format
 instead.
 </p>
-The same settings work as a URI query (<code>logging.appender.console.encoder=ttll:///?keyValues=json5</code>) and
+The same settings work as a URI query (<code>logging.appender.console.encoder.uri=ttll:///?keyValues=json5</code>) and
 programmatically through {@link io.jstach.rainbowgum.format.TTLLFormatterBuilder}. See
 {@link io.jstach.rainbowgum.format.TTLL}.
 
@@ -1032,7 +1036,7 @@ Loki, Vector, and similar tools. It is built into core, so no extra module is ne
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.encoder=logfmt
+logging.appender.myappender.encoder.uri=logfmt
 }
 
 {@snippet :
@@ -1041,7 +1045,7 @@ time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=
 
 Key values follow the message, and a throwable adds <code>error</code> and <code>stacktrace</code> with line
 breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum.format.LogfmtFormatterBuilder}, which also sets the level format, for example
-<code>logging.encoder.logfmt.myappender.levelFormatter=right_pad_level_formatter</code>.
+<code>logging.appender.myappender.encoder.levelFormatter=right_pad_level_formatter</code>.
 
 <p>
 Values are colored with the same <code>color</code> and <code>theme</code> properties as the
@@ -1058,7 +1062,7 @@ logs TTLL can switch to structured logging, for example while hunting a bug, by 
 adding a module:
 
 {@snippet lang=properties :
-logging.appender.console.encoder=json5
+logging.appender.console.encoder.uri=json5
 }
 
 {@snippet :
@@ -1174,7 +1178,7 @@ module's default pattern.
 </p>
 
 {@snippet lang=properties :
-logging.encoder.pattern.console.pattern=%highlight(%-5level){ERROR=red bold, INFO=blue bold, WARN=red} %msg%n
+logging.appender.console.encoder.pattern=%highlight(%-5level){ERROR=red bold, INFO=blue bold, WARN=red} %msg%n
 }
 
 <h4 id="pattern_encoder_config">Selecting and Configuring the Pattern Encoder</h4>
@@ -1185,8 +1189,8 @@ often all that is needed:
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.encoder=pattern
-logging.encoder.pattern.myappender.pattern=[%thread] %-5level %logger{15} - %msg%n
+logging.appender.myappender.encoder.uri=pattern
+logging.appender.myappender.encoder.pattern=[%thread] %-5level %logger{15} - %msg%n
 }
 
 To stop the pattern encoder from being used as the default for console output (falling back to the plain TTLL
@@ -1202,7 +1206,7 @@ the start time used by {@code %r}/{@code %relative}. It is resolved <em>per enco
 each have their own:
 
 {@snippet lang=properties :
-logging.appender.myappender.encoder=pattern
+logging.appender.myappender.encoder.uri=pattern
 logging.pattern.config.myappender.zoneId=UTC
 logging.pattern.config.myappender.lineSeparator=\n
 logging.pattern.config.myappender.ansiDisabled=true
@@ -1238,7 +1242,7 @@ patterns, packaging data) but prints the root cause first and works back up thro
 under several layers of wrapping and you want it to be the first thing you see:
 
 {@snippet lang=properties :
-logging.encoder.pattern.myappender.pattern=%msg%n%rEx
+logging.appender.myappender.encoder.pattern=%msg%n%rEx
 }
 
 To opt out and suppress exception rendering entirely, add <code>%nopex</code> (or <code>%nopexception</code>)
@@ -1246,7 +1250,7 @@ anywhere in the pattern (like the other throwable keywords, its mere presence is
 automatic append), and it renders nothing itself:
 
 {@snippet lang=properties :
-logging.encoder.pattern.myappender.pattern=%msg%nopex
+logging.appender.myappender.encoder.pattern=%msg%nopex
 }
 
 <h3 id="jansi">JAnsi support (largely legacy)</h3>
@@ -1306,7 +1310,7 @@ looks something like:
 
 {@snippet lang=properties :
   logging.appenders=myappender
-  logging.appender.myappender.output=stdout
+  logging.appender.myappender.output.uri=stdout
 }
 
 One caveat with file support output via URI is if you need to output to a file in the current working directory
@@ -1314,8 +1318,8 @@ the URI should be prefixed with <code>./</code>.
 
 {@snippet lang=properties :
   logging.appenders=myappender
-  # logging.appender.myappender.output=app.log this is wrong.
-  logging.appender.myappender.output=./app.log
+  # logging.appender.myappender.output.uri=app.log this is wrong.
+  logging.appender.myappender.output.uri=./app.log
 }
 
 The reason is that Rainbow Gum will think <code>app.log</code> is a URI scheme if it is not prefixed.
@@ -1349,12 +1353,12 @@ module, and need no further configuration beyond the URI scheme itself:
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=stdout
+logging.appender.myapp.output.uri=stdout
 }
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=stderr
+logging.appender.myapp.output.uri=stderr
 }
 
 <p>
@@ -1367,9 +1371,9 @@ example so a test that captures standard out also captures log output), set the
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=stdout:///?stream=follow
+logging.appender.myapp.output.uri=stdout:///?stream=follow
 # or equivalently
-logging.output.stdout.myapp.stream=follow
+logging.appender.myapp.output.stream=follow
 }
 
 <p>
@@ -1389,7 +1393,7 @@ plain, non-rolling file output under the "file" URI scheme,
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=file:///var/log/app.log
+logging.appender.myapp.output.uri=file:///var/log/app.log
 }
 
 See {@link io.jstach.rainbowgum.file.FileOutputBuilder} for the full list of supported
@@ -1409,13 +1413,13 @@ same way as any other JFR event, not through Rainbow Gum properties.
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.output=jfr:///
+logging.appender.myappender.output.uri=jfr:///
 }
 
 Leaving <code>encoder</code> unset picks up {@link io.jstach.rainbowgum.jfr.JfrLogOutput}'s own default encoder,
 which renders the message followed by any key values, e.g. <code>some message - {key=value}</code> - no
 timestamp/level/logger prefix, since the JFR event already carries those as separate fields. Set
-<code>logging.appender.myappender.encoder</code> explicitly to override it.
+<code>logging.appender.myappender.encoder.uri</code> explicitly to override it.
 
 <h4 id="jfr_starting">Starting A Recording</h4>
 
@@ -1442,7 +1446,7 @@ outside the <code>logging.appender.*.output</code> property already being set fo
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.output=jfr:///var/log/myapp.jfr
+logging.appender.myappender.output.uri=jfr:///var/log/myapp.jfr
 }
 
 <p>
@@ -1493,7 +1497,7 @@ size based rolling file output under the "rolling" URI scheme,
 
 {@snippet lang=properties :
 logging.appenders=myapp
-logging.appender.myapp.output=rolling:///var/log/app.log?maxFileSize=10MB&maxHistory=7
+logging.appender.myapp.output.uri=rolling:///var/log/app.log?maxFileSize=10MB&maxHistory=7
 }
 
 See {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder} for the full list of
@@ -1503,7 +1507,7 @@ properties ({@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#maxFile
 {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#cleanHistoryOnStart(Boolean) cleanHistoryOnStart},
 {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#fileNamePattern(String) fileNamePattern}) and their defaults. They
 work equally well as query parameters above or as
-<code>logging.output.rolling.{name}.*</code> properties.
+<code>logging.appender.{name}.output.*</code> properties.
 
 <p>
 <code>maxFileSize</code> and <code>totalSizeCap</code> take a number with an optional unit,
@@ -1551,7 +1555,7 @@ Let us assume the above code is bound to <code>http://localhost:8080/log/rotate<
 
 {@snippet lang=properties :
   logging.appenders=myappender
-  logging.appender.myappender.output=/var/log/app.log
+  logging.appender.myappender.output.uri=/var/log/app.log
 }
 
 We might have a logrotate script that looks like:
@@ -1613,9 +1617,9 @@ network:
 
 {@snippet lang=properties :
 logging.appenders=otel
-logging.appender.otel.output=otlp:///
-logging.output.otlp.otel.endpoint=http://collector:4318/v1/logs
-logging.output.otlp.otel.serviceName=orders
+logging.appender.otel.output.uri=otlp:///
+logging.appender.otel.output.endpoint=http://collector:4318/v1/logs
+logging.appender.otel.output.serviceName=orders
 logging.route.default.publisher=async
 }
 
@@ -1633,7 +1637,7 @@ reading the process environment is not something Rainbow Gum does by default:
 </p>
 
 {@snippet lang=properties :
-logging.output.otlp.otel.environmentVariables=on
+logging.appender.otel.output.environmentVariables=on
 }
 
 With that set, <code>OTEL_SERVICE_NAME</code>, <code>OTEL_RESOURCE_ATTRIBUTES</code>, and the
@@ -1648,8 +1652,8 @@ OpenTelemetry Collector read it with its <code>otlpjsonfile</code> receiver or i
 receiver and <code>otlpjson</code> connector:
 
 {@snippet lang=properties :
-logging.appender.console.encoder=otlp:///
-logging.encoder.otlp.console.serviceName=orders
+logging.appender.console.encoder.uri=otlp:///
+logging.appender.console.encoder.serviceName=orders
 }
 
 The OTLP/HTTP output and OTLP/JSON encoder carry the same record content: the formatted message as the body,
@@ -1893,35 +1897,33 @@ logging.route.errors.level=ERROR
 
 logging.publisher.structured.bufferSize=2048
 
-logging.appender.console.output=stdout
-logging.appender.console.encoder=pattern
+logging.appender.console.output.uri=stdout
+logging.appender.console.encoder.uri=pattern
 
-logging.appender.jsonfile.output=./logs/orders.json.log
-logging.appender.jsonfile.encoder=gelf
+logging.appender.jsonfile.output.uri=./logs/orders.json.log
+logging.appender.jsonfile.encoder.uri=gelf
 logging.appender.jsonfile.type=reuse_buffer
 
-logging.appender.errorfile.output=./logs/orders-error.log?bufferSize=10000
-logging.appender.errorfile.encoder=pattern
+logging.appender.errorfile.output.uri=./logs/orders-error.log?bufferSize=10000
+logging.appender.errorfile.encoder.uri=pattern
 
-logging.encoder.pattern.console.pattern=[%thread] %-5level %logger{36} - %msg%n
+logging.appender.console.encoder.pattern=[%thread] %-5level %logger{36} - %msg%n
 
-logging.encoder.gelf.jsonfile.host=orders-service
-logging.encoder.gelf.jsonfile.prettyPrint=false
+logging.appender.jsonfile.encoder.host=orders-service
+logging.appender.jsonfile.encoder.prettyPrint=false
 
-logging.encoder.pattern.errorfile.pattern=%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n%ex
+logging.appender.errorfile.encoder.pattern=%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n%ex
 }
 
 Three things worth calling out, all confirmed by actually running the above (not just written by hand):
 
 <p>
-<strong>Encoder configuration is keyed by appender name, but lives under a completely
-different property prefix than the appender itself.</strong> The <code>console</code> appender's
-own settings are under <code>logging.appender.console.*</code>, but its encoder's settings are under
-<code>logging.encoder.pattern.console.*</code>: a sibling prefix, not a child of the appender's, that also
-names the encoder type.
-The same is true for <code>jsonfile</code> and <code>errorfile</code>. Conceptually the encoder
-belongs to the appender; in the property key space it is just another top level component that
-happens to share the appender's name.
+<strong>Encoder and output configuration lives under the appender.</strong> The
+<code>console</code> appender's encoder is picked by <code>logging.appender.console.encoder.uri</code> and
+configured by the other <code>logging.appender.console.encoder.*</code> keys, so everything about one
+appender sits together. The same is true for <code>jsonfile</code> and <code>errorfile</code>. Switching
+<code>encoder.uri</code> to another type keeps the other <code>encoder.*</code> keys, so remove the ones the
+new type does not have.
 </p>
 
 <p>
@@ -1939,12 +1941,12 @@ override to restate it.
 <p>
 <strong>A property value that is itself a URI can carry its own query parameters, as an
 alternative to separate <code>logging.&#8203;&lt;component&gt;.&lt;name&gt;.&lt;param&gt;</code>
-properties.</strong> <code>logging.appender.errorfile.output</code> above is set to
+properties.</strong> <code>logging.appender.errorfile.output.uri</code> above is set to
 <code>./logs/orders-error.log?bufferSize=10000</code> rather than a bare path: the part before
 <code>?</code> is still resolved as the file path exactly as with a bare path, and everything
 after <code>?</code> is parsed the same way a query string would be and made available as
 properties scoped to that output: here, <code>bufferSize</code>, equivalent to also having
-written <code>logging.output.file.errorfile.bufferSize=10000</code> on its own line. This works for a
+written <code>logging.appender.errorfile.output.bufferSize=10000</code> on its own line. This works for a
 relative, scheme-less path just as well as it does for an explicit <code>file://</code> URI; which
 style to use is purely a matter of preference for how compact versus explicit the properties file
 should read.
@@ -3001,15 +3003,15 @@ In <code>help</code> mode Rainbow Gum:
 For example, misspelling a property on the command line:
 
 {@snippet :
-java -Dlogging.debug=help -Dlogging.encoder.ttll.console.levle=plain -jar app.jar
+java -Dlogging.debug=help -Dlogging.appender.console.encoder.levle=plain -jar app.jar
 }
 
 prints the report and then:
 
 {@snippet :
-[WARN] - RAINBOW_GUM - LogConfig - Property key 'logging.encoder.ttll.console.levle' from SYSTEM_PROPERTIES[logging.encoder.ttll.console.levle] was set but not read during startup. Did you mean 'logging.encoder.ttll.console.level'?
+[WARN] - RAINBOW_GUM - LogConfig - Property key 'logging.appender.console.encoder.levle' from SYSTEM_PROPERTIES[logging.appender.console.encoder.levle] was set but not read during startup. Did you mean 'logging.appender.console.encoder.level'?
 java.lang.IllegalStateException: 1 alert(s) at warning or above were recorded while starting and logging.debug=help:
-[WARNING] Property key 'logging.encoder.ttll.console.levle' from SYSTEM_PROPERTIES[logging.encoder.ttll.console.levle] was set but not read during startup. Did you mean 'logging.encoder.ttll.console.level'?
+[WARNING] Property key 'logging.appender.console.encoder.levle' from SYSTEM_PROPERTIES[logging.appender.console.encoder.levle] was set but not read during startup. Did you mean 'logging.appender.console.encoder.level'?
 }
 
 Because Rainbow Gum usually starts on the first logger an application asks for, the failure

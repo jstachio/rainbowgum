@@ -54,11 +54,11 @@ One line, printed to the console without any extra setup - better than Logback's
 default. But it names neither the appender nor the config file/property path, and it's
 easy to lose in a normal amount of startup log noise.
 
-**Rainbow Gum** (`logging.output.rolling.file.maxFileSize=notanumber`):
+**Rainbow Gum** (`logging.appender.file.output.maxFileSize=notanumber`):
 
 ```
 Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-Error for property. key: 'logging.output.rolling.file.maxFileSize' from PROPERTIES_STRING[logging.output.rolling.file.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
+Error for property. key: 'logging.appender.file.output.maxFileSize' from PROPERTIES_STRING[logging.appender.file.output.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
 ```
 
 Thrown as an actual exception at startup - the application does not start with a broken
@@ -97,15 +97,15 @@ The zone is silently ignored and the default system zone is used instead - the l
 comes out with a perfectly normal-looking timestamp, giving no indication anything was
 misconfigured.
 
-**Rainbow Gum** (`logging.encoder.logstash.list.zoneId=Not/AZone`), shown here as the full
+**Rainbow Gum** (`logging.appender.list.encoder.zoneId=Not/AZone`), shown here as the full
 end-to-end message a real misconfigured `RainbowGum.builder(config).build()` actually
 produces, not just the innermost builder's own message:
 
 ```
 Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder:
-Error for property. key: 'logging.encoder.logstash.list.zoneId' from PROPERTIES_STRING[logging.encoder.logstash.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
-Tried: 'logging.encoder.logstash.list.zoneId' from PROPERTIES_STRING[logging.encoder.logstash.list.zoneId], [logging.appender.list.encoder]->URI(logstash:///)[zoneId]
-  ↳ Error converting property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash'
+Error for property. key: 'logging.appender.list.encoder.zoneId' from PROPERTIES_STRING[logging.appender.list.encoder.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
+Tried: 'logging.appender.list.encoder.zoneId' from PROPERTIES_STRING[logging.appender.list.encoder.zoneId], [logging.appender.list.encoder.uri]->URI(logstash:///)[zoneId]
+  ↳ Error converting property. key: 'logging.appender.list.encoder.uri' from PROPERTIES_STRING[logging.appender.list.encoder.uri], value: 'logstash'
   ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
   ↳ Failure providing Appenders for route: 'default'.
 ```
@@ -118,11 +118,11 @@ in the order it wrapped the failure, for whoever wants to trace it back up.
 
 ## Scenario 3: an unrecognized charset name
 
-**Rainbow Gum** (`logging.encoder.pattern.list.charset=not-a-charset`):
+**Rainbow Gum** (`logging.appender.list.encoder.charset=not-a-charset`):
 
 ```
 Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
-Error for property. key: 'logging.encoder.pattern.list.charset' from PROPERTIES_STRING[logging.encoder.pattern.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset
+Error for property. key: 'logging.appender.list.encoder.charset' from PROPERTIES_STRING[logging.appender.list.encoder.charset], java.nio.charset.UnsupportedCharsetException not-a-charset
 ```
 
 Logback and Log4j2 equivalents not yet captured here - a good next addition to this

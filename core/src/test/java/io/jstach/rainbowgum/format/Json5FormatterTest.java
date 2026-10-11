@@ -46,7 +46,7 @@ class Json5FormatterTest {
 
 	private static String log(String encoder, String properties, LogEvent event) {
 		var output = new ListLogOutput();
-		String all = "logging.appenders=list\nlogging.appender.list.output=list\nlogging.appender.list.encoder="
+		String all = "logging.appenders=list\nlogging.appender.list.output.uri=list\nlogging.appender.list.encoder.uri="
 				+ encoder + "\n" + properties;
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(all).build()).build();
 		config.outputRegistry().register("list", ref -> LogProvider.of(output));
@@ -135,11 +135,11 @@ class Json5FormatterTest {
 	@Test
 	void jsonEncoderSchemeAndProperties() {
 		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n", log("json5",
-				"logging.encoder.json5.list.format=json\n", event("hello world", requestKeyValues(), null)));
+				"logging.appender.list.encoder.format=json\n", event("hello world", requestKeyValues(), null)));
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",thread:\"main\","
 						+ "msg:\"hello world\",keyValues:{requestId:\"42\",user:\"Ada Lovelace\"}}\n",
-				log("json5", "logging.encoder.json5.list.keyValues=nested\n",
+				log("json5", "logging.appender.list.encoder.keyValues=nested\n",
 						event("hello world", requestKeyValues(), null)));
 		assertEquals(PREFIX + "}\n",
 				log("json5:///?format=json&keyValues=false", "", event("hello world", requestKeyValues(), null)));
@@ -147,7 +147,7 @@ class Json5FormatterTest {
 
 	@Test
 	void nonJsonFormatFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.json5.list.format=percent").build();
+		var properties = LogProperties.builder().fromProperties("logging.appender.list.encoder.format=percent").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new Json5FormatterBuilder("list").fromProperties(properties).build());
 		assertEquals(
@@ -161,9 +161,9 @@ class Json5FormatterTest {
 		String off = "{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",thread:\"main\","
 				+ "msg:\"hello\"}\n";
 		String padded = off.replace("\"INFO\",", "\"INFO\" ,");
-		assertEquals(off, log("json5", "logging.encoder.json5.list.prettyPrint=false\n", event));
+		assertEquals(off, log("json5", "logging.appender.list.encoder.prettyPrint=false\n", event));
 		assertEquals(padded, log("json5:///?prettyPrint=default", "", event));
-		assertEquals(padded, log("json5", "logging.encoder.json5.list.prettyPrint=level_padding\n", event));
+		assertEquals(padded, log("json5", "logging.appender.list.encoder.prettyPrint=level_padding\n", event));
 		String full = """
 				{
 				 time:"2026-10-05T15:04:05.123Z",
@@ -173,20 +173,20 @@ class Json5FormatterTest {
 				 msg:"hello"
 				}
 				""";
-		assertEquals(full, log("json5", "logging.encoder.json5.list.prettyPrint=full\n", event));
-		assertEquals(full, log("json5", "logging.encoder.json5.list.prettyPrint=true\n", event));
+		assertEquals(full, log("json5", "logging.appender.list.encoder.prettyPrint=full\n", event));
+		assertEquals(full, log("json5", "logging.appender.list.encoder.prettyPrint=true\n", event));
 	}
 
 	@Test
 	void invalidPrettyPrintFails() {
 		var properties = LogProperties.builder()
-			.fromProperties("logging.encoder.json5.list.prettyPrint=pretty")
+			.fromProperties("logging.appender.list.encoder.prettyPrint=pretty")
 			.build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new Json5FormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder:
-				Error for property. key: 'logging.encoder.json5.list.prettyPrint' from PROPERTIES_STRING[logging.encoder.json5.list.prettyPrint], \
+				Error for property. key: 'logging.appender.list.encoder.prettyPrint' from PROPERTIES_STRING[logging.appender.list.encoder.prettyPrint], \
 				'pretty' is not a valid value for io.jstach.rainbowgum.format.Json5PrettyPrint. \
 				Valid values: 'off', 'level_padding', 'spacing', 'full', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
@@ -194,12 +194,12 @@ class Json5FormatterTest {
 
 	@Test
 	void invalidKeyValuesFails() {
-		var properties = LogProperties.builder().fromProperties("logging.encoder.json5.list.keyValues=flat").build();
+		var properties = LogProperties.builder().fromProperties("logging.appender.list.encoder.keyValues=flat").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new Json5FormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder:
-				Error for property. key: 'logging.encoder.json5.list.keyValues' from PROPERTIES_STRING[logging.encoder.json5.list.keyValues], \
+				Error for property. key: 'logging.appender.list.encoder.keyValues' from PROPERTIES_STRING[logging.appender.list.encoder.keyValues], \
 				'flat' is not a valid value for io.jstach.rainbowgum.format.KeyValuesPlacement. \
 				Valid values: 'merged', 'nested', 'none', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
@@ -328,9 +328,9 @@ class Json5FormatterTest {
 				+ " , logger:" + E + "36m\"com.example.App\"" + R + ", thread:" + E + "2;39m\"main\"" + R
 				+ ", msg:\"hello\"}\n";
 		assertEquals(expected, log("json5", """
-				logging.encoder.json5.list.prettyPrint=spacing
-				logging.encoder.json5.list.color=force
-				logging.encoder.json5.list.theme=spring
+				logging.appender.list.encoder.prettyPrint=spacing
+				logging.appender.list.encoder.color=force
+				logging.appender.list.encoder.theme=spring
 				""", event("hello", KeyValues.of(), null)));
 	}
 

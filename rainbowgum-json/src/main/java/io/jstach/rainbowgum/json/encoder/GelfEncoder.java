@@ -117,7 +117,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * (the default) disables this entirely.
 	 * @return encoder.
 	 */
-	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX + "gelf.{name}.")
+	@LogConfigurable(prefix = LogProperties.ENCODER_PREFIX)
 	static GelfEncoder of(@LogConfigurable.KeyParameter String name, String host, //
 			@Nullable Map<String, String> headers, //
 			@Nullable Boolean prettyPrint, @Nullable Integer timeFractionalDigits, @Nullable Integer maxBufferSize) {

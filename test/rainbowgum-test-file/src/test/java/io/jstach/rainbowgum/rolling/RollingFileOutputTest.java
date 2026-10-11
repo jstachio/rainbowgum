@@ -48,9 +48,9 @@ class RollingFileOutputTest {
 
 		LogConfig config() {
 			return LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-					logging.output.rolling.file.prudent=%s
-					logging.output.rolling.file.bufferSize=%s
-					logging.output.rolling.file.append=false
+					logging.appender.file.output.prudent=%s
+					logging.appender.file.output.bufferSize=%s
+					logging.appender.file.output.append=false
 					""".formatted(this == PRUDENT, this == UNBUFFERED ? 0 : 8192)).build()).build();
 		}
 
@@ -393,7 +393,7 @@ class RollingFileOutputTest {
 		// DefaultRollingFileOutput.write(ByteBuffer, ...) forwards straight through -
 		// this is the only way to reach that overload.
 		Path active = dir.resolve("app.log");
-		var props = LogProperties.builder().fromProperties("logging.output.rolling.file.prudent=true").build();
+		var props = LogProperties.builder().fromProperties("logging.appender.file.output.prudent=true").build();
 		var config = LogConfig.builder().properties(props).build();
 		var provider = RollingFileOutput.of(b -> {
 			b.fileName(active.toString());
@@ -481,7 +481,7 @@ class RollingFileOutputTest {
 	void rollingUriSchemeWithoutQueryParamsUsesPlainConfigProperties() throws IOException {
 		Path active = dir.resolve("noquery.log");
 		var props = LogProperties.builder()
-			.fromProperties("logging.output.rolling.file.maxFileSize=1\nlogging.output.rolling.file.maxHistory=1")
+			.fromProperties("logging.appender.file.output.maxFileSize=1\nlogging.appender.file.output.maxHistory=1")
 			.build();
 		var config = LogConfig.builder().serviceLoader().properties(props).build();
 		var uri = URI.create("rolling://" + active.toAbsolutePath());

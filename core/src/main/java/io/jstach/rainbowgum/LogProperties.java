@@ -128,29 +128,24 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <tr>
  * <td>{@value #APPENDER_OUTPUT_PROPERTY } = <code>URI</code></td>
  * <td>Looks up an output by URI scheme using the {@link LogOutputRegistry}. The output is
- * then configured by properties with {@value #OUTPUT_PREFIX} + <code>scheme</code> +
- * <code>.{name}.</code>.</td>
+ * then configured by the other properties starting with {@value #OUTPUT_PREFIX}.</td>
  * </tr>
  * <tr>
  * <td>{@value #APPENDER_ENCODER_PROPERTY } = <code>URI</code></td>
  * <td>Looks up an encoder by URI scheme using the {@link LogEncoderRegistry}. The encoder
- * is then configured by properties with {@value #ENCODER_PREFIX} + <code>scheme</code> +
- * <code>.{name}.</code>.</td>
+ * is then configured by the other properties starting with {@value #ENCODER_PREFIX}.</td>
  * </tr>
  * <tr>
- * <td>{@value #OUTPUT_PREFIX} + <code>scheme</code> + <code>.{name}.</code> +
- * <code>propertyName</code></td>
- * <td>Configures the named output of the type selected by the URI scheme, for example
- * <code>logging.output.file.file.bufferSize</code>. The name of the output usually comes
- * from the appender.</td>
+ * <td>{@value #OUTPUT_PREFIX} + <code>propertyName</code></td>
+ * <td>Configures the appender's output, for example
+ * <code>logging.appender.file.output.bufferSize</code>. An output built without an
+ * appender uses its own name in place of the appender's.</td>
  * </tr>
  * <tr>
- * <td>{@value #ENCODER_PREFIX} + <code>scheme</code> + <code>.{name}.</code> +
- * <code>propertyName</code></td>
- * <td>Configures the named encoder of the type selected by the URI scheme, for example
- * <code>logging.encoder.json5.console.keyValues</code>. Each type has its own keys, so
- * switching an appender's encoder leaves the other type's settings unread rather than
- * misread. The name of the encoder usually comes from the appender.</td>
+ * <td>{@value #ENCODER_PREFIX} + <code>propertyName</code></td>
+ * <td>Configures the appender's encoder, for example
+ * <code>logging.appender.console.encoder.keyValues</code>. An encoder built without an
+ * appender uses its own name in place of the appender's.</td>
  * </tr>
  * <tr>
  * <td>{@value #FILE_PROPERTY} = URI</td>
@@ -372,18 +367,6 @@ public interface LogProperties {
 	static final String DEFAULT_NAME = "default";
 
 	/**
-	 * Logging output prefix for configuration, followed by the output's URI scheme and
-	 * then <code>.{name}.</code>, for example <code>logging.output.file.{name}.</code>.
-	 */
-	static final String OUTPUT_PREFIX = ROOT_PREFIX + "output.";
-
-	/**
-	 * Logging encoder prefix for configuration, followed by the encoder's URI scheme and
-	 * then <code>.{name}.</code>, for example <code>logging.encoder.json5.{name}.</code>.
-	 */
-	static final String ENCODER_PREFIX = ROOT_PREFIX + "encoder.";
-
-	/**
 	 * Enabled Logging appenders. The value should be a list of names. This is equivalent
 	 * to {@value #ROUTE_APPENDERS_PROPERTY} with name "default".
 	 */
@@ -395,14 +378,26 @@ public interface LogProperties {
 	static final String APPENDER_PREFIX = ROOT_PREFIX + "appender.{" + NAME + "}.";
 
 	/**
+	 * Prefix of the properties configuring an appender's output, which is also used for
+	 * an output built without an appender.
+	 */
+	static final String OUTPUT_PREFIX = APPENDER_PREFIX + "output.";
+
+	/**
+	 * Prefix of the properties configuring an appender's encoder, which is also used for
+	 * an encoder built without an appender.
+	 */
+	static final String ENCODER_PREFIX = APPENDER_PREFIX + "encoder.";
+
+	/**
 	 * Output appender property.
 	 */
-	static final String APPENDER_OUTPUT_PROPERTY = LogProperties.APPENDER_PREFIX + "output";
+	static final String APPENDER_OUTPUT_PROPERTY = OUTPUT_PREFIX + "uri";
 
 	/**
 	 * Encoder appender property.
 	 */
-	static final String APPENDER_ENCODER_PROPERTY = LogProperties.APPENDER_PREFIX + "encoder";
+	static final String APPENDER_ENCODER_PROPERTY = ENCODER_PREFIX + "uri";
 
 	/**
 	 * Appender flags. A list of flags (usually comma separated).
@@ -522,10 +517,10 @@ public interface LogProperties {
 	 * "https://www.w3.org/TR/2014/REC-html5-20141028/forms.html#url-encoded-form-data">
 	 * application/x-www-form-urlencoded</a>) for entries needing to contain the separator
 	 * or an equals sign, for example: <pre><code>
-	 * logging.encoder.gelf.console.headers=environment=prod,region=us-east
+	 * logging.appender.console.encoder.headers=environment=prod,region=us-east
 	 * </code></pre> resolves to
 	 * <code>{"environment": "prod", "region": "us-east"}</code>, and: <pre><code>
-	 * logging.encoder.gelf.console.headers=region=us%20east
+	 * logging.appender.console.encoder.headers=region=us%20east
 	 * </code></pre> (a percent-encoded space) resolves to
 	 * <code>{"region": "us east"}</code>.
 	 * <p>
@@ -533,9 +528,9 @@ public interface LogProperties {
 	 * in <code>key.keys</code> and each value in <code>key.</code><em>mapKey</em>, which
 	 * works with sources that only hold flat values such as system properties or
 	 * environment variables, keeps the declared order, and needs no encoding: <pre><code>
-	 * logging.encoder.gelf.headers.keys=environment,region
-	 * logging.encoder.gelf.headers.environment=prod
-	 * logging.encoder.gelf.headers.region=us east
+	 * logging.appender.console.encoder.headers.keys=environment,region
+	 * logging.appender.console.encoder.headers.environment=prod
+	 * logging.appender.console.encoder.headers.region=us east
 	 * </code></pre> A key listed without a value is an error.
 	 * @param key property name.
 	 * @return map or <code>null</code>.

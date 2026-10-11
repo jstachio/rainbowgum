@@ -101,7 +101,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		 * Unchanged from before the appender-construction refactor unified everything
 		 * else onto LogAppender.Builder: LogProperties.FILE_PROPERTY (Spring Boot's
 		 * logging.file.name) is chained ahead of the generic
-		 * logging.appender.file.output, and LogProperty.mapValue's own
+		 * logging.appender.file.output.uri, and LogProperty.mapValue's own
 		 * exception-to-rich-property-error wrapping around the URI-to-LogProviderRef
 		 * conversion step (normalizeFileUri/LogProviderRef.of) both need the exact Result
 		 * plumbing below, not something a plain builder setter can express without losing

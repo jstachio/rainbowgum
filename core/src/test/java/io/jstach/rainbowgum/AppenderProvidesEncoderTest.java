@@ -52,7 +52,7 @@ class AppenderProvidesEncoderTest {
 	@Test
 	void mandatoryOutputRejectsExplicitPropertyEncoder() {
 		var props = LogProperties.builder().fromProperties("""
-				logging.appender.a.encoder=ttll:///
+				logging.appender.a.encoder.uri=ttll:///
 				""").build();
 		var config = LogConfig.builder().properties(props).build();
 		var output = new StubOutput(Policy.MANDATORY);
@@ -91,7 +91,7 @@ class AppenderProvidesEncoderTest {
 	@Test
 	void defaultOutputIsOverriddenByExplicitPropertyEncoder() {
 		var props = LogProperties.builder().fromProperties("""
-				logging.appender.a.encoder=ttll:///
+				logging.appender.a.encoder.uri=ttll:///
 				""").build();
 		var config = LogConfig.builder().properties(props).build();
 		var output = new StubOutput(Policy.DEFAULT);

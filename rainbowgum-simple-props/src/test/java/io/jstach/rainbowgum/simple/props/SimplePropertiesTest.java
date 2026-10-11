@@ -32,14 +32,14 @@ class SimplePropertiesTest {
 		var simple = SimpleProperties.builder().profiles("fail").envLookup(k -> null).build();
 		var properties = LogProperties
 			.of(List.of(LogProperties.StandardProperties.SYSTEM_PROPERTIES, LogProperties.of(simple.properties())));
-		String key = "logging.appender.console.encoder";
+		String key = "logging.appender.console.encoder.uri";
 		assertEquals("""
 				Sources:
-				    SYSTEM_PROPERTIES[logging.appender.console.encoder],
-				    SYSTEM_PROPERTIES[logging.appender.console.encoder],
-				    ENV[RAINBOWGUM_appender_console_encoder],
-				    SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder],
-				    SIMPLE_PROPS[classpath:/logging.properties][logging.appender.console.encoder]""",
+				    SYSTEM_PROPERTIES[logging.appender.console.encoder.uri],
+				    SYSTEM_PROPERTIES[logging.appender.console.encoder.uri],
+				    ENV[RAINBOWGUM_appender_console_encoder_uri],
+				    SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder.uri],
+				    SIMPLE_PROPS[classpath:/logging.properties][logging.appender.console.encoder.uri]""",
 				"Sources:" + properties.description(key));
 		var error = assertThrows(ValidationException.class, () -> properties.forKey(key).ofString().map(value -> {
 			throw new IllegalArgumentException("Encoder failed");
@@ -47,14 +47,14 @@ class SimplePropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.simple.props.SimplePropertiesTest:
-						Error for property. key: 'logging.appender.console.encoder' from SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder], Encoder failed
+						Error for property. key: 'logging.appender.console.encoder.uri' from SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder.uri], Encoder failed
 						Tried:
-						    'logging.appender.console.encoder' from:
-						        SYSTEM_PROPERTIES[logging.appender.console.encoder],
-						        SYSTEM_PROPERTIES[logging.appender.console.encoder],
-						        ENV[RAINBOWGUM_appender_console_encoder],
-						        SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder],
-						        SIMPLE_PROPS[classpath:/logging.properties][logging.appender.console.encoder]""",
+						    'logging.appender.console.encoder.uri' from:
+						        SYSTEM_PROPERTIES[logging.appender.console.encoder.uri],
+						        SYSTEM_PROPERTIES[logging.appender.console.encoder.uri],
+						        ENV[RAINBOWGUM_appender_console_encoder_uri],
+						        SIMPLE_PROPS[classpath:/logging-fail.properties:2][logging.appender.console.encoder.uri],
+						        SIMPLE_PROPS[classpath:/logging.properties][logging.appender.console.encoder.uri]""",
 				error.getMessage());
 	}
 

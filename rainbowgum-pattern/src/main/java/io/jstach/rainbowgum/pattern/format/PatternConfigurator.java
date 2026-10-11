@@ -79,7 +79,7 @@ public final class PatternConfigurator implements Configurator {
 		return true;
 	}
 
-	@LogConfigurable(name = "PatternEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX + "pattern.{name}.")
+	@LogConfigurable(name = "PatternEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX)
 	static LogProvider<LogEncoder> provideEncoder(@KeyParameter String name, String pattern,
 			@PassThroughParameter @Nullable PatternCompiler patternCompiler,
 			@ConvertParameter("convertCharset") @Nullable Charset charset, @Nullable Integer maxBufferSize) {

@@ -36,7 +36,7 @@ Deleted
 `src/main/resources/logback.xml` (confirmed first that leaving it in place is
 genuinely harmless: no warning, no double logging, matches the doc's claim). Added
 `src/main/resources/logging.properties`: Rainbow Gum's own property format
-(`logging.level`, `logging.appender.*`, `logging.encoder.*`), not
+(`logging.level`, `logging.appender.*`), not
 `java.util.logging`'s, setting the console appender's encoder to `pattern` with a
 TTLL-like format that tags every line with `[RAINBOW_GUM]` and includes `%X` (MDC), so
 it is visually obvious in the output which system produced a given line and that MDC

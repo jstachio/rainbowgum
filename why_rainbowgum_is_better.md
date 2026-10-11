@@ -278,7 +278,7 @@ follow [12 Factor](https://12factor.net/logs) recommendations: *"unbuffered, to
 stdout"*. That is why file output, rolling file output, are not included in the
 core module (why pay for this when everyone is logging to stdout). 12 Factor
 also recommends [backing services be URI based](https://12factor.net/backing-services).
-Rainbow Gum's output properties are actually URIs: `logging.appender.console.output=stdout:///`
+Rainbow Gum's output properties are actually URIs: `logging.appender.console.output.uri=stdout:///`
 which allows for pretty powerful one line configuration.
 
 While the other logging frameworks can be configured for 12 factor we found
@@ -594,7 +594,7 @@ its options as a URI query string:
 
 ```properties
 logging.appenders=rolling
-logging.appender.rolling.output=rolling:///app.log?maxFileSize=10485760&maxHistory=7
+logging.appender.rolling.output.uri=rolling:///app.log?maxFileSize=10485760&maxHistory=7
 ```
 
 That is not a cherry-picked example; it is how every Rainbow Gum output/encoder is

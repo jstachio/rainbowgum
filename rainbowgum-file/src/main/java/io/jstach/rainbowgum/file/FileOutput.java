@@ -96,7 +96,7 @@ public interface FileOutput extends LogOutput {
 	 * offers - is available to pass into the concrete output's constructor instead of
 	 * only reaching it later through the output's start call.
 	 * @param name name of output not file name.
-	 * @param uri file uri.
+	 * @param uri file uri, set by the appender from its <code>output.uri</code>.
 	 * @param fileName file name.
 	 * @param append whether or not to append to existing file.
 	 * @param prudent logback prudent mode where files are locked on each write.
@@ -107,9 +107,10 @@ public interface FileOutput extends LogOutput {
 	 * {@link java.io.UncheckedIOException} if the file cannot be opened.
 	 */
 	@SuppressWarnings("resource")
-	@LogConfigurable(name = "FileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "file.{name}.")
-	public static LogProvider<FileOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI uri,
-			@Nullable String fileName, @Nullable Boolean append, @Nullable Boolean prudent,
+	@LogConfigurable(name = "FileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX)
+	public static LogProvider<FileOutput> of(@LogConfigurable.KeyParameter String name,
+			@LogConfigurable.PassThroughParameter @Nullable URI uri, @Nullable String fileName,
+			@Nullable Boolean append, @Nullable Boolean prudent,
 			@ConvertParameter("parseDataSize") @DefaultParameter("DEFAULT_BUFFER_SIZE") DataSize bufferSize) {
 		boolean prudent_ = prudent == null ? false : prudent;
 		long bufferBytes = bufferSize.toBytes();

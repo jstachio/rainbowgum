@@ -21,9 +21,9 @@ class LogProviderRefTest {
 
 	@Test
 	void testOfUriAndKey() {
-		var ref = LogProviderRef.of(URI.create("console:///"), "logging.appender.default.output");
+		var ref = LogProviderRef.of(URI.create("console:///"), "logging.appender.default.output.uri");
 		assertEquals(URI.create("console:///"), ref.uri());
-		assertEquals("logging.appender.default.output", ref.keyOrNull());
+		assertEquals("logging.appender.default.output.uri", ref.keyOrNull());
 	}
 
 	@Test
@@ -135,10 +135,10 @@ class LogProviderRefTest {
 
 	@Test
 	void testNormalizeLogProviderRefPreservesKeyAndNormalizesUri() {
-		var ref = LogProviderRef.of(URI.create("console"), "logging.appender.default.output");
+		var ref = LogProviderRef.of(URI.create("console"), "logging.appender.default.output.uri");
 		var normalized = DefaultLogProviderRef.normalize(ref);
 		assertEquals(URI.create("console:///"), normalized.uri());
-		assertEquals("logging.appender.default.output", normalized.keyOrNull());
+		assertEquals("logging.appender.default.output.uri", normalized.keyOrNull());
 	}
 
 }

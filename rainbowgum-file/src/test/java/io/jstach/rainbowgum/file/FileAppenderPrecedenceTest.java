@@ -22,7 +22,7 @@ import io.jstach.rainbowgum.RainbowGum;
  * the generic appender output property is absent, see core's own
  * {@code DefaultAppenderPrecedenceTest}), {@link LogProperties#FILE_PROPERTY} (Spring
  * Boot's {@code logging.file.name}) is meant to outrank the generic
- * {@code logging.appender.file.output} outright, even when both are present. This
+ * {@code logging.appender.file.output.uri} outright, even when both are present. This
  * precedence needs the real {@code file:} scheme this module registers, which is why it
  * lives here rather than alongside {@code "console"}'s own version in core: proven by
  * logging a real message and asserting it landed in {@code logging.file.name}'s own path,
@@ -38,7 +38,7 @@ class FileAppenderPrecedenceTest {
 		var properties = LogProperties.builder().fromProperties("""
 				logging.appenders=file
 				logging.file.name=%s
-				logging.appender.file.output=list:///
+				logging.appender.file.output.uri=list:///
 				""".formatted(file)).build();
 		var config = LogConfig.builder().properties(properties).serviceLoader().build();
 		var gum = RainbowGum.builder(config).build();
@@ -48,7 +48,7 @@ class FileAppenderPrecedenceTest {
 		assertTrue(Files.exists(file), () -> "expected logging.file.name's own path to have been used: " + file);
 		String content = Files.readString(file);
 		assertTrue(content.contains("hello"),
-				() -> "expected logging.file.name to outrank logging.appender.file.output, file content was: "
+				() -> "expected logging.file.name to outrank logging.appender.file.output.uri, file content was: "
 						+ content);
 	}
 

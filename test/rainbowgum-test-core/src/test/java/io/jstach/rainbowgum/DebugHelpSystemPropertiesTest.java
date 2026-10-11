@@ -26,7 +26,7 @@ class DebugHelpSystemPropertiesTest {
 	void misspelledSystemPropertiesFailWithTheKeyTheyProbablyMeant() {
 		var properties = Map.of( //
 				"logging.appendrs", "console", // typo of a key read
-				"logging.appender.console.encodr", "json5"); // typo of a key read
+				"logging.appender.console.encodr.uri", "json5"); // typo of a key read
 		properties.forEach(System::setProperty);
 		try {
 			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
@@ -34,7 +34,7 @@ class DebugHelpSystemPropertiesTest {
 			var e = assertThrows(IllegalStateException.class, gum::start);
 			String expected = """
 					2 alert(s) at warning or above were recorded while starting and logging.debug=help:
-					[WARNING] Property key 'logging.appender.console.encodr' from SYSTEM_PROPERTIES[logging.appender.console.encodr] was set but not read during startup. Did you mean 'logging.appender.console.encoder'?
+					[WARNING] Property key 'logging.appender.console.encodr.uri' from SYSTEM_PROPERTIES[logging.appender.console.encodr.uri] was set but not read during startup. Did you mean 'logging.appender.console.encoder.uri'?
 					[WARNING] Property key 'logging.appendrs' from SYSTEM_PROPERTIES[logging.appendrs] was set but not read during startup. Did you mean 'logging.appenders'?""";
 			assertEquals(expected, e.getMessage());
 		}
@@ -44,9 +44,12 @@ class DebugHelpSystemPropertiesTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "logging.encoder.console.level, plain, logging.encoder.ttll.console.level",
-			"logging.output.console.stream, follow, logging.output.stdout.console.stream" })
-	void keyWithoutItsTypeSuggestsTheTypedKey(String key, String value, String typedKey) {
+	@CsvSource({ "logging.encoder.console.level, plain, logging.appender.console.encoder.level",
+			"logging.encoder.ttll.console.level, plain, logging.appender.console.encoder.level",
+			"logging.output.console.stream, follow, logging.appender.console.output.stream",
+			"logging.output.stdout.console.stream, follow, logging.appender.console.output.stream",
+			"logging.appender.console.encoder, ttll, logging.appender.console.encoder.uri" })
+	void movedKeySuggestsItsNewKey(String key, String value, String typedKey) {
 		System.setProperty(key, value);
 		try {
 			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
