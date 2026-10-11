@@ -557,6 +557,13 @@ class CompilerTest {
 				return "com.logback.TriviaMain";
 			}
 		},
+		COLOR_KEYWORD_AFTER_GROUP("%highlight(%-5level)%cyan(%logger{15})%msg%n",
+				"[34mINFO [0;39m[36mc.l.TriviaMain[0;39mhello\n") {
+			@Override
+			protected String logger() {
+				return "com.logback.TriviaMain";
+			}
+		},
 		COLOR_ERROR("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] [1;31mERROR[0;39m [36mc.l.TriviaMain[0;39m - hello\n") {
 			@Override
