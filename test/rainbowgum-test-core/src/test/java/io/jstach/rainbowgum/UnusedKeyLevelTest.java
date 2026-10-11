@@ -59,7 +59,8 @@ class UnusedKeyLevelTest {
 
 	@ParameterizedTest
 	@CsvSource({ "logging.levels", "logging.levelExtra", "logging.route.console.levels",
-			"logging.route.console.levelExtra", "logging.route.console.publisher.levels", "logging.route.level.typo" })
+			"logging.route.console.levelExtra", "logging.route.console.publisher.levels", "logging.route.level.typo",
+			"logging.changes" })
 	void nearLevelKeysStillFailStrictStartup(String key) {
 		System.setProperty(key, "x");
 		try {
@@ -77,8 +78,9 @@ class UnusedKeyLevelTest {
 
 	@ParameterizedTest
 	@CsvSource({ "logging.level.com.example", "logging.level.levels", "logging.route.console.level.com.example",
-			"logging.route.console.level.levels", "logging.route.level.level.com.example" })
-	void actualLoggerLevelKeysAreStillExempt(String key) {
+			"logging.route.console.level.levels", "logging.route.level.level.com.example", "logging.change",
+			"logging.change.com.example" })
+	void perLoggerLevelAndChangeKeysAreStillExempt(String key) {
 		System.setProperty(key, "debug");
 		try (var gum = gum("logging.alerts.fail=error\nlogging.alerts.unusedKey=error").start()) {
 			assertEquals(List.of(),

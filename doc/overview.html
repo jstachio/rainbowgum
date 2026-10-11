@@ -3086,8 +3086,8 @@ Keys are checked where Rainbow Gum can list them:
   of the keys.</li>
 </ul>
 
-Some keys are never reported: <code>logging.level</code> keys (and route level keys), which are
-read per logger as loggers are created; keys read before properties load, such as
+Some keys are never reported: <code>logging.level</code> keys (and route level keys) and
+<code>logging.change</code> keys, which are read per logger as loggers are created; keys read before properties load, such as
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
 properties that happen to start with <code>logging.</code>, such as Spring Boot's
 <code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. Unless
