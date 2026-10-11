@@ -30,11 +30,11 @@ class AvajePropertiesProviderTest {
 			}
 		});
 		String expected = """
-				Error for property. key: 'logging.appender.stuff.output' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output], NotFoundException No output found. Scheme not registered. scheme: 'blah', URI: 'blah:///'
+				Error for property. key: 'logging.appender.stuff.output.uri' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'blah', URI: 'blah:///'
 				Tried:
-				    'logging.appender.stuff.output' from:
-				        SYSTEM_PROPERTIES[logging.appender.stuff.output],
-				        AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output]
+				    'logging.appender.stuff.output.uri' from:
+				        SYSTEM_PROPERTIES[logging.appender.stuff.output.uri],
+				        AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output.uri]
 				  ↳ Failure providing Appender: 'stuff' from property: Property[logging.appenders]=[stuff].
 				  ↳ Failure providing Appenders for route: 'default'.""";
 		String actual = e.getMessage();

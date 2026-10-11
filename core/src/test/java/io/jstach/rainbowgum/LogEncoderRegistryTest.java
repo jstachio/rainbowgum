@@ -23,8 +23,8 @@ class LogEncoderRegistryTest {
 			.configurator(new OutputConfigurator())
 			.properties(LogProperties.builder().fromProperties("""
 					logging.appenders=list
-					logging.appender.list.encoder=custom
-					logging.appender.list.output=custom
+					logging.appender.list.encoder.uri=custom
+					logging.appender.list.output.uri=custom
 					""").build())
 			.build();
 
@@ -46,7 +46,7 @@ class LogEncoderRegistryTest {
 			.configurator(new OutputConfigurator())
 			.properties(LogProperties.builder().fromProperties("""
 					logging.appenders=list
-					logging.appender.list.output=custom
+					logging.appender.list.output.uri=custom
 					""").build())
 			.build();
 

@@ -43,7 +43,7 @@ class RainbowGumPropertyTest {
 				logging.route.error.level=ERROR
 				logging.route.debug.level=DEBUG
 				logging.route.debug.appenders=console
-				logging.appender.list.output=list
+				logging.appender.list.output.uri=list
 				""", """
 				00:00:00.001 [main] ERROR com.pattern.test.Test - hello
 				""") {
@@ -51,7 +51,7 @@ class RainbowGumPropertyTest {
 		},
 		ROUTER_OF_DEBUG_ONLY("""
 				logging.appenders=list
-				logging.appender.list.output=list
+				logging.appender.list.output.uri=list
 				logging.level=TRACE
 				""", """
 				00:00:00.001 [main] DEBUG com.pattern.test.Test - hello
@@ -72,7 +72,7 @@ class RainbowGumPropertyTest {
 		},
 		REUSE_BUFFER_APPENDER("""
 				logging.appenders=list
-				logging.appender.list.output=list
+				logging.appender.list.output.uri=list
 				logging.level=ERROR
 				logging.appender.list.type=reuse_buffer
 				""", """
@@ -90,7 +90,7 @@ class RainbowGumPropertyTest {
 		},
 		LOCK_THREAD_LOCAL_BUFFER_APPENDER("""
 				logging.appenders=list
-				logging.appender.list.output=list
+				logging.appender.list.output.uri=list
 				logging.level=ERROR
 				logging.appender.list.type=lock_thread_local_buffer
 				""", """
@@ -108,7 +108,7 @@ class RainbowGumPropertyTest {
 		},
 		SYNCHRONIZED_THREAD_LOCAL_BUFFER_APPENDER("""
 				logging.appenders=list
-				logging.appender.list.output=list
+				logging.appender.list.output.uri=list
 				logging.level=ERROR
 				logging.appender.list.type=synchronized_thread_local_buffer
 				""", """

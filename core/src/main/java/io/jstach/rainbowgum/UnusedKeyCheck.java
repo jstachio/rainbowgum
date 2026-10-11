@@ -143,6 +143,14 @@ final class UnusedKeyCheck {
 				return candidate;
 			}
 		}
+		var moved = movedKeys(key);
+		for (String candidate : candidates) {
+			for (String pattern : moved) {
+				if (matches(pattern, candidate)) {
+					return candidate;
+				}
+			}
+		}
 		String best = null;
 		int bestDistance = MAX_DISTANCE + 1;
 		for (String candidate : candidates) {
@@ -156,6 +164,70 @@ final class UnusedKeyCheck {
 			}
 		}
 		return best;
+	}
+
+	/*
+	 * Where a key from an older layout is now, with ANY_SEGMENT standing for the type's
+	 * URI scheme when the old key does not say it:
+	 *
+	 * logging.encoder.console.level -> logging.appender.console.encoder.*.level
+	 * logging.encoder.ttll.console.level -> logging.appender.console.encoder.ttll.level
+	 * logging.appender.console.encoder.level -> logging.appender.console.encoder.*.level
+	 * logging.appender.console.encoder -> logging.appender.console.encoder.uri
+	 *
+	 * The third only applies to a single property name segment, since a longer key under
+	 * the encoder is a typed key, possibly left over from a type switched away from.
+	 */
+	static List<String> movedKeys(String key) {
+		var segments = List.of(key.split("\\.", -1));
+		if (segments.size() < 3 || !segments.get(0).equals("logging")) {
+			return List.of();
+		}
+		String component = segments.get(1);
+		if (component.equals("encoder") || component.equals("output")) {
+			var moved = new ArrayList<String>();
+			if (segments.size() > 3) {
+				moved.add(movedKey(segments.get(2), component, ANY_SEGMENT, segments.subList(3, segments.size())));
+			}
+			if (segments.size() > 4) {
+				moved.add(movedKey(segments.get(3), component, segments.get(2), segments.subList(4, segments.size())));
+			}
+			return moved;
+		}
+		if (component.equals("appender") && segments.size() >= 4
+				&& (segments.get(3).equals("encoder") || segments.get(3).equals("output"))) {
+			if (segments.size() == 4) {
+				return List.of(key + ".uri");
+			}
+			if (segments.size() == 5 && !segments.get(4).equals("uri")) {
+				return List.of(movedKey(segments.get(2), segments.get(3), ANY_SEGMENT, segments.subList(4, 5)));
+			}
+		}
+		return List.of();
+	}
+
+	private static final String ANY_SEGMENT = "*";
+
+	private static String movedKey(String name, String component, String scheme, List<String> rest) {
+		return "logging.appender." + name + "." + component + "." + scheme + "." + String.join(LogProperties.SEP, rest);
+	}
+
+	/*
+	 * Whether a candidate is a moved key pattern, compared like normalize with
+	 * ANY_SEGMENT matching any one segment.
+	 */
+	static boolean matches(String pattern, String candidate) {
+		String[] p = normalize(pattern).split("\\.", -1);
+		String[] c = normalize(candidate).split("\\.", -1);
+		if (p.length != c.length) {
+			return false;
+		}
+		for (int i = 0; i < p.length; i++) {
+			if (!p[i].equals(ANY_SEGMENT) && !p[i].equals(c[i])) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/*

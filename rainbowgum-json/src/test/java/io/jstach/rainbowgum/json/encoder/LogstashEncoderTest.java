@@ -34,7 +34,7 @@ class LogstashEncoderTest {
 	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
 		var e = assertThrows(LogProperty.ValidationException.class, () -> new LogstashEncoderBuilder("bad name"));
 		assertEquals(
-				"Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				"Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder: \"logging.appender.{name}.encoder.logstash.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
 				e.getMessage());
 	}
 
@@ -101,9 +101,9 @@ class LogstashEncoderTest {
 	void testMalformedZoneIdReportsErrorViaAddIfError() {
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list:///
-				logging.appender.list.encoder=logstash
-				logging.encoder.list.zoneId=Not/AZone
+				logging.appender.list.output.uri=list:///
+				logging.appender.list.encoder.uri=logstash
+				logging.appender.list.encoder.logstash.zoneId=Not/AZone
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -113,12 +113,12 @@ class LogstashEncoderTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder:
-						Error for property. key: 'logging.encoder.list.zoneId' from PROPERTIES_STRING[logging.encoder.list.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
+						Error for property. key: 'logging.appender.list.encoder.logstash.zoneId' from PROPERTIES_STRING[logging.appender.list.encoder.logstash.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
 						Tried:
-						    'logging.encoder.list.zoneId' from:
-						        PROPERTIES_STRING[logging.encoder.list.zoneId],
-						        [logging.appender.list.encoder]->URI(logstash:///)[zoneId]
-						  ↳ Failure providing from property. key: 'logging.appender.list.encoder' from PROPERTIES_STRING[logging.appender.list.encoder], value: 'logstash'
+						    'logging.appender.list.encoder.logstash.zoneId' from:
+						        PROPERTIES_STRING[logging.appender.list.encoder.logstash.zoneId],
+						        [logging.appender.list.encoder.uri]->URI(logstash:///)[zoneId]
+						  ↳ Failure providing from property. key: 'logging.appender.list.encoder.uri' from PROPERTIES_STRING[logging.appender.list.encoder.uri], value: 'logstash'
 						  ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
@@ -136,9 +136,9 @@ class LogstashEncoderTest {
 	void testFullLoadUri() throws Exception {
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list:///
-				logging.appender.list.encoder=logstash:///?prettyPrint=true
-				logging.encoder.list.zoneId=UTC
+				logging.appender.list.output.uri=list:///
+				logging.appender.list.encoder.uri=logstash:///?prettyPrint=true
+				logging.appender.list.encoder.logstash.zoneId=UTC
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())

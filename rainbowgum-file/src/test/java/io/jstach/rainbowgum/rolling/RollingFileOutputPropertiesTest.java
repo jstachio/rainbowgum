@@ -33,7 +33,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.maxFileSize' from PROPERTIES_STRING[logging.output.file.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
+						Error for property. key: 'logging.appender.file.output.rolling.maxFileSize' from PROPERTIES_STRING[logging.appender.file.output.rolling.maxFileSize], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
 				e.getMessage());
 	}
 
@@ -43,7 +43,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.maxHistory' from PROPERTIES_STRING[logging.output.file.maxHistory], java.lang.NumberFormatException For input string: "notanumber\"""",
+						Error for property. key: 'logging.appender.file.output.rolling.maxHistory' from PROPERTIES_STRING[logging.appender.file.output.rolling.maxHistory], java.lang.NumberFormatException For input string: "notanumber\"""",
 				e.getMessage());
 	}
 
@@ -53,7 +53,7 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
-						Error for property. key: 'logging.output.file.totalSizeCap' from PROPERTIES_STRING[logging.output.file.totalSizeCap], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
+						Error for property. key: 'logging.appender.file.output.rolling.totalSizeCap' from PROPERTIES_STRING[logging.appender.file.output.rolling.totalSizeCap], Invalid data size: 'notanumber'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.""",
 				e.getMessage());
 	}
 
@@ -79,10 +79,35 @@ class RollingFileOutputPropertiesTest {
 		assertEquals(3L * 1024 * 1024 * 1024, output.totalSizeCap);
 	}
 
+	/*
+	 * Two malformed properties in one builder: the message reports both, but the
+	 * exception's cause is only the first one's.
+	 */
+	@Test
+	void validationKeepsOnlyTheFirstErrorsCause() {
+		var e = assertThrows(ValidationException.class,
+				() -> buildWith("bufferSize", "blah", "maxHistory", "notanumber"));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder:
+						Error for property. key: 'logging.appender.file.output.rolling.bufferSize' from PROPERTIES_STRING[logging.appender.file.output.rolling.bufferSize], Invalid data size: 'blah'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
+						Error for property. key: 'logging.appender.file.output.rolling.maxHistory' from PROPERTIES_STRING[logging.appender.file.output.rolling.maxHistory], java.lang.NumberFormatException For input string: "notanumber\"""",
+				e.getMessage());
+		Throwable cause = e;
+		while (cause.getCause() != null) {
+			cause = cause.getCause();
+		}
+		assertEquals(IllegalArgumentException.class, cause.getClass());
+	}
+
 	private DefaultRollingFileOutput buildWith(String... propertyValues) {
-		StringBuilder props = new StringBuilder("logging.output.file.fileName=" + dir.resolve("app.log"));
+		StringBuilder props = new StringBuilder(
+				"logging.appender.file.output.rolling.fileName=" + dir.resolve("app.log"));
 		for (int i = 0; i < propertyValues.length; i += 2) {
-			props.append("\nlogging.output.file.").append(propertyValues[i]).append('=').append(propertyValues[i + 1]);
+			props.append("\nlogging.appender.file.output.rolling.")
+				.append(propertyValues[i])
+				.append('=')
+				.append(propertyValues[i + 1]);
 		}
 		var properties = LogProperties.builder().fromProperties(props.toString()).build();
 		var config = LogConfig.builder().properties(properties).build();

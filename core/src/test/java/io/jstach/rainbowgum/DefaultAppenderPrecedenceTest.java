@@ -26,7 +26,7 @@ class DefaultAppenderPrecedenceTest {
 	void consolePropertyOverridesStandardOutDefault() {
 		var props = LogProperties.builder().fromProperties("""
 				logging.appenders=console
-				logging.appender.console.output=list:///
+				logging.appender.console.output.uri=list:///
 				""").build();
 		var config = LogConfig.builder().properties(props).build();
 		try (var gum = RainbowGum.builder(config).build().start()) {

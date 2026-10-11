@@ -76,24 +76,24 @@ class ConfigFailureTest {
 
 		unregisteredOutputScheme("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=bogus:///
+				logging.appender.myapp.output.uri=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
 		outputValidationFailureRedactsPasswordInUri("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=custom:///?password=kenny
+				logging.appender.myapp.output.uri=custom:///?password=kenny
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.LogOutput:
 						Property missing. key:
-						    'logging.output.myapp.host' from:
-						        PROPERTIES_STRING[logging.output.myapp.host],
-						        [logging.appender.myapp.output]->URI(custom:///?password=<REDACTED>)[host]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], value: 'custom:///?password=<REDACTED>'
+						    'logging.appender.myapp.output.custom.host' from:
+						        PROPERTIES_STRING[logging.appender.myapp.output.custom.host],
+						        [logging.appender.myapp.output.uri]->URI(custom:///?password=<REDACTED>)[host]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], value: 'custom:///?password=<REDACTED>'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'.""") {
 			@Override
@@ -101,7 +101,7 @@ class ConfigFailureTest {
 				return List.of((config, pass) -> {
 					config.outputRegistry().register("custom", ref -> (name, c) -> {
 						assertEquals("custom:///?password=kenny", ref.uri().toString());
-						String prefix = "logging.output." + name + ".";
+						String prefix = "logging.appender." + name + ".output.custom.";
 						var properties = LogProperties.of(ref.uri(), prefix, c.properties(), ref.keyOrNull());
 						assertEquals("kenny", properties.valueOrNull(prefix + "password"));
 						var validator = LogProperty.Validator.of(LogOutput.class);
@@ -117,10 +117,10 @@ class ConfigFailureTest {
 
 		unregisteredOutputSchemeRedactsUriCredentials("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=bogus://alice:kenny@example.com/path?token=kenny&mode=append
+				logging.appender.myapp.output.uri=bogus://alice:kenny@example.com/path?token=kenny&mode=append
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus://<REDACTED>@example.com/path?token=<REDACTED>&mode=append'
+						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus://<REDACTED>@example.com/path?token=<REDACTED>&mode=append'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -132,11 +132,11 @@ class ConfigFailureTest {
 
 		unregisteredEncoderScheme("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=bogus:///
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -151,7 +151,7 @@ class ConfigFailureTest {
 		 */
 		badAppenderFlagsValue("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
+				logging.appender.myapp.output.uri=list:///
 				logging.appender.myapp.flags=BOGUS_FLAG
 				""",
 				"""
@@ -162,7 +162,7 @@ class ConfigFailureTest {
 
 		badAppenderTypeValue("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
+				logging.appender.myapp.output.uri=list:///
 				logging.appender.myapp.type=BOGUS_TYPE
 				""",
 				"""
@@ -215,63 +215,63 @@ class ConfigFailureTest {
 
 		unregisteredEncoderSchemeFromKnownModuleHintsDependency("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=gelf:///
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=gelf:///
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], NotFoundException No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' (Maven: 'io.jstach.rainbowgum:rainbowgum-json:%1$s'). Add that dependency. See https://jstach.io/doc/rainbowgum/%1$s/apidocs/index.html#gelf
+						Error for property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], NotFoundException No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' (Maven: 'io.jstach.rainbowgum:rainbowgum-json:%1$s'). Add that dependency. See https://jstach.io/doc/rainbowgum/%1$s/apidocs/index.html#gelf
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""
 					.formatted(RainbowGumVersion.VERSION)),
 
 		encoderMissingRequiredStringProperty("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=fake:///
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=fake:///
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Property missing. key:
-						    'logging.encoder.myapp.host' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.host],
-						        [logging.appender.myapp.encoder]->URI(fake:///)[host]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						    'logging.appender.myapp.encoder.fake.host' from:
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.host],
+						        [logging.appender.myapp.encoder.uri]->URI(fake:///)[host]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
 		encoderMalformedIntProperty("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.port=notanumber
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=fake:///
+				logging.appender.myapp.encoder.fake.host=h
+				logging.appender.myapp.encoder.fake.port=notanumber
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.port' from PROPERTIES_STRING[logging.encoder.myapp.port], java.lang.NumberFormatException For input string: "notanumber"
+						Error for property. key: 'logging.appender.myapp.encoder.fake.port' from PROPERTIES_STRING[logging.appender.myapp.encoder.fake.port], java.lang.NumberFormatException For input string: "notanumber"
 						Tried:
-						    'logging.encoder.myapp.port' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.port],
-						        [logging.appender.myapp.encoder]->URI(fake:///)[port]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						    'logging.appender.myapp.encoder.fake.port' from:
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.port],
+						        [logging.appender.myapp.encoder.uri]->URI(fake:///)[port]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
 		encoderMalformedUriProperty("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.endpoint=not a uri with spaces
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=fake:///
+				logging.appender.myapp.encoder.fake.host=h
+				logging.appender.myapp.encoder.fake.endpoint=not a uri with spaces
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.endpoint' from PROPERTIES_STRING[logging.encoder.myapp.endpoint], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
+						Error for property. key: 'logging.appender.myapp.encoder.fake.endpoint' from PROPERTIES_STRING[logging.appender.myapp.encoder.fake.endpoint], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
 						Tried:
-						    'logging.encoder.myapp.endpoint' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.endpoint],
-						        [logging.appender.myapp.encoder]->URI(fake:///)[endpoint]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						    'logging.appender.myapp.encoder.fake.endpoint' from:
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.endpoint],
+						        [logging.appender.myapp.encoder.uri]->URI(fake:///)[endpoint]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -282,7 +282,7 @@ class ConfigFailureTest {
 		 * _label. map() builds the exact same rich error message convert()'s richError()
 		 * does, including the "Tried:" line: since the "properties" this builder was
 		 * given is itself a composite (PROPERTIES_STRING plus the
-		 * [logging.appender.myapp.encoder]->URI(fake:///) query-parameter layer), the
+		 * [logging.appender.myapp.encoder.uri]->URI(fake:///) query-parameter layer), the
 		 * first "Tried:" line names both, same as any convert()-based property here would
 		 * (see encoderMalformedIntProperty above). The second "Tried:" line is the outer
 		 * encoder-URI-to-builder conversion's own richError(), nested as a trailing " ↳ "
@@ -290,19 +290,19 @@ class ConfigFailureTest {
 		 */
 		encoderCustomStringValidationFailure("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.label=bad
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=fake:///
+				logging.appender.myapp.encoder.fake.host=h
+				logging.appender.myapp.encoder.fake.label=bad
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.label' from PROPERTIES_STRING[logging.encoder.myapp.label], label must not be 'bad'
+						Error for property. key: 'logging.appender.myapp.encoder.fake.label' from PROPERTIES_STRING[logging.appender.myapp.encoder.fake.label], label must not be 'bad'
 						Tried:
-						    'logging.encoder.myapp.label' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.label],
-						        [logging.appender.myapp.encoder]->URI(fake:///)[label]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						    'logging.appender.myapp.encoder.fake.label' from:
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.label],
+						        [logging.appender.myapp.encoder.uri]->URI(fake:///)[label]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -310,19 +310,19 @@ class ConfigFailureTest {
 		// above, but on a List.
 		encoderCustomListValidationFailure("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.tags=good,bad
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=fake:///
+				logging.appender.myapp.encoder.fake.host=h
+				logging.appender.myapp.encoder.fake.tags=good,bad
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.tags' from PROPERTIES_STRING[logging.encoder.myapp.tags], tags must not contain 'bad'
+						Error for property. key: 'logging.appender.myapp.encoder.fake.tags' from PROPERTIES_STRING[logging.appender.myapp.encoder.fake.tags], tags must not contain 'bad'
 						Tried:
-						    'logging.encoder.myapp.tags' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.tags],
-						        [logging.appender.myapp.encoder]->URI(fake:///)[tags]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						    'logging.appender.myapp.encoder.fake.tags' from:
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.tags],
+						        [logging.appender.myapp.encoder.uri]->URI(fake:///)[tags]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -330,19 +330,19 @@ class ConfigFailureTest {
 		// above, but on a Map.
 		encoderCustomMapValidationFailure("""
 				logging.appenders=myapp
-				logging.appender.myapp.output=list:///
-				logging.appender.myapp.encoder=fake:///
-				logging.encoder.myapp.host=h
-				logging.encoder.myapp.headers=bad=1
+				logging.appender.myapp.output.uri=list:///
+				logging.appender.myapp.encoder.uri=fake:///
+				logging.appender.myapp.encoder.fake.host=h
+				logging.appender.myapp.encoder.fake.headers=bad=1
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.encoder.myapp.headers' from PROPERTIES_STRING[logging.encoder.myapp.headers], headers must not contain key 'bad'
+						Error for property. key: 'logging.appender.myapp.encoder.fake.headers' from PROPERTIES_STRING[logging.appender.myapp.encoder.fake.headers], headers must not contain key 'bad'
 						Tried:
-						    'logging.encoder.myapp.headers' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.headers],
-						        [logging.appender.myapp.encoder]->URI(fake:///)[headers]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						    'logging.appender.myapp.encoder.fake.headers' from:
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.headers],
+						        [logging.appender.myapp.encoder.uri]->URI(fake:///)[headers]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], value: 'fake:///'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -687,11 +687,11 @@ class ConfigFailureTest {
 		 */
 		unregisteredOutputSchemeAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.appender.myapp.output' from PROPERTIES_STRING[logging.appender.myapp.output], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
 						Tried:
-						    'logging.appender.myapp.output' from:
-						        PROPERTIES_STRING[logging.appender.myapp.output],
-						        PROPERTIES_STRING[logging.appender.myapp.output]
+						    'logging.appender.myapp.output.uri' from:
+						        PROPERTIES_STRING[logging.appender.myapp.output.uri],
+						        PROPERTIES_STRING[logging.appender.myapp.output.uri]
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'.""") {
 			@Override
@@ -700,7 +700,7 @@ class ConfigFailureTest {
 						logging.appenders=myapp
 						""").build();
 				var output = LogProperties.builder().fromProperties("""
-						logging.appender.myapp.output=bogus:///
+						logging.appender.myapp.output.uri=bogus:///
 						""").build();
 				return LogProperties.of(List.of(appenders, output));
 			}
@@ -713,25 +713,25 @@ class ConfigFailureTest {
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
 						Property missing. key:
-						    'logging.encoder.myapp.host' from:
-						        PROPERTIES_STRING[logging.encoder.myapp.host],
-						        PROPERTIES_STRING[logging.encoder.myapp.host],
-						        [logging.appender.myapp.encoder]->URI(fake:///)[host]
-						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder' from PROPERTIES_STRING[logging.appender.myapp.encoder], value: 'fake:///'
+						    'logging.appender.myapp.encoder.fake.host' from:
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.host],
+						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.host],
+						        [logging.appender.myapp.encoder.uri]->URI(fake:///)[host]
+						  ↳ Failure providing from property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], value: 'fake:///'
 						    Tried:
-						        'logging.appender.myapp.encoder' from:
-						            PROPERTIES_STRING[logging.appender.myapp.encoder],
-						            PROPERTIES_STRING[logging.appender.myapp.encoder]
+						        'logging.appender.myapp.encoder.uri' from:
+						            PROPERTIES_STRING[logging.appender.myapp.encoder.uri],
+						            PROPERTIES_STRING[logging.appender.myapp.encoder.uri]
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'.""") {
 			@Override
 			LogProperties properties() {
 				var appenders = LogProperties.builder().fromProperties("""
 						logging.appenders=myapp
-						logging.appender.myapp.output=list:///
+						logging.appender.myapp.output.uri=list:///
 						""").build();
 				var encoder = LogProperties.builder().fromProperties("""
-						logging.appender.myapp.encoder=fake:///
+						logging.appender.myapp.encoder.uri=fake:///
 						""").build();
 				return LogProperties.of(List.of(appenders, encoder));
 			}

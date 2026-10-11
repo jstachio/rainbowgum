@@ -35,7 +35,7 @@ class LogbackJsonEncoderTest {
 	void testBuilderRejectsBadNameBeforeAnyFieldIsSet() {
 		var e = assertThrows(LogProperty.ValidationException.class, () -> new LogbackJsonEncoderBuilder("bad name"));
 		assertEquals(
-				"Validation failed for io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder: \"logging.encoder.{name}.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
+				"Validation failed for io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderBuilder: \"logging.appender.{name}.encoder.logback.\" cannot be interpolated: parameter 'name' value 'bad name' must be alphanumeric (hyphen/underscore allowed)",
 				e.getMessage());
 	}
 
@@ -60,15 +60,15 @@ class LogbackJsonEncoderTest {
 	 * LogbackJsonEncoderBuilder or LogbackJsonEncoder.of(...)), bypassing
 	 * LogbackJsonEncoderConfigurator (the ServiceLoader-registered URI-scheme resolution
 	 * path) entirely - it had 0% coverage. This goes through the real pipeline:
-	 * logging.appender.list.encoder=logback resolves via the configurator's registered
-	 * scheme, same as GelfEncoderTest/EcsEncoderTest's testFullLoadUri.
+	 * logging.appender.list.encoder.uri=logback resolves via the configurator's
+	 * registered scheme, same as GelfEncoderTest/EcsEncoderTest's testFullLoadUri.
 	 */
 	@Test
 	void testFullLoadUri() throws Exception {
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list:///
-				logging.appender.list.encoder=logback:///?prettyPrint=true
+				logging.appender.list.output.uri=list:///
+				logging.appender.list.encoder.uri=logback:///?prettyPrint=true
 				""";
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
