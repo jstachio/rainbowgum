@@ -209,6 +209,49 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	}
 
 	/**
+	 * The alert level for a property key that was set but not read while starting, set by
+	 * {@value LogProperties#ALERTS_UNUSED_KEY_PROPERTY}. Keys are only checked in the
+	 * debug modes that report them and when {@value LogProperties#ALERTS_FAIL_PROPERTY}
+	 * would fail on them.
+	 */
+	enum UnusedKeyLevel {
+
+		/**
+		 * Default. A key close to a key that was read is a warning with a suggestion, and
+		 * any other unread key is information, since it may be for a component type that
+		 * was not chosen.
+		 */
+		INFO,
+		/**
+		 * Every unread key is a warning, so {@code logging.alerts.fail=warning} fails on
+		 * any of them.
+		 */
+		@EnumAlias("warn")
+		WARNING,
+		/**
+		 * Every unread key is an error, so {@code logging.alerts.fail=error} fails on any
+		 * of them.
+		 */
+		ERROR;
+
+		static UnusedKeyLevel parse(String value) {
+			return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+				case "warn" -> WARNING;
+				default -> LogProperty.enumValue(UnusedKeyLevel.class, value, "warn");
+			};
+		}
+
+		Level level(boolean suggested) {
+			return switch (this) {
+				case INFO -> suggested ? Level.WARNING : Level.INFO;
+				case WARNING -> Level.WARNING;
+				case ERROR -> Level.ERROR;
+			};
+		}
+
+	}
+
+	/**
 	 * What {@link #start(LogConfig)} does if, at that moment, at least one error alert
 	 * has been recorded and still zero {@link Listener}s are registered - the situation
 	 * Logback's {@code StatusManager} calls an unobserved status: nothing is watching, so
@@ -389,6 +432,8 @@ final class DefaultLogAlerts implements LogAlerts {
 	 */
 	private final String failLevelSource;
 
+	private final UnusedKeyLevel unusedKeyLevel;
+
 	/*
 	 * Startup failure is independent of the bounded diagnostic queue. Keep the first
 	 * failure and the count until startup ends, even if clear() or eviction removes it
@@ -401,15 +446,20 @@ final class DefaultLogAlerts implements LogAlerts {
 	private boolean startupComplete;
 
 	private DefaultLogAlerts(int capacity, UnobservedErrorsAction unobservedErrorsAction, FailLevel failLevel,
-			String failLevelSource) {
+			String failLevelSource, UnusedKeyLevel unusedKeyLevel) {
 		this.ring = new LogEvent[capacity];
 		this.unobservedErrorsAction = unobservedErrorsAction;
 		this.failLevel = failLevel;
 		this.failLevelSource = failLevelSource;
+		this.unusedKeyLevel = unusedKeyLevel;
 	}
 
 	FailLevel failLevel() {
 		return failLevel;
+	}
+
+	UnusedKeyLevel unusedKeyLevel() {
+		return unusedKeyLevel;
 	}
 
 	/*
@@ -483,6 +533,20 @@ final class DefaultLogAlerts implements LogAlerts {
 	}
 
 	/*
+	 * The unused key level as resolved from properties, before LogAlerts exists, like
+	 * failLevelOr. An invalid value is reported by of(...).
+	 */
+	static UnusedKeyLevel unusedKeyLevelOr(LogProperties properties, UnusedKeyLevel fallback) {
+		var value = properties.valueOrNull(LogProperties.ALERTS_UNUSED_KEY_PROPERTY);
+		try {
+			return value == null ? fallback : UnusedKeyLevel.parse(value);
+		}
+		catch (RuntimeException e) {
+			return fallback;
+		}
+	}
+
+	/*
 	 * Package-friend static factory: resolves and validates both
 	 * LogProperties#ALERTS_CAPACITY_PROPERTY and
 	 * LogProperties#ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY against one shared Validator
@@ -494,7 +558,8 @@ final class DefaultLogAlerts implements LogAlerts {
 	 * lambda body passed through a generic method like map(...) - the one and only `new
 	 * DefaultLogAlerts(...)` call stays a plain, unconditional statement here instead.
 	 */
-	static DefaultLogAlerts of(LogProperties properties, FailLevel failLevelFallback, boolean help) {
+	static DefaultLogAlerts of(LogProperties properties, FailLevel failLevelFallback,
+			UnusedKeyLevel unusedKeyLevelFallback, boolean help) {
 		var validator = LogProperty.Validator.of(LogAlerts.class);
 		var failLevelResult = properties.forKey(LogProperties.ALERTS_FAIL_PROPERTY)
 			.ofString()
@@ -505,6 +570,11 @@ final class DefaultLogAlerts implements LogAlerts {
 			.ofString()
 			.map(UnobservedErrorsAction::parse)
 			.or(UnobservedErrorsAction.DUMP)
+			.validateIfError(validator);
+		var unusedKeyLevelResult = properties.forKey(LogProperties.ALERTS_UNUSED_KEY_PROPERTY)
+			.ofString()
+			.map(UnusedKeyLevel::parse)
+			.or(unusedKeyLevelFallback)
 			.validateIfError(validator);
 		var capacityResult = properties.forKey(LogProperties.ALERTS_CAPACITY_PROPERTY)
 			.ofInt()
@@ -519,7 +589,7 @@ final class DefaultLogAlerts implements LogAlerts {
 			failLevelSource = "logging.debug=help";
 		}
 		return new DefaultLogAlerts(capacityResult.value(), unobservedErrorsActionResult.value(), failLevel,
-				failLevelSource);
+				failLevelSource, unusedKeyLevelResult.value());
 	}
 
 	private static int requirePositiveCapacity(int capacity) {

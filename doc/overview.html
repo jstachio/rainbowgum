@@ -3051,6 +3051,21 @@ never read:
   <code>json5</code>. Only warnings fail startup.</li>
 </ul>
 
+<code>logging.alerts.unusedKey</code> makes this stricter for a configuration that should
+have no leftovers: <code>warning</code> (or <code>warn</code>) reports every unread key as a
+warning, and <code>error</code> as an error. With
+<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> at the same level
+or below, any unread key then fails startup. The default, <code>info</code>, is the behavior
+above, and
+{@link io.jstach.rainbowgum.LogConfig.Builder#alertsUnusedKey(io.jstach.rainbowgum.LogAlerts.UnusedKeyLevel)}
+sets the default the property overrides.
+
+{@snippet lang=properties :
+# logging-ci.properties: fail on any key nothing reads
+logging.alerts.fail=warning
+logging.alerts.unusedKey=warning
+}
+
 Keys are checked where Rainbow Gum can list them:
 
 <ul>
@@ -3067,8 +3082,9 @@ Some keys are never reported: <code>logging.level</code> keys (and route level k
 read per logger as loggers are created; keys read before properties load, such as
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
 properties that happen to start with <code>logging.</code>, such as Spring Boot's
-<code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. Without
-those settings nothing is recorded, so normal runs pay nothing for the check.
+<code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. Unless
+debug mode is on or <code>logging.alerts.fail</code> would fail on a misspelled key, nothing is
+recorded, so normal runs pay nothing for the check.
 
 <h3 id="troubleshooting_alerts_fail">Failing on alerts</h3>
 

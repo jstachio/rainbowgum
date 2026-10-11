@@ -343,6 +343,12 @@ public interface LogProperties {
 	static final String ALERTS_FAIL_PROPERTY = ROOT_PREFIX + "alerts.fail";
 
 	/**
+	 * Alert level for property keys that were set but not read while starting: see
+	 * {@link LogAlerts.UnusedKeyLevel}.
+	 */
+	static final String ALERTS_UNUSED_KEY_PROPERTY = ROOT_PREFIX + "alerts.unusedKey";
+
+	/**
 	 * Logging change properties prefix.
 	 */
 	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
