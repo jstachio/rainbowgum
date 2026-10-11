@@ -118,7 +118,16 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * <tr>
  * <td>{@value #ROUTE_PUBLISHER_PROPERTY} = <code>URI</code></td>
  * <td>Looks up a publisher by URI scheme using the {@link LogPublisherRegistry}. The
- * publisher is then configured by properties with {@value #PUBLISHER_PREFIX}.</td>
+ * publisher is then configured by the other properties starting with
+ * {@value #PUBLISHER_PREFIX}.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #PUBLISHER_PREFIX} + <code>scheme</code> + <code>.</code> +
+ * <code>propertyName</code></td>
+ * <td>Configures the route's publisher of the type selected by the URI scheme, for
+ * example <code>logging.route.default.publisher.async.bufferSize</code>. The scheme is
+ * the one written in the URI, so <code>async</code> settings apply to whichever publisher
+ * is registered as <code>async</code>.</td>
  * </tr>
  * <tr>
  * <td>{@value #APPENDERS_PROPERTY} = <code>List&lt;String&gt;</code></td>
@@ -420,11 +429,6 @@ public interface LogProperties {
 	static final String APPENDER_TYPE_PROPERTY = LogProperties.APPENDER_PREFIX + "type";
 
 	/**
-	 * Logging publisher prefix for configuration.
-	 */
-	static final String PUBLISHER_PREFIX = ROOT_PREFIX + "publisher.{" + NAME + "}.";
-
-	/**
 	 * Routes enabled with names comma separated.
 	 */
 	static final String ROUTES_PROPERTY = ROOT_PREFIX + "routes";
@@ -435,9 +439,17 @@ public interface LogProperties {
 	static final String ROUTE_PREFIX = ROOT_PREFIX + "route.{" + NAME + "}.";
 
 	/**
+	 * Prefix of the properties configuring a route's publisher, followed by the URI
+	 * scheme of {@value #ROUTE_PUBLISHER_PROPERTY}, for example
+	 * <code>logging.route.{name}.publisher.async.</code>. Also used for a publisher built
+	 * without a route.
+	 */
+	static final String PUBLISHER_PREFIX = ROUTE_PREFIX + "publisher.";
+
+	/**
 	 * Logging publisher URI property.
 	 */
-	static final String ROUTE_PUBLISHER_PROPERTY = ROUTE_PREFIX + "publisher";
+	static final String ROUTE_PUBLISHER_PROPERTY = PUBLISHER_PREFIX + "uri";
 
 	/**
 	 * Appenders associated with a route comma separated.

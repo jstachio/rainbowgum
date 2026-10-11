@@ -399,12 +399,17 @@ class BatchSwapAsyncLogPublisherTest {
 				await(release);
 			}
 		});
-		// Named properties take precedence over URI defaults.
+		// Named properties take precedence over URI defaults. They are under the scheme
+		// written in the URI, without core.
+		String scheme = switch (mode) {
+			case BATCH_SWAP, CORE_BATCH_SWAP, GENERATED_BUILDER -> "batchswap";
+			default -> "async";
+		};
 		var properties = LogProperties.builder().fromProperties(mode == Configuration.URI ? """
 				""" : """
-				logging.publisher.test.bufferSize=1
-				logging.publisher.test.shutdownTimeout=0
-				""").build();
+				logging.route.test.publisher.SCHEME.bufferSize=1
+				logging.route.test.publisher.SCHEME.shutdownTimeout=0
+				""".replace("SCHEME", scheme)).build();
 		var config = LogConfig.builder().properties(properties).build();
 		if (mode == Configuration.BATCH_SWAP || mode == Configuration.CORE_BATCH_SWAP) {
 			// An explicit implementation remains available when a plugin replaces async.
@@ -467,16 +472,16 @@ class BatchSwapAsyncLogPublisherTest {
 	@Test
 	void generatedBuilderReportsInvalidPropertyValues() {
 		var properties = LogProperties.builder().fromProperties("""
-				logging.publisher.test.bufferSize=bad
-				logging.publisher.test.shutdownTimeout=bad
+				logging.route.test.publisher.batchswap.bufferSize=bad
+				logging.route.test.publisher.batchswap.shutdownTimeout=bad
 				""").build();
 		var failure = assertThrows(LogProperty.ValidationException.class,
 				() -> BatchSwapAsyncLogPublisher.builder("test").fromProperties(properties).build());
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder:
-						Error for property. key: 'logging.publisher.test.bufferSize' from PROPERTIES_STRING[logging.publisher.test.bufferSize], java.lang.NumberFormatException For input string: "bad"
-						Error for property. key: 'logging.publisher.test.shutdownTimeout' from PROPERTIES_STRING[logging.publisher.test.shutdownTimeout], java.lang.NumberFormatException For input string: "bad"\
+						Error for property. key: 'logging.route.test.publisher.batchswap.bufferSize' from PROPERTIES_STRING[logging.route.test.publisher.batchswap.bufferSize], java.lang.NumberFormatException For input string: "bad"
+						Error for property. key: 'logging.route.test.publisher.batchswap.shutdownTimeout' from PROPERTIES_STRING[logging.route.test.publisher.batchswap.shutdownTimeout], java.lang.NumberFormatException For input string: "bad"\
 						""",
 				failure.getMessage());
 	}
