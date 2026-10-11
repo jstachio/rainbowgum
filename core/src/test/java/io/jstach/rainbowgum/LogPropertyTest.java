@@ -24,6 +24,32 @@ import io.jstach.rainbowgum.LogProperty.Validator;
 class LogPropertyTest {
 
 	@Test
+	void booleanAcceptsOnlyTrueOrFalse() {
+		var properties = LogProperties.builder().description("TEST").fromProperties("""
+				logging.a=TRUE
+				logging.b=false
+				logging.c=yes
+				logging.d=
+				""").build();
+		assertEquals(true, properties.forKey("logging.a").ofBoolean().validateNow(LogPropertyTest.class));
+		assertEquals(false, properties.forKey("logging.b").ofBoolean().validateNow(LogPropertyTest.class));
+		var e = assertThrows(ValidationException.class,
+				() -> properties.forKey("logging.c").ofBoolean().validateNow(LogPropertyTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogPropertyTest:
+						Error for property. key: 'logging.c' from TEST[logging.c], 'yes' is not a valid value for java.lang.Boolean. Valid values: 'true', 'false'""",
+				e.getMessage());
+		var empty = assertThrows(ValidationException.class,
+				() -> properties.forKey("logging.d").ofBoolean().validateNow(LogPropertyTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogPropertyTest:
+						Error for property. key: 'logging.d' from TEST[logging.d], '' is not a valid value for java.lang.Boolean. Valid values: 'true', 'false'""",
+				empty.getMessage());
+	}
+
+	@Test
 	void chainedConversionErrorRedactsSensitivePropertyValue() {
 		var properties = LogProperties.builder().description("TEST").fromProperties("""
 				logging.password=abc123

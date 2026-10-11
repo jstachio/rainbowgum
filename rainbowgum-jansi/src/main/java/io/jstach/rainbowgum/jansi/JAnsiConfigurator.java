@@ -46,7 +46,11 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 		if (!System.getProperty("surefire.real.class.path", "").isEmpty()) {
 			return false;
 		}
-		var disableProperty = Boolean.parseBoolean(config.properties().valueOrNull(JANSI_DISABLE));
+		boolean disableProperty = config.properties()
+			.forKey(JANSI_DISABLE)
+			.ofBoolean()
+			.or(false)
+			.validateNow(JAnsiConfigurator.class);
 		if (disableProperty) {
 			return false;
 		}
