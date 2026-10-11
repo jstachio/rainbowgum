@@ -1444,7 +1444,7 @@ java -XX:StartFlightRecording:filename=recording.jfr,dumponexit=true,settings=pr
 <p>
 The simpler alternative, and the one worth reaching for first, needs none of that: give the output's own URI a
 real file path instead of the bare <code>jfr:///</code>. No JVM flags, no <code>.jfc</code> file - nothing
-outside the <code>logging.appender.*.output</code> property already being set for any other output:
+outside the <code>logging.appender.*.output.uri</code> property already being set for any other output:
 </p>
 
 {@snippet lang=properties :

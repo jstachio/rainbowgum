@@ -56,10 +56,10 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	 * names of its {@link TTLL} enum, for example
 	 * <code>logging.appender.console.encoder.ttll.keyValues=json5</code>; keyValues
 	 * accepts <code>json</code> and <code>json5</code> as well as <code>true</code>
-	 * (logfmt) and <code>false</code> (none). The timestamp property also accepts a
-	 * DateTimeFormatter pattern in UTC. The color property decides whether to color and
-	 * the theme property which colors; when neither is set the rainbowgum theme is used
-	 * if the console supports ANSI.
+	 * (percent encoding) and <code>false</code> (none). The timestamp property also
+	 * accepts a DateTimeFormatter pattern in UTC. The color property decides whether to
+	 * color and the theme property which colors; when neither is set the rainbowgum theme
+	 * is used if the console supports ANSI.
 	 * @param name encoder name, used for property lookup.
 	 * @param timestamp time formatter, see {@link TTLL.TimestampFormat}.
 	 * @param thread thread formatter in square brackets, see {@link TTLL.ThreadFormat}.

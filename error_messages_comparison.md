@@ -104,8 +104,11 @@ produces, not just the innermost builder's own message:
 ```
 Validation failed for io.jstach.rainbowgum.json.encoder.LogstashEncoderBuilder:
 Error for property. key: 'logging.appender.list.encoder.logstash.zoneId' from PROPERTIES_STRING[logging.appender.list.encoder.logstash.zoneId], java.time.zone.ZoneRulesException Unknown time-zone ID: Not/AZone
-Tried: 'logging.appender.list.encoder.logstash.zoneId' from PROPERTIES_STRING[logging.appender.list.encoder.logstash.zoneId], [logging.appender.list.encoder.uri]->URI(logstash:///)[zoneId]
-  ↳ Error converting property. key: 'logging.appender.list.encoder.uri' from PROPERTIES_STRING[logging.appender.list.encoder.uri], value: 'logstash'
+Tried:
+    'logging.appender.list.encoder.logstash.zoneId' from:
+        PROPERTIES_STRING[logging.appender.list.encoder.logstash.zoneId],
+        [logging.appender.list.encoder.uri]->URI(logstash:///)[zoneId]
+  ↳ Failure providing from property. key: 'logging.appender.list.encoder.uri' from PROPERTIES_STRING[logging.appender.list.encoder.uri], value: 'logstash'
   ↳ Failure providing Appender: 'list' from property: Property[logging.appenders]=[list].
   ↳ Failure providing Appenders for route: 'default'.
 ```
