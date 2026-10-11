@@ -127,10 +127,19 @@ final class UnusedKeyCheck {
 				|| OTHER_LIBRARY_KEYS.contains(key)) {
 			return true;
 		}
-		if (key.startsWith("logging.level")) {
+		if (key.equals(LogProperties.LEVEL_PREFIX) || key.startsWith(LogProperties.LEVEL_PREFIX + LogProperties.SEP)) {
 			return true;
 		}
-		return key.startsWith("logging.route.") && key.contains(".level");
+		String routePrefix = LogProperties.ROOT_PREFIX + "route.";
+		if (!key.startsWith(routePrefix)) {
+			return false;
+		}
+		int routeEnd = key.indexOf(LogProperties.SEP, routePrefix.length());
+		if (routeEnd < 0) {
+			return false;
+		}
+		String routeKey = key.substring(routeEnd + LogProperties.SEP.length());
+		return routeKey.equals("level") || routeKey.startsWith("level.");
 	}
 
 	/*

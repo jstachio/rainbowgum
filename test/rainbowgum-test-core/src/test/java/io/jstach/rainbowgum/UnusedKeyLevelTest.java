@@ -46,11 +46,46 @@ class UnusedKeyLevelTest {
 		try {
 			var gum = gum("logging.alerts.fail=" + fail + "\nlogging.alerts.unusedKey=" + unusedKey);
 			var e = assertThrows(IllegalStateException.class, gum::start);
-			assertEquals("1 alert(s) at " + fail + " or above were recorded while starting and logging.alerts.fail="
-					+ fail + ":\n[" + level + "] " + UNREAD_MESSAGE, e.getMessage());
+			assertEquals("""
+					1 alert(s) at FAIL_LEVEL or above were recorded while starting and logging.alerts.fail=FAIL_LEVEL:
+					[ALERT_LEVEL] MESSAGE""".replace("FAIL_LEVEL", fail)
+				.replace("ALERT_LEVEL", level)
+				.replace("MESSAGE", UNREAD_MESSAGE), e.getMessage());
 		}
 		finally {
 			System.clearProperty(UNREAD);
+		}
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "logging.levels", "logging.levelExtra", "logging.route.console.levels",
+			"logging.route.console.levelExtra", "logging.route.console.publisher.levels", "logging.route.level.typo" })
+	void nearLevelKeysStillFailStrictStartup(String key) {
+		System.setProperty(key, "x");
+		try {
+			var gum = gum("logging.alerts.fail=error\nlogging.alerts.unusedKey=error");
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals("""
+					1 alert(s) at error or above were recorded while starting and logging.alerts.fail=error:
+					[ERROR] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup."""
+				.replace("KEY", key), e.getMessage());
+		}
+		finally {
+			System.clearProperty(key);
+		}
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "logging.level.com.example", "logging.level.levels", "logging.route.console.level.com.example",
+			"logging.route.console.level.levels", "logging.route.level.level.com.example" })
+	void actualLoggerLevelKeysAreStillExempt(String key) {
+		System.setProperty(key, "debug");
+		try (var gum = gum("logging.alerts.fail=error\nlogging.alerts.unusedKey=error").start()) {
+			assertEquals(List.of(),
+					gum.config().alerts().dump().stream().filter(e -> e.message().startsWith("Property key")).toList());
+		}
+		finally {
+			System.clearProperty(key);
 		}
 	}
 
@@ -85,10 +120,9 @@ class UnusedKeyLevelTest {
 				.build();
 			var gum = RainbowGum.builder(config).build();
 			var e = assertThrows(IllegalStateException.class, gum::start);
-			assertEquals(
-					"1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:\n"
-							+ "[ERROR] " + UNREAD_MESSAGE,
-					e.getMessage());
+			assertEquals("""
+					1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
+					[ERROR] MESSAGE""".replace("MESSAGE", UNREAD_MESSAGE), e.getMessage());
 		}
 		finally {
 			System.clearProperty(UNREAD);
