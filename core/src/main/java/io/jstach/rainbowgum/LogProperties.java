@@ -1080,7 +1080,8 @@ public interface LogProperties {
 	}
 
 	/**
-	 * Creates log properties from many log properties.
+	 * Creates log properties from many log properties. Equal properties are only included
+	 * once.
 	 * @param logProperties list of properties.
 	 * @param fallback if the logProperties list is empty.
 	 * @return log properties
@@ -1100,6 +1101,8 @@ public interface LogProperties {
 		@SuppressWarnings("null") // TODO eclipse array issue
 		LogProperties[] array = logProperties.stream()
 			.filter(p -> p != StandardProperties.EMPTY)
+			// The same source listed twice adds nothing but noise in reports and errors.
+			.distinct()
 			.toArray(size -> new LogProperties[size]);
 		Arrays.sort(array, Comparator.comparingInt(LogProperties::order).reversed());
 		return array;
