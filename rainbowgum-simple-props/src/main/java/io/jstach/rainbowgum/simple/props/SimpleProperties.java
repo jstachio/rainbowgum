@@ -6,6 +6,8 @@ import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.lang.System.Logger.Level;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -113,6 +115,54 @@ public final class SimpleProperties {
 	 */
 	public static final String PROFILES_PROPERTY = LogProperties.ROOT_PREFIX + "profiles";
 
+	/**
+	 * Whether to watch a level file for log levels, see
+	 * {@value #LEVEL_FILE_PATH_PROPERTY}. Accepts {@code off} or {@code false} (default)
+	 * and {@code watch} or {@code true}. Resolved from system properties, environment
+	 * variables, or the base resource, and only when the base resource exists.
+	 */
+	public static final String LEVEL_FILE_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.levelFile";
+
+	/**
+	 * Where the watched level file is, default <code>level.properties</code>. A relative
+	 * path is resolved against the working directory. Resolved from the same sources as
+	 * {@value #LEVEL_FILE_PROPERTY}, never from profile resources or the level file
+	 * itself. Where POSIX permissions are available, the file is refused while it or its
+	 * directory can be written by group or others, or is owned by someone other than the
+	 * user running the application or root.
+	 */
+	public static final String LEVEL_FILE_PATH_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.levelFilePath";
+
+	/**
+	 * Whether to watch a level file, see {@value #LEVEL_FILE_PROPERTY}.
+	 */
+	@CaseChanging
+	public enum LevelFileType {
+
+		/** No level file. */
+		@EnumAlias("false")
+		OFF,
+		/**
+		 * Polls the level file, see {@value #LEVEL_FILE_PATH_PROPERTY}. Its
+		 * <code>logging.level</code> keys take precedence over every other source, and
+		 * level changes are allowed unless {@code logging.global.change} is set
+		 * otherwise. Keys may leave off the logging prefix:
+		 * <code>level.com.myco=debug</code> is <code>logging.level.com.myco=debug</code>.
+		 * Other keys in the file are ignored.
+		 */
+		@EnumAlias("true")
+		WATCH;
+
+		static LevelFileType parse(String value) {
+			return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+				case "true" -> WATCH;
+				case "false" -> OFF;
+				default -> LogProperty.enumValue(LevelFileType.class, value, "true", "false");
+			};
+		}
+
+	}
+
 	private static final Pattern PROFILE_NAME = Pattern.compile("[A-Za-z0-9_-]+");
 
 	private final List<LogProperties> properties;
@@ -123,12 +173,22 @@ public final class SimpleProperties {
 
 	private final StrictType strict;
 
+	private final @Nullable LevelFileProperties levelFile;
+
 	private SimpleProperties(List<LogProperties> properties, List<String> infoMessages, List<String> errorMessages,
-			StrictType strict) {
+			StrictType strict, @Nullable LevelFileProperties levelFile) {
 		this.properties = properties;
 		this.infoMessages = infoMessages;
 		this.errorMessages = errorMessages;
 		this.strict = strict;
+		this.levelFile = levelFile;
+	}
+
+	/*
+	 * The watched level file, when enabled.
+	 */
+	@Nullable LevelFileProperties levelFile() {
+		return levelFile;
 	}
 
 	/**
@@ -205,6 +265,10 @@ public final class SimpleProperties {
 
 		private Function<String, @Nullable String> envLookup = System::getenv;
 
+		private Path levelFilePath = Path.of(LevelFileProperties.FILE_NAME);
+
+		private Duration levelFilePollInterval = LevelFileProperties.POLL_INTERVAL;
+
 		private Builder() {
 		}
 
@@ -276,6 +340,16 @@ public final class SimpleProperties {
 			return this;
 		}
 
+		/*
+		 * Test-only hook so the default level file need not be in the working directory
+		 * and tests need not wait seconds for a poll.
+		 */
+		Builder levelFilePath(Path levelFilePath, Duration pollInterval) {
+			this.levelFilePath = Objects.requireNonNull(levelFilePath);
+			this.levelFilePollInterval = Objects.requireNonNull(pollInterval);
+			return this;
+		}
+
 		/**
 		 * Builds the {@link SimpleProperties}.
 		 * @return simple properties.
@@ -284,7 +358,7 @@ public final class SimpleProperties {
 			var classpathProperties = loadResource(resource);
 			if (classpathProperties == LogProperties.StandardProperties.EMPTY) {
 				return new SimpleProperties(List.of(), List.of("No properties resource found: " + resource), List.of(),
-						strict);
+						strict, null);
 			}
 			var strictType = classpathProperties.forKey(STRICT_PROPERTY)
 				.ofString()
@@ -348,7 +422,32 @@ public final class SimpleProperties {
 			for (var profileResource : profileResources.resources()) {
 				infoMessages.add("Loaded properties resource: " + profileResource);
 			}
-			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages), errorMessages, strictType);
+			var operatorProperties = LogProperties
+				.of(List.of(systemProperties, environmentVariables, classpathProperties));
+			var levelFileType = operatorProperties.forKey(LEVEL_FILE_PROPERTY)
+				.ofString()
+				.map(LevelFileType::parse)
+				.or(LevelFileType.OFF)
+				.validateNow(SimpleProperties.class);
+			LevelFileProperties levelFile = null;
+			if (levelFileType == LevelFileType.WATCH) {
+				var path = operatorProperties.forKey(LEVEL_FILE_PATH_PROPERTY)
+					.ofString()
+					.map(Path::of)
+					.or(levelFilePath)
+					.validateNow(SimpleProperties.class);
+				levelFile = new LevelFileProperties(path, levelFilePollInterval);
+				properties.add(0, levelFile);
+				// Lowest precedence so an explicit logging.global.change still wins.
+				properties.add(LogProperties.builder()
+					.fromProperties(LogProperties.GLOBAL_CHANGE_PROPERTY + "=true")
+					.description("LEVEL_FILE_DEFAULT")
+					.order(0)
+					.build());
+				infoMessages.add("Watching level file: " + levelFile.path());
+			}
+			return new SimpleProperties(List.copyOf(properties), List.copyOf(infoMessages), errorMessages, strictType,
+					levelFile);
 		}
 
 		private static LogProperties withShortKeys(LogProperties properties) {
