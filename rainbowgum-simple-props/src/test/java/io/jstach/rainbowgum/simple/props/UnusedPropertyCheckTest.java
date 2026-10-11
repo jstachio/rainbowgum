@@ -30,6 +30,17 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 class UnusedPropertyCheckTest {
 
 	@Test
+	void debugHelpFailsOnAMisspelledLevelFileSettingInTheBaseResource() {
+		var gum = RainbowGum.builder(config("classpath:/level-file-typo.properties", DebugModeType.HELP)).build();
+		var e = assertThrows(IllegalStateException.class, gum::start);
+		assertEquals(
+				"""
+						1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+						[WARNING] Property key 'logging.simpleprops.levelFlie' from SIMPLE_PROPS[classpath:/level-file-typo.properties:1][logging.simpleprops.levelFlie] was set but not read during startup. Did you mean 'logging.simpleprops.levelFile'?""",
+				e.getMessage());
+	}
+
+	@Test
 	void debugAllAlertsUnusedFileKeysWithTheReadKeyTheyProbablyMeant() {
 		var config = config("classpath:/unused-keys.properties", DebugModeType.ALL);
 		try (var gum = RainbowGum.builder(config).build().start()) {

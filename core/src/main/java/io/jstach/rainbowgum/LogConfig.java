@@ -439,12 +439,14 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		/**
 		 * Builds LogConfig which will use the {@link ServiceLoader} if set to load
-		 * missing components and if not set will use static defaults.
+		 * missing components and if not set will use static defaults. Registered
+		 * closeables are closed if configuration construction fails.
 		 * @return log config
 		 */
 		public LogConfig build() {
 			var prePropertiesAlerts = new SwappableLogAlerts();
 			LogAlerts dumpAlerts = prePropertiesAlerts;
+			@Nullable ServiceRegistry startupRegistry = null;
 			boolean startingAlerts = false;
 			DebugModeType debug = LogProperties.StandardProperties.SYSTEM_PROPERTIES
 				.forKey(LogProperties.DEBUG_PROPERTY)
@@ -461,6 +463,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				if (serviceRegistry == null) {
 					serviceRegistry = ServiceRegistry.of();
 				}
+				startupRegistry = serviceRegistry;
 				if (logProperties == null) {
 					List<LogProperties> props = new ArrayList<>();
 					for (var pp : propertiesProviders) {
@@ -561,7 +564,24 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				if (debug != DebugModeType.OFF && !startingAlerts) {
 					dumpBuildFailure(dumpAlerts, e);
 				}
+				if (startupRegistry != null) {
+					closeOnFailure(startupRegistry, e);
+				}
+				closeOnFailure(dumpAlerts, e);
 				throw e;
+			}
+		}
+
+		@SuppressWarnings("ReferenceEquality") // Throwable rejects self-suppression by
+												// identity.
+		private static void closeOnFailure(AutoCloseable closeable, Throwable failure) {
+			try {
+				closeable.close();
+			}
+			catch (Exception | Error closeFailure) {
+				if (closeFailure != failure) {
+					failure.addSuppressed(closeFailure);
+				}
 			}
 		}
 

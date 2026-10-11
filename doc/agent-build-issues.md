@@ -11,6 +11,33 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-10-11: Combined analysis hits the Checker Framework close crash
+
+While fixing `explore/simple-props-level-file`,
+`_run_modules=core,rainbowgum-simple-props bin/analyze.sh` crashed during
+simple-props test compilation at `registry.close()`. Checker Framework 4.3.0
+reported `BugInCF` in `getElementValueArray` for
+`DoesNotUnrefineReceiver({"resourceleak"})`, matching the existing issue in
+[checker-framework-bugs.md](checker-framework-bugs.md). The full reactor
+verification had passed.
+
+After installing current core and processor dependencies with the normal
+profile, separate Checker Framework invocations passed:
+
+```sh
+_run_modules=core bin/analyze.sh checkerframework
+_run_modules=rainbowgum-simple-props bin/analyze.sh checkerframework
+```
+
+This keeps the real cleanup test while letting simple-props analyze against
+installed core bytecode instead of core declarations compiled in the same
+analysis reactor. No cache or parallelism override was needed. The first
+invocation restored core's successful analysis from cache in 1.6 seconds;
+simple-props passed in 8.5 seconds. Error Prone and NullAway can still analyze
+the two modules together.
+
+Agent: Codex (GPT-6).
+
 ## 2026-10-09: Targeted analysis needs current annotation processor dependencies
 
 During review of `spike/unused-property-check`, the full
