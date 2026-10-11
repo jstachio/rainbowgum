@@ -24,6 +24,10 @@ Status: **not yet filed**, and no minimal repro yet.
   `:rainbowgum-spring-boot4`. `bin/analyze.sh` excludes them from the
   `checkerframework` profile only (`_modules_no_checkerframework`); errorprone and
   nullaway still analyze them.
+- **Workaround:** in `rainbowgum-simple-props`'s `LevelFileTest`, an explicit
+  `registry.close()` on a `ServiceRegistry` in a `finally` block crashed it (Checker
+  Framework 4.3.0); the same cleanup written as try-with-resources does not. Prefer
+  try-with-resources in modules that are analyzed.
 - **To do before filing:** reduce to a small standalone project, confirm it on the
   latest Checker Framework release, and attach the full stack trace (rerun with
   `-AprintErrorStack` to get it).

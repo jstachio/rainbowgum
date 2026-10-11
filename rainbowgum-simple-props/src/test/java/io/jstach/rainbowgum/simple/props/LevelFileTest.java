@@ -65,11 +65,10 @@ class LevelFileTest {
 		var file = dir.resolve("level.properties");
 		write(file, "level.com.example=DEBUG\n");
 		var simple = simple("classpath:/level-file.properties", file);
-		var registry = ServiceRegistry.of();
-		registry.putIfAbsent(SimpleProperties.class, () -> simple);
 		var started = new ArrayList<Thread>();
 		var existingThreads = Thread.getAllStackTraces().keySet();
-		try {
+		try (var registry = ServiceRegistry.of()) {
+			registry.putIfAbsent(SimpleProperties.class, () -> simple);
 			var e = assertThrows(IllegalStateException.class,
 					() -> LogConfig.builder()
 						.serviceRegistry(registry)
@@ -96,9 +95,6 @@ class LevelFileTest {
 			assertEquals(1, started.size());
 			await(() -> !started.get(0).isAlive());
 			assertFalse(started.get(0).isAlive());
-		}
-		finally {
-			registry.close();
 		}
 	}
 
