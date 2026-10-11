@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.json.encoder;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
@@ -33,9 +34,10 @@ import io.jstach.rainbowgum.json.JsonBuffer.JSONToken;
  * string).
  * <p>
  * <code>tags</code> (from SLF4J markers) is not implemented since Rainbow Gum core has no
- * built-in {@code org.slf4j.Marker} support. MDC / key values have no reserved field so,
- * matching the reference implementation, they are written as top-level fields using their
- * own key name.
+ * built-in {@code org.slf4j.Marker} support. Key values are written as top-level fields
+ * using their own key name, matching the reference implementation, except a key value
+ * named like a field this encoder writes, which goes in a nested <code>keyValues</code>
+ * object so no field is written twice.
  */
 public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
@@ -43,6 +45,10 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	 * Logstash encoder URI scheme.
 	 */
 	public static final String LOGSTASH_SCHEME = "logstash";
+
+	private static final KeyValuesWriter KEY_VALUES = new KeyValuesWriter(KeyValuesWriter.Placement.NESTED, Set
+		.of("@timestamp", "@version", "message", "logger_name", "thread_name", "level", "level_value", "stack_trace"),
+			0);
 
 	private final ZoneId zoneId;
 
@@ -137,8 +143,7 @@ public final class LogstashEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 			index = buffer.write("stack_trace", stackTrace.toString(), index);
 		}
 
-		var kvs = event.keyValues();
-		index = kvs.forEach((src, k, v, idx, buf) -> buf.write(k, v, idx), index, buffer);
+		index = KEY_VALUES.write(event.keyValues(), buffer, index);
 
 		if (index > 0 && prettyPrint) {
 			buffer.writeLineFeed();

@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.format;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
@@ -49,7 +50,8 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * <code>TRACE</code>, <code>DEBUG</code>, <code>INFO</code>, <code>WARN</code>, or
 	 * <code>ERROR</code>. logfmt does not define level names, and tools differ (Go's slog
 	 * is upper case, logrus lower case).</li>
-	 * <li>Every key value follows <code>msg</code>, in order.</li>
+	 * <li>Every key value follows <code>msg</code>, in order. A key value named like one
+	 * of these fields is prefixed with <code>keyValues.</code>.</li>
 	 * <li>A throwable adds <code>error</code> (its <code>toString()</code>) and
 	 * <code>stacktrace</code>.</li>
 	 * </ul>
@@ -110,6 +112,18 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 
 	}
 
+	/*
+	 * A key value named like a field written here gets a keyValues. prefix, as in the
+	 * JSON encoders, so no key is written twice.
+	 */
+	private static final KeyValuesConsumer<StringBuilder> KEY_VALUES = (kvs, key, value, count,
+			output) -> LogfmtKeyValuesFormatter.ALL.accept(kvs,
+					collides(key) ? Json5Formatter.KEY_VALUES_FIELD + "." + key : key, value, count, output);
+
+	private static boolean collides(String key) {
+		return Json5Formatter.FIELDS.contains(key) || key.startsWith(Json5Formatter.KEY_VALUES_FIELD + ".");
+	}
+
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		var p = palette;
@@ -143,7 +157,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 		if (!keyValues.isEmpty()) {
 			output.append(' ');
 			Palette.start(output, p.keyValues());
-			keyValues.forEach(LogfmtKeyValuesFormatter.ALL, 0, output);
+			keyValues.forEach(KEY_VALUES, 0, output);
 			Palette.end(output, p.keyValues());
 		}
 		var throwable = event.throwableOrNull();

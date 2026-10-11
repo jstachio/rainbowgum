@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.json.encoder;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
@@ -33,11 +34,10 @@ import io.jstach.rainbowgum.json.JsonBuffer.JSONToken;
  * <a href="https://docs.spring.io/spring-boot/reference/features/logging.html">Spring
  * Boot's ECS structured logging format</a>.</li>
  * </ul>
- * MDC / key values have no reserved ECS field in either shape, so - like both reference
- * implementations - they are written as top-level fields using their own key name. This
- * means a key value whose name collides with a reserved ECS field name (e.g.
- * <code>message</code>) will overwrite it; that footgun exists in the reference
- * implementations too.
+ * Key values are written as top-level fields using their own key name, except a key value
+ * named like a field this encoder writes (e.g. <code>message</code>), which goes in a
+ * nested <code>keyValues</code> object, or is prefixed with <code>keyValues.</code> in
+ * the flattened shape, so no field is written twice.
  */
 public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
@@ -63,6 +63,8 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
 	private final boolean structured;
 
+	private final KeyValuesWriter keyValues;
+
 	private final boolean prettyPrint;
 
 	private final int maxBufferSize;
@@ -79,6 +81,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		this.serviceNodeName = serviceNodeName;
 		this.eventDataset = eventDataset;
 		this.structured = structured;
+		this.keyValues = structured ? STRUCTURED_KEY_VALUES : FLATTENED_KEY_VALUES;
 		this.prettyPrint = prettyPrint;
 		this.maxBufferSize = maxBufferSize;
 	}
@@ -182,7 +185,7 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 			index = buffer.write("error.stack_trace", stackTrace.toString(), index);
 		}
 
-		index = writeKeyValues(event, buffer, index);
+		index = keyValues.write(event.keyValues(), buffer, index);
 		return index;
 	}
 
@@ -248,13 +251,17 @@ public final class EcsEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 			index++;
 		}
 
-		index = writeKeyValues(event, buffer, index);
+		index = keyValues.write(event.keyValues(), buffer, index);
 		return index;
 	}
 
-	private static int writeKeyValues(LogEvent event, JsonBuffer buffer, int index) {
-		var kvs = event.keyValues();
-		return kvs.forEach((src, k, v, idx, buf) -> buf.write(k, v, idx), index, buffer);
-	}
+	private static final KeyValuesWriter FLATTENED_KEY_VALUES = new KeyValuesWriter(KeyValuesWriter.Placement.DOTTED,
+			Set.of("@timestamp", "log.level", "message", "ecs.version", "service.name", "service.version",
+					"service.environment", "service.node.name", "event.dataset", "log.logger", "process.thread.name",
+					"error.type", "error.message", "error.stack_trace"),
+			0);
+
+	private static final KeyValuesWriter STRUCTURED_KEY_VALUES = new KeyValuesWriter(KeyValuesWriter.Placement.NESTED,
+			Set.of("@timestamp", "log", "message", "ecs", "service", "event", "process", "error"), 0);
 
 }
