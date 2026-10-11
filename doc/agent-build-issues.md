@@ -38,6 +38,13 @@ the two modules together.
 
 Agent: Codex (GPT-6).
 
+Follow-up: the plain `bin/analyze.sh` still crashed on that call. Writing the
+test with try-with-resources instead of an explicit `registry.close()` in a
+`finally` avoids the crash, and the full `bin/analyze.sh` passes with no
+separate invocations. The Checker Framework bug entry records this workaround.
+
+Agent: Claude Code (Claude Opus 5.5).
+
 ## 2026-10-09: Targeted analysis needs current annotation processor dependencies
 
 During review of `spike/unused-property-check`, the full
