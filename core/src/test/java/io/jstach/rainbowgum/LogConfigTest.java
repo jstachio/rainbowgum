@@ -87,6 +87,21 @@ class LogConfigTest {
 	}
 
 	@Test
+	void systemPropertiesFromAPropertiesProviderAreNotAddedTwice() {
+		var config = LogConfig.builder()
+			.propertiesProvider((registry, alerts) -> List.of(LogProperties.StandardProperties.SYSTEM_PROPERTIES,
+					LogProperties.builder().fromProperties("").description("OTHER").build()))
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> config.properties().forKey("logging.missing").ofString().validateNow(LogConfigTest.class));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogConfigTest:
+						Property missing. key: ['logging.missing' from SYSTEM_PROPERTIES[logging.missing], OTHER[logging.missing]]""",
+				e.getMessage());
+	}
+
+	@Test
 	void loggerNamesEmptyByDefault() {
 		var config = LogConfig.builder().build();
 		assertEquals(Set.of(), loggerNames(config));
