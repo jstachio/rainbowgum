@@ -52,3 +52,15 @@ or `bin/codecover-merge.sh`. The aggregated HTML report lands at
 
 If any of the above feels off or out of date, check `.github/workflows/` for
 how CI actually builds this project, that is the source of truth.
+
+## OTLP consumer integration
+
+The real OpenTelemetry Collector test is opt-in and outside the normal reactor:
+
+```sh
+./mvnw install
+bin/test-otlp-collector.sh
+```
+
+See [the collector test guide](test/rainbowgum-test-otlp-collector/readme.md)
+for cached downloads, using an installed collector, and examining received logs.
