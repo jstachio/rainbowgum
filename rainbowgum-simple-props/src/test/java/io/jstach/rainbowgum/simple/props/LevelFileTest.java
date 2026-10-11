@@ -212,8 +212,11 @@ class LevelFileTest {
 		try (var gum = RainbowGum.builder(config(simple("classpath:/level-file.properties", file))).build().start()) {
 			var config = gum.config();
 			assertEquals(Level.DEBUG, config.levelResolver().resolveLevel("com.example.App"));
+			// Facades only follow level changes for loggers that are changeable.
+			assertTrue(gum.router().isChangeable("com.example.App"));
 			write(file, "logging.level.com.example=TRACE\n");
-			await(() -> config.levelResolver().resolveLevel("com.example.App") == Level.TRACE);
+			await(() -> gum.router().route("com.example.App", Level.TRACE).isEnabled());
+			assertTrue(gum.router().route("com.example.App", Level.TRACE).isEnabled());
 			assertEquals(Level.TRACE, config.levelResolver().resolveLevel("com.example.App"));
 			assertEquals(List.of("Level file changed: " + file.toAbsolutePath()),
 					alerts(config, Level.INFO).stream().filter(m -> m.startsWith("Level file changed")).toList());
@@ -297,7 +300,9 @@ class LevelFileTest {
 	@Test
 	void watchingTurnsOnLevelChanges(@TempDir Path dir) throws Exception {
 		var simple = simple("classpath:/level-file.properties", dir.resolve("level.properties"));
-		assertEquals("true", LogProperties.of(simple.properties()).valueOrNull(LogProperties.GLOBAL_CHANGE_PROPERTY));
+		var properties = LogProperties.of(simple.properties());
+		assertEquals("true", properties.valueOrNull(LogProperties.GLOBAL_CHANGE_PROPERTY));
+		assertEquals("level", properties.valueOrNull(LogProperties.CHANGE_PREFIX));
 	}
 
 	@Test

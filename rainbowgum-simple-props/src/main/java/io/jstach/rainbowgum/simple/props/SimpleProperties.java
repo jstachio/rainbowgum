@@ -149,8 +149,8 @@ public final class SimpleProperties {
 		/**
 		 * Polls the level file, see {@value #LEVEL_FILE_PATH_PROPERTY}. Its
 		 * <code>logging.level</code> keys take precedence over every other source, and
-		 * level changes are allowed unless {@code logging.global.change} is set
-		 * otherwise. Keys may leave off the logging prefix:
+		 * level changes are allowed unless {@code logging.global.change} or
+		 * {@code logging.change} is set otherwise. Keys may leave off the logging prefix:
 		 * <code>level.com.myco=debug</code> is <code>logging.level.com.myco=debug</code>.
 		 * Other keys in the file are ignored.
 		 */
@@ -442,9 +442,10 @@ public final class SimpleProperties {
 					.validateNow(SimpleProperties.class);
 				levelFile = new LevelFileProperties(path, levelFilePollInterval);
 				properties.add(0, levelFile);
-				// Lowest precedence so an explicit logging.global.change still wins.
+				// Lowest precedence so explicit change settings still win.
 				properties.add(LogProperties.builder()
-					.fromProperties(LogProperties.GLOBAL_CHANGE_PROPERTY + "=true")
+					.fromProperties(
+							LogProperties.GLOBAL_CHANGE_PROPERTY + "=true\n" + LogProperties.CHANGE_PREFIX + "=level")
 					.description("LEVEL_FILE_DEFAULT")
 					.order(0)
 					.build());
