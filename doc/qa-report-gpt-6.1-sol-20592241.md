@@ -4,7 +4,7 @@ Agent: Codex subagent `/root/blackbox_qa` (GPT-6.1 Sol, high reasoning).
 
 Test date: 2026-10-11. Tested Git commit: `20592241eac43ba0c652fb621b13fdda1aefab18`.
 
-This report covers the pinned commit, not subsequent changes. Reproduction commands refer to the retained local workspace `/home/agentcodex/qa/rainbowgum-20592241`; consumer projects, transcripts, and support files are retained there and are not included in this documentation commit.
+This report covers the pinned commit, not subsequent changes. Reproduction commands refer to the retained local workspace `/home/agentcodex/qa/rainbowgum-20592241`; consumer projects, transcripts, and other support files are retained there. This branch includes the report and [rerun guide](qa-rerun-gpt-6.1-sol-20592241.md); it does not include the consumer projects or harness.
 
 The documented runtime dependency works, and the tested logging workflows behaved as documented after correcting two QA assumptions. The first pass verified four documentation problems, including two independent blockers in the Getting Started shell example and an incomplete builder example. No implementation defect was confirmed.
 
@@ -22,7 +22,7 @@ The corrected automated consumer suite passed **36 process runs and 115 assertio
 - An initial workspace **file-name listing** unexpectedly exposed a supplied `build-cache/` directory containing names of excluded artifacts. No file in that cache was opened. It was immediately reported and the parent removed it. This procedural-isolation limitation is disclosed rather than claiming operating-system isolation.
 - The plan was written before the parent declared artifacts/API docs ready. No Maven command ran before readiness.
 
-Supporting files in the retained local workspace: `QA-PLAN.md`, `FIRST-ATTEMPT-NOTES.md`, and `RERUN.md`. Guide links below refer to the tested commit. External API links point to the published documentation; the agent used locally generated API documentation from the tested commit.
+The [rerun guide](qa-rerun-gpt-6.1-sol-20592241.md) is included alongside this report. Other supporting files in the retained local workspace include `QA-PLAN.md` and `FIRST-ATTEMPT-NOTES.md`. Guide links below refer to the tested commit. External API links point to the published documentation; the agent used locally generated API documentation from the tested commit.
 
 ## Verified findings
 
@@ -193,7 +193,7 @@ No original first-attempt source, command, stdout/stderr, exit status, or result
 
 ## Reproducibility and limitations
 
-Follow `RERUN.md` in the retained local workspace to rebuild the five consumers with the isolated wrapper/repository and execute the suite. Property-resource fixtures are actual files in `cases/` placed first on the JVM classpath; they are not packaged into the simple consumer jar. That tests classpath-resource loading but not Maven's resource-copying step for these fixtures. Runtime aggregate, simple no-config, and builder service registration were tested as executable Maven-produced jars.
+Follow the [rerun guide](qa-rerun-gpt-6.1-sol-20592241.md) to rebuild the five consumers with the isolated wrapper/repository and execute the suite. Property-resource fixtures are actual files in `cases/` placed first on the JVM classpath; they are not packaged into the simple consumer jar. That tests classpath-resource loading but not Maven's resource-copying step for these fixtures. Runtime aggregate, simple no-config, and builder service registration were tested as executable Maven-produced jars.
 
 This is a focused HotSpot/classpath pass, not a certification. Not tested: Spring Boot/Helidon/Micronaut installations, remote OTLP collectors, production JSON schema modules, default/scoped key-value providers, annotation processor extensions, GraalVM/native-image, JPMS/jlink, real ANSI terminals, performance claims, custom filters/decorators, file reopen/logrotate, prudent locking, multiple processes, async overload/interruption/timeout/failure, large concurrency, watched level-file reload, or runtime-level changes. A lifecycle consumer contains a prepared dynamic-level code path that was **not executed**; only its `jul` mode was used to settle the existing finding. The optional `rainbowgum-jdk`-only eager-start setup was not separately built.
 
