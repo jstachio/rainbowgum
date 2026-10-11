@@ -149,8 +149,9 @@ class TokenStream {
 				state = TokenizerState.LITERAL_STATE;
 				break;
 			default:
-				buf.append(c);
+				// Not buf.append(c): a '%' right after a group starts the next keyword.
 				state = TokenizerState.LITERAL_STATE;
+				handleLiteralState(c, tokenList, buf);
 		}
 	}
 

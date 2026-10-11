@@ -78,7 +78,11 @@ enum ParserResult {
 	compositeSpace("hello%(%child) ", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child']], LITERAL[' ']"),
 	compositeArg("hello%(%child %h)", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child'], LITERAL[' '], KEYWORD['h']]"),
 	compositeNext("hello%(%child %h) %m", "LITERAL['hello'], COMPOSITE[keyword='BARE', childNode=KEYWORD['child'], LITERAL[' '], KEYWORD['h']], LITERAL[' '], KEYWORD['m']"),
-	group("%-30(%d{HH:mm:ss.SSS} %t) %-5level", "COMPOSITE[keyword='BARE', childNode=KEYWORD['d', options=[HH:mm:ss.SSS]], LITERAL[' '], KEYWORD['t']], LITERAL[' '], KEYWORD['level']");
+	group("%-30(%d{HH:mm:ss.SSS} %t) %-5level", "COMPOSITE[keyword='BARE', childNode=KEYWORD['d', options=[HH:mm:ss.SSS]], LITERAL[' '], KEYWORD['t']], LITERAL[' '], KEYWORD['level']"),
+	compositeThenKeyword("%red(%msg)%n", "COMPOSITE[keyword='red', childNode=KEYWORD['msg']], KEYWORD['n']"),
+	compositeThenPaddedKeyword("%highlight(%-5level)%-10logger", "COMPOSITE[keyword='highlight', childNode=KEYWORD['level']], KEYWORD['logger']"),
+	compositeThenComposite("%red(%msg)%blue(%n)", "COMPOSITE[keyword='red', childNode=KEYWORD['msg']], COMPOSITE[keyword='blue', childNode=KEYWORD['n']]"),
+	compositeThenEscape("%red(%msg)\\%x", "COMPOSITE[keyword='red', childNode=KEYWORD['msg']], LITERAL['%x']");
 	
 	final String input;
 	final String expected;
