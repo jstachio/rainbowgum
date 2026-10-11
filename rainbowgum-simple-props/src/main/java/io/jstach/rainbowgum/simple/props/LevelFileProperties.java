@@ -30,7 +30,8 @@ import io.jstach.rainbowgum.LogReporter;
  * Whoever can write the file controls levels, and so what reaches the logs, so like ssh's
  * StrictModes the file is refused while it or its directory can be written by group or
  * others, or is owned by someone other than the user running the application or root.
- * The check is skipped where POSIX permissions are not available.
+ * Symbolic links also have the target's directory checked. The permission check is
+ * skipped where POSIX permissions are not available.
  */
 final class LevelFileProperties implements LogProperties.Listable, LogReporter.Reportable, AutoCloseable {
 
@@ -150,10 +151,28 @@ final class LevelFileProperties implements LogProperties.Listable, LogReporter.R
 	static @Nullable String refusal(Path file) {
 		var dir = file.getParent();
 		String reason = dir == null ? null : refusal(file, dir, "its directory " + dir);
-		if (reason == null && Files.exists(file)) {
-			reason = refusal(file, file, "it");
+		if (reason != null) {
+			return reason;
 		}
-		return reason;
+		Path resolved;
+		try {
+			resolved = file.toRealPath();
+		}
+		catch (NoSuchFileException e) {
+			return Files.isSymbolicLink(file)
+					? "Refusing level file " + file + ": its symbolic link target does not exist." : null;
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+		var resolvedDir = resolved.getParent();
+		if (resolvedDir != null && !resolvedDir.equals(dir)) {
+			reason = refusal(file, resolvedDir, "its directory " + resolvedDir);
+			if (reason != null) {
+				return reason;
+			}
+		}
+		return refusal(file, resolved, "it");
 	}
 
 	private static @Nullable String refusal(Path file, Path checked, String what) {

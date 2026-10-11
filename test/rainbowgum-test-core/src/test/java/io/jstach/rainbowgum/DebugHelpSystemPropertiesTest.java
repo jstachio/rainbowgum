@@ -23,6 +23,51 @@ import io.jstach.rainbowgum.LogConfig.DebugModeType;
 @Execution(ExecutionMode.SAME_THREAD)
 class DebugHelpSystemPropertiesTest {
 
+	@ParameterizedTest
+	@CsvSource({ "logging.simpleprops.levelFlie, watch, logging.simpleprops.levelFile",
+			"logging.simpleprops.levelFilePaht, level.properties, logging.simpleprops.levelFilePath",
+			"logging.simpleprops.strcit, short, logging.simpleprops.strict" })
+	void misspelledBootstrapSettingsFailWithTheirKnownKey(String key, String value, String correctKey) {
+		System.setProperty(key, value);
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			var gum = RainbowGum.builder(config).build();
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+							[WARNING] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup. Did you mean 'CORRECT_KEY'?"""
+						.replace("CORRECT_KEY", correctKey)
+						.replace("KEY", key),
+					e.getMessage());
+		}
+		finally {
+			System.getProperties().remove(key);
+		}
+	}
+
+	@Test
+	void knownBootstrapSettingsAreExemptWithoutAPropertiesProvider() {
+		var settings = Map.of("logging.simpleprops.strict", "short", "logging.simpleprops.levelFile", "off",
+				"logging.simpleprops.levelFilePath", "level.properties");
+		settings.forEach(System::setProperty);
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			try (var gum = RainbowGum.builder(config).build().start()) {
+				assertEquals(List.of(),
+						gum.config()
+							.alerts()
+							.dump()
+							.stream()
+							.filter(e -> e.message().startsWith("Property key"))
+							.toList());
+			}
+		}
+		finally {
+			settings.keySet().forEach(key -> System.getProperties().remove(key));
+		}
+	}
+
 	@Test
 	void misspelledSystemPropertiesFailWithTheKeyTheyProbablyMeant() {
 		var properties = Map.of( //

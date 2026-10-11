@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
@@ -22,8 +23,11 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogAlerts.FailLevel;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogProvider;
@@ -38,6 +42,118 @@ import io.jstach.rainbowgum.simple.props.LevelFileProperties.Poll;
 @Isolated
 @Execution(ExecutionMode.SAME_THREAD)
 class LevelFileTest {
+
+	enum StartupFailure {
+
+		CONFIGURATOR("""
+				Later configurator failed"""),
+		ALERTS("""
+				1 alert(s) at error or above were recorded while building the configuration and logging.alerts.fail=error:
+				[ERROR] Later configurator reported an error""");
+
+		final String message;
+
+		StartupFailure(String message) {
+			this.message = message;
+		}
+
+	}
+
+	@ParameterizedTest
+	@EnumSource(StartupFailure.class)
+	void aFailedConfigurationBuildStopsItsWatcher(StartupFailure failure, @TempDir Path dir) throws Exception {
+		var file = dir.resolve("level.properties");
+		write(file, "level.com.example=DEBUG\n");
+		var simple = simple("classpath:/level-file.properties", file);
+		var registry = ServiceRegistry.of();
+		registry.putIfAbsent(SimpleProperties.class, () -> simple);
+		var started = new ArrayList<Thread>();
+		var existingThreads = Thread.getAllStackTraces().keySet();
+		try {
+			var e = assertThrows(IllegalStateException.class,
+					() -> LogConfig.builder()
+						.serviceRegistry(registry)
+						.properties(LogProperties.of(simple.properties()))
+						.alertsFail(FailLevel.ERROR)
+						.configurator(new SimplePropertiesProvider())
+						.configurator((config, pass) -> {
+							started.add(Thread.getAllStackTraces()
+								.keySet()
+								.stream()
+								.filter(t -> !existingThreads.contains(t) && t.isAlive()
+										&& t.getName().equals("rainbowgum-level-file"))
+								.findFirst()
+								.orElseThrow());
+							if (failure == StartupFailure.CONFIGURATOR) {
+								throw new IllegalStateException("Later configurator failed");
+							}
+							config.alerts()
+								.error(getClass(), new IllegalStateException("Later configurator reported an error"));
+							return true;
+						})
+						.build());
+			assertEquals(failure.message, e.getMessage());
+			assertEquals(1, started.size());
+			await(() -> !started.get(0).isAlive());
+			assertFalse(started.get(0).isAlive());
+		}
+		finally {
+			registry.close();
+		}
+	}
+
+	@Test
+	void aSymbolicLinkToATrustedFileLoadsLevels(@TempDir Path dir) throws Exception {
+		assumeTrue(POSIX);
+		var targetDir = Files.createDirectory(dir.resolve("trusted"));
+		chmod(targetDir, "rwx------");
+		var target = targetDir.resolve("level.properties");
+		write(target, "level.com.example=DEBUG\n");
+		var link = Files.createSymbolicLink(dir.resolve("level.properties"), target);
+		try (var gum = RainbowGum.builder(config(simple("classpath:/level-file.properties", link))).build().start()) {
+			assertEquals(Level.DEBUG, gum.config().levelResolver().resolveLevel("com.example.App"));
+			assertEquals(List.of(), alerts(gum.config(), Level.ERROR));
+		}
+	}
+
+	@Test
+	void aSymbolicLinkIntoAWritableDirectoryIsRefusedUntilFixed(@TempDir Path dir) throws Exception {
+		assumeTrue(POSIX);
+		var targetDir = Files.createDirectory(dir.resolve("shared"));
+		var target = targetDir.resolve("level.properties");
+		write(target, "level.com.example=DEBUG\n");
+		chmod(targetDir, "rwxrwxrwx");
+		var link = Files.createSymbolicLink(dir.resolve("level.properties"), target);
+		try (var gum = RainbowGum.builder(config(simple("classpath:/level-file.properties", link))).build().start()) {
+			var config = gum.config();
+			assertEquals(Level.WARNING, config.levelResolver().resolveLevel("com.example.App"));
+			assertEquals(
+					List.of("""
+							Refusing level file LINK: its directory TARGET_DIR is writable by group or others. Remove that access, for example with chmod go-w."""
+						.replace("LINK", link.toAbsolutePath().toString())
+						.replace("TARGET_DIR", targetDir.toRealPath().toString())),
+					alerts(config, Level.ERROR));
+			chmod(targetDir, "rwx------");
+			await(() -> config.levelResolver().resolveLevel("com.example.App") == Level.DEBUG);
+			assertEquals(Level.DEBUG, config.levelResolver().resolveLevel("com.example.App"));
+		}
+	}
+
+	@Test
+	void aDanglingSymbolicLinkKeepsItsLastLevels(@TempDir Path dir) throws Exception {
+		assumeTrue(POSIX);
+		var target = dir.resolve("target.properties");
+		write(target, "level.com.example=DEBUG\n");
+		var link = Files.createSymbolicLink(dir.resolve("level.properties"), target);
+		var levels = new LevelFileProperties(link, Duration.ofSeconds(1));
+		Files.delete(target);
+		assertEquals(Poll.REFUSED, levels.poll());
+		assertEquals("""
+				Refusing level file LINK: its symbolic link target does not exist.""".replace("LINK",
+				link.toAbsolutePath().toString()), levels.refused());
+		assertEquals("DEBUG", levels.valueOrNull("logging.level.com.example"));
+		assertEquals(Poll.UNCHANGED, levels.poll());
+	}
 
 	private static SimpleProperties simple(String resource, Path file) {
 		return SimpleProperties.builder()

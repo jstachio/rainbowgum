@@ -45,8 +45,8 @@ public final class SimplePropertiesProvider
 		var simpleProperties = config.serviceRegistry().findOrNull(SimpleProperties.class);
 		var levelFile = simpleProperties == null ? null : simpleProperties.levelFile();
 		if (levelFile != null) {
-			levelFile.watch(config);
 			config.serviceRegistry().onClose(levelFile);
+			levelFile.watch(config);
 		}
 		return true;
 	}

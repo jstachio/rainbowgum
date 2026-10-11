@@ -47,7 +47,8 @@ Decided with Adam: safe, minimal, easy.
   application or root. This matters most for the working directory default: an
   application started from `/tmp` refuses rather than trusting a world writable
   directory. A file that becomes refused while running keeps the levels last read from
-  it, alerts once, and is read again once fixed.
+  it, alerts once, and is read again once fixed. Symbolic links also have their resolved
+  target's directory checked, and dangling links are refused.
 - **Levels only.** Only `logging.level` and `logging.level.*` keys are read from it,
   since levels are the only thing core changes while running. Keys may leave off
   `logging.`, as in `logging.properties`: `level.com.myco=DEBUG` is
@@ -57,10 +58,10 @@ Decided with Adam: safe, minimal, easy.
 - **Turns on level changes.** Enabling the watcher supplies `logging.global.change=true`
   as a default, since the file can appear after startup. An explicit
   `logging.global.change` anywhere still wins.
-- **Polling, not `WatchService`.** A daemon thread checks the file's modification time
-  and size every few seconds. `WatchService` behaves differently across platforms and
-  container volumes; one file check is cheap. The thread stops when the configuration
-  closes.
+- **Polling, not `WatchService`.** A daemon thread rereads and parses the file every two
+  seconds, comparing its level entries so quick edits with unchanged timestamps or size
+  are detected. `WatchService` behaves differently across platforms and container
+  volumes. The thread stops when Rainbow Gum closes or configuration construction fails.
 - **Info alert when levels change.** Rewriting the file without changing any level
   publishes nothing and alerts nothing.
 

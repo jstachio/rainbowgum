@@ -26,6 +26,9 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
 /**
  * Resolves {@link LogProperties} from the following layers, highest priority first:
  * <ol>
+ * <li>The optional watched level file, enabled by {@value #LEVEL_FILE_PROPERTY}. Only
+ * {@code logging.level} and {@code logging.level.*} keys are supplied by this
+ * source.</li>
  * <li>System properties
  * ({@link LogProperties.StandardProperties#SYSTEM_PROPERTIES}).</li>
  * <li>Environment variables, using {@value Builder#DEFAULT_ENV_PREFIX} (configurable) in
@@ -129,7 +132,8 @@ public final class SimpleProperties {
 	 * {@value #LEVEL_FILE_PROPERTY}, never from profile resources or the level file
 	 * itself. Where POSIX permissions are available, the file is refused while it or its
 	 * directory can be written by group or others, or is owned by someone other than the
-	 * user running the application or root.
+	 * user running the application or root. Symbolic links also have their resolved
+	 * target's directory checked; a missing symbolic link target is refused.
 	 */
 	public static final String LEVEL_FILE_PATH_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.levelFilePath";
 

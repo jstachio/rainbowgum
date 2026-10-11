@@ -32,7 +32,8 @@ final class UnusedKeyCheck {
 	 * rainbowgum-simple-props reads while loading its files.
 	 */
 	static final Set<String> READ_BEFORE_CONFIG_KEYS = Set.of("logging.debug", "logging.global.queue.level",
-			"logging.global.queue.error", "logging.systemlogger.initialize", "logging.profiles");
+			"logging.global.queue.error", "logging.systemlogger.initialize", "logging.profiles",
+			"logging.simpleprops.strict", "logging.simpleprops.levelFile", "logging.simpleprops.levelFilePath");
 
 	/*
 	 * System properties other libraries read that happen to start with logging.: Spring
@@ -103,6 +104,7 @@ final class UnusedKeyCheck {
 	 */
 	List<Unused> unused() {
 		var candidates = new TreeSet<>(reads);
+		candidates.addAll(READ_BEFORE_CONFIG_KEYS);
 		var seen = new LinkedHashSet<String>();
 		var unused = new ArrayList<Unused>();
 		for (var source : sources) {
@@ -125,7 +127,7 @@ final class UnusedKeyCheck {
 				|| OTHER_LIBRARY_KEYS.contains(key)) {
 			return true;
 		}
-		if (key.startsWith("logging.level") || key.startsWith("logging.simpleprops.")) {
+		if (key.startsWith("logging.level")) {
 			return true;
 		}
 		return key.startsWith("logging.route.") && key.contains(".level");
@@ -153,7 +155,7 @@ final class UnusedKeyCheck {
 		String best = null;
 		int bestDistance = MAX_DISTANCE + 1;
 		for (String candidate : candidates) {
-			if (isIgnored(candidate)) {
+			if (isIgnored(candidate) && !READ_BEFORE_CONFIG_KEYS.contains(candidate)) {
 				continue;
 			}
 			int distance = distance(key, candidate, bestDistance);

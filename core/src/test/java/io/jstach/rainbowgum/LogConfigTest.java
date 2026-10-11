@@ -23,6 +23,22 @@ import org.junit.jupiter.api.parallel.Isolated;
 class LogConfigTest {
 
 	@Test
+	void cleanupFailureDoesNotReplaceTheConfigurationFailure() {
+		var failure = new IllegalStateException("Configuration failed");
+		var cleanupFailure = new AssertionError("Cleanup failed");
+		var e = assertThrows(IllegalStateException.class, () -> LogConfig.builder().configurator((config, pass) -> {
+			config.serviceRegistry().onClose(() -> {
+				throw cleanupFailure;
+			});
+			throw failure;
+		}).build());
+		assertSame(failure, e);
+		assertEquals("""
+				Configuration failed""", e.getMessage());
+		assertEquals(List.of(cleanupFailure), List.of(e.getSuppressed()));
+	}
+
+	@Test
 	void test() {
 		var config = LogConfig.builder()
 			.properties(Map.<String, String>of("logging.level.stuff", "DEBUG")::get)
