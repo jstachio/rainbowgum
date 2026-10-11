@@ -119,21 +119,26 @@ public interface LogProperty {
 	}
 
 	/**
-	 * Resolves the property as a boolean.
-	 * <p>
-	 * {@link Boolean#parseBoolean(String)} treats any value other than
-	 * <code>"true"</code> (case-insensitive) as <code>false</code> - a typo or a
-	 * reasonable-looking alternative like <code>someFlag=yes</code> silently resolves to
-	 * <code>false</code> instead of failing loudly. Component/plugin authors implementing
-	 * a new property should prefer a small enum (with
-	 * <code>true</code>/<code>false</code> aliased to e.g.
-	 * <code>on</code>/<code>off</code> members) parsed via {@link #ofString()} instead,
-	 * so a bad value alerts rather than silently resolving false. This method remains
-	 * available (and fine) for end users setting an existing boolean property.
+	 * Resolves the property as a boolean. Only <code>true</code> and <code>false</code>
+	 * (case-insensitive) are valid; any other value is an error.
 	 * @return result.
+	 * @apiNote new properties should prefer a small enum with <code>true</code> and
+	 * <code>false</code> as aliases, parsed from {@link #ofString()}, so the property can
+	 * grow more choices later.
 	 */
 	default Result<Boolean> ofBoolean() {
-		return ofString().map(Boolean::parseBoolean);
+		return ofString().map(LogProperty::parseBoolean);
+	}
+
+	private static Boolean parseBoolean(String value) {
+		if (value.equalsIgnoreCase("true")) {
+			return true;
+		}
+		if (value.equalsIgnoreCase("false")) {
+			return false;
+		}
+		throw new IllegalArgumentException(
+				"'" + value + "' is not a valid value for java.lang.Boolean. Valid values: 'true', 'false'");
 	}
 
 	/**

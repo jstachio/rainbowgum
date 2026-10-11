@@ -47,7 +47,11 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 			return false;
 		}
 		config.reporter().addProperty(JAnsiConfigurator.class, JANSI_DISABLE);
-		var disableProperty = Boolean.parseBoolean(config.properties().valueOrNull(JANSI_DISABLE));
+		boolean disableProperty = config.properties()
+			.forKey(JANSI_DISABLE)
+			.ofBoolean()
+			.or(false)
+			.validateNow(JAnsiConfigurator.class);
 		if (disableProperty) {
 			return false;
 		}
