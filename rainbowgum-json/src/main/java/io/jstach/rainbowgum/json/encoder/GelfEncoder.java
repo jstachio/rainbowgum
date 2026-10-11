@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
@@ -27,7 +28,9 @@ import io.jstach.rainbowgum.json.JsonBuffer.JSONToken;
 /**
  * A JSON encoder in
  * <a href="https://go2docs.graylog.org/5-2/getting_in_log_data/gelf.html">GELF JSON
- * format</a>.
+ * format</a>. Key values are written as additional fields. A key value named like an
+ * additional field this encoder writes (e.g. <code>level</code>), or <code>id</code>, is
+ * prefixed with <code>keyValues.</code> so no field is written twice.
  */
 public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
@@ -35,6 +38,13 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * GELF encoder URI scheme.
 	 */
 	public static final String GELF_SCHEME = "gelf";
+
+	/*
+	 * The additional fields this encoder writes, without their underscore, and "id",
+	 * which GELF does not allow as an additional field.
+	 */
+	private static final KeyValuesWriter KEY_VALUES = new KeyValuesWriter(KeyValuesWriter.Placement.DOTTED,
+			Set.of("time", "level", "logger", "thread_name", "thread_id", "throwable", "id"), EXTENDED_F);
 
 	private final String host;
 
@@ -188,7 +198,7 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 		/*
 		 * output MDC
 		 */
-		index = kvs.forEach((src, k, v, idx, buf) -> buf.write(k, v, idx, EXTENDED_F), index, buffer);
+		index = KEY_VALUES.write(kvs, buffer, index);
 
 		index = buffer.write("version", "1.1", index);
 

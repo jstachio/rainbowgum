@@ -887,7 +887,8 @@ The <a href="https://go2docs.graylog.org/current/getting_in_log_data/gelf_format
 (GELF)</a> JSON encoder follows the GELF JSON specification linked above
 with translations of levels that are roughly similar to syslog. Notice that although the GELF specification does not
 require <a href="https://jsonlines.org/">JSON Lines</a> this encoder will keep each event on its own line unless
-<code>prettyPrint</code> is enabled.
+<code>prettyPrint</code> is enabled. Key values are additional fields; a key value named like an additional field
+the encoder writes, or <code>id</code>, gets a <code>keyValues.</code> prefix (<code>_keyValues.level</code>).
 
 {@snippet lang=properties :
 logging.appenders=myappender
@@ -905,8 +906,9 @@ logging.appender.myappender.encoder.gelf.host=somehost
     <code>logging.appender.{name}.encoder.ecs.structured=true</code> instead nests fields as JSON objects (e.g.
     <code>"log":{"level":...}</code>) matching
     <a href="https://docs.spring.io/spring-boot/reference/features/logging.html">Spring Boot's ECS structured
-    logging format</a>. MDC / key values have no reserved ECS field in either shape so, matching both reference
-    implementations, they are written as top-level fields using their own key name:
+    logging format</a>. Key values are written as top-level fields using their own key name, except a key
+    value named like a field the encoder writes, which goes in a nested <code>keyValues</code> object
+    (<code>keyValues.</code> prefixed fields in the flattened shape) so no field is written twice:
     {@snippet lang=properties :
 logging.appenders=myappender
 logging.appender.myappender.encoder.uri=ecs
@@ -920,7 +922,8 @@ logging.appender.myappender.encoder.ecs.structured=true
     <a href="https://github.com/logfellow/logstash-logback-encoder">logstash-logback-encoder</a>'s
     <code>LogstashEncoder</code>, URI scheme
     {@value io.jstach.rainbowgum.json.encoder.LogstashEncoder#LOGSTASH_SCHEME}. Key values are flattened
-    top-level fields (matching the reference implementation) and <code>@timestamp</code> is rendered with
+    top-level fields (matching the reference implementation), except a key value named like a field the encoder
+    writes, which goes in a nested <code>keyValues</code> object, and <code>@timestamp</code> is rendered with
     an offset using {@linkplain io.jstach.rainbowgum.json.encoder.LogstashEncoder#zoneId() a configurable zone}
     (defaults to the system default zone):
     {@snippet lang=properties :
@@ -1055,7 +1058,8 @@ logging.appender.myappender.encoder.uri=logfmt
 time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg="hello world" requestId=42
 }
 
-Key values follow the message, and a throwable adds <code>error</code> and <code>stacktrace</code> with line
+Key values follow the message; one named like a field the encoder writes gets a <code>keyValues.</code>
+prefix (<code>keyValues.level=debug</code>). A throwable adds <code>error</code> and <code>stacktrace</code> with line
 breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum.format.LogfmtFormatterBuilder}, which also sets the level format, for example
 <code>logging.appender.myappender.encoder.logfmt.levelFormatter=right_pad_level_formatter</code>.
 

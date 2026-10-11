@@ -63,6 +63,19 @@ class LogfmtFormatterTest {
 	}
 
 	@Test
+	void keyValuesNamedLikeFieldsArePrefixed() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("msg", "m2");
+		kvs.putKeyValue("level", "L");
+		kvs.putKeyValue("keyValues.ok", "k");
+		kvs.putKeyValue("ok", "1");
+		assertEquals("""
+				time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=real \
+				keyValues.msg=m2 keyValues.level=L keyValues.keyValues.ok=k ok=1
+				""", format(event(Level.INFO, "main", "real", kvs, null)));
+	}
+
+	@Test
 	void invalidKeyCharactersAreReplaced() {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("user name", "ada");
