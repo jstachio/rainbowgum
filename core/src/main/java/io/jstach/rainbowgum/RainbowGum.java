@@ -119,7 +119,7 @@ class RainbowGumProviderExample implements RainbowGumProvider {
  * builder (that check is all-or-nothing: adding even one appender in code skips
  * property-based resolution entirely). See <strong>Appender resolution</strong>
  * below.</li>
- * <li>Resolve the publisher - {@code logging.route.<name>.publisher}, falling
+ * <li>Resolve the publisher - {@code logging.route.<name>.publisher.uri}, falling
  * back to a synchronous publisher if unset.</li>
  * <li>Hand the resolved appenders to the publisher and register the publisher in
  * the {@link ServiceRegistry}.</li>

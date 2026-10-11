@@ -174,9 +174,15 @@ final class UnusedKeyCheck {
 	 * logging.encoder.ttll.console.level -> logging.appender.console.encoder.ttll.level
 	 * logging.appender.console.encoder.level -> logging.appender.console.encoder.*.level
 	 * logging.appender.console.encoder -> logging.appender.console.encoder.uri
+	 * logging.publisher.default.bufferSize ->
+	 * logging.route.default.publisher.*.bufferSize
+	 * logging.route.default.publisher.bufferSize ->
+	 * logging.route.default.publisher.*.bufferSize logging.route.default.publisher ->
+	 * logging.route.default.publisher.uri
 	 *
-	 * The third only applies to a single property name segment, since a longer key under
-	 * the encoder is a typed key, possibly left over from a type switched away from.
+	 * The third and sixth only apply to a single property name segment, since a longer
+	 * key under the encoder or publisher is a typed key, possibly left over from a type
+	 * switched away from.
 	 */
 	static List<String> movedKeys(String key) {
 		var segments = List.of(key.split("\\.", -1));
@@ -187,20 +193,32 @@ final class UnusedKeyCheck {
 		if (component.equals("encoder") || component.equals("output")) {
 			var moved = new ArrayList<String>();
 			if (segments.size() > 3) {
-				moved.add(movedKey(segments.get(2), component, ANY_SEGMENT, segments.subList(3, segments.size())));
+				moved.add(movedKey("appender", segments.get(2), component, ANY_SEGMENT,
+						segments.subList(3, segments.size())));
 			}
 			if (segments.size() > 4) {
-				moved.add(movedKey(segments.get(3), component, segments.get(2), segments.subList(4, segments.size())));
+				moved.add(movedKey("appender", segments.get(3), component, segments.get(2),
+						segments.subList(4, segments.size())));
 			}
 			return moved;
 		}
-		if (component.equals("appender") && segments.size() >= 4
-				&& (segments.get(3).equals("encoder") || segments.get(3).equals("output"))) {
+		if (component.equals("publisher") && segments.size() > 3) {
+			return List
+				.of(movedKey("route", segments.get(2), component, ANY_SEGMENT, segments.subList(3, segments.size())));
+		}
+		boolean typed = switch (component) {
+			case "appender" ->
+				segments.size() >= 4 && (segments.get(3).equals("encoder") || segments.get(3).equals("output"));
+			case "route" -> segments.size() >= 4 && segments.get(3).equals("publisher");
+			default -> false;
+		};
+		if (typed) {
 			if (segments.size() == 4) {
 				return List.of(key + ".uri");
 			}
 			if (segments.size() == 5 && !segments.get(4).equals("uri")) {
-				return List.of(movedKey(segments.get(2), segments.get(3), ANY_SEGMENT, segments.subList(4, 5)));
+				return List
+					.of(movedKey(component, segments.get(2), segments.get(3), ANY_SEGMENT, segments.subList(4, 5)));
 			}
 		}
 		return List.of();
@@ -208,8 +226,9 @@ final class UnusedKeyCheck {
 
 	private static final String ANY_SEGMENT = "*";
 
-	private static String movedKey(String name, String component, String scheme, List<String> rest) {
-		return "logging.appender." + name + "." + component + "." + scheme + "." + String.join(LogProperties.SEP, rest);
+	private static String movedKey(String parent, String name, String component, String scheme, List<String> rest) {
+		return "logging." + parent + "." + name + "." + component + "." + scheme + "."
+				+ String.join(LogProperties.SEP, rest);
 	}
 
 	/*

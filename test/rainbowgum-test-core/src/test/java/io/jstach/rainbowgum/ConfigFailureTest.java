@@ -125,10 +125,10 @@ class ConfigFailureTest {
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
 		unregisteredPublisherScheme("""
-				logging.route.default.publisher=bogus:///
+				logging.route.default.publisher.uri=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.route.default.publisher' from PROPERTIES_STRING[logging.route.default.publisher], NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'"""),
+						Error for property. key: 'logging.route.default.publisher.uri' from PROPERTIES_STRING[logging.route.default.publisher.uri], NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'"""),
 
 		unregisteredEncoderScheme("""
 				logging.appenders=myapp

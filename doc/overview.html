@@ -408,7 +408,7 @@ be reproduced explicitly with:
 {@snippet lang=properties :
 logging.level=INFO
 logging.routes=default
-logging.route.default.publisher=sync
+logging.route.default.publisher.uri=sync
 # logging.appenders is shorthand for logging.route.default.appenders: it only
 # works as a fallback for the "default" route, not any other route name.
 logging.appenders=console
@@ -437,7 +437,7 @@ A few things worth calling out about the above:
     "Time Thread Level Logger" line formatter, not a Spring Boot-ism.
   </li>
   <li>
-    <code>logging.route.default.publisher=sync</code> means every appender on the default
+    <code>logging.route.default.publisher.uri=sync</code> means every appender on the default
     route runs synchronously on the calling thread by default (no background queue/thread) -
     see {@link io.jstach.rainbowgum.LogPublisherRegistry} for the <code>async</code>
     alternative and its own defaults/properties.
@@ -493,7 +493,7 @@ with name set to "<code>example</code>".
 {@snippet lang=properties :
 logging.routes=example
 logging.route.example.appenders=appender1,appender2
-logging.route.example.publisher=async
+logging.route.example.publisher.uri=async
 logging.route.example.level.com.mycompany=DEBUG
 }
 
@@ -710,18 +710,27 @@ An example configuring a route named "example" to use the default async publishe
 </p>
 
 {@snippet lang=properties :
-logging.route.example.publisher=async
-logging.publisher.example.bufferSize=1024
-logging.publisher.example.shutdownTimeout=10000
+logging.route.example.publisher.uri=async
+logging.route.example.publisher.async.bufferSize=1024
+logging.route.example.publisher.async.shutdownTimeout=10000
 }
 
 <p>
+Publisher settings are under the scheme written in <code>uri</code>, so the <code>async</code>
+settings above apply to whichever publisher is registered as <code>async</code>.
+</p>
+
+<p>
 To select batch swap explicitly, even if a plugin or future release changes the default async
-publisher, use <code>batchswap:///</code>. It accepts the same publisher properties and URI options:
+publisher, use <code>batchswap</code>. It accepts the same settings, under its own scheme, or as URI
+options:
 </p>
 
 {@snippet lang=properties :
-logging.route.example.publisher=batchswap:///?bufferSize=1024&shutdownTimeout=10000
+logging.route.example.publisher.uri=batchswap
+logging.route.example.publisher.batchswap.bufferSize=1024
+# or
+logging.route.example.publisher.uri=batchswap:///?bufferSize=1024&shutdownTimeout=10000
 }
 
 <p>
@@ -1623,7 +1632,7 @@ logging.appenders=otel
 logging.appender.otel.output.uri=otlp:///
 logging.appender.otel.output.otlp.endpoint=http://collector:4318/v1/logs
 logging.appender.otel.output.otlp.serviceName=orders
-logging.route.default.publisher=async
+logging.route.default.publisher.uri=async
 }
 
 Other properties are <code>protocol</code> (<code>http/protobuf</code> or <code>http/json</code>),
@@ -1892,13 +1901,12 @@ logging.route.console.appenders=console
 logging.route.console.level=INFO
 
 logging.route.structured.appenders=jsonfile
-logging.route.structured.publisher=async
+logging.route.structured.publisher.uri=async
+logging.route.structured.publisher.async.bufferSize=2048
 logging.route.structured.level=DEBUG
 
 logging.route.errors.appenders=errorfile
 logging.route.errors.level=ERROR
-
-logging.publisher.structured.bufferSize=2048
 
 logging.appender.console.output.uri=stdout
 logging.appender.console.encoder.uri=pattern

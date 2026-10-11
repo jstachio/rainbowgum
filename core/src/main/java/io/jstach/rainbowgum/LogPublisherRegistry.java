@@ -1,12 +1,12 @@
 package io.jstach.rainbowgum;
 
-import java.net.URI;
-import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogPublisher.PublisherProvider;
 import io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher;
+import io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
@@ -75,6 +75,12 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	public static String BUILTIN_SCHEME_PREFIX = "core.";
 
 	/**
+	 * Key parameter for the URI scheme a publisher was selected with, without
+	 * {@value #BUILTIN_SCHEME_PREFIX}.
+	 */
+	public static final String SCHEME = "scheme";
+
+	/**
 	 * Default async buffer size.
 	 */
 	public static final int ASYNC_BUFFER_SIZE = 1024;
@@ -87,7 +93,8 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	/**
 	 * Buffer Size Property for Async publishers.
 	 */
-	public static final String BUFFER_SIZE_PROPERTY = LogProperties.PUBLISHER_PREFIX + BUFFER_SIZE_NAME;
+	public static final String BUFFER_SIZE_PROPERTY = LogProperties.PUBLISHER_PREFIX + "{" + SCHEME + "}."
+			+ BUFFER_SIZE_NAME;
 
 	/**
 	 * Default time in milliseconds an async publisher's close waits for queued events to
@@ -103,7 +110,8 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	/**
 	 * Milliseconds an async publisher's close waits for queued events to be written.
 	 */
-	public static final String SHUTDOWN_TIMEOUT_PROPERTY = LogProperties.PUBLISHER_PREFIX + SHUTDOWN_TIMEOUT_NAME;
+	public static final String SHUTDOWN_TIMEOUT_PROPERTY = LogProperties.PUBLISHER_PREFIX + "{" + SCHEME + "}."
+			+ SHUTDOWN_TIMEOUT_NAME;
 
 }
 
@@ -155,7 +163,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 		}
 
 		@Override
-		protected PublisherFactory provide(String name, LogProperties properties) {
+		protected PublisherFactory provide(String name, LogProviderRef ref, LogProperties properties) {
 			return (n, config, appenders) -> new DefaultSyncLogPublisher(appenders.asSingle());
 		}
 	},
@@ -166,7 +174,7 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 		}
 
 		@Override
-		protected PublisherFactory provide(String name, LogProperties properties) {
+		protected PublisherFactory provide(String name, LogProviderRef ref, LogProperties properties) {
 			return (n, config, appenders) -> new DefaultSyncLogPublisher(appenders.asSingle());
 		}
 
@@ -179,8 +187,8 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 		}
 
 		@Override
-		protected PublisherFactory provide(String name, LogProperties properties) {
-			return BATCH_SWAP.provide(name, properties);
+		protected PublisherFactory provide(String name, LogProviderRef ref, LogProperties properties) {
+			return BATCH_SWAP.provide(name, ref, properties);
 		}
 	},
 	BATCH_SWAP {
@@ -191,24 +199,28 @@ enum DefaultPublisherProviders implements LogPublisher.PublisherProvider {
 		}
 
 		@Override
-		protected PublisherFactory provide(String name, LogProperties properties) {
-			return BatchSwapAsyncLogPublisher.builder(name).fromProperties(properties).build();
+		protected PublisherFactory provide(String name, LogProviderRef ref, LogProperties properties) {
+			return new BatchSwapAsyncLogPublisherBuilder(name, schemeKey(ref)).fromProperties(properties, ref).build();
 		}
 	};
 
 	@Override
 	public PublisherFactory provide(LogProviderRef ref) {
-		return (n, config, appenders) -> provide(ref.uri(), n, config.properties()).create(n, config, appenders);
+		return (n, config, appenders) -> provide(n, ref, config.properties()).create(n, config, appenders);
 	}
 
 	public abstract String scheme();
 
-	protected abstract PublisherFactory provide(String name, LogProperties properties);
-
-	public PublisherFactory provide(URI uri, String name, LogProperties properties) {
-		String prefix = LogProperties.interpolateKey(LogProperties.PUBLISHER_PREFIX, Map.of(LogProperties.NAME, name));
-		LogProperties combined = LogProperties.of(uri, prefix, properties);
-		return provide(name, combined);
+	/*
+	 * The scheme filling {scheme} in the publisher's keys: the one written in the URI, so
+	 * async settings apply to whichever publisher is registered as async, without the
+	 * builtin prefix.
+	 */
+	static String schemeKey(LogProviderRef ref) {
+		String scheme = Objects.requireNonNull(ref.uri().getScheme());
+		return LogProperties.removeKeyPrefix(scheme, LogPublisherRegistry.BUILTIN_SCHEME_PREFIX);
 	}
+
+	protected abstract PublisherFactory provide(String name, LogProviderRef ref, LogProperties properties);
 
 }

@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.disruptor;
 
+import java.util.Objects;
+
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProviderRef;
@@ -41,7 +43,8 @@ public class DisruptorConfigurator implements Configurator {
 			@Override
 			public PublisherFactory provide(LogProviderRef ref) {
 				return (name, config, appenders) -> {
-					return new DisruptorLogBuilder(name).fromProperties(config.properties(), ref) //
+					return new DisruptorLogBuilder(name, Objects.requireNonNull(ref.uri().getScheme()))
+						.fromProperties(config.properties(), ref) //
 						.build() //
 						.create(name, config, appenders); //
 				};
@@ -59,8 +62,9 @@ public class DisruptorConfigurator implements Configurator {
 	 */
 	public final static int DEFAULT_BUFFER_SIZE = LogPublisherRegistry.ASYNC_BUFFER_SIZE;
 
-	@LogConfigurable(prefix = LogProperties.PUBLISHER_PREFIX, name = "DisruptorLogBuilder")
-	static PublisherFactory of(@LogConfigurable.KeyParameter String name,
+	@LogConfigurable(prefix = LogProperties.PUBLISHER_PREFIX + "{" + LogPublisherRegistry.SCHEME + "}.",
+			name = "DisruptorLogBuilder")
+	static PublisherFactory of(@LogConfigurable.KeyParameter String name, @LogConfigurable.KeyParameter String scheme,
 			@LogConfigurable.DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize) {
 		return DisruptorLogPublisher.of(bufferSize);
 	}

@@ -70,6 +70,48 @@ class DebugHelpSystemPropertiesTest {
 		}
 	}
 
+	@ParameterizedTest
+	@CsvSource({ "logging.publisher.default.bufferSize, logging.route.default.publisher.async.bufferSize",
+			"logging.route.default.publisher.bufferSize, logging.route.default.publisher.async.bufferSize" })
+	void movedPublisherKeySuggestsItsNewKey(String key, String typedKey) {
+		var properties = Map.of("logging.route.default.publisher.uri", "async", key, "64");
+		properties.forEach(System::setProperty);
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			var gum = RainbowGum.builder(config).build();
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+							[WARNING] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup. Did you mean 'TYPED'?"""
+						.replace("KEY", key)
+						.replace("TYPED", typedKey),
+					e.getMessage());
+		}
+		finally {
+			properties.keySet().forEach(System::clearProperty);
+		}
+	}
+
+	@Test
+	void oldPublisherKeySuggestsUri() {
+		String key = "logging.route.default.publisher";
+		System.setProperty(key, "async");
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			var gum = RainbowGum.builder(config).build();
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+							[WARNING] Property key 'logging.route.default.publisher' from SYSTEM_PROPERTIES[logging.route.default.publisher] was set but not read during startup. Did you mean 'logging.route.default.publisher.uri'?""",
+					e.getMessage());
+		}
+		finally {
+			System.clearProperty(key);
+		}
+	}
+
 	/*
 	 * A key of another encoder type is what switching encoder.uri leaves behind, so it is
 	 * only noted, not warned about with a suggestion of the current type's key.

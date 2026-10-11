@@ -115,26 +115,28 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 	/**
 	 * Creates a named builder. Call
 	 * {@link BatchSwapAsyncLogPublisherBuilder#fromProperties(LogProperties)} to read
-	 * {@code logging.publisher.<name>.bufferSize} and
-	 * {@code logging.publisher.<name>.shutdownTimeout}. Properties override builder
-	 * values when present. Select its factory with
+	 * {@code logging.route.<name>.publisher.batchswap.bufferSize} and
+	 * {@code logging.route.<name>.publisher.batchswap.shutdownTimeout}. Properties
+	 * override builder values when present. Select its factory with
 	 * {@link LogRouter.Router.Builder#publisher(LogPublisher.PublisherFactory)}.
 	 * @param name publisher name used for property lookup.
 	 * @return builder.
 	 */
 	public static BatchSwapAsyncLogPublisherBuilder builder(String name) {
-		return new BatchSwapAsyncLogPublisherBuilder(name);
+		return new BatchSwapAsyncLogPublisherBuilder(name, LogPublisherRegistry.BATCH_SWAP_SCHEME);
 	}
 
 	/**
 	 * Creates a publisher factory with validated options.
 	 * @param name publisher name used for property lookup.
+	 * @param scheme URI scheme the publisher was selected with, used for property lookup.
 	 * @param bufferSize positive pending capacity, excluding the batch being written.
 	 * @param shutdownTimeout nonnegative close timeout (property unit: milliseconds).
 	 * @return publisher factory.
 	 */
-	@LogConfigurable(name = "BatchSwapAsyncLogPublisherBuilder", prefix = LogProperties.PUBLISHER_PREFIX)
-	static PublisherFactory of(@LogConfigurable.KeyParameter String name,
+	@LogConfigurable(name = "BatchSwapAsyncLogPublisherBuilder",
+			prefix = LogProperties.PUBLISHER_PREFIX + "{" + LogPublisherRegistry.SCHEME + "}.")
+	static PublisherFactory of(@LogConfigurable.KeyParameter String name, @LogConfigurable.KeyParameter String scheme,
 			@LogConfigurable.DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize,
 			@LogConfigurable.DefaultParameter("DEFAULT_SHUTDOWN_TIMEOUT") @LogConfigurable.ConvertParameter("parseShutdownTimeout") Duration shutdownTimeout) {
 		if (bufferSize < 1) {
