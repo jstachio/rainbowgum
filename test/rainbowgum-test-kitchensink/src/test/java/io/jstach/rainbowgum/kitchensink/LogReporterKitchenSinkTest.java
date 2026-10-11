@@ -101,13 +101,12 @@ class LogReporterKitchenSinkTest {
 			 * back down (BUFFER_TRIMMED_METRIC), a custom output that triggers a
 			 * genuinely reentrant log call which REENTRY_DROP below drops and counts
 			 * rather than recursing forever (EVENTS_DROPPED_METRIC), and an output that
-			 * fails outright (an alert, plus EVENTS_FAILED_METRIC). Scoped to DEBUG for
-			 * this one logger name specifically, not a blanket route level: some of the
-			 * other optional modules pulled into this test do their own DEBUG level
-			 * self-logging, which a blanket level would also route here (and count
-			 * towards the very metrics this route exists to demonstrate), rather than
-			 * falling through to the other routes' default (INFO) the way it should.
+			 * fails outright (an alert, plus EVENTS_FAILED_METRIC). Only this one logger
+			 * name is routed here: other loggers, including other modules' own startup
+			 * logging, would otherwise reach this route at its INFO default and count
+			 * towards the very metrics this route exists to demonstrate.
 			 */
+			r.level(Level.OFF);
 			r.level(Level.DEBUG, DIAGNOSTICS_LOGGER_NAME);
 			r.appender("diagnostics", a -> {
 				a.output(diagnosticsOutput);
