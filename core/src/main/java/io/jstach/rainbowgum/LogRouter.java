@@ -408,25 +408,23 @@ public sealed interface LogRouter extends LogLifecycle {
 				}
 				var levelResolver = routeLevelResolverBuilder.build().provide(name, config);
 
-				if (currentConfig == null) {
+				/*
+				 * The root level might not be set by the route or globally, even when the
+				 * route sets levels for some loggers.
+				 */
+				var level = levelResolver.resolveLevel("");
+				Objects.requireNonNull(level);
+				if (level == System.Logger.Level.ALL) {
 					/*
-					 * If no config is provided in this route the global level might not
-					 * be set.
+					 * Neither the route nor the global level resolver have a root level.
+					 * Without this fallback loggers they have no opinion on would be ALL,
+					 * which the builders and other places turn into TRACE.
 					 */
-					var level = levelResolver.resolveLevel("");
-					Objects.requireNonNull(level);
-					if (level == System.Logger.Level.ALL) {
-						/*
-						 * Neither the route nor the global level resolver have anything
-						 * configured. This is a bug if this happens as the builders and
-						 * other places will turn ALL -> TRACE.
-						 */
-						levelResolver = LevelResolver.builder()
-							.resolver(levelResolver)
-							.fallback(StaticLevelResolver.INFO)
-							.build()
-							.provide(name, config);
-					}
+					levelResolver = LevelResolver.builder()
+						.resolver(levelResolver)
+						.fallback(StaticLevelResolver.INFO)
+						.build()
+						.provide(name, config);
 				}
 
 				var _levelResolver = levelResolver;

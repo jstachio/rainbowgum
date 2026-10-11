@@ -13,6 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
+import io.jstach.rainbowgum.output.ListLogOutput;
 
 class RouterTest {
 
@@ -221,6 +222,21 @@ class RouterTest {
 
 			assertTrue(g.router().route("com.mycompany.OrderService", Level.WARNING).isEnabled(),
 					"route level cache should have been invalidated by publish() and re-resolved to WARNING");
+		}
+	}
+
+	@Test
+	void builderRouteWithOnlyLoggerLevelsDefaultsOtherLoggersToInfo() {
+		var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
+		try (var gum = RainbowGum.builder(config)
+			.route(r -> r.level(Level.DEBUG, "com.example").appender("list", a -> a.output(new ListLogOutput())))
+			.build()
+			.start()) {
+			var router = gum.router();
+			assertTrue(router.route("com.example.App", Level.DEBUG).isEnabled());
+			assertFalse(router.route("com.example.App", Level.TRACE).isEnabled());
+			assertTrue(router.route("org.other.App", Level.INFO).isEnabled());
+			assertFalse(router.route("org.other.App", Level.DEBUG).isEnabled());
 		}
 	}
 
