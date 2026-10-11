@@ -29,7 +29,7 @@ import jdk.jfr.Recording;
  * into bytes:
  *
  * <pre>{@code
- * logging.appender.myappender.output=jfr:///
+ * logging.appender.myappender.output.uri=jfr:///
  * }</pre>
  *
  * Per-event-type enablement, thresholds, and stack trace capture are controlled the same
@@ -43,7 +43,7 @@ import jdk.jfr.Recording;
  * long as the output is open, with every event type unconditionally enabled:
  *
  * <pre>{@code
- * logging.appender.myappender.output=jfr:///var/log/myapp.jfr
+ * logging.appender.myappender.output.uri=jfr:///var/log/myapp.jfr
  * }</pre>
  *
  * In this mode JFR's own per-event enablement/threshold filtering is bypassed entirely -

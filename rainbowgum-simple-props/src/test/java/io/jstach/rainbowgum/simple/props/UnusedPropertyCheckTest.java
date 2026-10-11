@@ -34,12 +34,12 @@ class UnusedPropertyCheckTest {
 		var config = config("classpath:/unused-keys.properties", DebugModeType.ALL);
 		try (var gum = RainbowGum.builder(config).build().start()) {
 			String expected = """
-					[WARNING] Property key 'logging.encoder.list.keyvalues' from SIMPLE_PROPS[classpath:/unused-keys.properties:4][logging.encoder.list.keyvalues] was set but not read during startup. Did you mean 'logging.encoder.list.keyValues'?
-					[WARNING] Property key 'logging.encoder.list.KEYVALUES' from SIMPLE_PROPS[classpath:/unused-keys.properties:5][logging.encoder.list.KEYVALUES] was set but not read during startup. Did you mean 'logging.encoder.list.keyValues'?
-					[WARNING] Property key 'logging.encoder.list.key-values' from SIMPLE_PROPS[classpath:/unused-keys.properties:6][logging.encoder.list.key-values] was set but not read during startup. Did you mean 'logging.encoder.list.keyValues'?
-					[WARNING] Property key 'logging.encoder.list.therad' from SIMPLE_PROPS[classpath:/unused-keys.properties:7][logging.encoder.list.therad] was set but not read during startup. Did you mean 'logging.encoder.list.thread'?
-					[WARNING] Property key 'logging.encoder.list.levle' from SIMPLE_PROPS[classpath:/unused-keys.properties:8][logging.encoder.list.levle] was set but not read during startup. Did you mean 'logging.encoder.list.level'?
-					[INFO] Property key 'logging.encoder.list.made.up' from SIMPLE_PROPS[classpath:/unused-keys.properties:9][logging.encoder.list.made.up] was set but not read during startup.""";
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.keyvalues' from SIMPLE_PROPS[classpath:/unused-keys.properties:4][logging.appender.list.encoder.ttll.keyvalues] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.keyValues'?
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.KEYVALUES' from SIMPLE_PROPS[classpath:/unused-keys.properties:5][logging.appender.list.encoder.ttll.KEYVALUES] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.keyValues'?
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.key-values' from SIMPLE_PROPS[classpath:/unused-keys.properties:6][logging.appender.list.encoder.ttll.key-values] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.keyValues'?
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.therad' from SIMPLE_PROPS[classpath:/unused-keys.properties:7][logging.appender.list.encoder.ttll.therad] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.thread'?
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.levle' from SIMPLE_PROPS[classpath:/unused-keys.properties:8][logging.appender.list.encoder.ttll.levle] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.level'?
+					[INFO] Property key 'logging.appender.list.encoder.ttll.made.up' from SIMPLE_PROPS[classpath:/unused-keys.properties:9][logging.appender.list.encoder.ttll.made.up] was set but not read during startup.""";
 			assertEquals(expected, unusedKeyAlerts(gum));
 		}
 	}
@@ -47,10 +47,13 @@ class UnusedPropertyCheckTest {
 	@Test
 	void debugHelpFailsOnMisspelledSystemProperties() {
 		var properties = Map.of( //
-				"logging.encoder.list.thread", "id", // read
-				"logging.encoder.list.keyvalues", "json", // typo
-				"logging.encoder.list.levle", "plain", // typo of a key set in the file
-				"logging.encoder.list.made.up", "x", // unknown, no suggestion
+				"logging.appender.list.encoder.ttll.thread", "id", // read
+				"logging.appender.list.encoder.ttll.keyvalues", "json", // typo
+				"logging.appender.list.encoder.ttll.levle", "plain", // typo of a key set
+																		// in the
+				// file
+				"logging.appender.list.encoder.ttll.made.up", "x", // unknown, no
+																	// suggestion
 				"logging.config", "classpath:other.xml", // another library's
 				"logging.global.queue.level", "INFO", // read before config
 				"logging.level.com.example", "DEBUG"); // level
@@ -61,8 +64,8 @@ class UnusedPropertyCheckTest {
 			var e = assertThrows(IllegalStateException.class, gum::start);
 			String expected = """
 					2 alert(s) at warning or above were recorded while starting and logging.debug=help:
-					[WARNING] Property key 'logging.encoder.list.keyvalues' from SYSTEM_PROPERTIES[logging.encoder.list.keyvalues] was set but not read during startup. Did you mean 'logging.encoder.list.keyValues'?
-					[WARNING] Property key 'logging.encoder.list.levle' from SYSTEM_PROPERTIES[logging.encoder.list.levle] was set but not read during startup. Did you mean 'logging.encoder.list.level'?""";
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.keyvalues' from SYSTEM_PROPERTIES[logging.appender.list.encoder.ttll.keyvalues] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.keyValues'?
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.levle' from SYSTEM_PROPERTIES[logging.appender.list.encoder.ttll.levle] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.level'?""";
 			assertEquals(expected, e.getMessage());
 		}
 		finally {
@@ -91,7 +94,7 @@ class UnusedPropertyCheckTest {
 		var e = assertThrows(IllegalStateException.class, gum::start);
 		String expected = """
 				1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
-				[WARNING] Property key 'logging.encoder.list.therad' from SIMPLE_PROPS[classpath:/alerts-fail-warning.properties:5][logging.encoder.list.therad] was set but not read during startup. Did you mean 'logging.encoder.list.thread'?""";
+				[WARNING] Property key 'logging.appender.list.encoder.ttll.therad' from SIMPLE_PROPS[classpath:/alerts-fail-warning.properties:5][logging.appender.list.encoder.ttll.therad] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.thread'?""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -102,7 +105,7 @@ class UnusedPropertyCheckTest {
 		var e = assertThrows(IllegalStateException.class, gum::start);
 		String expected = """
 				1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
-				[WARNING] Property key 'logging.encoder.list.therad' from SIMPLE_PROPS[classpath:/alerts-fail-typo.properties:4][logging.encoder.list.therad] was set but not read during startup. Did you mean 'logging.encoder.list.thread'?""";
+				[WARNING] Property key 'logging.appender.list.encoder.ttll.therad' from SIMPLE_PROPS[classpath:/alerts-fail-typo.properties:4][logging.appender.list.encoder.ttll.therad] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.thread'?""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -111,8 +114,8 @@ class UnusedPropertyCheckTest {
 		var config = config("classpath:/alerts-fail-typo.properties", DebugModeType.ALL, FailLevel.ERROR);
 		try (var gum = RainbowGum.builder(config).build().start()) {
 			String expected = """
-					[WARNING] Property key 'logging.encoder.list.therad' from SIMPLE_PROPS[classpath:/alerts-fail-typo.properties:4][logging.encoder.list.therad] was set but not read during startup. Did you mean 'logging.encoder.list.thread'?
-					[INFO] Property key 'logging.encoder.list.made.up' from SIMPLE_PROPS[classpath:/alerts-fail-typo.properties:5][logging.encoder.list.made.up] was set but not read during startup.""";
+					[WARNING] Property key 'logging.appender.list.encoder.ttll.therad' from SIMPLE_PROPS[classpath:/alerts-fail-typo.properties:4][logging.appender.list.encoder.ttll.therad] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.thread'?
+					[INFO] Property key 'logging.appender.list.encoder.ttll.made.up' from SIMPLE_PROPS[classpath:/alerts-fail-typo.properties:5][logging.appender.list.encoder.ttll.made.up] was set but not read during startup.""";
 			assertEquals(expected, unusedKeyAlerts(gum));
 		}
 	}
@@ -172,7 +175,7 @@ class UnusedPropertyCheckTest {
 		assertEquals(
 				"""
 						1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
-						[WARNING] Property key 'logging.encoder.list.therad' from SIMPLE_PROPS[classpath:/alerts-fail-warning.properties:5][logging.encoder.list.therad] was set but not read during startup. Did you mean 'logging.encoder.list.thread'?""",
+						[WARNING] Property key 'logging.appender.list.encoder.ttll.therad' from SIMPLE_PROPS[classpath:/alerts-fail-warning.properties:5][logging.appender.list.encoder.ttll.therad] was set but not read during startup. Did you mean 'logging.appender.list.encoder.ttll.thread'?""",
 				e.getMessage());
 	}
 

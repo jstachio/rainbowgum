@@ -43,10 +43,10 @@ class PatternEncoderCharsetTest {
 		var output = new CapturingOutput();
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list
-				logging.appender.list.encoder=pattern
-				logging.encoder.list.pattern=%msg
-				logging.encoder.list.charset=ISO-8859-1
+				logging.appender.list.output.uri=list
+				logging.appender.list.encoder.uri=pattern
+				logging.appender.list.encoder.pattern.pattern=%msg
+				logging.appender.list.encoder.pattern.charset=ISO-8859-1
 				""";
 		var config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -65,9 +65,9 @@ class PatternEncoderCharsetTest {
 		var output = new CapturingOutput();
 		String properties = """
 				logging.appenders=list
-				logging.appender.list.output=list
-				logging.appender.list.encoder=pattern
-				logging.encoder.list.pattern=%msg
+				logging.appender.list.output.uri=list
+				logging.appender.list.encoder.uri=pattern
+				logging.appender.list.encoder.pattern.pattern=%msg
 				""";
 		var config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
@@ -82,8 +82,9 @@ class PatternEncoderCharsetTest {
 	}
 
 	/*
-	 * logging.encoder.{name}.charset had only happy-path coverage before this - nothing
-	 * exercised an unrecognized charset name, even though Charset.forName(...) (the
+	 * logging.appender.{name}.encoder.pattern.charset had only happy-path coverage before
+	 * this - nothing exercised an unrecognized charset name, even though
+	 * Charset.forName(...) (the
 	 *
 	 * @ConvertParameter backing this property) genuinely can and does throw - found by
 	 * grepping the property list ConfigProcessor#PROPERTY_LIST_OPTION generates against
@@ -92,14 +93,15 @@ class PatternEncoderCharsetTest {
 	@Test
 	void badCharsetFailsLoudlyWithPropertyDescription() {
 		var properties = LogProperties.builder()
-			.fromProperties("logging.encoder.list.pattern=%msg\nlogging.encoder.list.charset=not-a-charset")
+			.fromProperties(
+					"logging.appender.list.encoder.pattern.pattern=%msg\nlogging.appender.list.encoder.pattern.charset=not-a-charset")
 			.build();
 		var b = new PatternEncoderBuilder("list");
 		var e = assertThrows(ValidationException.class, () -> b.fromProperties(properties));
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder:
-						Error for property. key: 'logging.encoder.list.charset' from PROPERTIES_STRING[logging.encoder.list.charset], java.nio.charset.UnsupportedCharsetException not-a-charset""",
+						Error for property. key: 'logging.appender.list.encoder.pattern.charset' from PROPERTIES_STRING[logging.appender.list.encoder.pattern.charset], java.nio.charset.UnsupportedCharsetException not-a-charset""",
 				e.getMessage());
 	}
 

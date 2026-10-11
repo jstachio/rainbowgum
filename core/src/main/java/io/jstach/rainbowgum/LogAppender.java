@@ -573,9 +573,9 @@ public sealed interface LogAppender extends LogLifecycle {
 					/*
 					 * A malformed (not just missing) property must throw here,
 					 * immediately, regardless of whether a default exists below: e.g.
-					 * "console" with a genuinely bad logging.appender.console.output must
-					 * fail loudly, not silently fall back to stdout. Only the Missing
-					 * case falls through to outputDefault.
+					 * "console" with a genuinely bad logging.appender.console.output.uri
+					 * must fail loudly, not silently fall back to stdout. Only the
+					 * Missing case falls through to outputDefault.
 					 */
 					output = switch (outputProperty(_name, config)) {
 						case LogProperty.Result.Success<LogOutput> s -> s.value();
@@ -642,10 +642,10 @@ public sealed interface LogAppender extends LogLifecycle {
 		 * Resolves APPENDER_OUTPUT_PROPERTY all the way to a concrete LogOutput (not just
 		 * a LogProvider), via LogProperty.provideValue so a failure inside the provided
 		 * LogOutput's own construction (its own separate property tree, e.g.
-		 * logging.output.file.bufferSize) is not relabeled "Error converting property" as
-		 * if APPENDER_OUTPUT_PROPERTY's own value had failed to convert - see
-		 * LogProperty#providingError. Moved here since output resolution is now entirely
-		 * this Builder's concern.
+		 * logging.appender.file.output.file.bufferSize) is not relabeled
+		 * "Error converting property" as if APPENDER_OUTPUT_PROPERTY's own value had
+		 * failed to convert - see LogProperty#providingError. Moved here since output
+		 * resolution is now entirely this Builder's concern.
 		 */
 		private static LogProperty.Result<LogOutput> outputProperty(String name, LogConfig config) {
 			return LogProperty.provideValue(

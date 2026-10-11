@@ -89,7 +89,7 @@ class ConsoleStreamTest {
 		try {
 			var props = new StringBuilder();
 			if (config == Config.PROPERTY && follow) {
-				props.append("logging.output.console.stream=follow\n");
+				props.append("logging.appender.console.output." + std.scheme + ".stream=follow\n");
 			}
 			var logConfig = LogConfig.builder()
 				.properties(LogProperties.builder().fromProperties(props.toString()).build())
@@ -146,7 +146,9 @@ class ConsoleStreamTest {
 	@ParameterizedTest
 	@EnumSource(Std.class)
 	void invalidStreamValueFails(Std std) {
-		var props = LogProperties.builder().fromProperties("logging.output.console.stream=sometimes").build();
+		var props = LogProperties.builder()
+			.fromProperties("logging.appender.console.output." + std.scheme + ".stream=sometimes")
+			.build();
 		var e = assertThrows(LogProperty.ValidationException.class, () -> {
 			if (std == Std.OUT) {
 				new StdOutOutputBuilder("console").fromProperties(props);
@@ -158,9 +160,9 @@ class ConsoleStreamTest {
 		String builder = std == Std.OUT ? "StdOutOutputBuilder" : "StdErrOutputBuilder";
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.output.%s:
-				Error for property. key: 'logging.output.console.stream' from PROPERTIES_STRING[logging.output.console.stream], \
+				Error for property. key: 'logging.appender.console.output.%s.stream' from PROPERTIES_STRING[logging.appender.console.output.%s.stream], \
 				'sometimes' is not a valid value for io.jstach.rainbowgum.output.ConsoleStream. Valid values: 'cached', 'follow'"""
-			.formatted(builder);
+			.formatted(builder, std.scheme, std.scheme);
 		assertEquals(expected, e.getMessage());
 	}
 

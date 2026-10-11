@@ -3,9 +3,12 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
@@ -24,7 +27,7 @@ class DebugHelpSystemPropertiesTest {
 	void misspelledSystemPropertiesFailWithTheKeyTheyProbablyMeant() {
 		var properties = Map.of( //
 				"logging.appendrs", "console", // typo of a key read
-				"logging.appender.console.encodr", "json5"); // typo of a key read
+				"logging.appender.console.encodr.uri", "json5"); // typo of a key read
 		properties.forEach(System::setProperty);
 		try {
 			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
@@ -32,12 +35,65 @@ class DebugHelpSystemPropertiesTest {
 			var e = assertThrows(IllegalStateException.class, gum::start);
 			String expected = """
 					2 alert(s) at warning or above were recorded while starting and logging.debug=help:
-					[WARNING] Property key 'logging.appender.console.encodr' from SYSTEM_PROPERTIES[logging.appender.console.encodr] was set but not read during startup. Did you mean 'logging.appender.console.encoder'?
+					[WARNING] Property key 'logging.appender.console.encodr.uri' from SYSTEM_PROPERTIES[logging.appender.console.encodr.uri] was set but not read during startup. Did you mean 'logging.appender.console.encoder.uri'?
 					[WARNING] Property key 'logging.appendrs' from SYSTEM_PROPERTIES[logging.appendrs] was set but not read during startup. Did you mean 'logging.appenders'?""";
 			assertEquals(expected, e.getMessage());
 		}
 		finally {
 			properties.keySet().forEach(System::clearProperty);
+		}
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "logging.encoder.console.level, plain, logging.appender.console.encoder.ttll.level",
+			"logging.encoder.ttll.console.level, plain, logging.appender.console.encoder.ttll.level",
+			"logging.appender.console.encoder.level, plain, logging.appender.console.encoder.ttll.level",
+			"logging.output.console.stream, follow, logging.appender.console.output.stdout.stream",
+			"logging.output.stdout.console.stream, follow, logging.appender.console.output.stdout.stream",
+			"logging.appender.console.encoder, ttll, logging.appender.console.encoder.uri" })
+	void movedKeySuggestsItsNewKey(String key, String value, String typedKey) {
+		System.setProperty(key, value);
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			var gum = RainbowGum.builder(config).build();
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+							[WARNING] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup. Did you mean 'TYPED'?"""
+						.replace("KEY", key)
+						.replace("TYPED", typedKey),
+					e.getMessage());
+		}
+		finally {
+			System.getProperties().remove(key);
+		}
+	}
+
+	/*
+	 * A key of another encoder type is what switching encoder.uri leaves behind, so it is
+	 * only noted, not warned about with a suggestion of the current type's key.
+	 */
+	@Test
+	void otherTypesKeyIsNotWarnedAbout() {
+		String key = "logging.appender.console.encoder.json5.level";
+		System.setProperty(key, "plain");
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			try (var gum = RainbowGum.builder(config).build().start()) {
+				var alerts = gum.config()
+					.alerts()
+					.dump()
+					.stream()
+					.filter(e -> e.message().startsWith("Property key"))
+					.map(e -> e.level() + " " + e.message())
+					.toList();
+				assertEquals(List.of("INFO Property key '" + key + "' from SYSTEM_PROPERTIES[" + key
+						+ "] was set but not read during startup."), alerts);
+			}
+		}
+		finally {
+			System.getProperties().remove(key);
 		}
 	}
 
