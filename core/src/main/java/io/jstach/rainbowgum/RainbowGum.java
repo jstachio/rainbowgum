@@ -301,15 +301,18 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	}
 
 	/*
-	 * An unused key with a suggestion is almost always a typo, so it is a warning, which
-	 * logging.alerts.fail=warning (and logging.debug=help) turns into a failure. One
-	 * without is only information: the key may be for a component type that was not
-	 * chosen, such as encoder options left behind by a profile that switches encoder.
+	 * By default an unused key with a suggestion is almost always a typo, so it is a
+	 * warning, which logging.alerts.fail=warning (and logging.debug=help) turns into a
+	 * failure. One without is only information: the key may be for a component type that
+	 * was not chosen, such as encoder options left behind by a profile that switches
+	 * encoder. logging.alerts.unusedKey raises both for strict configurations.
 	 */
 	private void reportUnusedKeys(UnusedKeyCheck check) {
 		var eventFactory = LogEventFactory.of(LogConfig.class.getName());
+		var unusedKeyLevel = config().alerts() instanceof DefaultLogAlerts alerts ? alerts.unusedKeyLevel()
+				: LogAlerts.UnusedKeyLevel.INFO;
 		for (var u : check.unused()) {
-			var level = u.suggestion() == null ? Level.INFO : Level.WARNING;
+			var level = unusedKeyLevel.level(u.suggestion() != null);
 			var event = eventFactory.eventNoArg(level, u.message(), null);
 			config().alerts().alert(event);
 			if (level == Level.INFO && config().debugMode().checksUnusedKeys()) {

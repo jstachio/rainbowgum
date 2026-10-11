@@ -339,6 +339,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private LogAlerts.FailLevel alertsFail = LogAlerts.FailLevel.OFF;
 
+		private LogAlerts.UnusedKeyLevel alertsUnusedKey = LogAlerts.UnusedKeyLevel.INFO;
+
 		/**
 		 * Default constructor
 		 */
@@ -374,6 +376,18 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		public Builder alertsFail(LogAlerts.FailLevel failLevel) {
 			this.alertsFail = Objects.requireNonNull(failLevel);
+			return this;
+		}
+
+		/**
+		 * Sets the alert level of a property key nothing read, used when the property
+		 * {@value LogProperties#ALERTS_UNUSED_KEY_PROPERTY} is absent.
+		 * @param unusedKeyLevel unused key level, default
+		 * {@link LogAlerts.UnusedKeyLevel#INFO}.
+		 * @return this.
+		 */
+		public Builder alertsUnusedKey(LogAlerts.UnusedKeyLevel unusedKeyLevel) {
+			this.alertsUnusedKey = Objects.requireNonNull(unusedKeyLevel);
 			return this;
 		}
 
@@ -490,11 +504,13 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				}
 				@Nullable UnusedKeyCheck unusedKeyCheck = null;
 				/*
-				 * Reads are recorded for the debug modes that report unused keys, and for
-				 * logging.alerts.fail=warning, where a misspelled key's warning fails.
+				 * Reads are recorded for the debug modes that report unused keys, and
+				 * when logging.alerts.fail fails on a misspelled key's alert: a warning,
+				 * or an error with logging.alerts.unusedKey=error.
 				 */
+				var suggestedKeyLevel = DefaultLogAlerts.unusedKeyLevelOr(logProperties, alertsUnusedKey).level(true);
 				if (debug.checksUnusedKeys()
-						|| DefaultLogAlerts.failLevelOr(logProperties, alertsFail) == LogAlerts.FailLevel.WARNING) {
+						|| DefaultLogAlerts.failLevelOr(logProperties, alertsFail).fails(suggestedKeyLevel)) {
 					unusedKeyCheck = unusedKeyCheck(logProperties);
 					logProperties = recording(logProperties, unusedKeyCheck);
 				}
@@ -510,7 +526,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				 * runs, the same as everything else built directly in this method - see
 				 * DefaultLogAlerts.of(...) for how the two are validated together.
 				 */
-				var alerts = DefaultLogAlerts.of(logProperties, alertsFail, debug == DebugModeType.HELP);
+				var alerts = DefaultLogAlerts.of(logProperties, alertsFail, alertsUnusedKey,
+						debug == DebugModeType.HELP);
 				LogMetrics metrics = new DefaultLogMetrics();
 				var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
