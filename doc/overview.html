@@ -3048,7 +3048,7 @@ never read:
   <li>Any other unread key is reported as <strong>information</strong>. It may be a mistake,
   or it may be meant for a component that was not chosen, such as TTLL options left in
   <code>logging.properties</code> by a profile that switches the encoder to
-  <code>json5</code>. Only warnings fail startup.</li>
+  <code>json5</code>. With the default unused-key level, only warnings can fail startup.</li>
 </ul>
 
 <code>logging.alerts.unusedKey</code> makes this stricter for a configuration that should
@@ -3083,8 +3083,8 @@ read per logger as loggers are created; keys read before properties load, such a
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
 properties that happen to start with <code>logging.</code>, such as Spring Boot's
 <code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. Unless
-debug mode is on or <code>logging.alerts.fail</code> would fail on a misspelled key, nothing is
-recorded, so normal runs pay nothing for the check.
+debug mode is <code>all</code> or <code>help</code>, or <code>logging.alerts.fail</code> would
+fail on a misspelled key, nothing is recorded, so normal runs pay nothing for the check.
 
 <h3 id="troubleshooting_alerts_fail">Failing on alerts</h3>
 
