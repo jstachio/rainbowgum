@@ -118,15 +118,15 @@ final class UnusedKeyCheck {
 	}
 
 	/*
-	 * Level keys are read per logger name as loggers are created, so not reading one at
-	 * startup means nothing.
+	 * Level and change keys are read per logger name as loggers are created, so not
+	 * reading one at startup means nothing.
 	 */
 	static boolean isIgnored(String key) {
 		if (!key.startsWith(LogProperties.ROOT_PREFIX) || READ_BEFORE_CONFIG_KEYS.contains(key)
 				|| OTHER_LIBRARY_KEYS.contains(key)) {
 			return true;
 		}
-		if (key.equals(LogProperties.LEVEL_PREFIX) || key.startsWith(LogProperties.LEVEL_PREFIX + LogProperties.SEP)) {
+		if (inNamespace(key, LogProperties.LEVEL_PREFIX) || inNamespace(key, LogProperties.CHANGE_PREFIX)) {
 			return true;
 		}
 		String routePrefix = LogProperties.ROOT_PREFIX + "route.";
@@ -138,7 +138,11 @@ final class UnusedKeyCheck {
 			return false;
 		}
 		String routeKey = key.substring(routeEnd + LogProperties.SEP.length());
-		return routeKey.equals("level") || routeKey.startsWith("level.");
+		return inNamespace(routeKey, "level");
+	}
+
+	private static boolean inNamespace(String key, String namespace) {
+		return key.equals(namespace) || key.startsWith(namespace + LogProperties.SEP);
 	}
 
 	/*
