@@ -1,5 +1,5 @@
 /**
- * <strong>EXPERIMENTAL</strong> A small, self-contained facade for request/task-scoped
+ * A small, self-contained facade for request/task-scoped
  * key values - see {@link io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues}. This
  * module has no dependency beyond (optionally) JSpecify, the same shape as
  * {@code slf4j-api}: it is meant to be a safe compile-time dependency for

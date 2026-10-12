@@ -1,5 +1,5 @@
 /**
- * <strong>EXPERIMENTAL</strong> The RainbowGum-backed
+ * The RainbowGum-backed
  * {@code io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProvider} for
  * {@code io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues} - request/task-scoped key
  * values backed by {@code java.lang.ScopedValue} instead of {@code ThreadLocal}. Simply
