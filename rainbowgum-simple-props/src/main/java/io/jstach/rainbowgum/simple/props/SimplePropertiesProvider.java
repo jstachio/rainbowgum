@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.simple.props;
 
 import java.util.List;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
@@ -33,6 +34,10 @@ public final class SimplePropertiesProvider
 	public List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts) {
 		var simpleProperties = registry.putIfAbsent(SimpleProperties.class, () -> SimpleProperties.builder().build());
 		simpleProperties.reportAlerts(alerts);
+		var levelFile = simpleProperties.levelFile();
+		if (levelFile != null) {
+			registry.put(LogProperties.class, LevelResolver.OVERRIDE_PROPERTIES_NAME, levelFile);
+		}
 		return simpleProperties.properties();
 	}
 
