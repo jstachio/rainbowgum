@@ -29,5 +29,9 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>rainbowgum-otlp</artifactId>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-jfr</artifactId>
+    </dependency>
   </dependencies>
 </project>

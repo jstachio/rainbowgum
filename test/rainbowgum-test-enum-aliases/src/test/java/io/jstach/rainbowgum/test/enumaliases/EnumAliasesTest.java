@@ -97,7 +97,8 @@ class EnumAliasesTest {
 				"io.jstach.rainbowgum.pattern.format.PatternConfig$CacheType", //
 				"io.jstach.rainbowgum.simple.props.SimpleProperties$LevelFileType", //
 				"io.jstach.rainbowgum.simple.props.SimpleProperties$StrictType", //
-				"io.jstach.rainbowgum.otlp.EnvironmentVariables"), aliases().keySet());
+				"io.jstach.rainbowgum.otlp.EnvironmentVariables", //
+				"io.jstach.rainbowgum.jfr.JfrAlertListener$Mode"), aliases().keySet());
 	}
 
 	@ParameterizedTest

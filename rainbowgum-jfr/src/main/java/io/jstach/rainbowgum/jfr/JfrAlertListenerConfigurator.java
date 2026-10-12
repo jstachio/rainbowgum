@@ -7,7 +7,7 @@ import io.jstach.svc.ServiceProvider;
 
 /**
  * Registers a {@link JfrAlertListener} with {@link io.jstach.rainbowgum.LogAlerts} if
- * {@value JfrAlertListenerBuilder#PROPERTY_enabled} is {@code true}.
+ * {@value JfrAlertListenerBuilder#PROPERTY_mode} is {@code on}.
  * <p>
  * Disabled by default: unlike {@link JfrConfigurator}'s output scheme (inert until an
  * appender explicitly selects {@code jfr:///}), a listener would otherwise start silently
@@ -28,7 +28,7 @@ public class JfrAlertListenerConfigurator implements Configurator {
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {
 		var listener = new JfrAlertListenerBuilder().fromProperties(config.properties()).build();
-		if (listener.enabled()) {
+		if (listener.mode() == JfrAlertListener.Mode.ON) {
 			config.alerts().addListener(listener);
 		}
 		return true;

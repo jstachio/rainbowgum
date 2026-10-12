@@ -71,7 +71,7 @@ class JfrStartupRecordingTest {
 
 		public static void main(String[] args) {
 			var properties = LogProperties.builder().fromProperties("""
-					logging.jfr.alerts.enabled=true
+					logging.jfr.alerts.mode=on
 					logging.appender.console.output.uri=jfr:///
 					""").build();
 			var config = LogConfig.builder().properties(properties).serviceLoader().build();
