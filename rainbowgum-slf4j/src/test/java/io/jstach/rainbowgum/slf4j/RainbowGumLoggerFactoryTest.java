@@ -174,7 +174,7 @@ class RainbowGumLoggerFactoryTest {
 		String global = """
 				logging.change.mode=on
 				logging.change.logger.mychange=true
-				logging.caller.mychange=true
+				logging.caller.logger.mychange=true
 				""";
 		Map<String, String> m = new LinkedHashMap<>();
 		m.put("logging.level.mychange", "ERROR");
@@ -228,7 +228,7 @@ class RainbowGumLoggerFactoryTest {
 	void testCallerInfoLogger() {
 		String global = """
 				logging.change.mode=on
-				logging.caller.mychange=true
+				logging.caller.logger.mychange=true
 				""";
 		Map<String, String> m = new LinkedHashMap<>();
 		m.put("logging.level.mychange", "ERROR");
@@ -388,7 +388,7 @@ class RainbowGumLoggerFactoryTest {
 		var bootstrapConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.change.mode=on
 				logging.change.logger=level
-				logging.caller=%s
+				logging.caller.logger=%s
 				""".formatted(testCase == BootstrapContextCase.CALLER)).build()).build();
 		KeyValuesContributor.register(bootstrapConfig.serviceRegistry(), Standard.USER,
 				() -> KeyValues.of(Map.of("tenant", "bootstrap")));

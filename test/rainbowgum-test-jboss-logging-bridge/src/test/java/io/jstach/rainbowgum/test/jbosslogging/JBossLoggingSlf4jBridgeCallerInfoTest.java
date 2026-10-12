@@ -37,7 +37,7 @@ class JBossLoggingSlf4jBridgeCallerInfoTest {
 		String name = "jboss.caller";
 		String properties = """
 				logging.change.mode=on
-				logging.caller.%s=true
+				logging.caller.logger.%s=true
 				logging.level.%s=INFO
 				""".formatted(name, name);
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();

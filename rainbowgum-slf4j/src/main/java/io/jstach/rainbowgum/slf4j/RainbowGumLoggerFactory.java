@@ -92,9 +92,9 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			var level = router.levelResolver().resolveLevel(name);
 			var allowedChanges = changePublisher.allowedChanges(name);
 			/*
-			 * callerInfoEnabled is resolved from its own logging.caller.<name> property,
-			 * independent of allowedChanges/logging.change.logger.<name> - fetched once
-			 * here (not re-derived per branch) and threaded through to both
+			 * callerInfoEnabled is resolved from its own logging.caller.logger.<name>
+			 * property, independent of allowedChanges/logging.change.logger.<name> -
+			 * fetched once here (not re-derived per branch) and threaded through to both
 			 * maybeAddCallerInfo call sites and subscribe()'s captured closure,
 			 * preserving the existing
 			 * "decided once at construction, never revisited on change" semantics. It is

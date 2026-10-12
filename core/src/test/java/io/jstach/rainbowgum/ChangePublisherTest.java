@@ -18,7 +18,7 @@ class ChangePublisherTest {
 
 	LogConfig config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 			logging.change.logger=true
-			logging.caller=true
+			logging.caller.logger=true
 			""").build()).build();
 
 	ChangePublisher changePublisher = new AbstractChangePublisher() {
@@ -48,9 +48,9 @@ class ChangePublisherTest {
 	}
 
 	/*
-	 * logging.change.logger and logging.caller are resolved completely independently now
-	 * - neither implies nor overrides the other, unlike when CALLER lived inside
-	 * ChangeType.
+	 * logging.change.logger and logging.caller.logger are resolved completely
+	 * independently now - neither implies nor overrides the other, unlike when CALLER
+	 * lived inside ChangeType.
 	 */
 	@Test
 	void testCallerTypeIsIndependentOfAllowedChanges() {
@@ -65,7 +65,7 @@ class ChangePublisherTest {
 
 		var callerOnlyConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.change.mode=on
-				logging.caller.only=true
+				logging.caller.logger.only=true
 				""").build()).build();
 		ChangePublisher callerOnly = changePublisher(callerOnlyConfig);
 		assertTrue(callerOnly.callerInfoEnabled("only"));
@@ -74,20 +74,21 @@ class ChangePublisherTest {
 
 	/*
 	 * Reproduces and proves the fix for the bug found while testing the caching branch:
-	 * logging.caller.com.mycompany=true + logging.change.logger.com.mycompany.app=level
-	 * used to leave com.mycompany.app with no caller info, because both were resolved out
-	 * of one combined property/Set<ChangeType> and findOrNull's hierarchical walk is
-	 * closest- match-wins with no merging - the child's own logging.change.logger entry
-	 * silently replaced the parent's inherited caller value instead of the two
-	 * coexisting. Now that each property walks its own hierarchy independently,
-	 * com.mycompany.app correctly inherits caller info from its ancestor while also
-	 * having its own level-changeable setting.
+	 * logging.caller.logger.com.mycompany=true +
+	 * logging.change.logger.com.mycompany.app=level used to leave com.mycompany.app with
+	 * no caller info, because both were resolved out of one combined
+	 * property/Set<ChangeType> and findOrNull's hierarchical walk is closest- match-wins
+	 * with no merging - the child's own logging.change.logger entry silently replaced the
+	 * parent's inherited caller value instead of the two coexisting. Now that each
+	 * property walks its own hierarchy independently, com.mycompany.app correctly
+	 * inherits caller info from its ancestor while also having its own level-changeable
+	 * setting.
 	 */
 	@Test
 	void testCallerInheritanceIsNotClobberedByAMoreSpecificChangeEntry() {
 		var nestedConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.change.mode=on
-				logging.caller.com.mycompany=true
+				logging.caller.logger.com.mycompany=true
 				logging.change.logger.com.mycompany.app=level
 				""").build()).build();
 		var cp = changePublisher(nestedConfig);
@@ -124,7 +125,7 @@ class ChangePublisherTest {
 	void testCallerTypeIsCachedPerLoggerNameAndNotReparsed() {
 		var real = LogProperties.builder().fromProperties("""
 				logging.change.mode=on
-				logging.caller.foo=true
+				logging.caller.logger.foo=true
 				""").build();
 		AtomicInteger reads = new AtomicInteger();
 		LogProperties counting = key -> {
@@ -160,15 +161,16 @@ class ChangePublisherTest {
 
 	/*
 	 * Also covers the migration path for anyone still setting the old, pre-split
-	 * logging.change.logger.<name>=caller value under the new logging.caller.<name>
-	 * property - "caller" isn't a valid CallerType token either, so it alerts and falls
-	 * back to NONE the same way any other malformed value does.
+	 * logging.change.logger.<name>=caller value under the new
+	 * logging.caller.logger.<name> property - "caller" isn't a valid CallerType token
+	 * either, so it alerts and falls back to NONE the same way any other malformed value
+	 * does.
 	 */
 	@Test
 	void testMalformedCallerValueAlertsOnceAndCachesTheFallback() {
 		var badConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.change.mode=on
-				logging.caller.bad=nonsense
+				logging.caller.logger.bad=nonsense
 				""").build()).build();
 		var cp = changePublisher(badConfig);
 
@@ -225,7 +227,7 @@ class ChangePublisherTest {
 	void testMalformedCallerValueGoldenAlert() {
 		var badConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.change.mode=on
-				logging.caller.bad=nonsense
+				logging.caller.logger.bad=nonsense
 				""").build()).build();
 		var cp = changePublisher(badConfig);
 
@@ -236,7 +238,7 @@ class ChangePublisherTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
-						Error for property. key: 'logging.caller.bad' from PROPERTIES_STRING[logging.caller.bad], \
+						Error for property. key: 'logging.caller.logger.bad' from PROPERTIES_STRING[logging.caller.logger.bad], \
 						'nonsense' is not a valid value for io.jstach.rainbowgum.LogEvent.Caller.CallerType. Valid values: 'none', 'basic', 'true', 'false'""",
 				event.message());
 		var throwable = event.throwableOrNull();
@@ -254,7 +256,7 @@ class ChangePublisherTest {
 		MutableLogProperties props = MutableLogProperties.builder().copyProperties("""
 				logging.change.mode=on
 				logging.change.logger.foo=level
-				logging.caller.foo=false
+				logging.caller.logger.foo=false
 				""").build();
 		var mutableConfig = LogConfig.builder().properties(props).build();
 		var cp = changePublisher(mutableConfig);
@@ -263,7 +265,7 @@ class ChangePublisherTest {
 		assertEquals(CallerType.NONE, cp.callerType("foo"));
 
 		props.put("logging.change.logger.foo", "false");
-		props.put("logging.caller.foo", "true");
+		props.put("logging.caller.logger.foo", "true");
 		cp.publish();
 
 		assertEquals(Set.of(), cp.allowedChanges("foo"),
@@ -309,7 +311,7 @@ class ChangePublisherTest {
 	@Test
 	void callerInfoDoesNotNeedChangeMode() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.caller.com.mycompany=true
+				logging.caller.logger.com.mycompany=true
 				""").build()).build();
 		assertEquals(CallerType.BASIC, config.changePublisher().callerType("com.mycompany.app"));
 		assertEquals(Set.of(), config.changePublisher().allowedChanges("com.mycompany.app"));

@@ -74,7 +74,7 @@ It is really three states (auto, on, off) disguised as a boolean.
 - SLF4J `initialize()` reads `logging.mdc.type` and reads
   `logging.global.threadlocalDisabled` again, with its own copy of the key string and
   its own TRUE/FALSE enum.
-- `logging.change.logger.*` and `logging.caller.*` are read per logger name, cached, and
+- `logging.change.logger.*` and `logging.caller.logger.*` are read per logger name, cached, and
   cleared on publish. These are fine as they are.
 - `LogReporter` reads the global keys as strings only to print them.
 
@@ -129,13 +129,18 @@ logging.change.logger.com.mycompany=level
   first config.
 - **`LogConfig.Builder.changeMode(ChangeMode)`:** the default when the property is absent,
   the same pattern as `alertsFail`.
-- **Caller info is no longer gated.** `logging.caller.*` applies whatever the mode. When
+- **Caller info is no longer gated.** `logging.caller.logger.*` applies whatever the mode. When
   the mode is off, each new logger name now costs one cached property walk for caller,
   which `IgnoreChangePublisher` used to skip. `IgnoreChangePublisher` is gone; the one
   publisher checks the mode.
 - **Off means:** `allowedChanges` is always empty, and `subscribe` and `publish` do
   nothing (so publishing does not clear the level cache), the same as before.
 - No compatibility alias for the old keys (pre-1.0, no deprecation).
+- **Caller keys follow the same shape.** `logging.caller.<name>` moved to
+  `logging.caller.logger.<name>` (bare `logging.caller.logger` for the root), leaving
+  room for caller settings that are not per logger. The unused key check now exempts
+  `logging.caller.logger.*`; before, per logger caller keys were not exempt even though
+  they are read lazily like level and change keys.
 
 ## Decision: the reporter lives on the config
 
