@@ -219,7 +219,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	 * chooses what may change per logger. When off, {@link #allowedChanges(String)} is
 	 * always empty and {@link #publish()} does nothing.
 	 * <p>
-	 * Caller info is not a change: {@value LogProperties#CALLER_PREFIX} +
+	 * Caller info is not a change: {@value LogProperties#CALLER_LOGGER_PREFIX} +
 	 * {@value LogProperties#SEP} + logger name, set to a {@link CallerType} (or
 	 * <code>true</code>/<code>false</code>), applies whatever the change mode. It is
 	 * resolved independently of {@value LogProperties#CHANGE_LOGGER_PREFIX}, even for
@@ -256,7 +256,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		/**
 		 * The caller info strategy for a logger, resolved from
-		 * {@value LogProperties#CALLER_PREFIX}, independently of
+		 * {@value LogProperties#CALLER_LOGGER_PREFIX}, independently of
 		 * {@link #allowedChanges(String)} /{@value LogProperties#CHANGE_LOGGER_PREFIX}.
 		 * Unlike {@link ChangeType#LEVEL}, which is genuinely re-evaluated on every
 		 * {@link #publish()}, this is resolved once when a logger is first created and
@@ -790,8 +790,9 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	/*
 	 * Sibling to changesCache, not folded into it - CallerType is resolved from its own
-	 * logging.caller.<name> property, independent of logging.change.logger.<name>, so it
-	 * gets its own map rather than a combined per-name struct (one map per concern).
+	 * logging.caller.logger.<name> property, independent of logging.change.logger.<name>,
+	 * so it gets its own map rather than a combined per-name struct (one map per
+	 * concern).
 	 */
 	private final ConcurrentHashMap<String, CallerType> callerTypeCache = new ConcurrentHashMap<>();
 
@@ -882,7 +883,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	public CallerType callerType(String loggerName) {
 		return callerTypeCache.computeIfAbsent(loggerName, n -> {
 			LogProperty.Result<CallerType> result = config().properties()
-				.findOrNull(LogProperties.CALLER_PREFIX, n, (props, fullKey) -> {
+				.findOrNull(LogProperties.CALLER_LOGGER_PREFIX, n, (props, fullKey) -> {
 					LogProperty.Result<CallerType> r = props.forKey(fullKey).ofString().map(CallerType::parse);
 					return r instanceof LogProperty.Result.Missing ? null : r;
 				});
@@ -896,8 +897,8 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 				/*
 				 * Same reasoning as allowedChanges()'s catch above: a malformed (or
 				 * pre-split, e.g. the old "caller" token that used to live in
-				 * logging.change.<name>) logging.caller.<name> value alerts once and
-				 * falls back to CallerType.NONE, cached, rather than re-parsing and
+				 * logging.change.<name>) logging.caller.logger.<name> value alerts once
+				 * and falls back to CallerType.NONE, cached, rather than re-parsing and
 				 * re-alerting on every call.
 				 */
 				config().alerts().error(ChangePublisher.class, e);

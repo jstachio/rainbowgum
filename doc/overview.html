@@ -708,12 +708,12 @@ Below is an example of configuring caller info for a set of logger names:
 
 {@snippet lang=properties :
 # only logger names starting with com.mycompany will have caller info
-logging.caller.com.mycompany=true
+logging.caller.logger.com.mycompany=true
 }
 
 Caller info is decided once, when a logger is created, and does not change afterward.
 
-Note that {@value io.jstach.rainbowgum.LogProperties#CALLER_PREFIX} is resolved completely independently of
+Note that {@value io.jstach.rainbowgum.LogProperties#CALLER_LOGGER_PREFIX} is resolved completely independently of
 {@value io.jstach.rainbowgum.LogProperties#CHANGE_LOGGER_PREFIX}: each walks its own logger name inheritance separately,
 so enabling caller info for <code>com.mycompany</code> does not also make <code>com.mycompany</code> level
 changeable, and a more specific <code>logging.change.logger.com.mycompany.app</code> entry does not clobber

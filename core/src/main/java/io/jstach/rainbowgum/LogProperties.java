@@ -369,12 +369,12 @@ public interface LogProperties {
 	static final String CHANGE_LOGGER_PREFIX = ROOT_PREFIX + "change.logger";
 
 	/**
-	 * Logging caller info properties prefix. Independent of {@link #CHANGE_LOGGER_PREFIX}
-	 * and {@link #CHANGE_MODE_PROPERTY}: resolved through its own logger-name hierarchy
-	 * walk, so a value here is never overridden by a more specific
-	 * {@link #CHANGE_LOGGER_PREFIX} entry or vice versa.
+	 * Per logger caller info properties prefix: see {@link LogEvent.Caller.CallerType}.
+	 * Independent of {@link #CHANGE_LOGGER_PREFIX} and {@link #CHANGE_MODE_PROPERTY}:
+	 * resolved through its own logger-name hierarchy walk, so a value here is never
+	 * overridden by a more specific {@link #CHANGE_LOGGER_PREFIX} entry or vice versa.
 	 */
-	static final String CALLER_PREFIX = ROOT_PREFIX + "caller";
+	static final String CALLER_LOGGER_PREFIX = ROOT_PREFIX + "caller.logger";
 
 	/**
 	 * Logging file property for default single file appending. The value should be a URI.
