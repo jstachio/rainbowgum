@@ -165,6 +165,12 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	public LoggerRegistry loggerRegistry();
 
 	/**
+	 * Diagnostic reporter for this config and the {@link RainbowGum} built from it.
+	 * @return reporter.
+	 */
+	public LogReporter reporter();
+
+	/**
 	 * Accounts for logger names, and which {@link LoggerAPI} vended them, registered via
 	 * {@link #registerLoggerName(LoggerAPI, String)}, deliberately without exposing the
 	 * accumulated names/APIs themselves: the one supported way to see them is
@@ -922,6 +928,8 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LoggerRegistry loggerRegistry;
 
+	private final Reporter reporter;
+
 	/*
 	 * Registered outputs/appenders, alert listeners, and service registry closeables are
 	 * never reset when a RainbowGum closes, so a second RainbowGum on this config would
@@ -948,6 +956,8 @@ final class DefaultLogConfig implements LogConfig {
 		this.alerts = alerts;
 		this.metrics = metrics;
 		this.loggerRegistry = new DefaultLoggerRegistry(metrics);
+		this.reporter = new Reporter();
+		reportProperties(this.reporter);
 		this.changeMode = properties.forKey(LogProperties.CHANGE_MODE_PROPERTY)
 			.ofString()
 			.map(ChangeMode::parse)
@@ -1084,6 +1094,15 @@ final class DefaultLogConfig implements LogConfig {
 			.validateNow(DefaultLogConfig.class) == GlobalOptimize.TRUE;
 	}
 
+	final class Reporter extends DefaultLogReporter {
+
+		@Override
+		LogConfig config() {
+			return DefaultLogConfig.this;
+		}
+
+	}
+
 	class DefaultChangePublisher extends AbstractChangePublisher {
 
 		@Override
@@ -1127,6 +1146,24 @@ final class DefaultLogConfig implements LogConfig {
 	@Override
 	public ChangePublisher changePublisher() {
 		return this.changePublisher;
+	}
+
+	@Override
+	public Reporter reporter() {
+		return this.reporter;
+	}
+
+	/*
+	 * The properties read by this constructor, plus the queue properties the global
+	 * router reads from system properties before any config exists.
+	 */
+	private static void reportProperties(LogReporter reporter) {
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.CHANGE_MODE_PROPERTY);
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY);
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY);
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY);
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY);
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_OPTIMIZE_PROPERTY);
 	}
 
 	@Override

@@ -50,12 +50,12 @@ class LogReporterSectionPermutationTest {
 	@ParameterizedTest
 	@MethodSource("permutations")
 	void testPermutation(Set<Section> sections) {
-		var reporter = LogReporter.builder().sections(sections).maxAlerts(3).build();
+		var options = LogReporter.Options.builder().sections(sections).maxAlerts(3).build();
 		try (var gum = RainbowGum.builder().build()) {
 			gum.config().metrics().errorCounter(LogMetrics.EVENTS_DROPPED_METRIC, 1);
 			gum.config().alerts().error(LogReporterSectionPermutationTest.class, "boom", new IllegalStateException());
 
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 
 			// Section.builder()'s own documented contract: an empty set falls back to
 			// the default, it does not mean "print nothing".
@@ -63,7 +63,7 @@ class LogReporterSectionPermutationTest {
 
 			assertEquals(effective.contains(Section.VERSION), actual.startsWith("Rainbow Gum "),
 					() -> "VERSION mismatch for " + sections + ": " + actual);
-			assertEquals(effective.contains(Section.COMPONENTS), actual.contains("Global Properties:"),
+			assertEquals(effective.contains(Section.COMPONENTS), actual.contains("Reported Properties:"),
 					() -> "COMPONENTS mismatch for " + sections + ": " + actual);
 			assertEquals(effective.contains(Section.METRICS), actual.contains("Metrics:"),
 					() -> "METRICS mismatch for " + sections + ": " + actual);

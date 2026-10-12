@@ -55,6 +55,7 @@ public sealed interface PatternCompiler {
 				.orElseGet(() -> PatternRegistry.of());
 			var patternConfig = findService(services, PatternConfig.class, name, LogProperties.DEFAULT_NAME)
 				.orElseGet(() -> {
+					config.reporter().addProperty(PatternCompiler.class, LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY);
 					boolean ansiDisable = config.properties()
 						.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
 						.ofBoolean() //

@@ -36,6 +36,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 
 	@Override
 	public boolean configure(@SuppressWarnings("exports") LogConfig config, @SuppressWarnings("exports") Pass pass) {
+		config.reporter().addProperty(JULConfigurator.class, JUL_DISABLE_PROPERTY);
 		if (!install(config.properties())) {
 			return true;
 		}

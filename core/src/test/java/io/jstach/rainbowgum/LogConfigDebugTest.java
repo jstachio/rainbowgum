@@ -151,14 +151,14 @@ class LogConfigDebugTest {
 						Rainbow Gum VERSION_PLACEHOLDER
 
 						Properties: SYSTEM_PROPERTIES
-						Global Properties:
-						  logging.change.mode = (unset)
-						  logging.global.queue.level = (unset)
-						  logging.global.queue.error = (unset)
-						  logging.global.ansi.disable = (unset)
-						  logging.global.appender.reentrantLock = (unset)
-						  logging.global.threadlocalDisabled = (unset)
-						  logging.global.optimize = (unset)
+						Reported Properties:
+						  logging.change.mode = (unset) (io.jstach.rainbowgum)
+						  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum)
+						  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
+						  logging.global.optimize = (unset) (io.jstach.rainbowgum)
+						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
+						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+						  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
 						Debug mode: ALL
 
 						Router: default
@@ -362,14 +362,14 @@ class LogConfigDebugTest {
 						Rainbow Gum VERSION_PLACEHOLDER
 
 						Properties: SYSTEM_PROPERTIES
-						Global Properties:
-						  logging.change.mode = (unset)
-						  logging.global.queue.level = (unset)
-						  logging.global.queue.error = (unset)
-						  logging.global.ansi.disable = (unset)
-						  logging.global.appender.reentrantLock = (unset)
-						  logging.global.threadlocalDisabled = (unset)
-						  logging.global.optimize = (unset)
+						Reported Properties:
+						  logging.change.mode = (unset) (io.jstach.rainbowgum)
+						  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum)
+						  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
+						  logging.global.optimize = (unset) (io.jstach.rainbowgum)
+						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
+						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+						  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
 						Debug mode: DEBUG_MODE
 
 						Router: default

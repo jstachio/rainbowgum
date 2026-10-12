@@ -71,7 +71,7 @@ class RainbowGumInfoAutoConfigurationTest {
 				assertEquals(Set.of("version", "components", "metrics", "alerts", "loggers", "facades"),
 						rainbowgum.keySet());
 				assertTrue(rainbowgum.get("version").startsWith("Rainbow Gum "));
-				assertTrue(rainbowgum.get("components").contains("Global Properties:"));
+				assertTrue(rainbowgum.get("components").contains("Reported Properties:"));
 				assertTrue(rainbowgum.get("metrics").startsWith("Metrics:"));
 				assertTrue(rainbowgum.get("alerts").startsWith("Alerts (total=0"));
 				assertTrue(rainbowgum.get("loggers").startsWith("Loggers:"));

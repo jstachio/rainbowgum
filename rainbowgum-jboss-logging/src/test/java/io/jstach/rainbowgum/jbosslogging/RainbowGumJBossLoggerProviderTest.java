@@ -124,8 +124,8 @@ class RainbowGumJBossLoggerProviderTest {
 		try {
 			Logger.getLogger(name);
 			var gum = Objects.requireNonNull(RainbowGum.getOrNull());
-			var reporter = LogReporter.builder().section(LogReporter.Section.LOGGERS).build();
-			assertTrue(reporter.report(gum).contains(name));
+			var options = LogReporter.Options.builder().section(LogReporter.Section.LOGGERS).build();
+			assertTrue(gum.config().reporter().report(options).contains(name));
 		}
 		finally {
 			RainbowGum.builder(LogConfig.builder().build()).unset();
