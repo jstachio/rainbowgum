@@ -473,8 +473,11 @@ exceptions including custom components.
   This is how level resolving changes can be published.
 </p>
 <p>
-  Config change is by default off even on supporting configuration systems and can only be enabled by setting
-  {@value io.jstach.rainbowgum.LogProperties#GLOBAL_CHANGE_PROPERTY} to true.
+  Config change is by default off even on supporting configuration systems and can only be turned on by setting
+  {@value io.jstach.rainbowgum.LogProperties#CHANGE_MODE_PROPERTY} to <code>on</code> (or with
+  {@link io.jstach.rainbowgum.LogConfig.Builder#changeMode(io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode)}).
+  Which loggers may change is then chosen per logger with
+  {@value io.jstach.rainbowgum.LogProperties#CHANGE_LOGGER_PREFIX}.
 </p>
 
 <h2 id="router">Router</h2>
@@ -573,9 +576,9 @@ Below is an example of configuring to allow <em>"changing" loggers</em>
 
 {@snippet lang=properties :
 # this is required to turn on level changing.
-logging.global.change=true
+logging.change.mode=on
 # only logger names starting with com.mycompany can have their levels changed.
-logging.change.com.mycompany=level
+logging.change.logger.com.mycompany=level
 }
 
 To fire off that configuration has changed the {@link io.jstach.rainbowgum.LogConfig.ChangePublisher}
@@ -700,21 +703,20 @@ Somewhat related to level resolvers and config change is how to enable {@linkpla
 It is incredibly slow so like changing loggers it must be enabled and you can enable it with logger name inheritance
 so not all loggers will be slow.
 
+Caller info does not need <code>logging.change.mode</code>.
 Below is an example of configuring caller info for a set of logger names:
 
 {@snippet lang=properties :
-# this is required to enable any dynamic per logger name configuration.
-logging.global.change=true
 # only logger names starting with com.mycompany will have caller info
 logging.caller.com.mycompany=true
 }
 
-Caller info can be disabled dynamically with supporting configuration systems just like level changing.
+Caller info is decided once, when a logger is created, and does not change afterward.
 
 Note that {@value io.jstach.rainbowgum.LogProperties#CALLER_PREFIX} is resolved completely independently of
-{@value io.jstach.rainbowgum.LogProperties#CHANGE_PREFIX}: each walks its own logger name inheritance separately,
+{@value io.jstach.rainbowgum.LogProperties#CHANGE_LOGGER_PREFIX}: each walks its own logger name inheritance separately,
 so enabling caller info for <code>com.mycompany</code> does not also make <code>com.mycompany</code> level
-changeable, and a more specific <code>logging.change.com.mycompany.app</code> entry does not clobber
+changeable, and a more specific <code>logging.change.logger.com.mycompany.app</code> entry does not clobber
 <code>com.mycompany.app</code>'s inherited caller info the way it would if the two shared one property. The
 value is a {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType} (or
 <code>true</code>/<code>false</code>), where {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType#BASIC
@@ -2547,7 +2549,7 @@ level.org.hibernate.SQL=trace
 <code>logging.</code> prefix. Other keys are ignored with a warning.</li>
 <li>Its levels win over every other source.</li>
 <li>The file is checked for changes every two seconds, and changed levels apply to loggers that already exist.
-Watching supplies <code>logging.global.change=true</code> and <code>logging.change=level</code> as lowest
+Watching supplies <code>logging.change.mode=on</code> and <code>logging.change.logger=level</code> as lowest
 precedence defaults, so explicit <a href="#changing_resolving">change settings</a> still win.</li>
 <li>A missing file is picked up when it appears.</li>
 <li>Whoever can write the file controls what reaches the logs, so where POSIX permissions are available the
@@ -3254,7 +3256,7 @@ Keys are checked where Rainbow Gum can list them:
 </ul>
 
 Some keys are never reported: <code>logging.level</code> keys (and route level keys) and
-<code>logging.change</code> keys, which are read per logger as loggers are created. A misspelled prefix
+<code>logging.change.logger</code> keys, which are read per logger as loggers are created. A misspelled prefix
 such as <code>logging.levle.com.myapp</code> is therefore only information, since no level key is
 read up front to suggest. Also never reported are keys read before properties load, such as
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system

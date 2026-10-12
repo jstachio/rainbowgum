@@ -46,7 +46,7 @@ class RainbowGumTomcatLogTest {
 			.build()
 			.put("logging.level." + LOGGER_NAME, configuredLevel.toString());
 		if (changeable) {
-			propsBuilder.put("logging.global.change", "true").put("logging.change", "level");
+			propsBuilder.put("logging.change.mode", "on").put("logging.change.logger", "level");
 		}
 		LogConfig config = LogConfig.builder().properties(propsBuilder).build();
 		ListLogOutput output = new ListLogOutput();

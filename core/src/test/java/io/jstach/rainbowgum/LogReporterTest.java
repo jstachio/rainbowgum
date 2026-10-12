@@ -29,7 +29,7 @@ class LogReporterTest {
 					"""
 							Properties: EMPTY
 							Global Properties:
-							  logging.global.change = (unset)
+							  logging.change.mode = (unset)
 							  logging.global.queue.level = (unset)
 							  logging.global.queue.error = (unset)
 							  logging.global.ansi.disable = (unset)
@@ -123,7 +123,7 @@ class LogReporterTest {
 			String expected = """
 					Properties: SYSTEM_PROPERTIES
 					Global Properties:
-					  logging.global.change = (unset)
+					  logging.change.mode = (unset)
 					  logging.global.queue.level = (unset)
 					  logging.global.queue.error = (unset)
 					  logging.global.ansi.disable = (unset)

@@ -98,7 +98,7 @@ class RainbowGumLoggerFactoryTest {
 	 * LevelLogger.OffLogger(name)) - this is the only place the real
 	 * RainbowGumLoggerFactory.getLogger() OFF-level branch itself runs, which only
 	 * happens when ChangeType.LEVEL is not allowed for the name (the default here, since
-	 * no logging.change property is set).
+	 * no logging.change.logger property is set).
 	 */
 	@Test
 	void testGetLoggerRegistersLoggerName() {
@@ -134,8 +134,8 @@ class RainbowGumLoggerFactoryTest {
 	@Test
 	void testGetLoggerConcurrentlyForANewNameReturnsTheSameInstanceToEveryThread() throws InterruptedException {
 		String global = """
-				logging.global.change=true
-				logging.change=true
+				logging.change.mode=on
+				logging.change.logger=true
 				""";
 		var rainbowgum = gum(LogProperties.builder().fromProperties(global).build());
 		var factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
@@ -172,8 +172,8 @@ class RainbowGumLoggerFactoryTest {
 	@Test
 	void testChangeableLogger() {
 		String global = """
-				logging.global.change=true
-				logging.change.mychange=true
+				logging.change.mode=on
+				logging.change.logger.mychange=true
 				logging.caller.mychange=true
 				""";
 		Map<String, String> m = new LinkedHashMap<>();
@@ -227,7 +227,7 @@ class RainbowGumLoggerFactoryTest {
 	@Test
 	void testCallerInfoLogger() {
 		String global = """
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.mychange=true
 				""";
 		Map<String, String> m = new LinkedHashMap<>();
@@ -267,8 +267,8 @@ class RainbowGumLoggerFactoryTest {
 	@Test
 	void testChangeableLoggerAll() {
 		MutableLogProperties props = MutableLogProperties.builder().copyProperties("""
-				logging.global.change=true
-				logging.change=true
+				logging.change.mode=on
+				logging.change.logger=true
 				logging.level=WARNING
 				""").build();
 		var rainbowgum = gum(props);
@@ -344,8 +344,8 @@ class RainbowGumLoggerFactoryTest {
 		RainbowGum.builder(LogConfig.builder().build()).unset();
 		try {
 			String preBootProperties = """
-					logging.global.change=true
-					logging.change=level
+					logging.change.mode=on
+					logging.change.logger=level
 					""";
 			var bootstrapConfig = LogConfig.builder()
 				.properties(LogProperties.builder().fromProperties(preBootProperties).build())
@@ -354,7 +354,7 @@ class RainbowGumLoggerFactoryTest {
 			var factory = new RainbowGumLoggerFactory(bootstrapGum, new RainbowGumMDCAdapter());
 			var logger = factory.getLogger("bootstrap.logger");
 			assertInstanceOf(LevelChangeable.class, logger,
-					"logging.change=level must make this a replaceable logger, same as Spring's pre-boot properties");
+					"logging.change.logger=level must make this a replaceable logger, same as Spring's pre-boot properties");
 
 			var realOutput = new ListLogOutput();
 			try (var realGum = RainbowGum.builder(LogConfig.builder().build()).route(route -> {
@@ -386,8 +386,8 @@ class RainbowGumLoggerFactoryTest {
 	void bootstrapLoggerGetsRealGumContributor(BootstrapContextCase testCase) {
 		RainbowGum.builder(LogConfig.builder().build()).unset();
 		var bootstrapConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
-				logging.change=level
+				logging.change.mode=on
+				logging.change.logger=level
 				logging.caller=%s
 				""".formatted(testCase == BootstrapContextCase.CALLER)).build()).build();
 		KeyValuesContributor.register(bootstrapConfig.serviceRegistry(), Standard.USER,

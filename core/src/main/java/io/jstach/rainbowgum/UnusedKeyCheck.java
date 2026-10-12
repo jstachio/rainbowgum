@@ -127,7 +127,7 @@ final class UnusedKeyCheck {
 				|| OTHER_LIBRARY_KEYS.contains(key)) {
 			return true;
 		}
-		if (inNamespace(key, LogProperties.LEVEL_PREFIX) || inNamespace(key, LogProperties.CHANGE_PREFIX)) {
+		if (inNamespace(key, LogProperties.LEVEL_PREFIX) || inNamespace(key, LogProperties.CHANGE_LOGGER_PREFIX)) {
 			return true;
 		}
 		String routePrefix = LogProperties.ROOT_PREFIX + "route.";

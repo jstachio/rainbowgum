@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
+import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode;
 import io.jstach.rainbowgum.LogEvent.Caller.CallerType;
 import io.jstach.rainbowgum.annotation.EnumAlias;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -204,16 +205,19 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	}
 
 	/**
-	 * Config Change Publisher. By default this is enabled with
-	 * {@value LogProperties#GLOBAL_CHANGE_PROPERTY} set to <code>true</code>, which then
-	 * gates two independent, per-logger-name properties:
-	 * {@value LogProperties#CHANGE_PREFIX} + {@value LogProperties#SEP} + logger name,
-	 * set to a list of {@link ChangeType} or <code>true</code>/<code>false</code> to
-	 * enable or disable all changes, and {@value LogProperties#CALLER_PREFIX} +
+	 * Config Change Publisher. Runtime changes are on when
+	 * {@value LogProperties#CHANGE_MODE_PROPERTY} (or
+	 * {@link Builder#changeMode(ChangeMode)}) is {@link ChangeMode#ON}. When on,
+	 * {@value LogProperties#CHANGE_LOGGER_PREFIX} + {@value LogProperties#SEP} + logger
+	 * name, set to a list of {@link ChangeType} or <code>true</code>/<code>false</code>,
+	 * chooses what may change per logger. When off, {@link #allowedChanges(String)} is
+	 * always empty and {@link #publish()} does nothing.
+	 * <p>
+	 * Caller info is not a change: {@value LogProperties#CALLER_PREFIX} +
 	 * {@value LogProperties#SEP} + logger name, set to a {@link CallerType} (or
-	 * <code>true</code>/<code>false</code>) to control caller info. The two are resolved
-	 * independently - one does not imply or override the other, even for overlapping
-	 * logger name prefixes.
+	 * <code>true</code>/<code>false</code>), applies whatever the change mode. It is
+	 * resolved independently of {@value LogProperties#CHANGE_LOGGER_PREFIX}, even for
+	 * overlapping logger name prefixes.
 	 */
 	interface ChangePublisher {
 
@@ -247,8 +251,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		/**
 		 * The caller info strategy for a logger, resolved from
 		 * {@value LogProperties#CALLER_PREFIX}, independently of
-		 * {@link #allowedChanges(String)} /{@value LogProperties#CHANGE_PREFIX}. Unlike
-		 * {@link ChangeType#LEVEL}, which is genuinely re-evaluated on every
+		 * {@link #allowedChanges(String)} /{@value LogProperties#CHANGE_LOGGER_PREFIX}.
+		 * Unlike {@link ChangeType#LEVEL}, which is genuinely re-evaluated on every
 		 * {@link #publish()}, this is resolved once when a logger is first created and
 		 * never revisited afterward - it reflects a static per-logger capability, not
 		 * something that changes at runtime.
@@ -265,6 +269,35 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		default boolean callerInfoEnabled(String loggerName) {
 			return callerType(loggerName) != CallerType.NONE;
+		}
+
+		/**
+		 * Whether runtime changes are on for a configuration, set with
+		 * {@value LogProperties#CHANGE_MODE_PROPERTY}.
+		 */
+		public enum ChangeMode {
+
+			/**
+			 * Loggers never change after they are created.
+			 */
+			@EnumAlias("false")
+			OFF,
+			/**
+			 * Loggers allowed by {@value LogProperties#CHANGE_LOGGER_PREFIX} change when
+			 * changes are published.
+			 */
+			@EnumAlias("true")
+			ON;
+
+			static ChangeMode parse(String value) {
+				String v = value.toUpperCase(Locale.ROOT);
+				return switch (v) {
+					case "TRUE" -> ON;
+					case "FALSE" -> OFF;
+					default -> LogProperty.enumValue(ChangeMode.class, value, "true", "false");
+				};
+			}
+
 		}
 
 		/**
@@ -341,6 +374,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private LogAlerts.UnusedKeyLevel alertsUnusedKey = LogAlerts.UnusedKeyLevel.INFO;
 
+		private ChangeMode changeMode = ChangeMode.OFF;
+
 		/**
 		 * Default constructor
 		 */
@@ -388,6 +423,17 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		public Builder alertsUnusedKey(LogAlerts.UnusedKeyLevel unusedKeyLevel) {
 			this.alertsUnusedKey = Objects.requireNonNull(unusedKeyLevel);
+			return this;
+		}
+
+		/**
+		 * Sets whether runtime changes are on, used when the property
+		 * {@value LogProperties#CHANGE_MODE_PROPERTY} is absent.
+		 * @param changeMode change mode, default {@link ChangeMode#OFF}.
+		 * @return this.
+		 */
+		public Builder changeMode(ChangeMode changeMode) {
+			this.changeMode = Objects.requireNonNull(changeMode);
 			return this;
 		}
 
@@ -494,9 +540,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 					 * member of the list itself to always be included, not passed as that
 					 * fallback: otherwise it silently disappears the moment any
 					 * PropertiesProvider contributes anything at all (e.g.
-					 * rainbowgum-micronaut5's own GLOBAL_CHANGE_PROPERTY layer), breaking
-					 * every -D system property override for such an application with no
-					 * warning.
+					 * rainbowgum-micronaut5's own change mode layer), breaking every -D
+					 * system property override for such an application with no warning.
 					 */
 					props.add(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
 					logProperties = LogProperties.of(props);
@@ -531,7 +576,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				LogMetrics metrics = new DefaultLogMetrics();
 				var levelResolver = this.buildGlobalResolver(logProperties, alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
-						unusedKeyCheck);
+						unusedKeyCheck, changeMode);
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);
 				dumpAlerts = alerts;
@@ -726,8 +771,8 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	/*
 	 * Sibling to changesCache, not folded into it - CallerType is resolved from its own
-	 * logging.caller.<name> property, independent of logging.change.<name>, so it gets
-	 * its own map rather than a combined per-name struct (one map per concern).
+	 * logging.caller.<name> property, independent of logging.change.logger.<name>, so it
+	 * gets its own map rather than a combined per-name struct (one map per concern).
 	 */
 	private final ConcurrentHashMap<String, CallerType> callerTypeCache = new ConcurrentHashMap<>();
 
@@ -735,8 +780,19 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	protected abstract LogConfig config();
 
+	/*
+	 * Only allowedChanges and publishing depend on the mode. Caller info is resolved
+	 * whatever the mode.
+	 */
+	protected ChangeMode changeMode() {
+		return ChangeMode.ON;
+	}
+
 	@Override
 	public void publish() {
+		if (changeMode() == ChangeMode.OFF) {
+			return;
+		}
 		changesCache.clear();
 		callerTypeCache.clear();
 		LogConfig config = reload();
@@ -747,6 +803,9 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public void subscribe(Consumer<? super LogConfig> consumer) {
+		if (changeMode() == ChangeMode.OFF) {
+			return;
+		}
 		consumers.add(consumer);
 	}
 
@@ -757,6 +816,9 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
+		if (changeMode() == ChangeMode.OFF) {
+			return Set.of();
+		}
 		return changesCache.computeIfAbsent(loggerName, n -> {
 			/*
 			 * findOrNull walks the logger-name hierarchy (closest match wins, see its own
@@ -767,7 +829,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 			 * silently falling through to a less specific ancestor's value.
 			 */
 			LogProperty.Result<Set<ChangeType>> result = config().properties()
-				.findOrNull(LogProperties.CHANGE_PREFIX, n, (props, fullKey) -> {
+				.findOrNull(LogProperties.CHANGE_LOGGER_PREFIX, n, (props, fullKey) -> {
 					LogProperty.Result<Set<ChangeType>> r = props.forKey(fullKey).ofList().map(ChangeType::parse);
 					return r instanceof LogProperty.Result.Missing ? null : r;
 				});
@@ -779,9 +841,9 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 			}
 			catch (LogProperty.ValidationException e) {
 				/*
-				 * A malformed logging.change.<name> value must not be able to break
-				 * logging itself. ConcurrentHashMap#computeIfAbsent leaves nothing cached
-				 * when the mapping function throws, so without catching this a bad
+				 * A malformed logging.change.logger.<name> value must not be able to
+				 * break logging itself. ConcurrentHashMap#computeIfAbsent leaves nothing
+				 * cached when the mapping function throws, so without catching this a bad
 				 * property would re-parse and re-alert on every single allowedChanges(n)
 				 * call for this logger name, not just once - same amplification risk
 				 * CachedLevelResolver guards against for level properties. Fall back to
@@ -827,36 +889,6 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 
 }
 
-enum IgnoreChangePublisher implements ChangePublisher {
-
-	INSTANT;
-
-	@Override
-	public void subscribe(Consumer<? super LogConfig> consumer) {
-	}
-
-	@Override
-	public void publish() {
-
-	}
-
-	@Override
-	public boolean isEnabled(String loggerName) {
-		return false;
-	}
-
-	@Override
-	public Set<ChangeType> allowedChanges(String loggerName) {
-		return Set.of();
-	}
-
-	@Override
-	public CallerType callerType(String loggerName) {
-		return CallerType.NONE;
-	}
-
-}
-
 final class DefaultLogConfig implements LogConfig {
 
 	/*
@@ -873,6 +905,8 @@ final class DefaultLogConfig implements LogConfig {
 	private final DebugModeType debugMode;
 
 	private final LevelConfig levelResolver;
+
+	private final ChangeMode changeMode;
 
 	private final ChangePublisher changePublisher;
 
@@ -903,7 +937,8 @@ final class DefaultLogConfig implements LogConfig {
 	private final @Nullable UnusedKeyCheck unusedKeyCheck;
 
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
-			LogMetrics metrics, DebugModeType debugMode, @Nullable UnusedKeyCheck unusedKeyCheck) {
+			LogMetrics metrics, DebugModeType debugMode, @Nullable UnusedKeyCheck unusedKeyCheck,
+			ChangeMode changeMode) {
 		super();
 		this.unusedKeyCheck = unusedKeyCheck;
 		this.registry = registry;
@@ -913,11 +948,12 @@ final class DefaultLogConfig implements LogConfig {
 		this.alerts = alerts;
 		this.metrics = metrics;
 		this.loggerRegistry = new DefaultLoggerRegistry(metrics);
-		boolean changeable = properties.forKey(LogProperties.GLOBAL_CHANGE_PROPERTY)
-			.ofBoolean()
-			.or(false)
+		this.changeMode = properties.forKey(LogProperties.CHANGE_MODE_PROPERTY)
+			.ofString()
+			.map(ChangeMode::parse)
+			.or(changeMode)
 			.validateNow(DefaultLogConfig.class);
-		this.changePublisher = changeable ? new DefaultChangePublisher() : IgnoreChangePublisher.INSTANT;
+		this.changePublisher = new DefaultChangePublisher();
 		applyGlobalAppenderReentrantLockProperty(properties);
 		applyGlobalThreadLocalDisabledProperty(properties);
 		applyGlobalOptimizeProperty(properties);
@@ -1053,6 +1089,11 @@ final class DefaultLogConfig implements LogConfig {
 		@Override
 		protected LogConfig config() {
 			return DefaultLogConfig.this;
+		}
+
+		@Override
+		protected ChangeMode changeMode() {
+			return changeMode;
 		}
 
 		@Override

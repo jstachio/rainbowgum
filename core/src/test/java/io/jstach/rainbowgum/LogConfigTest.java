@@ -64,11 +64,11 @@ class LogConfigTest {
 	 * Regression test: LogConfig.Builder.build() used to pass SYSTEM_PROPERTIES as
 	 * LogProperties.of(List, LogProperties)'s *fallback* argument, which that method only
 	 * ever consults when the list itself is empty. So the moment any PropertiesProvider
-	 * (e.g. rainbowgum-micronaut5's own GLOBAL_CHANGE_PROPERTY layer) contributed
-	 * anything at all, every -D system property override silently stopped working, with
-	 * no error. A PropertiesProvider that contributes some unrelated property
-	 * ("logging.other", not the one under test) reproduces exactly that shape: it must
-	 * not cause "logging.level.stuff" to lose to the real system property set below.
+	 * (e.g. rainbowgum-micronaut5's own CHANGE_MODE_PROPERTY layer) contributed anything
+	 * at all, every -D system property override silently stopped working, with no error.
+	 * A PropertiesProvider that contributes some unrelated property ("logging.other", not
+	 * the one under test) reproduces exactly that shape: it must not cause
+	 * "logging.level.stuff" to lose to the real system property set below.
 	 */
 	@Test
 	void systemPropertyStillWinsWhenAPropertiesProviderContributesSomething() {

@@ -34,7 +34,7 @@ import jakarta.inject.Singleton;
  * <p>
  * Runtime level changes only take effect for loggers created after
  * {@link RainbowGumMicronautPropertiesProvider} has enabled them (a bare, root
- * {@code logging.change=level} property, present from the very first Rainbow Gum
+ * {@code logging.change.logger=level} property, present from the very first Rainbow Gum
  * bootstrap). Without that module also being on the classpath, {@link #setLogLevel} still
  * updates the underlying property, but already-created loggers that were frozen as
  * non-changeable before this bean was even asked to do anything will not see it.

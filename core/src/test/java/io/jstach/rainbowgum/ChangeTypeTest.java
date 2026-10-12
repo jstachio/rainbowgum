@@ -28,7 +28,7 @@ class ChangeTypeTest {
 	 * logging.caller.<name> property (LogEvent.Caller.CallerType) - now an unrecognized
 	 * token, which AbstractChangePublisher.allowedChanges() already catches and alerts on
 	 * rather than crashing, a reasonable pre-1.0 migration path for anyone still setting
-	 * logging.change.<name>=caller.
+	 * logging.change.logger.<name>=caller.
 	 */
 	@Test
 	void testParseRejectsTheOldCallerToken() {

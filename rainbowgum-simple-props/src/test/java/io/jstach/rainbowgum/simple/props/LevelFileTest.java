@@ -301,15 +301,15 @@ class LevelFileTest {
 	void watchingTurnsOnLevelChanges(@TempDir Path dir) throws Exception {
 		var simple = simple("classpath:/level-file.properties", dir.resolve("level.properties"));
 		var properties = LogProperties.of(simple.properties());
-		assertEquals("true", properties.valueOrNull(LogProperties.GLOBAL_CHANGE_PROPERTY));
-		assertEquals("level", properties.valueOrNull(LogProperties.CHANGE_PREFIX));
+		assertEquals("on", properties.valueOrNull(LogProperties.CHANGE_MODE_PROPERTY));
+		assertEquals("level", properties.valueOrNull(LogProperties.CHANGE_LOGGER_PREFIX));
 	}
 
 	@Test
 	void offByDefault(@TempDir Path dir) {
 		var simple = simple("classpath:/logging.properties", dir.resolve("level.properties"));
 		assertNull(simple.levelFile());
-		assertNull(LogProperties.of(simple.properties()).valueOrNull(LogProperties.GLOBAL_CHANGE_PROPERTY));
+		assertNull(LogProperties.of(simple.properties()).valueOrNull(LogProperties.CHANGE_MODE_PROPERTY));
 	}
 
 	@Test

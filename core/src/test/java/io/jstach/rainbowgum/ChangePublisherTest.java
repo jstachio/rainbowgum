@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
+import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEvent.Caller.CallerType;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
@@ -16,7 +17,7 @@ import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 class ChangePublisherTest {
 
 	LogConfig config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-			logging.change=true
+			logging.change.logger=true
 			logging.caller=true
 			""").build()).build();
 
@@ -47,15 +48,15 @@ class ChangePublisherTest {
 	}
 
 	/*
-	 * logging.change and logging.caller are resolved completely independently now -
-	 * neither implies nor overrides the other, unlike when CALLER lived inside
+	 * logging.change.logger and logging.caller are resolved completely independently now
+	 * - neither implies nor overrides the other, unlike when CALLER lived inside
 	 * ChangeType.
 	 */
 	@Test
 	void testCallerTypeIsIndependentOfAllowedChanges() {
 		var levelOnlyConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
-				logging.change.only=level
+				logging.change.mode=on
+				logging.change.logger.only=level
 				""").build()).build();
 		ChangePublisher levelOnly = changePublisher(levelOnlyConfig);
 		assertFalse(levelOnly.callerInfoEnabled("only"));
@@ -63,7 +64,7 @@ class ChangePublisherTest {
 		assertTrue(levelOnly.allowedChanges("only").contains(ChangeType.LEVEL));
 
 		var callerOnlyConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.only=true
 				""").build()).build();
 		ChangePublisher callerOnly = changePublisher(callerOnlyConfig);
@@ -73,21 +74,21 @@ class ChangePublisherTest {
 
 	/*
 	 * Reproduces and proves the fix for the bug found while testing the caching branch:
-	 * logging.caller.com.mycompany=true + logging.change.com.mycompany.app=level used to
-	 * leave com.mycompany.app with no caller info, because both were resolved out of one
-	 * combined property/Set<ChangeType> and findOrNull's hierarchical walk is closest-
-	 * match-wins with no merging - the child's own logging.change entry silently replaced
-	 * the parent's inherited caller value instead of the two coexisting. Now that each
-	 * property walks its own hierarchy independently, com.mycompany.app correctly
-	 * inherits caller info from its ancestor while also having its own level-changeable
-	 * setting.
+	 * logging.caller.com.mycompany=true + logging.change.logger.com.mycompany.app=level
+	 * used to leave com.mycompany.app with no caller info, because both were resolved out
+	 * of one combined property/Set<ChangeType> and findOrNull's hierarchical walk is
+	 * closest- match-wins with no merging - the child's own logging.change.logger entry
+	 * silently replaced the parent's inherited caller value instead of the two
+	 * coexisting. Now that each property walks its own hierarchy independently,
+	 * com.mycompany.app correctly inherits caller info from its ancestor while also
+	 * having its own level-changeable setting.
 	 */
 	@Test
 	void testCallerInheritanceIsNotClobberedByAMoreSpecificChangeEntry() {
 		var nestedConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.com.mycompany=true
-				logging.change.com.mycompany.app=level
+				logging.change.logger.com.mycompany.app=level
 				""").build()).build();
 		var cp = changePublisher(nestedConfig);
 
@@ -99,8 +100,8 @@ class ChangePublisherTest {
 	@Test
 	void testAllowedChangesIsCachedPerLoggerNameAndNotReparsed() {
 		var real = LogProperties.builder().fromProperties("""
-				logging.global.change=true
-				logging.change.foo=level
+				logging.change.mode=on
+				logging.change.logger.foo=level
 				""").build();
 		AtomicInteger reads = new AtomicInteger();
 		LogProperties counting = key -> {
@@ -122,7 +123,7 @@ class ChangePublisherTest {
 	@Test
 	void testCallerTypeIsCachedPerLoggerNameAndNotReparsed() {
 		var real = LogProperties.builder().fromProperties("""
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.foo=true
 				""").build();
 		AtomicInteger reads = new AtomicInteger();
@@ -145,8 +146,8 @@ class ChangePublisherTest {
 	@Test
 	void testMalformedChangeValueAlertsOnceAndCachesTheFallback() {
 		var badConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
-				logging.change.bad=nonsense
+				logging.change.mode=on
+				logging.change.logger.bad=nonsense
 				""").build()).build();
 		var cp = changePublisher(badConfig);
 
@@ -159,14 +160,14 @@ class ChangePublisherTest {
 
 	/*
 	 * Also covers the migration path for anyone still setting the old, pre-split
-	 * logging.change.<name>=caller value under the new logging.caller.<name> property -
-	 * "caller" isn't a valid CallerType token either, so it alerts and falls back to NONE
-	 * the same way any other malformed value does.
+	 * logging.change.logger.<name>=caller value under the new logging.caller.<name>
+	 * property - "caller" isn't a valid CallerType token either, so it alerts and falls
+	 * back to NONE the same way any other malformed value does.
 	 */
 	@Test
 	void testMalformedCallerValueAlertsOnceAndCachesTheFallback() {
 		var badConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.bad=nonsense
 				""").build()).build();
 		var cp = changePublisher(badConfig);
@@ -179,19 +180,20 @@ class ChangePublisherTest {
 	}
 
 	/*
-	 * Golden-master pin of the exact alert produced for a malformed logging.change.<name>
-	 * value. See git history for two earlier, plainer messages this evolved from: first a
-	 * hand-rolled string around a raw try/catch, then Result#map's own richer message
-	 * once allowedChanges() switched to LogProperty.Result - now pinned to
-	 * Result#validateNow(Class)'s ValidationException wrapping that same message (with a
-	 * "Validation failed for <component>:" header), so any further behavior change here
-	 * shows up as an explicit, deliberate diff instead of silently drifting.
+	 * Golden-master pin of the exact alert produced for a malformed
+	 * logging.change.logger.<name> value. See git history for two earlier, plainer
+	 * messages this evolved from: first a hand-rolled string around a raw try/catch, then
+	 * Result#map's own richer message once allowedChanges() switched to
+	 * LogProperty.Result - now pinned to Result#validateNow(Class)'s ValidationException
+	 * wrapping that same message (with a "Validation failed for <component>:" header), so
+	 * any further behavior change here shows up as an explicit, deliberate diff instead
+	 * of silently drifting.
 	 */
 	@Test
 	void testMalformedChangeValueGoldenAlert() {
 		var badConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
-				logging.change.bad=nonsense
+				logging.change.mode=on
+				logging.change.logger.bad=nonsense
 				""").build()).build();
 		var cp = changePublisher(badConfig);
 
@@ -202,7 +204,7 @@ class ChangePublisherTest {
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
-						Error for property. key: 'logging.change.bad' from PROPERTIES_STRING[logging.change.bad], \
+						Error for property. key: 'logging.change.logger.bad' from PROPERTIES_STRING[logging.change.logger.bad], \
 						'nonsense' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType. Valid values: 'none', 'level', 'true', 'false'""",
 				event.message());
 		var throwable = event.throwableOrNull();
@@ -222,7 +224,7 @@ class ChangePublisherTest {
 	@Test
 	void testMalformedCallerValueGoldenAlert() {
 		var badConfig = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.bad=nonsense
 				""").build()).build();
 		var cp = changePublisher(badConfig);
@@ -250,8 +252,8 @@ class ChangePublisherTest {
 	@Test
 	void testPublishClearsTheCacheForNamesRequestedAfterward() {
 		MutableLogProperties props = MutableLogProperties.builder().copyProperties("""
-				logging.global.change=true
-				logging.change.foo=level
+				logging.change.mode=on
+				logging.change.logger.foo=level
 				logging.caller.foo=false
 				""").build();
 		var mutableConfig = LogConfig.builder().properties(props).build();
@@ -260,7 +262,7 @@ class ChangePublisherTest {
 		assertEquals(EnumSet.of(ChangeType.LEVEL), cp.allowedChanges("foo"));
 		assertEquals(CallerType.NONE, cp.callerType("foo"));
 
-		props.put("logging.change.foo", "false");
+		props.put("logging.change.logger.foo", "false");
 		props.put("logging.caller.foo", "true");
 		cp.publish();
 
@@ -268,6 +270,73 @@ class ChangePublisherTest {
 				"a name requested after publish() must see the updated property, not the cached pre-publish value");
 		assertEquals(CallerType.BASIC, cp.callerType("foo"),
 				"callerType's own cache must also be cleared on publish(), independently of allowedChanges()'s");
+	}
+
+	@Test
+	void changeModeOffIgnoresPerLoggerChanges() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.change.logger=level
+				""").build()).build();
+		assertEquals(Set.of(), config.changePublisher().allowedChanges("anything"));
+	}
+
+	@Test
+	void changeModeOnUsesPerLoggerChanges() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.change.logger.com.mycompany=level
+				""").build()).build();
+		assertEquals(EnumSet.of(ChangeType.LEVEL), config.changePublisher().allowedChanges("com.mycompany.app"));
+		assertEquals(Set.of(), config.changePublisher().allowedChanges("org.other"));
+	}
+
+	@Test
+	void changeModeFromBuilderIsOverriddenByProperty() {
+		var props = LogProperties.builder().fromProperties("""
+				logging.change.logger=level
+				""").build();
+		var on = LogConfig.builder().changeMode(ChangeMode.ON).properties(props).build();
+		assertEquals(EnumSet.of(ChangeType.LEVEL), on.changePublisher().allowedChanges("anything"));
+
+		var offProps = LogProperties.builder().fromProperties("""
+				logging.change.mode=off
+				logging.change.logger=level
+				""").build();
+		var off = LogConfig.builder().changeMode(ChangeMode.ON).properties(offProps).build();
+		assertEquals(Set.of(), off.changePublisher().allowedChanges("anything"));
+	}
+
+	@Test
+	void callerInfoDoesNotNeedChangeMode() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.caller.com.mycompany=true
+				""").build()).build();
+		assertEquals(CallerType.BASIC, config.changePublisher().callerType("com.mycompany.app"));
+		assertEquals(Set.of(), config.changePublisher().allowedChanges("com.mycompany.app"));
+	}
+
+	@Test
+	void changeModeOffDoesNotNotifySubscribers() {
+		var config = LogConfig.builder().build();
+		AtomicInteger calls = new AtomicInteger();
+		config.changePublisher().subscribe(c -> calls.incrementAndGet());
+		config.changePublisher().publish();
+		assertEquals(0, calls.get());
+	}
+
+	@Test
+	void malformedChangeModeGoldenError() {
+		var props = LogProperties.builder().fromProperties("""
+				logging.change.mode=yes
+				""").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> LogConfig.builder().properties(props).build());
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.DefaultLogConfig:
+						Error for property. key: 'logging.change.mode' from PROPERTIES_STRING[logging.change.mode], \
+						'yes' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode. Valid values: 'off', 'on', 'true', 'false'""",
+				e.getMessage());
 	}
 
 	private static ChangePublisher changePublisher(LogConfig config) {

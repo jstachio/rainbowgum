@@ -100,8 +100,8 @@ class LocationAwareForwardingLoggerTest {
 		RainbowGum.builder(LogConfig.builder().build()).unset();
 		try {
 			String preBootProperties = """
-					logging.global.change=true
-					logging.change=true
+					logging.change.mode=on
+					logging.change.logger=true
 					logging.caller=true
 					""";
 			var bootstrapConfig = LogConfig.builder()
@@ -132,7 +132,7 @@ class LocationAwareForwardingLoggerTest {
 
 	private LocationAwareLogger locationAwareLogger(String name) {
 		String global = """
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.%s=true
 				logging.level.%s=INFO
 				""".formatted(name, name);

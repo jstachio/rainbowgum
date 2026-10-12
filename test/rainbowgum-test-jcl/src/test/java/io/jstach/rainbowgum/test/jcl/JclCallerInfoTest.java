@@ -28,7 +28,7 @@ class JclCallerInfoTest {
 	void testCallerInfoSurvivesTheJclOverSlf4jBridge() {
 		String name = "jcl.caller";
 		String properties = """
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller.%s=true
 				logging.level.%s=INFO
 				""".formatted(name, name);

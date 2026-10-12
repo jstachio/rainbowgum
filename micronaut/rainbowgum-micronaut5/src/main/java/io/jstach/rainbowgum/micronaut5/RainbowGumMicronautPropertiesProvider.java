@@ -14,9 +14,9 @@ import io.jstach.svc.ServiceProvider;
  * into every Rainbow Gum bootstrap, and stores it in the {@link ServiceRegistry} so
  * {@link RainbowGumLoggingSystem} can find and mutate it later.
  * <p>
- * {@code logging.global.change=true} plus a bare (no logger name) {@code
- * logging.change=level} makes every logger, regardless of name, eligible for a runtime
- * level change (matching the exact combination
+ * {@code logging.change.mode=on} plus a bare (no logger name) {@code
+ * logging.change.logger=level} makes every logger, regardless of name, eligible for a
+ * runtime level change (matching the exact combination
  * {@code io.jstach.rainbowgum.spring.boot4.PreBootRainbowGumProvider} already uses for
  * the same purpose). Without this, loggers created before a level change is requested
  * would have already been frozen as non-changeable
@@ -39,8 +39,8 @@ public final class RainbowGumMicronautPropertiesProvider implements RainbowGumSe
 	@Override
 	public List<LogProperties> provideProperties(ServiceRegistry registry, LogAlerts alerts) {
 		var mutable = MutableLogProperties.builder().description("micronaut").build();
-		mutable.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true");
-		mutable.put(LogProperties.CHANGE_PREFIX, "level");
+		mutable.put(LogProperties.CHANGE_MODE_PROPERTY, "on");
+		mutable.put(LogProperties.CHANGE_LOGGER_PREFIX, "level");
 		registry.put(MutableLogProperties.class, REGISTRY_NAME, mutable);
 		return List.of(mutable);
 	}

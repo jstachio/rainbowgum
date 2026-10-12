@@ -35,7 +35,7 @@ class LevelResolverTest {
 		var props = LogProperties.MutableLogProperties.builder()
 			.description("test_props")
 			.build()
-			.put("logging.global.change", "true")
+			.put("logging.change.mode", "on")
 			.put("logging.level.com.stuff", loggerLevel.toString())
 			.put("logging.groups", "sql")
 			.put("logging.group.sql", "com.sql")
@@ -145,7 +145,7 @@ class LevelResolverTest {
 		var props = LogProperties.MutableLogProperties.builder()
 			.description("test_props")
 			.build()
-			.put("logging.global.change", "true")
+			.put("logging.change.mode", "on")
 			.put("logging.level.com.stuff", loggerLevel.toString());
 		LogConfig config = LogConfig.builder().properties(props).build();
 		ListLogOutput first = new ListLogOutput();

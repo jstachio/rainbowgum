@@ -83,7 +83,7 @@ class AbstractFilteringLoggerTest {
 
 	private Logger newLogger(Function<DepthAwareLogger, AbstractFilteringLogger> factory) {
 		LogConfig config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.global.change=true
+				logging.change.mode=on
 				logging.caller=true
 				""").build()).build();
 		RainbowGum gum = gum(config);

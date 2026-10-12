@@ -55,9 +55,9 @@ Decided with Adam: safe, minimal, easy.
   `logging.level.com.myco=DEBUG`. They take precedence over
   every other source, system properties included, so an operator can change a level
   without a restart. Any other key in the file is ignored with a warning alert.
-- **Turns on level changes.** Enabling the watcher supplies `logging.global.change=true`
-  as a default, since the file can appear after startup. An explicit
-  `logging.global.change` anywhere still wins.
+- **Turns on level changes.** Enabling the watcher supplies `logging.change.mode=on` and
+  `logging.change.logger=level` as defaults, since the file can appear after startup. An
+  explicit `logging.change.mode` or `logging.change.logger` anywhere still wins.
 - **Polling, not `WatchService`.** A daemon thread rereads and parses the file every two
   seconds, comparing its level entries so quick edits with unchanged timestamps or size
   are detected. `WatchService` behaves differently across platforms and container
