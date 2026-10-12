@@ -287,8 +287,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				.or(threadLocal)
 				.validateIfError(validator);
 			var opt = properties.forKey(LogProperties.GLOBAL_OPTIMIZE_PROPERTY)
-				.ofString()
-				.map(Globals::parseBoolean)
+				.ofBoolean()
 				.or(optimize)
 				.validateIfError(validator);
 			var keyValues = properties.forKey(LogProperties.KEY_VALUES_DISABLED_PROPERTY)
@@ -299,19 +298,6 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			validator.validate();
 			return new Globals(change.value(), ansi.value(), lock.value(), threadLocalMode.value(), opt.value(),
 					keyValues.value());
-		}
-
-		/*
-		 * Unlike LogProperty.ofBoolean, anything but true or false is an error rather
-		 * than false.
-		 */
-		static boolean parseBoolean(String value) {
-			return switch (value.strip().toLowerCase(Locale.ROOT)) {
-				case "true" -> true;
-				case "false" -> false;
-				default -> throw new IllegalArgumentException(
-						"'" + value + "' is not a valid value for boolean. Valid values: 'true', 'false'");
-			};
 		}
 
 		/**
