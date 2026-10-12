@@ -13,6 +13,8 @@ It is called **rainbow gum** after
 [Eucalyptus Deglupta](https://en.wikipedia.org/wiki/Eucalyptus_deglupta) a beautiful tree native
 to Hawaii that has colorful bark (*colorful logs*).
 
+<img src="etc/screenshots/ttll-rainbowgum.png" alt="Rainbow Gum console output: colored timestamp, thread, level, logger, and key values">
+
 In Rainbow Gum you can: 
 
 * Leverage your existing configuration/application framework (like [avaje-config](https://avaje.io/config/) or Spring Boot `Environment`). 
@@ -30,6 +32,49 @@ than you will feel at home with Rainbow Gum whether you use Spring or not.
 Regardless of which configuration option you choose it is GraalVM native friendly, Jlinkable, and initializes hella fast.
 
 The long term goal of Rainbow Gum is to be a logging framework **for all** with the only requirement being a modern JDK.
+
+## Colorful logs
+
+The console format is TTLL (time, thread, level, logger), colored with a theme. No pattern
+module or pattern string is needed:
+
+```properties
+logging.appender.console.encoder.ttll.theme=one_dark
+```
+
+<img src="etc/screenshots/ttll-one_dark.png" alt="TTLL output with the one_dark theme">
+
+`darcula` uses IntelliJ's colors:
+
+<img src="etc/screenshots/ttll-darcula.png" alt="TTLL output with the darcula theme">
+
+`spring` matches Spring Boot's console colors and, like `rainbowgum`, uses the terminal's
+own palette, so it works on light backgrounds too:
+
+<img src="etc/screenshots/ttll-spring.png" alt="TTLL output with the spring theme on a light terminal">
+
+The same themes color the structured encoders in core. `logfmt` writes one `key=value` line
+per event for Loki, Vector and Go tooling:
+
+```properties
+logging.appender.console.encoder.uri=logfmt
+logging.appender.console.encoder.logfmt.theme=one_dark
+```
+
+<img src="etc/screenshots/logfmt-one_dark.png" alt="logfmt output with the one_dark theme">
+
+`json5` switches to structured output while you hunt a bug, here pretty printed:
+
+```properties
+logging.appender.console.encoder.uri=json5
+logging.appender.console.encoder.json5.prettyPrint=full
+```
+
+<img src="etc/screenshots/json5-rainbowgum.png" alt="Pretty printed json5 output" width="420">
+
+Color is only written when the console supports ANSI, so piping to a file stays plain. The
+screenshots are Rainbow Gum's real output rendered with xterm.js; see
+[etc/screenshots/generate](etc/screenshots/generate/generate.sh).
 
 
 ## Documentation
