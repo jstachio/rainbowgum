@@ -269,6 +269,52 @@ class LevelFileTest {
 	}
 
 	@Test
+	void invalidGroupEditKeepsEveryLevelUntilAValidEdit(@TempDir Path dir) throws Exception {
+		var file = dir.resolve("level.properties");
+		write(file, "level.web=DEBUG\n");
+		try (var gum = RainbowGum.builder(configFromProvider(simple("classpath:/level-file-groups.properties", file)))
+			.build()
+			.start()) {
+			var config = gum.config();
+			assertTrue(gum.router().route("com.example.Other", Level.INFO).isEnabled());
+			write(file, "level.web=invalid\nlevel.com.example.Other=ERROR\n");
+			await(() -> !alerts(config, Level.ERROR).isEmpty());
+			assertFalse(alerts(config, Level.ERROR).isEmpty());
+			assertEquals(Level.DEBUG, config.levelResolver().resolveLevel("access-log"));
+			assertEquals(Level.INFO, config.levelResolver().resolveLevel("com.example.Other"));
+			assertTrue(gum.router().route("com.example.Other.New", Level.INFO).isEnabled());
+			write(file, "level.web=TRACE\nlevel.com.example.Other=ERROR\n");
+			await(() -> config.levelResolver().resolveLevel("access-log") == Level.TRACE);
+			assertEquals(Level.TRACE, config.levelResolver().resolveLevel("access-log"));
+			await(() -> !gum.router().route("com.example.Other", Level.INFO).isEnabled());
+			assertFalse(gum.router().route("com.example.Other", Level.INFO).isEnabled());
+			assertFalse(gum.router().route("com.example.Other.New", Level.INFO).isEnabled());
+		}
+	}
+
+	@Test
+	void invalidEditIsReportedOnceAndLeavesThePreviousSnapshot(@TempDir Path dir) throws Exception {
+		var file = dir.resolve("level.properties");
+		write(file, "level.web=DEBUG\n");
+		var levels = new LevelFileProperties(file, Duration.ofSeconds(1));
+		write(file, "level.web=invalid\n");
+		var error = assertThrows(ValidationException.class, levels::poll);
+		var message = error.getMessage();
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.simple.props.LevelFileProperties:
+						Error for property. key: 'logging.level.web' from SIMPLE_PROPS[LEVEL_FILE:1][level.web], \
+						'invalid' is not a valid value for java.lang.System.Logger.Level. \
+						Valid values: 'all', 'trace', 'debug', 'info', 'warning', 'error', 'off', 'finest', 'fine', 'warn', 'severe'""",
+				message == null ? null : message.replace(file.toAbsolutePath().toString(), "LEVEL_FILE"));
+		assertEquals("DEBUG", levels.valueOrNull("logging.level.web"));
+		assertEquals(Poll.UNCHANGED, levels.poll());
+		write(file, "level.web=TRACE\n");
+		assertEquals(Poll.CHANGED, levels.poll());
+		assertEquals("TRACE", levels.valueOrNull("logging.level.web"));
+	}
+
+	@Test
 	void aMissingFileIsPickedUpWhenItAppears(@TempDir Path dir) throws Exception {
 		var file = dir.resolve("level.properties");
 		try (var gum = RainbowGum.builder(config(simple("classpath:/level-file.properties", file))).build().start()) {

@@ -62,6 +62,9 @@ Decided with Adam: safe, minimal, easy.
   aliases and belong in the checked-in properties: `logging.groups` in the file would
   replace the application's list rather than merge with it, so the file does not read
   `logging.groups` or `logging.group.*`.
+- **Invalid edits keep the previous levels.** Every level in an edit is validated
+  before any of it is installed. An invalid edit produces one error alert, keeps
+  the previous snapshot, and does not prevent a later valid edit from applying.
 - **Turns on level changes.** Enabling the watcher supplies `logging.change.mode=on` and
   `logging.change.logger=level` as defaults, since the file can appear after startup. An
   explicit `logging.change.mode` or `logging.change.logger` anywhere still wins.
