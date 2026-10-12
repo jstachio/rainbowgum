@@ -193,9 +193,10 @@ built, into one immutable `LogConfig.Globals`:
 - **Precedence:** a property wins over the builder method, the same as `alertsFail`.
 - **Errors:** every global is parsed before any error is thrown, so all mistakes are
   reported in one error.
-- **Booleans stay booleans in the API, but parse strictly.** Only `true` or `false` is
-  accepted (`'yes' is not a valid value for boolean. Valid values: 'true', 'false'`); this
-  does not use `LogProperty.ofBoolean`.
+- **Booleans stay booleans in the API, but parse strictly.** `LogProperty.ofBoolean`
+  accepts only `true` or `false`, case-insensitive (`'yes' is not a valid value for
+  java.lang.Boolean. Valid values: 'true', 'false'`). This came from `fix/strict-booleans`,
+  folded into this branch.
 - **No statics.** `AbstractLogAppender`'s three process-wide flags are gone: appenders
   and encoders read `config.globals()`, so two gums in one JVM no longer overwrite each
   other's settings.
@@ -241,8 +242,10 @@ built, into one immutable `LogConfig.Globals`:
   changes would still default to none.
 - **ANSI and `NO_COLOR`:** `auto` follows `AnsiSupport`, which honors `NO_COLOR`; `on`
   overrides it. Whether `on` should still respect `NO_COLOR` is open.
-- **Module switches** (`jansi.disable`, `jul.disable`, `pattern.disable`,
-  `jfr.alerts.enabled`): enums on positive keys, read by their own configurator.
-- **`ofBoolean`:** remove it once nothing needs it; `fix/strict-booleans` is on hold
-  until then.
-- **Component booleans:** the generated builder parameters listed above.
+- **Module switches** (`jansi.disable`, `jul.disable`, `jul.level.disable`,
+  `pattern.disable`, `jfr.alerts.enabled`): they now parse strictly (jansi moved off its
+  raw `Boolean.parseBoolean` onto `ofBoolean`), so only the negative names remain. Enums on
+  positive keys are still an option.
+- **`ofBoolean`:** kept, now strict. Generated builders use it for every `boolean`
+  parameter, so the component booleans listed above reject `yes` too. New properties
+  should still prefer an enum when more than two values are plausible.

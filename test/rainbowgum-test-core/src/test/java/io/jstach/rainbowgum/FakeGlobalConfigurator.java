@@ -8,12 +8,11 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * does - it reads properties directly off {@link LogConfig#properties()}, the same style
  * {@code JULConfigurator} (see
  * {@code logging.jul.disable}/{@code logging.jul.level.disable} in rainbowgum-jul) uses
- * for its global on/off switches. Unlike those switches (always {@code Boolean}, which
- * can never itself fail to parse - {@link Boolean#parseBoolean(String)} just returns
- * {@code false} for anything unrecognized), this fake also has three required companion
- * properties, each read via {@link LogProperty.Result#map(LogProperty.PropertyFunction)
- * map()} (same as {@code FakeEncoderBuilder}'s {@code label}) but wired up differently so
- * each demonstrates a different way a direct (no builder) read can fail:
+ * for its global on/off switches. Besides that kind of switch, this fake also has three
+ * required companion properties, each read via
+ * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} (same as
+ * {@code FakeEncoderBuilder}'s {@code label}) but wired up differently so each
+ * demonstrates a different way a direct (no builder) read can fail:
  * <ul>
  * <li>{@value #MODE_PROPERTY} - the raw, unwrapped
  * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} result value (see

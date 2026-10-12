@@ -83,7 +83,7 @@ class GlobalsTest {
 						Error for property. key: 'logging.global.ansi.mode' from PROPERTIES_STRING[logging.global.ansi.mode], 'sometimes' is not a valid value for io.jstach.rainbowgum.LogConfig.Globals.AnsiMode. Valid values: 'auto', 'on', 'off', 'true', 'false'
 						Error for property. key: 'logging.global.appender.lock' from PROPERTIES_STRING[logging.global.appender.lock], 'sync' is not a valid value for io.jstach.rainbowgum.LogConfig.Globals.AppenderLock. Valid values: 'auto', 'reentrant', 'synchronized'
 						Error for property. key: 'logging.global.threadLocal' from PROPERTIES_STRING[logging.global.threadLocal], 'never' is not a valid value for io.jstach.rainbowgum.LogConfig.Globals.ThreadLocalMode. Valid values: 'allow', 'forbid'
-						Error for property. key: 'logging.global.optimize' from PROPERTIES_STRING[logging.global.optimize], 'yes' is not a valid value for boolean. Valid values: 'true', 'false'""",
+						Error for property. key: 'logging.global.optimize' from PROPERTIES_STRING[logging.global.optimize], 'yes' is not a valid value for java.lang.Boolean. Valid values: 'true', 'false'""",
 				e.getMessage());
 	}
 
