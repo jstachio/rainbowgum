@@ -30,7 +30,7 @@ class AvajePropertiesProviderTest {
 			}
 		});
 		String expected = """
-				Error for property. key: 'logging.appender.stuff.output.uri' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'blah', URI: 'blah:///'
+				Error for property. key: 'logging.appender.stuff.output.uri' from AVAJE(resource:bad-prop.properties)[logging.appender.stuff.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'blah', URI: 'blah:///'. Registered output schemes: 'list', 'stderr', 'stdout'
 				Tried:
 				    'logging.appender.stuff.output.uri' from:
 				        SYSTEM_PROPERTIES[logging.appender.stuff.output.uri],

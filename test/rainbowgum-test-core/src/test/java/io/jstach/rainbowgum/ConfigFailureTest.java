@@ -79,7 +79,7 @@ class ConfigFailureTest {
 				logging.appender.myapp.output.uri=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'. Registered output schemes: 'list', 'stderr', 'stdout'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -120,7 +120,7 @@ class ConfigFailureTest {
 				logging.appender.myapp.output.uri=bogus://alice:kenny@example.com/path?token=kenny&mode=append
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus://<REDACTED>@example.com/path?token=<REDACTED>&mode=append'
+						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus://<REDACTED>@example.com/path?token=<REDACTED>&mode=append'. Registered output schemes: 'list', 'stderr', 'stdout'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -128,7 +128,7 @@ class ConfigFailureTest {
 				logging.route.default.publisher.uri=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.route.default.publisher.uri' from PROPERTIES_STRING[logging.route.default.publisher.uri], NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'"""),
+						Error for property. key: 'logging.route.default.publisher.uri' from PROPERTIES_STRING[logging.route.default.publisher.uri], NotFoundException No publisher found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'. Registered publisher schemes: 'async', 'batchswap', 'default', 'sync'"""),
 
 		unregisteredEncoderScheme("""
 				logging.appenders=myapp
@@ -136,7 +136,7 @@ class ConfigFailureTest {
 				logging.appender.myapp.encoder.uri=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'. Registered encoder schemes: 'fake', 'json5', 'logfmt', 'ttll'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 
@@ -687,7 +687,7 @@ class ConfigFailureTest {
 		 */
 		unregisteredOutputSchemeAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'
+						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'. Registered output schemes: 'list', 'stderr', 'stdout'
 						Tried:
 						    'logging.appender.myapp.output.uri' from:
 						        PROPERTIES_STRING[logging.appender.myapp.output.uri],

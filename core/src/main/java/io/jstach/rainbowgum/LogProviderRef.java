@@ -2,7 +2,10 @@ package io.jstach.rainbowgum;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collection;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.jspecify.annotations.Nullable;
 
@@ -75,22 +78,74 @@ public sealed interface LogProviderRef {
 		 * consistent across every kind of provider registry (output/publisher/encoder/
 		 * etc). If the scheme happens to be one known to be provided by an optional
 		 * module not currently on the classpath (see {@link ProviderModule}), the message
-		 * is extended to say which dependency to add.
+		 * is extended to say which dependency to add. Otherwise it suggests a similarly
+		 * spelled scheme and lists the registered ones.
 		 * @param component the kind of thing not found.
 		 * @param scheme the URI scheme that had no provider registered for it.
 		 * @param uri the full URI that was being resolved.
+		 * @param registered the schemes registered for the component.
 		 * @return exception, not thrown.
 		 */
-		static NotFoundException of(ProviderModule.ComponentType component, String scheme, URI uri) {
+		static NotFoundException of(ProviderModule.ComponentType component, String scheme, URI uri,
+				Collection<? extends String> registered) {
 			String message = "No " + component.label() + " found. Scheme not registered. scheme: '" + scheme
 					+ "', URI: '" + LogRedactor.redactUri(uri) + "'";
 			var module = ProviderModule.find(component, scheme);
 			if (module.isPresent()) {
-				var m = module.get();
-				message += ". Scheme '" + scheme + "' is provided by module '" + m.moduleName() + "' (Maven: '"
-						+ m.mavenGav() + "'). Add that dependency. See " + m.docUrl();
+				return new NotFoundException(message + moduleHint(module.get()));
+			}
+			var candidates = new TreeSet<String>(registered);
+			for (var m : ProviderModule.values()) {
+				if (m.componentType() == component) {
+					candidates.add(m.scheme());
+				}
+			}
+			String suggested = similarlySpelledScheme(scheme, candidates);
+			if (suggested != null) {
+				message += ". Did you mean '" + suggested + "'?";
+			}
+			// core. prefixed aliases only repeat the plain schemes.
+			var listed = new TreeSet<String>(registered);
+			listed.removeIf(r -> r.startsWith("core."));
+			if (!listed.isEmpty()) {
+				message += (suggested == null ? ". " : " ") + "Registered " + component.label() + " schemes: "
+						+ String.join(", ", listed.stream().map(r -> "'" + r + "'").toList());
+			}
+			if (suggested != null && !registered.contains(suggested)) {
+				var suggestedModule = ProviderModule.find(component, suggested);
+				if (suggestedModule.isPresent()) {
+					message += moduleHint(suggestedModule.get());
+				}
 			}
 			return new NotFoundException(message);
+		}
+
+		private static String moduleHint(ProviderModule m) {
+			return ". Scheme '" + m.scheme() + "' is provided by module '" + m.moduleName() + "' (Maven: '"
+					+ m.mavenGav() + "'). Add that dependency. See " + m.docUrl();
+		}
+
+		/*
+		 * The same spelling distance as unused key suggestions, but scaled to the
+		 * scheme's length so a short unknown scheme is not matched to an unrelated short
+		 * one.
+		 */
+		private static @Nullable String similarlySpelledScheme(String scheme, Set<String> candidates) {
+			String normalized = UnusedKeyCheck.normalize(scheme);
+			String best = null;
+			int bestDistance = UnusedKeyCheck.MAX_DISTANCE + 1;
+			for (String candidate : candidates) {
+				if (UnusedKeyCheck.normalize(candidate).equals(normalized)) {
+					return candidate;
+				}
+				int limit = Math.min(UnusedKeyCheck.MAX_DISTANCE, Math.max(1, candidate.length() / 3));
+				int distance = UnusedKeyCheck.distance(scheme, candidate, bestDistance);
+				if (distance <= limit && distance < bestDistance) {
+					best = candidate;
+					bestDistance = distance;
+				}
+			}
+			return best;
 		}
 
 	}
