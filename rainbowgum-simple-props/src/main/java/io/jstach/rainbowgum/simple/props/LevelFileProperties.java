@@ -17,9 +17,11 @@ import java.util.TreeMap;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogReporter;
 
 /*
@@ -51,6 +53,9 @@ final class LevelFileProperties implements LogProperties.Listable, LogReporter.R
 	private final Duration pollInterval;
 
 	private volatile SimpleLogProperties current;
+
+	/* Only the polling thread uses this. Report each rejected edit once. */
+	private @Nullable Map<String, String> rejectedLevels;
 
 	private volatile @Nullable Thread watcher;
 
@@ -132,9 +137,29 @@ final class LevelFileProperties implements LogProperties.Listable, LogReporter.R
 		}
 		refused = null;
 		var read = read(path);
-		if (levels(read).equals(levels(current))) {
+		var nextLevels = levels(read);
+		if (nextLevels.equals(levels(current))) {
+			rejectedLevels = null;
 			return Poll.UNCHANGED;
 		}
+		if (nextLevels.equals(rejectedLevels)) {
+			return Poll.UNCHANGED;
+		}
+		/*
+		 * Validate the whole edit before exposing it. In particular, invalid group levels
+		 * would otherwise fail cache invalidation after current had changed, leaving
+		 * existing and new loggers with different configurations.
+		 */
+		try {
+			for (var key : nextLevels.keySet()) {
+				read.forKey(key).ofString().map(LevelResolver::parseLevel).validateNow(LevelFileProperties.class);
+			}
+		}
+		catch (ValidationException e) {
+			rejectedLevels = nextLevels;
+			throw e;
+		}
+		rejectedLevels = null;
 		current = read;
 		return Poll.CHANGED;
 	}

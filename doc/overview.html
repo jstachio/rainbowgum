@@ -2585,6 +2585,8 @@ level.org.hibernate.SQL=trace
 <li>Its levels win over every other source. That includes a <a href="#level_groups">group</a> level:
 <code>level.web=DEBUG</code> in the file wins over a level set for a logger in <code>web</code> anywhere else.
 Groups themselves are defined in the application's properties, not in the level file.</li>
+<li>An edit with an invalid level is reported once and leaves all previously loaded levels unchanged.
+A later valid edit is applied normally.</li>
 <li>The file is checked for changes every two seconds, and changed levels apply to loggers that already exist.
 Watching supplies <code>logging.change.mode=on</code> and <code>logging.change.logger=level</code> as lowest
 precedence defaults, so explicit <a href="#changing_resolving">change settings</a> still win.</li>
