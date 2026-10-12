@@ -33,6 +33,28 @@ Regardless of which configuration option you choose it is GraalVM native friendl
 
 The long term goal of Rainbow Gum is to be a logging framework **for all** with the only requirement being a modern JDK.
 
+## Documentation
+
+* **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
+* **[Current released RainbowGum doc](https://jstach.io/doc/rainbowgum/current/apidocs)**
+
+> [!WARNING]
+> While this readme does contain some documentation the above is the preferred documentation and
+> more likely to be up to date and correct!
+
+The doc is also on javadoc.io but is not aggregated like the above.
+
+For previous releases:
+
+    https://jstach.io/doc/rainbowgum/VERSION/apidocs
+
+Where `VERSION` is the version you want.
+
+
+## Why choose Rainbow Gum
+
+Covered in [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
+
 ## Colorful logs
 
 The console format is TTLL (time, thread, level, logger), colored with a theme. No pattern
@@ -76,28 +98,6 @@ Color is only written when the console supports ANSI, so piping to a file stays 
 screenshots are Rainbow Gum's real output rendered with xterm.js; see
 [etc/screenshots/generate](etc/screenshots/generate/generate.sh).
 
-
-## Documentation
-
-* **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
-* **[Current released RainbowGum doc](https://jstach.io/doc/rainbowgum/current/apidocs)**
-
-> [!WARNING]
-> While this readme does contain some documentation the above is the preferred documentation and
-> more likely to be up to date and correct!
-
-The doc is also on javadoc.io but is not aggregated like the above.
-
-For previous releases:
-
-    https://jstach.io/doc/rainbowgum/VERSION/apidocs
-
-Where `VERSION` is the version you want.
-
-
-## Why choose Rainbow Gum
-
-Covered in [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
 
 ## Developing Rainbow Gum
 
