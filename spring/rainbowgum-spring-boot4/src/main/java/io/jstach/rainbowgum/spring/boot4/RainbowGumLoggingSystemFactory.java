@@ -147,14 +147,14 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 				}
 				return null;
 			}
-			else if (key.equals(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)) {
+			else if (key.equals(LogProperties.GLOBAL_ANSI_MODE_PROPERTY)) {
 				String ansiEnabled = environment.getProperty(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED);
 				if (ansiEnabled != null) {
 					String mapped = switch (ansiEnabled.toUpperCase(Locale.ROOT)) {
-						case "NEVER" -> "true";
-						case "ALWAYS" -> "false";
-						// DETECT or unrecognized - let RainbowGum's own auto-detection
-						// run rather than overriding it.
+						case "NEVER" -> "off";
+						case "ALWAYS" -> "on";
+						case "DETECT" -> "auto";
+						// Unrecognized: leave Rainbow Gum's own setting alone.
 						default -> null;
 					};
 					if (mapped != null) {

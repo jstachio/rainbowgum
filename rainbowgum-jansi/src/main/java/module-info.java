@@ -4,7 +4,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * JANSI module that will install Jansi.
  * <p>
  * Jansi can be disabled either with 
- * {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_DISABLE_PROPERTY} set to <code>true</code>
+ * {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_MODE_PROPERTY} set to <code>off</code>
  * or {@value io.jstach.rainbowgum.jansi.JAnsiConfigurator#JANSI_DISABLE} set to <code>true</code>.
  * <p>
  * The {@link io.jstach.rainbowgum.jansi.JAnsiConfigurator#JANSI_DISABLE} property is useful

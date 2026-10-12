@@ -27,27 +27,18 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * Exercises {@link DirectLogAppender#of} directly for each {@link AppenderType}, plus
  * {@code LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}'s guarantee that even an
  * explicit {@link AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} request gets downgraded
- * when that global property is active, and that
- * {@code SynchronizedThreadLocalBufferLogAppender}'s reentry detection (via
- * {@link Thread#holdsLock(Object)} rather than a
+ * when that global is on, and that {@code SynchronizedThreadLocalBufferLogAppender}'s
+ * reentry detection (via {@link Thread#holdsLock(Object)} rather than a
  * {@code java.util.concurrent.locks.ReentrantLock}) still works when explicitly opted
  * into.
  */
 /*
- * Mutates two shared static fields: MetaLog.output (see MetaLogTest's note - several
- * other test classes touch it too) and AbstractLogAppender.forceReentrantLockAppenders
- * (only this class touches that one, but its own methods still need to not race each
- * other). @Isolated covers the former, SAME_THREAD covers both.
+ * Mutates MetaLog.output (see MetaLogTest's note - several other test classes touch it
+ * too) and the native image system property.
  */
 @Isolated
 @Execution(ExecutionMode.SAME_THREAD)
 class DefaultAppenderSelectionTest {
-
-	final boolean originalForceReentrantLockAppenders = AbstractLogAppender.forceReentrantLockAppenders;
-
-	final boolean originalForceNoThreadLocalAppenders = AbstractLogAppender.forceNoThreadLocalAppenders;
-
-	final boolean originalGlobalOptimizeEnabled = AbstractLogAppender.globalOptimizeEnabled;
 
 	final @Nullable String originalNativeImageCodeProperty = System
 		.getProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY);
@@ -63,9 +54,6 @@ class DefaultAppenderSelectionTest {
 
 	@AfterEach
 	void after() {
-		AbstractLogAppender.forceReentrantLockAppenders = originalForceReentrantLockAppenders;
-		AbstractLogAppender.forceNoThreadLocalAppenders = originalForceNoThreadLocalAppenders;
-		AbstractLogAppender.globalOptimizeEnabled = originalGlobalOptimizeEnabled;
 		// checker will not allow System.clearProperty(...) (see
 		// RainbowGumServiceProviderTest's own note on this) - "" reads back as
 		// not-"runtime" the same as a genuinely absent property does, which is all
@@ -83,8 +71,7 @@ class DefaultAppenderSelectionTest {
 
 	@Test
 	void globalForceReentrantLockDowngradesExplicitSynchronizedType() {
-		AbstractLogAppender.forceReentrantLockAppenders = true;
-		var appender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, Set.of());
+		var appender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, Set.of(), REENTRANT_LOCK);
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
@@ -108,22 +95,19 @@ class DefaultAppenderSelectionTest {
 
 	@Test
 	void globalForceNoThreadLocalDowngradesLockThreadLocalBufferType() {
-		AbstractLogAppender.forceNoThreadLocalAppenders = true;
-		var appender = appender(AppenderType.LOCK_THREAD_LOCAL_BUFFER, Set.of());
+		var appender = appender(AppenderType.LOCK_THREAD_LOCAL_BUFFER, Set.of(), NO_THREAD_LOCAL);
 		assertInstanceOf(LockNewBufferLogAppender.class, appender);
 	}
 
 	@Test
 	void globalForceNoThreadLocalDowngradesSynchronizedThreadLocalBufferType() {
-		AbstractLogAppender.forceNoThreadLocalAppenders = true;
-		var appender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, Set.of());
+		var appender = appender(AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER, Set.of(), NO_THREAD_LOCAL);
 		assertInstanceOf(LockNewBufferLogAppender.class, appender);
 	}
 
 	@Test
 	void globalForceNoThreadLocalLeavesExplicitReuseBufferAlone() {
-		AbstractLogAppender.forceNoThreadLocalAppenders = true;
-		var appender = appender(AppenderType.REUSE_BUFFER, Set.of());
+		var appender = appender(AppenderType.REUSE_BUFFER, Set.of(), NO_THREAD_LOCAL);
 		assertInstanceOf(ReuseBufferLogAppender.class, appender);
 	}
 
@@ -145,31 +129,33 @@ class DefaultAppenderSelectionTest {
 	@Test
 	void autoDetectInsideNativeImageStillHonorsGlobalForceReentrantLock() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
-		AbstractLogAppender.forceReentrantLockAppenders = true;
-		var appender = appender(AppenderType.AUTO_DETECT, Set.of());
+		var appender = appender(AppenderType.AUTO_DETECT, Set.of(), REENTRANT_LOCK);
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
 	void autoDetectInsideNativeImageStillHonorsGlobalForceNoThreadLocal() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
-		AbstractLogAppender.forceNoThreadLocalAppenders = true;
-		var appender = appender(AppenderType.AUTO_DETECT, Set.of());
+		var appender = appender(AppenderType.AUTO_DETECT, Set.of(), NO_THREAD_LOCAL);
 		assertInstanceOf(LockNewBufferLogAppender.class, appender);
 	}
 
 	@Test
-	void loggingGlobalThreadlocalDisabledPropertySetsStaticFlagOnLogConfigConstruction() {
-		var props = LogProperties.builder().fromProperties("logging.global.threadlocalDisabled=TRUE").build();
-		LogConfig.builder().properties(props).build();
-		assertTrue(AbstractLogAppender.forceNoThreadLocalAppenders);
+	void threadLocalDisabledPropertyDowngradesThroughTheBuilder() {
+		var props = LogProperties.builder().fromProperties("logging.global.threadlocalDisabled=true").build();
+		var config = LogConfig.builder().properties(props).build();
+		assertInstanceOf(LockNewBufferLogAppender.class, builderAppender(null, config));
 	}
 
+	/*
+	 * The globals belong to each config, so one config's setting does not change another
+	 * config's appenders.
+	 */
 	@Test
-	void loggingGlobalOptimizePropertySetsStaticFlagOnLogConfigConstruction() {
-		var props = LogProperties.builder().fromProperties("logging.global.optimize=TRUE").build();
+	void globalsDoNotLeakBetweenConfigs() {
+		var props = LogProperties.builder().fromProperties("logging.global.threadlocalDisabled=true").build();
 		LogConfig.builder().properties(props).build();
-		assertTrue(AbstractLogAppender.globalOptimizeEnabled);
+		assertInstanceOf(LockThreadLocalBufferLogAppender.class, builderAppender(null, CONFIG));
 	}
 
 	@Test
@@ -181,24 +167,21 @@ class DefaultAppenderSelectionTest {
 	@Test
 	void unspecifiedAppenderTypeResolvesThroughAutoDetectOutsideNativeImageWhenGlobalOptimizeEnabled() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "");
-		AbstractLogAppender.globalOptimizeEnabled = true;
-		var appender = builderAppender(null);
+		var appender = builderAppender(null, OPTIMIZE);
 		assertInstanceOf(LockThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
 	void unspecifiedAppenderTypeResolvesThroughAutoDetectInsideNativeImageWhenGlobalOptimizeEnabled() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
-		AbstractLogAppender.globalOptimizeEnabled = true;
-		var appender = builderAppender(null);
+		var appender = builderAppender(null, OPTIMIZE);
 		assertInstanceOf(SynchronizedThreadLocalBufferLogAppender.class, appender);
 	}
 
 	@Test
 	void explicitAppenderTypeWinsOverGlobalOptimize() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
-		AbstractLogAppender.globalOptimizeEnabled = true;
-		var appender = builderAppender(AppenderType.REUSE_BUFFER);
+		var appender = builderAppender(AppenderType.REUSE_BUFFER, OPTIMIZE);
 		assertInstanceOf(ReuseBufferLogAppender.class, appender);
 	}
 
@@ -231,15 +214,13 @@ class DefaultAppenderSelectionTest {
 		assertTrue(diagnostic.contains("reentrant appender"), () -> "expected reentry diagnostic, got: " + diagnostic);
 	}
 
-	/*
-	 * Built once, at class load - not per call inside appender(...) below. Constructing a
-	 * LogConfig re-evaluates LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY and
-	 * resets AbstractLogAppender.forceReentrantLockAppenders as a side effect (see
-	 * LogConfig#applyGlobalAppenderReentrantLockProperty) - doing that on every
-	 * appender() call would wipe out a test's own direct override of that field before
-	 * DirectLogAppender.of gets a chance to read it.
-	 */
 	private static final LogConfig CONFIG = LogConfig.builder().build();
+
+	private static final LogConfig REENTRANT_LOCK = LogConfig.builder().appenderReentrantLock(true).build();
+
+	private static final LogConfig NO_THREAD_LOCAL = LogConfig.builder().threadLocalDisabled(true).build();
+
+	private static final LogConfig OPTIMIZE = LogConfig.builder().optimize(true).build();
 
 	private static final LogEncoder ENCODER = LogFormatter.builder()
 		.message()
@@ -252,7 +233,11 @@ class DefaultAppenderSelectionTest {
 	}
 
 	private static LogAppender appender(AppenderType type, Set<AppenderFlag> flags, ListLogOutput output) {
-		return DirectLogAppender.of("test", output, ENCODER, type, flags, CONFIG.alerts(), CONFIG.metrics());
+		return DirectLogAppender.of("test", output, ENCODER, type, flags, CONFIG);
+	}
+
+	private static LogAppender appender(AppenderType type, Set<AppenderFlag> flags, LogConfig config) {
+		return DirectLogAppender.of("test", new ListLogOutput(), ENCODER, type, flags, config);
 	}
 
 	/*
@@ -262,11 +247,15 @@ class DefaultAppenderSelectionTest {
 	 * LogProperties#GLOBAL_OPTIMIZE_PROPERTY changes.
 	 */
 	private static LogAppender builderAppender(@Nullable AppenderType type) {
+		return builderAppender(type, CONFIG);
+	}
+
+	private static LogAppender builderAppender(@Nullable AppenderType type, LogConfig config) {
 		var builder = LogAppender.builder("test").output(new ListLogOutput()).encoder(ENCODER);
 		if (type != null) {
 			builder.appenderType(type);
 		}
-		return builder.build().provide("test", CONFIG);
+		return builder.build().provide("test", config);
 	}
 
 }

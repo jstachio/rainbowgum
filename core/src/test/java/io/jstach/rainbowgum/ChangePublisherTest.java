@@ -338,7 +338,7 @@ class ChangePublisherTest {
 				() -> LogConfig.builder().properties(props).build());
 		assertEquals(
 				"""
-						Validation failed for io.jstach.rainbowgum.DefaultLogConfig:
+						Validation failed for io.jstach.rainbowgum.LogConfig:
 						Error for property. key: 'logging.change.mode' from PROPERTIES_STRING[logging.change.mode], \
 						'yes' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode. Valid values: 'off', 'on', 'true', 'false'""",
 				e.getMessage());

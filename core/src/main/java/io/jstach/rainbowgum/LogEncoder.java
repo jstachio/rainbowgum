@@ -256,15 +256,8 @@ public interface LogEncoder {
 			Boolean explicitUseGetBytes = useGetBytes;
 			String resolvedDescription = description;
 			return (n, config) -> {
-				/*
-				 * Resolved lazily, inside this lambda, not eagerly above: the global
-				 * optimize flag is only guaranteed set by the time a real LogConfig
-				 * exists (see DefaultLogConfig's constructor), which this lambda's config
-				 * parameter proves has already happened - resolving it eagerly in build()
-				 * could run before any LogConfig was ever constructed.
-				 */
 				boolean resolvedUseGetBytes = explicitUseGetBytes != null ? explicitUseGetBytes
-						: AbstractLogAppender.globalOptimizeEnabled && AbstractLogAppender.isNativeImageRuntime();
+						: config.globals().optimize() && AbstractLogAppender.isNativeImageRuntime();
 				return new FormatterEncoder(formatter, resolvedCharset, resolvedContentType, maxBufferSize,
 						initialBufferSize, resolvedUseGetBytes, config.metrics(), resolvedDescription);
 			};

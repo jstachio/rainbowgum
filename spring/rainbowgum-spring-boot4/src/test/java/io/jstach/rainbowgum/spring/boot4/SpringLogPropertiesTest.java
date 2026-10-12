@@ -127,27 +127,27 @@ class SpringLogPropertiesTest {
 	}
 
 	@Test
-	void ansiNeverMapsToGlobalDisableTrue() {
+	void ansiNeverMapsToGlobalAnsiOff() {
 		var p = properties(Map.of(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED, "NEVER"));
-		assertEquals("true", p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
+		assertEquals("off", p.valueOrNull(LogProperties.GLOBAL_ANSI_MODE_PROPERTY));
 	}
 
 	@Test
-	void ansiAlwaysMapsToGlobalDisableFalse() {
+	void ansiAlwaysMapsToGlobalAnsiOn() {
 		var p = properties(Map.of(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED, "ALWAYS"));
-		assertEquals("false", p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
+		assertEquals("on", p.valueOrNull(LogProperties.GLOBAL_ANSI_MODE_PROPERTY));
 	}
 
 	@Test
-	void ansiDetectLeavesAutoDetectionAlone() {
+	void ansiDetectMapsToGlobalAnsiAuto() {
 		var p = properties(Map.of(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED, "DETECT"));
-		assertNull(p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
+		assertEquals("auto", p.valueOrNull(LogProperties.GLOBAL_ANSI_MODE_PROPERTY));
 	}
 
 	@Test
 	void ansiUnsetFallsBackToDirectPropertyIfSet() {
-		var p = properties(Map.of(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY, "true"));
-		assertEquals("true", p.valueOrNull(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY));
+		var p = properties(Map.of(LogProperties.GLOBAL_ANSI_MODE_PROPERTY, "off"));
+		assertEquals("off", p.valueOrNull(LogProperties.GLOBAL_ANSI_MODE_PROPERTY));
 	}
 
 	@Test

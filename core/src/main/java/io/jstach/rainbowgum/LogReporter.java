@@ -412,6 +412,7 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 
 	private void appendComponents(Appendable out, LogConfig config) throws IOException {
 		appendProperties(out, config.properties());
+		appendGlobals(out, config.globals());
 		out.append("Debug mode: ").append(config.debugMode().toString()).append("\n");
 		out.append("\n");
 		var root = this.router;
@@ -440,6 +441,26 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 				.append(String.join(", ", entry.getValue()))
 				.append(")\n");
 		}
+	}
+
+	/*
+	 * Resolved values, so a default set through LogConfig.Builder shows too.
+	 */
+	private static void appendGlobals(Appendable out, LogConfig.Globals globals) throws IOException {
+		out.append("Globals:\n");
+		appendGlobal(out, LogProperties.CHANGE_MODE_PROPERTY, globals.changeMode());
+		appendGlobal(out, LogProperties.GLOBAL_ANSI_MODE_PROPERTY, globals.ansiMode());
+		appendGlobal(out, LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY, globals.appenderReentrantLock());
+		appendGlobal(out, LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY, globals.threadLocalDisabled());
+		appendGlobal(out, LogProperties.GLOBAL_OPTIMIZE_PROPERTY, globals.optimize());
+		var keyValues = new TreeSet<String>();
+		globals.keyValuesDisabled().forEach(s -> keyValues.add(s.toString()));
+		appendGlobal(out, LogProperties.KEY_VALUES_DISABLED_PROPERTY,
+				keyValues.isEmpty() ? "(none)" : String.join(",", keyValues));
+	}
+
+	private static void appendGlobal(Appendable out, String key, Object value) throws IOException {
+		out.append("  ").append(key).append(" = ").append(String.valueOf(value)).append("\n");
 	}
 
 	private static List<LogRouter.Router> routersOf(LogRouter.RootRouter root) {

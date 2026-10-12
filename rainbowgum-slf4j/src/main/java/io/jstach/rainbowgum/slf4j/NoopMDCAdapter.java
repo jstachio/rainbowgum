@@ -12,7 +12,7 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
  * A {@link RainbowGumMDCAdapter} that never touches either of {@link ArrayMDCAdapter}'s
  * {@link ThreadLocal} fields - every method is a no-op or returns empty/null. Used
  * instead of {@link ArrayMDCAdapter} when {@code logging.mdc=DISABLED} or
- * {@code logging.global.threadlocalDisabled} is set - see
+ * {@code logging.global.threadlocalDisabled=true} is set - see
  * {@link RainbowGumSLF4JServiceProvider#initialize(io.jstach.rainbowgum.RainbowGum)} -
  * for deployments that want a hard guarantee of no {@link ThreadLocal} anywhere in the
  * logging path and are fine losing MDC entirely to get it.

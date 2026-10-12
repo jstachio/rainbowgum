@@ -90,10 +90,9 @@ class RainbowGumProviderExample implements RainbowGumProvider {
  * <li>Build the global level resolver ({@code logging.level.*} and
  * {@code logging.group.*}, plus anything added directly on the builder).</li>
  * <li>Construct the {@link LogConfig} itself and replay provider alerts into its
- * configured {@link LogAlerts}. This is also where a few
- * process-wide flags get latched (config change support, the appender lock, and
- * thread-local-disabled globals) and the default output/encoder/publisher
- * registries are created.</li>
+ * configured {@link LogAlerts}. This is also where the {@link LogConfig#globals()
+ * globals} are resolved and the default output/encoder/publisher registries are
+ * created.</li>
  * <li>Run every {@link RainbowGumServiceProvider.Configurator} (manually added,
  * then SPI-discovered), highest {@linkplain RainbowGumServiceProvider.Configurator#priority()
  * priority} first. A configurator returning {@code false} is retried in a later

@@ -12,10 +12,9 @@ import org.junit.jupiter.api.parallel.Isolated;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
 
 /*
- * Mutates two process-wide static fields (AbstractLogAppender.globalOptimizeEnabled,
- * the NATIVE_IMAGE_CODE_PROPERTY system property) - same isolation reasoning as
- * DefaultAppenderSelectionTest, which covers the equivalent LogAppender.AppenderType
- * side of LogProperties#GLOBAL_OPTIMIZE_PROPERTY; this class covers the LogEncoder side.
+ * Mutates the NATIVE_IMAGE_CODE_PROPERTY system property. DefaultAppenderSelectionTest
+ * covers the LogAppender.AppenderType side of LogProperties#GLOBAL_OPTIMIZE_PROPERTY;
+ * this class covers the LogEncoder side.
  */
 @Isolated
 @Execution(ExecutionMode.SAME_THREAD)
@@ -25,14 +24,13 @@ class GlobalOptimizeUseGetBytesTest {
 
 	private static final LogConfig CONFIG = LogConfig.builder().build();
 
-	final boolean originalGlobalOptimizeEnabled = AbstractLogAppender.globalOptimizeEnabled;
+	private static final LogConfig OPTIMIZE = LogConfig.builder().optimize(true).build();
 
 	final @Nullable String originalNativeImageCodeProperty = System
 		.getProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY);
 
 	@AfterEach
 	void after() {
-		AbstractLogAppender.globalOptimizeEnabled = originalGlobalOptimizeEnabled;
 		// see DefaultAppenderSelectionTest's own note on why "" instead of
 		// System.clearProperty(...).
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY,
@@ -48,24 +46,21 @@ class GlobalOptimizeUseGetBytesTest {
 	@Test
 	void unspecifiedUseGetBytesStaysDirectByteBufferBufferOutsideNativeImageEvenWhenGlobalOptimizeEnabled() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "");
-		AbstractLogAppender.globalOptimizeEnabled = true;
-		var buffer = buffer(null);
+		var buffer = buffer(null, OPTIMIZE);
 		assertInstanceOf(DirectByteBufferBuffer.class, buffer);
 	}
 
 	@Test
 	void unspecifiedUseGetBytesResolvesToStringBuilderBufferBytesInsideNativeImageWhenGlobalOptimizeEnabled() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
-		AbstractLogAppender.globalOptimizeEnabled = true;
-		var buffer = buffer(null);
+		var buffer = buffer(null, OPTIMIZE);
 		assertInstanceOf(StringBuilderBufferBytes.class, buffer);
 	}
 
 	@Test
 	void explicitUseGetBytesFalseWinsOverGlobalOptimizeInsideNativeImage() {
 		System.setProperty(AbstractLogAppender.NATIVE_IMAGE_CODE_PROPERTY, "runtime");
-		AbstractLogAppender.globalOptimizeEnabled = true;
-		var buffer = buffer(false);
+		var buffer = buffer(false, OPTIMIZE);
 		assertInstanceOf(DirectByteBufferBuffer.class, buffer);
 	}
 
@@ -76,11 +71,15 @@ class GlobalOptimizeUseGetBytesTest {
 	}
 
 	private static LogEncoder.Buffer buffer(@Nullable Boolean useGetBytes) {
+		return buffer(useGetBytes, CONFIG);
+	}
+
+	private static LogEncoder.Buffer buffer(@Nullable Boolean useGetBytes, LogConfig config) {
 		var builder = LogEncoder.builder(FORMATTER);
 		if (useGetBytes != null) {
 			builder.useGetBytes(useGetBytes);
 		}
-		var encoder = builder.build().provide("test", CONFIG);
+		var encoder = builder.build().provide("test", config);
 		return encoder.buffer(WriteMethod.BYTES);
 	}
 

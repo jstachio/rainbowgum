@@ -172,6 +172,184 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	public LogReporter reporter();
 
 	/**
+	 * Settings that apply to the whole configuration rather than to one component,
+	 * resolved once when the config is built.
+	 * @return globals.
+	 */
+	public Globals globals();
+
+	/**
+	 * Settings that apply to the whole configuration rather than to one component. Each
+	 * is set with a {@link Builder} method and overridden by its property when present.
+	 */
+	public final class Globals {
+
+		private final ChangeMode changeMode;
+
+		private final AnsiMode ansiMode;
+
+		private final boolean appenderReentrantLock;
+
+		private final boolean threadLocalDisabled;
+
+		private final boolean optimize;
+
+		private final Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled;
+
+		Globals(ChangeMode changeMode, AnsiMode ansiMode, boolean appenderReentrantLock, boolean threadLocalDisabled,
+				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled) {
+			this.changeMode = changeMode;
+			this.ansiMode = ansiMode;
+			this.appenderReentrantLock = appenderReentrantLock;
+			this.threadLocalDisabled = threadLocalDisabled;
+			this.optimize = optimize;
+			this.keyValuesDisabled = Set.copyOf(keyValuesDisabled);
+		}
+
+		/**
+		 * Whether loggers can change at runtime, from
+		 * {@value LogProperties#CHANGE_MODE_PROPERTY}.
+		 * @return change mode.
+		 */
+		public ChangeMode changeMode() {
+			return changeMode;
+		}
+
+		/**
+		 * Whether output uses ANSI escape codes, from
+		 * {@value LogProperties#GLOBAL_ANSI_MODE_PROPERTY}.
+		 * @return ANSI mode.
+		 */
+		public AnsiMode ansiMode() {
+			return ansiMode;
+		}
+
+		/**
+		 * Whether no appender uses {@code synchronized} for locking, from
+		 * {@value LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}.
+		 * @return true if appenders only use reentrant locks.
+		 */
+		public boolean appenderReentrantLock() {
+			return appenderReentrantLock;
+		}
+
+		/**
+		 * Whether nothing in the logging path uses a {@link ThreadLocal}, from
+		 * {@value LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY}.
+		 * @return true if thread locals are not used.
+		 */
+		public boolean threadLocalDisabled() {
+			return threadLocalDisabled;
+		}
+
+		/**
+		 * Whether unset appender and encoder choices use what is best for the platform,
+		 * from {@value LogProperties#GLOBAL_OPTIMIZE_PROPERTY}.
+		 * @return true if optimizing.
+		 */
+		public boolean optimize() {
+			return optimize;
+		}
+
+		/**
+		 * Key value sources that are not added to events, from
+		 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY}.
+		 * @return disabled sources.
+		 */
+		public Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled() {
+			return keyValuesDisabled;
+		}
+
+		/*
+		 * Every property is checked before any error is thrown, so all mistakes are
+		 * reported together.
+		 */
+		Globals withProperties(LogProperties properties) {
+			var validator = LogProperty.Validator.of(LogConfig.class);
+			var change = properties.forKey(LogProperties.CHANGE_MODE_PROPERTY)
+				.ofString()
+				.map(ChangeMode::parse)
+				.or(changeMode)
+				.validateIfError(validator);
+			var ansi = properties.forKey(LogProperties.GLOBAL_ANSI_MODE_PROPERTY)
+				.ofString()
+				.map(AnsiMode::parse)
+				.or(ansiMode)
+				.validateIfError(validator);
+			var reentrantLock = properties.forKey(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
+				.ofString()
+				.map(Globals::parseBoolean)
+				.or(appenderReentrantLock)
+				.validateIfError(validator);
+			var threadLocal = properties.forKey(LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY)
+				.ofString()
+				.map(Globals::parseBoolean)
+				.or(threadLocalDisabled)
+				.validateIfError(validator);
+			var opt = properties.forKey(LogProperties.GLOBAL_OPTIMIZE_PROPERTY)
+				.ofString()
+				.map(Globals::parseBoolean)
+				.or(optimize)
+				.validateIfError(validator);
+			var keyValues = properties.forKey(LogProperties.KEY_VALUES_DISABLED_PROPERTY)
+				.ofList()
+				.map(KeyValuesContributors.Disabled::parse)
+				.or(keyValuesDisabled)
+				.validateIfError(validator);
+			validator.validate();
+			return new Globals(change.value(), ansi.value(), reentrantLock.value(), threadLocal.value(), opt.value(),
+					keyValues.value());
+		}
+
+		/*
+		 * Unlike LogProperty.ofBoolean, anything but true or false is an error rather
+		 * than false.
+		 */
+		static boolean parseBoolean(String value) {
+			return switch (value.strip().toLowerCase(Locale.ROOT)) {
+				case "true" -> true;
+				case "false" -> false;
+				default -> throw new IllegalArgumentException(
+						"'" + value + "' is not a valid value for boolean. Valid values: 'true', 'false'");
+			};
+		}
+
+		/**
+		 * Whether output uses ANSI escape codes, for color.
+		 */
+		public enum AnsiMode {
+
+			/**
+			 * ANSI is used when the console supports it, see
+			 * {@link io.jstach.rainbowgum.format.AnsiSupport#isAnsiSupported()}. The
+			 * default.
+			 */
+			AUTO,
+			/**
+			 * ANSI is always used.
+			 */
+			@EnumAlias("true")
+			ON,
+			/**
+			 * ANSI is never used, and extensions for ANSI such as JANSI are not
+			 * installed.
+			 */
+			@EnumAlias("false")
+			OFF;
+
+			static AnsiMode parse(String value) {
+				return switch (value.strip().toUpperCase(Locale.ROOT)) {
+					case "TRUE" -> ON;
+					case "FALSE" -> OFF;
+					default -> LogProperty.enumValue(AnsiMode.class, value, "true", "false");
+				};
+			}
+
+		}
+
+	}
+
+	/**
 	 * Accounts for logger names, and which {@link LoggerAPI} vended them, registered via
 	 * {@link #registerLoggerName(LoggerAPI, String)}, deliberately without exposing the
 	 * accumulated names/APIs themselves: the one supported way to see them is
@@ -388,6 +566,16 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private ChangeMode changeMode = ChangeMode.OFF;
 
+		private Globals.AnsiMode ansiMode = Globals.AnsiMode.AUTO;
+
+		private boolean appenderReentrantLock = false;
+
+		private boolean threadLocalDisabled = false;
+
+		private boolean optimize = false;
+
+		private Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled = Set.of();
+
 		/**
 		 * Default constructor
 		 */
@@ -446,6 +634,64 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		public Builder changeMode(ChangeMode changeMode) {
 			this.changeMode = Objects.requireNonNull(changeMode);
+			return this;
+		}
+
+		/**
+		 * Sets whether output uses ANSI escape codes, used when the property
+		 * {@value LogProperties#GLOBAL_ANSI_MODE_PROPERTY} is absent.
+		 * @param ansiMode ANSI mode, default {@link Globals.AnsiMode#AUTO}.
+		 * @return this.
+		 */
+		public Builder ansiMode(Globals.AnsiMode ansiMode) {
+			this.ansiMode = Objects.requireNonNull(ansiMode);
+			return this;
+		}
+
+		/**
+		 * Sets whether no appender uses {@code synchronized} for locking, used when the
+		 * property {@value LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY} is
+		 * absent.
+		 * @param appenderReentrantLock true to only use reentrant locks, default false.
+		 * @return this.
+		 */
+		public Builder appenderReentrantLock(boolean appenderReentrantLock) {
+			this.appenderReentrantLock = appenderReentrantLock;
+			return this;
+		}
+
+		/**
+		 * Sets whether nothing in the logging path uses a {@link ThreadLocal}, used when
+		 * the property {@value LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} is
+		 * absent.
+		 * @param threadLocalDisabled true to not use thread locals, default false.
+		 * @return this.
+		 */
+		public Builder threadLocalDisabled(boolean threadLocalDisabled) {
+			this.threadLocalDisabled = threadLocalDisabled;
+			return this;
+		}
+
+		/**
+		 * Sets whether unset appender and encoder choices use what is best for the
+		 * platform, used when the property
+		 * {@value LogProperties#GLOBAL_OPTIMIZE_PROPERTY} is absent.
+		 * @param optimize true to optimize, default false.
+		 * @return this.
+		 */
+		public Builder optimize(boolean optimize) {
+			this.optimize = optimize;
+			return this;
+		}
+
+		/**
+		 * Sets the key value sources that are not added to events, used when the property
+		 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY} is absent.
+		 * @param keyValuesDisabled disabled sources, default none.
+		 * @return this.
+		 */
+		public Builder keyValuesDisabled(Set<? extends LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled) {
+			this.keyValuesDisabled = Set.copyOf(keyValuesDisabled);
 			return this;
 		}
 
@@ -590,7 +836,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 						serviceRegistry.findOrNull(LogProperties.class, LevelResolver.OVERRIDE_PROPERTIES_NAME),
 						alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
-						unusedKeyCheck, changeMode);
+						unusedKeyCheck, new Globals(changeMode, ansiMode, appenderReentrantLock, threadLocalDisabled,
+								optimize, keyValuesDisabled)
+							.withProperties(logProperties));
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);
 				dumpAlerts = alerts;
@@ -959,7 +1207,7 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final LevelConfig levelResolver;
 
-	private final ChangeMode changeMode;
+	private final Globals globals;
 
 	private final ChangePublisher changePublisher;
 
@@ -992,8 +1240,7 @@ final class DefaultLogConfig implements LogConfig {
 	private final @Nullable UnusedKeyCheck unusedKeyCheck;
 
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
-			LogMetrics metrics, DebugModeType debugMode, @Nullable UnusedKeyCheck unusedKeyCheck,
-			ChangeMode changeMode) {
+			LogMetrics metrics, DebugModeType debugMode, @Nullable UnusedKeyCheck unusedKeyCheck, Globals globals) {
 		super();
 		this.unusedKeyCheck = unusedKeyCheck;
 		this.registry = registry;
@@ -1005,16 +1252,13 @@ final class DefaultLogConfig implements LogConfig {
 		this.loggerRegistry = new DefaultLoggerRegistry(metrics);
 		this.reporter = new Reporter();
 		reportProperties(this.reporter);
-		this.changeMode = properties.forKey(LogProperties.CHANGE_MODE_PROPERTY)
-			.ofString()
-			.map(ChangeMode::parse)
-			.or(changeMode)
-			.validateNow(DefaultLogConfig.class);
+		this.globals = globals;
 		this.changePublisher = new DefaultChangePublisher();
-		applyGlobalAppenderReentrantLockProperty(properties);
-		applyGlobalThreadLocalDisabledProperty(properties);
-		applyGlobalOptimizeProperty(properties);
-		registry.put(KeyValuesContributors.Disabled.class, KeyValuesContributors.Disabled.of(properties));
+		/*
+		 * KeyValuesContributor.of only gets the registry.
+		 */
+		registry.put(KeyValuesContributors.Disabled.class,
+				new KeyValuesContributors.Disabled(globals.keyValuesDisabled()));
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
@@ -1064,83 +1308,6 @@ final class DefaultLogConfig implements LogConfig {
 		}
 	}
 
-	/*
-	 * Deliberately mutates process-wide static state (AbstractLogAppender's field) rather
-	 * than per-instance state - LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY is
-	 * a global guarantee by design (see its javadoc), not a per-LogConfig setting.
-	 * Last-writer-wins if multiple RainbowGum instances with different values coexist in
-	 * one JVM - an accepted tradeoff for a property whose whole point is a process-wide
-	 * guarantee independent of any single instance's configuration.
-	 */
-	private static void applyGlobalAppenderReentrantLockProperty(LogProperties properties) {
-		AbstractLogAppender.forceReentrantLockAppenders = properties
-			.forKey(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
-			.ofBoolean()
-			.or(false)
-			.validateNow(DefaultLogConfig.class);
-	}
-
-	/*
-	 * An enum (TRUE/FALSE) rather than .ofBoolean() deliberately, unlike its sibling just
-	 * above - a typo'd value here (e.g. "yse") fails loudly through the existing
-	 * Property/Result machinery instead of silently resolving to "not disabled", which is
-	 * the wrong failure mode for a property whose whole point is a hard, otherwise
-	 * easy-to-silently-miss guarantee.
-	 */
-	private enum ThreadLocalDisabled {
-
-		TRUE, FALSE;
-
-		static ThreadLocalDisabled parse(String value) {
-			return LogProperty.enumValue(ThreadLocalDisabled.class, value);
-		}
-
-	}
-
-	/*
-	 * Same last-writer-wins/process-wide-guarantee tradeoff as
-	 * applyGlobalAppenderReentrantLockProperty just above - see that method's comment.
-	 * rainbowgum-slf4j independently reads this same property key at its own SLF4J
-	 * provider initialize() touchpoint to decide whether to disable MDC too - see
-	 * LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY's javadoc for why that is two
-	 * independent readers rather than one shared flag.
-	 */
-	private static void applyGlobalThreadLocalDisabledProperty(LogProperties properties) {
-		AbstractLogAppender.forceNoThreadLocalAppenders = properties
-			.forKey(LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY)
-			.ofString()
-			.map(ThreadLocalDisabled::parse)
-			.or(ThreadLocalDisabled.FALSE)
-			.validateNow(DefaultLogConfig.class) == ThreadLocalDisabled.TRUE;
-	}
-
-	/*
-	 * Same enum-not-boolean reasoning as ThreadLocalDisabled above. Unlike the other two
-	 * global properties this one is not a "force/guarantee" downgrade applied after a
-	 * type is already resolved - it changes what the *default* resolves to when nothing
-	 * more specific (an explicit appenderType(...)/useGetBytes(...) call, or a more
-	 * specific property) was set, so it is read into the same kind of process-wide static
-	 * flag but consulted at a different point (LogAppender.Builder#build(),
-	 * LogEncoder.Builder#build()) - see LogProperties#GLOBAL_OPTIMIZE_PROPERTY's javadoc.
-	 */
-	private enum GlobalOptimize {
-
-		TRUE, FALSE;
-
-		static GlobalOptimize parse(String value) {
-			return LogProperty.enumValue(GlobalOptimize.class, value);
-		}
-
-	}
-
-	private static void applyGlobalOptimizeProperty(LogProperties properties) {
-		AbstractLogAppender.globalOptimizeEnabled = properties.forKey(LogProperties.GLOBAL_OPTIMIZE_PROPERTY)
-			.ofString()
-			.map(GlobalOptimize::parse)
-			.or(GlobalOptimize.FALSE)
-			.validateNow(DefaultLogConfig.class) == GlobalOptimize.TRUE;
-	}
-
 	final class Reporter extends DefaultLogReporter {
 
 		@Override
@@ -1159,7 +1326,7 @@ final class DefaultLogConfig implements LogConfig {
 
 		@Override
 		protected ChangeMode changeMode() {
-			return changeMode;
+			return globals.changeMode();
 		}
 
 		@Override
@@ -1196,21 +1363,22 @@ final class DefaultLogConfig implements LogConfig {
 	}
 
 	@Override
+	public Globals globals() {
+		return this.globals;
+	}
+
+	@Override
 	public Reporter reporter() {
 		return this.reporter;
 	}
 
 	/*
-	 * The properties read by this constructor, plus the queue properties the global
-	 * router reads from system properties before any config exists.
+	 * The queue properties the global router reads from system properties before any
+	 * config exists. Globals are reported with their resolved values instead.
 	 */
 	private static void reportProperties(LogReporter reporter) {
-		reporter.addProperty(DefaultLogConfig.class, LogProperties.CHANGE_MODE_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY);
-		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY);
-		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY);
-		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_OPTIMIZE_PROPERTY);
 	}
 
 	@Override

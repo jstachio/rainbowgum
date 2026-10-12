@@ -185,7 +185,7 @@ class AppenderAlertReportingTest {
 
 	private static DirectLogAppender directAppender(AppenderType type, ListLogOutput output, LogEncoder encoder,
 			LogConfig config) {
-		return DirectLogAppender.of("test", output, encoder, type, Set.of(), config.alerts(), config.metrics());
+		return DirectLogAppender.of("test", output, encoder, type, Set.of(), config);
 	}
 
 	private static LogEncoder encoder() {
@@ -193,7 +193,7 @@ class AppenderAlertReportingTest {
 	}
 
 	private static LogAppender appender(AppenderType type, ListLogOutput output, LogEncoder encoder, LogConfig config) {
-		return DirectLogAppender.of("test", output, encoder, type, Set.of(), config.alerts(), config.metrics());
+		return DirectLogAppender.of("test", output, encoder, type, Set.of(), config);
 	}
 
 	private static long failedEventsCount(LogConfig config) {

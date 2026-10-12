@@ -176,22 +176,68 @@ Now (branch `feature/config-reporter`, based on this one):
 Open: whether the report should also show the resolved value (with builder defaults),
 since `(unset)` can hide a default set through `LogConfig.Builder`.
 
+## Decision: `LogConfig.globals()`
+
+Branch `refactor/config-globals`. Stages 2 and 4 are resolved once, when the config is
+built, into one immutable `LogConfig.Globals`:
+
+| Global | Key | Type | Builder method |
+|---|---|---|---|
+| change mode | `logging.change.mode` | `ChangeMode` off, on | `changeMode` |
+| ANSI | `logging.global.ansi.mode` (was `logging.global.ansi.disable`) | `AnsiMode` auto, on, off | `ansiMode` |
+| no `synchronized` in appenders | `logging.global.appender.reentrantLock` | boolean | `appenderReentrantLock` |
+| no `ThreadLocal` | `logging.global.threadlocalDisabled` | boolean | `threadLocalDisabled` |
+| optimize for the platform | `logging.global.optimize` | boolean | `optimize` |
+| disabled key value sources | `logging.keyvalues.disabled` | set of `Source` | `keyValuesDisabled` |
+
+- **Precedence:** a property wins over the builder method, the same as `alertsFail`.
+- **Errors:** every global is parsed before any error is thrown, so all mistakes are
+  reported in one error.
+- **Booleans stay booleans in the API, but parse strictly.** Only `true` or `false` is
+  accepted (`'yes' is not a valid value for boolean. Valid values: 'true', 'false'`); this
+  does not use `LogProperty.ofBoolean`.
+- **No statics.** `AbstractLogAppender`'s three process-wide flags are gone: appenders
+  and encoders read `config.globals()`, so two gums in one JVM no longer overwrite each
+  other's settings.
+- **One reader each.** The core encoders, the pattern compiler, jansi and SLF4J's MDC
+  check all read `config.globals()`. SLF4J's own copy of the thread local key and enum is
+  gone.
+- **ANSI, one meaning.** `auto` detects (core formatters keep their default color,
+  pattern uses `AnsiSupport`), `on` forces color (`TTLL.ColorMode.FORCE`, pattern colors),
+  `off` turns color off and keeps jansi from installing. Before, `false` meant "detect" to
+  core but "force" to pattern. Spring's `spring.output.ansi.enabled` maps NEVER, ALWAYS and
+  DETECT to off, on and auto; before, ALWAYS only meant "not disabled".
+- **Reporting.** The reporter prints a `Globals:` block of resolved values, so a default
+  set through the builder shows, answering the earlier open question. The queue keys stay
+  in `Reported Properties:` since they are read from system properties before a config
+  exists.
+- **Alerts stay where they are.** `logging.alerts.*` already have builder methods and a
+  home in `LogAlerts`, and are needed before the config exists.
+
+### Booleans that may want more than two values
+
+Guesses to iterate on; none were renamed yet:
+
+- `logging.global.appender.reentrantLock`: a third value is plausible. JEP 491 (JDK 24)
+  removed the virtual thread pinning that motivated it, so a lock mode such as
+  `auto | reentrant | synchronized` could pick by JDK. Candidate key:
+  `logging.global.appender.lock`.
+- `logging.global.threadlocalDisabled`: a negative name. A mode such as
+  `logging.global.threadLocal=allow | forbid` reads better, and a value that only avoids
+  thread locals on virtual threads is plausible.
+- `logging.global.optimize`: "what is best for the platform" already changes by
+  platform; a mode such as `none | auto` (later maybe `throughput | latency`) is plausible.
+
 ## Open items
 
 - **Avaje config:** it calls `changePublisher().publish()` on config changes, but does
   not set `logging.change.mode=on`, so publishing does nothing unless the user turns it on.
   Should it supply `mode=on` as a lowest precedence default like the level file? Per-logger
   changes would still default to none.
-- **ANSI:** become one `auto | on | off` setting with one reader and one default, and
-  decide how it relates to the formatters' color mode and `NO_COLOR`.
-- **Statics:** whether `reentrantLock`, `threadlocalDisabled` and `optimize` stay
-  process-wide, or become config values with a static only for the bound gum. SLF4J should
-  stop parsing `threadlocalDisabled` itself.
+- **ANSI and `NO_COLOR`:** `auto` follows `AnsiSupport`, which honors `NO_COLOR`; `on`
+  overrides it. Whether `on` should still respect `NO_COLOR` is open.
 - **Module switches** (`jansi.disable`, `jul.disable`, `pattern.disable`,
   `jfr.alerts.enabled`): enums on positive keys, read by their own configurator.
-- **A resolved options object:** stages 2 and 4 could be resolved once into one immutable
-  config-scoped value with builder methods, and every reader asks it instead of
-  reparsing properties.
 - **`ofBoolean`:** remove it once nothing needs it; `fix/strict-booleans` is on hold
   until then.
 - **Component booleans:** the generated builder parameters listed above.
