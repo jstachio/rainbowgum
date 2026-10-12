@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,11 +22,6 @@ import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 
 class JfrAlertListenerTest {
-
-	@BeforeAll
-	static void warmupJfr() {
-		JfrTestSupport.warmup();
-	}
 
 	@Test
 	void testAlertIsRecordedAsErrorEvent(@TempDir Path dir) throws IOException {
@@ -52,7 +46,7 @@ class JfrAlertListenerTest {
 		assertEquals(1, events.size(), "expected exactly one recorded event: " + events);
 		RecordedEvent recorded = events.get(0);
 		assertEquals("io.jstach.rainbowgum.AlertError", recorded.getEventType().getName());
-		assertEquals("appender failed - {}", recorded.getValue("message"));
+		assertEquals("appender failed", recorded.getValue("message"));
 		assertEquals("io.jstach.rainbowgum.LogAppender", recorded.getValue("logger"));
 	}
 

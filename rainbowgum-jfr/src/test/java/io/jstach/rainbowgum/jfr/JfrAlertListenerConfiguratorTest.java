@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,11 +19,6 @@ import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 
 class JfrAlertListenerConfiguratorTest {
-
-	@BeforeAll
-	static void warmupJfr() {
-		JfrTestSupport.warmup();
-	}
 
 	private static LogConfig configWith(Map<String, String> map) {
 		var props = LogProperties.builder().fromFunction(map::get).build();
