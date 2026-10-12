@@ -215,8 +215,9 @@ public interface LogProperties {
 	/**
 	 * Group property with list of logger names. The level of the group is set with
 	 * <code>{@value #LEVEL_PREFIX} + .{name} = Level</code> or on the router itself with
-	 * <code>{@value #ROUTE_LEVEL_PREFIX} + .{name} = Level</code>. This is largely
-	 * compatible with <a href=
+	 * <code>{@value #ROUTE_LEVEL_PREFIX} + .{name} = Level</code>. The group name can
+	 * also be used in place of a logger name with {@value #CHANGE_LOGGER_PREFIX} and
+	 * {@value #CALLER_LOGGER_PREFIX}. This is largely compatible with <a href=
 	 * "https://docs.spring.io/spring-boot/3.3.2/reference/features/logging.html#features.logging.log-groups">
 	 * Spring Boot Log Groups </a>.
 	 * @see LevelResolver#parseLevel(String)

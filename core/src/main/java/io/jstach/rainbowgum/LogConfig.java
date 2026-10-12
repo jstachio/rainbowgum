@@ -15,6 +15,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
@@ -224,6 +225,11 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 	 * <code>true</code>/<code>false</code>), applies whatever the change mode. It is
 	 * resolved independently of {@value LogProperties#CHANGE_LOGGER_PREFIX}, even for
 	 * overlapping logger name prefixes.
+	 * <p>
+	 * Both accept an enabled group name ({@value LogProperties#GROUPS_PROPERTY}) in place
+	 * of a logger name, applying to the loggers the group lists and their children. As
+	 * with levels, a logger's own key wins over a group at the same logger name, and the
+	 * last group listed wins when a logger is in more than one.
 	 */
 	interface ChangePublisher {
 
@@ -783,6 +789,11 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	 */
 	private final ConcurrentHashMap<String, CallerType> callerTypeCache = new ConcurrentHashMap<>();
 
+	/*
+	 * Built on first use and again after publish, since the group properties may change.
+	 */
+	private volatile @Nullable LoggerGroups groups;
+
 	protected abstract LogConfig reload();
 
 	protected abstract LogConfig config();
@@ -802,6 +813,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		}
 		changesCache.clear();
 		callerTypeCache.clear();
+		groups = null;
 		LogConfig config = reload();
 		for (var c : consumers) {
 			c.accept(config);
@@ -821,6 +833,35 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		return !allowedChanges(loggerName).isEmpty() || callerType(loggerName) != CallerType.NONE;
 	}
 
+	private LoggerGroups groups() {
+		var g = this.groups;
+		if (g == null) {
+			g = LoggerGroups.of(config().properties());
+			this.groups = g;
+		}
+		return g;
+	}
+
+	/*
+	 * Walks up the logger name like level resolution. At each step the key for that name
+	 * wins over the keys of groups listing that name, and only a Missing value continues
+	 * the walk.
+	 */
+	private <T> LogProperty.@Nullable Result<T> findForLogger(String prefix, String loggerName,
+			BiFunction<LogProperties, String, LogProperty.Result<T>> resolve) {
+		var props = config().properties();
+		var groups = groups();
+		return LogProperties.findUpPathOrNull(loggerName, path -> {
+			for (String key : groups.keys(prefix, path)) {
+				var r = resolve.apply(props, key);
+				if (!(r instanceof LogProperty.Result.Missing)) {
+					return r;
+				}
+			}
+			return null;
+		});
+	}
+
 	@Override
 	public Set<ChangeType> allowedChanges(String loggerName) {
 		if (changeMode() == ChangeMode.OFF) {
@@ -828,18 +869,13 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		}
 		return changesCache.computeIfAbsent(loggerName, n -> {
 			/*
-			 * findOrNull walks the logger-name hierarchy (closest match wins, see its own
-			 * javadoc) trying each candidate key in turn - per candidate, resolve it as a
-			 * LogProperty and only return null (telling findOrNull to keep walking up)
-			 * when the key is genuinely Missing there. A present-but-malformed value is a
-			 * Result.Error, not a Missing - it must stop the walk right there rather than
+			 * findForLogger walks the logger-name hierarchy (closest match wins) trying
+			 * each candidate key in turn. A present-but-malformed value is a
+			 * Result.Error, not a Missing - it stops the walk right there rather than
 			 * silently falling through to a less specific ancestor's value.
 			 */
-			LogProperty.Result<Set<ChangeType>> result = config().properties()
-				.findOrNull(LogProperties.CHANGE_LOGGER_PREFIX, n, (props, fullKey) -> {
-					LogProperty.Result<Set<ChangeType>> r = props.forKey(fullKey).ofList().map(ChangeType::parse);
-					return r instanceof LogProperty.Result.Missing ? null : r;
-				});
+			LogProperty.Result<Set<ChangeType>> result = findForLogger(LogProperties.CHANGE_LOGGER_PREFIX, n,
+					(props, key) -> props.forKey(key).ofList().map(ChangeType::parse));
 			if (result == null) {
 				return Set.of();
 			}
@@ -869,11 +905,8 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	@Override
 	public CallerType callerType(String loggerName) {
 		return callerTypeCache.computeIfAbsent(loggerName, n -> {
-			LogProperty.Result<CallerType> result = config().properties()
-				.findOrNull(LogProperties.CALLER_LOGGER_PREFIX, n, (props, fullKey) -> {
-					LogProperty.Result<CallerType> r = props.forKey(fullKey).ofString().map(CallerType::parse);
-					return r instanceof LogProperty.Result.Missing ? null : r;
-				});
+			LogProperty.Result<CallerType> result = findForLogger(LogProperties.CALLER_LOGGER_PREFIX, n,
+					(props, key) -> props.forKey(key).ofString().map(CallerType::parse));
 			if (result == null) {
 				return CallerType.NONE;
 			}

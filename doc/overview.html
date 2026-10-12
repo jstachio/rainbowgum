@@ -640,6 +640,31 @@ and their descedants
 will resolve to <code>INFO</code> for "<code>myroute</code>" but <code>TRACE</code> for other routes.
 Note that just like logger names groups are case sensitive.
 
+<h5 id="level_groups_difficult_names">Groups for difficult logger names</h5>
+
+<p>
+A group is also the easiest way to configure a logger whose name is difficult to write as a property
+key. The logger names go in the group's value, and only the group name has to be a key. This matters most
+with <a href="#simple_props">environment variables</a>: a key maps to a variable name by replacing
+<code>.</code> with <code>_</code>, and shells only allow letters, digits and <code>_</code> in variable
+names, so there is no way to write a key for a logger named <code>access-log</code> or
+<code>com.example.Router$Handler</code>. With a group:
+
+{@snippet lang=shell :
+export RAINBOWGUM_groups=web
+export RAINBOWGUM_group_web='access-log,com.example.Router$Handler'
+export RAINBOWGUM_level_web=DEBUG
+}
+</p>
+
+<p>
+The same groups work for <a href="#changing_resolving">changing loggers</a> and caller info:
+<code>logging.change.logger.web=level</code> and <code>logging.caller.logger.web=true</code> apply to the
+loggers in <code>web</code> and their children. As with levels, a logger's own key wins over a group, and
+the last group listed in <code>logging.groups</code> wins when a logger is in more than one. Group values
+are comma separated, so a logger name containing a comma cannot be listed.
+</p>
+
 
 <h4 id="Additivity">Additivity</h4>
 
