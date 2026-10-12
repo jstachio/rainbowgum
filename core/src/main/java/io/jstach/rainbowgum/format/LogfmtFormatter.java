@@ -59,8 +59,9 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * <code>"</code>, or a control character. Inside quotes <code>"</code>,
 	 * <code>\</code>, newline, carriage return, and tab are backslash escaped and other
 	 * control characters are written as <code>\</code><code>uXXXX</code>, so every event
-	 * stays on one line. Characters in keys that logfmt does not allow are replaced with
-	 * <code>_</code>.
+	 * stays on one line. Characters logfmt does not allow in keys, and <code>%</code>,
+	 * are percent-encoded (<code>a b</code> is <code>a%20b</code>), and an empty key is
+	 * <code>%</code>, so different keys stay different.
 	 * <p>
 	 * Values can be colored like the TTLL formatter; keys, <code>msg</code>,
 	 * <code>error</code>, and <code>stacktrace</code> are not. Padding from a padding
