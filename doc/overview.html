@@ -69,12 +69,17 @@ For technical organizations that have many projects it is recommended to use the
 shared between all your projects so that logging initialization and configuration is consistent.
 
 Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
-Java directly and the {@link java.util.ServiceLoader} is below. 
+Java directly and the {@link java.util.ServiceLoader} is below. It needs <code>rainbowgum-core</code> and
+<code>rainbowgum-pattern</code> at compile scope (see <a href="#installation">Installation</a>).
 
 {@snippet class="snippets.GettingStartedExample" region="gettingStarted" }
 
-{@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider} has additional documentation on how to register
-a service loader aware jar.
+The class is found with the {@link java.util.ServiceLoader}, so register it in
+<code>META-INF/services/io.jstach.rainbowgum.spi.RainbowGumServiceProvider</code> as a line with its
+fully qualified name (<code>snippets.GettingStartedExample</code> here), or with
+<code>provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with snippets.GettingStartedExample;</code>
+in a <code>module-info.java</code>. {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider} has additional
+documentation on registering a service loader aware jar.
 
 <h3 id="simple_testing">Using rainbowgum-simple</h3>
 
@@ -322,6 +327,7 @@ An interpolated key (note key not value) example might be:
 
 {@snippet lang=properties :
 logging.appender.example.encoder.uri=gelf
+logging.appender.example.encoder.gelf.host=myhost
 logging.appender.example.encoder.gelf.prettyPrint=true
 }
 
@@ -332,12 +338,12 @@ logging.appender.example.encoder.gelf.prettyPrint=true
   Thus <code>gelf</code> is actually <code>gelf:///</code>
 </em>
 
-Because the first property is a URI, its query string is also searched for the second line's properties,
+Because the first property is a URI, its query string is also searched for the other lines' properties,
 using <code>{propertyName}</code> as a bare query parameter with no
 <code>logging.appender.{name}.encoder.{scheme}.</code> (or <code>logging.appender.{name}.output.{scheme}.</code>) prefix. So instead of two separate properties, one can write everything on the URI line:
 
 {@snippet lang=properties :
-logging.appender.example.encoder.uri=gelf:///?prettyPrint=true
+logging.appender.example.encoder.uri=gelf:///?host=myhost&prettyPrint=true
 }
 
 This is not special-cased to <code>encoder</code>/<code>gelf</code>: every URI-configured sub-component looks
@@ -375,7 +381,8 @@ and not a Map like collection special plural keys are used to indicate what is a
 These keys canonical end in <code>"s"</code> and are comma separated.
 
 {@snippet lang=properties :
-logging.appenders=appender1,appender2 # appenders that are enabled.
+# appenders that are enabled.
+logging.appenders=appender1,appender2
 logging.appender.appender1.encoder.uri=...
 logging.appender.appender2.output.uri=...
 logging.appender.appender3.output.uri=....
@@ -515,13 +522,24 @@ is the global level resolver. These levels can be configured with
 Below is an example:
 
 {@snippet lang=properties :
-logging.level.com.mycompany.stuff=DEBUG  # Descedant of "com.mycompany"
-logging.level.com.mycompany=INFO         # Ancestor to "com.mycompany.stuff"
+# Descendant of "com.mycompany"
+logging.level.com.mycompany.stuff=DEBUG
+# Ancestor to "com.mycompany.stuff"
+logging.level.com.mycompany=INFO
 logging.level=ERROR
 }
 
-{@linkplain io.jstach.rainbowgum.LevelResolver#parseLevel(String) Parsing of levels from property values} allows SLF4J, java.util.logging (JUL), and System.Logger format
-and case is ignored. However the logger name is case sensitive.
+{@linkplain io.jstach.rainbowgum.LevelResolver#parseLevel(String) Parsing of levels from property values} accepts
+<code>trace</code>, <code>debug</code>, <code>info</code>, <code>warn</code>, <code>warning</code>, <code>error</code>,
+<code>off</code>, <code>all</code> (the same as <code>trace</code>), and the JUL names <code>finest</code>,
+<code>fine</code>, and <code>severe</code>, ignoring case. Other JUL names such as <code>config</code> and Log4j's
+<code>fatal</code> are not accepted. The logger name is case sensitive.
+
+<p>
+The root level is the bare <code>logging.level</code> key. Spring Boot's <code>logging.level.root</code>
+is understood by the <a href="#spring_boot">Spring Boot integration</a>; elsewhere <code>root</code> is just
+a logger named <code>root</code>.
+</p>
 
 <p>
 Although not required most level resolvers including the global follow an inheritance or prefix model where 
@@ -551,8 +569,10 @@ which is what Rainbow Gum follows as well.
 Below is an example of configuring to allow <em>"changing" loggers</em>
 
 {@snippet lang=properties :
-logging.global.change=true          # this is required to turn on level changing. 
-logging.change.com.mycompany=level  # only logger names starting with com.mycompany can have their levels changed.
+# this is required to turn on level changing.
+logging.global.change=true
+# only logger names starting with com.mycompany can have their levels changed.
+logging.change.com.mycompany=level
 }
 
 To fire off that configuration has changed the {@link io.jstach.rainbowgum.LogConfig.ChangePublisher}
@@ -570,8 +590,10 @@ that same name.
 </p>
 
 {@snippet lang=properties :
-logging.level.com.mycompany.orders=DEBUG   # global: specific override
-logging.route.errors.level=ERROR           # route "errors": broad override
+# global: specific override
+logging.level.com.mycompany.orders=DEBUG
+# route "errors": broad override
+logging.route.errors.level=ERROR
 }
 
 <p>
@@ -600,7 +622,8 @@ Furthermore group levels but not group definitons can be assigned on the router 
 Using Spring Boots example:
 
 {@snippet lang=properties :
-logging.groups=tomcat    # This is required otherwise the tomcat group will not be resolved
+# This is required otherwise the tomcat group will not be resolved
+logging.groups=tomcat
 logging.group.tomcat=org.apache.catalina,org.apache.coyote,org.apache.tomcat
 logging.level.tomcat=trace
 logging.route.myroute.level.tomcat=info
@@ -677,8 +700,10 @@ so not all loggers will be slow.
 Below is an example of configuring caller info for a set of logger names:
 
 {@snippet lang=properties :
-logging.global.change=true               # this is required to enable any dynamic per logger name configuration.
-logging.caller.com.mycompany=true        # only logger names starting with com.mycompany will have caller info
+# this is required to enable any dynamic per logger name configuration.
+logging.global.change=true
+# only logger names starting with com.mycompany will have caller info
+logging.caller.com.mycompany=true
 }
 
 Caller info can be disabled dynamically with supporting configuration systems just like level changing.
@@ -752,7 +777,9 @@ On close, the publisher drains queued events and calls already waiting for space
 appenders. New calls are rejected once shutdown begins. Close waits up to
 <code>shutdownTimeout</code> milliseconds (10 seconds by default). If delivery takes longer,
 close returns with an <a href="#alerts">alert</a>; the worker continues draining and closes the
-appenders afterward. The worker is never interrupted during shutdown.
+appenders afterward. The worker is never interrupted during shutdown. The worker only drains while the
+JVM is running, so events still queued when the JVM exits are lost: <code>shutdownTimeout</code> is how
+long close waits for them.
 </p>
 <p>
 Rejected events increment <code>events.dropped</code>, with one error alert per rejection reason
@@ -765,7 +792,9 @@ and retains its interrupt flag. An interrupted caller can still enqueue when spa
 </p>
 
 Rainbow Gum has an experimental async publisher that uses the LMAX Disruptor ringbuffer: {@link io.jstach.rainbowgum.disruptor/ }.
-If the jar is found on start it will replace the default async publisher.
+If the jar is found on start it will replace the default async publisher, and it can also be selected
+explicitly as <code>disruptor</code>. Its only setting is <code>bufferSize</code>, which must be a power of
+two; it has no <code>shutdownTimeout</code>.
 <p>
 Since publishers are where Rainbow Gum's threading concerns live, this is worth mentioning here: setting
 {@value io.jstach.rainbowgum.LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} to <code>TRUE</code> is a
@@ -786,14 +815,16 @@ Thus to register appenders to the default route one can use:
 
 {@snippet lang=properties :
 logging.appenders=myappender
-logging.appender.myappender.type=reuse_buffer # an example config of appender
+# an example config of appender
+logging.appender.myappender.type=reuse_buffer
 }
 
 If the route is named say "example" then configuration of the appenders can be done like:
 
 {@snippet lang=properties :
 logging.route.example.appenders=myappender
-logging.appender.myappender.type=reuse_buffer # an example config of appender
+# an example config of appender
+logging.appender.myappender.type=reuse_buffer
 }
 
 <h3 id="appender_config">Appender Configuration</h3>
@@ -859,10 +890,11 @@ looks something like:
 {@snippet lang=properties :
 logging.appenders=myappender
 logging.appender.myappender.encoder.uri=gelf
+logging.appender.myappender.encoder.gelf.host=myhost
 logging.appender.myappender.encoder.gelf.prettyPrint=true
 }
 
-The above will use the GELF JSON encoder and configure it to pretty print.
+The above will use the GELF JSON encoder, set its required <code>host</code>, and configure it to pretty print.
 <p>
 Encoders should have a builder as well to configure programmatically
 and the builders javadoc has the string properties that can configure it.
@@ -1410,8 +1442,11 @@ plain, non-rolling file output under the "file" URI scheme,
 {@snippet lang=properties :
 logging.appenders=myapp
 logging.appender.myapp.output.uri=file:///var/log/app.log
+logging.appender.myapp.output.file.append=false
 }
 
+Its settings are keys under <code>logging.appender.{name}.output.file.</code>, or options on the URI
+(<code>file:///var/log/app.log?append=false</code>).
 See {@link io.jstach.rainbowgum.file.FileOutputBuilder} for the full list of supported
 properties (e.g. {@link io.jstach.rainbowgum.file.FileOutputBuilder#append(Boolean) append},
 {@link io.jstach.rainbowgum.file.FileOutputBuilder#prudent(Boolean) prudent},
@@ -1739,6 +1774,8 @@ built-in {@code Marker} support otherwise):
 
 {@snippet class="snippets.DecoratorExample" region="decoratorExample" }
 
+<code>@Nullable</code> above is <code>org.jspecify.annotations.Nullable</code> from <code>org.jspecify:jspecify</code>.
+
 </p>
 
 <h2 id="alerts_metrics">Alerts, Metrics, and Reporting</h2>
@@ -1847,8 +1884,11 @@ releases.
 <p>
 {@link io.jstach.rainbowgum.LogReporter.Builder} controls which
 {@link io.jstach.rainbowgum.LogReporter.Section sections} are printed
-({@code VERSION}, {@code COMPONENTS}, {@code METRICS}, {@code ALERTS}). The default is just
-{@code VERSION} and {@code COMPONENTS}: metrics and alerts are usually more useful pulled
+({@code VERSION}, {@code COMPONENTS}, {@code METRICS}, {@code ALERTS}, {@code LOGGERS}, {@code FACADES}).
+{@code LOGGERS} lists the logger names the logging facades have created, each with its resolved level
+unless {@link io.jstach.rainbowgum.LogReporter.Builder#loggerLevels(boolean) loggerLevels(false)} is set, and
+{@code FACADES} lists which facades (SLF4J, JUL, and so on) have actually created loggers. The default is
+just {@code VERSION} and {@code COMPONENTS}: the other sections are usually more useful pulled
 independently the way the sections above already show, so a report only includes them if asked.
 </p>
 
@@ -1903,11 +1943,13 @@ logging.routes=console,structured,errors
 
 logging.route.console.appenders=console
 logging.route.console.level=INFO
+logging.route.console.level.noisy=WARN
 
 logging.route.structured.appenders=jsonfile
 logging.route.structured.publisher.uri=async
 logging.route.structured.publisher.async.bufferSize=2048
 logging.route.structured.level=DEBUG
+logging.route.structured.level.noisy=WARN
 
 logging.route.errors.appenders=errorfile
 logging.route.errors.level=ERROR
@@ -1930,7 +1972,16 @@ logging.appender.jsonfile.encoder.gelf.prettyPrint=false
 logging.appender.errorfile.encoder.pattern.pattern=%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n%ex
 }
 
-Three things worth calling out, all confirmed by actually running the above (not just written by hand):
+Four things worth calling out, all confirmed by actually running the above (not just written by hand):
+
+<p>
+<strong>A route's own levels shadow the global ones.</strong> The <code>console</code> and
+<code>structured</code> routes each set a root level, so the global <code>logging.level.noisy=WARN</code>
+alone would not reach them: their own <code>INFO</code> and <code>DEBUG</code> would win for the noisy
+packages too. That is why each of those routes repeats the group level as
+<code>logging.route.&lt;route&gt;.level.noisy=WARN</code>. The <code>errors</code> route needs no override
+because its <code>ERROR</code> threshold is already stricter.
+</p>
 
 <p>
 <strong>Encoder and output configuration lives under the appender.</strong> The
@@ -1988,7 +2039,24 @@ the two configuration styles rather than only a stylistic one.
 <h2 id="installation">Installation</h2>
 
 For most simply including the dependency <code>io.jstach.rainbowgum:rainbowgum</code>
-is enough. That dependency will transitively pull in the most commonly used modules.
+is enough. That dependency transitively pulls in core, the SLF4J binding, and the
+{@link java.lang.System.Logger} and <code>java.util.logging</code> integrations. Core provides the
+<code>stdout</code> and <code>stderr</code> outputs and the <code>ttll</code>, <code>logfmt</code> and
+<code>json5</code> encoders. Other URI schemes need their module added as a dependency:
+
+<table class="table">
+<caption><strong>Modules for URI schemes not in core</strong></caption>
+<tr><th>Scheme</th><th>Kind</th><th>Module</th></tr>
+<tr><td><code>pattern</code></td><td>encoder</td><td><code>rainbowgum-pattern</code></td></tr>
+<tr><td><code>gelf</code>, <code>ecs</code>, <code>logstash</code>, <code>logback</code></td><td>encoder</td><td><code>rainbowgum-json</code></td></tr>
+<tr><td><code>file</code>, <code>rolling</code></td><td>output</td><td><code>rainbowgum-file</code></td></tr>
+<tr><td><code>jfr</code></td><td>output</td><td><code>rainbowgum-jfr</code></td></tr>
+<tr><td><code>otlp</code></td><td>output and encoder</td><td><code>rainbowgum-otlp</code></td></tr>
+<tr><td><code>disruptor</code></td><td>publisher</td><td><code>rainbowgum-disruptor</code></td></tr>
+</table>
+
+Application code that uses the SLF4J API also needs <code>org.slf4j:slf4j-api</code> at compile scope,
+since <code>rainbowgum</code> is normally a runtime dependency.
 For a more minimal setup (total application size in terms of classes)
 <code>{@linkplain io.jstach.rainbowgum/ io.jstach.rainbowgum:rainbowgum-core}</code>
 and <code>{@linkplain io.jstach.rainbowgum.slf4j/ io.jstach.rainbowgum:rainbowgum-slf4j}</code>
@@ -2022,7 +2090,9 @@ transitive dependency, or the two will conflict on the SLF4J provider slot. See 
 
 
 If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
-service loader registration. In that case you will want the dependency like:
+service loader registration. In that case you will want the dependency below, plus any module whose classes
+your configuration code uses (for example <code>rainbowgum-pattern</code> for
+{@code PatternEncoderBuilder}) at compile scope:
 
 {@snippet lang=xml :
 <properties>
@@ -2041,22 +2111,40 @@ service loader registration. In that case you will want the dependency like:
 
 <h3 id="3.2">Gradle</h3>
 
+Groovy DSL (<code>build.gradle</code>):
+
+<pre><code class="language-groovy">
+dependencies {
+    runtimeOnly 'io.jstach.rainbowgum:rainbowgum:_VERSION_'
+}
+</code>
+</pre>
+
+Kotlin DSL (<code>build.gradle.kts</code>):
+
 <pre><code class="language-kotlin">
 dependencies {
-    
-    runtimeOnly 'io.jstach.rainbowgum:rainbowgum:_VERSION_'
+    runtimeOnly("io.jstach.rainbowgum:rainbowgum:_VERSION_")
 }
 </code>
 </pre>
 
 
 If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
-service loader registration. In that case you will want the dependency like:
+service loader registration. In that case you will want the dependency below, plus any module whose classes
+your configuration code uses (for example <code>rainbowgum-pattern</code> for
+{@code PatternEncoderBuilder}) at compile scope:
+
+<pre><code class="language-groovy">
+dependencies {
+    implementation 'io.jstach.rainbowgum:rainbowgum-core:_VERSION_'
+}
+</code>
+</pre>
 
 <pre><code class="language-kotlin">
 dependencies {
-    
-    implementation 'io.jstach.rainbowgum:rainbowgum-core:_VERSION_'
+    implementation("io.jstach.rainbowgum:rainbowgum-core:_VERSION_")
 }
 </code>
 </pre>
@@ -2234,8 +2322,10 @@ DefaultKeyValues.of(config.serviceRegistry()).put("app_status", "READY");
 }
 
 Each change is copied once into an immutable snapshot that events share. Turn them off with
-<code>logging.keyvalues.disabled=defaults</code>; that property takes any of the key values source names and leaves
-those sources out of every event. When logs go through a collector such as the OpenTelemetry Collector, per process
+<code>logging.keyvalues.disabled=defaults</code>; that property takes a comma separated list of
+{@linkplain io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard key values source names}
+(<code>defaults</code>, <code>opentelemetry</code>, <code>scoped_key_values</code>, <code>jboss_logging</code>,
+<code>log4j2</code>, <code>slf4j</code>, <code>user</code>, ignoring case) and leaves those sources out of every event. When logs go through a collector such as the OpenTelemetry Collector, per process
 values like these usually belong in resource attributes instead, which the OTLP output and JSON encoders support.
 
 {@snippet lang=xml :
@@ -2385,9 +2475,11 @@ including system properties and environment variables, even when profiles were s
 
 <p>Once the base resource is found, property values resolve in this order (highest priority first):</p>
 <ol>
+<li>The <a href="#simple_props_level_file">level file</a>, when watched, for <code>logging.level</code> keys only.</li>
 <li>System properties.</li>
 <li><code>RAINBOWGUM_</code>-prefixed environment variables. For example,
-<code>logging.level.root</code> maps to <code>RAINBOWGUM_level_root</code>.</li>
+<code>logging.level.com.myapp</code> maps to <code>RAINBOWGUM_level_com_myapp</code> and the root
+<code>logging.level</code> to <code>RAINBOWGUM_level</code>.</li>
 <li>Selected <code>logging-&lt;profile&gt;.properties</code> classpath resources,
 with the first listed profile taking priority.</li>
 <li>The base <code>logging.properties</code> classpath resource.</li>
@@ -2419,6 +2511,38 @@ is explicitly listed. Put settings such as a custom pattern there when another p
 should be able to use Rainbow Gum's built-in defaults. Settings in
 <code>logging.properties</code> remain a fallback for every profile.
 </p>
+
+<h5 id="simple_props_level_file">Level file</h5>
+
+<p>
+A level file changes log levels while the application runs, without a restart. Turn it on with
+<code>logging.simpleprops.levelFile=watch</code> (or <code>true</code>) as a system property, an environment
+variable, or in the base resource; it is off by default. The file is
+<code>level.properties</code> in the working directory unless <code>logging.simpleprops.levelFilePath</code>
+names another path, where a relative path is resolved against the working directory. Neither setting is read
+from profile resources or from the level file itself.
+</p>
+
+{@snippet lang=properties :
+# level.properties
+level.com.myco=debug
+level.org.hibernate.SQL=trace
+}
+
+<ul>
+<li>Only <code>logging.level</code> keys are read, and like <code>logging.properties</code> they may leave off the
+<code>logging.</code> prefix. Other keys are ignored with a warning.</li>
+<li>Its levels win over every other source.</li>
+<li>The file is checked for changes every two seconds, and changed levels apply to loggers that already exist.
+Watching supplies <code>logging.global.change=true</code> and <code>logging.change=level</code> as lowest
+precedence defaults, so explicit <a href="#changing_resolving">change settings</a> still win.</li>
+<li>A missing file is picked up when it appears.</li>
+<li>Whoever can write the file controls what reaches the logs, so where POSIX permissions are available the
+file is refused while it or its directory can be written by group or others, or it is owned by someone other
+than the user running the application or root. A symbolic link also has its target's directory checked, and
+a missing link target is refused. A refused file is reported as an error alert, the last levels read are kept,
+and the file is read again once its permissions are fixed.</li>
+</ul>
 
 <h5 id="simple_props_diagnostics">Diagnostics and native images</h5>
 
@@ -2722,6 +2846,7 @@ and it is picked up automatically, no configuration needed:
 <dependency>
   <groupId>io.jstach.rainbowgum</groupId>
   <artifactId>rainbowgum-jboss-logging</artifactId>
+  <version>_VERSION_</version>
 </dependency>
 }
 
@@ -2758,6 +2883,7 @@ automatically, no configuration needed:
 <dependency>
   <groupId>io.jstach.rainbowgum</groupId>
   <artifactId>rainbowgum-log4j2</artifactId>
+  <version>_VERSION_</version>
 </dependency>
 }
 
@@ -2862,18 +2988,39 @@ an annotation processor that helps create builders
         <version>${rainbowgum.version}</version>
         <scope>compile</scope>
     </dependency>
-    <!-- This is the annotation processor -->
+    <!-- The generated builders use JSpecify nullness annotations -->
     <dependency>
-        <groupId>io.jstach.rainbowgum</groupId>
-        <artifactId>rainbowgum-apt</artifactId>
-        <version>${rainbowgum.version}</version>
-        <!-- the following maven config is important as the annotation processor should never be a transitive dep -->
-        <scope>provided</scope>
-        <optional>true</optional>
+        <groupId>org.jspecify</groupId>
+        <artifactId>jspecify</artifactId>
+        <version>1.0.1</version>
     </dependency>
 </dependencies>
+...
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <configuration>
+        <!-- The annotation processor, which must never be a transitive dependency -->
+        <annotationProcessorPaths>
+          <path>
+            <groupId>io.jstach.rainbowgum</groupId>
+            <artifactId>rainbowgum-apt</artifactId>
+            <version>${rainbowgum.version}</version>
+          </path>
+        </annotationProcessorPaths>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>
 }
 
+The processor is listed in <code>annotationProcessorPaths</code> because JDK 23 and later no longer run
+annotation processors found only on the class path. The generated builders reference
+<code>org.jspecify.annotations.Nullable</code>, and JSpecify is not a transitive dependency of
+<code>rainbowgum-core</code>, so it is declared too.
+<p>
 Once the annotation processor is enabled one can create a properties aware builder with a
 single static factory method annotated with {@link io.jstach.rainbowgum.annotation.LogConfigurable}.
 
@@ -3015,10 +3162,11 @@ In <code>help</code> mode Rainbow Gum:
   so the run stops with the reasons in front of you.</li>
 </ul>
 
-For example, misspelling a property on the command line:
+For example, misspelling a TTLL encoder property on the command line:
 
 {@snippet :
-java -Dlogging.debug=help -Dlogging.appender.console.encoder.ttll.levle=plain -jar app.jar
+java -Dlogging.debug=help -Dlogging.appender.console.encoder.uri=ttll \
+  -Dlogging.appender.console.encoder.ttll.levle=plain -jar app.jar
 }
 
 prints the report and then:
@@ -3060,7 +3208,9 @@ never read:
   <li>Any other unread key is reported as <strong>information</strong>. It may be a mistake,
   or it may be meant for a component that was not chosen, such as TTLL options left in
   <code>logging.properties</code> by a profile that switches the encoder to
-  <code>json5</code>. With the default unused-key level, only warnings can fail startup.</li>
+  <code>json5</code>. A misspelled key of an encoder that was not chosen is also only
+  information, since none of that encoder's keys were read to suggest. With the default
+  unused-key level, only warnings can fail startup.</li>
 </ul>
 
 <code>logging.alerts.unusedKey</code> makes this stricter for a configuration that should
@@ -3091,7 +3241,9 @@ Keys are checked where Rainbow Gum can list them:
 </ul>
 
 Some keys are never reported: <code>logging.level</code> keys (and route level keys) and
-<code>logging.change</code> keys, which are read per logger as loggers are created; keys read before properties load, such as
+<code>logging.change</code> keys, which are read per logger as loggers are created. A misspelled prefix
+such as <code>logging.levle.com.myapp</code> is therefore only information, since no level key is
+read up front to suggest. Also never reported are keys read before properties load, such as
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
 properties that happen to start with <code>logging.</code>, such as Spring Boot's
 <code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. Unless
