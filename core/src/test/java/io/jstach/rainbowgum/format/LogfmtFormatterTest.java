@@ -76,14 +76,26 @@ class LogfmtFormatterTest {
 	}
 
 	@Test
-	void invalidKeyCharactersAreReplaced() {
+	void escapedKeysDoNotCollide() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("a b", "1");
+		kvs.putKeyValue("a_b", "2");
+		kvs.putKeyValue("", "3");
+		kvs.putKeyValue("_", "4");
+		assertEquals("""
+				time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x a%20b=1 a_b=2 %=3 _=4
+				""", format(event(Level.INFO, "main", "x", kvs, null)));
+	}
+
+	@Test
+	void invalidKeyCharactersArePercentEncoded() {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("user name", "ada");
 		kvs.putKeyValue("a=b", "c");
 		kvs.putKeyValue("q\"k", "v");
 		kvs.putKeyValue("back\\slash", "w");
 		assertEquals(
-				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x user_name=ada a_b=c q_k=v back_slash=w\n",
+				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x user%20name=ada a%3Db=c q%22k=v back%5Cslash=w\n",
 				format(event(Level.INFO, "main", "x", kvs, null)));
 	}
 

@@ -216,7 +216,8 @@ class KeyValuesFormatterTest {
 		kvs.putKeyValue("path", "C:\\temp");
 		kvs.putKeyValue("bad key", "x");
 		kvs.putKeyValue("say\"hi\\", "y");
-		assertEquals("requestId=42 user=\"Ada Lovelace\" missing= empty=\"\" path=\"C:\\\\temp\" bad_key=x say_hi_=y",
+		assertEquals(
+				"requestId=42 user=\"Ada Lovelace\" missing= empty=\"\" path=\"C:\\\\temp\" bad%20key=x say%22hi%5C=y",
 				format(logfmt().build(), kvs));
 	}
 

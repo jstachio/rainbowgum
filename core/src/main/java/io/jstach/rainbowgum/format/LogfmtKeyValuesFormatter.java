@@ -69,16 +69,28 @@ record LogfmtKeyValuesFormatter(@Nullable List<String> keys,
 		quoteInPlace(output, start);
 	}
 
+	/*
+	 * Percent-encodes the characters logfmt keys do not allow, and % itself, so two
+	 * different keys never write the same name. The empty key is a lone %, which no
+	 * encoded non-empty key can be.
+	 */
 	static void appendKey(StringBuilder output, String key) {
 		if (key.isEmpty()) {
-			output.append('_');
+			output.append('%');
 			return;
 		}
 		for (int i = 0; i < key.length(); i++) {
 			char c = key.charAt(i);
-			output.append(isSpecial(c) || c == '\\' ? '_' : c);
+			if (isSpecial(c) || c == '\\' || c == '%') {
+				output.append('%').append(HEX[c >> 4]).append(HEX[c & 0xF]);
+			}
+			else {
+				output.append(c);
+			}
 		}
 	}
+
+	private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
 	/*
 	 * Quotes and escapes the text from start to the end of the output if logfmt needs it,

@@ -68,8 +68,10 @@ public final class KeyValuesFormatterBuilder {
 		 * <a href="https://brandur.org/logfmt">logfmt</a>: space separated
 		 * <code>key=value</code> pairs, <code>requestId=42 user="Ada Lovelace"</code>. A
 		 * value is quoted only when it is empty or contains a space, <code>=</code>,
-		 * <code>"</code>, or a control character, and characters logfmt does not allow in
-		 * keys are replaced with <code>_</code>.
+		 * <code>"</code>, or a control character. Characters logfmt does not allow in
+		 * keys, and <code>%</code>, are percent-encoded (<code>a b</code> is
+		 * <code>a%20b</code>), and an empty key is <code>%</code>, so different keys stay
+		 * different.
 		 */
 		LOGFMT;
 
