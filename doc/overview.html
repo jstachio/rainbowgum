@@ -49,14 +49,17 @@ same properties, same behavior, a simpler and faster implementation underneath.
 
 <h3 id="simple_example">Using System properties</h3>
 
-Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using System Properties is below:
+Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
+System Properties is below. The <code>pattern</code> encoder needs <code>rainbowgum-pattern</code> as well (see
+<a href="#installation">Installation</a>); without it, leave out the two <code>encoder</code> lines to get the
+default <a href="#ttll">TTLL</a> format.
 
 {@snippet :
   java \
-  -Dlogging.appender.console.encoder.uri=pattern \ 
+  -Dlogging.appender.console.encoder.uri=pattern \
   -Dlogging.appender.console.encoder.pattern.pattern="[%thread] %-5level %logger{15} - %msg%n" \
   -Dlogging.level.com.myapp=DEBUG \
-  myapp.jar 
+  -jar myapp.jar
 }
 
 What happens with the above is Rainbow Gum will load its default Rainbow Gum via the service loader and use the properties to configure
@@ -2344,7 +2347,7 @@ The impetus for this is these logging facilities can be used early in the JDK bo
 logging has fully initialized. The default rainbow gum dependency has this integration as a transitive dependency.
 
 <p>
-The integration will make sure that neither the System.Logger or java.util.logging initialize
+The integration will make sure that the System.Logger does not initialize
 Rainbow Gum too early by queueing the events if some other facade is detected like SLF4J. When a Rainbow Gum initializes and 
 {@linkplain io.jstach.rainbowgum.RainbowGum#set(Supplier) set as global} the events will be replayed.
 If the events level are equal to {@link java.lang.System.Logger.Level#ERROR} and a normal Rainbow Gum has not been bound
@@ -2359,7 +2362,16 @@ the module will initialize Rainbow Gum. The idea is that your application only u
 <code>rainbowgum-core</code>, and <code>rainbowgum-jdk</code> will work as normal.
 </p>
 <p>
-<strong>{@code rainbowgum-jul} by itself will not do this.</strong> Depend on
+<strong>java.util.logging records logged before Rainbow Gum starts are not queued.</strong> Plain
+java.util.logging has no hook that lets Rainbow Gum load first, so the bridge handler is only installed when
+Rainbow Gum starts. Until then records go to java.util.logging's own configured handlers (by default its console
+handler on <code>System.err</code>, in its own format) and are not replayed; records logged after Rainbow Gum
+starts go through Rainbow Gum. To capture the early ones too, install the
+<a href="#jul_avoid">Rainbow Gum <code>LogManager</code></a>, which makes java.util.logging itself load
+Rainbow Gum.
+</p>
+<p>
+<strong>{@code rainbowgum-jul} by itself will not initialize Rainbow Gum the way {@code rainbowgum-jdk} does.</strong> Depend on
 {@code rainbowgum-jdk} instead (which pulls {@code rainbowgum-jul} in transitively) to get the JUL
 bridge activated automatically. If neither an existing {@code System.Logger}/SLF4J call site nor
 {@code rainbowgum-jdk} is an option, call {@link io.jstach.rainbowgum.RainbowGum#of()} explicitly
