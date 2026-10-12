@@ -27,6 +27,17 @@ import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 public interface LevelResolver {
 
 	/**
+	 * Name of a {@link LogProperties} in the {@link ServiceRegistry} whose level keys
+	 * ({@value LogProperties#LEVEL_PREFIX}) win over the level keys of every other
+	 * source, including a level set on a group: a group level in these properties wins
+	 * over a logger's own level from another source. Group definitions
+	 * ({@value LogProperties#GROUPS_PROPERTY}, {@value LogProperties#GROUP_PROPERTY})
+	 * still come from the configuration's properties. Read when a {@link LogConfig} is
+	 * built.
+	 */
+	public static final String OVERRIDE_PROPERTIES_NAME = "levelOverride";
+
+	/**
 	 * Determines what level the logger should be at. {@linkplain Level#ALL} is to signal
 	 * that nothing was resolved.
 	 * @param name logger name.
@@ -511,8 +522,38 @@ record CompositeLevelConfig(LevelConfig[] levelConfigs) implements LevelConfig {
 	}
 
 	@Override
+	public void clear() {
+		for (var c : levelConfigs) {
+			c.clear();
+		}
+	}
+
+	@Override
 	public String toString() {
 		return this.getClass().getSimpleName() + Arrays.asList(levelConfigs);
+	}
+
+}
+
+/*
+ * Level keys from the override properties, everything else (group definitions) from the
+ * configuration's properties.
+ */
+record LevelOverrideProperties(LogProperties levels, LogProperties all) implements LogProperties {
+
+	private LogProperties source(String key) {
+		return key.equals(LogProperties.LEVEL_PREFIX) || key.startsWith(LogProperties.LEVEL_PREFIX + LogProperties.SEP)
+				? levels : all;
+	}
+
+	@Override
+	public @Nullable String valueOrNull(String key) {
+		return source(key).valueOrNull(key);
+	}
+
+	@Override
+	public String description(String key) {
+		return source(key).description(key);
 	}
 
 }

@@ -171,6 +171,23 @@ class LevelFileTest {
 		return config;
 	}
 
+	/*
+	 * Through SimplePropertiesProvider as a properties provider, the way the service
+	 * loader uses it, so the level file is registered as the level override.
+	 */
+	private static LogConfig configFromProvider(SimpleProperties simple) {
+		var registry = ServiceRegistry.of();
+		registry.putIfAbsent(SimpleProperties.class, () -> simple);
+		var provider = new SimplePropertiesProvider();
+		var config = LogConfig.builder()
+			.serviceRegistry(registry)
+			.propertiesProvider(provider)
+			.configurator(provider)
+			.build();
+		config.outputRegistry().register("list", ref -> LogProvider.of(new ListLogOutput()));
+		return config;
+	}
+
 	private static final boolean POSIX = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
 
 	/*
@@ -223,6 +240,31 @@ class LevelFileTest {
 		}
 		finally {
 			System.clearProperty("logging.level.com.example");
+		}
+	}
+
+	/*
+	 * Groups are defined in the application's properties; the level file only sets their
+	 * levels. A group level in the file wins over a logger's own level from another
+	 * source, and a changed group level applies.
+	 */
+	@Test
+	void fileGroupLevelsWinOverEverySourceAndChangesApply(@TempDir Path dir) throws Exception {
+		var file = dir.resolve("level.properties");
+		write(file, "level.web=DEBUG\n");
+		try (var gum = RainbowGum.builder(configFromProvider(simple("classpath:/level-file-groups.properties", file)))
+			.build()
+			.start()) {
+			var config = gum.config();
+			assertEquals(Level.DEBUG, config.levelResolver().resolveLevel("access-log"));
+			assertEquals(Level.DEBUG, config.levelResolver().resolveLevel("com.example.Router$Handler"));
+			assertEquals(Level.INFO, config.levelResolver().resolveLevel("com.example.Other"));
+			write(file, "level.web=TRACE\n");
+			await(() -> config.levelResolver().resolveLevel("access-log") == Level.TRACE);
+			assertEquals(Level.TRACE, config.levelResolver().resolveLevel("access-log"));
+			write(file, "");
+			await(() -> config.levelResolver().resolveLevel("access-log") == Level.WARNING);
+			assertEquals(Level.WARNING, config.levelResolver().resolveLevel("access-log"));
 		}
 	}
 

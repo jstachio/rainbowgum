@@ -580,7 +580,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				var alerts = DefaultLogAlerts.of(logProperties, alertsFail, alertsUnusedKey,
 						debug == DebugModeType.HELP);
 				LogMetrics metrics = new DefaultLogMetrics();
-				var levelResolver = this.buildGlobalResolver(logProperties, alerts);
+				var levelResolver = this.buildGlobalResolver(logProperties,
+						serviceRegistry.findOrNull(LogProperties.class, LevelResolver.OVERRIDE_PROPERTIES_NAME),
+						alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
 						unusedKeyCheck, changeMode);
 				// The config constructor installs the metrics listener before replay.
@@ -725,9 +727,20 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			}
 		}
 
-		LevelConfig buildGlobalResolver(LogProperties logProperties, LogAlerts alerts) {
-			LevelConfig levelResolver = LevelConfig
-				.of(List.of(ConfigLevelResolver.of(logProperties), GroupLevelResolver.of(logProperties)));
+		LevelConfig buildGlobalResolver(LogProperties logProperties, @Nullable LogProperties overrideProperties,
+				LogAlerts alerts) {
+			List<LevelConfig> configs = new ArrayList<>();
+			if (overrideProperties != null) {
+				/*
+				 * Checked first at each step of the logger name, so a group level in the
+				 * override wins over a logger's own level from another source.
+				 */
+				configs.add(ConfigLevelResolver.of(overrideProperties));
+				configs.add(GroupLevelResolver.of(new LevelOverrideProperties(overrideProperties, logProperties)));
+			}
+			configs.add(ConfigLevelResolver.of(logProperties));
+			configs.add(GroupLevelResolver.of(logProperties));
+			LevelConfig levelResolver = LevelConfig.of(configs);
 			var config = buildLevelConfigOrNull();
 			if (config != null) {
 				levelResolver = LevelConfig.of(List.<LevelConfig>of(config, levelResolver));

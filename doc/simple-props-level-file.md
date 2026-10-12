@@ -55,6 +55,13 @@ Decided with Adam: safe, minimal, easy.
   `logging.level.com.myco=DEBUG`. They take precedence over
   every other source, system properties included, so an operator can change a level
   without a restart. Any other key in the file is ignored with a warning alert.
+- **Group levels, not group definitions.** A group level such as `level.web=DEBUG` wins
+  over a level set for any logger in `web` by another source. Core reads the file as
+  the level override properties (`LevelResolver.OVERRIDE_PROPERTIES_NAME`), checked
+  before every other source at each step of the logger name. Groups themselves are
+  aliases and belong in the checked-in properties: `logging.groups` in the file would
+  replace the application's list rather than merge with it, so the file does not read
+  `logging.groups` or `logging.group.*`.
 - **Turns on level changes.** Enabling the watcher supplies `logging.change.mode=on` and
   `logging.change.logger=level` as defaults, since the file can appear after startup. An
   explicit `logging.change.mode` or `logging.change.logger` anywhere still wins.
