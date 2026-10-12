@@ -138,7 +138,8 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			case JSON -> new Json5Formatter(false, keyValues, Json5PrettyPrint.OFF, Palette.OFF);
 			case JSON5 -> new Json5Formatter(true, keyValues, prettyPrint,
 					Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
-							PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
+							PaletteColorTheme.resolve(theme, serviceRegistry, Json5FormatterBuilder.PROPERTY_theme),
+							AnsiSupport::isAnsiSupported));
 			case PERCENT, LOGFMT -> throw new IllegalArgumentException(
 					"format=" + format.name().toLowerCase(java.util.Locale.ROOT) + " is not JSON. Use json or json5.");
 		};

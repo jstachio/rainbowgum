@@ -49,6 +49,12 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 	$$/properties$$
 	
 	private final String propertyPrefix;
+
+	/*
+	 * The properties last given to fromProperties, to say where a value a factory method
+	 * rejected came from.
+	 */
+	private @org.jspecify.annotations.Nullable LogProperties __properties;
 	$$#properties$$
 	$$#normal$$
 	final String $$propertyVar$$;
@@ -148,9 +154,27 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 					$$/properties$$
 					);
 		}
+		catch (LogProperty.PropertyConvertException e) {
+			throw LogProperty.ValidationException.of(this.getClass(), __key(e.key()), this.__properties, e);
+		}
 		catch (IllegalArgumentException | LogProperty.PropertyMissingException e) {
 			throw LogProperty.ValidationException.of(this.getClass(), e);
 		}
+	}
+
+	/*
+	 * A key a factory method gave with its PROPERTY_ constant, with this builder's
+	 * parameters filled in.
+	 */
+	private String __key(String key) {
+		return switch (key) {
+			$$#properties$$
+			$$#normal$$
+			case $$propertyLiteral$$ -> $$propertyVar$$;
+			$$/normal$$
+			$$/properties$$
+			default -> key;
+		};
 	}
 	
 	@Override
@@ -167,6 +191,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		this.$$name$$ = _$$name$$.$$valueMethod$$();
 		$$/normal$$
 		$$/properties$$
+		this.__properties = properties;
 		return this;
 	}
 	

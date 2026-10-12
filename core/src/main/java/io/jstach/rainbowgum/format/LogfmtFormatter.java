@@ -80,8 +80,10 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
-		return new LogfmtFormatter(levelFormatter, Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
-				PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
+		return new LogfmtFormatter(levelFormatter,
+				Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
+						PaletteColorTheme.resolve(theme, serviceRegistry, LogfmtFormatterBuilder.PROPERTY_theme),
+						AnsiSupport::isAnsiSupported));
 	}
 
 	static TTLL.ColorMode convertColor(String value) {

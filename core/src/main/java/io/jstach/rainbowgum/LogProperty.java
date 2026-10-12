@@ -251,6 +251,43 @@ public interface LogProperty {
 		};
 	}
 
+	/*
+	 * A "Tried:" line when the top properties searched more broadly than where the value
+	 * was found, otherwise empty.
+	 */
+	private static String triedLine(LogProperties top, String fqk, String badDescription) {
+		String triedDescription = top.description(fqk);
+		if (triedDescription.equals(badDescription)) {
+			return "";
+		}
+		String tried = "Tried: '" + fqk + "' from " + triedDescription;
+		if (tried.length() > 120) {
+			var sources = new ArrayList<String>();
+			top.visit(fqk, (source, sourceKey) -> {
+				sources.add(source.description(sourceKey));
+				return null;
+			});
+			tried = "Tried:\n    '" + fqk + "' from:\n        " + String.join(",\n        ", sources);
+		}
+		return "\n" + tried;
+	}
+
+	/*
+	 * The same text a property conversion error gets, for a value a factory method
+	 * rejected: where the value came from when it came from properties.
+	 */
+	private static String factoryError(String key, @Nullable LogProperties properties, String message) {
+		if (properties != null) {
+			String found = properties.visit(key, (source, sourceKey) -> source.valueOrNull(sourceKey) == null ? null
+					: source.description(sourceKey));
+			if (found != null) {
+				return "Error for property. key: '" + key + "' from " + found + ", " + message
+						+ triedLine(properties, key, found);
+			}
+		}
+		return "Error for property. key: '" + key + "', " + message;
+	}
+
 	private static <U> Result.Error<U> richError(Result.Success<?> previousResult, Exception e, String chainedLabel) {
 		String fqk = previousResult.key();
 		PropertySuccess<?> ps = switch (previousResult) {
@@ -280,19 +317,7 @@ public interface LogProperty {
 		 * badDescription above, so appending it would just repeat the "key: ... from X"
 		 * text already shown on this exact message with nothing new to say.
 		 */
-		String triedDescription = ps.topProperties().description(fqk);
-		if (!triedDescription.equals(badDescription)) {
-			String tried = "Tried: '" + fqk + "' from " + triedDescription;
-			if (tried.length() > 120) {
-				var sources = new ArrayList<String>();
-				ps.topProperties().visit(fqk, (source, sourceKey) -> {
-					sources.add(source.description(sourceKey));
-					return null;
-				});
-				tried = "Tried:\n    '" + fqk + "' from:\n        " + String.join(",\n        ", sources);
-			}
-			own += "\n" + tried;
-		}
+		own += triedLine(ps.topProperties(), fqk, badDescription);
 		/*
 		 * Root cause first: e's own message already has everything beneath this layer
 		 * fully rendered (its own recursive "↳" trail included, if any), so this layer's
@@ -501,6 +526,21 @@ public interface LogProperty {
 		}
 
 		/**
+		 * Creates a convert exception for a property value that a
+		 * {@link io.jstach.rainbowgum.annotation.LogConfigurable} factory method rejects.
+		 * Thrown from the factory method, the generated builder reports it like any other
+		 * invalid property, naming where the value came from.
+		 * @param key the property key, either the generated builder's
+		 * <code>PROPERTY_</code> constant (with <code>{name}</code> placeholders) or the
+		 * full key.
+		 * @param message what is wrong with the value.
+		 * @return exception, not thrown by this method.
+		 */
+		public static PropertyConvertException of(String key, String message) {
+			return new PropertyConvertException(key, message, null);
+		}
+
+		/**
 		 * Property key.
 		 * @return key.
 		 */
@@ -615,6 +655,23 @@ public interface LogProperty {
 		 */
 		public static ValidationException of(Class<?> builder, RuntimeException cause) {
 			return new ValidationException("Validation failed for " + builder.getName() + ": " + cause.getMessage(),
+					cause);
+		}
+
+		/**
+		 * Wraps a {@link PropertyConvertException} thrown by a factory method in the same
+		 * message format a property conversion error gets. For generated builders.
+		 * @param builder class to prefix to the message.
+		 * @param key full key of the property the cause is for.
+		 * @param properties properties the builder was configured from, used to say where
+		 * the value came from, or <code>null</code>.
+		 * @param cause the exception to wrap.
+		 * @return a new {@link ValidationException}; not thrown by this method.
+		 */
+		public static ValidationException of(Class<?> builder, String key, @Nullable LogProperties properties,
+				PropertyConvertException cause) {
+			return new ValidationException("Validation failed for " + builder.getName() + ":\n"
+					+ factoryError(key, properties, java.util.Objects.requireNonNullElse(cause.getMessage(), "")),
 					cause);
 		}
 
