@@ -68,17 +68,23 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 
 	private static final URI JFR_URI = URI.create(JFR_SCHEME + ":///");
 
+	private static final LogFormatter KEY_VALUES_FORMATTER = new KeyValuesFormatterBuilder()
+		.format(KeyValuesFormatterBuilder.Format.LOGFMT)
+		.build();
+
 	/**
 	 * Renders the message followed by any key values in logfmt, e.g. {@code some message
-	 * - {key=value other="a b"}}. Shared with {@link JfrAlertListener}, which renders
-	 * alerts the same way.
+	 * - {key=value other="a b"}}, or just the message when there are none. Shared with
+	 * {@link JfrAlertListener}, which renders alerts the same way.
 	 */
-	static final LogFormatter MESSAGE_FORMATTER = LogFormatter.builder()
-		.message()
-		.text(" - {")
-		.add(new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.LOGFMT).build())
-		.text("}")
-		.build();
+	static final LogFormatter MESSAGE_FORMATTER = LogFormatter.of((output, event) -> {
+		event.formattedMessage(output);
+		if (!event.keyValues().isEmpty()) {
+			output.append(" - {");
+			KEY_VALUES_FORMATTER.format(output, event);
+			output.append('}');
+		}
+	});
 
 	private final URI uri;
 
@@ -168,7 +174,7 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 
 	@Override
 	public void write(LogEvent event, String s) {
-		var jfrEvent = RainbowGumLogEvent.of(event.level());
+		var jfrEvent = newEvent(event.level());
 		if (jfrEvent == null || !jfrEvent.isEnabled()) {
 			return;
 		}
@@ -202,6 +208,24 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 		if (r != null) {
 			r.close();
 		}
+	}
+
+	/*
+	 * Not a factory on RainbowGumLogEvent itself: verifying a method of the event base
+	 * class that returns its subclasses loads them while the base class is still being
+	 * linked, and JFR fails to instrument an event class loaded then when a recording is
+	 * already running (-XX:StartFlightRecording), leaving it uninstrumented or failing
+	 * with a duplicate class definition.
+	 */
+	private static @Nullable RainbowGumLogEvent newEvent(java.lang.System.Logger.Level level) {
+		return switch (level) {
+			case TRACE -> new RainbowGumLogEvent.TraceEvent();
+			case DEBUG -> new RainbowGumLogEvent.DebugEvent();
+			case INFO -> new RainbowGumLogEvent.InfoEvent();
+			case WARNING -> new RainbowGumLogEvent.WarnEvent();
+			case ERROR -> new RainbowGumLogEvent.ErrorEvent();
+			case ALL, OFF -> null;
+		};
 	}
 
 }

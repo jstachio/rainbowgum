@@ -1471,8 +1471,9 @@ logging.appender.myappender.output.uri=jfr:///
 }
 
 Leaving <code>encoder</code> unset picks up {@link io.jstach.rainbowgum.jfr.JfrLogOutput}'s own default encoder,
-which renders the message followed by any key values, e.g. <code>some message - {key=value}</code> - no
-timestamp/level/logger prefix, since the JFR event already carries those as separate fields. Set
+which renders the message followed by any key values, e.g. <code>some message - {key=value}</code>, or just the
+message when there are none. There is no timestamp/level/logger prefix, since the JFR event already carries those
+as separate fields. Set
 <code>logging.appender.myappender.encoder.uri</code> explicitly to override it.
 
 <h4 id="jfr_starting">Starting A Recording</h4>

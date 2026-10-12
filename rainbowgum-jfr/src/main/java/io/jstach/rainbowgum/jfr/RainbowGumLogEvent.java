@@ -56,24 +56,6 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	}
 
 	/**
-	 * Creates the concrete event subclass matching {@code level}, or null if there is
-	 * none (JFR events are all-or-nothing per level, not filterable by
-	 * {@link java.lang.System.Logger.Level#ALL}/{@link java.lang.System.Logger.Level#OFF}).
-	 * @param level level.
-	 * @return new, uncommitted event instance, or null.
-	 */
-	static @Nullable RainbowGumLogEvent of(java.lang.System.Logger.Level level) {
-		return switch (level) {
-			case TRACE -> new TraceEvent();
-			case DEBUG -> new DebugEvent();
-			case INFO -> new InfoEvent();
-			case WARNING -> new WarnEvent();
-			case ERROR -> new ErrorEvent();
-			case ALL, OFF -> null;
-		};
-	}
-
-	/**
 	 * TRACE level event. Disabled by default ({@link Enabled @Enabled(false)}) since
 	 * TRACE logging is typically too high volume to want on by default in a recording.
 	 */

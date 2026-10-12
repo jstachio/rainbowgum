@@ -55,7 +55,7 @@ public final class JfrAlertListener implements LogAlerts.Listener {
 
 	@Override
 	public void onAlert(LogEvent event) {
-		var jfrEvent = RainbowGumAlertEvent.of(event.level());
+		var jfrEvent = newEvent(event.level());
 		if (jfrEvent == null || !jfrEvent.isEnabled()) {
 			return;
 		}
@@ -70,6 +70,24 @@ public final class JfrAlertListener implements LogAlerts.Listener {
 			jfrEvent.throwable = stackTrace.toString();
 		}
 		jfrEvent.commit();
+	}
+
+	/*
+	 * Not a factory on RainbowGumAlertEvent itself: verifying a method of the event base
+	 * class that returns its subclasses loads them while the base class is still being
+	 * linked, and JFR fails to instrument an event class loaded then when a recording is
+	 * already running (-XX:StartFlightRecording), leaving it uninstrumented or failing
+	 * with a duplicate class definition.
+	 */
+	private static @Nullable RainbowGumAlertEvent newEvent(java.lang.System.Logger.Level level) {
+		return switch (level) {
+			case TRACE -> new RainbowGumAlertEvent.TraceEvent();
+			case DEBUG -> new RainbowGumAlertEvent.DebugEvent();
+			case INFO -> new RainbowGumAlertEvent.InfoEvent();
+			case WARNING -> new RainbowGumAlertEvent.WarnEvent();
+			case ERROR -> new RainbowGumAlertEvent.ErrorEvent();
+			case ALL, OFF -> null;
+		};
 	}
 
 }
