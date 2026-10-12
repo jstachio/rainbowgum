@@ -141,6 +141,13 @@ logging.change.logger.com.mycompany=level
   room for caller settings that are not per logger. The unused key check now exempts
   `logging.caller.logger.*`; before, per logger caller keys were not exempt even though
   they are read lazily like level and change keys.
+- **Groups for change and caller.** `logging.change.logger.<group>` and
+  `logging.caller.logger.<group>` accept an enabled group from the existing
+  `logging.groups` and `logging.group.<name>`, with the same precedence as level groups
+  (a logger's own key wins at the same name; the last group listed wins). Reason: a
+  logger name that is awkward as a key (`$`, spaces, case lost in environment variables)
+  can be listed in a group's value instead. Group values are comma separated, so a
+  logger name containing a comma still cannot be listed.
 
 ## Decision: the reporter lives on the config
 

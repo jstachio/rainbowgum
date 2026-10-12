@@ -341,6 +341,110 @@ class ChangePublisherTest {
 				e.getMessage());
 	}
 
+	/*
+	 * Groups let a logger name that would be awkward as a property key be listed as a
+	 * value instead.
+	 */
+	@Test
+	void groupsApplyToChangeAndCallerForAwkwardLoggerNames() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.groups=weird
+				logging.group.weird=my weird:logger,com.example.Outer$Inner
+				logging.change.logger.weird=level
+				logging.caller.logger.weird=true
+				""").build()).build();
+		var cp = config.changePublisher();
+		assertEquals(EnumSet.of(ChangeType.LEVEL), cp.allowedChanges("my weird:logger"));
+		assertEquals(CallerType.BASIC, cp.callerType("my weird:logger"));
+		assertEquals(EnumSet.of(ChangeType.LEVEL), cp.allowedChanges("com.example.Outer$Inner"));
+		assertEquals(Set.of(), cp.allowedChanges("com.example.Other"));
+		assertEquals(CallerType.NONE, cp.callerType("com.example.Other"));
+	}
+
+	@Test
+	void groupAppliesToDescendantsOfItsLoggers() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.groups=tomcat
+				logging.group.tomcat=org.apache.catalina,org.apache.coyote
+				logging.change.logger.tomcat=level
+				""").build()).build();
+		assertEquals(EnumSet.of(ChangeType.LEVEL),
+				config.changePublisher().allowedChanges("org.apache.catalina.core.StandardContext"));
+		assertEquals(Set.of(), config.changePublisher().allowedChanges("org.apache.tomcat"));
+	}
+
+	/*
+	 * Same precedence as levels: at each step of the logger path the logger's own key
+	 * wins over a group, and a match closer to the logger wins over one further up.
+	 */
+	@Test
+	void groupPrecedenceMatchesLevels() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.groups=first,second,app
+				logging.group.first=com.shared
+				logging.group.second=com.shared
+				logging.group.app=com.app
+				logging.change.logger.first=level
+				logging.change.logger.second=none
+				logging.change.logger.app=level
+				logging.change.logger.com.app=none
+				logging.change.logger.com=level
+				logging.caller.logger.app=true
+				logging.caller.logger.com.app.Main=false
+				""").build()).build();
+		var cp = config.changePublisher();
+		assertEquals(Set.of(), cp.allowedChanges("com.shared.Thing"), "the last group listed wins");
+		assertEquals(Set.of(), cp.allowedChanges("com.app.Thing"), "the logger's own key wins over its group");
+		assertEquals(CallerType.NONE, cp.callerType("com.app.Main"), "a closer key wins over a group further up");
+		assertEquals(CallerType.BASIC, cp.callerType("com.app.Other"));
+	}
+
+	@Test
+	void groupNotInGroupsPropertyIsIgnored() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.group.tomcat=org.apache.catalina
+				logging.change.logger.tomcat=level
+				""").build()).build();
+		assertEquals(Set.of(), config.changePublisher().allowedChanges("org.apache.catalina"));
+	}
+
+	@Test
+	void malformedGroupChangeValueGoldenAlert() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.groups=tomcat
+				logging.group.tomcat=org.apache.catalina
+				logging.change.logger.tomcat=nonsense
+				""").build()).build();
+		assertEquals(Set.of(), config.changePublisher().allowedChanges("org.apache.catalina"));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.LogConfig$ChangePublisher:
+						Error for property. key: 'logging.change.logger.tomcat' from PROPERTIES_STRING[logging.change.logger.tomcat], \
+						'nonsense' is not a valid value for io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType. Valid values: 'none', 'level', 'true', 'false'""",
+				config.alerts().dump().get(0).message());
+	}
+
+	@Test
+	void publishRereadsGroups() {
+		MutableLogProperties props = MutableLogProperties.builder().copyProperties("""
+				logging.change.mode=on
+				logging.groups=g
+				logging.group.g=a
+				logging.change.logger.g=level
+				""").build();
+		var config = LogConfig.builder().properties(props).build();
+		var cp = config.changePublisher();
+		assertEquals(Set.of(), cp.allowedChanges("b"));
+		props.put("logging.group.g", "a,b");
+		cp.publish();
+		assertEquals(EnumSet.of(ChangeType.LEVEL), cp.allowedChanges("b"));
+	}
+
 	private static ChangePublisher changePublisher(LogConfig config) {
 		return new AbstractChangePublisher() {
 
