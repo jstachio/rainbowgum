@@ -6,6 +6,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.jspecify.annotations.Nullable;
+
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.TTLL;
@@ -112,40 +114,42 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	private final EnumMap<OutputType, LogProvider<? extends LogEncoder>> formatters = new EnumMap<>(OutputType.class);
 
 	/*
-	 * Builders for the coloring formatters that honor the global ANSI disable property:
-	 * when it is set color defaults to off, while an explicit color property still wins.
+	 * Builders for the coloring formatters that honor the global ANSI mode: it sets the
+	 * default color mode, while an explicit color property still wins.
 	 */
 	static TTLLFormatterBuilder ttll(String name, LogConfig config) {
 		var b = new TTLLFormatterBuilder(name).serviceRegistry(config.serviceRegistry());
-		if (ansiDisabled(config)) {
-			b.color(TTLL.ColorMode.OFF);
+		var color = colorMode(config);
+		if (color != null) {
+			b.color(color);
 		}
 		return b;
 	}
 
 	static LogfmtFormatterBuilder logfmt(String name, LogConfig config) {
 		var b = new LogfmtFormatterBuilder(name).serviceRegistry(config.serviceRegistry());
-		if (ansiDisabled(config)) {
-			b.color(TTLL.ColorMode.OFF);
+		var color = colorMode(config);
+		if (color != null) {
+			b.color(color);
 		}
 		return b;
 	}
 
 	static Json5FormatterBuilder json5(String name, LogConfig config) {
 		var b = new Json5FormatterBuilder(name).serviceRegistry(config.serviceRegistry());
-		if (ansiDisabled(config)) {
-			b.color(TTLL.ColorMode.OFF);
+		var color = colorMode(config);
+		if (color != null) {
+			b.color(color);
 		}
 		return b;
 	}
 
-	private static boolean ansiDisabled(LogConfig config) {
-		config.reporter().addProperty(LogEncoderRegistry.class, LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY);
-		return config.properties()
-			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
-			.ofBoolean()
-			.or(false)
-			.validateNow(LogEncoderRegistry.class);
+	private static TTLL.@Nullable ColorMode colorMode(LogConfig config) {
+		return switch (config.globals().ansiMode()) {
+			case AUTO -> null;
+			case ON -> TTLL.ColorMode.FORCE;
+			case OFF -> TTLL.ColorMode.OFF;
+		};
 	}
 
 	/**

@@ -85,33 +85,6 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	 */
 	static final String LOGGING_MDC_TYPE_PROPERTY = "logging.mdc.type";
 
-	/**
-	 * {@code logging.global.threadlocalDisabled} - {@code core}'s
-	 * {@code LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY}, read independently here
-	 * (that constant is package-private in a different module, not exposed for reuse)
-	 * since it forces MDC off too, the same way it forces every appender off
-	 * {@link ThreadLocal}-backed types - see that property's javadoc for why this is two
-	 * independent readers of the same property key rather than one shared flag.
-	 */
-	static final String GLOBAL_THREADLOCAL_DISABLED_PROPERTY = "logging.global.threadlocalDisabled";
-
-	/*
-	 * TRUE/FALSE rather than .ofBoolean() - a typo'd value fails loudly through the
-	 * existing Property/Result machinery instead of silently resolving to "not disabled".
-	 * Mirrors core's identically-named-in-spirit LogConfig.ThreadLocalDisabled - each
-	 * module parses this shared property key independently, see
-	 * GLOBAL_THREADLOCAL_DISABLED_PROPERTY above.
-	 */
-	private enum GlobalThreadLocalDisabled {
-
-		TRUE, FALSE;
-
-		static GlobalThreadLocalDisabled parse(String value) {
-			return LogProperty.enumValue(GlobalThreadLocalDisabled.class, value);
-		}
-
-	}
-
 	private @Nullable ILoggerFactory loggerFactory;
 
 	private final IMarkerFactory markerFactory;
@@ -179,25 +152,14 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 	 * @param rainbowGum which gum to use for logger factory.
 	 */
 	public void initialize(RainbowGum rainbowGum) {
-		var properties = rainbowGum.config().properties();
-		// shared validator: a mistake in both logging.mdc.type and
-		// logging.global.threadlocalDisabled at once is reported together instead of
-		// only the first one found - both already have .or(default) applied, so
-		// validateIfError (not validate) is correct: Missing can never occur.
-		var validator = LogProperty.Validator.of(RainbowGumSLF4JServiceProvider.class);
-		var typeResult = properties.forKey(LOGGING_MDC_TYPE_PROPERTY)
+		var config = rainbowGum.config();
+		var type = config.properties()
+			.forKey(LOGGING_MDC_TYPE_PROPERTY)
 			.ofString()
 			.map(MDCType::parse)
 			.or(MDCType.THREAD_LOCAL)
-			.validateIfError(validator);
-		var globalDisabledResult = properties.forKey(GLOBAL_THREADLOCAL_DISABLED_PROPERTY)
-			.ofString()
-			.map(GlobalThreadLocalDisabled::parse)
-			.or(GlobalThreadLocalDisabled.FALSE)
-			.validateIfError(validator);
-		validator.validate();
-		var type = typeResult.value();
-		var globalDisabled = globalDisabledResult.value() == GlobalThreadLocalDisabled.TRUE;
+			.validateNow(RainbowGumSLF4JServiceProvider.class);
+		boolean globalDisabled = config.globals().threadLocalDisabled();
 		if (type == MDCType.NOOP || globalDisabled) {
 			mdcAdapter = new NoopMDCAdapter();
 		}

@@ -88,8 +88,8 @@
  * <td>{@value io.jstach.rainbowgum.spring.boot3.SpringBootSupportedProperties#OUTPUT_ANSI_ENABLED} ({@code
  * NEVER}/{@code ALWAYS}/{@code DETECT})</td>
  * <td>Native - bridged to RainbowGum's own existing
- * {@code logging.global.ansi.disable} property rather than a second ansi mechanism;
- * {@code DETECT} (or unset) leaves RainbowGum's own auto-detection in charge.</td>
+ * {@code logging.global.ansi.mode} property ({@code off}/{@code on}/{@code auto})
+ * rather than a second ansi mechanism; unset leaves RainbowGum's own setting in charge.</td>
  * </tr>
  * <tr>
  * <td>{@value io.jstach.rainbowgum.spring.boot3.SpringBootSupportedProperties#STRUCTURED_FORMAT_CONSOLE}, {@value

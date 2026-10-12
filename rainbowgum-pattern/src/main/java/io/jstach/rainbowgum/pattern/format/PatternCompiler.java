@@ -55,12 +55,11 @@ public sealed interface PatternCompiler {
 				.orElseGet(() -> PatternRegistry.of());
 			var patternConfig = findService(services, PatternConfig.class, name, LogProperties.DEFAULT_NAME)
 				.orElseGet(() -> {
-					config.reporter().addProperty(PatternCompiler.class, LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY);
-					boolean ansiDisable = config.properties()
-						.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY) //
-						.ofBoolean() //
-						.or(() -> !AnsiSupport.isAnsiSupported())
-						.validateNow(PatternCompiler.class);
+					boolean ansiDisable = switch (config.globals().ansiMode()) {
+						case AUTO -> !AnsiSupport.isAnsiSupported();
+						case ON -> false;
+						case OFF -> true;
+					};
 					var b = PatternConfig.builder(name)
 						.propertyFunction(PatternConfig.propertyFunction(config.properties(),
 								PatternConfig.PATTERN_PROPERY_PREFIX))

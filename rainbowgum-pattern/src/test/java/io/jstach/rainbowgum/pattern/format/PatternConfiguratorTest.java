@@ -141,7 +141,7 @@ class PatternConfiguratorTest {
 						logging.appender.console.encoder.uri=pattern
 						logging.appender.console.encoder.pattern.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
 						logging.appender.list.encoder.pattern.pattern=[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n
-						logging.global.ansi.disable=true
+						logging.global.ansi.mode=off
 						""";
 			}
 		},
@@ -229,7 +229,7 @@ class PatternConfiguratorTest {
 			String properties() {
 				return """
 						logging.pattern.config.console.zoneId=UTC
-						logging.global.ansi.disable=false
+						logging.global.ansi.mode=on
 						""";
 			}
 

@@ -492,16 +492,7 @@ final class KeyValuesContributors {
 
 		static final Disabled NONE = new Disabled(Set.of());
 
-		static Disabled of(LogProperties properties) {
-			var sources = properties.forKey(LogProperties.KEY_VALUES_DISABLED_PROPERTY)
-				.ofList()
-				.map(Disabled::parse)
-				.or(Set.of())
-				.validateNow(LogConfig.class);
-			return sources.isEmpty() ? NONE : new Disabled(sources);
-		}
-
-		private static Set<Source> parse(List<String> names) {
+		static Set<Source> parse(List<String> names) {
 			var sources = new LinkedHashSet<Source>();
 			for (String name : names) {
 				sources.add(LogProperty.enumValue(Source.Standard.class, name));

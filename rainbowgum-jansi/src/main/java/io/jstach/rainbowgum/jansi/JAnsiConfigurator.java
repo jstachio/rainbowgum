@@ -55,12 +55,7 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	}
 
 	private boolean isGlobalAnsiDisabled(LogConfig config) {
-		config.reporter().addProperty(JAnsiConfigurator.class, LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY);
-		return config.properties()
-			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
-			.ofBoolean() //
-			.or(false)
-			.validateNow(JAnsiConfigurator.class);
+		return config.globals().ansiMode() == LogConfig.Globals.AnsiMode.OFF;
 	}
 
 }

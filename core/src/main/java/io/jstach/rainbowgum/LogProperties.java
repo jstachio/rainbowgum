@@ -243,12 +243,10 @@ public interface LogProperties {
 	static final String GLOBAL_QUEUE_ERROR_PROPERTY = ROOT_PREFIX + "global.queue.error";
 
 	/**
-	 * Will globally turn of any ANSI escape output as well disable extensions that do
-	 * things for ANSI escape like JANSI. If not set this is derived automatically from
-	 * {@link io.jstach.rainbowgum.format.AnsiSupport#isAnsiSupported()} which checks
-	 * whether the process is attached to an ANSI capable terminal.
+	 * Whether output uses ANSI escape codes: see {@link LogConfig.Globals.AnsiMode}.
+	 * Default is {@link LogConfig.Globals.AnsiMode#AUTO}.
 	 */
-	static final String GLOBAL_ANSI_DISABLE_PROPERTY = ROOT_PREFIX + "global.ansi.disable";
+	static final String GLOBAL_ANSI_MODE_PROPERTY = ROOT_PREFIX + "global.ansi.mode";
 
 	/**
 	 * If true guarantees no appender will use {@code synchronized} for its locking,
@@ -265,7 +263,7 @@ public interface LogProperties {
 	static final String GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY = ROOT_PREFIX + "global.appender.reentrantLock";
 
 	/**
-	 * A global, process-wide guarantee of no {@link ThreadLocal} anywhere in the logging
+	 * A configuration wide guarantee of no {@link ThreadLocal} anywhere in the logging
 	 * path, for deployments that want that guaranteed independent of
 	 * per-appender/per-module configuration. When active:
 	 * <ul>
@@ -280,10 +278,7 @@ public interface LogProperties {
 	 * <li>{@code rainbowgum-slf4j}'s MDC support is disabled, the same as an explicit
 	 * {@code logging.mdc.type=NOOP} - see {@code RainbowGumSLF4JServiceProvider}.</li>
 	 * </ul>
-	 * @apiNote unlike {@link #GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY} this reaches
-	 * beyond {@code core} into {@code rainbowgum-slf4j} - both independently read this
-	 * same property key rather than one module exposing a shared static flag the other
-	 * consumes, since there is no other cross-module wiring between them today.
+	 * @see LogConfig.Globals#threadLocalDisabled()
 	 */
 	static final String GLOBAL_THREADLOCAL_DISABLED_PROPERTY = ROOT_PREFIX + "global.threadlocalDisabled";
 

@@ -29,13 +29,15 @@ class LogReporterTest {
 					"""
 							Properties: EMPTY
 							Reported Properties:
-							  logging.change.mode = (unset) (io.jstach.rainbowgum)
-							  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum)
-							  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
-							  logging.global.optimize = (unset) (io.jstach.rainbowgum)
 							  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 							  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
-							  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
+							Globals:
+							  logging.change.mode = OFF
+							  logging.global.ansi.mode = AUTO
+							  logging.global.appender.reentrantLock = false
+							  logging.global.threadlocalDisabled = false
+							  logging.global.optimize = false
+							  logging.keyvalues.disabled = (none)
 							Debug mode: OFF
 
 							Router: default
@@ -123,13 +125,15 @@ class LogReporterTest {
 			String expected = """
 					Properties: SYSTEM_PROPERTIES
 					Reported Properties:
-					  logging.change.mode = (unset) (io.jstach.rainbowgum)
-					  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum)
-					  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
-					  logging.global.optimize = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
-					  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
+					Globals:
+					  logging.change.mode = OFF
+					  logging.global.ansi.mode = AUTO
+					  logging.global.appender.reentrantLock = false
+					  logging.global.threadlocalDisabled = false
+					  logging.global.optimize = false
+					  logging.keyvalues.disabled = (none)
 					Debug mode: ERROR
 
 					Router: default
@@ -156,14 +160,17 @@ class LogReporterTest {
 		assertEquals("""
 				Properties: PROPERTIES_STRING
 				Reported Properties:
-				  logging.change.mode = (unset) (io.jstach.rainbowgum)
-				  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
-				  logging.global.optimize = (unset) (io.jstach.rainbowgum)
 				  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 				  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
-				  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
 				  logging.my.other = (unset) (io.jstach.rainbowgum)
 				  logging.my.switch = on (io.jstach.rainbowgum)
+				Globals:
+				  logging.change.mode = OFF
+				  logging.global.ansi.mode = AUTO
+				  logging.global.appender.reentrantLock = false
+				  logging.global.threadlocalDisabled = false
+				  logging.global.optimize = false
+				  logging.keyvalues.disabled = (none)
 				Debug mode: OFF
 
 				(no RainbowGum built from this config yet)

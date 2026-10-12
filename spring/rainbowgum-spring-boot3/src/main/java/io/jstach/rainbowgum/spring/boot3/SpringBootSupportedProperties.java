@@ -85,7 +85,7 @@ public final class SpringBootSupportedProperties {
 
 	/**
 	 * {@code NEVER}/{@code ALWAYS}/{@code DETECT} - bridged to RainbowGum's own {@code
-	 * logging.global.ansi.disable} property.
+	 * logging.global.ansi.mode} property as {@code off}/{@code on}/{@code auto}.
 	 */
 	public static final String OUTPUT_ANSI_ENABLED = "spring.output.ansi.enabled";
 

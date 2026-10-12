@@ -443,9 +443,8 @@ class TTLLFormatterTest {
 	}
 
 	@Test
-	void explicitColorWinsOverGlobalAnsiDisable() {
-		String actual = log("ttll",
-				"logging.global.ansi.disable=true\nlogging.appender.list.encoder.ttll.color=force\n",
+	void explicitColorWinsOverGlobalAnsiOff() {
+		String actual = log("ttll", "logging.global.ansi.mode=off\nlogging.appender.list.encoder.ttll.color=force\n",
 				event(KeyValues.of()));
 		assertEquals(coloredLine("1;34", "INFO ", ""), actual);
 	}

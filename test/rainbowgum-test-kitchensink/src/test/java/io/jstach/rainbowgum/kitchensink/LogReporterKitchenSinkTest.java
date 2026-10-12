@@ -147,14 +147,16 @@ class LogReporterKitchenSinkTest {
 
 					Properties: SYSTEM_PROPERTIES, io.jstach.rainbowgum.avaje.AvajeProperties
 					Reported Properties:
-					  logging.change.mode = (unset) (io.jstach.rainbowgum)
-					  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum.pattern.format)
-					  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
-					  logging.global.optimize = true (io.jstach.rainbowgum)
 					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
-					  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
 					  logging.pattern.disable = (unset) (io.jstach.rainbowgum.pattern.format)
+					Globals:
+					  logging.change.mode = OFF
+					  logging.global.ansi.mode = AUTO
+					  logging.global.appender.reentrantLock = false
+					  logging.global.threadlocalDisabled = false
+					  logging.global.optimize = true
+					  logging.keyvalues.disabled = (none)
 					Debug mode: OFF
 
 					Router: structured
