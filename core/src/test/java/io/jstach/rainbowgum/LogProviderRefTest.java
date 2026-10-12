@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -49,22 +50,22 @@ class LogProviderRefTest {
 	@Test
 	void testNotFoundExceptionOfUnknownSchemeHasNoModuleHint() {
 		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "bogus",
-				URI.create("bogus:///"));
+				URI.create("bogus:///"), List.of());
 		assertEquals("No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'", e.getMessage());
 	}
 
 	@Test
 	void testNotFoundExceptionOfKnownSchemeButWrongComponentTypeHasNoModuleHint() {
 		// "gelf" is only registered as an encoder scheme, not an output scheme.
-		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "gelf",
-				URI.create("gelf:///"));
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "gelf", URI.create("gelf:///"),
+				List.of());
 		assertEquals("No output found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'", e.getMessage());
 	}
 
 	@Test
 	void testNotFoundExceptionOfKnownSchemeHasModuleHint() {
 		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.ENCODER, "gelf",
-				URI.create("gelf:///"));
+				URI.create("gelf:///"), List.of());
 		String v = RainbowGumVersion.VERSION;
 		assertEquals("No encoder found. Scheme not registered. scheme: 'gelf', URI: 'gelf:///'. "
 				+ "Scheme 'gelf' is provided by module 'io.jstach.rainbowgum.json' "
@@ -74,7 +75,8 @@ class LogProviderRefTest {
 
 	@Test
 	void testNotFoundExceptionOfJfrOutputHasModuleHint() {
-		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "jfr", URI.create("jfr:///"));
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "jfr", URI.create("jfr:///"),
+				List.of());
 		String v = RainbowGumVersion.VERSION;
 		assertEquals("No output found. Scheme not registered. scheme: 'jfr', URI: 'jfr:///'. "
 				+ "Scheme 'jfr' is provided by module 'io.jstach.rainbowgum.jfr' "
@@ -85,13 +87,45 @@ class LogProviderRefTest {
 	@Test
 	void testNotFoundExceptionWithoutOverviewSectionLinksModulePage() {
 		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.PUBLISHER, "disruptor",
-				URI.create("disruptor:///"));
+				URI.create("disruptor:///"), List.of());
 		String v = RainbowGumVersion.VERSION;
 		assertEquals("No publisher found. Scheme not registered. scheme: 'disruptor', URI: 'disruptor:///'. "
 				+ "Scheme 'disruptor' is provided by module 'io.jstach.rainbowgum.disruptor' "
 				+ "(Maven: 'io.jstach.rainbowgum:rainbowgum-disruptor:" + v + "'). Add that dependency. "
 				+ "See https://jstach.io/doc/rainbowgum/" + v
 				+ "/apidocs/io.jstach.rainbowgum.disruptor/module-summary.html", e.getMessage());
+	}
+
+	@Test
+	void testNotFoundExceptionSuggestsASimilarlySpelledRegisteredScheme() {
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.PUBLISHER, "asyc",
+				URI.create("asyc:///"), List.of("sync", "async", "default", "batchswap"));
+		assertEquals("""
+				No publisher found. Scheme not registered. scheme: 'asyc', URI: 'asyc:///'. Did you mean 'async'? \
+				Registered publisher schemes: 'async', 'batchswap', 'default', 'sync'""", e.getMessage());
+	}
+
+	@Test
+	void testNotFoundExceptionSuggestsASimilarlySpelledModuleScheme() {
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.ENCODER, "patern",
+				URI.create("patern:///"), List.of("ttll", "json5", "logfmt"));
+		String v = RainbowGumVersion.VERSION;
+		assertEquals("""
+				No encoder found. Scheme not registered. scheme: 'patern', URI: 'patern:///'. Did you mean 'pattern'? \
+				Registered encoder schemes: 'json5', 'logfmt', 'ttll'. \
+				Scheme 'pattern' is provided by module 'io.jstach.rainbowgum.pattern' \
+				(Maven: 'io.jstach.rainbowgum:rainbowgum-pattern:VERSION'). Add that dependency. \
+				See https://jstach.io/doc/rainbowgum/VERSION/apidocs/index.html#pattern""".replace("VERSION", v),
+				e.getMessage());
+	}
+
+	@Test
+	void testNotFoundExceptionListsRegisteredSchemesWhenNoneIsSimilarlySpelled() {
+		var e = LogProviderRef.NotFoundException.of(ProviderModule.ComponentType.OUTPUT, "xyz", URI.create("xyz:///"),
+				List.of("stdout", "stderr", "list"));
+		assertEquals("""
+				No output found. Scheme not registered. scheme: 'xyz', URI: 'xyz:///'. \
+				Registered output schemes: 'list', 'stderr', 'stdout'""", e.getMessage());
 	}
 
 	@Test
