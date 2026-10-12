@@ -827,7 +827,7 @@ explicitly as <code>disruptor</code>. Its only setting is <code>bufferSize</code
 two; it has no <code>shutdownTimeout</code>.
 <p>
 Since publishers are where Rainbow Gum's threading concerns live, this is worth mentioning here: setting
-{@value io.jstach.rainbowgum.LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} to <code>true</code> is a
+{@value io.jstach.rainbowgum.LogProperties#GLOBAL_THREAD_LOCAL_PROPERTY} to <code>forbid</code> is a
 guarantee of no {@link java.lang.ThreadLocal} anywhere in the logging path: it forces every
 appender off {@link java.lang.ThreadLocal}-backed buffer strategies and, if the SLF4J module is in use,
 disables MDC too, which is the same effect as combining the appender and MDC options above individually.

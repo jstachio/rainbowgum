@@ -188,20 +188,20 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private final AnsiMode ansiMode;
 
-		private final boolean appenderReentrantLock;
+		private final AppenderLock appenderLock;
 
-		private final boolean threadLocalDisabled;
+		private final ThreadLocalMode threadLocal;
 
 		private final boolean optimize;
 
 		private final Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled;
 
-		Globals(ChangeMode changeMode, AnsiMode ansiMode, boolean appenderReentrantLock, boolean threadLocalDisabled,
+		Globals(ChangeMode changeMode, AnsiMode ansiMode, AppenderLock appenderLock, ThreadLocalMode threadLocal,
 				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled) {
 			this.changeMode = changeMode;
 			this.ansiMode = ansiMode;
-			this.appenderReentrantLock = appenderReentrantLock;
-			this.threadLocalDisabled = threadLocalDisabled;
+			this.appenderLock = appenderLock;
+			this.threadLocal = threadLocal;
 			this.optimize = optimize;
 			this.keyValuesDisabled = Set.copyOf(keyValuesDisabled);
 		}
@@ -225,21 +225,21 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		}
 
 		/**
-		 * Whether no appender uses {@code synchronized} for locking, from
-		 * {@value LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY}.
-		 * @return true if appenders only use reentrant locks.
+		 * Which kind of lock appenders use, from
+		 * {@value LogProperties#GLOBAL_APPENDER_LOCK_PROPERTY}.
+		 * @return appender lock.
 		 */
-		public boolean appenderReentrantLock() {
-			return appenderReentrantLock;
+		public AppenderLock appenderLock() {
+			return appenderLock;
 		}
 
 		/**
-		 * Whether nothing in the logging path uses a {@link ThreadLocal}, from
-		 * {@value LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY}.
-		 * @return true if thread locals are not used.
+		 * Whether the logging path may use a {@link ThreadLocal}, from
+		 * {@value LogProperties#GLOBAL_THREAD_LOCAL_PROPERTY}.
+		 * @return thread local mode.
 		 */
-		public boolean threadLocalDisabled() {
-			return threadLocalDisabled;
+		public ThreadLocalMode threadLocal() {
+			return threadLocal;
 		}
 
 		/**
@@ -276,15 +276,15 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				.map(AnsiMode::parse)
 				.or(ansiMode)
 				.validateIfError(validator);
-			var reentrantLock = properties.forKey(LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY)
+			var lock = properties.forKey(LogProperties.GLOBAL_APPENDER_LOCK_PROPERTY)
 				.ofString()
-				.map(Globals::parseBoolean)
-				.or(appenderReentrantLock)
+				.map(v -> LogProperty.enumValue(AppenderLock.class, v))
+				.or(appenderLock)
 				.validateIfError(validator);
-			var threadLocal = properties.forKey(LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY)
+			var threadLocalMode = properties.forKey(LogProperties.GLOBAL_THREAD_LOCAL_PROPERTY)
 				.ofString()
-				.map(Globals::parseBoolean)
-				.or(threadLocalDisabled)
+				.map(v -> LogProperty.enumValue(ThreadLocalMode.class, v))
+				.or(threadLocal)
 				.validateIfError(validator);
 			var opt = properties.forKey(LogProperties.GLOBAL_OPTIMIZE_PROPERTY)
 				.ofString()
@@ -297,7 +297,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				.or(keyValuesDisabled)
 				.validateIfError(validator);
 			validator.validate();
-			return new Globals(change.value(), ansi.value(), reentrantLock.value(), threadLocal.value(), opt.value(),
+			return new Globals(change.value(), ansi.value(), lock.value(), threadLocalMode.value(), opt.value(),
 					keyValues.value());
 		}
 
@@ -312,6 +312,53 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				default -> throw new IllegalArgumentException(
 						"'" + value + "' is not a valid value for boolean. Valid values: 'true', 'false'");
 			};
+		}
+
+		/**
+		 * Which kind of lock appenders use. Only appenders with a thread local buffer
+		 * have a {@code synchronized} variant ({@link LogAppender.AppenderType}).
+		 */
+		public enum AppenderLock {
+
+			/**
+			 * {@link #REENTRANT} before JDK 24, where {@code synchronized} pins a virtual
+			 * thread to its carrier (<a href="https://openjdk.org/jeps/491">JEP 491</a>).
+			 * From JDK 24 each appender uses the lock of the type it requested. The
+			 * default.
+			 */
+			AUTO,
+			/**
+			 * No appender uses {@code synchronized}: a requested
+			 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} becomes
+			 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER}.
+			 */
+			REENTRANT,
+			/**
+			 * Appenders with a thread local buffer use {@code synchronized}: a requested
+			 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER} becomes
+			 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER}.
+			 */
+			SYNCHRONIZED;
+
+		}
+
+		/**
+		 * Whether the logging path may use a {@link ThreadLocal}.
+		 */
+		public enum ThreadLocalMode {
+
+			/**
+			 * Thread locals may be used. The default.
+			 */
+			ALLOW,
+			/**
+			 * Nothing in the logging path uses a thread local: appenders with a thread
+			 * local buffer become {@link LogAppender.AppenderType#LOCK_NEW_BUFFER}, and
+			 * modules that keep context in a thread local, such as SLF4J's MDC, turn it
+			 * off.
+			 */
+			FORBID;
+
 		}
 
 		/**
@@ -568,9 +615,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private Globals.AnsiMode ansiMode = Globals.AnsiMode.AUTO;
 
-		private boolean appenderReentrantLock = false;
+		private Globals.AppenderLock appenderLock = Globals.AppenderLock.AUTO;
 
-		private boolean threadLocalDisabled = false;
+		private Globals.ThreadLocalMode threadLocal = Globals.ThreadLocalMode.ALLOW;
 
 		private boolean optimize = false;
 
@@ -649,26 +696,25 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		}
 
 		/**
-		 * Sets whether no appender uses {@code synchronized} for locking, used when the
-		 * property {@value LogProperties#GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY} is
-		 * absent.
-		 * @param appenderReentrantLock true to only use reentrant locks, default false.
+		 * Sets which kind of lock appenders use, used when the property
+		 * {@value LogProperties#GLOBAL_APPENDER_LOCK_PROPERTY} is absent.
+		 * @param appenderLock appender lock, default {@link Globals.AppenderLock#AUTO}.
 		 * @return this.
 		 */
-		public Builder appenderReentrantLock(boolean appenderReentrantLock) {
-			this.appenderReentrantLock = appenderReentrantLock;
+		public Builder appenderLock(Globals.AppenderLock appenderLock) {
+			this.appenderLock = Objects.requireNonNull(appenderLock);
 			return this;
 		}
 
 		/**
-		 * Sets whether nothing in the logging path uses a {@link ThreadLocal}, used when
-		 * the property {@value LogProperties#GLOBAL_THREADLOCAL_DISABLED_PROPERTY} is
-		 * absent.
-		 * @param threadLocalDisabled true to not use thread locals, default false.
+		 * Sets whether the logging path may use a {@link ThreadLocal}, used when the
+		 * property {@value LogProperties#GLOBAL_THREAD_LOCAL_PROPERTY} is absent.
+		 * @param threadLocal thread local mode, default
+		 * {@link Globals.ThreadLocalMode#ALLOW}.
 		 * @return this.
 		 */
-		public Builder threadLocalDisabled(boolean threadLocalDisabled) {
-			this.threadLocalDisabled = threadLocalDisabled;
+		public Builder threadLocal(Globals.ThreadLocalMode threadLocal) {
+			this.threadLocal = Objects.requireNonNull(threadLocal);
 			return this;
 		}
 
@@ -836,8 +882,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 						serviceRegistry.findOrNull(LogProperties.class, LevelResolver.OVERRIDE_PROPERTIES_NAME),
 						alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
-						unusedKeyCheck, new Globals(changeMode, ansiMode, appenderReentrantLock, threadLocalDisabled,
-								optimize, keyValuesDisabled)
+						unusedKeyCheck,
+						new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize, keyValuesDisabled)
 							.withProperties(logProperties));
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);

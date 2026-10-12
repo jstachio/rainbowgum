@@ -10,6 +10,7 @@ import org.slf4j.spi.MDCAdapter;
 import org.slf4j.spi.SLF4JServiceProvider;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
@@ -159,7 +160,7 @@ public class RainbowGumSLF4JServiceProvider implements SLF4JServiceProvider {
 			.map(MDCType::parse)
 			.or(MDCType.THREAD_LOCAL)
 			.validateNow(RainbowGumSLF4JServiceProvider.class);
-		boolean globalDisabled = config.globals().threadLocalDisabled();
+		boolean globalDisabled = config.globals().threadLocal() == LogConfig.Globals.ThreadLocalMode.FORBID;
 		if (type == MDCType.NOOP || globalDisabled) {
 			mdcAdapter = new NoopMDCAdapter();
 		}

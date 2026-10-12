@@ -450,8 +450,8 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 		out.append("Globals:\n");
 		appendGlobal(out, LogProperties.CHANGE_MODE_PROPERTY, globals.changeMode());
 		appendGlobal(out, LogProperties.GLOBAL_ANSI_MODE_PROPERTY, globals.ansiMode());
-		appendGlobal(out, LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY, globals.appenderReentrantLock());
-		appendGlobal(out, LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY, globals.threadLocalDisabled());
+		appendGlobal(out, LogProperties.GLOBAL_APPENDER_LOCK_PROPERTY, globals.appenderLock());
+		appendGlobal(out, LogProperties.GLOBAL_THREAD_LOCAL_PROPERTY, globals.threadLocal());
 		appendGlobal(out, LogProperties.GLOBAL_OPTIMIZE_PROPERTY, globals.optimize());
 		var keyValues = new TreeSet<String>();
 		globals.keyValuesDisabled().forEach(s -> keyValues.add(s.toString()));

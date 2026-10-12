@@ -249,38 +249,17 @@ public interface LogProperties {
 	static final String GLOBAL_ANSI_MODE_PROPERTY = ROOT_PREFIX + "global.ansi.mode";
 
 	/**
-	 * If true guarantees no appender will use {@code synchronized} for its locking,
-	 * regardless of an explicitly requested
-	 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER}: an explicit
-	 * request for that type is downgraded to
-	 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER} instead of being honored.
-	 * Intended for deployments that want a hard guarantee independent of per-appender
-	 * configuration - e.g. still running JDK versions before
-	 * <a href="https://openjdk.org/jeps/491">JEP 491</a> (JDK 24), where
-	 * {@code synchronized} pins the carrier platform thread when called from a virtual
-	 * thread, and that would rather not rely on per-appender configuration to avoid it.
+	 * Which kind of lock appenders use: see {@link LogConfig.Globals.AppenderLock}.
+	 * Default is {@link LogConfig.Globals.AppenderLock#AUTO}.
 	 */
-	static final String GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY = ROOT_PREFIX + "global.appender.reentrantLock";
+	static final String GLOBAL_APPENDER_LOCK_PROPERTY = ROOT_PREFIX + "global.appender.lock";
 
 	/**
-	 * A configuration wide guarantee of no {@link ThreadLocal} anywhere in the logging
-	 * path, for deployments that want that guaranteed independent of
-	 * per-appender/per-module configuration. When active:
-	 * <ul>
-	 * <li>Any appender that would otherwise use
-	 * {@link LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER} or
-	 * {@link LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} (the default,
-	 * plus its {@code synchronized}-locking sibling - both {@link ThreadLocal}-backed) is
-	 * downgraded to {@link LogAppender.AppenderType#LOCK_NEW_BUFFER} instead - an
-	 * explicit request for {@link LogAppender.AppenderType#REUSE_BUFFER} (already
-	 * {@link ThreadLocal}-free) is left as-is rather than also forced to
-	 * {@code LOCK_NEW_BUFFER}.</li>
-	 * <li>{@code rainbowgum-slf4j}'s MDC support is disabled, the same as an explicit
-	 * {@code logging.mdc.type=NOOP} - see {@code RainbowGumSLF4JServiceProvider}.</li>
-	 * </ul>
-	 * @see LogConfig.Globals#threadLocalDisabled()
+	 * Whether the logging path may use a {@link ThreadLocal}: see
+	 * {@link LogConfig.Globals.ThreadLocalMode}. Default is
+	 * {@link LogConfig.Globals.ThreadLocalMode#ALLOW}.
 	 */
-	static final String GLOBAL_THREADLOCAL_DISABLED_PROPERTY = ROOT_PREFIX + "global.threadlocalDisabled";
+	static final String GLOBAL_THREAD_LOCAL_PROPERTY = ROOT_PREFIX + "global.threadLocal";
 
 	/**
 	 * Opts every appender/encoder that has not been given an explicit choice into

@@ -34,8 +34,8 @@ class LogReporterTest {
 							Globals:
 							  logging.change.mode = OFF
 							  logging.global.ansi.mode = AUTO
-							  logging.global.appender.reentrantLock = false
-							  logging.global.threadlocalDisabled = false
+							  logging.global.appender.lock = AUTO
+							  logging.global.threadLocal = ALLOW
 							  logging.global.optimize = false
 							  logging.keyvalues.disabled = (none)
 							Debug mode: OFF
@@ -130,8 +130,8 @@ class LogReporterTest {
 					Globals:
 					  logging.change.mode = OFF
 					  logging.global.ansi.mode = AUTO
-					  logging.global.appender.reentrantLock = false
-					  logging.global.threadlocalDisabled = false
+					  logging.global.appender.lock = AUTO
+					  logging.global.threadLocal = ALLOW
 					  logging.global.optimize = false
 					  logging.keyvalues.disabled = (none)
 					Debug mode: ERROR
@@ -167,8 +167,8 @@ class LogReporterTest {
 				Globals:
 				  logging.change.mode = OFF
 				  logging.global.ansi.mode = AUTO
-				  logging.global.appender.reentrantLock = false
-				  logging.global.threadlocalDisabled = false
+				  logging.global.appender.lock = AUTO
+				  logging.global.threadLocal = ALLOW
 				  logging.global.optimize = false
 				  logging.keyvalues.disabled = (none)
 				Debug mode: OFF
