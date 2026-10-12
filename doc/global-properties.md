@@ -137,6 +137,33 @@ logging.change.logger.com.mycompany=level
   nothing (so publishing does not clear the level cache), the same as before.
 - No compatibility alias for the old keys (pre-1.0, no deprecation).
 
+## Decision: the reporter lives on the config
+
+`LogReporter` used to be built standalone (`LogReporter.builder()...build().report(gum)`)
+and printed a fixed static list of "global" keys. That list was a utility class in
+disguise, and nobody could know which properties belonged on it.
+
+Now (branch `feature/config-reporter`, based on this one):
+
+- `LogConfig.reporter()` returns the config's own reporter. The router is bound to it
+  when a `RainbowGum` is built from the config; before that, `COMPONENTS` says no
+  RainbowGum is built yet.
+- Rendering options moved to `LogReporter.Options` (`Options.builder()`,
+  `Options.of(section)`), passed per report: `config.reporter().report(options)`, or
+  `report()` for the defaults.
+- `addProperty(Class<?> source, String key)`: whoever reads a property worth reporting
+  registers it. The report lists keys sorted, each with its current value and the
+  packages that added it, so a key read in several places shows every reader (for
+  example `logging.global.ansi.disable` from core and from pattern). The package, not
+  the module name, so output is the same on the class path and the module path.
+- Registered today: core's config properties and the queue properties (from
+  `DefaultLogConfig`), ANSI (core encoder registry, pattern compiler, jansi),
+  `logging.pattern.disable`, `logging.jul.disable` and `logging.jansi.disable`. Module
+  switches therefore only appear when the module is in use.
+
+Open: whether the report should also show the resolved value (with builder defaults),
+since `(unset)` can hide a default set through `LogConfig.Builder`.
+
 ## Open items
 
 - **Avaje config:** it calls `changePublisher().publish()` on config changes, but does

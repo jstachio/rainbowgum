@@ -96,8 +96,8 @@ class RainbowGumLogManagerTest {
 		ListLogOutput output = new ListLogOutput();
 		try (var gum = rainbowGum(output, System.Logger.Level.INFO)) {
 			Logger.getLogger("test.jul.logmanager.registered");
-			var reporter = LogReporter.builder().section(LogReporter.Section.LOGGERS).build();
-			assertTrue(reporter.report(gum).contains("test.jul.logmanager.registered"));
+			var options = LogReporter.Options.builder().section(LogReporter.Section.LOGGERS).build();
+			assertTrue(gum.config().reporter().report(options).contains("test.jul.logmanager.registered"));
 		}
 	}
 

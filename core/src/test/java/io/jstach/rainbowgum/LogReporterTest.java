@@ -21,21 +21,21 @@ class LogReporterTest {
 		URI uri = URI.create(test.input);
 		var output = new UriOutput(uri);
 		var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
-		var reporter = LogReporter.builder().sections(EnumSet.of(Section.COMPONENTS)).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.of(Section.COMPONENTS)).build();
 		try (var gum = RainbowGum.builder(config)
 			.route(route -> route.appender("custom", appender -> appender.output(output)))
 			.build()) {
 			assertEquals(
 					"""
 							Properties: EMPTY
-							Global Properties:
-							  logging.change.mode = (unset)
-							  logging.global.queue.level = (unset)
-							  logging.global.queue.error = (unset)
-							  logging.global.ansi.disable = (unset)
-							  logging.global.appender.reentrantLock = (unset)
-							  logging.global.threadlocalDisabled = (unset)
-							  logging.global.optimize = (unset)
+							Reported Properties:
+							  logging.change.mode = (unset) (io.jstach.rainbowgum)
+							  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum)
+							  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
+							  logging.global.optimize = (unset) (io.jstach.rainbowgum)
+							  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
+							  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+							  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
 							Debug mode: OFF
 
 							Router: default
@@ -47,7 +47,7 @@ class LogReporterTest {
 							      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=off theme=none colored=false")
 							"""
 						.formatted(test.expected),
-					reporter.report(gum));
+					gum.config().reporter().report(options));
 			assertEquals(uri, output.uri());
 		}
 	}
@@ -116,20 +116,20 @@ class LogReporterTest {
 	 */
 	@Test
 	void testComponentsOnly() {
-		var reporter = LogReporter.builder().sections(EnumSet.of(Section.COMPONENTS)).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.of(Section.COMPONENTS)).build();
 		var config = LogConfig.builder().debug(LogConfig.DebugModeType.ERROR).build();
 		try (var gum = RainbowGum.builder(config).build()) {
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			String expected = """
 					Properties: SYSTEM_PROPERTIES
-					Global Properties:
-					  logging.change.mode = (unset)
-					  logging.global.queue.level = (unset)
-					  logging.global.queue.error = (unset)
-					  logging.global.ansi.disable = (unset)
-					  logging.global.appender.reentrantLock = (unset)
-					  logging.global.threadlocalDisabled = (unset)
-					  logging.global.optimize = (unset)
+					Reported Properties:
+					  logging.change.mode = (unset) (io.jstach.rainbowgum)
+					  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum)
+					  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
+					  logging.global.optimize = (unset) (io.jstach.rainbowgum)
+					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
+					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+					  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
 					Debug mode: ERROR
 
 					Router: default
@@ -145,31 +145,57 @@ class LogReporterTest {
 	}
 
 	@Test
+	void addedPropertyIsReportedOnceWithItsValue() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.my.switch=on
+				""").build()).build();
+		config.reporter().addProperty(LogReporterTest.class, "logging.my.switch");
+		config.reporter().addProperty(LogReporterTest.class, "logging.my.switch");
+		config.reporter().addProperty(LogReporterTest.class, "logging.my.other");
+		String actual = config.reporter().report(LogReporter.Options.of(Section.COMPONENTS));
+		assertEquals("""
+				Properties: PROPERTIES_STRING
+				Reported Properties:
+				  logging.change.mode = (unset) (io.jstach.rainbowgum)
+				  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
+				  logging.global.optimize = (unset) (io.jstach.rainbowgum)
+				  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
+				  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+				  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
+				  logging.my.other = (unset) (io.jstach.rainbowgum)
+				  logging.my.switch = on (io.jstach.rainbowgum)
+				Debug mode: OFF
+
+				(no RainbowGum built from this config yet)
+				""", actual);
+	}
+
+	@Test
 	void testDefaultSectionsIncludeVersion() {
-		var reporter = LogReporter.builder().build();
+		var options = LogReporter.Options.builder().build();
 		try (var gum = RainbowGum.builder().build()) {
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			assertTrue(actual.startsWith("Rainbow Gum "), () -> "expected version header, got: " + actual);
-			assertTrue(actual.contains("Global Properties:"));
+			assertTrue(actual.contains("Reported Properties:"));
 		}
 	}
 
 	@Test
 	void testEmptySectionsFallsBackToDefault() {
-		var reporter = LogReporter.builder().sections(EnumSet.noneOf(Section.class)).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.noneOf(Section.class)).build();
 		try (var gum = RainbowGum.builder().build()) {
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			assertTrue(actual.startsWith("Rainbow Gum "));
 		}
 	}
 
 	@Test
 	void testMetrics() {
-		var reporter = LogReporter.builder().sections(EnumSet.of(Section.METRICS)).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.of(Section.METRICS)).build();
 		try (var gum = RainbowGum.builder().build()) {
 			gum.config().metrics().errorCounter(LogMetrics.EVENTS_DROPPED_METRIC, 3);
 			gum.config().metrics().warnCounter(LogMetrics.BUFFER_TRIMMED_METRIC, 12);
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			String expected = """
 					Metrics:
 					  events.dropped = 3 (ERROR)
@@ -181,13 +207,13 @@ class LogReporterTest {
 
 	@Test
 	void testAlertsShowsOnlyMostRecent() {
-		var reporter = LogReporter.builder().sections(EnumSet.of(Section.ALERTS)).maxAlerts(2).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.of(Section.ALERTS)).maxAlerts(2).build();
 		try (var gum = RainbowGum.builder().build()) {
 			var alerts = gum.config().alerts();
 			alerts.error(LogReporterTest.class, "first", new IllegalStateException());
 			alerts.error(LogReporterTest.class, "second", new IllegalStateException());
 			alerts.error(LogReporterTest.class, "third", new IllegalStateException());
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			assertTrue(actual.startsWith("Alerts (total=3, capacity=512):\n"), actual);
 			assertTrue(actual.contains("second"), actual);
 			assertTrue(actual.contains("third"), actual);
@@ -197,12 +223,12 @@ class LogReporterTest {
 
 	@Test
 	void testLoggers() {
-		var reporter = LogReporter.builder().sections(EnumSet.of(Section.LOGGERS)).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.of(Section.LOGGERS)).build();
 		try (var gum = RainbowGum.builder().build()) {
 			var registry = gum.config().loggerRegistry();
 			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Bar");
 			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			String expected = """
 					Loggers:
 					  com.example.Bar = ALL
@@ -214,10 +240,10 @@ class LogReporterTest {
 
 	@Test
 	void testLoggersWithoutLevels() {
-		var reporter = LogReporter.builder().sections(EnumSet.of(Section.LOGGERS)).loggerLevels(false).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.of(Section.LOGGERS)).loggerLevels(false).build();
 		try (var gum = RainbowGum.builder().build()) {
 			gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Foo");
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			String expected = """
 					Loggers:
 					  com.example.Foo
@@ -228,13 +254,13 @@ class LogReporterTest {
 
 	@Test
 	void testFacades() {
-		var reporter = LogReporter.builder().sections(EnumSet.of(Section.FACADES)).build();
+		var options = LogReporter.Options.builder().sections(EnumSet.of(Section.FACADES)).build();
 		try (var gum = RainbowGum.builder().build()) {
 			var registry = gum.config().loggerRegistry();
 			registry.registerLoggerName(LoggerAPI.Standard.JUL, "com.example.Foo");
 			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Bar");
 			registry.registerLoggerName(LoggerAPI.Standard.SLF4J, "com.example.Baz");
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			String expected = """
 					Facades:
 					  JUL

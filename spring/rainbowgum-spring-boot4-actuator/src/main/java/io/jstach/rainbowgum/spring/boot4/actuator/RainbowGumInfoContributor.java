@@ -16,11 +16,8 @@ import io.jstach.rainbowgum.RainbowGum;
  * {@code /actuator/info}, nested under a single {@value #DETAIL_KEY} key so it does not
  * collide with any other contributor's own top level keys.
  * <p>
- * Each section is rendered by its own single-section {@link LogReporter} rather than one
- * shared reporter split apart afterward: {@link LogReporter} has no API for rendering an
- * already-built report piecemeal, and building a fresh single-section instance per call
- * is cheap (an {@code EnumSet} and a couple of fields, no I/O) compared to the actual
- * report content itself.
+ * Each section is rendered as its own single-section report from the bound config's
+ * {@link LogReporter}.
  */
 final class RainbowGumInfoContributor implements InfoContributor {
 
@@ -41,8 +38,8 @@ final class RainbowGumInfoContributor implements InfoContributor {
 		}
 		Map<String, String> sections = new LinkedHashMap<>();
 		for (Section section : Section.values()) {
-			var reporter = LogReporter.builder().section(section).build();
-			sections.put(section.name().toLowerCase(Locale.ROOT), reporter.report(gum));
+			sections.put(section.name().toLowerCase(Locale.ROOT),
+					gum.config().reporter().report(LogReporter.Options.of(section)));
 		}
 		builder.withDetail(DETAIL_KEY, sections);
 	}

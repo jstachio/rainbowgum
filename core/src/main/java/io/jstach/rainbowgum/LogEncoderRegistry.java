@@ -140,6 +140,7 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	}
 
 	private static boolean ansiDisabled(LogConfig config) {
+		config.reporter().addProperty(LogEncoderRegistry.class, LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY);
 		return config.properties()
 			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
 			.ofBoolean()

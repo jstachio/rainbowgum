@@ -105,8 +105,8 @@ class RainbowGumLoggerFactoryTest {
 		var rainbowgum = gum(new ListLogOutput(), LogProperties.StandardProperties.EMPTY);
 		var factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		factory.getLogger("com.example.Foo");
-		var reporter = LogReporter.builder().section(LogReporter.Section.LOGGERS).build();
-		assertTrue(reporter.report(rainbowgum).contains("com.example.Foo"));
+		var options = LogReporter.Options.builder().section(LogReporter.Section.LOGGERS).build();
+		assertTrue(rainbowgum.config().reporter().report(options).contains("com.example.Foo"));
 	}
 
 	@Test

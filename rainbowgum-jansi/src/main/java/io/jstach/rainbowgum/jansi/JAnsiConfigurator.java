@@ -46,6 +46,7 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 		if (!System.getProperty("surefire.real.class.path", "").isEmpty()) {
 			return false;
 		}
+		config.reporter().addProperty(JAnsiConfigurator.class, JANSI_DISABLE);
 		var disableProperty = Boolean.parseBoolean(config.properties().valueOrNull(JANSI_DISABLE));
 		if (disableProperty) {
 			return false;
@@ -54,6 +55,7 @@ public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator
 	}
 
 	private boolean isGlobalAnsiDisabled(LogConfig config) {
+		config.reporter().addProperty(JAnsiConfigurator.class, LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY);
 		return config.properties()
 			.forKey(LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY)
 			.ofBoolean() //

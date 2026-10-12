@@ -128,7 +128,7 @@ class LogReporterKitchenSinkTest {
 			diagnosticsLogger.debug("trigger");
 			diagnosticsLogger.debug("boom");
 
-			var reporter = LogReporter.builder()
+			var options = LogReporter.Options.builder()
 				.sections(EnumSet.of(Section.VERSION, Section.COMPONENTS, Section.METRICS, Section.ALERTS,
 						Section.LOGGERS, Section.FACADES))
 				/*
@@ -139,21 +139,22 @@ class LogReporterKitchenSinkTest {
 				 */
 				.alertFormatter(LogFormatter.builder().level().text(" ").loggerName().text(" - ").message().build())
 				.build();
-			String actual = reporter.report(gum);
+			String actual = gum.config().reporter().report(options);
 			System.out.println(actual);
 
 			String expected = """
 					Rainbow Gum VERSION_PLACEHOLDER
 
 					Properties: SYSTEM_PROPERTIES, io.jstach.rainbowgum.avaje.AvajeProperties
-					Global Properties:
-					  logging.change.mode = (unset)
-					  logging.global.queue.level = (unset)
-					  logging.global.queue.error = (unset)
-					  logging.global.ansi.disable = (unset)
-					  logging.global.appender.reentrantLock = (unset)
-					  logging.global.threadlocalDisabled = (unset)
-					  logging.global.optimize = true
+					Reported Properties:
+					  logging.change.mode = (unset) (io.jstach.rainbowgum)
+					  logging.global.ansi.disable = (unset) (io.jstach.rainbowgum.pattern.format)
+					  logging.global.appender.reentrantLock = (unset) (io.jstach.rainbowgum)
+					  logging.global.optimize = true (io.jstach.rainbowgum)
+					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
+					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+					  logging.global.threadlocalDisabled = (unset) (io.jstach.rainbowgum)
+					  logging.pattern.disable = (unset) (io.jstach.rainbowgum.pattern.format)
 					Debug mode: OFF
 
 					Router: structured

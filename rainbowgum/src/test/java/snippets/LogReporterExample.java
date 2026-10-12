@@ -16,10 +16,10 @@ public class LogReporterExample {
 	 * admin endpoint, or just log it once at startup.
 	 */
 	public String diagnosticReport(RainbowGum gum) {
-		var reporter = LogReporter.builder()
+		var options = LogReporter.Options.builder()
 			.sections(EnumSet.of(Section.VERSION, Section.COMPONENTS, Section.METRICS, Section.ALERTS))
 			.build();
-		return reporter.report(gum);
+		return gum.config().reporter().report(options);
 	}
 	// @end
 

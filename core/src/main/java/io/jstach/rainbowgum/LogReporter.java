@@ -9,14 +9,21 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.jspecify.annotations.Nullable;
 
 /**
- * Renders a diagnostic report of a bound {@link RainbowGum}: which sections are included
- * ({@link Section#VERSION}, {@link Section#COMPONENTS}, {@link Section#METRICS},
- * {@link Section#ALERTS}) depends on how the {@link Builder} that created this reporter
- * was configured.
+ * Renders a diagnostic report of a {@link LogConfig} and, once one is built from it, its
+ * {@link RainbowGum}. Each config has its own reporter, see {@link LogConfig#reporter()}.
+ * Which sections are included ({@link Section#VERSION}, {@link Section#COMPONENTS},
+ * {@link Section#METRICS}, {@link Section#ALERTS}, ...) is chosen per report with
+ * {@link Options}.
+ * <p>
+ * Components that read a property worth seeing in every report add its key with
+ * {@link #addProperty(Class, String)}, and {@link Section#COMPONENTS} lists those keys
+ * with their current values and the packages that added them.
  *
  * @apiNote The rendered output's format carries <strong>no compatibility guarantee
  * whatsoever</strong>. It is meant to be read by a human, or an agent, while setting
@@ -26,25 +33,36 @@ import org.jspecify.annotations.Nullable;
 public sealed interface LogReporter permits DefaultLogReporter {
 
 	/**
-	 * Writes the report for the given RainbowGum directly to the given appendable, rather
-	 * than building the whole report in memory first, so a caller can stream straight
-	 * into a {@link java.io.Writer}/response even while the system is in a degraded
-	 * state.
-	 * @param gum bound RainbowGum instance to report on.
+	 * Adds a property key whose current value is included in every report, attributed to
+	 * the package of the given class. Adding the same key from the same package again has
+	 * no effect; adding it from another package adds that package to the key's
+	 * attribution.
+	 * @param source class reading the property.
+	 * @param key full property key.
+	 */
+	void addProperty(Class<?> source, String key);
+
+	/**
+	 * Writes the report directly to the given appendable, rather than building the whole
+	 * report in memory first, so a caller can stream straight into a
+	 * {@link java.io.Writer}/response even while the system is in a degraded state.
+	 * Before a {@link RainbowGum} is built from the config, {@link Section#COMPONENTS}
+	 * has no routers to list.
+	 * @param options which sections to include and how.
 	 * @param appendable destination.
 	 * @throws IOException if the appendable throws.
 	 */
-	void report(RainbowGum gum, Appendable appendable) throws IOException;
+	void report(Options options, Appendable appendable) throws IOException;
 
 	/**
 	 * Writes the report to a {@link StringBuilder}, which never actually throws
 	 * {@link IOException} in practice, so callers do not need to handle one.
-	 * @param gum bound RainbowGum instance to report on.
+	 * @param options which sections to include and how.
 	 * @param sb destination.
 	 */
-	default void report(RainbowGum gum, StringBuilder sb) {
+	default void report(Options options, StringBuilder sb) {
 		try {
-			report(gum, (Appendable) sb);
+			report(options, (Appendable) sb);
 		}
 		catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -53,13 +71,22 @@ public sealed interface LogReporter permits DefaultLogReporter {
 
 	/**
 	 * Renders the report as a String.
-	 * @param gum bound RainbowGum instance to report on.
+	 * @param options which sections to include and how.
 	 * @return report.
 	 */
-	default String report(RainbowGum gum) {
+	default String report(Options options) {
 		var sb = new StringBuilder();
-		report(gum, sb);
+		report(options, sb);
 		return sb.toString();
+	}
+
+	/**
+	 * Renders the report with the default options as a String.
+	 * @return report.
+	 * @see Options.Builder#build()
+	 */
+	default String report() {
+		return report(Options.DEFAULT);
 	}
 
 	/**
@@ -134,13 +161,13 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		METRICS,
 		/**
 		 * Recent entries from {@link LogConfig#alerts()}, see
-		 * {@link Builder#maxAlerts(int)}.
+		 * {@link Options.Builder#maxAlerts(int)}.
 		 */
 		ALERTS,
 		/**
 		 * Logger names registered via
 		 * {@link LogConfig.LoggerRegistry#registerLoggerName(LoggerAPI, String)}, each
-		 * with its resolved level, see {@link Builder#loggerLevels(boolean)}.
+		 * with its resolved level, see {@link Options.Builder#loggerLevels(boolean)}.
 		 */
 		LOGGERS,
 		/**
@@ -154,132 +181,184 @@ public sealed interface LogReporter permits DefaultLogReporter {
 	}
 
 	/**
-	 * Creates a builder.
-	 * @return builder.
+	 * Which sections a report includes and how they are rendered.
 	 */
-	static Builder builder() {
-		return new Builder();
-	}
+	final class Options {
 
-	/**
-	 * Builds a {@link LogReporter}.
-	 */
-	final class Builder {
-
-		private static final Set<Section> DEFAULT_SECTIONS = EnumSet.of(Section.VERSION, Section.COMPONENTS);
-
-		private static final LogFormatter DEFAULT_ALERT_FORMATTER = LogFormatter.builder()
-			.text("[")
-			.timeStamp()
-			.text("] ")
-			.level()
-			.text(" ")
-			.loggerName()
-			.text(" - ")
-			.message()
-			.build();
-
-		private final EnumSet<Section> sections = EnumSet.noneOf(Section.class);
-
-		private int maxAlerts = 5;
-
-		private LogFormatter alertFormatter = DEFAULT_ALERT_FORMATTER;
-
-		private boolean loggerLevels = true;
-
-		private Builder() {
-		}
-
-		/**
-		 * Replaces the set of sections to print. An empty set is treated the same as
-		 * never calling this method at all: the default sections
-		 * ({@link Section#VERSION}, {@link Section#COMPONENTS}) are used.
-		 * @param sections sections to print.
-		 * @return this.
+		/*
+		 * The default sections and settings.
 		 */
-		public Builder sections(Set<Section> sections) {
-			this.sections.clear();
-			this.sections.addAll(sections);
-			return this;
-		}
+		static final Options DEFAULT = builder().build();
 
-		/**
-		 * Adds a single section to print, in addition to any already added.
-		 * @param section section to print.
-		 * @return this.
-		 */
-		public Builder section(Section section) {
-			this.sections.add(section);
-			return this;
-		}
+		final Set<Section> sections;
 
-		/**
-		 * Maximum number of most recent alerts to print when {@link Section#ALERTS} is
-		 * included. Oldest-first entries beyond this count are omitted, not truncated mid
-		 * list. Default is 5.
-		 * @param maxAlerts maximum alerts to print, zero or greater.
-		 * @return this.
-		 */
-		public Builder maxAlerts(int maxAlerts) {
-			if (maxAlerts < 0) {
-				throw new IllegalArgumentException("maxAlerts must be zero or greater: " + maxAlerts);
-			}
+		final int maxAlerts;
+
+		final LogFormatter alertFormatter;
+
+		final boolean loggerLevels;
+
+		private Options(Set<Section> sections, int maxAlerts, LogFormatter alertFormatter, boolean loggerLevels) {
+			this.sections = sections;
 			this.maxAlerts = maxAlerts;
-			return this;
-		}
-
-		/**
-		 * Formatter used to render each alert entry when {@link Section#ALERTS} is
-		 * included. Alerts are just {@link LogEvent}s (see {@link LogAlerts#dump()}), so
-		 * any {@link LogFormatter} works here, e.g. one that omits the timestamp for a
-		 * deterministic report. Default prints
-		 * <code>[timestamp] LEVEL loggerName - message</code>.
-		 * @param alertFormatter formatter for a single alert.
-		 * @return this.
-		 */
-		public Builder alertFormatter(LogFormatter alertFormatter) {
-			this.alertFormatter = Objects.requireNonNull(alertFormatter);
-			return this;
-		}
-
-		/**
-		 * Whether to resolve and print each logger's level, via
-		 * {@link LogConfig#levelResolver()}, next to its name when
-		 * {@link Section#LOGGERS} is included. Default is <code>true</code>.
-		 * @param loggerLevels false to print just the bare logger names.
-		 * @return this.
-		 */
-		public Builder loggerLevels(boolean loggerLevels) {
+			this.alertFormatter = alertFormatter;
 			this.loggerLevels = loggerLevels;
-			return this;
 		}
 
 		/**
-		 * Builds the reporter.
-		 * @return reporter.
+		 * Creates a builder.
+		 * @return builder.
 		 */
-		public LogReporter build() {
-			Set<Section> resolved = sections.isEmpty() ? DEFAULT_SECTIONS : EnumSet.copyOf(sections);
-			return new DefaultLogReporter(resolved, maxAlerts, alertFormatter, loggerLevels);
+		public static Builder builder() {
+			return new Builder();
+		}
+
+		/**
+		 * Options for a report of only the given section with otherwise default settings.
+		 * @param section section to include.
+		 * @return options.
+		 */
+		public static Options of(Section section) {
+			return builder().section(section).build();
+		}
+
+		/**
+		 * Builds {@link Options}.
+		 */
+		public static final class Builder {
+
+			private static final Set<Section> DEFAULT_SECTIONS = EnumSet.of(Section.VERSION, Section.COMPONENTS);
+
+			private static final LogFormatter DEFAULT_ALERT_FORMATTER = LogFormatter.builder()
+				.text("[")
+				.timeStamp()
+				.text("] ")
+				.level()
+				.text(" ")
+				.loggerName()
+				.text(" - ")
+				.message()
+				.build();
+
+			private final EnumSet<Section> sections = EnumSet.noneOf(Section.class);
+
+			private int maxAlerts = 5;
+
+			private LogFormatter alertFormatter = DEFAULT_ALERT_FORMATTER;
+
+			private boolean loggerLevels = true;
+
+			private Builder() {
+			}
+
+			/**
+			 * Replaces the set of sections to print. An empty set is treated the same as
+			 * never calling this method at all: the default sections
+			 * ({@link Section#VERSION}, {@link Section#COMPONENTS}) are used.
+			 * @param sections sections to print.
+			 * @return this.
+			 */
+			public Builder sections(Set<Section> sections) {
+				this.sections.clear();
+				this.sections.addAll(sections);
+				return this;
+			}
+
+			/**
+			 * Adds a single section to print, in addition to any already added.
+			 * @param section section to print.
+			 * @return this.
+			 */
+			public Builder section(Section section) {
+				this.sections.add(section);
+				return this;
+			}
+
+			/**
+			 * Maximum number of most recent alerts to print when {@link Section#ALERTS}
+			 * is included. Oldest-first entries beyond this count are omitted, not
+			 * truncated mid list. Default is 5.
+			 * @param maxAlerts maximum alerts to print, zero or greater.
+			 * @return this.
+			 */
+			public Builder maxAlerts(int maxAlerts) {
+				if (maxAlerts < 0) {
+					throw new IllegalArgumentException("maxAlerts must be zero or greater: " + maxAlerts);
+				}
+				this.maxAlerts = maxAlerts;
+				return this;
+			}
+
+			/**
+			 * Formatter used to render each alert entry when {@link Section#ALERTS} is
+			 * included. Alerts are just {@link LogEvent}s (see {@link LogAlerts#dump()}),
+			 * so any {@link LogFormatter} works here, e.g. one that omits the timestamp
+			 * for a deterministic report. Default prints
+			 * <code>[timestamp] LEVEL loggerName - message</code>.
+			 * @param alertFormatter formatter for a single alert.
+			 * @return this.
+			 */
+			public Builder alertFormatter(LogFormatter alertFormatter) {
+				this.alertFormatter = Objects.requireNonNull(alertFormatter);
+				return this;
+			}
+
+			/**
+			 * Whether to resolve and print each logger's level, via
+			 * {@link LogConfig#levelResolver()}, next to its name when
+			 * {@link Section#LOGGERS} is included. Default is <code>true</code>.
+			 * @param loggerLevels false to print just the bare logger names.
+			 * @return this.
+			 */
+			public Builder loggerLevels(boolean loggerLevels) {
+				this.loggerLevels = loggerLevels;
+				return this;
+			}
+
+			/**
+			 * Builds the options. With no sections added the default sections
+			 * ({@link Section#VERSION}, {@link Section#COMPONENTS}) are used.
+			 * @return options.
+			 */
+			public Options build() {
+				Set<Section> resolved = sections.isEmpty() ? DEFAULT_SECTIONS : EnumSet.copyOf(sections);
+				return new Options(resolved, maxAlerts, alertFormatter, loggerLevels);
+			}
+
 		}
 
 	}
 
 }
 
-record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogFormatter alertFormatter,
-		boolean loggerLevels) implements LogReporter {
+abstract sealed class DefaultLogReporter implements LogReporter permits DefaultLogConfig.Reporter {
 
 	/*
-	 * Every one of these is already a named constant in LogProperties, printed as
-	 * "key = value" rather than modeled as a new type, since none of these is a leaf on
-	 * the component tree below: they are process wide context that colors how to read
-	 * everything that follows.
+	 * Written while the config and its RainbowGum are built, read by reports from any
+	 * thread.
 	 */
-	private static final List<String> GLOBAL_PROPERTY_KEYS = List.of(LogProperties.CHANGE_MODE_PROPERTY,
-			LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY, LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY,
-			LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY, LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY,
-			LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY, LogProperties.GLOBAL_OPTIMIZE_PROPERTY);
+	private final ConcurrentSkipListMap<String, Set<String>> properties = new ConcurrentSkipListMap<>();
+
+	private volatile LogRouter.@Nullable RootRouter router;
+
+	abstract LogConfig config();
+
+	/*
+	 * Called once the RainbowGum built from the config has its router.
+	 */
+	void bind(LogRouter.RootRouter router) {
+		this.router = router;
+	}
+
+	@Override
+	public void addProperty(Class<?> source, String key) {
+		Objects.requireNonNull(key);
+		/*
+		 * The package, not the module name, so the report is the same on the class path
+		 * and the module path.
+		 */
+		properties.computeIfAbsent(key, k -> new ConcurrentSkipListSet<>()).add(source.getPackageName());
+	}
 
 	/*
 	 * Every section is separated from the next by exactly one blank line, added here
@@ -290,16 +369,17 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 	 * followed by METRICS printed with no separating blank line at all.
 	 */
 	@Override
-	public void report(RainbowGum gum, Appendable out) throws IOException {
+	public void report(Options options, Appendable out) throws IOException {
+		var sections = options.sections;
 		boolean first = true;
 		if (sections.contains(LogReporter.Section.VERSION)) {
 			first = appendSeparator(out, first);
 			appendVersion(out);
 		}
-		var config = gum.config();
+		var config = config();
 		if (sections.contains(LogReporter.Section.COMPONENTS)) {
 			first = appendSeparator(out, first);
-			appendComponents(out, gum, config);
+			appendComponents(out, config);
 		}
 		if (sections.contains(LogReporter.Section.METRICS)) {
 			first = appendSeparator(out, first);
@@ -307,11 +387,11 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 		}
 		if (sections.contains(LogReporter.Section.ALERTS)) {
 			first = appendSeparator(out, first);
-			appendAlerts(out, config.alerts());
+			appendAlerts(out, config.alerts(), options);
 		}
 		if (sections.contains(LogReporter.Section.LOGGERS)) {
 			first = appendSeparator(out, first);
-			appendLoggers(out, config);
+			appendLoggers(out, config, options);
 		}
 		if (sections.contains(LogReporter.Section.FACADES)) {
 			first = appendSeparator(out, first);
@@ -330,23 +410,35 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 		out.append("Rainbow Gum ").append(RainbowGumVersion.VERSION).append("\n");
 	}
 
-	private void appendComponents(Appendable out, RainbowGum gum, LogConfig config) throws IOException {
-		appendGlobalProperties(out, config.properties());
+	private void appendComponents(Appendable out, LogConfig config) throws IOException {
+		appendProperties(out, config.properties());
 		out.append("Debug mode: ").append(config.debugMode().toString()).append("\n");
 		out.append("\n");
-		for (var router : routersOf(gum.router())) {
+		var root = this.router;
+		if (root == null) {
+			out.append("(no RainbowGum built from this config yet)\n");
+			return;
+		}
+		for (var router : routersOf(root)) {
 			appendRouter(out, config, router);
 		}
 	}
 
-	private void appendGlobalProperties(Appendable out, LogProperties properties) throws IOException {
+	private void appendProperties(Appendable out, LogProperties properties) throws IOException {
 		out.append("Properties: ");
 		LogPropertiesReporting.describe(out, properties);
 		out.append("\n");
-		out.append("Global Properties:\n");
-		for (String key : GLOBAL_PROPERTY_KEYS) {
+		out.append("Reported Properties:\n");
+		for (var entry : this.properties.entrySet()) {
+			String key = entry.getKey();
 			String value = properties.valueOrNull(key);
-			out.append("  ").append(key).append(" = ").append(value == null ? "(unset)" : value).append("\n");
+			out.append("  ")
+				.append(key)
+				.append(" = ")
+				.append(value == null ? "(unset)" : value)
+				.append(" (")
+				.append(String.join(", ", entry.getValue()))
+				.append(")\n");
 		}
 	}
 
@@ -486,7 +578,7 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 		}
 	}
 
-	private void appendAlerts(Appendable out, LogAlerts alerts) throws IOException {
+	private void appendAlerts(Appendable out, LogAlerts alerts, Options options) throws IOException {
 		var stats = alerts.stats();
 		out.append("Alerts (total=")
 			.append(Long.toString(stats.total()))
@@ -494,16 +586,16 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 			.append(Integer.toString(stats.capacity()))
 			.append("):\n");
 		var dump = alerts.dump();
-		int show = Math.min(dump.size(), maxAlerts);
+		int show = Math.min(dump.size(), options.maxAlerts);
 		StringBuilder line = new StringBuilder();
 		for (var event : dump.subList(dump.size() - show, dump.size())) {
 			line.setLength(0);
-			alertFormatter.format(line, event);
+			options.alertFormatter.format(line, event);
 			out.append("  ").append(line).append("\n");
 		}
 	}
 
-	private void appendLoggers(Appendable out, LogConfig config) throws IOException {
+	private void appendLoggers(Appendable out, LogConfig config, Options options) throws IOException {
 		out.append("Loggers:\n");
 		/*
 		 * DefaultLoggerRegistry is the only implementation (LogConfig.LoggerRegistry
@@ -514,7 +606,7 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 		var registry = (DefaultLoggerRegistry) config.loggerRegistry();
 		for (String name : new TreeSet<>(registry.loggerNames())) {
 			out.append("  ").append(name);
-			if (loggerLevels) {
+			if (options.loggerLevels) {
 				out.append(" = ").append(config.levelResolver().resolveLevel(name).toString());
 			}
 			out.append("\n");

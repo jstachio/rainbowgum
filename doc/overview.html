@@ -1878,8 +1878,9 @@ For a Spring Boot 4 application, these <code>StandardMetric</code> values, and t
 
 <h3 id="reporting">Reporting</h3>
 
-{@link io.jstach.rainbowgum.LogReporter} renders a plain text diagnostic report of a bound
-{@link io.jstach.rainbowgum.RainbowGum}: the wired component tree itself (which concrete
+{@link io.jstach.rainbowgum.LogReporter}, from {@link io.jstach.rainbowgum.LogConfig#reporter()},
+renders a plain text diagnostic report of a config and the {@link io.jstach.rainbowgum.RainbowGum}
+built from it: the wired component tree itself (which concrete
 appender, encoder, and output actually got selected for each route, not just what was
 configured), plus <a href="#alerts">alerts</a> and <a href="#metrics">metrics</a> above, all in
 one place. It is meant to be read by a human, or an agent, while setting things up or
@@ -1888,11 +1889,11 @@ carries no compatibility guarantee and may change between any two releases, incl
 releases.
 
 <p>
-{@link io.jstach.rainbowgum.LogReporter.Builder} controls which
+{@link io.jstach.rainbowgum.LogReporter.Options} controls which
 {@link io.jstach.rainbowgum.LogReporter.Section sections} are printed
 ({@code VERSION}, {@code COMPONENTS}, {@code METRICS}, {@code ALERTS}, {@code LOGGERS}, {@code FACADES}).
 {@code LOGGERS} lists the logger names the logging facades have created, each with its resolved level
-unless {@link io.jstach.rainbowgum.LogReporter.Builder#loggerLevels(boolean) loggerLevels(false)} is set, and
+unless {@link io.jstach.rainbowgum.LogReporter.Options.Builder#loggerLevels(boolean) loggerLevels(false)} is set, and
 {@code FACADES} lists which facades (SLF4J, JUL, and so on) have actually created loggers. The default is
 just {@code VERSION} and {@code COMPONENTS}: the other sections are usually more useful pulled
 independently the way the sections above already show, so a report only includes them if asked.
@@ -1901,8 +1902,17 @@ independently the way the sections above already show, so a report only includes
 {@snippet class="snippets.LogReporterExample" region="reportingExample" }
 
 <p>
+{@code COMPONENTS} also lists properties worth seeing in every report, such as
+<code>logging.change.mode</code>, with their current values. Rather than a fixed list, the
+component that reads such a property adds its key with
+{@link io.jstach.rainbowgum.LogReporter#addProperty(Class, String)}, so a module's own switches (for
+example <code>logging.jul.disable</code>) appear only when that module is in use. Each key shows the
+packages that read it.
+</p>
+
+<p>
 Since alerts are just {@link io.jstach.rainbowgum.LogEvent}s like any other,
-{@link io.jstach.rainbowgum.LogReporter.Builder#alertFormatter(io.jstach.rainbowgum.LogFormatter)}
+{@link io.jstach.rainbowgum.LogReporter.Options.Builder#alertFormatter(io.jstach.rainbowgum.LogFormatter)}
 lets you swap in a different {@link io.jstach.rainbowgum.LogFormatter} for how each one is
 rendered, for example to leave the (otherwise non-deterministic) timestamp out of a report you
 intend to golden-string test.
