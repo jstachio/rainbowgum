@@ -1,14 +1,15 @@
+// @start region="gettingStarted"
 package snippets;
 
 import java.lang.System.Logger.Level;
 import java.util.Optional;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogOutput;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider;
 
-// @start region="gettingStarted"
 public class GettingStartedExample implements RainbowGumProvider {
 
 	@Override
@@ -18,6 +19,7 @@ public class GettingStartedExample implements RainbowGumProvider {
 			.route(r -> {
 				r.level(Level.DEBUG, "com.myapp");
 				r.appender("console", a -> {
+					a.output(LogOutput.ofStandardOut());
 					a.encoder(new PatternEncoderBuilder("console")
 						// We use the pattern encoder which follows logback pattern
 						// syntax.

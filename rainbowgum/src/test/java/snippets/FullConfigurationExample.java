@@ -37,6 +37,9 @@ public class FullConfigurationExample implements RainbowGumProvider {
 			}) //
 			.route("structured", r -> {
 				r.level(Level.DEBUG, "com.mycompany.orders");
+				r.level(Level.WARNING, "org.apache.http");
+				r.level(Level.WARNING, "io.netty");
+				r.level(Level.WARNING, "com.zaxxer.hikari");
 				r.publisher(PublisherFactory.async().bufferSize(2048).build());
 				r.appender("detailfile", a -> {
 					/*

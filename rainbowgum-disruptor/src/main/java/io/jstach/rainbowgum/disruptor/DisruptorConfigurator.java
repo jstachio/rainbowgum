@@ -62,6 +62,13 @@ public class DisruptorConfigurator implements Configurator {
 	 */
 	public final static int DEFAULT_BUFFER_SIZE = LogPublisherRegistry.ASYNC_BUFFER_SIZE;
 
+	/**
+	 * Creates the disruptor publisher. It has no shutdown timeout setting.
+	 * @param name route name.
+	 * @param scheme publisher scheme as written in the route's publisher uri.
+	 * @param bufferSize ring buffer size, which must be a power of two.
+	 * @return publisher factory.
+	 */
 	@LogConfigurable(prefix = LogProperties.PUBLISHER_PREFIX + "{" + LogPublisherRegistry.SCHEME + "}.",
 			name = "DisruptorLogBuilder")
 	static PublisherFactory of(@LogConfigurable.KeyParameter String name, @LogConfigurable.KeyParameter String scheme,

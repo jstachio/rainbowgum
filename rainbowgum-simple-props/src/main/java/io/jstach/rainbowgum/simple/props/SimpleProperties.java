@@ -278,11 +278,11 @@ public final class SimpleProperties {
 
 		/**
 		 * Sets the environment variable prefix used in place of the key's
-		 * {@code "logging."} lead segment (for example {@code logging.level.root} becomes
-		 * {@code RAINBOWGUM_level_root} with the default prefix). Casing is not touched -
-		 * only the prefix and the remaining <code>.</code>-to-<code>_</code> replacement
-		 * are applied - so a key with mixed-case segments produces a mixed-case
-		 * environment variable name.
+		 * {@code "logging."} lead segment (for example {@code logging.level.com.myapp}
+		 * becomes {@code RAINBOWGUM_level_com_myapp} with the default prefix). Casing is
+		 * not changed: only the prefix and the <code>.</code> to <code>_</code>
+		 * replacement are applied, so a key with mixed-case segments produces a
+		 * mixed-case environment variable name.
 		 * @param envPrefix prefix, default {@value #DEFAULT_ENV_PREFIX}.
 		 * @return this.
 		 */
