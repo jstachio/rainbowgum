@@ -2047,12 +2047,12 @@ is enough. That dependency transitively pulls in core, the SLF4J binding, and th
 <table class="table">
 <caption><strong>Modules for URI schemes not in core</strong></caption>
 <tr><th>Scheme</th><th>Kind</th><th>Module</th></tr>
-<tr><td><code>pattern</code></td><td>encoder</td><td><code>rainbowgum-pattern</code></td></tr>
-<tr><td><code>gelf</code>, <code>ecs</code>, <code>logstash</code>, <code>logback</code></td><td>encoder</td><td><code>rainbowgum-json</code></td></tr>
-<tr><td><code>file</code>, <code>rolling</code></td><td>output</td><td><code>rainbowgum-file</code></td></tr>
-<tr><td><code>jfr</code></td><td>output</td><td><code>rainbowgum-jfr</code></td></tr>
-<tr><td><code>otlp</code></td><td>output and encoder</td><td><code>rainbowgum-otlp</code></td></tr>
-<tr><td><code>disruptor</code></td><td>publisher</td><td><code>rainbowgum-disruptor</code></td></tr>
+<tr><td>{@link io.jstach.rainbowgum.pattern/ pattern}</td><td>encoder</td><td><code>rainbowgum-pattern</code></td></tr>
+<tr><td>{@link io.jstach.rainbowgum.json/ gelf}, {@link io.jstach.rainbowgum.json/ ecs}, {@link io.jstach.rainbowgum.json/ logstash}, {@link io.jstach.rainbowgum.json/ logback}</td><td>encoder</td><td><code>rainbowgum-json</code></td></tr>
+<tr><td>{@link io.jstach.rainbowgum.file/ file}, {@link io.jstach.rainbowgum.file/ rolling}</td><td>output</td><td><code>rainbowgum-file</code></td></tr>
+<tr><td>{@link io.jstach.rainbowgum.jfr/ jfr}</td><td>output</td><td><code>rainbowgum-jfr</code></td></tr>
+<tr><td>{@link io.jstach.rainbowgum.otlp/ otlp}</td><td>output and encoder</td><td><code>rainbowgum-otlp</code></td></tr>
+<tr><td>{@link io.jstach.rainbowgum.disruptor/ disruptor}</td><td>publisher</td><td><code>rainbowgum-disruptor</code></td></tr>
 </table>
 
 Application code that uses the SLF4J API also needs <code>org.slf4j:slf4j-api</code> at compile scope,
