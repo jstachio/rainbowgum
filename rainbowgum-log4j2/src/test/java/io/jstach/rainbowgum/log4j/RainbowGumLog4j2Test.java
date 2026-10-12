@@ -151,7 +151,7 @@ class RainbowGumLog4j2Test {
 		try {
 			Logger log = LogManager.getLogger("log4j2.native.not.changeable");
 			assertInstanceOf(LevelLogger.class, log,
-					"a name with no logging.change.<name>=true must get the level-once-resolved LevelLogger");
+					"a name with no logging.change.logger.<name>=true must get the level-once-resolved LevelLogger");
 		}
 		finally {
 			RainbowGum.builder(LogConfig.builder().build()).unset();
@@ -164,8 +164,8 @@ class RainbowGumLog4j2Test {
 		Map<String, String> m = new LinkedHashMap<>();
 		m.put("logging.level." + name, "ERROR");
 		String global = """
-				logging.global.change=true
-				logging.change.%s=true
+				logging.change.mode=on
+				logging.change.logger.%s=true
 				""".formatted(name);
 		var props = LogProperties.builder()
 			.fromFunction(m::get)
@@ -177,7 +177,7 @@ class RainbowGumLog4j2Test {
 		try {
 			Logger log = LogManager.getLogger(name);
 			assertInstanceOf(RainbowGumLogger.class, log,
-					"logging.change.<name>=true must get the dynamic, re-resolving RainbowGumLogger");
+					"logging.change.logger.<name>=true must get the dynamic, re-resolving RainbowGumLogger");
 			assertTrue(log.isErrorEnabled());
 			assertFalse(log.isDebugEnabled());
 

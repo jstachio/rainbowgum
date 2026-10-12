@@ -205,7 +205,7 @@ class RouterTest {
 		 */
 		var props = LogProperties.MutableLogProperties.builder()
 			.build()
-			.put("logging.global.change", "true")
+			.put("logging.change.mode", "on")
 			.put("logging.route.errors.level.com.mycompany", "ERROR");
 		var config = LogConfig.builder().properties(props).build();
 

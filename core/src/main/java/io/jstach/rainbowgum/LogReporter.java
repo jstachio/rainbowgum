@@ -276,7 +276,7 @@ record DefaultLogReporter(Set<LogReporter.Section> sections, int maxAlerts, LogF
 	 * the component tree below: they are process wide context that colors how to read
 	 * everything that follows.
 	 */
-	private static final List<String> GLOBAL_PROPERTY_KEYS = List.of(LogProperties.GLOBAL_CHANGE_PROPERTY,
+	private static final List<String> GLOBAL_PROPERTY_KEYS = List.of(LogProperties.CHANGE_MODE_PROPERTY,
 			LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY, LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY,
 			LogProperties.GLOBAL_ANSI_DISABLE_PROPERTY, LogProperties.GLOBAL_APPENDER_REENTRANT_LOCK_PROPERTY,
 			LogProperties.GLOBAL_THREADLOCAL_DISABLED_PROPERTY, LogProperties.GLOBAL_OPTIMIZE_PROPERTY);

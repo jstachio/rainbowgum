@@ -65,10 +65,10 @@ final class RainbowGumLoggerContext implements LoggerContext {
 		gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.LOG4J2, name);
 		/*
 		 * Matches rainbowgum-slf4j's RainbowGumLoggerFactory: a name allowed to change
-		 * its level (logging.change.<name>) gets the dynamic RainbowGumLogger, which
-		 * re-resolves the level on every call; everything else (the common case) gets a
-		 * LevelLogger, whose level is resolved once and baked into which subclass got
-		 * picked.
+		 * its level (logging.change.logger.<name>) gets the dynamic RainbowGumLogger,
+		 * which re-resolves the level on every call; everything else (the common case)
+		 * gets a LevelLogger, whose level is resolved once and baked into which subclass
+		 * got picked.
 		 */
 		ExtendedLogger newLogger = gum.config().changePublisher().allowedChanges(name).contains(ChangeType.LEVEL)
 				? new RainbowGumLogger(name, mf) : LevelLogger.of(name, mf);

@@ -149,10 +149,10 @@ public final class SimpleProperties {
 		/**
 		 * Polls the level file, see {@value #LEVEL_FILE_PATH_PROPERTY}. Its
 		 * <code>logging.level</code> keys take precedence over every other source, and
-		 * level changes are allowed unless {@code logging.global.change} or
-		 * {@code logging.change} is set otherwise. Keys may leave off the logging prefix:
-		 * <code>level.com.myco=debug</code> is <code>logging.level.com.myco=debug</code>.
-		 * Other keys in the file are ignored.
+		 * level changes are allowed unless {@code logging.change.mode} or
+		 * {@code logging.change.logger} is set otherwise. Keys may leave off the logging
+		 * prefix: <code>level.com.myco=debug</code> is
+		 * <code>logging.level.com.myco=debug</code>. Other keys in the file are ignored.
 		 */
 		@EnumAlias("true")
 		WATCH;
@@ -444,8 +444,8 @@ public final class SimpleProperties {
 				properties.add(0, levelFile);
 				// Lowest precedence so explicit change settings still win.
 				properties.add(LogProperties.builder()
-					.fromProperties(
-							LogProperties.GLOBAL_CHANGE_PROPERTY + "=true\n" + LogProperties.CHANGE_PREFIX + "=level")
+					.fromProperties(LogProperties.CHANGE_MODE_PROPERTY + "=on\n" + LogProperties.CHANGE_LOGGER_PREFIX
+							+ "=level")
 					.description("LEVEL_FILE_DEFAULT")
 					.order(0)
 					.build());

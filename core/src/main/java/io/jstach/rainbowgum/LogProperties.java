@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperties.Builder.AbstractLogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
@@ -98,12 +99,17 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * root logger. {@link Level#INFO} is the default level for the root logger.</td>
  * </tr>
  * <tr>
- * <td>{@value #CHANGE_PREFIX} + {@value #SEP} + logger = boolean |
+ * <td>{@value #CHANGE_MODE_PROPERTY} = {@link ChangeMode}</td>
+ * <td>Whether runtime changes are on for the configuration. Default is
+ * {@link ChangeMode#OFF}. When on, the loggers that may change are chosen with
+ * {@value #CHANGE_LOGGER_PREFIX}.</td>
+ * </tr>
+ * <tr>
+ * <td>{@value #CHANGE_LOGGER_PREFIX} + {@value #SEP} + logger = boolean |
  * List&lt;{@link ChangeType}&gt;</td>
- * <td>Allows runtime changing of levels for the logger. By design RainbowGum does not
- * allow loggers to change levels once initialized. This configuration will allow the
- * level to be changed for the logger and its children and by default is false as the
- * built-in {@link LogProperties} is generally static (system properties).</td>
+ * <td>What may change at runtime for the logger and its children. By design RainbowGum
+ * does not allow loggers to change levels once initialized. Default is none. Has no
+ * effect unless {@value #CHANGE_MODE_PROPERTY} is on.</td>
  * </tr>
  * <tr>
  * <td>{@value #ROUTES_PROPERTY} = <code>List&lt;String&gt;</code></td>
@@ -218,9 +224,9 @@ public interface LogProperties {
 	static final String GROUP_PROPERTY = ROOT_PREFIX + "group.{name}";
 
 	/**
-	 * Logging change configuration allowed property.
+	 * Whether runtime changes are on: see {@link ChangeMode}.
 	 */
-	static final String GLOBAL_CHANGE_PROPERTY = ROOT_PREFIX + "global.change";
+	static final String CHANGE_MODE_PROPERTY = ROOT_PREFIX + "change.mode";
 
 	/**
 	 * The level threshold of events captured before Rainbow Gum is fully bound. Before
@@ -358,14 +364,15 @@ public interface LogProperties {
 	static final String ALERTS_UNUSED_KEY_PROPERTY = ROOT_PREFIX + "alerts.unusedKey";
 
 	/**
-	 * Logging change properties prefix.
+	 * Per logger change properties prefix: see {@link ChangeType}.
 	 */
-	static final String CHANGE_PREFIX = ROOT_PREFIX + "change";
+	static final String CHANGE_LOGGER_PREFIX = ROOT_PREFIX + "change.logger";
 
 	/**
-	 * Logging caller info properties prefix. Independent of {@link #CHANGE_PREFIX} -
-	 * resolved through its own logger-name hierarchy walk, so a value here can never be
-	 * silently overridden by a more specific {@link #CHANGE_PREFIX} entry or vice versa.
+	 * Logging caller info properties prefix. Independent of {@link #CHANGE_LOGGER_PREFIX}
+	 * and {@link #CHANGE_MODE_PROPERTY}: resolved through its own logger-name hierarchy
+	 * walk, so a value here is never overridden by a more specific
+	 * {@link #CHANGE_LOGGER_PREFIX} entry or vice versa.
 	 */
 	static final String CALLER_PREFIX = ROOT_PREFIX + "caller";
 

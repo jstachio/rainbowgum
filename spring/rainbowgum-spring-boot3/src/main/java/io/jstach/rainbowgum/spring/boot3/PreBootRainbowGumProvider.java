@@ -25,8 +25,8 @@ public class PreBootRainbowGumProvider implements RainbowGumProvider {
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
 		var properties = MutableLogProperties.builder().description("PreBoot properties").build();
-		properties.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true");
-		properties.put(LogProperties.CHANGE_PREFIX, "level");
+		properties.put(LogProperties.CHANGE_MODE_PROPERTY, "on");
+		properties.put(LogProperties.CHANGE_LOGGER_PREFIX, "level");
 		var newConfig = LogConfig.builder().properties(properties).build();
 		newConfig.serviceRegistry().put(BootFlag.class, BootFlag.INSTANCE);
 		return Optional.of(RainbowGum.queued(newConfig));

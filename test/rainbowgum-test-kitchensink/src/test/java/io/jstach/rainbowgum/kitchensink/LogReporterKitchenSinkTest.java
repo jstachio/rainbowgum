@@ -147,7 +147,7 @@ class LogReporterKitchenSinkTest {
 
 					Properties: SYSTEM_PROPERTIES, io.jstach.rainbowgum.avaje.AvajeProperties
 					Global Properties:
-					  logging.global.change = (unset)
+					  logging.change.mode = (unset)
 					  logging.global.queue.level = (unset)
 					  logging.global.queue.error = (unset)
 					  logging.global.ansi.disable = (unset)

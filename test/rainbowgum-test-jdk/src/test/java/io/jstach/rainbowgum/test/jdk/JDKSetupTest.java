@@ -546,8 +546,8 @@ class JDKSetupTest {
 			public LogProperties properties() {
 				return MutableLogProperties.builder()
 					.build()
-					.put(LogProperties.GLOBAL_CHANGE_PROPERTY, "true")
-					.put(LogProperties.CHANGE_PREFIX + "." + "after", "true")
+					.put(LogProperties.CHANGE_MODE_PROPERTY, "on")
+					.put(LogProperties.CHANGE_LOGGER_PREFIX + "." + "after", "true")
 					.put(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY, "true");
 			}
 		},;
