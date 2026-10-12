@@ -839,6 +839,8 @@ final class GroupLevelResolver implements LevelConfig {
 		Map<String, List<String>> groupToLoggers = properties.forKey(GROUPS_PROPERTY).ofList().map(_groups -> {
 			Map<String, List<String>> m = new LinkedHashMap<>();
 			for (String g : _groups) {
+				/* A repeated group takes the position of its last occurrence. */
+				m.remove(g);
 				rawValue(properties.forKey(GROUP_PROPERTY, g).ofList()).optional()
 					.filter(loggers -> !loggers.isEmpty())
 					.ifPresent(loggers -> m.put(g, loggers));

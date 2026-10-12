@@ -2,11 +2,14 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.lang.System.Logger.Level;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode;
@@ -400,6 +403,50 @@ class ChangePublisherTest {
 		assertEquals(Set.of(), cp.allowedChanges("com.app.Thing"), "the logger's own key wins over its group");
 		assertEquals(CallerType.NONE, cp.callerType("com.app.Main"), "a closer key wins over a group further up");
 		assertEquals(CallerType.BASIC, cp.callerType("com.app.Other"));
+	}
+
+	enum GroupOrder {
+
+		FIRST_LAST("first,second,first", Level.DEBUG, CallerType.BASIC, true),
+		SECOND_LAST("second,first,second", Level.ERROR, CallerType.NONE, false);
+
+		final String groups;
+
+		final Level level;
+
+		final CallerType caller;
+
+		final boolean changeable;
+
+		GroupOrder(String groups, Level level, CallerType caller, boolean changeable) {
+			this.groups = groups;
+			this.level = level;
+			this.caller = caller;
+			this.changeable = changeable;
+		}
+
+	}
+
+	@ParameterizedTest
+	@EnumSource(GroupOrder.class)
+	void repeatedGroupNamesUseTheSamePrecedenceForAllSettings(GroupOrder order) {
+		var properties = LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.groups=%s
+				logging.group.first=com.shared
+				logging.group.second=com.shared
+				logging.level.first=DEBUG
+				logging.level.second=ERROR
+				logging.change.logger.first=level
+				logging.change.logger.second=none
+				logging.caller.logger.first=true
+				logging.caller.logger.second=false
+				""".formatted(order.groups)).build();
+		var config = LogConfig.builder().properties(properties).build();
+		assertEquals(order.caller, config.changePublisher().callerType("com.shared.Child"));
+		assertEquals(order.changeable ? Set.of(ChangeType.LEVEL) : Set.of(),
+				config.changePublisher().allowedChanges("com.shared.Child"));
+		assertEquals(order.level, config.levelResolver().resolveLevel("com.shared.Child"));
 	}
 
 	@Test
