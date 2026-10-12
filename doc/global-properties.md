@@ -185,8 +185,8 @@ built, into one immutable `LogConfig.Globals`:
 |---|---|---|---|
 | change mode | `logging.change.mode` | `ChangeMode` off, on | `changeMode` |
 | ANSI | `logging.global.ansi.mode` (was `logging.global.ansi.disable`) | `AnsiMode` auto, on, off | `ansiMode` |
-| no `synchronized` in appenders | `logging.global.appender.reentrantLock` | boolean | `appenderReentrantLock` |
-| no `ThreadLocal` | `logging.global.threadlocalDisabled` | boolean | `threadLocalDisabled` |
+| appender lock | `logging.global.appender.lock` (was `.appender.reentrantLock`) | `AppenderLock` auto, reentrant, synchronized | `appenderLock` |
+| thread locals | `logging.global.threadLocal` (was `.threadlocalDisabled`) | `ThreadLocalMode` allow, forbid | `threadLocal` |
 | optimize for the platform | `logging.global.optimize` | boolean | `optimize` |
 | disabled key value sources | `logging.keyvalues.disabled` | set of `Source` | `keyValuesDisabled` |
 
@@ -214,19 +214,24 @@ built, into one immutable `LogConfig.Globals`:
 - **Alerts stay where they are.** `logging.alerts.*` already have builder methods and a
   home in `LogAlerts`, and are needed before the config exists.
 
-### Booleans that may want more than two values
+### The two booleans that became enums
 
-Guesses to iterate on; none were renamed yet:
-
-- `logging.global.appender.reentrantLock`: a third value is plausible. JEP 491 (JDK 24)
-  removed the virtual thread pinning that motivated it, so a lock mode such as
-  `auto | reentrant | synchronized` could pick by JDK. Candidate key:
-  `logging.global.appender.lock`.
-- `logging.global.threadlocalDisabled`: a negative name. A mode such as
-  `logging.global.threadLocal=allow | forbid` reads better, and a value that only avoids
-  thread locals on virtual threads is plausible.
-- `logging.global.optimize`: "what is best for the platform" already changes by
-  platform; a mode such as `none | auto` (later maybe `throughput | latency`) is plausible.
+- **`logging.global.appender.lock`:** `reentrant` is the old `reentrantLock=true` (a
+  requested `SYNCHRONIZED_THREAD_LOCAL_BUFFER` becomes `LOCK_THREAD_LOCAL_BUFFER`).
+  `synchronized` is new and the reverse (`LOCK_THREAD_LOCAL_BUFFER` becomes
+  `SYNCHRONIZED_THREAD_LOCAL_BUFFER`); types without a `synchronized` variant are left
+  alone. `auto`, the default, is `reentrant` before JDK 24 (JEP 491 fixed virtual thread
+  pinning in 24) and leaves the type alone from 24.
+  - Behavior change: on JDK 21 to 23 an explicitly requested
+    `SYNCHRONIZED_THREAD_LOCAL_BUFFER` (or `AUTO_DETECT` in a native image) is now a
+    reentrant lock unless `logging.global.appender.lock=synchronized`. Before, the old
+    default honored it. There is no "always honor the requested type" value; add one if
+    a per appender choice on old JDKs turns out to matter.
+- **`logging.global.threadLocal`:** `allow` (default) or `forbid`, which is the old
+  `threadlocalDisabled=true`. A value that avoids thread locals only on virtual threads
+  is plausible but needs a per call choice of buffer, so it is not added yet.
+- `logging.global.optimize` stays a strictly parsed boolean. A mode such as
+  `none | auto` is plausible if "best for the platform" grows choices.
 
 ## Open items
 

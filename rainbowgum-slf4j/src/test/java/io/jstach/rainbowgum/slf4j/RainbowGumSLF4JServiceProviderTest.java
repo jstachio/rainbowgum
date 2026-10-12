@@ -134,7 +134,7 @@ class RainbowGumSLF4JServiceProviderTest {
 
 	@Test
 	void testLoggingGlobalThreadlocalDisabledPropertyAlsoMakesPutAndGetNoops() {
-		var props = LogProperties.builder().fromProperties("logging.global.threadlocalDisabled=TRUE").build();
+		var props = LogProperties.builder().fromProperties("logging.global.threadLocal=forbid").build();
 		var config = LogConfig.builder().properties(props).build();
 		var provider = new RainbowGumSLF4JServiceProvider();
 		provider.initialize(RainbowGum.builder(config).build());
