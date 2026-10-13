@@ -44,7 +44,7 @@ the application.
 In our testing, other frameworks often swallowed configuration errors or reported
 them without enough context. Logback and Log4j2's older configuration advice also
 made it easy to select the wrong settings or miss that the intended configuration
-had not loaded. See [error_messages_comparison.md](error_messages_comparison.md)
+had not loaded. See [error_messages_comparison.md](doc/why/error_messages_comparison.md)
 for concrete examples of what each framework reports when a component is
 misconfigured.
 
@@ -99,6 +99,23 @@ These are the library sizes for the versions shown, excluding the Java runtime.
 Rainbow Gum is smaller than Logback and Log4j2. tinylog has the smallest JARs, with
 fewer features: for example, it has no programmatic configuration API comparable to
 Rainbow Gum's builders.
+
+### OpenTelemetry export size
+
+Sending logs to an OpenTelemetry Collector over OTLP, including every dependency:
+
+| Setup | JARs | Total |
+| --- | ---: | ---: |
+| **Rainbow Gum 0.15.0** (`rainbowgum` + `rainbowgum-otlp`) | 10 | **0.83 MiB** |
+| Logback 1.6.5 + OpenTelemetry appender, SDK, and exporter (JDK sender) | 20 | 3.01 MiB |
+| Log4j2 2.26.1 + OpenTelemetry appender, SDK, and exporter (JDK sender) | 20 | 4.31 MiB |
+
+The Logback and Log4j2 appenders need the OpenTelemetry SDK and exporter, about 2 MiB on
+their own. With the exporter's default OkHttp sender, which adds the Kotlin standard
+library, they grow to 5.98 and 7.28 MiB. Rainbow Gum writes OTLP itself and sends it with
+the JDK's HTTP client. See
+[opentelemetry_export_size.md](doc/why/opentelemetry_export_size.md) for every JAR, what
+the comparison leaves out, and how to reproduce it.
 
 ### Java runtime size
 
@@ -431,7 +448,7 @@ republished with every snapshot build; see the
 [coverage report](https://jstach.io/rainbowgum/coverage/)), including end-to-end
 golden-string tests of what happens when a component is misconfigured, not just the
 happy path. See
-[error_messages_comparison.md](error_messages_comparison.md) for what that buys you in
+[error_messages_comparison.md](doc/why/error_messages_comparison.md) for what that buys you in
 practice.
 
 Credit where due again: tinylog does the same thing, and does it well. Its
