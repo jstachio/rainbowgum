@@ -22,13 +22,19 @@ import io.jstach.rainbowgum.json.JsonBuffer.ExtendedFieldPrefix;
  * {@code otlpjson} connector, so it needs no network connection.
  * <p>
  * Each record carries the formatted message as its body, the logger name as its
- * instrumentation scope, {@code thread.name}, {@code thread.id}, every key value, and for
- * a throwable {@code exception.type}, {@code exception.message}, and
- * {@code exception.stacktrace} attributes. Event thread and exception attributes take
- * precedence over context values with the same names. Key values named by
- * {@code traceIdKey} and {@code spanIdKey} (default {@code traceId} and {@code spanId},
- * as Micrometer Tracing puts them in the MDC) become the record's trace context when they
- * are valid W3C ids.
+ * instrumentation scope, {@code thread.name}, {@code thread.id}, the key values selected
+ * by {@code keyValuesIncluded} and {@code keyValuesExcluded} (all by default), and for a
+ * throwable {@code exception.type}, {@code exception.message}, and
+ * {@code exception.stacktrace} attributes. When the event has caller info it also carries
+ * {@code code.function.name}, {@code code.file.path}, and {@code code.line.number}. Event
+ * thread, caller, and exception attributes take precedence over key values with the same
+ * names. Key values named by {@code traceIdKey} and {@code spanIdKey} (default
+ * {@code traceId} and {@code spanId}, as Micrometer Tracing puts them in the MDC) become
+ * the record's trace context when they are valid W3C ids, and the key value
+ * {@code otel.event.name} becomes the record's event name.
+ * <p>
+ * The include and exclude lists are case sensitive globs where {@code *} matches any
+ * characters and {@code ?} matches one character. An excluded key is never added.
  */
 public final class OtlpJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 
@@ -49,14 +55,11 @@ public final class OtlpJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 
 	private final OtlpResource resource;
 
-	private final String traceIdKey;
+	private final OtlpRecord.Mapping mapping;
 
-	private final String spanIdKey;
-
-	OtlpJsonEncoder(OtlpResource resource, String traceIdKey, String spanIdKey) {
+	OtlpJsonEncoder(OtlpResource resource, OtlpRecord.Mapping mapping) {
 		this.resource = resource;
-		this.traceIdKey = traceIdKey;
-		this.spanIdKey = spanIdKey;
+		this.mapping = mapping;
 	}
 
 	/**
@@ -80,6 +83,8 @@ public final class OtlpJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	 * @param resourceAttributes additional resource attributes.
 	 * @param traceIdKey key value holding the trace id, default {@code traceId}.
 	 * @param spanIdKey key value holding the span id, default {@code spanId}.
+	 * @param keyValuesIncluded globs of key values to add as attributes, default all.
+	 * @param keyValuesExcluded globs of key values not to add as attributes.
 	 * @param environmentVariables whether {@code OTEL_SERVICE_NAME} and
 	 * {@code OTEL_RESOURCE_ATTRIBUTES} are read, default off.
 	 * @return encoder.
@@ -87,11 +92,11 @@ public final class OtlpJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	@LogConfigurable(name = "OtlpJsonEncoderBuilder", prefix = LogProperties.ENCODER_PREFIX + "otlp.")
 	static OtlpJsonEncoder of(@LogConfigurable.KeyParameter String name, @Nullable String serviceName,
 			@Nullable Map<String, String> resourceAttributes, @Nullable String traceIdKey, @Nullable String spanIdKey,
+			@Nullable List<String> keyValuesIncluded, @Nullable List<String> keyValuesExcluded,
 			@ConvertParameter("parseEnvironmentVariables") @Nullable EnvironmentVariables environmentVariables) {
 		var env = environmentVariables == null ? EnvironmentVariables.OFF : environmentVariables;
 		return new OtlpJsonEncoder(OtlpResource.of(serviceName, resourceAttributes, env),
-				traceIdKey == null ? DEFAULT_TRACE_ID_KEY : traceIdKey,
-				spanIdKey == null ? DEFAULT_SPAN_ID_KEY : spanIdKey);
+				OtlpRecord.Mapping.of(traceIdKey, spanIdKey, keyValuesIncluded, keyValuesExcluded));
 	}
 
 	static EnvironmentVariables parseEnvironmentVariables(String value) {
@@ -106,7 +111,7 @@ public final class OtlpJsonEncoder extends LogEncoder.AbstractEncoder<JsonBuffer
 	@Override
 	protected void doEncode(LogEvent event, JsonBuffer buffer) {
 		buffer.clear();
-		OtlpJson.write(buffer, resource, List.of(OtlpRecord.of(event, traceIdKey, spanIdKey)));
+		OtlpJson.write(buffer, resource, List.of(OtlpRecord.of(event, mapping)));
 		buffer.writeLineFeed();
 	}
 

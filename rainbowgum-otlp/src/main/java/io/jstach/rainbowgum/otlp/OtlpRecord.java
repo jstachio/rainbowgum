@@ -17,7 +17,12 @@ import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
  * this, so the two wire formats cannot disagree about what a record contains.
  */
 record OtlpRecord(String scopeName, long timeUnixNano, int severityNumber, String severityText, String body,
-		@Nullable String traceId, @Nullable String spanId, List<Attribute> attributes) {
+		@Nullable String eventName, @Nullable String traceId, @Nullable String spanId, List<Attribute> attributes) {
+
+	/*
+	 * The key value OpenTelemetry's Logback and Log4j appenders read the event name from.
+	 */
+	static final String EVENT_NAME_KEY = "otel.event.name";
 
 	/*
 	 * A string or int64 OTLP attribute value; intValue is used when stringValue is null.
@@ -34,15 +39,111 @@ record OtlpRecord(String scopeName, long timeUnixNano, int severityNumber, Strin
 
 	}
 
-	static OtlpRecord of(LogEvent event, String traceIdKey, String spanIdKey) {
+	/*
+	 * What the encoder and output were configured with: which key values carry the trace
+	 * context and which other key values become attributes.
+	 */
+	record Mapping(String traceIdKey, String spanIdKey, KeyFilter keyFilter) {
+
+		static Mapping of(@Nullable String traceIdKey, @Nullable String spanIdKey, @Nullable List<String> included,
+				@Nullable List<String> excluded) {
+			return new Mapping(traceIdKey == null ? OtlpJsonEncoder.DEFAULT_TRACE_ID_KEY : traceIdKey,
+					spanIdKey == null ? OtlpJsonEncoder.DEFAULT_SPAN_ID_KEY : spanIdKey,
+					KeyFilter.of(included, excluded));
+		}
+
+	}
+
+	/*
+	 * Case sensitive globs where '*' matches any run of characters and '?' one character,
+	 * the same syntax as OpenTelemetry's appender attribute filters. An empty include
+	 * list includes every key, and an exclude match always wins.
+	 */
+	record KeyFilter(List<String> included, List<String> excluded) {
+
+		static final KeyFilter ALL = new KeyFilter(List.of(), List.of());
+
+		static KeyFilter of(@Nullable List<String> included, @Nullable List<String> excluded) {
+			if ((included == null || included.isEmpty()) && (excluded == null || excluded.isEmpty())) {
+				return ALL;
+			}
+			return new KeyFilter(included == null ? List.of() : List.copyOf(included),
+					excluded == null ? List.of() : List.copyOf(excluded));
+		}
+
+		boolean test(String key) {
+			for (var glob : excluded) {
+				if (matches(glob, key)) {
+					return false;
+				}
+			}
+			if (included.isEmpty()) {
+				return true;
+			}
+			for (var glob : included) {
+				if (matches(glob, key)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		static boolean matches(String glob, String key) {
+			int g = 0;
+			int k = 0;
+			int star = -1;
+			int starKey = 0;
+			while (k < key.length()) {
+				if (g < glob.length() && (glob.charAt(g) == '?' || glob.charAt(g) == key.charAt(k))) {
+					g++;
+					k++;
+				}
+				else if (g < glob.length() && glob.charAt(g) == '*') {
+					star = g++;
+					starKey = k;
+				}
+				else if (star >= 0) {
+					g = star + 1;
+					k = ++starKey;
+				}
+				else {
+					return false;
+				}
+			}
+			while (g < glob.length() && glob.charAt(g) == '*') {
+				g++;
+			}
+			return g == glob.length();
+		}
+
+	}
+
+	static OtlpRecord of(LogEvent event, Mapping mapping) {
 		var kvs = event.keyValues();
+		String traceIdKey = mapping.traceIdKey();
+		String spanIdKey = mapping.spanIdKey();
+		var keyFilter = mapping.keyFilter();
 		String traceId = validId(kvs.getValueOrNull(traceIdKey), 32);
 		String spanId = traceId == null ? null : validId(kvs.getValueOrNull(spanIdKey), 16);
+		String eventName = kvs.getValueOrNull(EVENT_NAME_KEY);
 		Map<String, Attribute> attributes = new LinkedHashMap<>();
 		attributes.put("thread.name", Attribute.of("thread.name", event.threadName()));
 		attributes.put("thread.id", Attribute.of("thread.id", event.threadId()));
+		var caller = event.callerOrNull();
+		if (caller != null) {
+			String function = caller.className() + "." + caller.methodName();
+			attributes.put("code.function.name", Attribute.of("code.function.name", function));
+			var file = caller.fileNameOrNull();
+			if (file != null) {
+				attributes.put("code.file.path", Attribute.of("code.file.path", file));
+			}
+			if (caller.lineNumber() > 0) {
+				attributes.put("code.line.number", Attribute.of("code.line.number", caller.lineNumber()));
+			}
+		}
 		kvs.forEach((k, v) -> {
-			if (v == null || (traceId != null && k.equals(traceIdKey)) || (spanId != null && k.equals(spanIdKey))) {
+			if (v == null || (traceId != null && k.equals(traceIdKey)) || (spanId != null && k.equals(spanIdKey))
+					|| k.equals(EVENT_NAME_KEY) || !keyFilter.test(k)) {
 				return;
 			}
 			attributes.putIfAbsent(k, Attribute.of(k, v));
@@ -62,7 +163,7 @@ record OtlpRecord(String scopeName, long timeUnixNano, int severityNumber, Strin
 		event.formattedMessage(body);
 		var level = event.level();
 		return new OtlpRecord(event.loggerName(), unixNanos(event.timestamp()), severityNumber(level),
-				severityText(level), body.toString(), traceId, spanId, List.copyOf(attributes.values()));
+				severityText(level), body.toString(), eventName, traceId, spanId, List.copyOf(attributes.values()));
 	}
 
 	/*

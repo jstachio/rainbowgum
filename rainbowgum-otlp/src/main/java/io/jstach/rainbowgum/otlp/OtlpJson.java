@@ -64,7 +64,8 @@ final class OtlpJson {
 		}
 		b.writeArrayEnd();
 		i = b.write("traceId", r.traceId(), i);
-		b.write("spanId", r.spanId(), i);
+		i = b.write("spanId", r.spanId(), i);
+		b.write("eventName", r.eventName(), i);
 		b.writeArrayElementObjectEnd();
 	}
 

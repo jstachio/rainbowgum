@@ -32,6 +32,8 @@ class OtlpProtobufTest {
 
 	static final String SPAN_ID = "00f067aa0ba902b7";
 
+	static final OtlpRecord.Mapping MAPPING = OtlpRecord.Mapping.of(null, null, null, null);
+
 	static LogEvent event(String logger, Level level, String message, Map<String, String> kvs,
 			@Nullable Throwable throwable) {
 		return LogEvent.of(Instant.ofEpochSecond(1_700_000_000L, 123_456_789), "main", 42, level, logger, message,
@@ -64,7 +66,7 @@ class OtlpProtobufTest {
 		var first = event("com.example.A", Level.ERROR, "boom", kvs, new NoStackException("bad"));
 		var second = event("com.example.B", Level.WARNING, "careful", Map.of(), null);
 		var resource = OtlpResource.of("orders", Map.of("deployment.environment", "prod"), EnvironmentVariables.OFF);
-		var records = List.of(OtlpRecord.of(first, "traceId", "spanId"), OtlpRecord.of(second, "traceId", "spanId"));
+		var records = List.of(OtlpRecord.of(first, MAPPING), OtlpRecord.of(second, MAPPING));
 
 		var request = ExportLogsServiceRequest.parseFrom(OtlpProtobuf.encode(resource, records));
 
@@ -107,7 +109,7 @@ class OtlpProtobufTest {
 		var kvs = new LinkedHashMap<String, String>();
 		kvs.put("traceId", "not-hex");
 		kvs.put("spanId", SPAN_ID);
-		var record = OtlpRecord.of(event("x", Level.INFO, "m", kvs, null), "traceId", "spanId");
+		var record = OtlpRecord.of(event("x", Level.INFO, "m", kvs, null), MAPPING);
 		var request = ExportLogsServiceRequest
 			.parseFrom(OtlpProtobuf.encode(OtlpResource.of(null, null, EnvironmentVariables.OFF), List.of(record)));
 		var r = request.getResourceLogs(0).getScopeLogs(0).getLogRecords(0);
@@ -118,6 +120,28 @@ class OtlpProtobufTest {
 				strings(r.getAttributesList()));
 		assertEquals(Map.of("service.name", "unknown_service:java"),
 				strings(request.getResourceLogs(0).getResource().getAttributesList()));
+	}
+
+	@Test
+	void eventNameAndCallerDecodeWithOfficialClasses() throws Exception {
+		var kvs = new LinkedHashMap<String, String>();
+		kvs.put("otel.event.name", "order.shipped");
+		var caller = LogEvent.Caller.of(StackWalker.getInstance().walk(s -> s.findFirst().orElseThrow()));
+		var event = LogEvent.withCaller(event("x", Level.INFO, "m", kvs, null), caller);
+		var record = OtlpRecord.of(event.freeze(), MAPPING);
+		var r = ExportLogsServiceRequest
+			.parseFrom(OtlpProtobuf.encode(OtlpResource.of(null, null, EnvironmentVariables.OFF), List.of(record)))
+			.getResourceLogs(0)
+			.getScopeLogs(0)
+			.getLogRecords(0);
+		assertEquals("order.shipped", r.getEventName());
+		var attributes = r.getAttributesList();
+		assertEquals(List.of("thread.name", "thread.id", "code.function.name", "code.file.path", "code.line.number"),
+				attributes.stream().map(KeyValue::getKey).toList());
+		assertEquals(OtlpProtobufTest.class.getName() + ".eventNameAndCallerDecodeWithOfficialClasses",
+				attributes.get(2).getValue().getStringValue());
+		assertEquals("OtlpProtobufTest.java", attributes.get(3).getValue().getStringValue());
+		assertTrue(attributes.get(4).getValue().getIntValue() > 0);
 	}
 
 	private static Map<String, String> strings(List<KeyValue> kvs) {
