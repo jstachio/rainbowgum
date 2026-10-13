@@ -1,6 +1,6 @@
 # Error Messages: Rainbow Gum vs Logback vs Log4j2
 
-A companion to [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md), split out on
+A companion to [why_rainbowgum_is_better.md](../../why_rainbowgum_is_better.md), split out on
 its own for now since it's likely to grow scenario by scenario.
 
 The methodology: take the *same* kind of mistake - a config value that fails to convert
