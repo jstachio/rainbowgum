@@ -486,9 +486,162 @@ class BatchSwapAsyncLogPublisherTest {
 				failure.getMessage());
 	}
 
+	enum OverloadConfiguration {
+
+		BUILDER, ASYNC_PROPERTIES, BATCHSWAP_URI
+
+	}
+
+	@ParameterizedTest
+	@EnumSource
+	void overloadDropsAreCountedAndAcceptedEventsDrain(OverloadConfiguration mode) throws Exception {
+		var entered = new CountDownLatch(1);
+		var release = new CountDownLatch(1);
+		var drained = new CountDownLatch(1);
+		var output = new LifecycleOutput();
+		output.setConsumer((event, text) -> {
+			if (event.message().equals("working")) {
+				entered.countDown();
+				await(release);
+			}
+			if (event.message().equals("ERROR")) {
+				drained.countDown();
+			}
+		});
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.route.test.publisher.async.bufferSize=4
+				logging.route.test.publisher.async.overflow=drop
+				logging.route.test.publisher.async.discardThreshold=2
+				logging.route.test.publisher.async.discardLevel=info
+				""").build()).build();
+		var factory = switch (mode) {
+			case BUILDER -> BatchSwapAsyncLogPublisher.builder("test")
+				.bufferSize(4)
+				.overflow(BatchSwapAsyncLogPublisher.Overflow.DROP)
+				.discardThreshold(2)
+				.discardLevel(Level.INFO)
+				.build();
+			case ASYNC_PROPERTIES -> config.publisherRegistry().provide(LogProviderRef.of(URI.create("async")));
+			case BATCHSWAP_URI -> config.publisherRegistry()
+				.provide(LogProviderRef
+					.of(URI.create("batchswap:///?bufferSize=4&overflow=DROP&discardThreshold=2&discardLevel=INFO")));
+		};
+		var appender = LogAppender.builder("test")
+			.output(output)
+			.formatter(LogFormatter.builder().message().build())
+			.build();
+		var publisher = factory.create("test", config, new LogAppender.Appenders("test", config, List.of(appender)));
+		publisher.start(config);
+		try {
+			publisher.log(event("working"));
+			await(entered);
+			publisher.log(event("one"));
+			publisher.log(event("two"));
+			for (var level : List.of(Level.TRACE, Level.DEBUG, Level.INFO)) {
+				publisher
+					.log(LogEvent.of(Instant.EPOCH, "producer", 1, level, "test", "discarded", KeyValues.of(), null));
+			}
+			assertEquals(2, queued(config));
+			for (var level : List.of(Level.WARNING, Level.ERROR)) {
+				publisher
+					.log(LogEvent.of(Instant.EPOCH, "producer", 1, level, "test", level.name(), KeyValues.of(), null));
+			}
+			var producer = Thread.ofVirtual().start(() -> {
+				for (int i = 0; i < 100; i++) {
+					publisher.log(LogEvent.of(Instant.EPOCH, "producer", 1, Level.ERROR, "test", "full", KeyValues.of(),
+							null));
+				}
+			});
+			join(producer);
+			assertEquals(4, queued(config));
+			assertEquals(103, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+			assertEquals(
+					List.of("""
+							Async publisher 'test' dropped 1 event(s): the event level was eligible for discarding at the configured threshold. Further drops for this reason are only counted in events.dropped.\
+							""",
+							"""
+									Async publisher 'test' dropped 1 event(s): the pending buffer was full. Further drops for this reason are only counted in events.dropped.\
+									"""),
+					config.alerts().dump().stream().map(LogEvent::message).toList());
+			release.countDown();
+			await(drained);
+			publisher.log(event("recovered"));
+		}
+		finally {
+			release.countDown();
+			publisher.close();
+		}
+		assertEquals(List.of("working", "one", "two", "WARNING", "ERROR", "recovered"),
+				output.events().stream().map(e -> e.getKey().message()).toList());
+		assertEquals(0, queued(config));
+	}
+
+	enum EarlyDiscard {
+
+		DISABLED, RESERVED, ALL_RESERVED, OFF, DEBUG
+
+	}
+
+	@ParameterizedTest
+	@EnumSource
+	void earlyDiscardKeepsBlockingForProtectedEvents(EarlyDiscard mode) throws Exception {
+		var entered = new CountDownLatch(1);
+		var release = new CountDownLatch(1);
+		var output = new LifecycleOutput();
+		output.setConsumer((event, text) -> {
+			entered.countDown();
+			await(release);
+		});
+		var config = LogConfig.builder().build();
+		var appender = LogAppender.builder("test")
+			.output(output)
+			.formatter(LogFormatter.builder().message().build())
+			.build();
+		int threshold = switch (mode) {
+			case DISABLED -> 0;
+			case ALL_RESERVED -> 2;
+			default -> 1;
+		};
+		var level = switch (mode) {
+			case OFF -> Level.OFF;
+			case DEBUG -> Level.DEBUG;
+			default -> Level.INFO;
+		};
+		var publisher = BatchSwapAsyncLogPublisher.builder("test")
+			.bufferSize(2)
+			.discardThreshold(threshold)
+			.discardLevel(level)
+			.build()
+			.create("test", config, new LogAppender.Appenders("test", config, List.of(appender)));
+		var warning = LogEvent.of(Instant.EPOCH, "producer", 1, Level.WARNING, "test", "warning", KeyValues.of(), null);
+		publisher.start(config);
+		try {
+			publisher.log(warning);
+			await(entered);
+			publisher.log(event("one"));
+			publisher.log(event("two"));
+			boolean discards = mode == EarlyDiscard.RESERVED || mode == EarlyDiscard.ALL_RESERVED;
+			assertEquals(discards ? (mode == EarlyDiscard.ALL_RESERVED ? 2 : 1) : 0,
+					metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+			while (queued(config) < 2) {
+				publisher.log(warning);
+			}
+			var producer = Thread.ofVirtual().start(() -> publisher.log(warning));
+			awaitState(producer, Thread.State.WAITING);
+			release.countDown();
+			join(producer);
+		}
+		finally {
+			release.countDown();
+			publisher.close();
+		}
+		assertEquals(4, output.events().size());
+		assertEquals(0, queued(config));
+	}
+
 	enum InvalidOptions {
 
-		BUFFER_ZERO, TIMEOUT_NEGATIVE, TIMEOUT_OVERFLOW
+		BUFFER_ZERO, TIMEOUT_NEGATIVE, TIMEOUT_OVERFLOW, THRESHOLD_NEGATIVE, THRESHOLD_TOO_LARGE
 
 	}
 
@@ -497,6 +650,12 @@ class BatchSwapAsyncLogPublisherTest {
 	void generatedBuilderValidatesBeforeCreatingPublisher(InvalidOptions mode) {
 		var builder = BatchSwapAsyncLogPublisher.builder("test");
 		String expected = switch (mode) {
+			case THRESHOLD_NEGATIVE, THRESHOLD_TOO_LARGE -> {
+				builder.bufferSize(1).discardThreshold(mode == InvalidOptions.THRESHOLD_NEGATIVE ? -1 : 2);
+				yield """
+						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder: discardThreshold must be between zero and bufferSize.\
+						""";
+			}
 			case BUFFER_ZERO -> {
 				builder.bufferSize(0);
 				yield """
