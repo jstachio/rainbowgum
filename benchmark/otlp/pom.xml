@@ -1,0 +1,79 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <!--
+    OTLP log export benchmark: Rainbow Gum's rainbowgum-otlp against the OpenTelemetry
+    Logback and Log4j2 appenders with the OpenTelemetry SDK. Standalone on purpose (not part
+    of the root build), so the OpenTelemetry SDK never leaks into Rainbow Gum's own reactor.
+    Rainbow Gum comes from the local repository, so run ./mvnw install at the root first.
+    See run.sh.
+  -->
+  <groupId>io.jstach.rainbowgum.benchmark</groupId>
+  <artifactId>otlp-benchmark-parent</artifactId>
+  <version>1</version>
+  <packaging>pom</packaging>
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <rainbowgum.version>1.0.0-SNAPSHOT</rainbowgum.version>
+    <otel.instrumentation.version>2.32.0-alpha</otel.instrumentation.version>
+  </properties>
+  <modules>
+    <module>share</module>
+    <module>sdk</module>
+    <module>rainbowgum</module>
+    <module>logback</module>
+    <module>log4j2</module>
+  </modules>
+  <dependencyManagement>
+    <dependencies>
+      <!-- Manages the SDK, the alpha API incubator, and the appenders at matching versions. -->
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
+        <version>${otel.instrumentation.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.jstach.rainbowgum.benchmark</groupId>
+        <artifactId>otlp-benchmark-share</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jstach.rainbowgum.benchmark</groupId>
+        <artifactId>otlp-benchmark-sdk</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>2.0.20</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <build>
+    <plugins>
+      <!-- Writes target/classpath.txt so run.sh can start each benchmark with plain java. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.8.1</version>
+        <executions>
+          <execution>
+            <id>classpath</id>
+            <phase>package</phase>
+            <goals>
+              <goal>build-classpath</goal>
+            </goals>
+            <configuration>
+              <outputFile>${project.build.directory}/classpath.txt</outputFile>
+              <includeScope>runtime</includeScope>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
