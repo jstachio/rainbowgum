@@ -11,6 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogAppender;
 import io.jstach.rainbowgum.LogConfig;
@@ -18,18 +19,23 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMetrics;
 import io.jstach.rainbowgum.LogMetrics.Gauge;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisher.AsyncLogPublisher;
 import io.jstach.rainbowgum.LogPublisherRegistry;
 import io.jstach.rainbowgum.LogRouter;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /**
- * The default bounded async publisher with one output worker. Producers block when the
- * pending buffer is full. Events are delivered in insertion order, including calls
- * already waiting for space when shutdown begins. New calls are rejected during shutdown.
- * Select it explicitly with the {@value LogPublisherRegistry#BATCH_SWAP_SCHEME} URI
- * scheme to keep using it if the default async implementation changes.
+ * The default bounded async publisher with one output worker. Producers block by default
+ * when the pending buffer is full. Overload options can discard lower-priority events
+ * before the buffer fills or drop incoming events when full. These options never evict
+ * accepted events or write output on the calling thread. Events are delivered in
+ * insertion order, including calls already waiting for space when shutdown begins. New
+ * calls are rejected during shutdown. Select it explicitly with the
+ * {@value LogPublisherRegistry#BATCH_SWAP_SCHEME} URI scheme to keep using it if the
+ * default async implementation changes.
  * <p>
  * Up to {@link BatchSwapAsyncLogPublisherBuilder#bufferSize(Integer) bufferSize} events
  * may wait for delivery while another batch of up to that size is being written. The
@@ -61,6 +67,12 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 
 	private final long shutdownNanos;
 
+	private final Overflow overflow;
+
+	private final int discardAt;
+
+	private final Level discardLevel;
+
 	private final Thread worker;
 
 	private final ReentrantLock lock = new ReentrantLock();
@@ -89,7 +101,7 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 	// The method reference is invoked only by start(), after construction has finished.
 	@SuppressWarnings("methodref.receiver.bound")
 	private BatchSwapAsyncLogPublisher(String name, LogConfig config, LogAppender appender, int capacity,
-			long shutdownNanos) {
+			long shutdownNanos, Overflow overflow, int discardThreshold, Level discardLevel) {
 		this.name = name;
 		this.metrics = config.metrics();
 		this.appender = appender;
@@ -97,9 +109,45 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 		this.queued = config.metrics().gauge(LogMetrics.EVENTS_QUEUED_METRIC, Level.INFO);
 		this.pending = new LogEvent[capacity];
 		this.shutdownNanos = shutdownNanos;
+		this.overflow = overflow;
+		this.discardAt = discardThreshold == 0 ? Integer.MAX_VALUE : capacity - discardThreshold;
+		this.discardLevel = LevelResolver.normalizeLevel(discardLevel);
 		this.worker = new Thread(this::consume, "rainbowgum-batch-swap-async-" + name);
 		this.worker.setDaemon(true);
 	}
+
+	/**
+	 * Behavior when the pending buffer is full.
+	 */
+	@CaseChanging
+	public enum Overflow {
+
+		/**
+		 * Wait for space, preserving accepted events through shutdown.
+		 */
+		BLOCK,
+		/**
+		 * Drop the incoming event regardless of level. Does not wait for buffer space,
+		 * but still acquires the publisher lock and may invoke an alert listener.
+		 */
+		DROP;
+
+	}
+
+	/**
+	 * Default full-buffer policy.
+	 */
+	public static final Overflow DEFAULT_OVERFLOW = Overflow.BLOCK;
+
+	/**
+	 * Early discarding is disabled by default.
+	 */
+	public static final int DEFAULT_DISCARD_THRESHOLD = 0;
+
+	/**
+	 * Highest severity eligible for early discarding.
+	 */
+	public static final Level DEFAULT_DISCARD_LEVEL = Level.INFO;
 
 	/**
 	 * Default pending buffer capacity.
@@ -132,15 +180,27 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 	 * @param scheme URI scheme the publisher was selected with, used for property lookup.
 	 * @param bufferSize positive pending capacity, excluding the batch being written.
 	 * @param shutdownTimeout nonnegative close timeout (property unit: milliseconds).
+	 * @param overflow behavior when full: block (default) or drop the incoming event.
+	 * @param discardThreshold slots reserved for events above discardLevel. Zero disables
+	 * early discarding; otherwise discard when remaining slots are at or below this
+	 * number. Must be between zero and bufferSize, inclusive.
+	 * @param discardLevel highest severity discarded early (default INFO). OFF disables
+	 * early discarding. ALL is normalized to TRACE.
 	 * @return publisher factory.
 	 */
 	@LogConfigurable(name = "BatchSwapAsyncLogPublisherBuilder",
 			prefix = LogProperties.PUBLISHER_PREFIX + "{" + LogPublisherRegistry.SCHEME + "}.")
 	static PublisherFactory of(@LogConfigurable.KeyParameter String name, @LogConfigurable.KeyParameter String scheme,
 			@LogConfigurable.DefaultParameter("DEFAULT_BUFFER_SIZE") Integer bufferSize,
-			@LogConfigurable.DefaultParameter("DEFAULT_SHUTDOWN_TIMEOUT") @LogConfigurable.ConvertParameter("parseShutdownTimeout") Duration shutdownTimeout) {
+			@LogConfigurable.DefaultParameter("DEFAULT_SHUTDOWN_TIMEOUT") @LogConfigurable.ConvertParameter("parseShutdownTimeout") Duration shutdownTimeout,
+			@LogConfigurable.DefaultParameter("DEFAULT_OVERFLOW") @LogConfigurable.ConvertParameter("parseOverflow") Overflow overflow,
+			@LogConfigurable.DefaultParameter("DEFAULT_DISCARD_THRESHOLD") Integer discardThreshold,
+			@LogConfigurable.DefaultParameter("DEFAULT_DISCARD_LEVEL") @LogConfigurable.ConvertParameter("parseDiscardLevel") Level discardLevel) {
 		if (bufferSize < 1) {
 			throw new IllegalArgumentException("bufferSize must be positive.");
+		}
+		if (discardThreshold < 0 || discardThreshold > bufferSize) {
+			throw new IllegalArgumentException("discardThreshold must be between zero and bufferSize.");
 		}
 		if (shutdownTimeout.isNegative()) {
 			throw new IllegalArgumentException("shutdownTimeout must not be negative.");
@@ -153,7 +213,15 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 			throw new IllegalArgumentException("shutdownTimeout is too large.", e);
 		}
 		return (n, config, appenders) -> new BatchSwapAsyncLogPublisher(n, config, appenders.asSingle(), bufferSize,
-				shutdownNanos);
+				shutdownNanos, overflow, discardThreshold, discardLevel);
+	}
+
+	static Overflow parseOverflow(String value) {
+		return LogProperty.enumValue(Overflow.class, value);
+	}
+
+	static Level parseDiscardLevel(String value) {
+		return LevelResolver.parseLevel(value);
 	}
 
 	static Duration parseShutdownTimeout(String value) {
@@ -223,6 +291,13 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 				default -> Drop.CLOSED;
 			};
 		}
+		if (count >= discardAt && discardLevel != Level.OFF
+				&& event.level().getSeverity() <= discardLevel.getSeverity()) {
+			return Drop.DISCARD_THRESHOLD;
+		}
+		if (count == pending.length && overflow == Overflow.DROP) {
+			return Drop.BUFFER_FULL;
+		}
 		producers++;
 		try {
 			while (count == pending.length && state != State.FAILED && state != State.CLOSED) {
@@ -257,6 +332,8 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 
 	private enum Drop {
 
+		BUFFER_FULL(1 << 5, "the pending buffer was full"),
+		DISCARD_THRESHOLD(1 << 6, "the event level was eligible for discarding at the configured threshold"),
 		NOT_STARTED(1 << 0, "the publisher has not been started"), CLOSED(1 << 1, "the publisher is closing or closed"),
 		INTERRUPTED(1 << 2, "the logging thread was interrupted while the buffer was full"),
 		REENTRANT(1 << 3, "the publisher's own thread logged recursively"),

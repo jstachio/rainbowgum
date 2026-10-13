@@ -11,6 +11,23 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-10-13: Scope the formatter to modules that declare it
+
+On `feature/async-backpressure`, running `./mvnw spring-javaformat:apply`
+over the whole reactor formatted the changed Java files but failed in example
+projects that do not declare the formatter plugin. Maven reported
+"No plugin found for prefix 'spring-javaformat'". Restricting the command to
+the two edited modules succeeded:
+
+```sh
+./mvnw -pl core,test/rainbowgum-test-core spring-javaformat:apply
+```
+
+The full reactor `./mvnw install` then passed in 17.8 seconds. No cache or
+parallelism override was needed.
+
+Agent: Codex (GPT-6).
+
 ## 2026-10-11: Combined analysis hits the Checker Framework close crash
 
 While fixing `explore/simple-props-level-file`,
