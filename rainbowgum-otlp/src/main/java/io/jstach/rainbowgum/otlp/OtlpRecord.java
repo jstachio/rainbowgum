@@ -126,44 +126,73 @@ record OtlpRecord(String scopeName, long timeUnixNano, int severityNumber, Strin
 		String traceId = validId(kvs.getValueOrNull(traceIdKey), 32);
 		String spanId = traceId == null ? null : validId(kvs.getValueOrNull(spanIdKey), 16);
 		String eventName = kvs.getValueOrNull(EVENT_NAME_KEY);
-		Map<String, Attribute> attributes = new LinkedHashMap<>();
-		attributes.put("thread.name", Attribute.of("thread.name", event.threadName()));
-		attributes.put("thread.id", Attribute.of("thread.id", event.threadId()));
+		var t = event.throwableOrNull();
 		var caller = event.callerOrNull();
+		/*
+		 * A list, not a map: the only possible duplicates are key values named like the
+		 * attributes the event itself sets, and reserved() skips those, so the event's
+		 * attributes win.
+		 */
+		List<Attribute> attributes = new ArrayList<>(4 + kvs.size() + (t == null ? 0 : 3));
+		attributes.add(Attribute.of("thread.name", event.threadName()));
+		attributes.add(Attribute.of("thread.id", event.threadId()));
+		boolean file = false;
+		boolean line = false;
 		if (caller != null) {
-			String function = caller.className() + "." + caller.methodName();
-			attributes.put("code.function.name", Attribute.of("code.function.name", function));
-			var file = caller.fileNameOrNull();
-			if (file != null) {
-				attributes.put("code.file.path", Attribute.of("code.file.path", file));
+			attributes.add(Attribute.of("code.function.name", caller.className() + "." + caller.methodName()));
+			var fileName = caller.fileNameOrNull();
+			if (fileName != null) {
+				attributes.add(Attribute.of("code.file.path", fileName));
+				file = true;
 			}
 			if (caller.lineNumber() > 0) {
-				attributes.put("code.line.number", Attribute.of("code.line.number", caller.lineNumber()));
+				attributes.add(Attribute.of("code.line.number", caller.lineNumber()));
+				line = true;
 			}
 		}
+		String exceptionMessage = t == null ? null : t.getMessage();
+		var reserved = new Reserved(caller != null, file, line, t != null, exceptionMessage != null);
 		kvs.forEach((k, v) -> {
 			if (v == null || (traceId != null && k.equals(traceIdKey)) || (spanId != null && k.equals(spanIdKey))
-					|| k.equals(EVENT_NAME_KEY) || !keyFilter.test(k)) {
+					|| k.equals(EVENT_NAME_KEY) || reserved.test(k) || !keyFilter.test(k)) {
 				return;
 			}
-			attributes.putIfAbsent(k, Attribute.of(k, v));
+			attributes.add(Attribute.of(k, v));
 		});
-		var t = event.throwableOrNull();
 		if (t != null) {
-			attributes.put("exception.type", Attribute.of("exception.type", t.getClass().getName()));
-			var message = t.getMessage();
-			if (message != null) {
-				attributes.put("exception.message", Attribute.of("exception.message", message));
+			attributes.add(Attribute.of("exception.type", t.getClass().getName()));
+			if (exceptionMessage != null) {
+				attributes.add(Attribute.of("exception.message", exceptionMessage));
 			}
 			var stackTrace = new StringBuilder();
 			ThrowableFormatter.appendThrowable(stackTrace, t);
-			attributes.put("exception.stacktrace", Attribute.of("exception.stacktrace", stackTrace.toString()));
+			attributes.add(Attribute.of("exception.stacktrace", stackTrace.toString()));
 		}
 		var body = new StringBuilder();
 		event.formattedMessage(body);
 		var level = event.level();
 		return new OtlpRecord(event.loggerName(), unixNanos(event.timestamp()), severityNumber(level),
-				severityText(level), body.toString(), eventName, traceId, spanId, List.copyOf(attributes.values()));
+				severityText(level), body.toString(), eventName, traceId, spanId, attributes);
+	}
+
+	/*
+	 * Names of the attributes this event sets itself, which a key value of the same name
+	 * must not duplicate.
+	 */
+	private record Reserved(boolean function, boolean file, boolean line, boolean exception, boolean exceptionMessage) {
+
+		boolean test(String key) {
+			return switch (key) {
+				case "thread.name", "thread.id" -> true;
+				case "code.function.name" -> function;
+				case "code.file.path" -> file;
+				case "code.line.number" -> line;
+				case "exception.type", "exception.stacktrace" -> exception;
+				case "exception.message" -> exceptionMessage;
+				default -> false;
+			};
+		}
+
 	}
 
 	/*

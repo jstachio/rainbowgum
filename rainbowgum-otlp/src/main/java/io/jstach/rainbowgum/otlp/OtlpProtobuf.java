@@ -15,31 +15,38 @@ final class OtlpProtobuf {
 	}
 
 	static byte[] encode(OtlpResource resource, List<OtlpRecord> records) {
-		var resourceLogs = new ProtoWriter();
-		var res = new ProtoWriter();
+		var w = new ProtoWriter(Math.max(256, records.size() * 256));
+		int resourceLogs = w.startMessage(1);
+		int res = w.startMessage(1);
 		for (var e : resource.attributes().entrySet()) {
-			res.messageField(1, stringKeyValue(e.getKey(), e.getValue()));
+			stringKeyValue(w, 1, e.getKey(), e.getValue());
 		}
-		resourceLogs.messageField(1, res);
+		w.endMessage(res);
 		for (Map.Entry<String, List<OtlpRecord>> scope : OtlpRecord.byScope(records).entrySet()) {
-			var scopeLogs = new ProtoWriter();
-			scopeLogs.messageField(1, new ProtoWriter().stringField(1, scope.getKey()));
+			int scopeLogs = w.startMessage(2);
+			int scopeMessage = w.startMessage(1);
+			w.stringField(1, scope.getKey());
+			w.endMessage(scopeMessage);
 			for (var r : scope.getValue()) {
-				scopeLogs.messageField(2, logRecord(r));
+				int record = w.startMessage(2);
+				logRecord(w, r);
+				w.endMessage(record);
 			}
-			resourceLogs.messageField(2, scopeLogs);
+			w.endMessage(scopeLogs);
 		}
-		return new ProtoWriter().messageField(1, resourceLogs).toByteArray();
+		w.endMessage(resourceLogs);
+		return w.toByteArray();
 	}
 
-	private static ProtoWriter logRecord(OtlpRecord r) {
-		var w = new ProtoWriter();
+	private static void logRecord(ProtoWriter w, OtlpRecord r) {
 		w.fixed64Field(1, r.timeUnixNano());
 		w.varintField(2, r.severityNumber());
 		w.stringField(3, r.severityText());
-		w.messageField(5, new ProtoWriter().stringField(1, r.body()));
+		int body = w.startMessage(5);
+		w.stringField(1, r.body());
+		w.endMessage(body);
 		for (var a : r.attributes()) {
-			w.messageField(6, keyValue(a));
+			keyValue(w, 6, a);
 		}
 		var traceId = r.traceId();
 		if (traceId != null) {
@@ -54,23 +61,30 @@ final class OtlpProtobuf {
 		if (eventName != null) {
 			w.stringField(12, eventName);
 		}
-		return w;
 	}
 
-	private static ProtoWriter keyValue(OtlpRecord.Attribute a) {
-		var value = new ProtoWriter();
+	private static void keyValue(ProtoWriter w, int field, OtlpRecord.Attribute a) {
+		int kv = w.startMessage(field);
+		w.stringField(1, a.key());
+		int value = w.startMessage(2);
 		var s = a.stringValue();
 		if (s != null) {
-			value.stringField(1, s);
+			w.stringField(1, s);
 		}
 		else {
-			value.varintField(3, a.intValue());
+			w.varintField(3, a.intValue());
 		}
-		return new ProtoWriter().stringField(1, a.key()).messageField(2, value);
+		w.endMessage(value);
+		w.endMessage(kv);
 	}
 
-	private static ProtoWriter stringKeyValue(String key, String value) {
-		return new ProtoWriter().stringField(1, key).messageField(2, new ProtoWriter().stringField(1, value));
+	private static void stringKeyValue(ProtoWriter w, int field, String key, String value) {
+		int kv = w.startMessage(field);
+		w.stringField(1, key);
+		int v = w.startMessage(2);
+		w.stringField(1, value);
+		w.endMessage(v);
+		w.endMessage(kv);
 	}
 
 }
