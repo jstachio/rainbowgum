@@ -11,7 +11,7 @@ like SLF4J / System.Logger and does mostly what you want out of the box.
 
 It is called **rainbow gum** after 
 [Eucalyptus Deglupta](https://en.wikipedia.org/wiki/Eucalyptus_deglupta) a beautiful tree native
-to Hawaii that has colorful bark ([*colorful logs*](#colorful-logs) ).
+to Hawaii that has colorful bark ([*colorful logs*](#colorful-logs)).
 
 <img src="etc/screenshots/ttll-rainbowgum.png" alt="Rainbow Gum console output: colored timestamp, thread, level, logger, and key values">
 
@@ -57,9 +57,9 @@ Covered in [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
 
 ## Colorful logs
 
-Rainbow Gum core comes with themes that work on three different formats also included in core: TTLL, JSON5, Logfmt.
+Rainbow Gum core comes with themes that work on three different formats also included in core: [TTLL](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#ttll), [JSON5](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#core_json), and [logfmt](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#logfmt).
 
-The console format below is TTLL (time, thread, level, logger), colored with the "One Dark" theme
+The console format below is [TTLL](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#ttll) (time, thread, level, logger), colored with the "One Dark" theme
 (note no pattern module or pattern string is needed and only one line of configuration is required):
 
 ```properties
@@ -77,7 +77,7 @@ own palette, so it works on light backgrounds too:
 
 <img src="etc/screenshots/ttll-spring.png" alt="TTLL output with the spring theme on a light terminal">
 
-The same themes color the structured encoders in core. `logfmt` writes one `key=value` line
+The same themes color the structured encoders in core. [`logfmt`](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#logfmt) writes one `key=value` line
 per event for Loki, Vector and Go tooling:
 
 ```properties
@@ -87,7 +87,7 @@ logging.appender.console.encoder.logfmt.theme=one_dark
 
 <img src="etc/screenshots/logfmt-one_dark.png" alt="logfmt output with the one_dark theme">
 
-`json5` switches to structured output while you hunt a bug, here pretty printed:
+[`json5`](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#core_json) switches to structured output while you hunt a bug, here pretty printed:
 
 ```properties
 logging.appender.console.encoder.uri=json5
