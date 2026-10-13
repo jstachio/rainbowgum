@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -554,15 +555,16 @@ class BatchSwapAsyncLogPublisherTest {
 			});
 			join(producer);
 			assertEquals(4, queued(config));
-			assertEquals(103, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+			assertEquals(103, metric(config, LogMetrics.EVENTS_DISCARDED_METRIC));
+			assertEquals(0, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
 			assertEquals(
 					List.of("""
-							Async publisher 'test' dropped 1 event(s): the event level was eligible for discarding at the configured threshold. Further drops for this reason are only counted in events.dropped.\
+							WARNING Async publisher 'test' discarded 1 event(s): the remaining buffer reached discardThreshold and the event level is at or below discardLevel. Further discards for this reason are only counted in events.discarded.\
 							""",
 							"""
-									Async publisher 'test' dropped 1 event(s): the pending buffer was full. Further drops for this reason are only counted in events.dropped.\
+									WARNING Async publisher 'test' discarded 1 event(s): the pending buffer was full and overflow is drop. Further discards for this reason are only counted in events.discarded.\
 									"""),
-					config.alerts().dump().stream().map(LogEvent::message).toList());
+					config.alerts().dump().stream().map(e -> e.level() + " " + e.message()).toList());
 			release.countDown();
 			await(drained);
 			publisher.log(event("recovered"));
@@ -578,7 +580,7 @@ class BatchSwapAsyncLogPublisherTest {
 
 	enum EarlyDiscard {
 
-		DISABLED, RESERVED, ALL_RESERVED, OFF, DEBUG
+		DISABLED, RESERVED, OFF, DEBUG
 
 	}
 
@@ -597,11 +599,7 @@ class BatchSwapAsyncLogPublisherTest {
 			.output(output)
 			.formatter(LogFormatter.builder().message().build())
 			.build();
-		int threshold = switch (mode) {
-			case DISABLED -> 0;
-			case ALL_RESERVED -> 2;
-			default -> 1;
-		};
+		int threshold = mode == EarlyDiscard.DISABLED ? 0 : 1;
 		var level = switch (mode) {
 			case OFF -> Level.OFF;
 			case DEBUG -> Level.DEBUG;
@@ -620,9 +618,7 @@ class BatchSwapAsyncLogPublisherTest {
 			await(entered);
 			publisher.log(event("one"));
 			publisher.log(event("two"));
-			boolean discards = mode == EarlyDiscard.RESERVED || mode == EarlyDiscard.ALL_RESERVED;
-			assertEquals(discards ? (mode == EarlyDiscard.ALL_RESERVED ? 2 : 1) : 0,
-					metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+			assertEquals(mode == EarlyDiscard.RESERVED ? 1 : 0, metric(config, LogMetrics.EVENTS_DISCARDED_METRIC));
 			while (queued(config) < 2) {
 				publisher.log(warning);
 			}
@@ -641,7 +637,7 @@ class BatchSwapAsyncLogPublisherTest {
 
 	enum InvalidOptions {
 
-		BUFFER_ZERO, TIMEOUT_NEGATIVE, TIMEOUT_OVERFLOW, THRESHOLD_NEGATIVE, THRESHOLD_TOO_LARGE
+		BUFFER_ZERO, TIMEOUT_NEGATIVE, TIMEOUT_OVERFLOW, THRESHOLD_NEGATIVE, THRESHOLD_EQUALS_BUFFER
 
 	}
 
@@ -650,10 +646,10 @@ class BatchSwapAsyncLogPublisherTest {
 	void generatedBuilderValidatesBeforeCreatingPublisher(InvalidOptions mode) {
 		var builder = BatchSwapAsyncLogPublisher.builder("test");
 		String expected = switch (mode) {
-			case THRESHOLD_NEGATIVE, THRESHOLD_TOO_LARGE -> {
-				builder.bufferSize(1).discardThreshold(mode == InvalidOptions.THRESHOLD_NEGATIVE ? -1 : 2);
+			case THRESHOLD_NEGATIVE, THRESHOLD_EQUALS_BUFFER -> {
+				builder.bufferSize(4).discardThreshold(mode == InvalidOptions.THRESHOLD_NEGATIVE ? -1 : 4);
 				yield """
-						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder: discardThreshold must be between zero and bufferSize.\
+						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder: discardThreshold must be zero or more and less than bufferSize.\
 						""";
 			}
 			case BUFFER_ZERO -> {
@@ -676,6 +672,33 @@ class BatchSwapAsyncLogPublisherTest {
 			}
 		};
 		assertEquals(expected, assertThrows(LogProperty.ValidationException.class, builder::build).getMessage());
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', quoteCharacter = '"',
+			textBlock = """
+					overflow     | yes  | 'yes' is not a valid value for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher.Overflow. Valid values: 'block', 'drop'
+					discardLevel | loud | 'loud' is not a valid value for java.lang.System.Logger.Level. Valid values: 'all', 'trace', 'debug', 'info', 'warning', 'error', 'off', 'finest', 'fine', 'warn', 'severe'
+					""")
+	void badOverloadValuesAreErrors(String key, String value, String error) {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties("logging.route.test.publisher.async." + key + "=" + value)
+				.build())
+			.build();
+		var factory = config.publisherRegistry().provide(LogProviderRef.of(URI.create("async")));
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> factory.create("test", config, new LogAppender.Appenders("test", config, List.of())));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder:
+						Error for property. key: 'logging.route.test.publisher.async.%1$s' from PROPERTIES_STRING[logging.route.test.publisher.async.%1$s], %2$s
+						Tried:
+						    'logging.route.test.publisher.async.%1$s' from:
+						        PROPERTIES_STRING[logging.route.test.publisher.async.%1$s],
+						        URI(async:///)[%1$s]"""
+					.formatted(key, error),
+				e.getMessage());
 	}
 
 	private static BatchSwapAsyncLogPublisher publisher(LogConfig config, LogOutput output, int capacity,

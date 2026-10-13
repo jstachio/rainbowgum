@@ -47,9 +47,11 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * times out, an error alert is recorded and the worker continues draining before closing
  * the appender. Logging recursively from the worker is rejected to prevent deadlock.
  * Rejected events increment {@link LogMetrics#EVENTS_DROPPED_METRIC}, with one error
- * alert per rejection reason for each publisher. An interrupted producer can enqueue when
- * space is available; interruption while waiting for space drops the event and preserves
- * the interrupt flag.
+ * alert per rejection reason for each publisher. Events discarded by the overload options
+ * increment {@link LogMetrics#EVENTS_DISCARDED_METRIC} instead, with one warning alert
+ * per option for each publisher. An interrupted producer can enqueue when space is
+ * available; interruption while waiting for space drops the event and preserves the
+ * interrupt flag.
  */
 public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 
@@ -127,8 +129,8 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 		 */
 		BLOCK,
 		/**
-		 * Drop the incoming event regardless of level. Does not wait for buffer space,
-		 * but still acquires the publisher lock and may invoke an alert listener.
+		 * Discard the incoming event regardless of level instead of waiting for buffer
+		 * space.
 		 */
 		DROP;
 
@@ -183,7 +185,7 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 	 * @param overflow behavior when full: block (default) or drop the incoming event.
 	 * @param discardThreshold slots reserved for events above discardLevel. Zero disables
 	 * early discarding; otherwise discard when remaining slots are at or below this
-	 * number. Must be between zero and bufferSize, inclusive.
+	 * number. Must be zero or more and less than bufferSize.
 	 * @param discardLevel highest severity discarded early (default INFO). OFF disables
 	 * early discarding. ALL is normalized to TRACE.
 	 * @return publisher factory.
@@ -199,8 +201,8 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 		if (bufferSize < 1) {
 			throw new IllegalArgumentException("bufferSize must be positive.");
 		}
-		if (discardThreshold < 0 || discardThreshold > bufferSize) {
-			throw new IllegalArgumentException("discardThreshold must be between zero and bufferSize.");
+		if (discardThreshold < 0 || discardThreshold >= bufferSize) {
+			throw new IllegalArgumentException("discardThreshold must be zero or more and less than bufferSize.");
 		}
 		if (shutdownTimeout.isNegative()) {
 			throw new IllegalArgumentException("shutdownTimeout must not be negative.");
@@ -332,26 +334,40 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 
 	private enum Drop {
 
-		BUFFER_FULL(1 << 5, "the pending buffer was full"),
-		DISCARD_THRESHOLD(1 << 6, "the event level was eligible for discarding at the configured threshold"),
 		NOT_STARTED(1 << 0, "the publisher has not been started"), CLOSED(1 << 1, "the publisher is closing or closed"),
 		INTERRUPTED(1 << 2, "the logging thread was interrupted while the buffer was full"),
 		REENTRANT(1 << 3, "the publisher's own thread logged recursively"),
-		WORKER_FAILED(1 << 4, "the worker stopped before delivering the event");
+		WORKER_FAILED(1 << 4, "the worker stopped before delivering the event"),
+		// Configured by the application, so warnings counted separately from failures.
+		BUFFER_FULL(1 << 5, "the pending buffer was full and overflow is drop", true), DISCARD_THRESHOLD(1 << 6,
+				"the remaining buffer reached discardThreshold and the event level is at or below discardLevel", true);
 
 		final String description;
 
 		final int bit;
 
+		final boolean configured;
+
 		Drop(int bit, String description) {
+			this(bit, description, false);
+		}
+
+		Drop(int bit, String description, boolean configured) {
 			this.description = description;
 			this.bit = bit;
+			this.configured = configured;
 		}
 
 	}
 
 	private void dropped(Drop reason, int size) {
-		metrics.errorCounter(LogMetrics.EVENTS_DROPPED_METRIC, size);
+		String metric = reason.configured ? LogMetrics.EVENTS_DISCARDED_METRIC : LogMetrics.EVENTS_DROPPED_METRIC;
+		if (reason.configured) {
+			metrics.warnCounter(metric, size);
+		}
+		else {
+			metrics.errorCounter(metric, size);
+		}
 		int previous;
 		do {
 			previous = alertedReasons.get();
@@ -360,10 +376,15 @@ public final class BatchSwapAsyncLogPublisher implements AsyncLogPublisher {
 			}
 		}
 		while (!alertedReasons.compareAndSet(previous, previous | reason.bit));
+		if (reason.configured) {
+			alerts.warn(BatchSwapAsyncLogPublisher.class,
+					"Async publisher '" + name + "' discarded " + size + " event(s): " + reason.description
+							+ ". Further discards for this reason are only counted in " + metric + ".");
+			return;
+		}
 		alerts.error(BatchSwapAsyncLogPublisher.class,
 				new IllegalStateException("Async publisher '" + name + "' dropped " + size + " event(s): "
-						+ reason.description + ". Further drops for this reason are only counted in "
-						+ LogMetrics.EVENTS_DROPPED_METRIC + "."));
+						+ reason.description + ". Further drops for this reason are only counted in " + metric + "."));
 	}
 
 	private void consume() {
