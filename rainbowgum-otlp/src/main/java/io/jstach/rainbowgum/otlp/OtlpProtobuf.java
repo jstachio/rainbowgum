@@ -50,6 +50,10 @@ final class OtlpProtobuf {
 			w.bytesField(10, HexFormat.of().parseHex(spanId));
 		}
 		w.fixed64Field(11, r.timeUnixNano());
+		var eventName = r.eventName();
+		if (eventName != null) {
+			w.stringField(12, eventName);
+		}
 		return w;
 	}
 

@@ -1719,7 +1719,8 @@ logging.route.default.publisher.uri=async
 
 Other properties are <code>protocol</code> (<code>http/protobuf</code> or <code>http/json</code>),
 <code>headers</code>, <code>compression</code> (<code>gzip</code>), <code>timeout</code> (milliseconds),
-<code>maxBatchSize</code>, <code>resourceAttributes</code>, and <code>traceIdKey</code>/<code>spanIdKey</code>.
+<code>maxBatchSize</code>, <code>resourceAttributes</code>, <code>traceIdKey</code>/<code>spanIdKey</code>,
+and <code>keyValuesIncluded</code>/<code>keyValuesExcluded</code>.
 Retryable responses (429, 502, 503, 504) and network errors are retried with randomized backoff.
 The timeout bounds the whole export, including retries and response-body reads. A batch that still fails
 is dropped and reported as an <a href="#alerts">alert</a> and the <code>otlp.records.failed</code>
@@ -1752,10 +1753,25 @@ logging.appender.console.encoder.otlp.serviceName=orders
 
 The OTLP/HTTP output and OTLP/JSON encoder carry the same record content: the formatted message as the body,
 the logger name as the instrumentation scope, <code>thread.name</code>, <code>thread.id</code>, other key
-values as attributes, and <code>exception.*</code> attributes for a throwable. Event thread and exception attributes take precedence
+values as attributes, and <code>exception.*</code> attributes for a throwable. When <a href="#caller_info">caller info</a> is enabled
+the record also carries <code>code.function.name</code>, <code>code.file.path</code>, and
+<code>code.line.number</code>. Event thread, caller, and exception attributes take precedence
 when context contains the same names. Key values named <code>traceId</code> and
 <code>spanId</code> become the record's trace context when they are valid W3C ids. These can come from the
-OpenTelemetry contributor above or from Micrometer Tracing's MDC integration.
+OpenTelemetry contributor above or from Micrometer Tracing's MDC integration. A key value named
+<code>otel.event.name</code> becomes the record's event name, as it does with the OpenTelemetry Logback and
+Log4j appenders.
+
+<p>
+Every key value (MDC, SLF4J key value pairs, and contributors alike) becomes an attribute by default.
+<code>keyValuesIncluded</code> and <code>keyValuesExcluded</code> select which ones with case sensitive globs
+(<code>*</code> matches any characters, <code>?</code> one character); an excluded key is never sent:
+</p>
+
+{@snippet lang=properties :
+logging.appender.otel.output.otlp.keyValuesIncluded=request*,user.id
+logging.appender.otel.output.otlp.keyValuesExcluded=*.password,*.token
+}
 
 <h2 id="filter">Filtering</h2>
 

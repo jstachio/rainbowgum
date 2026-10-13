@@ -118,9 +118,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 
 	private final OtlpResource resource;
 
-	private final String traceIdKey;
-
-	private final String spanIdKey;
+	private final OtlpRecord.Mapping mapping;
 
 	private final LogAlerts alerts;
 
@@ -131,7 +129,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	private final List<OtlpRecord> pending = new ArrayList<>();
 
 	OtlpOutput(URI endpoint, OtlpProtocol protocol, Map<String, String> headers, boolean gzip, Duration timeout,
-			int maxBatchSize, OtlpResource resource, String traceIdKey, String spanIdKey, LogConfig config) {
+			int maxBatchSize, OtlpResource resource, OtlpRecord.Mapping mapping, LogConfig config) {
 		this.endpoint = endpoint;
 		this.displayEndpoint = LogProperty.redactUri(endpoint);
 		this.protocol = protocol;
@@ -140,8 +138,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		this.timeout = timeout;
 		this.maxBatchSize = maxBatchSize;
 		this.resource = resource;
-		this.traceIdKey = traceIdKey;
-		this.spanIdKey = spanIdKey;
+		this.mapping = mapping;
 		this.alerts = config.alerts();
 		this.metrics = config.metrics();
 		this.client = HttpClient.newBuilder().connectTimeout(timeout).build();
@@ -178,6 +175,8 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	 * @param resourceAttributes additional resource attributes.
 	 * @param traceIdKey key value holding the trace id, default {@code traceId}.
 	 * @param spanIdKey key value holding the span id, default {@code spanId}.
+	 * @param keyValuesIncluded globs of key values to add as attributes, default all.
+	 * @param keyValuesExcluded globs of key values not to add as attributes.
 	 * @param environmentVariables whether the standard {@code OTEL_*} environment
 	 * variables are read, default off.
 	 * @return output provider.
@@ -187,7 +186,8 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 			@ConvertParameter("parseProtocol") @Nullable OtlpProtocol protocol, @Nullable Map<String, String> headers,
 			@Nullable String compression, @Nullable Integer timeout, @Nullable Integer maxBatchSize,
 			@Nullable String serviceName, @Nullable Map<String, String> resourceAttributes, @Nullable String traceIdKey,
-			@Nullable String spanIdKey,
+			@Nullable String spanIdKey, @Nullable List<String> keyValuesIncluded,
+			@Nullable List<String> keyValuesExcluded,
 			@ConvertParameter("parseEnvironmentVariables") @Nullable EnvironmentVariables environmentVariables) {
 		boolean env = environmentVariables == EnvironmentVariables.ON;
 		URI endpoint_ = endpoint;
@@ -226,10 +226,8 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		URI e = endpoint_;
 		OtlpProtocol p = protocol_;
 		Duration t = Duration.ofMillis(timeout_);
-		String traceIdKey_ = traceIdKey == null ? OtlpJsonEncoder.DEFAULT_TRACE_ID_KEY : traceIdKey;
-		String spanIdKey_ = spanIdKey == null ? OtlpJsonEncoder.DEFAULT_SPAN_ID_KEY : spanIdKey;
-		return (n, config) -> new OtlpOutput(e, p, headers_, gzip, t, maxBatchSize_, resource, traceIdKey_, spanIdKey_,
-				config);
+		var mapping = OtlpRecord.Mapping.of(traceIdKey, spanIdKey, keyValuesIncluded, keyValuesExcluded);
+		return (n, config) -> new OtlpOutput(e, p, headers_, gzip, t, maxBatchSize_, resource, mapping, config);
 	}
 
 	static OtlpProtocol parseProtocol(String value) {
@@ -310,7 +308,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	}
 
 	private void add(LogEvent event) {
-		pending.add(OtlpRecord.of(event, traceIdKey, spanIdKey));
+		pending.add(OtlpRecord.of(event, mapping));
 		if (pending.size() >= maxBatchSize) {
 			send();
 		}
