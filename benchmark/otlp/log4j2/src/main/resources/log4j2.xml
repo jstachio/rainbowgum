@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Thread attributes and every MDC (context data) key, to match what Rainbow Gum sends. -->
+<Configuration status="WARN">
+  <Appenders>
+    <OpenTelemetry name="otel" captureExperimentalAttributes="true" contextDataAttributesIncluded="*"/>
+  </Appenders>
+  <Loggers>
+    <Root level="info">
+      <AppenderRef ref="otel"/>
+    </Root>
+  </Loggers>
+</Configuration>

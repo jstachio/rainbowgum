@@ -1,0 +1,27 @@
+# OpenTelemetry Collector for the OTLP benchmark: accepts OTLP/HTTP and OTLP/gRPC logs and
+# throws them away (nop), so the collector's own work stays small and equal for every
+# framework. Its internal metrics on :8888 count the records it accepted, which is how the
+# benchmark knows every record arrived.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+exporters:
+  nop:
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      exporters: [nop]
+  telemetry:
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
