@@ -809,33 +809,39 @@ The <code>events.queued</code> metric counts pending events, excluding the batch
 Overload handling is explicit. The defaults retain blocking behavior without early discarding:
 </p>
 <ul>
-<li><code>overflow=block</code> waits for space when full. <code>overflow=drop</code> drops the
+<li><code>overflow=block</code> waits for space when full. <code>overflow=drop</code> discards the
 incoming event at any level when full. It avoids waiting for capacity, but still acquires a short
 publisher lock and may invoke an alert listener.</li>
 <li><code>discardThreshold</code> reserves pending slots for higher-priority events. Zero (the default)
-disables early discarding. Otherwise, events at or below <code>discardLevel</code> are dropped when
-remaining slots are at or below the threshold. The threshold must be between zero and
-<code>bufferSize</code>, inclusive, and excludes the batch currently being written.</li>
+disables early discarding. Otherwise, events at or below <code>discardLevel</code> are discarded when
+remaining slots are at or below the threshold. The threshold must be less than
+<code>bufferSize</code>, and excludes the batch currently being written.</li>
 <li><code>discardLevel=info</code> is the default cutoff for early discarding. For example,
 <code>debug</code> retains INFO events too. <code>off</code> disables early discarding.</li>
 </ul>
 <p>
 For example, reserve 128 of 1024 slots for warnings and errors, blocking those events if the buffer
-fills. Add <code>overflow=drop</code> if even warnings and errors should be dropped instead of waiting:
+fills (<code>discardLevel=info</code> and <code>overflow=block</code> are the defaults, shown for
+clarity). Use <code>overflow=drop</code> if even warnings and errors should be discarded instead of
+waiting:
 </p>
-<pre class="properties">
+
+{@snippet lang=properties :
 logging.route.example.publisher.uri=async
 logging.route.example.publisher.async.bufferSize=1024
 logging.route.example.publisher.async.discardThreshold=128
 logging.route.example.publisher.async.discardLevel=info
 logging.route.example.publisher.async.overflow=block
-</pre>
+}
+
 <p>
 The same options are available under <code>publisher.batchswap</code> when selecting
 <code>batchswap</code>, or as URI query parameters. Accepted events are never evicted, and output
-always runs on the worker. Every discarded event increments <code>events.dropped</code>, including
-early discards. The first drop for each reason also produces an error alert; subsequent drops for
-that reason are counted without producing more alerts.
+always runs on the worker. Discarding is never silent: every event discarded by these options
+increments the <code>events.discarded</code> <a href="#metrics">metric</a>, and the first discard for
+each option produces a warning <a href="#alerts">alert</a>. Later discards are only counted. Events
+lost for other reasons, such as a failed worker, count as <code>events.dropped</code> with an error
+alert instead.
 </p>
 <p>
 For programmatic configuration, use

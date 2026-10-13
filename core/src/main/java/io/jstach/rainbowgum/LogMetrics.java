@@ -36,6 +36,14 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	static final String EVENTS_DROPPED_METRIC = "events.dropped";
 
 	/**
+	 * Counter name for the global count of log events an async publisher discarded
+	 * because its configured overload policy chose to, rather than wait for buffer space.
+	 * Kept separate from {@link #EVENTS_DROPPED_METRIC}: the application opted into
+	 * discarding, so it is a {@link #warnCounter(String, long) warning}, not an error.
+	 */
+	static final String EVENTS_DISCARDED_METRIC = "events.discarded";
+
+	/**
 	 * Gauge name for the aggregate number of events waiting in async publisher buffers.
 	 * Events removed for processing are no longer counted, even while their output is
 	 * being written. Concurrent snapshots can briefly lead or lag queue activity.
