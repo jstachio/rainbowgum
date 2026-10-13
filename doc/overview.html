@@ -281,10 +281,20 @@ programmatic configuration using the {@linkplain io.jstach.rainbowgum.LogBuilder
 <h3 id="config_properties">Properties based</h3>
 
 Rainbow Gum out of the box uses System properties for {@link io.jstach.rainbowgum.LogProperties}
-but an optional module {@link io.jstach.rainbowgum.avaje/ } will allow using <a href="https://avaje.io/config/">Avaje Config</a>
-as the properties provider. Other configuration systems will be added in the future but an 
-important requirement is that these systems do not do any logging or if they do allow it to be
-turned off, intercepted or blocked.
+but several optional modules provide other properties sources. Other configuration systems will be added
+in the future but an important requirement is that these systems do not do any logging or if they do allow
+it to be turned off, intercepted or blocked.
+
+<p>
+The current optional properties modules are:
+</p>
+<ul>
+  <li><a href="#simple_props">rainbowgum-simple-props</a> ({@link io.jstach.rainbowgum.simple.props/ }):
+    loads <code>logging.properties</code> files with profiles and a level file, without any third party
+    dependency.</li>
+  <li><code>rainbowgum-avaje-config</code> ({@link io.jstach.rainbowgum.avaje/ }): uses
+    <a href="https://avaje.io/config/">Avaje Config</a> as the properties provider.</li>
+</ul>
 
 <strong>
   IMPORTANT: Rainbow Gum core does not do any interpolation of property values!
