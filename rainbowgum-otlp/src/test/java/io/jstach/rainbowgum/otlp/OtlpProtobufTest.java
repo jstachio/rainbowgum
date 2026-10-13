@@ -144,6 +144,36 @@ class OtlpProtobufTest {
 		assertTrue(attributes.get(4).getValue().getIntValue() > 0);
 	}
 
+	/*
+	 * Nested messages are written in place and then shifted to fit their length prefix,
+	 * so lengths that need two and three byte varints are checked against the official
+	 * decoder too.
+	 */
+	@Test
+	void largeMessagesDecodeWithOfficialClasses() throws Exception {
+		List<OtlpRecord> records = new java.util.ArrayList<>();
+		for (int size : new int[] { 0, 1, 127, 128, 16_383, 16_384, 70_000 }) {
+			records.add(OtlpRecord.of(event("x", Level.INFO, "m".repeat(size), Map.of("k", "v".repeat(size)), null),
+					MAPPING));
+		}
+		var request = ExportLogsServiceRequest
+			.parseFrom(OtlpProtobuf.encode(OtlpResource.of(null, null, EnvironmentVariables.OFF), records));
+		var decoded = request.getResourceLogs(0).getScopeLogs(0).getLogRecordsList();
+		assertEquals(List.of(0, 1, 127, 128, 16_383, 16_384, 70_000),
+				decoded.stream().map(r -> r.getBody().getStringValue().length()).toList());
+		assertEquals(List.of(0, 1, 127, 128, 16_383, 16_384, 70_000),
+				decoded.stream()
+					.map(r -> r.getAttributesList()
+						.stream()
+						.filter(kv -> kv.getKey().equals("k"))
+						.findFirst()
+						.orElseThrow()
+						.getValue()
+						.getStringValue()
+						.length())
+					.toList());
+	}
+
 	private static Map<String, String> strings(List<KeyValue> kvs) {
 		return kvs.stream()
 			.filter(kv -> kv.getValue().getValueCase() == AnyValue.ValueCase.STRING_VALUE)
