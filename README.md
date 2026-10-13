@@ -11,7 +11,7 @@ like SLF4J / System.Logger and does mostly what you want out of the box.
 
 It is called **rainbow gum** after 
 [Eucalyptus Deglupta](https://en.wikipedia.org/wiki/Eucalyptus_deglupta) a beautiful tree native
-to Hawaii that has colorful bark (*colorful logs*).
+to Hawaii that has colorful bark ([*colorful logs*](#colorful-logs) ).
 
 <img src="etc/screenshots/ttll-rainbowgum.png" alt="Rainbow Gum console output: colored timestamp, thread, level, logger, and key values">
 
@@ -57,8 +57,10 @@ Covered in [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
 
 ## Colorful logs
 
-The console format is TTLL (time, thread, level, logger), colored with a theme. No pattern
-module or pattern string is needed:
+Rainbow Gum core comes with themes that work on three different formats also included in core: TTLL, JSON5, Logfmt.
+
+The console format below is TTLL (time, thread, level, logger), colored with the "One Dark" theme
+(note no pattern module or pattern string is needed and only one line of configuration is required):
 
 ```properties
 logging.appender.console.encoder.ttll.theme=one_dark
