@@ -2411,6 +2411,40 @@ code is not meant to compile directly against implementation classes:
 </dependency>
 }
 
+<h3 id="json_key_values">Structured Key Values (JSON)</h3>
+
+Logging facades accept objects as key values: SLF4J's fluent {@code addKeyValue} and the
+entries of a Log4j2 {@code MapMessage}. By default each is stored as its {@code toString()}. Turn on
+<code>logging.keyvalues.json</code> and objects that are not strings also get a JSON form, made on the logging
+thread when the key value is added, so key values stay immutable strings all the way to the output:
+
+{@snippet lang=properties :
+logging.keyvalues.json=on
+}
+
+{@snippet lang=java :
+logger.atInfo()
+    .addKeyValue("attempt", 3)
+    .addKeyValue("user", Map.of("id", 42, "roles", List.of("admin")))
+    .log("Retrying order");
+}
+
+Encoders that write JSON write the JSON form: <code>"attempt":3,"user":{"id":42,"roles":["admin"]}</code> from the
+JSON5, Logstash and ECS encoders, typed attribute values (int, double, bool, array, kvlist) from the
+OTLP output and encoder, and numbers only from GELF, whose additional fields are strings or numbers. Plain
+text encoders such as TTLL and logfmt are unchanged, as is the Logback compatible JSON encoder.
+<p>
+The built in {@link io.jstach.rainbowgum.KeyValues.JsonSerializer#of() serializer} uses no reflection: it
+writes numbers, booleans, maps, iterables and arrays, and leaves anything else as plain text. To serialize
+your own types, register a {@link io.jstach.rainbowgum.KeyValues.JsonSerializer} in the
+{@link io.jstach.rainbowgum.LogConfig#serviceRegistry() service registry}, for example one backed by
+Jackson; it is used only when <code>logging.keyvalues.json</code> is on.
+</p>
+<p>
+A Log4j2 {@code MapMessage}'s text is its format (a {@code StructuredDataMessage}'s message) or else its
+<code>message</code> entry, which is then not also a key value, the same as OpenTelemetry's Log4j2 appender.
+</p>
+
 <h3 id="default_key_values">Default Key Values</h3>
 
 <strong>EXPERIMENTAL</strong> {@link io.jstach.rainbowgum.keyvalues.contributor/} adds the same key values to every

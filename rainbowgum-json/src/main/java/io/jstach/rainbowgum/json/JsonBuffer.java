@@ -224,6 +224,22 @@ public final class JsonBuffer implements Buffer {
 	}
 
 	/**
+	 * Writes a field whose value is already JSON text, such as the JSON form of a key
+	 * value ({@link io.jstach.rainbowgum.KeyValues#getJsonOrNull(String)}).
+	 * @param k field name
+	 * @param json JSON text written as is
+	 * @param index the current index for comma determination
+	 * @param flag see {@link #EXTENDED_F}
+	 * @return index + 1
+	 */
+	public final int writeRawJson(String k, String json, int index, int flag) {
+		_writeStartField(k, index, flag);
+		jsonWriter.writeRawJson(json);
+		_writeEndField(flag);
+		return index + 1;
+	}
+
+	/**
 	 * Writes a double field.
 	 * @param k field name
 	 * @param v value
