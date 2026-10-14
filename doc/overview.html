@@ -57,6 +57,38 @@ Rainbow Gum also integrates with:
   <li><a href="#config_properties">Avaje Config</a> ({@link io.jstach.rainbowgum.avaje/ })</li>
 </ul>
 
+<h3 id="simple_testing">Using rainbowgum-simple</h3>
+
+For tests, low depependency applications, or when you prefer the traditional method of letting
+the logging system handle loading its own configuration, add
+<code>rainbowgum-simple</code> and logging works without configuration. Add
+<code>logging.properties</code> to
+<code>src/test/resources</code> (or <code>src/main/resources</code> for an application)
+when you need to customize it. See <a href="#simple_integration">Simple logging and properties</a>
+for the Maven dependency and profile options.
+
+<h3 id="simple_example_builder">Using RainbowGum Builders</h3>
+
+For technical organizations that have many projects it is recommended to use the
+programmatic builder approach and make a standardized jar (module) shared
+between all your projects so that logging initialization and configuration is
+consistent.
+
+Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
+Java directly and the {@link java.util.ServiceLoader} is below. It needs <code>rainbowgum-core</code> and
+<code>rainbowgum-pattern</code> at compile scope (see <a href="#installation">Installation</a>).
+
+{@snippet class="snippets.GettingStartedExample" region="gettingStarted" }
+
+The class is found with the {@link java.util.ServiceLoader}, so register it in
+<code>META-INF/services/io.jstach.rainbowgum.spi.RainbowGumServiceProvider</code> as a line with its
+fully qualified name (<code>snippets.GettingStartedExample</code> here), or with
+<code>provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with snippets.GettingStartedExample;</code>
+in a <code>module-info.java</code>. {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider} has additional
+documentation on registering a service loader aware jar. Then make the jar as a runtime dependency to
+the rest of your applications
+
+
 <h3 id="simple_example">Using System properties</h3>
 
 Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
@@ -75,34 +107,6 @@ default <a href="#ttll">TTLL</a> format.
 What happens with the above is Rainbow Gum will load its default Rainbow Gum via the service loader and use the properties to configure
 its builders. Unfortunately System properties on the command line can be rather tedious but luckily you
 can plugin in your own properties system easily.
-
-<h3 id="simple_example_builder">Using RainbowGum Builders</h3>
-
-For technical organizations that have many projects it is recommended to use the programmatic builder approach and make a standardized jar (module)
-shared between all your projects so that logging initialization and configuration is consistent.
-
-Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
-Java directly and the {@link java.util.ServiceLoader} is below. It needs <code>rainbowgum-core</code> and
-<code>rainbowgum-pattern</code> at compile scope (see <a href="#installation">Installation</a>).
-
-{@snippet class="snippets.GettingStartedExample" region="gettingStarted" }
-
-The class is found with the {@link java.util.ServiceLoader}, so register it in
-<code>META-INF/services/io.jstach.rainbowgum.spi.RainbowGumServiceProvider</code> as a line with its
-fully qualified name (<code>snippets.GettingStartedExample</code> here), or with
-<code>provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider with snippets.GettingStartedExample;</code>
-in a <code>module-info.java</code>. {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider} has additional
-documentation on registering a service loader aware jar.
-
-<h3 id="simple_testing">Using rainbowgum-simple</h3>
-
-For tests and small applications, or when you prefer the traditional method of letting
-the logging system handle loading its own configuration, add
-<code>rainbowgum-simple</code> and logging works without configuration. Add
-<code>logging.properties</code> to
-<code>src/test/resources</code> (or <code>src/main/resources</code> for an application)
-when you need to customize it. See <a href="#simple_integration">Simple logging and properties</a>
-for the Maven dependency and profile options.
 
 <h2 id="description">Description</h2>
 
@@ -2551,7 +2555,7 @@ cannot see a given {@code Logger} in time.
 
 <h4 id="simple_bundle">rainbowgum-simple</h4>
 
-<code>rainbowgum-simple</code> is a ready-to-use bundle for tests and small applications.
+<code>rainbowgum-simple</code> is a ready-to-use bundle for tests and low dependency applications.
 It pulls in <code>rainbowgum-slf4j</code> through the <code>rainbowgum</code> dependency,
 along with JDK logging integrations and
 <code>rainbowgum-simple-props</code>. Adding it activates logging without application
@@ -2591,13 +2595,14 @@ its property loading without the entire simple bundle. For example, alongside th
 
 <h5 id="simple_props_loading">Loading order</h5>
 
-<p>
-<strong>To opt in, having <code>rainbowgum-simple-props</code> on the classpath or module
-path is not enough: <code>logging.properties</code> (or the base resource name chosen
-with {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#resource(String) SimpleProperties.builder().resource(...)})
-must exist.</strong> Without that resource, this module contributes no properties,
+<strong>To opt in, having <code>rainbowgum-simple-props</code> on the classpath or module path is not enough:
+<code>logging.properties</code>
+must exist
+</strong> (or the base resource name chosen
+with {@linkplain io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#resource(String) builder.resource }).
+
+Without that resource, this module contributes no properties,
 including system properties and environment variables, even when profiles were selected.
-</p>
 
 <p>Once the base resource is found, property values resolve in this order (highest priority first):</p>
 <ol>
@@ -2615,10 +2620,11 @@ with the first listed profile taking priority.</li>
 
 <p>Profile selection uses the first configured source in this order:</p>
 <ol>
-<li>The <code>logging.profiles</code> system property, such as
+  <li>The <code>{@value  io.jstach.rainbowgum.simple.props.SimpleProperties#PROFILES_PROPERTY}</code>
+system property, such as
 <code>-Dlogging.profiles=local-dev,dev</code>.</li>
 <li>The <code>RAINBOWGUM_profiles</code> environment variable.</li>
-<li>{@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) SimpleProperties.builder().profiles(...)}.</li>
+<li>{@linkplain io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#profiles(String...) builder.profiles}.</li>
 </ol>
 
 <ul>
