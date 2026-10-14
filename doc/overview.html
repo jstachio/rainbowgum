@@ -38,7 +38,7 @@ We will cover the major ways to do this in the following sub sections.
 
 <h3 id="simple_spring_boot">Using Spring Boot</h3>
 
-If using Spring Boot see the <a href="#spring_boot">Rainbow Spring Boot Integration section</a>. The short version:
+If using Spring Boot see <strong><a href="#spring_boot">Spring Boot Integration</a></strong>. The short version:
 swap <code>spring-boot-starter-logging</code> for the Rainbow Gum starter and keep going: Rainbow Gum
 natively understands almost all of Spring Boot's own documented logging properties (<code>logging.level.*</code>,
 log groups, <code>logging.file.*</code>, <code>logging.pattern.*</code>, <code>logging.charset.*</code>, ANSI
@@ -46,6 +46,16 @@ control, and structured logging via <code>logging.structured.format.*</code> for
 <code>application.properties</code>/<code>application.yml</code> logging config generally keeps working as-is with
 no application code changes. That makes it a genuinely <strong>low-risk drop-in replacement for Logback</strong>:
 same properties, same behavior, a simpler and faster implementation underneath.
+
+<h3 id="simple_other_frameworks">Using Other Frameworks</h3>
+
+Rainbow Gum also integrates with:
+
+<ul>
+  <li><a href="#micronaut">Micronaut</a></li>
+  <li><a href="#helidon">Helidon</a></li>
+  <li><a href="#config_properties">Avaje Config</a> ({@link io.jstach.rainbowgum.avaje/ })</li>
+</ul>
 
 <h3 id="simple_example">Using System properties</h3>
 
