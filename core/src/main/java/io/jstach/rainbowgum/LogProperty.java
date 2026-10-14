@@ -70,16 +70,20 @@ public interface LogProperty {
 	public Result<Map<String, String>> ofMap();
 
 	/**
-	 * Parses a case-insensitive enum value and reports the valid property values when
-	 * parsing fails. Enum names and additional values are shown in lowercase, as property
-	 * values conventionally are.
+	 * Parses a case-insensitive enum value, ignoring leading and trailing whitespace, and
+	 * reports the valid property values when parsing fails. Enum names and additional
+	 * values are shown in lowercase, as property values conventionally are.
 	 * @param <E> enum type.
 	 * @param enumType enum class.
-	 * @param value input value.
+	 * @param input input value.
 	 * @param additionalValues accepted aliases or other values supported by the property.
 	 * @return parsed enum value.
 	 */
-	static <E extends Enum<E>> E enumValue(Class<E> enumType, String value, String... additionalValues) {
+	static <E extends Enum<E>> E enumValue(Class<E> enumType, String input, String... additionalValues) {
+		/*
+		 * A properties file keeps trailing whitespace, which is invisible in an editor.
+		 */
+		String value = input.strip();
 		try {
 			return Enum.valueOf(enumType, value.toUpperCase(Locale.ROOT));
 		}
@@ -107,7 +111,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<Integer> ofInt() {
-		return ofString().map(Integer::parseInt);
+		return ofString().map(v -> Integer.parseInt(v.strip()));
 	}
 
 	/**
@@ -130,7 +134,8 @@ public interface LogProperty {
 		return ofString().map(LogProperty::parseBoolean);
 	}
 
-	private static Boolean parseBoolean(String value) {
+	private static Boolean parseBoolean(String input) {
+		String value = input.strip();
 		if (value.equalsIgnoreCase("true")) {
 			return true;
 		}

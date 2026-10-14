@@ -187,13 +187,13 @@ public interface LevelResolver {
 
 	/**
 	 * Parses a Level from a string. ALL is converted to TRACE.
-	 * @param input level like String where case is ignored and SLF4J and JUL level names
-	 * are supported as well.
+	 * @param input level like String where case and surrounding whitespace are ignored
+	 * and SLF4J and JUL level names are supported as well.
 	 * @return level
 	 * @throws IllegalArgumentException if the input is not recognized as a level.
 	 */
 	public static Level parseLevel(String input) throws IllegalArgumentException {
-		String normalized = input.toUpperCase(Locale.ROOT);
+		String normalized = input.strip().toUpperCase(Locale.ROOT);
 		return switch (normalized) {
 			case "ALL" -> Level.TRACE;
 			case "TRACE", "FINEST" -> Level.TRACE;
