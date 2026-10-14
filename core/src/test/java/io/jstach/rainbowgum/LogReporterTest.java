@@ -40,6 +40,7 @@ class LogReporterTest {
 							  logging.global.threadLocal = ALLOW
 							  logging.global.optimize = false
 							  logging.keyvalues.sources = (all)
+							  logging.keyvalues.json = OFF
 							Debug mode: OFF
 
 							Router: default
@@ -137,6 +138,7 @@ class LogReporterTest {
 					  logging.global.threadLocal = ALLOW
 					  logging.global.optimize = false
 					  logging.keyvalues.sources = (all)
+					  logging.keyvalues.json = OFF
 					Debug mode: ERROR
 
 					Router: default
@@ -175,6 +177,7 @@ class LogReporterTest {
 				  logging.global.threadLocal = ALLOW
 				  logging.global.optimize = false
 				  logging.keyvalues.sources = (all)
+				  logging.keyvalues.json = OFF
 				Debug mode: OFF
 
 				(no RainbowGum built from this config yet)

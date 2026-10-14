@@ -44,7 +44,8 @@ public final class GelfEncoder extends LogEncoder.AbstractEncoder<JsonBuffer> {
 	 * which GELF does not allow as an additional field.
 	 */
 	private static final KeyValuesWriter KEY_VALUES = new KeyValuesWriter(KeyValuesWriter.Placement.DOTTED,
-			Set.of("time", "level", "logger", "thread_name", "thread_id", "throwable", "id"), EXTENDED_F);
+			Set.of("time", "level", "logger", "thread_name", "thread_id", "throwable", "id"), EXTENDED_F,
+			KeyValuesWriter.JsonForms.NUMBERS);
 
 	private final String host;
 

@@ -150,7 +150,7 @@ final class LocationAwareForwardingLogger
 		if (!pairs.isEmpty()) {
 			var mutable = handler.copyDefaultKeyValues();
 			for (var kv : pairs) {
-				mutable.putKeyValue(kv.key, kv.value == null ? null : kv.value.toString());
+				handler.putKeyValue(mutable, kv.key, kv.value);
 			}
 			keyValues = mutable;
 		}

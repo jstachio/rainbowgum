@@ -6,18 +6,21 @@ import java.util.Map;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.ThreadContext;
+import org.apache.logging.log4j.message.MapMessage;
 import org.apache.logging.log4j.message.Message;
 import org.apache.logging.log4j.message.MessageFactory;
 import org.apache.logging.log4j.spi.AbstractLogger;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
+import io.jstach.rainbowgum.RainbowGum;
 
 /**
  * Everything {@link LevelLogger} (level resolved once, cached) and
@@ -232,9 +235,39 @@ abstract class AbstractLog4jLogger extends AbstractLogger implements LogEventFac
 			return;
 		}
 		var sysLevel = translate(level);
-		LogEvent event = eventNoArg(sysLevel, message.getFormattedMessage(), throwable);
+		LogEvent event = message instanceof MapMessage<?, ?> map ? mapEvent(sysLevel, map, throwable)
+				: eventNoArg(sysLevel, message.getFormattedMessage(), throwable);
 		router.eventLogger(getName()).log(withCaller(event, fqcn));
 	}
+
+	/*
+	 * Like the OpenTelemetry Log4j2 appender: a MapMessage's entries are key values and
+	 * its text is its format (a StructuredDataMessage's message) or else its "message"
+	 * entry, which is then not also a key value. Entry values are objects, so with
+	 * logging.keyvalues.json on they also get a JSON form.
+	 */
+	private LogEvent mapEvent(java.lang.System.Logger.Level level, MapMessage<?, ?> map,
+			@Nullable Throwable throwable) {
+		var kvs = MutableKeyValues.of();
+		defaultKeyValues().forEach(kvs);
+		String text = map.getFormat();
+		boolean messageEntry = text == null || text.isEmpty();
+		if (messageEntry) {
+			text = map.get(MESSAGE_ENTRY);
+		}
+		var gum = RainbowGum.getOrNull();
+		var serializer = gum == null ? null : KeyValues.JsonSerializer.of(gum.config());
+		for (var e : map.getData().entrySet()) {
+			String key = e.getKey();
+			if (messageEntry && MESSAGE_ENTRY.equals(key)) {
+				continue;
+			}
+			kvs.putObject(key, e.getValue(), serializer);
+		}
+		return eventNoArg(level, text == null ? "" : text, kvs, throwable);
+	}
+
+	private static final String MESSAGE_ENTRY = "message";
 
 	private static LogEvent withCaller(LogEvent event, String fqcn) {
 		var caller = findCaller(fqcn);

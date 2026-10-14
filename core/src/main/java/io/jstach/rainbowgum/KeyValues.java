@@ -48,6 +48,18 @@ public sealed interface KeyValues {
 	public @Nullable String getValueOrNull(String key);
 
 	/**
+	 * The JSON form of the value for a key, added with
+	 * {@link MutableKeyValues#putKeyValue(String, String, String)}, usually from an
+	 * object passed to a logging facade and turned into JSON by a {@link JsonSerializer}.
+	 * Encoders that write JSON can write it in place of the value as a JSON string. JSON
+	 * forms are not key values themselves: iteration, {@link #size()} and
+	 * {@link #getValueOrNull(String)} do not include them.
+	 * @param key key never <code>null</code>.
+	 * @return JSON text or <code>null</code> if the key has no JSON form.
+	 */
+	public @Nullable String getJsonOrNull(String key);
+
+	/**
 	 * Used to easily iterate over the key value pairs without using an iterator.
 	 * @param action consumer called on each key value pair.
 	 */
@@ -163,17 +175,38 @@ public sealed interface KeyValues {
 	 * reaching real entries that come after it.
 	 */
 	private static KeyValues mergeArrays(KeyValues low, KeyValues high) {
-		ArrayKeyValues buf = new ArrayKeyValues(low.size() + high.size());
+		ArrayKeyValues buf = new ArrayKeyValues(storedSize(low) + storedSize(high));
 		buf.kvs = new @Nullable String[buf.threshold];
 		if (low instanceof AbstractArrayKeyValues low2 && low2.dense) {
 			System.arraycopy(low2.kvs, 0, buf.kvs, 0, low2.size * 2);
 			buf.size = low2.size;
+			buf.jsonCount = low2.jsonCount;
+		}
+		else if (low instanceof AbstractArrayKeyValues low2) {
+			low2.forEachEntry(buf::appendUnchecked);
 		}
 		else {
 			low.forEach(buf::appendUnchecked);
 		}
-		high.forEach(buf);
+		if (high instanceof AbstractArrayKeyValues high2 && high2.jsonCount > 0) {
+			/*
+			 * Plain values first, which drops any JSON form from low for the keys high
+			 * overrides, then high's own JSON forms.
+			 */
+			high.forEach(buf);
+			high2.forEachJsonEntry(buf::putJsonEntry);
+		}
+		else {
+			high.forEach(buf);
+		}
 		return buf.freeze();
+	}
+
+	/*
+	 * Includes JSON forms, which take entries of their own.
+	 */
+	private static int storedSize(KeyValues kvs) {
+		return kvs instanceof AbstractArrayKeyValues a ? a.size : kvs.size();
 	}
 
 	/**
@@ -207,6 +240,46 @@ public sealed interface KeyValues {
 		 * @param value value maybe <code>null</code>.
 		 */
 		void putKeyValue(String key, @Nullable String value);
+
+		/**
+		 * Puts a value that also has a JSON form, see
+		 * {@link KeyValues#getJsonOrNull(String)}. Putting the key again with
+		 * {@link #putKeyValue(String, String)} or removing it removes the JSON form.
+		 * @param key key.
+		 * @param value plain text value used by encoders that do not write JSON.
+		 * @param json JSON text or <code>null</code> for no JSON form.
+		 */
+		void putKeyValue(String key, @Nullable String value, @Nullable String json);
+
+		/**
+		 * Puts an object a logging facade was given as a key value. A string or
+		 * <code>null</code> is put as is. Anything else is put as its
+		 * {@link Object#toString()} and, when a serializer is given, the JSON form the
+		 * serializer returns. A serializer that throws only loses the JSON form.
+		 * @param key key.
+		 * @param value value maybe <code>null</code>.
+		 * @param serializer usually {@link JsonSerializer#of(LogConfig)}, maybe
+		 * <code>null</code> for plain text only.
+		 */
+		default void putObject(String key, @Nullable Object value, @Nullable JsonSerializer serializer) {
+			if (value == null || value instanceof String) {
+				putKeyValue(key, (String) value);
+				return;
+			}
+			String plain = value.toString();
+			if (serializer == null) {
+				putKeyValue(key, plain);
+				return;
+			}
+			String json;
+			try {
+				json = serializer.toJson(value);
+			}
+			catch (RuntimeException e) {
+				json = null;
+			}
+			putKeyValue(key, plain, json);
+		}
 
 		/**
 		 * Fluent version of put.
@@ -277,6 +350,51 @@ public sealed interface KeyValues {
 	}
 
 	/**
+	 * Turns an object a logging facade was given as a key value into JSON text when it is
+	 * added, on the logging thread, so key values stay immutable strings. Only used when
+	 * {@value LogProperties#KEY_VALUES_JSON_PROPERTY} is on.
+	 * <p>
+	 * A serializer registered in {@link LogConfig#serviceRegistry()} under this class is
+	 * used, otherwise the {@linkplain #of() built in} one.
+	 */
+	@FunctionalInterface
+	public interface JsonSerializer {
+
+		/**
+		 * Converts a value to JSON.
+		 * @param value never a {@link String}, since strings are only ever plain text.
+		 * @return JSON text, or <code>null</code> to keep only the plain text form.
+		 */
+		@Nullable String toJson(Object value);
+
+		/**
+		 * The built in serializer. It writes numbers and booleans as JSON numbers and
+		 * booleans, maps as objects, iterables and arrays as arrays, and anything else as
+		 * a JSON string of its {@link Object#toString()}. Non finite floating point
+		 * numbers are written as strings.
+		 * @return built in serializer.
+		 */
+		static JsonSerializer of() {
+			return BuiltinJsonSerializer.INSTANCE;
+		}
+
+		/**
+		 * The serializer a logging facade should use for a config.
+		 * @param config config.
+		 * @return serializer, or <code>null</code> when
+		 * {@value LogProperties#KEY_VALUES_JSON_PROPERTY} is off.
+		 */
+		static @Nullable JsonSerializer of(LogConfig config) {
+			if (config.globals().keyValuesJson() == LogConfig.Globals.KeyValuesJson.OFF) {
+				return null;
+			}
+			var registered = config.serviceRegistry().findOrNull(JsonSerializer.class);
+			return registered == null ? of() : registered;
+		}
+
+	}
+
+	/**
 	 * Pretty prints key values.
 	 * @param kvs kvs.
 	 * @param sb StringBuilder.
@@ -302,7 +420,8 @@ public sealed interface KeyValues {
 		}
 		boolean[] result = { true };
 		self.forEach((k, v) -> {
-			if (result[0] && !Objects.equals(v, kvs.getValueOrNull(k))) {
+			if (result[0] && (!Objects.equals(v, kvs.getValueOrNull(k))
+					|| !Objects.equals(self.getJsonOrNull(k), kvs.getJsonOrNull(k)))) {
 				result[0] = false;
 			}
 		});
@@ -320,6 +439,11 @@ final class EmptyKeyValues implements KeyValues {
 
 	@Override
 	public @Nullable String getValueOrNull(String key) {
+		return null;
+	}
+
+	@Override
+	public @Nullable String getJsonOrNull(String key) {
 		return null;
 	}
 
@@ -398,6 +522,16 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 	 */
 	protected boolean dense = true;
 
+	/*
+	 * JSON forms (KeyValues#getJsonOrNull) are stored as extra entries whose key is the
+	 * plain key prefixed with JSON_PREFIX, a character no real key starts with. jsonCount
+	 * is how many of the size entries are JSON forms, so the common case of none costs
+	 * one int check when iterating.
+	 */
+	protected static final char JSON_PREFIX = '\u0000';
+
+	protected int jsonCount;
+
 	protected AbstractArrayKeyValues(@Nullable String[] kvs, int size, int threshold) {
 		super();
 		this.kvs = kvs;
@@ -407,7 +541,53 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 
 	@Override
 	public int size() {
-		return this.size;
+		return this.size - this.jsonCount;
+	}
+
+	static boolean isJsonKey(String k) {
+		return !k.isEmpty() && k.charAt(0) == JSON_PREFIX;
+	}
+
+	private static boolean isJsonKeyOf(String k, String key) {
+		return k.length() == key.length() + 1 && k.charAt(0) == JSON_PREFIX && k.regionMatches(1, key, 0, key.length());
+	}
+
+	@Override
+	public @Nullable String getJsonOrNull(String key) {
+		if (jsonCount == 0) {
+			return null;
+		}
+		for (int i = 0; i < (threshold - 1); i += 2) {
+			var k = kvs[i];
+			if (k != null && isJsonKeyOf(k, key)) {
+				return kvs[i + 1];
+			}
+		}
+		return null;
+	}
+
+	/*
+	 * Every stored entry including JSON forms, for copying into another instance.
+	 */
+	void forEachEntry(BiConsumer<String, @Nullable String> action) {
+		for (int i = 0; i < (threshold - 1); i += 2) {
+			var k = kvs[i];
+			if (k != null) {
+				action.accept(k, kvs[i + 1]);
+			}
+		}
+	}
+
+	void forEachJsonEntry(BiConsumer<String, @Nullable String> action) {
+		if (jsonCount == 0) {
+			return;
+		}
+		for (int i = 0; i < (threshold - 1); i += 2) {
+			var k = kvs[i];
+			if (k != null && isJsonKey(k)) {
+				action.accept(k, kvs[i + 1]);
+			}
+		}
 	}
 
 	@Override
@@ -435,7 +615,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			var v = kvs[i + 1];
-			if (k == null) {
+			if (k == null || (jsonCount > 0 && isJsonKey(k))) {
 				continue;
 			}
 			action.accept(k, v);
@@ -450,7 +630,7 @@ sealed abstract class AbstractArrayKeyValues implements KeyValues {
 		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			var v = kvs[i + 1];
-			if (k == null) {
+			if (k == null || (jsonCount > 0 && isJsonKey(k))) {
 				continue;
 			}
 			index = action.accept(this, k, v, index, storage);
@@ -560,6 +740,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.threshold);
 		var result = new ArrayKeyValues(copyKvs, size, threshold);
 		result.dense = this.dense;
+		result.jsonCount = this.jsonCount;
 		return result;
 	}
 
@@ -574,6 +755,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		System.arraycopy(orig.kvs, 0, copyKvs, 0, orig.threshold);
 		var result = new ImmutableArrayKeyValues(copyKvs, size, threshold);
 		result.dense = this.dense;
+		result.jsonCount = this.jsonCount;
 		return result;
 	}
 
@@ -585,8 +767,30 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 	 * We implement BiConsumer to avoid garbage like entry set and iterators
 	 */
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public void putKeyValue(String key, @Nullable String value) {
+		put(key, value);
+		if (jsonCount > 0 && !isJsonKey(key)) {
+			remove(JSON_PREFIX + key);
+		}
+	}
+
+	@Override
+	public void putKeyValue(String key, @Nullable String value, @Nullable String json) {
+		putKeyValue(key, value);
+		if (json != null) {
+			put(JSON_PREFIX + key, json);
+		}
+	}
+
+	/*
+	 * A JSON form entry as stored in another instance, key already prefixed.
+	 */
+	void putJsonEntry(String jsonKey, @Nullable String json) {
+		put(jsonKey, json);
+	}
+
+	@SuppressWarnings("ReferenceEquality")
+	private void put(String key, @Nullable String value) {
 		Objects.requireNonNull(key);
 		if (kvs == EMPTY) {
 			inflateTable(threshold);
@@ -605,11 +809,13 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 				kvs[i] = key;
 				kvs[i + 1] = value;
 				size++;
+				countIfJson(key);
 				return;
 			}
 		}
 		ensureCapacity();
 		size++;
+		countIfJson(key);
 		int valueIndex = (size * 2) - 1;
 		kvs[valueIndex - 1] = key;
 		kvs[valueIndex] = value;
@@ -632,9 +838,16 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		}
 		ensureCapacity();
 		size++;
+		countIfJson(key);
 		int valueIndex = (size * 2) - 1;
 		kvs[valueIndex - 1] = key;
 		kvs[valueIndex] = value;
+	}
+
+	private void countIfJson(String key) {
+		if (isJsonKey(key)) {
+			jsonCount++;
+		}
 	}
 
 	@Override
@@ -643,6 +856,7 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 		if (kvs == EMPTY) {
 			return;
 		}
+		boolean json = isJsonKey(key);
 		for (int i = 0; i < (threshold - 1); i += 2) {
 			var k = kvs[i];
 			/*
@@ -653,7 +867,13 @@ final class ArrayKeyValues extends AbstractArrayKeyValues implements MutableKeyV
 				kvs[i + 1] = null;
 				size--;
 				dense = false;
+				if (json) {
+					jsonCount--;
+				}
 			}
+		}
+		if (!json && jsonCount > 0) {
+			remove(JSON_PREFIX + key);
 		}
 	}
 

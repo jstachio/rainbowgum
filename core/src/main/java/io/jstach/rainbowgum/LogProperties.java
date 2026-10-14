@@ -365,6 +365,13 @@ public interface LogProperties {
 	static final String KEY_VALUES_SOURCES_PROPERTY = KEY_VALUES_PREFIX + "sources";
 
 	/**
+	 * Whether objects given to a logging facade as key values also get a JSON form:
+	 * <code>on</code> or <code>off</code> (the default). See
+	 * {@link LogConfig.Globals.KeyValuesJson}.
+	 */
+	static final String KEY_VALUES_JSON_PROPERTY = KEY_VALUES_PREFIX + "json";
+
+	/**
 	 * Maximum number of alerts {@link LogAlerts} holds in its ring buffer. Read once,
 	 * from whatever {@link LogProperties} {@link LogConfig.Builder#build()} has already
 	 * resolved by the time it constructs {@link LogAlerts} - before any
