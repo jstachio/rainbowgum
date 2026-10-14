@@ -161,6 +161,7 @@ class LogConfigDebugTest {
 						  logging.global.threadLocal = ALLOW
 						  logging.global.optimize = false
 						  logging.keyvalues.disabled = (none)
+						  logging.keyvalues.json = OFF
 						Debug mode: ALL
 
 						Router: default
@@ -374,6 +375,7 @@ class LogConfigDebugTest {
 						  logging.global.threadLocal = ALLOW
 						  logging.global.optimize = false
 						  logging.keyvalues.disabled = (none)
+						  logging.keyvalues.json = OFF
 						Debug mode: DEBUG_MODE
 
 						Router: default

@@ -372,6 +372,26 @@ class RawJsonWriter {
 		position += len;
 	}
 
+	/**
+	 * Writes text that is already JSON as is, encoded as UTF-8.
+	 * @param json JSON text
+	 */
+	public final void writeRawJson(final String json) {
+		final int len = json.length();
+		for (int i = 0; i < len; i++) {
+			if (json.charAt(i) > 127) {
+				byte[] bytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+				if (position + bytes.length >= buffer.length) {
+					enlargeOrFlush(bytes.length);
+				}
+				System.arraycopy(bytes, 0, buffer, position, bytes.length);
+				position += bytes.length;
+				return;
+			}
+		}
+		writeAscii(json);
+	}
+
 	public final void writeInt(final int value) {
 		writeAscii(Integer.toString(value));
 	}

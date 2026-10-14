@@ -60,6 +60,26 @@ class OtlpJsonEncoderTest {
 		assertEquals(expected, encode(encoder, event));
 	}
 
+	@Test
+	void jsonFormsAreTypedAnyValues() {
+		var kvs = io.jstach.rainbowgum.KeyValues.MutableKeyValues.of();
+		kvs.putKeyValue("attempt", "3", "3");
+		kvs.putKeyValue("ratio", "0.5", "0.5");
+		kvs.putKeyValue("ok", "false", "false");
+		kvs.putKeyValue("user", "{id=1, roles=[admin, null]}", "{\"id\":1,\"roles\":[\"admin\",null]}");
+		var event = LogEvent.of(java.time.Instant.ofEpochSecond(1), "main", 42, Level.INFO, "x", "m", kvs, null);
+		var encoder = OtlpJsonEncoder.of("otlp", "orders", null, null, null, null, null, null);
+		String line = encode(encoder, event);
+		String attributes = line.substring(line.indexOf("{\"key\":\"attempt\""), line.indexOf("]}]}]}]}"));
+		assertEquals("""
+				{"key":"attempt","value":{"intValue":"3"}},\
+				{"key":"ratio","value":{"doubleValue":0.5}},\
+				{"key":"ok","value":{"boolValue":false}},\
+				{"key":"user","value":{"kvlistValue":{"values":[\
+				{"key":"id","value":{"intValue":"1"}},\
+				{"key":"roles","value":{"arrayValue":{"values":[{"stringValue":"admin"},{}]}}}]}}}""", attributes);
+	}
+
 	/*
 	 * The same capabilities OpenTelemetry's Logback and Log4j appenders have: the event
 	 * name key, caller (code) attributes, and include/exclude globs, configured only by

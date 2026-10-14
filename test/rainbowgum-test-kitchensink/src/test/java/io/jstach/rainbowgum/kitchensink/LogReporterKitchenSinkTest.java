@@ -157,6 +157,7 @@ class LogReporterKitchenSinkTest {
 					  logging.global.threadLocal = ALLOW
 					  logging.global.optimize = true
 					  logging.keyvalues.disabled = (none)
+					  logging.keyvalues.json = OFF
 					Debug mode: OFF
 
 					Router: structured
