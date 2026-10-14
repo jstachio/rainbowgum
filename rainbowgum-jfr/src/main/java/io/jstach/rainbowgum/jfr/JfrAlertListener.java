@@ -97,39 +97,68 @@ public final class JfrAlertListener implements LogAlerts.Listener {
 
 	@Override
 	public void onAlert(LogEvent event) {
-		var jfrEvent = newEvent(event.level());
-		if (jfrEvent == null || !jfrEvent.isEnabled()) {
-			return;
+		switch (event.level()) {
+			case TRACE -> emitTrace(event);
+			case DEBUG -> emitDebug(event);
+			case INFO -> emitInfo(event);
+			case WARNING -> emitWarn(event);
+			case ERROR -> emitError(event);
+			case ALL, OFF -> {
+			}
 		}
-		var message = new StringBuilder();
-		JfrLogOutput.MESSAGE_FORMATTER.format(message, event);
-		jfrEvent.message = message.toString();
-		jfrEvent.logger = event.loggerName();
-		var t = event.throwableOrNull();
-		if (t != null) {
-			var stackTrace = new StringBuilder();
-			ThrowableFormatter.appendThrowable(stackTrace, t);
-			jfrEvent.throwable = stackTrace.toString();
-		}
-		jfrEvent.commit();
 	}
 
 	/*
-	 * Not a factory on RainbowGumAlertEvent itself: verifying a method of the event base
-	 * class that returns its subclasses loads them while the base class is still being
-	 * linked, and JFR fails to instrument an event class loaded then when a recording is
-	 * already running (-XX:StartFlightRecording), leaving it uninstrumented or failing
-	 * with a duplicate class definition.
+	 * Same shape as JfrLogOutput: one method per event type so a disabled event's
+	 * allocation can be eliminated, and not on RainbowGumAlertEvent for the same class
+	 * loading reason.
 	 */
-	private static @Nullable RainbowGumAlertEvent newEvent(java.lang.System.Logger.Level level) {
-		return switch (level) {
-			case TRACE -> new RainbowGumAlertEvent.TraceEvent();
-			case DEBUG -> new RainbowGumAlertEvent.DebugEvent();
-			case INFO -> new RainbowGumAlertEvent.InfoEvent();
-			case WARNING -> new RainbowGumAlertEvent.WarnEvent();
-			case ERROR -> new RainbowGumAlertEvent.ErrorEvent();
-			case ALL, OFF -> null;
-		};
+	private static void emitTrace(LogEvent event) {
+		var e = new RainbowGumAlertEvent.TraceEvent();
+		if (e.isEnabled()) {
+			fill(e, event);
+			e.commit();
+		}
+	}
+
+	private static void emitDebug(LogEvent event) {
+		var e = new RainbowGumAlertEvent.DebugEvent();
+		if (e.isEnabled()) {
+			fill(e, event);
+			e.commit();
+		}
+	}
+
+	private static void emitInfo(LogEvent event) {
+		var e = new RainbowGumAlertEvent.InfoEvent();
+		if (e.isEnabled()) {
+			fill(e, event);
+			e.commit();
+		}
+	}
+
+	private static void emitWarn(LogEvent event) {
+		var e = new RainbowGumAlertEvent.WarnEvent();
+		if (e.isEnabled()) {
+			fill(e, event);
+			e.commit();
+		}
+	}
+
+	private static void emitError(LogEvent event) {
+		var e = new RainbowGumAlertEvent.ErrorEvent();
+		if (e.isEnabled()) {
+			fill(e, event);
+			e.commit();
+		}
+	}
+
+	private static void fill(RainbowGumAlertEvent e, LogEvent event) {
+		var message = new StringBuilder();
+		JfrLogOutput.MESSAGE_FORMATTER.format(message, event);
+		e.message = message.toString();
+		e.logger = event.loggerName();
+		e.throwable = JfrLogOutput.stackTraceOrNull(event);
 	}
 
 }
