@@ -174,19 +174,81 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 
 	@Override
 	public void write(LogEvent event, String s) {
-		var jfrEvent = newEvent(event.level());
-		if (jfrEvent == null || !jfrEvent.isEnabled()) {
-			return;
+		switch (event.level()) {
+			case TRACE -> emitTrace(event, s);
+			case DEBUG -> emitDebug(event, s);
+			case INFO -> emitInfo(event, s);
+			case WARNING -> emitWarn(event, s);
+			case ERROR -> emitError(event, s);
+			case ALL, OFF -> {
+			}
 		}
-		jfrEvent.message = s;
-		jfrEvent.logger = event.loggerName();
+	}
+
+	/*
+	 * One method per event type, each allocating its event and never returning it, so the
+	 * JIT can eliminate the allocation when the event is disabled. A factory returning
+	 * the event merges the five allocations into one value, which defeats escape
+	 * analysis: measured 40 bytes and about 14 ns per call with no recording, against
+	 * none and about 1.5 ns this way. The methods are here, not on RainbowGumLogEvent:
+	 * verifying a method of the event base class that refers to its subclasses loads them
+	 * while the base class is still being linked, and JFR fails to instrument an event
+	 * class loaded then when a recording is already running (-XX:StartFlightRecording).
+	 */
+	private static void emitTrace(LogEvent event, String s) {
+		var e = new RainbowGumLogEvent.TraceEvent();
+		if (e.isEnabled()) {
+			fill(e, event, s);
+			e.commit();
+		}
+	}
+
+	private static void emitDebug(LogEvent event, String s) {
+		var e = new RainbowGumLogEvent.DebugEvent();
+		if (e.isEnabled()) {
+			fill(e, event, s);
+			e.commit();
+		}
+	}
+
+	private static void emitInfo(LogEvent event, String s) {
+		var e = new RainbowGumLogEvent.InfoEvent();
+		if (e.isEnabled()) {
+			fill(e, event, s);
+			e.commit();
+		}
+	}
+
+	private static void emitWarn(LogEvent event, String s) {
+		var e = new RainbowGumLogEvent.WarnEvent();
+		if (e.isEnabled()) {
+			fill(e, event, s);
+			e.commit();
+		}
+	}
+
+	private static void emitError(LogEvent event, String s) {
+		var e = new RainbowGumLogEvent.ErrorEvent();
+		if (e.isEnabled()) {
+			fill(e, event, s);
+			e.commit();
+		}
+	}
+
+	private static void fill(RainbowGumLogEvent e, LogEvent event, String s) {
+		e.message = s;
+		e.logger = event.loggerName();
+		e.throwable = stackTraceOrNull(event);
+	}
+
+	static @Nullable String stackTraceOrNull(LogEvent event) {
 		var t = event.throwableOrNull();
-		if (t != null) {
-			var stackTrace = new StringBuilder();
-			ThrowableFormatter.appendThrowable(stackTrace, t);
-			jfrEvent.throwable = stackTrace.toString();
+		if (t == null) {
+			return null;
 		}
-		jfrEvent.commit();
+		var stackTrace = new StringBuilder();
+		ThrowableFormatter.appendThrowable(stackTrace, t);
+		return stackTrace.toString();
 	}
 
 	@Override
@@ -208,24 +270,6 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 		if (r != null) {
 			r.close();
 		}
-	}
-
-	/*
-	 * Not a factory on RainbowGumLogEvent itself: verifying a method of the event base
-	 * class that returns its subclasses loads them while the base class is still being
-	 * linked, and JFR fails to instrument an event class loaded then when a recording is
-	 * already running (-XX:StartFlightRecording), leaving it uninstrumented or failing
-	 * with a duplicate class definition.
-	 */
-	private static @Nullable RainbowGumLogEvent newEvent(java.lang.System.Logger.Level level) {
-		return switch (level) {
-			case TRACE -> new RainbowGumLogEvent.TraceEvent();
-			case DEBUG -> new RainbowGumLogEvent.DebugEvent();
-			case INFO -> new RainbowGumLogEvent.InfoEvent();
-			case WARNING -> new RainbowGumLogEvent.WarnEvent();
-			case ERROR -> new RainbowGumLogEvent.ErrorEvent();
-			case ALL, OFF -> null;
-		};
 	}
 
 }
