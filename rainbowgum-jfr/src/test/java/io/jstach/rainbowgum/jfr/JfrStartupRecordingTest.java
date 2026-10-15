@@ -48,8 +48,10 @@ class JfrStartupRecordingTest {
 		assertEquals(true, process.waitFor(60, TimeUnit.SECONDS), output);
 		assertEquals(0, process.exitValue(), output);
 		assertEquals("", output.lines().filter(l -> l.contains("[jfr,system")).reduce("", (a, b) -> a + b + "\n"));
-		assertEquals(Map.of("io.jstach.rainbowgum.AlertError", 1L, "io.jstach.rainbowgum.Error", 1L,
-				"io.jstach.rainbowgum.Info", 1L, "io.jstach.rainbowgum.Warn", 1L), counts(recordingFile));
+		assertEquals(
+				Map.of("io.jstach.rainbowgum.alert.AlertError", 1L, "io.jstach.rainbowgum.log.Error", 1L,
+						"io.jstach.rainbowgum.log.Info", 1L, "io.jstach.rainbowgum.log.Warn", 1L),
+				counts(recordingFile));
 	}
 
 	private static Map<String, Long> counts(Path recordingFile) throws IOException {
