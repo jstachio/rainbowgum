@@ -30,7 +30,7 @@ import jdk.jfr.StackTrace;
  * to primitives, {@link String}, {@link Class} and {@link Thread}, so there is no direct
  * representation for an arbitrary map.
  */
-@Category("Rainbow Gum")
+@Category({ "Rainbow Gum", "Log" })
 @StackTrace(false)
 public abstract sealed class RainbowGumLogEvent extends Event {
 
@@ -59,7 +59,7 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	 * TRACE level event. Disabled by default ({@link Enabled @Enabled(false)}) since
 	 * TRACE logging is typically too high volume to want on by default in a recording.
 	 */
-	@Name("io.jstach.rainbowgum.Trace")
+	@Name("io.jstach.rainbowgum.log.Trace")
 	@Label("Trace")
 	@Description("A TRACE level Rainbow Gum log event.")
 	@Enabled(false)
@@ -77,7 +77,7 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	 * DEBUG level event. Disabled by default ({@link Enabled @Enabled(false)}) since
 	 * DEBUG logging is typically too high volume to want on by default in a recording.
 	 */
-	@Name("io.jstach.rainbowgum.Debug")
+	@Name("io.jstach.rainbowgum.log.Debug")
 	@Label("Debug")
 	@Description("A DEBUG level Rainbow Gum log event.")
 	@Enabled(false)
@@ -94,7 +94,7 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	/**
 	 * INFO level event.
 	 */
-	@Name("io.jstach.rainbowgum.Info")
+	@Name("io.jstach.rainbowgum.log.Info")
 	@Label("Info")
 	@Description("An INFO level Rainbow Gum log event.")
 	public static final class InfoEvent extends RainbowGumLogEvent {
@@ -110,7 +110,7 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	/**
 	 * WARN level event.
 	 */
-	@Name("io.jstach.rainbowgum.Warn")
+	@Name("io.jstach.rainbowgum.log.Warn")
 	@Label("Warn")
 	@Description("A WARN level Rainbow Gum log event.")
 	public static final class WarnEvent extends RainbowGumLogEvent {
@@ -126,7 +126,7 @@ public abstract sealed class RainbowGumLogEvent extends Event {
 	/**
 	 * ERROR level event.
 	 */
-	@Name("io.jstach.rainbowgum.Error")
+	@Name("io.jstach.rainbowgum.log.Error")
 	@Label("Error")
 	@Description("An ERROR level Rainbow Gum log event.")
 	public static final class ErrorEvent extends RainbowGumLogEvent {
