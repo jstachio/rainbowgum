@@ -1593,7 +1593,7 @@ their defaults.
 
 The optional {@linkplain io.jstach.rainbowgum.jfr/ JFR module} (inspired by
 <a href="https://github.com/mbien/JFRLog">JFRLog</a>) commits each log event as a JFR event instead of writing
-bytes anywhere, with one event type per level ({@code io.jstach.rainbowgum.Trace}/{@code Debug}/{@code Info}/
+bytes anywhere, with one event type per level ({@code io.jstach.rainbowgum.log.Trace}/{@code Debug}/{@code Info}/
 {@code Warn}/{@code Error}) so each can be independently enabled, thresholded, or given a stack trace setting
 through a Flight Recorder configuration (<code>.jfc</code> file or <code>-XX:StartFlightRecording</code>) the
 same way as any other JFR event, not through Rainbow Gum properties.
@@ -1612,7 +1612,7 @@ as separate fields. Set
 <h4 id="jfr_starting">Starting A Recording</h4>
 
 <p>
-Events sitting in <code>io.jstach.rainbowgum.*</code> only get recorded somewhere if a Flight Recorder session
+Events sitting in <code>io.jstach.rainbowgum.log.*</code> only get recorded somewhere if a Flight Recorder session
 that enables them is actually running - there are two ways to make that happen.
 </p>
 
@@ -1644,7 +1644,7 @@ filtering does not apply here at all. Whether an event is captured is decided so
 level resolver, the same one that already decides whether the output is written to in the first place.
 </p>
 
-<code>jfr print --events "io.jstach.rainbowgum.*" recording.jfr</code> then shows the recorded events regardless
+<code>jfr print --events "io.jstach.rainbowgum.log.*" recording.jfr</code> then shows the recorded events regardless
 of which way the recording was started. TRACE and DEBUG defaulting to disabled (too high volume to want on by
 default) only matters for the bare <code>jfr:///</code> form - a URI-started recording enables every level
 unconditionally; enable them explicitly in a custom <code>.jfc</code> settings file if using
@@ -1669,10 +1669,12 @@ every alert as a JFR event for the life of the process.
 </p>
 
 <p>
-Alerts use their own, separate JFR event type family ({@code io.jstach.rainbowgum.AlertTrace}/{@code AlertDebug}/
-{@code AlertInfo}/{@code AlertWarn}/{@code AlertError}) rather than reusing the event types above, so
-<code>jfr print --events io.jstach.rainbowgum.Error</code> only ever returns genuine application errors, never
-Rainbow Gum's own internal alerts - filter on <code>io.jstach.rainbowgum.Alert*</code> for those instead.
+Alerts use their own, separate JFR event types ({@code io.jstach.rainbowgum.alert.AlertTrace}/{@code AlertDebug}/
+{@code AlertInfo}/{@code AlertWarn}/{@code AlertError}) in their own <code>Alert</code> category, rather than
+reusing the event types above, which are in the <code>Log</code> category. Select them by namespace with
+<code>jfr print --events "io.jstach.rainbowgum.alert.*"</code> or by category with
+<code>jfr print --categories Alert</code>. The <code>Alert</code> prefix keeps simple names distinct too:
+<code>jfr print --events Error</code> returns only application errors, never Rainbow Gum's own alerts.
 </p>
 
 <h3 id="rolling">Rolling Files</h3>

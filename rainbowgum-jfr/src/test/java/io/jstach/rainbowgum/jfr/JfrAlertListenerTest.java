@@ -45,7 +45,8 @@ class JfrAlertListenerTest {
 		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
 		assertEquals(1, events.size(), "expected exactly one recorded event: " + events);
 		RecordedEvent recorded = events.get(0);
-		assertEquals("io.jstach.rainbowgum.AlertError", recorded.getEventType().getName());
+		assertEquals("io.jstach.rainbowgum.alert.AlertError", recorded.getEventType().getName());
+		assertEquals(java.util.List.of("Rainbow Gum", "Alert"), recorded.getEventType().getCategoryNames());
 		assertEquals("appender failed", recorded.getValue("message"));
 		assertEquals("io.jstach.rainbowgum.LogAppender", recorded.getValue("logger"));
 	}
