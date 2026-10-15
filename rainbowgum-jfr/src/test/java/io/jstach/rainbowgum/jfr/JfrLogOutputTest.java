@@ -60,7 +60,8 @@ class JfrLogOutputTest {
 		List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
 		assertEquals(1, events.size(), "expected exactly one recorded event: " + events);
 		RecordedEvent recorded = events.get(0);
-		assertEquals("io.jstach.rainbowgum.Info", recorded.getEventType().getName());
+		assertEquals("io.jstach.rainbowgum.log.Info", recorded.getEventType().getName());
+		assertEquals(java.util.List.of("Rainbow Gum", "Log"), recorded.getEventType().getCategoryNames());
 		assertEquals("hello", recorded.getValue("message"));
 		assertEquals("jfr-test", recorded.getValue("logger"));
 	}

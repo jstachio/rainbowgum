@@ -18,13 +18,12 @@ import jdk.jfr.StackTrace;
  * carry the same fields: an alert (an appender failing to write, an async publisher's
  * queue overflowing, etc.) is not an application log line, and merging the two under one
  * event name would make it impossible to tell them apart in a recording - e.g. filtering
- * {@code jfr print --events io.jstach.rainbowgum.Error} would return both genuine
- * application errors and RainbowGum's own internal alerts with no way to distinguish
- * them.
+ * {@code jfr print --events Error} would return both genuine application errors and
+ * RainbowGum's own internal alerts with no way to distinguish them.
  * <p>
  * See {@link RainbowGumLogEvent} for the field/annotation rationale - identical here.
  */
-@Category("Rainbow Gum")
+@Category({ "Rainbow Gum", "Alert" })
 @StackTrace(false)
 public abstract sealed class RainbowGumAlertEvent extends Event {
 
@@ -54,7 +53,7 @@ public abstract sealed class RainbowGumAlertEvent extends Event {
 	 * TRACE level alert. Disabled by default ({@link Enabled @Enabled(false)}), same
 	 * volume reasoning as {@link RainbowGumLogEvent.TraceEvent}.
 	 */
-	@Name("io.jstach.rainbowgum.AlertTrace")
+	@Name("io.jstach.rainbowgum.alert.AlertTrace")
 	@Label("Alert (Trace)")
 	@Description("A TRACE level Rainbow Gum alert.")
 	@Enabled(false)
@@ -72,7 +71,7 @@ public abstract sealed class RainbowGumAlertEvent extends Event {
 	 * DEBUG level alert. Disabled by default ({@link Enabled @Enabled(false)}), same
 	 * volume reasoning as {@link RainbowGumLogEvent.DebugEvent}.
 	 */
-	@Name("io.jstach.rainbowgum.AlertDebug")
+	@Name("io.jstach.rainbowgum.alert.AlertDebug")
 	@Label("Alert (Debug)")
 	@Description("A DEBUG level Rainbow Gum alert.")
 	@Enabled(false)
@@ -89,7 +88,7 @@ public abstract sealed class RainbowGumAlertEvent extends Event {
 	/**
 	 * INFO level alert.
 	 */
-	@Name("io.jstach.rainbowgum.AlertInfo")
+	@Name("io.jstach.rainbowgum.alert.AlertInfo")
 	@Label("Alert (Info)")
 	@Description("An INFO level Rainbow Gum alert.")
 	public static final class InfoEvent extends RainbowGumAlertEvent {
@@ -105,7 +104,7 @@ public abstract sealed class RainbowGumAlertEvent extends Event {
 	/**
 	 * WARN level alert.
 	 */
-	@Name("io.jstach.rainbowgum.AlertWarn")
+	@Name("io.jstach.rainbowgum.alert.AlertWarn")
 	@Label("Alert (Warn)")
 	@Description("A WARN level Rainbow Gum alert.")
 	public static final class WarnEvent extends RainbowGumAlertEvent {
@@ -121,7 +120,7 @@ public abstract sealed class RainbowGumAlertEvent extends Event {
 	/**
 	 * ERROR level alert.
 	 */
-	@Name("io.jstach.rainbowgum.AlertError")
+	@Name("io.jstach.rainbowgum.alert.AlertError")
 	@Label("Alert (Error)")
 	@Description("An ERROR level Rainbow Gum alert.")
 	public static final class ErrorEvent extends RainbowGumAlertEvent {
