@@ -15,8 +15,8 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 
@@ -1141,12 +1141,12 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	 * the walk.
 	 */
 	private <T> LogProperty.@Nullable Result<T> findForLogger(String prefix, String loggerName,
-			BiFunction<LogProperties, String, LogProperty.Result<T>> resolve) {
+			Function<LogProperty, LogProperty.Result<T>> resolve) {
 		var props = config().properties();
 		var groups = groups();
 		return LogProperties.findUpPathOrNull(loggerName, path -> {
 			for (String key : groups.keys(prefix, path)) {
-				var r = resolve.apply(props, key);
+				var r = resolve.apply(DefaultLogProperty.ofLoggerKey(props, key));
 				if (!(r instanceof LogProperty.Result.Missing)) {
 					return r;
 				}
@@ -1168,7 +1168,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 			 * silently falling through to a less specific ancestor's value.
 			 */
 			LogProperty.Result<Set<ChangeType>> result = findForLogger(LogProperties.CHANGE_LOGGER_PREFIX, n,
-					(props, key) -> props.forKey(key).ofList().map(ChangeType::parse));
+					property -> property.ofList().map(ChangeType::parse));
 			if (result == null) {
 				return Set.of();
 			}
@@ -1199,7 +1199,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	public CallerType callerType(String loggerName) {
 		return callerTypeCache.computeIfAbsent(loggerName, n -> {
 			LogProperty.Result<CallerType> result = findForLogger(LogProperties.CALLER_LOGGER_PREFIX, n,
-					(props, key) -> props.forKey(key).ofString().map(CallerType::parse));
+					property -> property.ofString().map(CallerType::parse));
 			if (result == null) {
 				return CallerType.NONE;
 			}

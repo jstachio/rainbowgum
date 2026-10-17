@@ -1360,6 +1360,15 @@ final class DefaultLogProperty implements LogProperty {
 		this.properties = properties;
 	}
 
+	/*
+	 * A key built from a logger name. A facade can pass any string as a logger name, so
+	 * unlike a key in code it is not validated: a name like Testcontainers'
+	 * "tc.image@sha256:405c128b..." must fall back to its parents instead of throwing.
+	 */
+	static LogProperty ofLoggerKey(LogProperties properties, String key) {
+		return new DefaultLogProperty(List.of(key), properties);
+	}
+
 	@Override
 	public String key() {
 		return keys.get(0);
