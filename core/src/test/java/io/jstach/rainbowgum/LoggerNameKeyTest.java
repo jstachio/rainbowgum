@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.lang.System.Logger.Level;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -18,19 +20,12 @@ import io.jstach.rainbowgum.LogEvent.Caller.CallerType;
  * key must fall back to its parents and the root instead of throwing.
  *
  * https://github.com/jstachio/rainbowgum/issues/752
- *
- * TODO #752 the commented out assertions fail on every name except .leading: level
- * falls back to INFO with an ERROR alert ("Failed to resolve level for logger
- * 'trailing.', falling back to INFO"), and callerType and allowedChanges throw
- * IllegalArgumentException ("Property key should not start or end with '.'" or, for
- * {weird}, "Keyed parameter mismatch").
  */
 class LoggerNameKeyTest {
 
 	static List<String> loggerNames() {
 		return List.of(
-				// Testcontainers shortens image names with a digest and ends them with
-				// ...
+				// Testcontainers ends shortened digest image names with ...
 				"tc.floci/floci-gcp@sha256:405c128b...", //
 				"trailing.", //
 				".leading", //
@@ -43,34 +38,42 @@ class LoggerNameKeyTest {
 	@MethodSource("loggerNames")
 	void level(String loggerName) {
 		var config = config();
-		var level = config.levelResolver().resolveLevel(loggerName);
-		var alerts = config.alerts().dump().stream().map(e -> e.level() + " " + e.message()).toList();
-		if (loggerName.equals(".leading")) {
-			assertEquals(Level.WARNING, level);
-			assertEquals(List.of(), alerts);
-		}
-		// assertEquals(Level.WARNING, level);
-		// assertEquals(List.of(), alerts);
+		assertEquals(Level.WARNING, config.levelResolver().resolveLevel(loggerName));
+		assertEquals(List.of(), config.alerts().dump().stream().map(e -> e.level() + " " + e.message()).toList());
 	}
 
 	@ParameterizedTest
 	@MethodSource("loggerNames")
 	void callerType(String loggerName) {
-		if (loggerName.equals(".leading")) {
-			assertEquals(CallerType.BASIC, config().changePublisher().callerType(loggerName));
-		}
-		// assertEquals(CallerType.BASIC,
-		// config().changePublisher().callerType(loggerName));
+		assertEquals(CallerType.BASIC, config().changePublisher().callerType(loggerName));
 	}
 
 	@ParameterizedTest
 	@MethodSource("loggerNames")
 	void allowedChanges(String loggerName) {
-		if (loggerName.equals(".leading")) {
-			assertEquals(EnumSet.of(ChangeType.LEVEL), config().changePublisher().allowedChanges(loggerName));
-		}
-		// assertEquals(EnumSet.of(ChangeType.LEVEL),
-		// config().changePublisher().allowedChanges(loggerName));
+		assertEquals(EnumSet.of(ChangeType.LEVEL), config().changePublisher().allowedChanges(loggerName));
+	}
+
+	/*
+	 * The name can also be set exactly, like any other logger. A map is used since a
+	 * properties file would split a key like the Testcontainers name at its colon.
+	 */
+	@ParameterizedTest
+	@MethodSource("loggerNames")
+	void exactName(String loggerName) {
+		var values = Map.of( //
+				"logging.level", "warn", //
+				"logging.change.mode", "on", //
+				"logging.change.logger", "level", //
+				"logging.caller.logger", "true", //
+				LogProperties.concatKey(LogProperties.LEVEL_PREFIX, loggerName), "debug", //
+				LogProperties.concatKey(LogProperties.CHANGE_LOGGER_PREFIX, loggerName), "false", //
+				LogProperties.concatKey(LogProperties.CALLER_LOGGER_PREFIX, loggerName), "false");
+		var config = LogConfig.builder().properties(LogProperties.builder().fromFunction(values::get).build()).build();
+		assertEquals(Level.DEBUG, config.levelResolver().resolveLevel(loggerName));
+		assertEquals(CallerType.NONE, config.changePublisher().callerType(loggerName));
+		assertEquals(Set.of(), config.changePublisher().allowedChanges(loggerName));
+		assertEquals(List.of(), config.alerts().dump().stream().map(e -> e.level() + " " + e.message()).toList());
 	}
 
 	private static LogConfig config() {

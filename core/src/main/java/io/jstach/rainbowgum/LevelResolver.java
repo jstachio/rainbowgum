@@ -916,9 +916,9 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	@Override
 	public @Nullable Level levelOrNull(String name) {
-		return rawValue(
-				properties.forKey(LogProperties.concatKey(prefix, name)).ofString().map(LevelResolver::parseLevel))
-			.valueOrNull();
+		return rawValue(DefaultLogProperty.ofLoggerKey(properties, LogProperties.concatKey(prefix, name))
+			.ofString()
+			.map(LevelResolver::parseLevel)).valueOrNull();
 	}
 
 	/*

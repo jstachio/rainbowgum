@@ -36,16 +36,12 @@ class IssuesTest {
 	@Test
 	void issue752() throws Exception {
 		try (var gum = gum().start()) {
-			@SuppressWarnings("unused")
 			RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(gum, new RainbowGumMDCAdapter());
-			// TODO #752 getLogger throws IllegalArgumentException: Property key should
-			// not
-			// start or end with '.'
-			// var logger = factory.getLogger("tc.floci/floci-gcp@sha256:405c128b...");
-			// logger.warn("Hello, World!");
+			var logger = factory.getLogger("tc.floci/floci-gcp@sha256:405c128b...");
+			logger.warn("Hello, World!");
 		}
-		// String actual = list.toString();
-		// assertTrue(actual.contains("Hello, World!"), actual);
+		String actual = list.toString();
+		assertTrue(actual.contains("Hello, World!"), actual);
 	}
 
 	private RainbowGum gum() {
