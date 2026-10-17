@@ -60,8 +60,10 @@ final class UnusedKeyCheck {
 	 * @param key the key as set.
 	 * @param description where it was set.
 	 * @param suggestion the read key it was probably meant to be.
+	 * @param suggestionDescription how the source that set key names the suggestion, when
+	 * that differs from the suggestion itself.
 	 */
-	record Unused(String key, String description, @Nullable String suggestion) {
+	record Unused(String key, String description, @Nullable String suggestion, @Nullable String suggestionDescription) {
 
 		/**
 		 * Message for alerts and errors.
@@ -70,7 +72,11 @@ final class UnusedKeyCheck {
 		String message() {
 			String message = "Property key '" + key + "' from " + description + " was set but not read during startup.";
 			if (suggestion != null) {
-				message += " Did you mean '" + suggestion + "'?";
+				message += " Did you mean '" + suggestion + "'";
+				if (suggestionDescription != null) {
+					message += " (" + suggestionDescription + ")";
+				}
+				message += "?";
 			}
 			return message;
 		}
@@ -112,10 +118,26 @@ final class UnusedKeyCheck {
 				if (isIgnored(key) || reads.contains(key) || !seen.add(key)) {
 					continue;
 				}
-				unused.add(new Unused(key, source.properties().description(key), suggestion(key, candidates)));
+				var properties = source.properties();
+				String suggestion = suggestion(key, candidates);
+				unused.add(new Unused(key, properties.description(key), suggestion,
+						suggestionDescription(properties, suggestion)));
 			}
 		}
 		return unused;
+	}
+
+	/*
+	 * A source that renames keys, like environment variables, is set with its own names,
+	 * so the suggestion is only useful in those terms. A description that contains the
+	 * key unchanged adds nothing.
+	 */
+	private static @Nullable String suggestionDescription(LogProperties properties, @Nullable String suggestion) {
+		if (suggestion == null) {
+			return null;
+		}
+		String description = properties.description(suggestion);
+		return description.contains(suggestion) ? null : description;
 	}
 
 	/*

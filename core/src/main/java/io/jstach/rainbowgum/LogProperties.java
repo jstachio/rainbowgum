@@ -899,12 +899,14 @@ public interface LogProperties {
 	/**
 	 * Properties that can list the keys they hold, so that with
 	 * {@link LogConfig.DebugModeType#HELP} (or {@link LogConfig.DebugModeType#ALL}) keys
-	 * that were set but never read can be reported.
+	 * that were set but never read can be reported. A source that renames keys should
+	 * name a key the way it is set in the source in {@link #description(String)}, since
+	 * that is how a suggested key is reported.
 	 */
 	public interface Listable extends LogProperties {
 
 		/**
-		 * The keys this source holds.
+		 * The keys this source holds, as they are read (not renamed).
 		 * @return keys.
 		 */
 		Collection<String> keys();
