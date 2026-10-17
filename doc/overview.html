@@ -3372,7 +3372,10 @@ Keys are checked where Rainbow Gum can list them:
   <li><code>logging.properties</code> and its profile files when using
   <a href="#simple_props">rainbowgum-simple-props</a>.</li>
   <li>Any other property source implementing {@link io.jstach.rainbowgum.LogProperties.Listable}.
-  Environment variables are not checked, because their names do not keep the dots and case
+  When the source renames keys, the suggestion also names what to set in that source, using its
+  {@linkplain io.jstach.rainbowgum.LogProperties#description(String) description}, for example
+  <code>Did you mean 'logging.appenders' (environment variable APP_LOG_appenders)?</code>.
+  The built in environment variables are not checked, because their names do not keep the dots and case
   of the keys.</li>
 </ul>
 
