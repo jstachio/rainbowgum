@@ -29,6 +29,25 @@ class IssuesTest {
 		assertTrue(actual.contains(IllegalArgumentException.class.getSimpleName()));
 	}
 
+	/*
+	 * https://github.com/jstachio/rainbowgum/issues/752 Testcontainers shortens image
+	 * names with a digest and ends them with ..., which is not a valid property key.
+	 */
+	@Test
+	void issue752() throws Exception {
+		try (var gum = gum().start()) {
+			@SuppressWarnings("unused")
+			RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(gum, new RainbowGumMDCAdapter());
+			// TODO #752 getLogger throws IllegalArgumentException: Property key should
+			// not
+			// start or end with '.'
+			// var logger = factory.getLogger("tc.floci/floci-gcp@sha256:405c128b...");
+			// logger.warn("Hello, World!");
+		}
+		// String actual = list.toString();
+		// assertTrue(actual.contains("Hello, World!"), actual);
+	}
+
 	private RainbowGum gum() {
 		LogConfig config = LogConfig.builder().build();
 		var gum = RainbowGum.builder(config).route(route -> {
