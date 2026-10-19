@@ -322,6 +322,23 @@ The current optional properties modules are:
     your configuration system may have a different format like YAML or JSON.
 </p>
 </div>
+<p>
+A nested format (TOML, HOCON, YAML or JSON) needs one exception. Keys such as
+<code>logging.level.com.example</code> end with a logger name, which can contain dots and any other
+character, and <code>logging.level</code> itself can also have a value. A nested format cannot have a
+value at a key that is also a table, so a source for one should use
+{@link io.jstach.rainbowgum.LogProperties.LoggerKey#parseOrNull(String)} to find the logger name in a key
+and look it up as a single, quoted member, for example in TOML:
+</p>
+{@snippet lang=toml :
+[logging.level]
+root = "warn"
+"com.example" = "debug"
+"com.example.sub" = "error"
+}
+<p>
+Using a member such as <code>root</code> for the root logger is up to the source.
+</p>
 
 <p>
 An appender's encoder and output are configured under the appender itself: <code>uri</code> picks the

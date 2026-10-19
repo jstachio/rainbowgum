@@ -68,7 +68,8 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * key that is a prefix of the previously mentioned key. For example allowing two
  * properties <code>logging.example=stuff</code>, <code>logging.example.a=A</code> is not
  * recommended as <code>logging.example</code> is defined as a leaf. The exception to this
- * rule is logging levels mapped to logger names for consistency with Spring Boot.
+ * rule is keys that end with a logger name, such as levels, for consistency with Spring
+ * Boot: see {@link LoggerKey}.
  * <p>
  * Rainbow Gum out of the the box supports parsing two formats into properties:
  * {@link Properties} text, and {@link URI#getRawQuery()} percent encoded query
@@ -928,6 +929,79 @@ public interface LogProperties {
 		 * @return keys.
 		 */
 		Collection<String> keys();
+
+	}
+
+	/**
+	 * A property key that ends with a logger name, such as
+	 * <code>logging.level.com.example</code>. The part after {@link #prefix()} is not
+	 * more of the key path: it is one logger name, which can contain dots or any other
+	 * character. A source that nests keys (TOML, HOCON, YAML and similar) should look up
+	 * {@link #loggerName()} as a single member of whatever is at {@link #prefix()}.
+	 * <p>
+	 * These are the only keys that break the leaf rule: <code>logging.level</code> and
+	 * <code>logging.level.com.example</code> can both have values.
+	 */
+	public sealed interface LoggerKey permits DefaultLoggerKey {
+
+		/**
+		 * The kinds of keys that end with a logger name.
+		 */
+		enum Namespace {
+
+			/**
+			 * <code>{@value LogProperties#LEVEL_PREFIX}.</code><em>logger</em>.
+			 */
+			LEVEL,
+			/**
+			 * <code>logging.route.</code><em>route</em><code>.level.</code><em>logger</em>.
+			 */
+			ROUTE_LEVEL,
+			/**
+			 * <code>{@value LogProperties#CHANGE_LOGGER_PREFIX}.</code><em>logger</em>.
+			 */
+			CHANGE,
+			/**
+			 * <code>{@value LogProperties#CALLER_LOGGER_PREFIX}.</code><em>logger</em>.
+			 */
+			CALLER;
+
+		}
+
+		/**
+		 * The kind of key.
+		 * @return namespace.
+		 */
+		Namespace namespace();
+
+		/**
+		 * The key up to the logger name, for example <code>logging.level</code> or
+		 * <code>logging.route.console.level</code>.
+		 * @return prefix without a trailing {@value LogProperties#SEP}.
+		 */
+		String prefix();
+
+		/**
+		 * The logger name, empty for the root logger, whose key is {@link #prefix()}.
+		 * @return logger name.
+		 */
+		String loggerName();
+
+		/**
+		 * The whole key.
+		 * @return key.
+		 */
+		String key();
+
+		/**
+		 * Parses a key that ends with a logger name.
+		 * @param key any property key.
+		 * @return the logger key or <code>null</code> if key is not in one of the
+		 * {@link Namespace}s.
+		 */
+		static @Nullable LoggerKey parseOrNull(String key) {
+			return DefaultLoggerKey.parseOrNull(key);
+		}
 
 	}
 

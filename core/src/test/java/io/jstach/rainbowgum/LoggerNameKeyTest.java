@@ -66,9 +66,9 @@ class LoggerNameKeyTest {
 				"logging.change.mode", "on", //
 				"logging.change.logger", "level", //
 				"logging.caller.logger", "true", //
-				LogProperties.concatKey(LogProperties.LEVEL_PREFIX, loggerName), "debug", //
-				LogProperties.concatKey(LogProperties.CHANGE_LOGGER_PREFIX, loggerName), "false", //
-				LogProperties.concatKey(LogProperties.CALLER_LOGGER_PREFIX, loggerName), "false");
+				DefaultLoggerKey.key(LogProperties.LEVEL_PREFIX, loggerName), "debug", //
+				DefaultLoggerKey.key(LogProperties.CHANGE_LOGGER_PREFIX, loggerName), "false", //
+				DefaultLoggerKey.key(LogProperties.CALLER_LOGGER_PREFIX, loggerName), "false");
 		var config = LogConfig.builder().properties(LogProperties.builder().fromFunction(values::get).build()).build();
 		assertEquals(Level.DEBUG, config.levelResolver().resolveLevel(loggerName));
 		assertEquals(CallerType.NONE, config.changePublisher().callerType(loggerName));
