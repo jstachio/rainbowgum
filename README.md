@@ -33,6 +33,8 @@ Regardless of which configuration option you choose it is GraalVM native friendl
 
 The long term goal of Rainbow Gum is to be a logging framework **for all** with the only requirement being a modern JDK.
 
+**Using Logback or Log4j2?** [Switching takes minutes](switch_to_rainbowgum.md), and your logging code does not change.
+
 ## Documentation
 
 * **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
@@ -53,7 +55,10 @@ Where `VERSION` is the version you want.
 
 ## Why choose Rainbow Gum
 
-Covered in [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
+Logging runs on every request, so its cost adds up. [Switch to Rainbow
+Gum](switch_to_rainbowgum.md) covers why that matters, how to switch in minutes, and
+when not to. The detailed comparison with Logback, Log4j2, and others is in
+[why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
 
 ## Colorful logs
 
