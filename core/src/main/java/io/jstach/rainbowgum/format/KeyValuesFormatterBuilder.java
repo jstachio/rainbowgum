@@ -205,7 +205,11 @@ record JsonKeyValuesFormatter(@Nullable List<String> keys, KeyValueNullStrategy 
 			appendString(output, key);
 		}
 		output.append(':');
-		if (value == null) {
+		String json = values.getJsonOrNull(key);
+		if (json != null) {
+			output.append(json);
+		}
+		else if (value == null) {
 			output.append("null");
 		}
 		else {

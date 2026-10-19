@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
@@ -193,16 +194,25 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * reaches this factory. All handlers share this delegate so those already created
 	 * also receive the real configuration's contributors once it is bound.
 	 */
-	private static final class ChangingContributor implements KeyValuesContributor {
+	private static final class ChangingContributor implements KeyValuesSupport {
 
 		private volatile KeyValuesContributor delegate;
 
+		private volatile KeyValues.@Nullable JsonSerializer jsonSerializer;
+
 		ChangingContributor(RainbowGum gum) {
 			this.delegate = resolve(gum);
+			this.jsonSerializer = KeyValues.JsonSerializer.of(gum.config());
 		}
 
 		void setRainbowGum(RainbowGum gum) {
 			delegate = resolve(gum);
+			jsonSerializer = KeyValues.JsonSerializer.of(gum.config());
+		}
+
+		@Override
+		public KeyValues.@Nullable JsonSerializer jsonSerializer() {
+			return jsonSerializer;
 		}
 
 		private static KeyValuesContributor resolve(RainbowGum gum) {

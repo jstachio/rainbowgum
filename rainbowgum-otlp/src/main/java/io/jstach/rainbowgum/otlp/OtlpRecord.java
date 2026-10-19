@@ -25,18 +25,41 @@ record OtlpRecord(String scopeName, long timeUnixNano, int severityNumber, Strin
 	static final String EVENT_NAME_KEY = "otel.event.name";
 
 	/*
-	 * A string or int64 OTLP attribute value; intValue is used when stringValue is null.
+	 * An OTLP attribute value: any when not null, else stringValue when not null, else
+	 * intValue.
 	 */
-	record Attribute(String key, @Nullable String stringValue, long intValue) {
+	record Attribute(String key, @Nullable String stringValue, long intValue, @Nullable Any any) {
 
 		static Attribute of(String key, String value) {
-			return new Attribute(key, value, 0);
+			return new Attribute(key, value, 0, null);
 		}
 
 		static Attribute of(String key, long value) {
-			return new Attribute(key, null, value);
+			return new Attribute(key, null, value, null);
 		}
 
+		/*
+		 * A key value with a JSON form becomes a typed AnyValue: a number, boolean, array
+		 * or kvlist. A JSON form that does not parse keeps the plain value.
+		 */
+		static Attribute of(String key, String value, @Nullable String json) {
+			if (json == null) {
+				return of(key, value);
+			}
+			try {
+				return new Attribute(key, null, 0, new Any(JsonTree.parse(json)));
+			}
+			catch (IllegalArgumentException e) {
+				return of(key, value);
+			}
+		}
+
+	}
+
+	/*
+	 * A parsed JSON form, see JsonTree. value null is an empty AnyValue.
+	 */
+	record Any(@Nullable Object value) {
 	}
 
 	/*
@@ -157,7 +180,7 @@ record OtlpRecord(String scopeName, long timeUnixNano, int severityNumber, Strin
 					|| k.equals(EVENT_NAME_KEY) || reserved.test(k) || !keyFilter.test(k)) {
 				return;
 			}
-			attributes.add(Attribute.of(k, v));
+			attributes.add(Attribute.of(k, v, kvs.getJsonOrNull(k)));
 		});
 		if (t != null) {
 			attributes.add(Attribute.of("exception.type", t.getClass().getName()));

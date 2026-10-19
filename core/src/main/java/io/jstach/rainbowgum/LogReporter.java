@@ -457,6 +457,7 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 		globals.keyValuesDisabled().forEach(s -> keyValues.add(s.toString()));
 		appendGlobal(out, LogProperties.KEY_VALUES_DISABLED_PROPERTY,
 				keyValues.isEmpty() ? "(none)" : String.join(",", keyValues));
+		appendGlobal(out, LogProperties.KEY_VALUES_JSON_PROPERTY, globals.keyValuesJson());
 	}
 
 	private static void appendGlobal(Appendable out, String key, Object value) throws IOException {
