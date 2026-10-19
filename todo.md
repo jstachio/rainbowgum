@@ -117,6 +117,39 @@ unifying.
       parameters) rather than reintroducing dead scaffolding.
       (ADAM: Lets table this but lets reserve the "name" schema. 
       Dot no allow it or "null" or "default" as a schema registered).
+- [ ] **Logger name lookup on `LogProperties` (something like `findLoggerName`)**,
+      needed before 1.0. The Spring Boot style per logger keys break both the leaf
+      rule and the naming rules in the `LogProperties` javadoc. The part after the
+      prefix is an opaque logger name, not more key path. There are four such
+      namespaces (the same ones `UnusedKeyCheck.isIgnored` skips):
+      - `logging.level.<logger>` (`LEVEL_PREFIX`)
+      - `logging.route.<route>.level.<logger>` (`ROUTE_LEVEL_PREFIX`)
+      - `logging.change.logger.<logger>` (`CHANGE_LOGGER_PREFIX`)
+      - `logging.caller.logger.<logger>` (`CALLER_LOGGER_PREFIX`)
+
+      Today a source only ever sees the flat key, so a nested format has to hard
+      code these prefixes to read them. TOML is the clearest case (checked against
+      the TOML 1.0 spec): a dotted key defines a table for every part before the
+      last, and a key that already holds a value cannot also become a table. So:
+      - `logging.level = "info"` next to `logging.level.com.example = "debug"` is
+        invalid TOML. The root level needs a quoted `"logging.level"` key or a name
+        such as Spring Boot's `root`; Rainbow Gum has no `root` alias today.
+      - `com.example = "info"` next to `com.example.sub = "debug"` under
+        `[logging.level]` is invalid for the same reason. Logger names must be
+        quoted keys (`"com.example" = "info"`), so the source has to know that the
+        quoted key is a single logger name and not split it.
+      - Names like `tc.floci/floci-gcp@sha256:405c128b...` (#752) only work as
+        quoted keys anyway.
+
+      YAML and nested maps (Spring's YAML uses `logging.level.root`) have the same
+      shape problem. A lookup that takes the prefix and logger name separately (for
+      example `findLoggerName(prefix, loggerName)`, defaulting to
+      `concatKey(prefix, loggerName)` for flat sources) would let a nested source
+      find `[logging.level]."com.example"` directly. Today's internal callers would
+      move onto it: `ConfigLevelResolver.levelOrNull` and
+      `AbstractChangePublisher.findForLogger`, which use
+      `DefaultLogProperty.ofLoggerKey` since #752. Also decide whether to add a
+      `root` alias for the root logger.
 
 ## 5. Whatever else before 1.0.0
 
