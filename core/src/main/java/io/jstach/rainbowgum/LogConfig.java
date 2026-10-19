@@ -1145,8 +1145,8 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		var props = config().properties();
 		var groups = groups();
 		return LogProperties.findUpPathOrNull(loggerName, path -> {
-			for (String key : groups.keys(prefix, path)) {
-				var r = resolve.apply(DefaultLogProperty.ofLoggerKey(props, key));
+			for (String name : groups.names(path)) {
+				var r = resolve.apply(DefaultLogProperty.ofLoggerKey(props, prefix, name));
 				if (!(r instanceof LogProperty.Result.Missing)) {
 					return r;
 				}

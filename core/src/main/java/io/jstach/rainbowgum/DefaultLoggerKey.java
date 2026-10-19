@@ -1,10 +1,18 @@
 package io.jstach.rainbowgum;
 
+import java.util.function.BiFunction;
+
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogProperties.LoggerKey;
 
 record DefaultLoggerKey(Namespace namespace, String prefix, String loggerName, String key) implements LoggerKey {
+
+	/*
+	 * The root logger's alias, so a nested format can hold the root logger's value next
+	 * to other logger names, and for consistency with Spring Boot.
+	 */
+	static final String ROOT_ALIAS = "root";
 
 	private static final String ROUTE_START = LogProperties.ROOT_PREFIX + "route" + LogProperties.SEP;
 
@@ -47,6 +55,43 @@ record DefaultLoggerKey(Namespace namespace, String prefix, String loggerName, S
 		}
 		return new DefaultLoggerKey(namespace, prefix, key.substring(prefix.length() + LogProperties.SEP.length()),
 				key);
+	}
+
+}
+
+/*
+ * Reads the root logger's key and then its alias from each source in turn, so a higher
+ * priority source wins whichever of the two it uses.
+ */
+record RootLoggerProperties(LogProperties properties) implements LogProperties {
+
+	private static String alias(String key) {
+		return key + LogProperties.SEP + DefaultLoggerKey.ROOT_ALIAS;
+	}
+
+	@Override
+	public @Nullable String valueOrNull(String key) {
+		var value = properties.valueOrNull(key);
+		return value != null ? value : properties.valueOrNull(alias(key));
+	}
+
+	@Override
+	public <R extends @Nullable Object> @Nullable R visit(String key,
+			BiFunction<LogProperties, String, @Nullable R> visitor) {
+		return properties.visit(key, (p, k) -> {
+			var r = visitor.apply(p, k);
+			return r != null ? r : visitor.apply(p, alias(k));
+		});
+	}
+
+	@Override
+	public String description(String key) {
+		return properties.description(key);
+	}
+
+	@Override
+	public int order() {
+		return properties.order();
 	}
 
 }

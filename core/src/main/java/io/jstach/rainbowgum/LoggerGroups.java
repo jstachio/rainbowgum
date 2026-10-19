@@ -54,21 +54,18 @@ record LoggerGroups(Map<String, List<String>> loggerToGroups) {
 	}
 
 	/*
-	 * Candidate keys for one step of the logger path: the key for the path itself first,
-	 * then the keys of the groups listing the path.
+	 * Candidate names for one step of the logger path: the path itself first, then the
+	 * groups listing the path.
 	 */
-	List<String> keys(String prefix, String path) {
-		String direct = DefaultLoggerKey.key(prefix, path);
+	List<String> names(String path) {
 		var groups = path.isEmpty() ? null : loggerToGroups.get(path);
 		if (groups == null) {
-			return List.of(direct);
+			return List.of(path);
 		}
-		var keys = new ArrayList<String>(groups.size() + 1);
-		keys.add(direct);
-		for (String group : groups) {
-			keys.add(DefaultLoggerKey.key(prefix, group));
-		}
-		return keys;
+		var names = new ArrayList<String>(groups.size() + 1);
+		names.add(path);
+		names.addAll(groups);
+		return names;
 	}
 
 }

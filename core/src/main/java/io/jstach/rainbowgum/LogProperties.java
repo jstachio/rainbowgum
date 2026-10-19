@@ -96,8 +96,9 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * </tr>
  * <tr>
  * <td>{@value #LEVEL_PREFIX} + {@value #SEP} + logger = LEVEL</td>
- * <td>Sets the level for the logger. If logger name is missing then it is considered the
- * root logger. {@link Level#INFO} is the default level for the root logger.</td>
+ * <td>Sets the level for the logger. If logger name is missing or is <code>root</code>
+ * then it is considered the root logger. {@link Level#INFO} is the default level for the
+ * root logger.</td>
  * </tr>
  * <tr>
  * <td>{@value #CHANGE_MODE_PROPERTY} = {@link ChangeMode}</td>
@@ -941,6 +942,12 @@ public interface LogProperties {
 	 * <p>
 	 * These are the only keys that break the leaf rule: <code>logging.level</code> and
 	 * <code>logging.level.com.example</code> can both have values.
+	 * <p>
+	 * The root logger is set with the prefix itself or with the logger name
+	 * <code>root</code>, for example <code>logging.level</code> or
+	 * <code>logging.level.root</code>. Each source is checked for both before the next
+	 * one, and the prefix wins when one source has both. A nested source can leave the
+	 * prefix unset when it holds a table of logger names.
 	 */
 	public sealed interface LoggerKey permits DefaultLoggerKey {
 
@@ -982,7 +989,8 @@ public interface LogProperties {
 		String prefix();
 
 		/**
-		 * The logger name, empty for the root logger, whose key is {@link #prefix()}.
+		 * The logger name, empty when the key is {@link #prefix()}. The name
+		 * <code>root</code> is also the root logger, but is parsed as is.
 		 * @return logger name.
 		 */
 		String loggerName();

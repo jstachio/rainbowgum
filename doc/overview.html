@@ -337,7 +337,9 @@ root = "warn"
 "com.example.sub" = "error"
 }
 <p>
-Using a member such as <code>root</code> for the root logger is up to the source.
+<code>root</code> is the root logger for every key that ends with a logger name, so
+<code>logging.level.root</code> is the same as <code>logging.level</code>, as in Spring Boot. A
+higher priority source wins whichever of the two it uses.
 </p>
 
 <p>
@@ -595,9 +597,10 @@ logging.level=ERROR
 <code>fatal</code> are not accepted. The logger name is case sensitive.
 
 <p>
-The root level is the bare <code>logging.level</code> key. Spring Boot's <code>logging.level.root</code>
-is understood by the <a href="#spring_boot">Spring Boot integration</a>; elsewhere <code>root</code> is just
-a logger named <code>root</code>.
+The root level is the bare <code>logging.level</code> key or, as in Spring Boot,
+<code>logging.level.root</code>. The same goes for every key that ends with a logger name, such as
+<code>logging.change.logger.root</code>. A logger named <code>root</code> therefore always has the root
+logger's settings.
 </p>
 
 <p>

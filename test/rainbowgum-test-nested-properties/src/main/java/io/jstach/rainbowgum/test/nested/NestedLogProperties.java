@@ -34,16 +34,10 @@ import io.jstach.rainbowgum.LogProperties.LoggerKey;
  *
  * Unquoted dotted logger names, which the format turns into nested tables, still work as
  * long as the format allows them. A nested format cannot have a value at a key that is
- * also a table, so the root logger can either be a value at the prefix (when no other
- * logger is set) or the member named {@value #ROOT}.
+ * also a table, so the root logger is either a value at the prefix (when no other logger
+ * is set) or the <code>root</code> member, which core reads as the root logger.
  */
 public final class NestedLogProperties implements LogProperties.Listable {
-
-	/**
-	 * The member at a logger key prefix that holds the root logger's value, the same name
-	 * Spring Boot uses.
-	 */
-	public static final String ROOT = "root";
 
 	private final String format;
 
@@ -125,16 +119,19 @@ public final class NestedLogProperties implements LogProperties.Listable {
 
 	private @Nullable Object loggerNode(LoggerKey key) {
 		var prefix = at(root, key.prefix());
-		if (!(prefix instanceof Map<?, ?> members)) {
-			return key.loggerName().isEmpty() ? prefix : null;
+		if (key.loggerName().isEmpty()) {
+			// The root logger, unless the prefix is a table of logger names.
+			return prefix instanceof Map<?, ?> ? null : prefix;
 		}
-		String name = key.loggerName().isEmpty() ? ROOT : key.loggerName();
-		var member = members.get(name);
+		if (!(prefix instanceof Map<?, ?> members)) {
+			return null;
+		}
+		var member = members.get(key.loggerName());
 		if (member != null) {
 			return member;
 		}
 		// Unquoted, so the format nested it.
-		return at(members, name);
+		return at(members, key.loggerName());
 	}
 
 	private static @Nullable Object at(Map<?, ?> table, String path) {
