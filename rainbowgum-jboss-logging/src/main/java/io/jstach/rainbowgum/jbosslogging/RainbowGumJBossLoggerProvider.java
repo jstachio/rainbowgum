@@ -40,7 +40,7 @@ public final class RainbowGumJBossLoggerProvider implements LoggerProvider {
 	private static volatile @Nullable RainbowGumJBossLoggerProvider current;
 
 	/*
-	 * Held here because RainbowGum.onGlobalChange only keeps a weak reference.
+	 * Held here because RainbowGum.onGlobalStateChange only keeps a weak reference.
 	 */
 	private final GlobalRainbowGum global = GlobalRainbowGum.of();
 

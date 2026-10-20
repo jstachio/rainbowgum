@@ -80,6 +80,10 @@ This behavior is now documented on `onGlobalChange`.
 
 ## Remaining design decisions
 
+The removal-event question below is addressed by the separate
+[`feature/global-clear-push` follow-up](global-state-change.md). This review
+records the original branch and its first round of fixes.
+
 - Closing, unsetting, or registering a replacement supplier does not send a
   removal event. Holders can retain the last gum and formatter until the next
   successful binding; newly created loggers can register names against that

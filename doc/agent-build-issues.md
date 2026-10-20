@@ -11,6 +11,36 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-10-20: Analyze clear lifecycle tests against installed core bytecode
+
+On `feature/global-clear-push`, `./mvnw --fail-at-end install` passed. This
+combined analysis then passed core but crashed while compiling the new
+System.Logger close/rebind test:
+
+```sh
+_run_modules=core,rainbowgum-systemlogger bin/analyze.sh checkerframework
+```
+
+Checker Framework 4.3.0 reported `BugInCF` in `getElementValueArray` for
+`DoesNotUnrefineReceiver({"resourceleak"})`, with `first.close()` as the last
+visited tree. This matches [the documented crash](checker-framework-bugs.md).
+The explicit close is the behavior under test, so replacing it with a clear
+through another API would weaken the regression.
+
+After the normal install, analyzing System.Logger separately passed:
+
+```sh
+_run_modules=rainbowgum-systemlogger bin/analyze.sh checkerframework
+```
+
+Core had already passed in the combined invocation. The separate run uses
+installed core bytecode rather than declarations freshly compiled in the
+same reactor. Error Prone and NullAway passed with core, System.Logger, and
+SLF4J in the same invocation. Normal caching and parallelism stayed enabled;
+no module exclusion or suppression was added.
+
+Agent: Codex (GPT-6).
+
 ## 2026-10-20: An unfiltered build restores a filtered core test result
 
 During review of `feature/global-change-push`, this regression run selected

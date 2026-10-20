@@ -1,0 +1,77 @@
+package io.jstach.rainbowgum.systemlogger;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
+
+import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.RainbowGum;
+import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption;
+
+@Isolated
+class GlobalClearFinderTest {
+
+	@Test
+	void finderDropsItsInitialGumAndQueuesNewNamesUntilTheNextBinding() {
+		var oldOutput = new ListLogOutput();
+		try (var first = gum(oldOutput)) {
+			var finder = new RainbowGumSystemLoggerFinder(() -> InitOption.REUSE) {
+			};
+			var module = getClass().getModule();
+			finder.getLogger("before.clear", module).log(System.Logger.Level.INFO, "before");
+			first.close();
+			var during = finder.getLogger("during.clear", module);
+			during.log(System.Logger.Level.INFO, "during");
+			assertNull(RainbowGum.getOrNull(), "clearing must not cause the finder to start another gum");
+			assertEquals(1, oldOutput.events().size());
+			var output = new ListLogOutput();
+			try (var second = gum(output)) {
+				assertEquals(1, output.events().size());
+				during.log(System.Logger.Level.INFO, "after");
+				finder.getLogger("after.clear", module).log(System.Logger.Level.INFO, "new name");
+				assertEquals(3, output.events().size());
+				assertEquals(1, oldOutput.events().size());
+			}
+		}
+	}
+
+	@Test
+	void initialStartupResolvesBoundPropertiesBeforeSystemFallbacks() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.messageFormat.apply=index
+				""").build()).build();
+		var output = new ListLogOutput();
+		try (var gum = RainbowGum.builder(config).route(r -> r.appender("list", a -> a.output(output))).build()) {
+			RainbowGum.set(() -> gum);
+			String key = "logging.messageFormat.apply";
+			String previous = System.setProperty(key, "invalid");
+			try {
+				var finder = new RainbowGumSystemLoggerFinder(() -> InitOption.TRUE) {
+				};
+				finder.getLogger("initial", getClass().getModule()).log(System.Logger.Level.INFO, "It's done", "x");
+				var message = new StringBuilder();
+				output.events().getFirst().getKey().formattedMessage(message);
+				assertEquals("It's done", message.toString());
+			}
+			finally {
+				if (previous == null) {
+					System.getProperties().remove(key);
+				}
+				else {
+					System.setProperty(key, previous);
+				}
+			}
+		}
+	}
+
+	private static RainbowGum gum(ListLogOutput output) {
+		return RainbowGum.builder(LogConfig.builder().build())
+			.route(r -> r.appender("list", a -> a.output(output)))
+			.set();
+	}
+
+}
