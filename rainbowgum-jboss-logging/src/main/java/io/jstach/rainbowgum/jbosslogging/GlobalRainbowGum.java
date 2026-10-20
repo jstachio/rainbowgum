@@ -12,10 +12,11 @@ import io.jstach.rainbowgum.RainbowGum;
 /*
  * The globally bound Rainbow Gum and the MessageFormat style its properties choose, kept
  * current by RainbowGum.onGlobalChange. Loggers created before Rainbow Gum starts follow
- * it, and reading it takes no lock. The same class is in
+ * it, and reading it takes no lock. While none is bound, before the first and after one
+ * is removed, system properties choose the style. The same class is in
  * rainbowgum-systemlogger, rainbowgum-jboss-logging and rainbowgum-jul-logmanager.
  */
-final class GlobalRainbowGum implements Consumer<RainbowGum> {
+final class GlobalRainbowGum implements Consumer<@Nullable RainbowGum> {
 
 	private volatile @Nullable RainbowGum gum;
 
@@ -54,15 +55,35 @@ final class GlobalRainbowGum implements Consumer<RainbowGum> {
 				set(current);
 			}
 			else {
-				messageFormatter = LogMessageFormatter.ofJUL(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+				unset();
 			}
 		}
 	}
 
 	@Override
-	public synchronized void accept(RainbowGum pushedGum) {
+	public synchronized void accept(@Nullable RainbowGum pushedGum) {
 		pushed = true;
-		set(pushedGum);
+		if (pushedGum != null) {
+			set(pushedGum);
+		}
+		else {
+			unset();
+		}
+	}
+
+	/*
+	 * An invalid system property leaves the default style and is thrown: to the facade
+	 * while subscribing, otherwise to the publisher, which reports it.
+	 */
+	private void unset() {
+		this.gum = null;
+		LogMessageFormatter formatter = StandardMessageFormatter.JUL;
+		try {
+			formatter = LogMessageFormatter.ofJUL(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+		}
+		finally {
+			this.messageFormatter = formatter;
+		}
 	}
 
 	private void set(RainbowGum current) {

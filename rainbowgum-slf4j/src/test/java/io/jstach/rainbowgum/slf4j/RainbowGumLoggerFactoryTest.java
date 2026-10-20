@@ -375,6 +375,41 @@ class RainbowGumLoggerFactoryTest {
 		}
 	}
 
+	/*
+	 * Closing the bound gum is pushed to the factory, so a logger looked up while none is
+	 * bound queues on the global router and follows the next gum instead of routing into
+	 * the closed one. Without logging.change.logger it would otherwise be a LevelLogger
+	 * left on the abandoned queue.
+	 */
+	@Test
+	void testLoggerLookedUpWhileNoneIsBoundFollowsTheNextGum() {
+		RainbowGum.builder(LogConfig.builder().build()).unset();
+		try {
+			var firstOutput = new ListLogOutput();
+			var first = gum(firstOutput, LogProperties.StandardProperties.EMPTY);
+			assertSame(first, RainbowGum.set(first).get());
+			var factory = new RainbowGumLoggerFactory(first, new RainbowGumMDCAdapter());
+			factory.getLogger("before.close").info("via first gum");
+			first.close();
+
+			var logger = factory.getLogger("while.unbound");
+			logger.info("queued while unbound");
+			var nextOutput = new ListLogOutput();
+			try (var next = gum(nextOutput, LogProperties.StandardProperties.EMPTY)) {
+				assertSame(next, RainbowGum.set(next).get());
+				logger.info("after next gum");
+				assertEquals("INFO via first gum\n", firstOutput.toString());
+				assertEquals("""
+						INFO queued while unbound
+						INFO after next gum
+						""", nextOutput.toString());
+			}
+		}
+		finally {
+			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
 	enum BootstrapContextCase {
 
 		PLAIN, CALLER, FLUENT;

@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum.systemlogger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.jspecify.annotations.Nullable;
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -64,6 +67,21 @@ class GlobalRainbowGumTest {
 			assertSame(second, requireGum(RainbowGum.getOrNull()));
 			assertSame(second, requireGum(global.gum()));
 		}
+	}
+
+	@Test
+	void removalFallsBackToSystemProperties() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.messageFormat.apply=index
+				""").build()).build();
+		var gum = RainbowGum.builder(config).route(r -> r.appender("list", a -> a.output(new ListLogOutput()))).set();
+		var global = GlobalRainbowGum.of();
+		try (gum) {
+			assertSame(gum, requireGum(global.gum()));
+			assertNotSame(StandardMessageFormatter.JUL, global.messageFormatter());
+		}
+		assertNull(global.gum());
+		assertSame(StandardMessageFormatter.JUL, global.messageFormatter());
 	}
 
 	private static RainbowGum requireGum(@Nullable RainbowGum gum) {

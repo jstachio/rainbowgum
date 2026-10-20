@@ -247,8 +247,14 @@ unifying.
       calling `RainbowGum.getOrNull()` when they create a logger,
       so loggers created before Rainbow Gum starts pick up `logging.messageFormat.*`.
       Left to decide:
-  - [ ] Nothing is pushed when a gum is removed or closed (`RainbowGumHolder.remove`),
-        so a facade keeps the last gum; the SLF4J logger factory has the same gap.
+  - [x] Removal is pushed as `null` (closing, `unset()`, or `RainbowGum.set(Supplier)`
+        replacing the bound gum), so `onGlobalChange` subscribers see what `getOrNull()`
+        returns. The holders fall back to system properties, and the SLF4J factory
+        swaps in a queued gum over the removed gum's config, so loggers looked up while
+        none is bound queue on the global router and follow the next gum.
+  - [ ] SLF4J loggers created on a gum's own router before it was removed still do not
+        follow the next gum: a `LevelLogger` keeps its route and a `ReplaceableLogger`
+        listens to that router's change publisher, which the next binding does not use.
   - [ ] Whether `GlobalRainbowGum` should move to core as public API instead of three
         copies.
   - [ ] Events queued before startup keep the formatter they were created with.

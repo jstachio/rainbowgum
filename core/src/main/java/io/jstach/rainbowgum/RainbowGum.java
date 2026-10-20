@@ -215,12 +215,14 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	}
 
 	/**
-	 * Subscribes to notification of a new RainbowGum becoming the globally bound one (see
-	 * {@link #set(Supplier)}, {@link #set(RainbowGum)}, {@link Builder#set()}). This is
-	 * primarily for components like SLF4J's logger factory that are themselves
-	 * bootstrapped once (often before "the real" RainbowGum has loaded, e.g. a
-	 * framework's own pre-boot sequence) and otherwise have no way of finding out that a
-	 * different RainbowGum has since replaced the one they captured.
+	 * Subscribes to changes of the globally bound RainbowGum: a new one becoming bound
+	 * (see {@link #set(Supplier)}, {@link #set(RainbowGum)}, {@link Builder#set()}) or
+	 * the bound one no longer being bound (closing it, {@link Builder#unset()}, or
+	 * {@link #set(Supplier)} replacing it). This is primarily for components like SLF4J's
+	 * logger factory that are themselves bootstrapped once (often before "the real"
+	 * RainbowGum has loaded, e.g. a framework's own pre-boot sequence) and otherwise have
+	 * no way of finding out that a different RainbowGum has since replaced the one they
+	 * captured.
 	 * <p>
 	 * Only a {@linkplain java.lang.ref.WeakReference weak reference} to
 	 * <code>consumer</code> is retained, so subscribing does not by itself keep the
@@ -229,17 +231,19 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * receiving notifications, otherwise it may silently stop being called once garbage
 	 * collected.
 	 * <p>
-	 * Subscribing does not replay the currently bound instance. Notifications are
-	 * delivered in binding order. A concurrent or reentrant binding queues its
-	 * notification until the current delivery finishes, so its caller may return before
-	 * subscribers have seen it. A subscriber throwing a runtime exception is reported
-	 * through the internal error log and does not prevent later deliveries. Removal does
-	 * not trigger a notification; this is a binding event, not a guarantee that the
-	 * supplied gum is still current or open when the consumer runs.
-	 * @param consumer called with the newly bound global RainbowGum. Never called while
-	 * any RainbowGum internal lock is held.
+	 * The consumer receives what {@link #getOrNull()} returns after the change: the newly
+	 * bound instance, or <code>null</code> when none is bound anymore. Removing when none
+	 * is bound is not a change. Subscribing does not replay the currently bound instance.
+	 * Notifications are delivered in the order of the changes. A concurrent or reentrant
+	 * change queues its notification until the current delivery finishes, so its caller
+	 * may return before subscribers have seen it. A subscriber throwing a runtime
+	 * exception is reported through the internal error log and does not prevent later
+	 * deliveries. A notification is not a guarantee that the supplied gum is still
+	 * current or open when the consumer runs.
+	 * @param consumer called with the newly bound global RainbowGum or <code>null</code>
+	 * when none is bound. Never called while any RainbowGum internal lock is held.
 	 */
-	public static void onGlobalChange(Consumer<RainbowGum> consumer) {
+	public static void onGlobalChange(Consumer<@Nullable RainbowGum> consumer) {
 		RainbowGumHolder.globalChangePublisher.add(consumer);
 	}
 
@@ -626,6 +630,7 @@ final class RainbowGumHolder {
 	}
 
 	static boolean remove(@Nullable RainbowGum gum) {
+		boolean removed = false;
 		lock.writeLock().lock();
 		try {
 			var original = rainbowGum;
@@ -640,12 +645,15 @@ final class RainbowGumHolder {
 			if (original != null) {
 				LogRouter.global().close();
 			}
-			rainbowGum = null;
+			removed = unbind();
 			supplier = RainbowGumServiceProvider::provide;
 			return true;
 		}
 		finally {
 			lock.writeLock().unlock();
+			if (removed) {
+				globalChangePublisher.drain();
+			}
 		}
 	}
 
@@ -655,14 +663,31 @@ final class RainbowGumHolder {
 			throw new IllegalStateException("RainbowGum component tried to log too early. "
 					+ "This is usually caused by dependencies calling logging.");
 		}
+		boolean removed = false;
 		lock.writeLock().lock();
 		try {
-			rainbowGum = null;
+			removed = unbind();
 			supplier = rainbowGumSupplier;
 		}
 		finally {
 			lock.writeLock().unlock();
+			if (removed) {
+				globalChangePublisher.drain();
+			}
 		}
+	}
+
+	/*
+	 * Must hold the write lock. Like binding, the change is queued under the lock and
+	 * delivered after it is released.
+	 */
+	private static boolean unbind() {
+		if (rainbowGum == null) {
+			return false;
+		}
+		rainbowGum = null;
+		globalChangePublisher.enqueue(null);
+		return true;
 	}
 
 	private static void start(RainbowGum gum) {
@@ -683,20 +708,26 @@ final class RainbowGumHolder {
  */
 final class GlobalChangePublisher {
 
-	private final Queue<WeakReference<Consumer<RainbowGum>>> consumers = new ConcurrentLinkedQueue<>();
+	private final Queue<WeakReference<Consumer<@Nullable RainbowGum>>> consumers = new ConcurrentLinkedQueue<>();
 
 	/* Both guarded by this. No callbacks may run while this monitor is held. */
-	private final Queue<RainbowGum> pending = new ArrayDeque<>();
+	private final Queue<Change> pending = new ArrayDeque<>();
 
 	private boolean draining;
 
-	void add(Consumer<RainbowGum> consumer) {
+	/*
+	 * ArrayDeque does not allow null, which is how removal is published.
+	 */
+	private record Change(@Nullable RainbowGum gum) {
+	}
+
+	void add(Consumer<@Nullable RainbowGum> consumer) {
 		Objects.requireNonNull(consumer);
 		consumers.add(new WeakReference<>(consumer));
 	}
 
-	synchronized void enqueue(RainbowGum gum) {
-		pending.add(gum);
+	synchronized void enqueue(@Nullable RainbowGum gum) {
+		pending.add(new Change(gum));
 	}
 
 	void drain() {
@@ -708,15 +739,15 @@ final class GlobalChangePublisher {
 		}
 		try {
 			while (true) {
-				RainbowGum gum;
+				Change change;
 				synchronized (this) {
-					gum = pending.poll();
-					if (gum == null) {
+					change = pending.poll();
+					if (change == null) {
 						draining = false;
 						return;
 					}
 				}
-				publish(gum);
+				publish(change.gum());
 			}
 		}
 		catch (RuntimeException | Error e) {
@@ -727,7 +758,7 @@ final class GlobalChangePublisher {
 		}
 	}
 
-	private void publish(RainbowGum gum) {
+	private void publish(@Nullable RainbowGum gum) {
 		for (var it = consumers.iterator(); it.hasNext();) {
 			var consumer = it.next().get();
 			if (consumer == null) {

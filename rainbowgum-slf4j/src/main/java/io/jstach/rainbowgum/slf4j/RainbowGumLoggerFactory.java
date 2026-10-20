@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
@@ -16,6 +17,7 @@ import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
@@ -32,13 +34,15 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * capture it here, and only later RainbowGum.set(...) the "real" one - this factory
 	 * would otherwise be stuck forever routing new getLogger(...) calls through the stale
 	 * bootstrap instance's config/decorators. onGlobalChange (below) keeps this current
-	 * for names looked up after the swap. Already-created Logger instances in loggerMap
-	 * are a separate concern: ones allowed to change level (ReplaceableLogger, below) are
-	 * kept current independently via the router's own RouteChangePublisher, which is how
-	 * a bootstrap-era ReplaceableLogger stops pointing at the queued placeholder router
-	 * once a real router replaces it (see subscribe()). Routing for loggers that were not
-	 * allowed to change (LevelLogger) is not revisited after creation. Context
-	 * contributors follow the current gum for every handler through ChangingContributor.
+	 * for names looked up after the swap, and a removal swaps in a queued gum until the
+	 * next binding (see setRainbowGum). Already-created Logger instances in loggerMap are
+	 * a separate concern: ones allowed to change level or created on the global router
+	 * (ReplaceableLogger, below) are kept current independently via the router's own
+	 * RouteChangePublisher, which is how a bootstrap-era ReplaceableLogger stops pointing
+	 * at the queued placeholder router once a real router replaces it (see subscribe()).
+	 * Routing for loggers that were not allowed to change (LevelLogger) is not revisited
+	 * after creation. Context contributors follow the current gum for every handler
+	 * through ChangingContributor.
 	 */
 	private volatile RainbowGum rainbowGum;
 
@@ -59,7 +63,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * the constructor below.
 	 */
 	@SuppressWarnings("methodref.receiver.bound")
-	private final Consumer<RainbowGum> onGlobalChange = this::setRainbowGum;
+	private final Consumer<@Nullable RainbowGum> onGlobalChange = this::setRainbowGum;
 
 	public RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
 		super();
@@ -71,9 +75,15 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 		RainbowGum.onGlobalChange(onGlobalChange);
 	}
 
-	private void setRainbowGum(RainbowGum gum) {
-		contributor.setRainbowGum(gum);
-		this.rainbowGum = gum;
+	/*
+	 * With none bound, new loggers queue on the global router until the next gum is
+	 * bound, as during a pre-boot bootstrap. The removed gum's config still decides their
+	 * settings.
+	 */
+	private void setRainbowGum(@Nullable RainbowGum gum) {
+		var current = gum != null ? gum : RainbowGum.queued(this.rainbowGum.config());
+		contributor.setRainbowGum(current);
+		this.rainbowGum = current;
 	}
 
 	@Override
@@ -102,7 +112,13 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			 * LocationAwareForwardingLogger.
 			 */
 			boolean callerInfoEnabled = changePublisher.callerInfoEnabled(name);
-			if (allowedChanges.contains(ChangeType.LEVEL)) {
+			/*
+			 * The queue behind the global router is abandoned once a router is bound, so
+			 * a logger created on it must follow the binding whatever changes it allows.
+			 */
+			@SuppressWarnings("ReferenceEquality")
+			boolean queued = router == LogRouter.global();
+			if (queued || allowedChanges.contains(ChangeType.LEVEL)) {
 				/*
 				 * The level can change after this logger is created (that is the whole
 				 * point of it being replaceable), so the sink must not be bound based on
