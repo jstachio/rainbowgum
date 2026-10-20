@@ -249,8 +249,7 @@ unifying.
       Left to decide:
   - [x] `onGlobalChange(Consumer<@Nullable RainbowGum>)` publishes removal as `null`
         through the same ordered queue as bindings. Facade holders, the System.Logger
-        finder and the SLF4J factory drop their gum on removal. See
-        [the design](doc/global-state-change.md).
+        finder and the SLF4J factory drop their gum on removal.
   - [ ] SLF4J loggers created on a gum's own router before it was removed still do not
         follow the next gum: a `LevelLogger` keeps its route and a `ReplaceableLogger`
         listens to that router's change publisher, which the next binding does not use.
@@ -261,7 +260,7 @@ unifying.
         still serializes provisioning and router changes; a read lock cannot keep a
         returned gum alive after the call. Global notifications are queued in binding
         order and delivered without holding either the lifecycle lock or the queue
-        monitor. See [the review](doc/review-global-change-push.md).
+        monitor.
 - [ ] **`console` as a scheme alias for `stdout`**: `LogOutput.STDOUT_SCHEME`/
       `STDERR_SCHEME` (`LogOutput.java`) are the only registered console output
       schemes today - `logging.appender.myapp.output=console` currently just fails
