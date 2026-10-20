@@ -144,13 +144,16 @@ The project follows <a href="https://semver.org/">semantic versioning</a>.
 <ol>
   <li><a href="https://docs.oracle.com/en/java/javase/21/">Java 21 or greater</a></li>
   <li>Only when <a href="#plugin_guide">developing extensions</a> that use <code>rainbowgum-apt</code>: a build
-    system that supports running the Java compiler annotation processor</li>
+    system that supports running the Java compiler annotation processor, and
+    <a href="https://jspecify.dev/"><code>org.jspecify:jspecify</code></a> at compile time, since the generated
+    builders use its nullness annotations</li>
 </ol>
 
 The only module needed during runtime is  
 <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/module-summary.html">
   <code>java.base</code>
-</a>
+</a>.
+Core's JSpecify dependency is optional (<code>requires static</code>) and is not passed on to your application.
 
 <h3 id="limitations">Limitations</h3>
 
