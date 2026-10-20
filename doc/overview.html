@@ -310,19 +310,22 @@ The current optional properties modules are:
     <a href="https://avaje.io/config/">Avaje Config</a> as the properties provider.</li>
 </ul>
 
-<strong>
-  IMPORTANT: Rainbow Gum core does not do any interpolation of property values!
+<div class="callout callout-important" role="note">
+<p class="callout-title">Important</p>
+<p>
+  Rainbow Gum core does not do any interpolation of property values!
   That is the responsibility of the {@link io.jstach.rainbowgum.LogProperties}
   backing implementation and the values retrieved should already be interpolated.
-</strong>
+</p>
+</div>
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
 <p>
-  <strong>NOTE:</strong>
-  <em>
     Throughout the documentation {@link java.util.Properties} and {@link java.net.URI} syntax is used to express
     configurable properties but it is a not a requirement and 
     your configuration system may have a different format like YAML or JSON.
-  </em>
 </p>
+</div>
 
 <p>
 An appender's encoder and output are configured under the appender itself: <code>uri</code> picks the
@@ -879,9 +882,10 @@ for each publisher. This covers logging before start, after shutdown begins, rec
 worker, or after worker failure. A producer interrupted while waiting for space also drops its event
 and retains its interrupt flag. An interrupted caller can still enqueue when space is available.
 </p>
-<p>
-  <strong>NOTE:</strong> If you want some appenders to be async and others sync you just create multiple routes. 
-</p>
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
+<p>If you want some appenders to be async and others sync you just create multiple routes.</p>
+</div>
 
 Rainbow Gum has an experimental async publisher that uses the LMAX Disruptor ringbuffer: {@link io.jstach.rainbowgum.disruptor/ }.
 If the jar is found on start it will replace the default async publisher, and it can also be selected
@@ -1300,13 +1304,18 @@ module's default pattern.
 </dependency>
 }
 
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
 <p>
-  <strong>NOTE:</strong> <em>The <strong>color</strong> pattern keywords need no further module such as JAnsi.</em>
+  The <strong>color</strong> pattern keywords need no further module such as JAnsi.
     Rainbow Gum detects whether the process is attached to an ANSI capable terminal using only
     {@link java.lang.System#console()} and well known environment variables ({@code NO_COLOR}, {@code TERM};
     see {@link io.jstach.rainbowgum.format.AnsiSupport}), and simply does not emit ANSI escape sequences when it is not.
     The separate JAnsi module <a href="#jansi">covered below</a> is no longer generally needed; it is now largely a
     legacy option for a handful of edge cases.
+</p>
+</div>
+<p>
     {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_MODE_PROPERTY} overrides the detection for the whole
     configuration: <code>auto</code> (the default) detects, <code>on</code> always emits ANSI escape sequences, and
     <code>off</code> never does and also keeps JAnsi from installing if that module is in use. It is also set with
@@ -1419,16 +1428,16 @@ logging.appender.myappender.encoder.pattern.pattern=%msg%nopex
       output in some cases, emitting escape codes into a pipe it should have recognized as non-interactive.
     </li>
   </ul>
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
 <p>
-  <strong>NOTE:</strong>
-  <em>
     <a href="https://openjdk.org/jeps/8307341">Future versions of the JDK may require command line arguments</a>
     for using jars packaged with native libraries, which JAnsi is. Given that Rainbow Gum favors security we
     strongly agree with the draft JDK Enhancement Proposal (JEP): this is one more reason
     <code>AnsiSupport</code>'s pure-JDK approach (no
     native code, no reflection, no separate terminal library) is now the preferred path.
-  </em>
 </p>
+</div>
 Jansi can be disabled with {@value io.jstach.rainbowgum.jansi.JAnsiConfigurator#JANSI_DISABLE} set to
 <code>true</code> or {@value io.jstach.rainbowgum.LogProperties#GLOBAL_ANSI_MODE_PROPERTY} set to <code>off</code>.
 <p>
@@ -2184,13 +2193,16 @@ and <code>{@linkplain io.jstach.rainbowgum.slf4j/ io.jstach.rainbowgum:rainbowgu
 (if using SLF4J)
 should be used.
 
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
 <p>
-<strong>NOTE:</strong> if you are using a web framework or platform that already bundles
+If you are using a web framework or platform that already bundles
 its own logging framework (Logback, Log4j2, etc.), you will likely need to exclude that
 transitive dependency, or the two will conflict on the SLF4J provider slot. See the
 <a href="#spring_boot">Spring Boot</a> section below for a concrete example of excluding
 <code>spring-boot-starter-logging</code>.
 </p>
+</div>
 
 <h3 id="maven">Maven</h3>
 
@@ -2281,6 +2293,29 @@ Rainbow Gum SLF4J module {@link io.jstach.rainbowgum.slf4j/} supports:
 <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService Decorating loggers}</li>
 <li>{@linkplain io.jstach.rainbowgum.LogEvent.Caller Caller Information}</li>
 </ul>
+<div id="slf4j_platform_logging" class="callout callout-warning" role="note">
+<p class="callout-title">Warning: do not use slf4j-jdk-platform-logging</p>
+<p>
+SLF4J's <code>System.Logger</code> adapter, <code>org.slf4j:slf4j-jdk-platform-logging</code>, formats each
+message with {@link java.text.MessageFormat} and then passes the same parameters on as SLF4J arguments, so
+SLF4J substitutes <code>{}</code> a second time in text that already contains the parameter values
+(<a href="https://github.com/qos-ch/slf4j/pull/498">slf4j#498</a>). A parameter value containing
+<code>{}</code>, for example one that came from user input, is replaced by another parameter, and parameters the
+pattern never referenced are logged. A malformed pattern makes <code>System.Logger.log</code> throw
+{@link java.lang.IllegalArgumentException}. With SLF4J 2.0.20 and Rainbow Gum's SLF4J module:
+</p>
+{@snippet lang=java :
+logger.log(Level.INFO, "a={0} b={1}", "X", "{}");             // a=X b=X
+logger.log(Level.INFO, "user={0}", "{} {}", "unreferenced");  // user={} {} unreferenced
+}
+<p>
+Rainbow Gum's own <a href="#system_logger"><code>System.Logger</code> integration</a> logs these as
+<code>a=X b={}</code> and <code>user={} {}</code>. It is part of the <code>rainbowgum</code> dependency, so the
+adapter is not needed. If both are present the JDK uses whichever <code>System.LoggerFinder</code> it finds
+first, which on the class path depends on jar order, so make sure the adapter is not a transitive dependency
+(<code>mvn dependency:tree</code>).
+</p>
+</div>
 MDC defaults to a {@link java.lang.ThreadLocal}-backed implementation; setting
 <code>logging.mdc.type</code> to <code>NOOP</code> swaps in a no-op implementation instead, for deployments
 that want no {@link java.lang.ThreadLocal} anywhere in the logging path and are fine losing MDC to get it.
@@ -2298,6 +2333,19 @@ The value parameter in
 {@link org.slf4j.spi.LoggingEventBuilder#addKeyValue(String,Object)} are
 converted to {@link java.lang.String} immediately as only String values are
 supported at this time.
+<div id="key_values_sensitive" class="callout callout-warning" role="note">
+<p class="callout-title">Warning: key values are logged</p>
+<p>
+Key values from MDC, {@link org.slf4j.spi.LoggingEventBuilder#addKeyValue(String,Object)},
+<a href="#scoped_key_values">scoped key values</a> and other sources are written by the default
+<a href="#ttll">TTLL format</a>, so they appear in console output without any configuration, and the
+<a href="#json_encoders">JSON encoders</a> include them. Do not put passwords, tokens, session ids or
+personal data in key values. If you are coming from a framework whose default format leaves MDC out, values
+that never showed up in your logs before will now. TTLL's <code>keyValues=none</code> leaves them out of the
+text format, and <code>logging.keyvalues.disabled</code> drops whole sources from every event
+(see <a href="#default_key_values">Default Key Values</a>).
+</p>
+</div>
 <p>
 Rainbow Gum SLF4J implementation is unique in that it has 
 two special implementation of loggers:
@@ -2368,6 +2416,14 @@ ScopedKeyValues.builder()
         service.handle(request);
     });
 }
+<div class="callout callout-warning" role="note">
+<p class="callout-title">Warning</p>
+<p>
+Every value pushed here is on every log line for the whole request or task, including the default console
+output. Push identifiers such as a request id, not passwords, tokens or personal data; see
+<a href="#key_values_sensitive">key values are logged</a>.
+</p>
+</div>
 This is deliberately <strong>not</strong> a replacement for MDC or for
 {@link org.slf4j.spi.LoggingEventBuilder#addKeyValue(String,Object)}. Ad-hoc, imperative, single-call-site
 key values are still MDC's/{@code addKeyValue}'s job - the two compose normally, since
@@ -2495,18 +2551,17 @@ bridge activated automatically. If neither an existing {@code System.Logger}/SLF
 {@code rainbowgum-jdk} is an option, call {@link io.jstach.rainbowgum.RainbowGum#of()} explicitly
 before any JUL logging happens. See {@link io.jstach.rainbowgum.jul/}'s module Javadoc for why.
 </p>
+<div class="callout callout-warning" role="note">
+<p class="callout-title">Warning: do not use slf4j-jdk-platform-logging</p>
 <p>
-  SLF4J does
-  <a href="https://www.slf4j.org/manual.html#jep264">provide an adapter/bridge for the System.Logger (org.slf4j:slf4j-jdk-platform-logging)</a>,
-  routing <code>System.Logger</code> calls into whatever SLF4J provider is bound (the SLF4J adapter
-  will initialize Rainbow Gum on <code>System.Logger</code> usage if using
-  {@link io.jstach.rainbowgum.slf4j/ }). <strong>Using it is not recommended</strong>: it is a
-  third party module maintained by the SLF4J project itself, not Rainbow Gum, so its own future
-  compatibility is outside Rainbow Gum's control. {@code rainbowgum-jul}/{@code rainbowgum-jdk}
-  (described above) give the same <code>System.Logger</code> coverage plus <code>java.util.logging</code>
-  bridging, are maintained directly by this project, and are the better choice for compatibility and
-  future proofing.
+  SLF4J's
+  <a href="https://www.slf4j.org/manual.html#jep264">adapter for the System.Logger (org.slf4j:slf4j-jdk-platform-logging)</a>
+  routes <code>System.Logger</code> calls into the bound SLF4J provider, but it formats parameters twice and
+  can throw from <code>System.Logger.log</code>; see <a href="#slf4j_platform_logging">the SLF4J section</a>.
+  {@code rainbowgum-jdk} (described above) gives the same <code>System.Logger</code> coverage plus
+  <code>java.util.logging</code> bridging without those problems.
 </p>
+</div>
 <p>
   The following System properties allow greater control of the queueing and initialization.
   Because of how early initialization can happen this configuration can only be done with System properties.
@@ -2516,14 +2571,14 @@ before any JUL logging happens. See {@link io.jstach.rainbowgum.jul/}'s module J
   <li>{@value io.jstach.rainbowgum.LogProperties#GLOBAL_QUEUE_ERROR_PROPERTY} = level</li>
   <li>{@value io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder#INITIALIZE_RAINBOW_GUM_PROPERTY} = init option</li>
   </ul>
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
 <p>
-  <em>
-    <strong>NOTE:</strong>
     While the JDK System.Logger is good for low level libraries that rarely log 
-    it's API (and Rainbow Gum implementation) is not designed for performance.
+    its API (and Rainbow Gum implementation) is not designed for performance.
     For applications and frameworks that do a lot of logging the SLF4J facade is the preferred choice.
-  </em>
 </p>
+</div>
 <p>
 Because java.util.logging (JUL) and System.Logger can be used very early on currently MDC (set by SLF4J) and caller info diagnostics is not provided at this time.
 Caller info maybe provided later as it is agnostic of SLF4J and if you would like that please file an issue. Support for changeable logging levels is provided for
