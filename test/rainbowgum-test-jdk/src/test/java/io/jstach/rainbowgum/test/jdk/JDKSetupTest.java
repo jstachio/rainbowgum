@@ -46,6 +46,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
 import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
@@ -222,6 +223,24 @@ class JDKSetupTest {
 		});
 	}
 
+	@Order(13)
+	@ParameterizedTest
+	@MethodSource("provideTesters")
+	void testMessageFormatProperties(LoggerTester<?> tester) throws InterruptedException {
+		doInLock(() -> {
+			_testMessageFormatProperties(tester);
+		});
+	}
+
+	@Order(13)
+	@ParameterizedTest
+	@MethodSource("provideApostrophes")
+	void testApostrophe(LoggerTester<?> tester, Apostrophe apostrophe) throws InterruptedException {
+		doInLock(() -> {
+			_testApostrophe(tester, apostrophe);
+		});
+	}
+
 	/*
 	 * JUL and System.Logger have no context API of their own, so events from them carry
 	 * whatever registered KeyValuesContributors (SLF4J MDC, scoped key values, ...)
@@ -253,7 +272,7 @@ class JDKSetupTest {
 					new SystemLoggingFactory().getLogger("kv.system", null).log(Level.INFO, "from system logger");
 					var record = new LogRecord(java.util.logging.Level.INFO, "published elsewhere");
 					record.setLoggerName("kv.async");
-					Thread other = new Thread(() -> JULBridge.publish(record));
+					Thread other = new Thread(() -> JULBridge.publish(record, StandardMessageFormatter.JUL));
 					other.start();
 					try {
 						other.join();
@@ -923,6 +942,62 @@ class JDKSetupTest {
 		}
 	}
 
+	/*
+	 * The settings other than the defaults: MessageFormat only when the message has an
+	 * argument index, as the JDK does, and a trailing Throwable argument that is
+	 * formatted and also logged with its stack trace, as Log4j2 does.
+	 */
+	<T> void _testMessageFormatProperties(LoggerTester<T> tester) {
+		ListLogOutput output = new ListLogOutput();
+		var level = System.Logger.Level.INFO;
+		var messageFormat = LogProperties.builder().fromProperties("""
+				logging.messageFormat.apply=index
+				logging.messageFormat.throwable=both
+				""").build();
+		var properties = LogProperties.of(List.of(tester.properties(), messageFormat));
+		var logger = tester.beforeLoad();
+		try (var gum = JDKSetup.run(output, level, properties)) {
+			logger = tester.afterLoad(logger);
+			tester.oneArg(logger, level, "It's done", Arg.STRING);
+			tester.twoArgs(logger, level, "Hello {0} failed {1}", Arg.STRING, Arg.EXCEPTION);
+			/*
+			 * A System.Logger created before Rainbow Gum starts only sees the system
+			 * properties, so it keeps the defaults. See todo.md.
+			 */
+			String expected = tester == SystemLoggerTester.SYSTEM_LOGGER ? """
+					00:00:00.000 [%1$s] INFO  after.load - Its done
+					00:00:00.000 [%1$s] INFO  after.load - Hello hello failed java.lang.RuntimeException: EXPECTED
+					""".formatted(Thread.currentThread().getName()) : """
+					00:00:00.000 [%1$s] INFO  after.load - It's done
+					00:00:00.000 [%1$s] INFO  after.load - Hello hello failed java.lang.RuntimeException: EXPECTED
+					java.lang.RuntimeException: EXPECTED
+					""".formatted(Thread.currentThread().getName());
+			String actual = output.toString()
+				.lines()
+				.filter(line -> !line.startsWith("\t"))
+				.map(line -> line + "\n")
+				.collect(Collectors.joining());
+			assertEquals(expected, actual);
+		}
+	}
+
+	<T> void _testApostrophe(LoggerTester<T> tester, Apostrophe apostrophe) {
+		ListLogOutput output = new ListLogOutput();
+		var level = System.Logger.Level.INFO;
+		var logger = tester.beforeLoad();
+		try (var gum = tester.run(output, level)) {
+			logger = tester.afterLoad(logger);
+			switch (apostrophe) {
+				case NO_INDEX, QUOTED -> tester.oneArg(logger, level, apostrophe.message, Arg.STRING);
+				case BUNDLE -> tester.bundleArgs(logger, level, Bundle.BUNDLE.bundle(), apostrophe.message, Arg.STRING);
+			}
+			String expected = """
+					00:00:00.000 [%s] INFO  after.load - %s
+					""".formatted(Thread.currentThread().getName(), apostrophe.expected);
+			assertEquals(expected, output.toString());
+		}
+	}
+
 	<T> void _testBundleArgs(LoggerTester<T> tester, System.Logger.Level level, System.Logger.Level loggerLevel,
 			Bundle bundle, Arg arg) {
 		ListLogOutput output = new ListLogOutput();
@@ -1032,6 +1107,16 @@ class JDKSetupTest {
 						args.add(Arguments.of(tester, level, loggerLevel, arg));
 					}
 				}
+			}
+		}
+		return args.stream();
+	}
+
+	private static Stream<Arguments> provideApostrophes() {
+		List<Arguments> args = new ArrayList<>();
+		for (var tester : provideTesters()) {
+			for (var apostrophe : Apostrophe.values()) {
+				args.add(Arguments.of(tester, apostrophe));
 			}
 		}
 		return args.stream();
@@ -1154,6 +1239,11 @@ class JDKSetupTest {
 		NULL("null", null), //
 		STRING("hello", "hello"), //
 		INTEGER("1", 1), //
+		/*
+		 * By default, like the JDK and Logback, a Throwable argument is formatted with
+		 * toString() and is not the event's throwable.
+		 */
+		EXCEPTION("java.lang.RuntimeException: EXPECTED", new RuntimeException("EXPECTED")), //
 		;
 
 		private final String expected;
@@ -1186,6 +1276,28 @@ class JDKSetupTest {
 
 	}
 
+	/*
+	 * By default, like Log4j2 and Logback, MessageFormat is used whenever there are
+	 * arguments, so an apostrophe in a message without an argument index is dropped.
+	 */
+	enum Apostrophe {
+
+		NO_INDEX("It's done", "Its done"), //
+		QUOTED("It''s {0}", "It's hello"), //
+		BUNDLE("key2", "key2 its done"), //
+		;
+
+		private final String message;
+
+		private final String expected;
+
+		private Apostrophe(String message, String expected) {
+			this.message = message;
+			this.expected = expected;
+		}
+
+	}
+
 	enum Bundle {
 
 		NULL() {
@@ -1210,7 +1322,7 @@ class JDKSetupTest {
 
 			@Override
 			public ResourceBundle bundle() {
-				Map<String, String> map = Map.of("key1", "key1 bundle {0}");
+				Map<String, String> map = Map.of("key1", "key1 bundle {0}", "key2", "key2 it's done");
 				return new ResourceBundle() {
 
 					@Override

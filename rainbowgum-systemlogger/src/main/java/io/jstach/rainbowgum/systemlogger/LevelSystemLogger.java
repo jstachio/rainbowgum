@@ -8,16 +8,18 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogMessageFormatter;
 
 record LevelSystemLogger(String loggerName, int level, LogEventLogger logger,
 		SystemLoggerEventFactory eventFactory) implements System.Logger {
 
-	static System.Logger of(String loggerName, Level level, LogEventLogger logger) {
+	static System.Logger of(String loggerName, Level level, LogEventLogger logger,
+			LogMessageFormatter messageFormatter) {
 		if (level == Level.OFF) {
 			return new OffSystemLogger(loggerName);
 		}
 		return new LevelSystemLogger(loggerName, SystemLoggerEventFactory.fixLevel(level).getSeverity(), logger,
-				new SystemLoggerEventFactory(loggerName));
+				new SystemLoggerEventFactory(loggerName, messageFormatter));
 	}
 
 	record OffSystemLogger(String loggerName) implements System.Logger {

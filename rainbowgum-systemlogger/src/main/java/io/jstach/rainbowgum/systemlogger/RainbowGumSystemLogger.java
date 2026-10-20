@@ -7,6 +7,8 @@ import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogMessageFormatter;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogRouter;
 
 /**
@@ -31,14 +33,14 @@ public final class RainbowGumSystemLogger implements System.Logger {
 	 * @return un-cached system logger.
 	 */
 	public static RainbowGumSystemLogger of(String loggerName, LogRouter router) {
-		return new RainbowGumSystemLogger(loggerName, router);
+		return new RainbowGumSystemLogger(loggerName, router, StandardMessageFormatter.JUL);
 	}
 
-	RainbowGumSystemLogger(String loggerName, LogRouter router) {
+	RainbowGumSystemLogger(String loggerName, LogRouter router, LogMessageFormatter messageFormatter) {
 		super();
 		this.loggerName = loggerName;
 		this.router = router;
-		this.eventFactory = new SystemLoggerEventFactory(loggerName);
+		this.eventFactory = new SystemLoggerEventFactory(loggerName, messageFormatter);
 	}
 
 	private LogEvent event(Level level, @Nullable String formattedMessage, @Nullable Throwable throwable) {

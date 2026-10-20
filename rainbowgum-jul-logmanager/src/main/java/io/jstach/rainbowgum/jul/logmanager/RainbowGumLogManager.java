@@ -9,6 +9,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
+import io.jstach.rainbowgum.LogMessageFormatter;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
 
@@ -98,15 +101,17 @@ public final class RainbowGumLogManager extends LogManager {
 			// Recursive call for the same name: return a fresh, throwaway logger
 			// instead of recursing into computeIfAbsent again, which would deadlock
 			// on ConcurrentHashMap's own re-entrancy guard.
-			return new RainbowGumJULLogger(name);
+			return new RainbowGumJULLogger(name, StandardMessageFormatter.JUL);
 		}
 		try {
 			return loggers.computeIfAbsent(name, n -> {
 				var gum = RainbowGum.getOrNull();
+				LogProperties properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 				if (gum != null) {
 					gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.JUL, n);
+					properties = gum.config().properties();
 				}
-				return new RainbowGumJULLogger(n);
+				return new RainbowGumJULLogger(n, LogMessageFormatter.ofJUL(properties));
 			});
 		}
 		finally {

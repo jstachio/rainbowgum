@@ -10,6 +10,8 @@ import org.jboss.logging.LoggerProvider;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogMessageFormatter;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
@@ -71,10 +73,12 @@ public final class RainbowGumJBossLoggerProvider implements LoggerProvider {
 	@Override
 	public Logger getLogger(String name) {
 		var gum = RainbowGum.getOrNull();
+		LogProperties properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 		if (gum != null) {
 			gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.JBOSS_LOGGING, name);
+			properties = gum.config().properties();
 		}
-		return new RainbowGumJBossLogger(name, this);
+		return new RainbowGumJBossLogger(name, this, LogMessageFormatter.ofJUL(properties));
 	}
 
 	/**

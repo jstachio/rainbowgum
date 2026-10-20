@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.jul;
 import java.util.logging.Logger;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
@@ -80,8 +81,9 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 		if (!isLoggingModuleAvailable()) {
 			return false;
 		}
-		if (!SystemLoggerQueueJULHandler.isInstalled()) {
-			SystemLoggerQueueJULHandler.install();
+		var messageFormatter = LogMessageFormatter.ofJUL(properties);
+		if (!SystemLoggerQueueJULHandler.isInstalled(messageFormatter)) {
+			SystemLoggerQueueJULHandler.install(messageFormatter);
 		}
 		return true;
 

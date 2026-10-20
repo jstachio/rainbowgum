@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogRouter;
@@ -170,11 +171,12 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	@Override
 	public Logger getLogger(String name, Module module) {
 		var router = routerProvider().router(name);
+		var messageFormatter = LogMessageFormatter.ofJUL(LogProperties.findGlobalProperties());
 		if (!router.isChangeable(name)) {
 			var level = router.levelResolver().resolveLevel(name);
-			return LevelSystemLogger.of(name, level, router.route(name, level));
+			return LevelSystemLogger.of(name, level, router.route(name, level), messageFormatter);
 		}
-		return RainbowGumSystemLogger.of(name, router);
+		return new RainbowGumSystemLogger(name, router, messageFormatter);
 	}
 
 	/**
