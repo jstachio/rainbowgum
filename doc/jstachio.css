@@ -191,6 +191,26 @@ h1.overview {
   background: var(--body-background-color);
 }
 
+/*
+  Project Information in the user guide: labels and values side by side, so the
+  section reads as one compact block instead of javadoc's spaced dl.notes list.
+*/
+dl.project-info {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35em 1.5em;
+  margin: 1em 0;
+}
+
+dl.project-info > dt {
+  font-weight: bold;
+}
+
+dl.project-info > dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 table.table {
   margin-top: 1rem;
   margin-bottom: 1rem;
