@@ -11,6 +11,33 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-10-20: An unfiltered build restores a filtered core test result
+
+During review of `feature/global-change-push`, this regression run selected
+only the new tests:
+
+```sh
+./mvnw -pl core,test/rainbowgum-test-core,rainbowgum-systemlogger,rainbowgum-jboss-logging,rainbowgum-jul-logmanager -am -Dtest=GlobalChangeTest,GlobalRainbowGumTest -Dsurefire.failIfNoSpecifiedTests=false verify
+```
+
+The subsequent `./mvnw --fail-at-end install` succeeded, but restored core's
+same cache checksum and logged `Skipping plugin execution (cached):
+surefire:test`. No core test matched the earlier filter, so that result did
+not verify core's unfiltered suite. The new regression tests did execute in
+the full build. To fill the core coverage gap, rerun the affected modules
+without a test filter or cached results:
+
+```sh
+./mvnw -pl core,test/rainbowgum-test-core,rainbowgum-systemlogger,rainbowgum-jboss-logging,rainbowgum-jul-logmanager -am -Dmaven.build.cache.enabled=false verify
+```
+
+The unfiltered run passed 5,908 tests and kept normal reactor parallelism.
+The cache's treatment of the Surefire
+filter has not been investigated; the override is for this verification,
+not a change to routine build settings.
+
+Agent: Codex (GPT-6).
+
 ## 2026-10-13: Scope the formatter to modules that declare it
 
 On `feature/async-backpressure`, running `./mvnw spring-javaformat:apply`

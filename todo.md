@@ -244,7 +244,7 @@ unifying.
 - [ ] **Facades and the global change push**: the System.Logger finder, JBoss Logging
       provider and JUL LogManager now follow the bound gum through
       `RainbowGum.onGlobalChange` (`GlobalRainbowGum`, one copy per module) instead of
-      calling `RainbowGum.getOrNull()` (a read lock `tryLock`) when they create a logger,
+      calling `RainbowGum.getOrNull()` when they create a logger,
       so loggers created before Rainbow Gum starts pick up `logging.messageFormat.*`.
       Left to decide:
   - [ ] Nothing is pushed when a gum is removed or closed (`RainbowGumHolder.remove`),
@@ -252,8 +252,11 @@ unifying.
   - [ ] Whether `GlobalRainbowGum` should move to core as public API instead of three
         copies.
   - [ ] Events queued before startup keep the formatter they were created with.
-  - [ ] Other `getOrNull()` callers (Spring Boot, the actuator, avaje AppLog) and the
-        holder's own `StampedLock` TODO.
+  - [x] `getOrNull()` now reads the volatile snapshot directly. The lifecycle lock
+        still serializes provisioning and router changes; a read lock cannot keep a
+        returned gum alive after the call. Global notifications are queued in binding
+        order and delivered without holding either the lifecycle lock or the queue
+        monitor. See [the review](doc/review-global-change-push.md).
 - [ ] **`console` as a scheme alias for `stdout`**: `LogOutput.STDOUT_SCHEME`/
       `STDERR_SCHEME` (`LogOutput.java`) are the only registered console output
       schemes today - `logging.appender.myapp.output=console` currently just fails

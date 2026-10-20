@@ -12,7 +12,7 @@ import io.jstach.rainbowgum.RainbowGum;
 /*
  * The globally bound Rainbow Gum and the MessageFormat style its properties choose, kept
  * current by RainbowGum.onGlobalChange. Loggers created before Rainbow Gum starts follow
- * it, and reading it takes no lock unlike RainbowGum.getOrNull(). The same class is in
+ * it, and reading it takes no lock. The same class is in
  * rainbowgum-jboss-logging and rainbowgum-jul-logmanager.
  */
 final class GlobalRainbowGum implements Consumer<RainbowGum> {
@@ -34,13 +34,9 @@ final class GlobalRainbowGum implements Consumer<RainbowGum> {
 	 * The caller must keep a strong reference as onGlobalChange only keeps a weak one.
 	 */
 	static GlobalRainbowGum of() {
-		var global = new GlobalRainbowGum(
-				LogMessageFormatter.ofJUL(LogProperties.StandardProperties.SYSTEM_PROPERTIES));
+		var global = new GlobalRainbowGum(StandardMessageFormatter.JUL);
 		RainbowGum.onGlobalChange(global);
-		var current = RainbowGum.getOrNull();
-		if (current != null) {
-			global.found(current);
-		}
+		global.found(RainbowGum.getOrNull());
 		return global;
 	}
 
@@ -52,9 +48,14 @@ final class GlobalRainbowGum implements Consumer<RainbowGum> {
 		return messageFormatter;
 	}
 
-	private synchronized void found(RainbowGum current) {
+	private synchronized void found(@Nullable RainbowGum current) {
 		if (!pushed) {
-			set(current);
+			if (current != null) {
+				set(current);
+			}
+			else {
+				messageFormatter = LogMessageFormatter.ofJUL(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+			}
 		}
 	}
 
@@ -66,18 +67,20 @@ final class GlobalRainbowGum implements Consumer<RainbowGum> {
 
 	private void set(RainbowGum current) {
 		LogMessageFormatter formatter;
+		RuntimeException failure = null;
 		try {
 			formatter = LogMessageFormatter.ofJUL(current.config().properties());
 		}
 		catch (RuntimeException e) {
-			/*
-			 * Throwing would stop the other subscribers from hearing about the gum.
-			 */
-			current.config().alerts().error(GlobalRainbowGum.class, e);
+			failure = e;
 			formatter = StandardMessageFormatter.JUL;
 		}
 		this.messageFormatter = formatter;
 		this.gum = current;
+		if (failure != null) {
+			/* Alert listeners may bind another gum; publish our state first. */
+			current.config().alerts().error(GlobalRainbowGum.class, failure);
+		}
 	}
 
 }
