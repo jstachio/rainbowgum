@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
-import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
+import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogRouter;
 
 /**
@@ -95,8 +95,10 @@ public final class JULBridge {
 	 * {@link java.util.logging.Handler#publish(LogRecord)}'s own contract for
 	 * {@code null}.
 	 * @param rec JUL log record, possibly {@code null}.
+	 * @param messageFormatter formats the record's parameters, usually from
+	 * {@link LogMessageFormatter#ofJUL(io.jstach.rainbowgum.LogProperties)}.
 	 */
-	public static void publish(@Nullable LogRecord rec) {
+	public static void publish(@Nullable LogRecord rec, LogMessageFormatter messageFormatter) {
 		if (rec == null) {
 			return;
 		}
@@ -130,7 +132,7 @@ public final class JULBridge {
 		}
 		// TODO fix caller info
 		var event = LogEvent.ofAll(timestamp, threadName, threadId, level, loggerName, msg, keyValues, cause,
-				StandardMessageFormatter.JUL, args);
+				messageFormatter, args);
 		route.log(event);
 	}
 

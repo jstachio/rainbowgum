@@ -8,22 +8,16 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter;
-import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 
 /**
  * {@link LogEventFactory} shared by {@link LevelSystemLogger} and
  * {@link RainbowGumSystemLogger} - java.lang.System.Logger's varargs log(...) overloads
  * follow java.text.MessageFormat ({0}/{1}-style) placeholder conventions, not SLF4J's
- * {}-style ones, so {@link #messageFormatter()} is overridden accordingly; and
+ * {}-style ones, so {@link #messageFormatter()} is a JUL style one; and
  * {@link #message(ResourceBundle, String)} resolves a ResourceBundle-keyed message the
  * way java.lang.System.Logger's own bundle-based log(...) overloads are documented to.
  */
-record SystemLoggerEventFactory(String loggerName) implements LogEventFactory {
-
-	@Override
-	public LogMessageFormatter messageFormatter() {
-		return StandardMessageFormatter.JUL;
-	}
+record SystemLoggerEventFactory(String loggerName, LogMessageFormatter messageFormatter) implements LogEventFactory {
 
 	@Nullable String message(@Nullable ResourceBundle bundle, @Nullable String msg) {
 		if (bundle == null || msg == null) {

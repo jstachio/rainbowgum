@@ -2576,6 +2576,26 @@ before any JUL logging happens. See {@link io.jstach.rainbowgum.jul/}'s module J
 </p>
 </div>
 <p>
+Messages with parameters from java.util.logging, <code>System.Logger</code> and JBoss Logging are formatted
+with {@link java.text.MessageFormat} the way Log4j2 and Logback do by default: whenever there are parameters, so
+<code>It's done</code> with a parameter is logged as <code>Its done</code>, and a {@link java.lang.Throwable}
+parameter is formatted like any other value; use the methods that take a {@code Throwable} to log its stack
+trace. If formatting fails, for example because of a malformed pattern or a parameter whose {@code toString()}
+throws, the raw message is logged followed by <code>[MessageFormat failed: </code><em>reason</em><code>]</code>.
+</p>
+<p>
+Two properties change this. They are read when a logger is created, so a logger created before Rainbow Gum
+starts only sees system properties:
+</p>
+<ul>
+  <li>{@value io.jstach.rainbowgum.LogProperties#MESSAGE_FORMAT_APPLY_PROPERTY}:
+    <code>arguments</code> (the default) or <code>index</code>, which uses {@code MessageFormat} only when the
+    message has an argument index such as <code>{0}</code>, as the JDK does, so the apostrophe is kept.</li>
+  <li>{@value io.jstach.rainbowgum.LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY}:
+    <code>argument</code> (the default) or <code>both</code>, which formats a trailing {@code Throwable}
+    parameter and also logs its stack trace, as Log4j2 and SLF4J's <code>System.Logger</code> adapter do.</li>
+</ul>
+<p>
 Because java.util.logging (JUL) and System.Logger can be used very early on currently MDC (set by SLF4J) and caller info diagnostics is not provided at this time.
 Caller info maybe provided later as it is agnostic of SLF4J and if you would like that please file an issue. Support for changeable logging levels is provided for
 the System Logger provided the loggers are created after Rainbow Gum initializes.

@@ -290,6 +290,35 @@ public interface LogProperties {
 	static final String GLOBAL_OPTIMIZE_PROPERTY = ROOT_PREFIX + "global.optimize";
 
 	/**
+	 * When the java.util.logging, System.Logger and JBoss Logging message style uses
+	 * {@link java.text.MessageFormat}, which treats an apostrophe as a quote:
+	 * <ul>
+	 * <li><code>arguments</code> (default): whenever the message has arguments, as Log4j2
+	 * and Logback do, so <code>It's done</code> with an argument is logged as
+	 * <code>Its done</code>.</li>
+	 * <li><code>index</code>: only when the message has an argument index such as
+	 * <code>{0}</code>, as the JDK does, so <code>It's done</code> is logged as is.</li>
+	 * </ul>
+	 * Read when a logger is created.
+	 * @see LogMessageFormatter#ofJUL(LogProperties)
+	 */
+	static final String MESSAGE_FORMAT_APPLY_PROPERTY = ROOT_PREFIX + "messageFormat.apply";
+
+	/**
+	 * What the java.util.logging, System.Logger and JBoss Logging message style does with
+	 * a {@link Throwable} that is the last argument when no throwable is given:
+	 * <ul>
+	 * <li><code>argument</code> (default): formatted like any other argument, as the JDK
+	 * and Logback's jul-to-slf4j bridge do.</li>
+	 * <li><code>both</code>: formatted like any other argument and also logged with its
+	 * stack trace, as Log4j2 and SLF4J's System.Logger adapter do.</li>
+	 * </ul>
+	 * Read when a logger is created.
+	 * @see LogMessageFormatter#ofJUL(LogProperties)
+	 */
+	static final String MESSAGE_FORMAT_THROWABLE_PROPERTY = ROOT_PREFIX + "messageFormat.throwable";
+
+	/**
 	 * Key values namespace, for properties that configure where an event's key values
 	 * come from.
 	 */

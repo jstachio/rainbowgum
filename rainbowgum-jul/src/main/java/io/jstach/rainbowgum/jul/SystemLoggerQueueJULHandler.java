@@ -6,20 +6,30 @@ import java.util.logging.LogRecord;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.LogMessageFormatter;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
+
 /**
  * JUL logger that uses global router.
  */
 final class SystemLoggerQueueJULHandler extends Handler {
 
+	private final LogMessageFormatter messageFormatter;
+
 	/**
 	 * Do nothing constuctor
 	 */
 	public SystemLoggerQueueJULHandler() {
+		this(StandardMessageFormatter.JUL);
+	}
+
+	SystemLoggerQueueJULHandler(LogMessageFormatter messageFormatter) {
+		this.messageFormatter = messageFormatter;
 	}
 
 	@Override
 	public void publish(@Nullable LogRecord rec) {
-		JULBridge.publish(rec);
+		JULBridge.publish(rec, messageFormatter);
 	}
 
 	@Override
@@ -47,6 +57,20 @@ final class SystemLoggerQueueJULHandler extends Handler {
 		return false;
 	}
 
+	/*
+	 * Installed with the same message formatter.
+	 */
+	static boolean isInstalled(LogMessageFormatter messageFormatter) {
+		java.util.logging.Logger rootLogger = getRootLogger();
+		Handler[] handlers = rootLogger.getHandlers();
+		for (Handler handler : handlers) {
+			if (handler instanceof SystemLoggerQueueJULHandler h && h.messageFormatter.equals(messageFormatter)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Call to remove all handlers.
 	 */
@@ -68,10 +92,11 @@ final class SystemLoggerQueueJULHandler extends Handler {
 
 	/**
 	 * Installs.
+	 * @param messageFormatter formats the record's parameters.
 	 */
-	public static void install() {
+	static void install(LogMessageFormatter messageFormatter) {
 		removeHandlersForRootLogger();
-		getRootLogger().addHandler(new SystemLoggerQueueJULHandler());
+		getRootLogger().addHandler(new SystemLoggerQueueJULHandler(messageFormatter));
 	}
 
 }

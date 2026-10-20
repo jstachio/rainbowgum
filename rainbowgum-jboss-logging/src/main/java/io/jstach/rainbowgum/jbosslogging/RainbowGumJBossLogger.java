@@ -11,7 +11,6 @@ import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogMessageFormatter;
-import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogRouter;
 
 /**
@@ -25,9 +24,9 @@ import io.jstach.rainbowgum.LogRouter;
  * Parameter substitution for {@link #doLog} follows {@code java.text.MessageFormat}
  * ("<code>{0}</code>" style), matching JBoss Logging's own
  * {@code Slf4jLocationAwareLogger} and {@code JDKLogger}, done lazily via
- * {@link StandardMessageFormatter#JUL} rather than eagerly like upstream, consistent with
- * how {@code rainbowgum-systemlogger} handles the same JUL-style convention for
- * {@code System.Logger}.
+ * {@link LogMessageFormatter#ofJUL(io.jstach.rainbowgum.LogProperties)} rather than
+ * eagerly like upstream, consistent with how {@code rainbowgum-systemlogger} handles the
+ * same JUL-style convention for {@code System.Logger}.
  */
 final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 
@@ -55,10 +54,13 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 
 	private final RainbowGumJBossLoggerProvider provider;
 
-	RainbowGumJBossLogger(String name, RainbowGumJBossLoggerProvider provider) {
+	private final LogMessageFormatter messageFormatter;
+
+	RainbowGumJBossLogger(String name, RainbowGumJBossLoggerProvider provider, LogMessageFormatter messageFormatter) {
 		super(name);
 		this.router = LogRouter.global();
 		this.provider = provider;
+		this.messageFormatter = messageFormatter;
 	}
 
 	@Override
@@ -68,7 +70,7 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 
 	@Override
 	public LogMessageFormatter messageFormatter() {
-		return StandardMessageFormatter.JUL;
+		return messageFormatter;
 	}
 
 	@Override

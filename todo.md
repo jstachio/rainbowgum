@@ -241,6 +241,16 @@ unifying.
       without sizing `initialBufferSize` accordingly, which is exactly what happened
       building `rainbowgum-test-kitchensink`'s `LogReporterKitchenSinkTest` diagnostics
       route on `explore/static-configuration-report`.
+- [ ] **`RainbowGum.getOrNull()` takes a read lock**: `RainbowGumHolder.current()` does a
+      `tryLock` on the read lock, and facades call it (System.Logger finder, JBoss Logging, JUL LogManager
+      logger creation, the Spring Boot actuator). Hot paths already use the lock free
+      `RainbowGumHolder.peek()`. Facades that need to know when a gum comes alive could
+      subscribe to `globalChangePublisher` (as the SLF4J and Spring Boot integration
+      does) instead of polling; the facades predate that push mechanism. The holder's
+      own TODO suggests a `StampedLock`. The same push would let a logger created before
+      Rainbow Gum starts pick up `logging.messageFormat.*`: today the facades read it
+      once, when the logger is created (`JDKSetupTest.testMessageFormatProperties`
+      pins the `System.getLogger` case).
 - [ ] **`console` as a scheme alias for `stdout`**: `LogOutput.STDOUT_SCHEME`/
       `STDERR_SCHEME` (`LogOutput.java`) are the only registered console output
       schemes today - `logging.appender.myapp.output=console` currently just fails

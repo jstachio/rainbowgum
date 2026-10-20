@@ -58,7 +58,9 @@ public sealed interface LogEvent {
 	 * @param keyValues key values that come from MDC or an SLF4J Event Builder.
 	 * @param messageFormatter formatter to use for rendering a message when
 	 * #{@link LogEvent#formattedMessage(StringBuilder)} is called.
-	 * @param arg1 argument that will be passed to messageFormatter.
+	 * @param arg1 argument that will be passed to messageFormatter. If it is a
+	 * {@link Throwable} see
+	 * {@link #ofAll(Instant, String, long, Level, String, String, KeyValues, Throwable, LogMessageFormatter, Object[])}.
 	 * @return event
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
@@ -66,15 +68,18 @@ public sealed interface LogEvent {
 	public static LogEvent ofOneArg(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 			String loggerName, @Nullable String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
 			@Nullable Object arg1) {
-		if (arg1 instanceof Throwable t) {
+		var t = throwableInsteadOfArgument(messageFormatter, arg1);
+		if (t != null) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
 		}
+		var throwable = throwableAlsoArgument(messageFormatter, arg1);
 		if (message == null) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					throwable);
 
 		}
 		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-				messageFormatter, null, arg1);
+				messageFormatter, throwable, arg1);
 	}
 
 	/**
@@ -89,7 +94,9 @@ public sealed interface LogEvent {
 	 * @param messageFormatter formatter to use for rendering a message when
 	 * #{@link LogEvent#formattedMessage(StringBuilder)} is called.
 	 * @param arg1 argument that will be passed to messageFormatter.
-	 * @param arg2 argument that will be passed to messageFormatter.
+	 * @param arg2 argument that will be passed to messageFormatter. If it is a
+	 * {@link Throwable} see
+	 * {@link #ofAll(Instant, String, long, Level, String, String, KeyValues, Throwable, LogMessageFormatter, Object[])}.
 	 * @return event
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
@@ -97,18 +104,21 @@ public sealed interface LogEvent {
 	public static LogEvent ofTwoArgs(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 			String loggerName, @Nullable String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
 			@Nullable Object arg1, @Nullable Object arg2) {
-		if (arg2 instanceof Throwable t) {
+		var t = throwableInsteadOfArgument(messageFormatter, arg2);
+		if (t != null) {
 			if (message == null) {
 				return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, t);
 			}
 			return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, t, arg1);
 		}
+		var throwable = throwableAlsoArgument(messageFormatter, arg2);
 		if (message == null) {
-			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues, null);
+			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
+					throwable);
 		}
 		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
-				messageFormatter, null, arg1, arg2);
+				messageFormatter, throwable, arg1, arg2);
 	}
 
 	/**
@@ -124,7 +134,14 @@ public sealed interface LogEvent {
 	 * @param messageFormatter formatter to use for rendering a message when
 	 * #{@link LogEvent#formattedMessage(StringBuilder)} is called.
 	 * @param args an array of arguments that will be passed to messageFormatter. The
-	 * contents maybe null elements but the array itself should not be null.
+	 * contents maybe null elements but the array itself should not be null. If throwable
+	 * is null and the last argument is a {@link Throwable}: with
+	 * {@link LogMessageFormatter.StandardMessageFormatter#SLF4J} it is the event's
+	 * throwable instead of an argument; with
+	 * {@link LogMessageFormatter.StandardMessageFormatter#JUL} it is an argument; with
+	 * {@link LogMessageFormatter#ofJUL(LogProperties)} it is an argument, and also the
+	 * event's throwable when {@value LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY} is
+	 * <code>both</code>.
 	 * @return event
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
@@ -138,9 +155,16 @@ public sealed interface LogEvent {
 					throwable);
 		}
 		int length = args.size();
-		if (throwable == null && length > 0 && args.get(length - 1) instanceof Throwable t) {
-			throwable = t;
-			length = length - 1;
+		if (throwable == null && length > 0) {
+			var last = args.get(length - 1);
+			var t = throwableInsteadOfArgument(messageFormatter, last);
+			if (t != null) {
+				throwable = t;
+				length = length - 1;
+			}
+			else {
+				throwable = throwableAlsoArgument(messageFormatter, last);
+			}
 		}
 		if (message == null) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
@@ -172,7 +196,14 @@ public sealed interface LogEvent {
 	 * @param messageFormatter formatter to use for rendering a message when
 	 * #{@link LogEvent#formattedMessage(StringBuilder)} is called.
 	 * @param args an array of arguments that will be passed to messageFormatter. The
-	 * contents maybe null elements but the array itself should not be null.
+	 * contents maybe null elements but the array itself should not be null. If throwable
+	 * is null and the last argument is a {@link Throwable}: with
+	 * {@link LogMessageFormatter.StandardMessageFormatter#SLF4J} it is the event's
+	 * throwable instead of an argument; with
+	 * {@link LogMessageFormatter.StandardMessageFormatter#JUL} it is an argument; with
+	 * {@link LogMessageFormatter#ofJUL(LogProperties)} it is an argument, and also the
+	 * event's throwable when {@value LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY} is
+	 * <code>both</code>.
 	 * @return event
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
@@ -186,9 +217,16 @@ public sealed interface LogEvent {
 					throwable);
 		}
 		int length = args.length;
-		if (throwable == null && length > 0 && args[length - 1] instanceof Throwable t) {
-			throwable = t;
-			length = length - 1;
+		if (throwable == null && length > 0) {
+			var last = args[length - 1];
+			var t = throwableInsteadOfArgument(messageFormatter, last);
+			if (t != null) {
+				throwable = t;
+				length = length - 1;
+			}
+			else {
+				throwable = throwableAlsoArgument(messageFormatter, last);
+			}
 		}
 		if (message == null) {
 			return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
@@ -205,6 +243,33 @@ public sealed interface LogEvent {
 			default -> new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues,
 					messageFormatter, throwable, args, length);
 		};
+	}
+
+	/*
+	 * SLF4J treats a trailing Throwable argument as the event's throwable instead of an
+	 * argument.
+	 */
+	private static @Nullable Throwable throwableInsteadOfArgument(LogMessageFormatter messageFormatter,
+			@Nullable Object arg) {
+		if (messageFormatter == LogMessageFormatter.StandardMessageFormatter.SLF4J && arg instanceof Throwable t) {
+			return t;
+		}
+		return null;
+	}
+
+	/*
+	 * The java.util.logging and System.Logger MessageFormat style formats a trailing
+	 * Throwable argument like any other argument, as the JDK, the jul-to-slf4j bridge and
+	 * JBoss Logging do. When configured with "both" it is also the event's throwable, as
+	 * Log4j2's MessageFormatMessage does, so the message is complete and the stack trace
+	 * is logged.
+	 */
+	private static @Nullable Throwable throwableAlsoArgument(LogMessageFormatter messageFormatter,
+			@Nullable Object arg) {
+		if (arg instanceof Throwable t && JULMessageFormatter.throwableAlsoArgument(messageFormatter)) {
+			return t;
+		}
+		return null;
 	}
 
 	/**
