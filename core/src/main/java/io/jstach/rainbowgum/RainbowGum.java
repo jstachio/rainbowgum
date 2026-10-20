@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import java.lang.System.Logger.Level;
 import java.lang.ref.WeakReference;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -178,7 +179,8 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * Gets the currently statically bound RainbowGum or <code>null</code> if none are
 	 * <strong>finished binding</strong>. Unlike {@link #of()} this will never load or
 	 * start an instance but rather just gets the currently bound one. It will also never
-	 * block and does not wait if one is currently being loaded.
+	 * block and does not wait if one is currently being loaded. This is a snapshot: the
+	 * instance can be replaced or closed after it is read.
 	 * @return current RainbowGum or <code>null</code>
 	 */
 	public static @Nullable RainbowGum getOrNull() {
@@ -226,6 +228,14 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * keeping a strong reference to <code>consumer</code> for as long as it needs to keep
 	 * receiving notifications, otherwise it may silently stop being called once garbage
 	 * collected.
+	 * <p>
+	 * Subscribing does not replay the currently bound instance. Notifications are
+	 * delivered in binding order. A concurrent or reentrant binding queues its
+	 * notification until the current delivery finishes, so its caller may return before
+	 * subscribers have seen it. A subscriber throwing a runtime exception is reported
+	 * through the internal error log and does not prevent later deliveries. Removal does
+	 * not trigger a notification; this is a binding event, not a guarantee that the
+	 * supplied gum is still current or open when the consumer runs.
 	 * @param consumer called with the newly bound global RainbowGum. Never called while
 	 * any RainbowGum internal lock is held.
 	 */
@@ -547,7 +557,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 final class RainbowGumHolder {
 
 	/*
-	 * TODO perhaps a StampedLock would be better performance wise.
+	 * Serializes provisioning and changes to the supplier/router. Snapshot reads only
+	 * need the volatile field; neither a read lock nor a stamp can pin a returned gum's
+	 * lifetime after the read completes.
 	 */
 	private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -566,15 +578,7 @@ final class RainbowGumHolder {
 	}
 
 	static @Nullable RainbowGum current() {
-		if (lock.readLock().tryLock()) {
-			try {
-				return rainbowGum;
-			}
-			finally {
-				lock.readLock().unlock();
-			}
-		}
-		return null;
+		return rainbowGum;
 	}
 
 	static RainbowGum get() {
@@ -602,6 +606,7 @@ final class RainbowGumHolder {
 			r = supplier.get();
 			start(r);
 			rainbowGum = r;
+			globalChangePublisher.enqueue(r);
 			newlyStarted = r;
 			return r;
 
@@ -609,12 +614,12 @@ final class RainbowGumHolder {
 		finally {
 			lock.writeLock().unlock();
 			/*
-			 * Published outside of the write lock so a subscriber can never deadlock or
-			 * trip the "tried to log too early" reentrancy guard above by, say, trying to
-			 * read a volatile field it owns - it is not calling back into this class.
+			 * Enqueue under the write lock to preserve binding order, but invoke user
+			 * callbacks only after releasing it. The publisher never holds its monitor
+			 * while calling a subscriber, including one that binds another gum.
 			 */
 			if (newlyStarted != null) {
-				globalChangePublisher.publish(newlyStarted);
+				globalChangePublisher.drain();
 			}
 		}
 
@@ -680,18 +685,61 @@ final class GlobalChangePublisher {
 
 	private final Queue<WeakReference<Consumer<RainbowGum>>> consumers = new ConcurrentLinkedQueue<>();
 
+	/* Both guarded by this. No callbacks may run while this monitor is held. */
+	private final Queue<RainbowGum> pending = new ArrayDeque<>();
+
+	private boolean draining;
+
 	void add(Consumer<RainbowGum> consumer) {
+		Objects.requireNonNull(consumer);
 		consumers.add(new WeakReference<>(consumer));
 	}
 
-	void publish(RainbowGum gum) {
+	synchronized void enqueue(RainbowGum gum) {
+		pending.add(gum);
+	}
+
+	void drain() {
+		synchronized (this) {
+			if (draining) {
+				return;
+			}
+			draining = true;
+		}
+		try {
+			while (true) {
+				RainbowGum gum;
+				synchronized (this) {
+					gum = pending.poll();
+					if (gum == null) {
+						draining = false;
+						return;
+					}
+				}
+				publish(gum);
+			}
+		}
+		catch (RuntimeException | Error e) {
+			synchronized (this) {
+				draining = false;
+			}
+			throw e;
+		}
+	}
+
+	private void publish(RainbowGum gum) {
 		for (var it = consumers.iterator(); it.hasNext();) {
 			var consumer = it.next().get();
 			if (consumer == null) {
 				it.remove();
 			}
 			else {
-				consumer.accept(gum);
+				try {
+					consumer.accept(gum);
+				}
+				catch (RuntimeException e) {
+					MetaLog.error(RainbowGum.class, "Global change subscriber threw", e);
+				}
 			}
 		}
 	}
