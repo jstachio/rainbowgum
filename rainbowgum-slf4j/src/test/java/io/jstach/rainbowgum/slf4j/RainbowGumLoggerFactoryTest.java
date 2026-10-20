@@ -375,6 +375,29 @@ class RainbowGumLoggerFactoryTest {
 		}
 	}
 
+	/*
+	 * Without logging.change.logger a bootstrap logger would be a LevelLogger left on the
+	 * queue behind the global router, which is abandoned once the real router is bound.
+	 */
+	@Test
+	void testLoggerFromQueuedGumWithoutLevelChangesFollowsTheRealRouter() {
+		RainbowGum.builder(LogConfig.builder().build()).unset();
+		try {
+			var bootstrapGum = RainbowGum.queued(LogConfig.builder().build());
+			var factory = new RainbowGumLoggerFactory(bootstrapGum, new RainbowGumMDCAdapter());
+			var logger = factory.getLogger("bootstrap.logger");
+			var realOutput = new ListLogOutput();
+			try (var realGum = gum(realOutput, LogProperties.StandardProperties.EMPTY)) {
+				assertSame(realGum, RainbowGum.set(realGum).get());
+				logger.info("logged after real gum loads");
+				assertEquals("INFO logged after real gum loads\n", realOutput.toString());
+			}
+		}
+		finally {
+			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
 	enum BootstrapContextCase {
 
 		PLAIN, CALLER, FLUENT;

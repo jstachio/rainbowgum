@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.slf4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Map;
@@ -19,10 +20,10 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService;
 
 @Isolated
-class GlobalClearTest {
+class GlobalRemovalTest {
 
 	@Test
-	void factoryUsesTheQueueWithoutOldContributorsOrDecoratorsAfterClose() {
+	void factoryUsesTheQueueWithoutOldContributorsOrDecoratorsAfterRemoval() {
 		var oldDecorations = new AtomicInteger();
 		var oldContributions = new AtomicInteger();
 		var oldConfig = LogConfig.builder().configurator(decorator("old", oldDecorations)).build();
@@ -63,6 +64,9 @@ class GlobalClearTest {
 				assertEquals("new", output.events().get(1).getKey().keyValues().getValueOrNull("tenant"));
 				assertEquals("new", output.events().get(2).getKey().keyValues().getValueOrNull("tenant"));
 				assertEquals(1, newDecorations.get());
+				assertNotSame(during, factory.getLogger("during.clear"),
+						"a name first looked up while none was bound gets the next gum's logger");
+				assertEquals(2, newDecorations.get());
 				assertEquals(1, oldDecorations.get());
 				assertEquals(1, oldContributions.get());
 			}

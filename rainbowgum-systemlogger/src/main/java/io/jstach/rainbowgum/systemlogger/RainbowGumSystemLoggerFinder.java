@@ -79,7 +79,7 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	/*
 	 * Created lazily like routerProvider and for the same reason. Held here because
-	 * RainbowGum.onGlobalStateChange only keeps a weak reference.
+	 * RainbowGum.onGlobalChange only keeps a weak reference.
 	 */
 	private volatile @Nullable GlobalRainbowGum global;
 
@@ -231,8 +231,10 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 		@Override
 		public LogRouter.RootRouter router(String loggerName) {
 			LogRouter.RootRouter router;
-			// Preserve first-use initialization before resolving formatter properties.
-			// Later lookups follow the shared holder instead of retaining the first gum.
+			/*
+			 * The first lookup finds or starts a gum as the init option says. Later ones
+			 * follow the holder, so a removed gum is neither kept nor started again.
+			 */
 			var current = RainbowGumSystemLoggerFinder.this.global;
 			RainbowGum gum = current == null ? null : current.gum();
 			if (gum == null) {

@@ -1,110 +1,93 @@
-# Global binding and clear notifications
+# Global binding and removal notifications
 
-This is the follow-up to [the global push review](review-global-change-push.md),
-on `feature/global-clear-push`, based on `review/global-change-push`.
+This is the follow-up to [the global push review](review-global-change-push.md).
+It combines two attempts at publishing removal of the global Rainbow Gum:
+Codex's `feature/global-clear-push` and Claude's `feature/global-remove-push`.
+The result is on `feature/global-clear-push-claude`.
 
 ## API choice
 
-Keep `RainbowGum.onGlobalChange(Consumer<RainbowGum>)` compatible: its
-subscribers still receive only newly bound, non-null gums. Add:
+`RainbowGum.onGlobalChange` stays the only subscription and now covers removal:
 
 ```java
-RainbowGum.onGlobalStateChange(Consumer<Optional<RainbowGum>> consumer)
+RainbowGum.onGlobalChange(Consumer<@Nullable RainbowGum> consumer)
 ```
 
-The optional explicitly represents the absence of a binding. This avoids
-passing null to existing listeners, and lets one subscriber process both
-bindings and clears in order. Both APIs retain listeners weakly, so owners
-must retain their consumer. Registration does not replay current state;
-the facade helpers retain their subscribe-then-read initialization guard.
+The consumer receives what `getOrNull()` returns after each change: the newly
+bound gum, or `null` once none is bound. Subscribing, reading `getOrNull()`
+once, and then following notifications therefore tracks the binding exactly.
+One subscription keeps bindings and removals in one ordered stream with no
+second listener list to keep in step.
 
-| Transition | New state notification | Legacy notification |
-| --- | --- | --- |
-| Start and bind a gum | `Optional.of(gum)` | `gum` |
-| Close the bound gum | `Optional.empty()` | None |
-| Unset the bound gum | `Optional.empty()` | None |
-| Register a supplier while a gum is bound | `Optional.empty()` | None |
-| Clear an already empty binding | None | None |
-| Close an older, replaced gum | None | None |
-| Fail to start a replacement supplier | None; state remains empty | None |
+This changes the contract of an existing method instead of adding one, which
+is acceptable before 1.0. A consumer written for bindings only still compiles
+and can now receive `null`; nullness analysis reports it (the core tests'
+own subscribers were caught this way). `Optional<RainbowGum>` was considered.
+It suits a second, new method, but as the parameter of the existing one it
+would differ from `getOrNull()` and from the JSpecify style used elsewhere,
+and every consumer converted it straight back to a nullable value.
 
-Registering a supplier retains its existing semantics: it neither starts
-the replacement nor closes the previous gum. The global router keeps its
-previous delegate until the replacement starts or the router is explicitly
-reset. An empty binding notification reports holder state; it does not claim
-that every previous output has closed. Closing/unsetting a bound gum resets
-the router to its bootstrap queue.
+| Transition | Notification |
+| --- | --- |
+| Start and bind a gum | `gum` |
+| Close the bound gum | `null` |
+| Unset the bound gum | `null` |
+| Register a supplier while a gum is bound | `null` |
+| Remove when none is bound | None |
+| Close an older, replaced gum | None |
+| Fail to start a replacement supplier | None; none stays bound |
+
+Registering a supplier neither starts it nor closes the gum it replaces. The
+global router keeps its previous delegate until the replacement starts or the
+router is reset. Closing or unsetting the bound gum resets the router to its
+bootstrap queue.
 
 ## Delivery and locking
 
-Bindings and clears share one queue. Lifecycle operations enqueue under the
-holder's write lock; a single drainer invokes consumers after releasing that
-lock and without holding the queue monitor. Runtime failures in either kind
-of listener are reported internally and do not prevent later notifications.
+Bindings and removals share one queue. Lifecycle operations enqueue under the
+holder's write lock; a single drainer calls consumers after that lock is
+released and without holding the queue monitor. A runtime failure in one
+consumer is reported internally and does not stop later notifications.
 
-Reentrant removal from component code must not start draining while an outer
-startup or removal still owns the write lock. The drainer is therefore
-entered only after the delivering thread has released its outermost lifecycle
-write lock, including exceptional exits. A failed output close still leaves
-the binding empty and delivers its clear event.
+Component code can reenter `remove()` during startup or shutdown, for example
+from an output's `close()`. Only the outermost lifecycle operation drains, so
+no consumer runs while the write lock is held. `remove()` unbinds and enqueues
+before resetting the global router, so a failing output close still leaves
+none bound and still publishes the removal. `close()` shuts the gum down even
+if removal throws.
 
-A concurrent or reentrant transition can return before an existing drainer
-has delivered its event. These are ordered transition notifications with
-eventual convergence, not a lease on a gum's lifetime. A slow subscriber can
-delay later notifications. A listener should normally release cached state
-on clear without calling `RainbowGum.of()`, which would start a replacement
-during shutdown; deliberate reentrant rebinding is supported and tested.
+A concurrent or reentrant change can return before an existing drainer has
+delivered it. Notifications describe changes with eventual convergence, not a
+lease on a gum's lifetime. A slow consumer delays later notifications. A
+consumer should drop what it holds on `null` rather than call
+`RainbowGum.of()`, which would start another gum during shutdown; deliberate
+reentrant rebinding is supported and tested.
 
-A queued bootstrap gum borrows the global router. Its cleanup must not close
-that router again after removal has reset it: a clear listener may already
-have bound a replacement, and a second close would reset that replacement's
-router. Removal owns the borrowed router's reset; cleanup still closes the
-bootstrap config and services.
+A queued bootstrap gum borrows the global router. Its shutdown no longer
+closes that router: `remove()` owns the reset, and closing it again could
+reset a replacement a consumer has already bound.
 
 ## Consumers
 
-- The three JUL-style facade holders clear their gum and resolve message
-  formatting from system properties. Invalid system properties leave the
-  standard JUL formatter in place and are reported through the publisher's
-  internal error path. Clearing the gum happens before property validation.
-  The next binding supplies its configured formatter as usual.
+- The three JUL style holders drop their gum and take the message format style
+  from system properties, as before the first gum starts. An invalid system
+  property leaves the default style and is reported through the publisher.
 - The System.Logger finder's initializing router provider follows the same
-  holder instead of caching the original gum separately. First use retains
-  its `TRUE`/`CHECK`/`REUSE` initialization rules and resolves the bound config
-  before formatter fallback properties. After it has initialized, an empty
-  state uses the global router without implicitly starting another gum.
-- SLF4J stores its current gum and decorator chain in one immutable factory
-  state. A clear removes both and resets the shared contributor delegate;
-  per-thread MDC remains the facade's own context. A new logger name during
-  the gap uses the global router without the old config or decorators. After
-  a router reset, its queued events drain to the next binding, and its
-  changeable logger follows that binding. New names after the next binding
-  use the new config's decorators and contributors.
+  holder instead of keeping the first gum. The first lookup keeps its
+  `TRUE`/`CHECK`/`REUSE` behavior. Afterwards, with none bound, it uses the
+  global router without starting another gum.
+- The SLF4J factory keeps its current gum and decorator chain in one immutable
+  state, re-resolving decorators for each bound gum. On removal it drops both
+  and resets the shared contributor. A name looked up while none is bound gets
+  a replaceable logger whose events go through the global router, so they
+  queue and then reach the next binding. Those loggers are cached apart from
+  the main logger map and dropped on the next binding, so the same name looked
+  up afterwards gets that gum's decorators and settings.
+- Any SLF4J logger created on the global router, including through a queued
+  bootstrap gum without `logging.change.logger=level`, is replaceable. A fixed
+  logger there would stay on the queue that is abandoned once a router binds.
 
-Existing cached SLF4J loggers and System.Logger instances are not recreated.
-Their established fixed-route/decorator semantics remain in place; this does
-not promise to release arbitrary references captured inside previously
-created loggers or user decorators. Logger instances created during an empty
-state cannot retroactively acquire the next config's decorators or caller
-wrappers. Events queued during the gap keep their original formatter and
-key values.
-
-## Validation
-
-Regression coverage includes close/unset/supplier clears, duplicate clear
-suppression, legacy listener compatibility, failed replacement startup,
-concurrent delivery ordering, nested removal, output-close failures, and
-reentrant replacement of a queued bootstrap gum. Each formatter holder is
-checked for clearing, system fallback, invalid fallback, and subsequent
-rebinding. SLF4J and the System.Logger finder are exercised through actual
-logger calls across close, queueing, and a new binding.
-
-The full reactor `./mvnw --fail-at-end install` passed (21,871 tests, no
-failures, errors, or skips). The final core verification also covers closing
-older normal and queued gums after their replacement has started.
-
-Checker Framework passed core and System.Logger; the latter was analyzed
-separately against installed core to avoid the documented close-call compiler
-crash. Error Prone and NullAway passed core, System.Logger, and SLF4J together.
-See [the build note](agent-build-issues.md) for the exact workaround. Native
-image execution was not repeated because `native-image` is unavailable here.
+Existing cached SLF4J loggers created on a removed gum's own router are not
+recreated: a fixed logger keeps its route, and a replaceable one listens to
+that router's change publisher, which the next binding does not use. Events
+queued while none is bound keep their original formatter and key values.

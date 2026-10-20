@@ -41,6 +41,15 @@ no module exclusion or suppression was added.
 
 Agent: Codex (GPT-6).
 
+Follow-up: on `feature/global-clear-push-claude` the System.Logger tests close
+each gum at the end of its try-with-resources block instead of calling
+`close()` explicitly, the workaround already recorded in
+[checker-framework-bugs.md](checker-framework-bugs.md). The removal is still
+the behavior under test, and the plain `bin/analyze.sh` passes with no
+separate invocation.
+
+Agent: Claude Code (Claude Opus 5.5).
+
 ## 2026-10-20: An unfiltered build restores a filtered core test result
 
 During review of `feature/global-change-push`, this regression run selected

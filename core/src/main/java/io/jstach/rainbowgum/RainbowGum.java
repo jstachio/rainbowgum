@@ -215,12 +215,14 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	}
 
 	/**
-	 * Subscribes to notification of a new RainbowGum becoming the globally bound one (see
-	 * {@link #set(Supplier)}, {@link #set(RainbowGum)}, {@link Builder#set()}). This is
-	 * primarily for components like SLF4J's logger factory that are themselves
-	 * bootstrapped once (often before "the real" RainbowGum has loaded, e.g. a
-	 * framework's own pre-boot sequence) and otherwise have no way of finding out that a
-	 * different RainbowGum has since replaced the one they captured.
+	 * Subscribes to changes of the globally bound RainbowGum: a new one becoming bound
+	 * (see {@link #set(Supplier)}, {@link #set(RainbowGum)}, {@link Builder#set()}) or
+	 * the bound one no longer being bound (closing it, {@link Builder#unset()}, or
+	 * {@link #set(Supplier)} replacing it). This is primarily for components like SLF4J's
+	 * logger factory that are themselves bootstrapped once (often before "the real"
+	 * RainbowGum has loaded, e.g. a framework's own pre-boot sequence) and otherwise have
+	 * no way of finding out that a different RainbowGum has since replaced the one they
+	 * captured.
 	 * <p>
 	 * Only a {@linkplain java.lang.ref.WeakReference weak reference} to
 	 * <code>consumer</code> is retained, so subscribing does not by itself keep the
@@ -229,41 +231,24 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * receiving notifications, otherwise it may silently stop being called once garbage
 	 * collected.
 	 * <p>
-	 * Subscribing does not replay the currently bound instance. Notifications are
-	 * delivered in binding order. A concurrent or reentrant binding queues its
-	 * notification until the current delivery finishes, so its caller may return before
-	 * subscribers have seen it. A subscriber throwing a runtime exception is reported
-	 * through the internal error log and does not prevent later deliveries. Removal does
-	 * not trigger a notification; this is a binding event, not a guarantee that the
-	 * supplied gum is still current or open when the consumer runs.
-	 * @param consumer called with the newly bound global RainbowGum. Never called while
-	 * any RainbowGum internal lock is held.
-	 * @see #onGlobalStateChange(Consumer)
+	 * The consumer receives what {@link #getOrNull()} returns after the change: the newly
+	 * bound instance, or <code>null</code> when none is bound anymore. Removing when none
+	 * is bound is not a change. Registering a supplier neither starts it nor closes the
+	 * gum it replaces. Subscribing does not replay the currently bound instance.
+	 * Notifications are delivered in the order of the changes. A concurrent or reentrant
+	 * change queues its notification until the current delivery finishes, so its caller
+	 * may return before subscribers have seen it. A subscriber throwing a runtime
+	 * exception is reported through the internal error log and does not prevent later
+	 * deliveries. A notification is not a guarantee that the supplied gum is still
+	 * current or open when the consumer runs.
+	 * @apiNote A consumer receiving <code>null</code> should drop what it holds rather
+	 * than call {@link #of()}, which would start another gum while the application may be
+	 * shutting down.
+	 * @param consumer called with the newly bound global RainbowGum or <code>null</code>
+	 * when none is bound. Never called while any RainbowGum internal lock is held.
 	 */
-	public static void onGlobalChange(Consumer<RainbowGum> consumer) {
+	public static void onGlobalChange(Consumer<@Nullable RainbowGum> consumer) {
 		RainbowGumHolder.globalChangePublisher.add(consumer);
-	}
-
-	/**
-	 * Subscribes to changes of the global binding, including its removal. A present value
-	 * identifies a newly started and bound gum; an empty value means a bound gum was
-	 * cleared by closing, unsetting, or registering a replacement supplier. Clearing an
-	 * already empty binding does not emit another notification. Registering a supplier
-	 * does not start it or close the previous gum.
-	 * <p>
-	 * Like {@link #onGlobalChange(Consumer)}, this retains the consumer weakly, does not
-	 * replay the current state, and delivers notifications in lifecycle order outside
-	 * internal locks. The caller must keep the consumer strongly reachable. A concurrent
-	 * or reentrant transition may return before its notification is delivered. An event
-	 * describes a transition, not a guarantee that its state is still current.
-	 * <p>
-	 * Consumers should normally clear their cached state without calling {@link #of()}:
-	 * that would start a replacement while the application is trying to shut it down.
-	 * @param consumer receives a present gum on binding and an empty value on clearing.
-	 * @see #getOrNull()
-	 */
-	public static void onGlobalStateChange(Consumer<Optional<RainbowGum>> consumer) {
-		RainbowGumHolder.globalChangePublisher.addStateConsumer(consumer);
 	}
 
 	/**
@@ -654,7 +639,10 @@ final class RainbowGumHolder {
 			rainbowGum = null;
 			supplier = RainbowGumServiceProvider::provide;
 			if (original != null) {
-				// Publish the clear even if closing an output fails.
+				/*
+				 * Unbound and queued before the global router is reset, so a failing
+				 * output close still publishes the removal.
+				 */
 				globalChangePublisher.enqueue(Optional.empty());
 				LogRouter.global().close();
 			}
@@ -687,9 +675,11 @@ final class RainbowGumHolder {
 		}
 	}
 
+	/*
+	 * Component code can reenter remove() during startup or shutdown, so only the
+	 * outermost lifecycle operation calls subscribers.
+	 */
 	private static void drainGlobalChanges() {
-		// remove() can be reentered by component code during startup or shutdown.
-		// Only the outermost lifecycle operation may invoke subscribers.
 		if (!lock.writeLock().isHeldByCurrentThread()) {
 			globalChangePublisher.drain();
 		}
@@ -713,23 +703,19 @@ final class RainbowGumHolder {
  */
 final class GlobalChangePublisher {
 
-	private final Queue<WeakReference<Consumer<RainbowGum>>> consumers = new ConcurrentLinkedQueue<>();
+	private final Queue<WeakReference<Consumer<@Nullable RainbowGum>>> consumers = new ConcurrentLinkedQueue<>();
 
-	private final Queue<WeakReference<Consumer<Optional<RainbowGum>>>> stateConsumers = new ConcurrentLinkedQueue<>();
-
-	/* Both guarded by this. No callbacks may run while this monitor is held. */
+	/*
+	 * Both guarded by this. No callbacks may run while this monitor is held. Empty is a
+	 * removal, as ArrayDeque does not allow null.
+	 */
 	private final Queue<Optional<RainbowGum>> pending = new ArrayDeque<>();
 
 	private boolean draining;
 
-	void add(Consumer<RainbowGum> consumer) {
+	void add(Consumer<@Nullable RainbowGum> consumer) {
 		Objects.requireNonNull(consumer);
 		consumers.add(new WeakReference<>(consumer));
-	}
-
-	void addStateConsumer(Consumer<Optional<RainbowGum>> consumer) {
-		Objects.requireNonNull(consumer);
-		stateConsumers.add(new WeakReference<>(consumer));
 	}
 
 	synchronized void enqueue(Optional<RainbowGum> state) {
@@ -753,8 +739,7 @@ final class GlobalChangePublisher {
 						return;
 					}
 				}
-				state.ifPresent(gum -> publish(consumers, gum));
-				publish(stateConsumers, state);
+				publish(state.orElse(null));
 			}
 		}
 		catch (RuntimeException | Error e) {
@@ -765,15 +750,15 @@ final class GlobalChangePublisher {
 		}
 	}
 
-	private static <T> void publish(Queue<WeakReference<Consumer<T>>> subscribers, T value) {
-		for (var it = subscribers.iterator(); it.hasNext();) {
+	private void publish(@Nullable RainbowGum gum) {
+		for (var it = consumers.iterator(); it.hasNext();) {
 			var consumer = it.next().get();
 			if (consumer == null) {
 				it.remove();
 			}
 			else {
 				try {
-					consumer.accept(value);
+					consumer.accept(gum);
 				}
 				catch (RuntimeException e) {
 					MetaLog.error(RainbowGum.class, "Global change subscriber threw", e);
@@ -851,7 +836,10 @@ final class SimpleRainbowGum implements RainbowGum, Shutdownable {
 
 	@Override
 	public void shutdown() {
-		// queued(config) borrows the global router; remove() owns its reset.
+		/*
+		 * queued(config) borrows the global router. Only remove() resets it, as closing
+		 * it here could reset a replacement that is already bound.
+		 */
 		if (!(router instanceof GlobalLogRouter)) {
 			router.close();
 		}

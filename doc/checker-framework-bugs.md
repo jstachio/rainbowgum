@@ -27,7 +27,8 @@ Status: **not yet filed**, and no minimal repro yet.
 - **Workaround:** in `rainbowgum-simple-props`'s `LevelFileTest`, an explicit
   `registry.close()` on a `ServiceRegistry` in a `finally` block crashed it (Checker
   Framework 4.3.0); the same cleanup written as try-with-resources does not. Prefer
-  try-with-resources in modules that are analyzed.
+  try-with-resources in modules that are analyzed. An explicit `RainbowGum.close()`
+  in `rainbowgum-systemlogger`'s tests crashed it the same way.
 - **To do before filing:** reduce to a small standalone project, confirm it on the
   latest Checker Framework release, and attach the full stack trace (rerun with
   `-AprintErrorStack` to get it).
