@@ -9,11 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-import io.jstach.rainbowgum.LogMessageFormatter;
-import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
-import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LoggerAPI;
-import io.jstach.rainbowgum.RainbowGum;
 
 /**
  * A {@link LogManager} implementation that vends {@link RainbowGumJULLogger}s, routing
@@ -70,6 +66,11 @@ public final class RainbowGumLogManager extends LogManager {
 
 	private final Map<String, Logger> loggers = new ConcurrentHashMap<>();
 
+	/*
+	 * Held here because RainbowGum.onGlobalChange only keeps a weak reference.
+	 */
+	private final GlobalRainbowGum global = GlobalRainbowGum.of();
+
 	// Guards against a Logger vended by this LogManager (or something Rainbow Gum
 	// itself does while resolving a route) triggering a reentrant getLogger() call for
 	// the same name before the first call has finished constructing it.
@@ -101,17 +102,15 @@ public final class RainbowGumLogManager extends LogManager {
 			// Recursive call for the same name: return a fresh, throwaway logger
 			// instead of recursing into computeIfAbsent again, which would deadlock
 			// on ConcurrentHashMap's own re-entrancy guard.
-			return new RainbowGumJULLogger(name, StandardMessageFormatter.JUL);
+			return new RainbowGumJULLogger(name, global);
 		}
 		try {
 			return loggers.computeIfAbsent(name, n -> {
-				var gum = RainbowGum.getOrNull();
-				LogProperties properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+				var gum = global.gum();
 				if (gum != null) {
 					gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.JUL, n);
-					properties = gum.config().properties();
 				}
-				return new RainbowGumJULLogger(n, LogMessageFormatter.ofJUL(properties));
+				return new RainbowGumJULLogger(n, global);
 			});
 		}
 		finally {

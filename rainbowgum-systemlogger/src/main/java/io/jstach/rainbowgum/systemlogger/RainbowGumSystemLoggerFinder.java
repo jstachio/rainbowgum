@@ -6,7 +6,6 @@ import java.util.function.Supplier;
 
 import org.jspecify.annotations.Nullable;
 
-import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogRouter;
@@ -77,6 +76,12 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	 * io.jstach.rainbowgum package needs this treatment, only these specific ones.
 	 */
 	private volatile @Nullable RouterProvider routerProvider;
+
+	/*
+	 * Created lazily like routerProvider and for the same reason. Held here because
+	 * RainbowGum.onGlobalChange only keeps a weak reference.
+	 */
+	private volatile @Nullable GlobalRainbowGum global;
 
 	/**
 	 * Values (case is ignored) for {@value #INITIALIZE_RAINBOW_GUM_PROPERTY}.
@@ -171,12 +176,26 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	@Override
 	public Logger getLogger(String name, Module module) {
 		var router = routerProvider().router(name);
-		var messageFormatter = LogMessageFormatter.ofJUL(LogProperties.findGlobalProperties());
+		var global = global();
 		if (!router.isChangeable(name)) {
 			var level = router.levelResolver().resolveLevel(name);
-			return LevelSystemLogger.of(name, level, router.route(name, level), messageFormatter);
+			return LevelSystemLogger.of(name, level, router.route(name, level), global);
 		}
-		return new RainbowGumSystemLogger(name, router, messageFormatter);
+		return new RainbowGumSystemLogger(name, router, global);
+	}
+
+	private GlobalRainbowGum global() {
+		var g = this.global;
+		if (g != null) {
+			return g;
+		}
+		synchronized (this) {
+			g = this.global;
+			if (g == null) {
+				g = this.global = GlobalRainbowGum.of();
+			}
+			return g;
+		}
 	}
 
 	/**

@@ -961,13 +961,9 @@ class JDKSetupTest {
 			tester.oneArg(logger, level, "It's done", Arg.STRING);
 			tester.twoArgs(logger, level, "Hello {0} failed {1}", Arg.STRING, Arg.EXCEPTION);
 			/*
-			 * A System.Logger created before Rainbow Gum starts only sees the system
-			 * properties, so it keeps the defaults. See todo.md.
+			 * Loggers created before Rainbow Gum starts follow it too.
 			 */
-			String expected = tester == SystemLoggerTester.SYSTEM_LOGGER ? """
-					00:00:00.000 [%1$s] INFO  after.load - Its done
-					00:00:00.000 [%1$s] INFO  after.load - Hello hello failed java.lang.RuntimeException: EXPECTED
-					""".formatted(Thread.currentThread().getName()) : """
+			String expected = """
 					00:00:00.000 [%1$s] INFO  after.load - It's done
 					00:00:00.000 [%1$s] INFO  after.load - Hello hello failed java.lang.RuntimeException: EXPECTED
 					java.lang.RuntimeException: EXPECTED

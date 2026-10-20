@@ -241,16 +241,19 @@ unifying.
       without sizing `initialBufferSize` accordingly, which is exactly what happened
       building `rainbowgum-test-kitchensink`'s `LogReporterKitchenSinkTest` diagnostics
       route on `explore/static-configuration-report`.
-- [ ] **`RainbowGum.getOrNull()` takes a read lock**: `RainbowGumHolder.current()` does a
-      `tryLock` on the read lock, and facades call it (System.Logger finder, JBoss Logging, JUL LogManager
-      logger creation, the Spring Boot actuator). Hot paths already use the lock free
-      `RainbowGumHolder.peek()`. Facades that need to know when a gum comes alive could
-      subscribe to `globalChangePublisher` (as the SLF4J and Spring Boot integration
-      does) instead of polling; the facades predate that push mechanism. The holder's
-      own TODO suggests a `StampedLock`. The same push would let a logger created before
-      Rainbow Gum starts pick up `logging.messageFormat.*`: today the facades read it
-      once, when the logger is created (`JDKSetupTest.testMessageFormatProperties`
-      pins the `System.getLogger` case).
+- [ ] **Facades and the global change push**: the System.Logger finder, JBoss Logging
+      provider and JUL LogManager now follow the bound gum through
+      `RainbowGum.onGlobalChange` (`GlobalRainbowGum`, one copy per module) instead of
+      calling `RainbowGum.getOrNull()` (a read lock `tryLock`) when they create a logger,
+      so loggers created before Rainbow Gum starts pick up `logging.messageFormat.*`.
+      Left to decide:
+  - [ ] Nothing is pushed when a gum is removed or closed (`RainbowGumHolder.remove`),
+        so a facade keeps the last gum; the SLF4J logger factory has the same gap.
+  - [ ] Whether `GlobalRainbowGum` should move to core as public API instead of three
+        copies.
+  - [ ] Events queued before startup keep the formatter they were created with.
+  - [ ] Other `getOrNull()` callers (Spring Boot, the actuator, avaje AppLog) and the
+        holder's own `StampedLock` TODO.
 - [ ] **`console` as a scheme alias for `stdout`**: `LogOutput.STDOUT_SCHEME`/
       `STDERR_SCHEME` (`LogOutput.java`) are the only registered console output
       schemes today - `logging.appender.myapp.output=console` currently just fails
