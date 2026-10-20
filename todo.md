@@ -335,3 +335,33 @@ before.
       `DepthAware*` family; how a third-party `LoggerDecoratorService` decorator is
       expected to identify itself (re-assert boundary per layer vs. a registered
       trusted-package list vs. something else).
+
+## 7. Track slf4j-jdk-platform-logging double formatting (qos-ch/slf4j#498)
+
+SLF4J's `System.Logger` adapter (`org.slf4j:slf4j-jdk-platform-logging`,
+`SLF4JPlatformLogger.performLog`) formats the message with `MessageFormat` and then
+still passes the same parameters on as SLF4J arguments, so `{}` inside a parameter is
+substituted a second time, unreferenced parameters are logged, and a malformed pattern
+throws `IllegalArgumentException` out of `System.Logger.log`. Reproduced on 2026-10-20
+with SLF4J 2.0.20 and `rainbowgum-slf4j`: `a=X b=X` and `user={} {} unreferenced`.
+Rainbow Gum's own `rainbowgum-jdk` logs `a=X b={}`, `user={} {}` and falls back on the
+malformed pattern. The user guide now warns against the adapter (`#slf4j_platform_logging`).
+
+https://github.com/qos-ch/slf4j/pull/498 proposes dropping the SLF4J arguments. Adam
+commented there against changing it silently: the behavior has shipped for years, so by
+Hyrum's law something depends on the parameters, for example a filter that blocks
+events whose parameters look sensitive would stop seeing them and let the data through.
+Adam's suggestion for 3.0 is to remove the module, or to do no formatting and tag every
+call with a shared marker (as Commons Logging's `Slf4jLogFactory` does with
+`SYSTEM-LOGGING`) so a provider knows the message and parameters are `MessageFormat`
+style. Keep following the PR and encourage Ceki toward the marker.
+
+- [ ] Follow #498 and any 3.0 change; update the user guide warning when it is resolved.
+- [ ] If the marker lands, have `rainbowgum-slf4j` recognize it: format with
+      `MessageFormat` itself, or raise an alert (or fail) since `rainbowgum-jdk`
+      should be handling `System.Logger`.
+- [ ] Until then, consider a startup check: if
+      `org.slf4j.jdk.platform.logging.SLF4JSystemLoggerFinder` is on the class path,
+      raise a warning alert (so `logging.alerts.fail=warning` stops startup). If both it
+      and `rainbowgum-jdk` are present, the JDK uses whichever `System.LoggerFinder` it
+      finds first, which on the class path is jar order (verified both ways).
