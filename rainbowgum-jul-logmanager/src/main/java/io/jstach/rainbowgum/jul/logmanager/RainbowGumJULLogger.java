@@ -7,7 +7,6 @@ import java.util.logging.Logger;
 
 import org.jspecify.annotations.Nullable;
 
-import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.jul.JULBridge;
 
 /**
@@ -22,11 +21,11 @@ import io.jstach.rainbowgum.jul.JULBridge;
  */
 final class RainbowGumJULLogger extends Logger {
 
-	private final LogMessageFormatter messageFormatter;
+	private final GlobalRainbowGum global;
 
-	RainbowGumJULLogger(String name, LogMessageFormatter messageFormatter) {
+	RainbowGumJULLogger(String name, GlobalRainbowGum global) {
 		super(name, null);
-		this.messageFormatter = messageFormatter;
+		this.global = global;
 		// The inherited field is otherwise null (meaning "inherit from parent"),
 		// which would make isLoggable's *default* implementation (unused here, but
 		// still reachable via getLevel()/reflection) walk a parent chain that does
@@ -49,7 +48,7 @@ final class RainbowGumJULLogger extends Logger {
 		if (!isLoggable(record.getLevel())) {
 			return;
 		}
-		JULBridge.publish(record, messageFormatter);
+		JULBridge.publish(record, global.messageFormatter());
 	}
 
 	/**

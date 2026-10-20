@@ -11,9 +11,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogMessageFormatter;
-import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LoggerAPI;
-import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.svc.ServiceProvider;
 
 /**
@@ -40,6 +38,11 @@ public final class RainbowGumJBossLoggerProvider implements LoggerProvider {
 	 * until then, in which case nothing can have been put in its MDC yet.
 	 */
 	private static volatile @Nullable RainbowGumJBossLoggerProvider current;
+
+	/*
+	 * Held here because RainbowGum.onGlobalChange only keeps a weak reference.
+	 */
+	private final GlobalRainbowGum global = GlobalRainbowGum.of();
 
 	/**
 	 * For {@link java.util.ServiceLoader}.
@@ -72,13 +75,18 @@ public final class RainbowGumJBossLoggerProvider implements LoggerProvider {
 
 	@Override
 	public Logger getLogger(String name) {
-		var gum = RainbowGum.getOrNull();
-		LogProperties properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+		var gum = global.gum();
 		if (gum != null) {
 			gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.JBOSS_LOGGING, name);
-			properties = gum.config().properties();
 		}
-		return new RainbowGumJBossLogger(name, this, LogMessageFormatter.ofJUL(properties));
+		return new RainbowGumJBossLogger(name, this);
+	}
+
+	/*
+	 * Read for every event so a logger created before Rainbow Gum starts follows it.
+	 */
+	LogMessageFormatter messageFormatter() {
+		return global.messageFormatter();
 	}
 
 	/**

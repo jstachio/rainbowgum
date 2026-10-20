@@ -12,7 +12,9 @@ import java.util.logging.Logger;
 
 import org.junit.jupiter.api.Test;
 
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogReporter;
 import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.RainbowGum;
@@ -106,6 +108,38 @@ class RainbowGumLogManagerTest {
 		var logger = Logger.getLogger("test.jul.logmanager.noop");
 		logger.setLevel(Level.SEVERE);
 		logger.setParent(Logger.getLogger(""));
+	}
+
+	/*
+	 * A logger created before a Rainbow Gum starts follows its message format properties.
+	 */
+	@Test
+	void testLoggerCreatedBeforeStartFollowsMessageFormatProperties() {
+		var logger = Logger.getLogger("test.jul.logmanager.messageformat");
+		ListLogOutput output = new ListLogOutput();
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.messageFormat.apply=index
+				logging.messageFormat.throwable=both
+				""").build()).build();
+		try (var gum = RainbowGum.builder(config).route(r -> {
+			r.appender("list", a -> {
+				a.output(output);
+				a.formatter((o, e) -> {
+					e.formattedMessage(o);
+					o.append(" throwable=").append(String.valueOf(e.throwableOrNull())).append("\n");
+				});
+			});
+			r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+		}).set()) {
+			logger.log(Level.INFO, "It's done", "x");
+			logger.log(Level.INFO, "failed {0}", new Object[] { new RuntimeException("boom") });
+			String expected = """
+					It's done throwable=null
+					failed java.lang.RuntimeException: boom throwable=java.lang.RuntimeException: boom
+					""";
+			assertTrue(output.toString().contains(expected),
+					() -> "expected output to contain: " + expected + "\nactual output was: " + output);
+		}
 	}
 
 	private static RainbowGum rainbowGum(ListLogOutput output, System.Logger.Level level) {

@@ -54,13 +54,10 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 
 	private final RainbowGumJBossLoggerProvider provider;
 
-	private final LogMessageFormatter messageFormatter;
-
-	RainbowGumJBossLogger(String name, RainbowGumJBossLoggerProvider provider, LogMessageFormatter messageFormatter) {
+	RainbowGumJBossLogger(String name, RainbowGumJBossLoggerProvider provider) {
 		super(name);
 		this.router = LogRouter.global();
 		this.provider = provider;
-		this.messageFormatter = messageFormatter;
 	}
 
 	@Override
@@ -70,7 +67,7 @@ final class RainbowGumJBossLogger extends Logger implements LogEventFactory {
 
 	@Override
 	public LogMessageFormatter messageFormatter() {
-		return messageFormatter;
+		return provider.messageFormatter();
 	}
 
 	@Override

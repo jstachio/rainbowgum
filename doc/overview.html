@@ -2584,8 +2584,8 @@ trace. If formatting fails, for example because of a malformed pattern or a para
 throws, the raw message is logged followed by <code>[MessageFormat failed: </code><em>reason</em><code>]</code>.
 </p>
 <p>
-Two properties change this. They are read when a logger is created, so a logger created before Rainbow Gum
-starts only sees system properties:
+Two properties change this. Loggers follow the properties of the Rainbow Gum that is currently bound, including
+loggers created before it started; before any has started, system properties apply:
 </p>
 <ul>
   <li>{@value io.jstach.rainbowgum.LogProperties#MESSAGE_FORMAT_APPLY_PROPERTY}:

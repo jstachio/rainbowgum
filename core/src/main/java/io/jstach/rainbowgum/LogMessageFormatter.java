@@ -56,8 +56,7 @@ public sealed interface LogMessageFormatter {
 	/**
 	 * The java.util.logging and System.Logger MessageFormat style as configured by
 	 * {@value LogProperties#MESSAGE_FORMAT_APPLY_PROPERTY} and
-	 * {@value LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY}. Facades call this when
-	 * they create a logger.
+	 * {@value LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY}.
 	 * @param properties usually the properties of the current Rainbow Gum's config.
 	 * @return {@link StandardMessageFormatter#JUL} when both properties have their
 	 * default value, otherwise a formatter that follows them.

@@ -299,7 +299,6 @@ public interface LogProperties {
 	 * <li><code>index</code>: only when the message has an argument index such as
 	 * <code>{0}</code>, as the JDK does, so <code>It's done</code> is logged as is.</li>
 	 * </ul>
-	 * Read when a logger is created.
 	 * @see LogMessageFormatter#ofJUL(LogProperties)
 	 */
 	static final String MESSAGE_FORMAT_APPLY_PROPERTY = ROOT_PREFIX + "messageFormat.apply";
@@ -313,7 +312,6 @@ public interface LogProperties {
 	 * <li><code>both</code>: formatted like any other argument and also logged with its
 	 * stack trace, as Log4j2 and SLF4J's System.Logger adapter do.</li>
 	 * </ul>
-	 * Read when a logger is created.
 	 * @see LogMessageFormatter#ofJUL(LogProperties)
 	 */
 	static final String MESSAGE_FORMAT_THROWABLE_PROPERTY = ROOT_PREFIX + "messageFormat.throwable";

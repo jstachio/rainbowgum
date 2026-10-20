@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter;
+import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 
 /**
  * {@link LogEventFactory} shared by {@link LevelSystemLogger} and
@@ -17,7 +18,16 @@ import io.jstach.rainbowgum.LogMessageFormatter;
  * {@link #message(ResourceBundle, String)} resolves a ResourceBundle-keyed message the
  * way java.lang.System.Logger's own bundle-based log(...) overloads are documented to.
  */
-record SystemLoggerEventFactory(String loggerName, LogMessageFormatter messageFormatter) implements LogEventFactory {
+record SystemLoggerEventFactory(String loggerName, @Nullable GlobalRainbowGum global) implements LogEventFactory {
+
+	/*
+	 * Read for every event so a logger created before Rainbow Gum starts follows it.
+	 */
+	@Override
+	public LogMessageFormatter messageFormatter() {
+		var g = global;
+		return g == null ? StandardMessageFormatter.JUL : g.messageFormatter();
+	}
 
 	@Nullable String message(@Nullable ResourceBundle bundle, @Nullable String msg) {
 		if (bundle == null || msg == null) {
