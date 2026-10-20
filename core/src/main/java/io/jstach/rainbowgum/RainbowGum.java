@@ -238,9 +238,32 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * supplied gum is still current or open when the consumer runs.
 	 * @param consumer called with the newly bound global RainbowGum. Never called while
 	 * any RainbowGum internal lock is held.
+	 * @see #onGlobalStateChange(Consumer)
 	 */
 	public static void onGlobalChange(Consumer<RainbowGum> consumer) {
 		RainbowGumHolder.globalChangePublisher.add(consumer);
+	}
+
+	/**
+	 * Subscribes to changes of the global binding, including its removal. A present value
+	 * identifies a newly started and bound gum; an empty value means a bound gum was
+	 * cleared by closing, unsetting, or registering a replacement supplier. Clearing an
+	 * already empty binding does not emit another notification. Registering a supplier
+	 * does not start it or close the previous gum.
+	 * <p>
+	 * Like {@link #onGlobalChange(Consumer)}, this retains the consumer weakly, does not
+	 * replay the current state, and delivers notifications in lifecycle order outside
+	 * internal locks. The caller must keep the consumer strongly reachable. A concurrent
+	 * or reentrant transition may return before its notification is delivered. An event
+	 * describes a transition, not a guarantee that its state is still current.
+	 * <p>
+	 * Consumers should normally clear their cached state without calling {@link #of()}:
+	 * that would start a replacement while the application is trying to shut it down.
+	 * @param consumer receives a present gum on binding and an empty value on clearing.
+	 * @see #getOrNull()
+	 */
+	public static void onGlobalStateChange(Consumer<Optional<RainbowGum>> consumer) {
+		RainbowGumHolder.globalChangePublisher.addStateConsumer(consumer);
 	}
 
 	/**
@@ -596,7 +619,6 @@ final class RainbowGumHolder {
 			throw new IllegalStateException("RainbowGum component tried to log too early. "
 					+ "This is usually caused by dependencies calling logging.");
 		}
-		RainbowGum newlyStarted = null;
 		lock.writeLock().lock();
 		try {
 			var r = rainbowGum;
@@ -606,8 +628,7 @@ final class RainbowGumHolder {
 			r = supplier.get();
 			start(r);
 			rainbowGum = r;
-			globalChangePublisher.enqueue(r);
-			newlyStarted = r;
+			globalChangePublisher.enqueue(Optional.of(r));
 			return r;
 
 		}
@@ -618,9 +639,7 @@ final class RainbowGumHolder {
 			 * callbacks only after releasing it. The publisher never holds its monitor
 			 * while calling a subscriber, including one that binds another gum.
 			 */
-			if (newlyStarted != null) {
-				globalChangePublisher.drain();
-			}
+			drainGlobalChanges();
 		}
 
 	}
@@ -629,23 +648,21 @@ final class RainbowGumHolder {
 		lock.writeLock().lock();
 		try {
 			var original = rainbowGum;
-			if (gum != null) {
-				if (original != gum) {
-					return false;
-				}
-			}
-			/*
-			 * Reset the global router
-			 */
-			if (original != null) {
-				LogRouter.global().close();
+			if (gum != null && original != gum) {
+				return false;
 			}
 			rainbowGum = null;
 			supplier = RainbowGumServiceProvider::provide;
+			if (original != null) {
+				// Publish the clear even if closing an output fails.
+				globalChangePublisher.enqueue(Optional.empty());
+				LogRouter.global().close();
+			}
 			return true;
 		}
 		finally {
 			lock.writeLock().unlock();
+			drainGlobalChanges();
 		}
 	}
 
@@ -657,11 +674,24 @@ final class RainbowGumHolder {
 		}
 		lock.writeLock().lock();
 		try {
+			var original = rainbowGum;
 			rainbowGum = null;
 			supplier = rainbowGumSupplier;
+			if (original != null) {
+				globalChangePublisher.enqueue(Optional.empty());
+			}
 		}
 		finally {
 			lock.writeLock().unlock();
+			drainGlobalChanges();
+		}
+	}
+
+	private static void drainGlobalChanges() {
+		// remove() can be reentered by component code during startup or shutdown.
+		// Only the outermost lifecycle operation may invoke subscribers.
+		if (!lock.writeLock().isHeldByCurrentThread()) {
+			globalChangePublisher.drain();
 		}
 	}
 
@@ -685,8 +715,10 @@ final class GlobalChangePublisher {
 
 	private final Queue<WeakReference<Consumer<RainbowGum>>> consumers = new ConcurrentLinkedQueue<>();
 
+	private final Queue<WeakReference<Consumer<Optional<RainbowGum>>>> stateConsumers = new ConcurrentLinkedQueue<>();
+
 	/* Both guarded by this. No callbacks may run while this monitor is held. */
-	private final Queue<RainbowGum> pending = new ArrayDeque<>();
+	private final Queue<Optional<RainbowGum>> pending = new ArrayDeque<>();
 
 	private boolean draining;
 
@@ -695,8 +727,13 @@ final class GlobalChangePublisher {
 		consumers.add(new WeakReference<>(consumer));
 	}
 
-	synchronized void enqueue(RainbowGum gum) {
-		pending.add(gum);
+	void addStateConsumer(Consumer<Optional<RainbowGum>> consumer) {
+		Objects.requireNonNull(consumer);
+		stateConsumers.add(new WeakReference<>(consumer));
+	}
+
+	synchronized void enqueue(Optional<RainbowGum> state) {
+		pending.add(state);
 	}
 
 	void drain() {
@@ -708,15 +745,16 @@ final class GlobalChangePublisher {
 		}
 		try {
 			while (true) {
-				RainbowGum gum;
+				Optional<RainbowGum> state;
 				synchronized (this) {
-					gum = pending.poll();
-					if (gum == null) {
+					state = pending.poll();
+					if (state == null) {
 						draining = false;
 						return;
 					}
 				}
-				publish(gum);
+				state.ifPresent(gum -> publish(consumers, gum));
+				publish(stateConsumers, state);
 			}
 		}
 		catch (RuntimeException | Error e) {
@@ -727,15 +765,15 @@ final class GlobalChangePublisher {
 		}
 	}
 
-	private void publish(RainbowGum gum) {
-		for (var it = consumers.iterator(); it.hasNext();) {
+	private static <T> void publish(Queue<WeakReference<Consumer<T>>> subscribers, T value) {
+		for (var it = subscribers.iterator(); it.hasNext();) {
 			var consumer = it.next().get();
 			if (consumer == null) {
 				it.remove();
 			}
 			else {
 				try {
-					consumer.accept(gum);
+					consumer.accept(value);
 				}
 				catch (RuntimeException e) {
 					MetaLog.error(RainbowGum.class, "Global change subscriber threw", e);
@@ -796,12 +834,16 @@ final class SimpleRainbowGum implements RainbowGum, Shutdownable {
 	@Override
 	public void close() {
 		if (state.compareAndSet(STARTED, CLOSED)) {
-			RainbowGumHolder.remove(this);
 			try {
-				shutdown();
+				RainbowGumHolder.remove(this);
 			}
 			finally {
-				ShutdownManager.removeShutdownHook(this);
+				try {
+					shutdown();
+				}
+				finally {
+					ShutdownManager.removeShutdownHook(this);
+				}
 			}
 			return;
 		}
@@ -809,7 +851,10 @@ final class SimpleRainbowGum implements RainbowGum, Shutdownable {
 
 	@Override
 	public void shutdown() {
-		router().close();
+		// queued(config) borrows the global router; remove() owns its reset.
+		if (!(router instanceof GlobalLogRouter)) {
+			router.close();
+		}
 		config().alerts().close();
 		config().serviceRegistry().close();
 	}

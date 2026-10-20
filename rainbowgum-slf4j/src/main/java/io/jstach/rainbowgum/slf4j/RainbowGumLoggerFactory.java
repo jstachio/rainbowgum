@@ -3,11 +3,13 @@ package io.jstach.rainbowgum.slf4j;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
@@ -16,6 +18,7 @@ import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogEventLogger;
+import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
@@ -31,18 +34,20 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * install a bootstrap RainbowGum, have SLF4J's ServiceLoader-triggered initialize()
 	 * capture it here, and only later RainbowGum.set(...) the "real" one - this factory
 	 * would otherwise be stuck forever routing new getLogger(...) calls through the stale
-	 * bootstrap instance's config/decorators. onGlobalChange (below) keeps this current
-	 * for names looked up after the swap. Already-created Logger instances in loggerMap
-	 * are a separate concern: ones allowed to change level (ReplaceableLogger, below) are
-	 * kept current independently via the router's own RouteChangePublisher, which is how
-	 * a bootstrap-era ReplaceableLogger stops pointing at the queued placeholder router
-	 * once a real router replaces it (see subscribe()). Routing for loggers that were not
-	 * allowed to change (LevelLogger) is not revisited after creation. Context
-	 * contributors follow the current gum for every handler through ChangingContributor.
+	 * bootstrap instance's config/decorators. onGlobalStateChange (below) keeps this
+	 * current for names looked up after the swap. Already-created Logger instances in
+	 * loggerMap are a separate concern: ones allowed to change level (ReplaceableLogger,
+	 * below) are kept current independently via the router's own RouteChangePublisher,
+	 * which is how a bootstrap-era ReplaceableLogger stops pointing at the queued
+	 * placeholder router once a real router replaces it (see subscribe()). Routing for
+	 * loggers that were not allowed to change (LevelLogger) is not revisited after
+	 * creation. Context contributors follow the current gum for every handler through
+	 * ChangingContributor.
 	 */
-	private volatile RainbowGum rainbowGum;
+	private record FactoryState(@Nullable RainbowGum gum, LoggerDecorator decorator) {
+	}
 
-	private final LoggerDecorator decorator;
+	private volatile FactoryState state;
 
 	private final RainbowGumMDCAdapter mdc;
 
@@ -50,30 +55,31 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 	/*
 	 * Held here (as opposed to inline at the subscribe call below) so this factory keeps
-	 * it strongly reachable - RainbowGum.onGlobalChange only holds a weak reference, so
-	 * an inline lambda with no other strong referrer could become eligible for GC almost
-	 * immediately after subscribing. The checker flags this::setRainbowGum as an
+	 * it strongly reachable - RainbowGum.onGlobalStateChange only holds a weak reference,
+	 * so an inline lambda with no other strong referrer could become eligible for GC
+	 * almost immediately after subscribing. The checker flags this::setRainbowGum as an
 	 * under-initialization risk (a method reference bound before the constructor
 	 * finishes), but it's never actually invoked until well after construction - only
 	 * when RainbowGum's global instance later changes, via the subscription registered in
 	 * the constructor below.
 	 */
 	@SuppressWarnings("methodref.receiver.bound")
-	private final Consumer<RainbowGum> onGlobalChange = this::setRainbowGum;
+	private final Consumer<Optional<RainbowGum>> onGlobalStateChange = this::setRainbowGum;
 
 	public RainbowGumLoggerFactory(RainbowGum rainbowGum, RainbowGumMDCAdapter mdc) {
 		super();
 		this.loggerMap = new ConcurrentHashMap<>();
-		this.rainbowGum = rainbowGum;
-		this.decorator = LoggerDecorator.of(rainbowGum);
+		this.state = new FactoryState(rainbowGum, LoggerDecorator.of(rainbowGum));
 		this.mdc = mdc;
 		this.contributor = new ChangingContributor(rainbowGum);
-		RainbowGum.onGlobalChange(onGlobalChange);
+		RainbowGum.onGlobalStateChange(onGlobalStateChange);
 	}
 
-	private void setRainbowGum(RainbowGum gum) {
+	private void setRainbowGum(Optional<RainbowGum> current) {
+		var gum = current.orElse(null);
+		var next = new FactoryState(gum, gum == null ? LoggerDecorator.Noop.INSTANCE : LoggerDecorator.of(gum));
 		contributor.setRainbowGum(gum);
-		this.rainbowGum = gum;
+		this.state = next;
 	}
 
 	@Override
@@ -83,7 +89,11 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			return simpleLogger;
 		}
 		else {
-			var currentRainbowGum = this.rainbowGum;
+			var current = this.state;
+			var currentRainbowGum = current.gum();
+			if (currentRainbowGum == null) {
+				return queuedLogger(name);
+			}
 			currentRainbowGum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.SLF4J, name);
 			var router = currentRainbowGum.router();
 			var changePublisher = currentRainbowGum.config().changePublisher();
@@ -130,10 +140,30 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			if (callerInfoEnabled && newLogger instanceof HandlerSource hs) {
 				newLogger = new LocationAwareForwardingLogger(newLogger, hs, name);
 			}
-			Logger decorated = decorator.decorate(currentRainbowGum, newLogger);
+			Logger decorated = current.decorator().decorate(currentRainbowGum, newLogger);
 			Logger oldInstance = loggerMap.putIfAbsent(name, decorated);
 			return oldInstance == null ? decorated : oldInstance;
 		}
+	}
+
+	/*
+	 * Between bindings, use the global router and subscribe to its queue's transition
+	 * into the next real router. No closed config, decorators, or contributors are used.
+	 */
+	private Logger queuedLogger(String name) {
+		var router = LogRouter.global();
+		var level = router.levelResolver().resolveLevel(name);
+		LogEventLogger sink = event -> {
+			var route = router.route(name, event.level());
+			if (route.isEnabled()) {
+				route.log(event);
+			}
+		};
+		var handler = maybeAddCallerInfo(name, false, sink, 1);
+		var logger = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
+		subscribe(name, router, logger, false);
+		Logger existing = loggerMap.putIfAbsent(name, logger);
+		return existing == null ? logger : existing;
 	}
 
 	/*
@@ -201,11 +231,14 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			this.delegate = resolve(gum);
 		}
 
-		void setRainbowGum(RainbowGum gum) {
+		void setRainbowGum(@Nullable RainbowGum gum) {
 			delegate = resolve(gum);
 		}
 
-		private static KeyValuesContributor resolve(RainbowGum gum) {
+		private static KeyValuesContributor resolve(@Nullable RainbowGum gum) {
+			if (gum == null) {
+				return KeyValues::of;
+			}
 			return KeyValuesContributor.of(gum.config().serviceRegistry(), KeyValuesContributor.Source.Standard.SLF4J);
 		}
 
