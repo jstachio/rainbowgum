@@ -67,7 +67,7 @@ public final class RainbowGumLogManager extends LogManager {
 	private final Map<String, Logger> loggers = new ConcurrentHashMap<>();
 
 	/*
-	 * Held here because RainbowGum.onGlobalStateChange only keeps a weak reference.
+	 * Held here because RainbowGum.onGlobalChange only keeps a weak reference.
 	 */
 	private final GlobalRainbowGum global = GlobalRainbowGum.of();
 

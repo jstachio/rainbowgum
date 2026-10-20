@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -265,7 +266,11 @@ class RainbowGumEntryPointTest {
 	@Test
 	void onGlobalChangeNotifiesSubscribersWhenANewGumBecomesGlobal() {
 		var notified = new AtomicReference<RainbowGum>();
-		Consumer<RainbowGum> consumer = notified::set;
+		Consumer<@Nullable RainbowGum> consumer = current -> {
+			if (current != null) {
+				notified.set(current);
+			}
+		};
 		RainbowGum.onGlobalChange(consumer);
 		try (var gum = RainbowGum.builder(LogConfig.builder().build()).set()) {
 			assertSame(gum, notified.get());
@@ -280,7 +285,7 @@ class RainbowGumEntryPointTest {
 	@Test
 	void onGlobalChangeIsNotFiredAgainWhenOfResolvesTheAlreadyBoundInstance() {
 		var callCount = new AtomicInteger();
-		Consumer<RainbowGum> consumer = gum -> callCount.incrementAndGet();
+		Consumer<@Nullable RainbowGum> consumer = gum -> callCount.incrementAndGet();
 		RainbowGum.onGlobalChange(consumer);
 		try (var gum = RainbowGum.builder(LogConfig.builder().build()).set()) {
 			assertEquals(1, callCount.get());
@@ -292,7 +297,7 @@ class RainbowGumEntryPointTest {
 	@Test
 	void onGlobalChangeIsNotFiredWhenNothingEverResolvesTheSupplier() {
 		var callCount = new AtomicInteger();
-		Consumer<RainbowGum> consumer = gum -> callCount.incrementAndGet();
+		Consumer<@Nullable RainbowGum> consumer = gum -> callCount.incrementAndGet();
 		RainbowGum.onGlobalChange(consumer);
 		var gum = RainbowGum.builder(LogConfig.builder().build()).build();
 		try {

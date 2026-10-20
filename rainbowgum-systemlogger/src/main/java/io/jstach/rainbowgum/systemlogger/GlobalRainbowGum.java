@@ -1,6 +1,5 @@
 package io.jstach.rainbowgum.systemlogger;
 
-import java.util.Optional;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
@@ -12,11 +11,12 @@ import io.jstach.rainbowgum.RainbowGum;
 
 /*
  * The globally bound Rainbow Gum and the MessageFormat style its properties choose, kept
- * current by RainbowGum.onGlobalStateChange. Loggers created before Rainbow Gum starts follow
- * it, and reading it takes no lock. The same class is in
+ * current by RainbowGum.onGlobalChange. Loggers created before Rainbow Gum starts follow
+ * it, and reading it takes no lock. While none is bound, before the first and after one
+ * is removed, system properties choose the style. The same class is in
  * rainbowgum-jboss-logging and rainbowgum-jul-logmanager.
  */
-final class GlobalRainbowGum implements Consumer<Optional<RainbowGum>> {
+final class GlobalRainbowGum implements Consumer<@Nullable RainbowGum> {
 
 	private volatile @Nullable RainbowGum gum;
 
@@ -32,12 +32,11 @@ final class GlobalRainbowGum implements Consumer<Optional<RainbowGum>> {
 	}
 
 	/*
-	 * The caller must keep a strong reference as onGlobalStateChange only keeps a weak
-	 * one.
+	 * The caller must keep a strong reference as onGlobalChange only keeps a weak one.
 	 */
 	static GlobalRainbowGum of() {
 		var global = new GlobalRainbowGum(StandardMessageFormatter.JUL);
-		RainbowGum.onGlobalStateChange(global);
+		RainbowGum.onGlobalChange(global);
 		global.found(RainbowGum.getOrNull());
 		return global;
 	}
@@ -56,23 +55,34 @@ final class GlobalRainbowGum implements Consumer<Optional<RainbowGum>> {
 				set(current);
 			}
 			else {
-				messageFormatter = LogMessageFormatter.ofJUL(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+				unset();
 			}
 		}
 	}
 
 	@Override
-	public synchronized void accept(Optional<RainbowGum> state) {
+	public synchronized void accept(@Nullable RainbowGum pushedGum) {
 		pushed = true;
-		var current = state.orElse(null);
-		if (current == null) {
-			// Drop the old gum even if system-property validation fails.
-			this.gum = null;
-			this.messageFormatter = StandardMessageFormatter.JUL;
-			this.messageFormatter = LogMessageFormatter.ofJUL(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+		if (pushedGum != null) {
+			set(pushedGum);
 		}
 		else {
-			set(current);
+			unset();
+		}
+	}
+
+	/*
+	 * An invalid system property leaves the default style and is thrown: to the facade
+	 * while subscribing, otherwise to the publisher, which reports it.
+	 */
+	private void unset() {
+		this.gum = null;
+		LogMessageFormatter formatter = StandardMessageFormatter.JUL;
+		try {
+			formatter = LogMessageFormatter.ofJUL(LogProperties.StandardProperties.SYSTEM_PROPERTIES);
+		}
+		finally {
+			this.messageFormatter = formatter;
 		}
 	}
 

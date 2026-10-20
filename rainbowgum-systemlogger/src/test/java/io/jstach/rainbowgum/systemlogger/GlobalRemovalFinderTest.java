@@ -13,29 +13,32 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder.InitOption;
 
 @Isolated
-class GlobalClearFinderTest {
+class GlobalRemovalFinderTest {
 
 	@Test
 	void finderDropsItsInitialGumAndQueuesNewNamesUntilTheNextBinding() {
 		var oldOutput = new ListLogOutput();
+		var finder = new RainbowGumSystemLoggerFinder(() -> InitOption.REUSE) {
+		};
+		var module = getClass().getModule();
+		/*
+		 * Closed by the try block rather than an explicit close(), which crashes the
+		 * Checker Framework (see doc/checker-framework-bugs.md).
+		 */
 		try (var first = gum(oldOutput)) {
-			var finder = new RainbowGumSystemLoggerFinder(() -> InitOption.REUSE) {
-			};
-			var module = getClass().getModule();
-			finder.getLogger("before.clear", module).log(System.Logger.Level.INFO, "before");
-			first.close();
-			var during = finder.getLogger("during.clear", module);
-			during.log(System.Logger.Level.INFO, "during");
-			assertNull(RainbowGum.getOrNull(), "clearing must not cause the finder to start another gum");
+			finder.getLogger("before.removal", module).log(System.Logger.Level.INFO, "before");
+		}
+		var during = finder.getLogger("during.removal", module);
+		during.log(System.Logger.Level.INFO, "during");
+		assertNull(RainbowGum.getOrNull(), "removal must not cause the finder to start another gum");
+		assertEquals(1, oldOutput.events().size());
+		var output = new ListLogOutput();
+		try (var second = gum(output)) {
+			assertEquals(1, output.events().size());
+			during.log(System.Logger.Level.INFO, "after");
+			finder.getLogger("after.removal", module).log(System.Logger.Level.INFO, "new name");
+			assertEquals(3, output.events().size());
 			assertEquals(1, oldOutput.events().size());
-			var output = new ListLogOutput();
-			try (var second = gum(output)) {
-				assertEquals(1, output.events().size());
-				during.log(System.Logger.Level.INFO, "after");
-				finder.getLogger("after.clear", module).log(System.Logger.Level.INFO, "new name");
-				assertEquals(3, output.events().size());
-				assertEquals(1, oldOutput.events().size());
-			}
 		}
 	}
 

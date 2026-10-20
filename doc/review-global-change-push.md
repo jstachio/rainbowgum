@@ -80,8 +80,8 @@ This behavior is now documented on `onGlobalChange`.
 
 ## Remaining design decisions
 
-The removal-event question below is addressed by the separate
-[`feature/global-clear-push` follow-up](global-state-change.md). This review
+The removal-event question below is addressed by
+[the follow-up](global-state-change.md). This review
 records the original branch and its first round of fixes.
 
 - Closing, unsetting, or registering a replacement supplier does not send a

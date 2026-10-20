@@ -69,80 +69,86 @@ class GlobalRainbowGumTest {
 		}
 	}
 
-	enum Clear {
+	enum Removal {
 
-		CLOSE, UNSET, SUPPLIER;
+		CLOSE, UNSET, FAILING_SUPPLIER;
 
 	}
 
+	/*
+	 * Each gum is closed by its try block rather than an explicit close(), which crashes
+	 * the Checker Framework (see doc/checker-framework-bugs.md). Closing a gum that is no
+	 * longer bound changes nothing.
+	 */
 	@ParameterizedTest
-	@EnumSource(Clear.class)
-	void clearDropsTheGumAndRestoresSystemFormatting(Clear clear) {
+	@EnumSource(Removal.class)
+	void removalDropsTheGumAndRestoresSystemFormatting(Removal removal) {
 		String key = "logging.messageFormat.apply";
 		String previous = System.setProperty(key, "index");
 		try {
 			var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 					logging.messageFormat.apply=arguments
 					""").build()).build();
+			GlobalRainbowGum global;
 			try (var first = RainbowGum.builder(config)
 				.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
 				.set()) {
-				var global = GlobalRainbowGum.of();
+				global = GlobalRainbowGum.of();
 				assertEquals("Its done", format(global));
-				switch (clear) {
-					case CLOSE -> first.close();
+				switch (removal) {
+					case CLOSE -> {
+					}
 					case UNSET -> RainbowGum.builder(LogConfig.builder().build()).unset();
-					case SUPPLIER -> RainbowGum.set(() -> {
+					case FAILING_SUPPLIER -> RainbowGum.set(() -> {
 						throw new IllegalStateException("not started");
 					});
 				}
-				assertNull(global.gum());
-				assertEquals("It's done", format(global));
-				var next = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-						logging.messageFormat.apply=arguments
-						""").build()).build();
-				try (var second = RainbowGum.builder(next)
-					.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
-					.set()) {
-					assertSame(second, requireGum(global.gum()));
-					assertEquals("Its done", format(global));
-				}
+			}
+			assertNull(global.gum());
+			assertEquals("It's done", format(global));
+			var next = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+					logging.messageFormat.apply=arguments
+					""").build()).build();
+			try (var second = RainbowGum.builder(next)
+				.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
+				.set()) {
+				assertSame(second, requireGum(global.gum()));
+				assertEquals("Its done", format(global));
 			}
 		}
 		finally {
-			if (previous == null) {
-				System.getProperties().remove(key);
-			}
-			else {
-				System.setProperty(key, previous);
-			}
+			restore(key, previous);
 		}
 	}
 
 	@Test
-	void clearDropsTheGumEvenWhenSystemFormattingIsInvalid() {
+	void removalDropsTheGumEvenWhenSystemFormattingIsInvalid() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.messageFormat.apply=index
 				""").build()).build();
-		try (var gum = RainbowGum.builder(config)
-			.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
-			.set()) {
-			var global = GlobalRainbowGum.of();
-			String key = "logging.messageFormat.apply";
-			String previous = System.setProperty(key, "invalid");
-			try {
-				gum.close();
-				assertNull(global.gum());
-				assertEquals("Its done", format(global));
+		String key = "logging.messageFormat.apply";
+		String previous = System.setProperty(key, "invalid");
+		try {
+			GlobalRainbowGum global;
+			try (var gum = RainbowGum.builder(config)
+				.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
+				.set()) {
+				global = GlobalRainbowGum.of();
 			}
-			finally {
-				if (previous == null) {
-					System.getProperties().remove(key);
-				}
-				else {
-					System.setProperty(key, previous);
-				}
-			}
+			assertNull(global.gum());
+			assertEquals("Its done", format(global));
+		}
+		finally {
+			restore(key, previous);
+		}
+	}
+
+	private static void restore(String key, @Nullable String previous) {
+		if (previous == null) {
+			System.getProperties().remove(key);
+		}
+		else {
+			System.setProperty(key, previous);
 		}
 	}
 

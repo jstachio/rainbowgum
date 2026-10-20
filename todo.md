@@ -243,14 +243,17 @@ unifying.
       route on `explore/static-configuration-report`.
 - [ ] **Facades and the global change push**: the System.Logger finder, JBoss Logging
       provider and JUL LogManager now follow the bound gum through
-      `RainbowGum.onGlobalStateChange` (`GlobalRainbowGum`, one copy per module) instead of
+      `RainbowGum.onGlobalChange` (`GlobalRainbowGum`, one copy per module) instead of
       calling `RainbowGum.getOrNull()` when they create a logger,
       so loggers created before Rainbow Gum starts pick up `logging.messageFormat.*`.
       Left to decide:
-  - [x] Binding and clear events share the ordered publisher through
-        `onGlobalStateChange(Consumer<Optional<RainbowGum>>)`. Facade holders and the
-        SLF4J factory release their current gum on clear. The original `onGlobalChange`
-        remains binding-only for compatibility. See [the design](doc/global-state-change.md).
+  - [x] `onGlobalChange(Consumer<@Nullable RainbowGum>)` publishes removal as `null`
+        through the same ordered queue as bindings. Facade holders, the System.Logger
+        finder and the SLF4J factory drop their gum on removal. See
+        [the design](doc/global-state-change.md).
+  - [ ] SLF4J loggers created on a gum's own router before it was removed still do not
+        follow the next gum: a `LevelLogger` keeps its route and a `ReplaceableLogger`
+        listens to that router's change publisher, which the next binding does not use.
   - [ ] Whether `GlobalRainbowGum` should move to core as public API instead of three
         copies.
   - [ ] Events queued before startup keep the formatter they were created with.
