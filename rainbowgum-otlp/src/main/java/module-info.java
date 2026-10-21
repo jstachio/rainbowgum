@@ -2,6 +2,15 @@
  * OpenTelemetry Protocol (OTLP) log export without the OpenTelemetry SDK or any protobuf
  * library: an OTLP/JSON lines encoder and an OTLP/HTTP output that sends either
  * protobuf or JSON.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-otlp</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
