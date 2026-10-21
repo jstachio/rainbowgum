@@ -54,14 +54,14 @@ Rainbow Gum also integrates with:
 <ul>
   <li><a href="#micronaut">Micronaut</a></li>
   <li><a href="#helidon">Helidon</a></li>
-  <li><a href="#config_properties">Avaje Config</a> ({@link io.jstach.rainbowgum.avaje/ })</li>
+  <li><a href="#config_properties">Avaje Config</a> ({@linkplain io.jstach.rainbowgum.avaje/ rainbowgum-avaje-config})</li>
 </ul>
 
 <h3 id="simple_testing">Using rainbowgum-simple</h3>
 
 For tests, low depependency applications, or when you prefer the traditional method of letting
 the logging system handle loading its own configuration, add
-<code>rainbowgum-simple</code> and logging works without configuration. Add
+<a href="#simple_bundle">rainbowgum-simple</a> and logging works without configuration. Add
 <code>logging.properties</code> to
 <code>src/test/resources</code> (or <code>src/main/resources</code> for an application)
 when you need to customize it. See <a href="#simple_integration">Simple logging and properties</a>
@@ -75,8 +75,8 @@ between all your projects so that logging initialization and configuration is
 consistent.
 
 Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
-Java directly and the {@link java.util.ServiceLoader} is below. It needs <code>rainbowgum-core</code> and
-<code>rainbowgum-pattern</code> at compile scope (see <a href="#installation">Installation</a>).
+Java directly and the {@link java.util.ServiceLoader} is below. It needs {@linkplain io.jstach.rainbowgum/ rainbowgum-core} and
+{@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} at compile scope (see <a href="#installation">Installation</a>).
 
 {@snippet class="snippets.GettingStartedExample" region="gettingStarted" }
 
@@ -92,7 +92,7 @@ the rest of your applications
 <h3 id="simple_example">Using System properties</h3>
 
 Assuming we have <a href="#installation">installed RainbowGum as a dependency</a> a simple configuration example using
-System Properties is below. The <code>pattern</code> encoder needs <code>rainbowgum-pattern</code> as well (see
+System Properties is below. The <code>pattern</code> encoder needs {@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} as well (see
 <a href="#installation">Installation</a>); without it, leave out the two <code>encoder</code> lines to get the
 default <a href="#ttll">TTLL</a> format.
 
@@ -143,7 +143,7 @@ The project follows <a href="https://semver.org/">semantic versioning</a>.
 
 <ol>
   <li><a href="https://docs.oracle.com/en/java/javase/21/">Java 21 or greater</a></li>
-  <li>Only when <a href="#plugin_guide">developing extensions</a> that use <code>rainbowgum-apt</code>: a build
+  <li>Only when <a href="#plugin_guide">developing extensions</a> that use <a href="#plugin_guide">rainbowgum-apt</a>: a build
     system that supports running the Java compiler annotation processor, and
     <a href="https://jspecify.dev/"><code>org.jspecify:jspecify</code></a> at compile time, since the generated
     builders use its nullness annotations</li>
@@ -299,10 +299,10 @@ it to be turned off, intercepted or blocked.
 The current optional properties modules are:
 </p>
 <ul>
-  <li><a href="#simple_props">rainbowgum-simple-props</a> ({@link io.jstach.rainbowgum.simple.props/ }):
+  <li>{@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props} (<a href="#simple_props">configuration</a>):
     loads <code>logging.properties</code> files with profiles and a level file, without any third party
     dependency.</li>
-  <li><code>rainbowgum-avaje-config</code> ({@link io.jstach.rainbowgum.avaje/ }): uses
+  <li>{@linkplain io.jstach.rainbowgum.avaje/ rainbowgum-avaje-config}: uses
     <a href="https://avaje.io/config/">Avaje Config</a> as the properties provider.</li>
 </ul>
 
@@ -384,20 +384,31 @@ logging.appender.myapp.output.uri=rolling:///var/log/app.log
 logging.appender.myapp.output.rolling.maxFileSize=10MB
 }
 
-<strong>
-  Precedence: the plain, separately named property is tried first and the URI query parameter is only
-  consulted as a fallback when it is missing. If both
-  <code>logging.appender.example.encoder.gelf.prettyPrint</code> and a <code>?prettyPrint=</code> query parameter on the
-  encoder URI are set, the plain property wins and the URI's value is ignored. This lets a URI act as a
-  terse, single-line default that a separately set property can still override without editing the URI
-  itself. This is not configurable: every {@link io.jstach.rainbowgum.LogBuilder} resolves its properties
-  this way via {@link io.jstach.rainbowgum.LogProperties#of(java.net.URI, String, io.jstach.rainbowgum.LogProperties)}.
-</strong>
+</p>
 
-URIs play an important part for component provision as the  {@link java.net.URI#getScheme() URI scheme}
-is used for plugin lookup as well as single line configuration. This follows
-<a href="https://12factor.net/">12 factor</a> recommendation of resources and configuration.
+<h4 id="config_uri_precedence">URI property precedence</h4>
 
+<p>
+Separately named properties take precedence over URI query parameters. A query parameter is consulted
+only when the corresponding property is missing.
+</p>
+
+<p>
+For example, if both <code>logging.appender.example.encoder.gelf.prettyPrint</code> and a
+<code>?prettyPrint=</code> query parameter on the encoder URI are set, the separately named property
+wins and the URI's value is ignored.
+</p>
+
+<p>
+This lets a URI provide single-line defaults that you can override with separate properties without
+editing the URI itself. This precedence is fixed: every {@link io.jstach.rainbowgum.LogBuilder} uses
+this lookup order via {@link io.jstach.rainbowgum.LogProperties#of(java.net.URI, String, io.jstach.rainbowgum.LogProperties)}.
+</p>
+
+<p>
+The {@link java.net.URI#getScheme() URI scheme} selects the component's plugin, while query parameters
+provide single-line configuration. This follows the <a href="https://12factor.net/">12 factor</a>
+approach to resources and configuration.
 </p>
 
 <h4 id="config_plural">Plural keys for enabling/disabling</h4>
@@ -453,7 +464,8 @@ A few things worth calling out about the above:
 
 <ul>
   <li>
-    <code>logging.appenders</code> defaults to just <code>console</code>, <strong>not</strong>
+    <code>{@value io.jstach.rainbowgum.LogProperties#APPENDERS_PROPERTY}</code>
+    defaults to just <code>console</code>, <strong>not</strong>
     <code>console,file</code>. A file appender is only ever added automatically, and only when
     {@value io.jstach.rainbowgum.LogProperties#FILE_PROPERTY} (<code>logging.file.name</code>)
     is itself set, in which case the implicit default becomes
@@ -462,7 +474,8 @@ A few things worth calling out about the above:
     disables this auto-add behavior entirely since an explicit value always wins.
   </li>
   <li>
-    <code>stdout</code> and <code>ttll</code> above are {@link java.net.URI} schemes (see
+    <code>{@value io.jstach.rainbowgum.LogOutput#STDOUT_SCHEME}</code>
+    and <code>{@value io.jstach.rainbowgum.format.TTLL#SCHEMA}</code> above are {@link java.net.URI} schemes (see
     the plain properties example earlier in this section) resolved through the same
     {@link io.jstach.rainbowgum.LogOutputRegistry}/{@link io.jstach.rainbowgum.LogEncoderRegistry}
     lookup any explicit <code>output</code>/<code>encoder</code> value goes through -
@@ -783,6 +796,32 @@ Appenders. Publishers come in two types:
 An appender should only
 belong to one publisher. In other logging frameworks like Logback and Reload4J this responsibility is handled
 by an Appender but Rainbow Gum separates this responsibility out.
+
+<p>
+Since publishers are where Rainbow Gum's threading concerns live, this is worth mentioning here: setting
+{@value io.jstach.rainbowgum.LogProperties#GLOBAL_THREAD_LOCAL_PROPERTY} to <code>forbid</code> is a
+guarantee of no {@link java.lang.ThreadLocal} anywhere in the logging path: it forces every
+appender off {@link java.lang.ThreadLocal}-backed buffer strategies and, if the SLF4J module is in use,
+disables MDC too, which is the same effect as combining the appender and MDC options above individually.
+</p>
+
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
+<p>If you want some appenders to be async and others sync you just create multiple routes.</p>
+</div>
+
+<h3 id="publisher_batch_swap">Batch swap</h3>
+
+<p>
+The default async implementation is {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher}.
+Producers fill a bounded buffer while a single worker writes the previous batch to its appenders.
+Producers block by default when the pending buffer is full. Each buffer holds up to {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#bufferSize(java.lang.Integer) bufferSize}
+events (1024 by default), so up to two batches may be retained, plus events held by blocked callers.
+The {@link io.jstach.rainbowgum.LogMetrics#EVENTS_QUEUED_METRIC events.queued} metric counts pending events, excluding the batch being written.
+</p>
+
+<h4 id="publisher_batch_swap_configuration">Configuration</h4>
+
 <p>
 An example configuring a route named "example" to use the default async publisher:
 </p>
@@ -794,13 +833,13 @@ logging.route.example.publisher.async.shutdownTimeout=10000
 }
 
 <p>
-Publisher settings are under the scheme written in <code>uri</code>, so the <code>async</code>
-settings above apply to whichever publisher is registered as <code>async</code>.
+Publisher settings are under the scheme written in <code>uri</code>, so the {@link io.jstach.rainbowgum.LogPublisherRegistry#ASYNC_SCHEME async}
+settings above apply to whichever publisher is registered as {@link io.jstach.rainbowgum.LogPublisherRegistry#ASYNC_SCHEME async}.
 </p>
 
 <p>
 To select batch swap explicitly, even if a plugin or future release changes the default async
-publisher, use <code>batchswap</code>. It accepts the same settings, under its own scheme, or as URI
+publisher, use {@link io.jstach.rainbowgum.LogPublisherRegistry#BATCH_SWAP_SCHEME batchswap}. It accepts the same settings, under its own scheme, or as URI
 options:
 </p>
 
@@ -812,30 +851,33 @@ logging.route.example.publisher.uri=batchswap:///?bufferSize=1024&shutdownTimeou
 }
 
 <p>
-The default async implementation is {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher}.
-Producers fill a bounded buffer while a single worker writes the previous batch to its appenders.
-Producers block by default when the pending buffer is full. Each buffer holds up to <code>bufferSize</code>
-events (1024 by default), so up to two batches may be retained, plus events held by blocked callers.
-The <code>events.queued</code> metric counts pending events, excluding the batch being written.
+For programmatic configuration, use
+{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher#builder(String)}. Its generated builder
+can load the same properties with {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#fromProperties(io.jstach.rainbowgum.LogProperties) fromProperties(properties)}; present properties
+override values already set on the builder. The {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#shutdownTimeout(java.time.Duration) shutdownTimeout} setter accepts a
+{@link java.time.Duration}, while the property is expressed in milliseconds.
 </p>
+
+<h4 id="publisher_batch_swap_overload">Overload handling</h4>
+
 <p>
 Overload handling is explicit. The defaults retain blocking behavior without early discarding:
 </p>
 <ul>
-<li><code>overflow=block</code> waits for space when full. <code>overflow=drop</code> discards the
+<li>{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#overflow(io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher.Overflow) overflow=block} waits for space when full. {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#overflow(io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher.Overflow) overflow=drop} discards the
 incoming event at any level when full. It avoids waiting for capacity, but still acquires a short
 publisher lock and may invoke an alert listener.</li>
-<li><code>discardThreshold</code> reserves pending slots for higher-priority events. Zero (the default)
-disables early discarding. Otherwise, events at or below <code>discardLevel</code> are discarded when
+<li>{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#discardThreshold(java.lang.Integer) discardThreshold} reserves pending slots for higher-priority events. Zero (the default)
+disables early discarding. Otherwise, events at or below {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#discardLevel(java.lang.System.Logger.Level) discardLevel} are discarded when
 remaining slots are at or below the threshold. The threshold must be less than
-<code>bufferSize</code>, and excludes the batch currently being written.</li>
-<li><code>discardLevel=info</code> is the default cutoff for early discarding. For example,
+{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#bufferSize(java.lang.Integer) bufferSize}, and excludes the batch currently being written.</li>
+<li>{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#discardLevel(java.lang.System.Logger.Level) discardLevel=info} is the default cutoff for early discarding. For example,
 <code>debug</code> retains INFO events too. <code>off</code> disables early discarding.</li>
 </ul>
 <p>
 For example, reserve 128 of 1024 slots for warnings and errors, blocking those events if the buffer
-fills (<code>discardLevel=info</code> and <code>overflow=block</code> are the defaults, shown for
-clarity). Use <code>overflow=drop</code> if even warnings and errors should be discarded instead of
+fills ({@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#discardLevel(java.lang.System.Logger.Level) discardLevel=info} and {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#overflow(io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher.Overflow) overflow=block} are the defaults, shown for
+clarity). Use {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#overflow(io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher.Overflow) overflow=drop} if even warnings and errors should be discarded instead of
 waiting:
 </p>
 
@@ -849,50 +891,40 @@ logging.route.example.publisher.async.overflow=block
 
 <p>
 The same options are available under <code>publisher.batchswap</code> when selecting
-<code>batchswap</code>, or as URI query parameters. Accepted events are never evicted, and output
+{@link io.jstach.rainbowgum.LogPublisherRegistry#BATCH_SWAP_SCHEME batchswap}, or as URI query parameters. Accepted events are never evicted, and output
 always runs on the worker. Discarding is never silent: every event discarded by these options
-increments the <code>events.discarded</code> <a href="#metrics">metric</a>, and the first discard for
+increments the {@link io.jstach.rainbowgum.LogMetrics#EVENTS_DISCARDED_METRIC events.discarded} <a href="#metrics">metric</a>, and the first discard for
 each option produces a warning <a href="#alerts">alert</a>. Later discards are only counted. Events
-lost for other reasons, such as a failed worker, count as <code>events.dropped</code> with an error
+lost for other reasons, such as a failed worker, count as {@link io.jstach.rainbowgum.LogMetrics#EVENTS_DROPPED_METRIC events.dropped} with an error
 alert instead.
 </p>
-<p>
-For programmatic configuration, use
-{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher#builder(String)}. Its generated builder
-can load the same properties with <code>fromProperties(properties)</code>; present properties
-override values already set on the builder. The <code>shutdownTimeout</code> setter accepts a
-<code>Duration</code>, while the property is expressed in milliseconds.
-</p>
+
+<h4 id="publisher_batch_swap_shutdown">Shutdown</h4>
+
 <p>
 On close, the publisher drains queued events and calls already waiting for space before closing its
 appenders. New calls are rejected once shutdown begins. Close waits up to
-<code>shutdownTimeout</code> milliseconds (10 seconds by default). If delivery takes longer,
+{@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#shutdownTimeout(java.time.Duration) shutdownTimeout} milliseconds (10 seconds by default). If delivery takes longer,
 close returns with an <a href="#alerts">alert</a>; the worker continues draining and closes the
 appenders afterward. The worker is never interrupted during shutdown. The worker only drains while the
-JVM is running, so events still queued when the JVM exits are lost: <code>shutdownTimeout</code> is how
+JVM is running, so events still queued when the JVM exits are lost: {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#shutdownTimeout(java.time.Duration) shutdownTimeout} is how
 long close waits for them.
 </p>
 <p>
-Rejected events increment <code>events.dropped</code>, with one error alert per rejection reason
+Rejected events increment {@link io.jstach.rainbowgum.LogMetrics#EVENTS_DROPPED_METRIC events.dropped}, with one error alert per rejection reason
 for each publisher. This covers logging before start, after shutdown begins, recursively from the
 worker, or after worker failure. A producer interrupted while waiting for space also drops its event
 and retains its interrupt flag. An interrupted caller can still enqueue when space is available.
 </p>
-<div class="callout callout-note" role="note">
-<p class="callout-title">Note</p>
-<p>If you want some appenders to be async and others sync you just create multiple routes.</p>
-</div>
 
-Rainbow Gum has an experimental async publisher that uses the LMAX Disruptor ringbuffer: {@link io.jstach.rainbowgum.disruptor/ }.
-If the jar is found on start it will replace the default async publisher, and it can also be selected
-explicitly as <code>disruptor</code>. Its only setting is <code>bufferSize</code>, which must be a power of
-two; it has no <code>shutdownTimeout</code>.
+<h3 id="publisher_disruptor">Disruptor</h3>
+
 <p>
-Since publishers are where Rainbow Gum's threading concerns live, this is worth mentioning here: setting
-{@value io.jstach.rainbowgum.LogProperties#GLOBAL_THREAD_LOCAL_PROPERTY} to <code>forbid</code> is a
-guarantee of no {@link java.lang.ThreadLocal} anywhere in the logging path: it forces every
-appender off {@link java.lang.ThreadLocal}-backed buffer strategies and, if the SLF4J module is in use,
-disables MDC too, which is the same effect as combining the appender and MDC options above individually.
+Rainbow Gum has an experimental async publisher that uses the LMAX Disruptor ringbuffer: {@linkplain io.jstach.rainbowgum.disruptor/ rainbowgum-disruptor}.
+If the jar is found on start it will replace the default async publisher, and it can also be selected
+explicitly as {@link io.jstach.rainbowgum.disruptor.DisruptorConfigurator#DISRUPTOR_SCHEME disruptor}. Its only setting is {@link io.jstach.rainbowgum.disruptor.DisruptorLogBuilder#bufferSize(java.lang.Integer) bufferSize}, which must be a power of
+two; it has no {@link io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisherBuilder#shutdownTimeout(java.time.Duration) shutdownTimeout}.
+</p>
 
 <h2 id="appenders">Appenders</h2>
 
@@ -971,7 +1003,7 @@ Encoders encode an event into binary. Because most encoding is text based Rainbo
 {@link io.jstach.rainbowgum.LogFormatter} which can be turned into an Encoder and is covered 
 in the next section. However there are scenarios where generating bytes directly is desirable.
 <p>
-  Rainbow Gum JSON encoder module {@link io.jstach.rainbowgum.json/ } has efficient JSON encoders.
+  Rainbow Gum JSON encoder module {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json} has efficient JSON encoders.
   <em>
     They are encoders instead of formatters (which are covered next) because writting JSON as bytes is more efficient.
   </em>
@@ -997,7 +1029,7 @@ and a <a href="#json_encoders">JSON encoder</a> for production switched out base
 
 <h3 id="json_encoders">JSON Encoders</h3>
 
-Rainbow Gum provides several JSON encoders in the {@link io.jstach.rainbowgum.json/ rainbowgum-json} module. Unless <code>prettyPrint</code> is enabled the JSON encoders
+Rainbow Gum provides several JSON encoders in the {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json} module. Unless <code>prettyPrint</code> is enabled the JSON encoders
 included follow the <a href="https://jsonlines.org/">JSON Lines</a> standard as well as of course the JSON standard 
 <a href="https://datatracker.ietf.org/doc/html/rfc8259">RFC-8259</a>. However note that there is no standard on time format in JSON so the formatting of log event
 time can vary from JSON encoders depending on the formats specification. The module also can be used to create ones own custom JSON encoders.
@@ -1218,9 +1250,11 @@ The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logg
 <code>null</code> for a key value without one. Properties of the encoder:
 
 <ul>
-<li><code>format</code>: <code>json5</code> (default), which leaves identifier keys unquoted, or <code>json</code>
+<li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#format(io.jstach.rainbowgum.format.KeyValuesFormatterBuilder.Format)
+format}: <code>json5</code> (default), which leaves identifier keys unquoted, or <code>json</code>
 (<code>{"time":"...","level":"INFO",...}</code>).</li>
-<li><code>keyValues</code>: <code>merged</code> (default) writes key values alongside the event's fields, the way
+<li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#keyValues(io.jstach.rainbowgum.format.KeyValuesPlacement)
+keyValues}: <code>merged</code> (default) writes key values alongside the event's fields, the way
 logfmt and most aggregators expect, and places any key value named like one of those fields in a nested
 <code>keyValues</code> object instead, so nothing is dropped, renamed, or written twice; <code>nested</code> always
 writes them in the <code>keyValues</code> object (<code>{}</code> when there are none); <code>none</code> leaves them
@@ -1229,7 +1263,7 @@ out.</li>
 prettyPrint}: <code>level_padding</code> (default) pads after the level's closing quote so the fields after it line
 up and the value stays the level name: <code>level:"INFO" ,logger:...</code>; <code>spacing</code> also adds a space
 after every comma: <code>level:"INFO" , logger:"com.example.App", thread:...</code>; <code>full</code> (or <code>true</code>) puts each
-field on its own line, indented one space like the <code>rainbowgum-json</code> encoders' pretty print, so an event
+field on its own line, indented one space like the {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json} encoders' pretty print, so an event
 is no longer one line; <code>off</code> adds no whitespace.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#color(io.jstach.rainbowgum.format.TTLL.ColorMode) color}
 and {@link io.jstach.rainbowgum.format.Json5FormatterBuilder#theme(io.jstach.rainbowgum.format.TTLL.ColorTheme) theme}:
@@ -1240,7 +1274,7 @@ Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are neve
 <code>prettyPrint</code>, <code>color</code>, and <code>theme</code> only apply to JSON5. With
 <code>format=json</code> they are ignored, so the output stays plain JSON.
 
-This encoder is a convenience, not a replacement for {@link io.jstach.rainbowgum.json/}: it has one fixed set of
+This encoder is a convenience, not a replacement for {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json}: it has one fixed set of
 fields, no multi-line pretty printing, and no particular schema. For production structured logging, especially into a system
 that expects ECS, GELF, or Logstash fields, use that module's encoders instead. See
 {@link io.jstach.rainbowgum.format.Json5FormatterBuilder}.
@@ -1373,7 +1407,7 @@ With the above, <code>%property{app}</code> anywhere in a pattern outputs <code>
 Like Logback you can add your own pattern keywords, and {@link io.jstach.rainbowgum.pattern.format.PatternConfig}
 can instead be set programmatically as a single default shared by every encoder that has no more specific
 property configuration. Both (with full code examples) are covered in the
-{@link io.jstach.rainbowgum.pattern/ } module javadoc.
+{@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} module javadoc.
 
 <h4 id="pattern_exception">Automatic Exception Rendering</h4>
 
@@ -1495,7 +1529,8 @@ Here are some of the supported outputs (not a complete listing):
 
 <h3 id="console">Console</h3>
 
-<code>stdout</code> and <code>stderr</code> are the default outputs, require no additional
+<code>{@value io.jstach.rainbowgum.LogOutput#STDOUT_SCHEME}</code> and
+<code>{@value io.jstach.rainbowgum.LogOutput#STDERR_SCHEME}</code> are the default outputs, require no additional
 module, and need no further configuration beyond the URI scheme itself:
 
 {@snippet lang=properties :
@@ -1509,11 +1544,13 @@ logging.appender.myapp.output.uri=stderr
 }
 
 <p>
-By default the console outputs use whatever <code>System.out</code> or
-<code>System.err</code> is when the output is created, so rebinding it later with
-<code>System.setOut</code> is not seen. To read the stream on every write instead (for
+With {@link io.jstach.rainbowgum.output.ConsoleStream#CACHED cached} (the default), console outputs use whatever
+{@link java.lang.System#out System.out} or {@link java.lang.System#err System.err} is when the output is
+created, so rebinding it later with {@link java.lang.System#setOut(java.io.PrintStream) System.setOut} is not seen.
+To read the stream on every write instead (for
 example so a test that captures standard out also captures log output), set the
-<code>stream</code> parameter to <code>follow</code> in the URI or as an output property:
+{@link io.jstach.rainbowgum.output.StdOutOutputBuilder#stream(io.jstach.rainbowgum.output.ConsoleStream) stream}
+parameter to {@link io.jstach.rainbowgum.output.ConsoleStream#FOLLOW follow} in the URI or as an output property:
 </p>
 
 {@snippet lang=properties :
@@ -1524,7 +1561,7 @@ logging.appender.myapp.output.stdout.stream=follow
 }
 
 <p>
-Do not use <code>follow</code> if something redirects standard out into logging, since
+Do not use {@link io.jstach.rainbowgum.output.ConsoleStream#FOLLOW follow} if something redirects standard out into logging, since
 the output would then log to itself. Programmatically, use
 {@link io.jstach.rainbowgum.output.StdOutOutputBuilder} or
 {@link io.jstach.rainbowgum.output.StdErrOutputBuilder} with
@@ -1533,8 +1570,8 @@ the output would then log to itself. Programmatically, use
 
 <h3 id="file">File Output</h3>
 
-The <code>rainbowgum-file</code> module (not included by default;
-<code>rainbowgum-core</code> on its own has no file I/O capability at all) provides
+The {@linkplain io.jstach.rainbowgum.file/ rainbowgum-file} module (not included by default;
+{@linkplain io.jstach.rainbowgum/ rainbowgum-core} on its own has no file I/O capability at all) provides
 plain, non-rolling file output under the "file" URI scheme,
 {@link io.jstach.rainbowgum.file.FileOutputBuilder}:
 
@@ -1642,7 +1679,7 @@ Rainbow Gum's own internal alerts - filter on <code>io.jstach.rainbowgum.Alert*<
 
 <h4 id="rolling_builtin">Built-in Rolling</h4>
 
-The same <code>rainbowgum-file</code> module additionally provides a deliberately basic,
+The same {@linkplain io.jstach.rainbowgum.file/ rainbowgum-file} module additionally provides a deliberately basic,
 size based rolling file output under the "rolling" URI scheme,
 {@link io.jstach.rainbowgum.rolling.RollingFileOutput}:
 
@@ -1677,7 +1714,7 @@ writing the same file. If you need any of that, use the external-tool approach
 below instead (typically
 <a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a>).
 It remains the recommended approach for anything beyond preventing a disk from
-filling up, and does not depend on the <code>rainbowgum-file</code> module at all.
+filling up, and does not depend on the {@linkplain io.jstach.rainbowgum.file/ rainbowgum-file} module at all.
 
 <h4 id="rolling_external">External Tool Support (logrotate)</h4>
 
@@ -1737,10 +1774,10 @@ We might have a logrotate script that looks like:
 
 <h3 id="otlp">OpenTelemetry</h3>
 
-The optional {@link io.jstach.rainbowgum.opentelemetry/} module (<code>rainbowgum-opentelemetry</code>)
+The optional {@linkplain io.jstach.rainbowgum.opentelemetry/ rainbowgum-opentelemetry} module
 adds the current OpenTelemetry span's <code>traceId</code> and <code>spanId</code> to log events through a
 {@link io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor key values contributor}.
-It works with any output or encoder and can be used independently of <code>rainbowgum-otlp</code>.
+It works with any output or encoder and can be used independently of {@linkplain io.jstach.rainbowgum.otlp/ rainbowgum-otlp}.
 
 {@snippet lang=xml :
 <dependency>
@@ -1758,9 +1795,9 @@ an agent is not required. If there is no valid current span, the contributor add
 
 <h4 id="otlp_output">OTLP/HTTP Output</h4>
 
-The optional {@link io.jstach.rainbowgum.otlp/} module (<code>rainbowgum-otlp</code>) exports logs in the
+The optional {@linkplain io.jstach.rainbowgum.otlp/ rainbowgum-otlp} module exports logs in the
 OpenTelemetry Protocol without the OpenTelemetry SDK or any protobuf library. Its only dependencies are
-Rainbow Gum itself (core and <code>rainbowgum-json</code>) and the JDK's own HTTP client.
+Rainbow Gum itself (core and {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json}) and the JDK's own HTTP client.
 
 {@link io.jstach.rainbowgum.otlp.OtlpOutput} posts batches to an OTLP/HTTP endpoint (<code>/v1/logs</code>) as
 protobuf (the OTLP default) or JSON. Pair it with the asynchronous publisher so a log call never waits on the
@@ -2131,9 +2168,9 @@ override to restate it.
 </p>
 
 <p>
-<strong>A property value that is itself a URI can carry its own query parameters, as an
-alternative to separate <code>logging.&#8203;appender.&lt;name&gt;.output.&lt;scheme&gt;.&lt;param&gt;</code>
-properties.</strong> <code>logging.appender.errorfile.output.uri</code> above is set to
+<strong>A property value that is itself a URI can carry its own query parameters</strong>, as an
+alternative to separate <code>logging.appender.{name}.output.{scheme}.{param}</code>
+properties. <code>logging.appender.errorfile.output.uri</code> above is set to
 <code>./logs/orders-error.log?bufferSize=10000</code> rather than a bare path: the part before
 <code>?</code> is still resolved as the file path exactly as with a bare path, and everything
 after <code>?</code> is parsed the same way a query string would be and made available as
@@ -2154,17 +2191,17 @@ The same configuration (minus the JSON encoder, see the note below) using builde
 Notice the <code>structured</code> route above uses a plain text pattern encoder instead of the
 JSON module's <code>gelf</code> encoder used in the properties version. A URI scheme based encoder
 like <code>gelf</code> is resolved through the service loader at runtime, which is precisely why it
-is comfortable to reference from properties without the aggregate <code>rainbowgum</code> module
+is comfortable to reference from properties without the aggregate {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum} module
 needing to <code>requires</code> the JSON module at compile time. Referencing
 {@link io.jstach.rainbowgum.json.encoder.GelfEncoder} directly from a builder the way the rest of
-this example is written would require adding <code>rainbowgum-json</code> as an explicit compile
+this example is written would require adding {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json} as an explicit compile
 dependency of whatever module the builder code lives in, illustrating a real trade-off between
 the two configuration styles rather than only a stylistic one.
 </p>
 
 <h2 id="installation">Installation</h2>
 
-For most simply including the dependency <code>io.jstach.rainbowgum:rainbowgum</code>
+For most simply including the dependency {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum}
 is enough. That dependency transitively pulls in core, the SLF4J binding, and the
 {@link java.lang.System.Logger} and <code>java.util.logging</code> integrations. Core provides the
 <code>stdout</code> and <code>stderr</code> outputs and the <code>ttll</code>, <code>logfmt</code> and
@@ -2173,19 +2210,19 @@ is enough. That dependency transitively pulls in core, the SLF4J binding, and th
 <table class="table">
 <caption><strong>Modules for URI schemes not in core</strong></caption>
 <tr><th>Scheme</th><th>Kind</th><th>Module</th></tr>
-<tr><td>{@link io.jstach.rainbowgum.pattern/ pattern}</td><td>encoder</td><td><code>rainbowgum-pattern</code></td></tr>
-<tr><td>{@link io.jstach.rainbowgum.json/ gelf}, {@link io.jstach.rainbowgum.json/ ecs}, {@link io.jstach.rainbowgum.json/ logstash}, {@link io.jstach.rainbowgum.json/ logback}</td><td>encoder</td><td><code>rainbowgum-json</code></td></tr>
-<tr><td>{@link io.jstach.rainbowgum.file/ file}, {@link io.jstach.rainbowgum.file/ rolling}</td><td>output</td><td><code>rainbowgum-file</code></td></tr>
-<tr><td>{@link io.jstach.rainbowgum.jfr/ jfr}</td><td>output</td><td><code>rainbowgum-jfr</code></td></tr>
-<tr><td>{@link io.jstach.rainbowgum.otlp/ otlp}</td><td>output and encoder</td><td><code>rainbowgum-otlp</code></td></tr>
-<tr><td>{@link io.jstach.rainbowgum.disruptor/ disruptor}</td><td>publisher</td><td><code>rainbowgum-disruptor</code></td></tr>
+<tr><td>{@link io.jstach.rainbowgum.pattern/ pattern}</td><td>encoder</td><td>{@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern}</td></tr>
+<tr><td>{@link io.jstach.rainbowgum.json/ gelf}, {@link io.jstach.rainbowgum.json/ ecs}, {@link io.jstach.rainbowgum.json/ logstash}, {@link io.jstach.rainbowgum.json/ logback}</td><td>encoder</td><td>{@linkplain io.jstach.rainbowgum.json/ rainbowgum-json}</td></tr>
+<tr><td>{@link io.jstach.rainbowgum.file/ file}, {@link io.jstach.rainbowgum.file/ rolling}</td><td>output</td><td>{@linkplain io.jstach.rainbowgum.file/ rainbowgum-file}</td></tr>
+<tr><td>{@link io.jstach.rainbowgum.jfr/ jfr}</td><td>output</td><td>{@linkplain io.jstach.rainbowgum.jfr/ rainbowgum-jfr}</td></tr>
+<tr><td>{@link io.jstach.rainbowgum.otlp/ otlp}</td><td>output and encoder</td><td>{@linkplain io.jstach.rainbowgum.otlp/ rainbowgum-otlp}</td></tr>
+<tr><td>{@link io.jstach.rainbowgum.disruptor/ disruptor}</td><td>publisher</td><td>{@linkplain io.jstach.rainbowgum.disruptor/ rainbowgum-disruptor}</td></tr>
 </table>
 
 Application code that uses the SLF4J API also needs <code>org.slf4j:slf4j-api</code> at compile scope,
-since <code>rainbowgum</code> is normally a runtime dependency.
+since {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum} is normally a runtime dependency.
 For a more minimal setup (total application size in terms of classes)
-<code>{@linkplain io.jstach.rainbowgum/ io.jstach.rainbowgum:rainbowgum-core}</code>
-and <code>{@linkplain io.jstach.rainbowgum.slf4j/ io.jstach.rainbowgum:rainbowgum-slf4j}</code>
+{@linkplain io.jstach.rainbowgum/ rainbowgum-core}
+and {@linkplain io.jstach.rainbowgum.slf4j/ rainbowgum-slf4j}
 (if using SLF4J)
 should be used.
 
@@ -2220,7 +2257,7 @@ transitive dependency, or the two will conflict on the SLF4J provider slot. See 
 
 If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
 service loader registration. In that case you will want the dependency below, plus any module whose classes
-your configuration code uses (for example <code>rainbowgum-pattern</code> for
+your configuration code uses (for example {@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} for
 {@code PatternEncoderBuilder}) at compile scope:
 
 {@snippet lang=xml :
@@ -2261,7 +2298,7 @@ dependencies {
 
 If you plan on configuring Rainbow Gum programmatically you will need to make a module and create a
 service loader registration. In that case you will want the dependency below, plus any module whose classes
-your configuration code uses (for example <code>rainbowgum-pattern</code> for
+your configuration code uses (for example {@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} for
 {@code PatternEncoderBuilder}) at compile scope:
 
 <pre><code class="language-groovy">
@@ -2282,7 +2319,7 @@ dependencies {
 
 <h3 id="slf4j">SLF4J 2.0</h3>
 
-Rainbow Gum SLF4J module {@link io.jstach.rainbowgum.slf4j/} supports:
+Rainbow Gum SLF4J module {@linkplain io.jstach.rainbowgum.slf4j/ rainbowgum-slf4j} supports:
 <ul>
 <li><a href="https://slf4j.org/manual.html#mdc">MDC</a></li>
 <li><a href="https://slf4j.org/manual.html#fluent">Fluent Logging API</a></li>
@@ -2306,7 +2343,7 @@ logger.log(Level.INFO, "user={0}", "{} {}", "unreferenced");  // user={} {} unre
 }
 <p>
 Rainbow Gum's own <a href="#system_logger"><code>System.Logger</code> integration</a> logs these as
-<code>a=X b={}</code> and <code>user={} {}</code>. It is part of the <code>rainbowgum</code> dependency, so the
+<code>a=X b={}</code> and <code>user={} {}</code>. It is part of the {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum} dependency, so the
 adapter is not needed. If both are present the JDK uses whichever <code>System.LoggerFinder</code> it finds
 first, which on the class path depends on jar order, so make sure the adapter is not a transitive dependency
 (<code>mvn dependency:tree</code>).
@@ -2434,7 +2471,7 @@ This feature is split into two modules the same way SLF4J itself is split into
 <code>slf4j-api</code> and a chosen binding:
 <ul>
 <li>
-{@link io.jstach.rainbowgum.scopedkeyvalues/} is the {@code compile}-scoped API application/library code
+{@linkplain io.jstach.rainbowgum.scopedkeyvalues/ rainbowgum-scopedkeyvalues-api} is the {@code compile}-scoped API application/library code
 depends on to call {@link io.jstach.rainbowgum.scopedkeyvalues.ScopedKeyValues}. It has no dependency
 beyond (optionally) JSpecify, does not reference {@link java.lang.ScopedValue} at all, and targets Rainbow
 Gum's usual JDK 21 baseline, so it is safe to depend on from code that has not committed to Rainbow Gum,
@@ -2446,7 +2483,7 @@ it just does not record or propagate anything, the same safe-with-nothing-bound 
 facade falls back to.
 </li>
 <li>
-{@link io.jstach.rainbowgum.scopedkeyvalues.provider/} is the {@code runtime}-scoped Rainbow Gum
+{@linkplain io.jstach.rainbowgum.scopedkeyvalues.provider/ rainbowgum-scopedkeyvalues} is the {@code runtime}-scoped Rainbow Gum
 provider, like the rest of Rainbow Gum's optional modules. Simply depending on it is enough: it supplies
 the actual {@link java.lang.ScopedValue}-backed {@code ScopedKeyValuesProvider}, and separately registers
 a {@link io.jstach.rainbowgum.LogEventFactory} in the {@link io.jstach.rainbowgum.ServiceRegistry} whose
@@ -2459,7 +2496,7 @@ applications that do not push anything.
 <strong>Requirement:</strong> {@link java.lang.ScopedValue} was finalized in JDK 25
 (<a href="https://openjdk.org/jeps/506">JEP 506</a>), higher than Rainbow Gum's usual JDK 21 baseline. Only
 the provider module targets JDK 25+; the API module does not, and is not part of the default
-{@code io.jstach.rainbowgum:rainbowgum} dependency either way. Add both, with the API module at
+{@linkplain io.jstach.rainbowgum.bundle/ rainbowgum} dependency either way. Add both, with the API module at
 {@code compile} scope, unlike the rest of Rainbow Gum, which is {@code runtime}-scoped since application
 code is not meant to compile directly against implementation classes:
 {@snippet lang=xml :
@@ -2479,7 +2516,7 @@ code is not meant to compile directly against implementation classes:
 
 <h3 id="default_key_values">Default Key Values</h3>
 
-<strong>EXPERIMENTAL</strong> {@link io.jstach.rainbowgum.keyvalues.contributor/} adds the same key values to every
+<strong>EXPERIMENTAL</strong> {@linkplain io.jstach.rainbowgum.keyvalues.contributor/ rainbowgum-keyvalues-contributor} adds the same key values to every
 event, such as a build version or an instance id, without putting them in every thread's context. Every other
 key values source (SLF4J MDC, scoped key values, ...) overrides them on a key collision. Values come from a property,
 in the order they are declared:
@@ -2512,7 +2549,7 @@ values like these usually belong in resource attributes instead, which the OTLP 
 
 <h3 id="system_logger">java.lang.System.Logger and java.util.logging</h3>
 
-Rainbow Gum {@link io.jstach.rainbowgum.jdk/} module provides special integration and adapters for the builtin JDK logging facilities.
+Rainbow Gum {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} module provides special integration and adapters for the builtin JDK logging facilities.
 The impetus for this is these logging facilities can be used early in the JDK boot processes well before
 logging has fully initialized. The default rainbow gum dependency has this integration as a transitive dependency.
 
@@ -2529,7 +2566,7 @@ and you will not be able to figure out what happened otherwise.
 The exception of the above is if {@linkplain io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumEagerLoad no other facade is detected} 
 the module will initialize Rainbow Gum. The idea is that your application only uses the JDK logging facilities 
 (the Rainbow Gum SLF4J implementation is not found in the module/classpath). Thus only having the dependencies
-<code>rainbowgum-core</code>, and <code>rainbowgum-jdk</code> will work as normal.
+{@linkplain io.jstach.rainbowgum/ rainbowgum-core}, and {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} will work as normal.
 </p>
 <p>
 <strong>java.util.logging records logged before Rainbow Gum starts are not queued.</strong> Plain
@@ -2541,11 +2578,11 @@ starts go through Rainbow Gum. To capture the early ones too, install the
 Rainbow Gum.
 </p>
 <p>
-<strong>{@code rainbowgum-jul} by itself will not initialize Rainbow Gum the way {@code rainbowgum-jdk} does.</strong> Depend on
-{@code rainbowgum-jdk} instead (which pulls {@code rainbowgum-jul} in transitively) to get the JUL
+<strong>{@linkplain io.jstach.rainbowgum.jul/ rainbowgum-jul} by itself will not initialize Rainbow Gum the way {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} does.</strong> Depend on
+{@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} instead (which pulls {@linkplain io.jstach.rainbowgum.jul/ rainbowgum-jul} in transitively) to get the JUL
 bridge activated automatically. If neither an existing {@code System.Logger}/SLF4J call site nor
-{@code rainbowgum-jdk} is an option, call {@link io.jstach.rainbowgum.RainbowGum#of()} explicitly
-before any JUL logging happens. See {@link io.jstach.rainbowgum.jul/}'s module Javadoc for why.
+{@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} is an option, call {@link io.jstach.rainbowgum.RainbowGum#of()} explicitly
+before any JUL logging happens. See {@linkplain io.jstach.rainbowgum.jul/ rainbowgum-jul}'s module Javadoc for why.
 </p>
 <div class="callout callout-warning" role="note">
 <p class="callout-title">Warning: do not use slf4j-jdk-platform-logging</p>
@@ -2554,7 +2591,7 @@ before any JUL logging happens. See {@link io.jstach.rainbowgum.jul/}'s module J
   <a href="https://www.slf4j.org/manual.html#jep264">adapter for the System.Logger (org.slf4j:slf4j-jdk-platform-logging)</a>
   routes <code>System.Logger</code> calls into the bound SLF4J provider, but it formats parameters twice and
   can throw from <code>System.Logger.log</code>; see <a href="#slf4j_platform_logging">the SLF4J section</a>.
-  {@code rainbowgum-jdk} (described above) gives the same <code>System.Logger</code> coverage plus
+  {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} (described above) gives the same <code>System.Logger</code> coverage plus
   <code>java.util.logging</code> bridging without those problems.
 </p>
 </div>
@@ -2615,11 +2652,11 @@ overhead entirely rather than routing around it.
 </p>
 <p>
 As a last resort, if some required dependency logs through JUL directly with no other
-integration seam, {@link io.jstach.rainbowgum.jul.logmanager/ } provides
+integration seam, {@linkplain io.jstach.rainbowgum.jul.logmanager/ rainbowgum-jul-logmanager} provides
 {@link io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager}, a
 {@code java.util.logging.LogManager} replacement - see its own javadoc for installation
 and GraalVM native-image notes. It is a more invasive, JVM-wide alternative to the
-default {@code rainbowgum-jul} bridge, worth reaching for only when the bridge genuinely
+default {@linkplain io.jstach.rainbowgum.jul/ rainbowgum-jul} bridge, worth reaching for only when the bridge genuinely
 cannot see a given {@code Logger} in time.
 </p>
 
@@ -2627,12 +2664,12 @@ cannot see a given {@code Logger} in time.
 
 <h4 id="simple_bundle">rainbowgum-simple</h4>
 
-<code>rainbowgum-simple</code> is a ready-to-use bundle for tests and low dependency applications.
-It pulls in <code>rainbowgum-slf4j</code> through the <code>rainbowgum</code> dependency,
+<a href="#simple_bundle">rainbowgum-simple</a> is a ready-to-use bundle for tests and low dependency applications.
+It pulls in {@linkplain io.jstach.rainbowgum.slf4j/ rainbowgum-slf4j} through the {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum} dependency,
 along with JDK logging integrations and
-<code>rainbowgum-simple-props</code>. Adding it activates logging without application
+{@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props}. Adding it activates logging without application
 code or a configuration file. It formats with the core <a href="#formatters">formatters</a>,
-<a href="#ttll">TTLL</a> by default; add <code>rainbowgum-pattern</code> for
+<a href="#ttll">TTLL</a> by default; add {@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} for
 <a href="#pattern">pattern encoders</a>. For library tests, use Maven's <code>test</code> scope:
 
 {@snippet lang=xml :
@@ -2652,9 +2689,9 @@ with <a href="#system_logger">JDK logging support</a> and the property sources d
 
 <h4 id="simple_props">rainbowgum-simple-props</h4>
 
-Add <code>rainbowgum-simple-props</code> to an existing Rainbow Gum setup when you want
+Add {@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props} to an existing Rainbow Gum setup when you want
 its property loading without the entire simple bundle. For example, alongside the
-<a href="#maven">standard <code>rainbowgum</code> dependency</a>:
+standard {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum} dependency (see <a href="#maven">Maven</a>):
 
 {@snippet lang=xml :
 <dependency>
@@ -2667,7 +2704,7 @@ its property loading without the entire simple bundle. For example, alongside th
 
 <h5 id="simple_props_loading">Loading order</h5>
 
-<strong>To opt in, having <code>rainbowgum-simple-props</code> on the classpath or module path is not enough:
+<strong>To opt in, having {@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props} on the classpath or module path is not enough:
 <code>logging.properties</code>
 must exist
 </strong> (or the base resource name chosen
@@ -2801,9 +2838,9 @@ bet on one major version staying source-compatible with the next (they usually a
 its own artifact:
 
 <ul>
-  <li>{@link io.jstach.rainbowgum.spring.boot4/ } / <code>rainbowgum-spring-boot4-starter</code>: for Spring Boot 4
+  <li>{@linkplain io.jstach.rainbowgum.spring.boot4/ rainbowgum-spring-boot4} / {@linkplain io.jstach.rainbowgum.spring.boot4.starter/ rainbowgum-spring-boot4-starter}: for Spring Boot 4
     <strong>(recommended for new projects)</strong>.</li>
-  <li>{@link io.jstach.rainbowgum.spring.boot3/ } / <code>rainbowgum-spring-boot3-starter</code>: for Spring Boot 3.</li>
+  <li>{@linkplain io.jstach.rainbowgum.spring.boot3/ rainbowgum-spring-boot3} / {@linkplain io.jstach.rainbowgum.spring.boot3.starter/ rainbowgum-spring-boot3-starter}: for Spring Boot 3.</li>
 </ul>
 
 Their own internal implementation packages ({@code io.jstach.rainbowgum.spring.boot3}/{@code boot4}) are not
@@ -2813,9 +2850,9 @@ necessarily identical in behavior. Each module's own javadoc has the authoritati
 property table for which Spring Boot logging properties (<code>logging.*</code>, <code>spring.output.ansi.enabled</code>,
 etc.) it supports, kept next to the code that implements it rather than duplicated here where it could drift out of
 sync:
-{@link io.jstach.rainbowgum.spring.boot4/ } and {@link io.jstach.rainbowgum.spring.boot3/ }. The one package you might
+{@linkplain io.jstach.rainbowgum.spring.boot4/ rainbowgum-spring-boot4} and {@linkplain io.jstach.rainbowgum.spring.boot3/ rainbowgum-spring-boot3}. The one package you might
 actually import,
-{@link io.jstach.rainbowgum.spring.boot.spi}, lives in its own genuinely shared module (<code>rainbowgum-spring-spi</code>,
+{@link io.jstach.rainbowgum.spring.boot.spi}, lives in its own genuinely shared module ({@linkplain io.jstach.rainbowgum.spring.boot.spi/ rainbowgum-spring-spi},
 pulled in transitively by both starters) because it only depends on {@code org.springframework.core.env.Environment},
 which is expected to remain stable across Spring Boot major versions, so if you have implemented
 {@code SpringRainbowGumServiceProvider} yourself, that import never needs to change when you bump major versions.
@@ -2860,16 +2897,16 @@ The recommended setup of Spring Boot 4 with Maven is:
   </dependencies>
 }
 
-For Spring Boot 3 substitute <code>rainbowgum-spring-boot4-starter</code> with
-<code>rainbowgum-spring-boot3-starter</code> above; everything else is identical.
+For Spring Boot 3 substitute {@linkplain io.jstach.rainbowgum.spring.boot4.starter/ rainbowgum-spring-boot4-starter} with
+{@linkplain io.jstach.rainbowgum.spring.boot3.starter/ rainbowgum-spring-boot3-starter} above; everything else is identical.
 
 Note that if one chooses to not use one of the <code>rainbowgum-spring-boot*-starter</code> artifacts
-or the underlying <code>rainbowgum-spring-boot3</code>/<code>rainbowgum-spring-boot4</code> module directly,
+or the underlying {@linkplain io.jstach.rainbowgum.spring.boot3/ rainbowgum-spring-boot3}/{@linkplain io.jstach.rainbowgum.spring.boot4/ rainbowgum-spring-boot4} module directly,
 Spring will re-initialize <code>java.util.logging</code> and take over it so again the integration is recommended.
 
 <h4 id="spring_boot_actuator">Actuator</h4>
 
-{@link io.jstach.rainbowgum.spring.boot4.actuator/ } bridges Rainbow Gum's own diagnostics into
+{@linkplain io.jstach.rainbowgum.spring.boot4.actuator/ rainbowgum-spring-boot4-actuator} bridges Rainbow Gum's own diagnostics into
 Spring Boot 4's Actuator endpoints: every {@link io.jstach.rainbowgum.LogMetrics.StandardMetric}
 as a Micrometer counter or gauge, and the <a href="#reporting">diagnostic report</a> as Actuator info.
 Both activate independently of each other; neither requires a bean to register.
@@ -2912,15 +2949,15 @@ There is currently no Spring Boot 3 equivalent of this module; it is Boot 4 only
 
 <h3 id="helidon">Helidon</h3>
 
-Rainbow Gum provides Helidon SE support through <code>rainbowgum-helidon4</code> and
-<code>rainbowgum-helidon27</code>, native implementations of Helidon's own <code>io.helidon.logging.common.spi.LoggingProvider</code> extension
+Rainbow Gum provides Helidon SE support through {@linkplain io.jstach.rainbowgum.helidon4/ rainbowgum-helidon4} and
+{@linkplain io.jstach.rainbowgum.helidon27/ rainbowgum-helidon27}, native implementations of Helidon's own <code>io.helidon.logging.common.spi.LoggingProvider</code> extension
 point (the same one <code>helidon-logging-jul</code>/<code>helidon-logging-log4j</code> implement).
 Like Spring Boot, each supported Helidon major version gets its own artifact rather than one module
 trying to track every release:
 
 <ul>
-  <li>{@link io.jstach.rainbowgum.helidon4/ } / <code>rainbowgum-helidon4</code>: for Helidon SE 4.x.</li>
-  <li>{@link io.jstach.rainbowgum.helidon27/ } / <code>rainbowgum-helidon27</code>: for Helidon SE 27.x,
+  <li>{@linkplain io.jstach.rainbowgum.helidon4/ rainbowgum-helidon4}: for Helidon SE 4.x.</li>
+  <li>{@linkplain io.jstach.rainbowgum.helidon27/ rainbowgum-helidon27}: for Helidon SE 27.x,
   which requires Java 27.</li>
 </ul>
 
@@ -2928,10 +2965,10 @@ trying to track every release:
 Add the dependency and it activates automatically. No code change is needed at all: Helidon's own
 <code>LogConfig</code> selects and initializes the highest weighted <code>LoggingProvider</code> it
 finds before config, the service registry, or the webserver ever start, well before any application
-log line. See {@link io.jstach.rainbowgum.helidon4/ }'s own module Javadoc for the full mechanism.
+log line. See {@linkplain io.jstach.rainbowgum.helidon4/ rainbowgum-helidon4}'s own module Javadoc for the full mechanism.
 </p>
 
-The recommended setup with Maven is (use <code>rainbowgum-helidon27</code> for Helidon 27):
+The recommended setup with Maven is (use {@linkplain io.jstach.rainbowgum.helidon27/ rainbowgum-helidon27} for Helidon 27):
 
 {@snippet lang=xml :
   <dependencies>
@@ -2953,27 +2990,27 @@ The recommended setup with Maven is (use <code>rainbowgum-helidon27</code> for H
   </dependencies>
 }
 
-<code>rainbowgum-simple-props</code> and <code>rainbowgum-pattern</code> are not required by
+{@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props} and {@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} are not required by
 the Helidon modules themselves. Together they give a classpath <code>logging.properties</code>
 file (Rainbow Gum's own property format, not <code>java.util.logging</code>'s) and a pattern based
 encoder, the same combination this repository's own <code>examples/helidon</code> uses.
 
 <p>
-Both Helidon modules pull in <code>rainbowgum-jdk</code> at runtime scope,
+Both Helidon modules pull in {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} at runtime scope,
 providing both <code>java.lang.System.Logger</code> support through
-<code>rainbowgum-systemlogger</code> and <code>java.util.logging</code> (JUL) bridging through
-<code>rainbowgum-jul</code>. This covers JDK and library calls to <code>System.Logger</code>
+{@linkplain io.jstach.rainbowgum.systemlogger/ rainbowgum-systemlogger} and <code>java.util.logging</code> (JUL) bridging through
+{@linkplain io.jstach.rainbowgum.jul/ rainbowgum-jul}. This covers JDK and library calls to <code>System.Logger</code>
 as well as Helidon's own JUL logging. The Helidon <code>LoggingProvider</code> bootstraps
-Rainbow Gum; <code>rainbowgum-jul</code> then installs the bridge <code>Handler</code>.
+Rainbow Gum; {@linkplain io.jstach.rainbowgum.jul/ rainbowgum-jul} then installs the bridge <code>Handler</code>.
 No separate JDK logging dependency is needed.
 </p>
 
 <h3 id="micronaut">Micronaut</h3>
 
-Micronaut fully embraces SLF4J as its own facade, so {@link io.jstach.rainbowgum.slf4j/ } alone
+Micronaut fully embraces SLF4J as its own facade, so {@linkplain io.jstach.rainbowgum.slf4j/ rainbowgum-slf4j} alone
 is a complete, low effort integration: no bootstrap ordering to worry about, since Micronaut's own
 internals call <code>LoggerFactory.getLogger(...)</code> immediately on startup. Rainbow Gum also
-provides <code>rainbowgum-micronaut5</code>, a native
+provides <a href="#micronaut">rainbowgum-micronaut5</a>, a native
 <code>io.micronaut.management.endpoint.loggers.ManagedLoggingSystem</code> bean, closing two gaps
 that plain SLF4J alone leaves open:
 
@@ -2991,14 +3028,14 @@ that plain SLF4J alone leaves open:
 <p>
 Add the dependency and both are closed automatically: being a Micronaut bean is the entire
 integration, no {@link java.util.ServiceLoader} registration or early lifecycle hook needed.
-<code>rainbowgum-micronaut5</code> has no <code>module-info.java</code> of its own (see its
+<a href="#micronaut">rainbowgum-micronaut5</a> has no <code>module-info.java</code> of its own (see its
 Javadoc jar's <code>Automatic-Module-Name</code>), so it is not part of this aggregated
 Javadoc, but its source is on GitHub for the full mechanism.
 </p>
 
 <p>
-<code>rainbowgum-micronaut5</code> includes <code>rainbowgum-slf4j</code>,
-<code>rainbowgum-jdk</code>, and <code>rainbowgum-pattern</code> as runtime dependencies.
+<a href="#micronaut">rainbowgum-micronaut5</a> includes {@linkplain io.jstach.rainbowgum.slf4j/ rainbowgum-slf4j},
+{@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk}, and {@linkplain io.jstach.rainbowgum.pattern/ rainbowgum-pattern} as runtime dependencies.
 This provides the SLF4J implementation, <code>System.Logger</code> support, JUL bridging,
 and pattern encoding. Remove the application's existing logging implementation
 (e.g. <code>logback-classic</code>) and add the Micronaut integration:
@@ -3015,7 +3052,7 @@ and pattern encoding. Remove the application's existing logging implementation
 
 <p>
 For classpath <code>logging.properties</code> loading, optionally add
-<code>rainbowgum-simple-props</code>, as this repository's <code>examples/micronaut</code>
+{@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props}, as this repository's <code>examples/micronaut</code>
 does for its configuration and smoke tests:
 </p>
 
@@ -3034,7 +3071,7 @@ The Micronaut integration supports <code>logger.levels.*</code> in
 <code>application.properties</code>/<code>application.yml</code>, but does not expose
 Micronaut's environment as a general source of Rainbow Gum properties. Appender,
 output, and encoder settings can be supplied through <code>logging.properties</code>
-with <code>rainbowgum-simple-props</code>.
+with {@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props}.
 </p>
 
 <h3 id="jboss_logging">JBoss Logging</h3>
@@ -3045,7 +3082,7 @@ on the classpath - without help it silently falls back to <code>java.util.loggin
 e.g. <code>isInfoEnabled()</code> correctly the whole time, so nothing looks broken.
 
 <p>
-The <code>rainbowgum-jboss-logging</code> module is a true, native
+The {@linkplain io.jstach.rainbowgum.jbosslogging/ rainbowgum-jboss-logging} module is a true, native
 {@link org.jboss.logging.LoggerProvider} implementation (not a bridge through SLF4J at all),
 registered the same way any {@link java.util.ServiceLoader} provider is. Add the dependency
 and it is picked up automatically, no configuration needed:
@@ -3059,7 +3096,7 @@ and it is picked up automatically, no configuration needed:
 }
 
 <p>
-If <code>rainbowgum-jboss-logging</code> is not on the classpath, Rainbow Gum's SLF4J implementation
+If {@linkplain io.jstach.rainbowgum.jbosslogging/ rainbowgum-jboss-logging} is not on the classpath, Rainbow Gum's SLF4J implementation
 still tries to help the SLF4J-bridge path along: when it initializes it sets
 <code>org.jboss.logging.provider=slf4j</code> if that system property is not already set.
 
@@ -3072,7 +3109,7 @@ if (System.getProperty("org.jboss.logging.provider") == null) {
 This only helps if Rainbow Gum's SLF4J implementation happens to initialize before JBoss Logging's own
 <code>LoggerProviders</code> class loads - if a JBoss-Logging-using library logs something before the
 application has touched SLF4J at all, this is too late and the silent <code>java.util.logging</code>
-fallback still happens. <code>rainbowgum-jboss-logging</code> does not have this ordering problem, since
+fallback still happens. {@linkplain io.jstach.rainbowgum.jbosslogging/ rainbowgum-jboss-logging} does not have this ordering problem, since
 {@link java.util.ServiceLoader} is consulted before any of JBoss Logging's own bridge fallbacks.
 
 <h3 id="log4j2">Log4j2</h3>
@@ -3082,7 +3119,7 @@ an implementation) with a much larger method surface than SLF4J: dozens of per-l
 message type, parameter count, {@link org.apache.logging.log4j.Marker}, and {@link java.lang.Throwable}.
 
 <p>
-The <code>rainbowgum-log4j2</code> module is a true, native
+The {@linkplain io.jstach.rainbowgum.log4j/ rainbowgum-log4j2} module is a true, native
 {@link org.apache.logging.log4j.spi.LoggerContextFactory} implementation (not a bridge through SLF4J at
 all), registered via {@link java.util.ServiceLoader}. Add the dependency and it is picked up
 automatically, no configuration needed:
@@ -3111,7 +3148,7 @@ which just delegate to the level+marker check since Rainbow Gum has no message-c
 
 <p>
 {@link org.apache.logging.log4j.Marker} is accepted but otherwise ignored, matching
-<code>rainbowgum-jboss-logging</code>'s own treatment of markers: Rainbow Gum's router has no
+{@linkplain io.jstach.rainbowgum.jbosslogging/ rainbowgum-jboss-logging}'s own treatment of markers: Rainbow Gum's router has no
 marker-based filtering or routing concept.
 
 <h3 id="commons_logging">Commons Logging (jcl)</h3>
@@ -3182,7 +3219,7 @@ a {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}.
 Next one should construct builders that are properties friendly to create the components
 so that programmatic configuration users can use your extension. Rainbow Gum provides
 an annotation processor that helps create builders
-{@link io.jstach.rainbowgum.annotation/}.
+{@linkplain io.jstach.rainbowgum.annotation/ rainbowgum-annotation}.
 
 {@snippet lang=xml :
 <properties>
@@ -3227,7 +3264,7 @@ an annotation processor that helps create builders
 The processor is listed in <code>annotationProcessorPaths</code> because JDK 23 and later no longer run
 annotation processors found only on the class path. The generated builders reference
 <code>org.jspecify.annotations.Nullable</code>, and JSpecify is not a transitive dependency of
-<code>rainbowgum-core</code>, so it is declared too.
+{@linkplain io.jstach.rainbowgum/ rainbowgum-core}, so it is declared too.
 <p>
 Once the annotation processor is enabled one can create a properties aware builder with a
 single static factory method annotated with {@link io.jstach.rainbowgum.annotation.LogConfigurable}.
@@ -3244,11 +3281,11 @@ native-image's own embedded configuration discovery picks up automatically from 
 on the build classpath. As of this writing, two modules bundle one:
 
 <ul>
-<li>{@code rainbowgum-simple-props} bundles a {@code resource-config.json} covering the
+<li>{@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props} bundles a {@code resource-config.json} covering the
 default <code>logging.properties</code> resource name (see
 {@link io.jstach.rainbowgum.simple.props.SimpleProperties} for details), so it is
 included in the native image automatically.</li>
-<li>{@code rainbowgum-jdk} and {@code rainbowgum-systemlogger} (the
+<li>{@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} and {@linkplain io.jstach.rainbowgum.systemlogger/ rainbowgum-systemlogger} (the
 {@code java.lang.System.LoggerFinder} integration) each bundle an
 {@code --initialize-at-build-time=...} argument, one covering
 {@code SystemLoggingFactory} plus a handful of core support classes
@@ -3266,7 +3303,7 @@ actually gets resolved and frozen in for these specific classes is just the chea
 "nothing bound yet" state (no real {@code RainbowGum} has loaded), the same state any
 freshly started JVM begins in, not anything environment-specific baked in from the
 build. See {@code io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory} (not part
-of {@code rainbowgum-jdk}'s exported API) and
+of {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk}'s exported API) and
 {@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder} for the exact
 flags and the full explanation.</li>
 </ul>
@@ -3344,7 +3381,7 @@ and will change between releases without notice. Pin an explicit appender type/e
 instead if a deployment needs a specific one to always be used.
 <p>
 {@code test/rainbowgum-test-native} in the project's own repository is a working,
-end-to-end example: a small application depending only on {@code rainbowgum-simple} plus
+end-to-end example: a small application depending only on <a href="#simple_bundle">rainbowgum-simple</a> plus
 a custom, ServiceLoader-discovered {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider},
 built to a real native executable and run as a black-box smoke test in CI, with no
 manual native-image flags of its own.
@@ -3442,7 +3479,7 @@ Keys are checked where Rainbow Gum can list them:
   <li>System properties starting with <code>logging.</code>, always. A <code>-D</code> typo is
   the most common case and is caught without any other module.</li>
   <li><code>logging.properties</code> and its profile files when using
-  <a href="#simple_props">rainbowgum-simple-props</a>.</li>
+  {@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props}.</li>
   <li>Any other property source implementing {@link io.jstach.rainbowgum.LogProperties.Listable}.
   When the source renames keys, the suggestion also names what to set in that source, using its
   {@linkplain io.jstach.rainbowgum.LogProperties#description(String) description}, for example
