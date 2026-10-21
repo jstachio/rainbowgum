@@ -57,7 +57,7 @@ class TomlLogPropertiesTest extends AbstractNestedLogPropertiesTest {
 				global.ansi.mode = "off"
 
 				[logging.group]
-				jdbc = ["org.postgresql", "com.example.odd_name"]
+				jdbc = ["org.postgresql", "com.example.odd_name", "root"]
 
 				[logging.level]
 				root = "info"

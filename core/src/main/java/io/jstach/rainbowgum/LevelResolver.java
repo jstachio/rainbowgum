@@ -916,6 +916,10 @@ final class ConfigLevelResolver implements LevelConfig {
 
 	@Override
 	public @Nullable Level levelOrNull(String name) {
+		// The alias supplies the default, after groups targeting the literal name.
+		if (name.equals(DefaultLoggerKey.ROOT_ALIAS)) {
+			return null;
+		}
 		return rawValue(
 				DefaultLogProperty.ofLoggerKey(properties, prefix, name).ofString().map(LevelResolver::parseLevel))
 			.valueOrNull();

@@ -55,7 +55,7 @@ class HoconLogPropertiesTest extends AbstractNestedLogPropertiesTest {
 				logging {
 				  groups = [jdbc]
 				  global.ansi.mode = off
-				  group.jdbc = [org.postgresql, com.example.odd_name]
+				  group.jdbc = [org.postgresql, com.example.odd_name, root]
 				  level { root = info, jdbc = debug }
 				}
 				""");

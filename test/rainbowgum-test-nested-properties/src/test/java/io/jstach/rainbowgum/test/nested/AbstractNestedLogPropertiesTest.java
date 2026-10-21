@@ -41,7 +41,8 @@ abstract class AbstractNestedLogPropertiesTest {
 	abstract LogProperties changes();
 
 	/*
-	 * Group jdbc of org.postgresql and com.example.odd_name at debug, ANSI off.
+	 * Group jdbc of org.postgresql, com.example.odd_name and literal root at debug, ANSI
+	 * off.
 	 */
 	abstract LogProperties groups();
 
@@ -92,6 +93,9 @@ abstract class AbstractNestedLogPropertiesTest {
 		var levels = config.levelResolver();
 		assertEquals(Level.DEBUG, levels.resolveLevel("org.postgresql.Driver"));
 		assertEquals(Level.DEBUG, levels.resolveLevel("com.example.odd_name"));
+		assertEquals(Level.DEBUG, levels.resolveLevel("root"));
+		assertEquals(Level.DEBUG, levels.resolveLevel("root.child"));
+		assertEquals(Level.INFO, levels.defaultLevel());
 		assertEquals(Level.INFO, levels.resolveLevel("com.example"));
 	}
 

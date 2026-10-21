@@ -59,6 +59,10 @@ record LoggerGroups(Map<String, List<String>> loggerToGroups) {
 	 */
 	List<String> names(String path) {
 		var groups = path.isEmpty() ? null : loggerToGroups.get(path);
+		// Skip the default's alias as a direct key, but keep groups for literal root.
+		if (path.equals(DefaultLoggerKey.ROOT_ALIAS)) {
+			return groups == null ? List.of() : groups;
+		}
 		if (groups == null) {
 			return List.of(path);
 		}

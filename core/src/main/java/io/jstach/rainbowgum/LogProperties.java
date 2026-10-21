@@ -948,6 +948,10 @@ public interface LogProperties {
 	 * <code>logging.level.root</code>. Each source is checked for both before the next
 	 * one, and the prefix wins when one source has both. A nested source can leave the
 	 * prefix unset when it holds a table of logger names.
+	 * <p>
+	 * A group listed in {@link #GROUPS_PROPERTY} can give a logger literally named
+	 * <code>root</code> and its descendants their own settings, before falling back to
+	 * the root default.
 	 */
 	public sealed interface LoggerKey permits DefaultLoggerKey {
 
