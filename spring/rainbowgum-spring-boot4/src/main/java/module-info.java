@@ -171,7 +171,9 @@
  * </tr>
  * </table>
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-spring-boot4")
 module io.jstach.rainbowgum.spring.boot4 {
+	requires static io.jstach.rainbowgum.annotation;
 	requires transitive io.jstach.rainbowgum;
 	requires transitive io.jstach.rainbowgum.spring.boot.spi;
 	requires io.jstach.rainbowgum.pattern;

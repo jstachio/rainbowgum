@@ -49,7 +49,9 @@
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-jul")
 module io.jstach.rainbowgum.jul {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.jul;
 

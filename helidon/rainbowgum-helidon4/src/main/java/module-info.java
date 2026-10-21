@@ -24,7 +24,9 @@ import io.jstach.rainbowgum.helidon4.RainbowGumLoggingProvider;
  *
  * @provides io.helidon.logging.common.spi.LoggingProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum.helidon", artifactId = "rainbowgum-helidon4")
 module io.jstach.rainbowgum.helidon4 {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.helidon4;
 

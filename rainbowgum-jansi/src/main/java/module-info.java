@@ -13,7 +13,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * 
  * @provides RainbowGumServiceProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-jansi")
 module io.jstach.rainbowgum.jansi {
+	requires static io.jstach.rainbowgum.annotation;
 	
 	exports io.jstach.rainbowgum.jansi;
 

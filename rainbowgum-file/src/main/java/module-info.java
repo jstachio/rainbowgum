@@ -13,6 +13,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @see io.jstach.rainbowgum.file.FileOutput
  * @see io.jstach.rainbowgum.rolling.RollingFileOutput
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-file")
 module io.jstach.rainbowgum.file {
 
 	exports io.jstach.rainbowgum.file;

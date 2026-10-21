@@ -9,7 +9,9 @@
  * there is no reason to force implementers of {@code SpringRainbowGumServiceProvider} to
  * change their import when bumping Spring Boot major versions.
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-spring-spi")
 module io.jstach.rainbowgum.spring.boot.spi {
+	requires static io.jstach.rainbowgum.annotation;
 	exports io.jstach.rainbowgum.spring.boot.spi;
 	requires transitive io.jstach.rainbowgum;
 

@@ -16,7 +16,9 @@ import io.jstach.rainbowgum.jbosslogging.RainbowGumJBossLoggerProvider;
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.jboss.logging.LoggerProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-jboss-logging")
 module io.jstach.rainbowgum.jbosslogging {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.jbosslogging;
 

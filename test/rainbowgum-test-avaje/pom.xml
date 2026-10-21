@@ -35,6 +35,11 @@
   </build>
   <dependencies>
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-annotation</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>io.jstach.rainbowgum</groupId>
       <artifactId>rainbowgum-slf4j</artifactId>
     </dependency>

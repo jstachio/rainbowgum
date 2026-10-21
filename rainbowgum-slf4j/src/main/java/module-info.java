@@ -52,7 +52,9 @@ import io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider;
  * @provides org.slf4j.spi.SLF4JServiceProvider
  * @see io.jstach.rainbowgum.LogConfig.ChangePublisher
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-slf4j")
 module io.jstach.rainbowgum.slf4j {
+	requires static io.jstach.rainbowgum.annotation;
 	
 	exports io.jstach.rainbowgum.slf4j;
 	exports io.jstach.rainbowgum.slf4j.spi;

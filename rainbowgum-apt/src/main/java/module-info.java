@@ -2,6 +2,7 @@
  * Rainbow Gum annotation processors.
  * @provides javax.annotation.processing.Processor with config and enum alias processors.
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-apt")
 module io.jstach.rainbowgum.apt {
 	requires jdk.compiler;
 	requires static io.jstach.rainbowgum.annotation;

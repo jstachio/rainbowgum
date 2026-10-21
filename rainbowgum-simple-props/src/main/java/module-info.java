@@ -7,6 +7,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * and precedence.
  * @provides RainbowGumServiceProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-simple-props")
 module io.jstach.rainbowgum.simple.props {
 
 	exports io.jstach.rainbowgum.simple.props;

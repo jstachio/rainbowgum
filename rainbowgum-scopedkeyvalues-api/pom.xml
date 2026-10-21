@@ -21,9 +21,12 @@
       implementation at runtime.
     -->
   </properties>
-  <!--
-    No <dependencies> block: org.jspecify:jspecify (optional) and junit-jupiter (test
-    scope) are already inherited from the parent pom's own plain <dependencies>, and
-    nothing else is needed - this module has no runtime dependency beyond JSpecify.
-  -->
+  <!-- Maven coordinates are source-only documentation; no runtime dependency is added. -->
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>rainbowgum-annotation</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 </project>

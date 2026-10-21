@@ -4,6 +4,7 @@
  * async publisher provider.
  */
 
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-disruptor")
 module io.jstach.rainbowgum.disruptor {
 	
 	exports io.jstach.rainbowgum.disruptor;

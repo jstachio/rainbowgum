@@ -9,6 +9,7 @@
  * @see io.jstach.rainbowgum.json.encoder.LogstashEncoder
  * @see io.jstach.rainbowgum.json.encoder.LogbackJsonEncoder
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-json")
 module io.jstach.rainbowgum.json {
 	exports io.jstach.rainbowgum.json;
 	exports io.jstach.rainbowgum.json.encoder;

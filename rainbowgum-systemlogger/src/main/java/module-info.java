@@ -6,7 +6,9 @@
  * </strong>.
  *  
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-systemlogger")
 module io.jstach.rainbowgum.systemlogger {
+	requires static io.jstach.rainbowgum.annotation;
 	exports io.jstach.rainbowgum.systemlogger;
 	requires transitive io.jstach.rainbowgum;
 	requires static org.jspecify;

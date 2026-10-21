@@ -7,7 +7,9 @@
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-keyvalues-contributor")
 module io.jstach.rainbowgum.keyvalues.contributor {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.keyvalues.contributor;
 

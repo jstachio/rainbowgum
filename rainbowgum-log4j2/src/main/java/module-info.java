@@ -19,7 +19,9 @@ import io.jstach.rainbowgum.log4j.RainbowGumLog4jProvider;
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.apache.logging.log4j.spi.Provider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-log4j2")
 module io.jstach.rainbowgum.log4j {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.log4j;
 

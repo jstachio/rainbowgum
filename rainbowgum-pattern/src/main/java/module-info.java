@@ -26,6 +26,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @see io.jstach.rainbowgum.pattern.format.PatternConfig
  * @see io.jstach.rainbowgum.pattern.format.spi.PatternKeywordProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-pattern")
 module io.jstach.rainbowgum.pattern {
 	
 	exports io.jstach.rainbowgum.pattern;

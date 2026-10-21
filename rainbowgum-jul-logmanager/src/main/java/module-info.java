@@ -28,7 +28,9 @@
  * {@link io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager}'s own javadoc for the
  * build-time mechanism this module bundles to make that true.
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-jul-logmanager")
 module io.jstach.rainbowgum.jul.logmanager {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.jul.logmanager;
 

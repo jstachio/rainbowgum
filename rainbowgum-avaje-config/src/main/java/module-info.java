@@ -6,7 +6,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @provides RainbowGumServiceProvider
  * @provides AppLog.Provider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-avaje-config")
 module io.jstach.rainbowgum.avaje {
+	requires static io.jstach.rainbowgum.annotation;
 	
 	exports io.jstach.rainbowgum.avaje;
 	

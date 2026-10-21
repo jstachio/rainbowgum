@@ -7,7 +7,9 @@
  * {@code io.jstach.rainbowgum.spring.boot4} itself: Micrometer/Actuator are an opt in
  * dependency, not something every RainbowGum + Spring Boot user should be forced onto.
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-spring-boot4-actuator")
 module io.jstach.rainbowgum.spring.boot4.actuator {
+	requires static io.jstach.rainbowgum.annotation;
 	requires transitive io.jstach.rainbowgum;
 
 	requires spring.boot.autoconfigure;

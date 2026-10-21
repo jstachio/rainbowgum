@@ -8,7 +8,9 @@
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-opentelemetry")
 module io.jstach.rainbowgum.opentelemetry {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.opentelemetry;
 

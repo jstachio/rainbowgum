@@ -11,6 +11,7 @@
  * @uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
 
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-core")
 module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum;
 	exports io.jstach.rainbowgum.format;

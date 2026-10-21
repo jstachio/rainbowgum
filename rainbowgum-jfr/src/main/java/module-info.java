@@ -18,6 +18,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * @see io.jstach.rainbowgum.jfr.RainbowGumLogEvent
  * @see io.jstach.rainbowgum.jfr.RainbowGumAlertEvent
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-jfr")
 module io.jstach.rainbowgum.jfr {
 
 	exports io.jstach.rainbowgum.jfr;

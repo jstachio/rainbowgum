@@ -5,6 +5,7 @@
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-otlp")
 module io.jstach.rainbowgum.otlp {
 
 	exports io.jstach.rainbowgum.otlp;

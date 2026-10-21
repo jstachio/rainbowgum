@@ -15,7 +15,9 @@
  * bound" behavior SLF4J's own facade falls back to when no
  * {@code org.slf4j.spi.SLF4JServiceProvider} is found.
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-scopedkeyvalues-api")
 module io.jstach.rainbowgum.scopedkeyvalues {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.scopedkeyvalues;
 	exports io.jstach.rainbowgum.scopedkeyvalues.spi;

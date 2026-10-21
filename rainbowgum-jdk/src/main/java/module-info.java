@@ -67,7 +67,9 @@
  *
  * @provides System.LoggerFinder
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-jdk")
 module io.jstach.rainbowgum.jdk {
+	requires static io.jstach.rainbowgum.annotation;
 
 	requires io.jstach.rainbowgum;
 	requires io.jstach.rainbowgum.systemlogger;

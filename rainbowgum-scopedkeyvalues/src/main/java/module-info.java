@@ -18,7 +18,9 @@
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides io.jstach.rainbowgum.scopedkeyvalues.spi.ScopedKeyValuesProviderFactory
  */
+@io.jstach.rainbowgum.annotation.MavenModule(groupId = "io.jstach.rainbowgum", artifactId = "rainbowgum-scopedkeyvalues")
 module io.jstach.rainbowgum.scopedkeyvalues.provider {
+	requires static io.jstach.rainbowgum.annotation;
 
 	exports io.jstach.rainbowgum.scopedkeyvalues.provider;
 
