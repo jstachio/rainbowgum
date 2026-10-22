@@ -2,6 +2,15 @@
  * Provides JSON encoders.
  * This module does not require external JSON libraries but instead
  * provides a zero dependency JSON writer.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-json</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  * @see io.jstach.rainbowgum.json.encoder
  * @see io.jstach.rainbowgum.json.JsonBuffer
  * @see io.jstach.rainbowgum.json.encoder.GelfEncoder

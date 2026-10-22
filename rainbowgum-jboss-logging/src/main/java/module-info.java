@@ -12,6 +12,15 @@ import io.jstach.rainbowgum.jbosslogging.RainbowGumJBossLoggerProvider;
  * is instead picked up by the same {@link java.util.ServiceLoader} lookup
  * {@code findProvider()} already does before falling back to any of that, so no extra
  * configuration is required.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-jboss-logging</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.jboss.logging.LoggerProvider

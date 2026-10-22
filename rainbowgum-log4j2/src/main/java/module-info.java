@@ -15,6 +15,15 @@ import io.jstach.rainbowgum.log4j.RainbowGumLog4jProvider;
  * error here, {@code -Werror}), and Log4j2's own {@code log4j-api} jar uses the exact
  * same undigited {@code org.apache.logging.log4j} package/module name for its entire
  * 2.x line for the same reason.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-log4j2</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.apache.logging.log4j.spi.Provider
