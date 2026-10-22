@@ -215,7 +215,8 @@ class RainbowGumEntryPointTest {
 	@Test
 	void reentrantOfWhileResolvingThrowsTriedToLogTooEarly() {
 		Supplier<RainbowGum> reentrant = () -> {
-			// Re-enters RainbowGumHolder.get() while the write lock from the outer
+			// Re-enters RainbowGumHolder.getOrNullIfStarting() while the write lock from
+			// the outer
 			// RainbowGum.of() call (below) is still held by this same thread.
 			RainbowGum.of();
 			throw new AssertionError("unreachable - the reentrant call above always throws first");
@@ -227,10 +228,26 @@ class RainbowGumEntryPointTest {
 	}
 
 	@Test
+	void reentrantOfOrNullWhileResolvingIsNull() {
+		var reentrant = new AtomicReference<@Nullable RainbowGum>();
+		var gum = RainbowGum.builder(LogConfig.builder().build()).build();
+		RainbowGum.set(() -> {
+			reentrant.set(RainbowGum.ofOrNull());
+			return gum;
+		});
+		try (var bound = RainbowGum.of()) {
+			assertSame(gum, bound);
+			assertNull(reentrant.get());
+			assertTrue(gum == RainbowGum.ofOrNull());
+		}
+	}
+
+	@Test
 	void ofASecondTimeTakesTheFastAlreadyResolvedPath() {
 		try (var gum = RainbowGum.builder(LogConfig.builder().build()).set()) {
 			// The first RainbowGum.of() (inside set()) resolved and started it; this
-			// call should hit RainbowGumHolder.get()'s read-lock fast path instead of
+			// call should hit RainbowGumHolder.getOrNullIfStarting()'s read-lock fast
+			// path instead of
 			// resolving via the supplier again.
 			assertSame(gum, RainbowGum.of());
 		}
@@ -278,9 +295,9 @@ class RainbowGumEntryPointTest {
 	}
 
 	/*
-	 * RainbowGumHolder.get()'s read-lock fast path (an already-resolved instance) must
-	 * not re-publish - only the write-lock path that actually resolves/starts a new
-	 * instance does.
+	 * RainbowGumHolder.getOrNullIfStarting()'s read-lock fast path (an already-resolved
+	 * instance) must not re-publish - only the write-lock path that actually
+	 * resolves/starts a new instance does.
 	 */
 	@Test
 	void onGlobalChangeIsNotFiredAgainWhenOfResolvesTheAlreadyBoundInstance() {

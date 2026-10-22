@@ -295,6 +295,50 @@ class JDKSetupTest {
 		});
 	}
 
+	@Order(14)
+	@Test
+	void testSystemLoggerUsedWhileStartingIsHeldUntilBound() throws InterruptedException {
+		doInLock(() -> {
+			System.setProperty(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY, "true");
+			try {
+				ListLogOutput output = new ListLogOutput();
+				var factory = new SystemLoggingFactory();
+				/*
+				 * Like a dependency that logs while its properties are provided, after
+				 * the System.Logger finder started Rainbow Gum.
+				 */
+				RainbowGum.set(() -> {
+					factory.getLogger("start.inner", null).log(Level.INFO, "while starting");
+					return RainbowGum.builder().route(r -> {
+						r.appender("list", a -> {
+							a.output(output);
+							a.formatter(LogFormatter.builder()
+								.level()
+								.space()
+								.loggerName()
+								.space()
+								.message()
+								.newline()
+								.build());
+						});
+					}).build();
+				});
+				var logger = factory.getLogger("start.outer", null);
+				try (var gum = RainbowGum.of()) {
+					logger.log(Level.INFO, "after started");
+					String expected = """
+							INFO start.inner while starting
+							INFO start.outer after started
+							""";
+					assertEquals(expected, output.toString());
+				}
+			}
+			finally {
+				System.clearProperty(SystemLoggingFactory.INITIALIZE_RAINBOW_GUM_PROPERTY);
+			}
+		});
+	}
+
 	@Order(15)
 	@ParameterizedTest
 	@EnumSource(System.Logger.Level.class)
