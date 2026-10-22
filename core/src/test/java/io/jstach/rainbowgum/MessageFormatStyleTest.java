@@ -1,8 +1,6 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -21,8 +19,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 
 /**
- * The java.util.logging and System.Logger MessageFormat style by default logs what Log4j2
- * and Logback do for the same call, and what the JDK does when configured.
+ * The java.util.logging and System.Logger MessageFormat style by default logs what the
+ * JDK does for the same call, and what Log4j2 does when configured.
  */
 class MessageFormatStyleTest {
 
@@ -38,21 +36,27 @@ class MessageFormatStyleTest {
 
 	}
 
-	enum Apply {
+	enum Style {
 
 		DEFAULT(""), //
-		ARGUMENTS("logging.messageFormat.apply=arguments"), //
-		INDEX("logging.messageFormat.apply=index"), //
+		JDK("logging.messageFormat.style=jdk"), //
+		JBOSS("logging.messageFormat.style=jboss"), //
+		LOG4J2("logging.messageFormat.style=log4j2"), //
+		LOGBACK("logging.messageFormat.style=logback"), //
 		;
 
 		final String properties;
 
-		Apply(String properties) {
+		Style(String properties) {
 			this.properties = properties;
 		}
 
 		LogMessageFormatter formatter() {
 			return LogMessageFormatter.ofJUL(LogProperties.builder().fromProperties(properties).build());
+		}
+
+		boolean log4j2() {
+			return this == LOG4J2 || this == LOGBACK;
 		}
 
 	}
@@ -84,49 +88,56 @@ class MessageFormatStyleTest {
 
 		final String message;
 
-		final String expectedArguments;
+		final String expectedLog4j2;
 
-		final String expectedIndex;
+		final String expectedJDK;
 
 		final @Nullable Object[] args;
 
-		JULCase(String message, String expectedArguments, String expectedIndex, @Nullable Object... args) {
+		JULCase(String message, String expectedLog4j2, String expectedJDK, @Nullable Object... args) {
 			this.message = message;
-			this.expectedArguments = expectedArguments;
-			this.expectedIndex = expectedIndex;
+			this.expectedLog4j2 = expectedLog4j2;
+			this.expectedJDK = expectedJDK;
 			this.args = args;
 		}
 
-		String expected(Apply apply) {
-			return apply == Apply.INDEX ? expectedIndex : expectedArguments;
+		String expected(Style style) {
+			return style.log4j2() ? expectedLog4j2 : expectedJDK;
+		}
+
+		@Nullable Throwable expectedThrowable(Style style) {
+			if (style.log4j2() && args.length > 0 && args[args.length - 1] instanceof Throwable t) {
+				return t;
+			}
+			return null;
 		}
 
 	}
 
 	static Stream<Arguments> julCases() {
-		return Stream.of(Apply.values()).flatMap(a -> Stream.of(JULCase.values()).map(c -> Arguments.of(a, c)));
+		return Stream.of(Style.values()).flatMap(a -> Stream.of(JULCase.values()).map(c -> Arguments.of(a, c)));
 	}
 
 	@ParameterizedTest
 	@MethodSource("julCases")
-	void julArray(Apply apply, JULCase c) {
+	void julArray(Style style, JULCase c) {
 		var event = LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "test", c.message, KeyValues.of(), null,
-				apply.formatter(), c.args);
-		assertJUL(apply, c, event);
+				style.formatter(), c.args);
+		assertJUL(style, c, event);
 	}
 
 	@ParameterizedTest
 	@MethodSource("julCases")
-	void julList(Apply apply, JULCase c) {
+	void julList(Style style, JULCase c) {
 		var event = LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "test", c.message, KeyValues.of(), null,
-				apply.formatter(), Arrays.asList(c.args));
-		assertJUL(apply, c, event);
+				style.formatter(), Arrays.asList(c.args));
+		assertJUL(style, c, event);
 	}
 
 	@ParameterizedTest
 	@MethodSource("julCases")
-	void julOneOrTwoArgs(Apply apply, JULCase c) {
-		var formatter = apply.formatter();
+	void julOneOrTwoArgs(Style style, JULCase c) {
+		var formatter = style.formatter();
 		var event = switch (c.args.length) {
 			case 1 -> LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "test", c.message, KeyValues.of(),
 					formatter, c.args[0]);
@@ -135,37 +146,30 @@ class MessageFormatStyleTest {
 			default -> null;
 		};
 		if (event != null) {
-			assertJUL(apply, c, event);
+			assertJUL(style, c, event);
 		}
 	}
 
-	private static void assertJUL(Apply apply, JULCase c, LogEvent event) {
-		assertEquals(c.expected(apply), formatted(event));
-		assertNull(event.throwableOrNull());
-		assertEquals(c.expected(apply), formatted(event.freeze()));
+	private static void assertJUL(Style style, JULCase c, LogEvent event) {
+		assertEquals(c.expected(style), formatted(event));
+		assertEquals(String.valueOf(c.expectedThrowable(style)), String.valueOf(event.throwableOrNull()));
+		var frozen = event.freeze();
+		assertEquals(c.expected(style), formatted(frozen));
+		assertEquals(String.valueOf(c.expectedThrowable(style)), String.valueOf(frozen.throwableOrNull()));
 	}
 
 	@ParameterizedTest
-	@EnumSource(Apply.class)
-	void ofJULDefaultsAreTheEnum(Apply apply) {
-		var formatter = apply.formatter();
-		if (apply == Apply.INDEX) {
-			assertNotSame(StandardMessageFormatter.JUL, formatter);
-		}
-		else {
-			assertSame(StandardMessageFormatter.JUL, formatter);
-		}
-		var both = LogMessageFormatter.ofJUL(LogProperties.builder()
-			.fromProperties("logging.messageFormat.throwable=argument\n" + apply.properties)
-			.build());
-		assertEquals(formatter, both);
+	@EnumSource(Style.class)
+	void ofJULReturnsTheFormatterOfTheStyle(Style style) {
+		var expected = style.log4j2() ? Log4j2MessageFormatter.INSTANCE : StandardMessageFormatter.JUL;
+		assertSame(expected, style.formatter());
 	}
 
 	@ParameterizedTest
 	@EnumSource(ArgCount.class)
-	void julTrailingThrowableBothIsArgumentAndThrowable(ArgCount count) {
+	void julTrailingThrowableIsArgumentAndThrowableWithLog4j2Style(ArgCount count) {
 		var formatter = LogMessageFormatter
-			.ofJUL(LogProperties.builder().fromProperties("logging.messageFormat.throwable=both").build());
+			.ofJUL(LogProperties.builder().fromProperties("logging.messageFormat.style=log4j2").build());
 		var event = switch (count) {
 			case ONE -> LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "test", "failed {0}", KeyValues.of(),
 					formatter, EXCEPTION);
@@ -187,17 +191,15 @@ class MessageFormatStyleTest {
 	}
 
 	@Test
-	void ofJULInvalidValuesAreReported() {
+	void ofJULInvalidValueIsReported() {
 		var properties = LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=sometimes
-				logging.messageFormat.throwable=never
+				logging.messageFormat.style=tinylog
 				""").build();
 		var e = assertThrows(RuntimeException.class, () -> LogMessageFormatter.ofJUL(properties));
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogMessageFormatter:
-						Error for property. key: 'logging.messageFormat.apply' from PROPERTIES_STRING[logging.messageFormat.apply], 'sometimes' is not a valid value for io.jstach.rainbowgum.JULMessageFormatter.Apply. Valid values: 'arguments', 'index'
-						Error for property. key: 'logging.messageFormat.throwable' from PROPERTIES_STRING[logging.messageFormat.throwable], 'never' is not a valid value for io.jstach.rainbowgum.JULMessageFormatter.ThrowableArgument. Valid values: 'argument', 'both'""",
+						Error for property. key: 'logging.messageFormat.style' from PROPERTIES_STRING[logging.messageFormat.style], 'tinylog' is not a valid value for io.jstach.rainbowgum.MessageFormatStyle. Valid values: 'jdk', 'log4j2', 'default', 'jboss', 'logback'""",
 				e.getMessage());
 	}
 

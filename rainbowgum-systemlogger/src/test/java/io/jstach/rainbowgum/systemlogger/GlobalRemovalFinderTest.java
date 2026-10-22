@@ -45,12 +45,12 @@ class GlobalRemovalFinderTest {
 	@Test
 	void initialStartupResolvesBoundPropertiesBeforeSystemFallbacks() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=index
+				logging.messageFormat.style=log4j2
 				""").build()).build();
 		var output = new ListLogOutput();
 		try (var gum = RainbowGum.builder(config).route(r -> r.appender("list", a -> a.output(output))).build()) {
 			RainbowGum.set(() -> gum);
-			String key = "logging.messageFormat.apply";
+			String key = "logging.messageFormat.style";
 			String previous = System.setProperty(key, "invalid");
 			try {
 				var finder = new RainbowGumSystemLoggerFinder(() -> InitOption.TRUE) {
@@ -58,7 +58,7 @@ class GlobalRemovalFinderTest {
 				finder.getLogger("initial", getClass().getModule()).log(System.Logger.Level.INFO, "It's done", "x");
 				var message = new StringBuilder();
 				output.events().getFirst().getKey().formattedMessage(message);
-				assertEquals("It's done", message.toString());
+				assertEquals("Its done", message.toString());
 			}
 			finally {
 				if (previous == null) {

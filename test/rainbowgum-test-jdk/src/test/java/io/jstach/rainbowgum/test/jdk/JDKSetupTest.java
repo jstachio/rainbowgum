@@ -943,16 +943,15 @@ class JDKSetupTest {
 	}
 
 	/*
-	 * The settings other than the defaults: MessageFormat only when the message has an
-	 * argument index, as the JDK does, and a trailing Throwable argument that is
-	 * formatted and also logged with its stack trace, as Log4j2 does.
+	 * The log4j2 style rather than the default jdk style: MessageFormat whenever there
+	 * are arguments, and a trailing Throwable argument that is formatted and also logged
+	 * with its stack trace.
 	 */
 	<T> void _testMessageFormatProperties(LoggerTester<T> tester) {
 		ListLogOutput output = new ListLogOutput();
 		var level = System.Logger.Level.INFO;
 		var messageFormat = LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=index
-				logging.messageFormat.throwable=both
+				logging.messageFormat.style=log4j2
 				""").build();
 		var properties = LogProperties.of(List.of(tester.properties(), messageFormat));
 		var logger = tester.beforeLoad();
@@ -964,7 +963,7 @@ class JDKSetupTest {
 			 * Loggers created before Rainbow Gum starts follow it too.
 			 */
 			String expected = """
-					00:00:00.000 [%1$s] INFO  after.load - It's done
+					00:00:00.000 [%1$s] INFO  after.load - Its done
 					00:00:00.000 [%1$s] INFO  after.load - Hello hello failed java.lang.RuntimeException: EXPECTED
 					java.lang.RuntimeException: EXPECTED
 					""".formatted(Thread.currentThread().getName());
@@ -1278,9 +1277,9 @@ class JDKSetupTest {
 	 */
 	enum Apostrophe {
 
-		NO_INDEX("It's done", "Its done"), //
+		NO_INDEX("It's done", "It's done"), //
 		QUOTED("It''s {0}", "It's hello"), //
-		BUNDLE("key2", "key2 its done"), //
+		BUNDLE("key2", "key2 it's done"), //
 		;
 
 		private final String message;

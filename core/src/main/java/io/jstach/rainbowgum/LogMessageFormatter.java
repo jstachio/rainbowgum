@@ -3,10 +3,12 @@ package io.jstach.rainbowgum;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.IdentityHashMap;
+import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.annotation.CaseChanging;
+import io.jstach.rainbowgum.annotation.EnumAlias;
 
 /**
  * Formats a LogEvent message.
@@ -54,16 +56,15 @@ public sealed interface LogMessageFormatter {
 	void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length);
 
 	/**
-	 * The java.util.logging and System.Logger MessageFormat style as configured by
-	 * {@value LogProperties#MESSAGE_FORMAT_APPLY_PROPERTY} and
-	 * {@value LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY}.
+	 * The java.util.logging, System.Logger and JBoss Logging MessageFormat style as
+	 * configured by {@value LogProperties#MESSAGE_FORMAT_STYLE_PROPERTY}.
 	 * @param properties usually the properties of the current Rainbow Gum's config.
-	 * @return {@link StandardMessageFormatter#JUL} when both properties have their
-	 * default value, otherwise a formatter that follows them.
-	 * @throws LogProperty.ValidationException if a property has an invalid value.
+	 * @return {@link StandardMessageFormatter#JUL} when the property has its default
+	 * value, otherwise a formatter that follows it.
+	 * @throws LogProperty.ValidationException if the property has an invalid value.
 	 */
 	public static LogMessageFormatter ofJUL(LogProperties properties) {
-		return JULMessageFormatter.of(properties);
+		return MessageFormatStyle.of(properties).formatter();
 	}
 
 	/**
@@ -93,64 +94,43 @@ public sealed interface LogMessageFormatter {
 			}
 		},
 		/**
-		 * java.util.logging MessageFormat style. {@link MessageFormat} is used whenever
-		 * there are arguments and a {@link Throwable} argument is formatted like any
-		 * other argument.
+		 * java.util.logging MessageFormat style following the rules of the JDK's
+		 * <code>java.util.logging.Formatter.formatMessage</code>: {@link MessageFormat}
+		 * is used only when there are arguments and the message has an argument index
+		 * such as <code>{0}</code>, otherwise the message is logged as is. A
+		 * {@link Throwable} argument is formatted like any other argument.
 		 * @see LogMessageFormatter#ofJUL(LogProperties)
 		 */
 		JUL() {
 
 			@Override
 			public void format(StringBuilder builder, String message, @Nullable Object arg1) {
-				try {
-					String result = MessageFormat.format(message, arg1);
-					builder.append(result);
+				if (MessageFormatStyle.hasArgumentIndex(message)) {
+					Log4j2MessageFormatter.INSTANCE.format(builder, message, arg1);
 				}
-				catch (RuntimeException e) {
-					formatBadPattern(builder, message, e);
+				else {
+					builder.append(message);
 				}
 			}
 
 			@Override
 			public void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2) {
-				try {
-					String result = MessageFormat.format(message, arg1, arg2);
-					builder.append(result);
+				if (MessageFormatStyle.hasArgumentIndex(message)) {
+					Log4j2MessageFormatter.INSTANCE.format(builder, message, arg1, arg2);
 				}
-				catch (RuntimeException e) {
-					formatBadPattern(builder, message, e);
+				else {
+					builder.append(message);
 				}
 			}
 
 			@Override
 			public void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length) {
-				if (length == 0) {
+				if (MessageFormatStyle.hasArgumentIndex(message)) {
+					Log4j2MessageFormatter.INSTANCE.formatArray(builder, message, args, length);
+				}
+				else {
 					builder.append(message);
-					return;
 				}
-				@Nullable Object[] used = length == args.length ? args : Arrays.copyOf(args, length);
-				try {
-					String result = MessageFormat.format(message, used);
-					builder.append(result);
-				}
-				catch (RuntimeException e) {
-					formatBadPattern(builder, message, e);
-				}
-			}
-
-			/*
-			 * A malformed pattern or an argument whose toString() throws must not lose
-			 * the event or throw to the caller. The JDK logs the raw pattern without
-			 * saying why, Log4j2 drops the event with a status warning, and Logback's
-			 * bridges throw to the caller or log the raw pattern. We log the raw pattern
-			 * and the reason, much like the SLF4J style's "[FAILED toString()]".
-			 */
-			private static void formatBadPattern(StringBuilder builder, String message, RuntimeException e) {
-				builder.append(message)
-					.append(" ")
-					.append("[MessageFormat failed: ")
-					.append(e.getMessage())
-					.append("]");
 			}
 
 		}
@@ -160,89 +140,57 @@ public sealed interface LogMessageFormatter {
 }
 
 /*
- * The java.util.logging MessageFormat style with settings other than the defaults of
- * StandardMessageFormatter.JUL. Only ofJUL creates it, so the common case stays the enum.
+ * Values of LogProperties.MESSAGE_FORMAT_STYLE_PROPERTY, named after the implementation
+ * whose System.Logger formats the same way.
  */
-record JULMessageFormatter(JULMessageFormatter.Apply apply,
-		JULMessageFormatter.ThrowableArgument throwableArgument) implements LogMessageFormatter {
+enum MessageFormatStyle {
 
 	/*
-	 * Values of LogProperties.MESSAGE_FORMAT_APPLY_PROPERTY.
+	 * MessageFormat only when there is an argument index, a Throwable argument is only an
+	 * argument. JBoss LogManager does the same.
 	 */
-	enum Apply {
-
-		ARGUMENTS, INDEX
-
-	}
-
+	@EnumAlias({ "default", "jboss" })
+	JDK,
 	/*
-	 * Values of LogProperties.MESSAGE_FORMAT_THROWABLE_PROPERTY.
+	 * MessageFormat whenever there are arguments, a trailing Throwable argument is also
+	 * the event's throwable. SLF4J's System.Logger adapter, and so Logback, does the
+	 * same.
 	 */
-	enum ThrowableArgument {
+	@EnumAlias("logback")
+	LOG4J2;
 
-		ARGUMENT, BOTH
-
+	static MessageFormatStyle parse(String value) {
+		String v = value.strip().toUpperCase(Locale.ROOT);
+		return switch (v) {
+			case "DEFAULT", "JBOSS" -> JDK;
+			case "LOGBACK" -> LOG4J2;
+			default -> LogProperty.enumValue(MessageFormatStyle.class, value, "default", "jboss", "logback");
+		};
 	}
 
-	static LogMessageFormatter of(LogProperties properties) {
+	static MessageFormatStyle of(LogProperties properties) {
 		var validator = LogProperty.Validator.of(LogMessageFormatter.class);
-		var apply = properties.forKey(LogProperties.MESSAGE_FORMAT_APPLY_PROPERTY)
+		var style = properties.forKey(LogProperties.MESSAGE_FORMAT_STYLE_PROPERTY)
 			.ofString()
-			.map(v -> LogProperty.enumValue(Apply.class, v))
-			.or(Apply.ARGUMENTS)
-			.validateIfError(validator);
-		var throwable = properties.forKey(LogProperties.MESSAGE_FORMAT_THROWABLE_PROPERTY)
-			.ofString()
-			.map(v -> LogProperty.enumValue(ThrowableArgument.class, v))
-			.or(ThrowableArgument.ARGUMENT)
+			.map(MessageFormatStyle::parse)
+			.or(JDK)
 			.validateIfError(validator);
 		validator.validate();
-		var f = new JULMessageFormatter(apply.value(), throwable.value());
-		if (f.apply == Apply.ARGUMENTS && f.throwableArgument == ThrowableArgument.ARGUMENT) {
-			return LogMessageFormatter.StandardMessageFormatter.JUL;
-		}
-		return f;
+		return style.value();
+	}
+
+	LogMessageFormatter formatter() {
+		return switch (this) {
+			case JDK -> LogMessageFormatter.StandardMessageFormatter.JUL;
+			case LOG4J2 -> Log4j2MessageFormatter.INSTANCE;
+		};
 	}
 
 	/*
 	 * Whether a trailing Throwable argument is also the event's throwable.
 	 */
 	static boolean throwableAlsoArgument(LogMessageFormatter messageFormatter) {
-		return messageFormatter instanceof JULMessageFormatter f && f.throwableArgument == ThrowableArgument.BOTH;
-	}
-
-	@Override
-	public void format(StringBuilder builder, String message, @Nullable Object arg1) {
-		if (usesMessageFormat(message)) {
-			LogMessageFormatter.StandardMessageFormatter.JUL.format(builder, message, arg1);
-		}
-		else {
-			builder.append(message);
-		}
-	}
-
-	@Override
-	public void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2) {
-		if (usesMessageFormat(message)) {
-			LogMessageFormatter.StandardMessageFormatter.JUL.format(builder, message, arg1, arg2);
-		}
-		else {
-			builder.append(message);
-		}
-	}
-
-	@Override
-	public void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length) {
-		if (usesMessageFormat(message)) {
-			LogMessageFormatter.StandardMessageFormatter.JUL.formatArray(builder, message, args, length);
-		}
-		else {
-			builder.append(message);
-		}
-	}
-
-	private boolean usesMessageFormat(String message) {
-		return apply == Apply.ARGUMENTS || hasArgumentIndex(message);
+		return messageFormatter == Log4j2MessageFormatter.INSTANCE;
 	}
 
 	/*
@@ -261,6 +209,67 @@ record JULMessageFormatter(JULMessageFormatter.Apply apply,
 			index = message.indexOf('{', index + 1);
 		}
 		return false;
+	}
+
+}
+
+/*
+ * MessageFormatStyle.LOG4J2: MessageFormat whenever there are arguments. The JDK style
+ * uses it when the message has an argument index.
+ */
+enum Log4j2MessageFormatter implements LogMessageFormatter {
+
+	INSTANCE;
+
+	@Override
+	public void format(StringBuilder builder, String message, @Nullable Object arg1) {
+		try {
+			String result = MessageFormat.format(message, arg1);
+			builder.append(result);
+		}
+		catch (RuntimeException e) {
+			formatBadPattern(builder, message, e);
+		}
+	}
+
+	@Override
+	public void format(StringBuilder builder, String message, @Nullable Object arg1, @Nullable Object arg2) {
+		try {
+			String result = MessageFormat.format(message, arg1, arg2);
+			builder.append(result);
+		}
+		catch (RuntimeException e) {
+			formatBadPattern(builder, message, e);
+		}
+	}
+
+	@Override
+	public void formatArray(StringBuilder builder, String message, @Nullable Object[] args, int length) {
+		if (length == 0) {
+			builder.append(message);
+			return;
+		}
+		@Nullable Object[] used = length == args.length ? args : Arrays.copyOf(args, length);
+		try {
+			String result = MessageFormat.format(message, used);
+			builder.append(result);
+		}
+		catch (RuntimeException e) {
+			formatBadPattern(builder, message, e);
+		}
+	}
+
+	/*
+	 * A malformed pattern or an argument whose toString() throws must not lose the event
+	 * or throw to the caller. The JDK logs the raw pattern without saying why, Log4j2 and
+	 * JBoss LogManager drop the event, and Logback through SLF4J's adapter throws to the
+	 * caller. We log the raw pattern and the reason, much like the SLF4J style's
+	 * "[FAILED toString()]", rather than raising an alert: the message may come from
+	 * outside, and an alert per bad message would let a caller make the service look
+	 * unhealthy.
+	 */
+	private static void formatBadPattern(StringBuilder builder, String message, RuntimeException e) {
+		builder.append(message).append(" ").append("[MessageFormat failed: ").append(e.getMessage()).append("]");
 	}
 
 }

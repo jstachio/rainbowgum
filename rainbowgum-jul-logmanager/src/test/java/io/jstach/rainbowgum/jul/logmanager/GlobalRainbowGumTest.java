@@ -21,19 +21,19 @@ class GlobalRainbowGumTest {
 	@Test
 	void boundPropertiesOverrideInvalidSystemPropertyDuringSubscription() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=index
+				logging.messageFormat.style=log4j2
 				""").build()).build();
 		try (var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
 			.set()) {
-			String key = "logging.messageFormat.apply";
+			String key = "logging.messageFormat.style";
 			String previous = System.setProperty(key, "invalid");
 			try {
 				var global = GlobalRainbowGum.of();
 				assertSame(gum, requireGum(global.gum()));
 				var message = new StringBuilder();
 				global.messageFormatter().format(message, "It's done", "unused");
-				assertEquals("It's done", message.toString());
+				assertEquals("Its done", message.toString());
 			}
 			finally {
 				if (previous == null) {
@@ -49,7 +49,7 @@ class GlobalRainbowGumTest {
 	@Test
 	void alertListenerCanReplaceTheGumDuringInitialPropertyRead() throws Exception {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=invalid
+				logging.messageFormat.style=invalid
 				""").build()).build();
 		try (var first = RainbowGum.builder(config)
 			.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
@@ -83,18 +83,18 @@ class GlobalRainbowGumTest {
 	@ParameterizedTest
 	@EnumSource(Removal.class)
 	void removalDropsTheGumAndRestoresSystemFormatting(Removal removal) {
-		String key = "logging.messageFormat.apply";
-		String previous = System.setProperty(key, "index");
+		String key = "logging.messageFormat.style";
+		String previous = System.setProperty(key, "log4j2");
 		try {
 			var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-					logging.messageFormat.apply=arguments
+					logging.messageFormat.style=jdk
 					""").build()).build();
 			GlobalRainbowGum global;
 			try (var first = RainbowGum.builder(config)
 				.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
 				.set()) {
 				global = GlobalRainbowGum.of();
-				assertEquals("Its done", format(global));
+				assertEquals("It's done", format(global));
 				switch (removal) {
 					case CLOSE -> {
 					}
@@ -105,15 +105,15 @@ class GlobalRainbowGumTest {
 				}
 			}
 			assertNull(global.gum());
-			assertEquals("It's done", format(global));
+			assertEquals("Its done", format(global));
 			var next = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-					logging.messageFormat.apply=arguments
+					logging.messageFormat.style=jdk
 					""").build()).build();
 			try (var second = RainbowGum.builder(next)
 				.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
 				.set()) {
 				assertSame(second, requireGum(global.gum()));
-				assertEquals("Its done", format(global));
+				assertEquals("It's done", format(global));
 			}
 		}
 		finally {
@@ -124,9 +124,9 @@ class GlobalRainbowGumTest {
 	@Test
 	void removalDropsTheGumEvenWhenSystemFormattingIsInvalid() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=index
+				logging.messageFormat.style=log4j2
 				""").build()).build();
-		String key = "logging.messageFormat.apply";
+		String key = "logging.messageFormat.style";
 		String previous = System.setProperty(key, "invalid");
 		try {
 			GlobalRainbowGum global;
@@ -136,7 +136,7 @@ class GlobalRainbowGumTest {
 				global = GlobalRainbowGum.of();
 			}
 			assertNull(global.gum());
-			assertEquals("Its done", format(global));
+			assertEquals("It's done", format(global));
 		}
 		finally {
 			restore(key, previous);

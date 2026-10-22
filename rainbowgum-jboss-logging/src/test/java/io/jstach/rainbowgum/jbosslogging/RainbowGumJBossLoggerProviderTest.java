@@ -94,8 +94,7 @@ class RainbowGumJBossLoggerProviderTest {
 	void testLoggerCreatedBeforeStartFollowsMessageFormatProperties() {
 		Logger log = Logger.getLogger("jboss.native.messageformat");
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=index
-				logging.messageFormat.throwable=both
+				logging.messageFormat.style=log4j2
 				""").build()).build();
 		RainbowGum.builder(config).route(route -> {
 			route.appender("list", a -> {
@@ -111,7 +110,7 @@ class RainbowGumJBossLoggerProviderTest {
 			log.infov("It's done", "x");
 			log.infov("failed {0}", (Object) new RuntimeException("boom"));
 			String expected = """
-					It's done throwable=null
+					Its done throwable=null
 					failed java.lang.RuntimeException: boom throwable=java.lang.RuntimeException: boom
 					""";
 			assertEquals(expected, list.toString());
