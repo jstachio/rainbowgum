@@ -2640,9 +2640,14 @@ Loggers follow the property of the Rainbow Gum that is currently bound, includin
 started; while none is bound, before the first starts or after one is closed, the system property applies.
 </p>
 <p>
-Because java.util.logging (JUL) and System.Logger can be used very early on currently MDC (set by SLF4J) and caller info diagnostics is not provided at this time.
-Caller info maybe provided later as it is agnostic of SLF4J and if you would like that please file an issue. Support for changeable logging levels is provided for
-the System Logger provided the loggers are created after Rainbow Gum initializes.
+Events from java.util.logging (JUL) and System.Logger include key values from every registered source, such as
+the SLF4J MDC, when they are logged on the thread that set them. Caller info is not provided at this time. It may
+be added later as it does not depend on SLF4J; if you would like it please file an issue.
+</p>
+<p>
+System Loggers created before Rainbow Gum starts follow it, including level changes. Loggers created after it
+starts keep the level resolved when they were created, unless level changes are allowed for them with
+{@value io.jstach.rainbowgum.LogProperties#CHANGE_LOGGER_PREFIX}; see <a href="#config_change">Config Change during runtime</a>.
 </p>
 
 <h4 id="jul_avoid">Avoid java.util.logging if you can</h4>
