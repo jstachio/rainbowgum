@@ -322,6 +322,25 @@ The current optional properties modules are:
     your configuration system may have a different format like YAML or JSON.
 </p>
 </div>
+<p>
+A nested format (TOML, HOCON, YAML or JSON) needs one exception. Keys such as
+<code>logging.level.com.example</code> end with a logger name, which can contain dots and any other
+character, and <code>logging.level</code> itself can also have a value. A nested format cannot have a
+value at a key that is also a table, so a source for one should extend
+{@link io.jstach.rainbowgum.LogProperties.AbstractNested}, which looks the logger name up as a single, quoted
+member, for example in TOML:
+</p>
+{@snippet lang=toml :
+[logging.level]
+root = "warn"
+"com.example" = "debug"
+"com.example.sub" = "error"
+}
+<p>
+<code>root</code> is the root logger for every key that ends with a logger name, so
+<code>logging.level.root</code> is the same as <code>logging.level</code>, as in Spring Boot. A
+higher priority source wins whichever of the two it uses.
+</p>
 
 <p>
 An appender's encoder and output are configured under the appender itself: <code>uri</code> picks the
@@ -578,9 +597,10 @@ logging.level=ERROR
 <code>fatal</code> are not accepted. The logger name is case sensitive.
 
 <p>
-The root level is the bare <code>logging.level</code> key. Spring Boot's <code>logging.level.root</code>
-is understood by the <a href="#spring_boot">Spring Boot integration</a>; elsewhere <code>root</code> is just
-a logger named <code>root</code>.
+The root level is the bare <code>logging.level</code> key or, as in Spring Boot,
+<code>logging.level.root</code>. The same goes for every key that ends with a logger name, such as
+<code>logging.change.logger.root</code>. A logger literally named <code>root</code> inherits the root
+default, but a <a href="#level_groups_difficult_names">group can give it its own settings</a>.
 </p>
 
 <p>
@@ -699,6 +719,25 @@ The same groups work for <a href="#changing_resolving">changing loggers</a> and 
 loggers in <code>web</code> and their children. As with levels, a logger's own key wins over a group, and
 the last group listed in <code>logging.groups</code> wins when a logger is in more than one. Group values
 are comma separated, so a logger name containing a comma cannot be listed.
+</p>
+
+<p>
+A group can also configure a logger literally named <code>root</code>, since
+<code>logging.level.root</code> is reserved for the root default. For example:
+</p>
+
+{@snippet lang=properties :
+logging.level.root=warn
+logging.groups=literalRoot
+logging.group.literalRoot=root
+logging.level.literalRoot=debug
+}
+
+<p>
+The logger named <code>root</code> and its descendants resolve to <code>DEBUG</code>, while other
+loggers inherit <code>WARNING</code>. More specific logger settings still win. The same group can
+set <code>logging.change.logger.literalRoot</code> and <code>logging.caller.logger.literalRoot</code>
+without changing their root defaults.
 </p>
 
 

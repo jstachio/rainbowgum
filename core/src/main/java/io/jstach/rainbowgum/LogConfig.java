@@ -1085,7 +1085,7 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	/*
 	 * Built on first use and again after publish, since the group properties may change.
 	 */
-	private volatile @Nullable LoggerGroups groups;
+	private volatile Loggers.@Nullable Groups groups;
 
 	protected abstract LogConfig reload();
 
@@ -1126,10 +1126,10 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		return !allowedChanges(loggerName).isEmpty() || callerType(loggerName) != CallerType.NONE;
 	}
 
-	private LoggerGroups groups() {
+	private Loggers.Groups groups() {
 		var g = this.groups;
 		if (g == null) {
-			g = LoggerGroups.of(config().properties());
+			g = Loggers.Groups.of(config().properties());
 			this.groups = g;
 		}
 		return g;
@@ -1145,8 +1145,8 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		var props = config().properties();
 		var groups = groups();
 		return LogProperties.findUpPathOrNull(loggerName, path -> {
-			for (String key : groups.keys(prefix, path)) {
-				var r = resolve.apply(DefaultLogProperty.ofLoggerKey(props, key));
+			for (String name : groups.names(path)) {
+				var r = resolve.apply(DefaultLogProperty.ofLoggerKey(props, prefix, name));
 				if (!(r instanceof LogProperty.Result.Missing)) {
 					return r;
 				}

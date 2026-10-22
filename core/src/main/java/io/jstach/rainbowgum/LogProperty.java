@@ -1364,9 +1364,13 @@ final class DefaultLogProperty implements LogProperty {
 	 * A key built from a logger name. A facade can pass any string as a logger name, so
 	 * unlike a key in code it is not validated: a name like Testcontainers'
 	 * "tc.image@sha256:405c128b..." must fall back to its parents instead of throwing.
+	 * The root logger is also read from its alias.
 	 */
-	static LogProperty ofLoggerKey(LogProperties properties, String key) {
-		return new DefaultLogProperty(List.of(key), properties);
+	static LogProperty ofLoggerKey(LogProperties properties, String prefix, String loggerName) {
+		if (loggerName.isEmpty()) {
+			return new DefaultLogProperty(List.of(prefix), new Loggers.RootProperties(properties));
+		}
+		return new DefaultLogProperty(List.of(Loggers.Key.key(prefix, loggerName)), properties);
 	}
 
 	@Override

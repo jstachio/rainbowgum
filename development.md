@@ -57,7 +57,14 @@ as its hard to encapsulate across packages. The main package should have the
 same name as the module.
 
 Prefer interfaces over abstract classes. If an abstract adapter is worthwhile it
-should be prefixed with `Abstract`.
+should be prefixed with `Abstract`. The prefix marks it as a skeleton for
+implementing a type, not a type with its own identity, so nothing should check
+`instanceof` against it or take it as a parameter.
+
+Protected methods of an abstract adapter class that a subclass implements or
+overrides are prefixed with `do`, for example `doValueNodeOrNull`. Methods added
+to the class later follow the same rule, so they cannot collide with methods a
+subclass declares. Interfaces do not need this.
 
 Inner classes in public interfaces are public. Use top level package friendly
 classes instead. Most classes should be sealed or final or in other words not
@@ -94,8 +101,9 @@ library never goes into core.
 We use `package-info` and `module-info`. Annotate the package for JSpecify and not the module
 as that is not well supported.
 
-Methods that return null should ideally be suffixed with `OrNull`. Accessors
-follow modern record style and are not prefixed with get.
+Methods that return null should ideally be suffixed with `OrNull`, including
+protected methods a subclass implements. Accessors follow modern record style
+and are not prefixed with get.
 
 Public javadoc should never go into implementation details that are likely to
 change or hidden. Public javadoc should not reference package friendly or
