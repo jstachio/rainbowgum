@@ -385,3 +385,13 @@ style. Keep following the PR and encourage Ceki toward the marker.
       raise a warning alert (so `logging.alerts.fail=warning` stops startup). If both it
       and `rainbowgum-jdk` are present, the JDK uses whichever `System.LoggerFinder` it
       finds first, which on the class path is jar order (verified both ways).
+- [ ] Add to `why_rainbowgum_is_better.md`: when a `MessageFormat` style message has a
+      malformed pattern or an argument whose `toString()` throws, Rainbow Gum logs the
+      raw message followed by `[MessageFormat failed: reason]`. The event is kept and the
+      problem is visible where people read the log, so it gets fixed. Log4j2 and JBoss
+      LogManager drop the event (JBoss reports only the first failure), and Logback
+      through SLF4J's adapter and tinylog throw into the caller. Evidence:
+      `doc/system-logger-message-format.md`. Also say why this is not an alert: alerts
+      are rarely looked at outside startup failures, and the message can come from
+      outside (`log.info(fromRequest, ...)`), so an alert per bad message would let a
+      caller make the service look unhealthy.
