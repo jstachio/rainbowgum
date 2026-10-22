@@ -170,9 +170,28 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * are used and will block indefinitely till a gum has loaded. </strong> If that is
 	 * not desired see {@link #getOrNull()}.
 	 * @return current RainbowGum or new loaded one.
+	 * @throws IllegalStateException if called on a thread that is starting the global
+	 * RainbowGum, for example by logging while it loads. See {@link #ofOrNull()}.
 	 */
 	public static RainbowGum of() {
-		return RainbowGumHolder.get();
+		var gum = RainbowGumHolder.getOrNullIfStarting();
+		if (gum == null) {
+			throw new IllegalStateException("RainbowGum component tried to log too early. "
+					+ "This is usually caused by dependencies calling logging.");
+		}
+		return gum;
+	}
+
+	/**
+	 * Same as {@link #of()} except that it returns <code>null</code> instead of throwing
+	 * when called on a thread that is starting the global RainbowGum, for example by
+	 * logging while it loads. A logging facade getting <code>null</code> can use
+	 * {@link LogRouter#global()}, which holds events until a RainbowGum is bound.
+	 * @return current RainbowGum or new loaded one, or <code>null</code> if this thread
+	 * is starting one.
+	 */
+	public static @Nullable RainbowGum ofOrNull() {
+		return RainbowGumHolder.getOrNullIfStarting();
 	}
 
 	/**
@@ -589,7 +608,10 @@ final class RainbowGumHolder {
 		return rainbowGum;
 	}
 
-	static RainbowGum get() {
+	/*
+	 * Null when this thread holds the write lock, so is starting or removing a gum.
+	 */
+	static @Nullable RainbowGum getOrNullIfStarting() {
 		lock.readLock().lock();
 		try {
 			var r = rainbowGum;
@@ -601,8 +623,7 @@ final class RainbowGumHolder {
 			lock.readLock().unlock();
 		}
 		if (lock.writeLock().isHeldByCurrentThread()) {
-			throw new IllegalStateException("RainbowGum component tried to log too early. "
-					+ "This is usually caused by dependencies calling logging.");
+			return null;
 		}
 		lock.writeLock().lock();
 		try {

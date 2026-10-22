@@ -137,12 +137,12 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 			var opt = optSupplier.get();
 			rp = switch (opt) {
 				case FALSE -> n -> LogRouter.global();
-				case TRUE -> new InitRouterProvider(RainbowGum::of);
+				case TRUE -> new InitRouterProvider(RainbowGum::ofOrNull);
 				case CHECK -> {
 					if (RainbowGumServiceProvider.RainbowGumEagerLoad.exists()) {
 						yield n -> LogRouter.global();
 					}
-					yield new InitRouterProvider(RainbowGum::of);
+					yield new InitRouterProvider(RainbowGum::ofOrNull);
 				}
 				case REUSE -> new InitRouterProvider(() -> {
 					var gum = RainbowGum.getOrNull();
@@ -219,11 +219,11 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	private class InitRouterProvider implements RouterProvider {
 
-		private final Supplier<RainbowGum> supplier;
+		private final Supplier<? extends @Nullable RainbowGum> supplier;
 
 		private volatile boolean initialized;
 
-		InitRouterProvider(Supplier<RainbowGum> supplier) {
+		InitRouterProvider(Supplier<? extends @Nullable RainbowGum> supplier) {
 			super();
 			this.supplier = supplier;
 		}
@@ -242,6 +242,14 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 					return LogRouter.global();
 				}
 				gum = supplier.get();
+				if (gum == null) {
+					/*
+					 * This thread is starting a gum, for example a dependency logging
+					 * while properties are provided. The global router holds the events
+					 * until it is bound.
+					 */
+					return LogRouter.global();
+				}
 			}
 			initialized = true;
 			gum.config().loggerRegistry().registerLoggerName(LoggerAPI.Standard.SYSTEM_LOGGER, loggerName);

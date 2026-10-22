@@ -57,7 +57,8 @@ class RainbowGumEntryPointConcurrencyTest {
 		try {
 			assertTrue(resolving.await(5, TimeUnit.SECONDS));
 			// The resolver thread now holds the write lock inside
-			// RainbowGumHolder.get() - current()/getOrNull() must not block on it.
+			// RainbowGumHolder.getOrNullIfStarting() - current()/getOrNull() must not
+			// block on it.
 			assertNull(RainbowGum.getOrNull());
 		}
 		finally {
