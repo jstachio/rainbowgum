@@ -68,7 +68,8 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * key that is a prefix of the previously mentioned key. For example allowing two
  * properties <code>logging.example=stuff</code>, <code>logging.example.a=A</code> is not
  * recommended as <code>logging.example</code> is defined as a leaf. The exception to this
- * rule is logging levels mapped to logger names for consistency with Spring Boot.
+ * rule is keys that end with a logger name, such as levels, for consistency with Spring
+ * Boot. {@link AbstractNested} is one way for a nested format to read them.
  * <p>
  * Rainbow Gum out of the the box supports parsing two formats into properties:
  * {@link Properties} text, and {@link URI#getRawQuery()} percent encoded query
@@ -95,8 +96,9 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * </tr>
  * <tr>
  * <td>{@value #LEVEL_PREFIX} + {@value #SEP} + logger = LEVEL</td>
- * <td>Sets the level for the logger. If logger name is missing then it is considered the
- * root logger. {@link Level#INFO} is the default level for the root logger.</td>
+ * <td>Sets the level for the logger. If logger name is missing or is <code>root</code>
+ * then it is considered the root logger. {@link Level#INFO} is the default level for the
+ * root logger.</td>
  * </tr>
  * <tr>
  * <td>{@value #CHANGE_MODE_PROPERTY} = {@link ChangeMode}</td>
@@ -928,6 +930,174 @@ public interface LogProperties {
 		 * @return keys.
 		 */
 		Collection<String> keys();
+
+	}
+
+	/**
+	 * A base for properties read from a tree of nodes, such as a TOML, HOCON or YAML
+	 * document, or a configuration system that holds its settings as a tree. A subclass
+	 * says how to get a named member of a node and a node's value, and this class finds
+	 * the node for a key.
+	 * <p>
+	 * This class is only a way to implement {@link LogProperties}. Code that reads
+	 * properties should depend on {@link LogProperties}, not on this class.
+	 * <p>
+	 * A key is split on {@value LogProperties#SEP} into member names, except that a key
+	 * ending with a logger name, such as <code>logging.level.com.example</code>, ends
+	 * with one member: the logger name, which can contain dots or any other character.
+	 * The logger name is looked up as a single member of the node at the rest of the key
+	 * (<code>logging.level</code>) and, if there is no such member, split on
+	 * {@value LogProperties#SEP} like the rest of the key. The level, route level, change
+	 * and caller properties end with a logger name. For example in TOML:
+	 * {@snippet lang = toml :
+	 * [logging.level]
+	 * root = "warn"
+	 * "com.example" = "debug"
+	 * "com.example.sub" = "error"
+	 * }
+	 * The logger name <code>root</code> is the root logger, so a format that cannot have
+	 * a value at <code>logging.level</code> when it has members can set the root logger's
+	 * level as above.
+	 * <p>
+	 * {@link #doRootNodeOrNull()} is called once for each lookup and nodes are not kept
+	 * between lookups, so a source whose tree changes at runtime can return its current
+	 * tree. Such a source should call {@link LogConfig.ChangePublisher#publish()} after a
+	 * change.
+	 * <p>
+	 * Methods added to this class in later versions will have names starting with
+	 * <code>do</code>, so a subclass should not declare methods with that prefix.
+	 *
+	 * @param <N> node type.
+	 */
+	public static abstract class AbstractNested<N> implements LogProperties {
+
+		/**
+		 * For subclasses.
+		 */
+		protected AbstractNested() {
+		}
+
+		/**
+		 * The top node of the tree, called once for each lookup.
+		 * @return top node or <code>null</code> if there is none.
+		 */
+		protected abstract @Nullable N doRootNodeOrNull();
+
+		/**
+		 * A member of a node.
+		 * @param node a node returned by {@link #doRootNodeOrNull()} or this method.
+		 * @param name member name, which is not empty and may contain
+		 * {@value LogProperties#SEP}.
+		 * @return member or <code>null</code> if the node has no member with that name.
+		 */
+		protected abstract @Nullable N doMemberNodeOrNull(N node, String name);
+
+		/**
+		 * The value of a node.
+		 * @param node a node returned by {@link #doRootNodeOrNull()} or
+		 * {@link #doMemberNodeOrNull(Object, String)}.
+		 * @return value or <code>null</code> if the node has none, for example a node
+		 * that only has members.
+		 */
+		protected abstract @Nullable String doValueNodeOrNull(N node);
+
+		/**
+		 * The value of a node as a list, for a format that has lists. By default
+		 * <code>null</code>, so {@link #listOrNull(String)} parses
+		 * {@link #doValueNodeOrNull(Object)}.
+		 * @param node a node returned by {@link #doRootNodeOrNull()} or
+		 * {@link #doMemberNodeOrNull(Object, String)}.
+		 * @return list or <code>null</code> if the node is not a list.
+		 */
+		protected @Nullable List<String> doListNodeOrNull(N node) {
+			return null;
+		}
+
+		/**
+		 * The value of a node as a map, for a format that has tables of values. By
+		 * default <code>null</code>, so {@link #mapOrNull(String)} parses
+		 * {@link #doValueNodeOrNull(Object)} or reads the map's keys from
+		 * <code>key.keys</code>.
+		 * @param node a node returned by {@link #doRootNodeOrNull()} or
+		 * {@link #doMemberNodeOrNull(Object, String)}.
+		 * @return map, iterating in a stable order, or <code>null</code> if the node is
+		 * not a table of values.
+		 */
+		protected @Nullable Map<String, String> doMapNodeOrNull(N node) {
+			return null;
+		}
+
+		@Override
+		public final @Nullable String valueOrNull(String key) {
+			N node = node(key);
+			return node == null ? null : doValueNodeOrNull(node);
+		}
+
+		@Override
+		public final @Nullable List<String> listOrNull(String key) {
+			N node = node(key);
+			if (node == null) {
+				return null;
+			}
+			var list = doListNodeOrNull(node);
+			if (list != null) {
+				return list;
+			}
+			String value = doValueNodeOrNull(node);
+			return value == null ? null : LogProperties.parseList(value);
+		}
+
+		@Override
+		public final @Nullable Map<String, String> mapOrNull(String key) {
+			N node = node(key);
+			if (node != null) {
+				var map = doMapNodeOrNull(node);
+				if (map != null) {
+					return map;
+				}
+				String value = doValueNodeOrNull(node);
+				if (value != null) {
+					return LogProperties.parseMap(value);
+				}
+			}
+			return PropertyMaps.fromKeys(this, key);
+		}
+
+		private @Nullable N node(String key) {
+			N root = doRootNodeOrNull();
+			if (root == null) {
+				return null;
+			}
+			var loggerKey = Loggers.Key.parseOrNull(key);
+			if (loggerKey == null) {
+				return path(root, key);
+			}
+			N prefix = path(root, loggerKey.prefix());
+			String loggerName = loggerKey.loggerName();
+			if (prefix == null || loggerName.isEmpty()) {
+				return prefix;
+			}
+			N member = doMemberNodeOrNull(prefix, loggerName);
+			return member != null ? member : path(prefix, loggerName);
+		}
+
+		private @Nullable N path(N node, String path) {
+			N n = node;
+			int start = 0;
+			while (true) {
+				int end = path.indexOf(SEP, start);
+				String name = end < 0 ? path.substring(start) : path.substring(start, end);
+				if (name.isEmpty()) {
+					return null;
+				}
+				N m = doMemberNodeOrNull(n, name);
+				if (m == null || end < 0) {
+					return m;
+				}
+				n = m;
+				start = end + SEP.length();
+			}
+		}
 
 	}
 
