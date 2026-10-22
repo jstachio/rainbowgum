@@ -140,8 +140,8 @@ public sealed interface LogEvent {
 	 * throwable instead of an argument; with
 	 * {@link LogMessageFormatter.StandardMessageFormatter#JUL} it is an argument; with
 	 * {@link LogMessageFormatter#ofJUL(LogProperties)} it is an argument, and also the
-	 * event's throwable when {@value LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY} is
-	 * <code>both</code>.
+	 * event's throwable when {@value LogProperties#MESSAGE_FORMAT_STYLE_PROPERTY} is
+	 * <code>log4j2</code>.
 	 * @return event
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
@@ -202,8 +202,8 @@ public sealed interface LogEvent {
 	 * throwable instead of an argument; with
 	 * {@link LogMessageFormatter.StandardMessageFormatter#JUL} it is an argument; with
 	 * {@link LogMessageFormatter#ofJUL(LogProperties)} it is an argument, and also the
-	 * event's throwable when {@value LogProperties#MESSAGE_FORMAT_THROWABLE_PROPERTY} is
-	 * <code>both</code>.
+	 * event's throwable when {@value LogProperties#MESSAGE_FORMAT_STYLE_PROPERTY} is
+	 * <code>log4j2</code>.
 	 * @return event
 	 * @see LevelResolver
 	 * @see LogMessageFormatter
@@ -260,13 +260,13 @@ public sealed interface LogEvent {
 	/*
 	 * The java.util.logging and System.Logger MessageFormat style formats a trailing
 	 * Throwable argument like any other argument, as the JDK, the jul-to-slf4j bridge and
-	 * JBoss Logging do. When configured with "both" it is also the event's throwable, as
+	 * JBoss Logging do. With the log4j2 style it is also the event's throwable, as
 	 * Log4j2's MessageFormatMessage does, so the message is complete and the stack trace
 	 * is logged.
 	 */
 	private static @Nullable Throwable throwableAlsoArgument(LogMessageFormatter messageFormatter,
 			@Nullable Object arg) {
-		if (arg instanceof Throwable t && JULMessageFormatter.throwableAlsoArgument(messageFormatter)) {
+		if (arg instanceof Throwable t && MessageFormatStyle.throwableAlsoArgument(messageFormatter)) {
 			return t;
 		}
 		return null;

@@ -23,6 +23,21 @@ Notes:
 - **The overload pitfall:** `log(INFO, "failed {0}", ex)` with a single Throwable picks the `log(Level, String, Throwable)` overload. That's why the fourth row passes `new Object[] {ex}`. Through the Throwable overload, every implementation logs `failed {0}` + trace.
 - **Rows that agree everywhere:** `"It''s {0}"` gives `It's x` in all six.
 
+## Rainbow Gum 1.0
+
+`logging.messageFormat.style` picks which implementation to follow. Measured with the
+same program on the 1.0.0 snapshot:
+
+- `jdk` (the default, alias `jboss`): the same output as the JDK column, except that an
+  argument whose `toString()` throws logs `value {0} [MessageFormat failed: expected]`.
+  `unmatched {` has no argument index, so it is logged as is, as the JDK does.
+- `log4j2` (alias `logback`): the same output as the Log4j2 column, except that the two
+  failure rows log the raw message followed by `[MessageFormat failed: reason]` instead
+  of dropping the event.
+
+Rainbow Gum never drops the event or throws to the caller when formatting fails, in either
+style.
+
 ## Reproducing
 
 Run this with each implementation's jars on the class path (`java -cp ... SysCases.java`).

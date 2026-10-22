@@ -118,8 +118,7 @@ class RainbowGumLogManagerTest {
 		var logger = Logger.getLogger("test.jul.logmanager.messageformat");
 		ListLogOutput output = new ListLogOutput();
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.apply=index
-				logging.messageFormat.throwable=both
+				logging.messageFormat.style=log4j2
 				""").build()).build();
 		try (var gum = RainbowGum.builder(config).route(r -> {
 			r.appender("list", a -> {
@@ -134,7 +133,7 @@ class RainbowGumLogManagerTest {
 			logger.log(Level.INFO, "It's done", "x");
 			logger.log(Level.INFO, "failed {0}", new Object[] { new RuntimeException("boom") });
 			String expected = """
-					It's done throwable=null
+					Its done throwable=null
 					failed java.lang.RuntimeException: boom throwable=java.lang.RuntimeException: boom
 					""";
 			assertTrue(output.toString().contains(expected),

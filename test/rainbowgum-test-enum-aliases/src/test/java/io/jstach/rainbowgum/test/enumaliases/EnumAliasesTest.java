@@ -85,6 +85,7 @@ class EnumAliasesTest {
 				"io.jstach.rainbowgum.LogConfig$DebugModeType", //
 				"io.jstach.rainbowgum.LogConfig$Globals$AnsiMode", //
 				"io.jstach.rainbowgum.LogEvent$Caller$CallerType", //
+				"io.jstach.rainbowgum.MessageFormatStyle", //
 				"io.jstach.rainbowgum.format.Json5PrettyPrint", //
 				"io.jstach.rainbowgum.format.KeyValuesPlacement", //
 				"io.jstach.rainbowgum.format.TTLL$ColorMode", //
