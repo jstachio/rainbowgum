@@ -242,10 +242,10 @@ built, into one immutable `LogConfig.Globals`:
   changes would still default to none.
 - **ANSI and `NO_COLOR`:** `auto` follows `AnsiSupport`, which honors `NO_COLOR`; `on`
   overrides it. Whether `on` should still respect `NO_COLOR` is open.
-- **Module switches** (`jansi.disable`, `jul.disable`, `jul.level.disable`,
-  `pattern.disable`): they now parse strictly (jansi moved off its
-  raw `Boolean.parseBoolean` onto `ofBoolean`), so only the negative names remain. Enums on
-  positive keys are still an option.
+- **Module switches** (`jansi.disable`, `jul.disable`, `pattern.disable`): they now
+  parse strictly (jansi moved off its raw `Boolean.parseBoolean` onto `ofBoolean`), so
+  only the negative names remain. Enums on positive keys are still an option;
+  `jul.level.disable` already became `jul.level` (`sync`, `none` or a level).
 - **`ofBoolean`:** kept, now strict. Generated builders use it for every `boolean`
   parameter, so the component booleans listed above reject `yes` too. New properties
   should still prefer an enum when more than two values are plausible.

@@ -339,6 +339,115 @@ class JDKSetupTest {
 		});
 	}
 
+	enum JULLevelCase {
+
+		UNSET("", "INFO"), //
+		SYNC("logging.jul.level=sync", "INFO"), //
+		ALL("logging.jul.level=all", "ALL"), //
+		TRACE("logging.jul.level=trace", "ALL"), //
+		DEBUG("logging.jul.level=DEBUG", "FINE"), //
+		WARN("logging.jul.level=warn", "WARNING"), //
+		NONE("logging.jul.level=none", "SEVERE"), //
+		;
+
+		final String properties;
+
+		final String expected;
+
+		JULLevelCase(String properties, String expected) {
+			this.properties = properties;
+			this.expected = expected;
+		}
+
+	}
+
+	@Order(14)
+	@ParameterizedTest
+	@EnumSource(JULLevelCase.class)
+	void testJULLevelSetsTheRootLevel(JULLevelCase c) throws InterruptedException {
+		doInLock(() -> {
+			var root = Logger.getLogger("");
+			var original = root.getLevel();
+			// Set so NONE can show the level is left alone.
+			root.setLevel(java.util.logging.Level.SEVERE);
+			try {
+				var properties = LogProperties.builder().fromProperties(c.properties).build();
+				try (var gum = JDKSetup.run(new ListLogOutput(), Level.INFO, properties)) {
+					assertEquals(c.expected, String.valueOf(root.getLevel()));
+				}
+			}
+			finally {
+				root.setLevel(original);
+			}
+		});
+	}
+
+	@Order(14)
+	@ParameterizedTest
+	@EnumSource(value = JULLevelCase.class, names = { "SYNC", "ALL" })
+	void testJULLevelAndALoggerMoreVerboseThanTheRoot(JULLevelCase c) throws InterruptedException {
+		doInLock(() -> {
+			var root = Logger.getLogger("");
+			var original = root.getLevel();
+			try {
+				ListLogOutput output = new ListLogOutput();
+				var properties = LogProperties.builder().fromProperties(c.properties + """
+
+						logging.level=info
+						logging.level.com.example=debug
+						""").build();
+				var config = LogConfig.builder()
+					.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class))
+					.properties(properties)
+					.build();
+				RainbowGum.set(() -> RainbowGum.builder(config).route(r -> {
+					r.appender("list", a -> a.output(output));
+					r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+				}).build());
+				try (var gum = RainbowGum.of()) {
+					Logger.getLogger("com.example.Jul").fine("com.example fine");
+					Logger.getLogger("com.example.Jul").finest("com.example finest");
+					Logger.getLogger("org.other").fine("org.other fine");
+					Logger.getLogger("org.other").info("org.other info");
+				}
+				var actual = output.events()
+					.stream()
+					.map(e -> e.getKey().loggerName() + " " + e.getKey().message())
+					.toList();
+				var expected = switch (c) {
+					case ALL -> List.of("com.example.Jul com.example fine", "org.other org.other info");
+					default -> List.of("org.other org.other info");
+				};
+				assertEquals(expected, actual);
+			}
+			finally {
+				root.setLevel(original);
+			}
+		});
+	}
+
+	@Order(14)
+	@Test
+	void testJULLevelInvalidValueIsReported() throws InterruptedException {
+		doInLock(() -> {
+			var root = Logger.getLogger("");
+			var original = root.getLevel();
+			try {
+				var properties = LogProperties.builder().fromProperties("logging.jul.level=loud").build();
+				var e = assertThrows(RuntimeException.class,
+						() -> JDKSetup.run(new ListLogOutput(), Level.INFO, properties));
+				assertEquals(
+						"""
+								Validation failed for io.jstach.rainbowgum.jul.JULConfigurator:
+								Error for property. key: 'logging.jul.level' from PROPERTIES_STRING[logging.jul.level], 'loud' is not a valid value. Valid values: 'sync', 'none' or a level such as 'all', 'debug' or 'info'""",
+						e.getMessage());
+			}
+			finally {
+				root.setLevel(original);
+			}
+		});
+	}
+
 	@Order(15)
 	@ParameterizedTest
 	@EnumSource(System.Logger.Level.class)
