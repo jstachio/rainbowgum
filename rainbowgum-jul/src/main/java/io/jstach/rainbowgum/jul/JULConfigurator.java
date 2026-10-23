@@ -1,7 +1,9 @@
 package io.jstach.rainbowgum.jul;
 
+import java.util.Locale;
 import java.util.logging.Logger;
 
+import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogMessageFormatter;
 import io.jstach.rainbowgum.LogProperties;
@@ -22,12 +24,28 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	public static final String JUL_DISABLE_PROPERTY = "logging.jul.disable";
 
 	/**
-	 * If true will not set the root loggers level to whatever the curreint rainbow gums
-	 * global level default is.
+	 * Sets the level of the java.util.logging root logger. java.util.logging checks it,
+	 * and any levels configured in java.util.logging itself, before an event reaches
+	 * Rainbow Gum, so an event below it is not logged even if Rainbow Gum would log it.
+	 * Values (case is ignored):
+	 * <ul>
+	 * <li><code>sync</code> (default): the root level of Rainbow Gum. Events of a logger
+	 * configured more verbose than the root, such as
+	 * <code>logging.level.com.example=debug</code> with an <code>info</code> root, are
+	 * not logged when they are below the root level.</li>
+	 * <li><code>none</code>: the level is left as java.util.logging is configured, for
+	 * example by <code>logging.properties</code>.</li>
+	 * <li>A level such as <code>all</code>, <code>debug</code> or <code>info</code>: that
+	 * level. With <code>all</code> every event reaches Rainbow Gum, which then applies
+	 * its own levels, at the cost of a {@link java.util.logging.LogRecord} for every
+	 * event including those Rainbow Gum does not log.</li>
+	 * </ul>
 	 */
-	public static final String JUL_LEVEL_DISABLE_PROPERTY = "logging.jul.level.disable";
+	public static final String JUL_LEVEL_PROPERTY = "logging.jul.level";
 
 	private volatile boolean installed = false;
+
+	private volatile boolean levelSet = false;
 
 	/**
 	 * For service laoder.
@@ -38,23 +56,29 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	@Override
 	public boolean configure(@SuppressWarnings("exports") LogConfig config, @SuppressWarnings("exports") Pass pass) {
 		config.reporter().addProperty(JULConfigurator.class, JUL_DISABLE_PROPERTY);
+		config.reporter().addProperty(JULConfigurator.class, JUL_LEVEL_PROPERTY);
 		if (!install(config.properties())) {
 			return true;
 		}
 		else {
 			installed = true;
 		}
-		var disableLevel = config.properties()
-			.forKey(JUL_LEVEL_DISABLE_PROPERTY)
-			.ofBoolean()
-			.or(false)
+		var julLevel = config.properties()
+			.forKey(JUL_LEVEL_PROPERTY)
+			.ofString()
+			.map(JULLevel::parse)
+			.or(JULLevel.Policy.SYNC)
 			.validateNow(JULConfigurator.class);
-
-		if (!disableLevel) {
+		System.Logger.Level level = switch (julLevel) {
+			case JULLevel.Policy.NONE -> null;
+			case JULLevel.Policy.SYNC -> config.levelResolver().resolveLevel("");
+			case JULLevel.Fixed f -> f.level();
+		};
+		if (level != null) {
 			var logger = Logger.getLogger("");
 			if (logger != null) {
-				var systemLevel = traceToAll(config.levelResolver().resolveLevel(""));
-				logger.setLevel(julLevel(systemLevel));
+				logger.setLevel(julLevel(traceToAll(level)));
+				levelSet = true;
 			}
 		}
 		return true;
@@ -104,7 +128,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 
 	@Override
 	public void close() {
-		if (installed) {
+		if (installed && levelSet) {
 			var logger = Logger.getLogger("");
 			if (logger != null) {
 				logger.setLevel(java.util.logging.Level.INFO);
@@ -113,7 +137,7 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 
 	}
 
-	private java.util.logging.Level julLevel(System.Logger.Level level) {
+	private static java.util.logging.Level julLevel(System.Logger.Level level) {
 		var julLevel = switch (level) {
 			case TRACE -> java.util.logging.Level.FINEST;
 			case DEBUG -> java.util.logging.Level.FINE;
@@ -124,6 +148,38 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 			case OFF -> java.util.logging.Level.OFF;
 		};
 		return julLevel;
+	}
+
+}
+
+/*
+ * A value of logging.jul.level.
+ */
+sealed interface JULLevel {
+
+	enum Policy implements JULLevel {
+
+		SYNC, NONE
+
+	}
+
+	record Fixed(System.Logger.Level level) implements JULLevel {
+	}
+
+	static JULLevel parse(String input) {
+		return switch (input.strip().toLowerCase(Locale.ROOT)) {
+			case "sync" -> Policy.SYNC;
+			case "none" -> Policy.NONE;
+			default -> {
+				try {
+					yield new Fixed(LevelResolver.parseLevel(input));
+				}
+				catch (IllegalArgumentException e) {
+					throw new IllegalArgumentException("'" + input
+							+ "' is not a valid value. Valid values: 'sync', 'none' or a level such as 'all', 'debug' or 'info'");
+				}
+			}
+		};
 	}
 
 }

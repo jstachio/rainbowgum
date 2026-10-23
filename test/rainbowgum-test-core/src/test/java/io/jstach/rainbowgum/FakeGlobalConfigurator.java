@@ -6,10 +6,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * Test-only configurator for {@link ConfigFailureTest} that deliberately does
  * <strong>not</strong> go through a generated builder the way {@link FakeEncoderBuilder}
  * does - it reads properties directly off {@link LogConfig#properties()}, the same style
- * {@code JULConfigurator} (see
- * {@code logging.jul.disable}/{@code logging.jul.level.disable} in rainbowgum-jul) uses
- * for its global on/off switches. Besides that kind of switch, this fake also has three
- * required companion properties, each read via
+ * {@code JULConfigurator} (see {@code logging.jul.disable}/{@code logging.jul.level} in
+ * rainbowgum-jul) uses for its global on/off switches. Besides that kind of switch, this
+ * fake also has three required companion properties, each read via
  * {@link LogProperty.Result#map(LogProperty.PropertyFunction) map()} (same as
  * {@code FakeEncoderBuilder}'s {@code label}) but wired up differently so each
  * demonstrates a different way a direct (no builder) read can fail:
