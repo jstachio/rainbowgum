@@ -7,7 +7,7 @@
   </parent>
   <artifactId>rainbowgum-test-nested-properties</artifactId>
   <properties>
-    <helidon.version>4.5.5</helidon.version>
+    <helidon.version>4.5.6</helidon.version>
   </properties>
   <!--
     Example property sources for nested formats (TOML, HOCON and Helidon Config), showing
