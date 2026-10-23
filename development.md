@@ -105,6 +105,13 @@ Methods that return null should ideally be suffixed with `OrNull`, including
 protected methods a subclass implements. Accessors follow modern record style
 and are not prefixed with get.
 
+Prefer a property whose values name distinct modes over a boolean, and avoid
+`disable` in property names. It is unclear how much a `disable` turns off:
+fully disabling a module means leaving it off the classpath, so what a switch
+really chooses between is modes. For example `logging.jul.level` takes `sync`,
+`none` or a level rather than a `logging.jul.level.disable` boolean. The
+existing `.disable` properties stay because users expect them.
+
 Public javadoc should never go into implementation details that are likely to
 change or hidden. Public javadoc should not reference package friendly or
 private classes.
