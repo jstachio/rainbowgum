@@ -54,7 +54,9 @@ public interface LogEncoder {
 
 	/**
 	 * Comma separated names of the {@link LogFormatter.PostProcessor post processors}
-	 * applied, in order, to an encoder backed by a formatter: {@value}.
+	 * applied, in the order listed, to an encoder backed by a formatter:
+	 * {@value}. Encoders that are not backed by a formatter ignore it. An unknown name
+	 * fails when the encoder is provisioned.
 	 * @see LogFormatter.StandardPostProcessor
 	 */
 	static final String ENCODER_POST_PROCESSORS_PROPERTY = LogProperties.ENCODER_PREFIX + "postProcessors";
