@@ -1291,6 +1291,7 @@ final class DefaultLogConfig implements LogConfig {
 		 */
 		registry.put(KeyValuesContributors.Disabled.class,
 				new KeyValuesContributors.Disabled(globals.keyValuesDisabled()));
+		PostProcessors.registerStandard(registry);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();
