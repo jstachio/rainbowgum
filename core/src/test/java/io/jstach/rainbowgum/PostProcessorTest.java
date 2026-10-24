@@ -59,6 +59,23 @@ class PostProcessorTest {
 	}
 
 	@Test
+	void journaldPrefixesEveryLineOfTheEventOnly() {
+		var event = LogEventFactory.of("test").eventNoArg(Level.ERROR, "", KeyValues.of(), (Throwable) null);
+		String[][] cases = { //
+				{ "a", "<3>a" }, //
+				{ "a\n", "<3>a\n" }, //
+				{ "a\nb", "<3>a\n<3>b" }, //
+				{ "a\n\nb\n", "<3>a\n<3>\n<3>b\n" }, //
+				{ "a\r\nb\r\n", "<3>a\r\n<3>b\r\n" }, //
+		};
+		for (String[] c : cases) {
+			var output = new StringBuilder("before\n");
+			StandardPostProcessor.JOURNALD.process(event, output.append(c[0]), "before\n".length());
+			assertEquals("before\n" + c[1], output.toString());
+		}
+	}
+
+	@Test
 	void noPostProcessorsByDefault() {
 		assertEquals("ERROR first\nsecond\n", log("", Level.ERROR, "first\nsecond", null));
 	}

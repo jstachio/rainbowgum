@@ -1682,16 +1682,23 @@ final class PostProcessors {
 	}
 
 	/*
-	 * Inserts the prefix at the start of the region and after each line break that is
-	 * followed by more text. Works backwards so earlier indexes stay valid.
+	 * Puts the prefix at the start of the region and after each line break that is
+	 * followed by more text. Inserting per line shifts the rest of the region each time,
+	 * which is quadratic for a long stack trace, so the prefixed copy is appended after
+	 * the region in one pass and the original is then deleted.
 	 */
 	static void prefixLines(StringBuilder output, int start, String prefix) {
-		for (int i = output.length() - 2; i >= start; i--) {
+		int end = output.length();
+		int lineStart = start;
+		output.append(prefix);
+		for (int i = start; i < end - 1; i++) {
 			if (output.charAt(i) == '\n') {
-				output.insert(i + 1, prefix);
+				output.append(output, lineStart, i + 1).append(prefix);
+				lineStart = i + 1;
 			}
 		}
-		output.insert(start, prefix);
+		output.append(output, lineStart, end);
+		output.delete(start, end);
 	}
 
 	/*
