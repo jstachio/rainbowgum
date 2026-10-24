@@ -1785,7 +1785,8 @@ policy.</strong> There is no calendar/date based rotation, no compression on a
 schedule independent of rotation, and no coordination across multiple processes
 writing the same file. If you need any of that, use the external-tool approach
 below instead (typically
-<a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a>).
+<a href="https://manpages.debian.org/latest/logrotate/logrotate.8.en.html">logrotate</a>),
+or for a systemd service let <a href="#rolling_journald">the journal</a> handle it.
 It remains the recommended approach for anything beyond preventing a disk from
 filling up, and does not depend on the {@linkplain io.jstach.rainbowgum.file/ rainbowgum-file} module at all.
 
@@ -1844,6 +1845,21 @@ We might have a logrotate script that looks like:
   endscript
 }
 }
+
+<h4 id="rolling_journald">systemd Journal</h4>
+
+An application run as a systemd service can skip rolling files altogether. systemd sends the service's standard out
+to its journal by default, and the journal handles rotation, retention and size limits (for example
+<code>SystemMaxUse</code> in <code>journald.conf</code>), with <code>journalctl</code> to read it. Log to the
+console and add the <a href="#post_processors"><code>journald</code> post processor</a> so each line carries the
+event's priority, with <code>crlf</code> first so a multi-line event such as a stack trace stays one journal entry:
+
+{@snippet lang=properties :
+logging.appender.console.encoder.postProcessors=crlf,journald
+}
+
+This suits a service without log aggregation such as Fluent Bit, and an aggregator can still be added later
+reading from the journal.
 
 <h3 id="otlp">OpenTelemetry</h3>
 
