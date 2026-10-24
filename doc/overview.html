@@ -1144,12 +1144,17 @@ logging.appender.myappender.encoder.uri=logback
 
 Encoders backed by a formatter (the default TTLL encoder, the pattern encoder, and any
 {@link io.jstach.rainbowgum.LogEncoder#of(io.jstach.rainbowgum.LogFormatter)}) can rewrite the finished text of each
-event with {@linkplain io.jstach.rainbowgum.LogFormatter.PostProcessor post processors}, listed by name and applied in
-order:
+event with {@linkplain io.jstach.rainbowgum.LogFormatter.PostProcessor post processors}, listed by name:
 
 {@snippet lang=properties :
 logging.appender.console.encoder.postProcessors=crlf,journald
 }
+
+They run in the order listed, each on the text the previous one left, so order matters: <code>crlf,journald</code>
+keeps a multi-line event, such as one with a stack trace, as one journal entry, while <code>journald,crlf</code>
+prefixes every original line before joining them. Post processors change only that encoder's text, not the event, so
+other appenders still see the original values. Encoders that write bytes directly, such as the JSON encoders, do not
+use post processors.
 
 The built in ones are {@link io.jstach.rainbowgum.LogFormatter.StandardPostProcessor}:
 <ul>
@@ -1163,10 +1168,8 @@ Custom post processors are registered under the name used in the property, usual
 {@link io.jstach.rainbowgum.LogFormatter.PostProcessor#register(io.jstach.rainbowgum.ServiceRegistry, String, io.jstach.rainbowgum.LogFormatter.PostProcessor.Provider)}:
 
 {@snippet :
-PostProcessor.register(config.serviceRegistry(), "maskDigits", (encoderName, config) -> new MaskDigits());
+PostProcessor.register(config.serviceRegistry(), "maskDigits", (encoderName, c) -> new MaskDigits());
 }
- Encoders that write
-bytes directly, such as the JSON encoders, do not use post processors.
 
 
 <h2 id="formatters">Formatters</h2>

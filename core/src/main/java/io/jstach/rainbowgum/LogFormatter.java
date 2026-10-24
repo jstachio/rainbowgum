@@ -905,19 +905,37 @@ public sealed interface LogFormatter {
 	 * every line or to escape line breaks. Unlike a formatter, a post processor sees the
 	 * finished text of the whole event, including message arguments and stack traces.
 	 * <p>
-	 * Post processors apply to encoders backed by a formatter (see
-	 * {@link LogEncoder#of(LogFormatter)}) and are selected by name with the
-	 * {@value LogEncoder#ENCODER_POST_PROCESSORS_PROPERTY} property, applied in the order
-	 * listed: <pre>
+	 * Post processors apply only to encoders backed by a formatter, such as the default
+	 * encoder, the pattern encoder and {@link LogEncoder#of(LogFormatter)}. Encoders that
+	 * write bytes directly, such as the JSON encoders, ignore them. They are selected by
+	 * name with the {@value LogEncoder#ENCODER_POST_PROCESSORS_PROPERTY} property: <pre>
 	 * logging.appender.console.encoder.postProcessors=crlf,journald
-	 * </pre> The names of {@link StandardPostProcessor} are always available. Others are
-	 * registered as a {@link Provider} in {@link LogConfig#serviceRegistry()} under their
-	 * name, which takes precedence over a standard post processor of the same name.
+	 * </pre>
+	 * <p>
+	 * They run in the order listed, each on the text the previous one left, so the order
+	 * changes the result. With <code>crlf,journald</code> a multi-line event becomes one
+	 * line with one prefix. With <code>journald,crlf</code> every original line is
+	 * prefixed and then the lines are joined.
+	 * <p>
+	 * A post processor changes only the text of the encoder it is configured on. The
+	 * event is not changed, so other appenders, other encoders and anything else that
+	 * reads the event see the original values.
+	 * <p>
+	 * Like formatters, post processors must be thread-safe. One instance processes every
+	 * event of its encoder, possibly from several threads at once, each with its own
+	 * {@link StringBuilder}.
+	 * <p>
+	 * The names of {@link StandardPostProcessor} are always available. Others are added
+	 * with {@link #register(ServiceRegistry, String, Provider)}, and a registered name
+	 * takes precedence over a standard one. A name that is neither fails when the encoder
+	 * is provisioned, with an error listing the available names.
 	 */
 	public interface PostProcessor {
 
 		/**
-		 * Rewrites the event's text in place.
+		 * Rewrites the event's text in place. Only the text from <code>start</code> to
+		 * the end of <code>output</code> belongs to this event; text before
+		 * <code>start</code> must not be changed.
 		 * @param event the event that was formatted.
 		 * @param output the output, whose text from <code>start</code> to its end is the
 		 * event's text.
@@ -951,6 +969,8 @@ public sealed interface LogFormatter {
 
 		/**
 		 * Creates a post processor for an encoder, given the encoder's name and config.
+		 * It is called once each time an encoder that lists its name is built, not for
+		 * each event.
 		 */
 		@FunctionalInterface
 		public interface Provider extends LogProvider<PostProcessor> {
