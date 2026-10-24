@@ -1163,6 +1163,7 @@ The built in ones are {@link io.jstach.rainbowgum.LogFormatter.StandardPostProce
 <li><code>crlf</code> escapes line breaks inside an event so it stays on one line and untrusted input cannot forge
 extra log lines.</li>
 </ul>
+The built in names are registered when the config is created, so a custom post processor needs a name of its own.
 Custom post processors are registered under the name used in the property, usually from a
 {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}, with
 {@link io.jstach.rainbowgum.LogFormatter.PostProcessor#register(io.jstach.rainbowgum.ServiceRegistry, String, io.jstach.rainbowgum.LogFormatter.PostProcessor.Provider)}:

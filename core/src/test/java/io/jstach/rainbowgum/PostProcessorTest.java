@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
@@ -47,6 +48,14 @@ class PostProcessorTest {
 		var ex = new IllegalStateException("boom");
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
 		return ex;
+	}
+
+	@Test
+	void standardPostProcessorsAreRegisteredWhenTheConfigIsCreated() {
+		var config = LogConfig.builder().build();
+		var names = new TreeSet<String>();
+		config.serviceRegistry().forEach(PostProcessor.Provider.class, (n, p) -> names.add(n));
+		assertEquals("[crlf, journald]", names.toString());
 	}
 
 	@Test
@@ -94,12 +103,12 @@ class PostProcessorTest {
 	}
 
 	@Test
-	void registeredPostProcessorTakesPrecedenceOverAStandardName() {
+	void registeringAStandardNameKeepsTheStandardPostProcessor() {
 		String actual = log("logging.appender.app.encoder.postProcessors=journald",
 				config -> PostProcessor.register(config.serviceRegistry(), "journald",
 						(name, c) -> (event, output, start) -> output.insert(start, "custom ")),
 				Level.INFO, "hello", null);
-		assertEquals("custom INFO hello\n", actual);
+		assertEquals("<6>INFO hello\n", actual);
 	}
 
 	/*

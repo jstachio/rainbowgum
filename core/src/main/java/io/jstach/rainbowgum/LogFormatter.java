@@ -925,17 +925,20 @@ public sealed interface LogFormatter {
 	 * event of its encoder, possibly from several threads at once, each with its own
 	 * {@link StringBuilder}.
 	 * <p>
-	 * The names of {@link StandardPostProcessor} are always available. Others are added
-	 * with {@link #register(ServiceRegistry, String, Provider)}, and a registered name
-	 * takes precedence over a standard one. A name that is neither fails when the encoder
-	 * is provisioned, with an error listing the available names.
+	 * The {@link StandardPostProcessor}s are registered under their lowercase names when
+	 * the {@link LogConfig} is created. Others are added with
+	 * {@link #register(ServiceRegistry, String, Provider)}. A name that is not registered
+	 * fails when the encoder is provisioned, with an error listing the registered names.
 	 */
 	public interface PostProcessor {
 
 		/**
 		 * Rewrites the event's text in place. Only the text from <code>start</code> to
 		 * the end of <code>output</code> belongs to this event; text before
-		 * <code>start</code> must not be changed.
+		 * <code>start</code> must not be changed. <code>output</code> is the encoder's
+		 * buffer, which the encoder sizes and trims, so a post processor that needs
+		 * working space should use <code>output</code> itself, for example by appending
+		 * the rewritten text and deleting the original, rather than a buffer of its own.
 		 * @param event the event that was formatted.
 		 * @param output the output, whose text from <code>start</code> to its end is the
 		 * event's text.
@@ -956,8 +959,8 @@ public sealed interface LogFormatter {
 		 * Registers a post processor under a name so encoders can select it with
 		 * {@value LogEncoder#ENCODER_POST_PROCESSORS_PROPERTY}, usually from a
 		 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}. A name
-		 * that is already registered is not replaced; a registered name takes precedence
-		 * over a {@link StandardPostProcessor} of the same name.
+		 * that is already registered, including the name of a
+		 * {@link StandardPostProcessor}, is not replaced.
 		 * @param registry usually {@link LogConfig#serviceRegistry()}.
 		 * @param name the name used in the property.
 		 * @param provider creates the post processor, given the encoder's name and
@@ -1642,9 +1645,19 @@ final class PostProcessors {
 	}
 
 	/*
+	 * Registers the standard post processors under their lowercase names. Called when the
+	 * LogConfig is created, before any configurator can register a name.
+	 */
+	static void registerStandard(ServiceRegistry registry) {
+		for (var standard : LogFormatter.StandardPostProcessor.values()) {
+			LogFormatter.PostProcessor.register(registry, standard.name().toLowerCase(java.util.Locale.ROOT),
+					(n, c) -> standard);
+		}
+	}
+
+	/*
 	 * Resolves the post processors named by the encoder's postProcessors property, in
-	 * order, and wraps the formatter with them. Registered providers take precedence over
-	 * the standard post processors.
+	 * order, and wraps the formatter with them.
 	 */
 	static LogFormatter decorate(LogFormatter formatter, String encoderName, LogConfig config) {
 		String key = LogProperties.interpolateKey(LogEncoder.ENCODER_POST_PROCESSORS_PROPERTY,
@@ -1662,15 +1675,7 @@ final class PostProcessors {
 		if (provider != null) {
 			return provider.provide(encoderName, config);
 		}
-		for (var standard : LogFormatter.StandardPostProcessor.values()) {
-			if (standard.name().equalsIgnoreCase(name)) {
-				return standard;
-			}
-		}
 		var available = new java.util.TreeSet<String>();
-		for (var standard : LogFormatter.StandardPostProcessor.values()) {
-			available.add(standard.name().toLowerCase(java.util.Locale.ROOT));
-		}
 		config.serviceRegistry().forEach(LogFormatter.PostProcessor.Provider.class, (n, p) -> available.add(n));
 		throw new IllegalArgumentException("Unknown post processor '" + name + "' for encoder '" + encoderName
 				+ "'. Available post processors: " + String.join(", ", available));
