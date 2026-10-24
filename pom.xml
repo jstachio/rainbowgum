@@ -439,7 +439,7 @@
             <dependency>
               <groupId>org.codehaus.plexus</groupId>
               <artifactId>plexus-archiver</artifactId>
-              <version>4.14.0</version>
+              <version>4.15.0</version>
             </dependency>
           </dependencies>
         </plugin>
