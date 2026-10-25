@@ -98,7 +98,7 @@ class LoggerNameEdgeCaseTest {
 		NUL("a\u0000b", "a\u0000b|a\u0000b|a\u0000b|a\u0000b|a\u0000b", "\"a\\u0000b\"", "\"a\\u0000b\"",
 				"\"a\\u0000b\""), //
 		ANSI_ESCAPE("a\u001b[31mred", "a\u001b[31mred|a\u001b[31mred|a\u001b[31mred|a\u001b[31mred|a\u001b[31mred",
-				"\"a\\u001b[31mred\"", "\"a\\u001b[31mred\"", "\"a\\u001B[31mred\""), //
+				"\"a\\u001b[31mred\"", "\"a\\u001b[31mred\"", "\"a\\u001b[31mred\""), //
 		QUOTE("a\"b", "a\"b|a\"b|a\"b|a\"b|a\"b", "\"a\\\"b\"", "\"a\\\"b\"", "\"a\\\"b\""), //
 		BACKSLASH("a\\b", "a\\b|a\\b|a\\b|a\\b|a\\b", "\"a\\\\b\"", "\"a\\\\b\"", "\"a\\\\b\""), //
 		EQUALS("a=b", "a=b|a=b|a=b|a=b|a=b", "\"a=b\"", "\"a=b\"", "\"a=b\""), //

@@ -190,15 +190,15 @@ class RawJsonWriter {
 							break;
 						case 11:
 							_result[cur + 4] = '0';
-							_result[cur + 5] = 'B';
+							_result[cur + 5] = 'b';
 							break;
 						case 14:
 							_result[cur + 4] = '0';
-							_result[cur + 5] = 'E';
+							_result[cur + 5] = 'e';
 							break;
 						case 15:
 							_result[cur + 4] = '0';
-							_result[cur + 5] = 'F';
+							_result[cur + 5] = 'f';
 							break;
 						case 16:
 							_result[cur + 4] = '1';
@@ -242,27 +242,27 @@ class RawJsonWriter {
 							break;
 						case 26:
 							_result[cur + 4] = '1';
-							_result[cur + 5] = 'A';
+							_result[cur + 5] = 'a';
 							break;
 						case 27:
 							_result[cur + 4] = '1';
-							_result[cur + 5] = 'B';
+							_result[cur + 5] = 'b';
 							break;
 						case 28:
 							_result[cur + 4] = '1';
-							_result[cur + 5] = 'C';
+							_result[cur + 5] = 'c';
 							break;
 						case 29:
 							_result[cur + 4] = '1';
-							_result[cur + 5] = 'D';
+							_result[cur + 5] = 'd';
 							break;
 						case 30:
 							_result[cur + 4] = '1';
-							_result[cur + 5] = 'E';
+							_result[cur + 5] = 'e';
 							break;
 						default:
 							_result[cur + 4] = '1';
-							_result[cur + 5] = 'F';
+							_result[cur + 5] = 'f';
 							break;
 					}
 					cur += 6;
