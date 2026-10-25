@@ -110,7 +110,7 @@ class RawJsonWriterTest {
 	void testWriteStringEscapesOtherControlCharsAsUnicode() {
 		var w = new RawJsonWriter(16);
 		w.writeString("\u0000\u0001\u001F");
-		assertEquals("\"\\u0000\\u0001\\u001F\"", toUtf8(w));
+		assertEquals("\"\\u0000\\u0001\\u001f\"", toUtf8(w));
 	}
 
 	@Test

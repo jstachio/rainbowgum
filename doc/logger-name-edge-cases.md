@@ -263,7 +263,7 @@ printed through a UTF-8 console.
 | `a⟨CR⟩⟨LF⟩b` | `ERROR a⟨CR⟩⟨LF⟩b - m` | `"a\r\nb"` | `"a\r\nb"` | `"a\r\nb"` | `"a\r\nb"` | `"a\r\nb"` |
 | `a⟨TAB⟩b` | `ERROR a⟨TAB⟩b - m` | `"a\tb"` | `"a\tb"` | `"a\tb"` | `"a\tb"` | `"a\tb"` |
 | `a⟨NUL⟩b` | `ERROR a⟨NUL⟩b - m` | `"a\u0000b"` | `"a\u0000b"` | `"a\u0000b"` | `"a\u0000b"` | `"a\u0000b"` |
-| `a⟨ESC⟩[31mred` | `ERROR a⟨ESC⟩[31mred - m` | `"a\u001b[31mred"` | `"a\u001b[31mred"` | `"a\u001B[31mred"` | `"a\u001B[31mred"` | `"a\u001B[31mred"` |
+| `a⟨ESC⟩[31mred` | `ERROR a⟨ESC⟩[31mred - m` | `"a\u001b[31mred"` | `"a\u001b[31mred"` | `"a\u001b[31mred"` | `"a\u001b[31mred"` | `"a\u001b[31mred"` |
 | `a"b` | `ERROR a"b - m` | `"a\"b"` | `"a\"b"` | `"a\"b"` | `"a\"b"` | `"a\"b"` |
 | `a\b` | `ERROR a\b - m` | `"a\\b"` | `"a\\b"` | `"a\\b"` | `"a\\b"` | `"a\\b"` |
 | ` ` | `ERROR   - m` | `" "` | `" "` | `" "` | `" "` | `" "` |
@@ -271,6 +271,6 @@ printed through a UTF-8 console.
 | `a=b` | `ERROR a=b - m` | `"a=b"` | `"a=b"` | `"a=b"` | `"a=b"` | `"a=b"` |
 | `a.😀.b` | `ERROR a.😀.b - m` | `a.😀.b` | `"a.😀.b"` | `"a.😀.b"` | `"a.😀.b"` | `"a.😀.b"` |
 
-The four rainbowgum-json encoders (ECS, Logstash, GELF and Logback JSON) write control
-characters with uppercase hex (`\u001B`) and core's logfmt and JSON5 with lowercase
-(`\u001b`); both are valid. logfmt quotes a value only when it needs to.
+Every encoder writes control characters with lowercase hex (`\u001b`), as ECMAScript's
+`JSON.stringify` and RFC 8785 do; RFC 8259 allows either case. logfmt quotes a value only
+when it needs to.
