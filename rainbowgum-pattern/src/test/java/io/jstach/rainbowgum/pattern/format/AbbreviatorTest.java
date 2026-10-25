@@ -18,7 +18,8 @@ import org.junit.jupiter.api.Test;
  * ClassNameOnlyAbbreviator. The tests below in the "ported from Logback" section
  * are taken verbatim (same inputs/expected outputs) from Logback's own
  * TargetLengthBasedClassNameAbbreviatorTest to confirm this port behaves
- * identically.
+ * identically. The one deliberate difference is that a shortened segment keeps its whole
+ * first code point, where Logback keeps one char and splits a surrogate pair.
  *
  * The cache is not Logback's: it is a plain ConcurrentHashMap keyed by logger name,
  * since logger names are as bounded as the loggers that are kept anyway.
@@ -91,6 +92,15 @@ class AbbreviatorTest {
 
 	// --- StandardAbbreviator.CLASS_NAME_ONLY (RainbowGum's ClassNameOnlyAbbreviator
 	// equivalent) ---
+
+	@Test
+	void shortenedSegmentKeepsASurrogatePairWhole() {
+		var abbreviator = new Abbreviator.TargetLengthBasedClassNameAbbreviator(1);
+		// Logback 1.5.37 gives "a.\uD83D.b", a lone high surrogate.
+		assertEquals("a.\uD83D\uDE00.b", abbreviator.abbreviate("a.\uD83D\uDE00.b"));
+		assertEquals("\uD83D\uDE00.b", abbreviator.abbreviate("\uD83D\uDE00x.b"));
+		assertEquals("c.\uD83D\uDE00.Foo", abbreviator.abbreviate("com.\uD83D\uDE00pkg.Foo"));
+	}
 
 	@Test
 	void classNameOnlyStripsPackage() {

@@ -146,6 +146,15 @@ interface Abbreviator {
 				else {
 					if (inDotState) {
 						buf.append(c);
+						/*
+						 * Keep the segment's whole first code point. Logback keeps only
+						 * the first char, which leaves a lone high surrogate for a
+						 * segment starting with, for example, an emoji.
+						 */
+						if (Character.isHighSurrogate(c) && i + 1 < rightMostDotIndex
+								&& Character.isLowSurrogate(fqClassName.charAt(i + 1))) {
+							buf.append(fqClassName.charAt(++i));
+						}
 						inDotState = false;
 					}
 					else {
