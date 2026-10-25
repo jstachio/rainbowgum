@@ -385,8 +385,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/**
 	 * Use to build a custom {@link RainbowGum} which will use the {@link LogConfig}
-	 * provided by the service loader.
+	 * provided by the service loader, so installed modules are discovered.
 	 * @return builder.
+	 * @see #builder(Consumer)
 	 */
 	public static Builder builder() {
 		ServiceLoader<RainbowGumServiceProvider> loader = ServiceLoader.load(RainbowGumServiceProvider.class);
@@ -405,14 +406,18 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	}
 
 	/**
-	 * Use to build a custom {@link RainbowGum} with supplied config.
+	 * Use to build a custom {@link RainbowGum} whose config starts like
+	 * {@link #builder()}: the config builder already uses the service loader, so
+	 * installed modules are discovered, and the consumer changes only what it needs to.
+	 * Calling {@link LogConfig.Builder#serviceLoader(ServiceLoader)} in the consumer
+	 * replaces the service loader. To build without the service loader use
+	 * {@link #builder(LogConfig)} with a config from {@link LogConfig#builder()}.
 	 * @param config consumer that has first argument as config builder.
 	 * @return builder.
 	 * @see #builder()
-	 * @apiNote this method is for ergonomic fluent reasons.
 	 */
 	public static Builder builder(Consumer<? super LogConfig.Builder> config) {
-		var b = LogConfig.builder();
+		var b = LogConfig.builder().serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class));
 		config.accept(b);
 		return builder(b.build());
 	}
