@@ -517,6 +517,32 @@ configured by properties through
 {@link io.jstach.rainbowgum.LogBuilder#fromProperties(io.jstach.rainbowgum.LogProperties)}
 and thus a combination of properties and builders can be used.
 
+<div id="config_builder_service_loader" class="callout callout-warning" role="note">
+<p class="callout-title">Warning: only RainbowGum.builder() uses the service loader</p>
+<p>
+  Whether installed modules are discovered with the {@link java.util.ServiceLoader} depends on which builder
+  is used:
+</p>
+<ul>
+  <li>{@link io.jstach.rainbowgum.RainbowGum#builder()} uses it, so the properties providers and configurators of
+    modules on the class or module path are found.</li>
+  <li>{@link io.jstach.rainbowgum.LogConfig#builder()} does not, unless
+    {@link io.jstach.rainbowgum.LogConfig.Builder#serviceLoader()} is called. Neither does
+    {@link io.jstach.rainbowgum.RainbowGum#builder(java.util.function.Consumer)}, which builds its config with
+    {@link io.jstach.rainbowgum.LogConfig#builder()}.</li>
+  <li>{@link io.jstach.rainbowgum.RainbowGum#builder(io.jstach.rainbowgum.LogConfig)} uses whatever that config
+    was built with.</li>
+</ul>
+<p>
+  Without the service loader the properties are only System properties plus anything added to the builder, and
+  components from other modules, such as the <a href="#pattern">pattern encoder</a> or the
+  <code>logging.properties</code> files of {@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props},
+  are missing. Configuration that names them, such as <code>logging.appender.console.encoder.uri=pattern</code>,
+  then fails. Call {@link io.jstach.rainbowgum.LogConfig.Builder#serviceLoader()} or add the module's configurator
+  with {@link io.jstach.rainbowgum.LogConfig.Builder#configurator(io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator)}.
+</p>
+</div>
+
 
 <h3 id="config_change">Config Change during runtime</h3>
 
