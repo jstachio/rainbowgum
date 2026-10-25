@@ -121,6 +121,13 @@ public sealed interface LogProviderRef {
 		}
 
 		private static String moduleHint(ProviderModule m) {
+			if (m.isPresent()) {
+				return ". Scheme '" + m.scheme() + "' is provided by module '" + m.moduleName()
+						+ "', which is present but was not loaded. The LogConfig was probably built without the "
+						+ "service loader: call LogConfig.Builder.serviceLoader() or add configurator(new "
+						+ m.configuratorClass() + "()). See " + RainbowGumVersion.documentBaseUrl()
+						+ "/index.html#config_builder_service_loader";
+			}
 			return ". Scheme '" + m.scheme() + "' is provided by module '" + m.moduleName() + "' (Maven: '"
 					+ m.mavenGav() + "'). Add that dependency. See " + m.docUrl();
 		}

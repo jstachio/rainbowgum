@@ -16,27 +16,31 @@ import org.jspecify.annotations.Nullable;
 enum ProviderModule {
 
 	FILE_OUTPUT(ComponentType.OUTPUT, "file", "io.jstach.rainbowgum.file", "io.jstach.rainbowgum:rainbowgum-file",
-			"file"),
+			"io.jstach.rainbowgum.rolling.RollingConfigurator", "file"),
 	ROLLING_OUTPUT(ComponentType.OUTPUT, "rolling", "io.jstach.rainbowgum.file", "io.jstach.rainbowgum:rainbowgum-file",
-			"rolling"),
+			"io.jstach.rainbowgum.rolling.RollingConfigurator", "rolling"),
 	GELF_ENCODER(ComponentType.ENCODER, "gelf", "io.jstach.rainbowgum.json", "io.jstach.rainbowgum:rainbowgum-json",
-			"gelf"),
+			"io.jstach.rainbowgum.json.encoder.GelfEncoderConfigurator", "gelf"),
 	ECS_ENCODER(ComponentType.ENCODER, "ecs", "io.jstach.rainbowgum.json", "io.jstach.rainbowgum:rainbowgum-json",
-			"ecs"),
+			"io.jstach.rainbowgum.json.encoder.EcsEncoderConfigurator", "ecs"),
 	LOGSTASH_ENCODER(ComponentType.ENCODER, "logstash", "io.jstach.rainbowgum.json",
-			"io.jstach.rainbowgum:rainbowgum-json", "logstash"),
+			"io.jstach.rainbowgum:rainbowgum-json", "io.jstach.rainbowgum.json.encoder.LogstashEncoderConfigurator",
+			"logstash"),
 	LOGBACK_JSON_ENCODER(ComponentType.ENCODER, "logback", "io.jstach.rainbowgum.json",
-			"io.jstach.rainbowgum:rainbowgum-json", "logback_json"),
+			"io.jstach.rainbowgum:rainbowgum-json", "io.jstach.rainbowgum.json.encoder.LogbackJsonEncoderConfigurator",
+			"logback_json"),
 	PATTERN_ENCODER(ComponentType.ENCODER, "pattern", "io.jstach.rainbowgum.pattern",
-			"io.jstach.rainbowgum:rainbowgum-pattern", "pattern"),
-	JFR_OUTPUT(ComponentType.OUTPUT, "jfr", "io.jstach.rainbowgum.jfr", "io.jstach.rainbowgum:rainbowgum-jfr", "jfr"),
+			"io.jstach.rainbowgum:rainbowgum-pattern", "io.jstach.rainbowgum.pattern.format.PatternConfigurator",
+			"pattern"),
+	JFR_OUTPUT(ComponentType.OUTPUT, "jfr", "io.jstach.rainbowgum.jfr", "io.jstach.rainbowgum:rainbowgum-jfr",
+			"io.jstach.rainbowgum.jfr.JfrConfigurator", "jfr"),
 	OTLP_OUTPUT(ComponentType.OUTPUT, "otlp", "io.jstach.rainbowgum.otlp", "io.jstach.rainbowgum:rainbowgum-otlp",
-			"otlp_output"),
+			"io.jstach.rainbowgum.otlp.OtlpConfigurator", "otlp_output"),
 	OTLP_ENCODER(ComponentType.ENCODER, "otlp", "io.jstach.rainbowgum.otlp", "io.jstach.rainbowgum:rainbowgum-otlp",
-			"otlp_encoder"),
+			"io.jstach.rainbowgum.otlp.OtlpConfigurator", "otlp_encoder"),
 	// No overview section of its own, so links to the module page instead.
 	DISRUPTOR_PUBLISHER(ComponentType.PUBLISHER, "disruptor", "io.jstach.rainbowgum.disruptor",
-			"io.jstach.rainbowgum:rainbowgum-disruptor", null);
+			"io.jstach.rainbowgum:rainbowgum-disruptor", "io.jstach.rainbowgum.disruptor.DisruptorConfigurator", null);
 
 	private final ComponentType componentType;
 
@@ -46,14 +50,17 @@ enum ProviderModule {
 
 	private final String mavenGroupArtifact;
 
+	private final String configuratorClass;
+
 	private final @Nullable String overviewAnchor;
 
 	private ProviderModule(ComponentType componentType, String scheme, String moduleName, String mavenGroupArtifact,
-			@Nullable String overviewAnchor) {
+			String configuratorClass, @Nullable String overviewAnchor) {
 		this.componentType = componentType;
 		this.scheme = scheme;
 		this.moduleName = moduleName;
 		this.mavenGroupArtifact = mavenGroupArtifact;
+		this.configuratorClass = configuratorClass;
 		this.overviewAnchor = overviewAnchor;
 	}
 
@@ -88,6 +95,40 @@ enum ProviderModule {
 	 */
 	String mavenGav() {
 		return mavenGroupArtifact + ":" + RainbowGumVersion.VERSION;
+	}
+
+	/**
+	 * The fully qualified name of the module's service loader registered configurator
+	 * that registers {@link #scheme()}.
+	 * @return class name.
+	 */
+	String configuratorClass() {
+		return configuratorClass;
+	}
+
+	/**
+	 * Whether the module is on the class or module path even though its scheme was not
+	 * registered, which usually means the config was built without the service loader.
+	 * Only used to word a not found message, so it is checked by loading the configurator
+	 * class without initializing it.
+	 * @return true if the configurator class can be loaded.
+	 */
+	boolean isPresent() {
+		var loaders = new @Nullable ClassLoader[] { ProviderModule.class.getClassLoader(),
+				Thread.currentThread().getContextClassLoader() };
+		for (var loader : loaders) {
+			if (loader == null) {
+				continue;
+			}
+			try {
+				Class.forName(configuratorClass, false, loader);
+				return true;
+			}
+			catch (ClassNotFoundException | LinkageError e) {
+				// try the next loader
+			}
+		}
+		return false;
 	}
 
 	/**
