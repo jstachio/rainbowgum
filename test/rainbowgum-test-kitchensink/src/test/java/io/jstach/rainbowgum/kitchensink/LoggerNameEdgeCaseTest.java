@@ -56,27 +56,12 @@ class LoggerNameEdgeCaseTest {
 		CARRIAGE_RETURN_LINE_FEED("a\r\nb", "a\r\nb|a\r\nb|a\r\nb|a\r\nb|a\r\nb", "\"a\\r\\nb\"", "\"a\\r\\nb\"",
 				"\"a\\r\\nb\""), //
 		TAB("a\tb", "a\tb|a\tb|a\tb|a\tb|a\tb", "\"a\\tb\"", "\"a\\tb\"", "\"a\\tb\""), //
-		ROOT_LOWER("root", "root|root|root|root|root", "root", "\"root\"", "\"root\""), // Logback
-																						// returns
-																						// its
-																						// root
-																						// logger,
-																						// named
-																						// ROOT
-		ROOT_UPPER("ROOT", "ROOT|ROOT|ROOT|ROOT|ROOT", "ROOT", "\"ROOT\"", "\"ROOT\""), // Logback
-																						// returns
-																						// its
-																						// root
-																						// logger,
-																						// named
-																						// ROOT
-		ROOT_MIXED("Root", "Root|Root|Root|Root|Root", "Root", "\"Root\"", "\"Root\""), // Logback
-																						// returns
-																						// its
-																						// root
-																						// logger,
-																						// named
-																						// ROOT
+		// Logback returns its root logger, named ROOT.
+		ROOT_LOWER("root", "root|root|root|root|root", "root", "\"root\"", "\"root\""), //
+		// Logback returns its root logger, named ROOT.
+		ROOT_UPPER("ROOT", "ROOT|ROOT|ROOT|ROOT|ROOT", "ROOT", "\"ROOT\"", "\"ROOT\""), //
+		// Logback returns its root logger, named ROOT.
+		ROOT_MIXED("Root", "Root|Root|Root|Root|Root", "Root", "\"Root\"", "\"Root\""), //
 		ROOT_CHILD("root.child", "child|r.child|r.child|r.child|root.child", "root.child", "\"root.child\"",
 				"\"root.child\""), //
 		INNER_CLASS("com.Foo$Bar", "Foo$Bar|c.Foo$Bar|c.Foo$Bar|c.Foo$Bar|com.Foo$Bar", "com.Foo$Bar",
@@ -87,14 +72,8 @@ class LoggerNameEdgeCaseTest {
 		DOLLAR_SEGMENT("a.$.b", "b|a.$.b|a.$.b|a.$.b|a.$.b", "a.$.b", "\"a.$.b\"", "\"a.$.b\""), //
 		LATIN_ACCENTS("café.Ünïcode", "Ünïcode|c.Ünïcode|c.Ünïcode|c.Ünïcode|café.Ünïcode", "café.Ünïcode",
 				"\"café.Ünïcode\"", "\"café.Ünïcode\""), //
-		EMOJI_SEGMENT("a.😀.b", "b|a.😀.b|a.😀.b|a.😀.b|a.😀.b", "a.😀.b", "\"a.😀.b\"", "\"a.😀.b\""), // Logback
-																										// splits
-																										// the
-																										// emoji
-																										// in
-																										// {1}
-																										// and
-																										// {5}
+		// Logback splits the emoji in {1} and {5}.
+		EMOJI_SEGMENT("a.😀.b", "b|a.😀.b|a.😀.b|a.😀.b|a.😀.b", "a.😀.b", "\"a.😀.b\"", "\"a.😀.b\""), //
 		NUL("a\u0000b", "a\u0000b|a\u0000b|a\u0000b|a\u0000b|a\u0000b", "\"a\\u0000b\"", "\"a\\u0000b\"",
 				"\"a\\u0000b\""), //
 		ANSI_ESCAPE("a\u001b[31mred", "a\u001b[31mred|a\u001b[31mred|a\u001b[31mred|a\u001b[31mred|a\u001b[31mred",
@@ -117,6 +96,16 @@ class LoggerNameEdgeCaseTest {
 				"p|a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p|a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p|a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p|a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p",
 				"a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p", "\"a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p\"",
 				"\"a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p\""), //
+		THREE_DOTS("...", "|...|...|...|...", "...", "\"...\"", "\"...\""), //
+		QUESTION_MARK("?", "?|?|?|?|?", "?", "\"?\"", "\"?\""), //
+		QUESTION_MARKS("???", "???|???|???|???|???", "???", "\"???\"", "\"???\""), //
+		QUESTION_MARK_SEGMENT("a.?.b", "b|a.?.b|a.?.b|a.?.b|a.?.b", "a.?.b", "\"a.?.b\"", "\"a.?.b\""), //
+		EMOJI_ONLY("😀😀😀", "😀😀😀|😀😀😀|😀😀😀|😀😀😀|😀😀😀", "😀😀😀", "\"😀😀😀\"", "\"😀😀😀\""), //
+		// Logback splits the emoji in {1} and {5}.
+		EMOJI_SEGMENTS("😀.😀.😀", "😀|😀.😀.😀|😀.😀.😀|😀.😀.😀|😀.😀.😀", "😀.😀.😀", "\"😀.😀.😀\"",
+				"\"😀.😀.😀\""), //
+		// Logback splits the emoji in {1}.
+		EMOJI_FIRST_SEGMENT("😀.b", "b|😀.b|😀.b|😀.b|😀.b", "😀.b", "\"😀.b\"", "\"😀.b\""), //
 		;
 
 		final String name;

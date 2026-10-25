@@ -43,7 +43,10 @@ non-empty parent.
 When abbreviation shortens a segment to its first character, both keep the first UTF-16
 `char`, not the first code point. A segment that starts with a character outside the Basic
 Multilingual Plane, such as an emoji, is cut in half and the output holds a lone high
-surrogate. Encoding that to UTF-8 writes `?` in place of the character.
+surrogate. Encoding that to UTF-8 writes `?` in place of the character. Every shortened
+segment is affected: Logback's `%logger{1}` of `😀.😀.😀` is `?.?.😀` and of `😀.b` is `?.b`,
+and Log4j2's `%c{1.}` gives the same. A literal `?` in a name, as in `???` or `a.?.b`, is
+kept as is by all three.
 
 | Framework | Pattern | Name | Output (UTF-16 code units) |
 |---|---|---|---|
@@ -166,6 +169,13 @@ These are worth knowing when moving between frameworks, but each is a defensible
 | `tc.floci/floci-gcp@sha256:405c128b...` | `tc.floci/floci-gcp@sha256:405c128b...` | `tc`, `tc.floci/floci-gcp@sha256:405c128b`, `tc.floci/floci-gcp@sha256:405c128b.`, `tc.floci/floci-gcp@sha256:405c128b..`, `tc.floci/floci-gcp@sha256:405c128b...` | DEBUG | `tc.floci/floci-gcp@sha256:405c128b...` | DEBUG via `tc.floci/floci-gcp@sha256:405c128b..` | DEBUG | DEBUG |
 | `com.example.service.impl.VeryLongClassNameForAbbreviation` | `com.example.service.impl.VeryLongClassNameForAbbreviation` | `com`, `com.example`, `com.example.service`, `com.example.service.impl`, `com.example.service.impl.VeryLongClassNameForAbbreviation` | DEBUG | `com.example.service.impl.VeryLongClassNameForAbbreviation` | DEBUG via `com.example.service.impl` | DEBUG | DEBUG |
 | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a`, `a.b`, `a.b.c`, `a.b.c.d`, `a.b.c.d.e`, `a.b.c.d.e.f`, `a.b.c.d.e.f.g`, `a.b.c.d.e.f.g.h`, `a.b.c.d.e.f.g.h.i`, `a.b.c.d.e.f.g.h.i.j`, `a.b.c.d.e.f.g.h.i.j.k`, `a.b.c.d.e.f.g.h.i.j.k.l`, `a.b.c.d.e.f.g.h.i.j.k.l.m`, `a.b.c.d.e.f.g.h.i.j.k.l.m.n`, `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o`, `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | DEBUG | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | DEBUG via `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o` | DEBUG | DEBUG |
+| `...` | `...` | (empty), `.`, `..`, `...` | DEBUG | `...` | DEBUG via `..` | DEBUG | DEBUG |
+| `?` | `?` | `?` | - | `?` | - | - | DEBUG |
+| `???` | `???` | `???` | - | `???` | - | - | DEBUG |
+| `a.?.b` | `a.?.b` | `a`, `a.?`, `a.?.b` | DEBUG | `a.?.b` | DEBUG via `a.?` | DEBUG | DEBUG |
+| `😀😀😀` | `😀😀😀` | `😀😀😀` | - | `😀😀😀` | - | - | DEBUG |
+| `😀.😀.😀` | `😀.😀.😀` | `😀`, `😀.😀`, `😀.😀.😀` | DEBUG | `😀.😀.😀` | DEBUG via `😀.😀` | DEBUG | DEBUG |
+| `😀.b` | `😀.b` | `😀`, `😀.b` | DEBUG | `😀.b` | DEBUG via `😀` | DEBUG | DEBUG |
 
 `root.child` with `logging.level.root=debug` stays at WARNING in Rainbow Gum because
 `logging.level=warn` was also set: the root key wins over its `root` alias from the same
@@ -214,6 +224,13 @@ printed through a UTF-8 console.
 | `tc.floci/floci-gcp@sha256:405c128b...` | `tc.floci/floci-gcp@sha256:405c128b...` | (empty) | `t.f...` | `t.f...` | `t.f...` | `t.f...` | same |
 | `com.example.service.impl.VeryLongClassNameForAbbreviation` | `com.example.service.impl.VeryLongClassNameForAbbreviation` | `VeryLongClassNameForAbbreviation` | `c.e.s.i.VeryLongClassNameForAbbreviation` | `c.e.s.i.VeryLongClassNameForAbbreviation` | `c.e.s.i.VeryLongClassNameForAbbreviation` | `c.e.s.i.VeryLongClassNameForAbbreviation` | same |
 | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | same |
+| `...` | `...` | (empty) | `...` | `...` | `...` | `...` | same |
+| `?` | `?` | `?` | `?` | `?` | `?` | `?` | same |
+| `???` | `???` | `???` | `???` | `???` | `???` | `???` | same |
+| `a.?.b` | `a.?.b` | `b` | `a.?.b` | `a.?.b` | `a.?.b` | `a.?.b` | same |
+| `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` | same |
+| `😀.😀.😀` | `😀.😀.😀` | `😀` | `?.?.😀` | `?.?.😀` | `😀.😀.😀` | `😀.😀.😀` | `😀.😀.😀` / `😀` / `😀.😀.😀` / `😀.😀.😀` / `😀.😀.😀` / `😀.😀.😀` |
+| `😀.b` | `😀.b` | `b` | `?.b` | `😀.b` | `😀.b` | `😀.b` | `😀.b` / `b` / `😀.b` / `😀.b` / `😀.b` / `😀.b` |
 
 ### Log4j2 abbreviation
 
@@ -254,6 +271,13 @@ printed through a UTF-8 console.
 | `tc.floci/floci-gcp@sha256:405c128b...` | `tc.floci/floci-gcp@sha256:405c128b...` | `.` | `..` | `t.f...` | `floci/floci-gcp@sha256:405c128b...` | `t.f...` |
 | `com.example.service.impl.VeryLongClassNameForAbbreviation` | `com.example.service.impl.VeryLongClassNameForAbbreviation` | `VeryLongClassNameForAbbreviation` | `impl.VeryLongClassNameForAbbreviation` | `c.e.s.i.VeryLongClassNameForAbbreviation` | `example.service.impl.VeryLongClassNameForAbbreviation` | `c.e.~.~.VeryLongClassNameForAbbreviation` |
 | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `p` | `o.p` | `a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `b.c.d.e.f.g.h.i.j.k.l.m.n.o.p` | `a.b.~.~.~.~.~.~.~.~.~.~.~.~.~.p` |
+| `...` | `...` | `.` | `..` | `...` | `..` | `...` |
+| `?` | `?` | `?` | `?` | `?` | `?` | `?` |
+| `???` | `???` | `???` | `???` | `???` | `???` | `???` |
+| `a.?.b` | `a.?.b` | `b` | `?.b` | `a.?.b` | `?.b` | `a.?.b` |
+| `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` | `😀😀😀` |
+| `😀.😀.😀` | `😀.😀.😀` | `😀` | `😀.😀` | `?.?.😀` | `😀.😀` | `?.?.😀` |
+| `😀.b` | `😀.b` | `b` | `😀.b` | `?.b` | `b` | `?.b` |
 
 ### Rainbow Gum encoders
 
