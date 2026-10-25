@@ -176,17 +176,29 @@ public final class PercentCodec {
 	/**
 	 * Decodes <code>%XX</code> sequences into bytes and the bytes into text with the
 	 * charset. A <code>%</code> not followed by two hex digits is kept as is, and
-	 * <code>+</code> is not a space.
+	 * <code>+</code> is not a space. Characters that are not ASCII are kept as is, so
+	 * text that was never encoded, such as a configured value, decodes to itself.
 	 * @param content percent encoded text.
 	 * @param charset charset of the encoded bytes, usually UTF-8.
 	 * @return decoded text.
 	 */
 	public static String decode(final CharSequence content, Charset charset) {
-		final ByteBuffer bb = ByteBuffer.allocate(content.length());
+		final ByteBuffer bb = ByteBuffer
+			.allocate((int) Math.ceil(content.length() * (double) charset.newEncoder().maxBytesPerChar()));
 		final CharBuffer cb = CharBuffer.wrap(content);
 		while (cb.hasRemaining()) {
 			final char c = cb.get();
-			if (c == '%' && cb.remaining() >= 2) {
+			if (c >= 0x80) {
+				// Keep a surrogate pair together so the charset encodes the code point.
+				if (Character.isHighSurrogate(c) && cb.hasRemaining()
+						&& Character.isLowSurrogate(cb.get(cb.position()))) {
+					bb.put(charset.encode(CharBuffer.wrap(new char[] { c, cb.get() })));
+				}
+				else {
+					bb.put(charset.encode(CharBuffer.wrap(new char[] { c })));
+				}
+			}
+			else if (c == '%' && cb.remaining() >= 2) {
 				final char uc = cb.get();
 				final char lc = cb.get();
 				final int u = Character.digit(uc, RADIX);

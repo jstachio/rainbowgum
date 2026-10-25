@@ -57,4 +57,19 @@ class PercentCodecTest {
 		assertEquals("Ada Lovelace田", PercentCodec.decode("Ada%20Lovelace%E7%94%B0", StandardCharsets.UTF_8));
 	}
 
+	/*
+	 * Configured values such as a logger name in a group list are not encoded, so their
+	 * non-ASCII characters must come back unchanged.
+	 */
+	@ParameterizedTest
+	@ValueSource(strings = { "café.Ünïcode", "a.😀.b", "田", "Ünï%20code", "%C3%A9 é" })
+	void decodeKeepsCharactersThatAreNotEncoded(String content) {
+		String expected = switch (content) {
+			case "Ünï%20code" -> "Ünï code";
+			case "%C3%A9 é" -> "é é";
+			default -> content;
+		};
+		assertEquals(expected, PercentCodec.decode(content, StandardCharsets.UTF_8));
+	}
+
 }
