@@ -82,7 +82,7 @@ It is really three states (auto, on, off) disguised as a boolean.
 
 Generated builder parameters: `file` `append`/`prudent`, `rolling`
 `prudent`/`cleanHistoryOnStart`, `ecs` `structured`/`prettyPrint`, `prettyPrint` on gelf,
-logstash and logback, pattern config `ansiDisabled`, and `LogEncoder.Builder.useGetBytes`.
+logstash and logback, pattern config `ansiDisabled` (now `ansi`, an `AnsiMode`), and `LogEncoder.Builder.useGetBytes`.
 Black-box QA hit these: `append=yes` truncated a log file, and `structured=yes` gave the
 flat layout.
 

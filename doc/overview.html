@@ -1483,17 +1483,21 @@ to <code>true</code>.
 <h4 id="pattern_config">Configuring PatternConfig with Properties</h4>
 
 {@link io.jstach.rainbowgum.pattern.format.PatternConfig} carries the platform specific settings that keywords
-need: time zone (for {@code %d}/{@code %date}), line separator (for {@code %n}), whether ANSI is disabled, and
-the start time used by {@code %r}/{@code %relative}. It is resolved <em>per encoder name</em> through
-{@value io.jstach.rainbowgum.pattern.format.PatternConfig#PATTERN_CONFIG_PREFIX}, so different appenders can
-each have their own:
+need: time zone (for {@code %d}/{@code %date}), line separator (for {@code %n}), whether color keywords output
+ANSI escape codes, and the start time used by {@code %r}/{@code %relative}. It is resolved <em>per encoder name</em>
+through {@value io.jstach.rainbowgum.pattern.format.PatternConfig#PATTERN_CONFIG_PREFIX}, so different appenders
+can each have their own:
 
 {@snippet lang=properties :
 logging.appender.myappender.encoder.uri=pattern
 logging.pattern.config.myappender.zoneId=UTC
 logging.pattern.config.myappender.lineSeparator=\n
-logging.pattern.config.myappender.ansiDisabled=true
+logging.pattern.config.myappender.ansi=off
 }
+
+<code>ansi</code> takes the same values as <code>logging.global.ansi.mode</code>. The default <code>auto</code>
+follows the global mode, <code>on</code> and <code>off</code> decide for that encoder, and a global
+<code>off</code> wins over all of them.
 
 <code>%property{key}</code> is different: it looks up ad-hoc key values that are not tied to a particular
 encoder, through {@value io.jstach.rainbowgum.pattern.format.PatternConfig#PATTERN_PROPERY_PREFIX}:

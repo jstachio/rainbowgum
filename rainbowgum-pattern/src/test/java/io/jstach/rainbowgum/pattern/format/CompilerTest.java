@@ -22,6 +22,7 @@ import org.opentest4j.AssertionFailedError;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
+import io.jstach.rainbowgum.LogConfig.Globals.AnsiMode;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEvent.Caller;
 import io.jstach.rainbowgum.LogFormatter;
@@ -582,7 +583,7 @@ class CompilerTest {
 				return Level.ERROR;
 			}
 		},
-		COLOR_INFO_ANSI_DISABLED("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
+		COLOR_INFO_ANSI_OFF("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] INFO  c.l.TriviaMain - hello\n") {
 			@Override
 			protected void output(String output) {
@@ -600,7 +601,7 @@ class CompilerTest {
 				return PatternConfig.ofUniversal();
 			}
 		},
-		COLOR_ERROR_ANSI_DISABLED("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
+		COLOR_ERROR_ANSI_OFF("[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg%n",
 				"[main] ERROR c.l.TriviaMain - hello\n") {
 			@Override
 			protected void output(String output) {
@@ -627,8 +628,8 @@ class CompilerTest {
 		HIGHLIGHT_NO_CHILD("%highlight", ANSIConstants.ESC_START + ANSIConstants.BLUE_FG + ANSIConstants.ESC_END
 				+ ANSIConstants.SET_DEFAULT_COLOR) {
 		},
-		// ansiDisabled + no child at all: noop, same as CLR_ANSI_DISABLED_NO_CHILD.
-		HIGHLIGHT_ANSI_DISABLED_NO_CHILD("%highlight", "") {
+		// ANSI off + no child at all: noop, same as CLR_ANSI_OFF_NO_CHILD.
+		HIGHLIGHT_ANSI_OFF_NO_CHILD("%highlight", "") {
 			@Override
 			protected PatternConfig patternConfig() {
 				return PatternConfig.ofUniversal();
@@ -702,15 +703,15 @@ class CompilerTest {
 		CLR_WITH_EXPLICIT_COLOR_NO_CHILD("%clr{red}", ANSIConstants.ESC_START + ANSIConstants.RED_FG
 				+ ANSIConstants.ESC_END + ANSIConstants.SET_DEFAULT_COLOR) {
 		},
-		// ansiDisabled + a child: passes the child through untouched, no escape codes.
-		CLR_ANSI_DISABLED_WITH_CHILD("%clr(%level)", "INFO") {
+		// ANSI off + a child: passes the child through untouched, no escape codes.
+		CLR_ANSI_OFF_WITH_CHILD("%clr(%level)", "INFO") {
 			@Override
 			protected PatternConfig patternConfig() {
 				return PatternConfig.ofUniversal();
 			}
 		},
-		// ansiDisabled + no child at all: noop.
-		CLR_ANSI_DISABLED_NO_CHILD("%clr", "") {
+		// ANSI off + no child at all: noop.
+		CLR_ANSI_OFF_NO_CHILD("%clr", "") {
 			@Override
 			protected PatternConfig patternConfig() {
 				return PatternConfig.ofUniversal();
@@ -756,7 +757,7 @@ class CompilerTest {
 		}
 
 		protected PatternConfig patternConfig() {
-			return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal()).ansiDisabled(false).build();
+			return PatternConfig.copy(PatternConfig.builder(), PatternConfig.ofUniversal()).ansi(AnsiMode.ON).build();
 		}
 
 		KeyValues keyValues() {

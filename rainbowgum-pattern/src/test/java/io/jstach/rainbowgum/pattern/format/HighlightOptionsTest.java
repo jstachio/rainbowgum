@@ -10,6 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogConfig.Globals.AnsiMode;
 import io.jstach.rainbowgum.LogEvent;
 
 /*
@@ -21,7 +22,7 @@ class HighlightOptionsTest {
 	static final String E = "\033[";
 
 	private static String format(String pattern, Level level) {
-		var config = PatternConfig.builder("test").ansiDisabled(false).build();
+		var config = PatternConfig.builder("test").ansi(AnsiMode.ON).build();
 		var formatter = PatternCompiler.builder().patternConfig(config).build().compile(pattern);
 		var event = LogEvent.of(Instant.EPOCH, "main", 1, level, "test", "x", KeyValues.of(), null);
 		var sb = new StringBuilder();

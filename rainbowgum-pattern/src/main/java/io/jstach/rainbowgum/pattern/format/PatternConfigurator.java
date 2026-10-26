@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.pattern.format;
 import java.nio.charset.Charset;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.Locale;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
@@ -11,6 +12,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.ServiceRegistry;
@@ -111,22 +113,33 @@ public final class PatternConfigurator implements Configurator {
 	static PatternConfig provideFormatterConfig(@KeyParameter String name, //
 			@ConvertParameter("convertZoneId") @Nullable ZoneId zoneId, //
 			@Nullable String lineSeparator, //
-			@Nullable Boolean ansiDisabled, //
+			@ConvertParameter("convertAnsi") LogConfig.Globals.@Nullable AnsiMode ansi, //
 			@PassThroughParameter @Nullable Function<String, @Nullable String> propertyFunction, //
 			@PassThroughParameter @Nullable Instant startTime, //
 			@ConvertParameter("convertSequenceNumberStart") @Nullable Long sequenceNumberStart, //
 			@ConvertParameter("convertAbbreviatorCache") PatternConfig.@Nullable CacheType abbreviatorCache) {
 		PatternConfig dc = PatternConfig.of();
-		ansiDisabled = ansiDisabled == null ? dc.ansiDisabled() : ansiDisabled;
+		ansi = ansi == null ? dc.ansi() : ansi;
 		lineSeparator = lineSeparator == null ? dc.lineSeparator() : lineSeparator;
 		zoneId = zoneId == null ? dc.zoneId() : zoneId;
 		propertyFunction = propertyFunction == null ? StandardPropertyFunction.INSTANCE : propertyFunction;
 		startTime = startTime == null ? Instant.now() : startTime;
 		long sequenceNumberStart_ = sequenceNumberStart == null ? dc.sequenceNumberStart() : sequenceNumberStart;
 		abbreviatorCache = abbreviatorCache == null ? dc.abbreviatorCache() : abbreviatorCache;
-		return new SimpleFormatterConfig(zoneId, lineSeparator, ansiDisabled, propertyFunction, startTime,
-				sequenceNumberStart_, abbreviatorCache);
+		return new SimpleFormatterConfig(zoneId, lineSeparator, ansi, propertyFunction, startTime, sequenceNumberStart_,
+				abbreviatorCache);
 
+	}
+
+	/*
+	 * The same values as logging.global.ansi.mode, including its true and false aliases.
+	 */
+	static LogConfig.Globals.AnsiMode convertAnsi(String s) {
+		return switch (s.strip().toUpperCase(Locale.ROOT)) {
+			case "TRUE" -> LogConfig.Globals.AnsiMode.ON;
+			case "FALSE" -> LogConfig.Globals.AnsiMode.OFF;
+			default -> LogProperty.enumValue(LogConfig.Globals.AnsiMode.class, s, "true", "false");
+		};
 	}
 
 	static Long convertSequenceNumberStart(String s) {
