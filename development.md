@@ -112,6 +112,12 @@ really chooses between is modes. For example `logging.jul.level` takes `sync`,
 `none` or a level rather than a `logging.jul.level.disable` boolean. The
 existing `.disable` properties stay because users expect them.
 
+Every segment of a property name but the last is lowercase, like a package
+name: `logging.messageformat.style`, not `logging.messageFormat.style`. The
+last segment may be camel case, as in `logging.global.threadLocal`.
+`PropertyKeyCaseTest` in `test/rainbowgum-test-enum-aliases` checks the
+compiled classes of every module for this.
+
 Public javadoc should never go into implementation details that are likely to
 change or hidden. Public javadoc should not reference package friendly or
 private classes.
