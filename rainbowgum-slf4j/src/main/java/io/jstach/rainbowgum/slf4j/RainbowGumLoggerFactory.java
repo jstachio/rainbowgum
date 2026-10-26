@@ -138,7 +138,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				 */
 				LogEventLogger logger = router.eventLogger(name);
 				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1 + CALLER_WRAP_DEPTH);
-				var changeable = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
+				var changeable = ReplaceableLogger.of(level, handler);
 				subscribe(name, router, changeable, callerInfoEnabled);
 				newLogger = changeable;
 			}
@@ -182,7 +182,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			}
 		};
 		var handler = maybeAddCallerInfo(name, false, sink, 1);
-		var logger = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
+		var logger = ReplaceableLogger.of(level, handler);
 		subscribe(name, router, logger, false);
 		var oldInstance = unboundLoggerMap.putIfAbsent(name, logger);
 		return oldInstance == null ? logger : oldInstance;
@@ -207,7 +207,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			@Override
 			public void accept(RootRouter r) {
 				var level = r.levelResolver().resolveLevel(name);
-				changeable.setLevel(Levels.toSlf4jLevel(level));
+				changeable.setLevel(level);
 				var logger = r.eventLogger(name);
 				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1 + CALLER_WRAP_DEPTH);
 				changeable.setEventHandler(handler);

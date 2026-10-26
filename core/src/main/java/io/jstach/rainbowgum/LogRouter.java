@@ -968,10 +968,9 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 		drainLock.lock();
 		try {
 			var original = this.delegate;
-			if (original instanceof QueueEventsRouter q) {
-				q.changePublisher().transferTo(delegate.changePublisher());
-				delegate.changePublisher().publish(delegate);
-			}
+			// Existing changeable loggers must follow every binding, including removal.
+			original.changePublisher().transferTo(delegate.changePublisher());
+			delegate.changePublisher().publish(delegate);
 			this.delegate = Objects.requireNonNull(delegate);
 			original.drain(delegate);
 			return original;

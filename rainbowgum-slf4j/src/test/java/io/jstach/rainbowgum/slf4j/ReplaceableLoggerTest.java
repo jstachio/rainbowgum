@@ -91,6 +91,19 @@ class ReplaceableLoggerTest {
 		assertEquals("io.jstach.rainbowgum.slf4j.ReplaceableLoggerTest", indirect.className());
 	}
 
+	@Test
+	void offStateSurvivesHandlerAndDepthChanges() {
+		var logger = ReplaceableLogger.of(System.Logger.Level.OFF, handler);
+		assertFalse(logger.isErrorEnabled());
+		logger.setEventHandler(handler.withDepth(2));
+		var deeper = logger.withDepth(2);
+		assertFalse(deeper.isErrorEnabled());
+		logger.error("disabled");
+		assertEquals(null, lastEvent);
+		logger.setLevel(System.Logger.Level.INFO);
+		assertTrue(logger.isInfoEnabled());
+	}
+
 	private void logThroughOneExtraFrame(org.slf4j.Logger logger) {
 		logger.info("indirect");
 	}
