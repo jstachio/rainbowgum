@@ -376,13 +376,16 @@ logging.appender.example.encoder.gelf.host=myhost
 logging.appender.example.encoder.gelf.prettyPrint=true
 }
 
-<em>
-  The astute might notice that "gelf" does not look like a URI.
-  It is but URIs missing schemes like the above get normalized so
-  that the path is used as the scheme.
-  Thus <code>gelf</code> is actually <code>gelf:///</code>
-</em>
+</p>
 
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
+<p>The astute might notice that "gelf" does not look like a URI. It is, but URIs missing schemes like the
+above get normalized so that the path is used as the scheme. Thus <code>gelf</code> is actually
+<code>gelf:///</code>.</p>
+</div>
+
+<p>
 Because the first property is a URI, its query string is also searched for the other lines' properties,
 using <code>{propertyName}</code> as a bare query parameter with no
 <code>logging.appender.{name}.encoder.{scheme}.</code> (or <code>logging.appender.{name}.output.{scheme}.</code>) prefix. So instead of two separate properties, one can write everything on the URI line:
