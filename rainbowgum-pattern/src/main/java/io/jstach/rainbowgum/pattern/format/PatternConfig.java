@@ -13,6 +13,7 @@ import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.annotation.EnumAlias;
+import io.jstach.rainbowgum.format.AnsiSupport;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 
 /**
@@ -51,11 +52,14 @@ public sealed interface PatternConfig extends Configurator {
 	public String lineSeparator();
 
 	/**
-	 * Whether or not print escape outputs. If true than the color patterns will not
-	 * decorate.
-	 * @return false if ANSI escape sequences can be outputted.
+	 * Whether color patterns output ANSI escape codes.
+	 * {@link LogConfig.Globals.AnsiMode#AUTO} follows
+	 * {@link LogConfig.Globals#ansiMode()}, and when that is also
+	 * {@link LogConfig.Globals.AnsiMode#AUTO} whether the console supports ANSI. A global
+	 * {@link LogConfig.Globals.AnsiMode#OFF} wins over this setting.
+	 * @return ANSI mode.
 	 */
-	public boolean ansiDisabled();
+	public LogConfig.Globals.AnsiMode ansi();
 
 	/**
 	 * Key Value function for ad-hoc property replacements and lookup in various patterns.
@@ -147,7 +151,7 @@ public sealed interface PatternConfig extends Configurator {
 	 * @return builder passed in.
 	 */
 	public static PatternConfigBuilder copy(PatternConfigBuilder builder, PatternConfig config) {
-		builder.ansiDisabled(config.ansiDisabled());
+		builder.ansi(config.ansi());
 		builder.lineSeparator(config.lineSeparator());
 		builder.zoneId(config.zoneId());
 		builder.propertyFunction(config.propertyFunction());
@@ -167,8 +171,8 @@ public sealed interface PatternConfig extends Configurator {
 
 	/**
 	 * Platform independent formatter config that will not change across timezones or
-	 * platforms. <strong>The zoneId is UTC, line separator is LF, and ansi is
-	 * disabled.</strong>
+	 * platforms. <strong>The zoneId is UTC, line separator is LF, and ANSI is
+	 * {@link LogConfig.Globals.AnsiMode#OFF}.</strong>
 	 * @return config.
 	 */
 	public static PatternConfig ofUniversal() {
@@ -224,14 +228,9 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 		return System.lineSeparator();
 	}
 
-	/**
-	 * Whether or not print escape outputs. If true than the color patterns will not
-	 * decorate.
-	 * @return false if ANSI escape sequences can be outputted.
-	 */
 	@Override
-	default boolean ansiDisabled() {
-		return false;
+	default LogConfig.Globals.AnsiMode ansi() {
+		return LogConfig.Globals.AnsiMode.AUTO;
 	}
 
 	@Override
@@ -289,8 +288,8 @@ enum StandardFormatterConfig implements DefaultFormatterConfig {
 		}
 
 		@Override
-		public boolean ansiDisabled() {
-			return true;
+		public LogConfig.Globals.AnsiMode ansi() {
+			return LogConfig.Globals.AnsiMode.OFF;
 		}
 
 		@Override
@@ -299,9 +298,20 @@ enum StandardFormatterConfig implements DefaultFormatterConfig {
 		}
 	};
 
+	/*
+	 * For compilers built without a LogConfig, AUTO is decided by the console alone.
+	 */
+	static boolean useAnsi(PatternConfig config) {
+		return switch (config.ansi()) {
+			case ON -> true;
+			case OFF -> false;
+			case AUTO -> AnsiSupport.isAnsiSupported();
+		};
+	}
+
 }
 
-record SimpleFormatterConfig(ZoneId zoneId, String lineSeparator, boolean ansiDisabled,
+record SimpleFormatterConfig(ZoneId zoneId, String lineSeparator, LogConfig.Globals.AnsiMode ansi,
 		Function<String, @Nullable String> propertyFunction, Instant startTime, long sequenceNumberStart,
 		PatternConfig.CacheType abbreviatorCache) implements PatternConfig {
 

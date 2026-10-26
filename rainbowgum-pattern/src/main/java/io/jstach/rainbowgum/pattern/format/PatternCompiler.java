@@ -6,11 +6,11 @@ import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 
+import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.ServiceRegistry;
-import io.jstach.rainbowgum.format.AnsiSupport;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.CompositeFactory;
 import io.jstach.rainbowgum.pattern.format.PatternFormatterFactory.KeywordFactory;
 import io.jstach.rainbowgum.pattern.internal.Node;
@@ -54,28 +54,34 @@ public sealed interface PatternCompiler {
 			var registry = findService(services, PatternRegistry.class, name, LogProperties.DEFAULT_NAME)
 				.orElseGet(() -> PatternRegistry.of());
 			var patternConfig = findService(services, PatternConfig.class, name, LogProperties.DEFAULT_NAME)
-				.orElseGet(() -> {
-					boolean ansiDisable = switch (config.globals().ansiMode()) {
-						case AUTO -> !AnsiSupport.isAnsiSupported();
-						case ON -> false;
-						case OFF -> true;
-					};
-					var b = PatternConfig.builder(name)
-						.propertyFunction(PatternConfig.propertyFunction(config.properties(),
-								PatternConfig.PATTERN_PROPERY_PREFIX))
-						.fromProperties(config.properties());
-					if (ansiDisable) {
-						b.ansiDisabled(true);
-					}
-
-					return b.build();
-				});
+				.orElseGet(() -> PatternConfig.builder(name)
+					.propertyFunction(
+							PatternConfig.propertyFunction(config.properties(), PatternConfig.PATTERN_PROPERY_PREFIX))
+					.fromProperties(config.properties())
+					.build());
+			patternConfig = withGlobalAnsi(patternConfig, config.globals().ansiMode());
 			Builder b = builder();
 			b.patternRegistry(registry);
 			b.patternConfig(patternConfig);
 			consumer.accept(b);
 			return b.build();
 		};
+	}
+
+	/*
+	 * A global OFF wins, and AUTO follows the global mode. A global AUTO is left for
+	 * PatternConfig.useAnsi to decide by the console.
+	 */
+	private static PatternConfig withGlobalAnsi(PatternConfig patternConfig, LogConfig.Globals.AnsiMode global) {
+		var ansi = patternConfig.ansi();
+		var resolved = switch (global) {
+			case OFF -> LogConfig.Globals.AnsiMode.OFF;
+			case ON, AUTO -> ansi == LogConfig.Globals.AnsiMode.AUTO ? global : ansi;
+		};
+		if (resolved == ansi) {
+			return patternConfig;
+		}
+		return PatternConfig.copy(PatternConfig.builder(), patternConfig).ansi(resolved).build();
 	}
 
 	private static <T> Optional<T> findService(ServiceRegistry services, Class<T> c, String... names) {

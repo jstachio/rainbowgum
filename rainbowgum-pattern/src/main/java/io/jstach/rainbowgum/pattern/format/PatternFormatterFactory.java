@@ -779,7 +779,7 @@ enum HighlightCompositeFactory implements CompositeFactory {
 
 		@Override
 		public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
-			if (config.ansiDisabled()) {
+			if (!StandardFormatterConfig.useAnsi(config)) {
 				if (child == null) {
 					return LogFormatter.noop();
 				}
@@ -797,7 +797,7 @@ enum HighlightCompositeFactory implements CompositeFactory {
 
 		@Override
 		public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
-			if (config.ansiDisabled()) {
+			if (!StandardFormatterConfig.useAnsi(config)) {
 				if (child == null) {
 					return LogFormatter.noop();
 				}
@@ -871,7 +871,7 @@ enum ColorCompositeFactory implements CompositeFactory {
 
 	@Override
 	public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
-		return create(node, child, !config.ansiDisabled());
+		return create(node, child, StandardFormatterConfig.useAnsi(config));
 	}
 
 	LogFormatter create(PatternKeyword node, @Nullable LogFormatter child, boolean ansi) {

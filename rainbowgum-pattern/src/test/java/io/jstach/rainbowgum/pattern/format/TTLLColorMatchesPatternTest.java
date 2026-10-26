@@ -10,6 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.KeyValues;
+import io.jstach.rainbowgum.LogConfig.Globals.AnsiMode;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.format.TTLL;
@@ -41,7 +42,7 @@ class TTLLColorMatchesPatternTest {
 	private static void assertThemeMatchesPattern(TTLL.ColorTheme theme, String patternString, Level level) {
 		var event = LogEvent.of(Instant.parse("2026-10-05T12:00:00.123Z"), "main", 7, level, "com.example.App",
 				"hello world", KeyValues.of(), null);
-		var config = PatternConfig.builder("test").ansiDisabled(false).zoneId(ZoneOffset.UTC).build();
+		var config = PatternConfig.builder("test").ansi(AnsiMode.ON).zoneId(ZoneOffset.UTC).build();
 		LogFormatter pattern = PatternCompiler.builder().patternConfig(config).build().compile(patternString);
 		// the patterns have no key values
 		LogFormatter ttll = new TTLLFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
