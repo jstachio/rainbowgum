@@ -94,7 +94,7 @@ class RainbowGumJBossLoggerProviderTest {
 	void testLoggerCreatedBeforeStartFollowsMessageFormatProperties() {
 		Logger log = Logger.getLogger("jboss.native.messageformat");
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=log4j2
+				logging.messageformat.style=log4j2
 				""").build()).build();
 		RainbowGum.builder(config).route(route -> {
 			route.appender("list", a -> {

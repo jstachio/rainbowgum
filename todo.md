@@ -245,7 +245,7 @@ unifying.
       provider and JUL LogManager now follow the bound gum through
       `RainbowGum.onGlobalChange` (`GlobalRainbowGum`, one copy per module) instead of
       calling `RainbowGum.getOrNull()` when they create a logger,
-      so loggers created before Rainbow Gum starts pick up `logging.messageFormat.*`.
+      so loggers created before Rainbow Gum starts pick up `logging.messageformat.*`.
       Left to decide:
   - [x] `onGlobalChange(Consumer<@Nullable RainbowGum>)` publishes removal as `null`
         through the same ordered queue as bindings. Facade holders, the System.Logger

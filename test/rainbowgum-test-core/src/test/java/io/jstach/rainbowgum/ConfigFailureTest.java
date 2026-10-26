@@ -367,7 +367,7 @@ class ConfigFailureTest {
 		 * machinery in between.
 		 */
 		globalFlagReadWithoutValidatorThrowsDirectly("", """
-				Property missing. key: ['logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode]]""") {
+				Property missing. key: ['logging.fakeglobal.mode' from PROPERTIES_STRING[logging.fakeglobal.mode]]""") {
 			@Override
 			LogProperties properties() {
 				return LogProperties.builder().fromProperties("").build();
@@ -392,11 +392,11 @@ class ConfigFailureTest {
 		 * thing that wanted the property.
 		 */
 		globalFlagReadWithValidateBuildsRicherMissingMessage("""
-				logging.fakeGlobal.mode=x
+				logging.fakeglobal.mode=x
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Property missing. key: ['logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2]]""") {
+						Property missing. key: ['logging.fakeglobal.mode2' from PROPERTIES_STRING[logging.fakeglobal.mode2]]""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -415,11 +415,11 @@ class ConfigFailureTest {
 		 * key.
 		 */
 		globalConvertValueMissing("""
-				logging.fakeGlobal.mode=x
-				logging.fakeGlobal.mode2=y
+				logging.fakeglobal.mode=x
+				logging.fakeglobal.mode2=y
 				""",
 				"""
-						Property missing. key: ['logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3]]""") {
+						Property missing. key: ['logging.fakeglobal.mode3' from PROPERTIES_STRING[logging.fakeglobal.mode3]]""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -437,12 +437,12 @@ class ConfigFailureTest {
 		 * globalFlagReadWithoutValidatorThrowsDirectly.
 		 */
 		globalConvertValueError("""
-				logging.fakeGlobal.mode=x
-				logging.fakeGlobal.mode2=y
-				logging.fakeGlobal.mode3=bad
+				logging.fakeglobal.mode=x
+				logging.fakeglobal.mode2=y
+				logging.fakeglobal.mode3=bad
 				""",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode3' from PROPERTIES_STRING[logging.fakeGlobal.mode3], mode3 must not be 'bad'""") {
+						Error for property. key: 'logging.fakeglobal.mode3' from PROPERTIES_STRING[logging.fakeglobal.mode3], mode3 must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -462,10 +462,10 @@ class ConfigFailureTest {
 		 * they differ and the "Tried:" line earns its keep.
 		 */
 		globalFlagValueError("""
-				logging.fakeGlobal.mode=bad
+				logging.fakeglobal.mode=bad
 				""",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode' from PROPERTIES_STRING[logging.fakeGlobal.mode], mode must not be 'bad'""") {
+						Error for property. key: 'logging.fakeglobal.mode' from PROPERTIES_STRING[logging.fakeglobal.mode], mode must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -484,12 +484,12 @@ class ConfigFailureTest {
 		 * "Property missing. key: [...]".
 		 */
 		globalValidateError("""
-				logging.fakeGlobal.mode=x
-				logging.fakeGlobal.mode2=bad
+				logging.fakeglobal.mode=x
+				logging.fakeglobal.mode2=bad
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Error for property. key: 'logging.fakeGlobal.mode2' from PROPERTIES_STRING[logging.fakeGlobal.mode2], mode2 must not be 'bad'""") {
+						Error for property. key: 'logging.fakeglobal.mode2' from PROPERTIES_STRING[logging.fakeglobal.mode2], mode2 must not be 'bad'""") {
 			@Override
 			List<Configurator> configurators() {
 				return List.of(new FakeGlobalConfigurator());
@@ -507,14 +507,14 @@ class ConfigFailureTest {
 		 */
 		globalConvertValueMissingAcrossChainedProperties("", """
 				Property missing. key:
-				    'logging.fakeGlobal.mode3' from:
-				        A_PROPS[logging.fakeGlobal.mode3],
-				        B_PROPS[logging.fakeGlobal.mode3]""") {
+				    'logging.fakeglobal.mode3' from:
+				        A_PROPS[logging.fakeglobal.mode3],
+				        B_PROPS[logging.fakeglobal.mode3]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
-						logging.fakeGlobal.mode=x
-						logging.fakeGlobal.mode2=y
+						logging.fakeglobal.mode=x
+						logging.fakeglobal.mode2=y
 						""").build();
 				var b = LogProperties.builder().description("B_PROPS").fromProperties("").build();
 				return LogProperties.of(List.of(a, b));
@@ -531,9 +531,9 @@ class ConfigFailureTest {
 		// unregisteredOutputSchemeAcrossChainedProperties below for what this proves.
 		globalFlagReadWithoutValidatorThrowsDirectlyAcrossChainedProperties("", """
 				Property missing. key:
-				    'logging.fakeGlobal.mode' from:
-				        A_PROPS[logging.fakeGlobal.mode],
-				        B_PROPS[logging.fakeGlobal.mode]""") {
+				    'logging.fakeglobal.mode' from:
+				        A_PROPS[logging.fakeglobal.mode],
+				        B_PROPS[logging.fakeglobal.mode]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("").build();
@@ -553,13 +553,13 @@ class ConfigFailureTest {
 		globalFlagReadWithValidateBuildsRicherMissingMessageAcrossChainedProperties("", """
 				Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
 				Property missing. key:
-				    'logging.fakeGlobal.mode2' from:
-				        A_PROPS[logging.fakeGlobal.mode2],
-				        B_PROPS[logging.fakeGlobal.mode2]""") {
+				    'logging.fakeglobal.mode2' from:
+				        A_PROPS[logging.fakeglobal.mode2],
+				        B_PROPS[logging.fakeglobal.mode2]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
-						logging.fakeGlobal.mode=x
+						logging.fakeglobal.mode=x
 						""").build();
 				var b = LogProperties.builder().description("B_PROPS").fromProperties("").build();
 				return LogProperties.of(List.of(a, b));
@@ -589,16 +589,16 @@ class ConfigFailureTest {
 		 */
 		globalConvertValueErrorAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode3' from B_PROPS[logging.fakeGlobal.mode3], mode3 must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode3' from A_PROPS[logging.fakeGlobal.mode3], B_PROPS[logging.fakeGlobal.mode3]""") {
+						Error for property. key: 'logging.fakeglobal.mode3' from B_PROPS[logging.fakeglobal.mode3], mode3 must not be 'bad'
+						Tried: 'logging.fakeglobal.mode3' from A_PROPS[logging.fakeglobal.mode3], B_PROPS[logging.fakeglobal.mode3]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
-						logging.fakeGlobal.mode=x
-						logging.fakeGlobal.mode2=y
+						logging.fakeglobal.mode=x
+						logging.fakeglobal.mode2=y
 						""").build();
 				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
-						logging.fakeGlobal.mode3=bad
+						logging.fakeglobal.mode3=bad
 						""").build();
 				return LogProperties.of(List.of(a, b));
 			}
@@ -628,13 +628,13 @@ class ConfigFailureTest {
 		 */
 		globalFlagValueErrorAcrossChainedProperties("",
 				"""
-						Error for property. key: 'logging.fakeGlobal.mode' from B_PROPS[logging.fakeGlobal.mode], mode must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode' from A_PROPS[logging.fakeGlobal.mode], B_PROPS[logging.fakeGlobal.mode]""") {
+						Error for property. key: 'logging.fakeglobal.mode' from B_PROPS[logging.fakeglobal.mode], mode must not be 'bad'
+						Tried: 'logging.fakeglobal.mode' from A_PROPS[logging.fakeglobal.mode], B_PROPS[logging.fakeglobal.mode]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("").build();
 				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
-						logging.fakeGlobal.mode=bad
+						logging.fakeglobal.mode=bad
 						""").build();
 				return LogProperties.of(List.of(a, b));
 			}
@@ -657,15 +657,15 @@ class ConfigFailureTest {
 		globalValidateErrorAcrossChainedProperties("",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeGlobalConfigurator:
-						Error for property. key: 'logging.fakeGlobal.mode2' from B_PROPS[logging.fakeGlobal.mode2], mode2 must not be 'bad'
-						Tried: 'logging.fakeGlobal.mode2' from A_PROPS[logging.fakeGlobal.mode2], B_PROPS[logging.fakeGlobal.mode2]""") {
+						Error for property. key: 'logging.fakeglobal.mode2' from B_PROPS[logging.fakeglobal.mode2], mode2 must not be 'bad'
+						Tried: 'logging.fakeglobal.mode2' from A_PROPS[logging.fakeglobal.mode2], B_PROPS[logging.fakeglobal.mode2]""") {
 			@Override
 			LogProperties properties() {
 				var a = LogProperties.builder().description("A_PROPS").fromProperties("""
-						logging.fakeGlobal.mode=x
+						logging.fakeglobal.mode=x
 						""").build();
 				var b = LogProperties.builder().description("B_PROPS").fromProperties("""
-						logging.fakeGlobal.mode2=bad
+						logging.fakeglobal.mode2=bad
 						""").build();
 				return LogProperties.of(List.of(a, b));
 			}

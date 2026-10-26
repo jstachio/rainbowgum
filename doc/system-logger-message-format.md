@@ -25,7 +25,7 @@ Notes:
 
 ## Rainbow Gum 1.0
 
-`logging.messageFormat.style` picks which implementation to follow. Measured with the
+`logging.messageformat.style` picks which implementation to follow. Measured with the
 same program on the 1.0.0 snapshot:
 
 - `jdk` (the default, alias `jboss`): the same output as the JDK column, except that an

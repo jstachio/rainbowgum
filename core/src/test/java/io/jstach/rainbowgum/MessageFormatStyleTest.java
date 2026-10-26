@@ -39,10 +39,10 @@ class MessageFormatStyleTest {
 	enum Style {
 
 		DEFAULT(""), //
-		JDK("logging.messageFormat.style=jdk"), //
-		JBOSS("logging.messageFormat.style=jboss"), //
-		LOG4J2("logging.messageFormat.style=log4j2"), //
-		LOGBACK("logging.messageFormat.style=logback"), //
+		JDK("logging.messageformat.style=jdk"), //
+		JBOSS("logging.messageformat.style=jboss"), //
+		LOG4J2("logging.messageformat.style=log4j2"), //
+		LOGBACK("logging.messageformat.style=logback"), //
 		;
 
 		final String properties;
@@ -169,7 +169,7 @@ class MessageFormatStyleTest {
 	@EnumSource(ArgCount.class)
 	void julTrailingThrowableIsArgumentAndThrowableWithLog4j2Style(ArgCount count) {
 		var formatter = LogMessageFormatter
-			.ofJUL(LogProperties.builder().fromProperties("logging.messageFormat.style=log4j2").build());
+			.ofJUL(LogProperties.builder().fromProperties("logging.messageformat.style=log4j2").build());
 		var event = switch (count) {
 			case ONE -> LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "test", "failed {0}", KeyValues.of(),
 					formatter, EXCEPTION);
@@ -193,13 +193,13 @@ class MessageFormatStyleTest {
 	@Test
 	void ofJULInvalidValueIsReported() {
 		var properties = LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=tinylog
+				logging.messageformat.style=tinylog
 				""").build();
 		var e = assertThrows(RuntimeException.class, () -> LogMessageFormatter.ofJUL(properties));
 		assertEquals(
 				"""
 						Validation failed for io.jstach.rainbowgum.LogMessageFormatter:
-						Error for property. key: 'logging.messageFormat.style' from PROPERTIES_STRING[logging.messageFormat.style], 'tinylog' is not a valid value for io.jstach.rainbowgum.MessageFormatStyle. Valid values: 'jdk', 'log4j2', 'default', 'jboss', 'logback'""",
+						Error for property. key: 'logging.messageformat.style' from PROPERTIES_STRING[logging.messageformat.style], 'tinylog' is not a valid value for io.jstach.rainbowgum.MessageFormatStyle. Valid values: 'jdk', 'log4j2', 'default', 'jboss', 'logback'""",
 				e.getMessage());
 	}
 
