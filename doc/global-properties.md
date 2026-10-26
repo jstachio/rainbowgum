@@ -53,7 +53,7 @@ These really must be read before anything loads, so they cannot be builder metho
 |---|---|---|
 | `logging.jansi.disable` | raw `Boolean.parseBoolean(valueOrNull)`: no error, no source, no unused key tracking | jansi |
 | `logging.jul.disable` | `ofBoolean` | jul |
-| `logging.pattern.disable` | `ofBoolean` | pattern (whether it becomes the default console encoder) |
+| `logging.pattern.mode` (was `logging.pattern.disable`) | `PatternConfigurator.Mode` console, explicit | pattern (whether it becomes the default console encoder) |
 | `logging.jfr.alerts.mode` (was `.enabled`) | generated `Mode` enum, off or on | jfr |
 
 ### 4. Read many times while components are built

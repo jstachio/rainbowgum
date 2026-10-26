@@ -16,6 +16,7 @@ import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogProviderRef;
 import io.jstach.rainbowgum.ServiceRegistry;
+import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.KeyParameter;
@@ -35,12 +36,35 @@ import io.jstach.svc.ServiceProvider;
 public final class PatternConfigurator implements Configurator {
 
 	/**
-	 * Property that will disable this configurator from replacing the default encoder
-	 * with the pattern encoder. The default encoder is normally the TTLL encoder but if
-	 * this configurator is loaded the pattern encoder will be used and if a no pattern is
-	 * provided a default one is picked.
+	 * Where the pattern encoder is used: see {@link Mode}. Default is
+	 * {@link Mode#CONSOLE}.
 	 */
-	public static final String LOGGING_PATTERN_DISABLE_PROPERTY = LogProperties.ROOT_PREFIX + "pattern.disable";
+	public static final String LOGGING_PATTERN_MODE_PROPERTY = LogProperties.ROOT_PREFIX + "pattern.mode";
+
+	/**
+	 * Where the pattern encoder is used, from {@value #LOGGING_PATTERN_MODE_PROPERTY}.
+	 */
+	@CaseChanging
+	public enum Mode {
+
+		/**
+		 * The pattern encoder, with a default pattern, replaces TTLL as the encoder of
+		 * console output that does not name one, and is used wherever an encoder names
+		 * the {@value PatternEncoder#PATTERN_SCHEME} scheme. The default.
+		 */
+		CONSOLE,
+		/**
+		 * The pattern encoder is used only where an encoder names the
+		 * {@value PatternEncoder#PATTERN_SCHEME} scheme, so console output that does not
+		 * name one keeps the TTLL encoder.
+		 */
+		EXPLICIT;
+
+		static Mode parse(String value) {
+			return LogProperty.enumValue(Mode.class, value);
+		}
+
+	}
 
 	/**
 	 * For service loader to call.
@@ -65,13 +89,14 @@ public final class PatternConfigurator implements Configurator {
 		services.putIfAbsent(PatternCompiler.class, n, () -> PatternCompiler.of(b -> {
 		}).provide(n, config));
 		config.encoderRegistry().register(PatternEncoder.PATTERN_SCHEME, new PatternEncoderProvider());
-		config.reporter().addProperty(PatternConfigurator.class, LOGGING_PATTERN_DISABLE_PROPERTY);
-		var disable = config.properties()
-			.forKey(LOGGING_PATTERN_DISABLE_PROPERTY)
-			.ofBoolean()
-			.or(false)
+		config.reporter().addProperty(PatternConfigurator.class, LOGGING_PATTERN_MODE_PROPERTY);
+		var mode = config.properties()
+			.forKey(LOGGING_PATTERN_MODE_PROPERTY)
+			.ofString()
+			.map(Mode::parse)
+			.or(Mode.CONSOLE)
 			.validateNow(PatternConfigurator.class);
-		if (!disable) {
+		if (mode == Mode.CONSOLE) {
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, (name, c) -> {
 				PatternEncoderBuilder b = new PatternEncoderBuilder(name);
 				b.pattern(DEFAULT_PATTERN);
