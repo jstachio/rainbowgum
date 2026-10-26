@@ -63,6 +63,25 @@ class DefaultKeyValuesTest {
 		assertEquals("env=property app_status=STARTING", eventKeyValues(config));
 	}
 
+	/*
+	 * The build information example in the overview: a configurator sets the values
+	 * before the first event. Values set in code come before property values.
+	 */
+	@Test
+	void configuratorSetsValuesBeforeTheFirstEvent() {
+		var config = LogConfig.builder()
+			.serviceLoader()
+			.properties(LogProperties.builder()
+				.fromProperties("logging.keyvalues.contributor.defaults=instance.id=i-42")
+				.build())
+			.configurator((c, pass) -> {
+				DefaultKeyValues.of(c.serviceRegistry()).put("git.commit", "abc123");
+				return true;
+			})
+			.build();
+		assertEquals("git.commit=abc123 instance.id=i-42", eventKeyValues(config));
+	}
+
 	@Test
 	void changesInCodeShowOnTheNextEvent() {
 		var config = config("");
