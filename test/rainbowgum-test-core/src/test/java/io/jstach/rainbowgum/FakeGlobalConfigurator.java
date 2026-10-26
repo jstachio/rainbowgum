@@ -33,13 +33,13 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  */
 final class FakeGlobalConfigurator implements Configurator {
 
-	static final String DISABLE_PROPERTY = "logging.fakeGlobal.disable";
+	static final String DISABLE_PROPERTY = "logging.fakeglobal.disable";
 
-	static final String MODE_PROPERTY = "logging.fakeGlobal.mode";
+	static final String MODE_PROPERTY = "logging.fakeglobal.mode";
 
-	static final String MODE2_PROPERTY = "logging.fakeGlobal.mode2";
+	static final String MODE2_PROPERTY = "logging.fakeglobal.mode2";
 
-	static final String MODE3_PROPERTY = "logging.fakeGlobal.mode3";
+	static final String MODE3_PROPERTY = "logging.fakeglobal.mode3";
 
 	@Override
 	public boolean configure(LogConfig config, Pass pass) {

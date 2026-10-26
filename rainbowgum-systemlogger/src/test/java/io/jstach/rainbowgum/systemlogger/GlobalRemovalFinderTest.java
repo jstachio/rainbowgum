@@ -45,12 +45,12 @@ class GlobalRemovalFinderTest {
 	@Test
 	void initialStartupResolvesBoundPropertiesBeforeSystemFallbacks() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=log4j2
+				logging.messageformat.style=log4j2
 				""").build()).build();
 		var output = new ListLogOutput();
 		try (var gum = RainbowGum.builder(config).route(r -> r.appender("list", a -> a.output(output))).build()) {
 			RainbowGum.set(() -> gum);
-			String key = "logging.messageFormat.style";
+			String key = "logging.messageformat.style";
 			String previous = System.setProperty(key, "invalid");
 			try {
 				var finder = new RainbowGumSystemLoggerFinder(() -> InitOption.TRUE) {

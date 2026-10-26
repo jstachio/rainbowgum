@@ -307,7 +307,7 @@ public interface LogProperties {
 	 * </ul>
 	 * @see LogMessageFormatter#ofJUL(LogProperties)
 	 */
-	static final String MESSAGE_FORMAT_STYLE_PROPERTY = ROOT_PREFIX + "messageFormat.style";
+	static final String MESSAGE_FORMAT_STYLE_PROPERTY = ROOT_PREFIX + "messageformat.style";
 
 	/**
 	 * Key values namespace, for properties that configure where an event's key values

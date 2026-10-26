@@ -21,12 +21,12 @@ class GlobalRainbowGumTest {
 	@Test
 	void boundPropertiesOverrideInvalidSystemPropertyDuringSubscription() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=log4j2
+				logging.messageformat.style=log4j2
 				""").build()).build();
 		try (var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
 			.set()) {
-			String key = "logging.messageFormat.style";
+			String key = "logging.messageformat.style";
 			String previous = System.setProperty(key, "invalid");
 			try {
 				var global = GlobalRainbowGum.of();
@@ -49,7 +49,7 @@ class GlobalRainbowGumTest {
 	@Test
 	void alertListenerCanReplaceTheGumDuringInitialPropertyRead() throws Exception {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=invalid
+				logging.messageformat.style=invalid
 				""").build()).build();
 		try (var first = RainbowGum.builder(config)
 			.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
@@ -83,11 +83,11 @@ class GlobalRainbowGumTest {
 	@ParameterizedTest
 	@EnumSource(Removal.class)
 	void removalDropsTheGumAndRestoresSystemFormatting(Removal removal) {
-		String key = "logging.messageFormat.style";
+		String key = "logging.messageformat.style";
 		String previous = System.setProperty(key, "log4j2");
 		try {
 			var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-					logging.messageFormat.style=jdk
+					logging.messageformat.style=jdk
 					""").build()).build();
 			GlobalRainbowGum global;
 			try (var first = RainbowGum.builder(config)
@@ -107,7 +107,7 @@ class GlobalRainbowGumTest {
 			assertNull(global.gum());
 			assertEquals("Its done", format(global));
 			var next = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-					logging.messageFormat.style=jdk
+					logging.messageformat.style=jdk
 					""").build()).build();
 			try (var second = RainbowGum.builder(next)
 				.route(r -> r.appender("list", a -> a.output(new ListLogOutput())))
@@ -124,9 +124,9 @@ class GlobalRainbowGumTest {
 	@Test
 	void removalDropsTheGumEvenWhenSystemFormattingIsInvalid() {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=log4j2
+				logging.messageformat.style=log4j2
 				""").build()).build();
-		String key = "logging.messageFormat.style";
+		String key = "logging.messageformat.style";
 		String previous = System.setProperty(key, "invalid");
 		try {
 			GlobalRainbowGum global;

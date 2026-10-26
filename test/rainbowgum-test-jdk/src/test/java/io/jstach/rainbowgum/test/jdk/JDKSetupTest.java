@@ -1104,7 +1104,7 @@ class JDKSetupTest {
 		ListLogOutput output = new ListLogOutput();
 		var level = System.Logger.Level.INFO;
 		var messageFormat = LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=log4j2
+				logging.messageformat.style=log4j2
 				""").build();
 		var properties = LogProperties.of(List.of(tester.properties(), messageFormat));
 		var logger = tester.beforeLoad();

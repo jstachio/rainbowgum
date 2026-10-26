@@ -118,7 +118,7 @@ class RainbowGumLogManagerTest {
 		var logger = Logger.getLogger("test.jul.logmanager.messageformat");
 		ListLogOutput output = new ListLogOutput();
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
-				logging.messageFormat.style=log4j2
+				logging.messageformat.style=log4j2
 				""").build()).build();
 		try (var gum = RainbowGum.builder(config).route(r -> {
 			r.appender("list", a -> {
