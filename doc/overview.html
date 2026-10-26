@@ -2651,6 +2651,38 @@ or from code, where they may change at any time; a property value wins over a va
 DefaultKeyValues.of(config.serviceRegistry()).put("app_status", "READY");
 }
 
+where <code>config</code> is the {@link io.jstach.rainbowgum.LogConfig} of the running Rainbow Gum, for example
+<code>RainbowGum.of().config()</code>.
+
+<p>
+Values known at build time, such as a git commit id, should be set before the first event, which a
+{@linkplain io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator configurator} does. One way to get the
+value into code is the <code>templating-maven-plugin</code>, which is how Rainbow Gum generates
+{@link io.jstach.rainbowgum.RainbowGumVersion}, filtering a class in <code>src/main/java-templates</code> with, for
+example, the <code>buildNumber</code> property of the <code>buildnumber-maven-plugin</code>:
+</p>
+
+{@snippet :
+public final class BuildInfo {
+	public static final String COMMIT = "${buildNumber}";
+}
+
+public final class BuildInfoConfigurator implements RainbowGumServiceProvider.Configurator {
+	@Override
+	public boolean configure(LogConfig config, Pass pass) {
+		DefaultKeyValues.of(config.serviceRegistry()).put("git.commit", BuildInfo.COMMIT);
+		return true;
+	}
+}
+}
+
+Register the configurator for the service loader in
+<code>META-INF/services/io.jstach.rainbowgum.spi.RainbowGumServiceProvider</code> (or with <code>provides</code> in
+<code>module-info.java</code>), or add it to a builder with
+{@link io.jstach.rainbowgum.LogConfig.Builder#configurator(io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator)}.
+Without code, a filtered properties resource can carry the value in the property instead.
+
+<p>
 Each change is copied once into an immutable snapshot that events share. Turn them off with
 <code>logging.keyvalues.disabled=defaults</code>; that property takes a comma separated list of
 {@linkplain io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard key values source names}

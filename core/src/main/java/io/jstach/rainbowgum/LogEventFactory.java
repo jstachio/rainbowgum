@@ -365,7 +365,8 @@ public interface LogEventFactory {
 				 * Key values added to every event, such as a build version or instance
 				 * id, which every other source overrides on a key collision. Like
 				 * {@link #USER} it belongs to the application;
-				 * {@code rainbowgum-keyvalues} provides one configured by properties.
+				 * {@code rainbowgum-keyvalues-contributor} provides one configured by
+				 * properties.
 				 */
 				DEFAULTS(false),
 				/**
