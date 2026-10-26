@@ -134,7 +134,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 				 * point of it being replaceable), so the sink must not be bound based on
 				 * a level snapshot at creation time - level gating for this logger
 				 * happens entirely inside ReplaceableLogger/LevelLogger instead, via
-				 * setLevel().
+				 * set().
 				 */
 				LogEventLogger logger = router.eventLogger(name);
 				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1 + CALLER_WRAP_DEPTH);
@@ -198,8 +198,8 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * router - re-fetching the sink from it, not just the level, is what stops an
 	 * already-created ReplaceableLogger from continuing to dispatch into the
 	 * now-abandoned queue after the swap. eventLogger(name), not route(name, level), is
-	 * used deliberately: the level is applied via setLevel() on the line above instead,
-	 * so gating it a second time at the sink would be redundant.
+	 * used deliberately: the level is applied with the handler via set() instead, so
+	 * gating it a second time at the sink would be redundant.
 	 */
 	private void subscribe(String name, RootRouter router, ReplaceableLogger changeable, boolean callerInfoEnabled) {
 		router.onChange(new Consumer<RootRouter>() {
@@ -207,10 +207,9 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 			@Override
 			public void accept(RootRouter r) {
 				var level = r.levelResolver().resolveLevel(name);
-				changeable.setLevel(level);
 				var logger = r.eventLogger(name);
 				var handler = maybeAddCallerInfo(name, callerInfoEnabled, logger, 1 + CALLER_WRAP_DEPTH);
-				changeable.setEventHandler(handler);
+				changeable.set(level, handler);
 			}
 
 		});

@@ -968,6 +968,12 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 		drainLock.lock();
 		try {
 			var original = this.delegate;
+			// Transferring a publisher to itself would clear its subscribers.
+			@SuppressWarnings("ReferenceEquality")
+			boolean same = original == delegate;
+			if (same) {
+				return original;
+			}
 			// Existing changeable loggers must follow every binding, including removal.
 			original.changePublisher().transferTo(delegate.changePublisher());
 			delegate.changePublisher().publish(delegate);

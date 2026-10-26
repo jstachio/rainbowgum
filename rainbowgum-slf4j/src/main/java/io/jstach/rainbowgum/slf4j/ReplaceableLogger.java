@@ -53,6 +53,14 @@ class ReplaceableLogger
 		state = State.of(state.level(), eventHandler);
 	}
 
+	/*
+	 * One write, so a logging thread never sees the new level with the old router's
+	 * handler.
+	 */
+	void set(System.Logger.Level level, LogEventHandler eventHandler) {
+		state = State.of(level, eventHandler);
+	}
+
 	@Override
 	public LogEventHandler currentHandler() {
 		return state.handler();

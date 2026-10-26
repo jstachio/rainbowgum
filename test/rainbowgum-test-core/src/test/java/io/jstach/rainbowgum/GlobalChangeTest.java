@@ -306,6 +306,19 @@ class GlobalChangeTest {
 		}
 	}
 
+	@Test
+	void settingTheBoundRouterAgainKeepsItsSubscribers() {
+		try (var gum = gum()) {
+			RainbowGum.set(() -> gum);
+			RainbowGum.of();
+			List<LogRouter.RootRouter> seen = new CopyOnWriteArrayList<>();
+			LogRouter.global().onChange(seen::add);
+			InternalRootRouter.setRouter(gum.router());
+			((InternalRootRouter) gum.router()).changePublisher().publish(gum.router());
+			assertEquals(List.of(gum.router()), seen);
+		}
+	}
+
 	private static void logThroughGlobalRouter() {
 		var event = LogEventFactory.of("test").eventNoArg(System.Logger.Level.INFO, "replacement", null);
 		var route = LogRouter.global().route(event.loggerName(), event.level());

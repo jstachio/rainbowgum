@@ -104,6 +104,19 @@ class ReplaceableLoggerTest {
 		assertTrue(logger.isInfoEnabled());
 	}
 
+	@Test
+	void setReplacesLevelAndHandlerTogether() {
+		var logger = ReplaceableLogger.of(Level.INFO, handler);
+		var deeper = handler.withDepth(2);
+		logger.set(System.Logger.Level.OFF, deeper);
+		assertFalse(logger.isErrorEnabled());
+		assertEquals(deeper, logger.currentHandler());
+		logger.set(System.Logger.Level.DEBUG, handler);
+		assertTrue(logger.isDebugEnabled());
+		assertFalse(logger.isTraceEnabled());
+		assertEquals(handler, logger.currentHandler());
+	}
+
 	private void logThroughOneExtraFrame(org.slf4j.Logger logger) {
 		logger.info("indirect");
 	}
