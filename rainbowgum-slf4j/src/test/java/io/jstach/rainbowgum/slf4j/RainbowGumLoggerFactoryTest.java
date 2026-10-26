@@ -441,6 +441,74 @@ class RainbowGumLoggerFactoryTest {
 		}
 	}
 
+	@Test
+	void changeableLoggerCanStartOffThenTurnOnAndOffAgain() {
+		var properties = MutableLogProperties.builder().copyProperties("""
+				logging.change.mode=on
+				logging.change.logger=level
+				logging.level=off
+				""").build();
+		try (var gum = gum(list, properties).start()) {
+			var factory = new RainbowGumLoggerFactory(gum, new RainbowGumMDCAdapter());
+			var logger = factory.getLogger("changeable.off");
+			assertFalse(logger.isErrorEnabled());
+			logger.error("disabled at creation");
+			logger.atError().log("disabled fluent at creation");
+			properties.put("logging.level", "debug");
+			gum.config().changePublisher().publish();
+			assertTrue(logger.isDebugEnabled());
+			logger.debug("enabled");
+			properties.put("logging.level", "off");
+			gum.config().changePublisher().publish();
+			assertFalse(logger.isErrorEnabled());
+			logger.error("disabled after update");
+			logger.atError().log("disabled fluent after update");
+			properties.put("logging.level", "info");
+			gum.config().changePublisher().publish();
+			logger.info("restored");
+			assertEquals("DEBUG enabled\nINFO restored\n", list.toString());
+		}
+	}
+
+	@Test
+	void existingLoggerFollowsConsecutiveConfiguredGlobalBindings() {
+		RainbowGum.builder(LogConfig.builder().build()).unset();
+		var properties = LogProperties.builder().fromProperties("""
+				logging.change.mode=on
+				logging.change.logger=level
+				logging.level=warn
+				""").build();
+		var first = RainbowGum.set(gum(list, properties)).get();
+		try {
+			var factory = new RainbowGumLoggerFactory(first, new RainbowGumMDCAdapter());
+			var logger = factory.getLogger("existing.logger");
+			assertFalse(logger.isDebugEnabled());
+			var secondOutput = new ListLogOutput();
+			var secondProperties = LogProperties.builder().fromProperties("""
+					logging.change.mode=on
+					logging.change.logger=level
+					logging.level=debug
+					""").build();
+			try (var second = RainbowGum.set(gum(secondOutput, secondProperties)).get()) {
+				first.close();
+				assertTrue(logger.isDebugEnabled());
+				logger.debug("second binding");
+				assertEquals("", list.toString());
+				assertEquals("DEBUG second binding\n", secondOutput.toString());
+				var thirdOutput = new ListLogOutput();
+				try (var third = RainbowGum.set(gum(thirdOutput, secondProperties)).get()) {
+					logger.info("third binding");
+					assertEquals("INFO third binding\n", thirdOutput.toString());
+					assertEquals("DEBUG second binding\n", secondOutput.toString());
+				}
+			}
+		}
+		finally {
+			first.close();
+			RainbowGum.builder(LogConfig.builder().build()).unset();
+		}
+	}
+
 	private RainbowGum gum(ListLogOutput output, LogProperties props) {
 		LogConfig config = LogConfig.builder().properties(props).build();
 		var gum = RainbowGum.builder(config).route(route -> {
