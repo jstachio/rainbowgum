@@ -27,7 +27,7 @@ class GlobalsTest {
 		assertEquals(AppenderLock.AUTO, globals.appenderLock());
 		assertEquals(ThreadLocalMode.ALLOW, globals.threadLocal());
 		assertFalse(globals.optimize());
-		assertEquals(Set.of(), globals.keyValuesDisabled());
+		assertEquals(Set.of(Source.Standard.values()), globals.keyValueSources());
 	}
 
 	@Test
@@ -38,7 +38,7 @@ class GlobalsTest {
 			.appenderLock(AppenderLock.REENTRANT)
 			.threadLocal(ThreadLocalMode.FORBID)
 			.optimize(true)
-			.keyValuesDisabled(Set.of(Source.Standard.SLF4J))
+			.keyValueSources(Set.of(Source.Standard.SLF4J))
 			.build()
 			.globals();
 		assertEquals(ChangeMode.ON, globals.changeMode());
@@ -46,7 +46,7 @@ class GlobalsTest {
 		assertEquals(AppenderLock.REENTRANT, globals.appenderLock());
 		assertEquals(ThreadLocalMode.FORBID, globals.threadLocal());
 		assertTrue(globals.optimize());
-		assertEquals(Set.of(Source.Standard.SLF4J), globals.keyValuesDisabled());
+		assertEquals(Set.of(Source.Standard.SLF4J), globals.keyValueSources());
 	}
 
 	@Test

@@ -40,13 +40,13 @@ class DefaultKeyValuesTest {
 
 	@Test
 	void propertyValuesAreOnEveryEventInDeclaredOrder() {
-		var config = config("logging.keyvalues.contributor.defaults=instance.id=i-42&git.commit=abc123");
+		var config = config("logging.keyvalues.defaults=instance.id=i-42&git.commit=abc123");
 		assertEquals("instance.id=i-42 git.commit=abc123", eventKeyValues(config));
 	}
 
 	@Test
 	void everyOtherSourceWins() {
-		var config = config("logging.keyvalues.contributor.defaults=env=default&version=1.0");
+		var config = config("logging.keyvalues.defaults=env=default&version=1.0");
 		var slf4j = KeyValues.of(Map.of("env", "slf4j"));
 		KeyValuesContributor.register(config.serviceRegistry(), KeyValuesContributor.Source.Standard.SLF4J,
 				() -> slf4j);
@@ -56,7 +56,7 @@ class DefaultKeyValuesTest {
 
 	@Test
 	void propertyWinsOverCode() {
-		var config = config("logging.keyvalues.contributor.defaults=env=property");
+		var config = config("logging.keyvalues.defaults=env=property");
 		var defaults = DefaultKeyValues.of(config.serviceRegistry());
 		defaults.put("env", "code");
 		defaults.put("app_status", "STARTING");
@@ -71,9 +71,7 @@ class DefaultKeyValuesTest {
 	void configuratorSetsValuesBeforeTheFirstEvent() {
 		var config = LogConfig.builder()
 			.serviceLoader()
-			.properties(LogProperties.builder()
-				.fromProperties("logging.keyvalues.contributor.defaults=instance.id=i-42")
-				.build())
+			.properties(LogProperties.builder().fromProperties("logging.keyvalues.defaults=instance.id=i-42").build())
 			.configurator((c, pass) -> {
 				DefaultKeyValues.of(c.serviceRegistry()).put("git.commit", "abc123");
 				return true;
@@ -112,10 +110,10 @@ class DefaultKeyValuesTest {
 	}
 
 	@Test
-	void disabledLeavesThemOut() {
+	void unselectedLeavesThemOut() {
 		var config = config("""
-				logging.keyvalues.contributor.defaults=git.commit=abc123
-				logging.keyvalues.disabled=defaults
+				logging.keyvalues.defaults=git.commit=abc123
+				logging.keyvalues.sources=slf4j
 				""");
 		assertEquals("", eventKeyValues(config));
 	}

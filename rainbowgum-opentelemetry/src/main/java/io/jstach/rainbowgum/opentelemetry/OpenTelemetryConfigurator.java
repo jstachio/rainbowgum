@@ -8,8 +8,9 @@ import io.jstach.svc.ServiceProvider;
 /**
  * Registers the current OpenTelemetry span's ids as the
  * {@link KeyValuesContributor.Source.Standard#OPENTELEMETRY} key values source. Simply
- * having this module on the classpath is enough; disable it with
- * <code>logging.keyvalues.disabled=opentelemetry</code>.
+ * having this module on the classpath is enough. The ids are added to events only while
+ * <code>opentelemetry</code> is selected by <code>logging.keyvalues.sources</code>, which
+ * selects every source when absent.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class OpenTelemetryConfigurator implements RainbowGumServiceProvider.Configurator {

@@ -160,7 +160,7 @@ class LogConfigDebugTest {
 						  logging.global.appender.lock = AUTO
 						  logging.global.threadLocal = ALLOW
 						  logging.global.optimize = false
-						  logging.keyvalues.disabled = (none)
+						  logging.keyvalues.sources = (all)
 						Debug mode: ALL
 
 						Router: default
@@ -373,7 +373,7 @@ class LogConfigDebugTest {
 						  logging.global.appender.lock = AUTO
 						  logging.global.threadLocal = ALLOW
 						  logging.global.optimize = false
-						  logging.keyvalues.disabled = (none)
+						  logging.keyvalues.sources = (all)
 						Debug mode: DEBUG_MODE
 
 						Router: default

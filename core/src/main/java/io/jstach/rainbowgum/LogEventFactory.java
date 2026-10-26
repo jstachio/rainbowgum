@@ -296,9 +296,9 @@ public interface LogEventFactory {
 	 * which places them above every other source except {@link Source.Standard#USER}.
 	 *
 	 * <p>
-	 * {@link #clear()} clears the current thread's context in every enabled store and
-	 * disabled stores whose {@link Source.Standard#clearWhenDisabled()} policy permits
-	 * it, for example when a pooled thread finishes a task:
+	 * {@link #clear()} clears the current thread's context in every selected store and in
+	 * the stores not selected whose {@link Source.Standard#clearWhenUnselected()} policy
+	 * permits it, for example when a pooled thread finishes a task:
 	 * {@snippet :
 	 * KeyValuesContributor.global().clear();
 	 * }
@@ -400,23 +400,23 @@ public interface LogEventFactory {
 				 */
 				USER(false);
 
-				private final boolean clearWhenDisabled;
+				private final boolean clearWhenUnselected;
 
-				Standard(boolean clearWhenDisabled) {
-					this.clearWhenDisabled = clearWhenDisabled;
+				Standard(boolean clearWhenUnselected) {
+					this.clearWhenUnselected = clearWhenUnselected;
 				}
 
 				/**
-				 * Whether this source's contributor should still be cleared when its
-				 * contribution is disabled with
-				 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY}. Logging facades
-				 * still use their own context stores when their contributions to other
-				 * facades are disabled. Application callbacks and stores with no
-				 * clearable thread state are not invoked when disabled.
-				 * @return whether to clear the contributor when disabled.
+				 * Whether this source's contributor is still cleared when the source is
+				 * not selected with {@value LogProperties#KEY_VALUES_SOURCES_PROPERTY}.
+				 * Logging facades always use their own context stores for their own
+				 * events, so those stores are still cleared. Application callbacks and
+				 * stores with no clearable thread state are not invoked when not
+				 * selected.
+				 * @return whether to clear the contributor when not selected.
 				 */
-				public boolean clearWhenDisabled() {
-					return clearWhenDisabled;
+				public boolean clearWhenUnselected() {
+					return clearWhenUnselected;
 				}
 
 			}
@@ -436,8 +436,8 @@ public interface LogEventFactory {
 
 		/**
 		 * Combines the contributors currently registered in a service registry, skipping
-		 * the excluded sources and those disabled with
-		 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY}. The registry is read once
+		 * the excluded sources and those not selected with
+		 * {@value LogProperties#KEY_VALUES_SOURCES_PROPERTY}. The registry is read once
 		 * on this call, so contributors registered afterward are not included.
 		 * @param registry where contributors are registered.
 		 * @param excluded sources to skip, usually the caller's own.
@@ -485,13 +485,11 @@ final class KeyValuesContributors {
 	}
 
 	/*
-	 * The sources disabled by property, parsed and validated when the config is built and
+	 * The sources selected by property, parsed and validated when the config is built and
 	 * kept in its service registry so that combining contributors needs only the
-	 * registry.
+	 * registry. Without one in the registry every source is selected.
 	 */
-	record Disabled(Set<Source> sources) {
-
-		static final Disabled NONE = new Disabled(Set.of());
+	record Selected(Set<Source> sources) {
 
 		static Set<Source> parse(List<String> names) {
 			var sources = new LinkedHashSet<Source>();
@@ -507,7 +505,7 @@ final class KeyValuesContributors {
 		var below = new ArrayList<KeyValuesContributor>();
 		var clearable = new ArrayList<KeyValuesContributor>();
 		KeyValuesContributor user = null;
-		var disabled = registry.findOrNull(Disabled.class);
+		var selected = registry.findOrNull(Selected.class);
 		for (var source : Source.Standard.values()) {
 			if (excluded.contains(source)) {
 				continue;
@@ -516,11 +514,11 @@ final class KeyValuesContributors {
 			if (c == null) {
 				continue;
 			}
-			boolean isDisabled = disabled != null && disabled.sources().contains(source);
-			if (!isDisabled || source.clearWhenDisabled()) {
+			boolean isSelected = selected == null || selected.sources().contains(source);
+			if (isSelected || source.clearWhenUnselected()) {
 				clearable.add(c);
 			}
-			if (isDisabled) {
+			if (!isSelected) {
 				continue;
 			}
 			if (source == Source.Standard.USER) {

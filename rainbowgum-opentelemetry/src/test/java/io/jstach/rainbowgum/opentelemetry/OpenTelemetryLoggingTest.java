@@ -32,12 +32,11 @@ class OpenTelemetryLoggingTest {
 
 	private static final String SPAN_ID = OpenTelemetryContributorTest.SPAN_ID;
 
-	private static LogConfig config(boolean disabled) {
+	private static LogConfig config(boolean unselected) {
 		return LogConfig.builder()
 			.serviceLoader()
-			.properties(LogProperties.builder()
-				.fromProperties(disabled ? "logging.keyvalues.disabled=opentelemetry" : "")
-				.build())
+			.properties(
+					LogProperties.builder().fromProperties(unselected ? "logging.keyvalues.sources=slf4j" : "").build())
 			.build();
 	}
 
@@ -127,19 +126,20 @@ class OpenTelemetryLoggingTest {
 
 	@ParameterizedTest
 	@ValueSource(booleans = { false, true })
-	void cleanupPreservesApplicationSpan(boolean disabled) {
+	void cleanupPreservesApplicationSpan(boolean unselected) {
 		var output = new ListLogOutput();
 		var context = context();
-		try (var gum = RainbowGum.builder(config(disabled)).route(r -> r.appender("list", a -> a.output(output))).set();
-				var scope = Span.wrap(context).makeCurrent()) {
+		try (var gum = RainbowGum.builder(config(unselected))
+			.route(r -> r.appender("list", a -> a.output(output)))
+			.set(); var scope = Span.wrap(context).makeCurrent()) {
 			KeyValuesContributor.global().clear();
 			assertEquals(context, Span.current().getSpanContext());
-			LoggerFactory.getLogger(getClass().getName() + ".cleanup." + disabled).info("after cleanup");
+			LoggerFactory.getLogger(getClass().getName() + ".cleanup." + unselected).info("after cleanup");
 		}
 		assertEquals(1, output.events().size());
 		var values = output.events().getFirst().getKey().keyValues();
-		assertEquals(disabled ? null : TRACE_ID, values.getValueOrNull("traceId"));
-		assertEquals(disabled ? null : SPAN_ID, values.getValueOrNull("spanId"));
+		assertEquals(unselected ? null : TRACE_ID, values.getValueOrNull("traceId"));
+		assertEquals(unselected ? null : SPAN_ID, values.getValueOrNull("spanId"));
 	}
 
 }

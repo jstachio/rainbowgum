@@ -63,8 +63,8 @@ class OpenTelemetryContributorTest {
 	}
 
 	@Test
-	void disabledLeavesThemOut() {
-		assertEquals("", eventKeyValues(config("logging.keyvalues.disabled=opentelemetry"), true));
+	void unselectedLeavesThemOut() {
+		assertEquals("", eventKeyValues(config("logging.keyvalues.sources=defaults,slf4j"), true));
 	}
 
 	@Test

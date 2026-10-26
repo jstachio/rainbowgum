@@ -12,11 +12,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor;
 import io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard;
@@ -68,11 +71,9 @@ class KeyValuesContributorTest {
 	}
 
 	@Test
-	void disabledPropertyLeavesSourcesOut() {
+	void sourcesPropertySelectsSources() {
 		var config = LogConfig.builder()
-			.properties(LogProperties.builder()
-				.fromProperties("logging.keyvalues.disabled=defaults,scoped_key_values")
-				.build())
+			.properties(LogProperties.builder().fromProperties("logging.keyvalues.sources=slf4j").build())
 			.build();
 		var registry = config.serviceRegistry();
 		KeyValuesContributor.register(registry, Standard.DEFAULTS, contributor(Map.of("version", "1.0")));
@@ -84,14 +85,29 @@ class KeyValuesContributorTest {
 				render(KeyValuesContributor.of(registry).keyValues(KeyValues.of(Map.of("own", "1")))));
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "", "logging.keyvalues.sources=", "logging.keyvalues.sources=slf4j" })
+	void absentSelectsEverySourceAndEmptySelectsNone(String properties) {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
+		var registry = config.serviceRegistry();
+		KeyValuesContributor.register(registry, Standard.DEFAULTS, contributor(Map.of("version", "1.0")));
+		KeyValuesContributor.register(registry, Standard.SLF4J, contributor(Map.of("env", "slf4j")));
+		String expected = switch (properties) {
+			case "" -> "version=1.0 env=slf4j";
+			case "logging.keyvalues.sources=" -> "";
+			default -> "env=slf4j";
+		};
+		assertEquals(expected, render(KeyValuesContributor.of(registry).keyValues()));
+	}
+
 	@Test
-	void invalidDisabledSourceFailsTheConfig() {
-		var properties = LogProperties.builder().fromProperties("logging.keyvalues.disabled=defaults,mdc").build();
+	void invalidSourceFailsTheConfig() {
+		var properties = LogProperties.builder().fromProperties("logging.keyvalues.sources=defaults,mdc").build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> LogConfig.builder().properties(properties).build());
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.LogConfig:
-				Error for property. key: 'logging.keyvalues.disabled' from PROPERTIES_STRING[logging.keyvalues.disabled], \
+				Error for property. key: 'logging.keyvalues.sources' from PROPERTIES_STRING[logging.keyvalues.sources], \
 				'mdc' is not a valid value for io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard. \
 				Valid values: 'defaults', 'opentelemetry', 'scoped_key_values', 'jboss_logging', 'log4j2', 'slf4j', 'user'""";
 		assertEquals(expected, e.getMessage());
@@ -99,10 +115,12 @@ class KeyValuesContributorTest {
 
 	@ParameterizedTest
 	@EnumSource(Standard.class)
-	void disabledSourceCleanupFollowsItsPolicy(Standard source) {
-		var properties = LogProperties.builder()
-			.fromProperties("logging.keyvalues.disabled=" + source.name().toLowerCase(Locale.ROOT))
-			.build();
+	void unselectedSourceCleanupFollowsItsPolicy(Standard source) {
+		var others = Stream.of(Standard.values())
+			.filter(s -> s != source)
+			.map(s -> s.name().toLowerCase(Locale.ROOT))
+			.collect(Collectors.joining(","));
+		var properties = LogProperties.builder().fromProperties("logging.keyvalues.sources=" + others).build();
 		var config = LogConfig.builder().properties(properties).build();
 		var calls = new ArrayList<String>();
 		KeyValuesContributor.register(config.serviceRegistry(), source, new KeyValuesContributor() {
@@ -135,7 +153,7 @@ class KeyValuesContributorTest {
 
 	@ParameterizedTest
 	@EnumSource(Standard.class)
-	void enabledSourceStillClearsRegardlessOfItsDisabledPolicy(Standard source) {
+	void selectedSourceStillClearsRegardlessOfItsUnselectedPolicy(Standard source) {
 		var config = LogConfig.builder().build();
 		var store = new ThreadLocalContributor();
 		store.local.set(KeyValues.of(Map.of("requestId", "previous-request")));

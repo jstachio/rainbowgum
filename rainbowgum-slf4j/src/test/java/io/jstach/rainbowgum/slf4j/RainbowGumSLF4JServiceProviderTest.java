@@ -62,16 +62,14 @@ class RainbowGumSLF4JServiceProviderTest {
 
 	@ParameterizedTest
 	@ValueSource(booleans = { false, true })
-	void globalCleanupPreventsMdcLeakingToNextRequest(boolean disabled) {
-		var properties = LogProperties.builder()
-			.fromProperties(disabled ? "logging.keyvalues.disabled=slf4j" : "")
-			.build();
+	void globalCleanupPreventsMdcLeakingToNextRequest(boolean unselected) {
+		var properties = LogProperties.builder().fromProperties(unselected ? "logging.keyvalues.sources=" : "").build();
 		var config = LogConfig.builder().properties(properties).serviceLoader().build();
 		var output = new ListLogOutput();
 		try (var gum = RainbowGum.builder(config)
 			.route(route -> route.appender("list", appender -> appender.output(output)))
 			.set()) {
-			var logger = org.slf4j.LoggerFactory.getLogger(getClass().getName() + "." + disabled);
+			var logger = org.slf4j.LoggerFactory.getLogger(getClass().getName() + "." + unselected);
 			org.slf4j.MDC.put("requestId", "previous-request");
 			logger.info("previous request");
 			assertEquals(1, output.events().size());

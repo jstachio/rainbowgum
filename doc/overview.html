@@ -2495,8 +2495,8 @@ Key values from MDC, {@link org.slf4j.spi.LoggingEventBuilder#addKeyValue(String
 <a href="#json_encoders">JSON encoders</a> include them. Do not put passwords, tokens, session ids or
 personal data in key values. If you are coming from a framework whose default format leaves MDC out, values
 that never showed up in your logs before will now. TTLL's <code>keyValues=none</code> leaves them out of the
-text format, and <code>logging.keyvalues.disabled</code> drops whole sources from every event
-(see <a href="#default_key_values">Default Key Values</a>).
+text format, and <code>logging.keyvalues.sources</code> selects which sources add key values to events
+(see <a href="#key_value_sources">key value sources</a>).
 </p>
 </div>
 <p>
@@ -2642,7 +2642,7 @@ key values source (SLF4J MDC, scoped key values, ...) overrides them on a key co
 in the order they are declared:
 
 {@snippet lang=properties :
-logging.keyvalues.contributor.defaults=git.commit=abc123&instance.id=i-42
+logging.keyvalues.defaults=git.commit=abc123&instance.id=i-42
 }
 
 or from code, where they may change at any time; a property value wins over a value set in code for the same key:
@@ -2683,12 +2683,10 @@ Register the configurator for the service loader in
 Without code, a filtered properties resource can carry the value in the property instead.
 
 <p>
-Each change is copied once into an immutable snapshot that events share. Turn them off with
-<code>logging.keyvalues.disabled=defaults</code>; that property takes a comma separated list of
-{@linkplain io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard key values source names}
-(<code>defaults</code>, <code>opentelemetry</code>, <code>scoped_key_values</code>, <code>jboss_logging</code>,
-<code>log4j2</code>, <code>slf4j</code>, <code>user</code>, ignoring case) and leaves those sources out of every event. When logs go through a collector such as the OpenTelemetry Collector, per process
-values like these usually belong in resource attributes instead, which the OTLP output and JSON encoders support.
+Each change is copied once into an immutable snapshot that events share. When logs go through a collector such
+as the OpenTelemetry Collector, per process values like these usually belong in resource attributes instead, which
+the OTLP output and JSON encoders support.
+</p>
 
 {@snippet lang=xml :
 <dependency>
@@ -2697,6 +2695,23 @@ values like these usually belong in resource attributes instead, which the OTLP 
     <version>_VERSION_</version>
     <scope>runtime</scope>
 </dependency>
+}
+
+<p id="key_value_sources">
+<code>logging.keyvalues.sources</code> selects which
+{@linkplain io.jstach.rainbowgum.LogEventFactory.KeyValuesContributor.Source.Standard key value sources} add key
+values to events, as a comma separated list of <code>defaults</code>, <code>opentelemetry</code>,
+<code>scoped_key_values</code>, <code>jboss_logging</code>, <code>log4j2</code>, <code>slf4j</code> and
+<code>user</code>, ignoring case. When it is absent every source is selected, and an empty value selects none.
+A logging facade's own context store is always used for events logged through that facade, so
+<code>logging.keyvalues.sources=defaults</code> still puts the SLF4J MDC on events logged through SLF4J, but not on
+events logged through other facades. In code the same choice is
+{@link io.jstach.rainbowgum.LogConfig.Builder#keyValueSources(java.util.Set)}.
+</p>
+
+{@snippet lang=properties :
+# only the default key values and the SLF4J MDC
+logging.keyvalues.sources=defaults,slf4j
 }
 
 <h3 id="system_logger">java.lang.System.Logger and java.util.logging</h3>

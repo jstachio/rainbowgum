@@ -3,9 +3,11 @@ package io.jstach.rainbowgum;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
@@ -453,10 +455,19 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 		appendGlobal(out, LogProperties.GLOBAL_APPENDER_LOCK_PROPERTY, globals.appenderLock());
 		appendGlobal(out, LogProperties.GLOBAL_THREAD_LOCAL_PROPERTY, globals.threadLocal());
 		appendGlobal(out, LogProperties.GLOBAL_OPTIMIZE_PROPERTY, globals.optimize());
-		var keyValues = new TreeSet<String>();
-		globals.keyValuesDisabled().forEach(s -> keyValues.add(s.toString()));
-		appendGlobal(out, LogProperties.KEY_VALUES_DISABLED_PROPERTY,
-				keyValues.isEmpty() ? "(none)" : String.join(",", keyValues));
+		/*
+		 * In merge order and as the property spells them.
+		 */
+		var all = LogEventFactory.KeyValuesContributor.Source.Standard.values();
+		var keyValues = new ArrayList<String>();
+		for (var source : all) {
+			if (globals.keyValueSources().contains(source)) {
+				keyValues.add(source.name().toLowerCase(Locale.ROOT));
+			}
+		}
+		String sources = keyValues.size() == all.length ? "(all)"
+				: keyValues.isEmpty() ? "(none)" : String.join(",", keyValues);
+		appendGlobal(out, LogProperties.KEY_VALUES_SOURCES_PROPERTY, sources);
 	}
 
 	private static void appendGlobal(Appendable out, String key, Object value) throws IOException {
