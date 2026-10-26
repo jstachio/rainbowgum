@@ -149,7 +149,7 @@ class LogReporterKitchenSinkTest {
 					Reported Properties:
 					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
-					  logging.pattern.disable = (unset) (io.jstach.rainbowgum.pattern.format)
+					  logging.pattern.mode = (unset) (io.jstach.rainbowgum.pattern.format)
 					Globals:
 					  logging.change.mode = OFF
 					  logging.global.ansi.mode = AUTO

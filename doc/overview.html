@@ -1476,9 +1476,9 @@ logging.appender.myappender.encoder.uri=pattern
 logging.appender.myappender.encoder.pattern.pattern=[%thread] %-5level %logger{15} - %msg%n
 }
 
-To stop the pattern encoder from being used as the default for console output (falling back to the plain TTLL
-encoder) set {@value io.jstach.rainbowgum.pattern.format.PatternConfigurator#LOGGING_PATTERN_DISABLE_PROPERTY}
-to <code>true</code>.
+To use the pattern encoder only where an encoder names it, so console output that does not name one keeps the
+plain TTLL encoder, set {@value io.jstach.rainbowgum.pattern.format.PatternConfigurator#LOGGING_PATTERN_MODE_PROPERTY}
+to <code>explicit</code>. The default is <code>console</code>.
 
 <h4 id="pattern_config">Configuring PatternConfig with Properties</h4>
 
