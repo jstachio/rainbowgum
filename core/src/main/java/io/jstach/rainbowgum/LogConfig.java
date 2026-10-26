@@ -194,16 +194,16 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private final boolean optimize;
 
-		private final Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled;
+		private final Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources;
 
 		Globals(ChangeMode changeMode, AnsiMode ansiMode, AppenderLock appenderLock, ThreadLocalMode threadLocal,
-				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled) {
+				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources) {
 			this.changeMode = changeMode;
 			this.ansiMode = ansiMode;
 			this.appenderLock = appenderLock;
 			this.threadLocal = threadLocal;
 			this.optimize = optimize;
-			this.keyValuesDisabled = Set.copyOf(keyValuesDisabled);
+			this.keyValueSources = Set.copyOf(keyValueSources);
 		}
 
 		/**
@@ -252,12 +252,12 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		}
 
 		/**
-		 * Key value sources that are not added to events, from
-		 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY}.
-		 * @return disabled sources.
+		 * Key value sources whose contributors add key values to events, from
+		 * {@value LogProperties#KEY_VALUES_SOURCES_PROPERTY}.
+		 * @return selected sources.
 		 */
-		public Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled() {
-			return keyValuesDisabled;
+		public Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources() {
+			return keyValueSources;
 		}
 
 		/*
@@ -290,10 +290,10 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				.ofBoolean()
 				.or(optimize)
 				.validateIfError(validator);
-			var keyValues = properties.forKey(LogProperties.KEY_VALUES_DISABLED_PROPERTY)
+			var keyValues = properties.forKey(LogProperties.KEY_VALUES_SOURCES_PROPERTY)
 				.ofList()
-				.map(KeyValuesContributors.Disabled::parse)
-				.or(keyValuesDisabled)
+				.map(KeyValuesContributors.Selected::parse)
+				.or(keyValueSources)
 				.validateIfError(validator);
 			validator.validate();
 			return new Globals(change.value(), ansi.value(), lock.value(), threadLocalMode.value(), opt.value(),
@@ -607,7 +607,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private boolean optimize = false;
 
-		private Set<LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled = Set.of();
+		private Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources = Set
+			.of(LogEventFactory.KeyValuesContributor.Source.Standard.values());
 
 		/**
 		 * Default constructor
@@ -717,13 +718,13 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		}
 
 		/**
-		 * Sets the key value sources that are not added to events, used when the property
-		 * {@value LogProperties#KEY_VALUES_DISABLED_PROPERTY} is absent.
-		 * @param keyValuesDisabled disabled sources, default none.
+		 * Sets the key value sources whose contributors add key values to events, used
+		 * when the property {@value LogProperties#KEY_VALUES_SOURCES_PROPERTY} is absent.
+		 * @param keyValueSources selected sources, default every source.
 		 * @return this.
 		 */
-		public Builder keyValuesDisabled(Set<? extends LogEventFactory.KeyValuesContributor.Source> keyValuesDisabled) {
-			this.keyValuesDisabled = Set.copyOf(keyValuesDisabled);
+		public Builder keyValueSources(Set<? extends LogEventFactory.KeyValuesContributor.Source> keyValueSources) {
+			this.keyValueSources = Set.copyOf(keyValueSources);
 			return this;
 		}
 
@@ -869,7 +870,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 						alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
 						unusedKeyCheck,
-						new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize, keyValuesDisabled)
+						new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize, keyValueSources)
 							.withProperties(logProperties));
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);
@@ -1289,8 +1290,8 @@ final class DefaultLogConfig implements LogConfig {
 		/*
 		 * KeyValuesContributor.of only gets the registry.
 		 */
-		registry.put(KeyValuesContributors.Disabled.class,
-				new KeyValuesContributors.Disabled(globals.keyValuesDisabled()));
+		registry.put(KeyValuesContributors.Selected.class,
+				new KeyValuesContributors.Selected(globals.keyValueSources()));
 		PostProcessors.registerStandard(registry);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();

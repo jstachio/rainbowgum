@@ -316,15 +316,17 @@ public interface LogProperties {
 	static final String KEY_VALUES_PREFIX = ROOT_PREFIX + "keyvalues" + SEP;
 
 	/**
-	 * A comma separated list of key value sources (the lowercase names of
+	 * A comma separated list of the key value sources whose contributors add key values
+	 * to events, as the lowercase names of
 	 * {@link LogEventFactory.KeyValuesContributor.Source.Standard}, for example
-	 * <code>defaults,slf4j</code>) whose contributors are left out of every event's key
-	 * values. A logging facade's own context store is still used for events logged
-	 * through that facade, and {@link LogEventFactory.KeyValuesContributor#clear()} still
-	 * clears it according to
-	 * {@link LogEventFactory.KeyValuesContributor.Source.Standard#clearWhenDisabled()}.
+	 * <code>defaults,slf4j</code>. When absent every source is selected, and an empty
+	 * value selects none. A logging facade's own context store is always used for events
+	 * logged through that facade, whether or not it is selected, and
+	 * {@link LogEventFactory.KeyValuesContributor#clear()} clears a store that is not
+	 * selected according to
+	 * {@link LogEventFactory.KeyValuesContributor.Source.Standard#clearWhenUnselected()}.
 	 */
-	static final String KEY_VALUES_DISABLED_PROPERTY = KEY_VALUES_PREFIX + "disabled";
+	static final String KEY_VALUES_SOURCES_PROPERTY = KEY_VALUES_PREFIX + "sources";
 
 	/**
 	 * Maximum number of alerts {@link LogAlerts} holds in its ring buffer. Read once,

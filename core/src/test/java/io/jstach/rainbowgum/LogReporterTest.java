@@ -10,6 +10,7 @@ import java.util.EnumSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogReporter.Section;
 
@@ -37,7 +38,7 @@ class LogReporterTest {
 							  logging.global.appender.lock = AUTO
 							  logging.global.threadLocal = ALLOW
 							  logging.global.optimize = false
-							  logging.keyvalues.disabled = (none)
+							  logging.keyvalues.sources = (all)
 							Debug mode: OFF
 
 							Router: default
@@ -133,7 +134,7 @@ class LogReporterTest {
 					  logging.global.appender.lock = AUTO
 					  logging.global.threadLocal = ALLOW
 					  logging.global.optimize = false
-					  logging.keyvalues.disabled = (none)
+					  logging.keyvalues.sources = (all)
 					Debug mode: ERROR
 
 					Router: default
@@ -170,11 +171,29 @@ class LogReporterTest {
 				  logging.global.appender.lock = AUTO
 				  logging.global.threadLocal = ALLOW
 				  logging.global.optimize = false
-				  logging.keyvalues.disabled = (none)
+				  logging.keyvalues.sources = (all)
 				Debug mode: OFF
 
 				(no RainbowGum built from this config yet)
 				""", actual);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "", "logging.keyvalues.sources=", "logging.keyvalues.sources=slf4j,defaults" })
+	void keyValueSourcesAreReportedInMergeOrder(String properties) {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
+		String actual = config.reporter()
+			.report(LogReporter.Options.of(Section.COMPONENTS))
+			.lines()
+			.filter(line -> line.contains("logging.keyvalues.sources"))
+			.findFirst()
+			.orElseThrow();
+		String expected = switch (properties) {
+			case "" -> "  logging.keyvalues.sources = (all)";
+			case "logging.keyvalues.sources=" -> "  logging.keyvalues.sources = (none)";
+			default -> "  logging.keyvalues.sources = defaults,slf4j";
+		};
+		assertEquals(expected, actual);
 	}
 
 	@Test

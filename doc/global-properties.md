@@ -43,7 +43,7 @@ These really must be read before anything loads, so they cannot be builder metho
 | `logging.global.appender.reentrantLock` | `ofBoolean` | Writes the static `AbstractLogAppender.forceReentrantLockAppenders`. |
 | `logging.global.threadlocalDisabled` | private TRUE/FALSE enum | Writes a static `forceNoThreadLocalAppenders`. |
 | `logging.global.optimize` | private TRUE/FALSE enum | Writes the static `globalOptimizeEnabled`, read when appenders and encoders are built. |
-| `logging.keyvalues.disabled` | list of enum | Stored in the service registry. |
+| `logging.keyvalues.sources` (was `logging.keyvalues.disabled`) | list of enum | Stored in the service registry. |
 | `logging.alerts.fail`, `logging.alerts.unusedKey` | enums | Read twice: raw `valueOrNull` to decide on key read recording, then in `DefaultLogAlerts.of`. |
 | `logging.alerts.unobservedErrorsAction`, `logging.alerts.capacity` | enum, int | `DefaultLogAlerts.of`. |
 
@@ -188,7 +188,7 @@ built, into one immutable `LogConfig.Globals`:
 | appender lock | `logging.global.appender.lock` (was `.appender.reentrantLock`) | `AppenderLock` auto, reentrant, synchronized | `appenderLock` |
 | thread locals | `logging.global.threadLocal` (was `.threadlocalDisabled`) | `ThreadLocalMode` allow, forbid | `threadLocal` |
 | optimize for the platform | `logging.global.optimize` | boolean | `optimize` |
-| disabled key value sources | `logging.keyvalues.disabled` | set of `Source` | `keyValuesDisabled` |
+| key value sources | `logging.keyvalues.sources` (was `logging.keyvalues.disabled`) | set of `Source` | `keyValueSources` |
 
 - **Precedence:** a property wins over the builder method, the same as `alertsFail`.
 - **Errors:** every global is parsed before any error is thrown, so all mistakes are

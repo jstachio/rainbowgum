@@ -14,26 +14,22 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * overrides them on a key collision. Values come from the {@value #DEFAULTS_PROPERTY}
  * property and from code; a property value wins over a value set in code for the same
  * key. For example: <pre><code>
- * logging.keyvalues.contributor.defaults=git.commit=abc123&amp;instance.id=i-42
+ * logging.keyvalues.defaults=git.commit=abc123&amp;instance.id=i-42
  * </code></pre> or from code, which may change values at any time: <pre><code>
  * DefaultKeyValues.of(config.serviceRegistry()).put("app_status", "READY");
  * </code></pre> Every change copies the values once into an immutable snapshot that
- * events then share, so reading them per event costs one volatile read. Disable them with
- * <code>logging.keyvalues.disabled=defaults</code>.
+ * events then share, so reading them per event costs one volatile read. They are added to
+ * events only while <code>defaults</code> is selected by
+ * <code>logging.keyvalues.sources</code>, which selects every source when absent.
  */
 public final class DefaultKeyValues implements KeyValuesContributor {
-
-	/**
-	 * Property prefix of this module.
-	 */
-	public static final String PROPERTY_PREFIX = LogProperties.ROOT_PREFIX + "keyvalues.contributor.";
 
 	/**
 	 * Key values added to every event, as a map property, in the order the property
 	 * source gives them, which for the URI query form (<code>a=1&amp;b=2</code>) is the
 	 * order declared.
 	 */
-	public static final String DEFAULTS_PROPERTY = PROPERTY_PREFIX + "defaults";
+	public static final String DEFAULTS_PROPERTY = LogProperties.ROOT_PREFIX + "keyvalues.defaults";
 
 	private final Object lock = new Object();
 
