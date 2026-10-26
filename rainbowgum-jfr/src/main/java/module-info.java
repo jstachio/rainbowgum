@@ -11,6 +11,15 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * This is its own module (rather than in core) because it requires the JDK's
  * {@code jdk.jfr} module, which is not something every application wants as a
  * dependency.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-jfr</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides RainbowGumServiceProvider
  * @see io.jstach.rainbowgum.jfr.JfrLogOutput
