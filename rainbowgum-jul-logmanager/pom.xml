@@ -38,7 +38,7 @@
             RainbowGumLogManagerTest's own javadoc for why this module's tests cannot otherwise
             prove the LogManager was actually installed.
           -->
-          <argLine>-Djava.util.logging.manager=io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager</argLine>
+          <argLine>@{argLine} ${test.lineSeparator.argLine} -Djava.util.logging.manager=io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager</argLine>
           <reuseForks>false</reuseForks>
         </configuration>
       </plugin>

@@ -54,7 +54,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <!-- SLF4J is only a test dependency: the end to end SLF4J test needs to read it. -->
-          <argLine>--add-reads io.jstach.rainbowgum.scopedkeyvalues.provider=io.jstach.rainbowgum.slf4j,org.slf4j</argLine>
+          <argLine>@{argLine} ${test.lineSeparator.argLine} --add-reads io.jstach.rainbowgum.scopedkeyvalues.provider=io.jstach.rainbowgum.slf4j,org.slf4j</argLine>
         </configuration>
       </plugin>
     </plugins>
