@@ -97,6 +97,32 @@ class FileOutputPropertiesTest {
 	}
 
 	/*
+	 * A backslash is a separator on Windows and part of the file name elsewhere, and
+	 * either way the value is a path rather than a URI.
+	 */
+	@Test
+	void testFileNameWithBackslashIsTreatedAsAFilePath() throws IOException {
+		Path file = Path.of("target\\rainbowgum-backslash-filename-test.log");
+		Files.deleteIfExists(file);
+		try {
+			var properties = LogProperties.builder().fromProperties("""
+					logging.file.name=%s
+					""".formatted(PropertiesPaths.escape(file))).build();
+			var config = LogConfig.builder().properties(properties).serviceLoader().build();
+			var gum = RainbowGum.builder(config).build();
+			try (var rg = gum.start()) {
+				rg.log(TestLogEventFactory.of("test")
+					.eventNoArg(Level.INFO, "hello", KeyValues.of(), (Throwable) null));
+			}
+			String content = Files.readString(file);
+			assertTrue(content.contains("hello"), "expected file content to contain the logged message: " + content);
+		}
+		finally {
+			Files.deleteIfExists(file);
+		}
+	}
+
+	/*
 	 * Moved here from test/rainbowgum-test-core's ConfigFailureTest when FileOutput moved
 	 * out of core - the "unusual error" Adam flagged for logging.file.name: pointing it
 	 * at a path that exists but is a directory, not a file, throws a genuine
