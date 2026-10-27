@@ -63,7 +63,7 @@ class RollingFileOutputBuilderTest {
 	@Test
 	void uriPathBecomesActiveFile() throws Exception {
 		Path active = dir.resolve("app.log");
-		URI uri = URI.create("rolling://" + active.toUri().getRawSchemeSpecificPart());
+		URI uri = URI.create("rolling:" + active.toUri().getRawSchemeSpecificPart());
 		var config = LogConfig.builder().build();
 		var output = RollingFileOutput.of(b -> b.uri(uri)).provide("file", config);
 		try {

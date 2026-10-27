@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.OS;
 import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
@@ -14,6 +15,13 @@ import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.spring.boot3.RainbowGumLoggingSystemFactory.SpringLogProperties;
 
 class SpringLogPropertiesTest {
+
+	/*
+	 * A path starting with / on Windows is relative to the current drive.
+	 */
+	private static final String ROOT = OS.WINDOWS.isCurrentOs() ? "C:/" : "/";
+
+	private static final String ROOT_URI = OS.WINDOWS.isCurrentOs() ? "C:/" : "";
 
 	private static SpringLogProperties properties(Map<String, Object> map) {
 		var environment = new StandardEnvironment();
@@ -29,9 +37,9 @@ class SpringLogPropertiesTest {
 	void fileNameTakesPrecedenceOverFilePath() {
 		// absolute input so the expected rolling:/// URI is deterministic regardless of
 		// the test's working directory (Path.toUri() resolves relative paths against it)
-		var p = properties(Map.of(LogProperties.FILE_PROPERTY, "/tmp/explicit.log",
-				SpringBootSupportedProperties.FILE_PATH, "/var/log"));
-		assertEquals("rolling:///tmp/explicit.log", p.valueOrNull(LogProperties.FILE_PROPERTY));
+		var p = properties(Map.of(LogProperties.FILE_PROPERTY, ROOT + "tmp/explicit.log",
+				SpringBootSupportedProperties.FILE_PATH, ROOT + "var/log"));
+		assertEquals("rolling:///" + ROOT_URI + "tmp/explicit.log", p.valueOrNull(LogProperties.FILE_PROPERTY));
 	}
 
 	@Test
@@ -39,8 +47,8 @@ class SpringLogPropertiesTest {
 		// vanilla Spring Boot/Logback always rolls once file output is configured at
 		// all, so FILE_PROPERTY resolves to a rolling:/// URI, not a plain path - see
 		// RainbowGumLoggingSystemFactory.SpringLogProperties.rollingUri(String).
-		var p = properties(Map.of(SpringBootSupportedProperties.FILE_PATH, "/var/log"));
-		assertEquals("rolling:///var/log/spring.log", p.valueOrNull(LogProperties.FILE_PROPERTY));
+		var p = properties(Map.of(SpringBootSupportedProperties.FILE_PATH, ROOT + "var/log"));
+		assertEquals("rolling:///" + ROOT_URI + "var/log/spring.log", p.valueOrNull(LogProperties.FILE_PROPERTY));
 	}
 
 	@Test

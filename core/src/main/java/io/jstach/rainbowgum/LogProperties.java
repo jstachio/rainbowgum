@@ -382,7 +382,8 @@ public interface LogProperties {
 	static final String CALLER_LOGGER_PREFIX = ROOT_PREFIX + "caller.logger";
 
 	/**
-	 * Logging file property for default single file appending. The value should be a URI.
+	 * Logging file property for default single file appending. The value is a URI or a
+	 * file path, including a Windows path such as <code>C:\logs\app.log</code>.
 	 */
 	static final String FILE_PROPERTY = ROOT_PREFIX + "file.name";
 

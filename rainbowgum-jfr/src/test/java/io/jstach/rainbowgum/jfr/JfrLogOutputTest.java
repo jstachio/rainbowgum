@@ -222,14 +222,14 @@ class JfrLogOutputTest {
 	@Test
 	void testDestinationOrNullForRealPath(@TempDir Path dir) {
 		Path file = dir.resolve("myapp.jfr");
-		URI uri = URI.create("jfr://" + file.toUri().getRawSchemeSpecificPart());
+		URI uri = URI.create("jfr:" + file.toUri().getRawSchemeSpecificPart());
 		assertEquals(file, JfrLogOutput.destinationOrNull(uri));
 	}
 
 	@Test
 	void testDestinationUriStartsOwnedRecordingCapturingAllEvents(@TempDir Path dir) throws IOException {
 		Path recordingFile = dir.resolve("owned.jfr");
-		URI uri = URI.create("jfr://" + recordingFile.toUri().getRawSchemeSpecificPart());
+		URI uri = URI.create("jfr:" + recordingFile.toUri().getRawSchemeSpecificPart());
 
 		var output = new JfrLogOutput(uri, recordingFile);
 		var config = LogConfig.builder().build();
