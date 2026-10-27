@@ -80,6 +80,16 @@ public sealed interface LogFormatter {
 	}
 
 	/**
+	 * The line separator formatters end lines and stack trace lines with: <code>\n</code>
+	 * on every platform unless {@value LogProperties#GLOBAL_LINE_SEPARATOR_PROPERTY} is
+	 * set as a system property.
+	 * @return line separator.
+	 */
+	public static String lineSeparator() {
+		return Internal.LineSeparator.CURRENT;
+	}
+
+	/**
 	 * Ask the formatter if will do anything.
 	 * @return true if promises not to write to builder.
 	 * @see #noop()
@@ -372,11 +382,11 @@ public sealed interface LogFormatter {
 		}
 
 		/**
-		 * Appends a newline using the platforms line separator.
+		 * Appends a newline using {@link LogFormatter#lineSeparator()}.
 		 * @return this builder.
 		 */
 		public Builder newline() {
-			text(System.lineSeparator());
+			text(LogFormatter.lineSeparator());
 			return this;
 		}
 
@@ -1308,7 +1318,7 @@ final class ThrowableFramePrinter {
 				.append("\t... ")
 				.append(framesInCommon)
 				.append(" more")
-				.append(System.lineSeparator());
+				.append(LogFormatter.lineSeparator());
 		}
 	}
 
@@ -1333,7 +1343,7 @@ final class ThrowableFramePrinter {
 				if (packagingData != null) {
 					output.append(' ').append(packagingData.resolve(element));
 				}
-				output.append(System.lineSeparator());
+				output.append(LogFormatter.lineSeparator());
 				printed++;
 			}
 		}
@@ -1342,7 +1352,7 @@ final class ThrowableFramePrinter {
 				.append("\t... ")
 				.append(available - maxLines)
 				.append(" frames truncated")
-				.append(System.lineSeparator());
+				.append(LogFormatter.lineSeparator());
 			return true;
 		}
 		return false;
@@ -1387,7 +1397,7 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 		Set<Throwable> dejaVu = Collections.newSetFromMap(new IdentityHashMap<>());
 		dejaVu.add(throwable);
 		var trace = throwable.getStackTrace();
-		output.append(throwable).append(System.lineSeparator());
+		output.append(throwable).append(LogFormatter.lineSeparator());
 		framePrinter.printFrames(output, trace, trace.length, "");
 		for (var suppressed : throwable.getSuppressed()) {
 			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, "\t", dejaVu);
@@ -1405,11 +1415,11 @@ final class StandardThrowableFormatter implements ThrowableFormatter {
 				.append("[CIRCULAR REFERENCE: ")
 				.append(throwable)
 				.append(']')
-				.append(System.lineSeparator());
+				.append(LogFormatter.lineSeparator());
 			return;
 		}
 		var trace = throwable.getStackTrace();
-		output.append(prefix).append(caption).append(throwable).append(System.lineSeparator());
+		output.append(prefix).append(caption).append(throwable).append(LogFormatter.lineSeparator());
 		framePrinter.printFramesAgainstEnclosing(output, trace, enclosingTrace, prefix);
 		for (var suppressed : throwable.getSuppressed()) {
 			printEnclosed(output, suppressed, trace, SUPPRESSED_CAPTION, prefix + "\t", dejaVu);
@@ -1462,7 +1472,7 @@ final class RootCauseFirstThrowableFormatter implements ThrowableFormatter {
 			if (caption != null) {
 				output.append(caption);
 			}
-			output.append("[CIRCULAR REFERENCE: ").append(throwable).append(']').append(System.lineSeparator());
+			output.append("[CIRCULAR REFERENCE: ").append(throwable).append(']').append(LogFormatter.lineSeparator());
 			return;
 		}
 		var trace = throwable.getStackTrace();
@@ -1478,7 +1488,7 @@ final class RootCauseFirstThrowableFormatter implements ThrowableFormatter {
 		if (cause != null) {
 			output.append(WRAPPED_BY_CAPTION);
 		}
-		output.append(throwable).append(System.lineSeparator());
+		output.append(throwable).append(LogFormatter.lineSeparator());
 		if (enclosingTrace == null) {
 			framePrinter.printFrames(output, trace, trace.length, prefix);
 		}

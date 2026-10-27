@@ -50,8 +50,7 @@ class MetaLogTest {
 	@Test
 	void eventLevelIsNotFilteredOrRelabeled() {
 		MetaLog.error(LogEventFactory.of("test").eventNoArg(Level.INFO, "startup info", KeyValues.of(), null));
-		assertEquals("[INFO] - RAINBOW_GUM - test - startup info" + System.lineSeparator(),
-				outputStream.toString(StandardCharsets.UTF_8));
+		assertEquals("[INFO] - RAINBOW_GUM - test - startup info\n", outputStream.toString(StandardCharsets.UTF_8));
 	}
 
 	@Test
@@ -65,13 +64,13 @@ class MetaLogTest {
 			var router = QueueEventsRouter.of();
 			router.log(factory.eventNoArg(Level.INFO, "queued only", KeyValues.of(), null));
 			router.log(factory.eventNoArg(Level.WARNING, "reported warning", KeyValues.of(), null));
-			assertEquals("[WARN] - RAINBOW_GUM - test - reported warning" + System.lineSeparator(),
+			assertEquals("[WARN] - RAINBOW_GUM - test - reported warning\n",
 					outputStream.toString(StandardCharsets.UTF_8));
 
 			outputStream.reset();
 			System.setProperty(LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY, "INFO");
 			QueueEventsRouter.of().log(factory.eventNoArg(Level.INFO, "reported info", KeyValues.of(), null));
-			assertEquals("[INFO] - RAINBOW_GUM - test - reported info" + System.lineSeparator(),
+			assertEquals("[INFO] - RAINBOW_GUM - test - reported info\n",
 					outputStream.toString(StandardCharsets.UTF_8));
 		}
 		finally {

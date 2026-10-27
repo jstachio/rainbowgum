@@ -147,6 +147,7 @@ class LogReporterKitchenSinkTest {
 
 					Properties: SYSTEM_PROPERTIES, io.jstach.rainbowgum.avaje.AvajeProperties
 					Reported Properties:
+					  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 					  logging.pattern.mode = (unset) (io.jstach.rainbowgum.pattern.format)

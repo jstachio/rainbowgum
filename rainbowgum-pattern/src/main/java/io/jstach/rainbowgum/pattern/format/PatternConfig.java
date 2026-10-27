@@ -9,6 +9,7 @@ import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
@@ -46,7 +47,7 @@ public sealed interface PatternConfig extends Configurator {
 	public ZoneId zoneId();
 
 	/**
-	 * Line separator for %n by default uses {@link System#lineSeparator()}.
+	 * Line separator for %n, by default {@link LogFormatter#lineSeparator()}.
 	 * @return line separator.
 	 */
 	public String lineSeparator();
@@ -220,12 +221,12 @@ non-sealed interface DefaultFormatterConfig extends PatternConfig {
 	}
 
 	/**
-	 * Line separator for %n by default uses {@link System#lineSeparator()}.
+	 * Line separator for %n, by default {@link LogFormatter#lineSeparator()}.
 	 * @return line separator.
 	 */
 	@Override
 	default String lineSeparator() {
-		return System.lineSeparator();
+		return LogFormatter.lineSeparator();
 	}
 
 	@Override

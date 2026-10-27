@@ -1413,6 +1413,7 @@ final class DefaultLogConfig implements LogConfig {
 	private static void reportProperties(LogReporter reporter) {
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY);
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_LINE_SEPARATOR_PROPERTY);
 	}
 
 	@Override
