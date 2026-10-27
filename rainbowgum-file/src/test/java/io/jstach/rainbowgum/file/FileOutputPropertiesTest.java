@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -79,7 +80,7 @@ class FileOutputPropertiesTest {
 		try {
 			var properties = LogProperties.builder().fromProperties("""
 					logging.file.name=%s
-					""".formatted(file)).build();
+					""".formatted(PropertiesPaths.escape(file))).build();
 			var config = LogConfig.builder().properties(properties).serviceLoader().build();
 			var gum = RainbowGum.builder(config).build();
 			try (var rg = gum.start()) {
@@ -108,16 +109,16 @@ class FileOutputPropertiesTest {
 		Files.createDirectories(dir);
 		var properties = LogProperties.builder().fromProperties("""
 				logging.file.name=%s
-				""".formatted(dir)).build();
+				""".formatted(PropertiesPaths.escape(dir))).build();
 		var config = LogConfig.builder().properties(properties).serviceLoader().build();
 		var e = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build().start());
 		String absolutePath = dir.toAbsolutePath().toString();
 		assertEquals(
 				"""
-						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.io.UncheckedIOException java.io.FileNotFoundException: %s (Is a directory)
+						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.io.UncheckedIOException java.io.FileNotFoundException: %s (%s)
 						  ↳ Failure providing Appender: 'file' from property: Fallback[logging.route.default.appenders]=[file, console].
 						  ↳ Failure providing Appenders for route: 'default'."""
-					.formatted(absolutePath),
+					.formatted(absolutePath, OS.WINDOWS.isCurrentOs() ? "Access is denied" : "Is a directory"),
 				e.getMessage());
 	}
 

@@ -15,6 +15,8 @@ import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -54,6 +56,7 @@ class FileOutputTest {
 
 	@ParameterizedTest
 	@MethodSource("provideArgsNoRunCount")
+	@DisabledOnOs(value = OS.WINDOWS, disabledReason = "Windows does not allow renaming a file another handle has open")
 	void testReopen(FileArg fileArg, Events test, BufferArg buffer, PrudentArg prudentArg, AppendArg appendArg)
 			throws IOException {
 		String fileName = FILE_PATH;

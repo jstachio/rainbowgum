@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -201,6 +203,7 @@ class RollingFileOutputTest {
 
 	@ParameterizedTest
 	@EnumSource(FileMode.class)
+	@DisabledOnOs(value = OS.WINDOWS, disabledReason = "Windows does not allow renaming a file another handle has open")
 	void externalReopenRefreshesSizeAndReportsFailuresSeparately(FileMode mode) throws IOException {
 		Path active = dir.resolve("app.log");
 		var config = mode.config();
@@ -415,6 +418,7 @@ class RollingFileOutputTest {
 	}
 
 	@Test
+	@DisabledOnOs(value = OS.WINDOWS, disabledReason = "Windows does not allow renaming a file another handle has open")
 	void reopenDelegatesToUnderlyingFileOutputAfterExternalRotation() throws IOException {
 		Path active = dir.resolve("app.log");
 		var provider = RollingFileOutput.of(b -> {

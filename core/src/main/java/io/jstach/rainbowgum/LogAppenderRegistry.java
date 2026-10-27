@@ -1,9 +1,12 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import io.jstach.rainbowgum.LogProperty.Result;
 import io.jstach.rainbowgum.LogProperty.ValidatedResult;
@@ -111,10 +114,15 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		 * explicit value, so build() never re-resolves it from properties) instead of
 		 * bypassing it via AppenderConfig.
 		 */
-		Result<URI> uriResult = config.properties()
+		Result<String> valueResult = config.properties()
 			.forKey(LogProperties.FILE_PROPERTY)
 			.or(LogAppender.APPENDER_OUTPUT_PROPERTY, name)
-			.ofURI();
+			.ofString();
+		Result<URI> uriResult = switch (valueResult) {
+			case Result.Success<String> s when LogProperties.FILE_PROPERTY.equals(s.key()) ->
+				s.map(DefaultAppenderRegistry::fileNameUri);
+			default -> valueResult.map(URI::new);
+		};
 		Result<LogProviderRef> refResult = switch (uriResult) {
 			case Result.Success<URI> s -> LogProperty.mapValue(s, LogProviderRef.of(normalizeFileUri(s), s.key()));
 			case Result.Missing<URI> m -> m.convert();
@@ -133,6 +141,19 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	 * treatment, checked via the key the value was actually found at, not which property
 	 * this lookup started from.
 	 */
+	/*
+	 * A Windows path is not a URI: C:/logs/app.log parses with the scheme "C" and a
+	 * backslash is not allowed at all.
+	 */
+	static URI fileNameUri(String value) throws URISyntaxException {
+		if (value.indexOf('\\') >= 0 || WINDOWS_DRIVE.matcher(value).lookingAt()) {
+			return Path.of(value).toUri();
+		}
+		return new URI(value);
+	}
+
+	private static final Pattern WINDOWS_DRIVE = Pattern.compile("[A-Za-z]:[/\\\\]");
+
 	private static URI normalizeFileUri(Result.Success<URI> result) {
 		URI uri = result.value();
 		if (!LogProperties.FILE_PROPERTY.equals(result.key()) || uri.getScheme() != null) {

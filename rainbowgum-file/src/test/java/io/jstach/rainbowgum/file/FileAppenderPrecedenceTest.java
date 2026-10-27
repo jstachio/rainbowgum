@@ -39,7 +39,7 @@ class FileAppenderPrecedenceTest {
 				logging.appenders=file
 				logging.file.name=%s
 				logging.appender.file.output.uri=list:///
-				""".formatted(file)).build();
+				""".formatted(PropertiesPaths.escape(file))).build();
 		var config = LogConfig.builder().properties(properties).serviceLoader().build();
 		var gum = RainbowGum.builder(config).build();
 		try (var rg = gum.start()) {
