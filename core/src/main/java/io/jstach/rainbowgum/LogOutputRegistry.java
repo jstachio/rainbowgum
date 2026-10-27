@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import java.net.URI;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -128,7 +129,7 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		return Optional.ofNullable(outputs.get(name));
 	}
 
-	private static URI normalize(URI uri) {
+	static URI normalize(URI uri) {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
 		String query = uri.getRawQuery();
@@ -145,9 +146,15 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 		}
 		else if (scheme.equals("file")) {
 			if (path.startsWith("/./")) {
-				path = path.substring(1);
+				uri = Paths.get(path.substring(1)).toUri();
 			}
-			uri = Paths.get(path).toUri();
+			else {
+				/*
+				 * Path.of(URI) rather than the decoded path, which on Windows is /C:/...
+				 * and not a valid path.
+				 */
+				uri = Path.of(URI.create("file://" + uri.getRawPath())).toUri();
+			}
 			if (query != null) {
 				uri = URI.create(uri.toString() + "?" + query);
 			}
