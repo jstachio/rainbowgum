@@ -55,7 +55,10 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 
 	private static List<String> addDefaultAppenderNames(LogConfig config) {
 		List<String> appenderNames = new ArrayList<>();
-		rawValue(config.properties().forKey(LogProperties.FILE_PROPERTY).ofURI()).optional()
+		rawValue(config.properties()
+			.forKey(LogProperties.FILE_PROPERTY)
+			.ofString()
+			.map(DefaultAppenderRegistry::fileNameUri)).optional()
 			.ifPresent(a -> appenderNames.add(LogAppender.FILE_APPENDER_NAME));
 		appenderNames.add(LogAppender.CONSOLE_APPENDER_NAME);
 		return appenderNames;
