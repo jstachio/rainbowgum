@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.format;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.PercentCodec;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogReporter;
@@ -98,11 +100,19 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 		var mode = color == null ? TTLL.ColorMode.DEFAULT : color;
 		var resolvedTheme = PaletteColorTheme.resolve(theme, serviceRegistry);
 		var palette = Palette.of(mode, resolvedTheme, AnsiSupport::isAnsiSupported);
-		var timestampPart = palette.color(palette.timestamp(), timestamp);
-		var threadPart = thread.isNoop() ? thread
-				: palette.color(palette.thread(), LogFormatter.builder().text("[").add(thread).text("]").build());
-		var levelPart = palette.level(level);
-		var loggerPart = palette.color(palette.logger(), logger);
+		var timestampPart = palette.color(palette.timestamp(), KeyValueField.inPlace(timestamp));
+		var threadInPlace = KeyValueField.inPlace(thread);
+		var threadPart = threadInPlace.isNoop() ? threadInPlace : palette.color(palette.thread(),
+				LogFormatter.builder().text("[").add(threadInPlace).text("]").build());
+		var levelPart = palette.level(KeyValueField.inPlace(level));
+		var loggerPart = palette.color(palette.logger(), KeyValueField.inPlace(logger));
+		Function<TTLL.Part, LogFormatter> configured = p -> switch (p) {
+			case TIMESTAMP -> timestamp;
+			case THREAD -> thread;
+			case LEVEL -> level;
+			case LOGGER -> logger;
+			case KEY_VALUES -> keyValues;
+		};
 		Function<TTLL.Part, LogFormatter> parts = p -> switch (p) {
 			case TIMESTAMP -> timestampPart;
 			case THREAD -> threadPart;
@@ -111,11 +121,19 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 			case KEY_VALUES -> keyValues;
 		};
 		var seen = EnumSet.noneOf(TTLL.Part.class);
+		var fields = new ArrayList<KeyValueField>();
 		for (var p : order) {
 			if (!seen.add(p)) {
 				throw new IllegalArgumentException("order lists " + p.name().toLowerCase(Locale.ROOT)
 						+ " more than once: " + order.stream().map(o -> o.name().toLowerCase(Locale.ROOT)).toList());
 			}
+			if (configured.apply(p) instanceof KeyValueField field) {
+				fields.add(field);
+			}
+		}
+		if (!fields.isEmpty() && (keyValues.isNoop() || !seen.contains(TTLL.Part.KEY_VALUES))) {
+			throw new IllegalArgumentException("A part set to key_value needs keyValues=percent, json, or json5, "
+					+ "and keyValues in order, since it is written among the key values.");
 		}
 		/*
 		 * The parts are added in order to one builder, so the line is one flat list of
@@ -127,6 +145,9 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 			var p = order.get(i);
 			if (p != TTLL.Part.KEY_VALUES) {
 				empty = part(b, parts.apply(p), empty);
+			}
+			else if (!fields.isEmpty()) {
+				empty = part(b, palette.keyValueFields(KeyValueField.prepend(fields, keyValues)), empty);
 			}
 			else if (!keyValues.isNoop()) {
 				boolean partAfter = order.subList(i + 1, order.size())
@@ -269,6 +290,138 @@ record LinePrefixFormatter(LogFormatter prefix) implements LogFormatter.EventFor
 		prefix.format(output, event);
 		if (output.length() > start) {
 			output.append(" - ");
+		}
+	}
+
+}
+
+/*
+ * A part chosen with KEY_VALUE: TTLLFormatter.of writes its value among the key values
+ * instead of in its place, so on its own it writes nothing.
+ */
+record KeyValueField(String key, LogFormatter value) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+	}
+
+	/*
+	 * What to write in the part's place: nothing when it is a field.
+	 */
+	static LogFormatter inPlace(LogFormatter part) {
+		return part instanceof KeyValueField ? LogFormatter.noop() : part;
+	}
+
+	/*
+	 * The fields followed by the event's key values, in the syntax of the key values
+	 * formatter. Keys and separators are text, so the result is one flat list of
+	 * formatters and nothing loops over the fields per event.
+	 */
+	static LogFormatter prepend(List<KeyValueField> fields, LogFormatter keyValues) {
+		var syntax = switch (keyValues) {
+			case PercentKeyValuesFormatter f -> KeyValuesFormatterBuilder.Format.PERCENT;
+			case JsonKeyValuesFormatter f when !f.braces() -> f.syntax();
+			case LogfmtKeyValuesFormatter f -> KeyValuesFormatterBuilder.Format.LOGFMT;
+			default -> throw new IllegalArgumentException("A part set to key_value needs key values from "
+					+ "TTLL.KeyValuesFormat or KeyValuesFormatterBuilder, not " + keyValues);
+		};
+		String separator = switch (syntax) {
+			case PERCENT -> "&";
+			case JSON, JSON5 -> ",";
+			case LOGFMT -> " ";
+		};
+		var b = LogFormatter.builder();
+		String before = "";
+		for (var field : fields) {
+			b.text(before + key(field.key(), syntax));
+			b.add(new KeyValueFieldValue(field.value(), syntax));
+			before = separator;
+		}
+		b.add(new FollowingKeyValues(separator, keyValues));
+		return b.build();
+	}
+
+	/*
+	 * The key and what separates it from its value.
+	 */
+	static String key(String key, KeyValuesFormatterBuilder.Format syntax) {
+		var sb = new StringBuilder();
+		switch (syntax) {
+			case PERCENT -> {
+				PercentCodec.encode(sb, key, StandardCharsets.UTF_8);
+				sb.append('=');
+			}
+			case JSON -> {
+				JsonKeyValuesFormatter.appendString(sb, key);
+				sb.append(':');
+			}
+			case JSON5 -> {
+				if (JsonKeyValuesFormatter.isIdentifier(key)) {
+					sb.append(key);
+				}
+				else {
+					JsonKeyValuesFormatter.appendString(sb, key);
+				}
+				sb.append(':');
+			}
+			case LOGFMT -> {
+				LogfmtKeyValuesFormatter.appendKey(sb, key);
+				sb.append('=');
+			}
+		}
+		return sb.toString();
+	}
+
+}
+
+/*
+ * A key value field's value, encoded in place in the key values syntax.
+ */
+record KeyValueFieldValue(LogFormatter value,
+		KeyValuesFormatterBuilder.Format syntax) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		int start = output.length();
+		value.format(output, event);
+		switch (syntax) {
+			case PERCENT -> percentEncodeInPlace(output, start);
+			case JSON, JSON5 -> JsonKeyValuesFormatter.quoteInPlace(output, start);
+			case LOGFMT -> LogfmtKeyValuesFormatter.quoteInPlace(output, start);
+		}
+	}
+
+	/*
+	 * Copies nothing when the value is all unreserved characters, the common case.
+	 */
+	static void percentEncodeInPlace(StringBuilder output, int start) {
+		for (int i = start; i < output.length(); i++) {
+			char c = output.charAt(i);
+			boolean unreserved = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-'
+					|| c == '.' || c == '_' || c == '~';
+			if (!unreserved) {
+				String raw = output.substring(start);
+				output.setLength(start);
+				PercentCodec.encode(output, raw, StandardCharsets.UTF_8);
+				return;
+			}
+		}
+	}
+
+}
+
+/*
+ * The event's key values after the fields, with the separator only if there are any.
+ */
+record FollowingKeyValues(String separator, LogFormatter keyValues) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		int start = output.length();
+		output.append(separator);
+		keyValues.format(output, event);
+		if (output.length() == start + separator.length()) {
+			output.setLength(start);
 		}
 	}
 
@@ -521,6 +674,17 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 		}
 		return BracedKeyValuesFormatter.ofTTLL(keyValues, before + Ansi.start(keyValues()) + "{",
 				"}" + Ansi.RESET + after, writeEmpty);
+	}
+
+	/*
+	 * Key values that always write something, so they are a part and their braces are
+	 * plain text.
+	 */
+	LogFormatter keyValueFields(LogFormatter keyValues) {
+		if (keyValues().isEmpty()) {
+			return LogFormatter.builder().text("{").add(keyValues).text("}").build();
+		}
+		return LogFormatter.builder().text(Ansi.start(keyValues()) + "{").add(keyValues).text("}" + Ansi.RESET).build();
 	}
 
 	/*

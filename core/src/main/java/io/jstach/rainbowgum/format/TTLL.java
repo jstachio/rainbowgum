@@ -18,7 +18,9 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * <code>12:00:00.123 [main] INFO  com.example.App {requestId=42} - hello</code>. When an
  * event has no key values the braces are left out, or written as <code>{}</code>,
  * according to {@link KeyValuesWhenEmpty}, and {@link KeyValuesFormat#NONE} leaves the
- * key values out entirely. {@link Part} changes the order of the parts.
+ * key values out entirely. {@link Part} changes the order of the parts. Time, thread,
+ * level, and logger can instead be written among the key values with
+ * <code>key_value</code>.
  * <p>
  * Every part also accepts <code>default</code>, which restores its default without naming
  * it, and <code>true</code> and <code>false</code> to show or hide it; the
@@ -56,6 +58,17 @@ public sealed interface TTLL permits TTLLFormatter {
 			@Override
 			public LogFormatter formatter() {
 				return TimestampFormatter.ofISO();
+			}
+		},
+		/**
+		 * ISO 8601 UTC instant with milliseconds among the key values, as
+		 * <code>time=2026-10-05T12%3A00%3A00.123Z</code> with percent encoding, instead
+		 * of at the start of the line; see {@link KeyValuesFormat}.
+		 */
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("time", TimestampFormatter.ofISO());
 			}
 		},
 		/**
@@ -141,6 +154,16 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Thread name among the key values, as <code>thread=main</code> with percent
+		 * encoding, instead of in square brackets; see {@link KeyValuesFormat}.
+		 */
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("thread", LogFormatter.builder().threadName().build());
+			}
+		},
+		/**
 		 * No thread.
 		 */
 		@EnumAlias("false")
@@ -204,6 +227,17 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Upper case level without padding among the key values, as
+		 * <code>level=INFO</code> with percent encoding, instead of in its place; see
+		 * {@link KeyValuesFormat}.
+		 */
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("level", LevelFormatter.of());
+			}
+		},
+		/**
 		 * No level.
 		 */
 		@EnumAlias("false")
@@ -259,6 +293,16 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Full logger name among the key values, as <code>logger=com.example.App</code>
+		 * with percent encoding, instead of in its place; see {@link KeyValuesFormat}.
+		 */
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("logger", LogFormatter.builder().loggerName().build());
+			}
+		},
+		/**
 		 * No logger name.
 		 */
 		@EnumAlias("false")
@@ -290,6 +334,14 @@ public sealed interface TTLL permits TTLLFormatter {
 	 * Key values part, written in braces after the logger name; see
 	 * {@link KeyValuesWhenEmpty} for events with no key values. {@link #NONE} leaves out
 	 * the key values and their braces.
+	 * <p>
+	 * Time, thread, level, and logger set to <code>key_value</code> are written first
+	 * inside the braces, in the order of {@link Part} and in this format, followed by the
+	 * event's own key values:
+	 * <code>12:00:00.123 INFO  com.example.App {thread=main&amp;requestId=42} -
+	 * hello</code>. They are not added to the event's key values, so an event key value
+	 * with the same name is written as well. The braces are then always written, and
+	 * {@link #NONE} is not allowed, nor is an order that leaves out the key values.
 	 */
 	@CaseChanging
 	enum KeyValuesFormat {
