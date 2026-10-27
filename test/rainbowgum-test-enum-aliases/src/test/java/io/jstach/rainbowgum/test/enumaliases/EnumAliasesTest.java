@@ -93,6 +93,7 @@ class EnumAliasesTest {
 				"io.jstach.rainbowgum.format.TTLL$KeyValuesWhenEmpty", //
 				"io.jstach.rainbowgum.format.TTLL$LevelFormat", //
 				"io.jstach.rainbowgum.format.TTLL$LoggerFormat", //
+				"io.jstach.rainbowgum.format.TTLL$Part", //
 				"io.jstach.rainbowgum.format.TTLL$ThreadFormat", //
 				"io.jstach.rainbowgum.format.TTLL$TimestampFormat", //
 				"io.jstach.rainbowgum.format.ThreadFields", //
