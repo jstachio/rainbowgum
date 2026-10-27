@@ -7,7 +7,8 @@ easy to turn into a standalone bug report.
 
 ## `InvalidSnippet` flags external snippets that use `class`
 
-Status: **not yet filed**.
+Status: **filed upstream** as
+[google/error-prone#6238](https://github.com/google/error-prone/issues/6238), open.
 
 - **Error Prone version seen:** 2.51.0. 2.50.0 did not report it.
 - **Command:** `bin/analyze.sh errorprone` (the build uses `-Werror`, so the warning
