@@ -15,6 +15,7 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -146,6 +147,22 @@ class FileOutputPropertiesTest {
 						  ↳ Failure providing Appenders for route: 'default'."""
 					.formatted(absolutePath, OS.WINDOWS.isCurrentOs() ? "Access is denied" : "Is a directory"),
 				e.getMessage());
+	}
+
+	/*
+	 * The file is opened before the encoder is resolved. Windows cannot delete a file
+	 * that is still open.
+	 */
+	@Test
+	void testFileIsClosedWhenTheEncoderFails(@TempDir Path dir) throws IOException {
+		Path file = dir.resolve("app.log");
+		var properties = LogProperties.builder().fromProperties("""
+				logging.file.name=%s
+				logging.appender.file.encoder.uri=missing-encoder
+				""".formatted(PropertiesPaths.escape(file))).build();
+		var config = LogConfig.builder().properties(properties).serviceLoader().build();
+		assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build());
+		Files.delete(file);
 	}
 
 	@ParameterizedTest

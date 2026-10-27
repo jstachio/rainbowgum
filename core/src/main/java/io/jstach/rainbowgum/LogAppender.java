@@ -594,43 +594,66 @@ public sealed interface LogAppender extends LogLifecycle {
 					output = DefaultAppenderRegistry.rawValue(outputProperty(_name, config)).value();
 				}
 
-				final LogOutput finalOutput = output;
-				LogEncoder explicitEncoder = _encoder != null ? LogProvider.provideOrNull(_encoder, _name, config)
-						: null;
-				LogEncoder encoder;
-				if (finalOutput instanceof LogOutput.ProvidesEncoder pe
-						&& pe.policy() == LogOutput.ProvidesEncoder.Policy.MANDATORY) {
-					boolean propertyWired = !(encoderProperty(_name, config) instanceof LogProperty.Result.Missing);
-					if (explicitEncoder != null || propertyWired) {
-						throw LogProperty.ValidationException
-							.of(LogAppender.class, new IllegalArgumentException("Appender '" + _name + "' output "
-									+ finalOutput.getClass().getName()
-									+ " provides a mandatory encoder and does not allow another encoder to be configured."));
-					}
-					encoder = pe.encoder(_name, config);
+				try {
+					return build(b, _name, output, _encoder, config);
 				}
-				else {
-					encoder = explicitEncoder;
-					if (encoder == null) {
-						var propertyResult = encoderProperty(_name, config);
-						if (finalOutput instanceof LogOutput.ProvidesEncoder pe
-								&& propertyResult instanceof LogProperty.Result.Missing) {
-							encoder = pe.encoder(_name, config);
-						}
-						else {
-							encoder = DefaultAppenderRegistry.rawValue(propertyResult.or(() -> config.encoderRegistry()
-								.encoderForOutputType(finalOutput.type())
-								.provide(_name, config))).value();
-						}
-					}
+				catch (RuntimeException | Error e) {
+					/*
+					 * The appender would have owned the output, so nothing else will
+					 * close it, and an open file cannot be deleted on Windows.
+					 */
+					closeAfterFailure(output, e);
+					throw e;
 				}
-
-				Set<AppenderFlag> flags = b.flags != null ? b.flags : EnumSet.noneOf(AppenderFlag.class);
-				AppenderType appenderType = b.appenderType != null ? b.appenderType : config.globals().optimize()
-						? AppenderType.AUTO_DETECT : AppenderType.LOCK_THREAD_LOCAL_BUFFER;
-
-				return DirectLogAppender.of(_name, output, encoder, appenderType, flags, config);
 			};
+		}
+
+		private static LogAppender build(Builder b, String name, LogOutput output,
+				@Nullable LogProvider<? extends LogEncoder> encoderProvider, LogConfig config) {
+			LogEncoder explicitEncoder = encoderProvider != null
+					? LogProvider.provideOrNull(encoderProvider, name, config) : null;
+			LogEncoder encoder;
+			if (output instanceof LogOutput.ProvidesEncoder pe
+					&& pe.policy() == LogOutput.ProvidesEncoder.Policy.MANDATORY) {
+				boolean propertyWired = !(encoderProperty(name, config) instanceof LogProperty.Result.Missing);
+				if (explicitEncoder != null || propertyWired) {
+					throw LogProperty.ValidationException
+						.of(LogAppender.class, new IllegalArgumentException("Appender '" + name + "' output "
+								+ output.getClass().getName()
+								+ " provides a mandatory encoder and does not allow another encoder to be configured."));
+				}
+				encoder = pe.encoder(name, config);
+			}
+			else {
+				encoder = explicitEncoder;
+				if (encoder == null) {
+					var propertyResult = encoderProperty(name, config);
+					if (output instanceof LogOutput.ProvidesEncoder pe
+							&& propertyResult instanceof LogProperty.Result.Missing) {
+						encoder = pe.encoder(name, config);
+					}
+					else {
+						encoder = DefaultAppenderRegistry.rawValue(propertyResult.or(() -> config.encoderRegistry()
+							.encoderForOutputType(output.type())
+							.provide(name, config))).value();
+					}
+				}
+			}
+
+			Set<AppenderFlag> flags = b.flags != null ? b.flags : EnumSet.noneOf(AppenderFlag.class);
+			AppenderType appenderType = b.appenderType != null ? b.appenderType
+					: config.globals().optimize() ? AppenderType.AUTO_DETECT : AppenderType.LOCK_THREAD_LOCAL_BUFFER;
+
+			return DirectLogAppender.of(name, output, encoder, appenderType, flags, config);
+		}
+
+		static void closeAfterFailure(AutoCloseable resource, Throwable failure) {
+			try {
+				resource.close();
+			}
+			catch (Exception e) {
+				failure.addSuppressed(e);
+			}
 		}
 
 		/*
@@ -753,9 +776,26 @@ public sealed interface LogAppender extends LogLifecycle {
 		}
 
 		private List<LogAppender> appenders() {
-			return LogProvider.flatten(appenders)
-				.describe(n -> "Appenders for route: '" + n + "'")
-				.provide(name, config);
+			LogProvider<List<LogAppender>> all = (n, c) -> {
+				List<LogAppender> list = new ArrayList<>();
+				try {
+					for (var p : appenders) {
+						list.add(p.provide(n, c));
+					}
+				}
+				catch (RuntimeException | Error e) {
+					/*
+					 * The route never gets the appenders already made, so close their
+					 * outputs.
+					 */
+					for (var a : list) {
+						Builder.closeAfterFailure(a, e);
+					}
+					throw e;
+				}
+				return list;
+			};
+			return all.describe(n -> "Appenders for route: '" + n + "'").provide(name, config);
 		}
 
 		/**
