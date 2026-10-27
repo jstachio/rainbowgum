@@ -1,0 +1,27 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.jstach.rainbowgum.benchmark</groupId>
+    <artifactId>otlp-benchmark-parent</artifactId>
+    <version>1</version>
+  </parent>
+  <artifactId>otlp-benchmark-rainbowgum</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>io.jstach.rainbowgum.benchmark</groupId>
+      <artifactId>otlp-benchmark-share</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-slf4j</artifactId>
+      <version>${rainbowgum.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jstach.rainbowgum</groupId>
+      <artifactId>rainbowgum-otlp</artifactId>
+      <version>${rainbowgum.version}</version>
+    </dependency>
+  </dependencies>
+</project>
