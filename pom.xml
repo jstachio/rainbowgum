@@ -36,6 +36,15 @@
     -->
     <maven.build.cache.enabled>false</maven.build.cache.enabled>
 
+    <!--
+      Tests compare golden strings ending in \n, so every test JVM uses \n as its line
+      separator, Windows included. The value is in an argfile because argLine is split on
+      whitespace and cannot hold a newline. argLine itself defaults to empty so @{argLine}
+      works without the JaCoCo agent.
+    -->
+    <argLine></argLine>
+    <test.lineSeparator.argLine>@${maven.multiModuleProjectDirectory}/.mvn/test-line-separator.args</test.lineSeparator.argLine>
+
     <ecj.version>3.46.100</ecj.version>
     <plexus-compiler-eclipse.version>2.17.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.50.0</error-prone.version>
@@ -388,6 +397,7 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.6.0</version>
           <configuration>
+            <argLine>@{argLine} ${test.lineSeparator.argLine}</argLine>
             <trimStackTrace>false</trimStackTrace>
             <printSummary>true</printSummary>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
