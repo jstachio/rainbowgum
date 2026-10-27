@@ -59,7 +59,7 @@ class LogFormatterTest {
 
 	@SuppressWarnings("StringSplitter")
 	private static String[] lines(String s) {
-		return s.split(System.lineSeparator());
+		return s.split(LogFormatter.lineSeparator());
 	}
 
 	@Test

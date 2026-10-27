@@ -31,6 +31,7 @@ its lifecycle. Removing `ofBoolean` entirely is under consideration.
 |---|---|---|
 | `logging.global.queue.level`, `logging.global.queue.error` | Level | `QueueEventsRouter.of()`: in the global router's static initializer, and again on close. |
 | `logging.debug` | `DebugModeType` enum | First line of `LogConfig.Builder.build()`. |
+| `logging.global.lineSeparator` | `Internal.LineSeparator` enum | Once, when a formatter first needs it, through `LogFormatter.lineSeparator()`. |
 | `logging.systemlogger.initialize` | `InitOption` enum | On the first `System.Logger`, through `findGlobalProperties()`: the bound gum's properties, else system properties. Cached. |
 
 These really must be read before anything loads, so they cannot be builder methods.

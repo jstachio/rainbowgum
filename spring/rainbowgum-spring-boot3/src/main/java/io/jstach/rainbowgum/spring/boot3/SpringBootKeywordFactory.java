@@ -103,7 +103,7 @@ enum SpringBootKeywordFactory implements KeywordFactory, PatternKeyProvider {
 
 		@Override
 		public void formatThrowable(StringBuilder output, Throwable throwable) {
-			output.append(System.lineSeparator());
+			output.append(LogFormatter.lineSeparator());
 			delegate.formatThrowable(output, throwable);
 		}
 

@@ -152,6 +152,7 @@ class LogConfigDebugTest {
 
 						Properties: SYSTEM_PROPERTIES
 						Reported Properties:
+						  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 						Globals:
@@ -365,6 +366,7 @@ class LogConfigDebugTest {
 
 						Properties: SYSTEM_PROPERTIES
 						Reported Properties:
+						  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 						Globals:

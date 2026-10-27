@@ -245,6 +245,14 @@ public interface LogProperties {
 	static final String GLOBAL_QUEUE_ERROR_PROPERTY = ROOT_PREFIX + "global.queue.error";
 
 	/**
+	 * The line separator formatters end lines and stack trace lines with: <code>lf</code>
+	 * (default) for <code>\n</code>, <code>crlf</code> for <code>\r\n</code>, or
+	 * <code>platform</code> for {@link System#lineSeparator()}. Read once, from system
+	 * properties only.
+	 */
+	static final String GLOBAL_LINE_SEPARATOR_PROPERTY = ROOT_PREFIX + "global.lineSeparator";
+
+	/**
 	 * Whether output uses ANSI escape codes: see {@link LogConfig.Globals.AnsiMode}.
 	 * Default is {@link LogConfig.Globals.AnsiMode#AUTO}.
 	 */

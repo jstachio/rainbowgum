@@ -11,6 +11,29 @@ import org.jspecify.annotations.Nullable;
  */
 final class Internal {
 
+	/*
+	 * Formatters are built without a config, and all of them must end lines the same way,
+	 * so the separator is read once from system properties.
+	 */
+	enum LineSeparator {
+
+		LF("\n"), CRLF("\r\n"), PLATFORM(System.lineSeparator());
+
+		static final String CURRENT = LogProperties.StandardProperties.SYSTEM_PROPERTIES
+			.forKey(LogProperties.GLOBAL_LINE_SEPARATOR_PROPERTY)
+			.ofString()
+			.map(v -> LogProperty.enumValue(LineSeparator.class, v))
+			.or(LF)
+			.validateNow(LineSeparator.class).separator;
+
+		final String separator;
+
+		LineSeparator(String separator) {
+			this.separator = separator;
+		}
+
+	}
+
 	final static class StringBuilderWriter extends Writer {
 
 		private final StringBuilder buf;
@@ -108,6 +131,14 @@ final class Internal {
 		@Override
 		public void write(@SuppressWarnings("null") String str) {
 			writer.append(str);
+		}
+
+		/*
+		 * printStackTrace ends each line here.
+		 */
+		@Override
+		public void println() {
+			writer.append(LineSeparator.CURRENT);
 		}
 
 		@Override

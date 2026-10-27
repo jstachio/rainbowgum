@@ -30,6 +30,7 @@ class LogReporterTest {
 					"""
 							Properties: EMPTY
 							Reported Properties:
+							  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 							  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 							  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 							Globals:
@@ -126,6 +127,7 @@ class LogReporterTest {
 			String expected = """
 					Properties: SYSTEM_PROPERTIES
 					Reported Properties:
+					  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 					Globals:
@@ -161,6 +163,7 @@ class LogReporterTest {
 		assertEquals("""
 				Properties: PROPERTIES_STRING
 				Reported Properties:
+				  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 				  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 				  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 				  logging.my.other = (unset) (io.jstach.rainbowgum)
