@@ -186,9 +186,7 @@ final class Compiler implements PatternCompiler {
 
 		for (Node n = start; n != Node.end();) {
 			n = switch (n) {
-				case End e -> {
-					yield e;
-				}
+				case End e -> e;
 				case LiteralNode ln -> {
 					b.text(ln.value());
 					yield ln.next();
