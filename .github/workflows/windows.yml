@@ -1,0 +1,38 @@
+name: Build on Windows
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+    env:
+      BUILD_NUMBER: "${{github.run_number}}"
+      # -T1: opt back out of the -T2C default in .mvn/maven.config for CI.
+      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1"
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 27
+        uses: actions/setup-java@v5
+        with:
+          java-version: '27'
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Build and Test with Maven
+        run: ./mvnw $MAVEN_CLI_OPTS clean verify
+      # Not named test-results, which the Test Report workflow reads from the Linux build.
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-windows
+          path: '**/target/surefire-reports/TEST-*.xml'
