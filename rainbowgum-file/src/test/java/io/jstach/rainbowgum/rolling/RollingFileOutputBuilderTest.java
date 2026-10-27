@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.net.URI;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,20 @@ class RollingFileOutputBuilderTest {
 			assertEquals(new File(active.toString()).toURI(), output.uri());
 			assertTrue(output.toString().contains(active.toString()),
 					() -> "expected toString to mention the active file, got: " + output);
+		}
+		finally {
+			output.close();
+		}
+	}
+
+	@Test
+	void uriPathBecomesActiveFile() throws Exception {
+		Path active = dir.resolve("app.log");
+		URI uri = URI.create("rolling://" + active.toUri().getRawSchemeSpecificPart());
+		var config = LogConfig.builder().build();
+		var output = RollingFileOutput.of(b -> b.uri(uri)).provide("file", config);
+		try {
+			assertEquals(active.toUri(), output.uri());
 		}
 		finally {
 			output.close();
