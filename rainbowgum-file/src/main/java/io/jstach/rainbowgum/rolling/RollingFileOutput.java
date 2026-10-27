@@ -178,7 +178,8 @@ public interface RollingFileOutput extends FileOutput {
 			file = new File(fileName);
 		}
 		else if (uri != null) {
-			file = new File(uri.getPath());
+			/* Through a file URI, since the decoded path on Windows is /C:/... */
+			file = Path.of(URI.create("file://" + uri.getRawPath())).toFile();
 		}
 		else {
 			throw new IllegalArgumentException("fileName and uri cannot both be unset.");

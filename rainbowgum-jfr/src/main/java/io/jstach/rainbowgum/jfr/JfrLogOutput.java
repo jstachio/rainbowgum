@@ -122,11 +122,12 @@ public final class JfrLogOutput implements LogOutput, LogOutput.ProvidesEncoder 
 	 * @return destination file, or null if {@code uri} has no real path.
 	 */
 	static @Nullable Path destinationOrNull(URI uri) {
-		String path = uri.getPath();
+		String path = uri.getRawPath();
 		if (path == null || path.length() <= 1) {
 			return null;
 		}
-		return Path.of(path);
+		/* Through a file URI, since the decoded path on Windows is /C:/... */
+		return Path.of(URI.create("file://" + path));
 	}
 
 	@Override

@@ -6,22 +6,34 @@ import java.net.URI;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
+/*
+ * A path with a drive letter is absolute on every platform, while /tmp/... on Windows
+ * resolves against the current drive.
+ */
 class LogOutputRegistryTest {
 
 	@Test
 	void absoluteFileUriIsUnchanged() {
+		assertEquals("file:///C:/logs/app.log", normalize("file:///C:/logs/app.log"));
+	}
+
+	@Test
+	@DisabledOnOs(OS.WINDOWS)
+	void absoluteUnixFileUriIsUnchanged() {
 		assertEquals("file:///tmp/app.log", normalize("file:///tmp/app.log"));
 	}
 
 	@Test
 	void fileUriKeepsQuery() {
-		assertEquals("file:///tmp/app.log?prudent=true", normalize("file:///tmp/app.log?prudent=true"));
+		assertEquals("file:///C:/logs/app.log?prudent=true", normalize("file:///C:/logs/app.log?prudent=true"));
 	}
 
 	@Test
 	void fileUriKeepsEncodedCharacters() {
-		assertEquals("file:///tmp/my%20logs/app.log", normalize("file:///tmp/my%20logs/app.log"));
+		assertEquals("file:///C:/my%20logs/app.log", normalize("file:///C:/my%20logs/app.log"));
 	}
 
 	@Test
