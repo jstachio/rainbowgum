@@ -217,7 +217,7 @@ class LogReporterKitchenSinkTest {
 					Facades:
 					  SLF4J
 					"""
-				.replace("FILE_URI_PLACEHOLDER", "file:" + logFile)
+				.replace("FILE_URI_PLACEHOLDER", logFile.toFile().toURI().toString())
 				.replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);
 			assertEquals(expected, actual);
 		}

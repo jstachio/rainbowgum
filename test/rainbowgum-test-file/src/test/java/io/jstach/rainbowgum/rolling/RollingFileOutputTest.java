@@ -289,6 +289,8 @@ class RollingFileOutputTest {
 		})
 			.collect(Collectors.joining())
 			.replace(dir.toString(), "<DIR>")
+			// Windows separators, so the expected text is the same on every platform.
+			.replace('\\', '/')
 			// FileNotFoundException's reason text is supplied by the operating system.
 			.replaceAll("app\\.log \\([^\\r\\n]*\\)", "app.log (<OS_REASON>)");
 	}
@@ -489,7 +491,7 @@ class RollingFileOutputTest {
 					"logging.appender.file.output.rolling.maxFileSize=1\nlogging.appender.file.output.rolling.maxHistory=1")
 			.build();
 		var config = LogConfig.builder().serviceLoader().properties(props).build();
-		var uri = URI.create("rolling://" + active.toAbsolutePath());
+		var uri = URI.create("rolling:" + active.toAbsolutePath().toUri().getRawSchemeSpecificPart());
 		var ref = LogProviderRef.of(uri);
 
 		var output = config.outputRegistry().provide(ref).provide("file", config);
@@ -515,7 +517,8 @@ class RollingFileOutputTest {
 	void rollingUriSchemeResolvesViaServiceLoaderAndHonorsQueryParams() throws IOException {
 		Path active = dir.resolve("scheme.log");
 		var config = LogConfig.builder().serviceLoader().build();
-		var uri = URI.create("rolling://" + active.toAbsolutePath() + "?maxFileSize=1&maxHistory=1");
+		var uri = URI.create("rolling:" + active.toAbsolutePath().toUri().getRawSchemeSpecificPart()
+				+ "?maxFileSize=1&maxHistory=1");
 		var ref = LogProviderRef.of(uri);
 
 		var output = config.outputRegistry().provide(ref).provide("scheme", config);
