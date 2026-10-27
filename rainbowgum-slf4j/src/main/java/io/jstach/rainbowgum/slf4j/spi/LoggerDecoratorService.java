@@ -40,7 +40,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * as a key value (Rainbow Gum core has no built-in {@code Marker} support, so this is how
  * a decorator can still make use of one):
  *
- * {@snippet class = "snippets.DecoratorExample" region = "decoratorExample" }
+ * {@snippet file = "snippets/DecoratorExample.java" region = "decoratorExample"}
  *
  * Once built, register it like any other {@link RainbowGumServiceProvider}. If your
  * application is modularized:
