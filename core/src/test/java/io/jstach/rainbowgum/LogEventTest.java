@@ -424,6 +424,23 @@ class LogEventTest {
 		assertFreeze(event);
 	}
 
+	@Test
+	void withCallerKeepsAMissingMessage() {
+		var event = LogEvent.of(Instant.EPOCH, "main", 0, Level.WARNING, "logger", null, KeyValues.of(), null);
+		var caller = Caller.ofDepthOrNull(0);
+		if (caller == null) {
+			fail("Caller");
+			throw new IllegalStateException();
+		}
+		var e = LogEvent.withCaller(event, caller);
+		assertFalse(e.hasMessage());
+		assertNull(e.messageOrNull());
+		var sb = new StringBuilder();
+		e.formattedMessage(sb, "fallback");
+		assertEquals("fallback", sb.toString());
+		assertFalse(e.freeze().hasMessage());
+	}
+
 	// Checker has junit stub inccorrect
 	private static void assertNotNull(@Nullable Object o) {
 		if (o == null) {

@@ -746,6 +746,16 @@ record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEve
 	}
 
 	@Override
+	public @Nullable String messageOrNull() {
+		return event.messageOrNull();
+	}
+
+	@Override
+	public boolean hasMessage() {
+		return event.hasMessage();
+	}
+
+	@Override
 	public void formattedMessage(StringBuilder sb) {
 		event.formattedMessage(sb);
 
