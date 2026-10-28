@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -439,6 +441,73 @@ class LogEventTest {
 		e.formattedMessage(sb, "fallback");
 		assertEquals("fallback", sb.toString());
 		assertFalse(e.freeze().hasMessage());
+	}
+
+	@Test
+	void withLevelKeepsEverythingButTheLevel() {
+		var keyValues = MutableKeyValues.of().add("k1", "v1");
+		var throwable = new RuntimeException("expected");
+		var event = LogEvent.ofAll(Instant.EPOCH, "main", 0, Level.WARNING, "logger", "Hello {}!", keyValues, throwable,
+				LogMessageFormatter.StandardMessageFormatter.SLF4J, new Object[] { 1 });
+		var caller = Caller.ofDepthOrNull(0);
+		if (caller == null) {
+			fail("Caller");
+			throw new IllegalStateException();
+		}
+		event = LogEvent.withCaller(event, caller);
+		var info = LogEvent.withLevel(event, Level.INFO);
+		assertInstanceOf(LevelLogEvent.class, info);
+		assertEquals(Level.INFO, info.level());
+		var sb = new StringBuilder();
+		info.formattedMessage(sb);
+		assertEquals("Hello 1!", sb.toString());
+		assertEquals("Hello {}!", info.message());
+		assertSame(event.timestamp(), info.timestamp());
+		assertEquals("main", info.threadName());
+		assertEquals("logger", info.loggerName());
+		assertSame(keyValues, info.keyValues());
+		assertSame(throwable, assertInstanceOf(RuntimeException.class, info.throwableOrNull()));
+		assertSame(caller, assertInstanceOf(Caller.class, info.callerOrNull()));
+		assertFreeze(info);
+		var frozen = info.freeze();
+		assertEquals(Level.INFO, frozen.level());
+		assertEquals(Level.INFO, info.freeze(Instant.EPOCH).level());
+		assertEquals(Level.INFO, LogEvent.withCaller(info, caller).level());
+	}
+
+	@Test
+	void withLevelKeepsAMissingMessage() {
+		var event = LogEvent.of(Instant.EPOCH, "main", 0, Level.WARNING, "logger", null, KeyValues.of(), null);
+		var info = LogEvent.withLevel(event, Level.INFO);
+		assertFalse(info.hasMessage());
+		assertNull(info.messageOrNull());
+		var sb = new StringBuilder();
+		info.formattedMessage(sb, "fallback");
+		assertEquals("fallback", sb.toString());
+	}
+
+	@Test
+	void withLevelDoesNotWrapWhenTheLevelIsUnchangedOrAlreadyWrapped() {
+		var event = TestLogEventFactory.of().event(Level.WARNING);
+		assertSame(event, LogEvent.withLevel(event, Level.WARNING));
+		var info = LogEvent.withLevel(event, Level.INFO);
+		assertSame(info, LogEvent.withLevel(info, Level.INFO));
+		assertSame(event, LogEvent.withLevel(info, Level.WARNING));
+		var debug = (LevelLogEvent) LogEvent.withLevel(info, Level.DEBUG);
+		assertSame(event, debug.event());
+		assertEquals(Level.DEBUG, debug.level());
+		var frozen = event.freeze();
+		var frozenInfo = LogEvent.withLevel(frozen, Level.INFO);
+		assertSame(frozenInfo, frozenInfo.freeze());
+	}
+
+	@Test
+	void withLevelRejectsAllAndOff() {
+		var event = TestLogEventFactory.of().event(Level.WARNING);
+		var e = assertThrows(IllegalArgumentException.class, () -> LogEvent.withLevel(event, Level.OFF));
+		assertEquals("An event cannot have level OFF.", e.getMessage());
+		e = assertThrows(IllegalArgumentException.class, () -> LogEvent.withLevel(event, Level.ALL));
+		assertEquals("An event cannot have level ALL.", e.getMessage());
 	}
 
 	// Checker has junit stub inccorrect

@@ -536,6 +536,25 @@ public sealed interface LogRouter extends LogLifecycle {
 		 */
 		protected abstract @Nullable LogEvent transformOrNull(LogEvent event);
 
+		/**
+		 * Changes the level of an event for {@link #transformOrNull(LogEvent)}. The
+		 * router's level resolver is only consulted when the level changes.
+		 * @param event event passed to {@link #transformOrNull(LogEvent)}.
+		 * @param level new level.
+		 * @return the event at the new level, or <code>null</code> if this router does
+		 * not enable the new level for the event's logger.
+		 * @see LogEvent#withLevel(LogEvent, Level)
+		 */
+		protected final @Nullable LogEvent withLevelOrNull(LogEvent event, Level level) {
+			if (event.level() == level) {
+				return event;
+			}
+			if (!levelResolver.isEnabled(event.loggerName(), level)) {
+				return null;
+			}
+			return LogEvent.withLevel(event, level);
+		}
+
 		@Override
 		public final Route route(String loggerName, Level level) {
 			if (levelResolver().isEnabled(loggerName, level)) {
