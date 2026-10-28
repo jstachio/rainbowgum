@@ -284,6 +284,31 @@ public sealed interface LogEvent {
 	}
 
 	/**
+	 * Creates an event that is the given event at a different level. Nothing checks
+	 * whether the new level is enabled; routers do that with
+	 * {@link LogRouter.AbstractRouter#withLevelOrNull(LogEvent, Level)}.
+	 * @param event original event.
+	 * @param level level of the returned event.
+	 * @return the given event if it already has the level, otherwise an event with the
+	 * level.
+	 * @throws IllegalArgumentException if the level is {@link Level#ALL} or
+	 * {@link Level#OFF}.
+	 */
+	public static LogEvent withLevel(LogEvent event, Level level) {
+		if (level == Level.ALL || level == Level.OFF) {
+			throw new IllegalArgumentException("An event cannot have level " + level + ".");
+		}
+		if (event.level() == level) {
+			return event;
+		}
+		if (event instanceof LevelLogEvent e) {
+			var original = e.event();
+			return original.level() == level ? original : new LevelLogEvent(original, level);
+		}
+		return new LevelLogEvent(event, level);
+	}
+
+	/**
 	 * Timestamp when the event was created.
 	 * @return instant when the event was created.
 	 */
@@ -792,6 +817,82 @@ record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEve
 			return this;
 		}
 		return new StackFrameLogEvent(e, info);
+	}
+
+}
+
+record LevelLogEvent(LogEvent event, Level level) implements LogEvent {
+
+	LevelLogEvent {
+		Objects.requireNonNull(event, "event");
+		Objects.requireNonNull(level, "level");
+	}
+
+	@Override
+	public Instant timestamp() {
+		return event.timestamp();
+	}
+
+	@Override
+	public String threadName() {
+		return event.threadName();
+	}
+
+	@Override
+	public long threadId() {
+		return event.threadId();
+	}
+
+	@Override
+	public String loggerName() {
+		return event.loggerName();
+	}
+
+	@Override
+	public String message() {
+		return event.message();
+	}
+
+	@Override
+	public @Nullable String messageOrNull() {
+		return event.messageOrNull();
+	}
+
+	@Override
+	public boolean hasMessage() {
+		return event.hasMessage();
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb) {
+		event.formattedMessage(sb);
+	}
+
+	@Override
+	public @Nullable Throwable throwableOrNull() {
+		return event.throwableOrNull();
+	}
+
+	@Override
+	public KeyValues keyValues() {
+		return event.keyValues();
+	}
+
+	@Override
+	public @Nullable Caller callerOrNull() {
+		return event.callerOrNull();
+	}
+
+	@Override
+	@SuppressWarnings("ReferenceEquality")
+	public LogEvent freeze() {
+		var e = event.freeze();
+		return e == event ? this : new LevelLogEvent(e, level);
+	}
+
+	@Override
+	public LogEvent freeze(Instant timestamp) {
+		return new LevelLogEvent(event.freeze(timestamp), level);
 	}
 
 }
