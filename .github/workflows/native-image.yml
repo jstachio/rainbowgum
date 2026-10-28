@@ -22,7 +22,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     env:
-      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1"
+      # Maven only backs off and retries 429 and 503 by default; Central also
+      # returns 502 now and then.
+      MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1 -Daether.transport.http.retryHandler.serviceUnavailable=429,500,502,503,504"
 
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +34,13 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
           cache: 'maven'
+          # Keyed per workflow: each builds different modules, and a shared key is
+          # saved by whichever job finishes first.
+          cache-dependency-path: |
+            **/pom.xml
+            **/.mvn/extensions.xml
+            **/.mvn/wrapper/maven-wrapper.properties
+            .github/workflows/native-image.yml
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@v1
         with:
