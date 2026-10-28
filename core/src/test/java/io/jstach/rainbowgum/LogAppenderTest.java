@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -100,7 +101,7 @@ class LogAppenderTest {
 		var appenders = new LogAppender.Appenders("default", LogConfig.builder().build(), List.of(a, b, c));
 
 		var thrown = assertThrows(LogProvider.ProvisionException.class, appenders::asSingle);
-		assertSame(leaf, thrown.getCause());
+		assertSame(leaf, assertInstanceOf(IllegalArgumentException.class, thrown.getCause()));
 		assertArrayEquals(new Throwable[] { outputCloseFailure, appenderCloseFailure }, thrown.getSuppressed());
 		assertEquals(List.of("c", "a", "b"), closed);
 	}
