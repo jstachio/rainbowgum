@@ -3,13 +3,16 @@ package io.jstach.rainbowgum;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
+import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.LogRouter.AbstractRouter;
 import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -67,6 +70,36 @@ class RainbowGumPropertyTest {
 						};
 					}));
 				});
+			}
+
+		},
+		ROUTER_WITH_LEVEL_DEMOTES("""
+				logging.appenders=list
+				logging.appender.list.output.uri=list
+				logging.level=INFO
+				""", """
+				00:00:00.001 [main] INFO  com.pattern.test.Test - hello
+				00:00:00.001 [main] INFO  com.pattern.test.Test - hello
+				00:00:00.001 [main] WARN  com.pattern.test.Test - hello
+				""") {
+
+			@Override
+			RainbowGum.Builder config(RainbowGum.Builder builder) {
+				return slideLevelsDown(builder);
+			}
+
+		},
+		ROUTER_WITH_LEVEL_DROPS_DISABLED_LEVEL("""
+				logging.appenders=list
+				logging.appender.list.output.uri=list
+				logging.level=WARNING
+				""", """
+				00:00:00.001 [main] WARN  com.pattern.test.Test - hello
+				""") {
+
+			@Override
+			RainbowGum.Builder config(RainbowGum.Builder builder) {
+				return slideLevelsDown(builder);
 			}
 
 		},
@@ -163,6 +196,22 @@ class RainbowGumPropertyTest {
 
 		void config(LogConfig.Builder builder) {
 
+		}
+
+		static RainbowGum.Builder slideLevelsDown(RainbowGum.Builder builder) {
+			return builder.route(rb -> {
+				rb.factory(
+						(publisher, levelResolver, name, config) -> new AbstractRouter(name, publisher, levelResolver) {
+							@Override
+							protected @Nullable LogEvent transformOrNull(LogEvent event) {
+								return switch (event.level()) {
+									case WARNING -> withLevelOrNull(event, Level.INFO);
+									case ERROR -> withLevelOrNull(event, Level.WARNING);
+									default -> event;
+								};
+							}
+						});
+			});
 		}
 
 	}
