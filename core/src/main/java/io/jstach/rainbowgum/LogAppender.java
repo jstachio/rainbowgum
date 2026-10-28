@@ -647,12 +647,15 @@ public sealed interface LogAppender extends LogLifecycle {
 			return DirectLogAppender.of(name, output, encoder, appenderType, flags, config);
 		}
 
+		@SuppressWarnings("ReferenceEquality") // Self-suppression is based on identity.
 		static void closeAfterFailure(AutoCloseable resource, Throwable failure) {
 			try {
 				resource.close();
 			}
-			catch (Exception e) {
-				failure.addSuppressed(e);
+			catch (Exception | Error e) {
+				if (e != failure) {
+					failure.addSuppressed(e);
+				}
 			}
 		}
 

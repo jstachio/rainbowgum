@@ -102,7 +102,12 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 	}
 
 	static LogAppender fileAppender(LogConfig config) {
-		final String name = LogAppender.FILE_APPENDER_NAME;
+		String name = LogAppender.FILE_APPENDER_NAME;
+		return LogAppender.builder(name).output((n, c) -> fileOutput(c)).build().provide(name, config);
+	}
+
+	private static LogOutput fileOutput(LogConfig config) {
+		String name = LogAppender.FILE_APPENDER_NAME;
 		/*
 		 * Unchanged from before the appender-construction refactor unified everything
 		 * else onto LogAppender.Builder: LogProperties.FILE_PROPERTY (Spring Boot's
@@ -113,9 +118,10 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 		 * plumbing below, not something a plain builder setter can express without losing
 		 * "Error converting property..."/"Tried: ..." context real
 		 * FileOutputPropertiesTest cases assert on. Only the very last step changes: the
-		 * fully-resolved LogOutput is handed to a real LogAppender.Builder (as an
-		 * explicit value, so build() never re-resolves it from properties) instead of
-		 * bypassing it via AppenderConfig.
+		 * output is resolved lazily by LogAppender.Builder's explicit provider, after
+		 * appender settings have been validated and before its failure cleanup takes
+		 * ownership. This preserves the file property's precedence without opening a file
+		 * that malformed flags/type would leave unowned.
 		 */
 		Result<String> valueResult = config.properties()
 			.forKey(LogProperties.FILE_PROPERTY)
@@ -131,8 +137,7 @@ final class DefaultAppenderRegistry implements LogAppenderRegistry {
 			case Result.Missing<URI> m -> m.convert();
 			case Result.Error<URI> e -> e.convert();
 		};
-		LogOutput output = rawValue(LogProperty.provideValue(refResult.map(LogOutput::of), name, config)).value();
-		return LogAppender.builder(name).output(output).build().provide(name, config);
+		return rawValue(LogProperty.provideValue(refResult.map(LogOutput::of), name, config)).value();
 	}
 
 	/*
