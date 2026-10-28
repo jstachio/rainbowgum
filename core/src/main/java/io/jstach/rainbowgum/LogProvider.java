@@ -80,7 +80,15 @@ public interface LogProvider<T> {
 			catch (Exception e) {
 				@SuppressWarnings("null")
 				String desc = description.apply(n, e);
-				throw new ProvisionException(desc, rootCause(e));
+				var cause = rootCause(e);
+				var failure = new ProvisionException(desc, cause);
+				if (e.getCause() != null) {
+					// Keep cleanup failures attached to the wrapper being collapsed.
+					for (var suppressed : e.getSuppressed()) {
+						failure.addSuppressed(suppressed);
+					}
+				}
+				throw failure;
 			}
 		};
 	}

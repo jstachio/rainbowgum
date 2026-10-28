@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
@@ -8,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * {@link LogAppender#builder(String)} is one of the two hand-written builders (the other
@@ -60,6 +64,60 @@ class LogAppenderTest {
 		assertEquals(List.of("b", "a"), closed);
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "flags", "type" })
+	void invalidFileAppenderSettingsDoNotOpenTheOutput(String setting) {
+		var opened = new ArrayList<String>();
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.appenders=file
+				logging.appender.file.output.uri=tracked:///file
+				logging.appender.file.%s=invalid
+				""".formatted(setting)).build()).build();
+		config.outputRegistry().register("tracked", ref -> (n, c) -> {
+			opened.add(n);
+			return new TrackedOutput(n, new ArrayList<>());
+		});
+		assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build());
+		assertEquals(List.of(), opened);
+	}
+
+	@Test
+	void cleanupFailuresArePreservedAndDoNotPreventClosingOtherAppenders() {
+		var closed = new ArrayList<String>();
+		var leaf = new IllegalArgumentException("encoder failed");
+		var failure = new IllegalStateException("encoder wrapper", leaf);
+		var outputCloseFailure = new IllegalStateException("output close failed");
+		var appenderCloseFailure = new AssertionError("appender close failed");
+		var a = LogAppender.builder("a").output(new TrackedOutput("a", closed, () -> {
+			throw appenderCloseFailure;
+		})).build().describe("appender a");
+		var b = LogAppender.builder("b").output(new TrackedOutput("b", closed)).build();
+		var c = LogAppender.builder("c").output(new TrackedOutput("c", closed, () -> {
+			throw outputCloseFailure;
+		})).encoder((n, config) -> {
+			throw failure;
+		}).build().describe("appender c");
+		var appenders = new LogAppender.Appenders("default", LogConfig.builder().build(), List.of(a, b, c));
+
+		var thrown = assertThrows(LogProvider.ProvisionException.class, appenders::asSingle);
+		assertSame(leaf, thrown.getCause());
+		assertArrayEquals(new Throwable[] { outputCloseFailure, appenderCloseFailure }, thrown.getSuppressed());
+		assertEquals(List.of("c", "a", "b"), closed);
+	}
+
+	@Test
+	void cleanupCannotSuppressTheOriginalFailureWithItself() {
+		var failure = new IllegalStateException("encoder and output failure");
+		var output = new TrackedOutput("a", new ArrayList<>(), () -> {
+			throw failure;
+		});
+		var provider = LogAppender.builder("a").output(output).encoder((n, c) -> {
+			throw failure;
+		}).build();
+		assertSame(failure,
+				assertThrows(IllegalStateException.class, () -> provider.provide("a", LogConfig.builder().build())));
+	}
+
 	private static LogConfig config(List<String> closed, String properties) {
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
 		config.outputRegistry()
@@ -67,7 +125,12 @@ class LogAppenderTest {
 		return config;
 	}
 
-	record TrackedOutput(String name, List<String> closed) implements LogOutput {
+	record TrackedOutput(String name, List<String> closed, Runnable closeAction) implements LogOutput {
+
+		TrackedOutput(String name, List<String> closed) {
+			this(name, closed, () -> {
+			});
+		}
 
 		@Override
 		public URI uri() {
@@ -90,6 +153,7 @@ class LogAppenderTest {
 		@Override
 		public void close() {
 			closed.add(name);
+			closeAction.run();
 		}
 
 	}
