@@ -734,66 +734,86 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
 
 }
 
-record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEvent {
+/*
+ * Wraps an event and forwards to it, so a wrapper only overrides what it changes. Every
+ * LogEvent method, defaults included, is forwarded here: a default left to run on the
+ * wrapper would compute from the wrapper instead of the wrapped event.
+ */
+sealed interface ForwardingLogEvent extends LogEvent permits StackFrameLogEvent, LevelLogEvent {
+
+	LogEvent event();
+
+	@Override
+	default Instant timestamp() {
+		return event().timestamp();
+	}
+
+	@Override
+	default String threadName() {
+		return event().threadName();
+	}
+
+	@Override
+	default long threadId() {
+		return event().threadId();
+	}
+
+	@Override
+	default Level level() {
+		return event().level();
+	}
+
+	@Override
+	default String loggerName() {
+		return event().loggerName();
+	}
+
+	@Override
+	default String message() {
+		return event().message();
+	}
+
+	@Override
+	default @Nullable String messageOrNull() {
+		return event().messageOrNull();
+	}
+
+	@Override
+	default boolean hasMessage() {
+		return event().hasMessage();
+	}
+
+	@Override
+	default void formattedMessage(StringBuilder sb) {
+		event().formattedMessage(sb);
+	}
+
+	@Override
+	default void formattedMessage(StringBuilder sb, String fallbackMessage) {
+		event().formattedMessage(sb, fallbackMessage);
+	}
+
+	@Override
+	default @Nullable Throwable throwableOrNull() {
+		return event().throwableOrNull();
+	}
+
+	@Override
+	default KeyValues keyValues() {
+		return event().keyValues();
+	}
+
+	@Override
+	default @Nullable Caller callerOrNull() {
+		return event().callerOrNull();
+	}
+
+}
+
+record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements ForwardingLogEvent {
 
 	StackFrameLogEvent {
 		Objects.requireNonNull(callerOrNull, "caller");
-	}
-
-	@Override
-	public Instant timestamp() {
-		return event.timestamp();
-	}
-
-	@Override
-	public String threadName() {
-		return event.threadName();
-	}
-
-	@Override
-	public long threadId() {
-		return event.threadId();
-	}
-
-	@Override
-	public Level level() {
-		return event.level();
-	}
-
-	@Override
-	public String loggerName() {
-		return event.loggerName();
-	}
-
-	@Override
-	public String message() {
-		return event.message();
-	}
-
-	@Override
-	public @Nullable String messageOrNull() {
-		return event.messageOrNull();
-	}
-
-	@Override
-	public boolean hasMessage() {
-		return event.hasMessage();
-	}
-
-	@Override
-	public void formattedMessage(StringBuilder sb) {
-		event.formattedMessage(sb);
-
-	}
-
-	@Override
-	public @Nullable Throwable throwableOrNull() {
-		return event.throwableOrNull();
-	}
-
-	@Override
-	public KeyValues keyValues() {
-		return event.keyValues();
 	}
 
 	@Override
@@ -821,66 +841,11 @@ record StackFrameLogEvent(LogEvent event, Caller callerOrNull) implements LogEve
 
 }
 
-record LevelLogEvent(LogEvent event, Level level) implements LogEvent {
+record LevelLogEvent(LogEvent event, Level level) implements ForwardingLogEvent {
 
 	LevelLogEvent {
 		Objects.requireNonNull(event, "event");
 		Objects.requireNonNull(level, "level");
-	}
-
-	@Override
-	public Instant timestamp() {
-		return event.timestamp();
-	}
-
-	@Override
-	public String threadName() {
-		return event.threadName();
-	}
-
-	@Override
-	public long threadId() {
-		return event.threadId();
-	}
-
-	@Override
-	public String loggerName() {
-		return event.loggerName();
-	}
-
-	@Override
-	public String message() {
-		return event.message();
-	}
-
-	@Override
-	public @Nullable String messageOrNull() {
-		return event.messageOrNull();
-	}
-
-	@Override
-	public boolean hasMessage() {
-		return event.hasMessage();
-	}
-
-	@Override
-	public void formattedMessage(StringBuilder sb) {
-		event.formattedMessage(sb);
-	}
-
-	@Override
-	public @Nullable Throwable throwableOrNull() {
-		return event.throwableOrNull();
-	}
-
-	@Override
-	public KeyValues keyValues() {
-		return event.keyValues();
-	}
-
-	@Override
-	public @Nullable Caller callerOrNull() {
-		return event.callerOrNull();
 	}
 
 	@Override
