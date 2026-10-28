@@ -38,12 +38,22 @@ jobs:
           java-version: '27'
           distribution: 'temurin'
           cache: 'maven'
+          # Keyed per workflow: each builds different modules, and a shared key is
+          # saved by whichever job finishes first.
+          cache-dependency-path: |
+            **/pom.xml
+            **/.mvn/extensions.xml
+            **/.mvn/wrapper/maven-wrapper.properties
+            .github/workflows/apidoc.yml
       - name: mvn install
         # -T1: opt back out of the -T2C default in .mvn/maven.config for CI.
         # Tests run (unlike the release doc build) only to produce the coverage report;
         # a failing test must not stop the snapshot docs from publishing.
+        # Maven only backs off and retries 429 and 503 by default; Central also
+        # returns 502 now and then.
         run: >
           ./mvnw --batch-mode --no-transfer-progress -T1 -Pdoc -Dcodecover=true
+          -Daether.transport.http.retryHandler.serviceUnavailable=429,500,502,503,504
           -Dmaven.test.failure.ignore=true clean install
       - name: Add coverage report
         if: hashFiles('rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml') != ''
