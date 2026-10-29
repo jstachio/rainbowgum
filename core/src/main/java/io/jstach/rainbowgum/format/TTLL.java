@@ -112,6 +112,17 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Thread id and name, each in its own square brackets: <code>[7][main]</code>.
+		 * The closing and opening bracket between them are part of this formatter, since
+		 * the thread part adds the outer ones.
+		 */
+		BOTH {
+			@Override
+			public LogFormatter formatter() {
+				return LogFormatter.builder().threadId().text("][").threadName().build();
+			}
+		},
+		/**
 		 * No thread.
 		 */
 		@EnumAlias("false")
