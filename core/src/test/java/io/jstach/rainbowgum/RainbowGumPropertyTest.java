@@ -103,6 +103,29 @@ class RainbowGumPropertyTest {
 			}
 
 		},
+		ROUTER_REWRITES_MESSAGE("""
+				logging.appenders=list
+				logging.appender.list.output.uri=list
+				logging.level=WARNING
+				""", """
+				00:00:00.001 [main] WARN  com.pattern.test.Test - h*ll*
+				00:00:00.001 [main] ERROR com.pattern.test.Test - h*ll*
+				""") {
+
+			@Override
+			RainbowGum.Builder config(RainbowGum.Builder builder) {
+				var rewriter = new LogEvent.Rewriter() {
+					@Override
+					public void formattedMessage(LogEvent event, StringBuilder sb) {
+						var original = new StringBuilder();
+						event.formattedMessage(original);
+						sb.append(original.toString().replaceAll("[aeiou]", "*"));
+					}
+				};
+				return builder.route(rb -> rb.factory(RouterFactory.of(e -> LogEvent.rewrite(e, rewriter))));
+			}
+
+		},
 		REUSE_BUFFER_APPENDER("""
 				logging.appenders=list
 				logging.appender.list.output.uri=list
