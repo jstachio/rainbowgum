@@ -220,7 +220,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 		}
 		catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("'" + value
-					+ "' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: "
+					+ "' is neither a timestamp format (ttll, iso, key_value, none, true, false, default, keyValue) nor a valid DateTimeFormatter pattern: "
 					+ e.getMessage(), e);
 		}
 	}

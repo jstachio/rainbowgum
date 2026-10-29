@@ -191,7 +191,11 @@ class TTLLFormatterTest {
 			"timestamp=key_value|[main] INFO  com.example.App {time=2026-10-05T12%3A00%3A00.123Z&requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=key_value|12:00:00.123 INFO  com.example.App {thread=main&requestId=42&user=Ada%20Lovelace} - hello world", //
 			"level=key_value|12:00:00.123 [main] com.example.App {level=INFO&requestId=42&user=Ada%20Lovelace} - hello world", //
-			"logger=key_value|12:00:00.123 [main] INFO  {logger=com.example.App&requestId=42&user=Ada%20Lovelace} - hello world" })
+			"logger=key_value|12:00:00.123 [main] INFO  {logger=com.example.App&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"timestamp=keyValue|[main] INFO  com.example.App {time=2026-10-05T12%3A00%3A00.123Z&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=keyvalue|12:00:00.123 INFO  com.example.App {thread=main&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=KEYVALUE|12:00:00.123 [main] com.example.App {level=INFO&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"logger=keyValue|12:00:00.123 [main] INFO  {logger=com.example.App&requestId=42&user=Ada%20Lovelace} - hello world" })
 	void keyValuePartsAreWrittenAmongTheKeyValues(String property, String expected) {
 		assertEquals(expected + "\n",
 				log("ttll", "logging.appender.list.encoder.ttll." + property + "\n", event(requestKeyValues())));
@@ -441,7 +445,7 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.appender.list.encoder.ttll.thread' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.thread], \
-				'group' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'name_or_id', 'both', 'key_value', 'none', 'true', 'false', 'default'""";
+				'group' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'name_or_id', 'both', 'key_value', 'none', 'true', 'false', 'default', 'keyvalue'""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -470,7 +474,7 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.appender.list.encoder.ttll.timestamp' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.timestamp], \
-				'bogus{' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: \
+				'bogus{' is neither a timestamp format (ttll, iso, key_value, none, true, false, default, keyValue) nor a valid DateTimeFormatter pattern: \
 				Unknown pattern letter: b""";
 		assertEquals(expected, e.getMessage());
 	}
