@@ -43,7 +43,7 @@ class LogfmtFormatterTest {
 		kvs.putKeyValue("requestId", "42");
 		kvs.putKeyValue("user", "ada");
 		assertEquals(
-				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=hello requestId=42 user=ada\n",
+				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg=hello requestId=42 user=ada\n",
 				format(event(Level.INFO, "main", "hello", kvs, null)));
 	}
 
@@ -56,7 +56,7 @@ class LogfmtFormatterTest {
 		kvs.putKeyValue("eq", "a=b");
 		kvs.putKeyValue("bell", "\u0007");
 		String actual = format(event(Level.WARNING, "pool 1", "say \"hi\"\n\tthere", kvs, null));
-		String expected = "time=2026-10-05T15:04:05.123Z level=WARN logger=com.example.App thread=\"pool 1\" "
+		String expected = "time=2026-10-05T15:04:05.123Z level=WARN logger=com.example.App threadId=1 threadName=\"pool 1\" "
 				+ "msg=\"say \\\"hi\\\"\\n\\tthere\" empty=\"\" missing= path=\"C:\\\\temp\" eq=\"a=b\" "
 				+ "bell=\"\\u0007\"\n";
 		assertEquals(expected, actual);
@@ -70,7 +70,7 @@ class LogfmtFormatterTest {
 		kvs.putKeyValue("keyValues.ok", "k");
 		kvs.putKeyValue("ok", "1");
 		assertEquals("""
-				time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=real \
+				time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg=real \
 				keyValues.msg=m2 keyValues.level=L keyValues.keyValues.ok=k ok=1
 				""", format(event(Level.INFO, "main", "real", kvs, null)));
 	}
@@ -82,9 +82,11 @@ class LogfmtFormatterTest {
 		kvs.putKeyValue("a_b", "2");
 		kvs.putKeyValue("", "3");
 		kvs.putKeyValue("_", "4");
-		assertEquals("""
-				time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x a%20b=1 a_b=2 %=3 _=4
-				""", format(event(Level.INFO, "main", "x", kvs, null)));
+		assertEquals(
+				"""
+						time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg=x a%20b=1 a_b=2 %=3 _=4
+						""",
+				format(event(Level.INFO, "main", "x", kvs, null)));
 	}
 
 	@Test
@@ -95,14 +97,16 @@ class LogfmtFormatterTest {
 		kvs.putKeyValue("q\"k", "v");
 		kvs.putKeyValue("back\\slash", "w");
 		assertEquals(
-				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x user%20name=ada a%3Db=c q%22k=v back%5Cslash=w\n",
+				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg=x user%20name=ada a%3Db=c q%22k=v back%5Cslash=w\n",
 				format(event(Level.INFO, "main", "x", kvs, null)));
 	}
 
 	@ParameterizedTest
 	@CsvSource({ "TRACE,TRACE", "DEBUG,DEBUG", "INFO,INFO", "WARNING,WARN", "ERROR,ERROR" })
 	void levelNames(Level level, String expected) {
-		assertEquals("time=2026-10-05T15:04:05.123Z level=" + expected + " logger=com.example.App thread=main msg=x\n",
+		assertEquals(
+				"time=2026-10-05T15:04:05.123Z level=" + expected
+						+ " logger=com.example.App threadId=1 threadName=main msg=x\n",
 				format(event(level, "main", "x", KeyValues.of(), null)));
 	}
 
@@ -110,7 +114,7 @@ class LogfmtFormatterTest {
 	void throwableStaysOnOneLine() {
 		var ex = new IllegalStateException("boom");
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
-		String expected = "time=2026-10-05T15:04:05.123Z level=ERROR logger=com.example.App thread=main msg=failed "
+		String expected = "time=2026-10-05T15:04:05.123Z level=ERROR logger=com.example.App threadId=1 threadName=main msg=failed "
 				+ "error=\"java.lang.IllegalStateException: boom\" "
 				+ "stacktrace=\"java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\"\n";
 		assertEquals(expected, format(event(Level.ERROR, "main", "failed", KeyValues.of(), ex)));
@@ -130,7 +134,7 @@ class LogfmtFormatterTest {
 			g.log(event(Level.INFO, "main", "hello world", KeyValues.of(), null));
 		}
 		assertEquals(
-				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=\"hello world\"\n",
+				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg=\"hello world\"\n",
 				output.toString());
 	}
 
@@ -140,7 +144,8 @@ class LogfmtFormatterTest {
 		new LogfmtFormatterBuilder("test").levelFormatter(LogFormatter.LevelFormatter.ofRightPadded())
 			.build()
 			.format(sb, event(Level.INFO, "main", "x", KeyValues.of(), null));
-		assertEquals("time=2026-10-05T15:04:05.123Z level=INFO  logger=com.example.App thread=main msg=x\n",
+		assertEquals(
+				"time=2026-10-05T15:04:05.123Z level=INFO  logger=com.example.App threadId=1 threadName=main msg=x\n",
 				sb.toString());
 	}
 
@@ -158,7 +163,8 @@ class LogfmtFormatterTest {
 		try (var g = RainbowGum.builder(config).build().start()) {
 			g.log(event(Level.WARNING, "main", "x", KeyValues.of(), null));
 		}
-		assertEquals("time=2026-10-05T15:04:05.123Z level=WARN  logger=com.example.App thread=main msg=x\n",
+		assertEquals(
+				"time=2026-10-05T15:04:05.123Z level=WARN  logger=com.example.App threadId=1 threadName=main msg=x\n",
 				output.toString());
 	}
 
@@ -190,8 +196,8 @@ class LogfmtFormatterTest {
 			.build()
 			.format(sb, event(Level.INFO, "pool 1", "hello world", kvs, null));
 		String expected = "time=" + E + "36m2026-10-05T15:04:05.123Z" + R + " level=" + E + "1;34mINFO" + R + " logger="
-				+ E + "35mcom.example.App" + R + " thread=" + E + "2;39m\"pool 1\"" + R + " msg=\"hello world\" " + E
-				+ "2;39mrequestId=42" + R + "\n";
+				+ E + "35mcom.example.App" + R + " threadId=" + E + "2;39m1" + R + " threadName=" + E
+				+ "2;39m\"pool 1\"" + R + " msg=\"hello world\" " + E + "2;39mrequestId=42" + R + "\n";
 		assertEquals(expected, sb.toString());
 	}
 
@@ -203,7 +209,8 @@ class LogfmtFormatterTest {
 			.build()
 			.format(sb, event(Level.WARNING, "main", "x", KeyValues.of(), null));
 		String expected = "time=" + E + "36m2026-10-05T15:04:05.123Z" + R + " level=" + E + "1;31mWARN" + R
-				+ "  logger=" + E + "35mcom.example.App" + R + " thread=" + E + "2;39mmain" + R + " msg=x\n";
+				+ "  logger=" + E + "35mcom.example.App" + R + " threadId=" + E + "2;39m1" + R + " threadName=" + E
+				+ "2;39mmain" + R + " msg=x\n";
 		assertEquals(expected, sb.toString());
 	}
 
@@ -214,7 +221,8 @@ class LogfmtFormatterTest {
 			.theme(TTLL.ColorTheme.ONE_DARK)
 			.build()
 			.format(sb, event(Level.INFO, "main", "x", KeyValues.of(), null));
-		assertEquals("time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=x\n",
+		assertEquals(
+				"time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg=x\n",
 				sb.toString());
 	}
 
@@ -222,7 +230,7 @@ class LogfmtFormatterTest {
 	@CsvSource(delimiter = '|', value = { //
 			"name|thread=main", //
 			"id|threadId=1", //
-			"both|threadName=\"pool 1\" threadId=1", //
+			"both|threadId=1 threadName=\"pool 1\"", //
 			"none|" })
 	void threadProperty(String thread, @Nullable String fields) {
 		String properties = "logging.appenders=list\nlogging.appender.list.output.uri=list\n"

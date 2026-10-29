@@ -529,12 +529,12 @@ class TTLLFormatterTest {
 							""".replace("LEVEL", start + String.format(Locale.ROOT, "%-5s", text) + end);
 					case "logfmt" ->
 						"""
-								time=2026-10-05T12:00:00.123Z level=LEVEL logger=com.example.App thread=main msg="hello world"
+								time=2026-10-05T12:00:00.123Z level=LEVEL logger=com.example.App threadId=7 threadName=main msg="hello world"
 								"""
 							.replace("LEVEL", start + text + end);
 					case "json5" ->
 						"""
-								{time:"2026-10-05T12:00:00.123Z",level:LEVEL,logger:"com.example.App",thread:"main",msg:"hello world"}
+								{time:"2026-10-05T12:00:00.123Z",level:LEVEL,logger:"com.example.App",threadId:"7",threadName:"main",msg:"hello world"}
 								"""
 							.replace("LEVEL", start + "\"" + text + "\"" + end + (text.length() < 5 ? " " : ""));
 					default -> throw new AssertionError(scheme);
