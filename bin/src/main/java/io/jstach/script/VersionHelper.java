@@ -623,7 +623,7 @@ record Version(int major, int minor, int patch, boolean snapshot) implements Com
 
 	static final Pattern pattern = Pattern.compile("v?([0-9]+).([0-9]+).([0-9]+)(-SNAPSHOT)?");
 	static final Comparator<Version> COMPARATOR = Comparator.comparingInt(Version::major)
-			.thenComparingInt(Version::minor).thenComparingInt(Version::patch).thenComparing(Version::snapshot);
+			.thenComparingInt(Version::minor).thenComparingInt(Version::patch).thenComparing(v -> !v.snapshot());
 
 	static Version of(String s) {
 		Matcher m = pattern.matcher(s);
