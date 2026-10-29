@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.format;
 
+import java.util.Set;
+
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
@@ -31,11 +33,23 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 
 	private final LevelFormatter levelFormatter;
 
+	private final ThreadFields thread;
+
 	private final Palette palette;
 
-	private LogfmtFormatter(LevelFormatter levelFormatter, Palette palette) {
+	/*
+	 * A key value named like a field written here gets a keyValues. prefix, as in the
+	 * JSON encoders, so no key is written twice.
+	 */
+	private final KeyValuesConsumer<StringBuilder> keyValues;
+
+	private LogfmtFormatter(LevelFormatter levelFormatter, ThreadFields thread, Palette palette) {
 		this.levelFormatter = levelFormatter;
+		this.thread = thread;
 		this.palette = palette;
+		Set<String> fields = Json5Formatter.fields(thread);
+		this.keyValues = (kvs, key, value, count, output) -> LogfmtKeyValuesFormatter.ALL.accept(kvs,
+				collides(fields, key) ? Json5Formatter.KEY_VALUES_FIELD + "." + key : key, value, count, output);
 	}
 
 	/**
@@ -45,6 +59,8 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * Each event is written as one line, for example:
 	 * <code>time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg="hello world" requestId=42</code>
 	 * <ul>
+	 * <li>The thread fields are chosen with {@link ThreadFields}, by default
+	 * <code>thread</code>.</li>
 	 * <li><code>time</code> is the UTC instant with milliseconds.</li>
 	 * <li><code>level</code> is written by the level formatter, by default
 	 * <code>TRACE</code>, <code>DEBUG</code>, <code>INFO</code>, <code>WARN</code>, or
@@ -69,6 +85,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * @param name encoder name, used for property lookup.
 	 * @param levelFormatter level formatter; as a property, a level formatter constant
 	 * name.
+	 * @param thread which thread fields, see {@link ThreadFields}.
 	 * @param color whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme which colors, see {@link TTLL.ColorTheme}.
 	 * @param serviceRegistry where themes chosen by name in properties are looked up.
@@ -77,11 +94,17 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	@LogConfigurable(name = "LogfmtFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "logfmt.")
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL_FORMATTER") @LogConfigurable.ConvertParameter("convertLevelFormatter") LevelFormatter levelFormatter,
+			@LogConfigurable.DefaultParameter(
+					constant = "NAME") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
-		return new LogfmtFormatter(levelFormatter, Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
+		return new LogfmtFormatter(levelFormatter, thread, Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
 				PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
+	}
+
+	static ThreadFields convertThread(String value) {
+		return ThreadFields.parse(value);
 	}
 
 	static TTLL.ColorMode convertColor(String value) {
@@ -113,16 +136,8 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 
 	}
 
-	/*
-	 * A key value named like a field written here gets a keyValues. prefix, as in the
-	 * JSON encoders, so no key is written twice.
-	 */
-	private static final KeyValuesConsumer<StringBuilder> KEY_VALUES = (kvs, key, value, count,
-			output) -> LogfmtKeyValuesFormatter.ALL.accept(kvs,
-					collides(key) ? Json5Formatter.KEY_VALUES_FIELD + "." + key : key, value, count, output);
-
-	private static boolean collides(String key) {
-		return Json5Formatter.FIELDS.contains(key) || key.startsWith(Json5Formatter.KEY_VALUES_FIELD + ".");
+	private static boolean collides(Set<String> fields, String key) {
+		return fields.contains(key) || key.startsWith(Json5Formatter.KEY_VALUES_FIELD + ".");
 	}
 
 	@Override
@@ -146,10 +161,16 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 		Palette.start(output, p.logger());
 		LogfmtKeyValuesFormatter.appendValue(output, event.loggerName());
 		Palette.end(output, p.logger());
-		output.append(" thread=");
-		Palette.start(output, p.thread());
-		LogfmtKeyValuesFormatter.appendValue(output, event.threadName());
-		Palette.end(output, p.thread());
+		switch (thread) {
+			case NAME -> appendThreadName(output, " thread=", event);
+			case ID -> appendThreadId(output, event);
+			case BOTH -> {
+				appendThreadName(output, " threadName=", event);
+				appendThreadId(output, event);
+			}
+			case NONE -> {
+			}
+		}
 		output.append(" msg=");
 		int start = output.length();
 		event.formattedMessage(output);
@@ -158,7 +179,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 		if (!keyValues.isEmpty()) {
 			output.append(' ');
 			Palette.start(output, p.keyValues());
-			keyValues.forEach(KEY_VALUES, 0, output);
+			keyValues.forEach(this.keyValues, 0, output);
 			Palette.end(output, p.keyValues());
 		}
 		var throwable = event.throwableOrNull();
@@ -172,6 +193,20 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 			LogfmtKeyValuesFormatter.quoteInPlace(output, start);
 		}
 		output.append('\n');
+	}
+
+	private void appendThreadName(StringBuilder output, String key, LogEvent event) {
+		output.append(key);
+		Palette.start(output, palette.thread());
+		LogfmtKeyValuesFormatter.appendValue(output, event.threadName());
+		Palette.end(output, palette.thread());
+	}
+
+	private void appendThreadId(StringBuilder output, LogEvent event) {
+		output.append(" threadId=");
+		Palette.start(output, palette.thread());
+		output.append(event.threadId());
+		Palette.end(output, palette.thread());
 	}
 
 	private static void trimTrailingLineBreaks(StringBuilder sb, int start) {

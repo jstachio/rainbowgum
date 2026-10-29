@@ -1322,7 +1322,8 @@ time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg=
 Key values follow the message; one named like a field the encoder writes gets a <code>keyValues.</code>
 prefix (<code>keyValues.level=debug</code>). A throwable adds <code>error</code> and <code>stacktrace</code> with line
 breaks escaped so every event stays on one line. See {@link io.jstach.rainbowgum.format.LogfmtFormatterBuilder}, which also sets the level format, for example
-<code>logging.appender.myappender.encoder.logfmt.levelFormatter=right_pad_level_formatter</code>.
+<code>logging.appender.myappender.encoder.logfmt.levelFormatter=right_pad_level_formatter</code>,
+and the thread fields with <code>thread</code>, as in the <a href="#core_json">JSON5 formatter</a>.
 
 <p>
 Values are colored with the same <code>color</code> and <code>theme</code> properties as the
@@ -1350,8 +1351,8 @@ It is named <code>json5</code>, and writes JSON5 by default, so it is not mistak
 other text formatters it is mostly for people reading logs, and the <a href="#json_encoders">JSON encoders</a> are
 for JSON logging.
 
-The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code>,
-<code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
+The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code>
+(see <code>thread</code> below), <code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
 <code>null</code> for a key value without one. Properties of the encoder:
 
 <ul>
@@ -1363,6 +1364,10 @@ keyValues}: <code>merged</code> (default) writes key values alongside the event'
 logfmt and most aggregators expect, and places any key value named like one of those fields in a nested
 <code>keyValues</code> object instead, so nothing is dropped, renamed, or written twice; <code>nested</code> always
 writes them in the <code>keyValues</code> object (<code>{}</code> when there are none); <code>none</code> leaves them
+out.</li>
+<li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#thread(io.jstach.rainbowgum.format.ThreadFields)
+thread}: <code>name</code> (default) writes <code>thread</code>; <code>id</code> writes <code>threadId</code>;
+<code>both</code> writes <code>threadName</code> and <code>threadId</code>; <code>none</code> leaves the thread
 out.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#prettyPrint(io.jstach.rainbowgum.format.Json5PrettyPrint)
 prettyPrint}: <code>level_padding</code> (default) pads after the level's closing quote so the fields after it line

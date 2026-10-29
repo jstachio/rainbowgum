@@ -218,4 +218,40 @@ class LogfmtFormatterTest {
 				sb.toString());
 	}
 
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"name|thread=main", //
+			"id|threadId=1", //
+			"both|threadName=\"pool 1\" threadId=1", //
+			"none|" })
+	void threadProperty(String thread, @Nullable String fields) {
+		String properties = "logging.appenders=list\nlogging.appender.list.output.uri=list\n"
+				+ "logging.appender.list.encoder.uri=logfmt\nlogging.appender.list.encoder.logfmt.thread=" + thread
+				+ "\n";
+		var output = new ListLogOutput();
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
+		config.outputRegistry().register("list", ref -> LogProvider.of(output));
+		String threadName = thread.equals("both") ? "pool 1" : "main";
+		try (var g = RainbowGum.builder(config).build().start()) {
+			g.log(event(Level.INFO, threadName, "hello", KeyValues.of(), null));
+		}
+		assertEquals("time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App "
+				+ (fields == null ? "" : fields + " ") + "msg=hello\n", output.toString());
+	}
+
+	@Test
+	void keyValuesNamedLikeTheChosenThreadFieldsArePrefixed() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("thread", "t");
+		kvs.putKeyValue("threadId", "i");
+		var sb = new StringBuilder();
+		new LogfmtFormatterBuilder("test").thread(ThreadFields.ID)
+			.build()
+			.format(sb, event(Level.INFO, "main", "hello", kvs, null));
+		assertEquals("""
+				time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 msg=hello \
+				thread=t keyValues.threadId=i
+				""", sb.toString());
+	}
+
 }

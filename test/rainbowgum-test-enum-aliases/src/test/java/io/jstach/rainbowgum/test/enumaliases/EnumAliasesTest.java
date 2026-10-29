@@ -95,6 +95,7 @@ class EnumAliasesTest {
 				"io.jstach.rainbowgum.format.TTLL$LoggerFormat", //
 				"io.jstach.rainbowgum.format.TTLL$ThreadFormat", //
 				"io.jstach.rainbowgum.format.TTLL$TimestampFormat", //
+				"io.jstach.rainbowgum.format.ThreadFields", //
 				"io.jstach.rainbowgum.pattern.format.PatternConfig$CacheType", //
 				"io.jstach.rainbowgum.simple.props.SimpleProperties$LevelFileType", //
 				"io.jstach.rainbowgum.simple.props.SimpleProperties$StrictType", //
