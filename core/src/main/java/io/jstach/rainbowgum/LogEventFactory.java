@@ -87,6 +87,11 @@ public interface LogEventFactory {
 	 * @apiNote this maybe empty and often is if virtual threads are used.
 	 */
 	default String threadName() {
+		/*
+		 * TODO Only here is it known whether the thread is virtual: an event does not
+		 * hold the thread, so encoders, possibly on another thread, cannot tell. Consider
+		 * doing something with the name here, since a virtual thread's is usually empty.
+		 */
 		return Thread.currentThread().getName();
 	}
 

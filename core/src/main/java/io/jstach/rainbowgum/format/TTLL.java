@@ -112,6 +112,24 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Thread name, or the thread id when the name is empty, as it usually is for a
+		 * virtual thread: <code>[main]</code> or <code>[7]</code>.
+		 */
+		NAME_OR_ID {
+			@Override
+			public LogFormatter formatter() {
+				return (LogFormatter.EventFormatter) (output, event) -> {
+					String name = event.threadName();
+					if (name.isEmpty()) {
+						output.append(event.threadId());
+					}
+					else {
+						output.append(name);
+					}
+				};
+			}
+		},
+		/**
 		 * Thread id and name, each in its own square brackets: <code>[7][main]</code>.
 		 * The closing and opening bracket between them are part of this formatter, since
 		 * the thread part adds the outer ones.

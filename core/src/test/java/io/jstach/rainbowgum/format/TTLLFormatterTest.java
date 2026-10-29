@@ -90,6 +90,7 @@ class TTLLFormatterTest {
 			"timestamp=HH:mm|12:00 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=id|12:00:00.123 [7] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=both|12:00:00.123 [7][main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=name_or_id|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=none|12:00:00.123 INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"level=plain|12:00:00.123 [main] INFO com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"level=bracketed|12:00:00.123 [main] [INFO] com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
@@ -225,6 +226,15 @@ class TTLLFormatterTest {
 	}
 
 	@Test
+	void nameOrIdWritesTheIdWhenTheNameIsEmpty() {
+		var unnamed = LogEvent.of(TIME, "", 7, Level.INFO, "com.example.App", "hello world", KeyValues.of(), null);
+		assertEquals("12:00:00.123 [7] INFO  com.example.App - hello world\n",
+				log("ttll", "logging.appender.list.encoder.ttll.thread=name_or_id\n", unnamed));
+		assertEquals("12:00:00.123 [] INFO  com.example.App - hello world\n",
+				log("ttll", "logging.appender.list.encoder.ttll.thread=name\n", unnamed));
+	}
+
+	@Test
 	void bothThreadIsColoredAsOnePart() {
 		String actual = log("ttll",
 				"logging.appender.list.encoder.ttll.color=force\nlogging.appender.list.encoder.ttll.thread=both\n",
@@ -243,7 +253,7 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.appender.list.encoder.ttll.thread' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.thread], \
-				'group' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'both', 'none', 'true', 'false', 'default'""";
+				'group' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'name_or_id', 'both', 'none', 'true', 'false', 'default'""";
 		assertEquals(expected, e.getMessage());
 	}
 
