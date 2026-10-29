@@ -348,8 +348,9 @@ public sealed interface TTLL permits TTLLFormatter {
 	 * event's own key values:
 	 * <code>12:00:00.123 INFO  com.example.App {thread=main&amp;requestId=42} -
 	 * hello</code>. They are not added to the event's key values, so an event key value
-	 * with the same name is written as well. The braces are then always written, and
-	 * {@link #NONE} is not allowed, nor is an order that leaves out the key values.
+	 * with the same name is written as well. The braces are then always written, whatever
+	 * {@link KeyValuesWhenEmpty} says. {@link #NONE} is not allowed, nor is an order that
+	 * leaves out the key values or the part set to <code>key_value</code>.
 	 */
 	@CaseChanging
 	enum KeyValuesFormat {
@@ -415,7 +416,9 @@ public sealed interface TTLL permits TTLLFormatter {
 	}
 
 	/**
-	 * Whether the key values braces are written when an event has no key values.
+	 * Whether the key values braces are written when an event has no key values. A part
+	 * set to <code>key_value</code> is always written inside the braces, so they are
+	 * never empty and this has no effect.
 	 */
 	@CaseChanging
 	enum KeyValuesWhenEmpty {
@@ -455,6 +458,11 @@ public sealed interface TTLL permits TTLLFormatter {
 	 * are written: <code>order=level,timestamp,logger,keyValues</code>. Parts not listed
 	 * are left out, and a part may be listed only once. The default is every part in the
 	 * order of these constants.
+	 * <p>
+	 * A part set to <code>key_value</code> is written inside the key values braces, in
+	 * its place in the order among the other such parts, so the order must list both it
+	 * and the key values: <code>order=level,keyValues</code> with
+	 * <code>level=key_value</code> writes <code>{level=INFO} - hello</code>.
 	 */
 	@CaseChanging
 	enum Part {

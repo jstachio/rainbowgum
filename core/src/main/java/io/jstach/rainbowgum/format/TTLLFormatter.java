@@ -121,19 +121,43 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 			case KEY_VALUES -> keyValues;
 		};
 		var seen = EnumSet.noneOf(TTLL.Part.class);
-		var fields = new ArrayList<KeyValueField>();
 		for (var p : order) {
 			if (!seen.add(p)) {
-				throw new IllegalArgumentException("order lists " + p.name().toLowerCase(Locale.ROOT)
-						+ " more than once: " + order.stream().map(o -> o.name().toLowerCase(Locale.ROOT)).toList());
+				throw new IllegalArgumentException(
+						"order lists " + partName(p) + " more than once: " + partNames(order));
 			}
+		}
+		var fieldParts = new ArrayList<TTLL.Part>();
+		for (var p : TTLL.Part.values()) {
+			if (!(configured.apply(p) instanceof KeyValueField)) {
+				continue;
+			}
+			if (!seen.contains(p)) {
+				throw new IllegalArgumentException(partName(p) + "=key_value but order leaves out " + partName(p) + ": "
+						+ partNames(order) + ". Add " + partName(p) + " to order, or use " + partName(p)
+						+ "=none to leave it out.");
+			}
+			fieldParts.add(p);
+		}
+		var fields = new ArrayList<KeyValueField>();
+		for (var p : order) {
 			if (configured.apply(p) instanceof KeyValueField field) {
 				fields.add(field);
 			}
 		}
-		if (!fields.isEmpty() && (keyValues.isNoop() || !seen.contains(TTLL.Part.KEY_VALUES))) {
-			throw new IllegalArgumentException("A part set to key_value needs keyValues=percent, json, or json5, "
-					+ "and keyValues in order, since it is written among the key values.");
+		if (!fieldParts.isEmpty()) {
+			String set = String.join(" and ", fieldParts.stream().map(p -> partName(p) + "=key_value").toList());
+			String needs = fieldParts.size() == 1 ? " needs " : " need ";
+			String since = fieldParts.size() == 1 ? ", since it is written among the key values"
+					: ", since they are written among the key values";
+			if (keyValues.isNoop()) {
+				throw new IllegalArgumentException(
+						set + needs + "keyValues=percent, json, or json5, not none" + since + ".");
+			}
+			if (!seen.contains(TTLL.Part.KEY_VALUES)) {
+				throw new IllegalArgumentException(
+						set + needs + "keyValues in order" + since + ": " + partNames(order) + ".");
+			}
 		}
 		/*
 		 * The parts are added in order to one builder, so the line is one flat list of
@@ -247,6 +271,14 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 
 	static TTLL.ColorTheme convertTheme(String value) {
 		return PaletteColorTheme.parse(value);
+	}
+
+	private static String partName(TTLL.Part part) {
+		return part.name().toLowerCase(Locale.ROOT);
+	}
+
+	private static List<String> partNames(List<TTLL.Part> order) {
+		return order.stream().map(TTLLFormatter::partName).toList();
 	}
 
 	static List<TTLL.Part> convertOrder(String value) {

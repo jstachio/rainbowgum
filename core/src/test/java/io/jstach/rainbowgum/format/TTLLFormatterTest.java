@@ -302,24 +302,53 @@ class TTLLFormatterTest {
 						logging.appender.list.encoder.ttll.thread=key_value
 						logging.appender.list.encoder.ttll.level=key_value
 						""", event(requestKeyValues())));
-		assertEquals("com.example.App {requestId=42&user=Ada%20Lovelace} - hello world\n", log("ttll", """
-				logging.appender.list.encoder.ttll.order=logger,keyValues
-				logging.appender.list.encoder.ttll.thread=key_value
+		assertEquals("{level=INFO&requestId=42&user=Ada%20Lovelace} - hello world\n", log("ttll", """
+				logging.appender.list.encoder.ttll.order=level,keyValues
+				logging.appender.list.encoder.ttll.level=key_value
 				""", event(requestKeyValues())));
+	}
+
+	@Test
+	void keyValuePartLeftOutOfOrderFails() {
+		var properties = LogProperties.builder()
+			.fromProperties(
+					"logging.appender.list.encoder.ttll.thread=key_value\nlogging.appender.list.encoder.ttll.order=logger,keyValues")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				thread=key_value but order leaves out thread: [logger, key_values]. \
+				Add thread to order, or use thread=none to leave it out.""", e.getMessage());
 	}
 
 	@Test
 	void keyValuePartWithKeyValuesNotInOrderFails() {
 		var properties = LogProperties.builder()
 			.fromProperties(
-					"logging.appender.list.encoder.ttll.thread=key_value\nlogging.appender.list.encoder.ttll.order=thread,logger")
+					"logging.appender.list.encoder.ttll.level=key_value\nlogging.appender.list.encoder.ttll.order=level")
 			.build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
 		assertEquals("""
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
-				A part set to key_value needs keyValues=percent, json, or json5, \
-				and keyValues in order, since it is written among the key values.""", e.getMessage());
+				level=key_value needs keyValues in order, since it is written among the key values: \
+				[level].""", e.getMessage());
+	}
+
+	@Test
+	void keyValuePartsWithKeyValuesNotInOrderNameEveryPart() {
+		var properties = LogProperties.builder().fromProperties("""
+				logging.appender.list.encoder.ttll.level=key_value
+				logging.appender.list.encoder.ttll.thread=key_value
+				logging.appender.list.encoder.ttll.order=level,thread,logger
+				""").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				thread=key_value and level=key_value need keyValues in order, \
+				since they are written among the key values: [level, thread, logger].""", e.getMessage());
 	}
 
 	@Test
@@ -332,8 +361,8 @@ class TTLLFormatterTest {
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
 		assertEquals("""
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
-				A part set to key_value needs keyValues=percent, json, or json5, \
-				and keyValues in order, since it is written among the key values.""", e.getMessage());
+				thread=key_value needs keyValues=percent, json, or json5, not none, \
+				since it is written among the key values.""", e.getMessage());
 	}
 
 	@Test
