@@ -19,10 +19,10 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
 import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder.Format;
 
 /*
- * Each event as one JSON5 (or JSON) object, with logfmt's field names. Named json5 rather
- * than json so it is not mistaken for the way to log JSON, which is the rainbowgum-json
- * encoders. Package private: the public API is the generated Json5FormatterBuilder and the
- * json5 encoder scheme.
+ * Each event as one JSON5 (or JSON) object, with logfmt's field names. JSON5 by default
+ * so it is not mistaken for the way to log JSON, which is the rainbowgum-json encoders.
+ * Package private: the public API is the generated Json5FormatterBuilder and the json5
+ * and json encoder schemes.
  */
 final class Json5Formatter implements LogFormatter.EventFormatter {
 

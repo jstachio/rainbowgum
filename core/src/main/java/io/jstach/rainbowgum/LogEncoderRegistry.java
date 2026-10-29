@@ -12,6 +12,7 @@ import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.TTLL;
 import io.jstach.rainbowgum.format.Json5FormatterBuilder;
+import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder;
 import io.jstach.rainbowgum.format.LogfmtFormatterBuilder;
 import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
@@ -57,6 +58,12 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 */
 	static final String JSON5_SCHEME = "json5";
 
+	/*
+	 * The core JSON5 encoder with format=json by default. It reads the json5 encoder's
+	 * properties.
+	 */
+	static final String JSON_SCHEME = "json";
+
 	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	/**
@@ -77,6 +84,12 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 				ref -> (name, config) -> LogEncoder
 					.of(json5(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
+		registry
+			.register(JSON_SCHEME,
+					ref -> (name,
+							config) -> LogEncoder.of(json5(name, config).format(KeyValuesFormatterBuilder.Format.JSON)
+								.fromProperties(config.properties(), ref)
+								.build()).provide(name, config));
 		return registry;
 	}
 

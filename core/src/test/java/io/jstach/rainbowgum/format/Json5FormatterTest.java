@@ -148,6 +148,22 @@ class Json5FormatterTest {
 	}
 
 	@Test
+	void jsonEncoderSchemeIsJson5WithJsonFormat() {
+		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
+				log("json", "", event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + ",\"keyValues\":{\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}}\n",
+				log("json", "logging.appender.list.encoder.json5.keyValues=nested\n",
+						event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + "}\n",
+				log("json:///?keyValues=false", "", event("hello world", requestKeyValues(), null)));
+		assertEquals(
+				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",thread:\"main\","
+						+ "msg:\"hello world\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
+				log("json", "logging.appender.list.encoder.json5.format=json5\n",
+						event("hello world", requestKeyValues(), null)));
+	}
+
+	@Test
 	void nonJsonFormatFails() {
 		var properties = LogProperties.builder()
 			.fromProperties("logging.appender.list.encoder.json5.format=percent")

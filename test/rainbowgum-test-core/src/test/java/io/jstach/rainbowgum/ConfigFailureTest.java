@@ -136,7 +136,7 @@ class ConfigFailureTest {
 				logging.appender.myapp.encoder.uri=bogus:///
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'. Registered encoder schemes: 'fake', 'json5', 'logfmt', 'ttll'
+						Error for property. key: 'logging.appender.myapp.encoder.uri' from PROPERTIES_STRING[logging.appender.myapp.encoder.uri], NotFoundException No encoder found. Scheme not registered. scheme: 'bogus', URI: 'bogus:///'. Registered encoder schemes: 'fake', 'json', 'json5', 'logfmt', 'ttll'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 

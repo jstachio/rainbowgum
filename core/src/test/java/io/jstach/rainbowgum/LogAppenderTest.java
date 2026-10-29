@@ -45,7 +45,7 @@ class LogAppenderTest {
 				"""
 						Error for property. key: 'logging.appender.a.encoder.uri' from PROPERTIES_STRING[logging.appender.a.encoder.uri], \
 						NotFoundException No encoder found. Scheme not registered. scheme: 'missing-encoder', URI: 'missing-encoder:///'. \
-						Registered encoder schemes: 'json5', 'logfmt', 'ttll'
+						Registered encoder schemes: 'json', 'json5', 'logfmt', 'ttll'
 						  ↳ Failure providing Appender: 'a' from property: Property[logging.appenders]=[a].
 						  ↳ Failure providing Appenders for route: 'default'.""",
 				e.getMessage());
