@@ -34,20 +34,40 @@ deployed in place of a real build.
 
 ### Deploying Releases
 
-Here is the process for **release**:
+A release is committed and tagged on its own branch, `release/vX.Y.Z`, which is pushed before the deploy.
+If Central rejects the deploy, the fix goes on that branch and `main` is untouched.
+Once the deploy succeeds, `main` is fast-forwarded to the branch.
 
-1. Edit `version.properties` to the desired release version by calling:
+1. On an up to date `main` with no changes, run `bin/vh release X.Y.Z`. It:
+    1. checks the version (see below);
+    1. writes `version.properties`, and for a minor or major release bumps the poms to the next snapshot;
+    1. commits that as `Release vX.Y.Z` on `release/vX.Y.Z`, tags it `vX.Y.Z`, and pushes the branch and tag;
+    1. sets the poms to the release version. **DO NOT CHECKIN THE ALTERED POMS**
+1. Run the deploy it prints, which asks for the GPG passphrase:
+   `./mvnw clean deploy -T1 -Duser.timezone=UTC -Ddeploy=release`
+1. Once the deploy succeeds, run `bin/vh finish`. It restores the poms and pushes `release/vX.Y.Z` to `main`,
+   which only works as a fast-forward. If `main` moved during the release, it stops: merge the release branch
+   into `main` yourself or leave it unmerged, since the tag is already pushed.
+1. Delete the release branch with the command `bin/vh finish` prints.
 
-  1. `bin/vh set current NEW_VERSION` 
+The version checks, which `--force` skips except for the snapshot rules:
 
-1. If this is not a patch release you will need to update the pom to a later snapshot
-   
-  1. `bin/vh set pom VERSION-SNAPSHOT` # where VERSION is the new minor/major version
+* The release must be the next patch, minor, or major version after the newest tag.
+* A minor or major release must be the version the pom is building, so `0.17.0` when the pom is
+  `0.17.0-SNAPSHOT`. Before 1.0 a minor release is also allowed when the pom is `1.0.0-SNAPSHOT`.
+* The pom after the release must be the next minor snapshot, or `1.0.0-SNAPSHOT` before 1.0.
+  A minor or major release bumps to the next minor snapshot by default, and `--next 1.0.0` picks
+  `1.0.0-SNAPSHOT` instead. A new major snapshot after 1.0, for example `--next 2.0.0`, needs `--force`.
 
-1. Checkin the file `version.properties` (and pom file if minor or major version change). It will serve as the commit for tagging reproducible builds.
-1. run `bin/vh release` which will tag and temporarily update the pom for release. **DO NOT CHECKIN THE ALTERED POM**
-1. Run the commands it tells you to run
+#### If Central rejects the deploy
 
+Nothing was published, so the version can be reused. On `release/vX.Y.Z`:
+
+1. Restore the poms with `git checkout .`, then commit the fix.
+1. Move the tag to the fix and push both:
+   `git tag -f -a -m 'release X.Y.Z' vX.Y.Z && git push origin release/vX.Y.Z && git push -f origin refs/tags/vX.Y.Z`
+1. Set the poms to the release version again with `bin/vh set pom` and run the deploy.
+1. Run `bin/vh finish`.
 
 ### Updating Documentation
 
