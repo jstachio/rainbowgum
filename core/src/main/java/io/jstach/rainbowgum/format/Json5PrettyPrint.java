@@ -23,7 +23,7 @@ public enum Json5PrettyPrint {
 	LEVEL_PADDING,
 	/**
 	 * Level padding and a space after every comma:
-	 * <code>level:"INFO" , logger:"com.example.App", thread:...</code>.
+	 * <code>level:"INFO" , logger:"com.example.App", threadId:...</code>.
 	 */
 	SPACING,
 	/**

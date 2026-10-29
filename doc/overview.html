@@ -1316,7 +1316,7 @@ logging.appender.myappender.encoder.uri=logfmt
 }
 
 {@snippet :
-time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg="hello world" requestId=42
+time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg="hello world" requestId=42
 }
 
 Key values follow the message; one named like a field the encoder writes gets a <code>keyValues.</code>
@@ -1344,15 +1344,15 @@ logging.appender.console.encoder.uri=json5
 }
 
 {@snippet :
-{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}
+{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",msg:"hello world",requestId:"42"}
 }
 
 It is named <code>json5</code>, and writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
 other text formatters it is mostly for people reading logs, and the <a href="#json_encoders">JSON encoders</a> are
 for JSON logging.
 
-The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code>
-(see <code>thread</code> below), <code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
+The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>,
+<code>threadId</code> and <code>threadName</code> (see <code>thread</code> below), <code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
 <code>null</code> for a key value without one. Properties of the encoder:
 
 <ul>
@@ -1366,13 +1366,13 @@ logfmt and most aggregators expect, and places any key value named like one of t
 writes them in the <code>keyValues</code> object (<code>{}</code> when there are none); <code>none</code> leaves them
 out.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#thread(io.jstach.rainbowgum.format.ThreadFields)
-thread}: <code>name</code> (default) writes <code>thread</code>; <code>id</code> writes <code>threadId</code>;
-<code>both</code> writes <code>threadName</code> and <code>threadId</code>; <code>none</code> leaves the thread
-out.</li>
+thread}: <code>both</code> (default) writes <code>threadId</code> and <code>threadName</code>, since a virtual
+thread's name is usually empty; <code>name</code> writes <code>thread</code>; <code>id</code> writes
+<code>threadId</code>; <code>none</code> leaves the thread out.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#prettyPrint(io.jstach.rainbowgum.format.Json5PrettyPrint)
 prettyPrint}: <code>level_padding</code> (default) pads after the level's closing quote so the fields after it line
 up and the value stays the level name: <code>level:"INFO" ,logger:...</code>; <code>spacing</code> also adds a space
-after every comma: <code>level:"INFO" , logger:"com.example.App", thread:...</code>; <code>full</code> (or <code>true</code>) puts each
+after every comma: <code>level:"INFO" , logger:"com.example.App", threadId:...</code>; <code>full</code> (or <code>true</code>) puts each
 field on its own line, indented one space like the {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json} encoders' pretty print, so an event
 is no longer one line; <code>off</code> adds no whitespace.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#color(io.jstach.rainbowgum.format.TTLL.ColorMode) color}

@@ -117,15 +117,16 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * Formats each event as a JSON5 (or JSON) object, one line unless pretty printed in
 	 * full, for switching an application to structured logging without adding a module,
 	 * for example:
-	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}</code>.
+	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",msg:"hello world",requestId:"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
 	 * <code>level</code>, <code>logger</code>, the thread fields chosen with
-	 * {@link ThreadFields} (by default <code>thread</code>), <code>msg</code>, and for a
-	 * throwable <code>error</code> (its <code>toString()</code>) and
-	 * <code>stacktrace</code>. Every value, key values and thread id included, is a
-	 * string, or <code>null</code> for a key value without one. For a specific schema
-	 * (ECS, GELF, Logstash) and more options use the <code>rainbowgum-json</code> module.
+	 * {@link ThreadFields} (by default <code>threadId</code> and
+	 * <code>threadName</code>), <code>msg</code>, and for a throwable <code>error</code>
+	 * (its <code>toString()</code>) and <code>stacktrace</code>. Every value, key values
+	 * and thread id included, is a string, or <code>null</code> for a key value without
+	 * one. For a specific schema (ECS, GELF, Logstash) and more options use the
+	 * <code>rainbowgum-json</code> module.
 	 * <p>
 	 * With JSON5, values can be colored like the TTLL formatter, and by default the level
 	 * is padded after its closing quote so the value stays the level name:
@@ -148,7 +149,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter(
 					constant = "MERGED") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues,
 			@LogConfigurable.DefaultParameter(
-					constant = "NAME") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
+					constant = "BOTH") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
 			@LogConfigurable.DefaultParameter(
 					constant = "LEVEL_PADDING") @LogConfigurable.ConvertParameter("convertPrettyPrint") Json5PrettyPrint prettyPrint,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
@@ -222,8 +223,8 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			case NAME -> appendThreadName(output, "thread", event);
 			case ID -> appendThreadId(output, event);
 			case BOTH -> {
-				appendThreadName(output, "threadName", event);
 				appendThreadId(output, event);
+				appendThreadName(output, "threadName", event);
 			}
 			case NONE -> {
 			}

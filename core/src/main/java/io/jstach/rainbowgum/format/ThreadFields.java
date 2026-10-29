@@ -12,17 +12,19 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
 public enum ThreadFields {
 
 	/**
-	 * Thread name as <code>thread</code>. The default.
+	 * Thread name as <code>thread</code>.
 	 */
-	@EnumAlias({ "default", "true" })
+	@EnumAlias("true")
 	NAME,
 	/**
 	 * Thread id as <code>threadId</code>.
 	 */
 	ID,
 	/**
-	 * Thread name and id as <code>threadName</code> and <code>threadId</code>.
+	 * Thread id and name as <code>threadId</code> and <code>threadName</code>. The
+	 * default, since a virtual thread's name is usually empty.
 	 */
+	@EnumAlias("default")
 	BOTH,
 	/**
 	 * No thread.
@@ -37,14 +39,15 @@ public enum ThreadFields {
 		return switch (this) {
 			case NAME -> List.of("thread");
 			case ID -> List.of("threadId");
-			case BOTH -> List.of("threadName", "threadId");
+			case BOTH -> List.of("threadId", "threadName");
 			case NONE -> List.of();
 		};
 	}
 
 	static ThreadFields parse(String value) {
 		return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
-			case "default", "true" -> NAME;
+			case "default" -> BOTH;
+			case "true" -> NAME;
 			case "false" -> NONE;
 			default ->
 				io.jstach.rainbowgum.LogProperty.enumValue(ThreadFields.class, value, "true", "false", "default");

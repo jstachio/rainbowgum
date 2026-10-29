@@ -57,10 +57,10 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * text handler, selected with the logfmt encoder scheme.
 	 * <p>
 	 * Each event is written as one line, for example:
-	 * <code>time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App thread=main msg="hello world" requestId=42</code>
+	 * <code>time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg="hello world" requestId=42</code>
 	 * <ul>
 	 * <li>The thread fields are chosen with {@link ThreadFields}, by default
-	 * <code>thread</code>.</li>
+	 * <code>threadId</code> and <code>threadName</code>.</li>
 	 * <li><code>time</code> is the UTC instant with milliseconds.</li>
 	 * <li><code>level</code> is written by the level formatter, by default
 	 * <code>TRACE</code>, <code>DEBUG</code>, <code>INFO</code>, <code>WARN</code>, or
@@ -95,7 +95,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL_FORMATTER") @LogConfigurable.ConvertParameter("convertLevelFormatter") LevelFormatter levelFormatter,
 			@LogConfigurable.DefaultParameter(
-					constant = "NAME") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
+					constant = "BOTH") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
@@ -165,8 +165,8 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 			case NAME -> appendThreadName(output, " thread=", event);
 			case ID -> appendThreadId(output, event);
 			case BOTH -> {
-				appendThreadName(output, " threadName=", event);
 				appendThreadId(output, event);
+				appendThreadName(output, " threadName=", event);
 			}
 			case NONE -> {
 			}
