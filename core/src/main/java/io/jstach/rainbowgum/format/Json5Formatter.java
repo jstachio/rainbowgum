@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.format;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
@@ -28,10 +29,20 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	static final String KEY_VALUES_FIELD = "keyValues";
 
 	/*
-	 * The event's own fields, which merged key values must not repeat.
+	 * The event's own fields other than the thread's, which merged key values must not
+	 * repeat.
 	 */
-	static final Set<String> FIELDS = Set.of("time", "level", "logger", "thread", "msg", "error", "stacktrace",
+	private static final Set<String> FIELDS = Set.of("time", "level", "logger", "msg", "error", "stacktrace",
 			KEY_VALUES_FIELD);
+
+	/*
+	 * The event's own fields with the chosen thread's.
+	 */
+	static Set<String> fields(ThreadFields thread) {
+		var fields = new HashSet<>(FIELDS);
+		fields.addAll(thread.fields());
+		return Set.copyOf(fields);
+	}
 
 	/*
 	 * One space, the same as the rainbowgum-json encoders' pretty print.
@@ -43,6 +54,8 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	private final boolean json5;
 
 	private final KeyValuesPlacement keyValues;
+
+	private final ThreadFields thread;
 
 	private final LevelFormatter levelFormatter;
 
@@ -75,9 +88,11 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 
 	private final Members nestedColliding;
 
-	private Json5Formatter(boolean json5, KeyValuesPlacement keyValues, Json5PrettyPrint prettyPrint, Palette palette) {
+	private Json5Formatter(boolean json5, KeyValuesPlacement keyValues, ThreadFields thread,
+			Json5PrettyPrint prettyPrint, Palette palette) {
 		this.json5 = json5;
 		this.keyValues = keyValues;
+		this.thread = thread;
 		this.levelFormatter = switch (prettyPrint) {
 			case OFF, FULL -> LevelFormatter.of();
 			case LEVEL_PADDING, SPACING -> LevelFormatter.ofRightPadded();
@@ -92,9 +107,10 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 		this.open = full ? "{\n" + INDENT : "{";
 		this.close = full ? "\n}\n" : "}\n";
 		this.palette = palette;
-		this.flat = new Members(json5, separator, Members.Mode.FLAT);
-		this.nestedAll = new Members(json5, nestedSeparator, Members.Mode.NESTED_ALL);
-		this.nestedColliding = new Members(json5, nestedSeparator, Members.Mode.NESTED_COLLIDING);
+		var fields = fields(thread);
+		this.flat = new Members(json5, separator, Members.Mode.FLAT, fields);
+		this.nestedAll = new Members(json5, nestedSeparator, Members.Mode.NESTED_ALL, fields);
+		this.nestedColliding = new Members(json5, nestedSeparator, Members.Mode.NESTED_COLLIDING, fields);
 	}
 
 	/**
@@ -104,11 +120,12 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",thread:"main",msg:"hello world",requestId:"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
-	 * <code>level</code>, <code>logger</code>, <code>thread</code>, <code>msg</code>, and
-	 * for a throwable <code>error</code> (its <code>toString()</code>) and
-	 * <code>stacktrace</code>. Every value, key values included, is a string, or
-	 * <code>null</code> for a key value without one. For a specific schema (ECS, GELF,
-	 * Logstash) and more options use the <code>rainbowgum-json</code> module.
+	 * <code>level</code>, <code>logger</code>, the thread fields chosen with
+	 * {@link ThreadFields} (by default <code>thread</code>), <code>msg</code>, and for a
+	 * throwable <code>error</code> (its <code>toString()</code>) and
+	 * <code>stacktrace</code>. Every value, key values and thread id included, is a
+	 * string, or <code>null</code> for a key value without one. For a specific schema
+	 * (ECS, GELF, Logstash) and more options use the <code>rainbowgum-json</code> module.
 	 * <p>
 	 * With JSON5, values can be colored like the TTLL formatter, and by default the level
 	 * is padded after its closing quote so the value stays the level name:
@@ -117,6 +134,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * @param name encoder name, used for property lookup.
 	 * @param format JSON5 (default), which leaves identifier keys unquoted, or JSON.
 	 * @param keyValues where key values go, see {@link KeyValuesPlacement}.
+	 * @param thread which thread fields, see {@link ThreadFields}.
 	 * @param prettyPrint JSON5 only, added whitespace, see {@link Json5PrettyPrint}.
 	 * @param color JSON5 only, whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme JSON5 only, which colors, see {@link TTLL.ColorTheme}.
@@ -130,13 +148,15 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter(
 					constant = "MERGED") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues,
 			@LogConfigurable.DefaultParameter(
+					constant = "NAME") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
+			@LogConfigurable.DefaultParameter(
 					constant = "LEVEL_PADDING") @LogConfigurable.ConvertParameter("convertPrettyPrint") Json5PrettyPrint prettyPrint,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
 		return switch (format) {
-			case JSON -> new Json5Formatter(false, keyValues, Json5PrettyPrint.OFF, Palette.OFF);
-			case JSON5 -> new Json5Formatter(true, keyValues, prettyPrint,
+			case JSON -> new Json5Formatter(false, keyValues, thread, Json5PrettyPrint.OFF, Palette.OFF);
+			case JSON5 -> new Json5Formatter(true, keyValues, thread, prettyPrint,
 					Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
 							PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 			case PERCENT, LOGFMT -> throw new IllegalArgumentException(
@@ -150,6 +170,10 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 
 	static KeyValuesPlacement convertKeyValues(String value) {
 		return KeyValuesPlacement.parse(value);
+	}
+
+	static ThreadFields convertThread(String value) {
+		return ThreadFields.parse(value);
 	}
 
 	static Json5PrettyPrint convertPrettyPrint(String value) {
@@ -194,12 +218,16 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 		JsonKeyValuesFormatter.appendString(output, event.loggerName());
 		Palette.end(output, p.logger());
 		output.append(separator);
-		appendKey(output, "thread", json5);
-		output.append(':');
-		Palette.start(output, p.thread());
-		JsonKeyValuesFormatter.appendString(output, event.threadName());
-		Palette.end(output, p.thread());
-		output.append(separator);
+		switch (thread) {
+			case NAME -> appendThreadName(output, "thread", event);
+			case ID -> appendThreadId(output, event);
+			case BOTH -> {
+				appendThreadName(output, "threadName", event);
+				appendThreadId(output, event);
+			}
+			case NONE -> {
+			}
+		}
 		appendKey(output, "msg", json5);
 		output.append(':');
 		int start = output.length();
@@ -246,6 +274,24 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 		output.append(close);
 	}
 
+	private void appendThreadName(StringBuilder output, String key, LogEvent event) {
+		appendKey(output, key, json5);
+		output.append(':');
+		Palette.start(output, palette.thread());
+		JsonKeyValuesFormatter.appendString(output, event.threadName());
+		Palette.end(output, palette.thread());
+		output.append(separator);
+	}
+
+	private void appendThreadId(StringBuilder output, LogEvent event) {
+		appendKey(output, "threadId", json5);
+		output.append(':');
+		Palette.start(output, palette.thread());
+		output.append('"').append(event.threadId()).append('"');
+		Palette.end(output, palette.thread());
+		output.append(separator);
+	}
+
 	private void appendNested(StringBuilder output, KeyValues kvs, Members members) {
 		output.append(separator);
 		appendKey(output, KEY_VALUES_FIELD, json5);
@@ -269,7 +315,8 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * many it skipped; the nested modes write comma separated members and return how many
 	 * they wrote.
 	 */
-	record Members(boolean json5, String separator, Mode mode) implements KeyValuesConsumer<StringBuilder> {
+	record Members(boolean json5, String separator, Mode mode,
+			Set<String> fields) implements KeyValuesConsumer<StringBuilder> {
 
 		enum Mode {
 
@@ -279,7 +326,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 
 		@Override
 		public int accept(KeyValues values, String key, @Nullable String value, int count, StringBuilder output) {
-			boolean field = FIELDS.contains(key);
+			boolean field = fields.contains(key);
 			switch (mode) {
 				case FLAT -> {
 					if (field) {

@@ -8,6 +8,8 @@ import java.time.Instant;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
@@ -336,6 +338,66 @@ class Json5FormatterTest {
 				logging.appender.list.encoder.json5.color=force
 				logging.appender.list.encoder.json5.theme=spring
 				""", event("hello", KeyValues.of(), null)));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"name|\"thread\":\"main\",", //
+			"true|\"thread\":\"main\",", //
+			"id|\"threadId\":\"1\",", //
+			"both|\"threadName\":\"main\",\"threadId\":\"1\",", //
+			"none|", //
+			"false|" })
+	void threadProperty(String thread, @Nullable String fields) {
+		String properties = "logging.appender.list.encoder.json5.format=json\nlogging.appender.list.encoder.json5.thread="
+				+ thread + "\n";
+		assertEquals(
+				"{\"time\":\"2026-10-05T15:04:05.123Z\",\"level\":\"INFO\",\"logger\":\"com.example.App\","
+						+ (fields == null ? "" : fields)
+						+ "\"msg\":\"hello world\",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
+				log("json5", properties, event("hello world", requestKeyValues(), null)));
+	}
+
+	@Test
+	void keyValuesNamedLikeTheChosenThreadFieldsAreNested() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("thread", "t");
+		kvs.putKeyValue("threadId", "i");
+		kvs.putKeyValue("threadName", "n");
+		var json = new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON);
+		assertEquals("""
+				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App",\
+				"threadName":"main","threadId":"1","msg":"hello world","thread":"t",\
+				"keyValues":{"threadId":"i","threadName":"n"}}
+				""", format(json.thread(ThreadFields.BOTH).build(), event("hello world", kvs, null)));
+		assertEquals("""
+				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App",\
+				"msg":"hello world","thread":"t","threadId":"i","threadName":"n"}
+				""", format(json.thread(ThreadFields.NONE).build(), event("hello world", kvs, null)));
+	}
+
+	@Test
+	void threadFieldsAreColoredAsTheThread() {
+		var formatter = new Json5FormatterBuilder("test").thread(ThreadFields.BOTH).color(TTLL.ColorMode.FORCE).build();
+		String actual = format(formatter, event("hello world", KeyValues.of(), null));
+		assertEquals("threadName:\u001B[2;39m\"main\"\u001B[0;39m,threadId:\u001B[2;39m\"1\"\u001B[0;39m,",
+				actual.substring(actual.indexOf("threadName"), actual.indexOf("msg")));
+	}
+
+	@Test
+	void invalidThreadFails() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.appender.list.encoder.json5.thread=group")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new Json5FormatterBuilder("list").fromProperties(properties));
+		assertEquals(
+				"""
+						Validation failed for io.jstach.rainbowgum.format.Json5FormatterBuilder:
+						Error for property. key: 'logging.appender.list.encoder.json5.thread' from PROPERTIES_STRING[logging.appender.list.encoder.json5.thread], \
+						'group' is not a valid value for io.jstach.rainbowgum.format.ThreadFields. \
+						Valid values: 'name', 'id', 'both', 'none', 'true', 'false', 'default'""",
+				e.getMessage());
 	}
 
 }
