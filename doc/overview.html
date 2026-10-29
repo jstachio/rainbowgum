@@ -1360,12 +1360,12 @@ logging.appender.console.encoder.uri=json5
 
 It writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
 other text formatters it is mostly for people reading logs, and the <a href="#json_encoders">JSON encoders</a> are
-for JSON logging. The <code>json</code> encoder is the same encoder with <code>format=json</code>, and is configured
-with the <code>json5</code> properties below:
+for JSON logging. The <code>json</code> encoder writes the same fields as plain JSON. It has its own properties,
+of which only <code>keyValues</code> below applies:
 
 {@snippet lang=properties :
 logging.appender.console.encoder.uri=json
-logging.appender.console.encoder.json5.keyValues=nested
+logging.appender.console.encoder.json.keyValues=nested
 }
 
 The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>,
@@ -1404,7 +1404,7 @@ Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are neve
 This encoder is a convenience, not a replacement for {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json}: it has one fixed set of
 fields, no multi-line pretty printing, and no particular schema. For production structured logging, especially into a system
 that expects ECS, GELF, or Logstash fields, use that module's encoders instead. See
-{@link io.jstach.rainbowgum.format.Json5FormatterBuilder}.
+{@link io.jstach.rainbowgum.format.Json5FormatterBuilder} and {@link io.jstach.rainbowgum.format.JsonFormatterBuilder}.
 
 
 <h3 id="json_key_values_formatter">JSON Key Values Formatter</h3>
