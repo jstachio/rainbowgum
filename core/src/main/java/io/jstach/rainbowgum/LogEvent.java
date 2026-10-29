@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent.Caller;
+import io.jstach.rainbowgum.LogEvent.Rewriter;
 import io.jstach.rainbowgum.annotation.EnumAlias;
 
 /**
@@ -309,6 +310,18 @@ public sealed interface LogEvent {
 	}
 
 	/**
+	 * Creates an event whose message, key values or throwable come from the rewriter.
+	 * Everything else is the given event's.
+	 * @param event original event.
+	 * @param rewriter rewrites parts of the event.
+	 * @return rewritten event.
+	 * @see #withLevel(LogEvent, Level)
+	 */
+	public static LogEvent rewrite(LogEvent event, Rewriter rewriter) {
+		return new RewrittenLogEvent(event, rewriter);
+	}
+
+	/**
 	 * Timestamp when the event was created.
 	 * @return instant when the event was created.
 	 */
@@ -531,6 +544,49 @@ public sealed interface LogEvent {
 
 	}
 
+	/**
+	 * Rewrites parts of an event for {@link LogEvent#rewrite(LogEvent, Rewriter)}. Each
+	 * method is given the original event and by default returns that event's part
+	 * unchanged.
+	 * <p>
+	 * A rewritten event calls the rewriter every time a part is read, so a method may be
+	 * called more than once for the same event, and on another thread once the event is
+	 * {@linkplain LogEvent#freeze() frozen}. Methods must return the same result for the
+	 * same event, and returned key values must not change afterwards.
+	 */
+	public interface Rewriter {
+
+		/**
+		 * Appends the message of the rewritten event. The rewritten event has no message
+		 * arguments, so its {@link LogEvent#message()} is this message.
+		 * @param event original event.
+		 * @param sb string builder to append to.
+		 * @see LogEvent#formattedMessage(StringBuilder)
+		 */
+		default void formattedMessage(LogEvent event, StringBuilder sb) {
+			event.formattedMessage(sb);
+		}
+
+		/**
+		 * Key values of the rewritten event.
+		 * @param event original event.
+		 * @return key values.
+		 */
+		default KeyValues keyValues(LogEvent event) {
+			return event.keyValues();
+		}
+
+		/**
+		 * Throwable of the rewritten event.
+		 * @param event original event.
+		 * @return throwable or <code>null</code> for none.
+		 */
+		default @Nullable Throwable throwableOrNull(LogEvent event) {
+			return event.throwableOrNull();
+		}
+
+	}
+
 }
 
 record FrozenCallerInfo(String className, @Nullable String fileNameOrNull, int lineNumber,
@@ -739,7 +795,7 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
  * LogEvent method, defaults included, is forwarded here: a default left to run on the
  * wrapper would compute from the wrapper instead of the wrapped event.
  */
-sealed interface ForwardingLogEvent extends LogEvent permits StackFrameLogEvent, LevelLogEvent {
+sealed interface ForwardingLogEvent extends LogEvent permits StackFrameLogEvent, LevelLogEvent, RewrittenLogEvent {
 
 	LogEvent event();
 
@@ -858,6 +914,64 @@ record LevelLogEvent(LogEvent event, Level level) implements ForwardingLogEvent 
 	@Override
 	public LogEvent freeze(Instant timestamp) {
 		return new LevelLogEvent(event.freeze(timestamp), level);
+	}
+
+}
+
+record RewrittenLogEvent(LogEvent event, Rewriter rewriter) implements ForwardingLogEvent {
+
+	RewrittenLogEvent {
+		Objects.requireNonNull(event, "event");
+		Objects.requireNonNull(rewriter, "rewriter");
+	}
+
+	@Override
+	public String message() {
+		var sb = new StringBuilder();
+		formattedMessage(sb);
+		return sb.toString();
+	}
+
+	@Override
+	public @Nullable String messageOrNull() {
+		return hasMessage() ? message() : null;
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb) {
+		rewriter.formattedMessage(event, sb);
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb, String fallbackMessage) {
+		if (hasMessage()) {
+			formattedMessage(sb);
+		}
+		else {
+			sb.append(fallbackMessage);
+		}
+	}
+
+	@Override
+	public KeyValues keyValues() {
+		return rewriter.keyValues(event);
+	}
+
+	@Override
+	public @Nullable Throwable throwableOrNull() {
+		return rewriter.throwableOrNull(event);
+	}
+
+	@Override
+	@SuppressWarnings("ReferenceEquality")
+	public LogEvent freeze() {
+		var e = event.freeze();
+		return e == event ? this : new RewrittenLogEvent(e, rewriter);
+	}
+
+	@Override
+	public LogEvent freeze(Instant timestamp) {
+		return new RewrittenLogEvent(event.freeze(timestamp), rewriter);
 	}
 
 }

@@ -510,6 +510,83 @@ class LogEventTest {
 		assertEquals("An event cannot have level ALL.", e.getMessage());
 	}
 
+	@Test
+	void rewriteRewritesTheMessageAndKeepsEverythingElse() {
+		var keyValues = MutableKeyValues.of().add("k1", "v1");
+		var throwable = new RuntimeException("expected");
+		var event = LogEvent.ofAll(Instant.EPOCH, "main", 0, Level.WARNING, "logger", "Card {}!", keyValues, throwable,
+				LogMessageFormatter.StandardMessageFormatter.SLF4J, new Object[] { "4111111111111111" });
+		var rewritten = LogEvent.rewrite(event, new LogEvent.Rewriter() {
+			@Override
+			public void formattedMessage(LogEvent event, StringBuilder sb) {
+				var original = new StringBuilder();
+				event.formattedMessage(original);
+				sb.append(original.toString().replaceAll("[0-9](?=[0-9]{4})", "*"));
+			}
+		});
+		assertInstanceOf(RewrittenLogEvent.class, rewritten);
+		var sb = new StringBuilder();
+		rewritten.formattedMessage(sb);
+		assertEquals("Card ************1111!", sb.toString());
+		assertEquals("Card ************1111!", rewritten.message());
+		assertEquals("Card ************1111!", rewritten.messageOrNull());
+		assertTrue(rewritten.hasMessage());
+		sb.setLength(0);
+		rewritten.formattedMessage(sb, "fallback");
+		assertEquals("Card ************1111!", sb.toString());
+		assertEquals(Level.WARNING, rewritten.level());
+		assertEquals("logger", rewritten.loggerName());
+		assertSame(keyValues, rewritten.keyValues());
+		assertSame(throwable, assertInstanceOf(RuntimeException.class, rewritten.throwableOrNull()));
+		assertFreeze(rewritten);
+		assertEquals("Card ************1111!", rewritten.freeze().message());
+		assertEquals("Card ************1111!", rewritten.freeze(Instant.EPOCH).message());
+	}
+
+	@Test
+	void rewriteAddsAKeyValueAndDropsTheThrowable() {
+		var event = LogEvent.of(Instant.EPOCH, "main", 0, Level.WARNING, "logger", "Hello!",
+				MutableKeyValues.of().add("k1", "v1"), new RuntimeException("expected"));
+		var rewritten = LogEvent.rewrite(event, new LogEvent.Rewriter() {
+			@Override
+			public KeyValues keyValues(LogEvent event) {
+				return KeyValues.merge(event.keyValues(), KeyValues.of(Map.of("k2", "v2")));
+			}
+
+			@Override
+			public @Nullable Throwable throwableOrNull(LogEvent event) {
+				return null;
+			}
+		});
+		assertEquals(Map.of("k1", "v1", "k2", "v2"), rewritten.keyValues().copyToMap());
+		assertNull(rewritten.throwableOrNull());
+		assertEquals("Hello!", rewritten.message());
+		assertNull(rewritten.freeze().throwableOrNull());
+		assertEquals(Map.of("k1", "v1", "k2", "v2"), rewritten.freeze().keyValues().copyToMap());
+	}
+
+	@Test
+	void rewriteKeepsAMissingMessage() {
+		var event = LogEvent.of(Instant.EPOCH, "main", 0, Level.WARNING, "logger", null, KeyValues.of(), null);
+		var rewritten = LogEvent.rewrite(event, new LogEvent.Rewriter() {
+		});
+		assertFalse(rewritten.hasMessage());
+		assertNull(rewritten.messageOrNull());
+		var sb = new StringBuilder();
+		rewritten.formattedMessage(sb, "fallback");
+		assertEquals("fallback", sb.toString());
+	}
+
+	@Test
+	void rewriteFormatsTheMessageEvenWhenNotRewritten() {
+		var event = LogEvent.ofAll(Instant.EPOCH, "main", 0, Level.WARNING, "logger", "Hello {}!", KeyValues.of(), null,
+				LogMessageFormatter.StandardMessageFormatter.SLF4J, new Object[] { 1 });
+		var rewritten = LogEvent.rewrite(event, new LogEvent.Rewriter() {
+		});
+		assertEquals("Hello {}!", event.message());
+		assertEquals("Hello 1!", rewritten.message());
+	}
+
 	// Checker has junit stub inccorrect
 	private static void assertNotNull(@Nullable Object o) {
 		if (o == null) {
