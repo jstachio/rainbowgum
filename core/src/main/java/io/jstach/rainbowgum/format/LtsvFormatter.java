@@ -31,6 +31,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 
 	private final ThreadFields thread;
 
+	private final LtsvLabels labels;
+
 	private final Palette palette;
 
 	/*
@@ -39,8 +41,9 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 */
 	private final KeyValuesConsumer<StringBuilder> keyValues;
 
-	private LtsvFormatter(ThreadFields thread, Palette palette) {
+	private LtsvFormatter(ThreadFields thread, LtsvLabels labels, Palette palette) {
 		this.thread = thread;
+		this.labels = labels;
 		this.palette = palette;
 		Set<String> fields = Json5Formatter.fields(thread);
 		this.keyValues = (kvs, key, value, count, output) -> appendKeyValue(
@@ -58,6 +61,9 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <li>The labels are logfmt's field names. The thread fields are chosen with
 	 * {@link ThreadFields}, by default <code>threadId</code> and
 	 * <code>threadName</code>.</li>
+	 * <li>{@link LtsvLabels#KEY_VALUES} leaves the labels off the fields every event has,
+	 * so they are read by position:
+	 * <code>2026-10-05T15:04:05.123Z⇥INFO⇥com.example.App⇥1⇥main⇥hello world⇥requestId:42</code>.</li>
 	 * <li><code>time</code> is the UTC instant with milliseconds.</li>
 	 * <li><code>level</code> is <code>TRACE</code>, <code>DEBUG</code>,
 	 * <code>INFO</code>, <code>WARN</code>, or <code>ERROR</code>.</li>
@@ -80,6 +86,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <code>error</code>, and <code>stacktrace</code> are not.
 	 * @param name encoder name, used for property lookup.
 	 * @param thread which thread fields, see {@link ThreadFields}.
+	 * @param labels which fields have labels, see {@link LtsvLabels}.
 	 * @param color whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme which colors, see {@link TTLL.ColorTheme}.
 	 * @param serviceRegistry where themes chosen by name in properties are looked up.
@@ -89,15 +96,21 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
 			@LogConfigurable.DefaultParameter(
 					constant = "BOTH") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
+			@LogConfigurable.DefaultParameter(
+					constant = "ALL") @LogConfigurable.ConvertParameter("convertLabels") LtsvLabels labels,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
-		return new LtsvFormatter(thread, Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
+		return new LtsvFormatter(thread, labels, Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
 				PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 	}
 
 	static ThreadFields convertThread(String value) {
 		return ThreadFields.parse(value);
+	}
+
+	static LtsvLabels convertLabels(String value) {
+		return LtsvLabels.parse(value);
 	}
 
 	static TTLL.ColorMode convertColor(String value) {
@@ -115,30 +128,33 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	@Override
 	public void format(StringBuilder output, LogEvent event) {
 		var p = palette;
-		output.append("time:");
+		field(output, "time:");
 		Palette.start(output, p.timestamp());
 		TIME.formatTimestamp(output, event.timestamp());
 		Palette.end(output, p.timestamp());
-		output.append("\tlevel:");
+		output.append('\t');
+		field(output, "level:");
 		String levelColor = p.levelColor(event.level());
 		Palette.start(output, levelColor);
 		LEVEL.formatLevel(output, event.level());
 		Palette.end(output, levelColor);
-		output.append("\tlogger:");
+		output.append('\t');
+		field(output, "logger:");
 		Palette.start(output, p.logger());
 		appendValue(output, event.loggerName());
 		Palette.end(output, p.logger());
 		switch (thread) {
-			case NAME -> appendThreadName(output, "\tthread:", event);
+			case NAME -> appendThreadName(output, "thread:", event);
 			case ID -> appendThreadId(output, event);
 			case BOTH -> {
 				appendThreadId(output, event);
-				appendThreadName(output, "\tthreadName:", event);
+				appendThreadName(output, "threadName:", event);
 			}
 			case NONE -> {
 			}
 		}
-		output.append("\tmsg:");
+		output.append('\t');
+		field(output, "msg:");
 		int start = output.length();
 		event.formattedMessage(output);
 		escapeInPlace(output, start);
@@ -163,17 +179,28 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	}
 
 	private void appendThreadName(StringBuilder output, String label, LogEvent event) {
-		output.append(label);
+		output.append('\t');
+		field(output, label);
 		Palette.start(output, palette.thread());
 		appendValue(output, event.threadName());
 		Palette.end(output, palette.thread());
 	}
 
 	private void appendThreadId(StringBuilder output, LogEvent event) {
-		output.append("\tthreadId:");
+		output.append('\t');
+		field(output, "threadId:");
 		Palette.start(output, palette.thread());
 		output.append(event.threadId());
 		Palette.end(output, palette.thread());
+	}
+
+	/*
+	 * The label of a field every event has, unless only key values are labeled.
+	 */
+	private void field(StringBuilder output, String label) {
+		if (labels == LtsvLabels.ALL) {
+			output.append(label);
+		}
 	}
 
 	private static int appendKeyValue(String key, @Nullable String value, int count, StringBuilder output) {

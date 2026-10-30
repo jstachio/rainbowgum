@@ -175,6 +175,57 @@ class LtsvFormatterTest {
 		assertEquals(expected, e.getMessage());
 	}
 
+	@Test
+	void keyValuesLabelsLeavesTheFixedFieldsUnlabeled() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		kvs.putKeyValue("msg", "m2");
+		var ex = new IllegalStateException("boom");
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		var sb = new StringBuilder();
+		new LtsvFormatterBuilder("test").labels(LtsvLabels.KEY_VALUES)
+			.build()
+			.format(sb, event(Level.ERROR, "", "failed: a:b", kvs, ex));
+		String expected = "2026-10-05T15:04:05.123Z\tERROR\tcom.example.App\t1\t\tfailed: a:b\trequestId:42\tkeyValues.msg:m2"
+				+ "\terror:java.lang.IllegalStateException: boom"
+				+ "\tstacktrace:java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\n";
+		assertEquals(expected, sb.toString());
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"all|time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthread:main\tmsg:hello", //
+			"true|time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthread:main\tmsg:hello", //
+			"key_values|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello", //
+			"false|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello" })
+	void labelsProperty(String labels, String line) {
+		String properties = "logging.appenders=list\nlogging.appender.list.output.uri=list\n"
+				+ "logging.appender.list.encoder.uri=ltsv\nlogging.appender.list.encoder.ltsv.thread=name\n"
+				+ "logging.appender.list.encoder.ltsv.labels=" + labels + "\n";
+		var output = new ListLogOutput();
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
+		config.outputRegistry().register("list", ref -> LogProvider.of(output));
+		try (var g = RainbowGum.builder(config).build().start()) {
+			g.log(event(Level.INFO, "main", "hello", KeyValues.of(), null));
+		}
+		assertEquals(line + "\n", output.toString());
+	}
+
+	@Test
+	void invalidLabelsPropertyFails() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.appender.list.encoder.ltsv.labels=none")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new LtsvFormatterBuilder("list").fromProperties(properties));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.LtsvFormatterBuilder:
+				Error for property. key: 'logging.appender.list.encoder.ltsv.labels' from PROPERTIES_STRING[logging.appender.list.encoder.ltsv.labels], \
+				'none' is not a valid value for io.jstach.rainbowgum.format.LtsvLabels. \
+				Valid values: 'all', 'key_values', 'true', 'false'""";
+		assertEquals(expected, e.getMessage());
+	}
+
 	static final String E = "\033[";
 
 	static final String R = E + "0;39m";
