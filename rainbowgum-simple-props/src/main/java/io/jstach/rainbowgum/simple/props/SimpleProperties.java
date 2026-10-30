@@ -112,8 +112,9 @@ public final class SimpleProperties {
 	 * example {@code logging.simpleprops.envPrefix=MYAPP_LOG_} makes
 	 * {@code logging.level.com.myapp} the environment variable
 	 * {@code MYAPP_LOG_level_com_myapp}. It overrides {@link Builder#envPrefix(String)}.
-	 * The prefix is used as written, so it usually ends with <code>_</code>, and must be
-	 * ASCII letters, digits, and underscores, not starting with a digit.
+	 * The prefix must be ASCII letters, digits, and underscores, not start with a digit,
+	 * and end with <code>_</code>. It must not start with <code>HTTP_</code> in any case,
+	 * since CGI and similar gateways set those variables from request headers.
 	 */
 	public static final String ENV_PREFIX_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.envPrefix";
 
@@ -195,6 +196,14 @@ public final class SimpleProperties {
 		if (!ENV_PREFIX.matcher(value).matches()) {
 			throw new IllegalArgumentException("Invalid environment variable prefix '" + value
 					+ "': use only ASCII letters, digits, and underscores, not starting with a digit");
+		}
+		if (!value.endsWith("_")) {
+			throw new IllegalArgumentException("Invalid environment variable prefix '" + value
+					+ "': end it with an underscore, as in '" + value + "_'");
+		}
+		if (value.toUpperCase(java.util.Locale.ROOT).startsWith("HTTP_")) {
+			throw new IllegalArgumentException("Invalid environment variable prefix '" + value
+					+ "': CGI and similar gateways set HTTP_ variables from request headers (see httpoxy)");
 		}
 		return value;
 	}
@@ -313,12 +322,15 @@ public final class SimpleProperties {
 		 * not changed: only the prefix and the <code>.</code> to <code>_</code>
 		 * replacement are applied, so a key with mixed-case segments produces a
 		 * mixed-case environment variable name. The base resource's
-		 * {@value SimpleProperties#ENV_PREFIX_PROPERTY} overrides this setting.
+		 * {@value SimpleProperties#ENV_PREFIX_PROPERTY} overrides this setting, and the
+		 * prefix has the same rules.
 		 * @param envPrefix prefix, default {@value #DEFAULT_ENV_PREFIX}.
 		 * @return this.
+		 * @throws IllegalArgumentException if the prefix breaks the rules of
+		 * {@value SimpleProperties#ENV_PREFIX_PROPERTY}.
 		 */
 		public Builder envPrefix(String envPrefix) {
-			this.envPrefix = Objects.requireNonNull(envPrefix);
+			this.envPrefix = parseEnvPrefix(Objects.requireNonNull(envPrefix));
 			return this;
 		}
 
