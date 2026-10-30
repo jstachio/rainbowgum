@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
@@ -197,6 +199,17 @@ class SimplePropertiesTest {
 				Invalid environment variable prefix 'my-app': use only ASCII letters, digits, and underscores, \
 				not starting with a digit""";
 		assertEquals(expected, e.getMessage());
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"MYAPP|end it with an underscore, as in 'MYAPP_'", //
+			"1APP_|use only ASCII letters, digits, and underscores, not starting with a digit", //
+			"HTTP_|CGI and similar gateways set HTTP_ variables from request headers (see httpoxy)", //
+			"Http_Log_|CGI and similar gateways set HTTP_ variables from request headers (see httpoxy)" })
+	void builderRejectsEnvPrefix(String prefix, String reason) {
+		var e = assertThrows(IllegalArgumentException.class, () -> SimpleProperties.builder().envPrefix(prefix));
+		assertEquals("Invalid environment variable prefix '" + prefix + "': " + reason, e.getMessage());
 	}
 
 	@Test
