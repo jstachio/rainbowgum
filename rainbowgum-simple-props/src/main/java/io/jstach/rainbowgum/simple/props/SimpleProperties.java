@@ -31,9 +31,10 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * source.</li>
  * <li>System properties
  * ({@link LogProperties.StandardProperties#SYSTEM_PROPERTIES}).</li>
- * <li>Environment variables, using {@value Builder#DEFAULT_ENV_PREFIX} (configurable) in
- * place of the {@code "logging."} lead segment of the key, remaining <code>.</code>s
- * replaced with <code>_</code>, and casing left exactly as-is; see
+ * <li>Environment variables, using {@value Builder#DEFAULT_ENV_PREFIX} in place of the
+ * {@code "logging."} lead segment of the key, remaining <code>.</code>s replaced with
+ * <code>_</code>, and casing left exactly as-is. The prefix is set by
+ * {@value #ENV_PREFIX_PROPERTY} in the base resource or by
  * {@link Builder#envPrefix(String)}.</li>
  * <li>Profile resources selected by {@value #PROFILES_PROPERTY}, first profile wins.
  * These are loaded only when the base resource exists. An empty selection uses the
@@ -106,6 +107,17 @@ public final class SimpleProperties {
 	}
 
 	/**
+	 * The environment variable prefix used in place of the key's {@code "logging."} lead
+	 * segment, read only from the base resource, before any environment variable. For
+	 * example {@code logging.simpleprops.envPrefix=MYAPP_LOG_} makes
+	 * {@code logging.level.com.myapp} the environment variable
+	 * {@code MYAPP_LOG_level_com_myapp}. It overrides {@link Builder#envPrefix(String)}.
+	 * The prefix is used as written, so it usually ends with <code>_</code>, and must be
+	 * ASCII letters, digits, and underscores, not starting with a digit.
+	 */
+	public static final String ENV_PREFIX_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.envPrefix";
+
+	/**
 	 * Comma-separated profiles, in priority order. Resolved from system properties,
 	 * environment variables, or {@link Builder#profiles(List)}, in that priority order,
 	 * after the base classpath resource is found. With the default environment prefix,
@@ -176,6 +188,16 @@ public final class SimpleProperties {
 	}
 
 	private static final Pattern PROFILE_NAME = Pattern.compile("[A-Za-z0-9_-]+");
+
+	private static final Pattern ENV_PREFIX = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+
+	private static String parseEnvPrefix(String value) {
+		if (!ENV_PREFIX.matcher(value).matches()) {
+			throw new IllegalArgumentException("Invalid environment variable prefix '" + value
+					+ "': use only ASCII letters, digits, and underscores, not starting with a digit");
+		}
+		return value;
+	}
 
 	private final List<LogProperties> properties;
 
@@ -290,7 +312,8 @@ public final class SimpleProperties {
 		 * becomes {@code RAINBOWGUM_level_com_myapp} with the default prefix). Casing is
 		 * not changed: only the prefix and the <code>.</code> to <code>_</code>
 		 * replacement are applied, so a key with mixed-case segments produces a
-		 * mixed-case environment variable name.
+		 * mixed-case environment variable name. The base resource's
+		 * {@value SimpleProperties#ENV_PREFIX_PROPERTY} overrides this setting.
 		 * @param envPrefix prefix, default {@value #DEFAULT_ENV_PREFIX}.
 		 * @return this.
 		 */
@@ -389,6 +412,11 @@ public final class SimpleProperties {
 			if (shortKeys) {
 				classpathProperties = withShortKeys(classpathProperties);
 			}
+			var envPrefix = classpathProperties.forKey(ENV_PREFIX_PROPERTY)
+				.ofString()
+				.map(SimpleProperties::parseEnvPrefix)
+				.or(this.envPrefix)
+				.validateNow(SimpleProperties.class);
 			var systemProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			var environmentVariables = new EnvVarProperties(envPrefix, envLookup);
 			var preProperties = LogProperties.of(List.of(systemProperties, environmentVariables));

@@ -2940,7 +2940,9 @@ including system properties and environment variables, even when profiles were s
 <li>System properties.</li>
 <li><code>RAINBOWGUM_</code>-prefixed environment variables. For example,
 <code>logging.level.com.myapp</code> maps to <code>RAINBOWGUM_level_com_myapp</code> and the root
-<code>logging.level</code> to <code>RAINBOWGUM_level</code>.</li>
+<code>logging.level</code> to <code>RAINBOWGUM_level</code>. Set another prefix with
+<code>logging.simpleprops.envPrefix</code> in the base resource, the only place it is read, for example
+<code>logging.simpleprops.envPrefix=MYAPP_LOG_</code> for <code>MYAPP_LOG_level_com_myapp</code>.</li>
 <li>Selected <code>logging-&lt;profile&gt;.properties</code> classpath resources,
 with the first listed profile taking priority.</li>
 <li>The base <code>logging.properties</code> classpath resource.</li>
