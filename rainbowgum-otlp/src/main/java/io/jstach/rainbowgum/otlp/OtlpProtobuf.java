@@ -4,6 +4,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 /*
  * Encodes opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest (field numbers
  * from opentelemetry-proto 1.11). LogsData has the same layout, so this is also a valid
@@ -67,8 +69,12 @@ final class OtlpProtobuf {
 		int kv = w.startMessage(field);
 		w.stringField(1, a.key());
 		int value = w.startMessage(2);
+		var any = a.any();
 		var s = a.stringValue();
-		if (s != null) {
+		if (any != null) {
+			anyValue(w, any.value());
+		}
+		else if (s != null) {
 			w.stringField(1, s);
 		}
 		else {
@@ -76,6 +82,42 @@ final class OtlpProtobuf {
 		}
 		w.endMessage(value);
 		w.endMessage(kv);
+	}
+
+	/*
+	 * The content of an AnyValue message for a JsonTree value.
+	 */
+	private static void anyValue(ProtoWriter w, @Nullable Object v) {
+		switch (v) {
+			case null -> {
+			}
+			case String s -> w.stringField(1, s);
+			case Boolean b -> w.varintField(2, b ? 1 : 0);
+			case Long l -> w.varintField(3, l);
+			case Double d -> w.fixed64Field(4, Double.doubleToRawLongBits(d));
+			case List<?> list -> {
+				int array = w.startMessage(5);
+				for (Object e : list) {
+					int element = w.startMessage(1);
+					anyValue(w, e);
+					w.endMessage(element);
+				}
+				w.endMessage(array);
+			}
+			case Map<?, ?> map -> {
+				int kvlist = w.startMessage(6);
+				for (var e : map.entrySet()) {
+					int kv = w.startMessage(1);
+					w.stringField(1, String.valueOf(e.getKey()));
+					int value = w.startMessage(2);
+					anyValue(w, e.getValue());
+					w.endMessage(value);
+					w.endMessage(kv);
+				}
+				w.endMessage(kvlist);
+			}
+			default -> w.stringField(1, v.toString());
+		}
 	}
 
 	private static void stringKeyValue(ProtoWriter w, int field, String key, String value) {

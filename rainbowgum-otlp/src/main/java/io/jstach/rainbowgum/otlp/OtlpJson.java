@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum.otlp;
 
 import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
@@ -59,6 +60,15 @@ final class OtlpJson {
 		b.writeObjectEnd();
 		int attributeIndex = b.writeArrayStart("attributes", i++, 0);
 		for (var a : r.attributes()) {
+			var any = a.any();
+			if (any != null) {
+				b.writeArrayElementObjectStart(attributeIndex++);
+				b.writeObjectStart("value", b.write("key", a.key(), 0), 0);
+				anyValue(b, any.value());
+				b.writeObjectEnd();
+				b.writeArrayElementObjectEnd();
+				continue;
+			}
 			var s = a.stringValue();
 			writeKeyValue(b, attributeIndex++, a.key(), s, a.intValue());
 		}
@@ -67,6 +77,44 @@ final class OtlpJson {
 		i = b.write("spanId", r.spanId(), i);
 		b.write("eventName", r.eventName(), i);
 		b.writeArrayElementObjectEnd();
+	}
+
+	/*
+	 * The members of an AnyValue object for a JsonTree value, written inside an object
+	 * already started. int64 is a JSON string, as OTLP/JSON requires.
+	 */
+	private static void anyValue(JsonBuffer b, @Nullable Object v) {
+		switch (v) {
+			case null -> {
+			}
+			case String s -> b.write("stringValue", s, 0);
+			case Boolean bool -> b.writeRawJson("boolValue", bool.toString(), 0, 0);
+			case Long l -> b.write("intValue", Long.toString(l), 0);
+			case Double d -> b.writeDouble("doubleValue", d, 0, 0);
+			case List<?> list -> {
+				int i = b.writeArrayStart("values", b.writeObjectStart("arrayValue", 0, 0), 0);
+				for (Object e : list) {
+					b.writeArrayElementObjectStart(i++);
+					anyValue(b, e);
+					b.writeArrayElementObjectEnd();
+				}
+				b.writeArrayEnd();
+				b.writeObjectEnd();
+			}
+			case Map<?, ?> map -> {
+				int i = b.writeArrayStart("values", b.writeObjectStart("kvlistValue", 0, 0), 0);
+				for (var e : map.entrySet()) {
+					b.writeArrayElementObjectStart(i++);
+					b.writeObjectStart("value", b.write("key", String.valueOf(e.getKey()), 0), 0);
+					anyValue(b, e.getValue());
+					b.writeObjectEnd();
+					b.writeArrayElementObjectEnd();
+				}
+				b.writeArrayEnd();
+				b.writeObjectEnd();
+			}
+			default -> b.write("stringValue", v.toString(), 0);
+		}
 	}
 
 	private static void writeKeyValue(JsonBuffer b, int index, String key, @Nullable String stringValue,

@@ -334,7 +334,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 						return count + 1;
 					}
 					output.append(separator);
-					appendMember(output, key, value);
+					appendMember(output, values, key, value);
 					return count;
 				}
 				case NESTED_COLLIDING -> {
@@ -348,14 +348,18 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			if (count > 0) {
 				output.append(separator);
 			}
-			appendMember(output, key, value);
+			appendMember(output, values, key, value);
 			return count + 1;
 		}
 
-		private void appendMember(StringBuilder output, String key, @Nullable String value) {
+		private void appendMember(StringBuilder output, KeyValues values, String key, @Nullable String value) {
 			appendKey(output, key, json5);
 			output.append(':');
-			if (value == null) {
+			String json = values.getJsonOrNull(key);
+			if (json != null) {
+				output.append(json);
+			}
+			else if (value == null) {
 				output.append("null");
 			}
 			else {

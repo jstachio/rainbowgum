@@ -174,6 +174,37 @@ class OtlpProtobufTest {
 					.toList());
 	}
 
+	@Test
+	void jsonFormsDecodeAsTypedValuesWithOfficialClasses() throws Exception {
+		var kvs = io.jstach.rainbowgum.KeyValues.MutableKeyValues.of();
+		kvs.putKeyValue("attempt", "3", "3");
+		kvs.putKeyValue("ratio", "0.5", "0.5");
+		kvs.putKeyValue("ok", "true", "true");
+		kvs.putKeyValue("user", "{id=1, roles=[admin, null]}", "{\"id\":1,\"roles\":[\"admin\",null]}");
+		kvs.putKeyValue("broken", "plain", "{not json");
+		var event = LogEvent.of(Instant.ofEpochSecond(1), "main", 42, Level.INFO, "x", "m", kvs, null);
+		var r = ExportLogsServiceRequest
+			.parseFrom(OtlpProtobuf.encode(OtlpResource.of(null, null, EnvironmentVariables.OFF),
+					List.of(OtlpRecord.of(event, MAPPING))))
+			.getResourceLogs(0)
+			.getScopeLogs(0)
+			.getLogRecords(0);
+		var values = r.getAttributesList()
+			.stream()
+			.collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue, (a, b) -> a, LinkedHashMap::new));
+		assertEquals(AnyValue.newBuilder().setIntValue(3).build(), values.get("attempt"));
+		assertEquals(AnyValue.newBuilder().setDoubleValue(0.5).build(), values.get("ratio"));
+		assertEquals(AnyValue.newBuilder().setBoolValue(true).build(), values.get("ok"));
+		assertEquals(AnyValue.newBuilder().setStringValue("plain").build(), values.get("broken"));
+		var roles = io.opentelemetry.proto.common.v1.ArrayValue.newBuilder()
+			.addValues(AnyValue.newBuilder().setStringValue("admin"))
+			.addValues(AnyValue.getDefaultInstance());
+		var user = io.opentelemetry.proto.common.v1.KeyValueList.newBuilder()
+			.addValues(KeyValue.newBuilder().setKey("id").setValue(AnyValue.newBuilder().setIntValue(1)))
+			.addValues(KeyValue.newBuilder().setKey("roles").setValue(AnyValue.newBuilder().setArrayValue(roles)));
+		assertEquals(AnyValue.newBuilder().setKvlistValue(user).build(), values.get("user"));
+	}
+
 	private static Map<String, String> strings(List<KeyValue> kvs) {
 		return kvs.stream()
 			.filter(kv -> kv.getValue().getValueCase() == AnyValue.ValueCase.STRING_VALUE)

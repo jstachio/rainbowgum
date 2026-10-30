@@ -404,4 +404,27 @@ class Json5FormatterTest {
 				e.getMessage());
 	}
 
+	private static KeyValues jsonFormKeyValues() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		kvs.putKeyValue("user", "{id=1, roles=[admin]}", "{\"id\":1,\"roles\":[\"admin\"]}");
+		kvs.putKeyValue("msg", "{a=1}", "{\"a\":1}");
+		return kvs;
+	}
+
+	@Test
+	void jsonFormsAreWrittenAsJson() {
+		var event = event("hello", jsonFormKeyValues(), null);
+		assertEquals(
+				"""
+						{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","threadId":"1","threadName":"main",\
+						"msg":"hello","requestId":"42","user":{"id":1,"roles":["admin"]},"keyValues":{"msg":{"a":1}}}
+						""",
+				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build(), event));
+		assertEquals("""
+				{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",\
+				msg:"hello",requestId:"42",user:{"id":1,"roles":["admin"]},keyValues:{msg:{"a":1}}}
+				""", format(new Json5FormatterBuilder("test").build(), event));
+	}
+
 }

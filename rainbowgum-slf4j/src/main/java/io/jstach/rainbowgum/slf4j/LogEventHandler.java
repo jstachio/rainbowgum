@@ -74,6 +74,25 @@ interface LogEventHandler extends LogEventFactory, LogEventLogger {
 		return NoopKeyValuesContributor.INSTANCE;
 	}
 
+	/**
+	 * The serializer for the JSON form of object key values, or {@code null} when key
+	 * values JSON is off.
+	 * @return serializer or {@code null}.
+	 */
+	default KeyValues.@Nullable JsonSerializer jsonSerializer() {
+		return contributor() instanceof KeyValuesSupport s ? s.jsonSerializer() : null;
+	}
+
+	/**
+	 * Puts an SLF4J key value, see {@link MutableKeyValues#putObject}.
+	 * @param kvs key values being built.
+	 * @param key key.
+	 * @param value value.
+	 */
+	default void putKeyValue(MutableKeyValues kvs, String key, @Nullable Object value) {
+		kvs.putObject(key, value, jsonSerializer());
+	}
+
 	@Override
 	default KeyValues defaultKeyValues() {
 		/*

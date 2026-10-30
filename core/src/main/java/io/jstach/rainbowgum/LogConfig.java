@@ -196,14 +196,18 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private final Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources;
 
+		private final KeyValuesJson keyValuesJson;
+
 		Globals(ChangeMode changeMode, AnsiMode ansiMode, AppenderLock appenderLock, ThreadLocalMode threadLocal,
-				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources) {
+				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources,
+				KeyValuesJson keyValuesJson) {
 			this.changeMode = changeMode;
 			this.ansiMode = ansiMode;
 			this.appenderLock = appenderLock;
 			this.threadLocal = threadLocal;
 			this.optimize = optimize;
 			this.keyValueSources = Set.copyOf(keyValueSources);
+			this.keyValuesJson = keyValuesJson;
 		}
 
 		/**
@@ -260,6 +264,16 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			return keyValueSources;
 		}
 
+		/**
+		 * Whether objects given to a logging facade as key values also get a JSON form,
+		 * from {@value LogProperties#KEY_VALUES_JSON_PROPERTY}.
+		 * @return key values JSON mode.
+		 * @see KeyValues.JsonSerializer
+		 */
+		public KeyValuesJson keyValuesJson() {
+			return keyValuesJson;
+		}
+
 		/*
 		 * Every property is checked before any error is thrown, so all mistakes are
 		 * reported together.
@@ -295,9 +309,14 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				.map(KeyValuesContributors.Selected::parse)
 				.or(keyValueSources)
 				.validateIfError(validator);
+			var json = properties.forKey(LogProperties.KEY_VALUES_JSON_PROPERTY)
+				.ofString()
+				.map(KeyValuesJson::parse)
+				.or(keyValuesJson)
+				.validateIfError(validator);
 			validator.validate();
 			return new Globals(change.value(), ansi.value(), lock.value(), threadLocalMode.value(), opt.value(),
-					keyValues.value());
+					keyValues.value(), json.value());
 		}
 
 		/**
@@ -375,6 +394,39 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 					case "TRUE" -> ON;
 					case "FALSE" -> OFF;
 					default -> LogProperty.enumValue(AnsiMode.class, value, "true", "false");
+				};
+			}
+
+		}
+
+		/**
+		 * Whether objects given to a logging facade as key values, such as a map passed
+		 * to SLF4J's {@code addKeyValue}, also get a JSON form for encoders that write
+		 * JSON.
+		 *
+		 * @see KeyValues#getJsonOrNull(String)
+		 */
+		public enum KeyValuesJson {
+
+			/**
+			 * Key values are plain text only, the object's {@link Object#toString()}. The
+			 * default.
+			 */
+			@EnumAlias("false")
+			OFF,
+			/**
+			 * Objects that are not strings are also converted to JSON with
+			 * {@link KeyValues.JsonSerializer#of(LogConfig)} when they are added.
+			 */
+			@EnumAlias("true")
+			ON;
+
+			static KeyValuesJson parse(String value) {
+				String v = value.strip();
+				return switch (v.toUpperCase(Locale.ROOT)) {
+					case "TRUE" -> ON;
+					case "FALSE" -> OFF;
+					default -> LogProperty.enumValue(KeyValuesJson.class, v, "true", "false");
 				};
 			}
 
@@ -610,6 +662,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		private Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources = Set
 			.of(LogEventFactory.KeyValuesContributor.Source.Standard.values());
 
+		private Globals.KeyValuesJson keyValuesJson = Globals.KeyValuesJson.OFF;
+
 		/**
 		 * Default constructor
 		 */
@@ -725,6 +779,18 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		public Builder keyValueSources(Set<? extends LogEventFactory.KeyValuesContributor.Source> keyValueSources) {
 			this.keyValueSources = Set.copyOf(keyValueSources);
+			return this;
+		}
+
+		/**
+		 * Sets whether objects given as key values also get a JSON form, used when the
+		 * property {@value LogProperties#KEY_VALUES_JSON_PROPERTY} is absent.
+		 * @param keyValuesJson key values JSON mode, default
+		 * {@link Globals.KeyValuesJson#OFF}.
+		 * @return this.
+		 */
+		public Builder keyValuesJson(Globals.KeyValuesJson keyValuesJson) {
+			this.keyValuesJson = Objects.requireNonNull(keyValuesJson);
 			return this;
 		}
 
@@ -869,8 +935,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 						serviceRegistry.findOrNull(LogProperties.class, LevelResolver.OVERRIDE_PROPERTIES_NAME),
 						alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
-						unusedKeyCheck,
-						new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize, keyValueSources)
+						unusedKeyCheck, new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize,
+								keyValueSources, keyValuesJson)
 							.withProperties(logProperties));
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);

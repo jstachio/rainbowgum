@@ -41,6 +41,21 @@ class KeyValuesFormatterTest {
 		return output.toString();
 	}
 
+	@ParameterizedTest
+	@EnumSource(Format.class)
+	void jsonFormsAreOnlyWrittenByJsonFormats(Format format) {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("attempt", "3", "3");
+		kvs.putKeyValue("user", "{id=1}", "{\"id\":1}");
+		String expected = switch (format) {
+			case JSON -> "{\"attempt\":3,\"user\":{\"id\":1}}";
+			case JSON5 -> "{attempt:3,user:{\"id\":1}}";
+			case LOGFMT -> "attempt=3 user=\"{id=1}\"";
+			case PERCENT -> "attempt=3&user=%7Bid%3D1%7D";
+		};
+		assertEquals(expected, log(new KeyValuesFormatterBuilder().format(format).build(), kvs));
+	}
+
 	@Test
 	void defaultsWriteAllKeysInOrderAndValuesRemainStrings() {
 		var kvs = MutableKeyValues.of();

@@ -244,16 +244,25 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 	 * reaches this factory. All handlers share this delegate so those already created
 	 * also receive the real configuration's contributors once it is bound.
 	 */
-	private static final class ChangingContributor implements KeyValuesContributor {
+	private static final class ChangingContributor implements KeyValuesSupport {
 
 		private volatile KeyValuesContributor delegate;
 
+		private volatile KeyValues.@Nullable JsonSerializer jsonSerializer;
+
 		ChangingContributor(RainbowGum gum) {
 			this.delegate = resolve(gum);
+			this.jsonSerializer = KeyValues.JsonSerializer.of(gum.config());
 		}
 
 		void setRainbowGum(@Nullable RainbowGum gum) {
 			delegate = resolve(gum);
+			jsonSerializer = gum == null ? null : KeyValues.JsonSerializer.of(gum.config());
+		}
+
+		@Override
+		public KeyValues.@Nullable JsonSerializer jsonSerializer() {
+			return jsonSerializer;
 		}
 
 		private static KeyValuesContributor resolve(@Nullable RainbowGum gum) {
