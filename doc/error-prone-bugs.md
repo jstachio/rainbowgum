@@ -7,7 +7,11 @@ easy to turn into a standalone bug report.
 
 ## `InvalidInlineTag` rejects `{@index}`, `{@summary}` and `{@systemProperty}`
 
-Status: **not yet filed**.
+Status: **already reported** as https://github.com/google/error-prone/issues/3913
+("Missing standard Javadoc tags", open since 2023-05-16). That issue is about `@hidden`,
+and a comment adds `{@summary}`; `{@index}` and `{@systemProperty}` are not mentioned
+yet. A maintainer replied there that a PR adding the missing standard tags is welcome.
+Add a comment with the repro below, or send that PR, rather than filing a new issue.
 
 - **Error Prone versions confirmed on:** 2.50.0 (this project's version) and 2.51.0,
   the latest release as of 2026-10-30. `JavadocTag.java` on Error Prone's `master`
@@ -76,4 +80,7 @@ Status: **not yet filed**.
   `{@index}`, including the generated builders through the `rainbowgum-apt` template.
   This also hides real mistakes in the other inline tags of those types, so remove the
   suppressions once a fixed release is out.
-- **To do before filing:** search the tracker for an existing issue about these tags.
+- **Alternative workaround:** since 2.50.0 (commit `1e1f293`, for issue #1811) the
+  flag `-XepOpt:Javadoc:customInlineTags=index,summary,systemProperty` makes the check
+  accept these tags everywhere while still checking the rest. The repro above compiles
+  clean on 2.50.0 with it.
