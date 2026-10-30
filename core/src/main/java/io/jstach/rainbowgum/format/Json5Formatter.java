@@ -168,22 +168,27 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	/**
 	 * Formats each event as a JSON object on one line, the same as the JSON5 formatter
 	 * with format set to JSON, for example:
-	 * <code>{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main","msg":"hello world","requestId":"42"}</code>.
+	 * <code>{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","threadId":"1","threadName":"main","msg":"hello world","requestId":"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
-	 * <code>level</code>, <code>logger</code>, <code>thread</code>, <code>msg</code>, and
-	 * for a throwable <code>error</code> (its <code>toString()</code>) and
-	 * <code>stacktrace</code>. Every value, key values included, is a string, or
-	 * <code>null</code> for a key value without one. For a specific schema (ECS, GELF,
-	 * Logstash) and more options use the <code>rainbowgum-json</code> module.
+	 * <code>level</code>, <code>logger</code>, the thread fields chosen with
+	 * {@link ThreadFields} (by default <code>threadId</code> and
+	 * <code>threadName</code>), <code>msg</code>, and for a throwable <code>error</code>
+	 * (its <code>toString()</code>) and <code>stacktrace</code>. Every value, key values
+	 * and thread id included, is a string, or <code>null</code> for a key value without
+	 * one. For a specific schema (ECS, GELF, Logstash) and more options use the
+	 * <code>rainbowgum-json</code> module.
 	 * @param name encoder name, used for property lookup.
 	 * @param keyValues where key values go, see {@link KeyValuesPlacement}.
+	 * @param thread which thread fields, see {@link ThreadFields}.
 	 * @return formatter.
 	 */
 	@LogConfigurable(name = "JsonFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "json.")
 	static LogFormatter ofJson(@LogConfigurable.KeyParameter String name, @LogConfigurable.DefaultParameter(
-			constant = "MERGED") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues) {
-		return new Json5Formatter(false, keyValues, Json5PrettyPrint.OFF, Palette.OFF);
+			constant = "MERGED") @LogConfigurable.ConvertParameter("convertKeyValues") KeyValuesPlacement keyValues,
+			@LogConfigurable.DefaultParameter(
+					constant = "BOTH") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread) {
+		return new Json5Formatter(false, keyValues, thread, Json5PrettyPrint.OFF, Palette.OFF);
 	}
 
 	static Format convertFormat(String value) {

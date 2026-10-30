@@ -1361,11 +1361,12 @@ logging.appender.console.encoder.uri=json5
 It writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
 other text formatters it is mostly for people reading logs, and the <a href="#json_encoders">JSON encoders</a> are
 for JSON logging. The <code>json</code> encoder writes the same fields as plain JSON. It has its own properties,
-of which only <code>keyValues</code> below applies:
+of which only <code>keyValues</code> and <code>thread</code> below apply:
 
 {@snippet lang=properties :
 logging.appender.console.encoder.uri=json
 logging.appender.console.encoder.json.keyValues=nested
+logging.appender.console.encoder.json.thread=name
 }
 
 The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>,

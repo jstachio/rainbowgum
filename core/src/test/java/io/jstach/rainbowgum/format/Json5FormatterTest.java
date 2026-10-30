@@ -186,6 +186,11 @@ class Json5FormatterTest {
 		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
 				log("json", "logging.appender.list.encoder.json5.keyValues=nested\n",
 						event("hello world", requestKeyValues(), null)));
+		assertEquals("""
+				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main",\
+				"msg":"hello world","requestId":"42","user":"Ada Lovelace"}
+				""", log("json", "logging.appender.list.encoder.json.thread=name\n",
+				event("hello world", requestKeyValues(), null)));
 	}
 
 	@Test
