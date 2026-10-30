@@ -31,10 +31,13 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  *
  * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	/**
 	 * Initialization flag.
+	 * <p>
+	 * Property: <code>{@index logging.systemlogger.initialize}</code>
 	 * @see InitOption
 	 */
 	public static final String INITIALIZE_RAINBOW_GUM_PROPERTY = LogProperties.ROOT_PREFIX + "systemlogger.initialize";

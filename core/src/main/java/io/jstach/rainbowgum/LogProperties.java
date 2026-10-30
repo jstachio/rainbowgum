@@ -176,6 +176,7 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  *
  * @see LogConfigurable
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public interface LogProperties {
 
 	/**
@@ -196,12 +197,16 @@ public interface LogProperties {
 	 * components. Read from system properties before properties providers run, so it
 	 * remains available when loading configuration fails. The system property overrides
 	 * {@link LogConfig.Builder#debug(LogConfig.DebugModeType)}.
+	 * <p>
+	 * Property: <code>{@index logging.debug}</code>
 	 */
 	static final String DEBUG_PROPERTY = ROOT_PREFIX + "debug";
 
 	/**
 	 * Logging level properties prefix. The value should be the name of a
 	 * {@linkplain java.lang.System.Logger.Level level}.
+	 * <p>
+	 * Property: <code>{@index logging.level.{logger}}</code>
 	 */
 	static final String LEVEL_PREFIX = ROOT_PREFIX + "level";
 
@@ -211,6 +216,8 @@ public interface LogProperties {
 	 * "https://docs.spring.io/spring-boot/3.3.2/reference/features/logging.html#features.logging.log-groups">
 	 * Spring Boot like Log Groups </a>. <em>Note that unlike Spring Boot groups are not
 	 * enabled unless this property contains the group.</em>
+	 * <p>
+	 * Property: <code>{@index logging.groups}</code>
 	 */
 	static final String GROUPS_PROPERTY = ROOT_PREFIX + "groups";
 
@@ -222,12 +229,16 @@ public interface LogProperties {
 	 * {@value #CALLER_LOGGER_PREFIX}. This is largely compatible with <a href=
 	 * "https://docs.spring.io/spring-boot/3.3.2/reference/features/logging.html#features.logging.log-groups">
 	 * Spring Boot Log Groups </a>.
+	 * <p>
+	 * Property: <code>{@index logging.group.{name}}</code>
 	 * @see LevelResolver#parseLevel(String)
 	 */
 	static final String GROUP_PROPERTY = ROOT_PREFIX + "group.{name}";
 
 	/**
 	 * Whether runtime changes are on: see {@link ChangeMode}.
+	 * <p>
+	 * Property: <code>{@index logging.change.mode}</code>
 	 */
 	static final String CHANGE_MODE_PROPERTY = ROOT_PREFIX + "change.mode";
 
@@ -235,12 +246,16 @@ public interface LogProperties {
 	 * The level threshold of events captured before Rainbow Gum is fully bound. Before
 	 * Rainbow Gum is bound events are queued. By default events that are below
 	 * <code>INFO</code> are not queued.
+	 * <p>
+	 * Property: <code>{@index logging.global.queue.level}</code>
 	 */
 	static final String GLOBAL_QUEUE_LEVEL_PROPERTY = ROOT_PREFIX + "global.queue.level";
 
 	/**
 	 * The level threshold of queued events reported to standard error before Rainbow Gum
 	 * is bound. Defaults to <code>ERROR</code>.
+	 * <p>
+	 * Property: <code>{@index logging.global.queue.error}</code>
 	 */
 	static final String GLOBAL_QUEUE_ERROR_PROPERTY = ROOT_PREFIX + "global.queue.error";
 
@@ -249,18 +264,24 @@ public interface LogProperties {
 	 * (default) for <code>\n</code>, <code>crlf</code> for <code>\r\n</code>, or
 	 * <code>platform</code> for {@link System#lineSeparator()}. Read once, from system
 	 * properties only.
+	 * <p>
+	 * Property: <code>{@index logging.global.lineSeparator}</code>
 	 */
 	static final String GLOBAL_LINE_SEPARATOR_PROPERTY = ROOT_PREFIX + "global.lineSeparator";
 
 	/**
 	 * Whether output uses ANSI escape codes: see {@link LogConfig.Globals.AnsiMode}.
 	 * Default is {@link LogConfig.Globals.AnsiMode#AUTO}.
+	 * <p>
+	 * Property: <code>{@index logging.global.ansi.mode}</code>
 	 */
 	static final String GLOBAL_ANSI_MODE_PROPERTY = ROOT_PREFIX + "global.ansi.mode";
 
 	/**
 	 * Which kind of lock appenders use: see {@link LogConfig.Globals.AppenderLock}.
 	 * Default is {@link LogConfig.Globals.AppenderLock#AUTO}.
+	 * <p>
+	 * Property: <code>{@index logging.global.appender.lock}</code>
 	 */
 	static final String GLOBAL_APPENDER_LOCK_PROPERTY = ROOT_PREFIX + "global.appender.lock";
 
@@ -268,6 +289,8 @@ public interface LogProperties {
 	 * Whether the logging path may use a {@link ThreadLocal}: see
 	 * {@link LogConfig.Globals.ThreadLocalMode}. Default is
 	 * {@link LogConfig.Globals.ThreadLocalMode#ALLOW}.
+	 * <p>
+	 * Property: <code>{@index logging.global.threadLocal}</code>
 	 */
 	static final String GLOBAL_THREAD_LOCAL_PROPERTY = ROOT_PREFIX + "global.threadLocal";
 
@@ -296,6 +319,8 @@ public interface LogProperties {
 	 * at all - can and will change between releases without notice. Pin an explicit
 	 * appender type/encoder strategy instead if a deployment needs a specific one to
 	 * always be used.
+	 * <p>
+	 * Property: <code>{@index logging.global.optimize}</code>
 	 */
 	static final String GLOBAL_OPTIMIZE_PROPERTY = ROOT_PREFIX + "global.optimize";
 
@@ -313,6 +338,8 @@ public interface LogProperties {
 	 * an apostrophe is a quote. A {@link Throwable} that is the last argument is
 	 * formatted like any other argument and also logged with its stack trace.</li>
 	 * </ul>
+	 * <p>
+	 * Property: <code>{@index logging.messageformat.style}</code>
 	 * @see LogMessageFormatter#ofJUL(LogProperties)
 	 */
 	static final String MESSAGE_FORMAT_STYLE_PROPERTY = ROOT_PREFIX + "messageformat.style";
@@ -333,6 +360,8 @@ public interface LogProperties {
 	 * {@link LogEventFactory.KeyValuesContributor#clear()} clears a store that is not
 	 * selected according to
 	 * {@link LogEventFactory.KeyValuesContributor.Source.Standard#clearWhenUnselected()}.
+	 * <p>
+	 * Property: <code>{@index logging.keyvalues.sources}</code>
 	 */
 	static final String KEY_VALUES_SOURCES_PROPERTY = KEY_VALUES_PREFIX + "sources";
 
@@ -341,6 +370,8 @@ public interface LogProperties {
 	 * from whatever {@link LogProperties} {@link LogConfig.Builder#build()} has already
 	 * resolved by the time it constructs {@link LogAlerts} - before any
 	 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator} runs.
+	 * <p>
+	 * Property: <code>{@index logging.alerts.capacity}</code>
 	 * @see LogAlerts#DEFAULT_CAPACITY
 	 */
 	static final String ALERTS_CAPACITY_PROPERTY = ROOT_PREFIX + "alerts.capacity";
@@ -351,6 +382,8 @@ public interface LogProperties {
 	 * {@link LogAlerts.Listener}s registered - see
 	 * {@link LogAlerts.UnobservedErrorsAction} for the three choices and
 	 * {@link LogAlerts.UnobservedErrorsAction#DUMP} for the default.
+	 * <p>
+	 * Property: <code>{@index logging.alerts.unobservedErrorsAction}</code>
 	 */
 	static final String ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY = ROOT_PREFIX + "alerts.unobservedErrorsAction";
 
@@ -359,17 +392,23 @@ public interface LogProperties {
 	 * errors: see {@link LogAlerts.FailLevel}. Unlike
 	 * {@value #ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY} it fails whether or not a
 	 * {@link LogAlerts.Listener} is registered.
+	 * <p>
+	 * Property: <code>{@index logging.alerts.fail}</code>
 	 */
 	static final String ALERTS_FAIL_PROPERTY = ROOT_PREFIX + "alerts.fail";
 
 	/**
 	 * Alert level for property keys that were set but not read while starting: see
 	 * {@link LogAlerts.UnusedKeyLevel}.
+	 * <p>
+	 * Property: <code>{@index logging.alerts.unusedKey}</code>
 	 */
 	static final String ALERTS_UNUSED_KEY_PROPERTY = ROOT_PREFIX + "alerts.unusedKey";
 
 	/**
 	 * Per logger change properties prefix: see {@link ChangeType}.
+	 * <p>
+	 * Property: <code>{@index logging.change.logger.{logger}}</code>
 	 */
 	static final String CHANGE_LOGGER_PREFIX = ROOT_PREFIX + "change.logger";
 
@@ -378,12 +417,16 @@ public interface LogProperties {
 	 * Independent of {@link #CHANGE_LOGGER_PREFIX} and {@link #CHANGE_MODE_PROPERTY}:
 	 * resolved through its own logger-name hierarchy walk, so a value here is never
 	 * overridden by a more specific {@link #CHANGE_LOGGER_PREFIX} entry or vice versa.
+	 * <p>
+	 * Property: <code>{@index logging.caller.logger.{logger}}</code>
 	 */
 	static final String CALLER_LOGGER_PREFIX = ROOT_PREFIX + "caller.logger";
 
 	/**
 	 * Logging file property for default single file appending. The value is a URI or a
 	 * file path, including a Windows path such as <code>C:\logs\app.log</code>.
+	 * <p>
+	 * Property: <code>{@index logging.file.name}</code>
 	 */
 	static final String FILE_PROPERTY = ROOT_PREFIX + "file.name";
 
@@ -401,6 +444,8 @@ public interface LogProperties {
 	/**
 	 * Enabled Logging appenders. The value should be a list of names. This is equivalent
 	 * to {@value #ROUTE_APPENDERS_PROPERTY} with name "default".
+	 * <p>
+	 * Property: <code>{@index logging.appenders}</code>
 	 */
 	static final String APPENDERS_PROPERTY = ROOT_PREFIX + "appenders";
 
@@ -426,16 +471,22 @@ public interface LogProperties {
 
 	/**
 	 * Output appender property.
+	 * <p>
+	 * Property: <code>{@index logging.appender.{name}.output.uri}</code>
 	 */
 	static final String APPENDER_OUTPUT_PROPERTY = OUTPUT_PREFIX + "uri";
 
 	/**
 	 * Encoder appender property.
+	 * <p>
+	 * Property: <code>{@index logging.appender.{name}.encoder.uri}</code>
 	 */
 	static final String APPENDER_ENCODER_PROPERTY = ENCODER_PREFIX + "uri";
 
 	/**
 	 * Appender flags. A list of flags (usually comma separated).
+	 * <p>
+	 * Property: <code>{@index logging.appender.{name}.flags}</code>
 	 * @see AppenderFlag
 	 */
 	static final String APPENDER_FLAGS_PROPERTY = LogProperties.APPENDER_PREFIX + "flags";
@@ -443,12 +494,16 @@ public interface LogProperties {
 	/**
 	 * Appender type (buffer/locking strategy). Unlike {@value #APPENDER_FLAGS_PROPERTY}
 	 * this is a single value, not a list.
+	 * <p>
+	 * Property: <code>{@index logging.appender.{name}.type}</code>
 	 * @see LogAppender.AppenderType
 	 */
 	static final String APPENDER_TYPE_PROPERTY = LogProperties.APPENDER_PREFIX + "type";
 
 	/**
 	 * Routes enabled with names comma separated.
+	 * <p>
+	 * Property: <code>{@index logging.routes}</code>
 	 */
 	static final String ROUTES_PROPERTY = ROOT_PREFIX + "routes";
 
@@ -467,22 +522,30 @@ public interface LogProperties {
 
 	/**
 	 * Logging publisher URI property.
+	 * <p>
+	 * Property: <code>{@index logging.route.{name}.publisher.uri}</code>
 	 */
 	static final String ROUTE_PUBLISHER_PROPERTY = PUBLISHER_PREFIX + "uri";
 
 	/**
 	 * Appenders associated with a route comma separated.
+	 * <p>
+	 * Property: <code>{@index logging.route.{name}.appenders}</code>
 	 */
 	static final String ROUTE_APPENDERS_PROPERTY = ROUTE_PREFIX + "appenders";
 
 	/**
 	 * Logging level properties prefix. The value should be the name of a
 	 * {@linkplain java.lang.System.Logger.Level level}.
+	 * <p>
+	 * Property: <code>{@index logging.route.{name}.level.{logger}}</code>
 	 */
 	static final String ROUTE_LEVEL_PREFIX = ROUTE_PREFIX + "level";
 
 	/**
 	 * Route flags.
+	 * <p>
+	 * Property: <code>{@index logging.route.{name}.flags}</code>
 	 */
 	static final String ROUTE_FLAGS_PROPERTY = ROUTE_PREFIX + "flags";
 

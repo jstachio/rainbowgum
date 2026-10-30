@@ -21,7 +21,7 @@ import io.jstach.rainbowgum.LogProperty;
  $$#properties$$
  $$#normal$$
  * <tr>
- * <td><code>{@value $$propertyLiteral$$ }</code></td>
+ * <td><code>{@index "$$propertyPrefix$$$$name$$" }</code></td>
  * <td><code>$$typeDescription$$</code></td>
  * <td><code>$$required$$</code></td>
  * <td>$$defaultValueDoc$$</td>
@@ -31,6 +31,7 @@ import io.jstach.rainbowgum.LogProperty;
  $$/properties$$
  * </table>
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$builderName$$,$$targetType$$> {
 
 	/**

@@ -50,6 +50,7 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
  * @see Buffer
  * @see LogAppender
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public interface LogEncoder {
 
 	/**
@@ -57,6 +58,8 @@ public interface LogEncoder {
 	 * applied, in the order listed, to an encoder backed by a formatter:
 	 * {@value}. Encoders that are not backed by a formatter ignore it. An unknown name
 	 * fails when the encoder is provisioned.
+	 * <p>
+	 * Property: <code>{@index logging.appender.{name}.encoder.postProcessors}</code>
 	 * @see LogFormatter.StandardPostProcessor
 	 */
 	static final String ENCODER_POST_PROCESSORS_PROPERTY = LogProperties.ENCODER_PREFIX + "postProcessors";

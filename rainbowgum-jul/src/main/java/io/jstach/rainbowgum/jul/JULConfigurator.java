@@ -15,11 +15,14 @@ import io.jstach.svc.ServiceProvider;
  * Will install the JUL handler if the <code>java.logging</code> module is available and
  * is not alreadyi installed.
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class JULConfigurator implements Configurator, AutoCloseable {
 
 	/**
 	 * If true will not install the JUL handler.
+	 * <p>
+	 * Property: <code>{@index logging.jul.disable}</code>
 	 */
 	public static final String JUL_DISABLE_PROPERTY = "logging.jul.disable";
 
@@ -40,6 +43,8 @@ public final class JULConfigurator implements Configurator, AutoCloseable {
 	 * its own levels, at the cost of a {@link java.util.logging.LogRecord} for every
 	 * event including those Rainbow Gum does not log.</li>
 	 * </ul>
+	 * <p>
+	 * Property: <code>{@index logging.jul.level}</code>
 	 */
 	public static final String JUL_LEVEL_PROPERTY = "logging.jul.level";
 

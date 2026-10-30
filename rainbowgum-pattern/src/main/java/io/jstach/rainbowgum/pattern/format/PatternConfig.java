@@ -28,6 +28,7 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * @see PatternCompiler
  *
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public sealed interface PatternConfig extends Configurator {
 
 	/**
@@ -37,6 +38,8 @@ public sealed interface PatternConfig extends Configurator {
 
 	/**
 	 * Key Values that can be retrieved by various patterns.
+	 * <p>
+	 * Property: <code>{@index logging.pattern.property.{name}}</code>
 	 */
 	public static final String PATTERN_PROPERY_PREFIX = LogProperties.ROOT_PREFIX + "pattern.property.";
 
