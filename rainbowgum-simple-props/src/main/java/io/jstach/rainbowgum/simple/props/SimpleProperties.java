@@ -115,6 +115,8 @@ public final class SimpleProperties {
 	 * The prefix must be ASCII letters, digits, and underscores, not start with a digit,
 	 * and end with <code>_</code>. It must not start with <code>HTTP_</code> in any case,
 	 * since CGI and similar gateways set those variables from request headers.
+	 * <p>
+	 * Property: <code>{@index logging.simpleprops.envPrefix}</code>
 	 */
 	public static final String ENV_PREFIX_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.envPrefix";
 
