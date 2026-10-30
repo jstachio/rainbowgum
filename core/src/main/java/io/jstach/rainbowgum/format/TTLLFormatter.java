@@ -1,9 +1,12 @@
 package io.jstach.rainbowgum.format;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.function.Function;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -15,6 +18,7 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.PercentCodec;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogReporter;
@@ -40,6 +44,9 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 
 	/** {@link io.jstach.rainbowgum.format.TTLL.KeyValuesFormat#PERCENT percent} */
 	static final LogFormatter DEFAULT_KEY_VALUES = TTLL.KeyValuesFormat.PERCENT.formatter();
+
+	/** timestamp, thread, level, logger, keyValues */
+	static final List<TTLL.Part> DEFAULT_ORDER = List.of(TTLL.Part.values());
 
 	private final LogFormatter formatter;
 
@@ -74,6 +81,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 	 * @param theme ANSI color theme, see {@link TTLL.ColorTheme}.
 	 * @param keyValuesWhenEmpty braces for no key values, see
 	 * {@link TTLL.KeyValuesWhenEmpty}.
+	 * @param order the parts in the order they are written, see {@link TTLL.Part}.
 	 * @param serviceRegistry where themes chosen by name in properties are looked up.
 	 * @return formatter.
 	 */
@@ -87,38 +95,113 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.ConvertParameter("convertKeyValuesWhenEmpty") TTLL.@Nullable KeyValuesWhenEmpty keyValuesWhenEmpty,
+			@LogConfigurable.DefaultParameter("DEFAULT_ORDER") @LogConfigurable.ConvertParameter("convertOrder") List<TTLL.Part> order,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
 		var mode = color == null ? TTLL.ColorMode.DEFAULT : color;
 		var resolvedTheme = PaletteColorTheme.resolve(theme, serviceRegistry);
 		var palette = Palette.of(mode, resolvedTheme, AnsiSupport::isAnsiSupported);
+		var timestampPart = palette.color(palette.timestamp(), KeyValueField.inPlace(timestamp));
+		var threadInPlace = KeyValueField.inPlace(thread);
+		var threadPart = threadInPlace.isNoop() ? threadInPlace : palette.color(palette.thread(),
+				LogFormatter.builder().text("[").add(threadInPlace).text("]").build());
+		var levelPart = palette.level(KeyValueField.inPlace(level));
+		var loggerPart = palette.color(palette.logger(), KeyValueField.inPlace(logger));
+		Function<TTLL.Part, LogFormatter> configured = p -> switch (p) {
+			case TIMESTAMP -> timestamp;
+			case THREAD -> thread;
+			case LEVEL -> level;
+			case LOGGER -> logger;
+			case KEY_VALUES -> keyValues;
+		};
+		Function<TTLL.Part, LogFormatter> parts = p -> switch (p) {
+			case TIMESTAMP -> timestampPart;
+			case THREAD -> threadPart;
+			case LEVEL -> levelPart;
+			case LOGGER -> loggerPart;
+			case KEY_VALUES -> keyValues;
+		};
+		var seen = EnumSet.noneOf(TTLL.Part.class);
+		for (var p : order) {
+			if (!seen.add(p)) {
+				throw new IllegalArgumentException(
+						"order lists " + partName(p) + " more than once: " + partNames(order));
+			}
+		}
+		var fieldParts = new ArrayList<TTLL.Part>();
+		for (var p : TTLL.Part.values()) {
+			if (!(configured.apply(p) instanceof KeyValueField)) {
+				continue;
+			}
+			if (!seen.contains(p)) {
+				throw new IllegalArgumentException(partName(p) + "=key_value but order leaves out " + partName(p) + ": "
+						+ partNames(order) + ". Add " + partName(p) + " to order, or use " + partName(p)
+						+ "=none to leave it out.");
+			}
+			fieldParts.add(p);
+		}
+		var fields = new ArrayList<KeyValueField>();
+		for (var p : order) {
+			if (configured.apply(p) instanceof KeyValueField field) {
+				fields.add(field);
+			}
+		}
+		if (!fieldParts.isEmpty()) {
+			String set = String.join(" and ", fieldParts.stream().map(p -> partName(p) + "=key_value").toList());
+			String needs = fieldParts.size() == 1 ? " needs " : " need ";
+			String since = fieldParts.size() == 1 ? ", since it is written among the key values"
+					: ", since they are written among the key values";
+			if (keyValues.isNoop()) {
+				throw new IllegalArgumentException(
+						set + needs + "keyValues=percent, json, or json5, not none" + since + ".");
+			}
+			if (!seen.contains(TTLL.Part.KEY_VALUES)) {
+				throw new IllegalArgumentException(
+						set + needs + "keyValues in order" + since + ": " + partNames(order) + ".");
+			}
+		}
+		/*
+		 * The parts are added in order to one builder, so the line is one flat list of
+		 * formatters whatever the order.
+		 */
 		var b = LogFormatter.builder();
 		boolean empty = true;
-		empty = part(b, palette.color(palette.timestamp(), timestamp), empty);
-		if (!thread.isNoop()) {
-			var bracketed = LogFormatter.builder().text("[").add(thread).text("]").build();
-			empty = part(b, palette.color(palette.thread(), bracketed), empty);
-		}
-		empty = part(b, palette.level(level), empty);
-		empty = part(b, palette.color(palette.logger(), logger), empty);
-		if (!keyValues.isNoop()) {
-			boolean json = keyValues instanceof JsonKeyValuesFormatter j
-					&& j.syntax() == KeyValuesFormatterBuilder.Format.JSON;
-			var whenEmpty = keyValuesWhenEmpty == null ? TTLL.KeyValuesWhenEmpty.AUTO : keyValuesWhenEmpty;
-			if (json && whenEmpty == TTLL.KeyValuesWhenEmpty.OMIT) {
-				throw new IllegalArgumentException("keyValuesWhenEmpty=omit cannot be used with keyValues=json, "
-						+ "since JSON readers expect an object on every line. Use keyValues=json5 or keyValues=percent, "
-						+ "or keyValuesWhenEmpty=auto or show.");
+		for (int i = 0; i < order.size(); i++) {
+			var p = order.get(i);
+			if (p != TTLL.Part.KEY_VALUES) {
+				empty = part(b, parts.apply(p), empty);
 			}
-			boolean writeEmpty = whenEmpty == TTLL.KeyValuesWhenEmpty.SHOW
-					|| (whenEmpty == TTLL.KeyValuesWhenEmpty.AUTO && json);
-			/*
-			 * Key values can write nothing, so they carry their own leading space rather
-			 * than being a part, and the " - " below only follows text actually written.
-			 */
-			b.add(palette.keyValues(keyValues, writeEmpty, !empty));
+			else if (!fields.isEmpty()) {
+				empty = part(b, palette.keyValueFields(KeyValueField.prepend(fields, keyValues)), empty);
+			}
+			else if (!keyValues.isNoop()) {
+				boolean partAfter = order.subList(i + 1, order.size())
+					.stream()
+					.anyMatch(after -> !parts.apply(after).isNoop());
+				b.add(keyValues(palette, keyValues, keyValuesWhenEmpty, !empty, partAfter));
+			}
 		}
 		var line = LogFormatter.builder().add(new LinePrefixFormatter(b.build())).message().newline().throwable();
 		return new TTLLFormatter(line.build(), describe(mode, resolvedTheme, palette));
+	}
+
+	/*
+	 * Key values can write nothing, so rather than being a part they carry their own
+	 * space: before them after another part, or after them when they come first and a
+	 * part follows. The " - " before the message only follows text actually written.
+	 */
+	private static LogFormatter keyValues(Palette palette, LogFormatter keyValues,
+			TTLL.@Nullable KeyValuesWhenEmpty keyValuesWhenEmpty, boolean partBefore, boolean partAfter) {
+		boolean json = keyValues instanceof JsonKeyValuesFormatter j
+				&& j.syntax() == KeyValuesFormatterBuilder.Format.JSON;
+		var whenEmpty = keyValuesWhenEmpty == null ? TTLL.KeyValuesWhenEmpty.AUTO : keyValuesWhenEmpty;
+		if (json && whenEmpty == TTLL.KeyValuesWhenEmpty.OMIT) {
+			throw new IllegalArgumentException("keyValuesWhenEmpty=omit cannot be used with keyValues=json, "
+					+ "since JSON readers expect an object on every line. Use keyValues=json5 or keyValues=percent, "
+					+ "or keyValuesWhenEmpty=auto or show.");
+		}
+		boolean writeEmpty = whenEmpty == TTLL.KeyValuesWhenEmpty.SHOW
+				|| (whenEmpty == TTLL.KeyValuesWhenEmpty.AUTO && json);
+		return palette.keyValues(keyValues, writeEmpty, partBefore ? " " : "", !partBefore && partAfter ? " " : "");
 	}
 
 	/*
@@ -161,7 +244,7 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 		}
 		catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("'" + value
-					+ "' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: "
+					+ "' is neither a timestamp format (ttll, iso, key_value, none, true, false, default, keyValue) nor a valid DateTimeFormatter pattern: "
 					+ e.getMessage(), e);
 		}
 	}
@@ -188,6 +271,18 @@ final class TTLLFormatter implements TTLL, LogFormatter.EventFormatter, LogRepor
 
 	static TTLL.ColorTheme convertTheme(String value) {
 		return PaletteColorTheme.parse(value);
+	}
+
+	private static String partName(TTLL.Part part) {
+		return part.name().toLowerCase(Locale.ROOT);
+	}
+
+	private static List<String> partNames(List<TTLL.Part> order) {
+		return order.stream().map(TTLLFormatter::partName).toList();
+	}
+
+	static List<TTLL.Part> convertOrder(String value) {
+		return LogProperties.parseList(value).stream().map(TTLL.Part::parse).toList();
 	}
 
 	static LogFormatter convertKeyValues(String value) {
@@ -227,6 +322,138 @@ record LinePrefixFormatter(LogFormatter prefix) implements LogFormatter.EventFor
 		prefix.format(output, event);
 		if (output.length() > start) {
 			output.append(" - ");
+		}
+	}
+
+}
+
+/*
+ * A part chosen with KEY_VALUE: TTLLFormatter.of writes its value among the key values
+ * instead of in its place, so on its own it writes nothing.
+ */
+record KeyValueField(String key, LogFormatter value) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+	}
+
+	/*
+	 * What to write in the part's place: nothing when it is a field.
+	 */
+	static LogFormatter inPlace(LogFormatter part) {
+		return part instanceof KeyValueField ? LogFormatter.noop() : part;
+	}
+
+	/*
+	 * The fields followed by the event's key values, in the syntax of the key values
+	 * formatter. Keys and separators are text, so the result is one flat list of
+	 * formatters and nothing loops over the fields per event.
+	 */
+	static LogFormatter prepend(List<KeyValueField> fields, LogFormatter keyValues) {
+		var syntax = switch (keyValues) {
+			case PercentKeyValuesFormatter f -> KeyValuesFormatterBuilder.Format.PERCENT;
+			case JsonKeyValuesFormatter f when !f.braces() -> f.syntax();
+			case LogfmtKeyValuesFormatter f -> KeyValuesFormatterBuilder.Format.LOGFMT;
+			default -> throw new IllegalArgumentException("A part set to key_value needs key values from "
+					+ "TTLL.KeyValuesFormat or KeyValuesFormatterBuilder, not " + keyValues);
+		};
+		String separator = switch (syntax) {
+			case PERCENT -> "&";
+			case JSON, JSON5 -> ",";
+			case LOGFMT -> " ";
+		};
+		var b = LogFormatter.builder();
+		String before = "";
+		for (var field : fields) {
+			b.text(before + key(field.key(), syntax));
+			b.add(new KeyValueFieldValue(field.value(), syntax));
+			before = separator;
+		}
+		b.add(new FollowingKeyValues(separator, keyValues));
+		return b.build();
+	}
+
+	/*
+	 * The key and what separates it from its value.
+	 */
+	static String key(String key, KeyValuesFormatterBuilder.Format syntax) {
+		var sb = new StringBuilder();
+		switch (syntax) {
+			case PERCENT -> {
+				PercentCodec.encode(sb, key, StandardCharsets.UTF_8);
+				sb.append('=');
+			}
+			case JSON -> {
+				JsonKeyValuesFormatter.appendString(sb, key);
+				sb.append(':');
+			}
+			case JSON5 -> {
+				if (JsonKeyValuesFormatter.isIdentifier(key)) {
+					sb.append(key);
+				}
+				else {
+					JsonKeyValuesFormatter.appendString(sb, key);
+				}
+				sb.append(':');
+			}
+			case LOGFMT -> {
+				LogfmtKeyValuesFormatter.appendKey(sb, key);
+				sb.append('=');
+			}
+		}
+		return sb.toString();
+	}
+
+}
+
+/*
+ * A key value field's value, encoded in place in the key values syntax.
+ */
+record KeyValueFieldValue(LogFormatter value,
+		KeyValuesFormatterBuilder.Format syntax) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		int start = output.length();
+		value.format(output, event);
+		switch (syntax) {
+			case PERCENT -> percentEncodeInPlace(output, start);
+			case JSON, JSON5 -> JsonKeyValuesFormatter.quoteInPlace(output, start);
+			case LOGFMT -> LogfmtKeyValuesFormatter.quoteInPlace(output, start);
+		}
+	}
+
+	/*
+	 * Copies nothing when the value is all unreserved characters, the common case.
+	 */
+	static void percentEncodeInPlace(StringBuilder output, int start) {
+		for (int i = start; i < output.length(); i++) {
+			char c = output.charAt(i);
+			boolean unreserved = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-'
+					|| c == '.' || c == '_' || c == '~';
+			if (!unreserved) {
+				String raw = output.substring(start);
+				output.setLength(start);
+				PercentCodec.encode(output, raw, StandardCharsets.UTF_8);
+				return;
+			}
+		}
+	}
+
+}
+
+/*
+ * The event's key values after the fields, with the separator only if there are any.
+ */
+record FollowingKeyValues(String separator, LogFormatter keyValues) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		int start = output.length();
+		output.append(separator);
+		keyValues.format(output, event);
+		if (output.length() == start + separator.length()) {
+			output.setLength(start);
 		}
 	}
 
@@ -473,13 +700,23 @@ record Palette(String timestamp, String thread, String logger, String keyValues,
 		return new LevelColorFormatter(level, this);
 	}
 
-	LogFormatter keyValues(LogFormatter keyValues, boolean writeEmpty, boolean afterPart) {
-		String space = afterPart ? " " : "";
+	LogFormatter keyValues(LogFormatter keyValues, boolean writeEmpty, String before, String after) {
 		if (keyValues().isEmpty()) {
-			return BracedKeyValuesFormatter.ofTTLL(keyValues, space + "{", "}", writeEmpty);
+			return BracedKeyValuesFormatter.ofTTLL(keyValues, before + "{", "}" + after, writeEmpty);
 		}
-		return BracedKeyValuesFormatter.ofTTLL(keyValues, space + Ansi.start(keyValues()) + "{", "}" + Ansi.RESET,
-				writeEmpty);
+		return BracedKeyValuesFormatter.ofTTLL(keyValues, before + Ansi.start(keyValues()) + "{",
+				"}" + Ansi.RESET + after, writeEmpty);
+	}
+
+	/*
+	 * Key values that always write something, so they are a part and their braces are
+	 * plain text.
+	 */
+	LogFormatter keyValueFields(LogFormatter keyValues) {
+		if (keyValues().isEmpty()) {
+			return LogFormatter.builder().text("{").add(keyValues).text("}").build();
+		}
+		return LogFormatter.builder().text(Ansi.start(keyValues()) + "{").add(keyValues).text("}" + Ansi.RESET).build();
 	}
 
 	/*

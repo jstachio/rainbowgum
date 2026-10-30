@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
@@ -149,6 +150,226 @@ class TTLLFormatterTest {
 				log("ttll", properties + "logging.appender.list.encoder.ttll.color=force\n", event(KeyValues.of())));
 	}
 
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"level,timestamp,logger,keyValues|INFO  12:00:00.123 com.example.App {requestId=42&user=Ada%20Lovelace} - hello world|INFO  12:00:00.123 com.example.App - hello world", //
+			"keyValues,level,logger|{requestId=42&user=Ada%20Lovelace} INFO  com.example.App - hello world|INFO  com.example.App - hello world", //
+			"timestamp,key_values,logger|12:00:00.123 {requestId=42&user=Ada%20Lovelace} com.example.App - hello world|12:00:00.123 com.example.App - hello world", //
+			"keyValues|{requestId=42&user=Ada%20Lovelace} - hello world|hello world", //
+			"time,thread|12:00:00.123 [main] - hello world|12:00:00.123 [main] - hello world", //
+			"logger, LEVEL|com.example.App INFO  - hello world|com.example.App INFO  - hello world" })
+	void orderPropertyListsThePartsInOrder(String order, String expected, String expectedWithoutKeyValues) {
+		String properties = "logging.appender.list.encoder.ttll.order=" + order + "\n";
+		assertEquals(expected + "\n", log("ttll", properties, event(requestKeyValues())));
+		assertEquals(expectedWithoutKeyValues + "\n", log("ttll", properties, event(KeyValues.of())));
+	}
+
+	@Test
+	void orderWithKeyValuesFirstSkipsTheirSpaceWhenThereAreNone() {
+		String properties = """
+				logging.appender.list.encoder.ttll.order=keyValues,timestamp,logger
+				logging.appender.list.encoder.ttll.keyValues=json
+				""";
+		assertEquals("{} 12:00:00.123 com.example.App - hello world\n", log("ttll", properties, event(KeyValues.of())));
+		assertEquals("12:00:00.123 com.example.App - hello world\n",
+				log("ttll", properties.replace("json", "json5"), event(KeyValues.of())));
+	}
+
+	@Test
+	void orderWithKeyValuesFirstIsColored() {
+		String actual = log("ttll", """
+				logging.appender.list.encoder.ttll.order=keyValues,level
+				logging.appender.list.encoder.ttll.color=force
+				""", event(requestKeyValues()));
+		assertEquals(
+				E + "2;39m{requestId=42&user=Ada%20Lovelace}" + R + " " + E + "1;34mINFO " + R + " - hello world\n",
+				actual);
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"timestamp=key_value|[main] INFO  com.example.App {time=2026-10-05T12%3A00%3A00.123Z&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=key_value|12:00:00.123 INFO  com.example.App {thread=main&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=key_value|12:00:00.123 [main] com.example.App {level=INFO&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"logger=key_value|12:00:00.123 [main] INFO  {logger=com.example.App&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"timestamp=keyValue|[main] INFO  com.example.App {time=2026-10-05T12%3A00%3A00.123Z&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"thread=keyvalue|12:00:00.123 INFO  com.example.App {thread=main&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"level=KEYVALUE|12:00:00.123 [main] com.example.App {level=INFO&requestId=42&user=Ada%20Lovelace} - hello world", //
+			"logger=keyValue|12:00:00.123 [main] INFO  {logger=com.example.App&requestId=42&user=Ada%20Lovelace} - hello world" })
+	void keyValuePartsAreWrittenAmongTheKeyValues(String property, String expected) {
+		assertEquals(expected + "\n",
+				log("ttll", "logging.appender.list.encoder.ttll." + property + "\n", event(requestKeyValues())));
+	}
+
+	@Test
+	void keyValuePartsUseTheKeyValuesFormat() {
+		assertEquals(
+				"""
+						12:00:00.123 com.example.App {"thread":"main","level":"INFO","requestId":"42","user":"Ada Lovelace"} - hello world
+						""",
+				log("ttll", """
+						logging.appender.list.encoder.ttll.thread=key_value
+						logging.appender.list.encoder.ttll.level=key_value
+						logging.appender.list.encoder.ttll.keyValues=json
+						""", event(requestKeyValues())));
+		assertEquals("""
+				12:00:00.123 [main] INFO  {logger:"com.example.App",requestId:"42",user:"Ada Lovelace"} - hello world
+				""", log("ttll", """
+				logging.appender.list.encoder.ttll.logger=key_value
+				logging.appender.list.encoder.ttll.keyValues=json5
+				""", event(requestKeyValues())));
+	}
+
+	@Test
+	void keyValuePartsAlwaysWriteTheBraces() {
+		String properties = """
+				logging.appender.list.encoder.ttll.timestamp=key_value
+				logging.appender.list.encoder.ttll.thread=key_value
+				logging.appender.list.encoder.ttll.level=key_value
+				logging.appender.list.encoder.ttll.logger=key_value
+				logging.appender.list.encoder.ttll.keyValuesWhenEmpty=omit
+				""";
+		assertEquals(
+				"{time=2026-10-05T12%3A00%3A00.123Z&thread=main&level=INFO&logger=com.example.App} - hello world\n",
+				log("ttll", properties, event(KeyValues.of())));
+	}
+
+	@Test
+	void keyValuePartsAreEncodedLikeTheKeyValues() {
+		var event = LogEvent.of(TIME, "worker \"1\"", 7, Level.INFO, "com.example.App", "hello world", KeyValues.of(),
+				null);
+		assertEquals("12:00:00.123 INFO  com.example.App {thread=worker%20%221%22} - hello world\n",
+				log("ttll", "logging.appender.list.encoder.ttll.thread=key_value\n", event));
+		assertEquals("12:00:00.123 INFO  com.example.App {\"thread\":\"worker \\\"1\\\"\"} - hello world\n", log("ttll",
+				"logging.appender.list.encoder.ttll.thread=key_value\nlogging.appender.list.encoder.ttll.keyValues=json\n",
+				event));
+		var logfmt = new TTLLFormatterBuilder("test").thread(TTLL.ThreadFormat.KEY_VALUE.formatter())
+			.keyValues(new KeyValuesFormatterBuilder().format(KeyValuesFormatterBuilder.Format.LOGFMT).build())
+			.build();
+		assertEquals("12:00:00.123 INFO  com.example.App {thread=\"worker \\\"1\\\"\"} - hello world\n",
+				format(logfmt, event));
+	}
+
+	@Test
+	void keyValuePartsAreColoredAsKeyValues() {
+		String actual = log("ttll",
+				"logging.appender.list.encoder.ttll.color=force\nlogging.appender.list.encoder.ttll.logger=key_value\n",
+				event(requestKeyValues()));
+		assertEquals(
+				E + "36m12:00:00.123" + R + " " + E + "2;39m[main]" + R + " " + E + "1;34mINFO " + R + " " + E
+						+ "2;39m{logger=com.example.App&requestId=42&user=Ada%20Lovelace}" + R + " - hello world\n",
+				actual);
+	}
+
+	@Test
+	void orderGivenToTheBuilder() {
+		var formatter = new TTLLFormatterBuilder("test").order(List.of(TTLL.Part.LOGGER, TTLL.Part.THREAD)).build();
+		assertEquals("com.example.App [main] - hello world\n", format(formatter, event(requestKeyValues())));
+	}
+
+	@Test
+	void orderListingAPartTwiceFails() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.appender.list.encoder.ttll.order=level,logger,level")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				order lists level more than once: [level, logger, level]""", e.getMessage());
+	}
+
+	@Test
+	void invalidOrderPartFails() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.appender.list.encoder.ttll.order=level,message")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.appender.list.encoder.ttll.order' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.order], \
+				'message' is not a valid value for io.jstach.rainbowgum.format.TTLL.Part. \
+				Valid values: 'timestamp', 'thread', 'level', 'logger', 'key_values', 'time', 'keyvalues'""";
+		assertEquals(expected, e.getMessage());
+	}
+
+	@Test
+	void keyValuePartsFollowTheOrder() {
+		assertEquals("{level=INFO&thread=main&requestId=42&user=Ada%20Lovelace} com.example.App - hello world\n",
+				log("ttll", """
+						logging.appender.list.encoder.ttll.order=keyValues,logger,level,thread
+						logging.appender.list.encoder.ttll.thread=key_value
+						logging.appender.list.encoder.ttll.level=key_value
+						""", event(requestKeyValues())));
+		assertEquals("{level=INFO&requestId=42&user=Ada%20Lovelace} - hello world\n", log("ttll", """
+				logging.appender.list.encoder.ttll.order=level,keyValues
+				logging.appender.list.encoder.ttll.level=key_value
+				""", event(requestKeyValues())));
+	}
+
+	@Test
+	void keyValuePartLeftOutOfOrderFails() {
+		var properties = LogProperties.builder()
+			.fromProperties(
+					"logging.appender.list.encoder.ttll.thread=key_value\nlogging.appender.list.encoder.ttll.order=logger,keyValues")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				thread=key_value but order leaves out thread: [logger, key_values]. \
+				Add thread to order, or use thread=none to leave it out.""", e.getMessage());
+	}
+
+	@Test
+	void keyValuePartWithKeyValuesNotInOrderFails() {
+		var properties = LogProperties.builder()
+			.fromProperties(
+					"logging.appender.list.encoder.ttll.level=key_value\nlogging.appender.list.encoder.ttll.order=level")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				level=key_value needs keyValues in order, since it is written among the key values: \
+				[level].""", e.getMessage());
+	}
+
+	@Test
+	void keyValuePartsWithKeyValuesNotInOrderNameEveryPart() {
+		var properties = LogProperties.builder().fromProperties("""
+				logging.appender.list.encoder.ttll.level=key_value
+				logging.appender.list.encoder.ttll.thread=key_value
+				logging.appender.list.encoder.ttll.order=level,thread,logger
+				""").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				thread=key_value and level=key_value need keyValues in order, \
+				since they are written among the key values: [level, thread, logger].""", e.getMessage());
+	}
+
+	@Test
+	void keyValuePartWithoutKeyValuesFails() {
+		var properties = LogProperties.builder()
+			.fromProperties(
+					"logging.appender.list.encoder.ttll.thread=key_value\nlogging.appender.list.encoder.ttll.keyValues=none")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				thread=key_value needs keyValues=percent, json, or json5, not none, \
+				since it is written among the key values.""", e.getMessage());
+	}
+
+	@Test
+	void keyValuePartFormatterWritesNothingOnItsOwn() {
+		assertEquals("", format(TTLL.ThreadFormat.KEY_VALUE.formatter(), event(requestKeyValues())));
+	}
+
 	@Test
 	void omitWithJsonFails() {
 		var properties = LogProperties.builder()
@@ -253,7 +474,7 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.appender.list.encoder.ttll.thread' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.thread], \
-				'group' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'name_or_id', 'both', 'none', 'true', 'false', 'default'""";
+				'group' is not a valid value for io.jstach.rainbowgum.format.TTLL.ThreadFormat. Valid values: 'name', 'id', 'name_or_id', 'both', 'key_value', 'none', 'true', 'false', 'default', 'keyvalue'""";
 		assertEquals(expected, e.getMessage());
 	}
 
@@ -282,7 +503,7 @@ class TTLLFormatterTest {
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
 				Error for property. key: 'logging.appender.list.encoder.ttll.timestamp' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.timestamp], \
-				'bogus{' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: \
+				'bogus{' is neither a timestamp format (ttll, iso, key_value, none, true, false, default, keyValue) nor a valid DateTimeFormatter pattern: \
 				Unknown pattern letter: b""";
 		assertEquals(expected, e.getMessage());
 	}
