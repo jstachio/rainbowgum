@@ -368,6 +368,8 @@ public interface LogProperties {
 	 * Whether objects given to a logging facade as key values also get a JSON form:
 	 * <code>on</code> or <code>off</code> (the default). See
 	 * {@link LogConfig.Globals.KeyValuesJson}.
+	 * <p>
+	 * Property: <code>{@index logging.keyvalues.json}</code>
 	 */
 	static final String KEY_VALUES_JSON_PROPERTY = KEY_VALUES_PREFIX + "json";
 

@@ -415,10 +415,11 @@ class Json5FormatterTest {
 	@Test
 	void jsonFormsAreWrittenAsJson() {
 		var event = event("hello", jsonFormKeyValues(), null);
-		assertEquals("""
-				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","threadId":"1","threadName":"main",\
-				"msg":"hello","requestId":"42","user":{"id":1,"roles":["admin"]},"keyValues":{"msg":{"a":1}}}
-				""",
+		assertEquals(
+				"""
+						{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","threadId":"1","threadName":"main",\
+						"msg":"hello","requestId":"42","user":{"id":1,"roles":["admin"]},"keyValues":{"msg":{"a":1}}}
+						""",
 				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build(), event));
 		assertEquals("""
 				{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",\
