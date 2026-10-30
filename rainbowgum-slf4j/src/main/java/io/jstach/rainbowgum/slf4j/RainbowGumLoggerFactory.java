@@ -257,7 +257,7 @@ class RainbowGumLoggerFactory implements ILoggerFactory {
 
 		void setRainbowGum(@Nullable RainbowGum gum) {
 			delegate = resolve(gum);
-			jsonSerializer = KeyValues.JsonSerializer.of(gum.config());
+			jsonSerializer = gum == null ? null : KeyValues.JsonSerializer.of(gum.config());
 		}
 
 		@Override
