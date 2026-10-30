@@ -244,6 +244,64 @@ class LtsvFormatterTest {
 				e.getMessage());
 	}
 
+	private static String formatWith(String properties, LogEvent event) {
+		var props = LogProperties.builder()
+			.fromProperties(properties.replace("ltsv.", "logging.appender.list.encoder.ltsv."))
+			.build();
+		var sb = new StringBuilder();
+		new LtsvFormatterBuilder("list").fromProperties(props).build().format(sb, event);
+		return sb.toString();
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', quoteCharacter = '"', value = { //
+			"timestamp=ttll|time:15:04:05.123", //
+			"timestamp=iso|time:2026-10-05T15:04:05.123Z", //
+			"timestamp=default|time:2026-10-05T15:04:05.123Z", //
+			"timestamp=yyyy-MM-dd HH|time:2026-10-05 15", //
+			"level=padded|\"level:INFO \"", //
+			"level=bracketed|level:[INFO]", //
+			"level=true|level:INFO", //
+			"logger=short|logger:App", //
+			"logger=default|logger:com.example.App" })
+	void fieldFormats(String property, String field) {
+		String line = formatWith("ltsv." + property + "\nltsv.thread=none\n",
+				event(Level.INFO, "main", "hello", KeyValues.of(), null));
+		String label = field.substring(0, field.indexOf(':') + 1);
+		int start = line.indexOf(label);
+		int end = line.indexOf('\t', start);
+		assertEquals(field, line.substring(start, end));
+	}
+
+	@Test
+	void noneLeavesTheFieldOut() {
+		var kvs = MutableKeyValues.of();
+		kvs.putKeyValue("requestId", "42");
+		assertEquals("com.example.App\thello\tthreadId:1\tthreadName:main\trequestId:42\n",
+				formatWith("ltsv.columns=logger,msg\nltsv.timestamp=none\nltsv.level=none\n",
+						event(Level.INFO, "main", "hello", kvs, null)));
+		assertEquals("time:2026-10-05T15:04:05.123Z\tmsg:hello\n",
+				formatWith("ltsv.level=false\nltsv.logger=none\nltsv.thread=none\n",
+						event(Level.INFO, "main", "hello", KeyValues.of(), null)));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"timestamp=none|time|columns lists time but timestamp is none", //
+			"level=none|level,msg|columns lists level but level is none", //
+			"logger=false|msg,logger|columns lists logger but logger is none", //
+			"thread=none|thread|columns lists thread but thread is none" })
+	void aColumnCannotBeNone(String property, String columns, String message) {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.appender.list.encoder.ltsv." + property
+					+ "\nlogging.appender.list.encoder.ltsv.columns=" + columns)
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new LtsvFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("Validation failed for io.jstach.rainbowgum.format.LtsvFormatterBuilder: " + message,
+				e.getMessage());
+	}
+
 	static final String E = "\033[";
 
 	static final String R = E + "0;39m";
@@ -268,7 +326,7 @@ class LtsvFormatterTest {
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
 		var sb = new StringBuilder();
 		new LtsvFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
-			.columns(List.of(EventField.values()))
+			.columns(List.of(EventField.TIME, EventField.LEVEL, EventField.LOGGER, EventField.MESSAGE))
 			.thread(ThreadFields.NONE)
 			.build()
 			.format(sb, event(Level.ERROR, "main", "failed", KeyValues.of(), ex));

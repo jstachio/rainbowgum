@@ -11,9 +11,7 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.KeyValues.KeyValuesConsumer;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
-import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogFormatter.ThrowableFormatter;
-import io.jstach.rainbowgum.LogFormatter.TimestampFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.ServiceRegistry;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -24,12 +22,14 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  */
 final class LtsvFormatter implements LogFormatter.EventFormatter {
 
-	/*
-	 * Fixed width UTC milliseconds, cached per millisecond.
-	 */
-	private static final TimestampFormatter TIME = TimestampFormatter.ofISO();
+	/** {@link io.jstach.rainbowgum.format.TTLL.TimestampFormat#ISO iso} */
+	static final LogFormatter DEFAULT_TIMESTAMP = TTLL.TimestampFormat.ISO.formatter();
 
-	private static final LevelFormatter LEVEL = LevelFormatter.of();
+	/** {@link io.jstach.rainbowgum.format.TTLL.LevelFormat#PLAIN plain} */
+	static final LogFormatter DEFAULT_LEVEL = TTLL.LevelFormat.PLAIN.formatter();
+
+	/** {@link io.jstach.rainbowgum.format.TTLL.LoggerFormat#FULL full} */
+	static final LogFormatter DEFAULT_LOGGER = TTLL.LoggerFormat.FULL.formatter();
 
 	/** none, so every field is labeled */
 	static final List<EventField> DEFAULT_COLUMNS = List.of();
@@ -41,7 +41,13 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 */
 	private final EventField[] labeled;
 
+	private final LogFormatter timestamp;
+
 	private final ThreadFields thread;
+
+	private final LogFormatter level;
+
+	private final LogFormatter logger;
 
 	private final Palette palette;
 
@@ -51,12 +57,16 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 */
 	private final KeyValuesConsumer<StringBuilder> keyValues;
 
-	private LtsvFormatter(List<EventField> columns, ThreadFields thread, Palette palette) {
+	private LtsvFormatter(List<EventField> columns, LogFormatter timestamp, ThreadFields thread, LogFormatter level,
+			LogFormatter logger, Palette palette) {
 		this.columns = columns.toArray(EventField[]::new);
 		this.labeled = EnumSet
 			.complementOf(columns.isEmpty() ? EnumSet.noneOf(EventField.class) : EnumSet.copyOf(columns))
 			.toArray(EventField[]::new);
+		this.timestamp = timestamp;
 		this.thread = thread;
+		this.level = level;
+		this.logger = logger;
 		this.palette = palette;
 		Set<String> fields = Json5Formatter.fields(thread);
 		this.keyValues = (kvs, key, value, count, output) -> appendKeyValue(
@@ -82,9 +92,13 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <code>columns=thread,msg</code>:
 	 * <code>1⇥main⇥hello world⇥time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥requestId:42</code>.
 	 * Output with columns is no longer LTSV.</li>
-	 * <li><code>time</code> is the UTC instant with milliseconds.</li>
+	 * <li><code>time</code> is the UTC instant with milliseconds by default, and
+	 * <code>timestamp</code> chooses another format or a DateTimeFormatter pattern in
+	 * UTC, as for TTLL.</li>
 	 * <li><code>level</code> is <code>TRACE</code>, <code>DEBUG</code>,
-	 * <code>INFO</code>, <code>WARN</code>, or <code>ERROR</code>.</li>
+	 * <code>INFO</code>, <code>WARN</code>, or <code>ERROR</code>, unpadded by
+	 * default.</li>
+	 * <li>A field set to <code>none</code> is not written, and cannot be a column.</li>
 	 * <li>The key values follow the fields, in order. A key value named like one of these
 	 * fields is prefixed with <code>keyValues.</code>. A key value without a value is
 	 * written with an empty one.</li>
@@ -104,7 +118,12 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <code>error</code> and <code>stacktrace</code> take the level's color, since they
 	 * are on the event's line.
 	 * @param name encoder name, used for property lookup.
+	 * @param timestamp time format, see {@link TTLL.TimestampFormat};
+	 * <code>default</code> is <code>iso</code>.
 	 * @param thread which thread fields, see {@link ThreadFields}.
+	 * @param level level format, see {@link TTLL.LevelFormat}; <code>default</code> is
+	 * <code>plain</code>.
+	 * @param logger logger name format, see {@link TTLL.LoggerFormat}.
 	 * @param columns the fields written first without labels, see {@link EventField}.
 	 * @param color whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme which colors, see {@link TTLL.ColorTheme}.
@@ -113,19 +132,58 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 */
 	@LogConfigurable(name = "LtsvFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "ltsv.")
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
+			@LogConfigurable.DefaultParameter("DEFAULT_TIMESTAMP") @LogConfigurable.ConvertParameter("convertTimestamp") LogFormatter timestamp,
 			@LogConfigurable.DefaultParameter(
 					constant = "BOTH") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
+			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("convertLevel") LogFormatter level,
+			@LogConfigurable.DefaultParameter("DEFAULT_LOGGER") @LogConfigurable.ConvertParameter("convertLogger") LogFormatter logger,
 			@LogConfigurable.DefaultParameter("DEFAULT_COLUMNS") @LogConfigurable.ConvertParameter("convertColumns") List<EventField> columns,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
-		return new LtsvFormatter(checkColumns(columns), thread,
+		checkColumns(columns);
+		for (var f : columns) {
+			boolean none = switch (f) {
+				case TIME -> timestamp.isNoop();
+				case LEVEL -> level.isNoop();
+				case LOGGER -> logger.isNoop();
+				case THREAD -> thread == ThreadFields.NONE;
+				case MESSAGE -> false;
+			};
+			if (none) {
+				String field = f.name().toLowerCase(Locale.ROOT);
+				throw new IllegalArgumentException(
+						"columns lists " + field + " but " + (f == EventField.TIME ? "timestamp" : field) + " is none");
+			}
+		}
+		return new LtsvFormatter(columns, timestamp, thread, level, logger,
 				Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
 						PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 	}
 
+	static LogFormatter convertTimestamp(String value) {
+		return isDefault(value) ? DEFAULT_TIMESTAMP : TTLLFormatter.convertTimestamp(value);
+	}
+
 	static ThreadFields convertThread(String value) {
 		return ThreadFields.parse(value);
+	}
+
+	static LogFormatter convertLevel(String value) {
+		return isDefault(value) ? DEFAULT_LEVEL : TTLLFormatter.convertLevel(value);
+	}
+
+	static LogFormatter convertLogger(String value) {
+		return TTLLFormatter.convertLogger(value);
+	}
+
+	/*
+	 * The TTLL enums' default and true are TTLL's defaults, which differ for time and
+	 * level.
+	 */
+	private static boolean isDefault(String value) {
+		String v = value.strip().toLowerCase(Locale.ROOT);
+		return v.equals("default") || v.equals("true");
 	}
 
 	static List<EventField> convertColumns(String value) {
@@ -195,25 +253,13 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		var p = palette;
 		switch (field) {
 			case TIME -> {
-				separate(output, any);
-				label(output, labeled, "time:");
-				Palette.start(output, p.timestamp());
-				TIME.formatTimestamp(output, event.timestamp());
-				Palette.end(output, p.timestamp());
+				return appendFormatted(output, any, labeled, "time:", p.timestamp(), timestamp, event);
 			}
 			case LEVEL -> {
-				separate(output, any);
-				label(output, labeled, "level:");
-				Palette.start(output, levelColor);
-				LEVEL.formatLevel(output, event.level());
-				Palette.end(output, levelColor);
+				return appendFormatted(output, any, labeled, "level:", levelColor, level, event);
 			}
 			case LOGGER -> {
-				separate(output, any);
-				label(output, labeled, "logger:");
-				Palette.start(output, p.logger());
-				appendValue(output, event.loggerName());
-				Palette.end(output, p.logger());
+				return appendFormatted(output, any, labeled, "logger:", p.logger(), logger, event);
 			}
 			case THREAD -> {
 				return switch (thread) {
@@ -243,6 +289,21 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		if (any) {
 			output.append('\t');
 		}
+		return true;
+	}
+
+	private static boolean appendFormatted(StringBuilder output, boolean any, boolean labeled, String label,
+			String color, LogFormatter formatter, LogEvent event) {
+		if (formatter.isNoop()) {
+			return any;
+		}
+		separate(output, any);
+		label(output, labeled, label);
+		Palette.start(output, color);
+		int start = output.length();
+		formatter.format(output, event);
+		escapeInPlace(output, start);
+		Palette.end(output, color);
 		return true;
 	}
 

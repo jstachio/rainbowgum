@@ -1390,6 +1390,23 @@ Tab, newline, carriage return, and <code>\</code> in a value are backslash escap
 take the level's color, since they are on the event's line. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.
 
 <p>
+The <code>timestamp</code>, <code>level</code>, and <code>logger</code> properties take the same choices as the
+<a href="#ttll">TTLL formatter</a>'s, including a DateTimeFormatter pattern for <code>timestamp</code>, but by
+default the time is ISO 8601 and the level is not padded. <code>none</code> leaves a field out:
+</p>
+
+{@snippet lang=properties :
+logging.appender.console.encoder.ltsv.timestamp=ttll
+logging.appender.console.encoder.ltsv.level=padded
+logging.appender.console.encoder.ltsv.logger=short
+logging.appender.console.encoder.ltsv.thread=none
+}
+
+{@snippet :
+time:15:04:05.123⇥level:INFO ⇥logger:App⇥msg:hello world⇥requestId:42
+}
+
+<p>
 <code>columns</code> lists fields to write first, in that order and without labels, so they are read by
 position, from <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code> and <code>msg</code>.
 The fields not listed follow with their labels, then the key values, <code>error</code> and <code>stacktrace</code>,
@@ -1406,18 +1423,20 @@ logging.appender.console.encoder.ltsv.columns=time,level,logger,thread,msg
 
 <p>
 The <a href="#rolling_journald">systemd journal</a> records the time itself, and the
-<a href="#post_processors"><code>journald</code> post processor</a> gives it the level, so a service might keep
-only the logger and message as columns and move the rest to the right:
+<a href="#post_processors"><code>journald</code> post processor</a> gives it the level, so a service can leave
+both out, keep the logger and message as columns, and have the thread and key values labeled on the right:
 </p>
 
 {@snippet lang=properties :
 logging.appender.console.encoder.uri=ltsv
 logging.appender.console.encoder.ltsv.columns=logger,msg
+logging.appender.console.encoder.ltsv.timestamp=none
+logging.appender.console.encoder.ltsv.level=none
 logging.appender.console.encoder.postProcessors=journald
 }
 
 {@snippet :
-<6>com.example.App⇥hello world⇥time:2026-10-05T15:04:05.123Z⇥level:INFO⇥threadId:1⇥threadName:main⇥requestId:42
+<6>com.example.App⇥hello world⇥threadId:1⇥threadName:main⇥requestId:42
 }
 
 <p>
