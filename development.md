@@ -118,6 +118,17 @@ last segment may be camel case, as in `logging.global.threadLocal`.
 `PropertyKeyCaseTest` in `test/rainbowgum-test-enum-aliases` checks the
 compiled classes of every module for this.
 
+Every property name can be found with the javadoc search bar, through the
+javadoc `{@index}` tag. `rainbowgum-apt` indexes the properties of a
+`@LogConfigurable` builder. Any other property's constant ends its javadoc
+with the name written out, because `{@index}` cannot take `{@value}`:
+`Property: <code>{@index logging.alerts.fail}</code>`. A part the user
+chooses is a placeholder: `{name}` for a named component such as an appender
+or route, and `{logger}` for a logger name, as in
+`logging.route.{name}.level.{logger}`. Index a name once, so not on a
+constant that aliases another. A property whose constant is not public is
+indexed where `doc/overview.html` documents it, as `logging.mdc.type` is.
+
 Public javadoc should never go into implementation details that are likely to
 change or hidden. Public javadoc should not reference package friendly or
 private classes.
