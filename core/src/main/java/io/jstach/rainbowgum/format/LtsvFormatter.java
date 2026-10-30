@@ -82,8 +82,9 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <code>a%20b</code>), and an empty key is <code>%</code>, so different keys stay
 	 * different.
 	 * <p>
-	 * Values can be colored like the TTLL formatter; labels, <code>msg</code>,
-	 * <code>error</code>, and <code>stacktrace</code> are not.
+	 * Values can be colored like the TTLL formatter; labels and <code>msg</code> are not.
+	 * <code>error</code> and <code>stacktrace</code> take the level's color, since they
+	 * are on the event's line.
 	 * @param name encoder name, used for property lookup.
 	 * @param thread which thread fields, see {@link ThreadFields}.
 	 * @param labels which fields have labels, see {@link LtsvLabels}.
@@ -168,12 +169,16 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		var throwable = event.throwableOrNull();
 		if (throwable != null) {
 			output.append("\terror:");
+			Palette.start(output, levelColor);
 			appendValue(output, throwable.toString());
+			Palette.end(output, levelColor);
 			output.append("\tstacktrace:");
+			Palette.start(output, levelColor);
 			start = output.length();
 			ThrowableFormatter.appendThrowable(output, throwable);
 			trimTrailingLineBreaks(output, start);
 			escapeInPlace(output, start);
+			Palette.end(output, levelColor);
 		}
 		output.append('\n');
 	}

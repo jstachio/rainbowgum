@@ -247,6 +247,23 @@ class LtsvFormatterTest {
 	}
 
 	@Test
+	void errorAndStacktraceTakeTheLevelColor() {
+		var ex = new IllegalStateException("boom");
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		var sb = new StringBuilder();
+		new LtsvFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.labels(LtsvLabels.KEY_VALUES)
+			.thread(ThreadFields.NONE)
+			.build()
+			.format(sb, event(Level.ERROR, "main", "failed", KeyValues.of(), ex));
+		String expected = E + "36m2026-10-05T15:04:05.123Z" + R + "\t" + E + "1;31mERROR" + R + "\t" + E
+				+ "35mcom.example.App" + R + "\tfailed\terror:" + E + "1;31mjava.lang.IllegalStateException: boom" + R
+				+ "\tstacktrace:" + E + "1;31mjava.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)"
+				+ R + "\n";
+		assertEquals(expected, sb.toString());
+	}
+
+	@Test
 	void colorOffWritesNoEscapes() {
 		var sb = new StringBuilder();
 		new LtsvFormatterBuilder("test").color(TTLL.ColorMode.OFF)
