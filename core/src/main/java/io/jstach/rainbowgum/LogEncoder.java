@@ -50,7 +50,6 @@ import io.jstach.rainbowgum.format.StandardEventFormatter;
  * @see Buffer
  * @see LogAppender
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public interface LogEncoder {
 
 	/**

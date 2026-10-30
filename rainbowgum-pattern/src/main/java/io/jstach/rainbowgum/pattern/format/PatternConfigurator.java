@@ -32,7 +32,6 @@ import io.jstach.svc.ServiceProvider;
  *
  * @see PatternEncoderBuilder
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class PatternConfigurator implements Configurator {
 

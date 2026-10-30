@@ -31,7 +31,6 @@ import io.jstach.rainbowgum.LogProperty;
  $$/properties$$
  * </table>
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$builderName$$,$$targetType$$> {
 
 	/**

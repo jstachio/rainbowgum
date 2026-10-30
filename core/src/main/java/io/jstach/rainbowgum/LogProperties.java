@@ -176,7 +176,6 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  *
  * @see LogConfigurable
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public interface LogProperties {
 
 	/**

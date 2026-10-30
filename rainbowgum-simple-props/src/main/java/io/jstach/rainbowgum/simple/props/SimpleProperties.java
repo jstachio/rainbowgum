@@ -54,7 +54,6 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * hyphens. Custom {@link Builder#resource(String)} names and their profile variants need
  * corresponding native-image resource metadata.
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public final class SimpleProperties {
 
 	/**
