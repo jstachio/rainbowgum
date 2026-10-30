@@ -1389,7 +1389,7 @@ Tab, newline, carriage return, and <code>\</code> in a value are backslash escap
 <a href="#logfmt">logfmt formatter</a>. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.
 
 <p>
-<code>labels=key_values</code> (or <code>false</code>) leaves the labels off the fields every event has, so
+<code>labels=key_values</code> (or <code>keyValues</code> or <code>false</code>) leaves the labels off the fields every event has, so
 time, level, logger, the thread fields, and the message are columns read by position, while key values,
 <code>error</code>, and <code>stacktrace</code> keep their labels. The output is then no longer LTSV:
 </p>

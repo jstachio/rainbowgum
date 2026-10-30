@@ -197,7 +197,9 @@ class LtsvFormatterTest {
 			"all|time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthread:main\tmsg:hello", //
 			"true|time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthread:main\tmsg:hello", //
 			"key_values|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello", //
-			"false|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello" })
+			"false|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello", //
+			"keyValues|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello", //
+			"KEYVALUES|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello" })
 	void labelsProperty(String labels, String line) {
 		String properties = "logging.appenders=list\nlogging.appender.list.output.uri=list\n"
 				+ "logging.appender.list.encoder.uri=ltsv\nlogging.appender.list.encoder.ltsv.thread=name\n"
@@ -222,7 +224,7 @@ class LtsvFormatterTest {
 				Validation failed for io.jstach.rainbowgum.format.LtsvFormatterBuilder:
 				Error for property. key: 'logging.appender.list.encoder.ltsv.labels' from PROPERTIES_STRING[logging.appender.list.encoder.ltsv.labels], \
 				'none' is not a valid value for io.jstach.rainbowgum.format.LtsvLabels. \
-				Valid values: 'all', 'key_values', 'true', 'false'""";
+				Valid values: 'all', 'key_values', 'true', 'false', 'keyvalues'""";
 		assertEquals(expected, e.getMessage());
 	}
 

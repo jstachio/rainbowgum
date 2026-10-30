@@ -20,14 +20,15 @@ public enum LtsvLabels {
 	 * <code>error</code>, and <code>stacktrace</code> keep theirs. The output is no
 	 * longer LTSV, but its leading columns can be read by position.
 	 */
-	@EnumAlias("false")
+	@EnumAlias({ "false", "keyValues" })
 	KEY_VALUES;
 
 	static LtsvLabels parse(String value) {
 		return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
 			case "true" -> ALL;
-			case "false" -> KEY_VALUES;
-			default -> io.jstach.rainbowgum.LogProperty.enumValue(LtsvLabels.class, value, "true", "false");
+			case "false", "keyvalues" -> KEY_VALUES;
+			default ->
+				io.jstach.rainbowgum.LogProperty.enumValue(LtsvLabels.class, value, "true", "false", "keyValues");
 		};
 	}
 
