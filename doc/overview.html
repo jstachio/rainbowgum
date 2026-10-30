@@ -306,6 +306,17 @@ The current optional properties modules are:
     <a href="https://avaje.io/config/">Avaje Config</a> as the properties provider.</li>
 </ul>
 
+<div class="callout callout-note" role="note">
+<p class="callout-title">Looking up a property</p>
+<p>
+  Property keys can be looked up in the search bar at the top of every page. Searching for
+  <code>logging.alerts.fail</code>, or just <code>alerts.fail</code>, finds where that property is
+  documented. Keys with a part you choose are listed with a placeholder, such as
+  <code>logging.appender.{name}.encoder.uri</code>, so search for the fixed part around it, such as
+  <code>encoder.uri</code>. Every key is listed on the <a href="search-tags.html">Search Tags</a> page.
+</p>
+</div>
+
 <div class="callout callout-important" role="note">
 <p class="callout-title">Important</p>
 <p>
@@ -2482,7 +2493,7 @@ first, which on the class path depends on jar order, so make sure the adapter is
 </p>
 </div>
 MDC defaults to a {@link java.lang.ThreadLocal}-backed implementation; setting
-<code>logging.mdc.type</code> to <code>NOOP</code> swaps in a no-op implementation instead, for deployments
+<code>{@index logging.mdc.type}</code> to <code>NOOP</code> swaps in a no-op implementation instead, for deployments
 that want no {@link java.lang.ThreadLocal} anywhere in the logging path and are fine losing MDC to get it.
 <p>
 There is no built-in {@link org.slf4j.Marker} support (it is not stored on the event

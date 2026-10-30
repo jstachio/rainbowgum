@@ -32,12 +32,15 @@ import io.jstach.svc.ServiceProvider;
  *
  * @see PatternEncoderBuilder
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class PatternConfigurator implements Configurator {
 
 	/**
 	 * Where the pattern encoder is used: see {@link Mode}. Default is
 	 * {@link Mode#CONSOLE}.
+	 * <p>
+	 * Property: <code>{@index logging.pattern.mode}</code>
 	 */
 	public static final String LOGGING_PATTERN_MODE_PROPERTY = LogProperties.ROOT_PREFIX + "pattern.mode";
 

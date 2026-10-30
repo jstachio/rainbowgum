@@ -54,6 +54,7 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * hyphens. Custom {@link Builder#resource(String)} names and their profile variants need
  * corresponding native-image resource metadata.
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public final class SimpleProperties {
 
 	/**
@@ -62,6 +63,8 @@ public final class SimpleProperties {
 	 * {@code off} or {@code false}, {@code alert}, and {@code fail} or {@code true}. It
 	 * is always written with its full key, even when {@code short} allows other keys
 	 * without the logging prefix.
+	 * <p>
+	 * Property: <code>{@index logging.simpleprops.strict}</code>
 	 */
 	public static final String STRICT_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.strict";
 
@@ -115,6 +118,8 @@ public final class SimpleProperties {
 	 * profile is used. It is not included automatically when other profiles are selected.
 	 * A missing selected profile resource fails initialization unless its name is
 	 * {@code default}. Files cannot activate additional profiles.
+	 * <p>
+	 * Property: <code>{@index logging.profiles}</code>
 	 */
 	public static final String PROFILES_PROPERTY = LogProperties.ROOT_PREFIX + "profiles";
 
@@ -123,6 +128,8 @@ public final class SimpleProperties {
 	 * {@value #LEVEL_FILE_PATH_PROPERTY}. Accepts {@code off} or {@code false} (default)
 	 * and {@code watch} or {@code true}. Resolved from system properties, environment
 	 * variables, or the base resource, and only when the base resource exists.
+	 * <p>
+	 * Property: <code>{@index logging.simpleprops.levelFile}</code>
 	 */
 	public static final String LEVEL_FILE_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.levelFile";
 
@@ -134,6 +141,8 @@ public final class SimpleProperties {
 	 * directory can be written by group or others, or is owned by someone other than the
 	 * user running the application or root. Symbolic links also have their resolved
 	 * target's directory checked; a missing symbolic link target is refused.
+	 * <p>
+	 * Property: <code>{@index logging.simpleprops.levelFilePath}</code>
 	 */
 	public static final String LEVEL_FILE_PATH_PROPERTY = LogProperties.ROOT_PREFIX + "simpleprops.levelFilePath";
 

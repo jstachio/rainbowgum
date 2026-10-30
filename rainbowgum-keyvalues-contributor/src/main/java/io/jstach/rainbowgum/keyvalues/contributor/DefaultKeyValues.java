@@ -22,12 +22,15 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * events only while <code>defaults</code> is selected by
  * <code>logging.keyvalues.sources</code>, which selects every source when absent.
  */
+@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public final class DefaultKeyValues implements KeyValuesContributor {
 
 	/**
 	 * Key values added to every event, as a map property, in the order the property
 	 * source gives them, which for the URI query form (<code>a=1&amp;b=2</code>) is the
 	 * order declared.
+	 * <p>
+	 * Property: <code>{@index logging.keyvalues.defaults}</code>
 	 */
 	public static final String DEFAULTS_PROPERTY = LogProperties.ROOT_PREFIX + "keyvalues.defaults";
 
