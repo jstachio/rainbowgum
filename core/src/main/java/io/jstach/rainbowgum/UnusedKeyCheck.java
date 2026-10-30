@@ -33,7 +33,8 @@ final class UnusedKeyCheck {
 	 */
 	static final Set<String> READ_BEFORE_CONFIG_KEYS = Set.of("logging.debug", "logging.global.queue.level",
 			"logging.global.queue.error", "logging.systemlogger.initialize", "logging.profiles",
-			"logging.simpleprops.strict", "logging.simpleprops.levelFile", "logging.simpleprops.levelFilePath");
+			"logging.simpleprops.strict", "logging.simpleprops.envPrefix", "logging.simpleprops.levelFile",
+			"logging.simpleprops.levelFilePath");
 
 	/*
 	 * System properties other libraries read that happen to start with logging.: Spring

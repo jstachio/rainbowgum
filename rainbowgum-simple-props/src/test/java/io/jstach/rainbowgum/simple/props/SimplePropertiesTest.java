@@ -140,6 +140,66 @@ class SimplePropertiesTest {
 	}
 
 	@Test
+	void envPrefixFromTheBaseResource() {
+		var props = SimpleProperties.builder()
+			.resource("env-prefix.properties")
+			.envPrefix("CUSTOM_")
+			.envLookup(Map.of("MYAPP_LOG_level_root", "DEBUG", "CUSTOM_level_root", "TRACE", "RAINBOWGUM_level_root",
+					"ERROR")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("DEBUG",
+				composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
+		assertEquals("ENV[MYAPP_LOG_level_root]", props.properties().get(1).description("logging.level.root"));
+	}
+
+	@Test
+	void envPrefixFromTheBaseResourceSelectsProfiles() {
+		var props = SimpleProperties.builder()
+			.resource("env-prefix.properties")
+			.envLookup(Map.of("MYAPP_LOG_profiles", "dev")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("INFO", composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
+	}
+
+	@Test
+	void envPrefixWithShortKey() {
+		var props = SimpleProperties.builder()
+			.resource("env-prefix-short.properties")
+			.envLookup(Map.of("MYAPP_level_root", "DEBUG")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("DEBUG",
+				composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
+	}
+
+	@Test
+	void envPrefixIsNotReadFromEnvironmentVariables() {
+		var props = SimpleProperties.builder()
+			.envLookup(Map.of("RAINBOWGUM_simpleprops_envPrefix", "OTHER_", "OTHER_level_root", "DEBUG")::get)
+			.build();
+		var composite = LogProperties.of(props.properties());
+		assertEquals("WARN", composite.forKey("logging.level.root").ofString().validateNow(SimplePropertiesTest.class));
+	}
+
+	@Test
+	void invalidEnvPrefixFails() {
+		var e = assertThrows(ValidationException.class,
+				() -> SimpleProperties.builder()
+					.resource("env-prefix-invalid.properties")
+					.envLookup(k -> null)
+					.build());
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.simple.props.SimpleProperties:
+				Error for property. key: 'logging.simpleprops.envPrefix' from \
+				SIMPLE_PROPS[env-prefix-invalid.properties:1][logging.simpleprops.envPrefix], \
+				Invalid environment variable prefix 'my-app': use only ASCII letters, digits, and underscores, \
+				not starting with a digit""";
+		assertEquals(expected, e.getMessage());
+	}
+
+	@Test
 	void testClasspathResourceFallback() {
 		// default resource is src/test/resources/logging.properties
 		// (logging.level.root=WARN);
