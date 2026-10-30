@@ -57,7 +57,7 @@ Covered in [why_rainbowgum_is_better.md](why_rainbowgum_is_better.md).
 
 ## Colorful logs
 
-Rainbow Gum core comes with themes that work on three different formats also included in core: [TTLL](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#ttll), [JSON5](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#core_json), and [logfmt](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#logfmt).
+Rainbow Gum core comes with themes that work on four different formats also included in core: [TTLL](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#ttll), [JSON5](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#core_json), [logfmt](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#logfmt), and [LTSV](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#ltsv).
 
 The console format below is [TTLL](https://jstach.io/doc/rainbowgum/current/apidocs/index.html#ttll) (time, thread, level, logger), colored with the "One Dark" theme
 (note no pattern module or pattern string is needed and only one line of configuration is required):
