@@ -1358,9 +1358,16 @@ logging.appender.console.encoder.uri=json5
 {time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",msg:"hello world",requestId:"42"}
 }
 
-It is named <code>json5</code>, and writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
+It writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
 other text formatters it is mostly for people reading logs, and the <a href="#json_encoders">JSON encoders</a> are
-for JSON logging.
+for JSON logging. The <code>json</code> encoder writes the same fields as plain JSON. It has its own properties,
+of which only <code>keyValues</code> and <code>thread</code> below apply:
+
+{@snippet lang=properties :
+logging.appender.console.encoder.uri=json
+logging.appender.console.encoder.json.keyValues=nested
+logging.appender.console.encoder.json.thread=name
+}
 
 The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>,
 <code>threadId</code> and <code>threadName</code> (see <code>thread</code> below), <code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
@@ -1398,7 +1405,7 @@ Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are neve
 This encoder is a convenience, not a replacement for {@linkplain io.jstach.rainbowgum.json/ rainbowgum-json}: it has one fixed set of
 fields, no multi-line pretty printing, and no particular schema. For production structured logging, especially into a system
 that expects ECS, GELF, or Logstash fields, use that module's encoders instead. See
-{@link io.jstach.rainbowgum.format.Json5FormatterBuilder}.
+{@link io.jstach.rainbowgum.format.Json5FormatterBuilder} and {@link io.jstach.rainbowgum.format.JsonFormatterBuilder}.
 
 
 <h3 id="json_key_values_formatter">JSON Key Values Formatter</h3>
@@ -2347,8 +2354,8 @@ the two configuration styles rather than only a stylistic one.
 For most simply including the dependency {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum}
 is enough. That dependency transitively pulls in core, the SLF4J binding, and the
 {@link java.lang.System.Logger} and <code>java.util.logging</code> integrations. Core provides the
-<code>stdout</code> and <code>stderr</code> outputs and the <code>ttll</code>, <code>logfmt</code> and
-<code>json5</code> encoders. Other URI schemes need their module added as a dependency:
+<code>stdout</code> and <code>stderr</code> outputs and the <code>ttll</code>, <code>logfmt</code>,
+<code>json5</code> and <code>json</code> encoders. Other URI schemes need their module added as a dependency:
 
 <table class="table">
 <caption><strong>Modules for URI schemes not in core</strong></caption>

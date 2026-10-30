@@ -208,12 +208,22 @@ public interface LogOutput extends LogLifecycle, Flushable {
 	}
 
 	/**
-	 * The content type of the binary data passed to the output from an encoder.
+	 * The content type of the binary data an encoder passes to the output for a single
+	 * event.
+	 * <p>
+	 * It describes one event, not a stream of them. Only the output knows how events are
+	 * delivered, so only the output can decide the content type of a stream or batch of
+	 * events. For example, an output that sends each event as its own message to a
+	 * distributed queue such as Kafka or RabbitMQ can label each message
+	 * <code>application/json</code>, while an output that pushes a batch of the same
+	 * events to an HTTP endpoint might send them as JSON Lines. JSON Lines has no
+	 * registered media type; <code>application/jsonl</code> and
+	 * <code>application/x-ndjson</code> are both in use.
 	 */
 	public interface ContentType {
 
 		/**
-		 * Content type of binary datay passed to output.
+		 * Content type of the binary data for a single event passed to the output.
 		 * @return content type.
 		 */
 		String contentType();

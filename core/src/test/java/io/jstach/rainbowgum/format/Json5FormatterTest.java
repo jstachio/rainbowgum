@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,7 @@ import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogOutput.ContentType;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
@@ -48,6 +51,24 @@ class Json5FormatterTest {
 
 	private static String log(String encoder, String properties, LogEvent event) {
 		var output = new ListLogOutput();
+		log(output, encoder, properties, event);
+		return output.toString();
+	}
+
+	private static String contentType(String encoder, String properties) {
+		List<String> contentTypes = new ArrayList<>();
+		var output = new ListLogOutput() {
+			@Override
+			public void write(LogEvent event, byte[] bytes, int off, int len, ContentType contentType) {
+				contentTypes.add(contentType.contentType() + "; charset=" + contentType.charsetOrNull());
+				super.write(event, bytes, off, len, contentType);
+			}
+		};
+		log(output, encoder, properties, event("hello", KeyValues.of(), null));
+		return String.join(", ", contentTypes);
+	}
+
+	private static void log(ListLogOutput output, String encoder, String properties, LogEvent event) {
 		String all = "logging.appenders=list\nlogging.appender.list.output.uri=list\nlogging.appender.list.encoder.uri="
 				+ encoder + "\n" + properties;
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(all).build()).build();
@@ -55,13 +76,19 @@ class Json5FormatterTest {
 		try (var g = RainbowGum.builder(config).build().start()) {
 			g.log(event);
 		}
-		return output.toString();
 	}
 
 	@Test
 	void keyValuesAreMergedByDefault() {
 		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
 				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build(),
+						event("hello world", requestKeyValues(), null)));
+	}
+
+	@Test
+	void jsonBuilderWritesJson() {
+		assertEquals(PREFIX + ",\"keyValues\":{\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}}\n",
+				format(new JsonFormatterBuilder("test").keyValues(KeyValuesPlacement.NESTED).build(),
 						event("hello world", requestKeyValues(), null)));
 	}
 
@@ -145,6 +172,34 @@ class Json5FormatterTest {
 						event("hello world", requestKeyValues(), null)));
 		assertEquals(PREFIX + "}\n",
 				log("json5:///?format=json&keyValues=false", "", event("hello world", requestKeyValues(), null)));
+	}
+
+	@Test
+	void jsonEncoderSchemeHasItsOwnProperties() {
+		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
+				log("json", "", event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + ",\"keyValues\":{\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}}\n",
+				log("json", "logging.appender.list.encoder.json.keyValues=nested\n",
+						event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + "}\n",
+				log("json:///?keyValues=false", "", event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
+				log("json", "logging.appender.list.encoder.json5.keyValues=nested\n",
+						event("hello world", requestKeyValues(), null)));
+		assertEquals("""
+				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main",\
+				"msg":"hello world","requestId":"42","user":"Ada Lovelace"}
+				""", log("json", "logging.appender.list.encoder.json.thread=name\n",
+				event("hello world", requestKeyValues(), null)));
+	}
+
+	@Test
+	void contentTypeFollowsTheFormat() {
+		assertEquals("application/json5; charset=UTF-8", contentType("json5", ""));
+		assertEquals("application/json; charset=UTF-8",
+				contentType("json5", "logging.appender.list.encoder.json5.format=json\n"));
+		assertEquals("application/json; charset=UTF-8", contentType("json5:///?format=json", ""));
+		assertEquals("application/json; charset=UTF-8", contentType("json", ""));
 	}
 
 	@Test

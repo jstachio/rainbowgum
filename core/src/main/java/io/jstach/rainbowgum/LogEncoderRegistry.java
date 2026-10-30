@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -9,9 +10,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogEncoder.EncoderProvider;
+import io.jstach.rainbowgum.LogOutput.ContentType;
+import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.TTLL;
 import io.jstach.rainbowgum.format.Json5FormatterBuilder;
+import io.jstach.rainbowgum.format.JsonFormatterBuilder;
+import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder.Format;
 import io.jstach.rainbowgum.format.LogfmtFormatterBuilder;
 import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
@@ -57,6 +62,11 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 */
 	static final String JSON5_SCHEME = "json5";
 
+	/*
+	 * The core JSON encoder's URI scheme.
+	 */
+	static final String JSON_SCHEME = "json";
+
 	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	/**
@@ -73,9 +83,12 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 				ref -> (name, config) -> LogEncoder
 					.of(logfmt(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
-		registry.register(JSON5_SCHEME,
+		registry.register(JSON5_SCHEME, DefaultEncoderRegistry::json5Encoder);
+		registry.register(JSON_SCHEME,
 				ref -> (name, config) -> LogEncoder
-					.of(json5(name, config).fromProperties(config.properties(), ref).build())
+					.builder(new JsonFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.contentType(StandardContentType.APPLICATION_JSON)
+					.build()
 					.provide(name, config));
 		return registry;
 	}
@@ -142,6 +155,30 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 			b.color(color);
 		}
 		return b;
+	}
+
+	/*
+	 * JSON5 has no registered media type, so this uses the one in common use.
+	 */
+	static final ContentType JSON5_CONTENT_TYPE = ContentType.of("application/json5", StandardCharsets.UTF_8);
+
+	/*
+	 * The content type follows the format property, so a json5 encoder switched to JSON
+	 * reports application/json.
+	 */
+	private static LogProvider<LogEncoder> json5Encoder(LogProviderRef ref) {
+		return (name, config) -> {
+			var builder = json5(name, config).fromProperties(config.properties(), ref);
+			var properties = LogProperties.of(ref.uri(), builder.propertyPrefix(), config.properties(),
+					ref.keyOrNull());
+			var format = properties.forKey(builder.propertyPrefix() + "format")
+				.ofString()
+				.map(v -> LogProperty.enumValue(Format.class, v))
+				.or(Format.JSON5)
+				.validateNow(Json5FormatterBuilder.class);
+			var contentType = format == Format.JSON ? StandardContentType.APPLICATION_JSON : JSON5_CONTENT_TYPE;
+			return LogEncoder.builder(builder.build()).contentType(contentType).build().provide(name, config);
+		};
 	}
 
 	private static TTLL.@Nullable ColorMode colorMode(LogConfig config) {
