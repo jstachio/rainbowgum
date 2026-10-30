@@ -1398,6 +1398,19 @@ time, level, logger, the thread fields, and the message are columns read by posi
 2026-10-05T15:04:05.123Z⇥INFO⇥com.example.App⇥1⇥main⇥hello world⇥requestId:42
 }
 
+<p>
+A terminal has a tab stop every 8 columns, so short fields such as <code>level:INFO</code> are followed by wide
+gaps and a line soon wraps. The Unix <code>tabs</code> command sets the terminal's tab stops, and
+<code>tabs -2</code> puts one every 2 columns, so the fields sit close together like words while the log keeps the
+tabs that tools split on. <code>tabs -8</code> sets them back. A pager has its own tab stops, so use
+<code>less -x2</code> there:
+</p>
+
+{@snippet lang=shell :
+tabs -2
+java -jar app.jar
+less -x2 app.log
+}
 
 <h3 id="core_json">JSON5 Formatter</h3>
 
