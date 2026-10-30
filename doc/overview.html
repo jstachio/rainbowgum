@@ -291,9 +291,8 @@ programmatic configuration using the {@linkplain io.jstach.rainbowgum.LogBuilder
 <h3 id="config_properties">Properties based</h3>
 
 Rainbow Gum out of the box uses System properties for {@link io.jstach.rainbowgum.LogProperties}
-but several optional modules provide other properties sources. Other configuration systems will be added
-in the future but an important requirement is that these systems do not do any logging or if they do allow
-it to be turned off, intercepted or blocked.
+but several optional modules provide other properties sources. Other configuration systems may be added
+as optional modules.
 
 <div class="callout callout-note" role="note">
 <p class="callout-title">Note</p>
@@ -301,7 +300,7 @@ it to be turned off, intercepted or blocked.
     Throughout the documentation {@link java.util.Properties} and {@link java.net.URI} syntax is used to express
     configurable properties but it is not a requirement and
     your configuration system may have a different format like YAML or JSON
-    (see <a href="#config_nested">Nested formats</a>).
+    (see <a href="#config_custom_properties">Custom properties sources</a>).
 </p>
 </div>
 
@@ -324,15 +323,6 @@ The current optional properties modules are:
   documented. Keys with a part you choose are listed with a placeholder, such as
   <code>logging.appender.{name}.encoder.uri</code>, so search for the fixed part around it, such as
   <code>encoder.uri</code>. Every key is listed on the <a href="search-tags.html">Search Tags</a> page.
-</p>
-</div>
-
-<div class="callout callout-important" role="note">
-<p class="callout-title">Important</p>
-<p>
-  Rainbow Gum core does not do any interpolation of property values!
-  That is the responsibility of the {@link io.jstach.rainbowgum.LogProperties}
-  backing implementation and the values retrieved should already be interpolated.
 </p>
 </div>
 
@@ -427,28 +417,6 @@ provide single-line configuration. This follows the <a href="https://12factor.ne
 approach to resources and configuration.
 </p>
 
-<h4 id="config_nested">Nested formats</h4>
-
-<p>
-A nested format (TOML, HOCON, YAML or JSON) can hold these properties with one exception. Keys such as
-<code>logging.level.com.example</code> end with a logger name, which can contain dots and any other
-character, and <code>logging.level</code> itself can also have a value. A nested format cannot have a
-value at a key that is also a table, so a source for one should extend
-{@link io.jstach.rainbowgum.LogProperties.AbstractNested}, which looks the logger name up as a single, quoted
-member, for example in TOML:
-</p>
-{@snippet lang=toml :
-[logging.level]
-root = "warn"
-"com.example" = "debug"
-"com.example.sub" = "error"
-}
-<p>
-<code>root</code> is the root logger for every key that ends with a logger name, so
-<code>logging.level.root</code> is the same as <code>logging.level</code>, as in Spring Boot. A
-higher priority source wins whichever of the two it uses.
-</p>
-
 <h4 id="config_plural">Plural keys for enabling/disabling</h4>
 
 Because Rainbow Gum's property config model is a lookup of key to value 
@@ -527,6 +495,50 @@ A few things worth calling out about the above:
     alternative and its own defaults/properties.
   </li>
 </ul>
+
+<h4 id="config_custom_properties">Custom properties sources</h4>
+
+<p>
+A properties source is an implementation of {@link io.jstach.rainbowgum.LogProperties}, which at its simplest
+answers {@link io.jstach.rainbowgum.LogProperties#valueOrNull(String)} for a key, much like
+{@link java.lang.System#getProperty(String)}. A source can be given to
+{@link io.jstach.rainbowgum.LogConfig.Builder#properties(io.jstach.rainbowgum.LogProperties)}, or a module can
+provide one with a {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.PropertiesProvider}, as
+rainbowgum-simple-props and rainbowgum-avaje-config do.
+</p>
+
+<div class="callout callout-important" role="note">
+<p class="callout-title">Important</p>
+<p>
+  Rainbow Gum core does not do any interpolation of property values!
+  That is the responsibility of the {@link io.jstach.rainbowgum.LogProperties}
+  backing implementation and the values retrieved should already be interpolated.
+</p>
+<p>
+  The backing configuration system also must not do any logging, or if it does, allow it to be turned off,
+  intercepted or blocked.
+</p>
+</div>
+
+<p>
+A source backed by a nested format (TOML, HOCON, YAML or JSON) has to handle one kind of key specially. Keys such as
+<code>logging.level.com.example</code> end with a logger name, which can contain dots and any other
+character, and <code>logging.level</code> itself can also have a value. A nested format cannot have a
+value at a key that is also a table, so a source for one should extend
+{@link io.jstach.rainbowgum.LogProperties.AbstractNested}, which looks the logger name up as a single, quoted
+member, for example in TOML:
+</p>
+{@snippet lang=toml :
+[logging.level]
+root = "warn"
+"com.example" = "debug"
+"com.example.sub" = "error"
+}
+<p>
+<code>root</code> is the root logger for every key that ends with a logger name, so
+<code>logging.level.root</code> is the same as <code>logging.level</code>, as in Spring Boot. A
+higher priority source wins whichever of the two it uses.
+</p>
 
 <h3 id="config_builder">Builder based</h3>
 
