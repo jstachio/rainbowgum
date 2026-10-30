@@ -80,7 +80,7 @@ Add a comment with the repro below, or send that PR, rather than filing a new is
   `{@index}`, including the generated builders through the `rainbowgum-apt` template.
   This also hides real mistakes in the other inline tags of those types, so remove the
   suppressions once a fixed release is out.
-- **Alternative workaround:** since 2.50.0 (commit `1e1f293`, for issue #1811) the
-  flag `-XepOpt:Javadoc:customInlineTags=index,summary,systemProperty` makes the check
+- **Alternative workaround:** in 2.50.0 (added by commit `1e1f293` for issue #1811,
+  not in 2.45.0; the releases in between were not checked) the flag `-XepOpt:Javadoc:customInlineTags=index,summary,systemProperty` makes the check
   accept these tags everywhere while still checking the rest. The repro above compiles
   clean on 2.50.0 with it.
