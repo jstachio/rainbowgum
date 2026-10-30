@@ -76,11 +76,9 @@ Add a comment with the repro below, or send that PR, rather than filing a new is
 - **Where it hits this project:** property keys are indexed for the javadoc search
   with `{@index}`, in every builder `rainbowgum-apt` generates and on the property
   constants (`LogProperties`, `LogEncoder`, and constants in several modules).
-- **Workaround:** `@SuppressWarnings("InvalidInlineTag")` on each type that uses
-  `{@index}`, including the generated builders through the `rainbowgum-apt` template.
-  This also hides real mistakes in the other inline tags of those types, so remove the
-  suppressions once a fixed release is out.
-- **Alternative workaround:** in 2.50.0 (added by commit `1e1f293` for issue #1811,
-  not in 2.45.0; the releases in between were not checked) the flag `-XepOpt:Javadoc:customInlineTags=index,summary,systemProperty` makes the check
-  accept these tags everywhere while still checking the rest. The repro above compiles
-  clean on 2.50.0 with it.
+- **Workaround:** the `errorprone` profile passes
+  `-XepOpt:Javadoc:customInlineTags=index,summary,systemProperty` (root `pom.xml`, and
+  `rainbowgum-slf4j/pom.xml`, which overrides the arguments). The flag was added by
+  commit `1e1f293` for issue #1811; 2.50.0 has it, 2.45.0 does not, and the releases
+  in between were not checked. With it the repro above compiles clean, and the check
+  still reports other unknown tags. Drop the flag once a release knows these tags.

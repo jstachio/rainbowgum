@@ -22,7 +22,6 @@ import io.jstach.rainbowgum.ServiceRegistry;
  * events only while <code>defaults</code> is selected by
  * <code>logging.keyvalues.sources</code>, which selects every source when absent.
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public final class DefaultKeyValues implements KeyValuesContributor {
 
 	/**

@@ -15,7 +15,6 @@ import io.jstach.svc.ServiceProvider;
  * Will install the JUL handler if the <code>java.logging</code> module is available and
  * is not alreadyi installed.
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 @ServiceProvider(RainbowGumServiceProvider.class)
 public final class JULConfigurator implements Configurator, AutoCloseable {
 

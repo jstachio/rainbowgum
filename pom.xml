@@ -1082,7 +1082,11 @@
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>-XDshould-stop.ifError=FLOW</arg>
-                <arg>-Xplugin:ErrorProne</arg>
+                <!--
+                  InvalidInlineTag does not know these standard javadoc tags; we use {@index} for
+                  property keys. See doc/error-prone-bugs.md.
+                -->
+                <arg>-Xplugin:ErrorProne -XepOpt:Javadoc:customInlineTags=index,summary,systemProperty</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

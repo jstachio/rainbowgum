@@ -28,7 +28,6 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
  * @see PatternCompiler
  *
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public sealed interface PatternConfig extends Configurator {
 
 	/**

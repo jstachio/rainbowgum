@@ -31,7 +31,6 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  *
  * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 
 	/**

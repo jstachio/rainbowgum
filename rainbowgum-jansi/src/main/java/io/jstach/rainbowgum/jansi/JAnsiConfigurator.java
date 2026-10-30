@@ -11,7 +11,6 @@ import io.jstach.svc.ServiceProvider;
  * JAnsi Configurator which will install JAnsi. JAnsi will strip ANSI escape characters if
  * piped out to a terminal (console) that does not support ANSI escape sequences.
  */
-@SuppressWarnings("InvalidInlineTag") // javadoc {@index} is not known to error prone
 @ServiceProvider(RainbowGumServiceProvider.class)
 public class JAnsiConfigurator implements RainbowGumServiceProvider.Configurator {
 
