@@ -295,6 +295,16 @@ but several optional modules provide other properties sources. Other configurati
 in the future but an important requirement is that these systems do not do any logging or if they do allow
 it to be turned off, intercepted or blocked.
 
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
+<p>
+    Throughout the documentation {@link java.util.Properties} and {@link java.net.URI} syntax is used to express
+    configurable properties but it is not a requirement and
+    your configuration system may have a different format like YAML or JSON
+    (see <a href="#config_nested">Nested formats</a>).
+</p>
+</div>
+
 <p>
 The current optional properties modules are:
 </p>
@@ -325,33 +335,6 @@ The current optional properties modules are:
   backing implementation and the values retrieved should already be interpolated.
 </p>
 </div>
-<div class="callout callout-note" role="note">
-<p class="callout-title">Note</p>
-<p>
-    Throughout the documentation {@link java.util.Properties} and {@link java.net.URI} syntax is used to express
-    configurable properties but it is a not a requirement and 
-    your configuration system may have a different format like YAML or JSON.
-</p>
-</div>
-<p>
-A nested format (TOML, HOCON, YAML or JSON) needs one exception. Keys such as
-<code>logging.level.com.example</code> end with a logger name, which can contain dots and any other
-character, and <code>logging.level</code> itself can also have a value. A nested format cannot have a
-value at a key that is also a table, so a source for one should extend
-{@link io.jstach.rainbowgum.LogProperties.AbstractNested}, which looks the logger name up as a single, quoted
-member, for example in TOML:
-</p>
-{@snippet lang=toml :
-[logging.level]
-root = "warn"
-"com.example" = "debug"
-"com.example.sub" = "error"
-}
-<p>
-<code>root</code> is the root logger for every key that ends with a logger name, so
-<code>logging.level.root</code> is the same as <code>logging.level</code>, as in Spring Boot. A
-higher priority source wins whichever of the two it uses.
-</p>
 
 <p>
 An appender's encoder and output are configured under the appender itself: <code>uri</code> picks the
@@ -442,6 +425,28 @@ this lookup order via {@link io.jstach.rainbowgum.LogProperties#of(java.net.URI,
 The {@link java.net.URI#getScheme() URI scheme} selects the component's plugin, while query parameters
 provide single-line configuration. This follows the <a href="https://12factor.net/">12 factor</a>
 approach to resources and configuration.
+</p>
+
+<h4 id="config_nested">Nested formats</h4>
+
+<p>
+A nested format (TOML, HOCON, YAML or JSON) can hold these properties with one exception. Keys such as
+<code>logging.level.com.example</code> end with a logger name, which can contain dots and any other
+character, and <code>logging.level</code> itself can also have a value. A nested format cannot have a
+value at a key that is also a table, so a source for one should extend
+{@link io.jstach.rainbowgum.LogProperties.AbstractNested}, which looks the logger name up as a single, quoted
+member, for example in TOML:
+</p>
+{@snippet lang=toml :
+[logging.level]
+root = "warn"
+"com.example" = "debug"
+"com.example.sub" = "error"
+}
+<p>
+<code>root</code> is the root logger for every key that ends with a logger name, so
+<code>logging.level.root</code> is the same as <code>logging.level</code>, as in Spring Boot. A
+higher priority source wins whichever of the two it uses.
 </p>
 
 <h4 id="config_plural">Plural keys for enabling/disabling</h4>
