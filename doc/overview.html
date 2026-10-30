@@ -1390,13 +1390,34 @@ Tab, newline, carriage return, and <code>\</code> in a value are backslash escap
 take the level's color, since they are on the event's line. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.
 
 <p>
-<code>labels=key_values</code> (or <code>keyValues</code> or <code>false</code>) leaves the labels off the fields every event has, so
-time, level, logger, the thread fields, and the message are columns read by position, while key values,
-<code>error</code>, and <code>stacktrace</code> keep their labels. The output is then no longer LTSV:
+<code>columns</code> lists fields to write first, in that order and without labels, so they are read by
+position, from <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code> and <code>msg</code>.
+The fields not listed follow with their labels, then the key values, <code>error</code> and <code>stacktrace</code>,
+which always keep theirs. The output is then no longer LTSV. Every field as a column:
 </p>
+
+{@snippet lang=properties :
+logging.appender.console.encoder.ltsv.columns=time,level,logger,thread,msg
+}
 
 {@snippet :
 2026-10-05T15:04:05.123Z⇥INFO⇥com.example.App⇥1⇥main⇥hello world⇥requestId:42
+}
+
+<p>
+The <a href="#rolling_journald">systemd journal</a> records the time itself, and the
+<a href="#post_processors"><code>journald</code> post processor</a> gives it the level, so a service might keep
+only the logger and message as columns and move the rest to the right:
+</p>
+
+{@snippet lang=properties :
+logging.appender.console.encoder.uri=ltsv
+logging.appender.console.encoder.ltsv.columns=logger,msg
+logging.appender.console.encoder.postProcessors=journald
+}
+
+{@snippet :
+<6>com.example.App⇥hello world⇥time:2026-10-05T15:04:05.123Z⇥level:INFO⇥threadId:1⇥threadName:main⇥requestId:42
 }
 
 <p>

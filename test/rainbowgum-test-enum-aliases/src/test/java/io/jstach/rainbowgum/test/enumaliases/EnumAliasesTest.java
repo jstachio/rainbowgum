@@ -88,7 +88,7 @@ class EnumAliasesTest {
 				"io.jstach.rainbowgum.MessageFormatStyle", //
 				"io.jstach.rainbowgum.format.Json5PrettyPrint", //
 				"io.jstach.rainbowgum.format.KeyValuesPlacement", //
-				"io.jstach.rainbowgum.format.LtsvLabels", //
+				"io.jstach.rainbowgum.format.EventField", //
 				"io.jstach.rainbowgum.format.TTLL$ColorMode", //
 				"io.jstach.rainbowgum.format.TTLL$KeyValuesFormat", //
 				"io.jstach.rainbowgum.format.TTLL$KeyValuesWhenEmpty", //
