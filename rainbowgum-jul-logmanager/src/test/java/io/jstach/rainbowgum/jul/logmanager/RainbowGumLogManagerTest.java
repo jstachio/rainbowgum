@@ -16,7 +16,6 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogReporter;
-import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
@@ -128,7 +127,7 @@ class RainbowGumLogManagerTest {
 					o.append(" throwable=").append(String.valueOf(e.throwableOrNull())).append("\n");
 				});
 			});
-			r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+			r.filter(e -> e.freeze(Instant.EPOCH));
 		}).set()) {
 			logger.log(Level.INFO, "It's done", "x");
 			logger.log(Level.INFO, "failed {0}", new Object[] { new RuntimeException("boom") });
@@ -148,7 +147,7 @@ class RainbowGumLogManagerTest {
 				a.formatter(LogFormatter.builder().level().space().loggerName().space().message().newline().build());
 			});
 			r.level(level);
-			r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+			r.filter(e -> e.freeze(Instant.EPOCH));
 		}).set();
 	}
 

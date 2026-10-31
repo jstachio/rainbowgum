@@ -8,12 +8,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import io.jstach.rainbowgum.LogRouter.AbstractRouter;
-import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class RainbowGumPropertyTest {
@@ -63,12 +60,12 @@ class RainbowGumPropertyTest {
 			@Override
 			RainbowGum.Builder config(RainbowGum.Builder builder) {
 				return builder.route(rb -> {
-					rb.factory(RouterFactory.of(e -> {
+					rb.filter(e -> {
 						return switch (e.level()) {
 							case DEBUG -> e;
 							default -> null;
 						};
-					}));
+					});
 				});
 			}
 
@@ -122,7 +119,7 @@ class RainbowGumPropertyTest {
 						sb.append(original.toString().replaceAll("[aeiou]", "*"));
 					}
 				};
-				return builder.route(rb -> rb.factory(RouterFactory.of(e -> LogEvent.rewrite(e, rewriter))));
+				return builder.route(rb -> rb.filter(e -> LogEvent.rewrite(e, rewriter)));
 			}
 
 		},
@@ -223,17 +220,11 @@ class RainbowGumPropertyTest {
 
 		static RainbowGum.Builder slideLevelsDown(RainbowGum.Builder builder) {
 			return builder.route(rb -> {
-				rb.factory(
-						(publisher, levelResolver, name, config) -> new AbstractRouter(name, publisher, levelResolver) {
-							@Override
-							protected @Nullable LogEvent transformOrNull(LogEvent event) {
-								return switch (event.level()) {
-									case WARNING -> withLevelOrNull(event, Level.INFO);
-									case ERROR -> withLevelOrNull(event, Level.WARNING);
-									default -> event;
-								};
-							}
-						});
+				rb.filter(e -> switch (e.level()) {
+					case WARNING -> LogEvent.withLevel(e, Level.INFO);
+					case ERROR -> LogEvent.withLevel(e, Level.WARNING);
+					default -> e;
+				});
 			});
 		}
 

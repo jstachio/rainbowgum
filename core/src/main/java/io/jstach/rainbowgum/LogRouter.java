@@ -236,41 +236,6 @@ public sealed interface LogRouter extends LogLifecycle {
 		}
 
 		/**
-		 * Creates a router.
-		 *
-		 * @see AbstractRouter
-		 */
-		@FunctionalInterface
-		public interface RouterFactory {
-
-			/**
-			 * Builder will call this factory if passed in.
-			 * @param publisher publisher from builder.
-			 * @param levelResolver level resolver from builder.
-			 * @param name name from builder.
-			 * @param config config from builder.
-			 * @return router.
-			 */
-			public Router create(LogPublisher publisher, LevelResolver levelResolver, String name, LogConfig config);
-
-			/**
-			 * Creates a router from a function.
-			 * @param function <strong>the function may return <code>null</code></strong>
-			 * which indicates to ignore.
-			 * @return factory.
-			 */
-			static RouterFactory of(@SuppressWarnings("exports") Function<LogEvent, @Nullable LogEvent> function) {
-				return (pub, lr, n, c) -> new AbstractRouter(n, pub, lr) {
-					@Override
-					protected @Nullable LogEvent transformOrNull(LogEvent event) {
-						return function.apply(event);
-					}
-				};
-			}
-
-		}
-
-		/**
 		 * Drops or changes a route's events before its router gets them, for example to
 		 * remove noisy events, change their level or mask their message with
 		 * {@link LogEvent#rewrite(LogEvent, LogEvent.Rewriter)}. Filters are selected by
@@ -279,11 +244,11 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * </pre>
 		 * <p>
 		 * They run in the order listed, each on the event the previous one returned,
-		 * after filters added with {@link Builder#filter(Filter)} and before the router
-		 * created by the {@link RouterFactory}. A filter is only given events whose level
-		 * the route enables, so it cannot make a disabled event appear. When the event
-		 * the last filter returns has a different level than the original, the route
-		 * drops it unless its level resolver enables that level for the event's logger.
+		 * after filters added with {@link Builder#filter(Filter)}. A filter is only given
+		 * events whose level the route enables, so it cannot make a disabled event
+		 * appear. When the event the last filter returns has a different level than the
+		 * original, the route drops it unless its level resolver enables that level for
+		 * the event's logger.
 		 * <p>
 		 * A filter changes only what its route sees. Other routes get the original event.
 		 * <p>
@@ -344,9 +309,6 @@ public sealed interface LogRouter extends LogLifecycle {
 			private final String name;
 
 			private final EnumSet<RouteFlag> flags = EnumSet.noneOf(RouteFlag.class);
-
-			private RouterFactory factory = (publisher, levelResolver, n, c) -> new SimpleRouter(n, publisher,
-					levelResolver);
 
 			private List<LogProvider<LogAppender>> appenders = new ArrayList<>();
 
@@ -417,16 +379,6 @@ public sealed interface LogRouter extends LogLifecycle {
 			}
 
 			/**
-			 * Factory to use for creating the router.
-			 * @param factory router factory.
-			 * @return this.
-			 */
-			public Builder factory(RouterFactory factory) {
-				this.factory = Objects.requireNonNull(factory);
-				return this;
-			}
-
-			/**
 			 * Adds a filter that runs before the filters listed in
 			 * {@value LogProperties#ROUTE_FILTERS_PROPERTY}.
 			 * @param filter filter.
@@ -438,16 +390,11 @@ public sealed interface LogRouter extends LogLifecycle {
 				return this;
 			}
 
-			Router build() {
-				return build(this.factory);
-			}
-
 			/**
 			 * Builds the router.
-			 * @param factory to create the router.
 			 * @return router.
 			 */
-			Router build(RouterFactory factory) {
+			Router build() {
 				String name = this.name;
 				flags.addAll(rawValue(config.properties()
 					.forKey(LogProperties.ROUTE_FLAGS_PROPERTY, name)
@@ -548,7 +495,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				 */
 				config.serviceRegistry().put(LogPublisher.class, name, pub);
 				config.serviceRegistry().put(LogAppender.Appenders.class, name, apps);
-				var router = factory.create(pub, levelResolver, name, config);
+				var router = new SimpleRouter(name, pub, levelResolver);
 				if (filters.isEmpty()) {
 					return router;
 				}
@@ -587,114 +534,6 @@ public sealed interface LogRouter extends LogLifecycle {
 
 	}
 
-	/**
-	 * A user supplied router usually for filtering or transforming purposes. The method
-	 * required to implement is {@link #transformOrNull(LogEvent)}.
-	 *
-	 * @see RouterFactory
-	 */
-	@SuppressWarnings("javadoc") // TODO Eclipse bug.
-	public non-sealed abstract class AbstractRouter implements Router, Route {
-
-		private final String name;
-
-		private final LogPublisher publisher;
-
-		private final LevelResolver levelResolver;
-
-		/**
-		 * Router tuple of publisher and resolver.
-		 * @param name router name not <code>null</code>.
-		 * @param publisher not <code>null</code>.
-		 * @param levelResolver not <code>null</code>.
-		 */
-		protected AbstractRouter(String name, LogPublisher publisher, LevelResolver levelResolver) {
-			super();
-			this.name = name;
-			this.publisher = publisher;
-			this.levelResolver = levelResolver;
-		}
-
-		@Override
-		public final boolean synchronous() {
-			return Router.super.synchronous();
-		}
-
-		@Override
-		public final void log(LogEvent event) {
-			var e = transformOrNull(event);
-			if (e != null) {
-				Router.super.log(e);
-			}
-		}
-
-		/**
-		 * Implement for custom filtering or transformation.
-		 * @param event usually from logging facade.
-		 * @return event to be pushed to logger or not if <code>null</code>.
-		 */
-		protected abstract @Nullable LogEvent transformOrNull(LogEvent event);
-
-		/**
-		 * Changes the level of an event for {@link #transformOrNull(LogEvent)}. The
-		 * router's level resolver is only consulted when the level changes.
-		 * @param event event passed to {@link #transformOrNull(LogEvent)}.
-		 * @param level new level.
-		 * @return the event at the new level, or <code>null</code> if this router does
-		 * not enable the new level for the event's logger.
-		 * @see LogEvent#withLevel(LogEvent, Level)
-		 */
-		protected final @Nullable LogEvent withLevelOrNull(LogEvent event, Level level) {
-			if (event.level() == level) {
-				return event;
-			}
-			if (!levelResolver.isEnabled(event.loggerName(), level)) {
-				return null;
-			}
-			return LogEvent.withLevel(event, level);
-		}
-
-		@Override
-		public final Route route(String loggerName, Level level) {
-			if (levelResolver().isEnabled(loggerName, level)) {
-				return this;
-			}
-			return Route.Routes.NotFound;
-		}
-
-		@Override
-		public final void start(LogConfig config) {
-			publisher.start(config);
-		}
-
-		@Override
-		public final void close() {
-			publisher.close();
-
-		}
-
-		@Override
-		public final boolean isEnabled() {
-			return true;
-		}
-
-		@Override
-		public final LevelResolver levelResolver() {
-			return this.levelResolver;
-		}
-
-		@Override
-		public final LogPublisher publisher() {
-			return this.publisher;
-		}
-
-		@Override
-		public String toString() {
-			return getClass() + "[name=" + name + ", publisher=" + publisher + ", levelResolver=" + levelResolver + "]";
-		}
-
-	}
-
 }
 
 record SimpleRouter(String name, LogPublisher publisher, LevelResolver levelResolver) implements Router, Route {
@@ -725,10 +564,10 @@ record SimpleRouter(String name, LogPublisher publisher, LevelResolver levelReso
 }
 
 /*
- * Runs a route's filters in front of the router its factory created.
+ * Runs a route's filters in front of its router.
  */
 @SuppressWarnings("ArrayRecordComponent")
-record FilteringRouter(String name, Router router, Router.Filter[] filters) implements Router, Route {
+record FilteringRouter(String name, SimpleRouter router, Router.Filter[] filters) implements Router, Route {
 
 	@Override
 	public void log(LogEvent event) {

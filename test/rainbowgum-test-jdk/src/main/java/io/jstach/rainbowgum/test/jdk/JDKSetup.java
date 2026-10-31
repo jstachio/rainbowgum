@@ -5,7 +5,6 @@ import java.util.ServiceLoader;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -22,7 +21,7 @@ public class JDKSetup {
 			r.appender("list", a -> {
 				a.output(output);
 			});
-			r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+			r.filter(e -> e.freeze(Instant.EPOCH));
 		}).build());
 		return RainbowGum.of();
 	}

@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.LogRouter.Router.Filter;
-import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
@@ -146,19 +145,6 @@ class RouteFilterTest {
 				""", RouteFilterTest::registerSlide, r -> r.filter(MASK_VOWELS));
 		assertEquals("""
 				WARN h*ll*
-				""", actual);
-	}
-
-	@Test
-	void filtersRunBeforeTheRouterFactory() {
-		String actual = log("""
-				logging.level=INFO
-				logging.route.default.filters=slide
-				""", RouteFilterTest::registerSlide,
-				r -> r.factory(RouterFactory.of(e -> e.level() == Level.INFO ? e : null)));
-		assertEquals("""
-				INFO hello
-				INFO hello
 				""", actual);
 	}
 
