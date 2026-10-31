@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -58,18 +59,21 @@ class UnusedKeyLevelTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "logging.levels", "logging.levelExtra", "logging.route.console.levels",
-			"logging.route.console.levelExtra", "logging.route.console.publisher.levels", "logging.route.level.typo",
-			"logging.changes", "logging.change.com.example", "logging.global.change", "logging.caller.com.example" })
-	void nearLevelKeysStillFailStrictStartup(String key) {
+	@CsvSource({ "logging.levels, logging.level", "logging.levelExtra,",
+			"logging.route.console.levels, logging.route.console.level", "logging.route.console.levelExtra,",
+			"logging.route.console.publisher.levels,", "logging.route.level.typo,", "logging.changes,",
+			"logging.change.com.example,", "logging.global.change,", "logging.caller.com.example," })
+	void nearLevelKeysStillFailStrictStartup(String key, @Nullable String suggestion) {
 		System.setProperty(key, "x");
 		try {
 			var gum = gum("logging.alerts.fail=error\nlogging.alerts.unusedKey=error");
 			var e = assertThrows(IllegalStateException.class, gum::start);
-			assertEquals("""
-					1 alert(s) at error or above were recorded while starting and logging.alerts.fail=error:
-					[ERROR] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup."""
-				.replace("KEY", key), e.getMessage());
+			assertEquals(
+					"""
+							1 alert(s) at error or above were recorded while starting and logging.alerts.fail=error:
+							[ERROR] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup."""
+						.replace("KEY", key) + (suggestion == null ? "" : " Did you mean '" + suggestion + "'?"),
+					e.getMessage());
 		}
 		finally {
 			System.clearProperty(key);

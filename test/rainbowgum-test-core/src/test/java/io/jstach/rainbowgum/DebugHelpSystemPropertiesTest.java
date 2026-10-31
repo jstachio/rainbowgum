@@ -46,6 +46,31 @@ class DebugHelpSystemPropertiesTest {
 		}
 	}
 
+	@ParameterizedTest
+	@CsvSource({ "logging.levle, DEBUG, logging.level", "logging.levels.com.example, DEBUG, logging.level.com.example",
+			"logging.LEVEL.com.example, DEBUG, logging.level.com.example",
+			"logging.change.loger.com.example, level, logging.change.logger.com.example",
+			"logging.callr.logger.com.example, stack, logging.caller.logger.com.example",
+			"logging.route.default.levle.com.example, DEBUG, logging.route.default.level.com.example" })
+	void misspelledLoggerKeysFailWithTheRealPrefix(String key, String value, String correctKey) {
+		System.setProperty(key, value);
+		try {
+			var config = LogConfig.builder().debug(DebugModeType.HELP).build();
+			var gum = RainbowGum.builder(config).build();
+			var e = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.debug=help:
+							[WARNING] Property key 'KEY' from SYSTEM_PROPERTIES[KEY] was set but not read during startup. Did you mean 'CORRECT_KEY'?"""
+						.replace("CORRECT_KEY", correctKey)
+						.replace("KEY", key),
+					e.getMessage());
+		}
+		finally {
+			System.getProperties().remove(key);
+		}
+	}
+
 	@Test
 	void knownBootstrapSettingsAreExemptWithoutAPropertiesProvider() {
 		var settings = Map.of("logging.simpleprops.strict", "short", "logging.simpleprops.levelFile", "off",

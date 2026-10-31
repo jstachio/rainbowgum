@@ -169,6 +169,10 @@ final class UnusedKeyCheck {
 				}
 			}
 		}
+		String loggerKey = loggerKeySuggestionOrNull(key);
+		if (loggerKey != null) {
+			return loggerKey;
+		}
 		String best = null;
 		int bestDistance = MAX_DISTANCE + 1;
 		for (String candidate : candidates) {
@@ -178,6 +182,45 @@ final class UnusedKeyCheck {
 			int distance = distance(key, candidate, bestDistance);
 			if (distance < bestDistance) {
 				best = candidate;
+				bestDistance = distance;
+			}
+		}
+		return best;
+	}
+
+	/*
+	 * Keys that end with a logger name are never candidates, since any logger name can
+	 * follow their prefix, so a misspelled prefix is matched against the prefixes
+	 * themselves and keeps the rest of the key as the logger name:
+	 *
+	 * logging.levle -> logging.level logging.levels.com.example ->
+	 * logging.level.com.example logging.change.loger.com.example ->
+	 * logging.change.logger.com.example logging.route.default.levle.com.example ->
+	 * logging.route.default.level.com.example
+	 */
+	static @Nullable String loggerKeySuggestionOrNull(String key) {
+		var prefixes = new ArrayList<String>(List.of(LogProperties.LEVEL_PREFIX, LogProperties.CHANGE_LOGGER_PREFIX,
+				LogProperties.CALLER_LOGGER_PREFIX));
+		String routeStart = LogProperties.ROOT_PREFIX + "route" + LogProperties.SEP;
+		int routeEnd = key.startsWith(routeStart) ? key.indexOf(LogProperties.SEP, routeStart.length()) : -1;
+		if (routeEnd > routeStart.length()) {
+			prefixes.add(key.substring(0, routeEnd) + LogProperties.SEP + "level");
+		}
+		String best = null;
+		int bestDistance = MAX_DISTANCE + 1;
+		for (String prefix : prefixes) {
+			int segments = prefix.split("\\.", -1).length;
+			int end = -1;
+			for (int i = 0; i < segments && (i == 0 || end >= 0); i++) {
+				end = key.indexOf(LogProperties.SEP, end + 1);
+			}
+			String keyPrefix = end < 0 ? key : key.substring(0, end);
+			if (keyPrefix.equals(prefix)) {
+				continue;
+			}
+			int distance = distance(normalize(keyPrefix), normalize(prefix), bestDistance);
+			if (distance < bestDistance) {
+				best = prefix + key.substring(keyPrefix.length());
 				bestDistance = distance;
 			}
 		}
