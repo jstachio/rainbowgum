@@ -1293,6 +1293,7 @@ final class DefaultLogConfig implements LogConfig {
 		registry.put(KeyValuesContributors.Selected.class,
 				new KeyValuesContributors.Selected(globals.keyValueSources()));
 		PostProcessors.registerStandard(registry);
+		StandardFilters.register(registry);
 		this.outputRegistry = DefaultOutputRegistry.of(registry);
 		this.encoderRegistry = DefaultEncoderRegistry.of();
 		this.publisherRegistry = DefaultPublisherRegistry.of();

@@ -129,6 +129,12 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * order to the route's events. Default is none.</td>
  * </tr>
  * <tr>
+ * <td>{@value #FILTER_PREFIX} + <code>propertyName</code></td>
+ * <td>Configures a filter listed in {@value #ROUTE_FILTERS_PROPERTY}, where
+ * <code>filter</code> is the name it is listed with, for example
+ * <code>logging.route.default.filter.throttle.rate</code>.</td>
+ * </tr>
+ * <tr>
  * <td>{@value #ROUTE_PUBLISHER_PROPERTY} = <code>URI</code></td>
  * <td>Looks up a publisher by URI scheme using the {@link LogPublisherRegistry}. The
  * publisher is then configured by the other properties starting with
@@ -561,6 +567,18 @@ public interface LogProperties {
 	 * Property: <code>{@index logging.route.{name}.filters}</code>
 	 */
 	static final String ROUTE_FILTERS_PROPERTY = ROUTE_PREFIX + "filters";
+
+	/**
+	 * Key parameter for the name a {@link LogRouter.Router.Filter filter} is selected
+	 * with in {@value #ROUTE_FILTERS_PROPERTY}.
+	 */
+	static final String FILTER = "filter";
+
+	/**
+	 * Prefix of the properties configuring a route's filter, for example
+	 * <code>logging.route.default.filter.throttle.rate</code>.
+	 */
+	static final String FILTER_PREFIX = ROUTE_PREFIX + "filter.{" + FILTER + "}.";
 
 	/**
 	 * Analogous to {@link System#getProperty(String)}.

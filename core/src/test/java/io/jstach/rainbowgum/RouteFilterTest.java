@@ -238,15 +238,8 @@ class RouteFilterTest {
 		var e = assertThrows(IllegalArgumentException.class,
 				() -> log("logging.route.default.filters=slide,nope", RouteFilterTest::registerSlide));
 		assertEquals("""
-				Unknown filter 'nope' for route 'default'. Available filters: slide""", e.getMessage());
-	}
-
-	@Test
-	void unknownFilterFailsWhenNoneAreRegistered() {
-		var e = assertThrows(IllegalArgumentException.class, () -> log("logging.route.default.filters=nope", c -> {
-		}));
-		assertEquals("""
-				Unknown filter 'nope' for route 'default'. Available filters: none""", e.getMessage());
+				Unknown filter 'nope' for route 'default'. Available filters: dedupe, remap, slide, throttle""",
+				e.getMessage());
 	}
 
 }
