@@ -285,6 +285,45 @@ final class SLF4JMessageFormatter {
 	private SLF4JMessageFormatter() {
 	}
 
+	/*
+	 * Whether formatting only appends each argument's text, so a frozen event can keep
+	 * that text instead of the argument and format later. The MessageFormat styles format
+	 * numbers and dates by locale, so their events are formatted when frozen.
+	 */
+	static boolean formatsArgumentsAsText(LogMessageFormatter formatter) {
+		return formatter == LogMessageFormatter.StandardMessageFormatter.SLF4J;
+	}
+
+	/*
+	 * The text an argument formats to. A String or null already formats to itself.
+	 */
+	static @Nullable Object freezeArg(@Nullable Object arg) {
+		if (arg == null || arg instanceof String) {
+			return arg;
+		}
+		var sb = new StringBuilder();
+		deeplyAppendParameter(sb, arg, null);
+		return sb.toString();
+	}
+
+	/*
+	 * The arguments themselves when every used one is a String or null, otherwise a copy
+	 * holding the text of each.
+	 */
+	static @Nullable Object[] freezeArgs(@Nullable Object[] args, int length) {
+		for (int i = 0; i < length; i++) {
+			var arg = args[i];
+			if (arg != null && !(arg instanceof String)) {
+				var copy = Arrays.copyOf(args, length);
+				for (int j = i; j < length; j++) {
+					copy[j] = freezeArg(copy[j]);
+				}
+				return copy;
+			}
+		}
+		return args;
+	}
+
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
 			final @Nullable Object arg1) {
 		format(sbuf, messagePattern, arg1, null, null, 1);
