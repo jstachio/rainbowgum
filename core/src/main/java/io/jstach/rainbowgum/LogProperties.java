@@ -124,6 +124,11 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
  * {@value #APPENDERS_PROPERTY} is used.</td>
  * </tr>
  * <tr>
+ * <td>{@value #ROUTE_FILTERS_PROPERTY} = <code>List&lt;String&gt;</code></td>
+ * <td>A comma separated list of {@linkplain LogRouter.Router.Filter filters} applied in
+ * order to the route's events. Default is none.</td>
+ * </tr>
+ * <tr>
  * <td>{@value #ROUTE_PUBLISHER_PROPERTY} = <code>URI</code></td>
  * <td>Looks up a publisher by URI scheme using the {@link LogPublisherRegistry}. The
  * publisher is then configured by the other properties starting with
@@ -547,6 +552,15 @@ public interface LogProperties {
 	 * Property: <code>{@index logging.route.{name}.flags}</code>
 	 */
 	static final String ROUTE_FLAGS_PROPERTY = ROUTE_PREFIX + "flags";
+
+	/**
+	 * Comma separated names of the {@link LogRouter.Router.Filter filters} applied, in
+	 * the order listed, to the route's events. An unknown name fails when the route is
+	 * built.
+	 * <p>
+	 * Property: <code>{@index logging.route.{name}.filters}</code>
+	 */
+	static final String ROUTE_FILTERS_PROPERTY = ROUTE_PREFIX + "filters";
 
 	/**
 	 * Analogous to {@link System#getProperty(String)}.

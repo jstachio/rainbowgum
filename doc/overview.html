@@ -2124,7 +2124,7 @@ logging.appender.otel.output.otlp.keyValuesExcluded=*.password,*.token
 Like logback Rainbow Gum provides two types of filtering through functional composition:
 
 <ol>
-  <li>{@linkplain io.jstach.rainbowgum.LogRouter.Router.RouterFactory#of(Function) router based filtering},
+  <li>{@linkplain io.jstach.rainbowgum.LogRouter.Router.Filter router based filtering},
     similar to logbacks normal filters.</li>
   <li>{@linkplain io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService SLF4J based filtering},
     similar to <a href="https://logback.qos.ch/manual/filters.html#TurboFilter">logback Turbo Filters</a></li>
@@ -2132,23 +2132,36 @@ Like logback Rainbow Gum provides two types of filtering through functional comp
 
 <h3 id="router_filter">Event based Filtering</h3>
 
-Unfortunately at this time router based filtering is not configurable through properties and can only be
-added using {@linkplain io.jstach.rainbowgum.RainbowGum.Builder Rainbow Gum builder}
-and composition has to be done manually.
-<p>
+A route's events can be dropped or changed by {@linkplain io.jstach.rainbowgum.LogRouter.Router.Filter filters}
+before they reach its publisher. Filters are registered by name, usually from a
+{@linkplain io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator configurator}, and selected
+with the route's <code>filters</code> property. They run in the order listed:
 
-  An example using router based filtering:
+{@snippet lang=properties :
+logging.route.default.filters=quietDependency
+}
+
+A filter returns the event to keep it, <code>null</code> to drop it, or a different event such as one at another
+level from {@link io.jstach.rainbowgum.LogEvent#withLevel(io.jstach.rainbowgum.LogEvent, java.lang.System.Logger.Level)} or with
+a masked message from {@link io.jstach.rainbowgum.LogEvent#rewrite(io.jstach.rainbowgum.LogEvent, io.jstach.rainbowgum.LogEvent.Rewriter)}.
+A configurator that registers a filter moving a noisy dependency's warnings down to info:
+
+{@snippet class="snippets.RouteFilterExample" region="routeFilterExample" }
+
+<p>
+Filters can also be added in code with
+{@link io.jstach.rainbowgum.LogRouter.Router.Builder#filter(io.jstach.rainbowgum.LogRouter.Router.Filter)},
+and the whole router can be created from a function:
 
 {@snippet class="snippets.FilteringExample" region="filteringExample" }
-
-The above creates a custom {@link io.jstach.rainbowgum.LogRouter.Router}
-with a function. 
 
 <em>
 Event based filtering is still based on the invariants
 of level resolvers not changing (unless they are configured to be dynamic) so
-not all events are delivered if the level resolved does not not allow it!
+not all events are delivered if the level resolved does not allow it!
 </em>
+A filter only sees events the route enables, and an event moved to another level is dropped
+if the route does not enable that level for its logger.
 A work around is to adjust the levels of the router so that it does get
 all events desired and is why filtering is associated with routing.
 <strong>Unfortunately this can be inefficient as the event always has to be created</strong>
