@@ -295,6 +295,25 @@ final class SLF4JMessageFormatter {
 	}
 
 	/*
+	 * Whether an argument already is the text it formats to.
+	 */
+	static boolean isText(@Nullable Object arg) {
+		return arg == null || arg instanceof String;
+	}
+
+	/*
+	 * Whether every used argument already is the text it formats to.
+	 */
+	static boolean areText(@Nullable Object[] args, int length) {
+		for (int i = 0; i < length; i++) {
+			if (!isText(args[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/*
 	 * The text an argument formats to. A String or null already formats to itself.
 	 */
 	static @Nullable Object freezeArg(@Nullable Object arg) {

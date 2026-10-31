@@ -650,7 +650,15 @@ record StackFrameCallerInfo(StackFrame stackFrame) implements LogEvent.Caller {
 
 record OneArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
 		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
-		@Nullable Object arg1) implements LogEvent {
+		@Nullable Object arg1, boolean textArgs) implements LogEvent {
+
+	OneArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
+			String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
+			@Nullable Throwable throwableOrNull, @Nullable Object arg1) {
+		this(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, throwableOrNull,
+				arg1,
+				SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter) && SLF4JMessageFormatter.isText(arg1));
+	}
 
 	OneArgLogEvent {
 		Objects.requireNonNull(timestamp, "timestamp");
@@ -670,16 +678,15 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	@Override
 	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
+		if (textArgs) {
+			var kvs = keyValues.freeze();
+			if (kvs == keyValues) {
+				return this;
+			}
+			return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs,
+					messageFormatter, throwableOrNull, arg1, true);
 		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1);
-		var kvs = keyValues.freeze();
-		if (a1 == arg1 && kvs == keyValues) {
-			return this;
-		}
-		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a1);
+		return freeze(timestamp);
 	}
 
 	@Override
@@ -688,14 +695,22 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 			return FrozenLogEvent.of(this, timestamp);
 		}
 		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1));
+				messageFormatter, throwableOrNull, textArgs ? arg1 : SLF4JMessageFormatter.freezeArg(arg1), true);
 	}
 
 }
 
 record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
 		String message, KeyValues keyValues, LogMessageFormatter messageFormatter, @Nullable Throwable throwableOrNull,
-		@Nullable Object arg1, @Nullable Object arg2) implements LogEvent {
+		@Nullable Object arg1, @Nullable Object arg2, boolean textArgs) implements LogEvent {
+
+	TwoArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
+			String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
+			@Nullable Throwable throwableOrNull, @Nullable Object arg1, @Nullable Object arg2) {
+		this(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, throwableOrNull,
+				arg1, arg2, SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)
+						&& SLF4JMessageFormatter.isText(arg1) && SLF4JMessageFormatter.isText(arg2));
+	}
 
 	TwoArgLogEvent {
 		Objects.requireNonNull(timestamp, "timestamp");
@@ -715,17 +730,15 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	@Override
 	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
+		if (textArgs) {
+			var kvs = keyValues.freeze();
+			if (kvs == keyValues) {
+				return this;
+			}
+			return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs,
+					messageFormatter, throwableOrNull, arg1, arg2, true);
 		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1);
-		var a2 = SLF4JMessageFormatter.freezeArg(arg2);
-		var kvs = keyValues.freeze();
-		if (a1 == arg1 && a2 == arg2 && kvs == keyValues) {
-			return this;
-		}
-		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a1, a2);
+		return freeze(timestamp);
 	}
 
 	@Override
@@ -733,16 +746,29 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
 			return FrozenLogEvent.of(this, timestamp);
 		}
+		if (textArgs) {
+			return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
+					messageFormatter, throwableOrNull, arg1, arg2, true);
+		}
 		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
 				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1),
-				SLF4JMessageFormatter.freezeArg(arg2));
+				SLF4JMessageFormatter.freezeArg(arg2), true);
 	}
 }
 
 @SuppressWarnings("ArrayRecordComponent")
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
-		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) implements LogEvent {
+		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length,
+		boolean textArgs) implements LogEvent {
+
+	ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
+			String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
+			@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) {
+		this(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, throwableOrNull,
+				args, length, SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)
+						&& SLF4JMessageFormatter.areText(args, length));
+	}
 
 	ArrayArgLogEvent {
 		Objects.requireNonNull(timestamp, "timestamp");
@@ -766,16 +792,15 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 	@Override
 	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
+		if (textArgs) {
+			var kvs = keyValues.freeze();
+			if (kvs == keyValues) {
+				return this;
+			}
+			return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs,
+					messageFormatter, throwableOrNull, args, length, true);
 		}
-		var a = SLF4JMessageFormatter.freezeArgs(args, length);
-		var kvs = keyValues.freeze();
-		if (a == args && kvs == keyValues) {
-			return this;
-		}
-		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a, length);
+		return freeze(timestamp);
 	}
 
 	@Override
@@ -784,7 +809,8 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 			return FrozenLogEvent.of(this, timestamp);
 		}
 		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length), length);
+				messageFormatter, throwableOrNull, textArgs ? args : SLF4JMessageFormatter.freezeArgs(args, length),
+				length, true);
 	}
 
 }
