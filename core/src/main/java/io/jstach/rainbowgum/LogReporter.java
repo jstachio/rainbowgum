@@ -491,7 +491,11 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 	}
 
 	private void appendRouter(Appendable out, LogConfig config, LogRouter.Router router) throws IOException {
-		String name = router instanceof SimpleRouter sr ? sr.name() : router.getClass().getSimpleName();
+		String name = switch (router) {
+			case SimpleRouter sr -> sr.name();
+			case FilteringRouter fr -> fr.name();
+			default -> router.getClass().getSimpleName();
+		};
 		out.append("Router: ").append(name).append("\n");
 		appendPublisher(out, config, name, router.publisher());
 	}

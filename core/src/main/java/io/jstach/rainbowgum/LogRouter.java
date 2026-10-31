@@ -271,6 +271,70 @@ public sealed interface LogRouter extends LogLifecycle {
 		}
 
 		/**
+		 * Drops or changes a route's events before its router gets them, for example to
+		 * remove noisy events, change their level or mask their message with
+		 * {@link LogEvent#rewrite(LogEvent, LogEvent.Rewriter)}. Filters are selected by
+		 * name with the {@value LogProperties#ROUTE_FILTERS_PROPERTY} property: <pre>
+		 * logging.route.default.filters=quietHealthChecks,maskCards
+		 * </pre>
+		 * <p>
+		 * They run in the order listed, each on the event the previous one returned,
+		 * after filters added with {@link Builder#filter(Filter)} and before the router
+		 * created by the {@link RouterFactory}. A filter is only given events whose level
+		 * the route enables, so it cannot make a disabled event appear. When the event
+		 * the last filter returns has a different level than the original, the route
+		 * drops it unless its level resolver enables that level for the event's logger.
+		 * <p>
+		 * A filter changes only what its route sees. Other routes get the original event.
+		 * <p>
+		 * Filters must be thread-safe. One instance filters every event of its route,
+		 * possibly from several threads at once. Events are not yet
+		 * {@linkplain LogEvent#freeze() frozen} when a filter gets them.
+		 * <p>
+		 * Filters are registered by name with
+		 * {@link #register(ServiceRegistry, String, Provider)}. A name that is not
+		 * registered fails when the route is built, with an error listing the registered
+		 * names.
+		 */
+		@FunctionalInterface
+		public interface Filter {
+
+			/**
+			 * Filters an event.
+			 * @param event event the route enables, or the event the previous filter
+			 * returned.
+			 * @return the event to pass on, which may be the given event or a different
+			 * one such as {@link LogEvent#withLevel(LogEvent, Level)} returns, or
+			 * <code>null</code> to drop it.
+			 */
+			@Nullable LogEvent filterOrNull(LogEvent event);
+
+			/**
+			 * Registers a filter under a name so routes can select it with
+			 * {@value LogProperties#ROUTE_FILTERS_PROPERTY}, usually from a
+			 * {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator}. A
+			 * name that is already registered is not replaced.
+			 * @param registry usually {@link LogConfig#serviceRegistry()}.
+			 * @param name the name used in the property.
+			 * @param provider creates the filter, given the route's name and config.
+			 */
+			public static void register(ServiceRegistry registry, String name, Provider provider) {
+				registry.put(Provider.class, name, provider);
+			}
+
+			/**
+			 * Creates a filter for a route, given the route's name and config. It is
+			 * called once each time a route that lists its name is built, not for each
+			 * event.
+			 */
+			@FunctionalInterface
+			public interface Provider extends LogProvider<Filter> {
+
+			}
+
+		}
+
+		/**
 		 * Router builder.
 		 */
 		public final class Builder extends LevelResolver.AbstractBuilder<Builder> implements LogConfig.ConfigSupport {
@@ -285,6 +349,8 @@ public sealed interface LogRouter extends LogLifecycle {
 					levelResolver);
 
 			private List<LogProvider<LogAppender>> appenders = new ArrayList<>();
+
+			private final List<Filter> filters = new ArrayList<>();
 
 			private Builder(String name, LogConfig config) {
 				this.name = Objects.requireNonNull(name);
@@ -360,6 +426,18 @@ public sealed interface LogRouter extends LogLifecycle {
 				return this;
 			}
 
+			/**
+			 * Adds a filter that runs before the filters listed in
+			 * {@value LogProperties#ROUTE_FILTERS_PROPERTY}.
+			 * @param filter filter.
+			 * @return this.
+			 * @see Filter
+			 */
+			public Builder filter(Filter filter) {
+				this.filters.add(Objects.requireNonNull(filter));
+				return this;
+			}
+
 			Router build() {
 				return build(this.factory);
 			}
@@ -376,6 +454,12 @@ public sealed interface LogRouter extends LogLifecycle {
 					.ofList()
 					.map(RouteFlag::parse)
 					.or(EnumSet.noneOf(RouteFlag.class))).value());
+				List<Filter> filters = new ArrayList<>(this.filters);
+				for (String filterName : rawValue(
+						config.properties().forKey(LogProperties.ROUTE_FILTERS_PROPERTY, name).ofList().or(List.of()))
+					.value()) {
+					filters.add(filter(filterName.strip(), name, config));
+				}
 				String routerLevelPrefix = LogProperties.interpolateNamedKey(LogProperties.ROUTE_LEVEL_PREFIX, name);
 
 				/*
@@ -464,7 +548,22 @@ public sealed interface LogRouter extends LogLifecycle {
 				 */
 				config.serviceRegistry().put(LogPublisher.class, name, pub);
 				config.serviceRegistry().put(LogAppender.Appenders.class, name, apps);
-				return factory.create(pub, levelResolver, name, config);
+				var router = factory.create(pub, levelResolver, name, config);
+				if (filters.isEmpty()) {
+					return router;
+				}
+				return new FilteringRouter(name, router, filters.toArray(Filter[]::new));
+			}
+
+			private static Filter filter(String filterName, String routeName, LogConfig config) {
+				var provider = config.serviceRegistry().findOrNull(Filter.Provider.class, filterName);
+				if (provider != null) {
+					return provider.provide(routeName, config);
+				}
+				var available = new java.util.TreeSet<String>();
+				config.serviceRegistry().forEach(Filter.Provider.class, (n, p) -> available.add(n));
+				throw new IllegalArgumentException("Unknown filter '" + filterName + "' for route '" + routeName
+						+ "'. Available filters: " + (available.isEmpty() ? "none" : String.join(", ", available)));
 			}
 
 			/*
@@ -621,6 +720,68 @@ record SimpleRouter(String name, LogPublisher publisher, LevelResolver levelReso
 	@Override
 	public void start(LogConfig config) {
 		publisher.start(config);
+	}
+
+}
+
+/*
+ * Runs a route's filters in front of the router its factory created.
+ */
+@SuppressWarnings("ArrayRecordComponent")
+record FilteringRouter(String name, Router router, Router.Filter[] filters) implements Router, Route {
+
+	@Override
+	public void log(LogEvent event) {
+		LogEvent filtered = event;
+		for (var filter : filters) {
+			filtered = filter.filterOrNull(filtered);
+			if (filtered == null) {
+				return;
+			}
+		}
+		if (filtered.level() != event.level()
+				&& !router.levelResolver().isEnabled(filtered.loggerName(), filtered.level())) {
+			return;
+		}
+		router.log(filtered);
+	}
+
+	@Override
+	public Route route(String loggerName, Level level) {
+		if (router.route(loggerName, level).isEnabled()) {
+			return this;
+		}
+		return Route.Routes.NotFound;
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return true;
+	}
+
+	@Override
+	public LevelResolver levelResolver() {
+		return router.levelResolver();
+	}
+
+	@Override
+	public LogPublisher publisher() {
+		return router.publisher();
+	}
+
+	@Override
+	public boolean synchronous() {
+		return router.synchronous();
+	}
+
+	@Override
+	public void start(LogConfig config) {
+		router.start(config);
+	}
+
+	@Override
+	public void close() {
+		router.close();
 	}
 
 }
