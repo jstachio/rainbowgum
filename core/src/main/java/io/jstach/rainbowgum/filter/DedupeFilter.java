@@ -53,11 +53,11 @@ final class DedupeFilter implements Filter {
 
 	/**
 	 * Drops an event once its unformatted message has been seen more than
-	 * <code>repeats</code> times after the first. Messages with arguments are compared by
-	 * their {@linkplain io.jstach.rainbowgum.LogEvent#messageTemplate() template}, even
-	 * when the event has already been frozen. Only the <code>cacheSize</code> most
-	 * recently seen messages are remembered, and a forgotten message counts from the
-	 * start again. Events more severe than <code>level</code> are always kept.
+	 * <code>repeats</code> times after the first. Messages with arguments are compared
+	 * before the arguments are filled in, even when the event has already been frozen.
+	 * Only the <code>cacheSize</code> most recently seen messages are remembered, and a
+	 * forgotten message counts from the start again. Events more severe than
+	 * <code>level</code> are always kept.
 	 * @param name route name.
 	 * @param filter name the filter is selected with.
 	 * @param repeats times a message is kept after its first.
@@ -92,7 +92,7 @@ final class DedupeFilter implements Filter {
 		if (event.level().getSeverity() > severity) {
 			return event;
 		}
-		String message = event.messageTemplate();
+		String message = event.message();
 		lock.lock();
 		try {
 			var count = counts.computeIfAbsent(message, m -> new Count());

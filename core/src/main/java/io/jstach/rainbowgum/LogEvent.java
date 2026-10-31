@@ -355,24 +355,13 @@ public sealed interface LogEvent {
 	public String loggerName();
 
 	/**
-	 * Message before arguments are formatted, or the formatted message after the event is
-	 * {@linkplain #freeze() frozen}. Use {@link #messageTemplate()} when the original
-	 * template is needed regardless of whether the event is frozen.
-	 * @return message.
+	 * Unformatted message, before arguments are filled in, including after the event is
+	 * {@linkplain #freeze() frozen}. A {@linkplain #rewrite(LogEvent, Rewriter) rewritten
+	 * event} has no arguments, so its message is the rewritten message.
+	 * @return unformatted message
 	 * @see #formattedMessage(StringBuilder)
 	 */
 	public String message();
-
-	/**
-	 * Message before arguments are formatted, retained when the event is
-	 * {@linkplain #freeze() frozen}. Events without arguments, including
-	 * {@linkplain #rewrite(LogEvent, Rewriter) rewritten events}, use their message as
-	 * the template. Use {@link #hasMessage()} to distinguish a missing message.
-	 * @return message template.
-	 */
-	default String messageTemplate() {
-		return message();
-	}
 
 	/**
 	 * {@link #message()} or <code>null</code> if the event has no message.
@@ -766,11 +755,12 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 }
 
 /*
- * An argument-bearing event after formatting. Keep the template without retaining the
- * argument objects, so filters see the same template before and after freezing.
+ * An argument-bearing event after formatting. Keeps the unformatted message without
+ * retaining the argument objects, so filters see the same message before and after
+ * freezing.
  */
 record FrozenLogEvent(Instant timestamp, String threadName, long threadId, Level level, String loggerName,
-		String messageTemplate, String message, KeyValues keyValues,
+		String message, String formattedMessage, KeyValues keyValues,
 		@Nullable Throwable throwableOrNull) implements LogEvent {
 
 	FrozenLogEvent {
@@ -778,14 +768,14 @@ record FrozenLogEvent(Instant timestamp, String threadName, long threadId, Level
 		Objects.requireNonNull(threadName, "threadName");
 		Objects.requireNonNull(level, "level");
 		Objects.requireNonNull(loggerName, "loggerName");
-		Objects.requireNonNull(messageTemplate, "messageTemplate");
 		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(formattedMessage, "formattedMessage");
 		Objects.requireNonNull(keyValues, "keyValues");
 	}
 
 	@Override
 	public void formattedMessage(StringBuilder sb) {
-		sb.append(message);
+		sb.append(formattedMessage);
 	}
 
 	@Override
@@ -795,7 +785,7 @@ record FrozenLogEvent(Instant timestamp, String threadName, long threadId, Level
 
 	@Override
 	public LogEvent freeze(Instant timestamp) {
-		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, messageTemplate, message,
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, message, formattedMessage,
 				keyValues, throwableOrNull);
 	}
 
@@ -891,11 +881,6 @@ sealed interface ForwardingLogEvent extends LogEvent permits StackFrameLogEvent,
 	@Override
 	default String message() {
 		return event().message();
-	}
-
-	@Override
-	default String messageTemplate() {
-		return event().messageTemplate();
 	}
 
 	@Override
@@ -999,11 +984,6 @@ record RewrittenLogEvent(LogEvent event, Rewriter rewriter) implements Forwardin
 		var sb = new StringBuilder();
 		formattedMessage(sb);
 		return sb.toString();
-	}
-
-	@Override
-	public String messageTemplate() {
-		return message();
 	}
 
 	@Override

@@ -257,8 +257,8 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * Filters must be thread-safe. One instance filters every event of its route,
 		 * possibly from several threads at once. Events may already be
 		 * {@linkplain LogEvent#freeze() frozen}, for example when another route uses an
-		 * async publisher. Use {@link LogEvent#messageTemplate()} to inspect the message
-		 * before arguments were formatted in either case.
+		 * async publisher. {@link LogEvent#message()} is the unformatted message in
+		 * either case.
 		 * <p>
 		 * Filters are registered by name with
 		 * {@link #register(ServiceRegistry, String, Provider)}. A name that is not

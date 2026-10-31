@@ -444,7 +444,7 @@ class LogEventTest {
 	}
 
 	@Test
-	void frozenEventsRetainTemplatesAndSnapshotMutableInputs() {
+	void frozenEventsKeepTheMessageAndSnapshotArguments() {
 		var arguments = new StringBuilder("before");
 		var keyValues = MutableKeyValues.of().add("state", "before");
 		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
@@ -458,28 +458,37 @@ class LogEventTest {
 		var frozen = events.stream().map(LogEvent::freeze).toList();
 		arguments.replace(0, arguments.length(), "after");
 		keyValues.add("state", "after");
-		var expected = List.of("value before", "value before two", "value before two three");
-		for (int i = 0; i < events.size(); i++) {
-			var original = events.get(i);
-			var event = frozen.get(i);
-			assertEquals(original.messageTemplate(), event.messageTemplate());
-			assertEquals(original.messageTemplate(), event.freeze(Instant.MAX).messageTemplate());
-			assertEquals(expected.get(i), event.message());
-			assertEquals(expected.get(i), event.freeze(Instant.MAX).message());
-			assertEquals(Map.of("state", "before"), event.keyValues().copyToMap());
-			assertSame(event, event.freeze());
-			var changed = LogEvent.withLevel(event, Level.WARNING);
-			assertEquals(original.messageTemplate(), changed.messageTemplate());
-			var caller = LogEvent.Caller.ofDepthOrNull(0);
-			if (caller == null) {
-				fail("Caller");
-				throw new IllegalStateException();
-			}
-			assertEquals(original.messageTemplate(), LogEvent.withCaller(changed, caller).freeze().messageTemplate());
-			var rewritten = LogEvent.rewrite(event, new LogEvent.Rewriter() {
-			});
-			assertEquals(expected.get(i), rewritten.messageTemplate(), "Rewritten events have no arguments");
+		var caller = LogEvent.Caller.ofDepthOrNull(0);
+		if (caller == null) {
+			fail("Caller");
+			throw new IllegalStateException();
 		}
+		var sb = new StringBuilder();
+		for (var event : frozen) {
+			assertSame(event, event.freeze());
+			for (var e : List.of(event, event.freeze(Instant.MAX),
+					LogEvent.withCaller(LogEvent.withLevel(event, Level.WARNING), caller).freeze(),
+					LogEvent.rewrite(event, new LogEvent.Rewriter() {
+					}))) {
+				sb.append(e.level()).append(" ").append(e.message()).append(" | ");
+				e.formattedMessage(sb);
+				sb.append(" | ").append(e.keyValues().copyToMap()).append("\n");
+			}
+		}
+		assertEquals("""
+				INFO value {} | value before | {state=before}
+				INFO value {} | value before | {state=before}
+				WARNING value {} | value before | {state=before}
+				INFO value before | value before | {state=before}
+				INFO value {} {} | value before two | {state=before}
+				INFO value {} {} | value before two | {state=before}
+				WARNING value {} {} | value before two | {state=before}
+				INFO value before two | value before two | {state=before}
+				INFO value {} {} {} | value before two three | {state=before}
+				INFO value {} {} {} | value before two three | {state=before}
+				WARNING value {} {} {} | value before two three | {state=before}
+				INFO value before two three | value before two three | {state=before}
+				""", sb.toString());
 	}
 
 	@Test
@@ -635,7 +644,6 @@ class LogEventTest {
 			assertTrue(event.hasMessage());
 			assertEquals("replacement", event.message());
 			assertEquals("replacement", event.messageOrNull());
-			assertEquals("replacement", event.messageTemplate());
 			var sb = new StringBuilder();
 			event.formattedMessage(sb, "fallback");
 			assertEquals("replacement", sb.toString());
@@ -685,11 +693,12 @@ class LogEventTest {
 			fail("key values should be immutable");
 		}
 		assertEquals(Instant.EPOCH, e.timestamp());
-		assertEquals(event.messageTemplate(), e.messageTemplate());
-		String message = e.message();
-		StringBuilder sb = new StringBuilder();
-		event.formattedMessage(sb);
-		assertEquals(message, sb.toString(), "message should be formatted when frozen");
+		assertEquals(event.message(), e.message(), "message should stay unformatted when frozen");
+		StringBuilder expected = new StringBuilder();
+		event.formattedMessage(expected);
+		StringBuilder actual = new StringBuilder();
+		e.formattedMessage(actual);
+		assertEquals(expected.toString(), actual.toString(), "formatted message should survive freezing");
 		assertEquals(e.hasMessage(), event.hasMessage(), "event should retain message nullability");
 
 		assertCaller(event);
