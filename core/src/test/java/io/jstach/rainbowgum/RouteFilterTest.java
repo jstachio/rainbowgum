@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
+import java.util.ArrayList;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,24 @@ class RouteFilterTest {
 		assertEquals("""
 				WARN hello
 				""", actual);
+	}
+
+	@Test
+	void renamedLoggerIsCheckedEvenWhenTheLevelIsUnchanged() {
+		var seen = new ArrayList<LogEvent>();
+		String actual = log("""
+				logging.level=INFO
+				logging.level.blocked=OFF
+				""", c -> {
+		}, r -> r
+			.filter(e -> LogEvent.of(e.timestamp(), e.threadName(), e.threadId(), e.level(), "blocked", e.message(),
+					e.keyValues(), e.throwableOrNull()))
+			.filter(e -> {
+				seen.add(e);
+				return e;
+			}));
+		assertEquals("", actual);
+		assertEquals(0, seen.size(), "Later filters must not see events disabled for their new logger");
 	}
 
 	@Test

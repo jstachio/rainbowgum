@@ -255,8 +255,10 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * A filter changes only what its route sees. Other routes get the original event.
 		 * <p>
 		 * Filters must be thread-safe. One instance filters every event of its route,
-		 * possibly from several threads at once. Events are not yet
-		 * {@linkplain LogEvent#freeze() frozen} when a filter gets them.
+		 * possibly from several threads at once. Events may already be
+		 * {@linkplain LogEvent#freeze() frozen}, for example when another route uses an
+		 * async publisher. Use {@link LogEvent#messageTemplate()} to inspect the message
+		 * before arguments were formatted in either case.
 		 * <p>
 		 * Filters are registered by name with
 		 * {@link #register(ServiceRegistry, String, Provider)}. A name that is not
@@ -613,8 +615,10 @@ record FilteringRouter(String name, SimpleRouter router, Router.Filter[] filters
 		LogEvent e = event;
 		for (var filter : filters) {
 			var level = e.level();
+			var loggerName = e.loggerName();
 			e = filter.filterOrNull(e);
-			if (e == null || (e.level() != level && !router.levelResolver().isEnabled(e.loggerName(), e.level()))) {
+			if (e == null || ((e.level() != level || !e.loggerName().equals(loggerName))
+					&& !router.levelResolver().isEnabled(e.loggerName(), e.level()))) {
 				filtered.increment();
 				return;
 			}

@@ -9,6 +9,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
@@ -17,6 +19,7 @@ import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogMetrics;
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -154,6 +157,48 @@ class StandardFiltersTest {
 		assertEquals("""
 				INFO app user alice
 				""", actual);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "false,false", "false,true", "true,false", "true,true" })
+	void dedupeUsesTemplatesWithAsyncRoutes(boolean filteredAsync, boolean asyncSibling) {
+		var output = new ListLogOutput();
+		var archive = new ListLogOutput();
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.route.filtered.filters=dedupe
+				logging.route.filtered.filter.dedupe.repeats=0
+				""").build()).build();
+		var builder = RainbowGum.builder(config).route("filtered", r -> {
+			r.appender("filtered", a -> a.output(output).formatter(FORMATTER));
+			if (filteredAsync) {
+				r.publisher(PublisherFactory.ofAsync(16));
+			}
+		});
+		if (asyncSibling) {
+			builder.route("archive", r -> r.publisher(PublisherFactory.ofAsync(16))
+				.appender("archive", a -> a.output(archive).formatter(FORMATTER)));
+		}
+		try (var gum = builder.build().start()) {
+			for (var user : List.of("alice", "bob")) {
+				gum.log(LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "user {}", KeyValues.of(),
+						StandardMessageFormatter.SLF4J, user));
+			}
+		}
+		assertEquals("INFO app user alice\n", output.toString());
+		if (asyncSibling) {
+			assertEquals("""
+					INFO app user alice
+					INFO app user bob
+					""", archive.toString());
+		}
+		assertEquals(1L,
+				config.metrics()
+					.snapshot()
+					.stream()
+					.filter(m -> m.name().equals(LogMetrics.EVENTS_DEDUPLICATED_METRIC))
+					.findFirst()
+					.orElseThrow()
+					.value());
 	}
 
 	@Test
