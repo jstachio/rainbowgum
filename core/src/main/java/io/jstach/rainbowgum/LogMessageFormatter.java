@@ -1,9 +1,17 @@
 package io.jstach.rainbowgum;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.URI;
 import java.text.MessageFormat;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
@@ -295,10 +303,10 @@ final class SLF4JMessageFormatter {
 	}
 
 	/*
-	 * The text an argument formats to. A String or null already formats to itself.
+	 * The argument itself when it cannot change, otherwise the text it formats to.
 	 */
 	static @Nullable Object freezeArg(@Nullable Object arg) {
-		if (arg == null || arg instanceof String) {
+		if (arg == null || isImmutable(arg)) {
 			return arg;
 		}
 		var sb = new StringBuilder();
@@ -307,13 +315,25 @@ final class SLF4JMessageFormatter {
 	}
 
 	/*
-	 * The arguments themselves when every used one is a String or null, otherwise a copy
-	 * holding the text of each.
+	 * Exact classes, because a subclass of a non final class such as BigDecimal could be
+	 * mutable.
+	 */
+	private static boolean isImmutable(Object arg) {
+		Class<?> c = arg.getClass();
+		return c == String.class || c == Integer.class || c == Long.class || c == Boolean.class || c == Double.class
+				|| c == Float.class || c == Short.class || c == Byte.class || c == Character.class
+				|| c == BigDecimal.class || c == BigInteger.class || c == UUID.class || c == URI.class
+				|| c == Instant.class || c == Duration.class || c == LocalDate.class || c == LocalDateTime.class;
+	}
+
+	/*
+	 * The arguments themselves when none can change, otherwise a copy holding the text of
+	 * each that can.
 	 */
 	static @Nullable Object[] freezeArgs(@Nullable Object[] args, int length) {
 		for (int i = 0; i < length; i++) {
 			var arg = args[i];
-			if (arg != null && !(arg instanceof String)) {
+			if (arg != null && !isImmutable(arg)) {
 				var copy = Arrays.copyOf(args, length);
 				for (int j = i; j < length; j++) {
 					copy[j] = freezeArg(copy[j]);
