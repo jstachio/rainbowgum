@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogMetrics;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter.Router.Filter;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -28,13 +29,16 @@ final class DedupeFilter implements Filter {
 
 	private final int severity;
 
+	private final LogMetrics.Gauge dropped;
+
 	private final ReentrantLock lock = new ReentrantLock();
 
 	private final Map<String, Count> counts;
 
-	private DedupeFilter(int repeats, int cacheSize, Level level) {
+	private DedupeFilter(int repeats, int cacheSize, Level level, LogMetrics.Gauge dropped) {
 		this.repeats = repeats;
 		this.severity = level.getSeverity();
+		this.dropped = dropped;
 		this.counts = new LinkedHashMap<>(16, 0.75f, true) {
 
 			private static final long serialVersionUID = 1L;
@@ -58,20 +62,24 @@ final class DedupeFilter implements Filter {
 	 * @param repeats times a message is kept after its first.
 	 * @param cacheSize messages remembered.
 	 * @param level the most severe level that is deduplicated.
+	 * @param metrics where to count dropped events as
+	 * {@link io.jstach.rainbowgum.LogMetrics#EVENTS_DEDUPLICATED_METRIC}.
 	 * @return filter.
 	 */
 	@LogConfigurable(name = "DedupeFilterBuilder", prefix = LogProperties.FILTER_PREFIX)
 	static Filter of(@LogConfigurable.KeyParameter String name, @LogConfigurable.KeyParameter String filter,
 			@LogConfigurable.DefaultParameter("DEFAULT_REPEATS") Integer repeats,
 			@LogConfigurable.DefaultParameter("DEFAULT_CACHE_SIZE") Integer cacheSize,
-			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("parseLevel") Level level) {
+			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("parseLevel") Level level,
+			@LogConfigurable.PassThroughParameter @Nullable LogMetrics metrics) {
 		if (repeats < 0) {
 			throw new IllegalArgumentException("repeats must not be negative.");
 		}
 		if (cacheSize < 1) {
 			throw new IllegalArgumentException("cacheSize must be positive.");
 		}
-		return new DedupeFilter(repeats, cacheSize, level);
+		return new DedupeFilter(repeats, cacheSize, level, metrics == null ? LogMetrics.Gauge.noop()
+				: metrics.gauge(LogMetrics.EVENTS_DEDUPLICATED_METRIC, Level.WARNING));
 	}
 
 	static Level parseLevel(String value) {
@@ -88,6 +96,7 @@ final class DedupeFilter implements Filter {
 		try {
 			var count = counts.computeIfAbsent(message, m -> new Count());
 			if (count.value > repeats) {
+				dropped.increment();
 				return null;
 			}
 			count.value++;

@@ -44,6 +44,30 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 	static final String EVENTS_DISCARDED_METRIC = "events.discarded";
 
 	/**
+	 * Counter name for the global count of log events a route's
+	 * {@linkplain LogRouter.Router.Filter filters} dropped, including events a filter
+	 * moved to a level the route does not enable. Filtering is usually intended, so it is
+	 * an {@link #infoCounter(String, long) info} counter.
+	 */
+	static final String EVENTS_FILTERED_METRIC = "events.filtered";
+
+	/**
+	 * Counter name for the global count of log events the <code>throttle</code> route
+	 * filter dropped because more arrived than its rate allows. They are also counted by
+	 * {@link #EVENTS_FILTERED_METRIC}. Events lost to load are worth watching, so it is a
+	 * {@link #warnCounter(String, long) warning} counter.
+	 */
+	static final String EVENTS_THROTTLED_METRIC = "events.throttled";
+
+	/**
+	 * Counter name for the global count of log events the <code>dedupe</code> route
+	 * filter dropped as repeats. They are also counted by
+	 * {@link #EVENTS_FILTERED_METRIC}. It is a {@link #warnCounter(String, long) warning}
+	 * counter like {@link #EVENTS_THROTTLED_METRIC}.
+	 */
+	static final String EVENTS_DEDUPLICATED_METRIC = "events.deduplicated";
+
+	/**
 	 * Gauge name for the aggregate number of events waiting in async publisher buffers.
 	 * Events removed for processing are no longer counted, even while their output is
 	 * being written. Concurrent snapshots can briefly lead or lag queue activity.
@@ -223,6 +247,18 @@ public sealed interface LogMetrics permits DefaultLogMetrics {
 		 * See {@link #EVENTS_DROPPED_METRIC}.
 		 */
 		EVENTS_DROPPED(EVENTS_DROPPED_METRIC, Level.ERROR),
+		/**
+		 * See {@link #EVENTS_FILTERED_METRIC}.
+		 */
+		EVENTS_FILTERED(EVENTS_FILTERED_METRIC, Level.INFO),
+		/**
+		 * See {@link #EVENTS_THROTTLED_METRIC}.
+		 */
+		EVENTS_THROTTLED(EVENTS_THROTTLED_METRIC, Level.WARNING),
+		/**
+		 * See {@link #EVENTS_DEDUPLICATED_METRIC}.
+		 */
+		EVENTS_DEDUPLICATED(EVENTS_DEDUPLICATED_METRIC, Level.WARNING),
 		/**
 		 * See {@link #EVENTS_QUEUED_METRIC}.
 		 */

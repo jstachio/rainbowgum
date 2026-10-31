@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
+import io.jstach.rainbowgum.LogMetrics;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.RainbowGum;
@@ -30,7 +32,10 @@ class StandardFiltersTest {
 		.newline()
 		.build();
 
-	private static String log(String properties, List<LogEvent> events) {
+	record Result(String output, String metrics) {
+	}
+
+	private static Result run(String properties, List<LogEvent> events) {
 		var output = new ListLogOutput();
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
 		try (var gum = RainbowGum.builder(config)
@@ -41,7 +46,23 @@ class StandardFiltersTest {
 				gum.log(e);
 			}
 		}
-		return output.toString();
+		var metrics = new StringBuilder();
+		config.metrics()
+			.snapshot()
+			.stream()
+			.filter(m -> m.name().startsWith("events."))
+			.sorted(Comparator.comparing(LogMetrics.Metric::name))
+			.forEach(m -> metrics.append(m.name())
+				.append(' ')
+				.append(m.level())
+				.append(' ')
+				.append(m.value())
+				.append('\n'));
+		return new Result(output.toString(), metrics.toString());
+	}
+
+	private static String log(String properties, List<LogEvent> events) {
+		return run(properties, events).output();
 	}
 
 	private static LogEvent event(long millis, Level level, String logger, String message) {
@@ -199,6 +220,37 @@ class StandardFiltersTest {
 		assertEquals("""
 				WARN app a
 				""", actual);
+	}
+
+	@Test
+	void droppedEventsAreCounted() {
+		var result = run("""
+				logging.level=INFO
+				logging.route.default.filters=remap,dedupe,throttle
+				logging.route.default.filter.remap.levels=warning:debug
+				logging.route.default.filter.dedupe.repeats=0
+				logging.route.default.filter.throttle.rate=1
+				logging.route.default.filter.throttle.maxBurst=1
+				""", List.of( //
+				event(0, Level.WARNING, "a"), //
+				event(0, Level.INFO, "b"), //
+				event(0, Level.INFO, "b"), //
+				event(0, Level.INFO, "c"), //
+				event(0, Level.INFO, "d")));
+		assertEquals("""
+				INFO app b
+				""", result.output());
+		assertEquals("""
+				events.deduplicated WARNING 1
+				events.filtered INFO 4
+				events.throttled WARNING 2
+				""", result.metrics());
+	}
+
+	@Test
+	void noFilterMetricsWithoutFilters() {
+		var result = run("", List.of(event(0, Level.INFO, "a")));
+		assertEquals("", result.metrics());
 	}
 
 	@Test

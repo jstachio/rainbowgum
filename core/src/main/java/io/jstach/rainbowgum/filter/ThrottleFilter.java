@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogMetrics;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogRouter.Router.Filter;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
@@ -36,12 +37,15 @@ final class ThrottleFilter implements Filter {
 
 	private final int severity;
 
+	private final LogMetrics.Gauge dropped;
+
 	private final AtomicLong allowedAt = new AtomicLong(Long.MIN_VALUE);
 
-	private ThrottleFilter(long intervalNanos, long burstNanos, Level level) {
+	private ThrottleFilter(long intervalNanos, long burstNanos, Level level, LogMetrics.Gauge dropped) {
 		this.intervalNanos = intervalNanos;
 		this.burstNanos = burstNanos;
 		this.severity = level.getSeverity();
+		this.dropped = dropped;
 	}
 
 	/**
@@ -54,13 +58,16 @@ final class ThrottleFilter implements Filter {
 	 * @param rate events kept per second once a burst is used up.
 	 * @param maxBurst events kept at once before the rate applies.
 	 * @param level the most severe level that is throttled.
+	 * @param metrics where to count dropped events as
+	 * {@link io.jstach.rainbowgum.LogMetrics#EVENTS_THROTTLED_METRIC}.
 	 * @return filter.
 	 */
 	@LogConfigurable(name = "ThrottleFilterBuilder", prefix = LogProperties.FILTER_PREFIX)
 	static Filter of(@LogConfigurable.KeyParameter String name, @LogConfigurable.KeyParameter String filter,
 			@LogConfigurable.DefaultParameter("DEFAULT_RATE") Integer rate,
 			@LogConfigurable.DefaultParameter("DEFAULT_MAX_BURST") Integer maxBurst,
-			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("parseLevel") Level level) {
+			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("parseLevel") Level level,
+			@LogConfigurable.PassThroughParameter @Nullable LogMetrics metrics) {
 		if (rate < 1) {
 			throw new IllegalArgumentException("rate must be positive.");
 		}
@@ -68,7 +75,8 @@ final class ThrottleFilter implements Filter {
 			throw new IllegalArgumentException("maxBurst must be positive.");
 		}
 		long intervalNanos = NANOS_PER_SECOND / rate;
-		return new ThrottleFilter(intervalNanos, intervalNanos * maxBurst, level);
+		return new ThrottleFilter(intervalNanos, intervalNanos * maxBurst, level, metrics == null
+				? LogMetrics.Gauge.noop() : metrics.gauge(LogMetrics.EVENTS_THROTTLED_METRIC, Level.WARNING));
 	}
 
 	static Level parseLevel(String value) {
@@ -85,6 +93,7 @@ final class ThrottleFilter implements Filter {
 			long current = allowedAt.get();
 			long next = Math.max(current, now) + intervalNanos;
 			if (next - now > burstNanos) {
+				dropped.increment();
 				return null;
 			}
 			if (allowedAt.compareAndSet(current, next)) {
