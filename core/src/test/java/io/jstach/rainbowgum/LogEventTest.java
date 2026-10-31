@@ -444,6 +444,72 @@ class LogEventTest {
 	}
 
 	@Test
+	void slf4jEventsKeepTheirClassAndArgumentTextWhenFrozen() {
+		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
+		var failing = new Object() {
+			@Override
+			public String toString() {
+				throw new IllegalStateException();
+			}
+		};
+		var events = List.of(
+				LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "one {}", KeyValues.of(), formatter, 1),
+				LogEvent.ofTwoArgs(Instant.EPOCH, "main", 1, Level.INFO, "app", "two {} {}", KeyValues.of(), formatter,
+						null, "s"),
+				LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "all {} {} {}", KeyValues.of(), null,
+						formatter, new Object[] { new int[] { 1, 2 }, failing, "s" }));
+		var sb = new StringBuilder();
+		for (var event : events) {
+			var frozen = event.freeze();
+			assertSame(frozen, frozen.freeze());
+			sb.append(frozen.getClass().getSimpleName()).append(" [");
+			appendArgTypes(sb, frozen);
+			sb.append("] ");
+			frozen.formattedMessage(sb);
+			sb.append("\n");
+		}
+		assertEquals("""
+				OneArgLogEvent [String] one 1
+				TwoArgLogEvent [null String] two null s
+				ArrayArgLogEvent [String String String] all [1, 2] [FAILED toString()] s
+				""", sb.toString());
+	}
+
+	private static void appendArgTypes(StringBuilder sb, LogEvent event) {
+		@Nullable Object[] args = switch (event) {
+			case OneArgLogEvent e -> new @Nullable Object[] { e.arg1() };
+			case TwoArgLogEvent e -> new @Nullable Object[] { e.arg1(), e.arg2() };
+			case ArrayArgLogEvent e -> Arrays.copyOf(e.args(), e.length());
+			default -> new @Nullable Object[] {};
+		};
+		for (int i = 0; i < args.length; i++) {
+			var arg = args[i];
+			sb.append(i == 0 ? "" : " ").append(arg == null ? "null" : arg.getClass().getSimpleName());
+		}
+	}
+
+	@Test
+	void slf4jEventsWithOnlyTextArgumentsFreezeToThemselves() {
+		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
+		var event = LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "all {} {} {}", KeyValues.of(), null,
+				formatter, new Object[] { "a", null, "c" });
+		assertSame(event, event.freeze());
+	}
+
+	@Test
+	void messageFormatEventsAreFormattedWhenFrozen() {
+		var arg = new StringBuilder("before");
+		var event = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "value {0}", KeyValues.of(),
+				LogMessageFormatter.StandardMessageFormatter.JUL, arg);
+		var frozen = event.freeze();
+		arg.replace(0, arg.length(), "after");
+		var sb = new StringBuilder();
+		sb.append(frozen.getClass().getSimpleName()).append(" ").append(frozen.message()).append(" | ");
+		frozen.formattedMessage(sb);
+		assertEquals("FrozenLogEvent value {0} | value before", sb.toString());
+	}
+
+	@Test
 	void frozenEventsKeepTheMessageAndSnapshotArguments() {
 		var arguments = new StringBuilder("before");
 		var keyValues = MutableKeyValues.of().add("state", "before");
