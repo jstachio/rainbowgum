@@ -500,7 +500,8 @@ final class DefaultLogAlerts implements LogAlerts {
 				.append(failLevelSource)
 				.append(":");
 			for (var e : failing) {
-				sb.append("\n[").append(e.level()).append("] ").append(e.message());
+				sb.append("\n[").append(e.level()).append("] ");
+				e.formattedMessage(sb);
 			}
 			if (startupFailures > failing.size()) {
 				sb.append("\n")
