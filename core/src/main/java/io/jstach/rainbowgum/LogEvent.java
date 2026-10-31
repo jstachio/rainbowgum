@@ -286,8 +286,8 @@ public sealed interface LogEvent {
 
 	/**
 	 * Creates an event that is the given event at a different level. Nothing checks
-	 * whether the new level is enabled; routers do that with
-	 * {@link LogRouter.AbstractRouter#withLevelOrNull(LogEvent, Level)}.
+	 * whether the new level is enabled; a route drops an event its
+	 * {@linkplain LogRouter.Router.Filter filters} moved to a level it does not enable.
 	 * @param event original event.
 	 * @param level level of the returned event.
 	 * @return the given event if it already has the level, otherwise an event with the

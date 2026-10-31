@@ -49,7 +49,6 @@ import io.jstach.rainbowgum.LogFormatter.LevelFormatter;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperties.MutableLogProperties;
-import io.jstach.rainbowgum.LogRouter.Router.RouterFactory;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory;
 import io.jstach.rainbowgum.jul.JULBridge;
@@ -263,7 +262,7 @@ class JDKSetupTest {
 					});
 			RainbowGum.set(() -> RainbowGum.builder(config).route(r -> {
 				r.appender("list", a -> a.output(output));
-				r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+				r.filter(e -> e.freeze(Instant.EPOCH));
 			}).build());
 			try (var gum = RainbowGum.of()) {
 				context.set(KeyValues.of(Map.of("requestId", "abc")));
@@ -402,7 +401,7 @@ class JDKSetupTest {
 					.build();
 				RainbowGum.set(() -> RainbowGum.builder(config).route(r -> {
 					r.appender("list", a -> a.output(output));
-					r.factory(RouterFactory.of(e -> e.freeze(Instant.EPOCH)));
+					r.filter(e -> e.freeze(Instant.EPOCH));
 				}).build());
 				try (var gum = RainbowGum.of()) {
 					Logger.getLogger("com.example.Jul").fine("com.example fine");
