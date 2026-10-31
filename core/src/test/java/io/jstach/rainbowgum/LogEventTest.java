@@ -447,7 +447,7 @@ class LogEventTest {
 	}
 
 	@Test
-	void slf4jEventsKeepTheirClassAndArgumentTextWhenFrozen() {
+	void slf4jEventsKeepTheirArgumentTextWhenFrozenAndFormatOnce() {
 		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		var failing = new Object() {
 			@Override
@@ -463,19 +463,23 @@ class LogEventTest {
 						formatter, new Object[] { new int[] { 1, 2 }, failing, "s" }));
 		var sb = new StringBuilder();
 		for (var event : events) {
-			var frozen = event.freeze();
+			var frozen = (DeferredLogEvent) event.freeze();
 			assertSame(frozen, frozen.freeze());
-			sb.append(frozen.getClass().getSimpleName()).append(" [");
-			appendArgTypes(sb, frozen);
+			sb.append(frozen.event().getClass().getSimpleName()).append(" [");
+			appendArgTypes(sb, frozen.event());
 			sb.append("] ");
+			frozen.formattedMessage(sb);
+			sb.append(" | ");
 			frozen.formattedMessage(sb);
 			sb.append("\n");
 		}
-		assertEquals("""
-				OneArgLogEvent [Integer] one 1
-				TwoArgLogEvent [null String] two null s
-				ArrayArgLogEvent [String String String] all [1, 2] [FAILED toString()] s
-				""", sb.toString());
+		assertEquals(
+				"""
+						OneArgLogEvent [Integer] one 1 | one 1
+						TwoArgLogEvent [null String] two null s | two null s
+						ArrayArgLogEvent [String String String] all [1, 2] [FAILED toString()] s | all [1, 2] [FAILED toString()] s
+						""",
+				sb.toString());
 	}
 
 	private static void appendArgTypes(StringBuilder sb, LogEvent event) {
@@ -492,14 +496,14 @@ class LogEventTest {
 	}
 
 	@Test
-	void slf4jEventsWithImmutableArgumentsFreezeToThemselves() {
+	void slf4jEventsWithImmutableArgumentsAreNotCopiedWhenFrozen() {
 		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
 		var one = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "one {}", KeyValues.of(), formatter,
 				1);
 		var two = LogEvent.ofTwoArgs(Instant.EPOCH, "main", 1, Level.INFO, "app", "two {} {}", KeyValues.of(),
 				formatter, "a", null);
-		assertSame(one, one.freeze());
-		assertSame(two, two.freeze());
+		assertSame(one, ((DeferredLogEvent) one.freeze()).event());
+		assertSame(two, ((DeferredLogEvent) two.freeze()).event());
 	}
 
 	@Test
