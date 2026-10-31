@@ -13,6 +13,7 @@ import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.TTLL;
 import io.jstach.rainbowgum.format.Json5FormatterBuilder;
 import io.jstach.rainbowgum.format.LogfmtFormatterBuilder;
+import io.jstach.rainbowgum.format.LtsvFormatterBuilder;
 import io.jstach.rainbowgum.format.TTLLFormatterBuilder;
 
 /**
@@ -53,6 +54,11 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	static final String LOGFMT_SCHEME = "logfmt";
 
 	/*
+	 * The LTSV encoder's URI scheme.
+	 */
+	static final String LTSV_SCHEME = "ltsv";
+
+	/*
 	 * The core JSON5 encoder's URI scheme.
 	 */
 	static final String JSON5_SCHEME = "json5";
@@ -72,6 +78,10 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 		registry.register(LOGFMT_SCHEME,
 				ref -> (name, config) -> LogEncoder
 					.of(logfmt(name, config).fromProperties(config.properties(), ref).build())
+					.provide(name, config));
+		registry.register(LTSV_SCHEME,
+				ref -> (name, config) -> LogEncoder
+					.of(ltsv(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
 		registry.register(JSON5_SCHEME,
 				ref -> (name, config) -> LogEncoder
@@ -128,6 +138,15 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 
 	static LogfmtFormatterBuilder logfmt(String name, LogConfig config) {
 		var b = new LogfmtFormatterBuilder(name).serviceRegistry(config.serviceRegistry());
+		var color = colorMode(config);
+		if (color != null) {
+			b.color(color);
+		}
+		return b;
+	}
+
+	static LtsvFormatterBuilder ltsv(String name, LogConfig config) {
+		var b = new LtsvFormatterBuilder(name).serviceRegistry(config.serviceRegistry());
 		var color = colorMode(config);
 		if (color != null) {
 			b.color(color);
