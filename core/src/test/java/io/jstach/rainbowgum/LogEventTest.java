@@ -469,7 +469,7 @@ class LogEventTest {
 			sb.append("\n");
 		}
 		assertEquals("""
-				OneArgLogEvent [String] one 1
+				OneArgLogEvent [Integer] one 1
 				TwoArgLogEvent [null String] two null s
 				ArrayArgLogEvent [String String String] all [1, 2] [FAILED toString()] s
 				""", sb.toString());
