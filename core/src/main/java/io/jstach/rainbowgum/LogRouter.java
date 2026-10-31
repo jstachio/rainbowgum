@@ -249,9 +249,8 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * They run in the order listed, each on the event the previous one returned,
 		 * after filters added with {@link Builder#filter(Filter)}. A filter is only given
 		 * events whose level the route enables, so it cannot make a disabled event
-		 * appear. When the event the last filter returns has a different level than the
-		 * original, the route drops it unless its level resolver enables that level for
-		 * the event's logger.
+		 * appear. When a filter returns an event at a level the route does not enable for
+		 * the event's logger, the route drops it and later filters do not see it.
 		 * <p>
 		 * A filter changes only what its route sees. Other routes get the original event.
 		 * <p>
@@ -513,7 +512,8 @@ public sealed interface LogRouter extends LogLifecycle {
 				if (filters.isEmpty()) {
 					return router;
 				}
-				return new FilteringRouter(name, router, filters.toArray(Filter[]::new));
+				return new FilteringRouter(name, router, filters.toArray(Filter[]::new),
+						config.metrics().gauge(LogMetrics.EVENTS_FILTERED_METRIC, Level.INFO));
 			}
 
 			private static Filter filter(String filterName, String routeName, LogConfig config) {
@@ -587,10 +587,14 @@ final class StandardFilters {
 	}
 
 	static void register(ServiceRegistry registry) {
-		Router.Filter.register(registry, "throttle", (route,
-				config) -> new ThrottleFilterBuilder(route, "throttle").fromProperties(config.properties()).build());
-		Router.Filter.register(registry, "dedupe", (route,
-				config) -> new DedupeFilterBuilder(route, "dedupe").fromProperties(config.properties()).build());
+		Router.Filter.register(registry, "throttle",
+				(route, config) -> new ThrottleFilterBuilder(route, "throttle").metrics(config.metrics())
+					.fromProperties(config.properties())
+					.build());
+		Router.Filter.register(registry, "dedupe",
+				(route, config) -> new DedupeFilterBuilder(route, "dedupe").metrics(config.metrics())
+					.fromProperties(config.properties())
+					.build());
 		Router.Filter.register(registry, "remap",
 				(route, config) -> new RemapFilterBuilder(route, "remap").fromProperties(config.properties()).build());
 	}
@@ -601,22 +605,21 @@ final class StandardFilters {
  * Runs a route's filters in front of its router.
  */
 @SuppressWarnings("ArrayRecordComponent")
-record FilteringRouter(String name, SimpleRouter router, Router.Filter[] filters) implements Router, Route {
+record FilteringRouter(String name, SimpleRouter router, Router.Filter[] filters,
+		LogMetrics.Gauge filtered) implements Router, Route {
 
 	@Override
 	public void log(LogEvent event) {
-		LogEvent filtered = event;
+		LogEvent e = event;
 		for (var filter : filters) {
-			filtered = filter.filterOrNull(filtered);
-			if (filtered == null) {
+			var level = e.level();
+			e = filter.filterOrNull(e);
+			if (e == null || (e.level() != level && !router.levelResolver().isEnabled(e.loggerName(), e.level()))) {
+				filtered.increment();
 				return;
 			}
 		}
-		if (filtered.level() != event.level()
-				&& !router.levelResolver().isEnabled(filtered.loggerName(), filtered.level())) {
-			return;
-		}
-		router.log(filtered);
+		router.log(e);
 	}
 
 	@Override
