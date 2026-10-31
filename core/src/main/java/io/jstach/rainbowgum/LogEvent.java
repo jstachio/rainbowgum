@@ -668,18 +668,8 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
-		var kvs = keyValues.freeze();
-		if (a1 == arg1 && kvs == keyValues) {
-			return this;
-		}
-		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a1);
+		return freeze(timestamp);
 	}
 
 	@Override
@@ -687,8 +677,18 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
 			return FrozenLogEvent.of(this, timestamp);
 		}
-		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1, message, 0));
+		return new DeferredLogEvent(withTextArguments(timestamp));
+	}
+
+	@SuppressWarnings("ReferenceEquality")
+	private OneArgLogEvent withTextArguments(Instant timestamp) {
+		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
+		var kvs = keyValues.freeze();
+		if (timestamp == this.timestamp && a1 == arg1 && kvs == keyValues) {
+			return this;
+		}
+		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
+				throwableOrNull, a1);
 	}
 
 }
@@ -713,19 +713,8 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
-		var a2 = SLF4JMessageFormatter.freezeArg(arg2, message, 1);
-		var kvs = keyValues.freeze();
-		if (a1 == arg1 && a2 == arg2 && kvs == keyValues) {
-			return this;
-		}
-		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a1, a2);
+		return freeze(timestamp);
 	}
 
 	@Override
@@ -733,9 +722,19 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
 			return FrozenLogEvent.of(this, timestamp);
 		}
-		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1, message, 0),
-				SLF4JMessageFormatter.freezeArg(arg2, message, 1));
+		return new DeferredLogEvent(withTextArguments(timestamp));
+	}
+
+	@SuppressWarnings("ReferenceEquality")
+	private TwoArgLogEvent withTextArguments(Instant timestamp) {
+		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
+		var a2 = SLF4JMessageFormatter.freezeArg(arg2, message, 1);
+		var kvs = keyValues.freeze();
+		if (timestamp == this.timestamp && a1 == arg1 && a2 == arg2 && kvs == keyValues) {
+			return this;
+		}
+		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
+				throwableOrNull, a1, a2);
 	}
 }
 
@@ -783,11 +782,7 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 	}
 
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (argsOwner == ArgsOwner.EVENT && keyValues.freeze() == keyValues) {
-			return this;
-		}
 		return freeze(timestamp);
 	}
 
@@ -796,9 +791,76 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
 			return FrozenLogEvent.of(this, timestamp);
 		}
-		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length, message), length,
-				ArgsOwner.EVENT);
+		return new DeferredLogEvent(withTextArguments(timestamp));
+	}
+
+	@SuppressWarnings("ReferenceEquality")
+	private ArrayArgLogEvent withTextArguments(Instant timestamp) {
+		var kvs = keyValues.freeze();
+		if (argsOwner == ArgsOwner.EVENT) {
+			if (timestamp == this.timestamp && kvs == keyValues) {
+				return this;
+			}
+			return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs,
+					messageFormatter, throwableOrNull, args, length, ArgsOwner.EVENT);
+		}
+		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
+				throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length, message), length, ArgsOwner.EVENT);
+	}
+
+}
+
+/*
+ * An argument-bearing event frozen with its arguments as text and formatted the first
+ * time it is needed. Keeping the formatted message lets every later appender append it
+ * instead of formatting again. Appenders on different threads may both format it, which
+ * wastes work but is never wrong, since the event is frozen and String is immutable.
+ */
+final class DeferredLogEvent implements ForwardingLogEvent {
+
+	private final LogEvent event;
+
+	private @Nullable String formattedMessageOrNull;
+
+	DeferredLogEvent(LogEvent event) {
+		this.event = Objects.requireNonNull(event, "event");
+	}
+
+	@Override
+	public LogEvent event() {
+		return event;
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb) {
+		String formatted = formattedMessageOrNull;
+		if (formatted != null) {
+			sb.append(formatted);
+			return;
+		}
+		int start = sb.length();
+		event.formattedMessage(sb);
+		formattedMessageOrNull = sb.substring(start);
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb, String fallbackMessage) {
+		formattedMessage(sb);
+	}
+
+	@Override
+	public LogEvent freeze() {
+		return this;
+	}
+
+	@Override
+	public LogEvent freeze(Instant timestamp) {
+		return event.freeze(timestamp);
+	}
+
+	@Override
+	public String toString() {
+		return "DeferredLogEvent[event=" + event + "]";
 	}
 
 }
@@ -906,7 +968,8 @@ record DefaultLogEvent(Instant timestamp, String threadName, long threadId, Syst
  * LogEvent method, defaults included, is forwarded here: a default left to run on the
  * wrapper would compute from the wrapper instead of the wrapped event.
  */
-sealed interface ForwardingLogEvent extends LogEvent permits StackFrameLogEvent, LevelLogEvent, RewrittenLogEvent {
+sealed interface ForwardingLogEvent extends LogEvent
+		permits StackFrameLogEvent, LevelLogEvent, RewrittenLogEvent, DeferredLogEvent {
 
 	LogEvent event();
 
