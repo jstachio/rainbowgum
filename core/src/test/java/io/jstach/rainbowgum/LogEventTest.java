@@ -444,6 +444,45 @@ class LogEventTest {
 	}
 
 	@Test
+	void frozenEventsRetainTemplatesAndSnapshotMutableInputs() {
+		var arguments = new StringBuilder("before");
+		var keyValues = MutableKeyValues.of().add("state", "before");
+		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
+		var events = List.of(
+				LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "value {}", keyValues, formatter,
+						arguments),
+				LogEvent.ofTwoArgs(Instant.EPOCH, "main", 1, Level.INFO, "app", "value {} {}", keyValues, formatter,
+						arguments, "two"),
+				LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "value {} {} {}", keyValues, null,
+						formatter, new Object[] { arguments, "two", "three" }));
+		var frozen = events.stream().map(LogEvent::freeze).toList();
+		arguments.replace(0, arguments.length(), "after");
+		keyValues.add("state", "after");
+		var expected = List.of("value before", "value before two", "value before two three");
+		for (int i = 0; i < events.size(); i++) {
+			var original = events.get(i);
+			var event = frozen.get(i);
+			assertEquals(original.messageTemplate(), event.messageTemplate());
+			assertEquals(original.messageTemplate(), event.freeze(Instant.MAX).messageTemplate());
+			assertEquals(expected.get(i), event.message());
+			assertEquals(expected.get(i), event.freeze(Instant.MAX).message());
+			assertEquals(Map.of("state", "before"), event.keyValues().copyToMap());
+			assertSame(event, event.freeze());
+			var changed = LogEvent.withLevel(event, Level.WARNING);
+			assertEquals(original.messageTemplate(), changed.messageTemplate());
+			var caller = LogEvent.Caller.ofDepthOrNull(0);
+			if (caller == null) {
+				fail("Caller");
+				throw new IllegalStateException();
+			}
+			assertEquals(original.messageTemplate(), LogEvent.withCaller(changed, caller).freeze().messageTemplate());
+			var rewritten = LogEvent.rewrite(event, new LogEvent.Rewriter() {
+			});
+			assertEquals(expected.get(i), rewritten.messageTemplate(), "Rewritten events have no arguments");
+		}
+	}
+
+	@Test
 	void withLevelKeepsEverythingButTheLevel() {
 		var keyValues = MutableKeyValues.of().add("k1", "v1");
 		var throwable = new RuntimeException("expected");
@@ -578,6 +617,52 @@ class LogEventTest {
 	}
 
 	@Test
+	void rewriteCanAddAMissingMessage() {
+		var original = LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "app", null, KeyValues.of(), null);
+		var rewritten = LogEvent.rewrite(original, new LogEvent.Rewriter() {
+			@Override
+			public boolean hasMessage(LogEvent event) {
+				return true;
+			}
+
+			@Override
+			public void formattedMessage(LogEvent event, StringBuilder sb) {
+				sb.append("replacement");
+			}
+		});
+		for (var event : List.of(rewritten, rewritten.freeze(), rewritten.freeze(Instant.MAX),
+				LogEvent.withLevel(rewritten, Level.ERROR).freeze())) {
+			assertTrue(event.hasMessage());
+			assertEquals("replacement", event.message());
+			assertEquals("replacement", event.messageOrNull());
+			assertEquals("replacement", event.messageTemplate());
+			var sb = new StringBuilder();
+			event.formattedMessage(sb, "fallback");
+			assertEquals("replacement", sb.toString());
+		}
+		assertFalse(original.hasMessage());
+	}
+
+	@Test
+	void rewriteCanRemoveAMessage() {
+		var original = TestLogEventFactory.of().event(Level.INFO);
+		var rewritten = LogEvent.rewrite(original, new LogEvent.Rewriter() {
+			@Override
+			public boolean hasMessage(LogEvent event) {
+				return false;
+			}
+		});
+		for (var event : List.of(rewritten, rewritten.freeze(), rewritten.freeze(Instant.MAX))) {
+			assertFalse(event.hasMessage());
+			assertNull(event.messageOrNull());
+			var sb = new StringBuilder();
+			event.formattedMessage(sb, "fallback");
+			assertEquals("fallback", sb.toString());
+		}
+		assertTrue(original.hasMessage());
+	}
+
+	@Test
 	void rewriteFormatsTheMessageEvenWhenNotRewritten() {
 		var event = LogEvent.ofAll(Instant.EPOCH, "main", 0, Level.WARNING, "logger", "Hello {}!", KeyValues.of(), null,
 				LogMessageFormatter.StandardMessageFormatter.SLF4J, new Object[] { 1 });
@@ -600,6 +685,7 @@ class LogEventTest {
 			fail("key values should be immutable");
 		}
 		assertEquals(Instant.EPOCH, e.timestamp());
+		assertEquals(event.messageTemplate(), e.messageTemplate());
 		String message = e.message();
 		StringBuilder sb = new StringBuilder();
 		event.formattedMessage(sb);

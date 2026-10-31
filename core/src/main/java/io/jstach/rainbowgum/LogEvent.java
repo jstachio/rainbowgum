@@ -310,8 +310,8 @@ public sealed interface LogEvent {
 	}
 
 	/**
-	 * Creates an event whose message, key values or throwable come from the rewriter.
-	 * Everything else is the given event's.
+	 * Creates an event whose message, message presence, key values or throwable come from
+	 * the rewriter. Everything else is the given event's.
 	 * @param event original event.
 	 * @param rewriter rewrites parts of the event.
 	 * @return rewritten event.
@@ -355,15 +355,28 @@ public sealed interface LogEvent {
 	public String loggerName();
 
 	/**
-	 * Unformatted message.
-	 * @return unformatted message
+	 * Message before arguments are formatted, or the formatted message after the event is
+	 * {@linkplain #freeze() frozen}. Use {@link #messageTemplate()} when the original
+	 * template is needed regardless of whether the event is frozen.
+	 * @return message.
 	 * @see #formattedMessage(StringBuilder)
 	 */
 	public String message();
 
 	/**
-	 * Unformatted message or <code>null</code> if no message was passed into the event.
-	 * @return unformatted message or <code>null</code>.
+	 * Message before arguments are formatted, retained when the event is
+	 * {@linkplain #freeze() frozen}. Events without arguments, including
+	 * {@linkplain #rewrite(LogEvent, Rewriter) rewritten events}, use their message as
+	 * the template. Use {@link #hasMessage()} to distinguish a missing message.
+	 * @return message template.
+	 */
+	default String messageTemplate() {
+		return message();
+	}
+
+	/**
+	 * {@link #message()} or <code>null</code> if the event has no message.
+	 * @return message or <code>null</code>.
 	 * @see #formattedMessage(StringBuilder)
 	 */
 	default @Nullable String messageOrNull() {
@@ -558,13 +571,28 @@ public sealed interface LogEvent {
 
 		/**
 		 * Appends the message of the rewritten event. The rewritten event has no message
-		 * arguments, so its {@link LogEvent#message()} is this message.
+		 * arguments, so its {@link LogEvent#message()} is this message. Override
+		 * {@link #hasMessage(LogEvent)} too when adding a previously missing message or
+		 * removing an existing one.
 		 * @param event original event.
 		 * @param sb string builder to append to.
 		 * @see LogEvent#formattedMessage(StringBuilder)
 		 */
 		default void formattedMessage(LogEvent event, StringBuilder sb) {
 			event.formattedMessage(sb);
+		}
+
+		/**
+		 * Whether the rewritten event has a message. By default the original event's
+		 * message presence is preserved. Return <code>true</code> when supplying a
+		 * message for an event that had none, or <code>false</code> to remove a message.
+		 * This controls {@link LogEvent#messageOrNull()} and
+		 * {@link LogEvent#formattedMessage(StringBuilder, String)}.
+		 * @param event original event.
+		 * @return whether the rewritten event has a message.
+		 */
+		default boolean hasMessage(LogEvent event) {
+			return event.hasMessage();
 		}
 
 		/**
@@ -659,7 +687,7 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
-		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, message, sb.toString(),
 				keyValues.freeze(), throwableOrNull);
 	}
 
@@ -693,7 +721,7 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
-		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, message, sb.toString(),
 				keyValues.freeze(), throwableOrNull);
 	}
 }
@@ -731,8 +759,44 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 	public LogEvent freeze(Instant timestamp) {
 		StringBuilder sb = new StringBuilder(message.length());
 		formattedMessage(sb);
-		return new DefaultLogEvent(timestamp, threadName, threadId, level, loggerName, sb.toString(),
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, message, sb.toString(),
 				keyValues.freeze(), throwableOrNull);
+	}
+
+}
+
+/*
+ * An argument-bearing event after formatting. Keep the template without retaining the
+ * argument objects, so filters see the same template before and after freezing.
+ */
+record FrozenLogEvent(Instant timestamp, String threadName, long threadId, Level level, String loggerName,
+		String messageTemplate, String message, KeyValues keyValues,
+		@Nullable Throwable throwableOrNull) implements LogEvent {
+
+	FrozenLogEvent {
+		Objects.requireNonNull(timestamp, "timestamp");
+		Objects.requireNonNull(threadName, "threadName");
+		Objects.requireNonNull(level, "level");
+		Objects.requireNonNull(loggerName, "loggerName");
+		Objects.requireNonNull(messageTemplate, "messageTemplate");
+		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(keyValues, "keyValues");
+	}
+
+	@Override
+	public void formattedMessage(StringBuilder sb) {
+		sb.append(message);
+	}
+
+	@Override
+	public LogEvent freeze() {
+		return this;
+	}
+
+	@Override
+	public LogEvent freeze(Instant timestamp) {
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, messageTemplate, message,
+				keyValues, throwableOrNull);
 	}
 
 }
@@ -827,6 +891,11 @@ sealed interface ForwardingLogEvent extends LogEvent permits StackFrameLogEvent,
 	@Override
 	default String message() {
 		return event().message();
+	}
+
+	@Override
+	default String messageTemplate() {
+		return event().messageTemplate();
 	}
 
 	@Override
@@ -930,6 +999,16 @@ record RewrittenLogEvent(LogEvent event, Rewriter rewriter) implements Forwardin
 		var sb = new StringBuilder();
 		formattedMessage(sb);
 		return sb.toString();
+	}
+
+	@Override
+	public String messageTemplate() {
+		return message();
+	}
+
+	@Override
+	public boolean hasMessage() {
+		return rewriter.hasMessage(event);
 	}
 
 	@Override
