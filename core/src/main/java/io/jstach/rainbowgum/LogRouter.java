@@ -24,6 +24,9 @@ import io.jstach.rainbowgum.LogRouter.RootRouter;
 import io.jstach.rainbowgum.LogRouter.Route;
 import io.jstach.rainbowgum.LogRouter.Router;
 import io.jstach.rainbowgum.annotation.CaseChanging;
+import io.jstach.rainbowgum.filter.DedupeFilterBuilder;
+import io.jstach.rainbowgum.filter.RemapFilterBuilder;
+import io.jstach.rainbowgum.filter.ThrottleFilterBuilder;
 
 /**
  * Routes messages to a publisher by providing a {@link Route} from a logger name and
@@ -259,7 +262,18 @@ public sealed interface LogRouter extends LogLifecycle {
 		 * Filters are registered by name with
 		 * {@link #register(ServiceRegistry, String, Provider)}. A name that is not
 		 * registered fails when the route is built, with an error listing the registered
-		 * names.
+		 * names. A filter's own properties start with
+		 * {@value LogProperties#FILTER_PREFIX}, where <code>filter</code> is the name it
+		 * is selected with. These standard filters are registered when the
+		 * {@link LogConfig} is created:
+		 * <ul>
+		 * <li><code>throttle</code>: limits how many events are kept per second, see
+		 * {@link io.jstach.rainbowgum.filter.ThrottleFilterBuilder}.</li>
+		 * <li><code>dedupe</code>: drops repeats of the same message, see
+		 * {@link io.jstach.rainbowgum.filter.DedupeFilterBuilder}.</li>
+		 * <li><code>remap</code>: moves events from one level to another, see
+		 * {@link io.jstach.rainbowgum.filter.RemapFilterBuilder}.</li>
+		 * </ul>
 		 */
 		@FunctionalInterface
 		public interface Filter {
@@ -510,7 +524,7 @@ public sealed interface LogRouter extends LogLifecycle {
 				var available = new java.util.TreeSet<String>();
 				config.serviceRegistry().forEach(Filter.Provider.class, (n, p) -> available.add(n));
 				throw new IllegalArgumentException("Unknown filter '" + filterName + "' for route '" + routeName
-						+ "'. Available filters: " + (available.isEmpty() ? "none" : String.join(", ", available)));
+						+ "'. Available filters: " + String.join(", ", available));
 			}
 
 			/*
@@ -559,6 +573,26 @@ record SimpleRouter(String name, LogPublisher publisher, LevelResolver levelReso
 	@Override
 	public void start(LogConfig config) {
 		publisher.start(config);
+	}
+
+}
+
+/*
+ * Registers the standard filters under their names. Called when the LogConfig is created,
+ * before any configurator can register a name.
+ */
+final class StandardFilters {
+
+	private StandardFilters() {
+	}
+
+	static void register(ServiceRegistry registry) {
+		Router.Filter.register(registry, "throttle", (route,
+				config) -> new ThrottleFilterBuilder(route, "throttle").fromProperties(config.properties()).build());
+		Router.Filter.register(registry, "dedupe", (route,
+				config) -> new DedupeFilterBuilder(route, "dedupe").fromProperties(config.properties()).build());
+		Router.Filter.register(registry, "remap",
+				(route, config) -> new RemapFilterBuilder(route, "remap").fromProperties(config.properties()).build());
 	}
 
 }

@@ -13,6 +13,7 @@
 
 module io.jstach.rainbowgum {
 	exports io.jstach.rainbowgum;
+	exports io.jstach.rainbowgum.filter;
 	exports io.jstach.rainbowgum.format;
 	exports io.jstach.rainbowgum.output;
 	exports io.jstach.rainbowgum.properties;

@@ -2149,6 +2149,32 @@ A configurator that registers a filter moving a noisy dependency's warnings down
 {@snippet class="snippets.RouteFilterExample" region="routeFilterExample" }
 
 <p>
+These filters are built in and are configured with properties that start with
+<code>logging.route.{name}.filter.{filter}.</code>:
+</p>
+<ul>
+  <li><code>throttle</code> limits how many events are kept per second
+    ({@link io.jstach.rainbowgum.filter.ThrottleFilterBuilder}).</li>
+  <li><code>dedupe</code> drops repeats of the same message
+    ({@link io.jstach.rainbowgum.filter.DedupeFilterBuilder}).</li>
+  <li><code>remap</code> moves events from one level to another
+    ({@link io.jstach.rainbowgum.filter.RemapFilterBuilder}).</li>
+</ul>
+
+For example to keep a blocking console route from slowing the application down when a burst of
+warnings arrives, while an async file route still gets every event:
+
+{@snippet lang=properties :
+logging.routes=console,file
+logging.route.console.appenders=console
+logging.route.console.filters=throttle
+logging.route.console.filter.throttle.rate=20
+logging.route.file.appenders=file
+logging.route.file.publisher.uri=async
+logging.file.name=app.log
+}
+
+<p>
 Filters can also be added in code with
 {@link io.jstach.rainbowgum.LogRouter.Router.Builder#filter(io.jstach.rainbowgum.LogRouter.Router.Filter)}:
 
