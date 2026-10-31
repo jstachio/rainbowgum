@@ -1366,6 +1366,93 @@ is written after the level's color.
 </p>
 
 
+<h3 id="ltsv">LTSV Formatter</h3>
+
+<a href="http://ltsv.org">LTSV</a> (Labeled Tab-separated Values) writes each event as one line of tab separated
+<code>label:value</code> fields with logfmt's field names. Values are never quoted, so a line splits on tabs and
+each field on its first colon. It is built into core:
+
+{@snippet lang=properties :
+logging.appenders=myappender
+logging.appender.myappender.encoder.uri=ltsv
+}
+
+With the tabs shown as <code>⇥</code>:
+
+{@snippet :
+time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1⇥threadName:main⇥msg:hello world⇥requestId:42
+}
+
+Tab, newline, carriage return, and <code>\</code> in a value are backslash escaped (<code>\t</code>, <code>\n</code>,
+<code>\r</code>, <code>\\</code>), so every event stays on one line. Key values, the <code>thread</code>,
+<code>color</code>, and <code>theme</code> properties, and <code>error</code> and <code>stacktrace</code> work as in the
+<a href="#logfmt">logfmt formatter</a>, except that with color on, <code>error</code> and <code>stacktrace</code>
+take the level's color, since they are on the event's line. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.
+
+<p>
+The <code>timestamp</code>, <code>level</code>, and <code>logger</code> properties take the same choices as the
+<a href="#ttll">TTLL formatter</a>'s, including a DateTimeFormatter pattern for <code>timestamp</code>, but by
+default the time is ISO 8601 and the level is not padded. <code>none</code> leaves a field out:
+</p>
+
+{@snippet lang=properties :
+logging.appender.console.encoder.ltsv.timestamp=ttll
+logging.appender.console.encoder.ltsv.level=padded
+logging.appender.console.encoder.ltsv.logger=short
+logging.appender.console.encoder.ltsv.thread=none
+}
+
+{@snippet :
+time:15:04:05.123⇥level:INFO ⇥logger:App⇥msg:hello world⇥requestId:42
+}
+
+<p>
+<code>columns</code> lists fields to write first, in that order and without labels, so they are read by
+position, from <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code> and <code>msg</code>.
+The fields not listed follow with their labels, then the key values, <code>error</code> and <code>stacktrace</code>,
+which always keep theirs. The output is then no longer LTSV. Every field as a column:
+</p>
+
+{@snippet lang=properties :
+logging.appender.console.encoder.ltsv.columns=time,level,logger,thread,msg
+}
+
+{@snippet :
+2026-10-05T15:04:05.123Z⇥INFO⇥com.example.App⇥1⇥main⇥hello world⇥requestId:42
+}
+
+<p>
+The <a href="#rolling_journald">systemd journal</a> records the time itself, and the
+<a href="#post_processors"><code>journald</code> post processor</a> gives it the level, so a service can leave
+both out, keep the logger and message as columns, and have the thread and key values labeled on the right:
+</p>
+
+{@snippet lang=properties :
+logging.appender.console.encoder.uri=ltsv
+logging.appender.console.encoder.ltsv.columns=logger,msg
+logging.appender.console.encoder.ltsv.timestamp=none
+logging.appender.console.encoder.ltsv.level=none
+logging.appender.console.encoder.postProcessors=journald
+}
+
+{@snippet :
+<6>com.example.App⇥hello world⇥threadId:1⇥threadName:main⇥requestId:42
+}
+
+<p>
+A terminal has a tab stop every 8 columns, so short fields such as <code>level:INFO</code> are followed by wide
+gaps and a line soon wraps. The Unix <code>tabs</code> command sets the terminal's tab stops, and
+<code>tabs -2</code> puts one every 2 columns, so the fields sit close together like words while the log keeps the
+tabs that tools split on. <code>tabs -8</code> sets them back. A pager has its own tab stops, so use
+<code>less -x2</code> there:
+</p>
+
+{@snippet lang=shell :
+tabs -2
+java -jar app.jar
+less -x2 app.log
+}
+
 <h3 id="core_json">JSON5 Formatter</h3>
 
 The <code>json5</code> encoder writes each event as one line (unless <code>prettyPrint=full</code>) holding a JSON5 object, so an application that normally
@@ -2369,7 +2456,7 @@ the two configuration styles rather than only a stylistic one.
 For most simply including the dependency {@linkplain io.jstach.rainbowgum.bundle/ rainbowgum}
 is enough. That dependency transitively pulls in core, the SLF4J binding, and the
 {@link java.lang.System.Logger} and <code>java.util.logging</code> integrations. Core provides the
-<code>stdout</code> and <code>stderr</code> outputs and the <code>ttll</code>, <code>logfmt</code> and
+<code>stdout</code> and <code>stderr</code> outputs and the <code>ttll</code>, <code>logfmt</code>, <code>ltsv</code> and
 <code>json5</code> encoders. Other URI schemes need their module added as a dependency:
 
 <table class="table">
