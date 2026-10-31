@@ -10,7 +10,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
@@ -40,7 +40,7 @@ class StandardFiltersTest {
 
 	private static Result run(String properties, List<LogEvent> events) {
 		var output = new ListLogOutput();
-		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
+		var config = config(properties);
 		try (var gum = RainbowGum.builder(config)
 			.route(r -> r.appender("app", a -> a.output(output).formatter(FORMATTER)))
 			.build()
@@ -49,6 +49,14 @@ class StandardFiltersTest {
 				gum.log(e);
 			}
 		}
+		return new Result(output.toString(), metrics(config));
+	}
+
+	private static LogConfig config(String properties) {
+		return LogConfig.builder().properties(LogProperties.builder().fromProperties(properties).build()).build();
+	}
+
+	private static String metrics(LogConfig config) {
 		var metrics = new StringBuilder();
 		config.metrics()
 			.snapshot()
@@ -61,7 +69,7 @@ class StandardFiltersTest {
 				.append(' ')
 				.append(m.value())
 				.append('\n'));
-		return new Result(output.toString(), metrics.toString());
+		return metrics.toString();
 	}
 
 	private static String log(String properties, List<LogEvent> events) {
@@ -159,22 +167,42 @@ class StandardFiltersTest {
 				""", actual);
 	}
 
+	enum Routes {
+
+		SYNC, ASYNC, SYNC_WITH_ASYNC_ARCHIVE, ASYNC_WITH_ASYNC_ARCHIVE;
+
+		boolean async() {
+			return switch (this) {
+				case ASYNC, ASYNC_WITH_ASYNC_ARCHIVE -> true;
+				case SYNC, SYNC_WITH_ASYNC_ARCHIVE -> false;
+			};
+		}
+
+		boolean archive() {
+			return switch (this) {
+				case SYNC_WITH_ASYNC_ARCHIVE, ASYNC_WITH_ASYNC_ARCHIVE -> true;
+				case SYNC, ASYNC -> false;
+			};
+		}
+
+	}
+
 	@ParameterizedTest
-	@CsvSource({ "false,false", "false,true", "true,false", "true,true" })
-	void dedupeUsesTemplatesWithAsyncRoutes(boolean filteredAsync, boolean asyncSibling) {
+	@EnumSource(Routes.class)
+	void dedupeComparesTemplatesWhateverThePublishers(Routes routes) {
 		var output = new ListLogOutput();
 		var archive = new ListLogOutput();
-		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+		var config = config("""
 				logging.route.filtered.filters=dedupe
 				logging.route.filtered.filter.dedupe.repeats=0
-				""").build()).build();
+				""");
 		var builder = RainbowGum.builder(config).route("filtered", r -> {
 			r.appender("filtered", a -> a.output(output).formatter(FORMATTER));
-			if (filteredAsync) {
+			if (routes.async()) {
 				r.publisher(PublisherFactory.ofAsync(16));
 			}
 		});
-		if (asyncSibling) {
+		if (routes.archive()) {
 			builder.route("archive", r -> r.publisher(PublisherFactory.ofAsync(16))
 				.appender("archive", a -> a.output(archive).formatter(FORMATTER)));
 		}
@@ -184,21 +212,21 @@ class StandardFiltersTest {
 						StandardMessageFormatter.SLF4J, user));
 			}
 		}
-		assertEquals("INFO app user alice\n", output.toString());
-		if (asyncSibling) {
-			assertEquals("""
-					INFO app user alice
-					INFO app user bob
-					""", archive.toString());
-		}
-		assertEquals(1L,
-				config.metrics()
-					.snapshot()
-					.stream()
-					.filter(m -> m.name().equals(LogMetrics.EVENTS_DEDUPLICATED_METRIC))
-					.findFirst()
-					.orElseThrow()
-					.value());
+		assertEquals("""
+				INFO app user alice
+				""", output.toString());
+		assertEquals(routes.archive() ? """
+				INFO app user alice
+				INFO app user bob
+				""" : "", archive.toString());
+		assertEquals(routes == Routes.SYNC ? """
+				events.deduplicated WARNING 1
+				events.filtered INFO 1
+				""" : """
+				events.deduplicated WARNING 1
+				events.filtered INFO 1
+				events.queued INFO 0
+				""", metrics(config));
 	}
 
 	@Test
