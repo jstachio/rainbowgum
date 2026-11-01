@@ -489,11 +489,27 @@ class LogEventTest {
 	}
 
 	@Test
-	void slf4jEventsWithOnlyTextArgumentsFreezeToThemselves() {
+	void slf4jEventsWithImmutableArgumentsFreezeToThemselves() {
 		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
-		var event = LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "all {} {} {}", KeyValues.of(), null,
-				formatter, new Object[] { "a", null, "c" });
-		assertSame(event, event.freeze());
+		var one = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "one {}", KeyValues.of(), formatter,
+				1);
+		var two = LogEvent.ofTwoArgs(Instant.EPOCH, "main", 1, Level.INFO, "app", "two {} {}", KeyValues.of(),
+				formatter, "a", null);
+		assertSame(one, one.freeze());
+		assertSame(two, two.freeze());
+	}
+
+	@Test
+	void slf4jArrayEventsCopyTheCallersArrayWhenFrozen() {
+		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
+		@Nullable Object[] args = { "a", null, 3 };
+		var frozen = LogEvent
+			.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "all {} {} {}", KeyValues.of(), null, formatter, args)
+			.freeze();
+		args[0] = "changed";
+		var sb = new StringBuilder();
+		frozen.formattedMessage(sb);
+		assertEquals("all a null 3", sb.toString());
 	}
 
 	@Test

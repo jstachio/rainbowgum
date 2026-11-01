@@ -742,7 +742,18 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 @SuppressWarnings("ArrayRecordComponent")
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
-		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) implements LogEvent {
+		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length,
+		ArgsOwner argsOwner) implements LogEvent {
+
+	/*
+	 * Who owns the argument array. The caller may reuse its array after logging, so
+	 * freezing copies it, and a frozen event owns its copy.
+	 */
+	enum ArgsOwner {
+
+		CALLER, EVENT
+
+	}
 
 	ArrayArgLogEvent {
 		Objects.requireNonNull(timestamp, "timestamp");
@@ -752,6 +763,14 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		Objects.requireNonNull(message, "message");
 		Objects.requireNonNull(keyValues, "keyValues");
 		Objects.requireNonNull(messageFormatter, "messageFormatter");
+		Objects.requireNonNull(argsOwner, "argsOwner");
+	}
+
+	ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
+			String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
+			@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) {
+		this(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, throwableOrNull,
+				args, length, ArgsOwner.CALLER);
 	}
 
 	@Override
@@ -766,16 +785,10 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 	@Override
 	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		var a = SLF4JMessageFormatter.freezeArgs(args, length);
-		var kvs = keyValues.freeze();
-		if (a == args && kvs == keyValues) {
+		if (argsOwner == ArgsOwner.EVENT && keyValues.freeze() == keyValues) {
 			return this;
 		}
-		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a, length);
+		return freeze(timestamp);
 	}
 
 	@Override
@@ -784,7 +797,8 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 			return FrozenLogEvent.of(this, timestamp);
 		}
 		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length), length);
+				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length), length,
+				ArgsOwner.EVENT);
 	}
 
 }

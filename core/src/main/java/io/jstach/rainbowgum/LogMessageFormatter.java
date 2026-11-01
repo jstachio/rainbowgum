@@ -327,21 +327,15 @@ final class SLF4JMessageFormatter {
 	}
 
 	/*
-	 * The arguments themselves when none can change, otherwise a copy holding the text of
-	 * each that can.
+	 * A copy holding the text of each argument that can change. Always a copy, because
+	 * the caller may reuse its array after logging.
 	 */
 	static @Nullable Object[] freezeArgs(@Nullable Object[] args, int length) {
+		var copy = Arrays.copyOf(args, length);
 		for (int i = 0; i < length; i++) {
-			var arg = args[i];
-			if (arg != null && !isImmutable(arg)) {
-				var copy = Arrays.copyOf(args, length);
-				for (int j = i; j < length; j++) {
-					copy[j] = freezeArg(copy[j]);
-				}
-				return copy;
-			}
+			copy[i] = freezeArg(copy[i]);
 		}
-		return args;
+		return copy;
 	}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
