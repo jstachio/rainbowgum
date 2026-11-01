@@ -673,7 +673,7 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
 			return FrozenLogEvent.of(this, timestamp);
 		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1);
+		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
 		var kvs = keyValues.freeze();
 		if (a1 == arg1 && kvs == keyValues) {
 			return this;
@@ -688,7 +688,7 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 			return FrozenLogEvent.of(this, timestamp);
 		}
 		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1));
+				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1, message, 0));
 	}
 
 }
@@ -718,8 +718,8 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
 			return FrozenLogEvent.of(this, timestamp);
 		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1);
-		var a2 = SLF4JMessageFormatter.freezeArg(arg2);
+		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
+		var a2 = SLF4JMessageFormatter.freezeArg(arg2, message, 1);
 		var kvs = keyValues.freeze();
 		if (a1 == arg1 && a2 == arg2 && kvs == keyValues) {
 			return this;
@@ -734,8 +734,8 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 			return FrozenLogEvent.of(this, timestamp);
 		}
 		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1),
-				SLF4JMessageFormatter.freezeArg(arg2));
+				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1, message, 0),
+				SLF4JMessageFormatter.freezeArg(arg2, message, 1));
 	}
 }
 
@@ -797,7 +797,7 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 			return FrozenLogEvent.of(this, timestamp);
 		}
 		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length), length,
+				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length, message), length,
 				ArgsOwner.EVENT);
 	}
 

@@ -303,15 +303,34 @@ final class SLF4JMessageFormatter {
 	}
 
 	/*
-	 * The argument itself when it cannot change, otherwise the text it formats to.
+	 * Immutable arguments need no work. Snapshot a mutable argument only if formatting
+	 * consumes it: unused arguments must not call application toString() methods. Keep
+	 * the argument slot even when unused, since arity affects escape handling.
 	 */
-	static @Nullable Object freezeArg(@Nullable Object arg) {
+	static @Nullable Object freezeArg(@Nullable Object arg, String message, int index) {
 		if (arg == null || isImmutable(arg)) {
 			return arg;
 		}
+		return usedArguments(message, index + 1) > index ? argumentText(arg) : null;
+	}
+
+	private static String argumentText(Object arg) {
 		var sb = new StringBuilder();
 		deeplyAppendParameter(sb, arg, null);
 		return sb.toString();
+	}
+
+	private static int usedArguments(String message, int limit) {
+		int used = 0;
+		int start = 0;
+		int delimiter;
+		while (used < limit && (delimiter = message.indexOf(DELIM_STR, start)) >= 0) {
+			if (!isEscapedDelimeter(message, delimiter) || isDoubleEscaped(message, delimiter)) {
+				used++;
+			}
+			start = delimiter + DELIM_STR.length();
+		}
+		return used;
 	}
 
 	/*
@@ -330,10 +349,18 @@ final class SLF4JMessageFormatter {
 	 * A copy holding the text of each argument that can change. Always a copy, because
 	 * the caller may reuse its array after logging.
 	 */
-	static @Nullable Object[] freezeArgs(@Nullable Object[] args, int length) {
-		var copy = Arrays.copyOf(args, length);
+	static @Nullable Object[] freezeArgs(@Nullable Object[] args, int length, String message) {
+		// The caller may supply a typed array that cannot store a String snapshot.
+		@Nullable Object[] copy = Arrays.copyOf(args, length, Object[].class);
+		int used = -1;
 		for (int i = 0; i < length; i++) {
-			copy[i] = freezeArg(copy[i]);
+			var arg = copy[i];
+			if (arg != null && !isImmutable(arg)) {
+				if (used < 0) {
+					used = usedArguments(message, length);
+				}
+				copy[i] = i < used ? argumentText(arg) : null;
+			}
 		}
 		return copy;
 	}
