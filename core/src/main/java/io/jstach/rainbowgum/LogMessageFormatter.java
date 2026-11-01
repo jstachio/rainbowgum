@@ -346,8 +346,8 @@ final class SLF4JMessageFormatter {
 	}
 
 	/*
-	 * A copy holding the text of each argument that can change. Always a copy, because
-	 * the caller may reuse its array after logging.
+	 * A copy holding the text of each used argument that can change and null for each
+	 * unused one. Always a copy, because the caller may reuse its array after logging.
 	 */
 	static @Nullable Object[] freezeArgs(@Nullable Object[] args, int length, String message) {
 		// The caller may supply a typed array that cannot store a String snapshot.
