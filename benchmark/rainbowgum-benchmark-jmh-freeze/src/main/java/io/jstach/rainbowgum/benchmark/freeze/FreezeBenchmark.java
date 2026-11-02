@@ -18,8 +18,8 @@ import io.jstach.rainbowgum.LogEvent;
 /**
  * The work freezing adds, measured on one thread without a publisher. {@link #freeze()}
  * is what an async route costs the logging thread. The format benchmarks add the work the
- * writing thread does for one or three appenders, and {@link #format()} is a synchronous
- * route, which never freezes.
+ * writing thread does for one or three appenders, or for two routes with one appender
+ * each, and {@link #format()} is a synchronous route, which never freezes.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
@@ -69,6 +69,24 @@ public class FreezeBenchmark {
 		for (int i = 0; i < 3; i++) {
 			sb.setLength(0);
 			e.formattedMessage(sb);
+			length += sb.length();
+		}
+		return length;
+	}
+
+	/**
+	 * Creates and freezes an event, then freezes and formats it once for each of two
+	 * routes, as two async routes with one appender each do.
+	 * @return formatted length.
+	 */
+	@Benchmark
+	public int freezeForTwoRoutes() {
+		var e = events.create().freeze();
+		int length = 0;
+		for (int i = 0; i < 2; i++) {
+			var routed = e.freeze();
+			sb.setLength(0);
+			routed.formattedMessage(sb);
 			length += sb.length();
 		}
 		return length;

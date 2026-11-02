@@ -4,9 +4,10 @@ An async route freezes each event on the logging thread before handing it to the
 publisher. These benchmarks compare three ways of freezing an SLF4J event that has
 message arguments.
 
-- **A, format when frozen** (`main`): the event is formatted on the logging thread and
+- **A, format when frozen** (`3316d6e7`, before C was merged): the event is formatted on the logging thread and
   frozen into a `FrozenLogEvent` holding the formatted message.
-- **C, keep argument text** (`feature/deferred-formatting-immutable`): arguments that
+- **C, keep argument text** (`main` since `7bb826c8`, from
+  `feature/deferred-formatting-immutable`): arguments that
   are not known immutable values (String, boxed primitives, BigDecimal, UUID, java.time
   and a few others) are replaced by their text, and the event keeps its class. Every
   appender formats it.
@@ -30,6 +31,11 @@ Each event has an SLF4J message with these arguments:
 JMH 1.37, 2 forks, 3 x 2s warmup, 5 x 2s measurement, Temurin 27, aarch64, pinned to the
 10 Cortex-X925 cores, one session. Errors on `FreezeBenchmark` are under 5% except where
 noted.
+
+The tables up to "Reading it" were measured on C's first commit, `14122fbb`. The two
+commits after it, which copy the caller's argument array and keep argument semantics,
+add about 22 ns to freezing MIXED_FOUR under C and E (33 to 55 ns) and nothing to the
+other events. [Two routes](#two-routes) was measured on the final C and E.
 
 ## On the logging thread
 
@@ -87,6 +93,38 @@ is better.
   alternates between waiting and being woken. Some disagree with the tables above, such
   as STRINGS with three appenders, so they are too noisy to rank strategies on their
   own.
+
+## Two routes
+
+Two async routes, each with one appender, are a more common setup than one route with
+several appenders, for example the console and a file. The router freezes the event
+once and hands the same frozen event to both routes. Under E both share one
+`DeferredLogEvent`, so the second route appends the message the first formatted, unless
+the two writer threads format it at the same moment.
+
+`FreezeBenchmark.freezeForTwoRoutes` freezes the event, then freezes and formats it once
+per route, on one thread. Measured in a second session, on `main` (`8fcf0125`) and on E
+rebased onto it, with the same settings. Nanoseconds per event, lower is better.
+
+| Events | Freeze: A | C | E | 1 route: A | C | E | 2 routes: A | C | E |
+|---|---|---|---|---|---|---|---|---|---|
+| STRINGS | 32.2 | **3.2** | 5.7 | 36.8 | **14.8** | 26.9 | 42.7 | **28.6** | 31.9 |
+| NUMBERS | 46.2 | **3.2** | 5.7 | 51.8 | **28.8** | 29.3 | 57.8 | 66.4 | **47.4** |
+| OBJECTS | **58.4** | 59.1 | 61.8 | **64.1** | 78.9 | 88.0 | **65.3 ± 7.2** | 107.2 | 91.7 |
+| MIXED_FOUR | 85.0 | **60.7** | 62.7 | **84.2** | 101.3 | 107.5 | **92.3** | 165.0 ± 8.9 | 128.0 |
+
+- With two routes C formats twice and falls behind A for everything but Strings, by up
+  to 1.8x for MIXED_FOUR.
+- E formats once. It is the cheapest for numbers, close to C for Strings, and 40% behind
+  A for application objects and MIXED_FOUR. A still formats those straight into the
+  message, while C and E first turn the objects into text and then format that text.
+- On one thread the second route always finds the kept message, so E's numbers are its
+  best case. Two writer threads can both format the event when they reach it together.
+- The logging thread only pays the freeze, where C and E keep their lead for immutable
+  arguments.
+
+`AsyncRouteBenchmark` with two routes logs 0.6 to 2.3 million events per second for
+every strategy and event type, with errors of 14 to 106%, so it can't rank them.
 
 ## Running
 

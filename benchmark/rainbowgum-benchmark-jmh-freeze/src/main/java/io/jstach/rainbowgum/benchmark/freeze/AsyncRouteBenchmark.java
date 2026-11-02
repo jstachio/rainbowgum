@@ -25,8 +25,8 @@ import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.RainbowGum;
 
 /**
- * Events logged per second through a route with an async publisher and appenders that
- * format the message to an output discarding the bytes.
+ * Events logged per second through one or two routes, each with an async publisher and
+ * appenders that format the message to an output discarding the bytes.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.Throughput)
@@ -43,7 +43,13 @@ public class AsyncRouteBenchmark {
 	public Events events;
 
 	/**
-	 * Appenders on the route.
+	 * Routes, each with its own async publisher.
+	 */
+	@Param({ "1", "2" })
+	public int routes;
+
+	/**
+	 * Appenders on each route.
 	 */
 	@Param({ "1", "3" })
 	public int appenders;
@@ -51,17 +57,21 @@ public class AsyncRouteBenchmark {
 	private RainbowGum gum;
 
 	/**
-	 * Starts a RainbowGum with one async route.
+	 * Starts a RainbowGum with the async routes.
 	 */
 	@Setup(Level.Trial)
 	public void setup() {
-		gum = RainbowGum.builder(LogConfig.builder().build()).route(r -> {
-			for (int i = 0; i < appenders; i++) {
-				r.appender("discard" + i, a -> a.output(new DiscardOutput())
-					.formatter(LogFormatter.builder().message().newline().build()));
-			}
-			r.publisher(PublisherFactory.ofAsync(1024));
-		}).build().start();
+		var builder = RainbowGum.builder(LogConfig.builder().build());
+		for (int route = 0; route < routes; route++) {
+			builder.route("route" + route, r -> {
+				for (int i = 0; i < appenders; i++) {
+					r.appender("discard" + i, a -> a.output(new DiscardOutput())
+						.formatter(LogFormatter.builder().message().newline().build()));
+				}
+				r.publisher(PublisherFactory.ofAsync(1024));
+			});
+		}
+		gum = builder.build().start();
 	}
 
 	/**
