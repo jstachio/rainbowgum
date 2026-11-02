@@ -1609,7 +1609,8 @@ to <code>explicit</code>. The default is <code>console</code>.
 
 {@link io.jstach.rainbowgum.pattern.format.PatternConfig} carries the platform specific settings that keywords
 need: time zone (for {@code %d}/{@code %date}), line separator (for {@code %n}), whether color keywords output
-ANSI escape codes, and the start time used by {@code %r}/{@code %relative}. It is resolved <em>per encoder name</em>
+ANSI escape codes, and the start time used by {@code %r}/{@code %relative}. The time zone defaults to the
+system time zone, as in Logback. It is resolved <em>per encoder name</em>
 through {@value io.jstach.rainbowgum.pattern.format.PatternConfig#PATTERN_CONFIG_PREFIX}, so different appenders
 can each have their own:
 
@@ -1818,7 +1819,8 @@ See {@link io.jstach.rainbowgum.file.FileOutputBuilder} for the full list of sup
 properties (e.g. {@link io.jstach.rainbowgum.file.FileOutputBuilder#append(Boolean) append},
 {@link io.jstach.rainbowgum.file.FileOutputBuilder#prudent(Boolean) prudent},
 {@link io.jstach.rainbowgum.file.FileOutputBuilder#bufferSize(io.jstach.rainbowgum.file.DataSize) bufferSize}) and
-their defaults.
+their defaults. A file in the working directory is written <code>./logs/app.log</code> or
+<code>file:///./logs/app.log</code>, and missing parent directories such as <code>logs</code> are created.
 
 <h3 id="jfr">JDK Flight Recorder (JFR)</h3>
 
@@ -1920,6 +1922,8 @@ size based rolling file output under the "rolling" URI scheme,
 logging.appenders=myapp
 logging.appender.myapp.output.uri=rolling:///var/log/app.log?maxFileSize=10MB&maxHistory=7
 }
+
+As with file URIs, <code>rolling:///./logs/app.log</code> is relative to the working directory.
 
 See {@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder} for the full list of
 properties ({@link io.jstach.rainbowgum.rolling.RollingFileOutputBuilder#maxFileSize(io.jstach.rainbowgum.file.DataSize) maxFileSize},

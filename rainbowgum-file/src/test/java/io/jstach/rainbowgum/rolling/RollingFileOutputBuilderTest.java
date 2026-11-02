@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -71,6 +72,33 @@ class RollingFileOutputBuilderTest {
 		}
 		finally {
 			output.close();
+		}
+	}
+
+	@Test
+	void dotUriPathIsRelativeToTheWorkingDirectory() throws Exception {
+		String relative = "./target/rolling-uri-test/app.log";
+		var config = LogConfig.builder().build();
+		var output = RollingFileOutput.of(b -> b.uri(URI.create("rolling:///" + relative))).provide("file", config);
+		try {
+			assertEquals(new File(relative).toURI(), output.uri());
+		}
+		finally {
+			output.close();
+		}
+	}
+
+	@Test
+	void uriWithoutPathFailsBeforeAnyFileAccess() {
+		var config = LogConfig.builder().build();
+		for (var uri : List.of("rolling:app.log", "rolling:///")) {
+			var e = assertThrows(ValidationException.class,
+					() -> RollingFileOutput.of(b -> b.uri(URI.create(uri))).provide("fail", config));
+			assertEquals(
+					"Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder: "
+							+ "Rolling file URI has no file path. Use rolling:///var/log/app.log, "
+							+ "rolling:///./app.log for a file in the working directory, or the fileName property.",
+					e.getMessage(), uri);
 		}
 	}
 

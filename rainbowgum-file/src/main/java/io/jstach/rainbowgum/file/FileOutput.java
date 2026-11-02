@@ -29,7 +29,14 @@ import io.jstach.rainbowgum.annotation.LogConfigurable.ConvertParameter;
 import io.jstach.rainbowgum.annotation.LogConfigurable.DefaultParameter;
 
 /**
- * An output that is designed for writing to a file.
+ * An output that is designed for writing to a file. Missing parent directories of the
+ * file are created when it is opened.
+ * <p>
+ * The file is given by the appender's output URI, such as
+ * <code>file:///var/log/app.log</code>, or by the {@code fileName} property, which takes
+ * precedence. A URI path starting with <code>/./</code>, as in
+ * <code>file:///./app.log</code>, and a relative {@code fileName} are relative to the
+ * working directory.
  */
 public interface FileOutput extends LogOutput {
 
@@ -97,7 +104,8 @@ public interface FileOutput extends LogOutput {
 	 * only reaching it later through the output's start call.
 	 * @param name name of output not file name.
 	 * @param uri file uri, set by the appender from its <code>output.uri</code>.
-	 * @param fileName file name.
+	 * @param fileName path of the file, relative to the working directory unless
+	 * absolute. Takes precedence over the uri.
 	 * @param append whether or not to append to existing file.
 	 * @param prudent logback prudent mode where files are locked on each write.
 	 * @param bufferSize buffer size, in {@link DataSize#parse(String)} format when set by

@@ -34,7 +34,9 @@ import io.jstach.rainbowgum.file.FileOutputBuilder;
  * <p>
  * Registered under the {@value #ROLLING_SCHEME} URI scheme (see
  * {@code RollingConfigurator}), e.g. {@code rolling:///var/log/app.log?maxFileSize=...}.
- * Its properties are <code>logging.appender.{name}.output.rolling.</code> followed by a
+ * As with file URIs, a path starting with <code>/./</code>, as in
+ * {@code rolling:///./logs/app.log}, is relative to the working directory. Its properties
+ * are <code>logging.appender.{name}.output.rolling.</code> followed by a
  * {@link RollingFileOutputBuilder} property name. {@code fileName}, {@code append},
  * {@code prudent} and {@code bufferSize} mean the same as for {@link FileOutput} and are
  * passed to the underlying file output this wraps. The {@code append} setting applies
@@ -145,7 +147,8 @@ public interface RollingFileOutput extends FileOutput {
 	 * Creates a rolling file output provider.
 	 * @param name name of output, not file name.
 	 * @param uri file uri, set by the appender from its <code>output.uri</code>.
-	 * @param fileName file name.
+	 * @param fileName path of the active file, relative to the working directory unless
+	 * absolute. Takes precedence over the uri.
 	 * @param append whether or not to append to an existing file when first opened.
 	 * @param prudent logback prudent mode where files are locked on each write.
 	 * @param bufferSize buffer size, in
@@ -158,7 +161,8 @@ public interface RollingFileOutput extends FileOutput {
 	 * @param totalSizeCap total archive size cap; zero means unlimited.
 	 * @param cleanHistoryOnStart whether pruning also runs once at start, not just after
 	 * each roll.
-	 * @param fileNamePattern archive naming pattern; must contain <code>%i</code> and
+	 * @param fileNamePattern text appended to the active file's path to name each
+	 * archive, see {@link #DEFAULT_FILE_NAME_PATTERN}; must contain <code>%i</code> and
 	 * must not contain <code>%d</code> (date based rotation is not supported).
 	 * @return rolling file output provider.
 	 */
@@ -178,8 +182,7 @@ public interface RollingFileOutput extends FileOutput {
 			file = new File(fileName);
 		}
 		else if (uri != null) {
-			/* Through a file URI, since the decoded path on Windows is /C:/... */
-			file = Path.of(URI.create("file://" + uri.getRawPath())).toFile();
+			file = fileOf(uri);
 		}
 		else {
 			throw new IllegalArgumentException("fileName and uri cannot both be unset.");
@@ -213,6 +216,22 @@ public interface RollingFileOutput extends FileOutput {
 	 */
 	static DataSize parseDataSize(String value) {
 		return DataSize.parse(value);
+	}
+
+	/*
+	 * As with file URIs, a path starting with /./ is relative to the working directory.
+	 */
+	private static File fileOf(URI uri) {
+		String rawPath = uri.getRawPath();
+		if (rawPath == null || rawPath.isEmpty() || rawPath.equals("/")) {
+			throw new IllegalArgumentException("Rolling file URI has no file path. Use rolling:///var/log/app.log, "
+					+ "rolling:///./app.log for a file in the working directory, or the fileName property.");
+		}
+		if (rawPath.startsWith("/./")) {
+			return Path.of(uri.getPath().substring(1)).toFile();
+		}
+		/* Through a file URI, since the decoded path on Windows is /C:/... */
+		return Path.of(URI.create("file://" + rawPath)).toFile();
 	}
 
 }

@@ -145,6 +145,10 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 			}
 		}
 		else if (scheme.equals("file")) {
+			if (path == null) {
+				throw new IllegalArgumentException("File URI has no path: " + LogRedactor.redactUri(uri)
+						+ ". Use file:///var/log/app.log, or ./app.log or file:///./app.log for a file in the working directory.");
+			}
 			if (path.startsWith("/./")) {
 				uri = Paths.get(path.substring(1)).toUri();
 			}
