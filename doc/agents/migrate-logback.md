@@ -92,8 +92,8 @@ documentation.
 | `FileAppender` | `logging.appender.file.output.uri=file:///var/log/app.log`, or `logging.file.name=app.log`, see [File Output](overview.md#file) |
 | `RollingFileAppender` with a size policy | `logging.appender.file.output.uri=rolling:///var/log/app.log?maxFileSize=10MB&maxHistory=7`, see [Built-in Rolling](overview.md#rolling_builtin) |
 | `RollingFileAppender` with a time policy | no equivalent, see [Rolling Files](overview.md#rolling) |
-| `AsyncAppender` | `logging.route.default.publisher.uri=async`, see [Publishers](overview.md#publisher_batch_swap_configuration) |
-| `additivity="false"` with its own appender | a separate route, see [Additivity](overview.md#Additivity) |
+| `AsyncAppender` | put the wrapped appender on its own route with `logging.route.{name}.publisher.uri=async`; other routes stay synchronous, see [Publishers](overview.md#publisher_batch_swap_configuration) |
+| `additivity="false"` with its own appender | a separate route for that appender with `logging.route.{name}.level=OFF` and the logger's level, and the logger set to `OFF` on every other route, such as `logging.route.console.level.com.example.audit=OFF`, see [Additivity](overview.md#Additivity) and [Route Level Priority](overview.md#route_level_priority) |
 | `ThresholdFilter` on an appender | the appender on its own route with that route's level, see [Additivity](overview.md#Additivity) |
 | other appender filters | route filters, see [Event based Filtering](overview.md#router_filter) |
 | `TurboFilter` | an SLF4J logger decorator, see [SLF4J based filtering](overview.md#slf4j_filter) |
@@ -107,8 +107,10 @@ documentation.
 
 Watch for these differences:
 
-- Output paths in a URI need `./` for the working directory: `./app.log`, not `app.log`,
-  see [Outputs](overview.md#outputs). `logging.file.name` does not.
+- Output paths in a URI need `./` for the working directory: `./logs/app.log` or
+  `file:///./logs/app.log`, and `rolling:///./logs/app.log` for rolling, not `app.log`,
+  see [Outputs](overview.md#outputs). `logging.file.name` does not. Missing directories
+  such as `logs` are created.
 - Every appender name used in `logging.appender.{name}...` must be listed in
   `logging.appenders` (or the route's `appenders`), see
   [Plural keys](overview.md#config_plural).
