@@ -50,6 +50,16 @@ Frameworks:
 * [Helidon SE 4 and 27](https://jstach.io/rainbowgum/#helidon)
 * [Avaje Config](https://jstach.io/rainbowgum/#config_properties)
 
+Formats:
+
+* [JSON](https://jstach.io/rainbowgum/#json_encoders) ([ECS](https://jstach.io/rainbowgum/#ecs), [GELF](https://jstach.io/rainbowgum/#gelf), [Logstash](https://jstach.io/rainbowgum/#logstash), [Logback](https://jstach.io/rainbowgum/#logback_json))
+* [JSON5](https://jstach.io/rainbowgum/#core_json)
+* [LTSV](https://jstach.io/rainbowgum/#ltsv)
+* [logfmt](https://jstach.io/rainbowgum/#logfmt)
+* [OpenTelemetry](https://jstach.io/rainbowgum/#otlp) ([OTLP/JSON](https://jstach.io/rainbowgum/#otlp_encoder), [OTLP/HTTP](https://jstach.io/rainbowgum/#otlp_output))
+* [TTLL](https://jstach.io/rainbowgum/#ttll), the default text format
+* [Logback style patterns](https://jstach.io/rainbowgum/#pattern)
+
 ## Documentation
 
 * **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
