@@ -162,8 +162,9 @@ public interface RollingFileOutput extends FileOutput {
 	 * @param cleanHistoryOnStart whether pruning also runs once at start, not just after
 	 * each roll.
 	 * @param fileNamePattern text appended to the active file's path to name each
-	 * archive, see {@link #DEFAULT_FILE_NAME_PATTERN}; must contain <code>%i</code> and
-	 * must not contain <code>%d</code> (date based rotation is not supported).
+	 * archive, see {@link RollingFileOutput#DEFAULT_FILE_NAME_PATTERN}; must contain
+	 * <code>%i</code> and must not contain <code>%d</code> (date based rotation is not
+	 * supported).
 	 * @return rolling file output provider.
 	 */
 	@LogConfigurable(name = "RollingFileOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "rolling.")
