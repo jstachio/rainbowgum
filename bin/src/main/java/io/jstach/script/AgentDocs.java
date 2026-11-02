@@ -6,30 +6,37 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Writes the user guide of the aggregate javadoc as Markdown, so agents and other tools
- * can read it without the HTML. Reads the generated <code>index.html</code> rather than
+ * Adds the documentation for agents to the aggregate javadoc: the user guide as Markdown
+ * and the files in <code>doc/agents</code>, such as <code>llms.txt</code>.
+ * <p>
+ * The user guide is converted from the generated <code>index.html</code> rather than
  * <code>doc/overview.html</code> because javadoc has already resolved links, values and
- * snippets there.
+ * snippets there. Only the HTML the guide uses is understood. Anything else, such as an
+ * unknown tag or a paragraph left open, fails the build so the guide is fixed instead of
+ * the Markdown silently losing content.
  * <p>
- * Only the HTML the guide uses is understood. Anything else, such as an unknown tag or a
- * paragraph left open, fails the build so the guide is fixed instead of the Markdown
- * silently losing content.
- * <p>
- * Usage: <code>OverviewMarkdown APIDOCS_DIR VERSION</code>. Writes
- * <code>overview.md</code> next to <code>index.html</code>, so the links javadoc wrote
- * relative to the site root work unchanged, and links it from the head of
- * <code>index.html</code>.
+ * Usage: <code>AgentDocs APIDOCS_DIR AGENTS_DIR VERSION</code>. Writes
+ * <code>overview.md</code> and copies the agent files next to <code>index.html</code>, so
+ * the links javadoc wrote relative to the site root work unchanged, replacing
+ * <code>_VERSION_</code> with the version. Fails if a relative link in any of them points
+ * to a missing file or a missing section of the guide. Links the Markdown from the head
+ * of <code>index.html</code>.
  */
-public final class OverviewMarkdown {
+public final class AgentDocs {
 
 	static final String MARKDOWN_FILE = "overview.md";
+
+	static final String VERSION_TOKEN = "_VERSION_";
 
 	static final String GUIDE_START = "<div class=\"js-toc-content\">";
 
@@ -39,12 +46,12 @@ public final class OverviewMarkdown {
 			+ "\" title=\"User guide as Markdown\">";
 
 	public static void main(String[] args) {
-		if (args.length != 2) {
-			System.err.println("Usage: OverviewMarkdown APIDOCS_DIR VERSION");
+		if (args.length != 3) {
+			System.err.println("Usage: AgentDocs APIDOCS_DIR AGENTS_DIR VERSION");
 			System.exit(2);
 		}
 		try {
-			run(Path.of(args[0]), args[1]);
+			run(Path.of(args[0]), Path.of(args[1]), args[2]);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -52,10 +59,26 @@ public final class OverviewMarkdown {
 		}
 	}
 
-	static void run(Path apidocs, String version) throws IOException {
+	static void run(Path apidocs, Path agents, String version) throws IOException {
 		Path index = apidocs.resolve("index.html");
 		String html = Files.readString(index);
-		Files.writeString(apidocs.resolve(MARKDOWN_FILE), convert(html, version));
+		var files = new LinkedHashMap<String, String>();
+		files.put(MARKDOWN_FILE, convert(html, version));
+		try (var paths = Files.list(agents)) {
+			for (var p : paths.sorted().toList()) {
+				files.put(p.getFileName().toString(), Files.readString(p).replace(VERSION_TOKEN, version));
+			}
+		}
+		var links = new Links(apidocs, files.keySet(), anchors(files.get(MARKDOWN_FILE)));
+		var broken = new ArrayList<String>();
+		files.forEach((name, content) -> broken.addAll(links.broken(name, content)));
+		if (!broken.isEmpty()) {
+			throw new IllegalStateException("Broken links:\n" + String.join("\n", broken));
+		}
+		for (var e : files.entrySet()) {
+			Files.writeString(apidocs.resolve(e.getKey()), e.getValue());
+			System.out.println("Wrote " + apidocs.resolve(e.getKey()));
+		}
 		if (!html.contains(ALTERNATE_LINK)) {
 			int head = html.indexOf("</head>");
 			if (head < 0) {
@@ -63,7 +86,72 @@ public final class OverviewMarkdown {
 			}
 			Files.writeString(index, html.substring(0, head) + ALTERNATE_LINK + "\n" + html.substring(head));
 		}
-		System.out.println("Wrote " + apidocs.resolve(MARKDOWN_FILE));
+	}
+
+	static final Pattern ANCHOR = Pattern.compile("<a id=\"([^\"]+)\"></a>");
+
+	static Set<String> anchors(String markdown) {
+		var ids = new HashSet<String>();
+		Matcher m = ANCHOR.matcher(markdown);
+		while (m.find()) {
+			ids.add(m.group(1));
+		}
+		return ids;
+	}
+
+	/*
+	 * Checks relative links: the file must exist in the javadoc or be one of the written
+	 * files, and a section of the guide or of the same file must exist. Links to other
+	 * sites and anchors in javadoc pages are not checked.
+	 */
+	record Links(Path apidocs, Set<String> written, Set<String> guideIds) {
+
+		static final Pattern LINK = Pattern.compile("\\]\\(([^)\\s]+)\\)");
+
+		static final Pattern CODE = Pattern.compile("(?s)```.*?```|`[^`\n]*`");
+
+		static final Pattern HEADING = Pattern.compile("(?m)^#+ (.*)$");
+
+		List<String> broken(String file, String content) {
+			var result = new ArrayList<String>();
+			String text = CODE.matcher(content).replaceAll("");
+			Set<String> ownIds = file.equals(MARKDOWN_FILE) ? guideIds : headingIds(text);
+			Matcher m = LINK.matcher(text);
+			while (m.find()) {
+				String target = m.group(1);
+				if (target.contains("://") || target.startsWith("mailto:")) {
+					continue;
+				}
+				int hash = target.indexOf('#');
+				String path = hash < 0 ? target : target.substring(0, hash);
+				String fragment = hash < 0 ? null : target.substring(hash + 1);
+				if (path.isEmpty()) {
+					if (fragment != null && !ownIds.contains(fragment)) {
+						result.add(file + ": no section '" + fragment + "'");
+					}
+				}
+				else if (!written.contains(path) && !Files.exists(apidocs.resolve(path))) {
+					result.add(file + ": no file '" + path + "'");
+				}
+				else if (path.equals(MARKDOWN_FILE) && fragment != null && !guideIds.contains(fragment)) {
+					result.add(file + ": no section '" + fragment + "' in " + MARKDOWN_FILE);
+				}
+			}
+			return result;
+		}
+
+		/*
+		 * Section ids GitHub derives from headings, plus explicit anchors.
+		 */
+		static Set<String> headingIds(String text) {
+			var ids = anchors(text);
+			Matcher m = HEADING.matcher(text);
+			while (m.find()) {
+				ids.add(m.group(1).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9 -]", "").replace(' ', '-'));
+			}
+			return ids;
+		}
+
 	}
 
 	static String convert(String html, String version) {
@@ -74,10 +162,10 @@ public final class OverviewMarkdown {
 		sb.append("The user guide from the Rainbow Gum javadoc, which is the index.html next to this file, ")
 			.append("as Markdown for agents and other tools. Links are relative to this file.\n\n");
 		sb.append(new Renderer().blocks(guide.children()));
-		sb.append("\n\n## Modules\n\n");
+		sb.append("\n\n## Modules <a id=\"all-modules-table\"></a>\n\n");
 		sb.append(Renderer.modules(modules));
 		sb.append("\n");
-		return sb.toString();
+		return sb.toString().replace(VERSION_TOKEN, version);
 	}
 
 	sealed interface Node permits Text, Element {

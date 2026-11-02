@@ -747,7 +747,7 @@
             <artifactId>exec-maven-plugin</artifactId>
             <executions>
               <execution>
-                <id>overview-markdown</id>
+                <id>agent-docs</id>
                 <goals>
                   <goal>exec</goal>
                 </goals>
@@ -755,8 +755,9 @@
                 <inherited>false</inherited>
                 <configuration>
                   <arguments>
-                    <argument>src/main/java/io/jstach/script/OverviewMarkdown.java</argument>
+                    <argument>src/main/java/io/jstach/script/AgentDocs.java</argument>
                     <argument>../target/reports/apidocs</argument>
+                    <argument>../doc/agents</argument>
                     <argument>${project.version}</argument>
                   </arguments>
                 </configuration>

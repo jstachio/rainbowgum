@@ -1,0 +1,18 @@
+# Rainbow Gum
+
+> Rainbow Gum _VERSION_ is a modular JDK 21+ logging framework. It implements SLF4J, System.Logger, java.util.logging, the Log4j2 API and JBoss Logging, and is configured with properties (Spring Boot style `logging.*` keys) or Java builders instead of XML.
+
+Links are relative to this file, which sits at the root of the Rainbow Gum javadoc.
+
+## Docs
+
+- [User guide](overview.md): the whole user guide as Markdown: installation, configuration properties, levels, routes, formats, outputs, framework integrations and troubleshooting.
+- [Javadoc](index.html): the HTML javadoc of every module, the user guide included.
+
+## Guides
+
+- [Migrating from Logback](migrate-logback.md): steps for an agent moving a project from Logback to Rainbow Gum, including Spring Boot.
+
+## Optional
+
+- [Source and README](https://github.com/jstachio/rainbowgum): the GitHub repository.

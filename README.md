@@ -65,6 +65,7 @@ Formats:
 * **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
 * **[Current released RainbowGum doc](https://jstach.io/doc/rainbowgum/current/apidocs)**
 * [Latest SNAPSHOT user guide as Markdown](https://jstach.io/rainbowgum/overview.md), for agents and other tools
+  ([llms.txt](https://jstach.io/rainbowgum/llms.txt), [migrating from Logback](https://jstach.io/rainbowgum/migrate-logback.md))
 
 > [!WARNING]
 > While this readme does contain some documentation the above is the preferred documentation and
