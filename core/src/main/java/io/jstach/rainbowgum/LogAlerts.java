@@ -217,9 +217,10 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	enum UnusedKeyLevel {
 
 		/**
-		 * Default. A key close to a key that was read is a warning with a suggestion, and
-		 * any other unread key is information, since it may be for a component type that
-		 * was not chosen.
+		 * Default. A key close to a key that was read is a warning with a suggestion, as
+		 * is a URI query parameter the component its URI chose does not read. Any other
+		 * unread key is information, since it may be for a component type that was not
+		 * chosen.
 		 */
 		INFO,
 		/**
@@ -241,9 +242,9 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 			};
 		}
 
-		Level level(boolean suggested) {
+		Level level(boolean likelyMistake) {
 			return switch (this) {
-				case INFO -> suggested ? Level.WARNING : Level.INFO;
+				case INFO -> likelyMistake ? Level.WARNING : Level.INFO;
 				case WARNING -> Level.WARNING;
 				case ERROR -> Level.ERROR;
 			};

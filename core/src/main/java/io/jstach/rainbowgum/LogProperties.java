@@ -1433,6 +1433,10 @@ public interface LogProperties {
 			.fromURIQuery(uri)
 			.renameKey(s -> LogProperties.removeKeyPrefix(s, prefix))
 			.build();
+		var check = UnusedKeyCheck.findOrNull(properties);
+		if (check != null) {
+			check.addUriQuery(uri, prefix, uriProperties);
+		}
 		return LogProperties.of(List.of(properties, uriProperties));
 	}
 

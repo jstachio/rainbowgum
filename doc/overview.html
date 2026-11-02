@@ -3806,6 +3806,11 @@ never read:
   <code>json5</code>. A misspelled key of an encoder that was not chosen is also only
   information, since none of that encoder's keys were read to suggest. With the default
   unused-key level, only warnings can fail startup.</li>
+  <li>A query parameter on a URI that the component it chose does not read is reported as a
+  <strong>warning</strong>, as the key it stands for. For example
+  <code>logging.appender.app.output.uri=./app.log?maxFileSize=10MB</code> chooses the plain file
+  output, which has no <code>maxFileSize</code>; <code>rolling:///./app.log?maxFileSize=10MB</code>
+  was meant.</li>
 </ul>
 
 <code>logging.alerts.unusedKey</code> makes this stricter for a configuration that should
