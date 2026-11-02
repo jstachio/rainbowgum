@@ -747,22 +747,39 @@
             <artifactId>exec-maven-plugin</artifactId>
             <executions>
               <execution>
+                <id>overview-markdown</id>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>package</phase>
+                <inherited>false</inherited>
+                <configuration>
+                  <arguments>
+                    <argument>src/main/java/io/jstach/script/OverviewMarkdown.java</argument>
+                    <argument>../target/reports/apidocs</argument>
+                    <argument>${project.version}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+              <execution>
                 <id>javadoc-javascript</id>
                 <goals>
                   <goal>exec</goal>
                 </goals>
                 <phase>package</phase>
                 <inherited>false</inherited>
+                <configuration>
+                  <arguments>
+                    <argument>src/main/java/io/jstach/script/JavadocJavascript.java</argument>
+                    <argument>${project.version}</argument>
+                  </arguments>
+                </configuration>
               </execution>
             </executions>
             <configuration>
               <executable>java</executable>
               <!-- optional -->
               <workingDirectory>bin</workingDirectory>
-              <arguments>
-                <argument>src/main/java/io/jstach/script/JavadocJavascript.java</argument>
-                <argument>${project.version}</argument>
-              </arguments>
             </configuration>
           </plugin>
         </plugins>
