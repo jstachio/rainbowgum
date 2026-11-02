@@ -43,6 +43,16 @@ class LogOutputRegistryTest {
 	}
 
 	@Test
+	void dotPathKeepsQuery() {
+		assertEquals(Path.of("./app.log").toUri() + "?append=false", normalize("./app.log?append=false"));
+	}
+
+	@Test
+	void schemeNameKeepsQuery() {
+		assertEquals("stdout:///?stream=follow", normalize("stdout?stream=follow"));
+	}
+
+	@Test
 	void opaqueFileUriIsRejected() {
 		var e = assertThrows(IllegalArgumentException.class, () -> normalize("file:./app.log"));
 		assertEquals(

@@ -163,12 +163,13 @@ record DefaultLogProviderRef(URI uri, @Nullable String keyOrNull) implements Log
 	static URI normalize(URI uri) {
 		String scheme = uri.getScheme();
 		String path = uri.getPath();
+		String query = uri.getRawQuery();
 		try {
 			if (scheme == null) {
 				if (path == null) {
 					throw new IllegalArgumentException("URI is not proper: " + LogRedactor.redactUri(uri));
 				}
-				uri = new URI(path + ":///");
+				uri = new URI(path + ":///" + (query == null ? "" : "?" + query));
 				if (uri.getScheme() == null) {
 					/*
 					 * A leading "/" or "." keeps the URI parser from ever attempting

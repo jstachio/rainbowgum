@@ -21,6 +21,12 @@ class LogProviderRefTest {
 	}
 
 	@Test
+	void schemeNameKeepsQueryWhenNormalized() {
+		assertEquals(URI.create("gelf:///?host=myhost"),
+				DefaultLogProviderRef.normalize(URI.create("gelf?host=myhost")));
+	}
+
+	@Test
 	void testOfUriAndKey() {
 		var ref = LogProviderRef.of(URI.create("console:///"), "logging.appender.default.output.uri");
 		assertEquals(URI.create("console:///"), ref.uri());
