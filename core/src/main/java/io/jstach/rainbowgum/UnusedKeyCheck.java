@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -9,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -47,12 +49,35 @@ final class UnusedKeyCheck {
 	private final List<KeySource> sources;
 
 	/**
+	 * Where a key was set.
+	 */
+	enum KeyKind {
+
+		/**
+		 * A property, which may be meant for a component that was not chosen.
+		 */
+		PROPERTY,
+		/**
+		 * A query parameter of the URI that chose the component, so one nothing reads is
+		 * almost certainly a mistake.
+		 */
+		URI_QUERY
+
+	}
+
+	/**
 	 * A layer that can list its keys.
 	 *
 	 * @param properties the layer, used for descriptions.
 	 * @param keys its keys.
+	 * @param kind where its keys are set.
 	 */
-	record KeySource(LogProperties properties, Supplier<? extends Collection<String>> keys) {
+	record KeySource(LogProperties properties, Supplier<? extends Collection<String>> keys, KeyKind kind) {
+
+		KeySource(LogProperties properties, Supplier<? extends Collection<String>> keys) {
+			this(properties, keys, KeyKind.PROPERTY);
+		}
+
 	}
 
 	/**
@@ -63,8 +88,18 @@ final class UnusedKeyCheck {
 	 * @param suggestion the read key it was probably meant to be.
 	 * @param suggestionDescription how the source that set key names the suggestion, when
 	 * that differs from the suggestion itself.
+	 * @param kind where it was set.
 	 */
-	record Unused(String key, String description, @Nullable String suggestion, @Nullable String suggestionDescription) {
+	record Unused(String key, String description, @Nullable String suggestion, @Nullable String suggestionDescription,
+			KeyKind kind) {
+
+		/**
+		 * Whether the key is probably a mistake rather than meant for another component.
+		 * @return true with a suggestion or for a URI query parameter.
+		 */
+		boolean likelyMistake() {
+			return suggestion != null || kind == KeyKind.URI_QUERY;
+		}
 
 		/**
 		 * Message for alerts and errors.
@@ -89,7 +124,7 @@ final class UnusedKeyCheck {
 	 * @param sources layers that can list their keys, highest priority first.
 	 */
 	UnusedKeyCheck(List<KeySource> sources) {
-		this.sources = List.copyOf(sources);
+		this.sources = new CopyOnWriteArrayList<>(sources);
 	}
 
 	/**
@@ -99,9 +134,46 @@ final class UnusedKeyCheck {
 	 */
 	LogProperties wrap(LogProperties properties) {
 		if (properties instanceof LogProperties.MutableLogProperties mutable) {
-			return new MutableRecordingProperties(mutable, reads);
+			return new MutableRecordingProperties(mutable, this);
 		}
-		return new RecordingProperties(properties, reads);
+		return new RecordingProperties(properties, this);
+	}
+
+	/**
+	 * The check recording reads of properties, if any.
+	 * @param properties usually the config's properties.
+	 * @return check or null when reads are not recorded.
+	 */
+	static @Nullable UnusedKeyCheck findOrNull(LogProperties properties) {
+		if (properties instanceof RecordingProperties recording) {
+			return recording.check;
+		}
+		if (properties instanceof ListLogProperties list) {
+			for (var layer : list.properties()) {
+				var check = findOrNull(layer);
+				if (check != null) {
+					return check;
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Adds the query parameters of a URI that configures a component, as the keys under
+	 * the component's prefix they stand in for.
+	 * @param uri the component's URI.
+	 * @param prefix the component's property prefix.
+	 * @param uriProperties the query as properties, used for descriptions.
+	 */
+	void addUriQuery(URI uri, String prefix, LogProperties uriProperties) {
+		String query = uri.getRawQuery();
+		if (query == null || query.isEmpty()) {
+			return;
+		}
+		var keys = new LinkedHashSet<String>();
+		LogProperties.parseUriQuery(query, (k, v) -> keys.add(prefix + k));
+		sources.add(new KeySource(uriProperties, () -> keys, KeyKind.URI_QUERY));
 	}
 
 	/**
@@ -122,7 +194,7 @@ final class UnusedKeyCheck {
 				var properties = source.properties();
 				String suggestion = suggestion(key, candidates);
 				unused.add(new Unused(key, properties.description(key), suggestion,
-						suggestionDescription(properties, suggestion)));
+						suggestionDescription(properties, suggestion), source.kind()));
 			}
 		}
 		return unused;
@@ -356,11 +428,14 @@ final class UnusedKeyCheck {
 
 		private final LogProperties delegate;
 
+		private final UnusedKeyCheck check;
+
 		private final Set<String> reads;
 
-		RecordingProperties(LogProperties delegate, Set<String> reads) {
+		RecordingProperties(LogProperties delegate, UnusedKeyCheck check) {
 			this.delegate = delegate;
-			this.reads = reads;
+			this.check = check;
+			this.reads = check.reads;
 		}
 
 		@Override
@@ -412,8 +487,8 @@ final class UnusedKeyCheck {
 
 		private final LogProperties.MutableLogProperties mutable;
 
-		MutableRecordingProperties(LogProperties.MutableLogProperties mutable, Set<String> reads) {
-			super(mutable, reads);
+		MutableRecordingProperties(LogProperties.MutableLogProperties mutable, UnusedKeyCheck check) {
+			super(mutable, check);
 			this.mutable = mutable;
 		}
 
