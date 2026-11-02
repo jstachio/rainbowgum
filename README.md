@@ -33,6 +33,23 @@ Regardless of which configuration option you choose it is GraalVM native friendl
 
 The long term goal of Rainbow Gum is to be a logging framework **for all** with the only requirement being a modern JDK.
 
+## Integration
+
+Facades:
+
+* [SLF4J 2.0](https://jstach.io/rainbowgum/#slf4j)
+* [System.Logger and java.util.logging](https://jstach.io/rainbowgum/#system_logger), including a [java.util.logging `LogManager`](https://jstach.io/rainbowgum/#jul_avoid)
+* [Log4j2 API](https://jstach.io/rainbowgum/#log4j2)
+* [JBoss Logging](https://jstach.io/rainbowgum/#jboss_logging)
+* [Commons Logging](https://jstach.io/rainbowgum/#commons_logging)
+
+Frameworks:
+
+* [Spring Boot 3 and 4](https://jstach.io/rainbowgum/#spring_boot), including [Actuator](https://jstach.io/rainbowgum/#spring_boot_actuator)
+* [Micronaut](https://jstach.io/rainbowgum/#micronaut)
+* [Helidon SE 4 and 27](https://jstach.io/rainbowgum/#helidon)
+* [Avaje Config](https://jstach.io/rainbowgum/#config_properties)
+
 ## Documentation
 
 * **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
