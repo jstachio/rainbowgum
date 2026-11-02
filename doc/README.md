@@ -29,13 +29,20 @@ Both are just `./mvnw -Pdoc clean install -DskipTests` under the hood. The
 aggregated javadoc, `overview.html` included, lands in `target/reports/apidocs`
 at the repo root, open `target/reports/apidocs/index.html` to check it.
 
-## Markdown for agents
+## Documentation for agents
 
-The doc build also writes the user guide as `overview.md` next to `index.html`,
-using `bin/src/main/java/io/jstach/script/OverviewMarkdown.java`. It converts the
-generated `index.html` rather than this file, so links, `{@value}` and snippets
-are already resolved, but it only understands the HTML the guide uses and fails
-the build on anything else. In practice:
+The doc build also writes the user guide as `overview.md` next to `index.html`
+and copies the files in `agents/`, such as `llms.txt` and
+`migrate-logback.md`, beside it, replacing `_VERSION_` with the version. This
+is done by `bin/src/main/java/io/jstach/script/AgentDocs.java`, which fails the
+build when a relative link in any of these files points to a missing file or a
+missing section of the guide. Link to guide sections from `agents/` files as
+`overview.md#section_id`.
+
+The guide is converted from the generated `index.html` rather than this file,
+so links, `{@value}` and snippets are already resolved, but the converter only
+understands the HTML the guide uses and fails the build on anything else. In
+practice:
 
 * Close every `<p>` with `</p>`, and close it before a block such as a list,
   table, `<pre>` or `{@snippet}`.
