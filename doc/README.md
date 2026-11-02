@@ -26,8 +26,26 @@ bin/fast-doc.sh
 ```
 
 Both are just `./mvnw -Pdoc clean install -DskipTests` under the hood. The
-aggregated javadoc, `overview.html` included, lands in `target/site/apidocs`
-at the repo root, open `target/site/apidocs/index.html` to check it.
+aggregated javadoc, `overview.html` included, lands in `target/reports/apidocs`
+at the repo root, open `target/reports/apidocs/index.html` to check it.
+
+## Markdown for agents
+
+The doc build also writes the user guide as `overview.md` next to `index.html`,
+using `bin/src/main/java/io/jstach/script/OverviewMarkdown.java`. It converts the
+generated `index.html` rather than this file, so links, `{@value}` and snippets
+are already resolved, but it only understands the HTML the guide uses and fails
+the build on anything else. In practice:
+
+* Close every `<p>` with `</p>`, and close it before a block such as a list,
+  table, `<pre>` or `{@snippet}`.
+* A `<pre>` holds exactly one `<code>`, optionally with a `language-` class.
+* A table holds only `<caption>` and `<tr>` rows of `<th>` or `<td>`.
+* A `<div>` is either a callout (with a `callout-title` paragraph) or has no
+  attributes.
+
+The error names the line in the generated `index.html`; search
+`overview.html` for the text there.
 
 Publishing a built copy of that aggregate to the public javadoc site is a
 separate, release time step, see `release.md`'s "Updating Documentation"
