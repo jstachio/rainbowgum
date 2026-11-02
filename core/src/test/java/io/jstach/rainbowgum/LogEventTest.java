@@ -13,15 +13,12 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
 import io.jstach.rainbowgum.LogEvent.Caller;
@@ -444,169 +441,6 @@ class LogEventTest {
 		e.formattedMessage(sb, "fallback");
 		assertEquals("fallback", sb.toString());
 		assertFalse(e.freeze().hasMessage());
-	}
-
-	@Test
-	void slf4jEventsKeepTheirClassAndArgumentTextWhenFrozen() {
-		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
-		var failing = new Object() {
-			@Override
-			public String toString() {
-				throw new IllegalStateException();
-			}
-		};
-		var events = List.of(
-				LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "one {}", KeyValues.of(), formatter, 1),
-				LogEvent.ofTwoArgs(Instant.EPOCH, "main", 1, Level.INFO, "app", "two {} {}", KeyValues.of(), formatter,
-						null, "s"),
-				LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "all {} {} {}", KeyValues.of(), null,
-						formatter, new Object[] { new int[] { 1, 2 }, failing, "s" }));
-		var sb = new StringBuilder();
-		for (var event : events) {
-			var frozen = event.freeze();
-			assertSame(frozen, frozen.freeze());
-			sb.append(frozen.getClass().getSimpleName()).append(" [");
-			appendArgTypes(sb, frozen);
-			sb.append("] ");
-			frozen.formattedMessage(sb);
-			sb.append("\n");
-		}
-		assertEquals("""
-				OneArgLogEvent [Integer] one 1
-				TwoArgLogEvent [null String] two null s
-				ArrayArgLogEvent [String String String] all [1, 2] [FAILED toString()] s
-				""", sb.toString());
-	}
-
-	private static void appendArgTypes(StringBuilder sb, LogEvent event) {
-		@Nullable Object[] args = switch (event) {
-			case OneArgLogEvent e -> new @Nullable Object[] { e.arg1() };
-			case TwoArgLogEvent e -> new @Nullable Object[] { e.arg1(), e.arg2() };
-			case ArrayArgLogEvent e -> Arrays.copyOf(e.args(), e.length());
-			default -> new @Nullable Object[] {};
-		};
-		for (int i = 0; i < args.length; i++) {
-			var arg = args[i];
-			sb.append(i == 0 ? "" : " ").append(arg == null ? "null" : arg.getClass().getSimpleName());
-		}
-	}
-
-	@Test
-	void slf4jEventsWithImmutableArgumentsFreezeToThemselves() {
-		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
-		var one = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "one {}", KeyValues.of(), formatter,
-				1);
-		var two = LogEvent.ofTwoArgs(Instant.EPOCH, "main", 1, Level.INFO, "app", "two {} {}", KeyValues.of(),
-				formatter, "a", null);
-		assertSame(one, one.freeze());
-		assertSame(two, two.freeze());
-	}
-
-	@Test
-	void slf4jArrayEventsCopyTheCallersArrayWhenFrozen() {
-		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
-		@Nullable Object[] args = { "a", null, 3 };
-		var frozen = LogEvent
-			.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "all {} {} {}", KeyValues.of(), null, formatter, args)
-			.freeze();
-		args[0] = "changed";
-		var sb = new StringBuilder();
-		frozen.formattedMessage(sb);
-		assertEquals("all a null 3", sb.toString());
-	}
-
-	@Test
-	void slf4jEventsFreezeTypedMutableArgumentArrays() {
-		var formatter = LogMessageFormatter.StandardMessageFormatter.SLF4J;
-		var args = new StringBuilder[] { new StringBuilder("one"), new StringBuilder("two"),
-				new StringBuilder("three") };
-		var event = LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "{} {} {}", KeyValues.of(), null,
-				formatter, args);
-		var frozen = event.freeze();
-		var retimed = event.freeze(Instant.MAX);
-		args[0].append(" changed");
-		args[1] = new StringBuilder("replaced");
-		for (var e : List.of(frozen, retimed)) {
-			var sb = new StringBuilder();
-			e.formattedMessage(sb);
-			assertEquals("one two three", sb.toString());
-			assertSame(e, e.freeze());
-		}
-	}
-
-	@ParameterizedTest
-	@CsvSource({ "1,0", "2,0", "2,1", "3,0", "3,1", "3,2" })
-	void slf4jFreezingDoesNotRenderUnusedArguments(int arity, int used) {
-		var rendered = new ArrayList<String>();
-		@Nullable Object[] args = new @Nullable Object[arity];
-		for (int i = 0; i < arity; i++) {
-			String value = "arg" + i;
-			args[i] = new Object() {
-				@Override
-				public String toString() {
-					rendered.add(value);
-					return value;
-				}
-			};
-		}
-		// A singly escaped placeholder never consumes an argument, including at the end.
-		String message = "escaped \\{} " + "{} ".repeat(used) + "tail \\{}";
-		var event = LogEvent.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", message, KeyValues.of(), null,
-				LogMessageFormatter.StandardMessageFormatter.SLF4J, args);
-		var expected = new StringBuilder();
-		event.formattedMessage(expected);
-		var expectedRendered = List.copyOf(rendered);
-		rendered.clear();
-		var frozen = event.freeze();
-		assertEquals(expectedRendered, rendered, "Freeze must only snapshot arguments the formatter uses");
-		rendered.clear();
-		var actual = new StringBuilder();
-		frozen.formattedMessage(actual);
-		assertEquals(expected.toString(), actual.toString());
-		assertEquals(List.of(), rendered, "Frozen events must not call application toString again");
-
-		var retimed = event.freeze(Instant.MAX);
-		assertEquals(expectedRendered, rendered);
-		actual.setLength(0);
-		retimed.formattedMessage(actual);
-		assertEquals(expected.toString(), actual.toString());
-	}
-
-	@Test
-	void slf4jFreezingConsumesDoubleEscapedPlaceholders() {
-		var first = new StringBuilder("first");
-		var second = new StringBuilder("second");
-		var unusedRendered = new ArrayList<String>();
-		var unused = new Object() {
-			@Override
-			public String toString() {
-				unusedRendered.add("unused");
-				return "unexpected";
-			}
-		};
-		var frozen = LogEvent
-			.ofAll(Instant.EPOCH, "main", 1, Level.INFO, "app", "path \\\\{} \\{} {}", KeyValues.of(), null,
-					LogMessageFormatter.StandardMessageFormatter.SLF4J, new Object[] { first, second, unused })
-			.freeze();
-		first.append(" changed");
-		second.append(" changed");
-		var sb = new StringBuilder();
-		frozen.formattedMessage(sb);
-		assertEquals("path \\first {} second", sb.toString());
-		assertEquals(List.of(), unusedRendered);
-	}
-
-	@Test
-	void messageFormatEventsAreFormattedWhenFrozen() {
-		var arg = new StringBuilder("before");
-		var event = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "app", "value {0}", KeyValues.of(),
-				LogMessageFormatter.StandardMessageFormatter.JUL, arg);
-		var frozen = event.freeze();
-		arg.replace(0, arg.length(), "after");
-		var sb = new StringBuilder();
-		sb.append(frozen.getClass().getSimpleName()).append(" ").append(frozen.message()).append(" | ");
-		frozen.formattedMessage(sb);
-		assertEquals("FrozenLogEvent value {0} | value before", sb.toString());
 	}
 
 	@Test

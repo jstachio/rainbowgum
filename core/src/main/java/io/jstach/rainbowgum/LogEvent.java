@@ -668,27 +668,16 @@ record OneArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
-		var kvs = keyValues.freeze();
-		if (a1 == arg1 && kvs == keyValues) {
-			return this;
-		}
-		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a1);
+		return freeze(timestamp);
 	}
 
 	@Override
 	public LogEvent freeze(Instant timestamp) {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		return new OneArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1, message, 0));
+		StringBuilder sb = new StringBuilder(message.length());
+		formattedMessage(sb);
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, message, sb.toString(),
+				keyValues.freeze(), throwableOrNull);
 	}
 
 }
@@ -713,47 +702,23 @@ record TwoArgLogEvent(Instant timestamp, String threadName, long threadId, Syste
 	}
 
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		var a1 = SLF4JMessageFormatter.freezeArg(arg1, message, 0);
-		var a2 = SLF4JMessageFormatter.freezeArg(arg2, message, 1);
-		var kvs = keyValues.freeze();
-		if (a1 == arg1 && a2 == arg2 && kvs == keyValues) {
-			return this;
-		}
-		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, kvs, messageFormatter,
-				throwableOrNull, a1, a2);
+		return freeze(timestamp);
 	}
 
 	@Override
 	public LogEvent freeze(Instant timestamp) {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		return new TwoArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArg(arg1, message, 0),
-				SLF4JMessageFormatter.freezeArg(arg2, message, 1));
+		StringBuilder sb = new StringBuilder(message.length());
+		formattedMessage(sb);
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, message, sb.toString(),
+				keyValues.freeze(), throwableOrNull);
 	}
 }
 
 @SuppressWarnings("ArrayRecordComponent")
 record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level,
 		String loggerName, String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
-		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length,
-		ArgsOwner argsOwner) implements LogEvent {
-
-	/*
-	 * Who owns the argument array. The caller may reuse its array after logging, so
-	 * freezing copies it, and a frozen event owns its copy.
-	 */
-	enum ArgsOwner {
-
-		CALLER, EVENT
-
-	}
+		@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) implements LogEvent {
 
 	ArrayArgLogEvent {
 		Objects.requireNonNull(timestamp, "timestamp");
@@ -763,14 +728,6 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 		Objects.requireNonNull(message, "message");
 		Objects.requireNonNull(keyValues, "keyValues");
 		Objects.requireNonNull(messageFormatter, "messageFormatter");
-		Objects.requireNonNull(argsOwner, "argsOwner");
-	}
-
-	ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, System.Logger.Level level, String loggerName,
-			String message, KeyValues keyValues, LogMessageFormatter messageFormatter,
-			@Nullable Throwable throwableOrNull, @Nullable Object[] args, int length) {
-		this(timestamp, threadName, threadId, level, loggerName, message, keyValues, messageFormatter, throwableOrNull,
-				args, length, ArgsOwner.CALLER);
 	}
 
 	@Override
@@ -783,42 +740,28 @@ record ArrayArgLogEvent(Instant timestamp, String threadName, long threadId, Sys
 	}
 
 	@Override
-	@SuppressWarnings("ReferenceEquality")
 	public LogEvent freeze() {
-		if (argsOwner == ArgsOwner.EVENT && keyValues.freeze() == keyValues) {
-			return this;
-		}
 		return freeze(timestamp);
 	}
 
 	@Override
 	public LogEvent freeze(Instant timestamp) {
-		if (!SLF4JMessageFormatter.formatsArgumentsAsText(messageFormatter)) {
-			return FrozenLogEvent.of(this, timestamp);
-		}
-		return new ArrayArgLogEvent(timestamp, threadName, threadId, level, loggerName, message, keyValues.freeze(),
-				messageFormatter, throwableOrNull, SLF4JMessageFormatter.freezeArgs(args, length, message), length,
-				ArgsOwner.EVENT);
+		StringBuilder sb = new StringBuilder(message.length());
+		formattedMessage(sb);
+		return new FrozenLogEvent(timestamp, threadName, threadId, level, loggerName, message, sb.toString(),
+				keyValues.freeze(), throwableOrNull);
 	}
 
 }
 
 /*
- * An argument-bearing event formatted when frozen, for message formatters that cannot
- * format later from argument text. Keeps the unformatted message without retaining the
- * argument objects, so filters see the same message before and after freezing.
+ * An argument-bearing event after formatting. Keeps the unformatted message without
+ * retaining the argument objects, so filters see the same message before and after
+ * freezing.
  */
 record FrozenLogEvent(Instant timestamp, String threadName, long threadId, Level level, String loggerName,
 		String message, String formattedMessage, KeyValues keyValues,
 		@Nullable Throwable throwableOrNull) implements LogEvent {
-
-	static LogEvent of(LogEvent event, Instant timestamp) {
-		String message = event.message();
-		StringBuilder sb = new StringBuilder(message.length());
-		event.formattedMessage(sb);
-		return new FrozenLogEvent(timestamp, event.threadName(), event.threadId(), event.level(), event.loggerName(),
-				message, sb.toString(), event.keyValues().freeze(), event.throwableOrNull());
-	}
 
 	FrozenLogEvent {
 		Objects.requireNonNull(timestamp, "timestamp");

@@ -1,17 +1,9 @@
 package io.jstach.rainbowgum;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.net.URI;
 import java.text.MessageFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Locale;
-import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
@@ -291,78 +283,6 @@ final class SLF4JMessageFormatter {
 	private static final char ESCAPE_CHAR = '\\';
 
 	private SLF4JMessageFormatter() {
-	}
-
-	/*
-	 * Whether formatting only appends each argument's text, so a frozen event can keep
-	 * that text instead of the argument and format later. The MessageFormat styles format
-	 * numbers and dates by locale, so their events are formatted when frozen.
-	 */
-	static boolean formatsArgumentsAsText(LogMessageFormatter formatter) {
-		return formatter == LogMessageFormatter.StandardMessageFormatter.SLF4J;
-	}
-
-	/*
-	 * Immutable arguments need no work. Snapshot a mutable argument only if formatting
-	 * consumes it: unused arguments must not call application toString() methods. Keep
-	 * the argument slot even when unused, since arity affects escape handling.
-	 */
-	static @Nullable Object freezeArg(@Nullable Object arg, String message, int index) {
-		if (arg == null || isImmutable(arg)) {
-			return arg;
-		}
-		return usedArguments(message, index + 1) > index ? argumentText(arg) : null;
-	}
-
-	private static String argumentText(Object arg) {
-		var sb = new StringBuilder();
-		deeplyAppendParameter(sb, arg, null);
-		return sb.toString();
-	}
-
-	private static int usedArguments(String message, int limit) {
-		int used = 0;
-		int start = 0;
-		int delimiter;
-		while (used < limit && (delimiter = message.indexOf(DELIM_STR, start)) >= 0) {
-			if (!isEscapedDelimeter(message, delimiter) || isDoubleEscaped(message, delimiter)) {
-				used++;
-			}
-			start = delimiter + DELIM_STR.length();
-		}
-		return used;
-	}
-
-	/*
-	 * Exact classes, because a subclass of a non final class such as BigDecimal could be
-	 * mutable.
-	 */
-	private static boolean isImmutable(Object arg) {
-		Class<?> c = arg.getClass();
-		return c == String.class || c == Integer.class || c == Long.class || c == Boolean.class || c == Double.class
-				|| c == Float.class || c == Short.class || c == Byte.class || c == Character.class
-				|| c == BigDecimal.class || c == BigInteger.class || c == UUID.class || c == URI.class
-				|| c == Instant.class || c == Duration.class || c == LocalDate.class || c == LocalDateTime.class;
-	}
-
-	/*
-	 * A copy holding the text of each used argument that can change and null for each
-	 * unused one. Always a copy, because the caller may reuse its array after logging.
-	 */
-	static @Nullable Object[] freezeArgs(@Nullable Object[] args, int length, String message) {
-		// The caller may supply a typed array that cannot store a String snapshot.
-		@Nullable Object[] copy = Arrays.copyOf(args, length, Object[].class);
-		int used = -1;
-		for (int i = 0; i < length; i++) {
-			var arg = copy[i];
-			if (arg != null && !isImmutable(arg)) {
-				if (used < 0) {
-					used = usedArguments(message, length);
-				}
-				copy[i] = i < used ? argumentText(arg) : null;
-			}
-		}
-		return copy;
 	}
 
 	public static void format(final StringBuilder sbuf, final @Nullable String messagePattern,
