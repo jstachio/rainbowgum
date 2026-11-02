@@ -139,9 +139,12 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 			}
 			if (path.startsWith("./")) {
 				uri = Paths.get(path).toUri();
+				if (query != null) {
+					uri = URI.create(uri.toString() + "?" + query);
+				}
 			}
 			else {
-				uri = URI.create(path + ":///");
+				uri = URI.create(path + ":///" + (query == null ? "" : "?" + query));
 			}
 		}
 		else if (scheme.equals("file")) {
