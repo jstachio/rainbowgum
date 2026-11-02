@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 import java.nio.file.Path;
@@ -39,6 +40,14 @@ class LogOutputRegistryTest {
 	@Test
 	void dotFileUriIsRelativeToTheWorkingDirectory() {
 		assertEquals(Path.of("./app.log").toUri().toString(), normalize("file:///./app.log"));
+	}
+
+	@Test
+	void opaqueFileUriIsRejected() {
+		var e = assertThrows(IllegalArgumentException.class, () -> normalize("file:./app.log"));
+		assertEquals(
+				"File URI has no path: file:./app.log. Use file:///var/log/app.log, or ./app.log or file:///./app.log for a file in the working directory.",
+				e.getMessage());
 	}
 
 	@Test
