@@ -15,6 +15,7 @@ import io.jstach.rainbowgum.LogOutput.ContentType.StandardContentType;
 import io.jstach.rainbowgum.LogOutput.OutputType;
 import io.jstach.rainbowgum.format.TTLL;
 import io.jstach.rainbowgum.format.Json5FormatterBuilder;
+import io.jstach.rainbowgum.format.JsonFormatterBuilder;
 import io.jstach.rainbowgum.format.KeyValuesFormatterBuilder.Format;
 import io.jstach.rainbowgum.format.LogfmtFormatterBuilder;
 import io.jstach.rainbowgum.format.LtsvFormatterBuilder;
@@ -67,6 +68,11 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 */
 	static final String JSON5_SCHEME = "json5";
 
+	/*
+	 * The core JSON encoder's URI scheme.
+	 */
+	static final String JSON_SCHEME = "json";
+
 	private final Map<String, EncoderProvider> providers = new ConcurrentHashMap<>();
 
 	/**
@@ -87,7 +93,13 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 				ref -> (name, config) -> LogEncoder
 					.of(ltsv(name, config).fromProperties(config.properties(), ref).build())
 					.provide(name, config));
-		registry.register(JSON5_SCHEME, ref -> json5Encoder(ref, Format.JSON5));
+		registry.register(JSON5_SCHEME, DefaultEncoderRegistry::json5Encoder);
+		registry.register(JSON_SCHEME,
+				ref -> (name, config) -> LogEncoder
+					.builder(new JsonFormatterBuilder(name).fromProperties(config.properties(), ref).build())
+					.contentType(StandardContentType.APPLICATION_JSON)
+					.build()
+					.provide(name, config));
 		return registry;
 	}
 
@@ -173,15 +185,15 @@ final class DefaultEncoderRegistry implements LogEncoderRegistry {
 	 * The content type follows the format property, so a json5 encoder switched to JSON
 	 * reports application/json.
 	 */
-	private static LogProvider<LogEncoder> json5Encoder(LogProviderRef ref, Format defaultFormat) {
+	private static LogProvider<LogEncoder> json5Encoder(LogProviderRef ref) {
 		return (name, config) -> {
-			var builder = json5(name, config).format(defaultFormat).fromProperties(config.properties(), ref);
+			var builder = json5(name, config).fromProperties(config.properties(), ref);
 			var properties = LogProperties.of(ref.uri(), builder.propertyPrefix(), config.properties(),
 					ref.keyOrNull());
 			var format = properties.forKey(builder.propertyPrefix() + "format")
 				.ofString()
 				.map(v -> LogProperty.enumValue(Format.class, v))
-				.or(defaultFormat)
+				.or(Format.JSON5)
 				.validateNow(Json5FormatterBuilder.class);
 			var contentType = format == Format.JSON ? StandardContentType.APPLICATION_JSON : JSON5_CONTENT_TYPE;
 			return LogEncoder.builder(builder.build()).contentType(contentType).build().provide(name, config);
