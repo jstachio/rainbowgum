@@ -712,7 +712,7 @@ final class CachedLevelResolver implements LevelResolver {
 				 * once per logger name instead, since the fallback value is itself cached
 				 * above just like a successful resolution would be.
 				 */
-				alerts.error(CachedLevelResolver.class,
+				alerts.config(CachedLevelResolver.class, Level.ERROR,
 						"Failed to resolve level for logger '" + n + "', falling back to " + Level.INFO, e);
 				return Level.INFO;
 			}
@@ -773,7 +773,7 @@ final class AlertingLevelConfig implements LevelConfig {
 			return levelConfig.levelOrNull(name);
 		}
 		catch (Exception e) {
-			alerts.error(AlertingLevelConfig.class,
+			alerts.config(AlertingLevelConfig.class, Level.ERROR,
 					"Failed to resolve level for logger '" + name + "', falling back to " + Level.INFO, e);
 			failedNames.putIfAbsent(name, Level.INFO);
 			return Level.INFO;

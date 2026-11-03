@@ -48,7 +48,7 @@ class UriQueryUnusedKeyTest {
 			var failure = assertThrows(IllegalStateException.class, gum::start);
 			assertEquals(
 					"""
-							1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning (the default):
+							1 configuration alert(s) at warning or above were recorded while starting and logging.alerts.fail=config (the default):
 							[WARNING] Property key 'logging.appender.console.output.stdout.endpoint' from \
 							[logging.appender.console.output.uri]->URI(stdout:///?endpoint=<REDACTED>)[endpoint] \
 							was set but not read during startup.""",

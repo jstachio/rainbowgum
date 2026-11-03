@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,6 +51,14 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	static final int DEFAULT_CAPACITY = 512;
 
 	/**
+	 * Key of the key value, set to {@code true}, that marks an alert as being about
+	 * configuration, such as a property key that was set but not read. Only those alerts
+	 * fail startup with {@link FailLevel#CONFIG}. See
+	 * {@link #config(Class, Level, String, Throwable)}.
+	 */
+	static final String CONFIG_KEY = "alert.config";
+
+	/**
 	 * Records an alert.
 	 * @param event event describing the alert.
 	 */
@@ -73,6 +82,23 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	 */
 	default void error(Class<?> loggerName, String message, Throwable throwable) {
 		alert(event(loggerName, Level.ERROR, message, throwable));
+	}
+
+	/**
+	 * Records an alert about configuration, such as a property that is set wrong, as
+	 * opposed to a problem while logging, such as an appender failing to write.
+	 * Configuration sources outside core use it so {@link FailLevel#CONFIG} can fail
+	 * startup on their alerts.
+	 * @param loggerName usually the class where the alert originated.
+	 * @param level alert level.
+	 * @param message alert message.
+	 * @param throwable cause of the alert, if any.
+	 * @see #CONFIG_KEY
+	 */
+	default void config(Class<?> loggerName, Level level, String message, @Nullable Throwable throwable) {
+		var currentThread = Thread.currentThread();
+		alert(LogEvent.of(Instant.now(), currentThread.getName(), currentThread.threadId(), level, loggerName.getName(),
+				message, DefaultLogAlerts.configKeyValues(), throwable));
 	}
 
 	/**
@@ -181,12 +207,18 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 		@EnumAlias("false")
 		OFF,
 		/**
-		 * Fail if an error alert is recorded while starting.
+		 * Default. Fail if a warning or error alert about configuration is recorded while
+		 * starting, such as a property key that was probably misspelled. Problems while
+		 * logging, such as an appender failing to write, do not fail startup.
+		 * @see LogAlerts#CONFIG_KEY
+		 */
+		CONFIG,
+		/**
+		 * Fail if any error alert is recorded while starting.
 		 */
 		ERROR,
 		/**
-		 * Default. Fail if a warning or error alert is recorded while starting, which
-		 * includes a property key that was probably misspelled.
+		 * Fail if any warning or error alert is recorded while starting.
 		 */
 		@EnumAlias({ "true", "warn" })
 		WARNING;
@@ -199,11 +231,27 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 			};
 		}
 
-		boolean fails(Level level) {
+		boolean fails(LogEvent event) {
+			return fails(event.level(), DefaultLogAlerts.isConfig(event));
+		}
+
+		boolean fails(Level level, boolean config) {
+			boolean warningOrAbove = level == Level.ERROR || level == Level.WARNING;
 			return switch (this) {
 				case OFF -> false;
+				case CONFIG -> config && warningOrAbove;
 				case ERROR -> level == Level.ERROR;
-				case WARNING -> level == Level.ERROR || level == Level.WARNING;
+				case WARNING -> warningOrAbove;
+			};
+		}
+
+		/*
+		 * How a failure names what it failed on.
+		 */
+		String failing() {
+			return switch (this) {
+				case CONFIG -> "configuration alert(s) at warning";
+				case OFF, ERROR, WARNING -> "alert(s) at " + name().toLowerCase(Locale.ROOT);
 			};
 		}
 
@@ -220,13 +268,14 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 		/**
 		 * Default. A key close to a key that was read is a warning with a suggestion, as
 		 * is a URI query parameter the component its URI chose does not read. Any other
-		 * unread key is information, since it may be for a component type that was not
-		 * chosen.
+		 * unread key is information, since it may be for a component that was not chosen,
+		 * as is a key that differs from the suggestion only in a component's name or
+		 * type.
 		 */
 		INFO,
 		/**
-		 * Every unread key is a warning, so {@code logging.alerts.fail=warning} fails on
-		 * any of them.
+		 * Every unread key is a warning, so the default
+		 * {@code logging.alerts.fail=config} fails on any of them.
 		 */
 		@EnumAlias("warn")
 		WARNING,
@@ -389,7 +438,15 @@ final class DefaultLogAlerts implements LogAlerts {
 	 * Used when neither the property nor the builder sets the fail level. LogConfig uses
 	 * it too, to decide whether to record property reads.
 	 */
-	static final FailLevel DEFAULT_FAIL_LEVEL = FailLevel.WARNING;
+	static final FailLevel DEFAULT_FAIL_LEVEL = FailLevel.CONFIG;
+
+	static KeyValues configKeyValues() {
+		return KeyValues.of(Map.of(CONFIG_KEY, "true"));
+	}
+
+	static boolean isConfig(LogEvent event) {
+		return "true".equals(event.keyValues().getValueOrNull(CONFIG_KEY));
+	}
 
 	private final LogEvent[] ring;
 
@@ -494,14 +551,14 @@ final class DefaultLogAlerts implements LogAlerts {
 			if (first == null) {
 				return;
 			}
-			var failing = new ArrayList<>(dump().stream().filter(e -> failLevel.fails(e.level())).toList());
+			var failing = new ArrayList<>(dump().stream().filter(failLevel::fails).toList());
 			if (!failing.contains(first)) {
 				failing.addFirst(first);
 			}
 			var sb = new StringBuilder();
 			sb.append(startupFailures)
-				.append(" alert(s) at ")
-				.append(failLevel.name().toLowerCase(Locale.ROOT))
+				.append(" ")
+				.append(failLevel.failing())
 				.append(" or above were recorded while ")
 				.append(phase)
 				.append(" and ")
@@ -622,7 +679,7 @@ final class DefaultLogAlerts implements LogAlerts {
 		}
 		lock.lock();
 		try {
-			if (!startupComplete && failLevel.fails(frozen.level())) {
+			if (!startupComplete && failLevel.fails(frozen)) {
 				startupFailures++;
 				if (firstStartupFailure == null) {
 					firstStartupFailure = frozen;

@@ -3774,7 +3774,7 @@ Like the other debug modes, <code>logging.debug</code> is read before any proper
 loaded, so it is a system property (or the
 {@link io.jstach.rainbowgum.LogConfig.Builder#debug(io.jstach.rainbowgum.LogConfig.DebugModeType)
 builder option}) and cannot be set in <code>logging.properties</code>. Without it, startup still
-fails on warnings by default, but without printing anything extra, see
+fails on configuration mistakes by default, but without printing anything extra, see
 <a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a>.
 </p>
 
@@ -3885,19 +3885,24 @@ and nothing is checked.
 
 <code>logging.alerts.fail</code> fails startup when an <a href="#alerts">alert</a> at or above a
 level is recorded while starting, similar to treating compiler warnings as errors.
-<code>warning</code> (or <code>warn</code> or <code>true</code>), the default, fails on warnings and
-errors, including misspelled keys, a URI query parameter nothing reads, and a refused
-<a href="#simple_props_level_file">level file</a>; <code>error</code> fails only on errors;
-<code>off</code> (or <code>false</code>) never fails. Unlike
+<code>config</code>, the default, fails on warnings and errors about configuration: misspelled
+keys, a URI query parameter nothing reads, a refused
+<a href="#simple_props_level_file">level file</a>, and a level that cannot be parsed. Problems while
+logging, such as an appender failing to write or an async publisher discarding events, are
+reported but do not stop the application. <code>warning</code> (or <code>warn</code> or
+<code>true</code>) fails on any warning or error, <code>error</code> on any error, and
+<code>off</code> (or <code>false</code>) never fails. A configuration source of your own marks its
+alerts with
+{@link io.jstach.rainbowgum.LogAlerts#config(java.lang.Class, java.lang.System.Logger.Level, java.lang.String, java.lang.Throwable)}. Unlike
 <code>logging.debug</code> it is an ordinary property, so it can be set in
 <code>logging.properties</code>, a profile, a system property, or an environment variable, and
 {@link io.jstach.rainbowgum.LogConfig.Builder#alertsFail(io.jstach.rainbowgum.LogAlerts.FailLevel)}
 sets the default it overrides:
 
 {@snippet lang=properties :
-# logging-prod.properties, selected with -Dlogging.profiles=prod:
-# report alerts but start anyway
-logging.alerts.fail=off
+# logging-ci.properties, selected with -Dlogging.profiles=ci:
+# also fail on problems while logging
+logging.alerts.fail=warning
 }
 
 Alerts are checked when the configuration is built and again right after Rainbow Gum starts
