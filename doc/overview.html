@@ -161,32 +161,16 @@ Core's JSpecify dependency is optional (<code>requires static</code>) and is not
 Currently Rainbow Gum does not provide support for:
 
 <ul>
-  <li>Default external config file (e.g. log4j2.xml). This is by design; Rainbow Gum provides lots of extensions to use
-    your applications configuration system, and system properties are supported out of the box.</li>
+  <li>A configuration file that core loads on its own, like <code>logback.xml</code> or <code>log4j2.xml</code>.
+    Implicitly loading resources adds to the security surface, so reading a file is an opt-in with
+    <a href="#simple_props">rainbowgum-simple-props</a>. Otherwise configuration comes from system properties
+    or your application's configuration system.</li>
   <li>Calendar/date based log file rotation or compression on a schedule; there is a
     deliberately basic {@linkplain io.jstach.rainbowgum.rolling.RollingFileOutput
     built-in size based rolling output} for keeping a small/desktop app's disk from
     filling up, and full support for rolling without losing events using an external
     tool such as logrotate, see the <a href="#rolling">Rolling Files</a> section.</li>
   <li>{@linkplain org.slf4j.Marker SLF4J Marker} support (libraries and applications rarely use it compared to MDC).</li>
- </ul>
-
- The reason Rainbow Gum does not provide a default logging configuration file is:
-
- <ul>
-  <li>
-    It is actually fairly expensive to load resources from the module/classpath on initialization. If your configuration system
-    is already loading a resource it should be used instead.
-  </li>
-  <li>
-    In GraalVM native and in some cases modular environment loading module/classpath resources is more complicated.
-    We do not want an out of the box experience where it works in normal HotSpot but not in GraalVM native.
-  </li>
-  <li>
-    It increases the security surface and Rainbow Gum aims to have security and integrity by default.
-    Implicit loading of resources we feel is against this and if done should be a chosen opt-in which
-    you can have with various extensions.
-  </li>
  </ul>
 
  If any of these limitations (or others not listed) are a show stopper please let us know by filing an issue.
