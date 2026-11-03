@@ -105,10 +105,11 @@ final class UnusedKeyCheck {
 
 		/**
 		 * Whether the key is probably a mistake rather than meant for another component.
-		 * @return true with a suggestion or for a URI query parameter.
+		 * @return true with a suggestion that is not just another component's name or
+		 * type, or for a URI query parameter.
 		 */
 		boolean likelyMistake() {
-			return suggestion != null || kind == KeyKind.URI_QUERY;
+			return (suggestion != null && !differsOnlyInName(key, suggestion)) || kind == KeyKind.URI_QUERY;
 		}
 
 		/**
@@ -517,6 +518,47 @@ final class UnusedKeyCheck {
 	}
 
 	private static final String ANY_SEGMENT = "*";
+
+	/*
+	 * Segments that name a component or choose its type, such as console in
+	 * logging.appender.console.output.uri and stdout in
+	 * logging.appender.console.output.stdout.stream. Each pattern ends at one.
+	 */
+	private static final List<String> NAME_SEGMENTS = List.of("logging.appender.*", "logging.route.*",
+			"logging.pattern.config.*", "logging.appender.*.output.*", "logging.appender.*.encoder.*",
+			"logging.route.*.publisher.*");
+
+	/*
+	 * A key that differs from a read key only in a component's name or type may be for a
+	 * component that was not chosen, such as an appender a profile leaves out of
+	 * logging.appenders. A difference only in case, - or _ is still a typo.
+	 */
+	static boolean differsOnlyInName(String key, String suggestion) {
+		String[] k = key.split("\\.", -1);
+		String[] s = suggestion.split("\\.", -1);
+		if (k.length != s.length) {
+			return false;
+		}
+		int differs = -1;
+		for (int i = 0; i < k.length; i++) {
+			if (!normalize(k[i]).equals(normalize(s[i]))) {
+				if (differs >= 0) {
+					return false;
+				}
+				differs = i;
+			}
+		}
+		if (differs < 0) {
+			return false;
+		}
+		String prefix = String.join(LogProperties.SEP, List.of(s).subList(0, differs + 1));
+		for (String pattern : NAME_SEGMENTS) {
+			if (matches(pattern, prefix)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	private static String movedKey(String parent, String name, String component, String scheme, List<String> rest) {
 		return "logging." + parent + "." + name + "." + component + "." + scheme + "."

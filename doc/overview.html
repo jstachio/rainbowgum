@@ -3823,7 +3823,12 @@ never read:
   with a suggestion. Close means the same key ignoring case, <code>-</code>, and <code>_</code>
   (<code>keyvalues</code>, <code>KEYVALUES</code>, and <code>key-values</code> all suggest
   <code>keyValues</code>), or at most two characters different (<code>apenders</code> suggests
-  <code>appenders</code>). Suggestions only ever name keys that something actually read.</li>
+  <code>appenders</code>). Suggestions only ever name keys that something actually read.
+  A key that differs from the suggestion only in a component's name or type is information
+  instead, since it may be for a component that was not chosen: with
+  <code>logging.appenders=file1</code>, a <code>logging.appender.file2.output.uri</code> left in
+  the configuration suggests <code>logging.appender.file1.output.uri</code> but does not fail
+  startup.</li>
   <li>Any other unread key is reported as <strong>information</strong>. It may be a mistake,
   or it may be meant for a component that was not chosen, such as TTLL options left in
   <code>logging.properties</code> by a profile that switches the encoder to
