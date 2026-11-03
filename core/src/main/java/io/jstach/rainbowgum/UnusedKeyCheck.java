@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 
@@ -47,6 +48,10 @@ final class UnusedKeyCheck {
 	static final Set<String> OTHER_LIBRARY_KEYS = Set.of("logging.config", "logging.configuration");
 
 	private final Set<String> reads = ConcurrentHashMap.newKeySet();
+
+	private final Set<String> listReads = ConcurrentHashMap.newKeySet();
+
+	private final Set<String> mapReads = ConcurrentHashMap.newKeySet();
 
 	private volatile boolean recording = true;
 
@@ -160,8 +165,18 @@ final class UnusedKeyCheck {
 	 * is read once like any other key.
 	 */
 	void record(String key) {
+		record(key, null);
+	}
+
+	/*
+	 * A key read as a list or map may be set natively that way, with no single value.
+	 */
+	private void record(String key, @Nullable Set<String> lookups) {
 		if (recording && !isLoggerNameKey(key)) {
 			reads.add(key);
+			if (lookups != null) {
+				lookups.add(key);
+			}
 		}
 	}
 
@@ -268,18 +283,15 @@ final class UnusedKeyCheck {
 	List<Read> read(LogProperties properties) {
 		var read = new ArrayList<Read>();
 		for (String key : new TreeSet<>(reads)) {
-			var found = properties.<@Nullable Read>visit(key, (source, sourceKey) -> {
-				String value = source.valueOrNull(sourceKey);
-				return value == null ? null : read(key, value, source.description(sourceKey));
-			});
+			var found = properties.<@Nullable Read>visit(key,
+					(source, sourceKey) -> readOrNull(key, unwrap(source), sourceKey));
 			if (found == null) {
 				for (var source : sources) {
 					if (source.kind() != KeyKind.URI_QUERY) {
 						continue;
 					}
-					String value = source.properties().valueOrNull(key);
-					if (value != null) {
-						found = read(key, value, source.properties().description(key));
+					found = readOrNull(key, source.properties(), key);
+					if (found != null) {
 						break;
 					}
 				}
@@ -290,14 +302,60 @@ final class UnusedKeyCheck {
 	}
 
 	/*
+	 * A layer is asked the way the key was read, so a native list or map with no single
+	 * value is found in the layer the read found it in. A single value is shown as it was
+	 * set.
+	 */
+	private @Nullable Read readOrNull(String key, LogProperties source, String sourceKey) {
+		String value = source.valueOrNull(sourceKey);
+		if (value != null) {
+			return read(key, LogRedactor.redactValue(key, value), source.description(sourceKey));
+		}
+		if (listReads.contains(key)) {
+			var list = source.listOrNull(sourceKey);
+			if (list != null) {
+				String shown = list.stream()
+					.map(v -> LogRedactor.redactValue(key, v))
+					.collect(Collectors.joining(", ", "[", "]"));
+				return read(key, shown, source.description(sourceKey));
+			}
+		}
+		if (mapReads.contains(key)) {
+			Map<String, String> map;
+			try {
+				map = source.mapOrNull(sourceKey);
+			}
+			catch (IllegalArgumentException e) {
+				map = null;
+			}
+			if (map != null) {
+				String shown = map.entrySet()
+					.stream()
+					.map(e -> e.getKey() + "="
+							+ LogRedactor.redactValue(key + LogProperties.SEP + e.getKey(), e.getValue()))
+					.collect(Collectors.joining(", ", "{", "}"));
+				return read(key, shown, source.description(sourceKey));
+			}
+		}
+		return null;
+	}
+
+	/*
+	 * Looking a value up again for the report is not a read.
+	 */
+	private static LogProperties unwrap(LogProperties source) {
+		return source instanceof RecordingProperties recording ? recording.delegate : source;
+	}
+
+	/*
 	 * Most descriptions end with the key itself, which the report already shows.
 	 */
-	private static Read read(String key, String value, String description) {
+	private static Read read(String key, String redactedValue, String description) {
 		String suffix = "[" + key + "]";
 		if (description.endsWith(suffix) && description.length() > suffix.length()) {
 			description = description.substring(0, description.length() - suffix.length());
 		}
-		return new Read(key, LogRedactor.redactValue(key, value), description);
+		return new Read(key, redactedValue, description);
 	}
 
 	/*
@@ -548,13 +606,13 @@ final class UnusedKeyCheck {
 
 		@Override
 		public @Nullable List<String> listOrNull(String key) {
-			check.record(key);
+			check.record(key, check.listReads);
 			return super.listOrNull(key);
 		}
 
 		@Override
 		public @Nullable Map<String, String> mapOrNull(String key) {
-			check.record(key);
+			check.record(key, check.mapReads);
 			var map = super.mapOrNull(key);
 			/*
 			 * Keep the delegate's map parsing, including native map support. When no
