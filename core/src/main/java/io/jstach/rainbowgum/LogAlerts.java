@@ -385,6 +385,12 @@ final class SwappableLogAlerts implements LogAlerts {
 
 final class DefaultLogAlerts implements LogAlerts {
 
+	/*
+	 * Used when neither the property nor the builder sets the fail level. LogConfig uses
+	 * it too, to decide whether to record property reads.
+	 */
+	static final FailLevel DEFAULT_FAIL_LEVEL = FailLevel.WARNING;
+
 	private final LogEvent[] ring;
 
 	private int start = 0;
@@ -567,7 +573,7 @@ final class DefaultLogAlerts implements LogAlerts {
 		var failLevelResult = properties.forKey(LogProperties.ALERTS_FAIL_PROPERTY)
 			.ofString()
 			.map(FailLevel::parse)
-			.or(Objects.requireNonNullElse(failLevelFallback, FailLevel.WARNING))
+			.or(Objects.requireNonNullElse(failLevelFallback, DEFAULT_FAIL_LEVEL))
 			.validateIfError(validator);
 		var unobservedErrorsActionResult = properties.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
 			.ofString()
