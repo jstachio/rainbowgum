@@ -327,6 +327,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 			var check = c.unusedKeyCheck();
 			if (check != null) {
 				reportUnusedKeys(check);
+				check.stopRecording();
 			}
 		}
 		if (config().alerts() instanceof DefaultLogAlerts alerts) {

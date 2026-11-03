@@ -47,6 +47,8 @@ final class UnusedKeyCheck {
 
 	private final Set<String> reads = ConcurrentHashMap.newKeySet();
 
+	private volatile boolean recording = true;
+
 	private final List<KeySource> sources;
 
 	/**
@@ -149,6 +151,35 @@ final class UnusedKeyCheck {
 			return new MutableRecordingProperties(mutable, this);
 		}
 		return new RecordingProperties(properties, this);
+	}
+
+	/*
+	 * A key that ends with a logger name is read as each logger is created, so recording
+	 * it would grow with the application, and isIgnored skips it anyway. The root alias
+	 * is read once like any other key.
+	 */
+	void record(String key) {
+		if (recording && !isLoggerNameKey(key)) {
+			reads.add(key);
+		}
+	}
+
+	private static boolean isLoggerNameKey(String key) {
+		var loggerKey = Loggers.Key.parseOrNull(key);
+		return loggerKey != null && !loggerKey.loggerName().isEmpty()
+				&& !loggerKey.loggerName().equals(Loggers.ROOT_ALIAS);
+	}
+
+	boolean recorded(String key) {
+		return reads.contains(key);
+	}
+
+	/**
+	 * Stops recording once the check has run at startup. Nothing reads what is recorded
+	 * after that, so the reads stay as they were at startup.
+	 */
+	void stopRecording() {
+		recording = false;
 	}
 
 	/**
@@ -485,12 +516,9 @@ final class UnusedKeyCheck {
 
 		private final UnusedKeyCheck check;
 
-		private final Set<String> reads;
-
 		RecordingProperties(LogProperties delegate, UnusedKeyCheck check) {
 			this.delegate = delegate;
 			this.check = check;
-			this.reads = check.reads;
 		}
 
 		@Override
@@ -500,19 +528,19 @@ final class UnusedKeyCheck {
 
 		@Override
 		public @Nullable String valueOrNull(String key) {
-			reads.add(key);
+			check.record(key);
 			return super.valueOrNull(key);
 		}
 
 		@Override
 		public @Nullable List<String> listOrNull(String key) {
-			reads.add(key);
+			check.record(key);
 			return super.listOrNull(key);
 		}
 
 		@Override
 		public @Nullable Map<String, String> mapOrNull(String key) {
-			reads.add(key);
+			check.record(key);
 			var map = super.mapOrNull(key);
 			/*
 			 * Keep the delegate's map parsing, including native map support. When no
@@ -520,9 +548,9 @@ final class UnusedKeyCheck {
 			 * Those nested reads happen inside the delegate rather than this decorator.
 			 */
 			if (map != null && delegate.valueOrNull(key) == null) {
-				reads.add(key + LogProperties.SEP + LogProperties.MAP_KEYS_SUFFIX);
+				check.record(key + LogProperties.SEP + LogProperties.MAP_KEYS_SUFFIX);
 				for (var member : map.keySet()) {
-					reads.add(key + LogProperties.SEP + member);
+					check.record(key + LogProperties.SEP + member);
 				}
 			}
 			return map;
@@ -531,7 +559,7 @@ final class UnusedKeyCheck {
 		@Override
 		public <R extends @Nullable Object> @Nullable R visit(String key,
 				BiFunction<LogProperties, String, @Nullable R> visitor) {
-			reads.add(key);
+			check.record(key);
 			return super.visit(key, visitor);
 		}
 
