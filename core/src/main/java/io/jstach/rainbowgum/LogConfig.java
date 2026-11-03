@@ -849,7 +849,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				 */
 				var suggestedKeyLevel = DefaultLogAlerts.unusedKeyLevelOr(logProperties, alertsUnusedKey).level(true);
 				if (debug.checksUnusedKeys() || DefaultLogAlerts
-					.failLevelOr(logProperties, Objects.requireNonNullElse(alertsFail, LogAlerts.FailLevel.WARNING))
+					.failLevelOr(logProperties,
+							Objects.requireNonNullElse(alertsFail, DefaultLogAlerts.DEFAULT_FAIL_LEVEL))
 					.fails(suggestedKeyLevel)) {
 					unusedKeyCheck = unusedKeyCheck(logProperties);
 					logProperties = recording(logProperties, unusedKeyCheck);

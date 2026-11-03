@@ -3813,10 +3813,9 @@ containing <code>password</code> or <code>token</code>, are redacted. The same l
 
 A misspelled property key is otherwise silently ignored: Rainbow Gum looks properties up by
 key, so a key nothing asks for does nothing. Unless
-<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> is set to
-<code>off</code> or <code>error</code> without a debug mode that checks keys, Rainbow Gum
-records every key it reads, and right after it starts it reports each key that was set but
-never read:
+<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> is set so that it would
+not fail on a misspelled key, such as <code>off</code>, Rainbow Gum records every key it reads, and
+right after it starts it reports each key that was set but never read:
 
 <ul>
   <li>An unread key close to a key that was read is reported as a <strong>warning</strong>
@@ -3878,8 +3877,9 @@ read up front to suggest. Also never reported are keys read before properties lo
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
 properties that happen to start with <code>logging.</code>, such as Spring Boot's
 <code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. With
-<code>logging.alerts.fail=off</code> (or <code>error</code>) and debug mode not <code>all</code> or
-<code>help</code>, nothing is recorded and nothing is checked.
+<code>logging.alerts.fail=off</code>, or <code>error</code> while unused keys are below
+<code>error</code>, and debug mode not <code>all</code> or <code>help</code>, nothing is recorded
+and nothing is checked.
 
 <h3 id="troubleshooting_alerts_fail">Failing on alerts</h3>
 
