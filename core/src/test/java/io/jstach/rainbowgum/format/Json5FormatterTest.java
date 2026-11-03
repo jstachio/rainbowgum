@@ -86,6 +86,13 @@ class Json5FormatterTest {
 	}
 
 	@Test
+	void jsonBuilderWritesJson() {
+		assertEquals(PREFIX + ",\"keyValues\":{\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}}\n",
+				format(new JsonFormatterBuilder("test").keyValues(KeyValuesPlacement.NESTED).build(),
+						event("hello world", requestKeyValues(), null)));
+	}
+
+	@Test
 	void json5IsTheDefaultAndLeavesIdentifierKeysUnquoted() {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("requestId", "42");
@@ -168,11 +175,31 @@ class Json5FormatterTest {
 	}
 
 	@Test
+	void jsonEncoderSchemeHasItsOwnProperties() {
+		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
+				log("json", "", event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + ",\"keyValues\":{\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}}\n",
+				log("json", "logging.appender.list.encoder.json.keyValues=nested\n",
+						event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + "}\n",
+				log("json:///?keyValues=false", "", event("hello world", requestKeyValues(), null)));
+		assertEquals(PREFIX + ",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
+				log("json", "logging.appender.list.encoder.json5.keyValues=nested\n",
+						event("hello world", requestKeyValues(), null)));
+		assertEquals("""
+				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main",\
+				"msg":"hello world","requestId":"42","user":"Ada Lovelace"}
+				""", log("json", "logging.appender.list.encoder.json.thread=name\n",
+				event("hello world", requestKeyValues(), null)));
+	}
+
+	@Test
 	void contentTypeFollowsTheFormat() {
 		assertEquals("application/json5; charset=UTF-8", contentType("json5", ""));
 		assertEquals("application/json; charset=UTF-8",
 				contentType("json5", "logging.appender.list.encoder.json5.format=json\n"));
 		assertEquals("application/json; charset=UTF-8", contentType("json5:///?format=json", ""));
+		assertEquals("application/json; charset=UTF-8", contentType("json", ""));
 	}
 
 	@Test

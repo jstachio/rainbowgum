@@ -53,7 +53,7 @@ Frameworks:
 Formats:
 
 * [JSON](https://jstach.io/rainbowgum/#json_encoders) ([ECS](https://jstach.io/rainbowgum/#ecs), [GELF](https://jstach.io/rainbowgum/#gelf), [Logstash](https://jstach.io/rainbowgum/#logstash), [Logback](https://jstach.io/rainbowgum/#logback_json))
-* [JSON5](https://jstach.io/rainbowgum/#core_json)
+* [JSON5 and plain JSON](https://jstach.io/rainbowgum/#core_json) built into core
 * [LTSV](https://jstach.io/rainbowgum/#ltsv)
 * [logfmt](https://jstach.io/rainbowgum/#logfmt)
 * [OpenTelemetry](https://jstach.io/rainbowgum/#otlp) ([OTLP/JSON](https://jstach.io/rainbowgum/#otlp_encoder), [OTLP/HTTP](https://jstach.io/rainbowgum/#otlp_output))
