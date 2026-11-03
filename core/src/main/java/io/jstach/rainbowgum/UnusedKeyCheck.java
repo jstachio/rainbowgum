@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -633,6 +634,20 @@ final class UnusedKeyCheck {
 				BiFunction<LogProperties, String, @Nullable R> visitor) {
 			check.record(key);
 			return super.visit(key, visitor);
+		}
+
+		/*
+		 * Recording is invisible in reports and toString, which name the wrapped
+		 * properties the same way they would without it.
+		 */
+		@Override
+		public void report(Appendable out) throws IOException {
+			LogPropertiesReporting.describe(out, delegate);
+		}
+
+		@Override
+		public String toString() {
+			return delegate.toString();
 		}
 
 	}
