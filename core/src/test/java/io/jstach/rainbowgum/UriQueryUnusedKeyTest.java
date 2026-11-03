@@ -37,6 +37,26 @@ class UriQueryUnusedKeyTest {
 	}
 
 	@Test
+	void defaultStartupFailureRedactsCredentialsInNestedEndpointUris() {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties(
+						"logging.appender.console.output.uri=stdout:///?endpoint=http%3A%2F%2Falice%3Ademo-password-42%40localhost%3A4318%2Fv1%2Flogs")
+				.build())
+			.build();
+		try (var gum = RainbowGum.builder(config).build()) {
+			var failure = assertThrows(IllegalStateException.class, gum::start);
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning (the default):
+							[WARNING] Property key 'logging.appender.console.output.stdout.endpoint' from \
+							[logging.appender.console.output.uri]->URI(stdout:///?endpoint=<REDACTED>)[endpoint] \
+							was set but not read during startup.""",
+					failure.getMessage());
+		}
+	}
+
+	@Test
 	void readQueryParametersAreNotReported() {
 		try (var gum = gum("stdout:///?stream=follow").start()) {
 			assertEquals("[]", gum.config().alerts().dump().toString());
