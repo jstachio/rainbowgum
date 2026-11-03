@@ -312,10 +312,39 @@ class LogReporterTest {
 			String actual = gum.config().reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
 			String expected = """
 					Read Properties:
+					  logging.alerts.capacity
+					  logging.alerts.fail
+					  logging.alerts.unobservedErrorsAction
+					  logging.alerts.unusedKey
+					  logging.appender.console.encoder.json5.color
+					  logging.appender.console.encoder.json5.format
 					  logging.appender.console.encoder.json5.keyValues = none ([logging.appender.console.encoder.uri]->URI(json5:///?keyValues=none)[keyValues])
+					  logging.appender.console.encoder.json5.prettyPrint
+					  logging.appender.console.encoder.json5.theme
 					  logging.appender.console.encoder.json5.thread = name (PROPERTIES_STRING)
+					  logging.appender.console.encoder.postProcessors
 					  logging.appender.console.encoder.uri = json5:///?keyValues=none (PROPERTIES_STRING)
+					  logging.appender.console.flags
+					  logging.appender.console.output.stdout.stream
+					  logging.appender.console.output.uri
+					  logging.appender.console.type
 					  logging.appenders = console (PROPERTIES_STRING)
+					  logging.change.mode
+					  logging.global.ansi.mode
+					  logging.global.appender.lock
+					  logging.global.optimize
+					  logging.global.threadLocal
+					  logging.groups
+					  logging.keyvalues.sources
+					  logging.level
+					  logging.level.root
+					  logging.route.default.appenders
+					  logging.route.default.filters
+					  logging.route.default.flags
+					  logging.route.default.level
+					  logging.route.default.level.root
+					  logging.route.default.publisher.uri
+					  logging.routes
 					""";
 			assertEquals(expected, actual);
 		}

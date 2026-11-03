@@ -121,13 +121,13 @@ final class UnusedKeyCheck {
 	}
 
 	/**
-	 * A key that was read and set.
+	 * A key that was read.
 	 *
 	 * @param key the key.
-	 * @param value its value, redacted.
-	 * @param description where the value came from.
+	 * @param value its value, redacted, or null when it is not set.
+	 * @param description where the value came from, or null when it is not set.
 	 */
-	record Read(String key, String value, String description) {
+	record Read(String key, @Nullable String value, @Nullable String description) {
 
 	}
 
@@ -213,10 +213,10 @@ final class UnusedKeyCheck {
 	}
 
 	/**
-	 * Keys read so far that have a value, in key order. A key is described by the layer
-	 * that supplied its value, or by the URI whose query did when no layer has it, the
-	 * same order {@link LogProperties#of(URI, String, LogProperties, String)} looks them
-	 * up in.
+	 * Keys read so far, set or not, in key order, so each component's keys sit together
+	 * whether or not they were set. A set key is described by the layer that supplied its
+	 * value, or by the URI whose query did when no layer has it, the same order
+	 * {@link LogProperties#of(URI, String, LogProperties, String)} looks them up in.
 	 * @param properties the recording properties the reads went through.
 	 * @return keys with their values.
 	 */
@@ -239,9 +239,7 @@ final class UnusedKeyCheck {
 					}
 				}
 			}
-			if (found != null) {
-				read.add(found);
-			}
+			read.add(found != null ? found : new Read(key, null, null));
 		}
 		return read;
 	}
