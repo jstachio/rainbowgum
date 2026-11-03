@@ -1436,6 +1436,11 @@ public interface LogProperties {
 		var check = UnusedKeyCheck.findOrNull(properties);
 		if (check != null) {
 			check.addUriQuery(uri, prefix, uriProperties);
+			/*
+			 * Map members such as ?headers.x=y are read inside the query layer, so it is
+			 * recorded like the config's own layers.
+			 */
+			uriProperties = check.wrap(uriProperties);
 		}
 		return LogProperties.of(List.of(properties, uriProperties));
 	}
