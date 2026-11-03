@@ -106,7 +106,7 @@ class LogPropertiesTest {
 		}
 		catch (PropertyMissingException e) {
 			assertEquals(
-					"Property missing. key: ['logging.some.ignoreMe' from URI_QUERY(stuff:///?blah=hello)[some.ignoreMe]]",
+					"Property missing. key: ['logging.some.ignoreMe' from URI_QUERY(stuff:///?blah=<REDACTED>)[some.ignoreMe]]",
 					e.getMessage());
 		}
 	}
@@ -488,7 +488,7 @@ class LogPropertiesTest {
 		assertEquals(URI.create(value), result.validateNow(LogPropertiesTest.class));
 		assertEquals(
 				"""
-						Property[logging.output.custom.uri]=custom://<REDACTED>@example.com/path?password=<REDACTED>&mode=append""",
+						Property[logging.output.custom.uri]=custom://<REDACTED>@example.com/path?password=<REDACTED>&mode=<REDACTED>""",
 				result.describe());
 	}
 

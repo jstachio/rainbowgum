@@ -1,10 +1,14 @@
 package io.jstach.rainbowgum;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -74,8 +78,80 @@ class SensitivePropertyTest {
 		String message = String.valueOf(e.getMessage());
 		assertFalse(message.contains("sample-secret"), message);
 		assertTrue(message.contains("the value is not shown because it is sensitive"), message);
+		assertFalse(stackTrace(e).contains("sample-secret"), stackTrace(e));
 		assertEquals("Property[" + PREFIX + "team]=<REDACTED>",
 				properties.forKey(PREFIX + "team").sensitive().ofString().describe());
+	}
+
+	@Test
+	void sensitiveConversionsKeepFramesButDiscardUnsafeThrowableDetails() {
+		var original = new IllegalArgumentException("sample-secret", new Exception("cause-secret"));
+		original.addSuppressed(new Exception("suppressed-secret"));
+		var properties = LogProperties.builder().fromProperties(PREFIX + "team=sample-secret").build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> properties.forKey(PREFIX + "team").sensitive().ofString().map(value -> {
+					throw original;
+				}).validateNow(getClass()));
+		String trace = stackTrace(e);
+		assertFalse(trace.contains("sample-secret"), trace);
+		assertFalse(trace.contains("cause-secret"), trace);
+		assertFalse(trace.contains("suppressed-secret"), trace);
+		assertTrue(trace.contains(IllegalArgumentException.class.getName()), trace);
+		var cause = e.getCause();
+		assertNotNull(cause);
+		assertArrayEquals(original.getStackTrace(), cause.getStackTrace());
+	}
+
+	@Test
+	void sensitiveFallbacksRemainSensitiveAfterMapping() {
+		var property = LogProperties.StandardProperties.EMPTY.forKey(PREFIX + "team").sensitive();
+		var fallback = property.ofString().map(String::strip).or(() -> "sample-secret");
+		assertEquals("Fallback[" + PREFIX + "team]=<REDACTED>", fallback.describe());
+		assertEquals(fallback.describe(), fallback.toString());
+		assertEquals("sample-secret", fallback.validateNow(getClass()));
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> fallback.map(Integer::parseInt).validateNow(getClass()));
+		assertFalse(stackTrace(e).contains("sample-secret"), stackTrace(e));
+	}
+
+	@Test
+	void sensitiveProviderReferencesKeepTheirSensitivity() {
+		var properties = LogProperties.builder().fromProperties(PREFIX + "team=custom:///sample-secret").build();
+		var reference = properties.forKey(PREFIX + "team").sensitive().ofProviderRef();
+		assertEquals("Property[" + PREFIX + "team]=<REDACTED>", reference.describe());
+		assertEquals(reference.describe(), reference.toString());
+		assertEquals(URI.create("custom:///sample-secret"), reference.validateNow(getClass()).uri());
+		var e = assertThrows(LogProperty.ValidationException.class, () -> reference.map(ref -> {
+			throw new IllegalArgumentException(ref.uri().toString());
+		}).validateNow(getClass()));
+		assertFalse(stackTrace(e).contains("sample-secret"), stackTrace(e));
+	}
+
+	@Test
+	void failedSensitiveMapReadStillRedactsReportValues() {
+		var check = new UnusedKeyCheck(List.of());
+		LogProperties properties = new LogProperties() {
+			@Override
+			public String valueOrNull(String key) {
+				return "sample-secret";
+			}
+
+			@Override
+			public Map<String, String> mapOrNull(String key) {
+				throw new IllegalArgumentException("sample-secret");
+			}
+		};
+		var recording = check.wrap(properties);
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> recording.forKey(PREFIX + "team").sensitive().ofMap().validateNow(getClass()));
+		assertFalse(stackTrace(e).contains("sample-secret"), stackTrace(e));
+		assertEquals("<REDACTED>", check.read(recording).getFirst().value());
+	}
+
+	private static String stackTrace(Throwable throwable) {
+		var out = new StringWriter();
+		throwable.printStackTrace(new PrintWriter(out));
+		return out.toString();
 	}
 
 	@Test
