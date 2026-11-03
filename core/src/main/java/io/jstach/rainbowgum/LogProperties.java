@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LogAppender.AppenderFlag;
+import io.jstach.rainbowgum.properties.ForwardingLogProperties;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogProperties.Builder.AbstractLogProperties;
@@ -1442,7 +1443,12 @@ public interface LogProperties {
 			 */
 			uriProperties = check.wrap(uriProperties);
 		}
-		return LogProperties.of(List.of(properties, uriProperties));
+		var queryKeys = new LinkedHashSet<String>();
+		String query = uri.getRawQuery();
+		if (query != null) {
+			parseUriQuery(query, (k, v) -> queryKeys.add(prefix + k));
+		}
+		return LogProperties.of(List.of(properties, new UriQueryProperties(uriProperties, uriKey, queryKeys)));
 	}
 
 	/**
@@ -2150,6 +2156,53 @@ final class PropertyMaps {
 			m.put(k, v);
 		}
 		return m;
+	}
+
+}
+
+/*
+ * Marks the layer that holds a component URI's query parameters, so a sensitive property
+ * can refuse a value from it.
+ */
+final class UriQueryProperties extends ForwardingLogProperties {
+
+	private final LogProperties delegate;
+
+	private final @Nullable String uriKey;
+
+	private final Set<String> keys;
+
+	UriQueryProperties(LogProperties delegate, @Nullable String uriKey, Set<String> keys) {
+		this.delegate = delegate;
+		this.uriKey = uriKey;
+		this.keys = Set.copyOf(keys);
+	}
+
+	/*
+	 * Whether a query parameter sets the key, including as a map member such as
+	 * ?headers.Authorization=x for headers.
+	 */
+	boolean sets(String key) {
+		for (String k : keys) {
+			if (k.equals(key) || k.startsWith(key + SEP)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	protected LogProperties delegate() {
+		return delegate;
+	}
+
+	@Nullable String uriKey() {
+		return uriKey;
+	}
+
+	@Override
+	public String toString() {
+		return delegate.toString();
 	}
 
 }

@@ -95,7 +95,8 @@ record BuilderModel( //
 			@Nullable String defaultDoc, //
 			boolean required, //
 			String javadoc, //
-			@Nullable Converter converter) {
+			@Nullable Converter converter, //
+			boolean sensitive) {
 
 		private static final String INTEGER_TYPE = "java.lang.Integer";
 
