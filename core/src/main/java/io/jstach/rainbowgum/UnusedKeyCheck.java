@@ -54,6 +54,8 @@ final class UnusedKeyCheck {
 
 	private final Set<String> mapReads = ConcurrentHashMap.newKeySet();
 
+	private final Set<String> sensitiveKeys = ConcurrentHashMap.newKeySet();
+
 	private volatile boolean recording = true;
 
 	private final List<KeySource> sources;
@@ -186,6 +188,26 @@ final class UnusedKeyCheck {
 		var loggerKey = Loggers.Key.parseOrNull(key);
 		return loggerKey != null && !loggerKey.loggerName().isEmpty()
 				&& !loggerKey.loggerName().equals(Loggers.ROOT_ALIAS);
+	}
+
+	/*
+	 * A key a component marked as a secret, along with the members of a map under it,
+	 * such as logging.appender.otel.output.otlp.headers.Authorization.
+	 */
+	void sensitive(String key) {
+		sensitiveKeys.add(key);
+	}
+
+	private boolean isSensitive(String key) {
+		if (sensitiveKeys.contains(key)) {
+			return true;
+		}
+		for (String sensitive : sensitiveKeys) {
+			if (key.startsWith(sensitive + LogProperties.SEP)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	boolean recorded(String key) {
@@ -352,12 +374,12 @@ final class UnusedKeyCheck {
 	/*
 	 * Most descriptions end with the key itself, which the report already shows.
 	 */
-	private static Read read(String key, String redactedValue, String description) {
+	private Read read(String key, String redactedValue, String description) {
 		String suffix = "[" + key + "]";
 		if (description.endsWith(suffix) && description.length() > suffix.length()) {
 			description = description.substring(0, description.length() - suffix.length());
 		}
-		return new Read(key, redactedValue, description);
+		return new Read(key, isSensitive(key) ? LogRedactor.REDACTED_VALUE : redactedValue, description);
 	}
 
 	/*

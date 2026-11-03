@@ -60,13 +60,15 @@ import io.jstach.rainbowgum.apt.prism.DefaultParameterPrism;
 import io.jstach.rainbowgum.apt.prism.KeyParameterPrism;
 import io.jstach.rainbowgum.apt.prism.LogConfigurablePrism;
 import io.jstach.rainbowgum.apt.prism.PassThroughParameterPrism;
+import io.jstach.rainbowgum.apt.prism.SensitiveParameterPrism;
 import io.jstach.svc.ServiceProvider;
 
 /**
  * Creates ConfigBuilders from static factory methods.
  */
 @SupportedAnnotationTypes({ LogConfigurablePrism.PRISM_ANNOTATION_TYPE, KeyParameterPrism.PRISM_ANNOTATION_TYPE,
-		DefaultParameterPrism.PRISM_ANNOTATION_TYPE, PassThroughParameterPrism.PRISM_ANNOTATION_TYPE })
+		DefaultParameterPrism.PRISM_ANNOTATION_TYPE, PassThroughParameterPrism.PRISM_ANNOTATION_TYPE,
+		SensitiveParameterPrism.PRISM_ANNOTATION_TYPE })
 @SupportedOptions(ConfigProcessor.PROPERTY_LIST_OPTION)
 @ServiceProvider(value = Processor.class)
 public class ConfigProcessor extends AbstractProcessor {
@@ -523,8 +525,9 @@ public class ConfigProcessor extends AbstractProcessor {
 			fieldType = ToStringTypeVisitor.toCodeSafeString(p.asType(), "@org.jspecify.annotations.Nullable");
 		}
 
+		boolean sensitive = SensitiveParameterPrism.getInstanceOn(p) != null;
 		var prop = new BuilderModel.PropertyModel(kind, name, type, typeWithAnnotation, typeWithNoAnnotation, fieldType,
-				classRef, defaultValue, defaultDoc, required, javadoc, converter);
+				classRef, defaultValue, defaultDoc, required, javadoc, converter, sensitive);
 		return prop;
 	}
 

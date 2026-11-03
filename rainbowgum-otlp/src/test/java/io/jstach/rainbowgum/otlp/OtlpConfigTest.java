@@ -34,15 +34,43 @@ class OtlpConfigTest {
 	}
 
 	static OtlpOutput output(String properties) {
+		return output("otlp:///", properties);
+	}
+
+	static OtlpOutput output(String uri, String properties) {
 		var config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
 			.configurator(new OtlpConfigurator())
 			.build();
 		var output = (OtlpOutput) config.outputRegistry()
-			.provide(LogProviderRef.of(URI.create("otlp:///")))
+			.provide(LogProviderRef.of(URI.create(uri)))
 			.provide("otlp", config);
 		output.close();
 		return output;
+	}
+
+	@Test
+	void headersAreReadFromProperties() {
+		var output = output("""
+				logging.appender.otlp.output.otlp.headers.keys=Authorization
+				logging.appender.otlp.output.otlp.headers.Authorization=Bearer sample-secret
+				""");
+		assertEquals(Map.of("Authorization", "Bearer sample-secret"), output.headers());
+	}
+
+	/*
+	 * A URI ends up in reports and error messages, so the credentials it would carry are
+	 * refused rather than trusted to be redacted, and the error does not show the URI.
+	 */
+	@Test
+	void headersInTheUriAreRefused() {
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> output("otlp:///?headers=X-Honeycomb-Team%3Dsample-secret", ""));
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.otlp.OtlpOutputBuilder:
+				Error for property. key: 'logging.appender.otlp.output.otlp.headers' is sensitive, so it cannot be set \
+				in the query of a component's URI. Set 'logging.appender.otlp.output.otlp.headers' as its own property \
+				instead.""", e.getMessage());
 	}
 
 	@Test

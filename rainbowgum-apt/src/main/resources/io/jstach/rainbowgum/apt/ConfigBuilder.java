@@ -25,7 +25,7 @@ import io.jstach.rainbowgum.LogProperty;
  * <td><code>$$typeDescription$$</code></td>
  * <td><code>$$required$$</code></td>
  * <td>$$defaultValueDoc$$</td>
- * <td>$$javadoc$$</td>
+ * <td>$$javadoc$$$$#sensitive$$ Sensitive: redacted, and cannot be set in a URI query.$$/sensitive$$</td>
  * </tr>
  $$/normal$$ 
  $$/properties$$
@@ -158,7 +158,7 @@ public final class $$builderName$$ implements io.jstach.rainbowgum.LogBuilder<$$
 		var __v = LogProperty.Validator.of(this.getClass());
 		$$#properties$$
 		$$#normal$$
-		var _$$name$$ = $$#hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$().map(_v -> $$converterMethodName$$(_v))$$/hasConverter$$$$^hasConverter$$properties.forKey($$propertyVar$$).$$baseAccessor$$()$$/hasConverter$$.or(this.$$name$$).$$validateMethod$$(__v);
+		var _$$name$$ = $$#hasConverter$$properties.forKey($$propertyVar$$)$$#sensitive$$.sensitive()$$/sensitive$$.$$baseAccessor$$().map(_v -> $$converterMethodName$$(_v))$$/hasConverter$$$$^hasConverter$$properties.forKey($$propertyVar$$)$$#sensitive$$.sensitive()$$/sensitive$$.$$baseAccessor$$()$$/hasConverter$$.or(this.$$name$$).$$validateMethod$$(__v);
 		$$/normal$$
 		$$/properties$$
 		__v.validate();

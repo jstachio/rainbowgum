@@ -183,11 +183,11 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	 */
 	@LogConfigurable(name = "OtlpOutputBuilder", prefix = LogProperties.OUTPUT_PREFIX + "otlp.")
 	static LogProvider<OtlpOutput> of(@LogConfigurable.KeyParameter String name, @Nullable URI endpoint,
-			@ConvertParameter("parseProtocol") @Nullable OtlpProtocol protocol, @Nullable Map<String, String> headers,
-			@Nullable String compression, @Nullable Integer timeout, @Nullable Integer maxBatchSize,
-			@Nullable String serviceName, @Nullable Map<String, String> resourceAttributes, @Nullable String traceIdKey,
-			@Nullable String spanIdKey, @Nullable List<String> keyValuesIncluded,
-			@Nullable List<String> keyValuesExcluded,
+			@ConvertParameter("parseProtocol") @Nullable OtlpProtocol protocol,
+			@LogConfigurable.SensitiveParameter @Nullable Map<String, String> headers, @Nullable String compression,
+			@Nullable Integer timeout, @Nullable Integer maxBatchSize, @Nullable String serviceName,
+			@Nullable Map<String, String> resourceAttributes, @Nullable String traceIdKey, @Nullable String spanIdKey,
+			@Nullable List<String> keyValuesIncluded, @Nullable List<String> keyValuesExcluded,
 			@ConvertParameter("parseEnvironmentVariables") @Nullable EnvironmentVariables environmentVariables) {
 		boolean env = environmentVariables == EnvironmentVariables.ON;
 		URI endpoint_ = endpoint;
@@ -273,6 +273,13 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	 */
 	public OtlpProtocol protocol() {
 		return protocol;
+	}
+
+	/*
+	 * Not public: the headers usually hold credentials.
+	 */
+	Map<String, String> headers() {
+		return headers;
 	}
 
 	@Override

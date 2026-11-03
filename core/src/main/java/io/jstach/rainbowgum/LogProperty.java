@@ -281,7 +281,11 @@ public interface LogProperty {
 		}
 		else {
 			String exceptionPrefix = e.getClass() == IllegalArgumentException.class ? "" : errorName(e) + " ";
-			own = "Error for property. key: " + resolvedKey + ", " + exceptionPrefix + e.getMessage();
+			/*
+			 * A converter's message can quote the value it could not convert.
+			 */
+			String detail = ps.sensitive() ? "the value is not shown because it is sensitive" : e.getMessage();
+			own = "Error for property. key: " + resolvedKey + ", " + exceptionPrefix + detail;
 		}
 		/*
 		 * Only worth a "Tried:" line if topProperties actually searched more broadly than
@@ -374,7 +378,20 @@ public interface LogProperty {
 	private LogProperty withKey(String fallbackKey) {
 		List<String> combined = new ArrayList<>(keys());
 		combined.add(fallbackKey);
-		return new DefaultLogProperty(List.copyOf(combined), properties());
+		boolean sensitive = this instanceof DefaultLogProperty d && d.sensitive;
+		return new DefaultLogProperty(List.copyOf(combined), properties(), sensitive);
+	}
+
+	/**
+	 * Marks the value as a secret, such as authentication headers. It is redacted in
+	 * error messages and in the read properties report, and a value from the query of a
+	 * component's URI is an error, since URIs end up in reports and error messages.
+	 * Generated builders use this for parameters marked
+	 * {@code LogConfigurable.SensitiveParameter}.
+	 * @return a property with the same keys that treats its value as a secret.
+	 */
+	default LogProperty sensitive() {
+		return new DefaultLogProperty(keys(), properties(), true);
 	}
 
 	/**
@@ -1190,7 +1207,12 @@ public interface LogProperty {
  * and rawValue's kind are not always in sync.
  */
 record PropertySuccess<T>(LogProperties topProperties, LogProperties properties, String key, Object rawValue,
-		PropertySuccess.Kind kind, T value) implements LogProperty.Result.Success<T> {
+		PropertySuccess.Kind kind, T value, boolean sensitive) implements LogProperty.Result.Success<T> {
+
+	PropertySuccess(LogProperties topProperties, LogProperties properties, String key, Object rawValue,
+			PropertySuccess.Kind kind, T value) {
+		this(topProperties, properties, key, rawValue, kind, value, false);
+	}
 
 	/**
 	 * Which of {@link LogProperty}'s typed accessors a {@link PropertySuccess} was found
@@ -1229,6 +1251,7 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 	 * @param rawValue value as originally found (or the fallback), before any conversion.
 	 * @param kind rawValue's kind.
 	 * @param value actual value should not be <code>null</code>.
+	 * @param sensitive whether the value is a secret that is never shown.
 	 */
 	PropertySuccess {
 		if (value == null) {
@@ -1240,7 +1263,7 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 	public <U> LogProperty.Result<U> map(LogProperty.PropertyFunction<T, U, ? super Exception> mapper) {
 		try {
 			U u = mapper._apply(value);
-			return new PropertySuccess<>(topProperties, properties, key, rawValue, kind, u);
+			return new PropertySuccess<>(topProperties, properties, key, rawValue, kind, u, sensitive);
 		}
 		catch (Exception e) {
 			return LogProperty.richError(this, e);
@@ -1250,14 +1273,22 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 	@Override
 	public String describe() {
 		if (kind == Kind.VALUE) {
-			return "Fallback[" + key + "]=" + LogRedactor.redactProperty(key, String.valueOf(value));
+			return "Fallback[" + key + "]="
+					+ (sensitive ? LogRedactor.REDACTED_VALUE : LogRedactor.redactProperty(key, String.valueOf(value)));
 		}
 		return "Property[" + key + "]=" + valueDescription();
 	}
 
 	String valueDescription() {
+		if (sensitive) {
+			return LogRedactor.REDACTED_VALUE;
+		}
 		String s = kind == Kind.STRING ? (String) rawValue : String.valueOf(rawValue);
 		return LogRedactor.redactProperty(key, s);
+	}
+
+	PropertySuccess<T> asSensitive() {
+		return new PropertySuccess<>(topProperties, properties, key, rawValue, kind, value, true);
 	}
 
 }
@@ -1270,7 +1301,7 @@ final class LogRedactor {
 	private static final Set<String> REDACTED_KEYS = Set.of("password", "apikey", "secret", "token", "passwd",
 			"passphrase", "credential", "privatekey", "accesskey", "authorization");
 
-	private static final String REDACTED_VALUE = "<REDACTED>";
+	static final String REDACTED_VALUE = "<REDACTED>";
 
 	static String redactProperty(String key, String input) {
 		if (sensitiveKey(key)) {
@@ -1383,13 +1414,20 @@ final class DefaultLogProperty implements LogProperty {
 
 	private final LogProperties properties;
 
+	final boolean sensitive;
+
 	DefaultLogProperty(List<String> keys, LogProperties properties) {
+		this(keys, properties, false);
+	}
+
+	DefaultLogProperty(List<String> keys, LogProperties properties, boolean sensitive) {
 		super();
 		if (keys.isEmpty()) {
 			throw new IllegalArgumentException("at least one key is required");
 		}
 		this.keys = keys;
 		this.properties = properties;
+		this.sensitive = sensitive;
 	}
 
 	/*
@@ -1477,13 +1515,50 @@ final class DefaultLogProperty implements LogProperty {
 	}
 
 	private <T> Result<T> resolve(java.util.function.Function<String, Result.@Nullable Success<T>> lookup) {
+		if (sensitive) {
+			for (String k : keys) {
+				Result.@Nullable Error<T> error = uriQueryErrorOrNull(k);
+				if (error != null) {
+					return error;
+				}
+			}
+		}
 		for (String k : keys) {
 			var success = lookup.apply(k);
 			if (success != null) {
-				return success;
+				return sensitive ? sensitive(k, success) : success;
 			}
 		}
 		return missingResult(properties, keys);
+	}
+
+	/*
+	 * A URI is shown in reports and error messages, so a secret is refused there rather
+	 * than trusted to be redacted, even when a property overrides it. The message names
+	 * the keys, never the URI.
+	 */
+	private <T> Result.@Nullable Error<T> uriQueryErrorOrNull(String key) {
+		var uri = properties.<@Nullable UriQueryProperties>visit(key,
+				(p, k) -> p instanceof UriQueryProperties u && u.sets(k) ? u : null);
+		if (uri == null) {
+			return null;
+		}
+		String uriKey = uri.uriKey();
+		String from = uriKey == null ? "a component's URI" : "the URI of '" + uriKey + "'";
+		String message = "Error for property. key: '" + key + "' is sensitive, so it cannot be set in the query of "
+				+ from + ". Set '" + key + "' as its own property instead.";
+		return new Result.Error<>(key, message, new IllegalArgumentException(message));
+	}
+
+	private <T> Result<T> sensitive(String key, Result.Success<T> success) {
+		PropertySuccess<T> ps = switch (success) {
+			case PropertySuccess<T> p -> p;
+		};
+		var check = UnusedKeyCheck.findOrNull(properties);
+		if (check != null) {
+			check.sensitive(key);
+		}
+		return ps.asSensitive();
 	}
 
 	<T> Result.Missing<T> missingResult(LogProperties props, List<String> keys) {

@@ -405,6 +405,15 @@ provide single-line configuration. This follows the <a href="https://12factor.ne
 approach to resources and configuration.
 </p>
 
+<p id="config_uri_credentials">
+<strong>Do not put credentials in a URI.</strong> Component URIs are shown in
+<a href="#reporting">reports</a> and error messages. Rainbow Gum redacts what looks like a
+secret, such as a password in <code>user:password@host</code> or a <code>token</code> parameter,
+but it can only guess. A property its component marks as sensitive, such as the
+<a href="#otlp_output">OTLP output's</a> <code>headers</code>, cannot be set in a URI query at all:
+the component fails to build and says to set the property on its own instead.
+</p>
+
 <h4 id="config_plural">Plural keys for enabling/disabling</h4>
 
 Because Rainbow Gum's property config model is a lookup of key to value 
@@ -2053,6 +2062,16 @@ Other properties are <code>protocol</code> (<code>http/protobuf</code> or <code>
 <code>headers</code>, <code>compression</code> (<code>gzip</code>), <code>timeout</code> (milliseconds),
 <code>maxBatchSize</code>, <code>resourceAttributes</code>, <code>traceIdKey</code>/<code>spanIdKey</code>,
 and <code>keyValuesIncluded</code>/<code>keyValuesExcluded</code>.
+<code>headers</code> usually holds credentials, so it is sensitive: its values are never shown, and
+it cannot be set in the query of the <code>otlp</code> URI. Set it as its own property instead,
+preferably from your application's configuration system or <code>OTEL_EXPORTER_OTLP_HEADERS</code>
+(see below) rather than a file:
+
+{@snippet lang=properties :
+logging.appender.otel.output.otlp.headers.keys=Authorization
+logging.appender.otel.output.otlp.headers.Authorization=Bearer your-token
+}
+
 Retryable responses (429, 502, 503, 504) and network errors are retried with randomized backoff.
 The timeout bounds the whole export, including retries and response-body reads. A batch that still fails
 is dropped and reported as an <a href="#alerts">alert</a> and the <code>otlp.records.failed</code>
@@ -3607,6 +3626,9 @@ annotation processors found only on the class path. The generated builders refer
 <p>
 Once the annotation processor is enabled one can create a properties aware builder with a
 single static factory method annotated with {@link io.jstach.rainbowgum.annotation.LogConfigurable}.
+Mark a parameter that holds a secret with
+{@link io.jstach.rainbowgum.annotation.LogConfigurable.SensitiveParameter} so its value is redacted
+and cannot come from the component's URI.
 
 </p>
 
@@ -3805,7 +3827,8 @@ A key that is set but missing from the list was not read, which is reported sepa
 because a plain file output was chosen instead of a rolling one. Keys that end with a logger name, such
 as <code>logging.level.com.example</code>, are read as loggers are created, so the report
 printed at startup may not have them yet. Values of keys that look sensitive, such as ones
-containing <code>password</code> or <code>token</code>, are redacted. The same list is the
+containing <code>password</code> or <code>token</code>, are redacted, as are values of properties
+a component marks as sensitive, such as the OTLP output's <code>headers</code>. The same list is the
 {@link io.jstach.rainbowgum.LogReporter.Section#READ_PROPERTIES} section of a
 <a href="#reporting">report</a>, which is only filled in when reads are recorded.
 

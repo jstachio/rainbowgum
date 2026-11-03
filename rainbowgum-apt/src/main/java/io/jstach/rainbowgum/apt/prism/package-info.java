@@ -14,5 +14,7 @@
 				publicAccess = true),
 		@io.jstach.prism.GeneratePrism(
 				value = io.jstach.rainbowgum.annotation.LogConfigurable.PassThroughParameter.class,
+				publicAccess = true),
+		@io.jstach.prism.GeneratePrism(value = io.jstach.rainbowgum.annotation.LogConfigurable.SensitiveParameter.class,
 				publicAccess = true) })
 package io.jstach.rainbowgum.apt.prism;

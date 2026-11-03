@@ -211,4 +211,17 @@ public @interface LogConfigurable {
 
 	}
 
+	/**
+	 * Marks a parameter whose value is a secret, such as authentication headers. Its
+	 * value is redacted wherever Rainbow Gum shows it, and it cannot be set in the query
+	 * of a component's URI, since URIs end up in reports and error messages: the builder
+	 * fails instead and says to set the property on its own.
+	 */
+	@Retention(CLASS)
+	@Target({ ElementType.PARAMETER })
+	@Documented
+	public @interface SensitiveParameter {
+
+	}
+
 }
