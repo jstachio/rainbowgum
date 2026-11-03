@@ -29,11 +29,13 @@ class UriQueryUnusedKeyTest {
 	void unreadQueryParameterIsAWarning() {
 		var e = assertThrows(IllegalStateException.class,
 				() -> gum("stdout:///?stream=follow&maxFileSize=10MB").start());
-		assertEquals("""
-				1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
-				[WARNING] Property key 'logging.appender.console.output.stdout.maxFileSize' from \
-				[logging.appender.console.output.uri]->URI(stdout:///?stream=follow&maxFileSize=10MB)[maxFileSize] \
-				was set but not read during startup.""", e.getMessage());
+		assertEquals(
+				"""
+						1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
+						[WARNING] Property key 'logging.appender.console.output.stdout.maxFileSize' from \
+						[logging.appender.console.output.uri]->URI(stdout:///?stream=<REDACTED>&maxFileSize=<REDACTED>)[maxFileSize] \
+						was set but not read during startup.""",
+				e.getMessage());
 	}
 
 	@Test
@@ -73,11 +75,13 @@ class UriQueryUnusedKeyTest {
 		try {
 			var e = assertThrows(IllegalStateException.class,
 					() -> gum("stdout:///?stream=follow&maxFileSize=10MB").start());
-			assertEquals("""
-					1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
-					[WARNING] Property key 'logging.appender.console.output.stdout.maxFileSize' from \
-					[logging.appender.console.output.uri]->URI(stdout:///?stream=follow&maxFileSize=10MB)[maxFileSize] \
-					was set but not read during startup.""", e.getMessage());
+			assertEquals(
+					"""
+							1 alert(s) at warning or above were recorded while starting and logging.alerts.fail=warning:
+							[WARNING] Property key 'logging.appender.console.output.stdout.maxFileSize' from \
+							[logging.appender.console.output.uri]->URI(stdout:///?stream=<REDACTED>&maxFileSize=<REDACTED>)[maxFileSize] \
+							was set but not read during startup.""",
+					e.getMessage());
 		}
 		finally {
 			System.clearProperty("logging.appender.console.output.stdout.maxFileSize");

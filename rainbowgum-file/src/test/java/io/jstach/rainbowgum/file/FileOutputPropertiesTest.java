@@ -225,13 +225,13 @@ class FileOutputPropertiesTest {
 				String uri = Paths.get(FILE_PATH).toUri().toString();
 				String message = """
 						Validation failed for io.jstach.rainbowgum.file.FileOutputBuilder:
-						Error for property. key: 'logging.appender.file.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize], Invalid data size: 'blah'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
+						Error for property. key: 'logging.appender.file.output.file.bufferSize' from [logging.file.name]->URI(%s?bufferSize=<REDACTED>)[bufferSize], Invalid data size: 'blah'. Expected a number with an optional unit of b, k/kb/kib, m/mb/mib, g/gb/gib, or t/tb/tib (case insensitive, powers of 1024). Examples: '10MB', '512k', '1.5 GiB', '1048576'.
 						Tried:
 						    'logging.appender.file.output.file.bufferSize' from:
 						        ENVIRONMENT_VARIABLES[logging_appender_file_output_file_bufferSize],
 						        PROPERTIES_STRING[logging.appender.file.output.file.bufferSize],
-						        [logging.file.name]->URI(%s?bufferSize=blah)[bufferSize]
-						  ↳ Failure providing from property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=blah'
+						        [logging.file.name]->URI(%s?bufferSize=<REDACTED>)[bufferSize]
+						  ↳ Failure providing from property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], value: 'file:///./target/FileOutputPropertiesTest/file.log?bufferSize=<REDACTED>'
 						    Tried: 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name]
 						  ↳ Failure providing Appender: 'file' from property: Property[logging.appenders]=[file].
 						  ↳ Failure providing Appenders for route: 'default'.""" //

@@ -407,9 +407,15 @@ approach to resources and configuration.
 
 <p id="config_uri_credentials">
 <strong>Do not put credentials in a URI.</strong> Component URIs are shown in
-<a href="#reporting">reports</a> and error messages. Rainbow Gum redacts what looks like a
-secret, such as a password in <code>user:password@host</code> or a <code>token</code> parameter,
-but it can only guess. A property its component marks as sensitive, such as the
+<a href="#reporting">reports</a> and error messages. Rainbow Gum hides user information and
+all query parameter values when displaying a URI, while retaining its path and parameter
+names. The read-properties report shows resolved non-sensitive parameters individually.
+Other property values are redacted when their key looks sensitive, such as
+<code>password</code> or <code>token</code>, but that check can only guess.
+</p>
+
+<p>
+A property its component marks as sensitive, such as the
 <a href="#otlp_output">OTLP output's</a> <code>headers</code>, cannot be set in a URI query at all:
 the component fails to build and says to set the property on its own instead.
 </p>

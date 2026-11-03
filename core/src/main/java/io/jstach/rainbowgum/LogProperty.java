@@ -97,8 +97,8 @@ public interface LogProperty {
 	}
 
 	/**
-	 * Renders a URI for diagnostics with user information and sensitive query values
-	 * redacted. The returned text is for display, not for making requests.
+	 * Renders a URI for diagnostics with user information and all query values redacted.
+	 * The returned text is for display, not for making requests.
 	 * @param uri URI to display.
 	 * @return redacted URI text.
 	 */
@@ -194,8 +194,8 @@ public interface LogProperty {
 	 */
 	static <T, U> Result.Success<U> mapValue(Result.Success<T> success, U value) {
 		return switch (success) {
-			case PropertySuccess<T> ps ->
-				new PropertySuccess<>(ps.topProperties(), ps.properties(), ps.key(), ps.rawValue(), ps.kind(), value);
+			case PropertySuccess<T> ps -> new PropertySuccess<>(ps.topProperties(), ps.properties(), ps.key(),
+					ps.rawValue(), ps.kind(), value, ps.sensitive());
 		};
 	}
 
@@ -266,6 +266,10 @@ public interface LogProperty {
 		PropertySuccess<?> ps = switch (previousResult) {
 			case PropertySuccess<?> p -> p;
 		};
+		if (ps.sensitive()) {
+			// Converter messages, causes and suppressed exceptions may quote the secret.
+			e = LogRedactor.redactException(e);
+		}
 		if (ps.kind() == PropertySuccess.Kind.VALUE) {
 			String resolvedKey = ps.topProperties().description(fqk);
 			String message = "Error for property. key: " + resolvedKey + ", " + e.getMessage();
@@ -389,6 +393,9 @@ public interface LogProperty {
 	 * Generated builders use this for parameters marked
 	 * {@code LogConfigurable.SensitiveParameter}.
 	 * @return a property with the same keys that treats its value as a secret.
+	 * @apiNote Sensitive conversion failures retain the converter's exception type name
+	 * and stack frames, but omit its original message, causes and suppressed exceptions,
+	 * which may contain the value.
 	 */
 	default LogProperty sensitive() {
 		return new DefaultLogProperty(keys(), properties(), true);
@@ -988,14 +995,26 @@ public interface LogProperty {
 		 * supplied fallback.
 		 * @param keys keys.
 		 * @param message description of where the property is missing.
+		 * @param sensitive whether a supplied fallback must also be treated as a secret.
 		 */
-		public record Missing<T>(LogProperties properties, List<String> keys,
-				String message) implements ValidatedResult<T> {
+		public record Missing<T>(LogProperties properties, List<String> keys, String message,
+				boolean sensitive) implements ValidatedResult<T> {
+			/**
+			 * Creates a missing result for a property that is not marked sensitive.
+			 * @param properties the properties that were searched.
+			 * @param keys keys.
+			 * @param message description of where the property is missing.
+			 */
+			public Missing(LogProperties properties, List<String> keys, String message) {
+				this(properties, keys, message, false);
+			}
+
 			/**
 			 * A property that is missing (<code>null</code>).
 			 * @param properties the properties that were searched.
 			 * @param keys keys.
 			 * @param message description of where the property is missing.
+			 * @param sensitive whether a fallback is sensitive.
 			 */
 			public Missing {
 				if (keys.isEmpty()) {
@@ -1017,7 +1036,7 @@ public interface LogProperty {
 			public Result<T> or(@Nullable T fallback) {
 				if (fallback != null) {
 					return new PropertySuccess<>(properties, properties, keys.get(0), fallback,
-							PropertySuccess.Kind.VALUE, fallback);
+							PropertySuccess.Kind.VALUE, fallback, sensitive);
 				}
 				return this;
 			}
@@ -1279,6 +1298,11 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 		return "Property[" + key + "]=" + valueDescription();
 	}
 
+	@Override
+	public String toString() {
+		return describe();
+	}
+
 	String valueDescription() {
 		if (sensitive) {
 			return LogRedactor.REDACTED_VALUE;
@@ -1302,6 +1326,17 @@ final class LogRedactor {
 			"passphrase", "credential", "privatekey", "accesskey", "authorization");
 
 	static final String REDACTED_VALUE = "<REDACTED>";
+
+	/*
+	 * Keep the converter's type and frames for debugging, but no original throwable: its
+	 * message, cause or suppressed exceptions can each contain the secret.
+	 */
+	static IllegalArgumentException redactException(Exception exception) {
+		var safe = new IllegalArgumentException(
+				exception.getClass().getName() + ": the value is not shown because it is sensitive");
+		safe.setStackTrace(exception.getStackTrace());
+		return safe;
+	}
 
 	static String redactProperty(String key, String input) {
 		if (sensitiveKey(key)) {
@@ -1344,7 +1379,7 @@ final class LogRedactor {
 		String query = uri.getRawQuery();
 		if (query != null) {
 			int queryStart = source.indexOf('?') + 1;
-			result.replace(queryStart, queryStart + query.length(), redactQuery(query));
+			result.replace(queryStart, queryStart + query.length(), redactQuery(query, true));
 		}
 		String authority = uri.getRawAuthority();
 		if (authority != null) {
@@ -1380,6 +1415,10 @@ final class LogRedactor {
 	}
 
 	private static String redactQuery(String query) {
+		return redactQuery(query, false);
+	}
+
+	private static String redactQuery(String query, boolean allValues) {
 		var result = new StringBuilder();
 		int start = 0;
 		for (int i = 0; i <= query.length(); i++) {
@@ -1392,7 +1431,8 @@ final class LogRedactor {
 					String decodedKey = PercentCodec.decode(key, StandardCharsets.UTF_8);
 					result.append(key)
 						.append('=')
-						.append(sensitiveKey(decodedKey) || sensitiveValue(value) ? REDACTED_VALUE : value);
+						.append(allValues || sensitiveKey(decodedKey) || sensitiveValue(value) ? REDACTED_VALUE
+								: value);
 				}
 				else {
 					result.append(pair);
@@ -1489,7 +1529,7 @@ final class DefaultLogProperty implements LogProperty {
 			}));
 		}
 		catch (MapFormException e) {
-			var cause = e.cause;
+			var cause = sensitive ? LogRedactor.redactException(e.cause) : e.cause;
 			return new Result.Error<>(e.resolvedKey,
 					"Error for property. key: " + e.resolvedKey + ", " + cause.getMessage(), cause);
 		}
@@ -1516,6 +1556,12 @@ final class DefaultLogProperty implements LogProperty {
 
 	private <T> Result<T> resolve(java.util.function.Function<String, Result.@Nullable Success<T>> lookup) {
 		if (sensitive) {
+			var check = UnusedKeyCheck.findOrNull(properties);
+			if (check != null) {
+				for (String k : keys) {
+					check.sensitive(k);
+				}
+			}
 			for (String k : keys) {
 				Result.@Nullable Error<T> error = uriQueryErrorOrNull(k);
 				if (error != null) {
@@ -1526,7 +1572,7 @@ final class DefaultLogProperty implements LogProperty {
 		for (String k : keys) {
 			var success = lookup.apply(k);
 			if (success != null) {
-				return sensitive ? sensitive(k, success) : success;
+				return sensitive ? sensitive(success) : success;
 			}
 		}
 		return missingResult(properties, keys);
@@ -1550,14 +1596,10 @@ final class DefaultLogProperty implements LogProperty {
 		return new Result.Error<>(key, message, new IllegalArgumentException(message));
 	}
 
-	private <T> Result<T> sensitive(String key, Result.Success<T> success) {
+	private <T> Result<T> sensitive(Result.Success<T> success) {
 		PropertySuccess<T> ps = switch (success) {
 			case PropertySuccess<T> p -> p;
 		};
-		var check = UnusedKeyCheck.findOrNull(properties);
-		if (check != null) {
-			check.sensitive(key);
-		}
 		return ps.asSensitive();
 	}
 
@@ -1578,7 +1620,7 @@ final class DefaultLogProperty implements LogProperty {
 			}
 			message = "Property missing. " + label + ":\n    " + String.join(",\n    ", descriptions);
 		}
-		return new Result.Missing<>(props, keys, message);
+		return new Result.Missing<>(props, keys, message, sensitive);
 	}
 
 	List<String> describeKeys(LogProperties props, List<String> keys) {

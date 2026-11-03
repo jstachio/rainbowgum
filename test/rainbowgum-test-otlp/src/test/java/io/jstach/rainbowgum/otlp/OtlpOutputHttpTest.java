@@ -274,11 +274,11 @@ class OtlpOutputHttpTest {
 		var alert = config.alerts().dump().getLast();
 		assertEquals(
 				"""
-						OTLP export to http://<REDACTED>@localhost/v1/logs?password=<REDACTED>&tenant=test failed; dropped 1 log records""",
+						OTLP export to http://<REDACTED>@localhost/v1/logs?password=<REDACTED>&tenant=<REDACTED> failed; dropped 1 log records""",
 				normalizeEndpoint(alert.message()));
 		assertEquals(
 				"""
-						java.io.IOException: HTTP 400 from http://<REDACTED>@localhost/v1/logs?password=<REDACTED>&tenant=test: bad request""",
+						java.io.IOException: HTTP 400 from http://<REDACTED>@localhost/v1/logs?password=<REDACTED>&tenant=<REDACTED>: bad request""",
 				normalizeEndpoint(String.valueOf(alert.throwableOrNull())));
 	}
 

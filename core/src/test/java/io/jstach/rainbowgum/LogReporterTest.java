@@ -66,15 +66,15 @@ class LogReporterTest {
 		ENCODED_KEYS("custom:///path?%70assword=kenny&api%5Fkey=kenny",
 				"custom:///path?%70assword=<REDACTED>&api%5Fkey=<REDACTED>"),
 		REPEATED_KEYS("custom:///path?password=kenny&password=other,secret=third&plain=a%26b%3Dc",
-				"custom:///path?password=<REDACTED>&password=<REDACTED>,secret=<REDACTED>&plain=a%26b%3Dc"),
+				"custom:///path?password=<REDACTED>&password=<REDACTED>,secret=<REDACTED>&plain=<REDACTED>"),
 		EMPTY_VALUES_AND_FLAGS("custom:///path?password=&token&flag&plain=",
-				"custom:///path?password=<REDACTED>&token&flag&plain="),
+				"custom:///path?password=<REDACTED>&token&flag&plain=<REDACTED>"),
 		USER_INFO("custom://alice:kenny@example.com:123/path?password=kenny&plain=hello#fragment",
-				"custom://<REDACTED>@example.com:123/path?password=<REDACTED>&plain=hello#fragment"),
+				"custom://<REDACTED>@example.com:123/path?password=<REDACTED>&plain=<REDACTED>#fragment"),
 		USERNAME_ONLY("custom://kenny@example.com/path", "custom://<REDACTED>@example.com/path"),
 		REGISTRY_AUTHORITY("custom://alice:kenny@my_host/path", "custom://<REDACTED>@my_host/path"),
 		ORDINARY_PARAMETERS("custom:///a%20b?plain=%26%3D%20&mode=append#hello%20there",
-				"custom:///a%20b?plain=%26%3D%20&mode=append#hello%20there"),
+				"custom:///a%20b?plain=<REDACTED>&mode=<REDACTED>#hello%20there"),
 		EMPTY_QUERY("custom:///?#fragment", "custom:///?#fragment"), NO_QUERY("custom:///path", "custom:///path"),
 		NO_AUTHORITY("custom:/path?token=kenny", "custom:/path?token=<REDACTED>"), RELATIVE_AUTHORITY(
 				"//alice:kenny@example.com/path?token=kenny", "//<REDACTED>@example.com/path?token=<REDACTED>");
@@ -320,12 +320,12 @@ class LogReporterTest {
 					  logging.alerts.unusedKey
 					  logging.appender.console.encoder.json5.color
 					  logging.appender.console.encoder.json5.format
-					  logging.appender.console.encoder.json5.keyValues = none ([logging.appender.console.encoder.uri]->URI(json5:///?keyValues=none)[keyValues])
+					  logging.appender.console.encoder.json5.keyValues = none ([logging.appender.console.encoder.uri]->URI(json5:///?keyValues=<REDACTED>)[keyValues])
 					  logging.appender.console.encoder.json5.prettyPrint
 					  logging.appender.console.encoder.json5.theme
 					  logging.appender.console.encoder.json5.thread = name (PROPERTIES_STRING)
 					  logging.appender.console.encoder.postProcessors
-					  logging.appender.console.encoder.uri = json5:///?keyValues=none (PROPERTIES_STRING)
+					  logging.appender.console.encoder.uri = json5:///?keyValues=<REDACTED> (PROPERTIES_STRING)
 					  logging.appender.console.flags
 					  logging.appender.console.output.stdout.stream
 					  logging.appender.console.output.uri

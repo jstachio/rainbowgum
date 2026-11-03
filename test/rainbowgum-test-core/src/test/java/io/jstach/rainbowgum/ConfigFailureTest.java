@@ -120,7 +120,7 @@ class ConfigFailureTest {
 				logging.appender.myapp.output.uri=bogus://alice:kenny@example.com/path?token=kenny&mode=append
 				""",
 				"""
-						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus://<REDACTED>@example.com/path?token=<REDACTED>&mode=append'. Registered output schemes: 'list', 'stderr', 'stdout'
+						Error for property. key: 'logging.appender.myapp.output.uri' from PROPERTIES_STRING[logging.appender.myapp.output.uri], NotFoundException No output found. Scheme not registered. scheme: 'bogus', URI: 'bogus://<REDACTED>@example.com/path?token=<REDACTED>&mode=<REDACTED>'. Registered output schemes: 'list', 'stderr', 'stdout'
 						  ↳ Failure providing Appender: 'myapp' from property: Property[logging.appenders]=[myapp].
 						  ↳ Failure providing Appenders for route: 'default'."""),
 

@@ -1,8 +1,12 @@
 package io.jstach.rainbowgum.otlp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.Map;
 import java.util.function.Function;
@@ -11,11 +15,15 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProviderRef;
+import io.jstach.rainbowgum.LogReporter;
+import io.jstach.rainbowgum.RainbowGum;
 
 /*
  * OtlpEnvironment.source is static, so these tests run isolated.
@@ -71,6 +79,39 @@ class OtlpConfigTest {
 				Error for property. key: 'logging.appender.otlp.output.otlp.headers' is sensitive, so it cannot be set \
 				in the query of a component's URI. Set 'logging.appender.otlp.output.otlp.headers' as its own property \
 				instead.""", e.getMessage());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "headers=X-Honeycomb-Team%3Dsample-secret", "headers.X-Honeycomb-Team=sample-secret",
+			"headers.keys=X-Honeycomb-Team&headers.X-Honeycomb-Team=sample-secret" })
+	void startupRejectionAndReadReportDoNotLeakHeaders(String query) {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties("logging.appender.console.output.uri=otlp:///?" + query)
+				.build())
+			.configurator(new OtlpConfigurator())
+			.build();
+		var failure = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build());
+		var trace = new StringWriter();
+		failure.printStackTrace(new PrintWriter(trace));
+		assertFalse(trace.toString().contains("sample-secret"), trace.toString());
+		assertTrue(
+				failure.getMessage().contains("Set 'logging.appender.console.output.otlp.headers' as its own property"),
+				failure.getMessage());
+		String report = config.reporter().report(LogReporter.Options.of(LogReporter.Section.READ_PROPERTIES));
+		assertFalse(report.contains("sample-secret"), report);
+		assertTrue(report.contains("logging.appender.console.output.otlp.headers"), report);
+	}
+
+	@Test
+	void startupRejectionDoesNotRequireReadRecording() {
+		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
+				logging.alerts.fail=off
+				logging.appender.console.output.uri=otlp:///?headers=X-Honeycomb-Team%3Dsample-secret
+				""").build()).configurator(new OtlpConfigurator()).build();
+		var failure = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build());
+		assertFalse(failure.getMessage().contains("sample-secret"), failure.getMessage());
+		assertTrue(failure.getMessage().contains("is sensitive"), failure.getMessage());
 	}
 
 	@Test
