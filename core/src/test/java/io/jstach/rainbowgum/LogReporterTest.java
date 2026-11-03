@@ -1,6 +1,7 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -13,6 +14,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogReporter.Section;
+import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogReporterTest {
 
@@ -347,6 +349,33 @@ class LogReporterTest {
 					  logging.routes
 					""";
 			assertEquals(expected, actual);
+		}
+	}
+
+	@Test
+	void readPropertiesRedactsCredentialsInNestedEndpointUris() {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties(
+						"logging.appender.console.output.uri=mapped:///?endpoint=http%3A%2F%2Falice%3Ademo-password-42%40localhost%3A4318%2Fv1%2Flogs")
+				.build())
+			.build();
+		config.outputRegistry().register("mapped", ref -> (name, c) -> {
+			String prefix = "logging.appender." + name + ".output.mapped.";
+			var properties = LogProperties.of(ref.uri(), prefix, c.properties(), ref.keyOrNull());
+			assertEquals("alice:demo-password-42",
+					properties.forKey(prefix + "endpoint").ofURI().validateNow(LogOutput.class).getUserInfo(),
+					"Only diagnostic text is redacted");
+			return new ListLogOutput();
+		});
+		try (var gum = RainbowGum.builder(config).build().start()) {
+			String report = config.reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
+			assertTrue(report.contains("logging.appender.console.output.uri = mapped:///?endpoint=<REDACTED>"), report);
+			assertTrue(report.contains("URI(mapped:///?endpoint=<REDACTED>)[endpoint]"), report);
+			assertTrue(report
+				.contains("logging.appender.console.output.mapped.endpoint = http://<REDACTED>@localhost:4318/v1/logs"),
+					report);
+			assertFalse(report.contains("demo-password-42"), report);
 		}
 	}
 

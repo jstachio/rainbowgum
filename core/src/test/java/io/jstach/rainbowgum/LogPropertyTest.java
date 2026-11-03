@@ -291,6 +291,14 @@ class LogPropertyTest {
 			"logging.appender.a.output.uri|otlp://host/?headers=Authorization%3DBearer%20abc&gzip=true|otlp://host/?headers=<REDACTED>&gzip=true",
 			"logging.appender.a.output.uri|otlp://host/?headers=Authorization=Bearer%20abc|otlp://host/?headers=<REDACTED>",
 			"logging.appender.a.output.uri|otlp://host/?headers=X-Team%3Dcore&gzip=true|otlp://host/?headers=X-Team%3Dcore&gzip=true",
+			"logging.appender.a.output.uri|otlp://host/?endpoint=http%3A%2F%2Falice%3Apw%40host%2Flogs&gzip=true|otlp://host/?endpoint=<REDACTED>&gzip=true",
+			"logging.appender.a.output.uri|otlp://host/?endpoint=http://alice:pw@host/logs|otlp://host/?endpoint=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://host/?endpoint=http%3A%2F%2Falice%3Apw%40host%2Flogs%3Fmode%3Dappend|otlp://host/?endpoint=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://host/?endpoint=%2F%2Falice%3Apw%40my_host%2Flogs|otlp://host/?endpoint=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://host/?endpoint=http%3A%2F%2Falice%40host%2Flogs|otlp://host/?endpoint=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://host/?headers=proxy%3Dhttp%253A%252F%252Falice%253Apw%2540host|otlp://host/?headers=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://host/?endpoint=http%3A%2F%2Fhost%2Fa%40b%3Fmode%3Dappend|otlp://host/?endpoint=http%3A%2F%2Fhost%2Fa%40b%3Fmode%3Dappend",
+			"logging.appender.a.output.uri|otlp://host/?address=mailto%3Aalice%40example.com|otlp://host/?address=mailto%3Aalice%40example.com",
 			"logging.appender.a.encoder.pattern.pattern|%d user=%X{user} %msg%n|%d user=%X{user} %msg%n" })
 	void redactValueRedactsSensitivePairs(String key, String value, String expected) {
 		assertEquals(expected, LogRedactor.redactValue(key, value));

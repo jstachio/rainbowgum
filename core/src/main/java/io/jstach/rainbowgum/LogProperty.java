@@ -1328,11 +1328,23 @@ final class LogRedactor {
 	}
 
 	/*
-	 * A value can be a map itself, such as ?headers=Authorization%3DBearer%20x, so it is
-	 * redacted whole when a key in it is sensitive.
+	 * A value can itself be a URI with user information or a map with sensitive keys.
+	 * Redact the whole value so neither the parent URI nor its source description can
+	 * expose credentials that are masked when the decoded property is shown on its own.
 	 */
-	private static boolean sensitiveMap(String value) {
+	private static boolean sensitiveValue(String value) {
 		String decoded = PercentCodec.decode(value, StandardCharsets.UTF_8);
+		if (decoded.indexOf('@') >= 0) {
+			try {
+				String authority = new URI(decoded).getRawAuthority();
+				if (authority != null && authority.lastIndexOf('@') >= 0) {
+					return true;
+				}
+			}
+			catch (URISyntaxException e) {
+				// A map value need not be a valid URI; check its keys below.
+			}
+		}
 		return decoded.indexOf('=') >= 0 && !redactQuery(decoded).equals(decoded);
 	}
 
@@ -1349,7 +1361,7 @@ final class LogRedactor {
 					String decodedKey = PercentCodec.decode(key, StandardCharsets.UTF_8);
 					result.append(key)
 						.append('=')
-						.append(sensitiveKey(decodedKey) || sensitiveMap(value) ? REDACTED_VALUE : value);
+						.append(sensitiveKey(decodedKey) || sensitiveValue(value) ? REDACTED_VALUE : value);
 				}
 				else {
 					result.append(pair);
