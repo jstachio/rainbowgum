@@ -17,7 +17,9 @@ import io.jstach.rainbowgum.RainbowGum;
  * collide with any other contributor's own top level keys.
  * <p>
  * Each section is rendered as its own single-section report from the bound config's
- * {@link LogReporter}.
+ * {@link LogReporter}, except {@link Section#READ_PROPERTIES}: info is often exposed more
+ * widely than {@code /actuator/env}, which Spring Boot masks values in by default, so
+ * property values are left out.
  */
 final class RainbowGumInfoContributor implements InfoContributor {
 
@@ -38,6 +40,9 @@ final class RainbowGumInfoContributor implements InfoContributor {
 		}
 		Map<String, String> sections = new LinkedHashMap<>();
 		for (Section section : Section.values()) {
+			if (section == Section.READ_PROPERTIES) {
+				continue;
+			}
 			sections.put(section.name().toLowerCase(Locale.ROOT),
 					gum.config().reporter().report(LogReporter.Options.of(section)));
 		}

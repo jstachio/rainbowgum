@@ -299,4 +299,38 @@ class LogReporterTest {
 		}
 	}
 
+	@Test
+	void testReadProperties() {
+		var properties = LogProperties.builder().fromProperties("""
+				logging.appenders=console
+				logging.appender.console.encoder.uri=json5:///?keyValues=none
+				logging.appender.console.encoder.json5.thread=name
+				logging.appender.console.encoder.ttll.level=plain
+				""").build();
+		var config = LogConfig.builder().properties(properties).alertsFail(LogAlerts.FailLevel.WARNING).build();
+		try (var gum = RainbowGum.builder(config).build()) {
+			String actual = gum.config().reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
+			String expected = """
+					Read Properties:
+					  logging.appender.console.encoder.json5.keyValues = none ([logging.appender.console.encoder.uri]->URI(json5:///?keyValues=none)[keyValues])
+					  logging.appender.console.encoder.json5.thread = name (PROPERTIES_STRING)
+					  logging.appender.console.encoder.uri = json5:///?keyValues=none (PROPERTIES_STRING)
+					  logging.appenders = console (PROPERTIES_STRING)
+					""";
+			assertEquals(expected, actual);
+		}
+	}
+
+	@Test
+	void testReadPropertiesNotRecorded() {
+		try (var gum = RainbowGum.builder().build()) {
+			String actual = gum.config().reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
+			String expected = """
+					Read Properties:
+					  (reads are not recorded, run with -Dlogging.debug=help)
+					""";
+			assertEquals(expected, actual);
+		}
+	}
+
 }

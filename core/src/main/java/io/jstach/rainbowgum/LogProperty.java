@@ -1287,6 +1287,16 @@ final class LogRedactor {
 		}
 	}
 
+	/*
+	 * For listing values rather than describing one in an error: a value that is not a
+	 * URI can still hold sensitive pairs, such as a map property written as
+	 * Authorization=Bearer x.
+	 */
+	static String redactValue(String key, String value) {
+		String redacted = redactProperty(key, value);
+		return redacted.indexOf('=') < 0 ? redacted : redactQuery(redacted);
+	}
+
 	private static boolean sensitiveKey(String key) {
 		String normalizedKey = key.toLowerCase(Locale.ROOT).replace(".", "").replace("_", "").replace("-", "");
 		for (var k : REDACTED_KEYS) {

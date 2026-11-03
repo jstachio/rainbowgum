@@ -314,7 +314,12 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		router().start(config());
 		var debugMode = config().debugMode();
 		if (debugMode == LogConfig.DebugModeType.ALL || debugMode == LogConfig.DebugModeType.HELP) {
-			var report = config().reporter().report();
+			var report = config().reporter()
+				.report(LogReporter.Options.builder()
+					.section(LogReporter.Section.VERSION)
+					.section(LogReporter.Section.COMPONENTS)
+					.section(LogReporter.Section.READ_PROPERTIES)
+					.build());
 			MetaLog.error(LogEventFactory.of(RainbowGum.class.getName())
 				.eventNoArg(Level.INFO, "Rainbow Gum started:\n" + report, null));
 		}
