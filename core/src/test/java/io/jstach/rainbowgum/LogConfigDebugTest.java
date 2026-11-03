@@ -173,7 +173,45 @@ class LogConfigDebugTest {
 						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=default theme=rainbowgum colored=false")
 
 						Read Properties:
-						  (none)
+						  logging.alerts.capacity
+						  logging.alerts.fail
+						  logging.alerts.unobservedErrorsAction
+						  logging.alerts.unusedKey
+						  logging.appender.console.encoder.postProcessors
+						  logging.appender.console.encoder.ttll.color
+						  logging.appender.console.encoder.ttll.keyValues
+						  logging.appender.console.encoder.ttll.keyValuesWhenEmpty
+						  logging.appender.console.encoder.ttll.level
+						  logging.appender.console.encoder.ttll.logger
+						  logging.appender.console.encoder.ttll.theme
+						  logging.appender.console.encoder.ttll.thread
+						  logging.appender.console.encoder.ttll.timestamp
+						  logging.appender.console.encoder.uri
+						  logging.appender.console.flags
+						  logging.appender.console.output.stdout.stream
+						  logging.appender.console.output.uri
+						  logging.appender.console.type
+						  logging.appenders
+						  logging.change.mode
+						  logging.file.name
+						  logging.global.ansi.mode
+						  logging.global.appender.lock
+						  logging.global.lineSeparator
+						  logging.global.optimize
+						  logging.global.queue.error
+						  logging.global.queue.level
+						  logging.global.threadLocal
+						  logging.groups
+						  logging.keyvalues.sources
+						  logging.level
+						  logging.level.root
+						  logging.route.default.appenders
+						  logging.route.default.filters
+						  logging.route.default.flags
+						  logging.route.default.level
+						  logging.route.default.level.root
+						  logging.route.default.publisher.uri
+						  logging.routes
 
 						"""
 					.replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);
@@ -390,7 +428,45 @@ class LogConfigDebugTest {
 						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=default theme=rainbowgum colored=false")
 
 						Read Properties:
-						  (none)
+						  logging.alerts.capacity
+						  logging.alerts.fail
+						  logging.alerts.unobservedErrorsAction
+						  logging.alerts.unusedKey
+						  logging.appender.console.encoder.postProcessors
+						  logging.appender.console.encoder.ttll.color
+						  logging.appender.console.encoder.ttll.keyValues
+						  logging.appender.console.encoder.ttll.keyValuesWhenEmpty
+						  logging.appender.console.encoder.ttll.level
+						  logging.appender.console.encoder.ttll.logger
+						  logging.appender.console.encoder.ttll.theme
+						  logging.appender.console.encoder.ttll.thread
+						  logging.appender.console.encoder.ttll.timestamp
+						  logging.appender.console.encoder.uri
+						  logging.appender.console.flags
+						  logging.appender.console.output.stdout.stream
+						  logging.appender.console.output.uri
+						  logging.appender.console.type
+						  logging.appenders
+						  logging.change.mode
+						  logging.file.name
+						  logging.global.ansi.mode
+						  logging.global.appender.lock
+						  logging.global.lineSeparator
+						  logging.global.optimize
+						  logging.global.queue.error
+						  logging.global.queue.level
+						  logging.global.threadLocal
+						  logging.groups
+						  logging.keyvalues.sources
+						  logging.level
+						  logging.level.root
+						  logging.route.default.appenders
+						  logging.route.default.filters
+						  logging.route.default.flags
+						  logging.route.default.level
+						  logging.route.default.level.root
+						  logging.route.default.publisher.uri
+						  logging.routes
 
 						[INFO] - RAINBOW_GUM - LogConfig - Property key 'logging.encoder.console.made.up' from SYSTEM_PROPERTIES[logging.encoder.console.made.up] was set but not read during startup.
 						"""

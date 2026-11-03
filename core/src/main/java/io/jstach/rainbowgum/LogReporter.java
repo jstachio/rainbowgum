@@ -180,10 +180,11 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		 */
 		FACADES,
 		/**
-		 * Every property key read so far that has a value, with the value and where it
-		 * came from, including the query parameters of a component's URI. Values of
-		 * sensitive looking keys are redacted. Reads are recorded in the
-		 * {@linkplain LogConfig.DebugModeType#ALL all} and
+		 * Every property key read so far, in key order: a set key with its value and
+		 * where it came from, including the query parameters of a component's URI, and an
+		 * unset key by itself, so the keys a chosen component reads show next to the ones
+		 * that were set. Values of sensitive looking keys are redacted. Reads are
+		 * recorded in the {@linkplain LogConfig.DebugModeType#ALL all} and
 		 * {@linkplain LogConfig.DebugModeType#HELP help} debug modes, which print this
 		 * section when Rainbow Gum starts, and when
 		 * {@value LogProperties#ALERTS_FAIL_PROPERTY} fails on misspelled keys.
@@ -675,13 +676,12 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 			out.append("  (none)\n");
 		}
 		for (var read : reads) {
-			out.append("  ")
-				.append(read.key())
-				.append(" = ")
-				.append(read.value())
-				.append(" (")
-				.append(read.description())
-				.append(")\n");
+			out.append("  ").append(read.key());
+			String value = read.value();
+			if (value != null) {
+				out.append(" = ").append(value).append(" (").append(String.valueOf(read.description())).append(")");
+			}
+			out.append("\n");
 		}
 	}
 
