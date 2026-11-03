@@ -288,6 +288,9 @@ class LogPropertyTest {
 			"logging.appender.a.output.otlp.headers|Authorization=Bearer abc,X-Team=core|Authorization=<REDACTED>,X-Team=core",
 			"logging.appender.a.output.otlp.apiKey|abc|<REDACTED>",
 			"logging.appender.a.output.uri|otlp://user:pw@host/?token=abc&gzip=true|otlp://<REDACTED>@host/?token=<REDACTED>&gzip=true",
+			"logging.appender.a.output.uri|otlp://host/?headers=Authorization%3DBearer%20abc&gzip=true|otlp://host/?headers=<REDACTED>&gzip=true",
+			"logging.appender.a.output.uri|otlp://host/?headers=Authorization=Bearer%20abc|otlp://host/?headers=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://host/?headers=X-Team%3Dcore&gzip=true|otlp://host/?headers=X-Team%3Dcore&gzip=true",
 			"logging.appender.a.encoder.pattern.pattern|%d user=%X{user} %msg%n|%d user=%X{user} %msg%n" })
 	void redactValueRedactsSensitivePairs(String key, String value, String expected) {
 		assertEquals(expected, LogRedactor.redactValue(key, value));

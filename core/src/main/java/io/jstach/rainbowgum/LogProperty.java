@@ -1327,6 +1327,15 @@ final class LogRedactor {
 		return result.toString();
 	}
 
+	/*
+	 * A value can be a map itself, such as ?headers=Authorization%3DBearer%20x, so it is
+	 * redacted whole when a key in it is sensitive.
+	 */
+	private static boolean sensitiveMap(String value) {
+		String decoded = PercentCodec.decode(value, StandardCharsets.UTF_8);
+		return decoded.indexOf('=') >= 0 && !redactQuery(decoded).equals(decoded);
+	}
+
 	private static String redactQuery(String query) {
 		var result = new StringBuilder();
 		int start = 0;
@@ -1336,10 +1345,11 @@ final class LogRedactor {
 				int equals = pair.indexOf('=');
 				if (equals >= 0) {
 					String key = pair.substring(0, equals);
+					String value = pair.substring(equals + 1);
 					String decodedKey = PercentCodec.decode(key, StandardCharsets.UTF_8);
 					result.append(key)
 						.append('=')
-						.append(sensitiveKey(decodedKey) ? REDACTED_VALUE : pair.substring(equals + 1));
+						.append(sensitiveKey(decodedKey) || sensitiveMap(value) ? REDACTED_VALUE : value);
 				}
 				else {
 					result.append(pair);
