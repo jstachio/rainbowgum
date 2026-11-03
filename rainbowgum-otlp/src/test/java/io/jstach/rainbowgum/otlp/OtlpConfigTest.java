@@ -95,9 +95,8 @@ class OtlpConfigTest {
 		var trace = new StringWriter();
 		failure.printStackTrace(new PrintWriter(trace));
 		assertFalse(trace.toString().contains("sample-secret"), trace.toString());
-		assertTrue(
-				failure.getMessage().contains("Set 'logging.appender.console.output.otlp.headers' as its own property"),
-				failure.getMessage());
+		String message = String.valueOf(failure.getMessage());
+		assertTrue(message.contains("Set 'logging.appender.console.output.otlp.headers' as its own property"), message);
 		String report = config.reporter().report(LogReporter.Options.of(LogReporter.Section.READ_PROPERTIES));
 		assertFalse(report.contains("sample-secret"), report);
 		assertTrue(report.contains("logging.appender.console.output.otlp.headers"), report);
@@ -110,8 +109,9 @@ class OtlpConfigTest {
 				logging.appender.console.output.uri=otlp:///?headers=X-Honeycomb-Team%3Dsample-secret
 				""").build()).configurator(new OtlpConfigurator()).build();
 		var failure = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build());
-		assertFalse(failure.getMessage().contains("sample-secret"), failure.getMessage());
-		assertTrue(failure.getMessage().contains("is sensitive"), failure.getMessage());
+		String message = String.valueOf(failure.getMessage());
+		assertFalse(message.contains("sample-secret"), message);
+		assertTrue(message.contains("is sensitive"), message);
 	}
 
 	@Test
