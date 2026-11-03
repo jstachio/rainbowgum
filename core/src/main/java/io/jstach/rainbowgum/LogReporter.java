@@ -178,7 +178,17 @@ public sealed interface LogReporter permits DefaultLogReporter {
 		 * seeing both {@code SLF4J} and {@code JUL} means both facades are in active use
 		 * (not just on the classpath).
 		 */
-		FACADES;
+		FACADES,
+		/**
+		 * Every property key read so far that has a value, with the value and where it
+		 * came from, including the query parameters of a component's URI. Values of
+		 * sensitive looking keys are redacted. Reads are recorded in the
+		 * {@linkplain LogConfig.DebugModeType#ALL all} and
+		 * {@linkplain LogConfig.DebugModeType#HELP help} debug modes, which print this
+		 * section when Rainbow Gum starts, and when
+		 * {@value LogProperties#ALERTS_FAIL_PROPERTY} fails on misspelled keys.
+		 */
+		READ_PROPERTIES;
 
 	}
 
@@ -398,6 +408,10 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 		if (sections.contains(LogReporter.Section.FACADES)) {
 			first = appendSeparator(out, first);
 			appendFacades(out, config);
+		}
+		if (sections.contains(LogReporter.Section.READ_PROPERTIES)) {
+			first = appendSeparator(out, first);
+			appendReadProperties(out, config);
 		}
 	}
 
@@ -646,6 +660,28 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 				out.append(" = ").append(config.levelResolver().resolveLevel(name).toString());
 			}
 			out.append("\n");
+		}
+	}
+
+	private void appendReadProperties(Appendable out, LogConfig config) throws IOException {
+		out.append("Read Properties:\n");
+		var check = config instanceof DefaultLogConfig c ? c.unusedKeyCheck() : null;
+		if (check == null) {
+			out.append("  (reads are not recorded, run with -Dlogging.debug=help)\n");
+			return;
+		}
+		var reads = check.read(config.properties());
+		if (reads.isEmpty()) {
+			out.append("  (none)\n");
+		}
+		for (var read : reads) {
+			out.append("  ")
+				.append(read.key())
+				.append(" = ")
+				.append(read.value())
+				.append(" (")
+				.append(read.description())
+				.append(")\n");
 		}
 	}
 

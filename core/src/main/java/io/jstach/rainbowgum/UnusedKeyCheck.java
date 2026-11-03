@@ -21,8 +21,9 @@ import io.jstach.rainbowgum.properties.ForwardingLogProperties;
 /*
  * Used by logging.debug=help and all. Records every property key read through the
  * layers it wraps, then finds keys that were set in a layer that can list its keys but
- * never read, suggesting the read key each was probably meant to be. Package private so
- * nothing outside core can depend on it, even from the classpath.
+ * never read, suggesting the read key each was probably meant to be. The same reads also
+ * list the keys that were read and set, for the report. Package private so nothing
+ * outside core can depend on it, even from the classpath.
  */
 final class UnusedKeyCheck {
 
@@ -120,6 +121,17 @@ final class UnusedKeyCheck {
 	}
 
 	/**
+	 * A key that was read and set.
+	 *
+	 * @param key the key.
+	 * @param value its value, redacted.
+	 * @param description where the value came from.
+	 */
+	record Read(String key, String value, String description) {
+
+	}
+
+	/**
 	 * Creates a check over sources.
 	 * @param sources layers that can list their keys, highest priority first.
 	 */
@@ -198,6 +210,51 @@ final class UnusedKeyCheck {
 			}
 		}
 		return unused;
+	}
+
+	/**
+	 * Keys read so far that have a value, in key order. A key is described by the layer
+	 * that supplied its value, or by the URI whose query did when no layer has it, the
+	 * same order {@link LogProperties#of(URI, String, LogProperties, String)} looks them
+	 * up in.
+	 * @param properties the recording properties the reads went through.
+	 * @return keys with their values.
+	 */
+	List<Read> read(LogProperties properties) {
+		var read = new ArrayList<Read>();
+		for (String key : new TreeSet<>(reads)) {
+			var found = properties.<@Nullable Read>visit(key, (source, sourceKey) -> {
+				String value = source.valueOrNull(sourceKey);
+				return value == null ? null : read(key, value, source.description(sourceKey));
+			});
+			if (found == null) {
+				for (var source : sources) {
+					if (source.kind() != KeyKind.URI_QUERY) {
+						continue;
+					}
+					String value = source.properties().valueOrNull(key);
+					if (value != null) {
+						found = read(key, value, source.properties().description(key));
+						break;
+					}
+				}
+			}
+			if (found != null) {
+				read.add(found);
+			}
+		}
+		return read;
+	}
+
+	/*
+	 * Most descriptions end with the key itself, which the report already shows.
+	 */
+	private static Read read(String key, String value, String description) {
+		String suffix = "[" + key + "]";
+		if (description.endsWith(suffix) && description.length() > suffix.length()) {
+			description = description.substring(0, description.length() - suffix.length());
+		}
+		return new Read(key, LogRedactor.redactValue(key, value), description);
 	}
 
 	/*

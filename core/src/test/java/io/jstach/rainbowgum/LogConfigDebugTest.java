@@ -172,6 +172,9 @@ class LogConfigDebugTest {
 						      Output: StdOutOutput (type=CONSOLE_OUT, uri=stdout:///)
 						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=default theme=rainbowgum colored=false")
 
+						Read Properties:
+						  (none)
+
 						"""
 					.replace("VERSION_PLACEHOLDER", RainbowGumVersion.VERSION);
 			}
@@ -385,6 +388,9 @@ class LogConfigDebugTest {
 						      Flags: []
 						      Output: StdOutOutput (type=CONSOLE_OUT, uri=stdout:///)
 						      Encoder: FormatterEncoder (contentType=text/plain; charset=UTF-8, description="ttll color=default theme=rainbowgum colored=false")
+
+						Read Properties:
+						  (none)
 
 						[INFO] - RAINBOW_GUM - LogConfig - Property key 'logging.encoder.console.made.up' from SYSTEM_PROPERTIES[logging.encoder.console.made.up] was set but not read during startup.
 						"""

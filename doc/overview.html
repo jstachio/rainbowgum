@@ -2312,10 +2312,13 @@ releases.
 <p>
 {@link io.jstach.rainbowgum.LogReporter.Options} controls which
 {@link io.jstach.rainbowgum.LogReporter.Section sections} are printed
-({@code VERSION}, {@code COMPONENTS}, {@code METRICS}, {@code ALERTS}, {@code LOGGERS}, {@code FACADES}).
+({@code VERSION}, {@code COMPONENTS}, {@code METRICS}, {@code ALERTS}, {@code LOGGERS}, {@code FACADES},
+{@code READ_PROPERTIES}).
 {@code LOGGERS} lists the logger names the logging facades have created, each with its resolved level
-unless {@link io.jstach.rainbowgum.LogReporter.Options.Builder#loggerLevels(boolean) loggerLevels(false)} is set, and
-{@code FACADES} lists which facades (SLF4J, JUL, and so on) have actually created loggers. The default is
+unless {@link io.jstach.rainbowgum.LogReporter.Options.Builder#loggerLevels(boolean) loggerLevels(false)} is set,
+{@code FACADES} lists which facades (SLF4J, JUL, and so on) have actually created loggers, and
+{@code READ_PROPERTIES} lists every property that was read and set, see
+<a href="#troubleshooting">Troubleshooting</a>. The default is
 just {@code VERSION} and {@code COMPONENTS}: the other sections are usually more useful pulled
 independently the way the sections above already show, so a report only includes them if asked.
 </p>
@@ -3268,7 +3271,8 @@ all; only its metrics side effect is.
 <strong>Info.</strong> An {@code InfoContributor} renders the <a href="#reporting">
 {@link io.jstach.rainbowgum.LogReporter}</a> to <code>/actuator/info</code>: one map entry per
 {@link io.jstach.rainbowgum.LogReporter.Section} (<code>version</code>, <code>components</code>,
-<code>metrics</code>, <code>alerts</code>, <code>loggers</code>, <code>facades</code>), nested under a
+<code>metrics</code>, <code>alerts</code>, <code>loggers</code>, <code>facades</code>; not
+<code>read_properties</code>, since info is often exposed more widely than property values should be), nested under a
 single <code>rainbowgum</code> key so it cannot collide with any other contributor's own top level
 keys. Unlike the metrics bridge above, this is <strong>disabled by default</strong> and needs
 <code>management.info.rainbowgum.enabled=true</code> set explicitly: the report can include internal
@@ -3735,6 +3739,8 @@ In <code>help</code> mode Rainbow Gum:
   <li>prints the alerts it collected while loading properties and building its configuration,
   and the <a href="#reporting">diagnostic report</a> of the components it actually wired up
   (the same output as <code>-Dlogging.debug=all</code>, see <a href="#alerts">Alerts</a>);</li>
+  <li>lists every property it read that has a value, with where the value came from, so you
+  can see what your configuration actually did (see <a href="#troubleshooting_read_properties">below</a>);</li>
   <li>reports every property key that was set but not read during startup, with the key it
   was probably meant to be (see <a href="#troubleshooting_unused_keys">below</a>);</li>
   <li>fails startup if any warning or error alert was recorded, including a misspelled key,
@@ -3769,6 +3775,28 @@ builder option}) and cannot be set in <code>logging.properties</code>. To fail o
 printing anything extra, for example in CI, use
 <a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> instead.
 </p>
+
+<h3 id="troubleshooting_read_properties">Properties that were read</h3>
+
+The report printed in the <code>all</code> and <code>help</code> modes ends with every property
+key Rainbow Gum read while starting that has a value, in key order, with the value and where
+it came from. A parameter of a component's URI query is listed as the key it stands for. For example:
+
+{@snippet :
+Read Properties:
+  logging.appender.console.encoder.json5.keyValues = none ([logging.appender.console.encoder.uri]->URI(json5:///?keyValues=none)[keyValues])
+  logging.appender.console.encoder.json5.thread = name (SIMPLE_PROPS[classpath:/logging.properties:3])
+  logging.appender.console.encoder.uri = json5:///?keyValues=none (SIMPLE_PROPS[classpath:/logging.properties:2])
+  logging.appenders = console (SIMPLE_PROPS[classpath:/logging.properties:1])
+}
+
+A key that is set but missing from the list was not read, which is reported separately
+(see <a href="#troubleshooting_unused_keys">below</a>). Keys that end with a logger name, such
+as <code>logging.level.com.example</code>, are read as loggers are created, so the report
+printed at startup may not have them yet. Values of keys that look sensitive, such as ones
+containing <code>password</code> or <code>token</code>, are redacted. The same list is the
+{@link io.jstach.rainbowgum.LogReporter.Section#READ_PROPERTIES} section of a
+<a href="#reporting">report</a>, which is only filled in when reads are recorded.
 
 <h3 id="troubleshooting_unused_keys">Misspelled and unused property keys</h3>
 

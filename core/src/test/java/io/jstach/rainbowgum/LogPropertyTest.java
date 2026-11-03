@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
 import io.jstach.rainbowgum.LogProperty.PropertyFunction;
@@ -279,6 +281,16 @@ class LogPropertyTest {
 	@Test
 	void testEmptyStandardPropertiesHasNegativeOrder() {
 		assertEquals(-1, LogProperties.StandardProperties.EMPTY.order());
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = {
+			"logging.appender.a.output.otlp.headers|Authorization=Bearer abc,X-Team=core|Authorization=<REDACTED>,X-Team=core",
+			"logging.appender.a.output.otlp.apiKey|abc|<REDACTED>",
+			"logging.appender.a.output.uri|otlp://user:pw@host/?token=abc&gzip=true|otlp://<REDACTED>@host/?token=<REDACTED>&gzip=true",
+			"logging.appender.a.encoder.pattern.pattern|%d user=%X{user} %msg%n|%d user=%X{user} %msg%n" })
+	void redactValueRedactsSensitivePairs(String key, String value, String expected) {
+		assertEquals(expected, LogRedactor.redactValue(key, value));
 	}
 
 }
