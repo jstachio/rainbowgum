@@ -176,7 +176,7 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 	enum FailLevel {
 
 		/**
-		 * Default. Alerts never fail startup.
+		 * Alerts never fail startup.
 		 */
 		@EnumAlias("false")
 		OFF,
@@ -185,7 +185,8 @@ public sealed interface LogAlerts extends LogLifecycle permits DefaultLogAlerts,
 		 */
 		ERROR,
 		/**
-		 * Fail if a warning or error alert is recorded while starting.
+		 * Default. Fail if a warning or error alert is recorded while starting, which
+		 * includes a property key that was probably misspelled.
 		 */
 		@EnumAlias({ "true", "warn" })
 		WARNING;
@@ -560,13 +561,13 @@ final class DefaultLogAlerts implements LogAlerts {
 	 * lambda body passed through a generic method like map(...) - the one and only `new
 	 * DefaultLogAlerts(...)` call stays a plain, unconditional statement here instead.
 	 */
-	static DefaultLogAlerts of(LogProperties properties, FailLevel failLevelFallback,
+	static DefaultLogAlerts of(LogProperties properties, @Nullable FailLevel failLevelFallback,
 			UnusedKeyLevel unusedKeyLevelFallback, boolean help) {
 		var validator = LogProperty.Validator.of(LogAlerts.class);
 		var failLevelResult = properties.forKey(LogProperties.ALERTS_FAIL_PROPERTY)
 			.ofString()
 			.map(FailLevel::parse)
-			.or(failLevelFallback)
+			.or(Objects.requireNonNullElse(failLevelFallback, FailLevel.WARNING))
 			.validateIfError(validator);
 		var unobservedErrorsActionResult = properties.forKey(LogProperties.ALERTS_UNOBSERVED_ERRORS_ACTION_PROPERTY)
 			.ofString()
@@ -586,9 +587,14 @@ final class DefaultLogAlerts implements LogAlerts {
 		validator.validate();
 		var failLevel = failLevelResult.value();
 		String failLevelSource = LogProperties.ALERTS_FAIL_PROPERTY + "=" + failLevel.name().toLowerCase(Locale.ROOT);
-		if (help && failLevel != FailLevel.WARNING) {
+		boolean defaulted = failLevelFallback == null
+				&& properties.valueOrNull(LogProperties.ALERTS_FAIL_PROPERTY) == null;
+		if (help && (defaulted || failLevel != FailLevel.WARNING)) {
 			failLevel = FailLevel.WARNING;
 			failLevelSource = "logging.debug=help";
+		}
+		else if (defaulted) {
+			failLevelSource += " (the default)";
 		}
 		return new DefaultLogAlerts(capacityResult.value(), unobservedErrorsActionResult.value(), failLevel,
 				failLevelSource, unusedKeyLevelResult.value());

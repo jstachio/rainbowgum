@@ -83,7 +83,7 @@ class LogAlertsTest {
 		var properties = LogProperties.builder()
 			.fromProperties("logging.alerts.capacity=5\nlogging.alerts.unobservedErrorsAction=NONE")
 			.build();
-		var config = LogConfig.builder().propertiesProvider((registry, alerts) -> {
+		var config = LogConfig.builder().alertsFail(LogAlerts.FailLevel.OFF).propertiesProvider((registry, alerts) -> {
 			earlyAlerts.set(alerts);
 			assertEquals("Properties providers cannot register alert listeners",
 					assertThrows(UnsupportedOperationException.class, () -> alerts.addListener(event -> {
@@ -247,10 +247,14 @@ class LogAlertsTest {
 	@Test
 	void unobservedErrorsActionNoneDoesNotDumpOrFail() {
 		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=NONE").build();
-		var config = assertDoesNotThrow(() -> LogConfig.builder().properties(props).configurator((c, pass) -> {
-			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
-			return true;
-		}).build());
+		var config = assertDoesNotThrow(() -> LogConfig.builder()
+			.alertsFail(LogAlerts.FailLevel.OFF)
+			.properties(props)
+			.configurator((c, pass) -> {
+				c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+				return true;
+			})
+			.build());
 		assertEquals(2, config.alerts().dump().size());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertTrue(reported.contains("boom"), () -> "the per-event stderr echo still happens: " + reported);
@@ -261,10 +265,11 @@ class LogAlertsTest {
 	@Test
 	void unobservedErrorsActionDumpDefaultsToReportingBacklogButStillStarts() {
 		// no logging.alerts.unobservedErrorsAction property set - DUMP is the default.
-		var config = assertDoesNotThrow(() -> LogConfig.builder().configurator((c, pass) -> {
-			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
-			return true;
-		}).build());
+		var config = assertDoesNotThrow(
+				() -> LogConfig.builder().alertsFail(LogAlerts.FailLevel.OFF).configurator((c, pass) -> {
+					c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+					return true;
+				}).build());
 		assertEquals(2, config.alerts().dump().size());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertTrue(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),
@@ -280,10 +285,14 @@ class LogAlertsTest {
 	void unobservedErrorsActionFailThrowsAndConfigNeverCompletes() {
 		var props = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=FAIL").build();
 		var e = assertThrows(IllegalStateException.class,
-				() -> LogConfig.builder().properties(props).configurator((c, pass) -> {
-					c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
-					return true;
-				}).build());
+				() -> LogConfig.builder()
+					.alertsFail(LogAlerts.FailLevel.OFF)
+					.properties(props)
+					.configurator((c, pass) -> {
+						c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+						return true;
+					})
+					.build());
 		assertEquals("2 alert(s) were recorded before any LogAlerts.Listener was registered and "
 				+ "logging.alerts.unobservedErrorsAction=FAIL - refusing to start.", e.getMessage());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
@@ -318,12 +327,13 @@ class LogAlertsTest {
 
 	@Test
 	void aListenerRegisteredByAConfiguratorSuppressesTheUnobservedDump() {
-		var config = assertDoesNotThrow(() -> LogConfig.builder().configurator((c, pass) -> {
-			c.alerts().addListener(event -> {
-			});
-			c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
-			return true;
-		}).build());
+		var config = assertDoesNotThrow(
+				() -> LogConfig.builder().alertsFail(LogAlerts.FailLevel.OFF).configurator((c, pass) -> {
+					c.alerts().addListener(event -> {
+					});
+					c.alerts().error(LogAlertsTest.class, "boom", new RuntimeException("boom"));
+					return true;
+				}).build());
 		assertEquals(2, config.alerts().dump().size());
 		String reported = outputStream.toString(StandardCharsets.UTF_8);
 		assertFalse(reported.contains("alert(s) were recorded before any LogAlerts.Listener was registered"),

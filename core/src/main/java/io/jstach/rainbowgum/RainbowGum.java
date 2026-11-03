@@ -344,11 +344,11 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/*
 	 * By default an unused key with a suggestion is almost always a typo, so it is a
-	 * warning, which logging.alerts.fail=warning (and logging.debug=help) turns into a
-	 * failure. So is an unread URI query parameter, since its URI chose the component.
-	 * Any other is only information: the key may be for a component type that was not
-	 * chosen, such as encoder options left behind by a profile that switches encoder.
-	 * logging.alerts.unusedKey raises both for strict configurations.
+	 * warning, which the default logging.alerts.fail=warning (and logging.debug=help)
+	 * turns into a failure. So is an unread URI query parameter, since its URI chose the
+	 * component. Any other is only information: the key may be for a component type that
+	 * was not chosen, such as encoder options left behind by a profile that switches
+	 * encoder. logging.alerts.unusedKey raises both for strict configurations.
 	 */
 	private void reportUnusedKeys(UnusedKeyCheck check) {
 		var eventFactory = LogEventFactory.of(LogConfig.class.getName());

@@ -3153,8 +3153,9 @@ initialization with an error saying it looks like <code>java.util.logging</code>
 full key. Set <code>logging.simpleprops.strict=fail</code> in the base resource, or call
 {@link io.jstach.rainbowgum.simple.props.SimpleProperties.Builder#strict(io.jstach.rainbowgum.simple.props.SimpleProperties.StrictType) SimpleProperties.builder().strict(StrictType.FAIL)},
 to require the prefix instead: each unprefixed key then produces an error alert that includes its resource and line
-number, and initialization stops with an exception. <code>alert</code> reports the same errors and continues, and
-<code>off</code> ignores unprefixed keys. The resource setting takes precedence over the builder.
+number, and initialization stops with an exception. <code>alert</code> reports the same errors and leaves stopping
+to <a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a>, which by default stops startup on
+them too, and <code>off</code> ignores unprefixed keys. The resource setting takes precedence over the builder.
 <code>false</code> is an alias for <code>off</code>; <code>true</code> is an alias for <code>fail</code>.
 </p>
 <p>
@@ -3772,9 +3773,9 @@ cause, and it is also printed on its own just before the stack trace.
 Like the other debug modes, <code>logging.debug</code> is read before any property source is
 loaded, so it is a system property (or the
 {@link io.jstach.rainbowgum.LogConfig.Builder#debug(io.jstach.rainbowgum.LogConfig.DebugModeType)
-builder option}) and cannot be set in <code>logging.properties</code>. To fail on alerts without
-printing anything extra, for example in CI, use
-<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> instead.
+builder option}) and cannot be set in <code>logging.properties</code>. Without it, startup still
+fails on warnings by default, but without printing anything extra, see
+<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a>.
 </p>
 
 <h3 id="troubleshooting_read_properties">Properties that were read</h3>
@@ -3811,8 +3812,9 @@ containing <code>password</code> or <code>token</code>, are redacted. The same l
 <h3 id="troubleshooting_unused_keys">Misspelled and unused property keys</h3>
 
 A misspelled property key is otherwise silently ignored: Rainbow Gum looks properties up by
-key, so a key nothing asks for does nothing. With <code>-Dlogging.debug=all</code>,
-<code>-Dlogging.debug=help</code>, or <code>logging.alerts.fail=warning</code>, Rainbow Gum
+key, so a key nothing asks for does nothing. Unless
+<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> is set to
+<code>off</code> or <code>error</code> without a debug mode that checks keys, Rainbow Gum
 records every key it reads, and right after it starts it reports each key that was set but
 never read:
 
@@ -3846,7 +3848,6 @@ sets the default the property overrides.
 
 {@snippet lang=properties :
 # logging-ci.properties: fail on any key nothing reads
-logging.alerts.fail=warning
 logging.alerts.unusedKey=warning
 }
 
@@ -3871,30 +3872,33 @@ such as <code>logging.levle.com.myapp</code> is therefore only information, sinc
 read up front to suggest. Also never reported are keys read before properties load, such as
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
 properties that happen to start with <code>logging.</code>, such as Spring Boot's
-<code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. Unless
-debug mode is <code>all</code> or <code>help</code>, or <code>logging.alerts.fail</code> would
-fail on a misspelled key, nothing is recorded, so normal runs pay nothing for the check.
+<code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. With
+<code>logging.alerts.fail=off</code> (or <code>error</code>) and debug mode not <code>all</code> or
+<code>help</code>, nothing is recorded and nothing is checked.
 
 <h3 id="troubleshooting_alerts_fail">Failing on alerts</h3>
 
 <code>logging.alerts.fail</code> fails startup when an <a href="#alerts">alert</a> at or above a
-level is recorded while starting, similar to treating compiler warnings as errors. It is
-<code>off</code> by default; <code>error</code> fails on errors; <code>warning</code> (or
-<code>warn</code> or <code>true</code>) fails on warnings too, including misspelled keys. Unlike
+level is recorded while starting, similar to treating compiler warnings as errors.
+<code>warning</code> (or <code>warn</code> or <code>true</code>), the default, fails on warnings and
+errors, including misspelled keys, a URI query parameter nothing reads, and a refused
+<a href="#simple_props_level_file">level file</a>; <code>error</code> fails only on errors;
+<code>off</code> (or <code>false</code>) never fails. Unlike
 <code>logging.debug</code> it is an ordinary property, so it can be set in
 <code>logging.properties</code>, a profile, a system property, or an environment variable, and
 {@link io.jstach.rainbowgum.LogConfig.Builder#alertsFail(io.jstach.rainbowgum.LogAlerts.FailLevel)}
 sets the default it overrides:
 
 {@snippet lang=properties :
-# logging-ci.properties, selected with -Dlogging.profiles=ci
-logging.alerts.fail=warning
+# logging-prod.properties, selected with -Dlogging.profiles=prod:
+# report alerts but start anyway
+logging.alerts.fail=off
 }
 
 Alerts are checked when the configuration is built and again right after Rainbow Gum starts
 its components, which it closes again before failing. Alerts recorded after startup never fail
-anything. The failure lists only the alerts that crossed the level; unlike debug mode it
-prints no report. <code>logging.alerts.unobservedErrorsAction</code> is different: it only acts
+anything. The failure lists only the alerts that crossed the level and says whether the level was
+the default; unlike debug mode it prints no report. <code>logging.alerts.unobservedErrorsAction</code> is different: it only acts
 on errors, and only when no alert listener is registered.
 
 <h3 id="troubleshooting_bug_report">Reporting a bug</h3>

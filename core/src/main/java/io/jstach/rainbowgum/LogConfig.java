@@ -593,7 +593,10 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private DebugModeType debugMode = DebugModeType.OFF;
 
-		private LogAlerts.FailLevel alertsFail = LogAlerts.FailLevel.OFF;
+		/*
+		 * Null until set, so a failure can say the level is the default.
+		 */
+		private LogAlerts.@Nullable FailLevel alertsFail;
 
 		private LogAlerts.UnusedKeyLevel alertsUnusedKey = LogAlerts.UnusedKeyLevel.INFO;
 
@@ -640,7 +643,7 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		/**
 		 * Sets the alert level at which starting fails, used when the property
 		 * {@value LogProperties#ALERTS_FAIL_PROPERTY} is absent.
-		 * @param failLevel fail level, default {@link LogAlerts.FailLevel#OFF}.
+		 * @param failLevel fail level, default {@link LogAlerts.FailLevel#WARNING}.
 		 * @return this.
 		 */
 		public Builder alertsFail(LogAlerts.FailLevel failLevel) {
@@ -845,8 +848,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				 * or an error with logging.alerts.unusedKey=error.
 				 */
 				var suggestedKeyLevel = DefaultLogAlerts.unusedKeyLevelOr(logProperties, alertsUnusedKey).level(true);
-				if (debug.checksUnusedKeys()
-						|| DefaultLogAlerts.failLevelOr(logProperties, alertsFail).fails(suggestedKeyLevel)) {
+				if (debug.checksUnusedKeys() || DefaultLogAlerts
+					.failLevelOr(logProperties, Objects.requireNonNullElse(alertsFail, LogAlerts.FailLevel.WARNING))
+					.fails(suggestedKeyLevel)) {
 					unusedKeyCheck = unusedKeyCheck(logProperties);
 					logProperties = recording(logProperties, unusedKeyCheck);
 				}

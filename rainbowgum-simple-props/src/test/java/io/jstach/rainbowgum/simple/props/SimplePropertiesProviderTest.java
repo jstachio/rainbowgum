@@ -15,6 +15,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.RainbowGum;
@@ -89,6 +90,7 @@ class SimplePropertiesProviderTest {
 			.build();
 		registry.putIfAbsent(SimpleProperties.class, () -> simple);
 		var config = LogConfig.builder()
+			.alertsFail(LogAlerts.FailLevel.OFF)
 			.serviceRegistry(registry)
 			.propertiesProvider(new SimplePropertiesProvider())
 			.build();

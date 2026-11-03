@@ -244,7 +244,7 @@ class LogConfigDebugTest {
 	@Test
 	void allModeDumpsAfterTheNormalStartPolicy() {
 		System.setProperty(LogProperties.DEBUG_PROPERTY, "ALL");
-		LogConfig.builder().configurator((config, pass) -> {
+		LogConfig.builder().alertsFail(LogAlerts.FailLevel.OFF).configurator((config, pass) -> {
 			config.alerts().error(LogConfigDebugTest.class, "failure", new IllegalStateException("cause"));
 			return true;
 		}).build();
@@ -337,7 +337,7 @@ class LogConfigDebugTest {
 	void doesNotDuplicateDumpWhenStartRejectsUnobservedErrors() {
 		var properties = LogProperties.builder().fromProperties("logging.alerts.unobservedErrorsAction=FAIL").build();
 		var thrown = assertThrows(IllegalStateException.class,
-				() -> LogConfig.builder().propertiesProvider((registry, alerts) -> {
+				() -> LogConfig.builder().alertsFail(LogAlerts.FailLevel.OFF).propertiesProvider((registry, alerts) -> {
 					alerts.info(LogConfigDebugTest.class, "profile selected");
 					return List.of(properties);
 				}).configurator((config, pass) -> {

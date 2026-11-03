@@ -77,7 +77,10 @@ public final class SimpleProperties {
 		/** Disables prefix validation. */
 		@EnumAlias("false")
 		OFF,
-		/** Records an error alert for each key without the logging prefix. */
+		/**
+		 * Records an error alert for each key without the logging prefix, leaving whether
+		 * startup fails to {@code logging.alerts.fail}, which by default fails on them.
+		 */
 		ALERT,
 		/**
 		 * Records error alerts and fails when supplying properties if any key lacks the
