@@ -3,6 +3,7 @@ package io.jstach.rainbowgum;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -221,19 +222,32 @@ final class UnusedKeyCheck {
 
 	/**
 	 * Keys set in the sources that were not read, each reported once for the highest
-	 * priority source that has it.
+	 * priority source that has it, or for its URI query when one has it.
 	 * @return unused keys in source order.
 	 */
 	List<Unused> unused() {
 		var candidates = new TreeSet<>(reads);
 		candidates.addAll(READ_BEFORE_CONFIG_KEYS);
+		/*
+		 * An unread query parameter is reported as one even when a property also sets the
+		 * key, since its URI chose the component.
+		 */
+		var uriQueries = new HashMap<String, KeySource>();
+		for (var source : sources) {
+			if (source.kind() == KeyKind.URI_QUERY) {
+				for (String key : source.keys().get()) {
+					uriQueries.putIfAbsent(key, source);
+				}
+			}
+		}
 		var seen = new LinkedHashSet<String>();
 		var unused = new ArrayList<Unused>();
-		for (var source : sources) {
-			for (String key : source.keys().get()) {
+		for (var listed : sources) {
+			for (String key : listed.keys().get()) {
 				if (isIgnored(key) || reads.contains(key) || !seen.add(key)) {
 					continue;
 				}
+				var source = uriQueries.getOrDefault(key, listed);
 				var properties = source.properties();
 				String suggestion = suggestion(key, candidates);
 				unused.add(new Unused(key, properties.description(key), suggestion,
