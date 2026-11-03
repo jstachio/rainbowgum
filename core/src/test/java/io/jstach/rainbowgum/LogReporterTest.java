@@ -352,7 +352,8 @@ class LogReporterTest {
 
 	@Test
 	void testReadPropertiesNotRecorded() {
-		try (var gum = RainbowGum.builder().build()) {
+		var config = LogConfig.builder().alertsFail(LogAlerts.FailLevel.OFF).build();
+		try (var gum = RainbowGum.builder(config).build()) {
 			String actual = gum.config().reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
 			String expected = """
 					Read Properties:

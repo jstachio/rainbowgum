@@ -26,6 +26,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogAlerts.FailLevel;
 import io.jstach.rainbowgum.LogProperties;
@@ -162,7 +163,12 @@ class LevelFileTest {
 	private static LogConfig config(SimpleProperties simple) {
 		var registry = ServiceRegistry.of();
 		registry.putIfAbsent(SimpleProperties.class, () -> simple);
+		/*
+		 * Refused and invalid level files are warnings, which these tests check rather
+		 * than fail on.
+		 */
 		var config = LogConfig.builder()
+			.alertsFail(LogAlerts.FailLevel.OFF)
 			.serviceRegistry(registry)
 			.properties(LogProperties.of(simple.properties()))
 			.configurator(new SimplePropertiesProvider())

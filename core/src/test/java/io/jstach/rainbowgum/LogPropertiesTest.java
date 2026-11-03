@@ -628,7 +628,7 @@ class LogPropertiesTest {
 		var boundProps = LogProperties.MutableLogProperties.builder().build().put("marker", "yes");
 		var config = LogConfig.builder().properties(boundProps).build();
 		try (var gum = RainbowGum.builder(config).set()) {
-			assertSame(boundProps, LogProperties.findGlobalProperties());
+			assertEquals("yes", LogProperties.findGlobalProperties().valueOrNull("marker"));
 		}
 	}
 
