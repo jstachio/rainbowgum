@@ -19,7 +19,6 @@ import org.jspecify.annotations.Nullable;
 
 import io.jstach.rainbowgum.LevelResolver;
 import io.jstach.rainbowgum.LogConfig;
-import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogReporter;
@@ -45,8 +44,6 @@ final class LevelFileProperties implements LogProperties.Listable, LogReporter.R
 	 * Above system properties (400), so a level in the file wins over every other source.
 	 */
 	static final int ORDER = 500;
-
-	private static final LogEventFactory EVENTS = LogEventFactory.of(SimpleProperties.class.getName());
 
 	private final Path path;
 
@@ -237,10 +234,10 @@ final class LevelFileProperties implements LogProperties.Listable, LogReporter.R
 		var alerts = config.alerts();
 		String reason = refused;
 		if (reason != null) {
-			alerts.alert(EVENTS.eventNoArg(Level.ERROR, reason, null));
+			alerts.config(SimpleProperties.class, Level.ERROR, reason, null);
 		}
 		for (var message : ignoredKeyMessages()) {
-			alerts.alert(EVENTS.eventNoArg(Level.WARNING, message, null));
+			alerts.config(SimpleProperties.class, Level.WARNING, message, null);
 		}
 		watcher = Thread.ofPlatform().daemon().name("rainbowgum-level-file").start(() -> {
 			while (!Thread.currentThread().isInterrupted()) {
@@ -248,16 +245,16 @@ final class LevelFileProperties implements LogProperties.Listable, LogReporter.R
 					Thread.sleep(pollInterval);
 					switch (poll()) {
 						case CHANGED -> {
-							alerts.info(SimpleProperties.class, "Level file changed: " + path);
+							alerts.config(SimpleProperties.class, Level.INFO, "Level file changed: " + path, null);
 							for (var message : ignoredKeyMessages()) {
-								alerts.alert(EVENTS.eventNoArg(Level.WARNING, message, null));
+								alerts.config(SimpleProperties.class, Level.WARNING, message, null);
 							}
 							config.changePublisher().publish();
 						}
 						case REFUSED -> {
 							String r = refused;
 							if (r != null) {
-								alerts.alert(EVENTS.eventNoArg(Level.ERROR, r, null));
+								alerts.config(SimpleProperties.class, Level.ERROR, r, null);
 							}
 						}
 						case UNCHANGED -> {
@@ -268,7 +265,7 @@ final class LevelFileProperties implements LogProperties.Listable, LogReporter.R
 					Thread.currentThread().interrupt();
 				}
 				catch (RuntimeException e) {
-					alerts.alert(EVENTS.eventNoArg(Level.ERROR, "Failed to read level file: " + path, e));
+					alerts.config(SimpleProperties.class, Level.ERROR, "Failed to read level file: " + path, e);
 				}
 			}
 		});

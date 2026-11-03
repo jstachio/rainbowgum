@@ -137,7 +137,7 @@ class UnusedPropertyCheckTest {
 				() -> config("classpath:/alerts-fail-invalid.properties", DebugModeType.OFF));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.LogAlerts:
-				Error for property. key: 'logging.alerts.fail' from SIMPLE_PROPS[classpath:/alerts-fail-invalid.properties:1][logging.alerts.fail], 'loud' is not a valid value for io.jstach.rainbowgum.LogAlerts.FailLevel. Valid values: 'off', 'error', 'warning', 'true', 'false', 'warn'
+				Error for property. key: 'logging.alerts.fail' from SIMPLE_PROPS[classpath:/alerts-fail-invalid.properties:1][logging.alerts.fail], 'loud' is not a valid value for io.jstach.rainbowgum.LogAlerts.FailLevel. Valid values: 'off', 'config', 'error', 'warning', 'true', 'false', 'warn'
 				Tried:
 				    'logging.alerts.fail' from:
 				        SYSTEM_PROPERTIES[logging.alerts.fail],

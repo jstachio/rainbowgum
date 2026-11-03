@@ -19,7 +19,6 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.LogAlerts;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
-import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.annotation.CaseChanging;
 import io.jstach.rainbowgum.annotation.EnumAlias;
 
@@ -256,11 +255,10 @@ public final class SimpleProperties {
 
 	void reportAlerts(LogAlerts alerts) {
 		for (var message : infoMessages) {
-			alerts.info(SimpleProperties.class, message);
+			alerts.config(SimpleProperties.class, Level.INFO, message, null);
 		}
-		var eventFactory = LogEventFactory.of(SimpleProperties.class.getName());
 		for (var message : errorMessages) {
-			alerts.alert(eventFactory.eventNoArg(Level.ERROR, message, null));
+			alerts.config(SimpleProperties.class, Level.ERROR, message, null);
 		}
 	}
 

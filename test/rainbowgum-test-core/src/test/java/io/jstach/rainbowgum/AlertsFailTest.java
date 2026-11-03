@@ -31,8 +31,8 @@ class AlertsFailTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "off, OFF", "false, OFF", "error, ERROR", "warning, WARNING", "warn, WARNING", "WARN, WARNING",
-			"true, WARNING" })
+	@CsvSource({ "off, OFF", "false, OFF", "config, CONFIG", "error, ERROR", "warning, WARNING", "warn, WARNING",
+			"WARN, WARNING", "true, WARNING" })
 	void parses(String value, FailLevel expected) {
 		assertEquals(expected, FailLevel.parse(value));
 	}
@@ -41,11 +41,12 @@ class AlertsFailTest {
 	void parseInvalid() {
 		var e = assertThrows(IllegalArgumentException.class, () -> FailLevel.parse("warnings"));
 		assertEquals("'warnings' is not a valid value for io.jstach.rainbowgum.LogAlerts.FailLevel. "
-				+ "Valid values: 'off', 'error', 'warning', 'true', 'false', 'warn'", e.getMessage());
+				+ "Valid values: 'off', 'config', 'error', 'warning', 'true', 'false', 'warn'", e.getMessage());
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "OFF, ERROR", "OFF, WARNING", "ERROR, WARNING", "ERROR, INFO", "WARNING, INFO" })
+	@CsvSource({ "OFF, ERROR", "OFF, WARNING", "CONFIG, ERROR", "CONFIG, WARNING", "ERROR, WARNING", "ERROR, INFO",
+			"WARNING, INFO" })
 	void builds(FailLevel failLevel, Level alertLevel) {
 		builder(failLevel, alertLevel).build();
 	}

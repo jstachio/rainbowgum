@@ -344,11 +344,12 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/*
 	 * By default an unused key with a suggestion is almost always a typo, so it is a
-	 * warning, which the default logging.alerts.fail=warning (and logging.debug=help)
-	 * turns into a failure. So is an unread URI query parameter, since its URI chose the
-	 * component. Any other is only information: the key may be for a component type that
-	 * was not chosen, such as encoder options left behind by a profile that switches
-	 * encoder. logging.alerts.unusedKey raises both for strict configurations.
+	 * warning about configuration, which the default logging.alerts.fail=config (and
+	 * logging.debug=help) turns into a failure. So is an unread URI query parameter,
+	 * since its URI chose the component. Any other is only information: the key may be
+	 * for a component type that was not chosen, such as encoder options left behind by a
+	 * profile that switches encoder. logging.alerts.unusedKey raises both for strict
+	 * configurations.
 	 */
 	private void reportUnusedKeys(UnusedKeyCheck check) {
 		var eventFactory = LogEventFactory.of(LogConfig.class.getName());
@@ -356,7 +357,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 				: LogAlerts.UnusedKeyLevel.INFO;
 		for (var u : check.unused()) {
 			var level = unusedKeyLevel.level(u.likelyMistake());
-			var event = eventFactory.eventNoArg(level, u.message(), null);
+			var event = eventFactory.eventNoArg(level, u.message(), DefaultLogAlerts.configKeyValues(), null);
 			config().alerts().alert(event);
 			if (level == Level.INFO && config().debugMode().checksUnusedKeys()) {
 				MetaLog.error(event);
