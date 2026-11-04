@@ -1443,7 +1443,8 @@ event's line with <code>stacktrace:</code> and writes each line of the stack tra
 tab. That is no longer strict LTSV, but an event's line never starts with a tab, so the stack trace is still easy
 to tell from the next event, and removing that tab gives back the stack trace as Java prints it. The exception's
 message is escaped as in any value, so it stays on its line. The default, <code>inline</code>, keeps the escaped
-stack trace on the event's line.
+stack trace on the event's line. Keep <code>inline</code> for the <a href="#rolling_journald">systemd journal</a>,
+which makes each line its own entry, so each line of a stack trace would be a separate entry.
 </p>
 
 {@snippet lang=properties :
