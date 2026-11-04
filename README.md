@@ -75,11 +75,7 @@ Formats:
 
 The doc is also on javadoc.io but is not aggregated like the above.
 
-For previous releases:
-
-    https://jstach.io/doc/rainbowgum/VERSION/apidocs
-
-Where `VERSION` is the version you want.
+Previous releases are listed at [jstach.io/doc/rainbowgum](https://jstach.io/doc/rainbowgum/).
 
 
 ## Why choose Rainbow Gum
