@@ -18,7 +18,9 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * <code>12:00:00.123 [main] INFO  com.example.App {requestId=42} - hello</code>. When an
  * event has no key values the braces are left out, or written as <code>{}</code>,
  * according to {@link KeyValuesWhenEmpty}, and {@link KeyValuesFormat#NONE} leaves the
- * key values out entirely.
+ * key values out entirely. {@link Part} changes the order of the parts. Time, thread,
+ * level, and logger can instead be written among the key values with
+ * <code>key_value</code> or <code>keyValue</code>.
  * <p>
  * Every part also accepts <code>default</code>, which restores its default without naming
  * it, and <code>true</code> and <code>false</code> to show or hide it; the
@@ -59,6 +61,18 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * ISO 8601 UTC instant with milliseconds among the key values, as
+		 * <code>time=2026-10-05T12%3A00%3A00.123Z</code> with percent encoding, instead
+		 * of at the start of the line; see {@link KeyValuesFormat}.
+		 */
+		@EnumAlias("keyValue")
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("time", TimestampFormatter.ofISO());
+			}
+		},
+		/**
 		 * No time.
 		 */
 		@EnumAlias("false")
@@ -79,8 +93,9 @@ public sealed interface TTLL permits TTLLFormatter {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
 				case "default", "true" -> TTLL;
 				case "false" -> NONE;
+				case "keyvalue" -> KEY_VALUE;
 				default -> io.jstach.rainbowgum.LogProperty.enumValue(TimestampFormat.class, value, "true", "false",
-						"default");
+						"default", "keyValue");
 			};
 		}
 
@@ -141,6 +156,17 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Thread name among the key values, as <code>thread=main</code> with percent
+		 * encoding, instead of in square brackets; see {@link KeyValuesFormat}.
+		 */
+		@EnumAlias("keyValue")
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("thread", LogFormatter.builder().threadName().build());
+			}
+		},
+		/**
 		 * No thread.
 		 */
 		@EnumAlias("false")
@@ -161,8 +187,9 @@ public sealed interface TTLL permits TTLLFormatter {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
 				case "default", "true" -> NAME;
 				case "false" -> NONE;
-				default ->
-					io.jstach.rainbowgum.LogProperty.enumValue(ThreadFormat.class, value, "true", "false", "default");
+				case "keyvalue" -> KEY_VALUE;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(ThreadFormat.class, value, "true", "false",
+						"default", "keyValue");
 			};
 		}
 
@@ -204,6 +231,18 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Upper case level without padding among the key values, as
+		 * <code>level=INFO</code> with percent encoding, instead of in its place; see
+		 * {@link KeyValuesFormat}.
+		 */
+		@EnumAlias("keyValue")
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("level", LevelFormatter.of());
+			}
+		},
+		/**
 		 * No level.
 		 */
 		@EnumAlias("false")
@@ -224,8 +263,9 @@ public sealed interface TTLL permits TTLLFormatter {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
 				case "default", "true" -> PADDED;
 				case "false" -> NONE;
-				default ->
-					io.jstach.rainbowgum.LogProperty.enumValue(LevelFormat.class, value, "true", "false", "default");
+				case "keyvalue" -> KEY_VALUE;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(LevelFormat.class, value, "true", "false",
+						"default", "keyValue");
 			};
 		}
 
@@ -259,6 +299,17 @@ public sealed interface TTLL permits TTLLFormatter {
 			}
 		},
 		/**
+		 * Full logger name among the key values, as <code>logger=com.example.App</code>
+		 * with percent encoding, instead of in its place; see {@link KeyValuesFormat}.
+		 */
+		@EnumAlias("keyValue")
+		KEY_VALUE {
+			@Override
+			public LogFormatter formatter() {
+				return new KeyValueField("logger", LogFormatter.builder().loggerName().build());
+			}
+		},
+		/**
 		 * No logger name.
 		 */
 		@EnumAlias("false")
@@ -279,8 +330,9 @@ public sealed interface TTLL permits TTLLFormatter {
 			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
 				case "default", "true" -> FULL;
 				case "false" -> NONE;
-				default ->
-					io.jstach.rainbowgum.LogProperty.enumValue(LoggerFormat.class, value, "true", "false", "default");
+				case "keyvalue" -> KEY_VALUE;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(LoggerFormat.class, value, "true", "false",
+						"default", "keyValue");
 			};
 		}
 
@@ -290,6 +342,15 @@ public sealed interface TTLL permits TTLLFormatter {
 	 * Key values part, written in braces after the logger name; see
 	 * {@link KeyValuesWhenEmpty} for events with no key values. {@link #NONE} leaves out
 	 * the key values and their braces.
+	 * <p>
+	 * Time, thread, level, and logger set to <code>key_value</code> are written first
+	 * inside the braces, in the order of {@link Part} and in this format, followed by the
+	 * event's own key values:
+	 * <code>12:00:00.123 INFO  com.example.App {thread=main&amp;requestId=42} -
+	 * hello</code>. They are not added to the event's key values, so an event key value
+	 * with the same name is written as well. The braces are then always written, whatever
+	 * {@link KeyValuesWhenEmpty} says. {@link #NONE} is not allowed, nor is an order that
+	 * leaves out the key values or the part set to <code>key_value</code>.
 	 */
 	@CaseChanging
 	enum KeyValuesFormat {
@@ -355,7 +416,9 @@ public sealed interface TTLL permits TTLLFormatter {
 	}
 
 	/**
-	 * Whether the key values braces are written when an event has no key values.
+	 * Whether the key values braces are written when an event has no key values. A part
+	 * set to <code>key_value</code> is always written inside the braces, so they are
+	 * never empty and this has no effect.
 	 */
 	@CaseChanging
 	enum KeyValuesWhenEmpty {
@@ -385,6 +448,53 @@ public sealed interface TTLL permits TTLLFormatter {
 				case "true" -> SHOW;
 				default -> io.jstach.rainbowgum.LogProperty.enumValue(KeyValuesWhenEmpty.class, value, "true", "false",
 						"default");
+			};
+		}
+
+	}
+
+	/**
+	 * A part of the line, for the order property, which lists the parts in the order they
+	 * are written: <code>order=level,timestamp,logger,keyValues</code>. Parts not listed
+	 * are left out, and a part may be listed only once. The default is every part in the
+	 * order of these constants.
+	 * <p>
+	 * A part set to <code>key_value</code> is written inside the key values braces, in
+	 * its place in the order among the other such parts, so the order must list both it
+	 * and the key values: <code>order=level,keyValues</code> with
+	 * <code>level=key_value</code> writes <code>{level=INFO} - hello</code>.
+	 */
+	@CaseChanging
+	enum Part {
+
+		/**
+		 * Time, see {@link TimestampFormat}.
+		 */
+		@EnumAlias("time")
+		TIMESTAMP,
+		/**
+		 * Thread, see {@link ThreadFormat}.
+		 */
+		THREAD,
+		/**
+		 * Level, see {@link LevelFormat}.
+		 */
+		LEVEL,
+		/**
+		 * Logger name, see {@link LoggerFormat}.
+		 */
+		LOGGER,
+		/**
+		 * Key values, see {@link KeyValuesFormat}.
+		 */
+		@EnumAlias("keyValues")
+		KEY_VALUES;
+
+		static Part parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "time" -> TIMESTAMP;
+				case "keyvalues" -> KEY_VALUES;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(Part.class, value, "time", "keyValues");
 			};
 		}
 
