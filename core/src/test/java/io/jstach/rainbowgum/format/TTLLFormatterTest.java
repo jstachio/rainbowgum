@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
@@ -147,6 +148,75 @@ class TTLLFormatterTest {
 		String colored = b.isEmpty() ? "" : " " + E + "2;39m{}" + R;
 		assertEquals(coloredLine("1;34", "INFO ", colored),
 				log("ttll", properties + "logging.appender.list.encoder.ttll.color=force\n", event(KeyValues.of())));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"level,timestamp,logger,keyValues|INFO  12:00:00.123 com.example.App {requestId=42&user=Ada%20Lovelace} - hello world|INFO  12:00:00.123 com.example.App - hello world", //
+			"keyValues,level,logger|{requestId=42&user=Ada%20Lovelace} INFO  com.example.App - hello world|INFO  com.example.App - hello world", //
+			"timestamp,key_values,logger|12:00:00.123 {requestId=42&user=Ada%20Lovelace} com.example.App - hello world|12:00:00.123 com.example.App - hello world", //
+			"keyValues|{requestId=42&user=Ada%20Lovelace} - hello world|hello world", //
+			"time,thread|12:00:00.123 [main] - hello world|12:00:00.123 [main] - hello world", //
+			"logger, LEVEL|com.example.App INFO  - hello world|com.example.App INFO  - hello world" })
+	void orderPropertyListsThePartsInOrder(String order, String expected, String expectedWithoutKeyValues) {
+		String properties = "logging.appender.list.encoder.ttll.order=" + order + "\n";
+		assertEquals(expected + "\n", log("ttll", properties, event(requestKeyValues())));
+		assertEquals(expectedWithoutKeyValues + "\n", log("ttll", properties, event(KeyValues.of())));
+	}
+
+	@Test
+	void orderWithKeyValuesFirstSkipsTheirSpaceWhenThereAreNone() {
+		String properties = """
+				logging.appender.list.encoder.ttll.order=keyValues,timestamp,logger
+				logging.appender.list.encoder.ttll.keyValues=json
+				""";
+		assertEquals("{} 12:00:00.123 com.example.App - hello world\n", log("ttll", properties, event(KeyValues.of())));
+		assertEquals("12:00:00.123 com.example.App - hello world\n",
+				log("ttll", properties.replace("json", "json5"), event(KeyValues.of())));
+	}
+
+	@Test
+	void orderWithKeyValuesFirstIsColored() {
+		String actual = log("ttll", """
+				logging.appender.list.encoder.ttll.order=keyValues,level
+				logging.appender.list.encoder.ttll.color=force
+				""", event(requestKeyValues()));
+		assertEquals(
+				E + "2;39m{requestId=42&user=Ada%20Lovelace}" + R + " " + E + "1;34mINFO " + R + " - hello world\n",
+				actual);
+	}
+
+	@Test
+	void orderGivenToTheBuilder() {
+		var formatter = new TTLLFormatterBuilder("test").order(List.of(TTLL.Part.LOGGER, TTLL.Part.THREAD)).build();
+		assertEquals("com.example.App [main] - hello world\n", format(formatter, event(requestKeyValues())));
+	}
+
+	@Test
+	void orderListingAPartTwiceFails() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.appender.list.encoder.ttll.order=level,logger,level")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties).build());
+		assertEquals("""
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder: \
+				order lists level more than once: [level, logger, level]""", e.getMessage());
+	}
+
+	@Test
+	void invalidOrderPartFails() {
+		var properties = LogProperties.builder()
+			.fromProperties("logging.appender.list.encoder.ttll.order=level,message")
+			.build();
+		var e = assertThrows(LogProperty.ValidationException.class,
+				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
+		String expected = """
+				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
+				Error for property. key: 'logging.appender.list.encoder.ttll.order' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.order], \
+				'message' is not a valid value for io.jstach.rainbowgum.format.TTLL.Part. \
+				Valid values: 'timestamp', 'thread', 'level', 'logger', 'key_values', 'time', 'keyvalues'""";
+		assertEquals(expected, e.getMessage());
 	}
 
 	@Test
