@@ -15,6 +15,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
@@ -108,6 +109,70 @@ class LtsvFormatterTest {
 				+ "\terror:java.lang.IllegalStateException: boom"
 				+ "\tstacktrace:java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\n";
 		assertEquals(expected, format(event(Level.ERROR, "main", "failed", KeyValues.of(), ex)));
+	}
+
+	/*
+	 * Each line of the stack trace after a tab, keeping the trace's own tabs, while the
+	 * message's line break, backslash and tab are escaped as in any value.
+	 */
+	@Test
+	void stackTraceLines() {
+		var cause = new RuntimeException("root");
+		cause.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Repo", "load", "Repo.java", 7) });
+		var ex = new IllegalStateException("bad\nvalue C:\\logs\tx", cause);
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		var suppressed = new IllegalArgumentException("close");
+		suppressed
+			.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Close", "close", "Close.java", 3) });
+		ex.addSuppressed(suppressed);
+		var sb = new StringBuilder();
+		new LtsvFormatterBuilder("test").stacktrace(LtsvStackTrace.LINES)
+			.build()
+			.format(sb, event(Level.ERROR, "main", "failed", KeyValues.of(), ex));
+		String expected = """
+				time:2026-10-05T15:04:05.123Z\tlevel:ERROR\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:failed\
+				\terror:java.lang.IllegalStateException: bad\\nvalue C:\\\\logs\\tx\tstacktrace:
+				\tjava.lang.IllegalStateException: bad\\nvalue C:\\\\logs\\tx
+				\t\tat app.Main.run(Main.java:42)
+				\t\tSuppressed: java.lang.IllegalArgumentException: close
+				\t\t\tat app.Close.close(Close.java:3)
+				\tCaused by: java.lang.RuntimeException: root
+				\t\tat app.Repo.load(Repo.java:7)
+				""";
+		assertEquals(expected, sb.toString());
+	}
+
+	@Test
+	void stackTraceLinesTakeTheLevelColor() {
+		var ex = new IllegalStateException("boom");
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		var sb = new StringBuilder();
+		new LtsvFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.stacktrace(LtsvStackTrace.LINES)
+			.columns(List.of(EventField.MESSAGE))
+			.timestamp(LogFormatter.noop())
+			.level(LogFormatter.noop())
+			.logger(LogFormatter.noop())
+			.thread(ThreadFields.NONE)
+			.build()
+			.format(sb, event(Level.ERROR, "main", "failed", KeyValues.of(), ex));
+		String expected = "failed\terror:" + E + "1;31mjava.lang.IllegalStateException: boom" + R + "\tstacktrace:\n\t"
+				+ E + "1;31mjava.lang.IllegalStateException: boom" + R + "\n\t\t" + E
+				+ "1;31mat app.Main.run(Main.java:42)" + R + "\n";
+		assertEquals(expected, sb.toString());
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "lines, LINES", "true, LINES", "inline, INLINE", "default, INLINE", "false, INLINE" })
+	void stacktraceProperty(String value, LtsvStackTrace expected) {
+		assertEquals(expected, LtsvFormatter.convertStacktrace(value));
+	}
+
+	@Test
+	void invalidStacktracePropertyFails() {
+		var e = assertThrows(IllegalArgumentException.class, () -> LtsvFormatter.convertStacktrace("multiline"));
+		assertEquals("'multiline' is not a valid value for io.jstach.rainbowgum.format.LtsvStackTrace. "
+				+ "Valid values: 'inline', 'lines', 'default', 'true', 'false'", e.getMessage());
 	}
 
 	@Test

@@ -1,7 +1,12 @@
 package io.jstach.rainbowgum.format;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.BitSet;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -49,6 +54,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 
 	private final LogFormatter logger;
 
+	private final LtsvStackTrace stacktrace;
+
 	private final Palette palette;
 
 	/*
@@ -58,7 +65,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	private final KeyValuesConsumer<StringBuilder> keyValues;
 
 	private LtsvFormatter(List<EventField> columns, LogFormatter timestamp, ThreadFields thread, LogFormatter level,
-			LogFormatter logger, Palette palette) {
+			LogFormatter logger, LtsvStackTrace stacktrace, Palette palette) {
 		this.columns = columns.toArray(EventField[]::new);
 		this.labeled = EnumSet
 			.complementOf(columns.isEmpty() ? EnumSet.noneOf(EventField.class) : EnumSet.copyOf(columns))
@@ -67,6 +74,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		this.thread = thread;
 		this.level = level;
 		this.logger = logger;
+		this.stacktrace = stacktrace;
 		this.palette = palette;
 		Set<String> fields = Json5Formatter.fields(thread);
 		this.keyValues = (kvs, key, value, count, output) -> appendKeyValue(
@@ -103,7 +111,9 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * fields is prefixed with <code>keyValues.</code>. A key value without a value is
 	 * written with an empty one.</li>
 	 * <li>A throwable adds <code>error</code> (its <code>toString()</code>) and
-	 * <code>stacktrace</code>.</li>
+	 * <code>stacktrace</code>, last on the line. With <code>stacktrace=lines</code> each
+	 * line of the stack trace follows the event's line on a line of its own, after a tab,
+	 * see {@link LtsvStackTrace#LINES}.</li>
 	 * </ul>
 	 * Values are never quoted. LTSV does not allow tab, newline, or carriage return in a
 	 * value, so these and <code>\</code> are backslash escaped (<code>\t</code>,
@@ -125,6 +135,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <code>plain</code>.
 	 * @param logger logger name format, see {@link TTLL.LoggerFormat}.
 	 * @param columns the fields written first without labels, see {@link EventField}.
+	 * @param stacktrace how a stack trace is written, see {@link LtsvStackTrace}.
 	 * @param color whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme which colors, see {@link TTLL.ColorTheme}.
 	 * @param serviceRegistry where themes chosen by name in properties are looked up.
@@ -138,6 +149,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("convertLevel") LogFormatter level,
 			@LogConfigurable.DefaultParameter("DEFAULT_LOGGER") @LogConfigurable.ConvertParameter("convertLogger") LogFormatter logger,
 			@LogConfigurable.DefaultParameter("DEFAULT_COLUMNS") @LogConfigurable.ConvertParameter("convertColumns") List<EventField> columns,
+			@LogConfigurable.DefaultParameter(
+					constant = "INLINE") @LogConfigurable.ConvertParameter("convertStacktrace") LtsvStackTrace stacktrace,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
@@ -156,7 +169,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 						"columns lists " + field + " but " + (f == EventField.TIME ? "timestamp" : field) + " is none");
 			}
 		}
-		return new LtsvFormatter(columns, timestamp, thread, level, logger,
+		return new LtsvFormatter(columns, timestamp, thread, level, logger, stacktrace,
 				Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
 						PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 	}
@@ -167,6 +180,10 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 
 	static ThreadFields convertThread(String value) {
 		return ThreadFields.parse(value);
+	}
+
+	static LtsvStackTrace convertStacktrace(String value) {
+		return LtsvStackTrace.parse(value);
 	}
 
 	static LogFormatter convertLevel(String value) {
@@ -238,14 +255,95 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 			appendValue(output, throwable.toString());
 			Palette.end(output, levelColor);
 			output.append("\tstacktrace:");
-			Palette.start(output, levelColor);
-			int start = output.length();
-			ThrowableFormatter.appendThrowable(output, throwable);
-			trimTrailingLineBreaks(output, start);
-			escapeInPlace(output, start);
-			Palette.end(output, levelColor);
+			if (stacktrace == LtsvStackTrace.LINES) {
+				appendStackTraceLines(output, throwable, levelColor);
+			}
+			else {
+				Palette.start(output, levelColor);
+				int start = output.length();
+				ThrowableFormatter.appendThrowable(output, throwable);
+				trimTrailingLineBreaks(output, start);
+				escapeInPlace(output, start);
+				Palette.end(output, levelColor);
+			}
 		}
 		output.append('\n');
+	}
+
+	/*
+	 * Each line of the stack trace on a line of its own after a tab, keeping the line's
+	 * own leading tabs, so removing one tab gives back the stack trace. A message can
+	 * hold line breaks, so the line breaks inside each throwable's own text do not end a
+	 * line and are escaped with the rest of it. Should a toString() differ from the one
+	 * printStackTrace used, its extra lines still start with a tab.
+	 */
+	private static void appendStackTraceLines(StringBuilder output, Throwable throwable, String color) {
+		var trace = new StringBuilder();
+		ThrowableFormatter.appendThrowable(trace, throwable);
+		var inText = new BitSet();
+		for (String text : throwableTexts(throwable)) {
+			if (text.indexOf('\n') < 0 && text.indexOf('\r') < 0) {
+				continue;
+			}
+			for (int at = trace.indexOf(text); at >= 0; at = trace.indexOf(text, at + text.length())) {
+				for (int k = 0; k < text.length(); k++) {
+					char c = text.charAt(k);
+					if (c == '\n' || c == '\r') {
+						inText.set(at + k);
+					}
+				}
+			}
+		}
+		int length = trace.length();
+		int i = 0;
+		while (i < length) {
+			int end = i;
+			while (end < length && (!isLineBreak(trace.charAt(end)) || inText.get(end))) {
+				end++;
+			}
+			if (end > i) {
+				output.append("\n\t");
+				int content = i;
+				while (content < end && trace.charAt(content) == '\t') {
+					output.append('\t');
+					content++;
+				}
+				Palette.start(output, color);
+				int start = output.length();
+				output.append(trace, content, end);
+				escapeInPlace(output, start);
+				Palette.end(output, color);
+			}
+			i = end + 1;
+		}
+	}
+
+	private static boolean isLineBreak(char c) {
+		return c == '\n' || c == '\r';
+	}
+
+	/*
+	 * The text printStackTrace writes for the throwable and every cause and suppressed
+	 * throwable, once each, as a circular reference is printed once.
+	 */
+	private static Set<String> throwableTexts(Throwable throwable) {
+		Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+		var texts = new LinkedHashSet<String>();
+		var pending = new ArrayDeque<Throwable>();
+		pending.add(throwable);
+		while (!pending.isEmpty()) {
+			var t = pending.poll();
+			if (!seen.add(t)) {
+				continue;
+			}
+			texts.add(String.valueOf(t));
+			pending.addAll(List.of(t.getSuppressed()));
+			var cause = t.getCause();
+			if (cause != null) {
+				pending.add(cause);
+			}
+		}
+		return texts;
 	}
 
 	private boolean appendField(StringBuilder output, boolean any, EventField field, boolean labeled, LogEvent event,
