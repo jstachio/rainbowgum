@@ -763,6 +763,21 @@
                 </configuration>
               </execution>
               <execution>
+                <id>doc-badge</id>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <phase>package</phase>
+                <inherited>false</inherited>
+                <configuration>
+                  <arguments>
+                    <argument>src/main/java/io/jstach/script/DocBadge.java</argument>
+                    <argument>../target/reports/apidocs/badge.svg</argument>
+                    <argument>${project.version}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+              <execution>
                 <id>javadoc-javascript</id>
                 <goals>
                   <goal>exec</goal>

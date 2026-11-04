@@ -1,4 +1,6 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.jstach.rainbowgum/rainbowgum)](https://central.sonatype.com/search?q=g:io.jstach.rainbowgum)
+[![Current release docs + javadoc](https://jstach.io/doc/rainbowgum/current/apidocs/badge.svg)](https://jstach.io/doc/rainbowgum/current/apidocs)
+[![Snapshot docs + javadoc](https://jstach.io/rainbowgum/badge.svg)](https://jstach.io/rainbowgum/)
 [![Github](https://github.com/jstachio/rainbowgum/actions/workflows/maven.yml/badge.svg)](https://github.com/jstachio/rainbowgum/actions)
 [![Code Coverage](https://jstach.io/rainbowgum/coverage/badge.svg)](https://jstach.io/rainbowgum/coverage/)
 
