@@ -2,9 +2,12 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.EnumSet;
 
@@ -17,6 +20,29 @@ import io.jstach.rainbowgum.LogReporter.Section;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
 class LogReporterTest {
+
+	@ParameterizedTest
+	@ValueSource(strings = { "logging.appender.console.output.uri", "logging.file.name",
+			"logging.appender.file.output.uri" })
+	void malformedCredentialUriIsNotRedisclosedAfterFailedStartup(String key) {
+		String prefix = key.equals("logging.appender.file.output.uri") ? "logging.appenders=file\n" : "";
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties(
+						prefix + key + "=http://alice:fake-uri-secret@localhost/invalid path?token=fake-query-secret")
+				.build())
+			.build();
+		var failure = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build());
+		var trace = new StringWriter();
+		failure.printStackTrace(new PrintWriter(trace));
+		assertFalse(trace.toString().contains("fake-uri-secret"), trace.toString());
+		assertFalse(trace.toString().contains("fake-query-secret"), trace.toString());
+		assertTrue(String.valueOf(failure.getMessage()).contains("Invalid URI:"));
+		String report = config.reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
+		assertFalse(report.contains("fake-uri-secret"), report);
+		assertFalse(report.contains("fake-query-secret"), report);
+		assertTrue(report.contains(key + " = <REDACTED>"), report);
+	}
 
 	@ParameterizedTest
 	@EnumSource(OutputUri.class)

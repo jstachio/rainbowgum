@@ -1,18 +1,24 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogProperty.PropertyConvertException;
 import io.jstach.rainbowgum.LogProperty.PropertyFunction;
@@ -24,6 +30,45 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
 import io.jstach.rainbowgum.LogProperty.Validator;
 
 class LogPropertyTest {
+
+	@ParameterizedTest
+	@ValueSource(strings = { "https://alice:fake-uri-secret@localhost/path with-space?token=fake-query-secret",
+			"//alice:fake-uri-secret@localhost/path with-space?token=fake-query-secret",
+			"https://alice:fake-uri-secret@localhost/%ZZ?token=fake-query-secret",
+			"path with-space?token=fake-query-secret" })
+	void uriSyntaxFailureOmitsInputAndOriginalCause(String value) {
+		var properties = LogProperties.builder().fromFunction(key -> value).build();
+		var failure = assertThrows(ValidationException.class,
+				() -> properties.forKey("logging.endpoint").ofURI().validateNow(getClass()));
+		var trace = new StringWriter();
+		failure.printStackTrace(new PrintWriter(trace));
+		assertFalse(trace.toString().contains("fake-uri-secret"), trace.toString());
+		assertFalse(trace.toString().contains("fake-query-secret"), trace.toString());
+		assertTrue(String.valueOf(failure.getMessage()).contains("Invalid URI:"));
+		var cause = failure.getCause();
+		assertNotNull(cause);
+		assertNull(cause.getCause());
+		assertEquals(0, cause.getSuppressed().length);
+		assertTrue(cause.getStackTrace().length > 0);
+	}
+
+	@Test
+	void rejectedUriValueIsRedactedWhenReadAgainForReports() {
+		var check = new UnusedKeyCheck(List.of());
+		var properties = check.wrap(LogProperties.builder()
+			.fromProperties("logging.endpoint=path with-space?token=fake-query-secret")
+			.build());
+		assertThrows(ValidationException.class,
+				() -> properties.forKey("logging.endpoint").ofURI().validateNow(getClass()));
+		assertEquals("<REDACTED>", check.read(properties).getFirst().value());
+	}
+
+	@Test
+	void validUriIsNotChangedBySafeConversion() {
+		String value = "https://alice:fake-uri-secret@localhost/path?token=fake-query-secret";
+		var properties = LogProperties.builder().fromFunction(key -> value).build();
+		assertEquals(URI.create(value), properties.forKey("logging.endpoint").ofURI().validateNow(getClass()));
+	}
 
 	@Test
 	void booleanAcceptsOnlyTrueOrFalse() {

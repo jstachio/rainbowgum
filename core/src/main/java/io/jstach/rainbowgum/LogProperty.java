@@ -147,7 +147,8 @@ public interface LogProperty {
 	}
 
 	/**
-	 * Resolves the property as a URI.
+	 * Resolves the property as a URI. Syntax errors retain the reason and position but
+	 * omit the input, which may contain credentials.
 	 * @return result.
 	 */
 	default Result<URI> ofURI() {
@@ -266,6 +267,15 @@ public interface LogProperty {
 		PropertySuccess<?> ps = switch (previousResult) {
 			case PropertySuccess<?> p -> p;
 		};
+		if (e instanceof URISyntaxException syntax) {
+			// URI converters include more than ofURI(), such as file-name conversion.
+			var check = UnusedKeyCheck.findOrNull(ps.topProperties());
+			if (check != null) {
+				check.sensitive(fqk);
+			}
+			e = LogRedactor.redactUriException(syntax);
+		}
+
 		if (ps.sensitive()) {
 			// Converter messages, causes and suppressed exceptions may quote the secret.
 			e = LogRedactor.redactException(e);
@@ -1334,6 +1344,13 @@ final class LogRedactor {
 	static IllegalArgumentException redactException(Exception exception) {
 		var safe = new IllegalArgumentException(
 				exception.getClass().getName() + ": the value is not shown because it is sensitive");
+		safe.setStackTrace(exception.getStackTrace());
+		return safe;
+	}
+
+	static IllegalArgumentException redactUriException(URISyntaxException exception) {
+		String position = exception.getIndex() < 0 ? "" : " at index " + exception.getIndex();
+		var safe = new IllegalArgumentException("Invalid URI: " + exception.getReason() + position);
 		safe.setStackTrace(exception.getStackTrace());
 		return safe;
 	}

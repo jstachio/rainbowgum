@@ -266,7 +266,7 @@ class ConfigFailureTest {
 				""",
 				"""
 						Validation failed for io.jstach.rainbowgum.FakeEncoderBuilder:
-						Error for property. key: 'logging.appender.myapp.encoder.fake.endpoint' from PROPERTIES_STRING[logging.appender.myapp.encoder.fake.endpoint], java.net.URISyntaxException Illegal character in path at index 3: not a uri with spaces
+						Error for property. key: 'logging.appender.myapp.encoder.fake.endpoint' from PROPERTIES_STRING[logging.appender.myapp.encoder.fake.endpoint], Invalid URI: Illegal character in path at index 3
 						Tried:
 						    'logging.appender.myapp.encoder.fake.endpoint' from:
 						        PROPERTIES_STRING[logging.appender.myapp.encoder.fake.endpoint],
