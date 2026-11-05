@@ -192,8 +192,8 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		boolean env = environmentVariables == EnvironmentVariables.ON;
 		URI endpoint_ = endpoint;
 		if (endpoint_ == null) {
-			var fromEnv = env ? OtlpEnvironment.logsEndpoint() : null;
-			endpoint_ = URI.create(fromEnv != null ? fromEnv : OtlpEnvironment.DEFAULT_ENDPOINT);
+			var fromEnv = env ? OtlpEnvironment.logsEndpoint(name) : null;
+			endpoint_ = fromEnv != null ? fromEnv : URI.create(OtlpEnvironment.DEFAULT_ENDPOINT);
 		}
 		OtlpProtocol protocol_ = protocol;
 		if (protocol_ == null) {
@@ -454,11 +454,12 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	}
 
 	private void requestFailed(int count, Exception cause) {
-		if (!displayEndpoint.equals(endpoint.toString())) {
-			// HTTP client exception messages and their causes may include credentials.
+		if (!headers.isEmpty() || !displayEndpoint.equals(endpoint.toString())) {
+			// Header validation and HTTP client exceptions can quote credentials,
+			// independently of whether the endpoint contains any.
 			// Keep the failure type and stack without retaining unsafe diagnostic text.
 			var safe = new IOException(
-					"OTLP request failed (" + cause.getClass().getName() + "); endpoint credentials omitted");
+					"OTLP request failed (" + cause.getClass().getName() + "); credential details omitted");
 			safe.setStackTrace(cause.getStackTrace());
 			failed(count, safe);
 		}

@@ -297,7 +297,7 @@ class OtlpOutputHttpTest {
 		var cause = java.util.Objects.requireNonNull(alert.throwableOrNull());
 		assertEquals(
 				"""
-						java.io.IOException: OTLP request failed (java.lang.IllegalArgumentException); endpoint credentials omitted""",
+						java.io.IOException: OTLP request failed (java.lang.IllegalArgumentException); credential details omitted""",
 				cause.toString());
 		assertNull(cause.getCause());
 	}
