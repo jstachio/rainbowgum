@@ -245,7 +245,7 @@ class FileOutputPropertiesTest {
 			@Override
 			@Nullable String exceptionMessage() {
 				String message = """
-						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], java.net.URISyntaxException Expected scheme name at index 0: :://
+						Error for property. key: 'logging.file.name' from PROPERTIES_STRING[logging.file.name], Invalid URI: Expected scheme name at index 0
 						Tried: 'logging.file.name' from ENVIRONMENT_VARIABLES[logging_file_name], PROPERTIES_STRING[logging.file.name]""";
 				return message;
 			}
