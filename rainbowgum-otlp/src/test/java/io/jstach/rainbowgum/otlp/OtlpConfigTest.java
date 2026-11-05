@@ -173,7 +173,7 @@ class OtlpConfigTest {
 				e.getMessage());
 		assertEquals("OTLP protocol 'grpc' is not supported. Use http/protobuf or http/json.",
 				assertThrows(IllegalArgumentException.class, () -> OtlpProtocol.parse("grpc")).getMessage());
-		assertEquals("Invalid OTEL_RESOURCE_ATTRIBUTES entry: 'novalue'. Expected key=value.",
+		assertEquals("Invalid OTEL_RESOURCE_ATTRIBUTES entry 2. Expected key=value.",
 				assertThrows(IllegalArgumentException.class,
 						() -> OtlpEnvironment.parseKeyValues("a=b,novalue", "OTEL_RESOURCE_ATTRIBUTES"))
 					.getMessage());

@@ -1,5 +1,6 @@
 package io.jstach.rainbowgum.otlp;
 
+import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -7,6 +8,8 @@ import java.util.Map;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
+
+import io.jstach.rainbowgum.LogProperties;
 
 /*
  * Reads the standard OpenTelemetry environment variables. Only consulted when
@@ -31,16 +34,30 @@ final class OtlpEnvironment {
 	 * The logs specific variable is used as is; the generic one gets /v1/logs appended,
 	 * as the OTLP exporter spec requires.
 	 */
-	static @Nullable String logsEndpoint() {
+	static @Nullable URI logsEndpoint(String name) {
 		var logs = get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT");
 		if (logs != null) {
-			return logs;
+			return endpoint(logs, "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", name);
 		}
 		var generic = get("OTEL_EXPORTER_OTLP_ENDPOINT");
 		if (generic == null) {
 			return null;
 		}
-		return generic.endsWith("/") ? generic + "v1/logs" : generic + "/v1/logs";
+		String value = generic.endsWith("/") ? generic + "v1/logs" : generic + "/v1/logs";
+		return endpoint(value, "OTEL_EXPORTER_OTLP_ENDPOINT", name);
+	}
+
+	private static URI endpoint(String value, String variable, String name) {
+		// Reuse value-safe URI conversion, including the actual variable's context.
+		String property = LogProperties.interpolateNamedKey(LogProperties.OUTPUT_PREFIX + "otlp.endpoint", name);
+		return LogProperties.builder()
+			.description("environment variables")
+			.renameKey(key -> key.equals(property) ? variable : key)
+			.fromFunction(key -> key.equals(variable) ? value : null)
+			.build()
+			.forKey(property)
+			.ofURI()
+			.validateNow(OtlpOutput.class);
 	}
 
 	static @Nullable String logsValue(String suffix) {
@@ -77,18 +94,26 @@ final class OtlpEnvironment {
 		if (value == null) {
 			return result;
 		}
+		int entry = 0;
 		for (String pair : value.split(",", -1)) {
+			entry++;
 			if (pair.isBlank()) {
 				continue;
 			}
 			int eq = pair.indexOf('=');
 			if (eq <= 0) {
-				throw new IllegalArgumentException(
-						"Invalid " + name + " entry: '" + pair.strip() + "'. Expected key=value.");
+				throw new IllegalArgumentException("Invalid " + name + " entry " + entry + ". Expected key=value.");
 			}
 			String key = pair.substring(0, eq).strip();
 			String v = pair.substring(eq + 1).strip();
-			result.put(key, URLDecoder.decode(v.replace("+", "%2B"), StandardCharsets.UTF_8));
+			try {
+				result.put(key, URLDecoder.decode(v.replace("+", "%2B"), StandardCharsets.UTF_8));
+			}
+			catch (IllegalArgumentException e) {
+				// Decoder messages can quote part of a credential value.
+				throw new IllegalArgumentException(
+						"Invalid " + name + " entry " + entry + ". Invalid percent-encoding in value.");
+			}
 		}
 		return result;
 	}
