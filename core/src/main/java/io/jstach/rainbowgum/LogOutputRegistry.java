@@ -6,7 +6,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -33,13 +33,6 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	public void register(String scheme, OutputProvider provider);
 
 	/**
-	 * Finds an output by name.
-	 * @param name output name.
-	 * @return maybe an output.
-	 */
-	Optional<LogOutput> output(String name);
-
-	/**
 	 * Attempts to reopen all outputs of a certain type usually for log rotation. This
 	 * call will block if it attempts to reopen. If reopening is already happening an
 	 * empty list will be returned.
@@ -60,7 +53,11 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 
 final class DefaultOutputRegistry implements LogOutputRegistry {
 
-	private final Map<String, LogOutput> outputs = new ConcurrentHashMap<>();
+	/*
+	 * Only the names: an output belongs to its appender, which decides when it is written
+	 * to, flushed and closed, so the registry does not hand outputs out.
+	 */
+	private final Set<String> names = ConcurrentHashMap.newKeySet();
 
 	private final Map<String, OutputProvider> providers = new ConcurrentHashMap<>();
 
@@ -118,15 +115,10 @@ final class DefaultOutputRegistry implements LogOutputRegistry {
 	}
 
 	private LogOutput _register(String name, LogOutput output) {
-		if (outputs.putIfAbsent(name, output) != null) {
+		if (!names.add(name)) {
 			throw new IllegalArgumentException("Name is already in use. name = '%s'".formatted(name));
 		}
 		return output;
-	}
-
-	@Override
-	public Optional<LogOutput> output(String name) {
-		return Optional.ofNullable(outputs.get(name));
 	}
 
 	static URI normalize(URI uri) {
