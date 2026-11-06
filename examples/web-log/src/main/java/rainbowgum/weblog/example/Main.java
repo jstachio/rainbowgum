@@ -5,12 +5,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.jstach.rainbowgum.RainbowGum;
-
 /**
- * A small always-on service that logs to the console and to a page served by
- * {@link WebLogOutput}. The output is set up only by
- * <code>src/main/resources/logging.properties</code>; this class just logs.
+ * A small always-on service that logs to the console and to a page that follows the log.
+ * The page is set up only by <code>src/main/resources/logging.properties</code>; this
+ * class just logs.
  */
 public final class Main {
 
@@ -29,12 +27,7 @@ public final class Main {
 	 * @throws InterruptedException if interrupted.
 	 */
 	public static void main(String[] args) throws InterruptedException {
-		// The output registry finds the output by the appender's name.
-		RainbowGum.of()
-			.config()
-			.outputRegistry()
-			.output("web")
-			.ifPresent(o -> log.info("Log page at {}", ((WebLogOutput) o).pageUri()));
+		log.info("Service started");
 		var random = ThreadLocalRandom.current();
 		for (int tick = 1;; tick++) {
 			sensors.atDebug()
