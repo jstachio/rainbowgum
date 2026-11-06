@@ -34,14 +34,16 @@ import io.jstach.svc.ServiceProvider;
  * {@code com.oracle.svm.core.jdk.TrustStoreManagerFeature} loading the default trust
  * store at build time, unrelated to anything this module does), and whichever registered
  * {@code System.LoggerFinder} is on the classpath, namely this class, gets swept up
- * regardless. What actually gets resolved and frozen in is just the cheap "nothing bound
- * yet" state (no real {@code RainbowGum} has loaded, so {@code RainbowGum.getOrNull()}
- * returns {@code null} and property lookups fall back to real system properties), the
- * same state any freshly started JVM begins in, not anything environment-specific baked
- * in from the build. native-image's own embedded configuration discovery picks this up
- * from this module's jar automatically, no extra plugin or flag needed on the consuming
- * side; see {@code rainbowgum-systemlogger}'s own bundled {@code native-image.properties}
- * for the companion flags this one usually needs alongside it.
+ * regardless. While the image is being built the finder never starts a Rainbow Gum (see
+ * {@link RainbowGumSystemLoggerFinder}), so what gets frozen in is just the cheap
+ * "nothing bound yet" state (no real {@code RainbowGum} has loaded, so
+ * {@code RainbowGum.getOrNull()} returns {@code null} and property lookups fall back to
+ * real system properties), the same state any freshly started JVM begins in, not anything
+ * environment-specific baked in from the build. native-image's own embedded configuration
+ * discovery picks this up from this module's jar automatically, no extra plugin or flag
+ * needed on the consuming side; see {@code rainbowgum-systemlogger}'s own bundled
+ * {@code native-image.properties} for the companion flags this one usually needs
+ * alongside it.
  *
  * @see #INITIALIZE_RAINBOW_GUM_PROPERTY
  */

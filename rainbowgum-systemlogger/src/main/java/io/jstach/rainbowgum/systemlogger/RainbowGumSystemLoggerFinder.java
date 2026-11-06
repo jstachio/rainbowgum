@@ -44,38 +44,19 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 	private final Supplier<? extends InitOption> optSupplier;
 
 	/*
-	 * Resolved lazily, on the first getLogger(...) call, not eagerly in the constructor.
-	 * Constructing a System.LoggerFinder happens through java.util.ServiceLoader, which
-	 * the JDK itself may trigger from all sorts of incidental static initialization (see
-	 * rainbowgum-jdk's own module javadoc); under GraalVM native-image's default
-	 * build-time class initialization in particular, an eager constructor here would
-	 * freeze whatever InitOption/RainbowGum state happened to resolve during the build
-	 * into the image, using build-time system properties and a build-time
-	 * RainbowGum.getOrNull() check, not the real ones the running image would see. A
-	 * benign race (two threads computing the same idempotent value once each) is fine
-	 * here, matching InitRouterProvider's own existing lazy resolution of its RainbowGum
-	 * supplier just below.
+	 * Resolved lazily, on the first getLogger(...) call at run time, never in the
+	 * constructor and never while a native image is being built.
 	 *
-	 * This alone does not make a custom System.LoggerFinder fully invisible to
-	 * native-image's build-time analysis, since the JDK's own internals call
-	 * System.getLogger(...) incidentally, for their own diagnostics, from all sorts of
-	 * unrelated code paths that end up reachable during a real build (observed triggers:
-	 * java.time/java.util.Locale formatting, and separately
-	 * com.oracle.svm.core.jdk.TrustStoreManagerFeature loading the default trust store at
-	 * build time); whichever registered LoggerFinder is on the classpath gets swept up
-	 * regardless of how lazy its own construction is. What laziness here does buy: since
-	 * getLogger(...) only ever runs this exact code path for real, what gets resolved and
-	 * frozen into the image heap as a side effect is always the correct, fresh answer:
-	 * when RainbowGumServiceProvider.RainbowGumEagerLoad exists (SLF4J's own facade
-	 * implements it), that answer is just LogRouter.global()'s ambient, not-yet-bound
-	 * queuing router, the same "nothing bound yet" state any freshly started JVM begins
-	 * in, not anything environment-specific baked in from the build. That still pulls in
-	 * a handful of core classes (GlobalLogRouter, StaticLevelResolver) that also need
-	 * flagging, confirmed by hand against a real GraalVM build; see this module's own
-	 * bundled native-image.properties for the exact list, and rainbowgum-jdk's own
-	 * SystemLoggingFactory javadoc for the companion flags reached via
-	 * LogProperties.findGlobalProperties() instead. Not every class in the whole
-	 * io.jstach.rainbowgum package needs this treatment, only these specific ones.
+	 * The JDK calls System.getLogger(...) for its own diagnostics from unrelated code,
+	 * including during a GraalVM native-image build. Observed triggers:
+	 * java.time/java.util.Locale formatting, and TrustStoreManagerFeature loading the
+	 * default trust store, whose JCA security event logging asks
+	 * System.getLogger("jdk.event.security").isLoggable(...). Whatever this finder
+	 * resolves then is frozen into the image heap. Resolving the init option at build
+	 * time would start a real Rainbow Gum whenever no RainbowGumEagerLoad (SLF4J) is on
+	 * the class path, and that gum, plus the JUL handler its configurators install, would
+	 * land in the image heap and fail the build. So during an image build this returns
+	 * the queuing global router and resolves nothing; see isImageBuildTime().
 	 */
 	private volatile @Nullable RouterProvider routerProvider;
 
@@ -134,6 +115,13 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 		var rp = this.routerProvider;
 		if (rp != null) {
 			return rp;
+		}
+		if (isImageBuildTime()) {
+			/*
+			 * Not cached: the image starts with this finder unresolved, so the first real
+			 * getLogger(...) at run time still applies the init option.
+			 */
+			return n -> LogRouter.global();
 		}
 		try {
 			var opt = optSupplier.get();
@@ -198,6 +186,14 @@ public abstract class RainbowGumSystemLoggerFinder extends System.LoggerFinder {
 			}
 			return g;
 		}
+	}
+
+	/**
+	 * Whether a GraalVM native image is being built right now, from the system property
+	 * GraalVM sets for that, so this module does not need GraalVM's SDK.
+	 */
+	static boolean isImageBuildTime() {
+		return "buildtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
 	}
 
 	/**
