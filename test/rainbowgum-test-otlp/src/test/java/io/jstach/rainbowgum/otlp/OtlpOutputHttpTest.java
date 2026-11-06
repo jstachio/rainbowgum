@@ -264,6 +264,57 @@ class OtlpOutputHttpTest {
 	}
 
 	@Test
+	void jsonLongErrorMessageIsReadWithoutOverflowingTheStackAndCut() {
+		String message = "a\\\"b".repeat(1 << 12);
+		reply(new Reply(200,
+				("{\"partialSuccess\":{\"rejectedLogRecords\":\"1\",\"errorMessage\":\"" + message + "\"}}")
+					.getBytes(StandardCharsets.UTF_8),
+				Map.of("Content-Type", "application/json")));
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> b.protocol(OtlpProtocol.HTTP_JSON));
+		output.write(event("a"), new byte[0], 0, 0, null);
+		output.close();
+		assertEquals(1, metric(config, OtlpOutput.REJECTED_METRIC));
+		var alert = config.alerts().dump().getLast();
+		assertEquals("OTLP endpoint " + endpoint + " rejected 1 of 1 log records: "
+				+ message.substring(0, OtlpOutput.MAX_MESSAGE_CHARS) + "...", alert.message());
+	}
+
+	@Test
+	void oversizedSuccessfulResponseIsInvalidAndNotRetried() {
+		reply(new Reply(200, new byte[1 << 20], Map.of("Content-Type", "application/x-protobuf")));
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> {
+		});
+		output.write(event("a"), new byte[0], 0, 0, null);
+		output.close();
+		assertEquals(1, received.size());
+		var alert = config.alerts().dump().getLast();
+		assertEquals("Invalid OTLP response from " + endpoint, alert.message());
+		assertEquals("java.lang.IllegalArgumentException: OTLP response is longer than 65536 bytes",
+				String.valueOf(alert.throwableOrNull()));
+	}
+
+	@Test
+	void responseTextIsEscapedInAlerts() {
+		reply(new Reply(200,
+				"{\"partialSuccess\":{\"errorMessage\":\"a\u001b[2Jb\nc\u202ed\"}}".getBytes(StandardCharsets.UTF_8),
+				Map.of("Content-Type", "application/json")),
+				new Reply(400, "bad\r\n\u001b[31mrequest".getBytes(StandardCharsets.UTF_8), Map.of()));
+		var config = LogConfig.builder().build();
+		var output = output(config, b -> b.protocol(OtlpProtocol.HTTP_JSON));
+		output.write(event("a"), new byte[0], 0, 0, null);
+		output.flush();
+		assertEquals(
+				"OTLP endpoint " + endpoint + " returned a warning for 1 log records: a\\u001b[2Jb\\u000ac\\u202ed",
+				config.alerts().dump().getLast().message());
+		output.write(event("b"), new byte[0], 0, 0, null);
+		output.close();
+		assertEquals("java.io.IOException: HTTP 400 from " + endpoint + ": bad\\u000d\\u000a\\u001b[31mrequest",
+				String.valueOf(config.alerts().dump().getLast().throwableOrNull()));
+	}
+
+	@Test
 	void endpointCredentialsAreRedactedInFailureDiagnostics() {
 		endpoint = URI
 			.create(endpoint.toString().replace("http://", "http://user:kenny@") + "?password=kenny&tenant=test");
