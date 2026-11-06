@@ -44,6 +44,23 @@ class LogReporterTest {
 		assertTrue(report.contains(key + " = <REDACTED>"), report);
 	}
 
+	@Test
+	void malformedCredentialUriReadAsTextIsRedactedInReport() {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder()
+				.fromProperties(
+						"logging.custom.endpoint=http://alice:fake-uri-secret@localhost/invalid path?token=fake-query-secret")
+				.build())
+			.build();
+		config.properties().forKey("logging.custom.endpoint").ofString().validateNow(LogReporterTest.class);
+		String report = config.reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
+		assertFalse(report.contains("fake-uri-secret"), report);
+		assertFalse(report.contains("fake-query-secret"), report);
+		assertTrue(
+				report.contains("logging.custom.endpoint = http://<REDACTED>@localhost/invalid path?token=<REDACTED>"),
+				report);
+	}
+
 	@ParameterizedTest
 	@EnumSource(OutputUri.class)
 	void outputUriRedactsCredentials(OutputUri test) {

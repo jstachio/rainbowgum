@@ -344,6 +344,11 @@ class LogPropertyTest {
 			"logging.appender.a.output.uri|otlp://host/?headers=proxy%3Dhttp%253A%252F%252Falice%253Apw%2540host|otlp://host/?headers=<REDACTED>",
 			"logging.appender.a.output.uri|otlp://host/?endpoint=http%3A%2F%2Fhost%2Fa%40b%3Fmode%3Dappend|otlp://host/?endpoint=<REDACTED>",
 			"logging.appender.a.output.uri|otlp://host/?address=mailto%3Aalice%40example.com|otlp://host/?address=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://user:p w@host/?token=abc|otlp://<REDACTED>@host/?token=<REDACTED>",
+			"logging.appender.a.output.uri|otlp://user:p/w x@host/logs|otlp://<REDACTED>@host/logs",
+			"logging.appender.a.output.uri|otlp://host/logs?token=a b|otlp://host/logs?token=<REDACTED>",
+			"logging.appender.a.output.uri|user:p w@host|<REDACTED>@host",
+			"logging.appender.a.output.otlp.headers|X-Proxy=http://alice:p w@host,X-Team=core|X-Proxy=<REDACTED>,X-Team=core",
 			"logging.appender.a.encoder.pattern.pattern|%d user=%X{user} %msg%n|%d user=%X{user} %msg%n" })
 	void redactValueRedactsSensitivePairs(String key, String value, String expected) {
 		assertEquals(expected, LogRedactor.redactValue(key, value));
