@@ -3680,25 +3680,34 @@ helper, {@code PropertySuccess}, {@code ServiceLoaderCache}), the other covering
 at build time) call {@code System.getLogger(...)} incidentally, for their own
 diagnostics, from unrelated code paths that end up reachable during a real
 native-image build, and whichever registered {@code System.LoggerFinder} is on the
-classpath gets swept up regardless, along with whatever its resolution touches. What
-actually gets resolved and frozen in for these specific classes is just the cheap
-"nothing bound yet" state (no real {@code RainbowGum} has loaded), the same state any
-freshly started JVM begins in, not anything environment-specific baked in from the
-build. See {@code io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory} (not part
+classpath gets swept up regardless, along with whatever its resolution touches. While
+the image is being built the finder never starts a Rainbow Gum, so what gets frozen in
+for these specific classes is just the cheap "nothing bound yet" state (no real
+{@code RainbowGum} has loaded), the same state any freshly started JVM begins in, not
+anything environment-specific baked in from the build. See {@code io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory} (not part
 of {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk}'s exported API) and
 {@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder} for the exact
 flags and the full explanation.</li>
 </ul>
 
-If a native-image build reports an object of some other Rainbow Gum class needing
-{@code --initialize-at-build-time}, check first whether it is reachable this same way
-(an incidental {@code System.getLogger(...)}/{@code System.LoggerFinder} touch resolving
-to harmless "nothing bound yet" state); if so, adding the class to the relevant module's
-own {@code native-image.properties} is the right fix, the same way the classes above were
-found, by building with a real GraalVM install and reading what it reports. If instead
-something is doing real, environment-dependent work eagerly in a constructor or field
-initializer, that is a bug report against the module in question, not something to just
-flag away.
+If a native-image build reports a Rainbow Gum object in the image heap, build again with
+{@code --trace-object-instantiation=<the reported class>} and read who created it:
+
+<ul>
+<li>If the trace shows a Rainbow Gum being started ({@code RainbowGum.of},
+{@code RainbowGumServiceProvider.provide}, a configurator such as {@code JULConfigurator}
+installing a {@code java.util.logging} handler), something started logging during the
+build. That is a bug, not a missing flag: do not add {@code --initialize-at-build-time}
+for it. Rainbow Gum 0.17.0 and earlier start one this way when the JDK logs during the
+build and no SLF4J facade is on the class path. On those versions build the image with
+<code>-Dlogging.systemlogger.initialize=false</code> and start Rainbow Gum yourself at
+run time, for example with {@code RainbowGum.of()} first thing in {@code main}: that
+setting is frozen into the image, so the {@code System.Logger} finder will not start one
+at run time either.</li>
+<li>If instead the object only holds the "nothing bound yet" state described above, add
+its class to the relevant module's own {@code native-image.properties}, the same way the
+classes above were found.</li>
+</ul>
 
 <h4 id="graalvm_appender_type">Appender Locking Strategy: Native Image vs HotSpot</h4>
 
