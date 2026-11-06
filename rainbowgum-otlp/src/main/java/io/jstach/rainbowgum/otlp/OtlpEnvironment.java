@@ -9,7 +9,7 @@ import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
 
-import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogProperty;
 
 /*
  * Reads the standard OpenTelemetry environment variables. Only consulted when
@@ -48,16 +48,13 @@ final class OtlpEnvironment {
 	}
 
 	private static URI endpoint(String value, String variable, String name) {
-		// Reuse value-safe URI conversion, including the actual variable's context.
-		String property = LogProperties.interpolateNamedKey(LogProperties.OUTPUT_PREFIX + "otlp.endpoint", name);
-		return LogProperties.builder()
-			.description("environment variables")
-			.renameKey(key -> key.equals(property) ? variable : key)
-			.fromFunction(key -> key.equals(variable) ? value : null)
-			.build()
-			.forKey(property)
-			.ofURI()
-			.validateNow(OtlpOutput.class);
+		try {
+			return LogProperty.parseURI(value);
+		}
+		catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException(
+					"Invalid " + variable + " for appender '" + name + "': " + e.getMessage(), e);
+		}
 	}
 
 	static @Nullable String logsValue(String suffix) {
