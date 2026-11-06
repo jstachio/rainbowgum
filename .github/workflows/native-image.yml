@@ -19,6 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest ]
+        api: [ slf4j, systemlogger ]
 
     runs-on: ${{ matrix.os }}
     env:
@@ -52,5 +53,5 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Rainbow Gum
         run: ./mvnw $MAVEN_CLI_OPTS -DskipTests clean install
-      - name: Build and run rainbowgum-test-native as a native image
-        run: ./mvnw $MAVEN_CLI_OPTS -f test/rainbowgum-test-native/pom.xml -Pnative verify
+      - name: Build and run native image (${{ matrix.api }})
+        run: ./mvnw $MAVEN_CLI_OPTS -f test/rainbowgum-test-native/pom.xml -Dnative.test.api=${{ matrix.api }} -Pnative clean verify

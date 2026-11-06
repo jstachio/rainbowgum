@@ -24,11 +24,13 @@
     <native.maven.plugin.version>0.10.6</native.maven.plugin.version>
     <exec.mainClass>io.jstach.rainbowgum.test.nativeimage.Main</exec.mainClass>
     <native.image.executable>${project.build.directory}/rainbowgum-test-native</native.image.executable>
+    <native.test.api>slf4j</native.test.api>
+    <native.test.dependency>rainbowgum-simple</native.test.dependency>
   </properties>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>rainbowgum-simple</artifactId>
+      <artifactId>${native.test.dependency}</artifactId>
     </dependency>
     <dependency>
       <groupId>io.jstach.pistachio</groupId>
@@ -39,7 +41,69 @@
       <artifactId>pistachio-svc-apt</artifactId>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <id>logging-api-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>src/${native.test.api}/java</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
   <profiles>
+    <profile>
+      <id>systemlogger</id>
+      <activation>
+        <property>
+          <name>native.test.api</name>
+          <value>systemlogger</value>
+        </property>
+      </activation>
+      <properties>
+        <native.test.api>systemlogger</native.test.api>
+        <native.test.dependency>rainbowgum-jdk</native.test.dependency>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>no-slf4j</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <bannedDependencies>
+                      <excludes>
+                        <exclude>org.slf4j:*</exclude>
+                        <exclude>io.jstach.rainbowgum:rainbowgum-slf4j</exclude>
+                      </excludes>
+                    </bannedDependencies>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>native</id>
       <build>
@@ -99,6 +163,7 @@
             <configuration>
               <systemPropertyVariables>
                 <native.image.executable>${native.image.executable}</native.image.executable>
+                <native.test.api>${native.test.api}</native.test.api>
               </systemPropertyVariables>
             </configuration>
             <executions>

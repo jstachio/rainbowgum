@@ -26,6 +26,7 @@ public final class Main {
 	public static void main(String[] args) {
 		Logger log = LoggerFactory.getLogger("native.image.smoke.test");
 		log.info("Hello from a GraalVM native image!");
+		log.debug("Runtime debug logging");
 	}
 
 }

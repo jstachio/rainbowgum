@@ -37,6 +37,9 @@ public final class NativeTestRainbowGumProvider implements RainbowGumProvider {
 
 	@Override
 	public Optional<RainbowGum> provide(LogConfig config) {
+		if ("buildtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"))) {
+			throw new IllegalStateException("Rainbow Gum must not start while the native image is being built");
+		}
 		var gum = RainbowGum.builder(config).route(r -> {
 			r.appender("nativetest", a -> {
 				a.output(LogOutput.ofStandardOut());
