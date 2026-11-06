@@ -2,8 +2,10 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 import java.lang.System.Logger.Level;
+import java.time.Duration;
 import java.util.TreeSet;
 import java.util.function.Consumer;
 
@@ -190,6 +192,21 @@ class PostProcessorTest {
 		StandardPostProcessor.CRLF.decorate(FORMATTER)
 			.format(sb, LogEventFactory.of("test").eventNoArg(Level.INFO, "a\nb", KeyValues.of(), (Throwable) null));
 		assertEquals("INFO a\\nb\n", sb.toString());
+	}
+
+	@Test
+	void crlfEscapesOnlyTheRegionAndKeepsTheTrailingSeparator() {
+		var sb = new StringBuilder("a\nb\r\nc\r\n");
+		PostProcessors.escapeLineBreaks(sb, 2);
+		assertEquals("a\nb\\r\\nc\r\n", sb.toString());
+	}
+
+	@Test
+	void crlfIsLinearInTheNumberOfLineBreaks() {
+		int count = 1 << 20;
+		var sb = new StringBuilder("\n".repeat(count));
+		assertTimeout(Duration.ofSeconds(2), () -> PostProcessors.escapeLineBreaks(sb, 0));
+		assertEquals("\\n".repeat(count - 1) + "\n", sb.toString());
 	}
 
 }

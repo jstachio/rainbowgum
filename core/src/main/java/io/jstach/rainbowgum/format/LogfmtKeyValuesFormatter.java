@@ -94,23 +94,29 @@ record LogfmtKeyValuesFormatter(@Nullable List<String> keys,
 
 	/*
 	 * Quotes and escapes the text from start to the end of the output if logfmt needs it,
-	 * in place so the common unquoted case copies nothing.
+	 * in place so the common unquoted case copies nothing. Replacing each escaped
+	 * character shifts the rest of the text, which is quadratic for a message of many
+	 * lines, so the quoted copy is appended after the text in one pass and the original
+	 * is then deleted.
 	 */
 	static void quoteInPlace(StringBuilder output, int start) {
 		int end = output.length();
 		if (end > start && !needsQuotes(output, start, end)) {
 			return;
 		}
-		output.insert(start, '"');
-		for (int i = start + 1; i <= end; i++) {
-			String escape = escape(output.charAt(i));
+		output.append('"');
+		for (int i = start; i < end; i++) {
+			char c = output.charAt(i);
+			String escape = escape(c);
 			if (escape != null) {
-				output.replace(i, i + 1, escape);
-				i += escape.length() - 1;
-				end += escape.length() - 1;
+				output.append(escape);
+			}
+			else {
+				output.append(c);
 			}
 		}
 		output.append('"');
+		output.delete(start, end);
 	}
 
 	private static boolean needsQuotes(StringBuilder output, int start, int end) {

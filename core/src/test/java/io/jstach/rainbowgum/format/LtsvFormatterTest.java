@@ -2,8 +2,10 @@ package io.jstach.rainbowgum.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 import java.lang.System.Logger.Level;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -347,6 +349,14 @@ class LtsvFormatterTest {
 		assertEquals(
 				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:x\n",
 				sb.toString());
+	}
+
+	@Test
+	void escapingIsLinearInTheNumberOfEscapes() {
+		int count = 1 << 20;
+		var sb = new StringBuilder("msg:a").append("\n".repeat(count));
+		assertTimeout(Duration.ofSeconds(2), () -> LtsvFormatter.escapeInPlace(sb, 4));
+		assertEquals("msg:a" + "\\n".repeat(count), sb.toString());
 	}
 
 }

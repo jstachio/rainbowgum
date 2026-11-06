@@ -383,18 +383,31 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 
 	/*
 	 * Backslash escapes the text from start to the end of the output if it has a control
-	 * character or backslash, in place so the common case copies nothing.
+	 * character or backslash, in place so the common case copies nothing. Replacing each
+	 * escaped character shifts the rest of the text, which is quadratic for a message of
+	 * many lines, so from the first escape on the escaped copy is appended after the text
+	 * in one pass and the original is then deleted.
 	 */
 	static void escapeInPlace(StringBuilder output, int start) {
 		int end = output.length();
-		for (int i = start; i < end; i++) {
-			String escape = escape(output.charAt(i));
+		int first = start;
+		while (first < end && escape(output.charAt(first)) == null) {
+			first++;
+		}
+		if (first == end) {
+			return;
+		}
+		for (int i = first; i < end; i++) {
+			char c = output.charAt(i);
+			String escape = escape(c);
 			if (escape != null) {
-				output.replace(i, i + 1, escape);
-				i += escape.length() - 1;
-				end += escape.length() - 1;
+				output.append(escape);
+			}
+			else {
+				output.append(c);
 			}
 		}
+		output.delete(first, end);
 	}
 
 	private static @Nullable String escape(char c) {
