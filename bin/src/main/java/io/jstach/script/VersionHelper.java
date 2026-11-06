@@ -200,7 +200,7 @@ enum Command implements HelpSupport {
 	 * {@code List.of()} if there are none.
 	 */
 	public static final List<String> VERSION_PROPERTY_POM_DIRECTORIES = List.of("examples/helidon",
-			"examples/micronaut", "examples/simple-props");
+			"examples/micronaut", "examples/simple-props", "examples/web-log");
 
 	/**
 	 * The property {@link #VERSION_PROPERTY_POM_DIRECTORIES} poms declare the version in.
