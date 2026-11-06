@@ -32,6 +32,53 @@ import io.jstach.rainbowgum.LogProperty.Validator;
 class LogPropertyTest {
 
 	@ParameterizedTest
+	@ValueSource(strings = { "https://alice:fake-uri-secret@localhost/path?token=fake-query-secret",
+			"../logs/a%20b?literal=a+b#fragment", "mailto:user@example.com", "" })
+	void standaloneUriParserPreservesInput(String input) {
+		assertEquals(input, LogProperty.parseURI(input).toString());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "https://alice:fake-uri-secret@localhost/path with-space?token=fake-query-secret",
+			"//alice:fake-uri-secret@localhost/path with-space?token=fake-query-secret",
+			"https://alice:fake-uri-secret@localhost/%ZZ?token=fake-query-secret",
+			"path with-space?token=fake-query-secret" })
+	void standaloneUriParserOmitsInputAndUnsafeCause(String input) {
+		var failure = assertThrows(IllegalArgumentException.class, () -> LogProperty.parseURI(input));
+		var trace = new StringWriter();
+		failure.printStackTrace(new PrintWriter(trace));
+		assertFalse(trace.toString().contains("fake-uri-secret"), trace.toString());
+		assertFalse(trace.toString().contains("fake-query-secret"), trace.toString());
+		assertTrue(String.valueOf(failure.getMessage()).startsWith("Invalid URI:"));
+		assertNull(failure.getCause());
+		assertEquals(0, failure.getSuppressed().length);
+		assertTrue(failure.getStackTrace().length > 0);
+	}
+
+	@Test
+	void standaloneUriParserKeepsReasonAndPosition() {
+		var failure = assertThrows(IllegalArgumentException.class, () -> LogProperty.parseURI("not a uri"));
+		assertEquals("Invalid URI: Illegal character in path at index 3", failure.getMessage());
+	}
+
+	@Test
+	void safeUriParserUsedInCustomMappingAlsoProtectsReports() {
+		var check = new UnusedKeyCheck(List.of());
+		var properties = check.wrap(LogProperties.builder()
+			.fromProperties(
+					"logging.endpoint=https://alice:fake-uri-secret@localhost/invalid path?token=fake-query-secret")
+			.build());
+		var result = properties.forKey("logging.endpoint").ofString().map(LogProperty::parseURI);
+		var failure = assertThrows(ValidationException.class, () -> result.validateNow(getClass()));
+		var trace = new StringWriter();
+		failure.printStackTrace(new PrintWriter(trace));
+		assertFalse(trace.toString().contains("fake-uri-secret"), trace.toString());
+		assertFalse(trace.toString().contains("fake-query-secret"), trace.toString());
+		assertTrue(String.valueOf(failure.getMessage()).contains("'logging.endpoint' from PROPERTIES_STRING"));
+		assertEquals("<REDACTED>", check.read(properties).getFirst().value());
+	}
+
+	@ParameterizedTest
 	@ValueSource(strings = { "https://alice:fake-uri-secret@localhost/path with-space?token=fake-query-secret",
 			"//alice:fake-uri-secret@localhost/path with-space?token=fake-query-secret",
 			"https://alice:fake-uri-secret@localhost/%ZZ?token=fake-query-secret",

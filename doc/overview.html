@@ -420,6 +420,14 @@ A property its component marks as sensitive, such as the
 the component fails to build and says to set the property on its own instead.
 </p>
 
+<p>
+Custom components should read URI-valued properties with {@link io.jstach.rainbowgum.LogProperty#ofURI()},
+which includes the property and source in errors. For URI text from an environment variable or another source,
+use {@link io.jstach.rainbowgum.LogProperty#parseURI(String)}. Both omit rejected input from syntax errors,
+while keeping the parse reason and position. Use {@link io.jstach.rainbowgum.LogProperty#redactUri(java.net.URI)}
+when displaying a successfully parsed URI in diagnostics.
+</p>
+
 <h4 id="config_plural">Plural keys for enabling/disabling</h4>
 
 Because Rainbow Gum's property config model is a lookup of key to value 

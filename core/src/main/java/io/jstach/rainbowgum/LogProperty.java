@@ -97,6 +97,29 @@ public interface LogProperty {
 	}
 
 	/**
+	 * Parses a URI without exposing its input in a syntax error. The input is not trimmed
+	 * or normalized. On failure, the exception retains the parse reason, position and
+	 * stack frames, but not the input or original cause, which may contain credentials.
+	 * <p>
+	 * For a value read from {@link LogProperties}, prefer
+	 * {@code properties.forKey(key).ofURI()} so errors also identify the property and
+	 * source. Use {@link #redactUri(URI)} to display a successfully parsed URI in
+	 * diagnostics: the returned URI itself still holds its original values.
+	 * @param input URI text.
+	 * @return parsed URI.
+	 * @throws IllegalArgumentException if the input is not a valid URI.
+	 * @see #ofURI()
+	 */
+	static URI parseURI(String input) {
+		try {
+			return new URI(input);
+		}
+		catch (URISyntaxException e) {
+			throw LogRedactor.redactUriException(e);
+		}
+	}
+
+	/**
 	 * Renders a URI for diagnostics with user information and all query values redacted.
 	 * The returned text is for display, not for making requests.
 	 * @param uri URI to display.
@@ -152,7 +175,7 @@ public interface LogProperty {
 	 * @return result.
 	 */
 	default Result<URI> ofURI() {
-		return ofString().map(URI::new);
+		return ofString().map(LogProperty::parseURI);
 	}
 
 	/**
@@ -268,12 +291,15 @@ public interface LogProperty {
 			case PropertySuccess<?> p -> p;
 		};
 		if (e instanceof URISyntaxException syntax) {
-			// URI converters include more than ofURI(), such as file-name conversion.
+			// Existing converters may still call new URI directly.
+			e = LogRedactor.redactUriException(syntax);
+		}
+		if (e instanceof InvalidUriException) {
+			// Safe parsing must also protect the rejected value in later reports.
 			var check = UnusedKeyCheck.findOrNull(ps.topProperties());
 			if (check != null) {
 				check.sensitive(fqk);
 			}
-			e = LogRedactor.redactUriException(syntax);
 		}
 
 		if (ps.sensitive()) {
@@ -294,7 +320,8 @@ public interface LogProperty {
 			own = chainedLabel + ". key: " + resolvedKey + ", value: '" + ps.valueDescription() + "'";
 		}
 		else {
-			String exceptionPrefix = e.getClass() == IllegalArgumentException.class ? "" : errorName(e) + " ";
+			String exceptionPrefix = e.getClass() == IllegalArgumentException.class || e instanceof InvalidUriException
+					? "" : errorName(e) + " ";
 			/*
 			 * A converter's message can quote the value it could not convert.
 			 */
@@ -1327,6 +1354,16 @@ record PropertySuccess<T>(LogProperties topProperties, LogProperties properties,
 
 }
 
+/* A value-safe parse failure, also recognized when used in Result.map. */
+@SuppressWarnings("serial")
+final class InvalidUriException extends IllegalArgumentException {
+
+	InvalidUriException(String message) {
+		super(message);
+	}
+
+}
+
 final class LogRedactor {
 
 	private LogRedactor() {
@@ -1348,9 +1385,9 @@ final class LogRedactor {
 		return safe;
 	}
 
-	static IllegalArgumentException redactUriException(URISyntaxException exception) {
+	static InvalidUriException redactUriException(URISyntaxException exception) {
 		String position = exception.getIndex() < 0 ? "" : " at index " + exception.getIndex();
-		var safe = new IllegalArgumentException("Invalid URI: " + exception.getReason() + position);
+		var safe = new InvalidUriException("Invalid URI: " + exception.getReason() + position);
 		safe.setStackTrace(exception.getStackTrace());
 		return safe;
 	}
