@@ -3,7 +3,6 @@ package io.jstach.rainbowgum.otlp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -41,16 +41,51 @@ class OtlpCredentialDiagnosticsTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { "Authorization", "X-Honeycomb-Team", "bad-header\n" + SECRET })
-	void invalidHeadersAreOmittedFromDefaultStderrAndAlertCauses(String name) {
+	@ValueSource(strings = { "Authorization", "X-Honeycomb-Team", "bad-header\n" + SECRET, "Connection" })
+	void invalidHeadersFailStartupWithoutValues(String name) {
+		var failure = assertThrows(RuntimeException.class,
+				() -> OtlpOutput
+					.of(b -> b.endpoint(URI.create("http://127.0.0.1:1/v1/logs"))
+						.headers(Map.of(name, "Bearer " + SECRET + "\n")))
+					.provide("audit", emptyConfig()));
+		String trace = trace(failure);
+		assertFalse(trace.contains(SECRET), trace);
+		String message = String.valueOf(failure.getMessage());
+		String expected = switch (name) {
+			case "Connection" -> "OTLP header 'Connection' is not allowed";
+			case "Authorization", "X-Honeycomb-Team" -> "OTLP header '" + name + "' has an invalid value";
+			default -> "OTLP header name is invalid";
+		};
+		assertTrue(message.contains(expected), message);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "OTEL_EXPORTER_OTLP_HEADERS", "OTEL_EXPORTER_OTLP_LOGS_HEADERS" })
+	void invalidEnvironmentHeaderValuesFailStartupWithoutValues(String variable) {
+		OtlpEnvironment.source = Map.of(variable, "Authorization=Bearer%0A" + SECRET)::get;
+		var failure = assertThrows(RuntimeException.class,
+				() -> OtlpOutput.of(b -> b.environmentVariables(EnvironmentVariables.ON))
+					.provide("audit", emptyConfig()));
+		String trace = trace(failure);
+		assertFalse(trace.contains(SECRET), trace);
+		String message = String.valueOf(failure.getMessage());
+		assertTrue(message.contains("OTLP header 'Authorization' has an invalid value"), message);
+	}
+
+	/*
+	 * Sending never quotes request headers, so an authenticated endpoint keeps the
+	 * connection error.
+	 */
+	@Test
+	void sendFailuresWithHeadersKeepDetails() {
 		var original = System.err;
 		var bytes = new ByteArrayOutputStream();
-		var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
+		var config = emptyConfig();
 		try (var capture = new PrintStream(bytes, true, StandardCharsets.UTF_8)) {
 			System.setErr(capture);
 			try (var output = OtlpOutput
 				.of(b -> b.endpoint(URI.create("http://127.0.0.1:1/v1/logs"))
-					.headers(Map.of(name, "Bearer " + SECRET + "\n")))
+					.headers(Map.of("Authorization", "Bearer " + SECRET)))
 				.provide("audit", config)) {
 				output.write(LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "audit", "ordinary message",
 						KeyValues.of(), null), new byte[0], 0, 0, StandardContentType.APPLICATION_JSON);
@@ -61,15 +96,11 @@ class OtlpCredentialDiagnosticsTest {
 		}
 		String stderr = bytes.toString(StandardCharsets.UTF_8);
 		assertFalse(stderr.contains(SECRET), stderr);
-		assertTrue(stderr.contains("credential details omitted"), stderr);
-		assertTrue(stderr.contains(IllegalArgumentException.class.getName()), stderr);
 		assertEquals(1, config.alerts().dump().size());
 		var cause = config.alerts().dump().getFirst().throwableOrNull();
 		assertNotNull(cause);
-		assertNull(cause.getCause());
-		assertEquals(0, cause.getSuppressed().length);
-		assertTrue(cause.getStackTrace().length > 0);
 		assertFalse(trace(cause).contains(SECRET), trace(cause));
+		assertFalse(String.valueOf(cause.getMessage()).contains("credential details omitted"), trace(cause));
 	}
 
 	@ParameterizedTest

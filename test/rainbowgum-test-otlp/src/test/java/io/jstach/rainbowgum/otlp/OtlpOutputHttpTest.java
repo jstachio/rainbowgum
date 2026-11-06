@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum.otlp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -283,23 +285,19 @@ class OtlpOutputHttpTest {
 	}
 
 	@Test
-	void invalidCredentialEndpointDoesNotLeakThroughExceptionCause() {
+	void invalidCredentialEndpointFailsStartupWithoutCredentials() {
 		endpoint = URI.create("ftp://user:kenny@localhost/v1/logs?token=secret");
 		var config = LogConfig.builder().build();
-		var output = output(config, b -> {
-		});
-		output.write(event("a"), new byte[0], 0, 0, null);
-		output.close();
-		var alert = config.alerts().dump().getLast();
-		assertEquals("""
-				OTLP export to ftp://<REDACTED>@localhost/v1/logs?token=<REDACTED> failed; dropped 1 log records""",
-				alert.message());
-		var cause = java.util.Objects.requireNonNull(alert.throwableOrNull());
-		assertEquals(
-				"""
-						java.io.IOException: OTLP request failed (java.lang.IllegalArgumentException); credential details omitted""",
-				cause.toString());
-		assertNull(cause.getCause());
+		var failure = assertThrows(RuntimeException.class, () -> output(config, b -> {
+		}));
+		var trace = new java.io.StringWriter();
+		failure.printStackTrace(new java.io.PrintWriter(trace));
+		assertFalse(trace.toString().contains("kenny"), trace.toString());
+		assertFalse(trace.toString().contains("secret"), trace.toString());
+		String message = String.valueOf(failure.getMessage());
+		assertTrue(message.contains(
+				"OTLP endpoint must be an http or https URL with a host: ftp://<REDACTED>@localhost/v1/logs?token=<REDACTED>"),
+				message);
 	}
 
 	private String normalizeEndpoint(String message) {

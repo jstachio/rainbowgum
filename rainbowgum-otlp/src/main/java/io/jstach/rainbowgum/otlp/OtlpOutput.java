@@ -99,6 +99,9 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 
 	private static final Pattern ERROR_JSON = Pattern.compile("\"errorMessage\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
 
+	/* An HTTP header field name (RFC 9110 token), safe to show. */
+	private static final Pattern TOKEN = Pattern.compile("[!#$%&'*+.^_`|~0-9A-Za-z-]+");
+
 	private static final LogEvent PLACEHOLDER = LogEvent.of(Instant.EPOCH, "", 0, Level.INFO, "", "", KeyValues.of(),
 			null);
 
@@ -207,6 +210,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		if (headers != null) {
 			headers_.putAll(headers);
 		}
+		validateRequest(endpoint_, headers_);
 		String compression_ = compression != null ? compression : env ? OtlpEnvironment.logsValue("COMPRESSION") : null;
 		boolean gzip = parseCompression(compression_);
 		Integer timeout_ = timeout;
@@ -228,6 +232,40 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		Duration t = Duration.ofMillis(timeout_);
 		var mapping = OtlpRecord.Mapping.of(traceIdKey, spanIdKey, keyValuesIncluded, keyValuesExcluded);
 		return (n, config) -> new OtlpOutput(e, p, headers_, gzip, t, maxBatchSize_, resource, mapping, config);
+	}
+
+	/*
+	 * HttpRequest.Builder rejects a bad endpoint or header with a message that quotes it,
+	 * and both can hold credentials. Checking once here fails startup, naming what is
+	 * wrong but not the value, instead of dropping every batch.
+	 */
+	static void validateRequest(URI endpoint, Map<String, String> headers) {
+		HttpRequest.Builder builder;
+		try {
+			builder = HttpRequest.newBuilder(endpoint);
+		}
+		catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException(
+					"OTLP endpoint must be an http or https URL with a host: " + LogProperty.redactUri(endpoint));
+		}
+		for (var header : headers.entrySet()) {
+			String name = header.getKey();
+			try {
+				builder.header(name, "x");
+			}
+			catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException(TOKEN.matcher(name).matches()
+						? "OTLP header '" + name + "' is not allowed"
+						: "OTLP header name is invalid. The name is not shown because it may hold credentials.");
+			}
+			try {
+				builder.header(name, header.getValue());
+			}
+			catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException("OTLP header '" + name
+						+ "' has an invalid value. The value is not shown because it may hold credentials.");
+			}
+		}
 	}
 
 	static OtlpProtocol parseProtocol(String value) {
@@ -367,7 +405,9 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 			request = request(encode(records));
 		}
 		catch (RuntimeException ex) {
-			requestFailed(count, ex);
+			// validateRequest should prevent this, but HttpRequest.Builder quotes the
+			// endpoint or header it rejects.
+			failed(count, omitDetails(ex));
 			return;
 		}
 		for (int attempt = 0;; attempt++) {
@@ -454,18 +494,20 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	}
 
 	private void requestFailed(int count, Exception cause) {
-		if (!headers.isEmpty() || !displayEndpoint.equals(endpoint.toString())) {
-			// Header validation and HTTP client exceptions can quote credentials,
-			// independently of whether the endpoint contains any.
-			// Keep the failure type and stack without retaining unsafe diagnostic text.
-			var safe = new IOException(
-					"OTLP request failed (" + cause.getClass().getName() + "); credential details omitted");
-			safe.setStackTrace(cause.getStackTrace());
-			failed(count, safe);
-		}
-		else {
-			failed(count, cause);
-		}
+		// Sending can quote the endpoint but not request headers, so connection and TLS
+		// errors keep their detail unless the endpoint holds credentials.
+		failed(count, displayEndpoint.equals(endpoint.toString()) ? cause : omitDetails(cause));
+	}
+
+	/*
+	 * Keeps the failure type and stack without the message or cause, which can quote
+	 * credentials.
+	 */
+	private static IOException omitDetails(Exception cause) {
+		var safe = new IOException(
+				"OTLP request failed (" + cause.getClass().getName() + "); credential details omitted");
+		safe.setStackTrace(cause.getStackTrace());
+		return safe;
 	}
 
 	private byte[] encode(List<OtlpRecord> records) {
