@@ -1366,8 +1366,36 @@ final class LogRedactor {
 			return redactUri(new URI(input));
 		}
 		catch (URISyntaxException e) {
-			return input;
+			return redactInvalidUri(input);
 		}
+	}
+
+	/*
+	 * The same masking as redactUri for text that does not parse, such as a password with
+	 * a space in it. Without a parser the user information cannot be told from a path, so
+	 * everything up to the last @ before the query is masked.
+	 */
+	static String redactInvalidUri(String input) {
+		int queryStart = input.indexOf('?');
+		String head = queryStart < 0 ? input : input.substring(0, queryStart);
+		int userInfoEnd = head.lastIndexOf('@');
+		int userInfoStart = userInfoStart(head);
+		var result = new StringBuilder(input.length());
+		if (userInfoEnd >= userInfoStart) {
+			result.append(head, 0, userInfoStart).append(REDACTED_VALUE).append(head, userInfoEnd, head.length());
+		}
+		else {
+			result.append(head);
+		}
+		if (queryStart >= 0) {
+			result.append('?').append(redactQuery(input.substring(queryStart + 1), true));
+		}
+		return result.toString();
+	}
+
+	private static int userInfoStart(String text) {
+		int slashes = text.indexOf("//");
+		return slashes < 0 ? 0 : slashes + 2;
 	}
 
 	/*
@@ -1425,7 +1453,11 @@ final class LogRedactor {
 				}
 			}
 			catch (URISyntaxException e) {
-				// A map value need not be a valid URI; check its keys below.
+				// A map value need not be a valid URI, but one that only fails to parse
+				// can still hold credentials.
+				if (decoded.indexOf("//") >= 0 && decoded.lastIndexOf('@') >= userInfoStart(decoded)) {
+					return true;
+				}
 			}
 		}
 		return decoded.indexOf('=') >= 0 && !redactQuery(decoded).equals(decoded);
