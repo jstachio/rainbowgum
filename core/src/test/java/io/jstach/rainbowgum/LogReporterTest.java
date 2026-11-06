@@ -44,6 +44,25 @@ class LogReporterTest {
 		assertTrue(report.contains(key + " = <REDACTED>"), report);
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "https:alice:fake-uri-secret@localhost/path?token=fake-query-secret",
+			"https:/alice:fake-uri-secret@localhost/path?token=fake-query-secret" })
+	void credentialUriMissingSlashesIsNotDisclosedByFailedStartup(String value) {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties("logging.appender.console.output.uri=" + value).build())
+			.build();
+		var failure = assertThrows(RuntimeException.class, () -> RainbowGum.builder(config).build());
+		var trace = new StringWriter();
+		failure.printStackTrace(new PrintWriter(trace));
+		assertFalse(trace.toString().contains("fake-uri-secret"), trace.toString());
+		assertFalse(trace.toString().contains("fake-query-secret"), trace.toString());
+		String report = config.reporter().report(LogReporter.Options.of(Section.READ_PROPERTIES));
+		assertFalse(report.contains("fake-uri-secret"), report);
+		assertFalse(report.contains("fake-query-secret"), report);
+		assertTrue(report.contains("logging.appender.console.output.uri = <REDACTED>@localhost/path?token=<REDACTED>"),
+				report);
+	}
+
 	@Test
 	void malformedCredentialUriReadAsTextIsRedactedInReport() {
 		var config = LogConfig.builder()
@@ -119,8 +138,13 @@ class LogReporterTest {
 		ORDINARY_PARAMETERS("custom:///a%20b?plain=%26%3D%20&mode=append#hello%20there",
 				"custom:///a%20b?plain=<REDACTED>&mode=<REDACTED>#hello%20there"),
 		EMPTY_QUERY("custom:///?#fragment", "custom:///?#fragment"), NO_QUERY("custom:///path", "custom:///path"),
-		NO_AUTHORITY("custom:/path?token=kenny", "custom:/path?token=<REDACTED>"), RELATIVE_AUTHORITY(
-				"//alice:kenny@example.com/path?token=kenny", "//<REDACTED>@example.com/path?token=<REDACTED>");
+		NO_AUTHORITY("custom:/path?token=kenny", "custom:/path?token=<REDACTED>"),
+		MISSING_SLASHES("custom:alice:kenny@example.com/path?token=kenny#fragment",
+				"<REDACTED>@example.com/path?token=<REDACTED>#fragment"),
+		OPAQUE_AUTHORITY("custom:db://alice:kenny@example.com/path?password=kenny",
+				"custom:db://<REDACTED>@example.com/path?password=<REDACTED>"),
+		RELATIVE_AUTHORITY("//alice:kenny@example.com/path?token=kenny",
+				"//<REDACTED>@example.com/path?token=<REDACTED>");
 
 		final String input;
 

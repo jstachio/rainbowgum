@@ -395,6 +395,15 @@ class LogPropertyTest {
 			"logging.appender.a.output.uri|otlp://user:p/w x@host/logs|otlp://<REDACTED>@host/logs",
 			"logging.appender.a.output.uri|otlp://host/logs?token=a b|otlp://host/logs?token=<REDACTED>",
 			"logging.appender.a.output.uri|user:p w@host|<REDACTED>@host",
+			"logging.appender.a.output.uri|user:pw@host|<REDACTED>@host",
+			"logging.appender.a.output.uri|http:user:pw@host/logs?token=abc|<REDACTED>@host/logs?token=<REDACTED>",
+			"logging.appender.a.output.uri|http:/user:pw@host/logs|<REDACTED>@host/logs",
+			"logging.appender.a.output.uri|http:///user:pw@host/logs|http:///<REDACTED>@host/logs",
+			"logging.appender.a.output.uri|jdbc:postgresql://user:pw@host/db?password=pw|jdbc:postgresql://<REDACTED>@host/db?password=<REDACTED>",
+			"logging.appender.a.output.uri|jdbc:postgresql://host/db?password=pw|jdbc:postgresql://host/db?password=<REDACTED>",
+			"logging.appender.a.output.uri|file:/var/log/app.log|file:/var/log/app.log",
+			"logging.appender.a.output.otlp.headers|X-Proxy=http%3Aalice%3Apw%40host,X-Team=core|X-Proxy=<REDACTED>,X-Team=core",
+			"logging.appender.a.output.otlp.headers|X-Owner=ada@example.com,X-Team=core|X-Owner=ada@example.com,X-Team=core",
 			"logging.appender.a.output.otlp.headers|X-Proxy=http://alice:p w@host,X-Team=core|X-Proxy=<REDACTED>,X-Team=core",
 			"logging.appender.a.encoder.pattern.pattern|%d user=%X{user} %msg%n|%d user=%X{user} %msg%n" })
 	void redactValueRedactsSensitivePairs(String key, String value, String expected) {
