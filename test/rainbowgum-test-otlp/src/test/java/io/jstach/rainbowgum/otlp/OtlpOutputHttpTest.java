@@ -300,6 +300,22 @@ class OtlpOutputHttpTest {
 				message);
 	}
 
+	@Test
+	void endpointMissingSlashesFailsStartupWithoutCredentials() {
+		endpoint = URI.create("http:user:kenny@localhost/v1/logs?token=secret");
+		var config = LogConfig.builder().build();
+		var failure = assertThrows(RuntimeException.class, () -> output(config, b -> {
+		}));
+		var trace = new java.io.StringWriter();
+		failure.printStackTrace(new java.io.PrintWriter(trace));
+		assertFalse(trace.toString().contains("kenny"), trace.toString());
+		assertFalse(trace.toString().contains("secret"), trace.toString());
+		String message = String.valueOf(failure.getMessage());
+		assertTrue(message.contains(
+				"OTLP endpoint must be an http or https URL with a host: <REDACTED>@localhost/v1/logs?token=<REDACTED>"),
+				message);
+	}
+
 	private String normalizeEndpoint(String message) {
 		return message.replace("127.0.0.1:" + server.getAddress().getPort(), "localhost");
 	}

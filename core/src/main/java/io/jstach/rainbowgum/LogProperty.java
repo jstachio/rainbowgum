@@ -1430,9 +1430,25 @@ final class LogRedactor {
 		return result.toString();
 	}
 
+	/*
+	 * Whether redactInvalidUri masks user information in the text.
+	 */
+	private static boolean hasUnparsedUserInfo(String text) {
+		int queryStart = text.indexOf('?');
+		String head = queryStart < 0 ? text : text.substring(0, queryStart);
+		return head.lastIndexOf('@') >= userInfoStart(head);
+	}
+
 	private static int userInfoStart(String text) {
 		int slashes = text.indexOf("//");
-		return slashes < 0 ? 0 : slashes + 2;
+		if (slashes < 0) {
+			return 0;
+		}
+		int start = slashes + 2;
+		while (start < text.length() && text.charAt(start) == '/') {
+			start++;
+		}
+		return start;
 	}
 
 	/*
@@ -1457,6 +1473,17 @@ final class LogRedactor {
 
 	static String redactUri(URI uri) {
 		String source = uri.toString();
+		if (uri.getRawAuthority() == null && uri.getScheme() != null) {
+			/*
+			 * The parser finds no authority, and for an opaque URI no query, in text such
+			 * as http:user:pass@host missing its slashes or
+			 * jdbc:postgresql://user:pass@host, but clients still send the credentials in
+			 * it. The fragment is kept as redactUri keeps it for other URIs.
+			 */
+			String redacted = redactInvalidUri(uri.getScheme() + ":" + uri.getRawSchemeSpecificPart());
+			String fragment = uri.getRawFragment();
+			return fragment == null ? redacted : redacted + "#" + fragment;
+		}
 		var result = new StringBuilder(source);
 		String query = uri.getRawQuery();
 		if (query != null) {
@@ -1484,8 +1511,10 @@ final class LogRedactor {
 		String decoded = PercentCodec.decode(value, StandardCharsets.UTF_8);
 		if (decoded.indexOf('@') >= 0) {
 			try {
-				String authority = new URI(decoded).getRawAuthority();
-				if (authority != null && authority.lastIndexOf('@') >= 0) {
+				URI uri = new URI(decoded);
+				String authority = uri.getRawAuthority();
+				if (authority != null ? authority.lastIndexOf('@') >= 0
+						: uri.getScheme() != null && hasUnparsedUserInfo(decoded)) {
 					return true;
 				}
 			}
