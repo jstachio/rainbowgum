@@ -19,8 +19,14 @@ class RainbowGumPropertyTest {
 	@EnumSource(value = _Test.class)
 	void test(_Test test) throws Exception {
 		String properties = test.properties();
+		var output = new ListLogOutput();
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
+			.configurator((c, pass) -> {
+				// The output registry does not hand out outputs, so serve list with ours.
+				c.outputRegistry().register(LogOutputRegistry.LIST_OUTPUT_SCHEME, ref -> LogProvider.of(output));
+				return true;
+			})
 			.with(test::config)
 			.build();
 		try (var r = test.config(RainbowGum.builder(config)).build().start()) {
@@ -28,7 +34,6 @@ class RainbowGumPropertyTest {
 			for (var e : es) {
 				r.log(e);
 			}
-			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.toString();
 			assertEquals(test.expected, actual);
 			test.assertOther(r);

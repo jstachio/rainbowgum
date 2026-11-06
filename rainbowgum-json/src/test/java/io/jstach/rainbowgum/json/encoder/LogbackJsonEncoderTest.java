@@ -17,10 +17,13 @@ import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogEventFactory;
 import io.jstach.rainbowgum.LogMessageFormatter.StandardMessageFormatter;
 import io.jstach.rainbowgum.LogOutput.WriteMethod;
+import io.jstach.rainbowgum.LogOutputRegistry;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
+import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 class LogbackJsonEncoderTest {
 
@@ -70,14 +73,15 @@ class LogbackJsonEncoderTest {
 				logging.appender.list.output.uri=list:///
 				logging.appender.list.encoder.uri=logback:///?prettyPrint=true
 				""";
+		var output = new ListLogOutput();
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
 			.configurator(new LogbackJsonEncoderConfigurator())
+			.configurator(list(output))
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			Instant instant = Instant.ofEpochMilli(1);
 			r.log(LogEvent.of(instant, "main", 1, System.Logger.Level.INFO, "logback", "hello", KeyValues.of(), null));
-			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
 			String actual = output.events().get(0).getValue();
 			assertTrue(actual.startsWith("{\n "),
 					"expected pretty-printed output from ?prettyPrint=true, got: " + actual);
@@ -164,6 +168,17 @@ class LogbackJsonEncoderTest {
 		String actual = out.events().get(0).getValue();
 		assertTrue(actual.startsWith("{\n "), "Got: " + actual);
 		assertTrue(actual.contains("\"mdc\":{}"), "Got: " + actual);
+	}
+
+	/*
+	 * Serves list:/// with an output the test holds, as the output registry does not hand
+	 * out outputs.
+	 */
+	private static RainbowGumServiceProvider.Configurator list(ListLogOutput output) {
+		return (config, pass) -> {
+			config.outputRegistry().register(LogOutputRegistry.LIST_OUTPUT_SCHEME, ref -> LogProvider.of(output));
+			return true;
+		};
 	}
 
 }

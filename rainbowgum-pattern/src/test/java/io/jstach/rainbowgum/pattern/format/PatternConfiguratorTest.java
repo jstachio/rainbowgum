@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,8 +16,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogFormatter;
+import io.jstach.rainbowgum.LogOutputRegistry;
 import io.jstach.rainbowgum.LogProperties;
-import io.jstach.rainbowgum.LogProvider;
 import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.output.ListLogOutput;
@@ -27,14 +30,22 @@ class PatternConfiguratorTest {
 	@EnumSource(value = _Test.class)
 	void test(_Test test) throws Exception {
 		String properties = test.properties();
+		// The output registry does not hand out outputs, so keep ours by appender name.
+		var outputs = new HashMap<String, ListLogOutput>();
 		LogConfig config = LogConfig.builder()
 			.properties(LogProperties.builder().fromProperties(properties).build())
 			.configurator(new PatternConfigurator())
-			.with(test::config)
+			.configurator((c, p) -> {
+				c.outputRegistry()
+					.register(LogOutputRegistry.LIST_OUTPUT_SCHEME,
+							ref -> (name, cfg) -> outputs.computeIfAbsent(name, n -> new ListLogOutput()));
+				return true;
+			})
+			.with(b -> test.config(b, outputs))
 			.build();
 		try (var r = RainbowGum.builder(config).build().start()) {
 			test.events(r.router());
-			String actual = test.actual(config);
+			String actual = test.actual(outputs);
 			assertEquals(test.expected, actual);
 		}
 	}
@@ -161,7 +172,7 @@ class PatternConfiguratorTest {
 			}
 
 			@Override
-			void config(LogConfig.Builder builder) {
+			void config(LogConfig.Builder builder, Map<String, ListLogOutput> outputs) {
 				builder.configurator(new PatternKeywordProvider() {
 					@Override
 					protected void register(PatternRegistry patternRegistry) {
@@ -234,16 +245,18 @@ class PatternConfiguratorTest {
 			}
 
 			@Override
-			void config(LogConfig.Builder builder) {
+			void config(LogConfig.Builder builder, Map<String, ListLogOutput> outputs) {
 				builder.configurator((c, p) -> {
-					c.outputRegistry().register("stdout", ref -> LogProvider.of(new FakeConsoleOutput()));
+					c.outputRegistry()
+						.register("stdout",
+								ref -> (name, cfg) -> outputs.computeIfAbsent(name, n -> new FakeConsoleOutput()));
 					return true;
 				});
 			}
 
 			@Override
-			String actual(LogConfig config) {
-				ListLogOutput output = (ListLogOutput) config.outputRegistry().output("console").orElseThrow();
+			String actual(Map<String, ListLogOutput> outputs) {
+				var output = Optional.ofNullable(outputs.get("console")).orElseThrow();
 				System.out.print(output);
 				return output.toString();
 			}
@@ -264,9 +277,8 @@ class PatternConfiguratorTest {
 			this.expected = expected;
 		}
 
-		String actual(LogConfig config) {
-			ListLogOutput output = (ListLogOutput) config.outputRegistry().output("list").orElseThrow();
-			return output.toString();
+		String actual(Map<String, ListLogOutput> outputs) {
+			return Optional.ofNullable(outputs.get("list")).orElseThrow().toString();
 		}
 
 		String properties() {
@@ -294,7 +306,7 @@ class PatternConfiguratorTest {
 			}
 		}
 
-		void config(LogConfig.Builder builder) {
+		void config(LogConfig.Builder builder, Map<String, ListLogOutput> outputs) {
 
 		}
 
