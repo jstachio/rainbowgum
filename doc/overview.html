@@ -1381,7 +1381,8 @@ time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1
 }
 
 Tab, newline, carriage return, and <code>\</code> in a value are backslash escaped (<code>\t</code>, <code>\n</code>,
-<code>\r</code>, <code>\\</code>), so every event stays on one line. Key values, the <code>thread</code>,
+<code>\r</code>, <code>\\</code>), so every event stays on one line, unless its stack trace is written as
+<a href="#ltsv_stacktrace">lines</a>. Key values, the <code>thread</code>,
 <code>color</code>, and <code>theme</code> properties, and <code>error</code> and <code>stacktrace</code> work as in the
 <a href="#logfmt">logfmt formatter</a>, except that with color on, <code>error</code> and <code>stacktrace</code>
 take the level's color, since they are on the event's line. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.
@@ -1434,6 +1435,34 @@ logging.appender.console.encoder.postProcessors=journald
 
 {@snippet :
 <6>com.example.App⇥hello world⇥threadId:1⇥threadName:main⇥requestId:42
+}
+
+<p id="ltsv_stacktrace">
+A stack trace on one line is hard to read in a terminal or the journal. <code>stacktrace=lines</code> ends the
+event's line with <code>stacktrace:</code> and writes each line of the stack trace on a line of its own after a
+tab. That is no longer strict LTSV, but an event's line never starts with a tab, so the stack trace is still easy
+to tell from the next event, and removing that tab gives back the stack trace as Java prints it. The exception's
+message is escaped as in any value, so it stays on its line.
+</p>
+
+<p>
+In <code>lines</code> mode, an empty first positional column is written as the reserved escape
+<code>\e</code>, keeping the event distinct from a continuation line. A literal <code>\e</code> value is
+escaped as <code>\\e</code>. The default, <code>inline</code>, keeps the escaped stack trace on the event's line.
+Keep <code>inline</code> for the <a href="#rolling_journald">systemd journal</a>,
+which makes each line its own entry, so each line of a stack trace would be a separate entry.
+</p>
+
+{@snippet lang=properties :
+logging.appender.console.encoder.ltsv.stacktrace=lines
+}
+
+{@snippet :
+time:2026-10-05T15:04:05.123Z⇥level:ERROR⇥logger:com.example.App⇥threadId:1⇥threadName:main⇥msg:failed⇥error:java.lang.IllegalStateException: boom⇥stacktrace:
+⇥java.lang.IllegalStateException: boom
+⇥⇥at com.example.App.run(App.java:42)
+⇥Caused by: java.io.IOException: disk full
+⇥⇥at com.example.Store.write(Store.java:7)
 }
 
 <p>

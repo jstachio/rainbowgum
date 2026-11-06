@@ -1,5 +1,7 @@
 package io.jstach.rainbowgum.format;
 
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.List;
@@ -49,6 +51,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 
 	private final LogFormatter logger;
 
+	private final LtsvStackTrace stacktrace;
+
 	private final Palette palette;
 
 	/*
@@ -58,7 +62,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	private final KeyValuesConsumer<StringBuilder> keyValues;
 
 	private LtsvFormatter(List<EventField> columns, LogFormatter timestamp, ThreadFields thread, LogFormatter level,
-			LogFormatter logger, Palette palette) {
+			LogFormatter logger, LtsvStackTrace stacktrace, Palette palette) {
 		this.columns = columns.toArray(EventField[]::new);
 		this.labeled = EnumSet
 			.complementOf(columns.isEmpty() ? EnumSet.noneOf(EventField.class) : EnumSet.copyOf(columns))
@@ -67,6 +71,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		this.thread = thread;
 		this.level = level;
 		this.logger = logger;
+		this.stacktrace = stacktrace;
 		this.palette = palette;
 		Set<String> fields = Json5Formatter.fields(thread);
 		this.keyValues = (kvs, key, value, count, output) -> appendKeyValue(
@@ -103,7 +108,10 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * fields is prefixed with <code>keyValues.</code>. A key value without a value is
 	 * written with an empty one.</li>
 	 * <li>A throwable adds <code>error</code> (its <code>toString()</code>) and
-	 * <code>stacktrace</code>.</li>
+	 * <code>stacktrace</code>, last on the line. With <code>stacktrace=lines</code> each
+	 * line of the stack trace follows the event's line on a line of its own, after a tab,
+	 * see {@link LtsvStackTrace#LINES}. In this mode an empty first positional column is
+	 * written as <code>\e</code>, so an event never starts with a tab.</li>
 	 * </ul>
 	 * Values are never quoted. LTSV does not allow tab, newline, or carriage return in a
 	 * value, so these and <code>\</code> are backslash escaped (<code>\t</code>,
@@ -125,6 +133,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <code>plain</code>.
 	 * @param logger logger name format, see {@link TTLL.LoggerFormat}.
 	 * @param columns the fields written first without labels, see {@link EventField}.
+	 * @param stacktrace how a stack trace is written, see {@link LtsvStackTrace}.
 	 * @param color whether to color values, see {@link TTLL.ColorMode}.
 	 * @param theme which colors, see {@link TTLL.ColorTheme}.
 	 * @param serviceRegistry where themes chosen by name in properties are looked up.
@@ -138,6 +147,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("convertLevel") LogFormatter level,
 			@LogConfigurable.DefaultParameter("DEFAULT_LOGGER") @LogConfigurable.ConvertParameter("convertLogger") LogFormatter logger,
 			@LogConfigurable.DefaultParameter("DEFAULT_COLUMNS") @LogConfigurable.ConvertParameter("convertColumns") List<EventField> columns,
+			@LogConfigurable.DefaultParameter(
+					constant = "INLINE") @LogConfigurable.ConvertParameter("convertStacktrace") LtsvStackTrace stacktrace,
 			@LogConfigurable.ConvertParameter("convertColor") TTLL.@Nullable ColorMode color,
 			@LogConfigurable.ConvertParameter("convertTheme") TTLL.@Nullable ColorTheme theme,
 			@LogConfigurable.PassThroughParameter @Nullable ServiceRegistry serviceRegistry) {
@@ -156,7 +167,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 						"columns lists " + field + " but " + (f == EventField.TIME ? "timestamp" : field) + " is none");
 			}
 		}
-		return new LtsvFormatter(columns, timestamp, thread, level, logger,
+		return new LtsvFormatter(columns, timestamp, thread, level, logger, stacktrace,
 				Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
 						PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 	}
@@ -167,6 +178,10 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 
 	static ThreadFields convertThread(String value) {
 		return ThreadFields.parse(value);
+	}
+
+	static LtsvStackTrace convertStacktrace(String value) {
+		return LtsvStackTrace.parse(value);
 	}
 
 	static LogFormatter convertLevel(String value) {
@@ -238,14 +253,84 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 			appendValue(output, throwable.toString());
 			Palette.end(output, levelColor);
 			output.append("\tstacktrace:");
-			Palette.start(output, levelColor);
-			int start = output.length();
-			ThrowableFormatter.appendThrowable(output, throwable);
-			trimTrailingLineBreaks(output, start);
-			escapeInPlace(output, start);
-			Palette.end(output, levelColor);
+			if (stacktrace == LtsvStackTrace.LINES) {
+				appendStackTraceLines(output, throwable, levelColor);
+			}
+			else {
+				Palette.start(output, levelColor);
+				int start = output.length();
+				ThrowableFormatter.appendThrowable(output, throwable);
+				trimTrailingLineBreaks(output, start);
+				escapeInPlace(output, start);
+				Palette.end(output, levelColor);
+			}
 		}
 		output.append('\n');
+	}
+
+	/*
+	 * println marks a structural trace line; line breaks inside its text are data.
+	 * Keeping those boundaries avoids re-reading throwables or guessing from matching
+	 * message text. Custom printStackTrace implementations still write through the same
+	 * PrintWriter, including writes split across several calls.
+	 */
+	private static void appendStackTraceLines(StringBuilder output, Throwable throwable, String color) {
+		var writer = new StackTraceLineWriter(output, color);
+		throwable.printStackTrace(writer);
+		writer.finish();
+	}
+
+	private static final class StackTraceLineWriter extends PrintWriter {
+
+		private final StringBuilder output;
+
+		private final String color;
+
+		private final StringBuilder line = new StringBuilder();
+
+		StackTraceLineWriter(StringBuilder output, String color) {
+			super(Writer.nullWriter());
+			this.output = output;
+			this.color = color;
+		}
+
+		@Override
+		public void write(int c) {
+			line.append((char) c);
+		}
+
+		@Override
+		public void write(String str, int off, int len) {
+			line.append(str, off, off + len);
+		}
+
+		@Override
+		public void write(char[] buf, int off, int len) {
+			line.append(buf, off, len);
+		}
+
+		@Override
+		public void println() {
+			output.append("\n\t");
+			int content = 0;
+			while (content < line.length() && line.charAt(content) == '\t') {
+				output.append('\t');
+				content++;
+			}
+			Palette.start(output, color);
+			int start = output.length();
+			output.append(line, content, line.length());
+			escapeInPlace(output, start);
+			Palette.end(output, color);
+			line.setLength(0);
+		}
+
+		void finish() {
+			if (!line.isEmpty()) {
+				println();
+			}
+		}
+
 	}
 
 	private boolean appendField(StringBuilder output, boolean any, EventField field, boolean labeled, LogEvent event,
@@ -275,7 +360,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 				label(output, labeled, "msg:");
 				int start = output.length();
 				event.formattedMessage(output);
-				escapeInPlace(output, start);
+				escapeFieldValue(output, start, !any && !labeled);
 			}
 		}
 		return true;
@@ -292,8 +377,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		return true;
 	}
 
-	private static boolean appendFormatted(StringBuilder output, boolean any, boolean labeled, String label,
-			String color, LogFormatter formatter, LogEvent event) {
+	private boolean appendFormatted(StringBuilder output, boolean any, boolean labeled, String label, String color,
+			LogFormatter formatter, LogEvent event) {
 		if (formatter.isNoop()) {
 			return any;
 		}
@@ -302,7 +387,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		Palette.start(output, color);
 		int start = output.length();
 		formatter.format(output, event);
-		escapeInPlace(output, start);
+		escapeFieldValue(output, start, !any && !labeled);
 		Palette.end(output, color);
 		return true;
 	}
@@ -317,7 +402,9 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		separate(output, any);
 		label(output, labeled, label);
 		Palette.start(output, palette.thread());
-		appendValue(output, event.threadName());
+		int start = output.length();
+		output.append(event.threadName());
+		escapeFieldValue(output, start, !any && !labeled);
 		Palette.end(output, palette.thread());
 		return true;
 	}
@@ -329,6 +416,14 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		output.append(event.threadId());
 		Palette.end(output, palette.thread());
 		return true;
+	}
+
+	private void escapeFieldValue(StringBuilder output, int start, boolean firstColumn) {
+		escapeInPlace(output, start);
+		if (firstColumn && stacktrace == LtsvStackTrace.LINES && output.length() == start) {
+			// Unlike a literal backslash, this reserved escape is added after escaping.
+			output.append("\\e");
+		}
 	}
 
 	private static int appendKeyValue(String key, @Nullable String value, int count, StringBuilder output) {

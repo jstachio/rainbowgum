@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.PrintWriter;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogFormatter;
 import io.jstach.rainbowgum.LogProperties;
 import io.jstach.rainbowgum.LogProperty;
 import io.jstach.rainbowgum.LogProvider;
@@ -108,6 +110,207 @@ class LtsvFormatterTest {
 				+ "\terror:java.lang.IllegalStateException: boom"
 				+ "\tstacktrace:java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\n";
 		assertEquals(expected, format(event(Level.ERROR, "main", "failed", KeyValues.of(), ex)));
+	}
+
+	/*
+	 * Each line of the stack trace after a tab, keeping the trace's own tabs, while the
+	 * message's line break, backslash and tab are escaped as in any value.
+	 */
+	@Test
+	void stackTraceLines() {
+		var cause = new RuntimeException("root");
+		cause.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Repo", "load", "Repo.java", 7) });
+		var ex = new IllegalStateException("bad\nvalue C:\\logs\tx", cause);
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		var suppressed = new IllegalArgumentException("close");
+		suppressed
+			.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Close", "close", "Close.java", 3) });
+		ex.addSuppressed(suppressed);
+		var sb = new StringBuilder();
+		new LtsvFormatterBuilder("test").stacktrace(LtsvStackTrace.LINES)
+			.build()
+			.format(sb, event(Level.ERROR, "main", "failed", KeyValues.of(), ex));
+		String expected = """
+				time:2026-10-05T15:04:05.123Z\tlevel:ERROR\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:failed\
+				\terror:java.lang.IllegalStateException: bad\\nvalue C:\\\\logs\\tx\tstacktrace:
+				\tjava.lang.IllegalStateException: bad\\nvalue C:\\\\logs\\tx
+				\t\tat app.Main.run(Main.java:42)
+				\t\tSuppressed: java.lang.IllegalArgumentException: close
+				\t\t\tat app.Close.close(Close.java:3)
+				\tCaused by: java.lang.RuntimeException: root
+				\t\tat app.Repo.load(Repo.java:7)
+				""";
+		assertEquals(expected, sb.toString());
+	}
+
+	@Test
+	void stackTraceLinesTakeTheLevelColor() {
+		var ex = new IllegalStateException("boom");
+		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
+		var sb = new StringBuilder();
+		new LtsvFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
+			.stacktrace(LtsvStackTrace.LINES)
+			.columns(List.of(EventField.MESSAGE))
+			.timestamp(LogFormatter.noop())
+			.level(LogFormatter.noop())
+			.logger(LogFormatter.noop())
+			.thread(ThreadFields.NONE)
+			.build()
+			.format(sb, event(Level.ERROR, "main", "failed", KeyValues.of(), ex));
+		String expected = "failed\terror:" + E + "1;31mjava.lang.IllegalStateException: boom" + R + "\tstacktrace:\n\t"
+				+ E + "1;31mjava.lang.IllegalStateException: boom" + R + "\n\t\t" + E
+				+ "1;31mat app.Main.run(Main.java:42)" + R + "\n";
+		assertEquals(expected, sb.toString());
+	}
+
+	@Test
+	void causeTextMatchingParentFramesDoesNotMergeTheirLines() {
+		var frame = new StackTraceElement("app.Main", "run", "Main.java", 42);
+		var ex = new RuntimeException("boom");
+		ex.setStackTrace(new StackTraceElement[] { frame });
+		var cause = new RuntimeException("boom\n\tat " + frame);
+		cause.setStackTrace(new StackTraceElement[0]);
+		ex.initCause(cause);
+		assertEquals("""
+
+				\tjava.lang.RuntimeException: boom
+				\t\tat app.Main.run(Main.java:42)
+				\tCaused by: java.lang.RuntimeException: boom\\n\\tat app.Main.run(Main.java:42)
+				""", traceLines(ex));
+	}
+
+	@Test
+	void customStackTraceKeepsWriterBoundariesAndUnterminatedText() {
+		var ex = new RuntimeException("custom") {
+			@Override
+			public void printStackTrace(PrintWriter writer) {
+				writer.print("custom");
+				writer.append('\t').append("a\nb").append('\r');
+				writer.println();
+				writer.write(new char[] { '!', '\t', '4', '2', '!' }, 1, 3);
+				writer.println();
+				writer.println((Object) "object\r\nvalue");
+				writer.write("skiptrailingtail", 4, 8);
+			}
+		};
+		assertEquals("""
+
+				\tcustom\\ta\\nb\\r
+				\t\t42
+				\tobject\\r\\nvalue
+				\ttrailing
+				""", traceLines(ex));
+	}
+
+	@Test
+	void stackTraceLinesDoNotReadThrowableTextAgain() {
+		var ex = new RuntimeException() {
+			private int calls;
+
+			// Exercise a custom toString that cannot safely be read a third time.
+			@Override
+			@SuppressWarnings("OverrideThrowableToString")
+			public String toString() {
+				if (++calls > 2) {
+					throw new IllegalStateException("Unexpected third toString call");
+				}
+				return "render " + calls;
+			}
+		};
+		ex.setStackTrace(new StackTraceElement[0]);
+		assertEquals("\n\trender 2\n", traceLines(ex));
+	}
+
+	private static String traceLines(Throwable throwable) {
+		var output = new StringBuilder();
+		new LtsvFormatterBuilder("test").stacktrace(LtsvStackTrace.LINES)
+			.build()
+			.format(output, event(Level.ERROR, "main", "failed", KeyValues.of(), throwable));
+		String marker = "\tstacktrace:";
+		return output.substring(output.indexOf(marker) + marker.length());
+	}
+
+	@Test
+	void emptyLeadingColumnDoesNotLookLikeAContinuation() {
+		var ex = new RuntimeException("boom");
+		ex.setStackTrace(new StackTraceElement[0]);
+		var formatter = new LtsvFormatterBuilder("test").columns(List.of(EventField.MESSAGE))
+			.stacktrace(LtsvStackTrace.LINES)
+			.build();
+		var output = new StringBuilder();
+		formatter.format(output, event(Level.ERROR, "main", "failed", KeyValues.of(), ex));
+		formatter.format(output, event(Level.INFO, "main", "", KeyValues.of(), null));
+		assertEquals(List.of(
+				"failed\ttime:2026-10-05T15:04:05.123Z\tlevel:ERROR\tlogger:com.example.App\tthreadId:1\tthreadName:main\terror:java.lang.RuntimeException: boom\tstacktrace:",
+				"\\e\ttime:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main"),
+				output.toString().lines().filter(line -> !line.startsWith("\t")).toList());
+	}
+
+	@Test
+	void emptyLeadingColumnEscapeIsDistinctFromLiteralBackslashE() {
+		var formatter = new LtsvFormatterBuilder("test").columns(List.of(EventField.MESSAGE))
+			.timestamp(LogFormatter.noop())
+			.thread(ThreadFields.NONE)
+			.level(LogFormatter.noop())
+			.logger(LogFormatter.noop())
+			.stacktrace(LtsvStackTrace.LINES)
+			.build();
+		var output = new StringBuilder("previous event\n");
+		formatter.format(output, event(Level.INFO, "main", "", KeyValues.of(), null));
+		formatter.format(output, event(Level.INFO, "main", "\\e", KeyValues.of(), null));
+		assertEquals("previous event\n\\e\n\\\\e\n", output.toString());
+	}
+
+	@Test
+	void inlineModeKeepsEmptyLeadingColumn() {
+		var formatter = new LtsvFormatterBuilder("test").columns(List.of(EventField.MESSAGE))
+			.stacktrace(LtsvStackTrace.INLINE)
+			.build();
+		var output = new StringBuilder();
+		formatter.format(output, event(Level.INFO, "main", "", KeyValues.of(), null));
+		assertEquals(
+				"\ttime:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\n",
+				output.toString());
+	}
+
+	@Test
+	void coloredEmptyLeadingFieldsHaveTheSameFramingAfterStrippingColor() {
+		var emptyTimestamp = LogFormatter.of((output, event) -> {
+		});
+		for (EventField field : List.of(EventField.LOGGER, EventField.THREAD, EventField.TIME)) {
+			var formatter = new LtsvFormatterBuilder("test").columns(List.of(field))
+				.color(TTLL.ColorMode.FORCE)
+				.thread(ThreadFields.NAME)
+				.timestamp(emptyTimestamp)
+				.build();
+			var output = new StringBuilder();
+			formatter.format(output, LogEvent.of(TIME, "", 1, Level.INFO, "", "hello", KeyValues.of(), null));
+			String plain = output.toString().replaceAll("\u001b\\[[0-9;]*m", "");
+			// INLINE is still allowed to have an empty leading column.
+			assertEquals('\t', plain.charAt(0));
+			var lines = new LtsvFormatterBuilder("test").columns(List.of(field))
+				.color(TTLL.ColorMode.FORCE)
+				.thread(ThreadFields.NAME)
+				.timestamp(emptyTimestamp)
+				.stacktrace(LtsvStackTrace.LINES)
+				.build();
+			output.setLength(0);
+			lines.format(output, LogEvent.of(TIME, "", 1, Level.INFO, "", "hello", KeyValues.of(), null));
+			assertEquals("\\e" + plain, output.toString().replaceAll("\u001b\\[[0-9;]*m", ""));
+		}
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "lines, LINES", "true, LINES", "inline, INLINE", "default, INLINE", "false, INLINE" })
+	void stacktraceProperty(String value, LtsvStackTrace expected) {
+		assertEquals(expected, LtsvFormatter.convertStacktrace(value));
+	}
+
+	@Test
+	void invalidStacktracePropertyFails() {
+		var e = assertThrows(IllegalArgumentException.class, () -> LtsvFormatter.convertStacktrace("multiline"));
+		assertEquals("'multiline' is not a valid value for io.jstach.rainbowgum.format.LtsvStackTrace. "
+				+ "Valid values: 'inline', 'lines', 'default', 'true', 'false'", e.getMessage());
 	}
 
 	@Test
