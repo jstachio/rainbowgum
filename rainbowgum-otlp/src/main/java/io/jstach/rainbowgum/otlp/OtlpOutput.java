@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,7 +20,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Flow;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -58,6 +62,11 @@ import io.jstach.rainbowgum.json.JsonBuffer.ExtendedFieldPrefix;
  * the endpoint reports as rejected (partial success) are a warning alert and counted in
  * {@value #REJECTED_METRIC}.
  * <p>
+ * The endpoint is trusted with the log records but not with the application: at most 64
+ * KiB of a response is read, text from it is escaped and shortened before it is put in an
+ * alert, and redirects are not followed, as they would send the request headers
+ * elsewhere.
+ * <p>
  * This output encodes events itself, so it does not use an appender encoder. Records have
  * the same content as {@link OtlpJsonEncoder} produces.
  */
@@ -88,6 +97,15 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 	 */
 	public static final int DEFAULT_TIMEOUT = 10_000;
 
+	/* Most bytes of a response read. A larger successful response is invalid. */
+	static final int MAX_RESPONSE_BYTES = 64 * 1024;
+
+	/* Most characters of a response message put in an alert. */
+	static final int MAX_MESSAGE_CHARS = 1024;
+
+	/* Most characters of a failed response body put in an alert. */
+	static final int MAX_PREVIEW_CHARS = 200;
+
 	static final int MAX_RETRIES = 3;
 
 	// Tests shorten this; production backoff is 1s, 2s, 4s.
@@ -97,7 +115,8 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 
 	private static final Pattern REJECTED_JSON = Pattern.compile("\"rejectedLogRecords\"\\s*:\\s*\"?(\\d+)");
 
-	private static final Pattern ERROR_JSON = Pattern.compile("\"errorMessage\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+	/* Up to the opening quote only: jsonErrorMessage scans the string itself. */
+	private static final Pattern ERROR_JSON = Pattern.compile("\"errorMessage\"\\s*:\\s*\"");
 
 	/* An HTTP header field name (RFC 9110 token), safe to show. */
 	private static final Pattern TOKEN = Pattern.compile("[!#$%&'*+.^_`|~0-9A-Za-z-]+");
@@ -144,7 +163,11 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		this.mapping = mapping;
 		this.alerts = config.alerts();
 		this.metrics = config.metrics();
-		this.client = HttpClient.newBuilder().connectTimeout(timeout).build();
+		this.client = HttpClient.newBuilder()
+			.connectTimeout(timeout)
+			// The default, but the headers usually hold credentials.
+			.followRedirects(HttpClient.Redirect.NEVER)
+			.build();
 	}
 
 	/**
@@ -448,7 +471,7 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		if (remaining <= 0) {
 			throw exportTimeout();
 		}
-		var future = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray());
+		var future = client.sendAsync(request, info -> new LimitedBody(MAX_RESPONSE_BYTES));
 		boolean interrupted = false;
 		try {
 			while (true) {
@@ -590,6 +613,9 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		if (body.length == 0) {
 			return;
 		}
+		if (body.length > MAX_RESPONSE_BYTES) {
+			throw new IllegalArgumentException("OTLP response is longer than " + MAX_RESPONSE_BYTES + " bytes");
+		}
 		long rejected;
 		String message;
 		if (protocol == OtlpProtocol.HTTP_PROTOBUF) {
@@ -601,13 +627,12 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 			var text = new String(body, StandardCharsets.UTF_8);
 			var r = REJECTED_JSON.matcher(text);
 			rejected = r.find() ? Long.parseLong(Objects.requireNonNullElse(r.group(1), "0")) : 0;
-			var m = ERROR_JSON.matcher(text);
-			message = m.find() ? Objects.requireNonNullElse(m.group(1), "") : "";
+			message = jsonErrorMessage(text);
 		}
 		if (rejected > 0) {
 			metrics.warnCounter(REJECTED_METRIC, rejected);
 		}
-		String detail = message.isEmpty() ? "" : ": " + message;
+		String detail = message.isEmpty() ? "" : ": " + display(message, MAX_MESSAGE_CHARS);
 		if (rejected > 0) {
 			alerts.warn(OtlpOutput.class, "OTLP endpoint " + displayEndpoint + " rejected " + rejected + " of " + count
 					+ " log records" + detail);
@@ -620,9 +645,120 @@ public final class OtlpOutput implements LogOutput, LogOutput.ProvidesEncoder {
 		}
 	}
 
+	/*
+	 * The raw errorMessage string, or empty if there is none or it is unterminated. A
+	 * regex alternation for the escapes recurses once per character in java.util.regex,
+	 * so a message of a few thousand characters from the collector overflowed the stack.
+	 */
+	static String jsonErrorMessage(String text) {
+		var m = ERROR_JSON.matcher(text);
+		if (!m.find()) {
+			return "";
+		}
+		int start = m.end();
+		for (int i = start; i < text.length(); i++) {
+			char c = text.charAt(i);
+			if (c == '\\') {
+				i++;
+			}
+			else if (c == '"') {
+				return text.substring(start, i);
+			}
+		}
+		return "";
+	}
+
 	private static String preview(byte[] body) {
-		var s = new String(body, StandardCharsets.UTF_8);
-		return s.length() > 200 ? s.substring(0, 200) + "..." : s;
+		return display(new String(body, StandardCharsets.UTF_8), MAX_PREVIEW_CHARS);
+	}
+
+	/*
+	 * Text from the endpoint for an alert. Control, line separator and bidirectional
+	 * formatting characters are escaped so a response cannot forge alert lines, send
+	 * terminal escape sequences or reorder what is shown, and long text is cut.
+	 */
+	static String display(String text, int max) {
+		int end = Math.min(text.length(), max);
+		if (end < text.length() && end > 0 && Character.isHighSurrogate(text.charAt(end - 1))) {
+			end--;
+		}
+		var result = new StringBuilder(end + 16);
+		for (int i = 0; i < end; i++) {
+			char c = text.charAt(i);
+			if (Character.isISOControl(c) || c == '\u2028' || c == '\u2029' || (c >= '\u202a' && c <= '\u202e')
+					|| (c >= '\u2066' && c <= '\u2069')) {
+				result.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
+			}
+			else {
+				result.append(c);
+			}
+		}
+		if (end < text.length()) {
+			result.append("...");
+		}
+		return result.toString();
+	}
+
+	/*
+	 * Keeps at most limit + 1 bytes of a response body, so the caller can tell one that
+	 * is too long, and cancels the rest instead of reading it into memory.
+	 */
+	static final class LimitedBody implements HttpResponse.BodySubscriber<byte[]> {
+
+		private final CompletableFuture<byte[]> body = new CompletableFuture<>();
+
+		private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+		private final int limit;
+
+		private Flow.@Nullable Subscription subscription;
+
+		LimitedBody(int limit) {
+			this.limit = limit;
+		}
+
+		@Override
+		public CompletionStage<byte[]> getBody() {
+			return body;
+		}
+
+		@Override
+		public void onSubscribe(Flow.Subscription subscription) {
+			this.subscription = subscription;
+			subscription.request(Long.MAX_VALUE);
+		}
+
+		@Override
+		public void onNext(List<ByteBuffer> items) {
+			if (body.isDone()) {
+				return;
+			}
+			for (var item : items) {
+				int length = Math.min(item.remaining(), limit + 1 - bytes.size());
+				byte[] chunk = new byte[length];
+				item.get(chunk);
+				bytes.write(chunk, 0, length);
+				if (bytes.size() > limit) {
+					var s = subscription;
+					if (s != null) {
+						s.cancel();
+					}
+					body.complete(bytes.toByteArray());
+					return;
+				}
+			}
+		}
+
+		@Override
+		public void onError(Throwable throwable) {
+			body.completeExceptionally(throwable);
+		}
+
+		@Override
+		public void onComplete() {
+			body.complete(bytes.toByteArray());
+		}
+
 	}
 
 	/*
