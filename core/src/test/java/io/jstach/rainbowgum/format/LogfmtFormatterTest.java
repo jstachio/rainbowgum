@@ -2,8 +2,10 @@ package io.jstach.rainbowgum.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 import java.lang.System.Logger.Level;
+import java.time.Duration;
 import java.time.Instant;
 
 import org.jspecify.annotations.Nullable;
@@ -260,6 +262,21 @@ class LogfmtFormatterTest {
 				time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 msg=hello \
 				thread=t keyValues.threadId=i
 				""", sb.toString());
+	}
+
+	@Test
+	void quotingIsLinearInTheNumberOfEscapes() {
+		int count = 1 << 20;
+		var sb = new StringBuilder("msg=").append("\n".repeat(count));
+		assertTimeout(Duration.ofSeconds(2), () -> LogfmtKeyValuesFormatter.quoteInPlace(sb, 4));
+		assertEquals("msg=\"" + "\\n".repeat(count) + "\"", sb.toString());
+	}
+
+	@Test
+	void quotingAnEmptyRegionGivesEmptyQuotes() {
+		var sb = new StringBuilder("msg=");
+		LogfmtKeyValuesFormatter.quoteInPlace(sb, 4);
+		assertEquals("msg=\"\"", sb.toString());
 	}
 
 }

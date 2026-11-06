@@ -1712,25 +1712,40 @@ final class PostProcessors {
 	}
 
 	/*
-	 * Escapes CR and LF in the region except a single trailing line separator.
+	 * Escapes CR and LF in the region except a single trailing line separator. Like
+	 * prefixLines, the escaped copy is appended after the region and the original then
+	 * deleted, as replacing each line break would shift the rest of the region each time.
 	 */
 	static void escapeLineBreaks(StringBuilder output, int start) {
-		int end = output.length();
+		int length = output.length();
+		int end = length;
 		if (end > start && output.charAt(end - 1) == '\n') {
 			end--;
 			if (end > start && output.charAt(end - 1) == '\r') {
 				end--;
 			}
 		}
-		for (int i = end - 1; i >= start; i--) {
+		int first = start;
+		while (first < end && output.charAt(first) != '\n' && output.charAt(first) != '\r') {
+			first++;
+		}
+		if (first == end) {
+			return;
+		}
+		for (int i = first; i < end; i++) {
 			char c = output.charAt(i);
 			if (c == '\n') {
-				output.replace(i, i + 1, "\\n");
+				output.append("\\n");
 			}
 			else if (c == '\r') {
-				output.replace(i, i + 1, "\\r");
+				output.append("\\r");
+			}
+			else {
+				output.append(c);
 			}
 		}
+		output.append(output, end, length);
+		output.delete(first, length);
 	}
 
 	/*
