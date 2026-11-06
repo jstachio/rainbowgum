@@ -1,5 +1,11 @@
-A smoke test proving Rainbow Gum works under GraalVM native-image: real logging,
-through the normal `rainbowgum-simple` zero-config bootstrap, plus a custom,
+A smoke test proving Rainbow Gum works under GraalVM native-image with two classpaths:
+
+- `slf4j` (default): `rainbowgum-simple`, logging through SLF4J.
+- `systemlogger`: `rainbowgum-jdk`, logging through `System.Logger` with no SLF4J
+  dependency. The finder must start Rainbow Gum itself and install the JUL bridge.
+  Maven Enforcer rejects SLF4J dependencies in this variant.
+
+Both variants use a custom,
 ServiceLoader-discovered `RainbowGumServiceProvider.RainbowGumProvider`
 (`NativeTestRainbowGumProvider`), so this also proves a user's own SPI extension
 survives native-image's closed-world analysis, not just Rainbow Gum's own built-in
@@ -11,12 +17,15 @@ Deliberately not listed in `test/pom.xml`'s `<modules>`. A native-image build ta
 minutes, needs a GraalVM JDK, and produces nothing worth installing/deploying, so it
 must not run as part of the normal reactor (`mvn install`/`mvn verify` from the root). It
 is built on its own, in CI (`.github/workflows/native-image.yml`, a matrix job running
-in parallel across operating systems) and locally on demand:
+in parallel across operating systems and logging APIs) and locally on demand:
 
 ```
 ./mvnw install                                          # from the repo root, once
 ./mvnw -f test/rainbowgum-test-native/pom.xml -Pnative verify   # needs a GraalVM JDK on PATH
+./mvnw -f test/rainbowgum-test-native/pom.xml -Pnative -Dnative.test.api=systemlogger clean verify
 ```
+
+Use `clean` when changing logging APIs so classes from the other variant are removed.
 
 Without `-Pnative`, this module just compiles; nothing runs, since its one test class,
 `NativeImageRunIT`, is an integration test (`maven-failsafe-plugin`, not
@@ -30,6 +39,11 @@ real executable from `Main`, a plain class with no JUnit anywhere near its class
 runs after `package`) launches that already-built executable itself with a plain
 `ProcessBuilder`, captures its output, and asserts on it: a black-box smoke test,
 deliberately, run from a normal JVM with no part in the native image itself.
+
+The tests also run the same executable with different `logging.level` system properties
+to prove configuration is read at run time. The custom provider rejects initialization
+during image building: native-image must not freeze a running Rainbow Gum or an installed
+JUL handler into the image heap.
 
 An earlier version of this module used `native-maven-plugin`'s own `test` goal instead,
 compiling JUnit's launcher/engine directly into the native image. Dropped that approach
