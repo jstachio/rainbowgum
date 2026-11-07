@@ -723,7 +723,15 @@ final class RainbowGumHolder {
 		Objects.requireNonNull(gum);
 		ShutdownManager.addShutdownHook(gum);
 		gum.start();
-		InternalRootRouter.setRouter(gum.router());
+		long dropped = InternalRootRouter.setRouter(gum.router());
+		if (dropped > 0) {
+			gum.config()
+				.alerts()
+				.warn(RainbowGum.class,
+						"Dropped " + dropped
+								+ " events logged while no Rainbow Gum was bound because the queue was full. See "
+								+ LogProperties.GLOBAL_QUEUE_SIZE_PROPERTY + ".");
+		}
 	}
 
 }

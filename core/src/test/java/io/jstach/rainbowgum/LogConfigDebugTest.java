@@ -155,6 +155,7 @@ class LogConfigDebugTest {
 						  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+						  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
 						Globals:
 						  logging.change.mode = OFF
 						  logging.global.ansi.mode = AUTO
@@ -200,6 +201,7 @@ class LogConfigDebugTest {
 						  logging.global.optimize
 						  logging.global.queue.error
 						  logging.global.queue.level
+						  logging.global.queue.size
 						  logging.global.threadLocal
 						  logging.groups
 						  logging.keyvalues.sources
@@ -410,6 +412,7 @@ class LogConfigDebugTest {
 						  logging.global.lineSeparator = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
+						  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
 						Globals:
 						  logging.change.mode = OFF
 						  logging.global.ansi.mode = AUTO
@@ -455,6 +458,7 @@ class LogConfigDebugTest {
 						  logging.global.optimize
 						  logging.global.queue.error
 						  logging.global.queue.level
+						  logging.global.queue.size
 						  logging.global.threadLocal
 						  logging.groups
 						  logging.keyvalues.sources
