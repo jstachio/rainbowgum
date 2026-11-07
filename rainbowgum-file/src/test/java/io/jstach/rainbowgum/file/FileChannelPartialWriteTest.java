@@ -66,9 +66,10 @@ class FileChannelPartialWriteTest {
 		var output = new FileChannelOutput(path.toUri(), new ShortChannel(path, 0));
 		var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
 		try (var gum = RainbowGum.builder(config)
-			.route(r -> r.appender("file", a -> a.output(output)
-				.formatter(LogFormatter.builder().message().newline().build())
-				.appenderType(AppenderType.REUSE_BUFFER)))
+			.route(r -> r.appender("file",
+					a -> a.output(output)
+						.formatter(LogFormatter.builder().message().newline().build())
+						.appenderType(AppenderType.REUSE_BUFFER)))
 			.build()
 			.start()) {
 			gum.log(event());
@@ -79,9 +80,13 @@ class FileChannelPartialWriteTest {
 			var failure = java.util.Objects.requireNonNull(alert.throwableOrNull());
 			assertEquals("File channel made no progress writing to '" + path.toUri() + "'",
 					java.util.Objects.requireNonNull(failure.getCause()).getMessage());
-			assertEquals(1, config.metrics().snapshot().stream()
-				.filter(c -> c.name().equals(LogMetrics.EVENTS_FAILED_METRIC))
-				.mapToLong(c -> c.value()).sum());
+			assertEquals(1,
+					config.metrics()
+						.snapshot()
+						.stream()
+						.filter(c -> c.name().equals(LogMetrics.EVENTS_FAILED_METRIC))
+						.mapToLong(c -> c.value())
+						.sum());
 		}
 	}
 
@@ -200,7 +205,6 @@ class FileChannelPartialWriteTest {
 		protected void implCloseChannel() throws IOException {
 			delegate.close();
 		}
-
 
 	}
 
