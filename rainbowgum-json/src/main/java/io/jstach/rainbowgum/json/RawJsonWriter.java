@@ -332,16 +332,16 @@ class RawJsonWriter {
 	@GeneratedByATrustedSource
 	public final void writeDouble(final double value) {
 		if (value == Double.POSITIVE_INFINITY) {
-			writeAsciiString("\"Infinity\"");
+			writeAsciiString("Infinity");
 		}
 		else if (value == Double.NEGATIVE_INFINITY) {
-			writeAsciiString("\"-Infinity\"");
+			writeAsciiString("-Infinity");
 		}
 		else if (Double.isNaN(value)) {
-			writeAsciiString("\"NaN\"");
+			writeAsciiString("NaN");
 		}
 		else if (value == 0.0) {
-			writeAsciiString("0.0");
+			writeAscii(Double.toString(value));
 		}
 		else {
 			if (Grisu3.tryConvert(value, doubleBuilder)) {
@@ -352,7 +352,7 @@ class RawJsonWriter {
 				position += len;
 			}
 			else {
-				writeAsciiString(Double.toString(value));
+				writeAscii(Double.toString(value));
 			}
 		}
 	}
