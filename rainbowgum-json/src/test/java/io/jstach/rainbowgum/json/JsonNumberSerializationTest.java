@@ -21,8 +21,7 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 
 class JsonNumberSerializationTest {
 
-	private static final Pattern NUMBER = Pattern
-		.compile("-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?");
+	private static final Pattern NUMBER = Pattern.compile("-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?");
 
 	@Test
 	void specialValuesAreValidJsonStrings() {
@@ -62,9 +61,11 @@ class JsonNumberSerializationTest {
 			gum.log(LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "gelf", "hello", KeyValues.of(), null));
 		}
 		assertEquals(1, output.events().size());
-		assertEquals("""
-				{"host":"localhost","short_message":"hello","timestamp":0.0,"level":6,"_time":"1970-01-01T00:00:00.000Z","_level":"INFO","_logger":"gelf","_thread_name":"main","_thread_id":"1","version":"1.1"}
-				""", output.events().getFirst().getValue());
+		assertEquals(
+				"""
+						{"host":"localhost","short_message":"hello","timestamp":0.0,"level":6,"_time":"1970-01-01T00:00:00.000Z","_level":"INFO","_logger":"gelf","_thread_name":"main","_thread_id":"1","version":"1.1"}
+						""",
+				output.events().getFirst().getValue());
 	}
 
 	private static String write(double value) {
