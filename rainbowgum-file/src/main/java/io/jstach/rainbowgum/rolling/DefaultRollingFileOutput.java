@@ -98,7 +98,11 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 	@Override
 	public void start(LogConfig config) {
 		if (cleanHistoryOnStart) {
-			RollingPolicy.cleanHistory(activeFile, pattern, maxHistory, totalSizeCap);
+			for (var skipped : RollingPolicy.cleanHistory(activeFile, pattern, maxHistory, totalSizeCap)) {
+				config.alerts()
+					.warn(getClass(), "Ignored '" + skipped
+							+ "' while cleaning history: it matches the archive pattern but its index is too large to be one of ours");
+			}
 		}
 		delegate.start(config);
 		started = true;
