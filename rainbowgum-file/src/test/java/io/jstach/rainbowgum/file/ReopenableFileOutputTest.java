@@ -58,6 +58,24 @@ class ReopenableFileOutputTest {
 		assertEquals("new\n", Files.readString(file));
 	}
 
+	@Test
+	void reopenDoesNotTruncateBufferedEventsWhenAppendIsFalse(@TempDir Path dir) throws IOException {
+		Path file = dir.resolve("app.log");
+		Files.writeString(file, "discard initial contents");
+		var config = LogConfig.builder().build();
+		try (var output = FileOutput.of(b -> b.fileName(file.toString()).append(false)).provide("file", config)) {
+			output.start(config);
+			byte[] bytes = "before\n".getBytes(StandardCharsets.UTF_8);
+			output.write(LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "test", "before", KeyValues.of(), null),
+					bytes, 0, bytes.length, LogOutput.ContentType.StandardContentType.TEXT_PLAIN);
+			output.reopen();
+			write(output, "after\n");
+			output.reopen();
+			write(output, "last\n");
+		}
+		assertEquals("before\nafter\nlast\n", Files.readString(file));
+	}
+
 	private static void write(LogOutput output, String line) {
 		byte[] bytes = line.getBytes(StandardCharsets.UTF_8);
 		var event = LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "test", line, KeyValues.of(), null);
