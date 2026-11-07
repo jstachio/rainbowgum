@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -499,6 +500,9 @@ public sealed interface LogRouter extends LogLifecycle {
 
 				var apps = new LogAppender.Appenders(name, config, appenders);
 				var pub = publisher.create(name, config, apps);
+				if (pub.synchronous()) {
+					warnNetworkOutputs(name, apps, config);
+				}
 				/*
 				 * Register the publisher and its appenders for lookup like status checks
 				 * (see LogReporter). Registering "apps" itself rather than its resolved
@@ -516,6 +520,36 @@ public sealed interface LogRouter extends LogLifecycle {
 				}
 				return new FilteringRouter(name, router, filters.toArray(Filter[]::new),
 						config.metrics().gauge(LogMetrics.EVENTS_FILTERED_METRIC, Level.INFO));
+			}
+
+			/*
+			 * A network output written on the logging thread makes every log call wait
+			 * for the network, and a stalled endpoint stalls the application. The URI is
+			 * not shown: it can hold credentials.
+			 */
+			private static void warnNetworkOutputs(String routeName, LogAppender.Appenders apps, LogConfig config) {
+				var resolved = apps.resolvedOrNull();
+				if (resolved == null) {
+					return;
+				}
+				for (var appender : resolved) {
+					List<? extends DirectLogAppender> directs = switch (appender) {
+						case DirectLogAppender d -> List.of(d);
+						case CompositeLogAppender c -> List.of(c.appenders());
+						default -> List.of();
+					};
+					for (var direct : directs) {
+						if (direct.output().type() == LogOutput.OutputType.NETWORK) {
+							config.alerts()
+								.warn(LogRouter.class, "Route '" + routeName + "' sends appender '" + direct.name()
+										+ "' to a network output with a synchronous publisher, so every log call waits for the network. "
+										+ "Use an asynchronous publisher, for example "
+										+ LogProperties.interpolateKey(LogProperties.ROUTE_PUBLISHER_PROPERTY,
+												Map.of(LogProperties.NAME, routeName))
+										+ "=async:///.");
+						}
+					}
+				}
 			}
 
 			private static Filter filter(String filterName, String routeName, LogConfig config) {
