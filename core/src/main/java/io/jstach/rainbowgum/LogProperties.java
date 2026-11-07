@@ -271,6 +271,15 @@ public interface LogProperties {
 	static final String GLOBAL_QUEUE_ERROR_PROPERTY = ROOT_PREFIX + "global.queue.error";
 
 	/**
+	 * The most events queued while no Rainbow Gum is bound, before one is bound or after
+	 * one is closed. Events past it are dropped and counted, and the count is reported as
+	 * a warning alert when the next Rainbow Gum is bound. Defaults to <code>1000</code>.
+	 * <p>
+	 * Property: <code>{@index logging.global.queue.size}</code>
+	 */
+	static final String GLOBAL_QUEUE_SIZE_PROPERTY = ROOT_PREFIX + "global.queue.size";
+
+	/**
 	 * The line separator formatters end lines and stack trace lines with: <code>lf</code>
 	 * (default) for <code>\n</code>, <code>crlf</code> for <code>\r\n</code>, or
 	 * <code>platform</code> for {@link System#lineSeparator()}. Read once, from system

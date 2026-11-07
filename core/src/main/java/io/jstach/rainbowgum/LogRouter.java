@@ -12,6 +12,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -671,12 +673,14 @@ sealed interface InternalRootRouter extends RootRouter {
 	/**
 	 * Sets the root router.
 	 * @param router root router.
+	 * @return events the replaced queue dropped because it was full, or zero.
 	 */
-	static void setRouter(RootRouter router) {
+	static long setRouter(RootRouter router) {
 		if (GlobalLogRouter.INSTANCE == router) {
-			return;
+			return 0;
 		}
-		GlobalLogRouter.INSTANCE.drain((InternalRootRouter) router);
+		var original = GlobalLogRouter.INSTANCE.bind((InternalRootRouter) router);
+		return original instanceof QueueEventsRouter q ? q.dropped() : 0;
 	}
 
 	static InternalRootRouter of(List<? extends Router> routes, LogConfig config) {
@@ -867,9 +871,26 @@ record CompositeLogRouter(Router[] routers, LevelResolver levelResolver,
 	}
 }
 
+/*
+ * Holds events while no Rainbow Gum is bound, before one is bound or after one is closed.
+ * Events are frozen when queued, so their arguments are formatted on the caller's thread
+ * and not kept alive, and the queue holds at most maxSize of them. Once drained, events
+ * still arriving, from a log call racing the drain or a logger holding this queue, are
+ * passed on to the global router instead of being stranded here.
+ */
 final class QueueEventsRouter implements InternalRootRouter, Route {
 
+	static final int DEFAULT_MAX_SIZE = 1000;
+
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
+
+	private final AtomicInteger size = new AtomicInteger();
+
+	private final LongAdder dropped = new LongAdder();
+
+	private final int maxSize;
+
+	private volatile boolean drained;
 
 	private final LevelResolver levelResolver;
 
@@ -881,9 +902,20 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 		var validator = LogProperty.Validator.of(QueueEventsRouter.class);
 		var queueLevel = queueLevel().validate(validator);
 		var errorLevel = errorLevel().validate(validator);
+		var maxSize = maxSize().validate(validator);
 		validator.validate();
 		return new QueueEventsRouter(StaticLevelResolver.of(queueLevel.value()),
-				StaticLevelResolver.of(errorLevel.value()));
+				StaticLevelResolver.of(errorLevel.value()), maxSize.value());
+	}
+
+	private static LogProperty.Result<Integer> maxSize() {
+		var properties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
+		return properties.forKey(LogProperties.GLOBAL_QUEUE_SIZE_PROPERTY).ofInt().map(size -> {
+			if (size < 0) {
+				throw new IllegalArgumentException("must not be negative");
+			}
+			return size;
+		}).or(DEFAULT_MAX_SIZE);
 	}
 
 	private static LogProperty.Result<Level> queueLevel() {
@@ -902,10 +934,15 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 			.or(Level.ERROR);
 	}
 
-	private QueueEventsRouter(LevelResolver levelResolver, LevelResolver errorLevelResolver) {
+	private QueueEventsRouter(LevelResolver levelResolver, LevelResolver errorLevelResolver, int maxSize) {
 		super();
 		this.levelResolver = levelResolver;
 		this.errorLevelResolver = errorLevelResolver;
+		this.maxSize = maxSize;
+	}
+
+	long dropped() {
+		return dropped.sum();
 	}
 
 	@Override
@@ -933,21 +970,45 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	@Override
 	public void close() {
 		events.clear();
+		size.set(0);
 	}
 
 	@Override
 	public void log(LogEvent event) {
-		events.add(event);
+		if (drained) {
+			GlobalLogRouter.INSTANCE.log(event);
+			return;
+		}
+		if (size.incrementAndGet() > maxSize) {
+			size.decrementAndGet();
+			dropped.increment();
+		}
+		else {
+			events.add(event.freeze());
+		}
 		if (errorLevelResolver.isEnabled(event.loggerName(), event.level())) {
 			MetaLog.error(event);
+		}
+		if (drained) {
+			// The drain may have finished between the check above and the add.
+			forward(GlobalLogRouter.INSTANCE);
 		}
 	}
 
 	@Override
 	public void drain(InternalRootRouter delegate) {
+		drained = true;
+		forward(delegate);
+	}
+
+	private void forward(InternalRootRouter delegate) {
 		LogEvent e;
 		while ((e = this.events.poll()) != null) {
-			delegate.route(e.loggerName(), e.level()).log(e);
+			size.decrementAndGet();
+			var route = delegate.route(e.loggerName(), e.level());
+			if (route.isEnabled()) {
+				route.log(e);
+			}
 		}
 	}
 
@@ -1019,6 +1080,13 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 	@Override
 	public void drain(InternalRootRouter delegate) {
 		_drain(delegate);
+	}
+
+	/*
+	 * Binds the delegate and returns the router it replaced.
+	 */
+	InternalRootRouter bind(InternalRootRouter delegate) {
+		return _drain(delegate);
 	}
 
 	private InternalRootRouter _drain(InternalRootRouter delegate) {
