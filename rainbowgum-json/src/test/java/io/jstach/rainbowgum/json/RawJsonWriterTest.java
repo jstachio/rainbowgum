@@ -203,19 +203,11 @@ class RawJsonWriterTest {
 
 	@Test
 	void testWriteDoubleSpecialValues() {
-		// writeDouble is @GeneratedByATrustedSource, so not chased for coverage, but this
-		// pins down an observable quirk found while sanity-checking it: the
-		// Infinity/-Infinity/NaN branches pass an already-quoted literal (e.g.
-		// "\"Infinity\"") into writeAsciiString, which always wraps its argument in its
-		// own quotes - so the actual output is double-quoted, not the single-quoted
-		// "Infinity" a reader would expect. Likewise 0.0 comes out as the JSON string
-		// "0.0" rather than the bare JSON number 0.0. Asserting actual behavior here,
-		// not fixing it - flagged to Adam separately since this method is out of scope
-		// per his note on trusted/generated code.
-		assertEquals("\"\"Infinity\"\"", writeDoubleToString(Double.POSITIVE_INFINITY));
-		assertEquals("\"\"-Infinity\"\"", writeDoubleToString(Double.NEGATIVE_INFINITY));
-		assertEquals("\"\"NaN\"\"", writeDoubleToString(Double.NaN));
-		assertEquals("\"0.0\"", writeDoubleToString(0.0));
+		assertEquals("\"Infinity\"", writeDoubleToString(Double.POSITIVE_INFINITY));
+		assertEquals("\"-Infinity\"", writeDoubleToString(Double.NEGATIVE_INFINITY));
+		assertEquals("\"NaN\"", writeDoubleToString(Double.NaN));
+		assertEquals("0.0", writeDoubleToString(0.0));
+		assertEquals("-0.0", writeDoubleToString(-0.0));
 	}
 
 	@Test
