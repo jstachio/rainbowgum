@@ -2,6 +2,7 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
@@ -33,6 +34,8 @@ class GlobalQueueTest {
 		else {
 			System.setProperty(LogProperties.GLOBAL_QUEUE_SIZE_PROPERTY, originalSize);
 		}
+		// Recreate the global queue with the restored capacity for later tests.
+		GlobalLogRouter.INSTANCE.close();
 	}
 
 	@Test
@@ -103,6 +106,60 @@ class GlobalQueueTest {
 					+ LogProperties.GLOBAL_QUEUE_SIZE_PROPERTY + ".", alert.message());
 		}
 		assertTrue(output.toString().contains("while unbound 0"), output.toString());
+	}
+
+	@Test
+	void drainedStandaloneQueueUsesItsDelegateWithoutAGlobalBinding() {
+		var queue = QueueEventsRouter.of();
+		var output = new ListLogOutput();
+		try (var gum = gum(LogConfig.builder().build(), output)) {
+			gum.start();
+			queue.drain((InternalRootRouter) gum.router());
+			queue.log(event("late standalone", null));
+		}
+		assertEquals(1, output.events().size());
+		assertEquals("late standalone", output.events().getFirst().getKey().message());
+	}
+
+	@Test
+	void failedFreezeReleasesReservedCapacity() {
+		System.setProperty(LogProperties.GLOBAL_QUEUE_SIZE_PROPERTY, "1");
+		var queue = QueueEventsRouter.of();
+		Object argument = new Object() {
+			@Override
+			public String toString() {
+				throw new AssertionError("freeze failed");
+			}
+		};
+		var bad = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "test", "{0}", KeyValues.of(),
+				StandardMessageFormatter.JUL, argument);
+		assertEquals("freeze failed", assertThrows(AssertionError.class, () -> queue.log(bad)).getMessage());
+		queue.log(event("after failure", null));
+		var output = new ListLogOutput();
+		try (var gum = gum(LogConfig.builder().build(), output)) {
+			gum.start();
+			queue.drain((InternalRootRouter) gum.router());
+		}
+		assertEquals(0, queue.dropped());
+		assertEquals(1, output.events().size());
+	}
+
+	@Test
+	void bindingDuringFreezeDoesNotStrandTheEvent() {
+		var queue = QueueEventsRouter.of();
+		var output = new ListLogOutput();
+		try (var gum = gum(LogConfig.builder().build(), output)) {
+			gum.start();
+			Object argument = new Object() {
+				@Override
+				public String toString() {
+					queue.drain((InternalRootRouter) gum.router());
+					return "frozen";
+				}
+			};
+			queue.log(event("value {}", argument));
+		}
+		assertEquals(1, output.events().size());
 	}
 
 	private static RainbowGum gum(LogConfig config, ListLogOutput output) {
