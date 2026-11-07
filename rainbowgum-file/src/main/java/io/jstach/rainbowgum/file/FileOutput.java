@@ -278,6 +278,8 @@ class FileOutputStreamOutput extends LogOutput.AbstractOutputStreamOutput implem
 
 class FileChannelOutput implements FileOutput {
 
+	private static final int MAX_ZERO_PROGRESS_WRITES = 16;
+
 	protected final URI uri;
 
 	protected final FileChannel channel;
@@ -324,7 +326,20 @@ class FileChannelOutput implements FileOutput {
 				if (size != position) {
 					channel.position(size);
 				}
-				channel.write(buffer);
+				// FileChannel permits short and zero-length writes. Keep the lock until
+				// the event is complete, but do not spin forever if it stops progressing.
+				int stalledWrites = 0;
+				while (buffer.hasRemaining()) {
+					if (channel.write(buffer) == 0) {
+						if (++stalledWrites == MAX_ZERO_PROGRESS_WRITES) {
+							throw new IOException("File channel made no progress writing to '" + uri + "'");
+						}
+						Thread.onSpinWait();
+					}
+					else {
+						stalledWrites = 0;
+					}
+				}
 
 			}
 			finally {
