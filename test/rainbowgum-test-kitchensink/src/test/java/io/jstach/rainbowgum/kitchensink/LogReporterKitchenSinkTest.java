@@ -32,10 +32,8 @@ import io.jstach.rainbowgum.pattern.format.PatternEncoderBuilder;
  * then golden strings {@link LogReporter}'s output against it: a properties provider
  * (rainbowgum-avaje-config), a pattern encoder (rainbowgum-pattern), a JSON encoder
  * (rainbowgum-json), a real file output (rainbowgum-file), a JFR output (rainbowgum-jfr,
- * self-providing its own encoder), and an async publisher that resolves to
- * rainbowgum-disruptor's DisruptorLogPublisher rather than the default
- * BatchSwapAsyncLogPublisher, since rainbowgum-disruptor registers itself as the default
- * "async" scheme handler.
+ * self-providing its own encoder), and rainbowgum-disruptor's DisruptorLogPublisher
+ * chosen by its "disruptor" scheme.
  * <p>
  * Deliberately plain classpath (see this module's own pom.xml): the point is testing what
  * a real application pulling in this many optional modules at once actually looks like,
@@ -70,11 +68,9 @@ class LogReporterKitchenSinkTest {
 					.build());
 			});
 		}).route("structured", r -> {
-			// Resolves to DisruptorLogPublisher, not BatchSwapAsyncLogPublisher:
-			// rainbowgum-disruptor registers itself as the default "async" scheme
-			// handler (see DisruptorConfigurator), and this module has it on the
-			// classpath with LogConfig.builder().serviceLoader() enabled above.
-			r.publisher(PublisherFactory.async().build());
+			// DisruptorConfigurator registers the "disruptor" scheme; it is found through
+			// LogConfig.builder().serviceLoader() above.
+			r.publisher(PublisherFactory.of("disruptor"));
 			r.appender("json", a -> {
 				a.output(listOutput);
 				a.encoder(new EcsEncoderBuilder("json").serviceName("kitchensink").build());
