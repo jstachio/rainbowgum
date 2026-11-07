@@ -184,7 +184,7 @@ class RainbowGumEventBuilderTest {
 				var handler = LogEventHandler.ofCallerInfo(loggerName(), appender, mdc, 0,
 						NoopKeyValuesContributor.INSTANCE);
 				var logger = ReplaceableLogger.of(Levels.toSlf4jLevel(level), handler);
-				logger.setLevel(org.slf4j.event.Level.ERROR);
+				logger.set(System.Logger.Level.ERROR, handler);
 				return logger;
 			}
 
