@@ -134,9 +134,11 @@ class AppenderReentrantBufferTest {
 		assertDoesNotThrow(() -> mode.append(appender, event("failed")));
 		mode.append(appender, event("after"));
 		assertEquals(List.of("after"), output.events().stream().map(e -> e.getValue()).toList());
-		assertEquals(1, config.alerts().dump().size());
+		// The failure, then the next append ending that episode of failures.
+		assertEquals(2, config.alerts().dump().size());
 		assertEquals(mode == AppendMode.BATCH ? "appender 'test' failed to append batch of 1 event(s)"
 				: "appender 'test' failed to append event", config.alerts().dump().getFirst().message());
+		assertEquals(RECOVERED, config.alerts().dump().getLast().message());
 		assertEquals(1, metric(config, LogMetrics.EVENTS_FAILED_METRIC));
 		assertEquals(0, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
 	}
@@ -160,9 +162,12 @@ class AppenderReentrantBufferTest {
 				TestLogEventFactory.of().eventOneArg(System.Logger.Level.INFO, "outer {}", KeyValues.of(), arg));
 		mode.append(appender, event("after"));
 		assertEquals(List.of("outer arg", "after"), output.events().stream().map(e -> e.getValue()).toList());
-		assertEquals(1, config.alerts().dump().size());
+		assertEquals(2, config.alerts().dump().size());
+		assertEquals(RECOVERED, config.alerts().dump().getLast().message());
 		assertEquals(1, metric(config, LogMetrics.EVENTS_FAILED_METRIC));
 	}
+
+	private static final String RECOVERED = "appender 'test' recovered; 0 more event(s) failed to append after the reported failure";
 
 	private static LogEvent event(String message) {
 		return TestLogEventFactory.of().event(message);
