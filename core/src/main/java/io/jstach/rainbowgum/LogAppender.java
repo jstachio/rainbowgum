@@ -11,7 +11,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.jspecify.annotations.NonNull;
@@ -1019,12 +1019,10 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 */
 	final void appendFailed(Exception e, int count, boolean batch) {
 		metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
-		if (failing.compareAndSet(false, true)) {
+		long previous = failureCount.getAndUpdate(value -> value < 0 ? 0 : value + count);
+		if (previous < 0) {
 			alerts.error(getClass(), batch ? "appender '" + name + "' failed to append batch of " + count + " event(s)"
 					: "appender '" + name + "' failed to append event", e);
-		}
-		else {
-			failedSinceAlert.add(count);
 		}
 	}
 
@@ -1033,8 +1031,12 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * further events failed without being reported.
 	 */
 	final void appendSucceeded() {
-		if (failing.get() && failing.compareAndSet(true, false)) {
-			alerts.warn(getClass(), "appender '" + name + "' recovered; " + failedSinceAlert.sumThenReset()
+		if (failureCount.get() < 0) {
+			return;
+		}
+		long count = failureCount.getAndSet(-1);
+		if (count >= 0) {
+			alerts.warn(getClass(), "appender '" + name + "' recovered; " + count
 					+ " more event(s) failed to append after the reported failure");
 		}
 	}
@@ -1114,9 +1116,8 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * changes, so only the first failure of an episode is alerted: printing one stack
 	 * trace per log call only widens the damage. Every failure is still counted.
 	 */
-	private final AtomicBoolean failing = new AtomicBoolean();
-
-	private final LongAdder failedSinceAlert = new LongAdder();
+	// Negative means healthy; otherwise count failures after the first alert.
+	private final AtomicLong failureCount = new AtomicLong(-1);
 
 	/**
 	 * Creates an appender from an output and encoder.
@@ -1369,7 +1370,9 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 			finally {
 				lock.unlock();
 			}
-			appendSucceeded();
+			if (count > 0) {
+				appendSucceeded();
+			}
 		}
 		catch (Exception e) {
 			appendFailed(e, count, true);
@@ -1491,7 +1494,9 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 					local.inUse = false;
 				}
 			}
-			appendSucceeded();
+			if (count > 0) {
+				appendSucceeded();
+			}
 		}
 		catch (Exception e) {
 			appendFailed(e, count, true);
@@ -1541,17 +1546,18 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 		try {
 			var buffer = encoder.buffer(output.bufferHints());
 			encoder.encode(event, buffer);
-			writeLocked(event, buffer);
-			appendSucceeded();
+			if (writeLocked(event, buffer)) {
+				appendSucceeded();
+			}
 		}
 		catch (Exception e) {
 			appendFailed(e, 1, false);
 		}
 	}
 
-	private void writeLocked(LogEvent event, LogEncoder.Buffer buffer) {
+	private boolean writeLocked(LogEvent event, LogEncoder.Buffer buffer) {
 		if (shouldDropForReentry(lock.isHeldByCurrentThread(), flags, metrics, 1)) {
-			return;
+			return false;
 		}
 		lock.lock();
 		try {
@@ -1563,6 +1569,7 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 		finally {
 			lock.unlock();
 		}
+		return true;
 	}
 
 	@Override
@@ -1582,7 +1589,9 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 			finally {
 				lock.unlock();
 			}
-			appendSucceeded();
+			if (count > 0) {
+				appendSucceeded();
+			}
 		}
 		catch (Exception e) {
 			appendFailed(e, count, true);
@@ -1676,7 +1685,9 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 					local.inUse = false;
 				}
 			}
-			appendSucceeded();
+			if (count > 0) {
+				appendSucceeded();
+			}
 		}
 		catch (Exception e) {
 			appendFailed(e, count, true);
