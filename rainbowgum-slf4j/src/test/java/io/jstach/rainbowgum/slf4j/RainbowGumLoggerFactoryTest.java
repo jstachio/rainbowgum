@@ -190,7 +190,7 @@ class RainbowGumLoggerFactoryTest {
 
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("mychange");
-		assertInstanceOf(LevelChangeable.class, unwrapCaller(logger));
+		assertInstanceOf(ReplaceableLogger.class, unwrapCaller(logger));
 		assertTrue(logger.isErrorEnabled());
 		assertFalse(logger.isDebugEnabled());
 		assertFalse(factory.getLogger("mychange.one").isDebugEnabled());
@@ -219,7 +219,7 @@ class RainbowGumLoggerFactoryTest {
 				""";
 		assertEquals(expected, actual);
 
-		assertInstanceOf(LevelChangeable.class, unwrapCaller(logger));
+		assertInstanceOf(ReplaceableLogger.class, unwrapCaller(logger));
 		logger = factory.getLogger("static");
 		assertInstanceOf(LevelLogger.class, logger);
 	}
@@ -274,7 +274,7 @@ class RainbowGumLoggerFactoryTest {
 		var rainbowgum = gum(props);
 		RainbowGumLoggerFactory factory = new RainbowGumLoggerFactory(rainbowgum, new RainbowGumMDCAdapter());
 		var logger = factory.getLogger("anything");
-		assertInstanceOf(LevelChangeable.class, unwrapCaller(logger));
+		assertInstanceOf(ReplaceableLogger.class, unwrapCaller(logger));
 	}
 
 	/*
@@ -353,7 +353,7 @@ class RainbowGumLoggerFactoryTest {
 			var bootstrapGum = RainbowGum.queued(bootstrapConfig);
 			var factory = new RainbowGumLoggerFactory(bootstrapGum, new RainbowGumMDCAdapter());
 			var logger = factory.getLogger("bootstrap.logger");
-			assertInstanceOf(LevelChangeable.class, logger,
+			assertInstanceOf(ReplaceableLogger.class, logger,
 					"logging.change.logger=level must make this a replaceable logger, same as Spring's pre-boot properties");
 
 			var realOutput = new ListLogOutput();

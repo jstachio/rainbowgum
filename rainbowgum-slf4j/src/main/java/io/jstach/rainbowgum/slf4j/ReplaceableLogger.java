@@ -3,11 +3,9 @@ package io.jstach.rainbowgum.slf4j;
 import org.slf4j.Logger;
 import org.slf4j.event.Level;
 
-import io.jstach.rainbowgum.slf4j.LogEventHandler.EventHandlerChangeable;
 import io.jstach.rainbowgum.slf4j.spi.LoggerDecoratorService.DepthAwareLogger;
 
-class ReplaceableLogger
-		implements ForwardingLogger, LevelChangeable, EventHandlerChangeable, DepthAwareLogger, HandlerSource {
+class ReplaceableLogger implements ForwardingLogger, DepthAwareLogger, HandlerSource {
 
 	/*
 	 * OFF has no SLF4J enum value. Keep the system level and handler even while disabled.
@@ -39,23 +37,10 @@ class ReplaceableLogger
 		return state.delegate();
 	}
 
-	@Override
-	public void setLevel(Level level) {
-		setLevel(Levels.toSystemLevel(level));
-	}
-
-	void setLevel(System.Logger.Level level) {
-		state = State.of(level, state.handler());
-	}
-
-	@Override
-	public void setEventHandler(LogEventHandler eventHandler) {
-		state = State.of(state.level(), eventHandler);
-	}
-
 	/*
-	 * One write, so a logging thread never sees the new level with the old router's
-	 * handler.
+	 * The only way to change this logger: one write, so a logging thread never sees the
+	 * new level with the old router's handler. Separate level and handler setters would
+	 * each read the other half and could lose a concurrent update.
 	 */
 	void set(System.Logger.Level level, LogEventHandler eventHandler) {
 		state = State.of(level, eventHandler);

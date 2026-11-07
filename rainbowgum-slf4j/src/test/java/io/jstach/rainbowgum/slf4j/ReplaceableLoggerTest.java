@@ -43,7 +43,7 @@ class ReplaceableLoggerTest {
 		var logger = ReplaceableLogger.of(Level.INFO, handler);
 		assertTrue(logger.isInfoEnabled());
 		assertFalse(logger.isDebugEnabled());
-		logger.setLevel(Level.DEBUG);
+		logger.set(System.Logger.Level.DEBUG, logger.currentHandler());
 		assertTrue(logger.isDebugEnabled());
 	}
 
@@ -57,7 +57,7 @@ class ReplaceableLoggerTest {
 		LogEvent[] rebound = new LogEvent[1];
 		LogEventHandler newHandler = LogEventHandler.ofCallerInfo("rebound", e -> rebound[0] = e,
 				new RainbowGumMDCAdapter(), 1, NoopKeyValuesContributor.INSTANCE);
-		logger.setEventHandler(newHandler);
+		logger.set(System.Logger.Level.INFO, newHandler);
 		logger.info("via rebound handler");
 		assertEquals("via rebound handler", rebound[0].message());
 		assertEquals("rebound", rebound[0].loggerName());
@@ -95,12 +95,12 @@ class ReplaceableLoggerTest {
 	void offStateSurvivesHandlerAndDepthChanges() {
 		var logger = ReplaceableLogger.of(System.Logger.Level.OFF, handler);
 		assertFalse(logger.isErrorEnabled());
-		logger.setEventHandler(handler.withDepth(2));
+		logger.set(System.Logger.Level.OFF, handler.withDepth(2));
 		var deeper = logger.withDepth(2);
 		assertFalse(deeper.isErrorEnabled());
 		logger.error("disabled");
 		assertEquals(null, lastEvent);
-		logger.setLevel(System.Logger.Level.INFO);
+		logger.set(System.Logger.Level.INFO, logger.currentHandler());
 		assertTrue(logger.isInfoEnabled());
 	}
 
