@@ -277,20 +277,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	 * same will throw {@link IllegalStateException}.
 	 */
 	public static Supplier<? extends RainbowGum> set(RainbowGum gum) {
-		UUID instanceId = gum.instanceId();
-		RainbowGum.set(() -> gum);
-		return () -> {
-			var of = RainbowGum.of();
-			/*
-			 * TODO this is a hack. The holder lock should be used to make this not
-			 * happen.
-			 */
-			if (!instanceId.equals(of.instanceId())) {
-				throw new IllegalStateException("Another rainbow gum registered itself as the global. "
-						+ "This is rare reace condition and probably a bug");
-			}
-			return of;
-		};
+		Supplier<RainbowGum> supplier = () -> gum;
+		RainbowGumHolder.set(supplier);
+		return () -> RainbowGumHolder.startIfStillSet(supplier);
 	}
 
 	/**
@@ -542,18 +531,7 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 		 * @return started and set rainbow that can be used in a try-close.
 		 */
 		public RainbowGum set() {
-			UUID instanceId = UUID.randomUUID();
-			RainbowGum.set(() -> build(instanceId));
-			var gum = RainbowGum.of();
-			/*
-			 * TODO this is a hack. The holder lock should be used to make this not
-			 * happen.
-			 */
-			if (!instanceId.equals(gum.instanceId())) {
-				throw new IllegalStateException("Another rainbow gum registered itself as the global. "
-						+ "This is rare reace condition and probably a bug");
-			}
-			return gum;
+			return RainbowGumHolder.setAndStart(() -> build(UUID.randomUUID()));
 		}
 
 		/**
@@ -661,6 +639,68 @@ final class RainbowGumHolder {
 			drainGlobalChanges();
 		}
 
+	}
+
+	/*
+	 * Installs the supplier and starts and binds its gum in one step under the write
+	 * lock, returning exactly that gum: another thread binding at the same time cannot
+	 * make the caller start or return a different one.
+	 */
+	static RainbowGum setAndStart(Supplier<RainbowGum> rainbowGumSupplier) {
+		Objects.requireNonNull(rainbowGumSupplier);
+		if (lock.writeLock().isHeldByCurrentThread()) {
+			throw new IllegalStateException("RainbowGum component tried to log too early. "
+					+ "This is usually caused by dependencies calling logging.");
+		}
+		lock.writeLock().lock();
+		try {
+			var original = rainbowGum;
+			rainbowGum = null;
+			supplier = rainbowGumSupplier;
+			if (original != null) {
+				globalChangePublisher.enqueue(Optional.empty());
+			}
+			var r = rainbowGumSupplier.get();
+			start(r);
+			rainbowGum = r;
+			globalChangePublisher.enqueue(Optional.of(r));
+			return r;
+		}
+		finally {
+			lock.writeLock().unlock();
+			drainGlobalChanges();
+		}
+	}
+
+	/*
+	 * Starts and binds the gum of a supplier installed earlier by set, under the write
+	 * lock, only if that supplier is still the installed one.
+	 */
+	@SuppressWarnings("ReferenceEquality")
+	static RainbowGum startIfStillSet(Supplier<RainbowGum> rainbowGumSupplier) {
+		if (lock.writeLock().isHeldByCurrentThread()) {
+			throw new IllegalStateException("RainbowGum component tried to log too early. "
+					+ "This is usually caused by dependencies calling logging.");
+		}
+		lock.writeLock().lock();
+		try {
+			if (supplier != rainbowGumSupplier) {
+				throw new IllegalStateException("Another Rainbow Gum was set as the global one after this one.");
+			}
+			var r = rainbowGum;
+			if (r != null) {
+				return r;
+			}
+			r = rainbowGumSupplier.get();
+			start(r);
+			rainbowGum = r;
+			globalChangePublisher.enqueue(Optional.of(r));
+			return r;
+		}
+		finally {
+			lock.writeLock().unlock();
+			drainGlobalChanges();
+		}
 	}
 
 	static boolean remove(@Nullable RainbowGum gum) {
