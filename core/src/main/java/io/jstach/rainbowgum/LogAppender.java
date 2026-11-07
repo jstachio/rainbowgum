@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.jspecify.annotations.NonNull;
@@ -1010,6 +1011,35 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	}
 
 	/**
+	 * Records a failed append: always counted, alerted only when it starts an episode of
+	 * failures.
+	 * @param e the failure.
+	 * @param count events that failed to append.
+	 * @param batch whether they were appended as a batch.
+	 */
+	final void appendFailed(Exception e, int count, boolean batch) {
+		metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+		if (failing.compareAndSet(false, true)) {
+			alerts.error(getClass(), batch ? "appender '" + name + "' failed to append batch of " + count + " event(s)"
+					: "appender '" + name + "' failed to append event", e);
+		}
+		else {
+			failedSinceAlert.add(count);
+		}
+	}
+
+	/**
+	 * Ends an episode of failures, if one is under way, with one warning saying how many
+	 * further events failed without being reported.
+	 */
+	final void appendSucceeded() {
+		if (failing.get() && failing.compareAndSet(true, false)) {
+			alerts.warn(getClass(), "appender '" + name + "' recovered; " + failedSinceAlert.sumThenReset()
+					+ " more event(s) failed to append after the reported failure");
+		}
+	}
+
+	/**
 	 * Whether an appender should drop (or drop-and-log) an append call because it is
 	 * reentrant - i.e. the current thread is already inside a previous call to the same
 	 * appender, which happens if an output does logging itself during its own write or an
@@ -1078,6 +1108,15 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * metrics for recording counters like {@link LogMetrics#EVENTS_DROPPED_METRIC}.
 	 */
 	protected final LogMetrics metrics;
+
+	/*
+	 * A failing output usually fails every append until something outside the process
+	 * changes, so only the first failure of an episode is alerted: printing one stack
+	 * trace per log call only widens the damage. Every failure is still counted.
+	 */
+	private final AtomicBoolean failing = new AtomicBoolean();
+
+	private final LongAdder failedSinceAlert = new LongAdder();
 
 	/**
 	 * Creates an appender from an output and encoder.
@@ -1306,10 +1345,10 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 			finally {
 				lock.unlock();
 			}
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+			appendFailed(e, 1, false);
 		}
 	}
 
@@ -1330,10 +1369,10 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 			finally {
 				lock.unlock();
 			}
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+			appendFailed(e, count, true);
 		}
 	}
 
@@ -1406,10 +1445,10 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 					local.inUse = false;
 				}
 			}
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+			appendFailed(e, 1, false);
 		}
 	}
 
@@ -1452,10 +1491,10 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 					local.inUse = false;
 				}
 			}
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+			appendFailed(e, count, true);
 		}
 	}
 
@@ -1503,10 +1542,10 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 			var buffer = encoder.buffer(output.bufferHints());
 			encoder.encode(event, buffer);
 			writeLocked(event, buffer);
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+			appendFailed(e, 1, false);
 		}
 	}
 
@@ -1543,10 +1582,10 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 			finally {
 				lock.unlock();
 			}
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+			appendFailed(e, count, true);
 		}
 	}
 
@@ -1599,10 +1638,10 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 					local.inUse = false;
 				}
 			}
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+			appendFailed(e, 1, false);
 		}
 	}
 
@@ -1637,10 +1676,10 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 					local.inUse = false;
 				}
 			}
+			appendSucceeded();
 		}
 		catch (Exception e) {
-			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
-			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
+			appendFailed(e, count, true);
 		}
 	}
 
