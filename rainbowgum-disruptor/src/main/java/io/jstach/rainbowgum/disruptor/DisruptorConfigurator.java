@@ -14,10 +14,9 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Configurator;
 import io.jstach.svc.ServiceProvider;
 
 /**
- * Registers {@link DisruptorLogPublisher} to the default
- * {@link LogPublisherRegistry#ASYNC_SCHEME} which makes it the default async publisher
- * provider. Disruptor Log Publisher will also be registered to the
- * {@link #DISRUPTOR_SCHEME}.
+ * Registers {@link DisruptorLogPublisher} to the {@link #DISRUPTOR_SCHEME}. A route uses
+ * it only when its publisher URI has that scheme: having this module on the class path
+ * does not change what {@link LogPublisherRegistry#ASYNC_SCHEME} resolves to.
  */
 @ServiceProvider(RainbowGumServiceProvider.class)
 public class DisruptorConfigurator implements Configurator {
@@ -51,7 +50,6 @@ public class DisruptorConfigurator implements Configurator {
 			}
 
 		}
-		config.publisherRegistry().register(LogPublisherRegistry.ASYNC_SCHEME, DisruptorProvider.INSTANT);
 		config.publisherRegistry().register(DISRUPTOR_SCHEME, DisruptorProvider.INSTANT);
 
 		return true;
