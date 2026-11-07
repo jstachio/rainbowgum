@@ -45,8 +45,8 @@ class RollingBatchFailureTest {
 			return new Capture(active.toUri(), contents);
 		};
 		var encoder = LogEncoder.of(LogFormatter.builder().message().newline().build()).provide("file", config);
-		try (var output = new DefaultRollingFileOutput(active, RollingPolicy.ParsedPattern.parse(".%i"), 1, 7, 0,
-				false, supplier, new Capture(active.toUri(), contents), config)) {
+		try (var output = new DefaultRollingFileOutput(active, RollingPolicy.ParsedPattern.parse(".%i"), 1, 7, 0, false,
+				supplier, new Capture(active.toUri(), contents), config)) {
 			output.start(config);
 			var events = new LogEvent[] { event("first"), event("failed"), event("last") };
 			assertDoesNotThrow(() -> output.write(events, events.length, encoder));

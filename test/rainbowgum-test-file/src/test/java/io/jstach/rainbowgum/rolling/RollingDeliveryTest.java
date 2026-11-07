@@ -45,9 +45,14 @@ class RollingDeliveryTest {
 		var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
 		var formatter = LogFormatter.builder().message().newline().build();
 		var encoder = LogEncoder.of(formatter).provide("file", config);
-		try (var output = RollingFileOutput.of(b -> b.fileName(active.toString()).append(false)
-			.prudent(mode == Mode.PRUDENT).bufferSize(mode == Mode.UNBUFFERED ? DataSize.ZERO : DataSize.ofBytes(8192))
-			.maxFileSize(DataSize.ofBytes(5)).maxHistory(3)).provide("file", config)) {
+		try (var output = RollingFileOutput
+			.of(b -> b.fileName(active.toString())
+				.append(false)
+				.prudent(mode == Mode.PRUDENT)
+				.bufferSize(mode == Mode.UNBUFFERED ? DataSize.ZERO : DataSize.ofBytes(8192))
+				.maxFileSize(DataSize.ofBytes(5))
+				.maxHistory(3))
+			.provide("file", config)) {
 			output.start(config);
 			var events = new LogEvent[] { event("first"), event("second"), event("third"), event("ignored") };
 			assertDoesNotThrow(() -> output.write(events, 3, encoder));
@@ -55,9 +60,14 @@ class RollingDeliveryTest {
 			assertEquals("first\nsecond\nthird\n", Files.readString(active));
 			assertEquals(2, metric(config, LogMetrics.ROLL_FAIL_METRIC));
 			assertEquals(0, metric(config, LogMetrics.EVENTS_FAILED_METRIC));
-			assertEquals("ERROR Failed to roll file '<DIR>/app.log'\n".repeat(2), config.alerts().dump().stream()
-				.map(e -> e.level() + " " + e.message() + "\n").collect(Collectors.joining())
-				.replace(directory.toString(), "<DIR>").replace('\\', '/'));
+			assertEquals("ERROR Failed to roll file '<DIR>/app.log'\n".repeat(2),
+					config.alerts()
+						.dump()
+						.stream()
+						.map(e -> e.level() + " " + e.message() + "\n")
+						.collect(Collectors.joining())
+						.replace(directory.toString(), "<DIR>")
+						.replace('\\', '/'));
 			Files.delete(obstruction.resolve("keep"));
 			Files.delete(obstruction);
 			output.reopen();
@@ -75,8 +85,11 @@ class RollingDeliveryTest {
 		Path obstruction = Files.createDirectory(directory.resolve(gzip ? "app.log.7.gz" : "app.log.7"));
 		Files.writeString(obstruction.resolve("keep"), "obstruction");
 		var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
-		try (var output = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(1))
-			.fileNamePattern(gzip ? ".%i.gz" : ".%i")).provide("file", config)) {
+		try (var output = RollingFileOutput
+			.of(b -> b.fileName(active.toString())
+				.maxFileSize(DataSize.ofBytes(1))
+				.fileNamePattern(gzip ? ".%i.gz" : ".%i"))
+			.provide("file", config)) {
 			output.start(config);
 			for (int i = 0; i < 1024; i++) {
 				output.write(event("x"), "x");
@@ -108,8 +121,8 @@ class RollingDeliveryTest {
 		var encoder = LogEncoder.of(formatter).provide("file", config);
 		try (var output = RollingFileOutput.of(b -> b.fileName(active.toString())).provide("file", config)) {
 			output.start(config);
-			assertDoesNotThrow(() -> output.write(new LogEvent[] { event("first"), event("bad"), event("last") },
-					3, encoder));
+			assertDoesNotThrow(
+					() -> output.write(new LogEvent[] { event("first"), event("bad"), event("last") }, 3, encoder));
 			output.flush();
 			assertEquals("first\nlast\n", Files.readString(active));
 			assertEquals(1, metric(config, LogMetrics.EVENTS_FAILED_METRIC));
