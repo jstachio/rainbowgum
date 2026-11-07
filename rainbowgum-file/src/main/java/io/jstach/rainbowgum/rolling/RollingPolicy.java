@@ -9,6 +9,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -230,6 +231,14 @@ final class RollingPolicy {
 			try (var in = Files.newInputStream(source);
 					var out = new GZIPOutputStream(Files.newOutputStream(temporary))) {
 				in.transferTo(out);
+			}
+			/*
+			 * createTempFile makes the file 0600, so without this a compressed archive
+			 * would be readable only by its owner while the active file follows the
+			 * umask.
+			 */
+			if (Files.getFileAttributeView(source, PosixFileAttributeView.class) != null) {
+				Files.setPosixFilePermissions(temporary, Files.getPosixFilePermissions(source));
 			}
 			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
 		}

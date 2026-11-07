@@ -5,11 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -61,6 +64,17 @@ class RollingPolicyTest {
 
 		assertFalse(Files.exists(active));
 		assertEquals("hello", Files.readString(dir.resolve("app.log.1")));
+	}
+
+	@Test
+	void gzipArchiveKeepsTheActiveFilePermissions() throws IOException {
+		Path active = dir.resolve("app.log");
+		Files.writeString(active, "hello");
+		assumeTrue(Files.getFileAttributeView(active, PosixFileAttributeView.class) != null, "POSIX only");
+		var permissions = PosixFilePermissions.fromString("rw-r-----");
+		Files.setPosixFilePermissions(active, permissions);
+		RollingPolicy.roll(active, ParsedPattern.parse(".%i.gz"), 1, 0);
+		assertEquals(permissions, Files.getPosixFilePermissions(dir.resolve("app.log.1.gz")));
 	}
 
 	@Test
