@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMetrics;
@@ -44,6 +46,8 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 
 	private long bytesWritten;
 
+	private long nextRollSize;
+
 	private boolean needsOpen;
 
 	private boolean rollingRecovery;
@@ -58,6 +62,7 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		this.activeFile = activeFile;
 		this.pattern = pattern;
 		this.maxFileSize = maxFileSize;
+		this.nextRollSize = maxFileSize;
 		this.maxHistory = maxHistory;
 		this.totalSizeCap = totalSizeCap;
 		this.cleanHistoryOnStart = cleanHistoryOnStart;
@@ -122,8 +127,9 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		try {
 			if (needsOpen) {
 				openDelegate();
+				deferRoll();
 			}
-			if (maxFileSize > 0 && bytesWritten >= maxFileSize) {
+			if (maxFileSize > 0 && bytesWritten >= nextRollSize) {
 				// Mark this before closing: any failure must leave the next write able to
 				// recover instead of silently writing to a closed output.
 				needsOpen = true;
@@ -131,13 +137,33 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 				delegate.close();
 				RollingPolicy.roll(activeFile, pattern, maxHistory, totalSizeCap);
 				openDelegate();
+				nextRollSize = maxFileSize;
 			}
 		}
 		catch (RuntimeException e) {
 			config.metrics().errorCounter(LogMetrics.ROLL_FAIL_METRIC, 1);
 			config.alerts().error(getClass(), "Failed to roll file '" + activeFile + "'", e);
-			throw e;
+			// Archive maintenance must not discard the current event when the active
+			// file can still be opened. A replacement always opens in append mode.
+			try {
+				openDelegate();
+				deferRoll();
+			}
+			catch (RuntimeException recoveryFailure) {
+				if (recoveryFailure != e) {
+					recoveryFailure.addSuppressed(e);
+				}
+				throw recoveryFailure;
+			}
 		}
+	}
+
+	private void deferRoll() {
+		// A failed gzip/rename may already have scanned the whole active file.
+		// Retry after its size doubles so repeated failures do not rescan a growing
+		// file for every event. Explicit reopen allows an earlier retry.
+		long size = Math.max(bytesWritten, maxFileSize);
+		nextRollSize = size > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : size * 2;
 	}
 
 	private void openDelegate() {
@@ -163,6 +189,22 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		bytesWritten = size;
 		needsOpen = false;
 		rollingRecovery = false;
+	}
+
+	@Override
+	public void write(LogEvent[] events, int count, LogEncoder encoder, Buffer buffer) {
+		for (int i = 0; i < count; i++) {
+			var event = events[i];
+			try {
+				buffer.clear();
+				encoder.encode(event, buffer);
+				write(event, buffer);
+			}
+			catch (Exception e) {
+				config.metrics().errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+				config.alerts().error(getClass(), "Failed to append event to rolling file '" + activeFile + "'", e);
+			}
+		}
 	}
 
 	@Override
@@ -208,6 +250,7 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		}
 		needsOpen = true;
 		rollingRecovery = false;
+		nextRollSize = maxFileSize;
 		delegate.close();
 		openDelegate();
 	}
