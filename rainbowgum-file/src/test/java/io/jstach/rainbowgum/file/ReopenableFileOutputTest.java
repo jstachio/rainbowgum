@@ -43,19 +43,23 @@ class ReopenableFileOutputTest {
 
 	@Test
 	void reopenSwitchesToTheNewFile(@TempDir Path dir) throws IOException {
-		Path file = dir.resolve("app.log");
-		Path rotated = dir.resolve("app.log.1");
-		var output = new ReopenableFileOutput(
-				() -> new FileOutputStreamOutput(file.toUri(), new FileOutputStream(file.toFile(), true)));
+		/*
+		 * Each open names a different file, standing in for logrotate moving the file
+		 * before signalling a reopen: Windows does not allow renaming a file that is
+		 * open.
+		 */
+		var opens = new AtomicInteger();
+		var output = new ReopenableFileOutput(() -> {
+			Path file = dir.resolve("app-" + opens.incrementAndGet() + ".log");
+			return new FileOutputStreamOutput(file.toUri(), new FileOutputStream(file.toFile(), true));
+		});
 		output.start(LogConfig.builder().build());
 		write(output, "old\n");
-		// As logrotate does: move the file, then signal a reopen.
-		Files.move(file, rotated);
 		output.reopen();
 		write(output, "new\n");
 		output.close();
-		assertEquals("old\n", Files.readString(rotated));
-		assertEquals("new\n", Files.readString(file));
+		assertEquals("old\n", Files.readString(dir.resolve("app-1.log")));
+		assertEquals("new\n", Files.readString(dir.resolve("app-2.log")));
 	}
 
 	@Test
