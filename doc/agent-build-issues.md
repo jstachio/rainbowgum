@@ -11,6 +11,30 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-11-07: Install local snapshot dependencies before analysis
+
+After fixing formatting on a fresh checkout of `main`, `bin/analyze.sh` stopped
+in its Checker Framework pass because it could not resolve the local
+`rainbowgum-slf4j` and `rainbowgum-json` artifacts at `1.0.0-SNAPSHOT`.
+Installing those exposed the same issue for `rainbowgum-file` and
+`rainbowgum-test-jdk`. The Checker Framework reactor omits these dependencies,
+but includes modules that need them for compilation or test compilation. A
+prior `verify` does not install the jars for a later reactor to use.
+
+Build and install the missing dependencies with the normal profile before
+running the script again:
+
+```sh
+./mvnw -pl rainbowgum,rainbowgum-scopedkeyvalues,rainbowgum-otlp,:rainbowgum-spring-boot4 -am install
+bin/analyze.sh
+```
+
+This prepares the local Maven repository without changing the script's module
+selection, profiles, caching, or parallelism. It is checkout setup, not a
+required rebuild before every analysis run.
+
+Agent: Codex (GPT-6).
+
 ## 2026-10-20: Analyze clear lifecycle tests against installed core bytecode
 
 On `feature/global-clear-push`, `./mvnw --fail-at-end install` passed. This
