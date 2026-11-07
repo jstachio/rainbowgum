@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.function.Supplier;
 
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEncoder;
+import io.jstach.rainbowgum.LogEncoder.Buffer;
 import io.jstach.rainbowgum.LogEncoder.BufferHints;
 import io.jstach.rainbowgum.LogEvent;
 import io.jstach.rainbowgum.LogMetrics;
@@ -136,7 +138,17 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		catch (RuntimeException e) {
 			config.metrics().errorCounter(LogMetrics.ROLL_FAIL_METRIC, 1);
 			config.alerts().error(getClass(), "Failed to roll file '" + activeFile + "'", e);
-			throw e;
+			// Archive maintenance must not discard the current event when the active
+			// file can still be opened. A replacement always opens in append mode.
+			try {
+				openDelegate();
+			}
+			catch (RuntimeException recoveryFailure) {
+				if (recoveryFailure != e) {
+					recoveryFailure.addSuppressed(e);
+				}
+				throw recoveryFailure;
+			}
 		}
 	}
 
@@ -163,6 +175,22 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		bytesWritten = size;
 		needsOpen = false;
 		rollingRecovery = false;
+	}
+
+	@Override
+	public void write(LogEvent[] events, int count, LogEncoder encoder, Buffer buffer) {
+		for (int i = 0; i < count; i++) {
+			var event = events[i];
+			try {
+				buffer.clear();
+				encoder.encode(event, buffer);
+				write(event, buffer);
+			}
+			catch (Exception e) {
+				config.metrics().errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
+				config.alerts().error(getClass(), "Failed to append event to rolling file '" + activeFile + "'", e);
+			}
+		}
 	}
 
 	@Override

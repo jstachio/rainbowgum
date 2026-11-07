@@ -75,20 +75,17 @@ class RollingFileOutputTest {
 		try (var rg = gum.start()) {
 			config.alerts().clear();
 			rg.log(TestLogEventFactory.of().event("first"));
-			rg.log(TestLogEventFactory.of().event("lost"));
-			rg.log(TestLogEventFactory.of().event("also lost"));
-			assertEquals("first\n", Files.readString(active));
+			rg.log(TestLogEventFactory.of().event("second"));
+			rg.log(TestLogEventFactory.of().event("third"));
+			config.outputRegistry().flush();
+			assertEquals("first\nsecond\nthird\n", Files.readString(active));
 			assertEquals("""
 					ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to roll file '<DIR>/app.log'
 					java.io.UncheckedIOException: java.nio.file.DirectoryNotEmptyException: <DIR>/app.log.7
-					ERROR io.jstach.rainbowgum.ReuseBufferLogAppender: appender 'file' failed to append event
-					java.io.UncheckedIOException: java.nio.file.DirectoryNotEmptyException: <DIR>/app.log.7
 					""".repeat(2), errorAlerts(config));
 			assertEquals(2, metric(config, StandardMetric.ROLL_FAIL));
-			assertEquals(2, metric(config, StandardMetric.EVENTS_FAILED));
+			assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
 			assertEquals("""
-					events.failed=2
-					io.jstach.rainbowgum.ReuseBufferLogAppender=2
 					io.jstach.rainbowgum.rolling.DefaultRollingFileOutput=2
 					roll.fail=2
 					""",
@@ -106,16 +103,16 @@ class RollingFileOutputTest {
 			Files.delete(obstruction);
 			rg.log(TestLogEventFactory.of().event("next"));
 			assertEquals(java.util.List.of(), config.outputRegistry().flush());
-			assertEquals("first\n", Files.readString(dir.resolve("app.log.1")));
+			assertEquals("first\nsecond\nthird\n", Files.readString(dir.resolve("app.log.1")));
 			assertEquals("next\n", Files.readString(active));
 			assertEquals(2, metric(config, StandardMetric.ROLL_FAIL));
-			assertEquals(4, config.alerts().dump().size());
+			assertEquals(2, config.alerts().dump().size());
 		}
 	}
 
 	@ParameterizedTest
 	@EnumSource(FileMode.class)
-	void failureAfterActiveFileMovedDoesNotRotateAgainDuringRecovery(FileMode mode) throws IOException {
+	void failureAfterActiveFileMovedPreservesTheCurrentEvent(FileMode mode) throws IOException {
 		Path active = dir.resolve("app.log");
 		Files.writeString(dir.resolve("app.log.2"), "older\n");
 		Path obstruction = Files.createDirectory(dir.resolve("app.log.4"));
@@ -130,35 +127,27 @@ class RollingFileOutputTest {
 		try (var rg = gum.start()) {
 			config.alerts().clear();
 			rg.log(TestLogEventFactory.of().event("first"));
-			rg.log(TestLogEventFactory.of().event("lost"));
+			rg.log(TestLogEventFactory.of().event("kept"));
+			assertEquals(java.util.List.of(), config.outputRegistry().flush());
 			assertEquals("""
 					ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to roll file '<DIR>/app.log'
 					java.io.UncheckedIOException: java.nio.file.DirectoryNotEmptyException: <DIR>/app.log.5
-					ERROR io.jstach.rainbowgum.ReuseBufferLogAppender: appender 'file' failed to append event
-					java.io.UncheckedIOException: java.nio.file.DirectoryNotEmptyException: <DIR>/app.log.5
 					""", errorAlerts(config));
-			assertFalse(Files.exists(active));
-			Files.createDirectory(active);
-			rg.log(TestLogEventFactory.of().event("lost during recovery"));
-			assertEquals("""
-					ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to roll file '<DIR>/app.log'
-					java.io.UncheckedIOException: java.nio.file.DirectoryNotEmptyException: <DIR>/app.log.5
-					ERROR io.jstach.rainbowgum.ReuseBufferLogAppender: appender 'file' failed to append event
-					java.io.UncheckedIOException: java.nio.file.DirectoryNotEmptyException: <DIR>/app.log.5
-					ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to roll file '<DIR>/app.log'
-					java.io.UncheckedIOException: java.io.FileNotFoundException: <DIR>/app.log (<OS_REASON>)
-					ERROR io.jstach.rainbowgum.ReuseBufferLogAppender: appender 'file' failed to append event
-					java.io.UncheckedIOException: java.io.FileNotFoundException: <DIR>/app.log (<OS_REASON>)
-					""", errorAlerts(config));
-			Files.delete(active);
+			assertEquals("first\n", Files.readString(dir.resolve("app.log.1")));
+			assertEquals("kept\n", Files.readString(active));
+			assertEquals(1, metric(config, StandardMetric.ROLL_FAIL));
+			assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
+			assertEquals(0, metric(config, StandardMetric.REOPEN_FAIL));
+			Files.delete(dir.resolve("app.log.5/keep"));
+			Files.delete(dir.resolve("app.log.5"));
 			rg.log(TestLogEventFactory.of().event("next"));
 			assertEquals(java.util.List.of(), config.outputRegistry().flush());
-			assertEquals("first\n", Files.readString(dir.resolve("app.log.1")));
+			// The configured cap now retains only the newer archive.
+			assertEquals("kept\n", Files.readString(dir.resolve("app.log.1")));
 			assertFalse(Files.exists(dir.resolve("app.log.2")));
 			assertEquals("next\n", Files.readString(active));
-			assertEquals(2, metric(config, StandardMetric.ROLL_FAIL));
-			assertEquals(2, metric(config, StandardMetric.EVENTS_FAILED));
-			assertEquals(0, metric(config, StandardMetric.REOPEN_FAIL));
+			assertEquals(1, metric(config, StandardMetric.ROLL_FAIL));
+			assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
 		}
 	}
 
@@ -176,28 +165,27 @@ class RollingFileOutputTest {
 		try (var rg = gum.start()) {
 			config.alerts().clear();
 			rg.log(TestLogEventFactory.of().event("first"));
-			rg.log(TestLogEventFactory.of().event("lost"));
+			rg.log(TestLogEventFactory.of().event("kept"));
 			// The temporary compression filename is nondeterministic.
 			String alerts = errorAlerts(config).replaceAll("archive\\.gz[0-9]+\\.tmp", "<TEMP>");
 			assertEquals("""
 					ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to roll file '<DIR>/app.log'
 					java.io.UncheckedIOException: java.nio.file.NoSuchFileException: <DIR>/app.log.1/<TEMP>
-					ERROR io.jstach.rainbowgum.ReuseBufferLogAppender: appender 'file' failed to append event
-					java.io.UncheckedIOException: java.nio.file.NoSuchFileException: <DIR>/app.log.1/<TEMP>
 					""", alerts);
-			assertEquals("first\n", Files.readString(active));
+			config.outputRegistry().flush();
+			assertEquals("first\nkept\n", Files.readString(active));
 			Files.createDirectory(dir.resolve("app.log.1"));
 			rg.log(TestLogEventFactory.of().event("next"));
 			assertEquals(java.util.List.of(), config.outputRegistry().flush());
 			try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.1/archive.gz")))) {
-				assertEquals("first\n", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+				assertEquals("first\nkept\n", new String(in.readAllBytes(), StandardCharsets.UTF_8));
 			}
 			try (var files = Files.list(dir.resolve("app.log.1"))) {
 				assertEquals(java.util.List.of("archive.gz"), files.map(p -> p.getFileName().toString()).toList());
 			}
 			assertEquals("next\n", Files.readString(active));
 			assertEquals(1, metric(config, StandardMetric.ROLL_FAIL));
-			assertEquals(1, metric(config, StandardMetric.EVENTS_FAILED));
+			assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
 		}
 	}
 
