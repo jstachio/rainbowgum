@@ -130,15 +130,19 @@ final class RollingPolicy {
 	 * @param maxHistory maximum number of archives to retain.
 	 * @param totalSizeCap maximum combined size, in bytes, of all archives; {@code <= 0}
 	 * means unlimited.
+	 * @return files that match the archive pattern but whose index is too large to be one
+	 * of ours, left alone.
 	 */
-	static void cleanHistory(Path activeFile, ParsedPattern pattern, int maxHistory, long totalSizeCap) {
+	static List<Path> cleanHistory(Path activeFile, ParsedPattern pattern, int maxHistory, long totalSizeCap) {
 		try {
-			for (int index : existingArchiveIndexes(activeFile, pattern)) {
+			List<Path> skipped = new ArrayList<>();
+			for (int index : existingArchiveIndexes(activeFile, pattern, skipped)) {
 				if (index > maxHistory) {
 					Files.deleteIfExists(pattern.archivePath(activeFile, index));
 				}
 			}
 			enforceTotalSizeCap(activeFile, pattern, maxHistory, totalSizeCap);
+			return skipped;
 		}
 		catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -175,7 +179,8 @@ final class RollingPolicy {
 	 * guessing an upper bound to scan, so a maxHistory lowered across restarts (or a
 	 * totalSizeCap that evicted files out of order) is handled correctly either way.
 	 */
-	private static List<Integer> existingArchiveIndexes(Path activeFile, ParsedPattern pattern) throws IOException {
+	private static List<Integer> existingArchiveIndexes(Path activeFile, ParsedPattern pattern, List<Path> skipped)
+			throws IOException {
 		Path parent = activeFile.toAbsolutePath().getParent();
 		if (parent == null || !Files.isDirectory(parent)) {
 			return List.of();
@@ -186,7 +191,13 @@ final class RollingPolicy {
 			for (Path candidate : stream) {
 				var matcher = regex.matcher(Objects.requireNonNull(candidate.getFileName()).toString());
 				if (matcher.matches()) {
-					indexes.add(Integer.parseInt(Objects.requireNonNull(matcher.group(1))));
+					try {
+						indexes.add(Integer.parseInt(Objects.requireNonNull(matcher.group(1))));
+					}
+					catch (NumberFormatException e) {
+						// Too large to be an index we wrote, so not one of our archives.
+						skipped.add(candidate);
+					}
 				}
 			}
 		}

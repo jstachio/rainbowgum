@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 
@@ -139,6 +140,20 @@ class RollingPolicyTest {
 		var pattern = ParsedPattern.parse(".%i");
 
 		assertDoesNotThrow(() -> RollingPolicy.cleanHistory(active, pattern, 1, 0));
+	}
+
+	@Test
+	void cleanHistorySkipsIndexesTooLargeToBeOurs() throws IOException {
+		Path active = dir.resolve("app.log");
+		Files.writeString(active, "active");
+		Path old = dir.resolve("app.log.3");
+		Files.writeString(old, "three");
+		Path foreign = dir.resolve("app.log.99999999999");
+		Files.writeString(foreign, "not ours");
+		var skipped = RollingPolicy.cleanHistory(active, ParsedPattern.parse(".%i"), 1, 0);
+		assertEquals(List.of(foreign), skipped);
+		assertTrue(Files.exists(foreign));
+		assertFalse(Files.exists(old));
 	}
 
 	@Test
