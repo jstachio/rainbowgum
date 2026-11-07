@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -72,6 +73,93 @@ class AppenderFailureEpisodeTest {
 			.mapToLong(LogMetrics.Metric::value)
 			.sum();
 		assertEquals(6, failed);
+	}
+
+	@ParameterizedTest
+	@EnumSource(AppenderType.class)
+	void droppedReentryDoesNotEndAFailureEpisode(AppenderType type) {
+		var config = LogConfig.builder().build();
+		var output = new ListLogOutput();
+		var encoder = LogFormatter.builder().message().encoder().build().provide("test", config);
+		var appender = DirectLogAppender.of("test", output, encoder, type,
+				Set.of(LogAppender.AppenderFlag.REENTRY_DROP), config);
+		output.setConsumer((e, s) -> {
+			if (e.message().equals("outer")) {
+				appender.append(event("nested"));
+			}
+			throw new IllegalStateException("still broken");
+		});
+		appender.append(event("first"));
+		appender.append(event("outer"));
+		assertEquals(List.of("ERROR appender 'test' failed to append event"),
+				config.alerts().dump().stream().map(a -> a.level() + " " + a.message()).toList());
+	}
+
+	@ParameterizedTest
+	@EnumSource(AppenderType.class)
+	void emptyBatchDoesNotReportRecovery(AppenderType type) {
+		var config = LogConfig.builder().build();
+		var output = new ListLogOutput();
+		output.setConsumer((e, s) -> {
+			throw new IllegalStateException("broken");
+		});
+		var encoder = LogFormatter.builder().message().encoder().build().provide("test", config);
+		var appender = DirectLogAppender.of("test", output, encoder, type, Set.of(), config);
+		appender.append(event("failure"));
+		appender.append(new LogEvent[0], 0);
+		assertEquals(List.of("ERROR appender 'test' failed to append event"),
+				config.alerts().dump().stream().map(a -> a.level() + " " + a.message()).toList());
+	}
+
+	@Test
+	void concurrentRecoveryAccountsForEveryFailedEvent() throws Exception {
+		var config = LogConfig.builder().build();
+		var output = new ListLogOutput();
+		output.setConsumer((e, s) -> {
+			if (e.message().equals("fail")) {
+				throw new IllegalStateException("broken");
+			}
+		});
+		var encoder = LogFormatter.builder().message().encoder().build().provide("test", config);
+		var appender = DirectLogAppender.of("test", output, encoder, AppenderType.LOCK_THREAD_LOCAL_BUFFER, Set.of(),
+				config);
+		try (var executor = java.util.concurrent.Executors.newFixedThreadPool(4)) {
+			var tasks = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+			for (int producer = 0; producer < 4; producer++) {
+				tasks.add(executor.submit(() -> {
+					for (int i = 0; i < 30; i++) {
+						appender.append(event("fail"));
+						appender.append(event("success"));
+					}
+				}));
+			}
+			for (var task : tasks) {
+				task.get();
+			}
+		}
+		appender.append(event("success"));
+		long accounted = config.alerts().dump().stream().filter(a -> a.level() == Level.ERROR).count();
+		var pattern = java.util.regex.Pattern.compile(
+				"appender 'test' recovered; ([0-9]+) more event\\(s\\) failed to append after the reported failure");
+		for (var alert : config.alerts().dump()) {
+			if (alert.level() == Level.WARNING) {
+				var matcher = pattern.matcher(alert.message());
+				org.junit.jupiter.api.Assertions.assertTrue(matcher.matches(), alert.message());
+				var amount = matcher.group(1);
+				if (amount == null) {
+					throw new AssertionError("Recovery count is missing");
+				}
+				accounted += Long.parseLong(amount);
+			}
+		}
+		assertEquals(120, accounted);
+		assertEquals(120,
+				config.metrics()
+					.snapshot()
+					.stream()
+					.filter(m -> m.name().equals(LogMetrics.EVENTS_FAILED_METRIC))
+					.mapToLong(LogMetrics.Metric::value)
+					.sum());
 	}
 
 	private static LogEvent event(String message) {
