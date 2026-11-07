@@ -119,6 +119,8 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		return delegate.bufferHints();
 	}
 
+	// Identity is required because Throwable rejects self-suppression.
+	@SuppressWarnings("ReferenceEquality")
 	private void maybeRoll() {
 		if (needsOpen && !rollingRecovery) {
 			// An explicit reopen failure is not an automatic rotation failure.
