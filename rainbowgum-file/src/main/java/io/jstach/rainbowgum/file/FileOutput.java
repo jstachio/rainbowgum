@@ -106,7 +106,8 @@ public interface FileOutput extends LogOutput {
 	 * @param uri file uri, set by the appender from its <code>output.uri</code>.
 	 * @param fileName path of the file, relative to the working directory unless
 	 * absolute. Takes precedence over the uri.
-	 * @param append whether or not to append to existing file.
+	 * @param append whether to append to an existing file on initial open. Subsequent
+	 * reopens always append to preserve events already written.
 	 * @param prudent logback prudent mode where files are locked on each write.
 	 * @param bufferSize buffer size, in {@link DataSize#parse(String)} format when set by
 	 * property, e.g. {@code 8KB}. Zero means unbuffered. Must be at most
@@ -129,6 +130,7 @@ public interface FileOutput extends LogOutput {
 		int bufferSize_ = (int) bufferBytes;
 		boolean append_ = append == null ? true : append;
 		return (n, config) -> {
+			var firstOpen = new java.util.concurrent.atomic.AtomicBoolean(true);
 			IOSupplier<FileOutput> supplier = () -> {
 				File file;
 				URI uri_ = uri;
@@ -145,7 +147,7 @@ public interface FileOutput extends LogOutput {
 				createMissingParentDirectories(file);
 				FileOutputStream stream;
 				try {
-					stream = new FileOutputStream(file, append_);
+					stream = new FileOutputStream(file, append_ || !firstOpen.getAndSet(false));
 				}
 				catch (FileNotFoundException e) {
 					throw new UncheckedIOException(e);
@@ -262,7 +264,9 @@ class ReopenableFileOutput implements ForwardingOutput, FileOutput {
 	 * appender, which counts and alerts it. The next reopen tries again.
 	 */
 	@Override
+	@SuppressWarnings("ReferenceEquality") // Throwable rejects self-suppression.
 	public void reopen() {
+		this.fileOutput.flush();
 		var next = supplier.get();
 		var config = this.config;
 		if (config != null) {
@@ -274,7 +278,9 @@ class ReopenableFileOutput implements ForwardingOutput, FileOutput {
 					next.close();
 				}
 				catch (RuntimeException | Error closeFailure) {
-					e.addSuppressed(closeFailure);
+					if (e != closeFailure) {
+						e.addSuppressed(closeFailure);
+					}
 				}
 				throw e;
 			}
