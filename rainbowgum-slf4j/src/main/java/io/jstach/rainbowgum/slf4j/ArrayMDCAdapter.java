@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.Deque;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -12,6 +13,7 @@ import org.slf4j.spi.MDCAdapter;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.KeyValues.MutableKeyValues;
+import io.jstach.rainbowgum.RainbowGum;
 
 class ArrayMDCAdapter implements MDCAdapter {
 
@@ -198,23 +200,54 @@ class ArrayMDCAdapter implements MDCAdapter {
 		copyOnThreadLocal.set(newMap);
 	}
 
+	/*
+	 * The deque by key API is not supported: no layout prints its values, so storing them
+	 * would pretend to support something nobody reads, and libraries should not depend on
+	 * it. Its first use raises one warning alert for the life of the JVM. Before a
+	 * Rainbow Gum is bound there is nowhere to report it, so the warning waits for a use
+	 * after binding.
+	 */
+	private static final AtomicBoolean dequeWarned = new AtomicBoolean();
+
+	static void warnDequeUnsupported() {
+		if (dequeWarned.get()) {
+			return;
+		}
+		var gum = RainbowGum.getOrNull();
+		if (gum != null && dequeWarned.compareAndSet(false, true)) {
+			gum.config()
+				.alerts()
+				.warn(ArrayMDCAdapter.class,
+						"The SLF4J MDC deque by key API (pushByKey, popByKey, getCopyOfDequeByKey, clearDequeByKey) "
+								+ "is not supported and does nothing.");
+		}
+	}
+
+	// For tests.
+	static void resetDequeWarning() {
+		dequeWarned.set(false);
+	}
+
 	@Override
 	public void pushByKey(String key, String value) {
+		warnDequeUnsupported();
 	}
 
 	@Override
 	public @Nullable String popByKey(String key) {
+		warnDequeUnsupported();
 		return null;
 	}
 
 	@Override
 	public @Nullable Deque<String> getCopyOfDequeByKey(String key) {
+		warnDequeUnsupported();
 		return null;
 	}
 
 	@Override
 	public void clearDequeByKey(String key) {
-
+		warnDequeUnsupported();
 	}
 
 }
