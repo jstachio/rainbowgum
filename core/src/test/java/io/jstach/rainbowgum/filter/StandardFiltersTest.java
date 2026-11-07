@@ -112,6 +112,38 @@ class StandardFiltersTest {
 	}
 
 	@Test
+	void throttleRecoversWhenTheClockStepsBack() {
+		String actual = log("""
+				logging.route.default.filters=throttle
+				logging.route.default.filter.throttle.rate=1
+				logging.route.default.filter.throttle.maxBurst=1
+				""", List.of( //
+				event(600_000, Level.INFO, "a"), //
+				event(600_000, Level.INFO, "b"), //
+				// The clock steps back ten minutes.
+				event(0, Level.INFO, "c"), //
+				event(0, Level.INFO, "d")));
+		assertEquals("""
+				INFO app a
+				INFO app c
+				""", actual);
+	}
+
+	@Test
+	void throttleToleratesSlightlyOutOfOrderTimestamps() {
+		String actual = log("""
+				logging.route.default.filters=throttle
+				logging.route.default.filter.throttle.rate=1
+				logging.route.default.filter.throttle.maxBurst=1
+				""", List.of( //
+				event(5_000, Level.INFO, "a"), //
+				event(4_500, Level.INFO, "b")));
+		assertEquals("""
+				INFO app a
+				""", actual);
+	}
+
+	@Test
 	void throttleLevelChoosesWhatIsThrottled() {
 		String actual = log("""
 				logging.route.default.filters=throttle

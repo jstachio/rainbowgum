@@ -16,7 +16,9 @@ import io.jstach.rainbowgum.annotation.LogConfigurable;
 /*
  * A generic cell rate algorithm: allowedAt is when the bucket is empty again, and an
  * event is dropped if keeping it would put that more than maxBurst intervals ahead of the
- * event. Time comes from event timestamps so no clock is read per event.
+ * event. Time comes from event timestamps so no clock is read per event. Timestamps are
+ * wall clock time, so if the clock steps back the bucket would look full until the clock
+ * caught up; a bucket further ahead than it can get in normal use is reset instead.
  */
 final class ThrottleFilter implements Filter {
 
@@ -31,6 +33,8 @@ final class ThrottleFilter implements Filter {
 
 	private static final long NANOS_PER_SECOND = 1_000_000_000L;
 
+	private final long resetNanos;
+
 	private final long intervalNanos;
 
 	private final long burstNanos;
@@ -44,6 +48,12 @@ final class ThrottleFilter implements Filter {
 	private ThrottleFilter(long intervalNanos, long burstNanos, Level level, LogMetrics.Gauge dropped) {
 		this.intervalNanos = intervalNanos;
 		this.burstNanos = burstNanos;
+		/*
+		 * A bucket is never more than burstNanos ahead of the events filling it. Events
+		 * from other threads can arrive slightly out of timestamp order, so allow a
+		 * second of that before deciding the clock went back.
+		 */
+		this.resetNanos = burstNanos + Math.max(intervalNanos, NANOS_PER_SECOND);
 		this.severity = level.getSeverity();
 		this.dropped = dropped;
 	}
@@ -91,6 +101,14 @@ final class ThrottleFilter implements Filter {
 		long now = nanos(event.timestamp());
 		while (true) {
 			long current = allowedAt.get();
+			if (current != Long.MIN_VALUE && current - now > resetNanos) {
+				// The clock stepped back: start a fresh bucket rather than drop until it
+				// catches up.
+				if (!allowedAt.compareAndSet(current, Long.MIN_VALUE)) {
+					continue;
+				}
+				current = Long.MIN_VALUE;
+			}
 			long next = Math.max(current, now) + intervalNanos;
 			if (next - now > burstNanos) {
 				dropped.increment();
