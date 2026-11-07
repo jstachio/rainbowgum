@@ -485,3 +485,33 @@ Installing the new dependency first would also avoid the resolution gap.
 No serialization or cache override was needed for the full build or tests.
 
 Agent: Codex (GPT-6).
+
+## 2026-11-07: Offline module review cannot resolve the build extension
+
+Command:
+
+```sh
+JAVA_HOME=/tmp/snaphop-tools/jdk-27 MAVEN_USER_HOME=/tmp/rainbowgum-review-m2 ./mvnw -o -Dmaven.repo.local=/tmp/rainbowgum-review-m2/repository -pl rainbowgum-file,rainbowgum-json,test/rainbowgum-test-file -am verify
+```
+
+The pinned Maven wrapper starts, but cannot resolve
+`maven-build-cache-extension:1.3.0` from the available local cache. Shell Git and
+Maven Central access also fail because external networking is unavailable. The
+cache was copied into a writable temporary directory; no shared repository was
+modified. This is a missing dependency, not a source compilation failure.
+
+The review uses fresh javac output for the current annotation, core, file and
+JSON sources with `--release 21`. Unchanged generated builders and annotated
+configurators are reused from a prior build. Available JUnit module tests run on
+JDK27 and focused regressions also run on JDK21. The one test class requiring an
+unavailable `org.json` jar is excluded locally; independent Python JSON parsing
+checks every UTF-16 code unit, randomized strings, all encoder schemas and
+numeric round trips. The generated corpus and exact compile commands are saved
+outside the source checkout in the local review artifacts.
+
+Full Maven verification, formatter validation and static-analysis profiles
+remain unverified. With normal repository access restored, use the ordinary
+wrapper command above without `-o` or the temporary repository override; no
+project build configuration was changed for this workaround.
+
+Agent: Codex (GPT-6).

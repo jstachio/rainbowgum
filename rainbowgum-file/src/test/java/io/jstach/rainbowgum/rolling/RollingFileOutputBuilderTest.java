@@ -6,12 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
@@ -29,6 +33,19 @@ class RollingFileOutputBuilderTest {
 
 	@TempDir
 	Path dir;
+
+	@ParameterizedTest
+	@ValueSource(ints = { -1, Integer.MIN_VALUE })
+	void negativeHistoryIsRejectedWithoutTruncatingTheActiveFile(int history) throws IOException {
+		Path active = dir.resolve("existing.log");
+		Files.writeString(active, "existing events\n");
+		var config = LogConfig.builder().build();
+		var error = assertThrows(ValidationException.class, () -> RollingFileOutput
+			.of(b -> b.fileName(active.toString()).append(false).maxHistory(history)).provide("file", config));
+		assertEquals("Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder: "
+				+ "maxHistory must not be negative: " + history, error.getMessage());
+		assertEquals("existing events\n", Files.readString(active));
+	}
 
 	@Test
 	void bothFileNameAndUriUnsetThrowsBeforeAnyFileAccess() {
