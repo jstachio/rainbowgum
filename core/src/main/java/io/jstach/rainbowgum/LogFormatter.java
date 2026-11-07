@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -1012,10 +1013,16 @@ public sealed interface LogFormatter {
 			}
 		},
 		/**
-		 * Escapes carriage returns and line feeds inside the event's text as backslash
-		 * <code>r</code> and backslash <code>n</code>, so each event stays on one line
-		 * and text logged from untrusted input cannot start a forged line. A trailing
-		 * line separator ending the event is kept.
+		 * Escapes the event's text so each event stays on one line and text logged from
+		 * untrusted input cannot forge a line or control the terminal. Carriage returns
+		 * and line feeds become backslash <code>r</code> and backslash <code>n</code>, a
+		 * backslash becomes two so an escaped line break cannot be confused with one
+		 * typed in the text, and other control characters (except tab), DEL, C1 controls
+		 * such as NEL, and the Unicode line and paragraph separators become
+		 * <code>&#92;uXXXX</code>. An escape character starting a colour sequence
+		 * (<code>ESC[...m</code>) is kept so coloured output still works; any other
+		 * escape character is escaped. A trailing line separator ending the event is
+		 * kept.
 		 */
 		CRLF {
 			@Override
@@ -1712,9 +1719,10 @@ final class PostProcessors {
 	}
 
 	/*
-	 * Escapes CR and LF in the region except a single trailing line separator. Like
-	 * prefixLines, the escaped copy is appended after the region and the original then
-	 * deleted, as replacing each line break would shift the rest of the region each time.
+	 * Escapes the region for the crlf post processor, except a single trailing line
+	 * separator. Like prefixLines, the escaped copy is appended after the region and the
+	 * original then deleted, as replacing each character would shift the rest of the
+	 * region each time.
 	 */
 	static void escapeLineBreaks(StringBuilder output, int start) {
 		int length = output.length();
@@ -1726,7 +1734,7 @@ final class PostProcessors {
 			}
 		}
 		int first = start;
-		while (first < end && output.charAt(first) != '\n' && output.charAt(first) != '\r') {
+		while (first < end && !needsEscape(output, first, end)) {
 			first++;
 		}
 		if (first == end) {
@@ -1734,18 +1742,66 @@ final class PostProcessors {
 		}
 		for (int i = first; i < end; i++) {
 			char c = output.charAt(i);
-			if (c == '\n') {
-				output.append("\\n");
+			if (c == '\u001b') {
+				int sgr = sgrLength(output, i, end);
+				if (sgr > 0) {
+					output.append(output, i, i + sgr);
+					i += sgr - 1;
+					continue;
+				}
 			}
-			else if (c == '\r') {
-				output.append("\\r");
-			}
-			else {
-				output.append(c);
+			switch (c) {
+				case '\n' -> output.append("\\n");
+				case '\r' -> output.append("\\r");
+				case '\\' -> output.append("\\\\");
+				default -> {
+					if (isEscapedControl(c)) {
+						output.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
+					}
+					else {
+						output.append(c);
+					}
+				}
 			}
 		}
 		output.append(output, end, length);
 		output.delete(first, length);
+	}
+
+	private static boolean needsEscape(StringBuilder output, int i, int end) {
+		char c = output.charAt(i);
+		if (c == '\u001b') {
+			return sgrLength(output, i, end) == 0;
+		}
+		return c == '\n' || c == '\r' || c == '\\' || isEscapedControl(c);
+	}
+
+	private static boolean isEscapedControl(char c) {
+		return (c < ' ' && c != '\t') || (c >= '\u007f' && c <= '\u009f') || c == '\u2028' || c == '\u2029';
+	}
+
+	/*
+	 * The length of a colour sequence (SGR: ESC [ digits and semicolons m) starting at i,
+	 * or 0 if there is not one. Only these are kept: other escape sequences can move the
+	 * cursor, set the window title or write the clipboard.
+	 */
+	private static int sgrLength(StringBuilder output, int i, int end) {
+		int j = i + 1;
+		if (j >= end || output.charAt(j) != '[') {
+			return 0;
+		}
+		j++;
+		while (j < end) {
+			char c = output.charAt(j);
+			if (c == 'm') {
+				return j - i + 1;
+			}
+			if (!((c >= '0' && c <= '9') || c == ';')) {
+				return 0;
+			}
+			j++;
+		}
+		return 0;
 	}
 
 	/*
