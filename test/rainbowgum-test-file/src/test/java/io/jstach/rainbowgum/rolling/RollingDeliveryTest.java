@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
@@ -59,10 +60,38 @@ class RollingDeliveryTest {
 				.replace(directory.toString(), "<DIR>").replace('\\', '/'));
 			Files.delete(obstruction.resolve("keep"));
 			Files.delete(obstruction);
+			output.reopen();
 			output.write(event("recovered"), "recovered\n");
 			output.flush();
 			assertEquals("first\nsecond\nthird\n", Files.readString(directory.resolve("app.log.1")));
 			assertEquals("recovered\n", Files.readString(active));
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void persistentRotationFailuresRetryByGrowthRatherThanPerEvent(boolean gzip) throws IOException {
+		Path active = directory.resolve("app.log");
+		Path obstruction = Files.createDirectory(directory.resolve(gzip ? "app.log.7.gz" : "app.log.7"));
+		Files.writeString(obstruction.resolve("keep"), "obstruction");
+		var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
+		try (var output = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(1))
+			.fileNamePattern(gzip ? ".%i.gz" : ".%i")).provide("file", config)) {
+			output.start(config);
+			for (int i = 0; i < 1024; i++) {
+				output.write(event("x"), "x");
+			}
+			output.flush();
+			assertEquals("x".repeat(1024), Files.readString(active));
+			assertEquals(10, metric(config, LogMetrics.ROLL_FAIL_METRIC));
+			assertEquals(0, metric(config, LogMetrics.EVENTS_FAILED_METRIC));
+			assertEquals(10, config.alerts().dump().size());
+			Files.delete(obstruction.resolve("keep"));
+			Files.delete(obstruction);
+			output.reopen();
+			output.write(event("recovered"), "recovered");
+			output.flush();
+			assertEquals("recovered", Files.readString(active));
 		}
 	}
 
