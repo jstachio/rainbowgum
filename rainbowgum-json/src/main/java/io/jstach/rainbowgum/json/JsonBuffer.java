@@ -224,9 +224,8 @@ public final class JsonBuffer implements Buffer {
 	}
 
 	/**
-	 * Writes a double field.
-	 * Finite values are JSON numbers. Non-finite values are the JSON strings
-	 * {@code "Infinity"}, {@code "-Infinity"}, and {@code "NaN"}.
+	 * Writes a double field. Finite values are JSON numbers. Non-finite values are the
+	 * JSON strings {@code "Infinity"}, {@code "-Infinity"}, and {@code "NaN"}.
 	 * @param k field name
 	 * @param v value
 	 * @param index the current index for comma determination
