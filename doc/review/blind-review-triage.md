@@ -274,6 +274,7 @@ We are going through every Rainbow Gum finding from the blind reviews (the full 
   - **B.** Limit the regex to `\d{1,9}`.
   - **C.** No change.
 - **Decision:** **A**, and a skipped file raises an alert (a warning or an error), so it is visible rather than silently ignored.
+- **Correction found while fixing:** the archive scan only runs in `cleanHistory` (with `cleanHistoryOnStart`), not on every rollover; `roll()` walks indexes up to `maxHistory` directly. So the real effect was that such a file made the rolling output fail to **start**. The fix is the same.
 
 ### 19. Maintainability
 
@@ -352,3 +353,37 @@ A Markdown spec of the exact lifecycle of SLF4J and Rainbow Gum and all their va
 ### Maybe later
 
 - **7 A:** background compression on rollover.
+
+## Patch implementation status
+
+Each finding is on its own branch off `main` (`ed0a0890`), except the docs, which share one branch. All are pushed, and none is merged yet. Merged together on a throwaway integration branch, the full `clean install` and `bin/analyze.sh` both pass.
+
+| Finding | Branch | Commit |
+| --- | --- | --- |
+| 1 | `fix/reopen-keeps-old-output` | `802f043a` |
+| 2 | `fix/bounded-frozen-global-queue` | `dc628910` |
+| 4 | `fix/append-failure-alert-once` | `efe4fead` |
+| 5 A | `fix/crlf-complete-escaping` | `fab94249` |
+| 6 A | `fix/warn-slow-outputs-behind-sync` | `db34d0a9` |
+| 8 A | `fix/gzip-archive-permissions` | `c742cf98` |
+| 10 | `chore/explicit-final-interface-constants` | `dbe9d245` |
+| 12 A | `fix/atomic-global-bind` | `8e7b2117` |
+| 13 | `fix/remove-replaceable-logger-setters` | `c35a4cf0` |
+| 14 | `fix/throttle-clock-step` | `75ecd454` |
+| 15 | `fix/mdc-deque-warn-once` | `7c0cdb3a` |
+| 17 A | `fix/shutdown-hook-opt-out` | `80d8ef3d` |
+| 18 | `fix/rolling-skip-foreign-archives` | `604e0885` |
+| 3 C, docs for 5, 7, 8 C, 9, 12 C, 15, 17 B, 20 | `docs/review-triage-docs` | `fa2b3650` |
+| 9 (reminder, not for merging) | `draft/cap-packaging-data-cache` | `658dff99` |
+
+**Merge conflicts to expect:**
+
+- Findings 2 and 17 both add a property after `logging.global.queue.error` (`LogProperties`, `LogConfig.reportProperties`) and a line to the same golden reports (`LogConfigDebugTest`, `LogReporterTest`, `LogReporterKitchenSinkTest`). Keep both, with `queue.size` before `shutdownHook`. In `LogProperties` the conflict boundary falls inside the Javadoc, so check that the shutdown hook constant's comment still starts with `/**` (the integration merge needed that fixed).
+- Findings 8 and 18 both add imports to `RollingPolicyTest`. Keep both.
+
+**Open item, finding 7's warning:** core cannot recognise a rolling output (to core it is a `FILE`), so warning when one is behind a synchronous publisher needs a new public hint on `LogOutput` or a new `OutputType`. That is an API decision, so only finding 7's docs are done.
+
+**Credential audit, finding 2's follow-up:** before binding and after close, ERROR events are echoed to stderr through `MetaLog` in full: the level, logger, message and throwable, including exception messages throughout the stack trace, under a `RAINBOW_GUM` label. Key values are not printed. This is the application's own content, not Rainbow Gum's diagnostics, but it can send text meant for a protected log file to stderr, which may be collected differently. Not changed; a decision for the lifecycle spec.
+
+**Correction to finding 18:** see that section. The archive scan only runs when history is cleaned at start.
+
