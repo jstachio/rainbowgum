@@ -1,12 +1,19 @@
 package io.jstach.rainbowgum.disruptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.net.URI;
 
 import org.junit.jupiter.api.Test;
 
 import io.jstach.rainbowgum.LogProperties;
+import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogProviderRef;
+import io.jstach.rainbowgum.LogPublisher.PublisherFactory;
 import io.jstach.rainbowgum.LogProperty.ValidationException;
+import io.jstach.rainbowgum.spi.RainbowGumServiceProvider.Pass;
 
 /*
  * logging.route.{name}.publisher.{scheme}.bufferSize (DisruptorLogBuilder's only property) had zero
@@ -14,6 +21,15 @@ import io.jstach.rainbowgum.LogProperty.ValidationException;
  * property list ConfigProcessor#PROPERTY_LIST_OPTION generates against the test tree.
  */
 class DisruptorConfiguratorTest {
+
+	@Test
+	void configuringDisruptorPreservesTheAsyncProvider() {
+		var config = LogConfig.builder().build();
+		PublisherFactory async = PublisherFactory.async().build();
+		config.publisherRegistry().register("async", ref -> async);
+		new DisruptorConfigurator().configure(config, Pass.FIRST);
+		assertSame(async, config.publisherRegistry().provide(LogProviderRef.of(URI.create("async:///"))));
+	}
 
 	@Test
 	void testBadBufferSizeFailsLoudlyWithPropertyDescription() {
