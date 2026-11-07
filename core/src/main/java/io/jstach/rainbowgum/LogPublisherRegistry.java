@@ -44,27 +44,27 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	 * capacity through that parameter. The corresponding named property is
 	 * {@value #BUFFER_SIZE_PROPERTY}.
 	 */
-	public static String ASYNC_SCHEME = "async";
+	public static final String ASYNC_SCHEME = "async";
 
 	/**
 	 * Explicit scheme for {@link BatchSwapAsyncLogPublisher}, independent of which
 	 * implementation is registered as the default {@link #ASYNC_SCHEME} publisher.
 	 */
-	public static String BATCH_SWAP_SCHEME = "batchswap";
+	public static final String BATCH_SWAP_SCHEME = "batchswap";
 
 	/**
 	 * This is the URI scheme for the sync publisher builder to find a sync publisher.
 	 * Call {@link #register(String, io.jstach.rainbowgum.LogPublisher.PublisherProvider)}
 	 * with this scheme to replace the default sync publisher.
 	 */
-	public static String SYNC_SCHEME = "sync";
+	public static final String SYNC_SCHEME = "sync";
 
 	/**
 	 * This is the URI scheme for the default publisher.
 	 * {@link #register(String, io.jstach.rainbowgum.LogPublisher.PublisherProvider)} with
 	 * this scheme to replace the default publisher.
 	 */
-	public static String DEFAULT_SCHEME = "default";
+	public static final String DEFAULT_SCHEME = "default";
 
 	/**
 	 * Because publisher configurators through service provider discovery can replace the
@@ -72,7 +72,7 @@ public sealed interface LogPublisherRegistry extends LogPublisher.PublisherProvi
 	 * providers are prefixed with this value so that they can still be used even if
 	 * overriden.
 	 */
-	public static String BUILTIN_SCHEME_PREFIX = "core.";
+	public static final String BUILTIN_SCHEME_PREFIX = "core.";
 
 	/**
 	 * Key parameter for the URI scheme a publisher was selected with, without

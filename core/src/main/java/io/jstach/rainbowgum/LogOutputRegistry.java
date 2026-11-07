@@ -23,7 +23,7 @@ public sealed interface LogOutputRegistry extends OutputProvider permits Default
 	/**
 	 * The URI scheme for list provider.
 	 */
-	public static String LIST_OUTPUT_SCHEME = "list";
+	public static final String LIST_OUTPUT_SCHEME = "list";
 
 	/**
 	 * Register a provider by {@link URI#getScheme() scheme}.

@@ -570,7 +570,7 @@ public sealed interface LogFormatter {
 		 * It is called TTLL as that is the name of the format where it is used in
 		 * logback, log4j etc.
 		 */
-		public static String TTLL_TIME_FORMAT = "HH:mm:ss.SSS";
+		public static final String TTLL_TIME_FORMAT = "HH:mm:ss.SSS";
 
 		/**
 		 * Format timestamp.

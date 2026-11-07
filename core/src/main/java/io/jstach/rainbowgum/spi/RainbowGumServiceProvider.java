@@ -112,7 +112,7 @@ public sealed interface RainbowGumServiceProvider {
 	/**
 	 * The default amount of passes made to resolve registrators or configurators.
 	 */
-	public static int PASSES = 4;
+	public static final int PASSES = 4;
 
 	/**
 	 * Called after {@link LogConfig} has been loaded to do various custom initialization
@@ -139,7 +139,7 @@ public sealed interface RainbowGumServiceProvider {
 		/**
 		 * The default amount of passes made to resolve configurators.
 		 */
-		public static int CONFIGURATOR_PASSES = PASSES;
+		public static final int CONFIGURATOR_PASSES = PASSES;
 
 		/**
 		 * Runs configurators. If a configurator returns false then it will be retried.
