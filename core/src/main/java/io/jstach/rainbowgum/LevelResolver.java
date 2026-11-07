@@ -686,6 +686,12 @@ final class CachedLevelResolver implements LevelResolver {
 
 	private final LogAlerts alerts;
 
+	/*
+	 * One entry per logger name, kept for the life of the resolver like every logging
+	 * framework's per logger state. Names should come from a bounded set; the
+	 * logger.names metric (LogMetrics.LOGGER_NAMES_METRIC) and the report's loggers
+	 * section show whether they do.
+	 */
 	private final ConcurrentHashMap<String, Level> levelCache = new ConcurrentHashMap<>();
 
 	public CachedLevelResolver(LevelResolver levelResolver, LogAlerts alerts) {
@@ -756,6 +762,7 @@ final class AlertingLevelConfig implements LevelConfig {
 
 	private final LogAlerts alerts;
 
+	// Keyed by logger name: see CachedLevelResolver.levelCache on why this is bounded.
 	private final ConcurrentHashMap<String, Level> failedNames = new ConcurrentHashMap<>();
 
 	AlertingLevelConfig(LevelConfig levelConfig, LogAlerts alerts) {

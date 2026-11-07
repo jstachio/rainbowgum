@@ -225,7 +225,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 	/**
 	 * Sets the global default RainbowGum. The supplied {@link RainbowGum} must not
-	 * already be started.
+	 * already be started. A Rainbow Gum already bound is replaced but not closed: close
+	 * it yourself, or its shutdown hook closes it when the JVM exits, unless
+	 * {@value LogProperties#GLOBAL_SHUTDOWN_HOOK_PROPERTY} is off.
 	 * @param supplier the supplier will be memoized when {@linkplain Supplier#get()
 	 * accessed} and {@link RainbowGum#start()} will be called.
 	 */
@@ -271,7 +273,10 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 	}
 
 	/**
-	 * Sets a Rainbow Gum and provides a supplier that will start it globally.
+	 * Sets a Rainbow Gum and provides a supplier that will start it globally. A Rainbow
+	 * Gum already bound is replaced but not closed: close it yourself, or its shutdown
+	 * hook closes it when the JVM exits, unless
+	 * {@value LogProperties#GLOBAL_SHUTDOWN_HOOK_PROPERTY} is off.
 	 * @param gum that will be set immediatly.
 	 * @return supplier that will set, get and start the supplied gum and if it is not the
 	 * same will throw {@link IllegalStateException}.
@@ -527,7 +532,9 @@ public sealed interface RainbowGum extends AutoCloseable, LogEventLogger {
 
 		/**
 		 * Builds, starts and sets the RainbowGum as the global one picked up by logging
-		 * facades.
+		 * facades. A Rainbow Gum already bound is replaced but not closed: close it
+		 * yourself, or its shutdown hook closes it when the JVM exits, unless
+		 * {@value LogProperties#GLOBAL_SHUTDOWN_HOOK_PROPERTY} is off.
 		 * @return started and set rainbow that can be used in a try-close.
 		 */
 		public RainbowGum set() {
