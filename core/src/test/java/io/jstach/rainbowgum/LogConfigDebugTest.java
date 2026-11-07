@@ -156,6 +156,7 @@ class LogConfigDebugTest {
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
+						  logging.global.shutdownHook = (unset) (io.jstach.rainbowgum)
 						Globals:
 						  logging.change.mode = OFF
 						  logging.global.ansi.mode = AUTO
@@ -202,6 +203,7 @@ class LogConfigDebugTest {
 						  logging.global.queue.error
 						  logging.global.queue.level
 						  logging.global.queue.size
+						  logging.global.shutdownHook
 						  logging.global.threadLocal
 						  logging.groups
 						  logging.keyvalues.sources
@@ -413,6 +415,7 @@ class LogConfigDebugTest {
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
+						  logging.global.shutdownHook = (unset) (io.jstach.rainbowgum)
 						Globals:
 						  logging.change.mode = OFF
 						  logging.global.ansi.mode = AUTO
@@ -459,6 +462,7 @@ class LogConfigDebugTest {
 						  logging.global.queue.error
 						  logging.global.queue.level
 						  logging.global.queue.size
+						  logging.global.shutdownHook
 						  logging.global.threadLocal
 						  logging.groups
 						  logging.keyvalues.sources
