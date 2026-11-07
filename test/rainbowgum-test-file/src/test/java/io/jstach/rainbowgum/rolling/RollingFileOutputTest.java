@@ -101,6 +101,7 @@ class RollingFileOutputTest {
 
 			Files.delete(obstruction.resolve("keep"));
 			Files.delete(obstruction);
+			config.outputRegistry().reopen();
 			rg.log(TestLogEventFactory.of().event("next"));
 			assertEquals(java.util.List.of(), config.outputRegistry().flush());
 			assertEquals("first\nsecond\nthird\n", Files.readString(dir.resolve("app.log.1")));
@@ -140,6 +141,7 @@ class RollingFileOutputTest {
 			assertEquals(0, metric(config, StandardMetric.REOPEN_FAIL));
 			Files.delete(dir.resolve("app.log.5/keep"));
 			Files.delete(dir.resolve("app.log.5"));
+			config.outputRegistry().reopen();
 			rg.log(TestLogEventFactory.of().event("next"));
 			assertEquals(java.util.List.of(), config.outputRegistry().flush());
 			// The configured cap now retains only the newer archive.
@@ -175,6 +177,7 @@ class RollingFileOutputTest {
 			config.outputRegistry().flush();
 			assertEquals("first\nkept\n", Files.readString(active));
 			Files.createDirectory(dir.resolve("app.log.1"));
+			config.outputRegistry().reopen();
 			rg.log(TestLogEventFactory.of().event("next"));
 			assertEquals(java.util.List.of(), config.outputRegistry().flush());
 			try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.1/archive.gz")))) {
