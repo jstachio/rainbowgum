@@ -22,13 +22,19 @@ import io.jstach.rainbowgum.LogPublisher;
 import io.jstach.rainbowgum.LogPublisherRegistry;
 
 /**
- * An async publisher that uses a blocking queue and a single thread consumer.
+ * An example async publisher that uses a blocking queue and a single thread consumer.
+ * This implementation was intended as an example and must not be used in production.
+ * {@link BatchSwapAsyncLogPublisher} is the built-in async queue publisher.
  * <p>
  * {@link #close()} stops accepting new calls and waits up to the shutdown timeout for
  * queued events and calls already waiting to enqueue to be written, then closes the
  * appender. The worker thread is never interrupted, so outputs are not interrupted in the
  * middle of I/O.
+ *
+ * @deprecated This example publisher will be removed in the next release. Use
+ * {@link BatchSwapAsyncLogPublisher}, the built-in async queue publisher, instead.
  */
+@Deprecated(forRemoval = true)
 public final class BlockingQueueAsyncLogPublisher implements LogPublisher.AsyncLogPublisher {
 
 	private final BlockingQueue<LogEvent> queue;

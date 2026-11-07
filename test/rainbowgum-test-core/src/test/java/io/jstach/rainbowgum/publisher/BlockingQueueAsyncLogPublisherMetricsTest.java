@@ -20,6 +20,8 @@ import io.jstach.rainbowgum.RainbowGum;
 import io.jstach.rainbowgum.TestLogEventFactory;
 import io.jstach.rainbowgum.output.ListLogOutput;
 
+// Exercise the example publisher until its scheduled removal.
+@SuppressWarnings("removal")
 class BlockingQueueAsyncLogPublisherMetricsTest {
 
 	@ParameterizedTest

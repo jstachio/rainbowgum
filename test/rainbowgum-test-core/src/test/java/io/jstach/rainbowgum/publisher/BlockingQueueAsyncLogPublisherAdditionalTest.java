@@ -28,6 +28,8 @@ import io.jstach.rainbowgum.output.ListLogOutput;
  * iterator()/size() overrides that AbstractCollection needs but the worker's own
  * direct field access never exercises.
  */
+// Exercise the example publisher until its scheduled removal.
+@SuppressWarnings("removal")
 class BlockingQueueAsyncLogPublisherAdditionalTest {
 
 	private static LogAppender appender(ListLogOutput output) {
