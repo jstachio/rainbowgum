@@ -98,6 +98,7 @@ class LogReporterTest {
 							  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 							  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 							  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
+							  logging.global.shutdownHook = (unset) (io.jstach.rainbowgum)
 							Globals:
 							  logging.change.mode = OFF
 							  logging.global.ansi.mode = AUTO
@@ -201,6 +202,7 @@ class LogReporterTest {
 					  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 					  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
+					  logging.global.shutdownHook = (unset) (io.jstach.rainbowgum)
 					Globals:
 					  logging.change.mode = OFF
 					  logging.global.ansi.mode = AUTO
@@ -238,6 +240,7 @@ class LogReporterTest {
 				  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 				  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 				  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
+				  logging.global.shutdownHook = (unset) (io.jstach.rainbowgum)
 				  logging.my.other = (unset) (io.jstach.rainbowgum)
 				  logging.my.switch = on (io.jstach.rainbowgum)
 				Globals:

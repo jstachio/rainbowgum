@@ -280,6 +280,18 @@ public interface LogProperties {
 	static final String GLOBAL_QUEUE_SIZE_PROPERTY = ROOT_PREFIX + "global.queue.size";
 
 	/**
+	 * Whether starting the global Rainbow Gum registers a JVM shutdown hook that closes
+	 * it. Defaults to <code>true</code>. Set it to <code>false</code> when the
+	 * application or framework closes Rainbow Gum itself as the last step of its own
+	 * shutdown: JVM shutdown hooks run concurrently in no set order, so events logged by
+	 * other hooks after this one has run are lost, except errors, which are echoed to
+	 * standard error.
+	 * <p>
+	 * Property: <code>{@index logging.global.shutdownHook}</code>
+	 */
+	static final String GLOBAL_SHUTDOWN_HOOK_PROPERTY = ROOT_PREFIX + "global.shutdownHook";
+
+	/**
 	 * The line separator formatters end lines and stack trace lines with: <code>lf</code>
 	 * (default) for <code>\n</code>, <code>crlf</code> for <code>\r\n</code>, or
 	 * <code>platform</code> for {@link System#lineSeparator()}. Read once, from system

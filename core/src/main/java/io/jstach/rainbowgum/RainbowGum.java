@@ -762,6 +762,14 @@ final class RainbowGumHolder {
 		}
 	}
 
+	static boolean shutdownHook(LogConfig config) {
+		return config.properties()
+			.forKey(LogProperties.GLOBAL_SHUTDOWN_HOOK_PROPERTY)
+			.ofBoolean()
+			.or(true)
+			.validateNow(RainbowGum.class);
+	}
+
 	@SuppressWarnings("ReferenceEquality") // Throwable self-suppression.
 	private static void start(RainbowGum gum) {
 		Objects.requireNonNull(gum);
@@ -770,7 +778,9 @@ final class RainbowGumHolder {
 		long dropped;
 		try {
 			gum.start();
-			ShutdownManager.addShutdownHook(gum);
+			if (shutdownHook(gum.config())) {
+				ShutdownManager.addShutdownHook(gum);
+			}
 			binding = true;
 			dropped = InternalRootRouter.setRouter(gum.router());
 		}

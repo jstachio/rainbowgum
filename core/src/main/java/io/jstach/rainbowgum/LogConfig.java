@@ -1420,6 +1420,7 @@ final class DefaultLogConfig implements LogConfig {
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_SIZE_PROPERTY);
+		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_SHUTDOWN_HOOK_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_LINE_SEPARATOR_PROPERTY);
 	}
 
