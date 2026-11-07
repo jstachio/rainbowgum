@@ -1,6 +1,9 @@
 package io.jstach.rainbowgum.disruptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -8,6 +11,8 @@ import java.lang.System.Logger.Level;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +29,105 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 class DisruptorLogPublisherTest {
 
 	private static final int BUFFER_SIZE = 8;
+
+	@Test
+	void closeReleasesAProducerWaitingOnAFullRing() throws InterruptedException {
+		var config = LogConfig.builder().build();
+		var output = new ClosingListLogOutput();
+		var writing = new CountDownLatch(1);
+		var releaseOutput = new CountDownLatch(1);
+		var producerEntered = new CountDownLatch(1);
+		var producerDone = new CountDownLatch(1);
+		output.setConsumer((e, s) -> {
+			if (e.message().equals("held")) {
+				writing.countDown();
+				try {
+					releaseOutput.await();
+				}
+				catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException(ex);
+				}
+			}
+		});
+		try (var publisher = publisher(config, output)) {
+			var producer = Thread.ofPlatform().daemon().unstarted(() -> {
+				producerEntered.countDown();
+				publisher.log(event("waiting"));
+				producerDone.countDown();
+			});
+			var closer = Thread.ofPlatform().daemon().unstarted(publisher::close);
+			try {
+				publisher.start(config);
+				publisher.log(event("held"));
+				assertTrue(writing.await(5, TimeUnit.SECONDS));
+				for (int i = 1; i < BUFFER_SIZE; i++) {
+					publisher.log(event("queued" + i));
+				}
+				producer.start();
+				assertTrue(producerEntered.await(5, TimeUnit.SECONDS));
+				assertFalse(producerDone.await(50, TimeUnit.MILLISECONDS));
+				closer.start();
+				// The output is still blocked. Shutdown must release the producer
+				// without depending on the consumer making space first.
+				assertTrue(producerDone.await(5, TimeUnit.SECONDS));
+			}
+			finally {
+				releaseOutput.countDown();
+				producer.join(5000);
+				closer.join(5000);
+			}
+			assertFalse(producer.isAlive());
+			assertFalse(closer.isAlive());
+		}
+		assertEquals(BUFFER_SIZE, output.events().size());
+		assertEquals(1, output.closes);
+	}
+
+	@Test
+	void startingTwiceDoesNotCloseRunningAppenders() {
+		var config = LogConfig.builder().build();
+		var output = new ClosingListLogOutput();
+		try (var publisher = publisher(config, output)) {
+			publisher.start(config);
+			assertDoesNotThrow(() -> publisher.start(config));
+			publisher.log(event("still running"));
+		}
+		assertEquals(1, output.starts);
+		assertEquals(1, output.closes);
+		assertEquals(List.of("still running"), output.events().stream().map(e -> e.getValue()).toList());
+	}
+
+	@Test
+	void closingBeforeStartPreventsRestartAndClosesOnlyOnce() {
+		var config = LogConfig.builder().build();
+		var output = new ClosingListLogOutput();
+		try (var publisher = publisher(config, output)) {
+			publisher.close();
+			var error = assertThrows(IllegalStateException.class, () -> publisher.start(config));
+			assertEquals("DisruptorLogPublisher cannot be restarted.", error.getMessage());
+		}
+		assertEquals(0, output.starts);
+		assertEquals(1, output.closes);
+	}
+
+	@Test
+	void failedAppenderStartClosesItsPartiallyStartedOutput() {
+		var config = LogConfig.builder().build();
+		var output = new ClosingListLogOutput() {
+			@Override
+			public void start(LogConfig config) {
+				super.start(config);
+				throw new IllegalStateException("start failed");
+			}
+		};
+		try (var publisher = publisher(config, output)) {
+			var error = assertThrows(IllegalStateException.class, () -> publisher.start(config));
+			assertEquals("start failed", error.getMessage());
+		}
+		assertEquals(1, output.starts);
+		assertEquals(1, output.closes);
+	}
 
 	@Test
 	void closeDrainsPublishedEventsAndClosesAppenders() {
@@ -90,15 +194,25 @@ class DisruptorLogPublisherTest {
 		return LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "test", message, KeyValues.of(), null);
 	}
 
-	static final class ClosingListLogOutput extends ListLogOutput {
+	static class ClosingListLogOutput extends ListLogOutput {
 
 		volatile boolean closed;
+
+		int starts;
+
+		int closes;
+
+		@Override
+		public void start(LogConfig config) {
+			starts++;
+		}
 
 		@Override
 		public void close() {
 			// ListLogOutput.close() does nothing, and calling it crashes the Checker
 			// Framework (doc/checker-framework-bugs.md).
 			closed = true;
+			closes++;
 		}
 
 	}

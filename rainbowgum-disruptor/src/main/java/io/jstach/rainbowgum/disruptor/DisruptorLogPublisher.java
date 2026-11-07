@@ -4,12 +4,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 import org.jspecify.annotations.Nullable;
 
 import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.ExceptionHandler;
+import com.lmax.disruptor.InsufficientCapacityException;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.TimeoutException;
 import com.lmax.disruptor.dsl.Disruptor;
@@ -29,7 +31,8 @@ import io.jstach.rainbowgum.LogAppender.Appenders;
  * Disruptor async publisher. Like the default async publisher it starts and closes its
  * appenders, and closing drains the events already published, waiting at most
  * {@value LogPublisherRegistry#ASYNC_SHUTDOWN_TIMEOUT} ms. Events logged after close are
- * dropped.
+ * dropped. Calling start more than once while running is harmless; a closed or failed
+ * publisher cannot be restarted. Events logged before start are dropped.
  */
 public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
@@ -41,7 +44,15 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	private final LogAlerts alerts;
 
-	private volatile boolean closed;
+	private final Object lifecycle = new Object();
+
+	private volatile State state = State.NEW;
+
+	private enum State {
+
+		NEW, STARTING, RUNNING, CLOSED
+
+	}
 
 	/**
 	 * Creates a factory of disruptor log publishers.
@@ -88,25 +99,38 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	@Override
 	public void start(LogConfig config) {
-		int started = 0;
-		try {
-			for (var appender : appenders) {
-				appender.start(config);
-				started++;
+		synchronized (lifecycle) {
+			if (state == State.RUNNING) {
+				return;
 			}
-			disruptor.start();
-		}
-		catch (RuntimeException | Error e) {
-			closed = true;
-			// try-with-resources rather than close(): see doc/checker-framework-bugs.md.
-			for (var appender : appenders.subList(0, started)) {
-				try (appender) {
-				}
-				catch (RuntimeException | Error closeFailure) {
-					e.addSuppressed(closeFailure);
-				}
+			if (state != State.NEW) {
+				throw new IllegalStateException("DisruptorLogPublisher cannot be restarted.");
 			}
-			throw e;
+			state = State.STARTING;
+			int started = 0;
+			try {
+				for (var appender : appenders) {
+					// A failed start may already have opened an output resource.
+					started++;
+					appender.start(config);
+				}
+				disruptor.start();
+				state = State.RUNNING;
+			}
+			catch (RuntimeException | Error e) {
+				state = State.CLOSED;
+				// A thread factory may fail after starting an earlier consumer.
+				disruptor.halt();
+				for (var appender : appenders.subList(0, started)) {
+					// See doc/checker-framework-bugs.md for try-with-resources.
+					try (appender) {
+					}
+					catch (RuntimeException | Error closeFailure) {
+						e.addSuppressed(closeFailure);
+					}
+				}
+				throw e;
+			}
 		}
 	}
 
@@ -121,27 +145,40 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	@Override
 	public void log(LogEvent event) {
-		if (closed) {
-			// Nothing consumes the ring after close, so a full one would block forever.
-			return;
+		while (state == State.RUNNING) {
+			try {
+				synchronized (lifecycle) {
+					if (state != State.RUNNING) {
+						return;
+					}
+					// Claim and publish before close can begin draining. Never wait
+					// for capacity while holding the lifecycle monitor.
+					long sequence = ringBuffer.tryNext();
+					try {
+						ringBuffer.get(sequence).event = event;
+					}
+					finally {
+						ringBuffer.publish(sequence);
+					}
+					return;
+				}
+			}
+			catch (InsufficientCapacityException e) {
+				// As in Disruptor's blocking claim, wait briefly for capacity,
+				// but also observe shutdown so no producer is left stranded.
+				LockSupport.parkNanos(1);
+			}
 		}
-		long sequence = ringBuffer.next();
-		try {
-			LogEventCell cell = ringBuffer.get(sequence);
-			cell.event = event;
-		}
-		finally {
-			ringBuffer.publish(sequence);
-		}
-
 	}
 
 	@Override
 	public void close() {
-		if (closed) {
-			return;
+		synchronized (lifecycle) {
+			if (state == State.CLOSED) {
+				return;
+			}
+			state = State.CLOSED;
 		}
-		closed = true;
 		try {
 			disruptor.shutdown(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT, TimeUnit.MILLISECONDS);
 		}
@@ -153,7 +190,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 		for (var appender : appenders) {
 			try (appender) {
 			}
-			catch (RuntimeException e) {
+			catch (RuntimeException | Error e) {
 				alerts.error(DisruptorLogPublisher.class, "Failed to close appender", e);
 			}
 		}
