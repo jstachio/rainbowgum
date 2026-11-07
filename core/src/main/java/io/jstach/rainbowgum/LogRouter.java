@@ -12,8 +12,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -884,13 +882,13 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	private final ConcurrentLinkedQueue<LogEvent> events = new ConcurrentLinkedQueue<>();
 
-	private final AtomicInteger size = new AtomicInteger();
+	private int size;
 
-	private final LongAdder dropped = new LongAdder();
+	private long dropped;
 
 	private final int maxSize;
 
-	private volatile boolean drained;
+	private @Nullable InternalRootRouter successor;
 
 	private final LevelResolver levelResolver;
 
@@ -942,7 +940,9 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 	}
 
 	long dropped() {
-		return dropped.sum();
+		synchronized (events) {
+			return dropped;
+		}
 	}
 
 	@Override
@@ -969,46 +969,84 @@ final class QueueEventsRouter implements InternalRootRouter, Route {
 
 	@Override
 	public void close() {
-		events.clear();
-		size.set(0);
+		synchronized (events) {
+			while (events.poll() != null) {
+				size--;
+			}
+		}
 	}
 
 	@Override
 	public void log(LogEvent event) {
-		if (drained) {
-			GlobalLogRouter.INSTANCE.log(event);
+		InternalRootRouter next;
+		boolean full;
+		synchronized (events) {
+			next = successor;
+			full = next == null && size >= maxSize;
+			if (full) {
+				dropped++;
+			}
+			else if (next == null) {
+				size++;
+			}
+		}
+		if (next != null) {
+			forwardEvent(next, event);
 			return;
 		}
-		if (size.incrementAndGet() > maxSize) {
-			size.decrementAndGet();
-			dropped.increment();
-		}
-		else {
-			events.add(event.freeze());
+		if (!full) {
+			LogEvent frozen;
+			try {
+				// Formatting can reenter logging or bind a gum. Keep it outside
+				// the queue monitor, while reserving capacity for this event.
+				frozen = event.freeze();
+			}
+			catch (RuntimeException | Error e) {
+				synchronized (events) {
+					size--;
+				}
+				throw e;
+			}
+			synchronized (events) {
+				next = successor;
+				if (next == null) {
+					events.add(frozen);
+				}
+				else {
+					size--;
+				}
+			}
+			if (next != null) {
+				forwardEvent(next, frozen);
+			}
 		}
 		if (errorLevelResolver.isEnabled(event.loggerName(), event.level())) {
 			MetaLog.error(event);
-		}
-		if (drained) {
-			// The drain may have finished between the check above and the add.
-			forward(GlobalLogRouter.INSTANCE);
 		}
 	}
 
 	@Override
 	public void drain(InternalRootRouter delegate) {
-		drained = true;
-		forward(delegate);
+		synchronized (events) {
+			successor = delegate;
+		}
+		while (true) {
+			LogEvent event;
+			synchronized (events) {
+				event = events.poll();
+				if (event == null) {
+					return;
+				}
+				size--;
+			}
+			forwardEvent(delegate, event);
+		}
 	}
 
-	private void forward(InternalRootRouter delegate) {
-		LogEvent e;
-		while ((e = this.events.poll()) != null) {
-			size.decrementAndGet();
-			var route = delegate.route(e.loggerName(), e.level());
-			if (route.isEnabled()) {
-				route.log(e);
-			}
+	private static void forwardEvent(InternalRootRouter delegate, LogEvent event) {
+		var route = delegate.route(event.loggerName(), event.level());
+		if (route.isEnabled()) {
+			route.log(event);
 		}
 	}
 
@@ -1106,7 +1144,12 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 			original.changePublisher().transferTo(delegate.changePublisher());
 			delegate.changePublisher().publish(delegate);
 			this.delegate = Objects.requireNonNull(delegate);
-			original.drain(delegate);
+			if (original instanceof QueueEventsRouter queue) {
+				queue.drain(this);
+			}
+			else {
+				original.drain(delegate);
+			}
 			return original;
 		}
 		finally {
