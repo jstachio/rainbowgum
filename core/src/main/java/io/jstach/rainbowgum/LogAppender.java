@@ -120,9 +120,10 @@ public sealed interface LogAppender extends LogLifecycle {
 		 * its append causes recursive appending in the same thread. This is an analog to
 		 * what
 		 * <a href="https://logback.qos.ch/manual/appenders.html#AppenderBase">Logback
-		 * does by default</a>. Note that this is done using {@link ReentrantLock} and not
-		 * ThreadLocal like logback <strong>and is not done by default hence the
-		 * flag!</strong>
+		 * does by default</a>. Detection uses the appender's lock or monitor. Appenders
+		 * that reuse a thread local buffer also detect reentry during encoding.
+		 * {@link AppenderType#LOCK_NEW_BUFFER} only detects reentry while writing under
+		 * its lock. <strong>Dropping is not enabled by default.</strong>
 		 * <p>
 		 * This flag is to allow outputs that do logging themselves. For performance
 		 * reasons and to allow async publishers it is recommended that you fix the output
@@ -140,9 +141,8 @@ public sealed interface LogAppender extends LogLifecycle {
 		 * an appender during its append causes recursive appending in the same thread.
 		 * This is an analog to what
 		 * <a href="https://logback.qos.ch/manual/appenders.html#AppenderBase">Logback
-		 * does by default</a>. Note that this is done using {@link ReentrantLock} and not
-		 * ThreadLocal like logback <strong>and is not done by default hence the
-		 * flag!</strong> This flag is to resolve failures of outputs that then do
+		 * does by default</a>. Detection is the same as {@link #REENTRY_DROP} and is not
+		 * enabled by default. This flag is to resolve failures of outputs that then do
 		 * logging.
 		 * <p>
 		 * This flag takes precedence over {@link #REENTRY_DROP}.
@@ -1023,7 +1023,7 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	 * are separate concerns, so the count still happens even when the drop itself is
 	 * silent.
 	 * @param reentrant whether the current thread already holds this appender's
-	 * lock/monitor.
+	 * lock/monitor or is using its thread's buffer.
 	 * @param flags the appender's flags.
 	 * @param metrics where to record {@link LogMetrics#EVENTS_DROPPED_METRIC} if events
 	 * are dropped.
@@ -1386,28 +1386,30 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 
 	@Override
 	public final void append(LogEvent event) {
-		var local = bufferThreadLocal.get();
-		/*
-		 * Encoding is outside the lock, so the lock alone misses a log call made while
-		 * this thread encodes, such as from an argument's toString().
-		 */
-		boolean reentrant = local.inUse || lock.isHeldByCurrentThread();
-		if (shouldDropForReentry(reentrant, flags, metrics, 1)) {
-			return;
-		}
-		var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
 		try {
-			encoder.encode(event, buffer);
-			writeLocked(event, buffer);
+			var local = bufferThreadLocal.get();
+			/*
+			 * Encoding is outside the lock, so the lock alone misses a log call made
+			 * while this thread encodes, such as from an argument's toString().
+			 */
+			boolean reentrant = local.inUse || lock.isHeldByCurrentThread();
+			if (shouldDropForReentry(reentrant, flags, metrics, 1)) {
+				return;
+			}
+			try {
+				var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
+				encoder.encode(event, buffer);
+				writeLocked(event, buffer);
+			}
+			finally {
+				if (!reentrant) {
+					local.inUse = false;
+				}
+			}
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
 			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
-		}
-		finally {
-			if (!reentrant) {
-				local.inUse = false;
-			}
 		}
 	}
 
@@ -1426,32 +1428,34 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		var local = bufferThreadLocal.get();
-		boolean reentrant = local.inUse || lock.isHeldByCurrentThread();
-		if (shouldDropForReentry(reentrant, flags, metrics, count)) {
-			return;
-		}
-		var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
 		try {
-			lock.lock();
+			var local = bufferThreadLocal.get();
+			boolean reentrant = local.inUse || lock.isHeldByCurrentThread();
+			if (shouldDropForReentry(reentrant, flags, metrics, count)) {
+				return;
+			}
 			try {
-				output.write(events, count, encoder, buffer);
-				if (immediateFlush) {
-					output.flush();
+				var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
+				lock.lock();
+				try {
+					output.write(events, count, encoder, buffer);
+					if (immediateFlush) {
+						output.flush();
+					}
+				}
+				finally {
+					lock.unlock();
 				}
 			}
 			finally {
-				lock.unlock();
+				if (!reentrant) {
+					local.inUse = false;
+				}
 			}
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
 			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
-		}
-		finally {
-			if (!reentrant) {
-				local.inUse = false;
-			}
 		}
 	}
 
@@ -1577,26 +1581,28 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 
 	@Override
 	public void append(LogEvent event) {
-		var local = bufferThreadLocal.get();
-		// As LockThreadLocalBufferLogAppender: the monitor alone misses reentry while
-		// encoding.
-		boolean reentrant = local.inUse || Thread.holdsLock(monitor);
-		if (shouldDropForReentry(reentrant, flags, metrics, 1)) {
-			return;
-		}
-		var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
 		try {
-			encoder.encode(event, buffer);
-			writeSynchronized(event, buffer);
+			var local = bufferThreadLocal.get();
+			// As LockThreadLocalBufferLogAppender: the monitor alone misses reentry while
+			// encoding.
+			boolean reentrant = local.inUse || Thread.holdsLock(monitor);
+			if (shouldDropForReentry(reentrant, flags, metrics, 1)) {
+				return;
+			}
+			try {
+				var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
+				encoder.encode(event, buffer);
+				writeSynchronized(event, buffer);
+			}
+			finally {
+				if (!reentrant) {
+					local.inUse = false;
+				}
+			}
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append event", e);
 			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, 1);
-		}
-		finally {
-			if (!reentrant) {
-				local.inUse = false;
-			}
 		}
 	}
 
@@ -1611,28 +1617,30 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 
 	@Override
 	public void append(LogEvent[] events, int count) {
-		var local = bufferThreadLocal.get();
-		boolean reentrant = local.inUse || Thread.holdsLock(monitor);
-		if (shouldDropForReentry(reentrant, flags, metrics, count)) {
-			return;
-		}
-		var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
 		try {
-			synchronized (monitor) {
-				output.write(events, count, encoder, buffer);
-				if (immediateFlush) {
-					output.flush();
+			var local = bufferThreadLocal.get();
+			boolean reentrant = local.inUse || Thread.holdsLock(monitor);
+			if (shouldDropForReentry(reentrant, flags, metrics, count)) {
+				return;
+			}
+			try {
+				var buffer = reentrant ? encoder.buffer(output.bufferHints()) : local.acquire();
+				synchronized (monitor) {
+					output.write(events, count, encoder, buffer);
+					if (immediateFlush) {
+						output.flush();
+					}
+				}
+			}
+			finally {
+				if (!reentrant) {
+					local.inUse = false;
 				}
 			}
 		}
 		catch (Exception e) {
 			alerts.error(getClass(), "appender '" + name + "' failed to append batch of " + count + " event(s)", e);
 			metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
-		}
-		finally {
-			if (!reentrant) {
-				local.inUse = false;
-			}
 		}
 	}
 
