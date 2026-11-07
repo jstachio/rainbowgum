@@ -256,14 +256,32 @@ class ReopenableFileOutput implements ForwardingOutput, FileOutput {
 		return fileOutput.bufferHints();
 	}
 
+	/*
+	 * Opens the new file before closing the current one. If opening fails the current
+	 * output stays in place, so events keep being written, and the exception reaches the
+	 * appender, which counts and alerts it. The next reopen tries again.
+	 */
 	@Override
 	public void reopen() {
-		this.fileOutput.close();
-		this.fileOutput = supplier.get();
+		var next = supplier.get();
 		var config = this.config;
 		if (config != null) {
-			this.fileOutput.start(config);
+			try {
+				next.start(config);
+			}
+			catch (RuntimeException | Error e) {
+				try {
+					next.close();
+				}
+				catch (RuntimeException | Error closeFailure) {
+					e.addSuppressed(closeFailure);
+				}
+				throw e;
+			}
 		}
+		var previous = this.fileOutput;
+		this.fileOutput = next;
+		previous.close();
 	}
 
 }
