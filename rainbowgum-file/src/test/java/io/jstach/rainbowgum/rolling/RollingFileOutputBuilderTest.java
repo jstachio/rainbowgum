@@ -40,8 +40,9 @@ class RollingFileOutputBuilderTest {
 		Path active = dir.resolve("existing.log");
 		Files.writeString(active, "existing events\n");
 		var config = LogConfig.builder().build();
-		var error = assertThrows(ValidationException.class, () -> RollingFileOutput
-			.of(b -> b.fileName(active.toString()).append(false).maxHistory(history)).provide("file", config));
+		var error = assertThrows(ValidationException.class,
+				() -> RollingFileOutput.of(b -> b.fileName(active.toString()).append(false).maxHistory(history))
+					.provide("file", config));
 		assertEquals("Validation failed for io.jstach.rainbowgum.rolling.RollingFileOutputBuilder: "
 				+ "maxHistory must not be negative: " + history, error.getMessage());
 		assertEquals("existing events\n", Files.readString(active));

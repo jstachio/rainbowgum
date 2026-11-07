@@ -45,11 +45,11 @@ import io.jstach.rainbowgum.file.FileOutputBuilder;
  * <p>
  * Failed automatic rotation attempts record {@link LogMetrics#ROLL_FAIL_METRIC} and an
  * error alert identifying the active file. If the active file can be reopened, the
- * triggering event is still appended. It may grow past {@code maxFileSize} until
- * rotation succeeds. Automatic retries wait for the active file size to double, so
- * repeated failures do not repeatedly compress the same growing file. Calling
- * {@link #reopen()} allows the next write to retry sooner. If the event cannot be
- * written, it counts toward {@link LogMetrics#EVENTS_FAILED_METRIC}. A failed event in a batch is reported
+ * triggering event is still appended. It may grow past {@code maxFileSize} until rotation
+ * succeeds. Automatic retries wait for the active file size to double, so repeated
+ * failures do not repeatedly compress the same growing file. Calling {@link #reopen()}
+ * allows the next write to retry sooner. If the event cannot be written, it counts toward
+ * {@link LogMetrics#EVENTS_FAILED_METRIC}. A failed event in a batch is reported
  * individually and does not prevent later events from being attempted. Archive changes
  * already completed before a failure are not rolled back. An explicit {@link #reopen()}
  * after external rotation instead uses {@link LogMetrics#REOPEN_FAIL_METRIC}.

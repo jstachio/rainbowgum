@@ -50,13 +50,16 @@ class RollingConcurrentDeliveryTest {
 			var config = LogConfig.builder().properties(LogProperties.StandardProperties.EMPTY).build();
 			boolean async = mode.name().startsWith("ASYNC");
 			var publisher = async ? PublisherFactory.async().bufferSize(16).build() : PublisherFactory.sync().build();
-			var provider = RollingFileOutput.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(128))
-				.maxHistory(64).fileNamePattern(gzip ? ".%i.gz" : ".%i")
+			var provider = RollingFileOutput.of(b -> b.fileName(active.toString())
+				.maxFileSize(DataSize.ofBytes(128))
+				.maxHistory(64)
+				.fileNamePattern(gzip ? ".%i.gz" : ".%i")
 				.prudent(mode.name().endsWith("PRUDENT"))
 				.bufferSize(mode.name().endsWith("UNBUFFERED") ? DataSize.ZERO : DataSize.ofBytes(8192)));
 			try (var gum = RainbowGum.builder(config)
-				.route(r -> r.publisher(publisher).appender("file",
-						a -> a.output(provider).formatter(LogFormatter.builder().message().newline().build())))
+				.route(r -> r.publisher(publisher)
+					.appender("file",
+							a -> a.output(provider).formatter(LogFormatter.builder().message().newline().build())))
 				.build()
 				.start()) {
 				try (var executor = Executors.newFixedThreadPool(3)) {
@@ -67,7 +70,7 @@ class RollingConcurrentDeliveryTest {
 							for (int i = 0; i < 100; i++) {
 								gum.log(LogEvent.of(Instant.EPOCH, "producer", producer, Level.INFO, "file",
 										line(producer * 100 + i), KeyValues.of(), null));
-								}
+							}
 						}));
 					}
 					for (var job : jobs) {
@@ -84,7 +87,8 @@ class RollingConcurrentDeliveryTest {
 			}
 			text.append(Files.readString(active));
 			var actual = text.toString().lines().sorted().toList();
-			var expected = java.util.stream.IntStream.range(0, 300).mapToObj(RollingConcurrentDeliveryTest::line)
+			var expected = java.util.stream.IntStream.range(0, 300)
+				.mapToObj(RollingConcurrentDeliveryTest::line)
 				.toList();
 			assertEquals(expected, actual);
 			assertEquals(List.of(), config.alerts().dump());
