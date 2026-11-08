@@ -7,8 +7,8 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -523,9 +523,9 @@ public sealed interface LogRouter extends LogLifecycle {
 			}
 
 			/*
-			 * A network output written on the logging thread makes every log call wait
-			 * for the network, and a stalled endpoint stalls the application. The URI is
-			 * not shown: it can hold credentials.
+			 * A network output written on the logging thread can block the application
+			 * when the endpoint is slow or stalled. The URI is not shown: it can hold
+			 * credentials.
 			 */
 			private static void warnNetworkOutputs(String routeName, LogAppender.Appenders apps, LogConfig config) {
 				var resolved = apps.resolvedOrNull();
@@ -542,8 +542,8 @@ public sealed interface LogRouter extends LogLifecycle {
 						if (direct.output().type() == LogOutput.OutputType.NETWORK) {
 							config.alerts()
 								.warn(LogRouter.class, "Route '" + routeName + "' sends appender '" + direct.name()
-										+ "' to a network output with a synchronous publisher, so every log call waits for the network. "
-										+ "Use an asynchronous publisher, for example "
+										+ "' to a network output with a synchronous publisher. Network I/O can block the logging thread. "
+										+ "Consider an asynchronous publisher, for example "
 										+ LogProperties.interpolateKey(LogProperties.ROUTE_PUBLISHER_PROPERTY,
 												Map.of(LogProperties.NAME, routeName))
 										+ "=async:///.");
