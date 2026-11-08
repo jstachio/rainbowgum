@@ -1,16 +1,21 @@
 package io.jstach.rainbowgum.filter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
@@ -141,6 +146,45 @@ class StandardFiltersTest {
 		assertEquals("""
 				INFO app a
 				""", actual);
+	}
+
+	@ParameterizedTest
+	@MethodSource("extremeTimestamps")
+	void throttleStillLimitsAtExtremeTimestamps(Instant time) {
+		var filter = ThrottleFilter.of("test", "throttle", 1, 1, Level.WARNING, null);
+		var event = LogEvent.of(time, "main", 1, Level.INFO, "test", "event", KeyValues.of(), null);
+		assertKept(event, filter.filterOrNull(event));
+		assertNull(filter.filterOrNull(event));
+	}
+
+	private static void assertKept(LogEvent expected, @Nullable LogEvent actual) {
+		if (actual == null) {
+			throw new AssertionError("Expected the event to be retained.");
+		}
+		assertSame(expected, actual);
+	}
+
+	static Stream<Instant> extremeTimestamps() {
+		return Stream.of(Instant.MIN, Instant.MAX, Instant.ofEpochSecond(9_223_372_036L, 854_775_807),
+				Instant.ofEpochSecond(-9_223_372_036L));
+	}
+
+	@Test
+	void throttleHandlesClockStepsAcrossTheEpochNanoRange() {
+		var filter = ThrottleFilter.of("test", "throttle", 1, 1, Level.WARNING, null);
+		for (var time : List.of(Instant.MIN, Instant.MAX, Instant.MIN, Instant.EPOCH)) {
+			var event = LogEvent.of(time, "main", 1, Level.INFO, "test", "event", KeyValues.of(), null);
+			assertKept(event, filter.filterOrNull(event));
+			assertNull(filter.filterOrNull(event));
+		}
+	}
+
+	@Test
+	void subNanosecondRatesDoNotDisableThrottling() {
+		var filter = ThrottleFilter.of("test", "throttle", Integer.MAX_VALUE, 1, Level.WARNING, null);
+		var event = event(0, Level.INFO, "event");
+		assertKept(event, filter.filterOrNull(event));
+		assertNull(filter.filterOrNull(event));
 	}
 
 	@Test

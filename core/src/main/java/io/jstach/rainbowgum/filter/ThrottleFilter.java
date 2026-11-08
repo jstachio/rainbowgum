@@ -2,7 +2,7 @@ package io.jstach.rainbowgum.filter;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jspecify.annotations.Nullable;
 
@@ -14,11 +14,12 @@ import io.jstach.rainbowgum.LogRouter.Router.Filter;
 import io.jstach.rainbowgum.annotation.LogConfigurable;
 
 /*
- * A generic cell rate algorithm: allowedAt is when the bucket is empty again, and an
- * event is dropped if keeping it would put that more than maxBurst intervals ahead of the
- * event. Time comes from event timestamps so no clock is read per event. Timestamps are
- * wall clock time, so if the clock steps back the bucket would look full until the clock
- * caught up; a bucket further ahead than it can get in normal use is reset instead.
+ * A generic cell rate algorithm: the bucket records the last accepted timestamp and
+ * the outstanding interval debt. Events are dropped when admitting them would exceed
+ * maxBurst intervals of debt. Time comes from event timestamps so no clock is read per
+ * event. Timestamps are wall clock time, so if the clock steps back the bucket would
+ * look full until the clock caught up. A bucket further ahead than it can get in
+ * normal use is reset instead.
  */
 final class ThrottleFilter implements Filter {
 
@@ -43,7 +44,10 @@ final class ThrottleFilter implements Filter {
 
 	private final LogMetrics.Gauge dropped;
 
-	private final AtomicLong allowedAt = new AtomicLong(Long.MIN_VALUE);
+	private final AtomicReference<@Nullable Bucket> bucket = new AtomicReference<>();
+
+	private record Bucket(Instant timestamp, long debtNanos) {
+	}
 
 	private ThrottleFilter(long intervalNanos, long burstNanos, Level level, LogMetrics.Gauge dropped) {
 		this.intervalNanos = intervalNanos;
@@ -62,7 +66,8 @@ final class ThrottleFilter implements Filter {
 	 * Limits how many events a route keeps per second, like a token bucket. A burst of up
 	 * to <code>maxBurst</code> events is kept, after which events are kept at
 	 * <code>rate</code> per second until the burst is earned back. Events more severe
-	 * than <code>level</code> are always kept. Time is measured with event timestamps.
+	 * than <code>level</code> are always kept. Time is measured with event timestamps,
+	 * with a minimum interval of one nanosecond.
 	 * @param name route name.
 	 * @param filter name the filter is selected with.
 	 * @param rate events kept per second once a burst is used up.
@@ -84,7 +89,7 @@ final class ThrottleFilter implements Filter {
 		if (maxBurst < 1) {
 			throw new IllegalArgumentException("maxBurst must be positive.");
 		}
-		long intervalNanos = NANOS_PER_SECOND / rate;
+		long intervalNanos = Math.max(1, NANOS_PER_SECOND / rate);
 		return new ThrottleFilter(intervalNanos, intervalNanos * maxBurst, level, metrics == null
 				? LogMetrics.Gauge.noop() : metrics.gauge(LogMetrics.EVENTS_THROTTLED_METRIC, Level.WARNING));
 	}
@@ -98,30 +103,52 @@ final class ThrottleFilter implements Filter {
 		if (event.level().getSeverity() > severity) {
 			return event;
 		}
-		long now = nanos(event.timestamp());
+		Instant now = event.timestamp();
 		while (true) {
-			long current = allowedAt.get();
-			if (current != Long.MIN_VALUE && current - now > resetNanos) {
-				// The clock stepped back: start a fresh bucket rather than drop until it
-				// catches up.
-				if (!allowedAt.compareAndSet(current, Long.MIN_VALUE)) {
-					continue;
+			var current = bucket.get();
+			long debt = 0;
+			if (current != null) {
+				long elapsed = elapsedNanos(current.timestamp(), now);
+				if (elapsed >= 0) {
+					debt = Math.max(0, current.debtNanos() - elapsed);
 				}
-				current = Long.MIN_VALUE;
+				else if (elapsed >= -(resetNanos - current.debtNanos())) {
+					// Small backwards steps consume burst allowance. A larger step
+					// resets the bucket atomically with admitting this event.
+					debt = current.debtNanos() - elapsed;
+				}
 			}
-			long next = Math.max(current, now) + intervalNanos;
-			if (next - now > burstNanos) {
+			if (debt > burstNanos - intervalNanos) {
 				dropped.increment();
 				return null;
 			}
-			if (allowedAt.compareAndSet(current, next)) {
+			if (bucket.compareAndSet(current, new Bucket(now, debt + intervalNanos))) {
 				return event;
 			}
 		}
 	}
 
-	private static long nanos(Instant timestamp) {
-		return timestamp.getEpochSecond() * NANOS_PER_SECOND + timestamp.getNano();
+	/*
+	 * Compare event timestamps without converting absolute epoch time to a long of
+	 * nanoseconds. Saturating differences beyond 292 years is sufficient: every supported
+	 * burst is smaller than that, and no arithmetic wraps at Instant's edges.
+	 */
+	@SuppressWarnings("JavaInstantGetSecondsGetNano") // Combine whole seconds and their
+														// subsecond adjustments.
+	private static long elapsedNanos(Instant previous, Instant now) {
+		long seconds = now.getEpochSecond() - previous.getEpochSecond();
+		if (seconds > Long.MAX_VALUE / NANOS_PER_SECOND) {
+			return Long.MAX_VALUE;
+		}
+		if (seconds < Long.MIN_VALUE / NANOS_PER_SECOND) {
+			return Long.MIN_VALUE;
+		}
+		try {
+			return Math.addExact(seconds * NANOS_PER_SECOND, (long) now.getNano() - previous.getNano());
+		}
+		catch (ArithmeticException e) {
+			return seconds < 0 ? Long.MIN_VALUE : Long.MAX_VALUE;
+		}
 	}
 
 }
