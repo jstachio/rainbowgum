@@ -101,7 +101,7 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 			for (var skipped : RollingPolicy.cleanHistory(activeFile, pattern, maxHistory, totalSizeCap)) {
 				config.alerts()
 					.warn(getClass(), "Ignored '" + skipped
-							+ "' while cleaning history: it matches the archive pattern but its index is too large to be one of ours");
+							+ "' while cleaning history: it is not a regular file with a canonical positive archive index");
 			}
 		}
 		delegate.start(config);

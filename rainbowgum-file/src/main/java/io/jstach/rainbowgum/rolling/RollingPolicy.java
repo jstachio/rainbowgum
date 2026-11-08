@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -130,8 +133,8 @@ final class RollingPolicy {
 	 * @param maxHistory maximum number of archives to retain.
 	 * @param totalSizeCap maximum combined size, in bytes, of all archives; {@code <= 0}
 	 * means unlimited.
-	 * @return files that match the archive pattern but whose index is too large to be one
-	 * of ours, left alone.
+	 * @return matching entries that are not regular files with a canonical positive
+	 * integer index. They are left alone and excluded from the size cap.
 	 */
 	static List<Path> cleanHistory(Path activeFile, ParsedPattern pattern, int maxHistory, long totalSizeCap) {
 		try {
@@ -158,14 +161,21 @@ final class RollingPolicy {
 		boolean evict = false;
 		for (int n = 1; n <= maxHistory; n++) {
 			Path p = pattern.archivePath(activeFile, n);
-			if (!Files.exists(p)) {
+			BasicFileAttributes attributes;
+			try {
+				attributes = Files.readAttributes(p, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+			}
+			catch (NoSuchFileException e) {
+				continue;
+			}
+			if (!attributes.isRegularFile()) {
 				continue;
 			}
 			if (evict) {
 				Files.delete(p);
 				continue;
 			}
-			total += Files.size(p);
+			total += attributes.size();
 			if (total > totalSizeCap) {
 				Files.delete(p);
 				evict = true;
@@ -192,7 +202,15 @@ final class RollingPolicy {
 				var matcher = regex.matcher(Objects.requireNonNull(candidate.getFileName()).toString());
 				if (matcher.matches()) {
 					try {
-						indexes.add(Integer.parseInt(Objects.requireNonNull(matcher.group(1))));
+						String text = Objects.requireNonNull(matcher.group(1));
+						int index = Integer.parseInt(text);
+						if (index > 0 && text.equals(Integer.toString(index))
+								&& Files.isRegularFile(candidate, LinkOption.NOFOLLOW_LINKS)) {
+							indexes.add(index);
+						}
+						else {
+							skipped.add(candidate);
+						}
 					}
 					catch (NumberFormatException e) {
 						// Too large to be an index we wrote, so not one of our archives.

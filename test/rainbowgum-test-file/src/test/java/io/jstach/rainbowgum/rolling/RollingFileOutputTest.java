@@ -113,7 +113,7 @@ class RollingFileOutputTest {
 
 	@ParameterizedTest
 	@EnumSource(FileMode.class)
-	void failureAfterActiveFileMovedPreservesTheCurrentEvent(FileMode mode) throws IOException {
+	void sizeCapExcludesForeignDirectoriesAfterRolling(FileMode mode) throws IOException {
 		Path active = dir.resolve("app.log");
 		Files.writeString(dir.resolve("app.log.2"), "older\n");
 		Path obstruction = Files.createDirectory(dir.resolve("app.log.4"));
@@ -130,13 +130,11 @@ class RollingFileOutputTest {
 			rg.log(TestLogEventFactory.of().event("first"));
 			rg.log(TestLogEventFactory.of().event("kept"));
 			assertEquals(java.util.List.of(), config.outputRegistry().flush());
-			assertEquals("""
-					ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to roll file '<DIR>/app.log'
-					java.io.UncheckedIOException: java.nio.file.DirectoryNotEmptyException: <DIR>/app.log.5
-					""", errorAlerts(config));
+			assertEquals("", errorAlerts(config));
+			assertEquals("obstruction", Files.readString(dir.resolve("app.log.5/keep")));
 			assertEquals("first\n", Files.readString(dir.resolve("app.log.1")));
 			assertEquals("kept\n", Files.readString(active));
-			assertEquals(1, metric(config, StandardMetric.ROLL_FAIL));
+			assertEquals(0, metric(config, StandardMetric.ROLL_FAIL));
 			assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
 			assertEquals(0, metric(config, StandardMetric.REOPEN_FAIL));
 			Files.delete(dir.resolve("app.log.5/keep"));
@@ -148,7 +146,7 @@ class RollingFileOutputTest {
 			assertEquals("kept\n", Files.readString(dir.resolve("app.log.1")));
 			assertFalse(Files.exists(dir.resolve("app.log.2")));
 			assertEquals("next\n", Files.readString(active));
-			assertEquals(1, metric(config, StandardMetric.ROLL_FAIL));
+			assertEquals(0, metric(config, StandardMetric.ROLL_FAIL));
 			assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
 		}
 	}
@@ -381,6 +379,48 @@ class RollingFileOutputTest {
 		assertTrue(Files.exists(dir.resolve("app.log.1")));
 		assertFalse(Files.exists(dir.resolve("app.log.2")));
 		assertFalse(Files.exists(dir.resolve("app.log.3")));
+	}
+
+	@ParameterizedTest
+	@EnumSource(FileMode.class)
+	void cleanHistoryOnStartPreservesAndReportsForeignEntries(FileMode mode) throws IOException {
+		var active = dir.resolve("app.log");
+		for (var name : java.util.List.of("app.log.0", "app.log.0003", "app.log.2147483648")) {
+			Files.writeString(dir.resolve(name), "foreign");
+		}
+		var directory = Files.createDirectory(dir.resolve("app.log.3"));
+		Files.writeString(dir.resolve("app.log.1"), "keep");
+		Files.writeString(dir.resolve("app.log.9"), "drop");
+		var config = mode.config();
+		var provider = RollingFileOutput.of(b -> b.fileName(active.toString())
+			.maxHistory(1)
+			.totalSizeCap(DataSize.ofBytes(4))
+			.cleanHistoryOnStart(true));
+		try (var gum = RainbowGum.builder(config)
+			.route(r -> r.appender("file", a -> a.output(provider)))
+			.build()
+			.start()) {
+			assertEquals(
+					"""
+							Ignored '<DIR>/app.log.0' while cleaning history: it is not a regular file with a canonical positive archive index
+							Ignored '<DIR>/app.log.0003' while cleaning history: it is not a regular file with a canonical positive archive index
+							Ignored '<DIR>/app.log.2147483648' while cleaning history: it is not a regular file with a canonical positive archive index
+							Ignored '<DIR>/app.log.3' while cleaning history: it is not a regular file with a canonical positive archive index
+							""",
+					config.alerts()
+						.dump()
+						.stream()
+						.filter(e -> e.level() == Level.WARNING)
+						.map(e -> e.message().replace(dir.toString(), "<DIR>").replace('\\', '/'))
+						.sorted()
+						.collect(Collectors.joining("\n", "", "\n")));
+			assertTrue(Files.isDirectory(directory));
+			for (var name : java.util.List.of("app.log.0", "app.log.0003", "app.log.2147483648")) {
+				assertEquals("foreign", Files.readString(dir.resolve(name)));
+			}
+			assertEquals("keep", Files.readString(dir.resolve("app.log.1")));
+			assertFalse(Files.exists(dir.resolve("app.log.9")));
+		}
 	}
 
 	@Test

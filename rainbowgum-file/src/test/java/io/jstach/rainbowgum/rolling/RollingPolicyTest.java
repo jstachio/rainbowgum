@@ -12,9 +12,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.jstach.rainbowgum.rolling.RollingPolicy.ParsedPattern;
@@ -154,6 +157,58 @@ class RollingPolicyTest {
 		assertEquals(List.of(foreign), skipped);
 		assertTrue(Files.exists(foreign));
 		assertFalse(Files.exists(old));
+	}
+
+	@Test
+	void cleanHistoryReportsNonCanonicalIndexesWithoutTouchingThem() throws IOException {
+		var active = dir.resolve("app.log");
+		var foreign = List.of(dir.resolve("app.log.0"), dir.resolve("app.log.0003"), dir.resolve("app.log.2147483648"));
+		for (var path : foreign) {
+			Files.writeString(path, "foreign");
+		}
+		Files.writeString(dir.resolve("app.log.3"), "old");
+		var skipped = RollingPolicy.cleanHistory(active, ParsedPattern.parse(".%i"), 1, 0);
+		assertEquals(Set.copyOf(foreign), Set.copyOf(skipped));
+		for (var path : foreign) {
+			assertEquals("foreign", Files.readString(path));
+		}
+		assertFalse(Files.exists(dir.resolve("app.log.3")));
+	}
+
+	@Test
+	void cleanHistorySkipsDirectoriesWhenApplyingTheSizeCap() throws IOException {
+		var active = dir.resolve("app.log");
+		var foreign = Files.createDirectory(dir.resolve("app.log.1"));
+		var archive = dir.resolve("app.log.2");
+		Files.writeString(archive, "ok");
+		var skipped = RollingPolicy.cleanHistory(active, ParsedPattern.parse(".%i"), 2, 2);
+		assertEquals(List.of(foreign), skipped);
+		assertTrue(Files.isDirectory(foreign));
+		assertEquals("ok", Files.readString(archive));
+	}
+
+	@Test
+	@DisabledOnOs(OS.WINDOWS)
+	void cleanHistoryLeavesSymbolicLinksAndTheirTargetsAlone() throws IOException {
+		var active = dir.resolve("app.log");
+		var target = Files.writeString(dir.resolve("foreign.log"), "foreign");
+		var first = Files.createSymbolicLink(dir.resolve("app.log.1"), target);
+		var third = Files.createSymbolicLink(dir.resolve("app.log.3"), target);
+		var archive = Files.writeString(dir.resolve("app.log.2"), "ok");
+		var skipped = RollingPolicy.cleanHistory(active, ParsedPattern.parse(".%i"), 2, 2);
+		assertEquals(Set.of(first, third), Set.copyOf(skipped));
+		assertTrue(Files.isSymbolicLink(first));
+		assertTrue(Files.isSymbolicLink(third));
+		assertEquals("foreign", Files.readString(target));
+		assertEquals("ok", Files.readString(archive));
+	}
+
+	@Test
+	void cleanHistoryDoesNotDeleteAnEmptyForeignDirectoryBeyondRetention() throws IOException {
+		var active = dir.resolve("app.log");
+		var foreign = Files.createDirectory(dir.resolve("app.log.3"));
+		assertEquals(List.of(foreign), RollingPolicy.cleanHistory(active, ParsedPattern.parse(".%i"), 1, 0));
+		assertTrue(Files.isDirectory(foreign));
 	}
 
 	@Test
