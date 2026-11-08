@@ -14,7 +14,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -1013,16 +1012,17 @@ public sealed interface LogFormatter {
 			}
 		},
 		/**
-		 * Escapes the event's text so each event stays on one line and text logged from
-		 * untrusted input cannot forge a line or control the terminal. Carriage returns
-		 * and line feeds become backslash <code>r</code> and backslash <code>n</code>, a
-		 * backslash becomes two so an escaped line break cannot be confused with one
-		 * typed in the text, and other control characters (except tab), DEL, C1 controls
-		 * such as NEL, and the Unicode line and paragraph separators become
-		 * <code>&#92;uXXXX</code>. An escape character starting a colour sequence
-		 * (<code>ESC[...m</code>) is kept so coloured output still works; any other
-		 * escape character is escaped. A trailing line separator ending the event is
-		 * kept.
+		 * Escapes embedded line breaks and terminal control characters so each event
+		 * stays on one line. Carriage returns and line feeds become backslash
+		 * <code>r</code> and backslash <code>n</code>. A backslash becomes two, keeping
+		 * escaped characters distinct from literal backslash sequences in the text. Other
+		 * C0 controls (except tab), DEL, C1 controls, and the Unicode line and paragraph
+		 * separators become <code>&#92;uXXXX</code>.
+		 * <p>
+		 * Every escape character is escaped, including ANSI colour and style sequences
+		 * produced by a formatter. This prevents untrusted text from hiding log content
+		 * or changing terminal state through an ANSI escape sequence. A single trailing
+		 * LF or CRLF ending the event is kept. Other Unicode text is passed through.
 		 */
 		CRLF {
 			@Override
@@ -1658,6 +1658,8 @@ record PostProcessingFormatter(LogFormatter formatter,
 
 final class PostProcessors {
 
+	private static final String HEX_DIGITS = "0123456789abcdef";
+
 	private PostProcessors() {
 	}
 
@@ -1722,7 +1724,8 @@ final class PostProcessors {
 	 * Escapes the region for the crlf post processor, except a single trailing line
 	 * separator. Like prefixLines, the escaped copy is appended after the region and the
 	 * original then deleted, as replacing each character would shift the rest of the
-	 * region each time.
+	 * region each time. Each input character produces at most six output characters;
+	 * scanning, appending, and the single final delete are linear in the region size.
 	 */
 	static void escapeLineBreaks(StringBuilder output, int start) {
 		int length = output.length();
@@ -1734,7 +1737,7 @@ final class PostProcessors {
 			}
 		}
 		int first = start;
-		while (first < end && !needsEscape(output, first, end)) {
+		while (first < end && output.charAt(first) != '\\' && !isEscapedControl(output.charAt(first))) {
 			first++;
 		}
 		if (first == end) {
@@ -1742,21 +1745,17 @@ final class PostProcessors {
 		}
 		for (int i = first; i < end; i++) {
 			char c = output.charAt(i);
-			if (c == '\u001b') {
-				int sgr = sgrLength(output, i, end);
-				if (sgr > 0) {
-					output.append(output, i, i + sgr);
-					i += sgr - 1;
-					continue;
-				}
-			}
 			switch (c) {
 				case '\n' -> output.append("\\n");
 				case '\r' -> output.append("\\r");
 				case '\\' -> output.append("\\\\");
 				default -> {
 					if (isEscapedControl(c)) {
-						output.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
+						output.append("\\u")
+							.append(HEX_DIGITS.charAt((c >>> 12) & 0xf))
+							.append(HEX_DIGITS.charAt((c >>> 8) & 0xf))
+							.append(HEX_DIGITS.charAt((c >>> 4) & 0xf))
+							.append(HEX_DIGITS.charAt(c & 0xf));
 					}
 					else {
 						output.append(c);
@@ -1768,40 +1767,8 @@ final class PostProcessors {
 		output.delete(first, length);
 	}
 
-	private static boolean needsEscape(StringBuilder output, int i, int end) {
-		char c = output.charAt(i);
-		if (c == '\u001b') {
-			return sgrLength(output, i, end) == 0;
-		}
-		return c == '\n' || c == '\r' || c == '\\' || isEscapedControl(c);
-	}
-
 	private static boolean isEscapedControl(char c) {
 		return (c < ' ' && c != '\t') || (c >= '\u007f' && c <= '\u009f') || c == '\u2028' || c == '\u2029';
-	}
-
-	/*
-	 * The length of a colour sequence (SGR: ESC [ digits and semicolons m) starting at i,
-	 * or 0 if there is not one. Only these are kept: other escape sequences can move the
-	 * cursor, set the window title or write the clipboard.
-	 */
-	private static int sgrLength(StringBuilder output, int i, int end) {
-		int j = i + 1;
-		if (j >= end || output.charAt(j) != '[') {
-			return 0;
-		}
-		j++;
-		while (j < end) {
-			char c = output.charAt(j);
-			if (c == 'm') {
-				return j - i + 1;
-			}
-			if (!((c >= '0' && c <= '9') || c == ';')) {
-				return 0;
-			}
-			j++;
-		}
-		return 0;
 	}
 
 	/*

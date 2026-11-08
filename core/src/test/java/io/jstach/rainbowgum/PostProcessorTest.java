@@ -217,10 +217,10 @@ class PostProcessorTest {
 	}
 
 	@Test
-	void crlfEscapesControlCharactersButKeepsTabsAndColours() {
+	void crlfEscapesControlCharactersIncludingColoursButKeepsTabs() {
 		var sb = new StringBuilder("a\tb\u001b]0;title\u0007c\u001b[31mred\u001b[0m\u0085d\u2028e\u007f\n");
 		PostProcessors.escapeLineBreaks(sb, 0);
-		assertEquals("a\tb\\u001b]0;title\\u0007c\u001b[31mred\u001b[0m\\u0085d\\u2028e\\u007f\n", sb.toString());
+		assertEquals("a\tb\\u001b]0;title\\u0007c\\u001b[31mred\\u001b[0m\\u0085d\\u2028e\\u007f\n", sb.toString());
 	}
 
 	@Test
