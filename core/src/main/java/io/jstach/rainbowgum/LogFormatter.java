@@ -1515,9 +1515,8 @@ final class RootCauseFirstThrowableFormatter implements ThrowableFormatter {
 final class PackagingDataResolver {
 
 	/*
-	 * DRAFT: keyed by stack trace class names, which can grow without bound when classes
-	 * are generated per request (Script1, Script2, ...) and unloaded. Past this many
-	 * entries, packaging data is resolved without caching.
+	 * Generated class names can outlive their classes in this cache. Keep an internal
+	 * limit per formatter; further names are resolved without being retained.
 	 */
 	static final int MAX_CACHED = 10_000;
 
@@ -1531,7 +1530,13 @@ final class PackagingDataResolver {
 		}
 		String computed = compute(element);
 		if (cache.size() < MAX_CACHED) {
-			cache.put(className, computed);
+			// Serialize admissions, keeping hits and class loading outside this lock.
+			// Loading a class may itself trigger logging.
+			synchronized (cache) {
+				if (cache.size() < MAX_CACHED) {
+					cache.putIfAbsent(className, computed);
+				}
+			}
 		}
 		return computed;
 	}
