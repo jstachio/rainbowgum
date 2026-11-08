@@ -25,12 +25,16 @@ import io.jstach.rainbowgum.output.ListLogOutput;
 class LtsvControlEscapingTest {
 
 	static Stream<Integer> controls() {
-		return IntStream.concat(IntStream.rangeClosed(0x80, 0x9f), IntStream.of(0x2028, 0x2029)).boxed();
+		return Stream
+			.of(IntStream.rangeClosed(0x80, 0x9f), IntStream.of(0x2028, 0x2029), IntStream.rangeClosed(0x202a, 0x202e),
+					IntStream.rangeClosed(0x2066, 0x2069))
+			.flatMapToInt(s -> s)
+			.boxed();
 	}
 
 	@ParameterizedTest
 	@MethodSource("controls")
-	void escapesEachC1ControlAndUnicodeLineSeparator(int code) {
+	void escapesEachC1ControlSeparatorAndBidiFormatCharacter(int code) {
 		String input = "before" + (char) code + "after";
 		var output = new StringBuilder(input);
 		LtsvFormatter.escapeInPlace(output, 0);
@@ -121,7 +125,7 @@ class LtsvControlEscapingTest {
 				case '\n' -> output.append("\\n");
 				case '\r' -> output.append("\\r");
 				default -> {
-					if (Character.isISOControl(c) || c == '\u2028' || c == '\u2029') {
+					if (Character.isISOControl(c) || c == '\u2028' || c == '\u2029' || isBidiFormat(c)) {
 						String hex = Integer.toHexString(c);
 						output.append("\\u").append("0".repeat(4 - hex.length())).append(hex);
 					}
@@ -132,6 +136,18 @@ class LtsvControlEscapingTest {
 			}
 		}
 		return output.toString();
+	}
+
+	private static boolean isBidiFormat(char c) {
+		return switch (Character.getDirectionality(c)) {
+			case Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING, Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING,
+					Character.DIRECTIONALITY_POP_DIRECTIONAL_FORMAT, Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE,
+					Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE, Character.DIRECTIONALITY_LEFT_TO_RIGHT_ISOLATE,
+					Character.DIRECTIONALITY_RIGHT_TO_LEFT_ISOLATE, Character.DIRECTIONALITY_FIRST_STRONG_ISOLATE,
+					Character.DIRECTIONALITY_POP_DIRECTIONAL_ISOLATE ->
+				true;
+			default -> false;
+		};
 	}
 
 }

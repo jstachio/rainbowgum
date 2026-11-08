@@ -108,12 +108,14 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * Values are never quoted. LTSV does not allow tab, newline, or carriage return in a
 	 * value, so these and <code>\</code> are backslash escaped (<code>\t</code>,
 	 * <code>\n</code>, <code>\r</code>, <code>\\</code>). Other C0 controls, DEL, C1
-	 * controls (U+0080 through U+009F), and Unicode line and paragraph separators are
-	 * written as <code>\</code><code>uXXXX</code>. This includes ESC and the C1
-	 * control-sequence introducers, so field values cannot inject terminal controls.
-	 * Other Unicode text is unchanged. Characters LTSV does not allow in labels (anything
-	 * but <code>A-Z a-z 0-9 _ . -</code>) are percent-encoded as UTF-8 (<code>a b</code>
-	 * is <code>a%20b</code>), and an empty key is <code>%</code>, so different keys stay
+	 * controls (U+0080 through U+009F), Unicode line and paragraph separators, and
+	 * bidirectional embedding, override and isolate characters (U+202A through U+202E,
+	 * U+2066 through U+2069) are written as <code>\</code><code>uXXXX</code>. This
+	 * includes ESC and the C1 control-sequence introducers, so field values cannot inject
+	 * terminal controls or visually reorder the line. Other Unicode text is unchanged.
+	 * Characters LTSV does not allow in labels (anything but
+	 * <code>A-Z a-z 0-9 _ . -</code>) are percent-encoded as UTF-8 (<code>a b</code> is
+	 * <code>a%20b</code>), and an empty key is <code>%</code>, so different keys stay
 	 * different.
 	 * <p>
 	 * Values can be colored like the TTLL formatter; labels and <code>msg</code> are not.
@@ -377,8 +379,11 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		}
 	}
 
+	// Uppercase for percent-encoding labels, as RFC 3986 recommends.
 	private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
+	// Lowercase for the backslash-u value escapes, matching the output before this table
+	// existed.
 	private static final String ESCAPE_HEX = "0123456789abcdef";
 
 	private static boolean isLabelChar(char c) {
@@ -428,7 +433,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	}
 
 	private static boolean isEscapedControl(char c) {
-		return c < ' ' || (c >= '\u007f' && c <= '\u009f') || c == '\u2028' || c == '\u2029';
+		return c < ' ' || (c >= '\u007f' && c <= '\u009f') || c == '\u2028' || c == '\u2029'
+				|| (c >= '\u202a' && c <= '\u202e') || (c >= '\u2066' && c <= '\u2069');
 	}
 
 	private static void trimTrailingLineBreaks(StringBuilder sb, int start) {

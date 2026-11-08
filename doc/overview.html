@@ -1395,9 +1395,10 @@ time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1
 }
 
 Tab, newline, carriage return, and <code>\</code> in a value are backslash escaped (<code>\t</code>, <code>\n</code>,
-<code>\r</code>, <code>\\</code>). Other C0 controls, DEL, C1 controls (U+0080 through U+009F), and Unicode line and
-paragraph separators are written as <code>&#92;uXXXX</code>. This escapes terminal controls from field values,
-including ESC and C1 introducers. Formatter-owned colours are added outside value escaping; other Unicode text is
+<code>\r</code>, <code>\\</code>). Other C0 controls, DEL, C1 controls (U+0080 through U+009F), Unicode line and
+paragraph separators, and bidirectional embedding, override and isolate characters (U+202A through U+202E, U+2066
+through U+2069) are written as <code>&#92;uXXXX</code>. This escapes terminal controls from field values, including
+ESC and C1 introducers, and stops them visually reordering the line. Formatter-owned colours are added outside value escaping; other Unicode text is
 unchanged. Key values, the <code>thread</code>,
 <code>color</code>, and <code>theme</code> properties, and <code>error</code> and <code>stacktrace</code> work as in the
 <a href="#logfmt">logfmt formatter</a>, except that with color on, <code>error</code> and <code>stacktrace</code>
