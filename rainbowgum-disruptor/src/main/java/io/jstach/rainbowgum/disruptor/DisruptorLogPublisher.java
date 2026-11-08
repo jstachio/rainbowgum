@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.disruptor;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -30,7 +31,8 @@ import io.jstach.rainbowgum.LogAppender.Appenders;
 /**
  * Disruptor async publisher. Like the default async publisher it starts and closes its
  * appenders, and closing drains the events already published, waiting at most
- * {@value LogPublisherRegistry#ASYNC_SHUTDOWN_TIMEOUT} ms. Events logged after close are
+ * {@value LogPublisherRegistry#ASYNC_SHUTDOWN_TIMEOUT} ms. Start returns once the
+ * consumer threads are running, waiting at most as long. Events logged after close are
  * dropped. Calling start more than once while running is harmless; a closed or failed
  * publisher cannot be restarted. Events logged before start are dropped.
  */
@@ -43,6 +45,13 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	private final List<? extends LogAppender> appenders;
 
 	private final LogAlerts alerts;
+
+	/*
+	 * Disruptor's shutdown skips a consumer whose thread has not run yet, and the
+	 * consumer then exits without reading the ring, so close right after start would drop
+	 * the events in it.
+	 */
+	private final CountDownLatch consumersRunning;
 
 	private final Object lifecycle = new Object();
 
@@ -80,18 +89,18 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 	public static DisruptorLogPublisher of(Collection<? extends LogAppender> appenders, ThreadFactory threadFactory,
 			int bufferSize, LogAlerts alerts) {
 
+		if (appenders.isEmpty()) {
+			throw new IllegalStateException();
+		}
 		Disruptor<LogEventCell> disruptor = new Disruptor<>(LogEventCell::new, bufferSize, threadFactory,
 				ProducerType.MULTI, new BlockingWaitStrategy());
-		var router = new DisruptorLogPublisher(disruptor, disruptor.getRingBuffer(), List.copyOf(appenders), alerts);
+		var consumersRunning = new CountDownLatch(appenders.size());
+		var router = new DisruptorLogPublisher(disruptor, disruptor.getRingBuffer(), List.copyOf(appenders), alerts,
+				consumersRunning);
 		disruptor.setDefaultExceptionHandler(new LogExceptionHandler(router));
 
-		boolean found = false;
 		for (var appender : appenders) {
-			disruptor.handleEventsWith(new LogEventHandler(appender));
-			found = true;
-		}
-		if (!found) {
-			throw new IllegalStateException();
+			disruptor.handleEventsWith(new LogEventHandler(appender, consumersRunning));
 		}
 
 		return router;
@@ -115,6 +124,7 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 					appender.start(config);
 				}
 				disruptor.start();
+				awaitConsumers();
 				state = State.RUNNING;
 			}
 			catch (RuntimeException | Error e) {
@@ -134,13 +144,27 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 		}
 	}
 
+	private void awaitConsumers() {
+		try {
+			if (!consumersRunning.await(LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT, TimeUnit.MILLISECONDS)) {
+				throw new IllegalStateException("Disruptor consumer threads did not start within "
+						+ LogPublisherRegistry.ASYNC_SHUTDOWN_TIMEOUT + " ms");
+			}
+		}
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Interrupted waiting for disruptor consumer threads to start", e);
+		}
+	}
+
 	private DisruptorLogPublisher(Disruptor<LogEventCell> disruptor, RingBuffer<LogEventCell> ringBuffer,
-			List<? extends LogAppender> appenders, LogAlerts alerts) {
+			List<? extends LogAppender> appenders, LogAlerts alerts, CountDownLatch consumersRunning) {
 		super();
 		this.disruptor = disruptor;
 		this.ringBuffer = ringBuffer;
 		this.appenders = appenders;
 		this.alerts = alerts;
+		this.consumersRunning = consumersRunning;
 	}
 
 	@Override
@@ -207,7 +231,14 @@ public final class DisruptorLogPublisher implements AsyncLogPublisher {
 
 	}
 
-	private static record LogEventHandler(LogAppender appender) implements EventHandler<LogEventCell> {
+	private static record LogEventHandler(LogAppender appender,
+			CountDownLatch consumersRunning) implements EventHandler<LogEventCell> {
+
+		@Override
+		public void onStart() {
+			// Called once the consumer counts as running for shutdown.
+			consumersRunning.countDown();
+		}
 
 		@Override
 		public void onEvent(LogEventCell event, long sequence, boolean endOfBatch) throws Exception {

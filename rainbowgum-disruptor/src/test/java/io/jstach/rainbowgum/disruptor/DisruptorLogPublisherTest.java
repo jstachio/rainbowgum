@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -144,6 +145,28 @@ class DisruptorLogPublisherTest {
 	}
 
 	@Test
+	void closeRightAfterStartWritesEventsBeforeTheConsumerRan() {
+		var config = LogConfig.builder().build();
+		var output = new ClosingListLogOutput();
+		// Disruptor's shutdown skips a consumer whose thread has not run yet.
+		ThreadFactory slowThreads = r -> DaemonThreadFactory.INSTANCE.newThread(() -> {
+			try {
+				Thread.sleep(200);
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			r.run();
+		});
+		var publisher = DisruptorLogPublisher.of(List.of(appender(config, output)), slowThreads, BUFFER_SIZE,
+				config.alerts());
+		publisher.start(config);
+		publisher.log(event("early"));
+		publisher.close();
+		assertEquals(List.of("early"), output.events().stream().map(e -> e.getValue()).toList());
+	}
+
+	@Test
 	void logAfterCloseDoesNotBlock() {
 		var config = LogConfig.builder().build();
 		var output = new ClosingListLogOutput();
@@ -181,13 +204,13 @@ class DisruptorLogPublisherTest {
 	}
 
 	private static DisruptorLogPublisher publisher(LogConfig config, ListLogOutput output) {
+		return DisruptorLogPublisher.of(List.of(appender(config, output)), DaemonThreadFactory.INSTANCE, BUFFER_SIZE,
+				config.alerts());
+	}
+
+	private static LogAppender appender(LogConfig config, ListLogOutput output) {
 		LogEncoder encoder = LogFormatter.builder().message().encoder().build().provide("test", config);
-		LogAppender appender = LogAppender.builder("test")
-			.output(output)
-			.encoder(encoder)
-			.build()
-			.provide("test", config);
-		return DisruptorLogPublisher.of(List.of(appender), DaemonThreadFactory.INSTANCE, BUFFER_SIZE, config.alerts());
+		return LogAppender.builder("test").output(output).encoder(encoder).build().provide("test", config);
 	}
 
 	private static LogEvent event(String message) {
