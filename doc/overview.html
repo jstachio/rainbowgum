@@ -1239,7 +1239,9 @@ The built in ones are {@link io.jstach.rainbowgum.LogFormatter.StandardPostProce
 <li><code>journald</code> starts every line, including stack trace lines, with the event's syslog severity
 (<code>&lt;3&gt;</code> for error), which systemd's journal reads as the line's priority.</li>
 <li><code>crlf</code> escapes line breaks inside an event so it stays on one line and untrusted input cannot forge
-extra log lines.</li>
+extra log lines. It also escapes backslashes, control characters other than tab, and Unicode line and paragraph
+separators. Every ESC character is escaped, including ANSI colours and styles from the formatter. One final LF or
+CRLF is preserved as the record separator. Other Unicode text is unchanged.</li>
 </ul>
 The built in names are registered when the config is created, so a custom post processor needs a name of its own.
 Custom post processors are registered under the name used in the property, usually from a
