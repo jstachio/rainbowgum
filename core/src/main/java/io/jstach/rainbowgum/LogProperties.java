@@ -281,11 +281,13 @@ public interface LogProperties {
 
 	/**
 	 * Whether starting the global Rainbow Gum registers a JVM shutdown hook that closes
-	 * it. Defaults to <code>true</code>. Set it to <code>false</code> when the
-	 * application or framework closes Rainbow Gum itself as the last step of its own
-	 * shutdown: JVM shutdown hooks run concurrently in no set order, so events logged by
-	 * other hooks after this one has run are lost, except errors, which are echoed to
-	 * standard error.
+	 * it: <code>on</code> (the default) or <code>off</code>, with <code>true</code> and
+	 * <code>false</code> as aliases. Set it to <code>off</code> when the application or
+	 * framework closes Rainbow Gum itself as the last step of its own shutdown: JVM
+	 * shutdown hooks run concurrently in no set order, so events logged by other hooks
+	 * after this one has run are lost, except errors, which are echoed to standard error.
+	 * In code, see
+	 * {@link LogConfig.Builder#shutdownHook(LogConfig.Globals.ShutdownHookMode)}.
 	 * <p>
 	 * Property: <code>{@index logging.global.shutdownHook}</code>
 	 */

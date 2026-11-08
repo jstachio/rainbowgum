@@ -190,6 +190,7 @@ built, into one immutable `LogConfig.Globals`:
 | thread locals | `logging.global.threadLocal` (was `.threadlocalDisabled`) | `ThreadLocalMode` allow, forbid | `threadLocal` |
 | optimize for the platform | `logging.global.optimize` | boolean | `optimize` |
 | key value sources | `logging.keyvalues.sources` (was `logging.keyvalues.disabled`) | set of `Source` | `keyValueSources` |
+| shutdown hook | `logging.global.shutdownHook` (a boolean in 0.17.2) | `ShutdownHookMode` on, off; true/false are aliases | `shutdownHook` |
 
 - **Precedence:** a property wins over the builder method, the same as `alertsFail`.
 - **Errors:** every global is parsed before any error is thrown, so all mistakes are

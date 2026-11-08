@@ -483,6 +483,7 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 		String sources = keyValues.size() == all.length ? "(all)"
 				: keyValues.isEmpty() ? "(none)" : String.join(",", keyValues);
 		appendGlobal(out, LogProperties.KEY_VALUES_SOURCES_PROPERTY, sources);
+		appendGlobal(out, LogProperties.GLOBAL_SHUTDOWN_HOOK_PROPERTY, globals.shutdownHook());
 	}
 
 	private static void appendGlobal(Appendable out, String key, Object value) throws IOException {
