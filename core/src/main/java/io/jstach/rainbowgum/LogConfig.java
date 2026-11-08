@@ -196,14 +196,18 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private final Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources;
 
+		private final ShutdownHookMode shutdownHook;
+
 		Globals(ChangeMode changeMode, AnsiMode ansiMode, AppenderLock appenderLock, ThreadLocalMode threadLocal,
-				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources) {
+				boolean optimize, Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources,
+				ShutdownHookMode shutdownHook) {
 			this.changeMode = changeMode;
 			this.ansiMode = ansiMode;
 			this.appenderLock = appenderLock;
 			this.threadLocal = threadLocal;
 			this.optimize = optimize;
 			this.keyValueSources = Set.copyOf(keyValueSources);
+			this.shutdownHook = shutdownHook;
 		}
 
 		/**
@@ -260,6 +264,15 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 			return keyValueSources;
 		}
 
+		/**
+		 * Whether binding this config's Rainbow Gum globally registers a JVM shutdown
+		 * hook that closes it, from {@value LogProperties#GLOBAL_SHUTDOWN_HOOK_PROPERTY}.
+		 * @return shutdown hook mode.
+		 */
+		public ShutdownHookMode shutdownHook() {
+			return shutdownHook;
+		}
+
 		/*
 		 * Every property is checked before any error is thrown, so all mistakes are
 		 * reported together.
@@ -295,9 +308,14 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				.map(KeyValuesContributors.Selected::parse)
 				.or(keyValueSources)
 				.validateIfError(validator);
+			var hook = properties.forKey(LogProperties.GLOBAL_SHUTDOWN_HOOK_PROPERTY)
+				.ofString()
+				.map(ShutdownHookMode::parse)
+				.or(shutdownHook)
+				.validateIfError(validator);
 			validator.validate();
 			return new Globals(change.value(), ansi.value(), lock.value(), threadLocalMode.value(), opt.value(),
-					keyValues.value());
+					keyValues.value(), hook.value());
 		}
 
 		/**
@@ -375,6 +393,36 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 					case "TRUE" -> ON;
 					case "FALSE" -> OFF;
 					default -> LogProperty.enumValue(AnsiMode.class, value, "true", "false");
+				};
+			}
+
+		}
+
+		/**
+		 * Whether binding a Rainbow Gum globally registers a JVM shutdown hook that
+		 * closes it. JVM shutdown hooks run concurrently in no set order, so events that
+		 * other hooks log after this one has run are lost, except errors, which are
+		 * echoed to standard error.
+		 */
+		public enum ShutdownHookMode {
+
+			/**
+			 * The global Rainbow Gum is closed by a JVM shutdown hook. The default.
+			 */
+			@EnumAlias("true")
+			ON,
+			/**
+			 * No shutdown hook is registered, for an application or framework that closes
+			 * Rainbow Gum itself as the last step of its own shutdown.
+			 */
+			@EnumAlias("false")
+			OFF;
+
+			static ShutdownHookMode parse(String value) {
+				return switch (value.strip().toUpperCase(Locale.ROOT)) {
+					case "TRUE" -> ON;
+					case "FALSE" -> OFF;
+					default -> LogProperty.enumValue(ShutdownHookMode.class, value, "true", "false");
 				};
 			}
 
@@ -613,6 +661,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		private Set<LogEventFactory.KeyValuesContributor.Source> keyValueSources = Set
 			.of(LogEventFactory.KeyValuesContributor.Source.Standard.values());
 
+		private Globals.ShutdownHookMode shutdownHook = Globals.ShutdownHookMode.ON;
+
 		/**
 		 * Default constructor
 		 */
@@ -728,6 +778,19 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 */
 		public Builder keyValueSources(Set<? extends LogEventFactory.KeyValuesContributor.Source> keyValueSources) {
 			this.keyValueSources = Set.copyOf(keyValueSources);
+			return this;
+		}
+
+		/**
+		 * Sets whether binding the Rainbow Gum globally registers a JVM shutdown hook
+		 * that closes it, used when the property
+		 * {@value LogProperties#GLOBAL_SHUTDOWN_HOOK_PROPERTY} is absent.
+		 * @param shutdownHook shutdown hook mode, default
+		 * {@link Globals.ShutdownHookMode#ON}.
+		 * @return this.
+		 */
+		public Builder shutdownHook(Globals.ShutdownHookMode shutdownHook) {
+			this.shutdownHook = Objects.requireNonNull(shutdownHook);
 			return this;
 		}
 
@@ -874,8 +937,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 						serviceRegistry.findOrNull(LogProperties.class, LevelResolver.OVERRIDE_PROPERTIES_NAME),
 						alerts);
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
-						unusedKeyCheck,
-						new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize, keyValueSources)
+						unusedKeyCheck, new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize,
+								keyValueSources, shutdownHook)
 							.withProperties(logProperties));
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);
@@ -1420,7 +1483,6 @@ final class DefaultLogConfig implements LogConfig {
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_LEVEL_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_ERROR_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_QUEUE_SIZE_PROPERTY);
-		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_SHUTDOWN_HOOK_PROPERTY);
 		reporter.addProperty(DefaultLogConfig.class, LogProperties.GLOBAL_LINE_SEPARATOR_PROPERTY);
 	}
 

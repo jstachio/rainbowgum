@@ -763,11 +763,7 @@ final class RainbowGumHolder {
 	}
 
 	static boolean shutdownHook(LogConfig config) {
-		return config.properties()
-			.forKey(LogProperties.GLOBAL_SHUTDOWN_HOOK_PROPERTY)
-			.ofBoolean()
-			.or(true)
-			.validateNow(RainbowGum.class);
+		return config.globals().shutdownHook() == LogConfig.Globals.ShutdownHookMode.ON;
 	}
 
 	@SuppressWarnings("ReferenceEquality") // Throwable self-suppression.

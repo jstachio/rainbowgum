@@ -156,7 +156,6 @@ class LogConfigDebugTest {
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
-						  logging.global.shutdownHook = (unset) (io.jstach.rainbowgum)
 						Globals:
 						  logging.change.mode = OFF
 						  logging.global.ansi.mode = AUTO
@@ -164,6 +163,7 @@ class LogConfigDebugTest {
 						  logging.global.threadLocal = ALLOW
 						  logging.global.optimize = false
 						  logging.keyvalues.sources = (all)
+						  logging.global.shutdownHook = ON
 						Debug mode: ALL
 
 						Router: default
@@ -415,7 +415,6 @@ class LogConfigDebugTest {
 						  logging.global.queue.error = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.level = (unset) (io.jstach.rainbowgum)
 						  logging.global.queue.size = (unset) (io.jstach.rainbowgum)
-						  logging.global.shutdownHook = (unset) (io.jstach.rainbowgum)
 						Globals:
 						  logging.change.mode = OFF
 						  logging.global.ansi.mode = AUTO
@@ -423,6 +422,7 @@ class LogConfigDebugTest {
 						  logging.global.threadLocal = ALLOW
 						  logging.global.optimize = false
 						  logging.keyvalues.sources = (all)
+						  logging.global.shutdownHook = ON
 						Debug mode: DEBUG_MODE
 
 						Router: default
