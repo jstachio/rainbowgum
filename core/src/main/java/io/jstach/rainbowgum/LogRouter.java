@@ -1071,6 +1071,36 @@ enum GlobalLogRouter implements InternalRootRouter, Route {
 
 	private final ReentrantLock drainLock = new ReentrantLock();
 
+	InternalRootRouter currentRouter() {
+		return delegate;
+	}
+
+	/*
+	 * A bind can fail in a route subscriber before the delegate switches, or while
+	 * draining queued events after it switches. Restore both routing and subscribers
+	 * before the failed candidate is closed. A drained queue cannot be reused because it
+	 * may forward back to the global router.
+	 */
+	@SuppressWarnings("ReferenceEquality")
+	void restoreAfterFailedBind(InternalRootRouter previous, InternalRootRouter failed) {
+		drainLock.lock();
+		try {
+			if (failed == this || (delegate != previous && delegate != failed)) {
+				return;
+			}
+			InternalRootRouter restored = previous instanceof QueueEventsRouter ? QueueEventsRouter.of() : previous;
+			failed.changePublisher().transferTo(restored.changePublisher());
+			if (delegate != restored && delegate != failed) {
+				delegate.changePublisher().transferTo(restored.changePublisher());
+			}
+			this.delegate = restored;
+			restored.changePublisher().publish(restored);
+		}
+		finally {
+			drainLock.unlock();
+		}
+	}
+
 	@Override
 	public LevelResolver levelResolver() {
 		return delegate.levelResolver();
