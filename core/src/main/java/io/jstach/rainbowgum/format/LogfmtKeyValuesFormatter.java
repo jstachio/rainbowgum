@@ -1,7 +1,6 @@
 package io.jstach.rainbowgum.format;
 
 import java.util.List;
-import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
 
@@ -84,13 +83,40 @@ record LogfmtKeyValuesFormatter(@Nullable List<String> keys,
 			if (isSpecial(c) || c == '\\' || c == '%') {
 				output.append('%').append(HEX[c >> 4]).append(HEX[c & 0xF]);
 			}
+			else if (isEscapedControl(c)) {
+				appendPercentUtf8(output, c);
+			}
 			else {
 				output.append(c);
 			}
 		}
 	}
 
+	// Uppercase for percent-encoding keys, as RFC 3986 recommends.
 	private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
+	// Lowercase for the backslash-u value escapes, matching the output before this table
+	// existed.
+	private static final String ESCAPE_HEX = "0123456789abcdef";
+
+	/*
+	 * The non-ASCII escaped controls are all in the Basic Multilingual Plane and none is
+	 * a surrogate, so each is two or three UTF-8 bytes.
+	 */
+	private static void appendPercentUtf8(StringBuilder output, char c) {
+		if (c < 0x800) {
+			appendPercentByte(output, 0xC0 | (c >> 6));
+		}
+		else {
+			appendPercentByte(output, 0xE0 | (c >> 12));
+			appendPercentByte(output, 0x80 | ((c >> 6) & 0x3F));
+		}
+		appendPercentByte(output, 0x80 | (c & 0x3F));
+	}
+
+	private static void appendPercentByte(StringBuilder output, int b) {
+		output.append('%').append(HEX[(b >> 4) & 0xF]).append(HEX[b & 0xF]);
+	}
 
 	/*
 	 * Quotes and escapes the text from start to the end of the output if logfmt needs it,
@@ -107,12 +133,24 @@ record LogfmtKeyValuesFormatter(@Nullable List<String> keys,
 		output.append('"');
 		for (int i = start; i < end; i++) {
 			char c = output.charAt(i);
-			String escape = escape(c);
-			if (escape != null) {
-				output.append(escape);
-			}
-			else {
-				output.append(c);
+			switch (c) {
+				case '"' -> output.append("\\\"");
+				case '\\' -> output.append("\\\\");
+				case '\n' -> output.append("\\n");
+				case '\r' -> output.append("\\r");
+				case '\t' -> output.append("\\t");
+				default -> {
+					if (isEscapedControl(c)) {
+						output.append("\\u")
+							.append(ESCAPE_HEX.charAt((c >>> 12) & 0xf))
+							.append(ESCAPE_HEX.charAt((c >>> 8) & 0xf))
+							.append(ESCAPE_HEX.charAt((c >>> 4) & 0xf))
+							.append(ESCAPE_HEX.charAt(c & 0xf));
+					}
+					else {
+						output.append(c);
+					}
+				}
 			}
 		}
 		output.append('"');
@@ -122,7 +160,7 @@ record LogfmtKeyValuesFormatter(@Nullable List<String> keys,
 	private static boolean needsQuotes(StringBuilder output, int start, int end) {
 		for (int i = start; i < end; i++) {
 			char c = output.charAt(i);
-			if (isSpecial(c) || c == '\\') {
+			if (isSpecial(c) || c == '\\' || isEscapedControl(c)) {
 				return true;
 			}
 		}
@@ -133,15 +171,15 @@ record LogfmtKeyValuesFormatter(@Nullable List<String> keys,
 		return c <= ' ' || c == '=' || c == '"' || c == 0x7f;
 	}
 
-	private static @Nullable String escape(char c) {
-		return switch (c) {
-			case '"' -> "\\\"";
-			case '\\' -> "\\\\";
-			case '\n' -> "\\n";
-			case '\r' -> "\\r";
-			case '\t' -> "\\t";
-			default -> c < ' ' || c == 0x7f ? String.format(Locale.ROOT, "\\u%04x", (int) c) : null;
-		};
+	/*
+	 * Written as backslash-u escapes in values and percent-encoded in keys: C0 controls,
+	 * DEL, C1 controls, the Unicode line and paragraph separators, and the bidirectional
+	 * embedding, override and isolate characters, so a field can neither break the line,
+	 * control a terminal nor visually reorder the line. The same set LTSV escapes.
+	 */
+	private static boolean isEscapedControl(char c) {
+		return c < ' ' || (c >= '\u007f' && c <= '\u009f') || c == '\u2028' || c == '\u2029'
+				|| (c >= '\u202a' && c <= '\u202e') || (c >= '\u2066' && c <= '\u2069');
 	}
 
 }

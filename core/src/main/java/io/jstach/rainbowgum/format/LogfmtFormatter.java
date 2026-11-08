@@ -73,11 +73,15 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * </ul>
 	 * A value is quoted when it is empty or contains a space, <code>=</code>,
 	 * <code>"</code>, or a control character. Inside quotes <code>"</code>,
-	 * <code>\</code>, newline, carriage return, and tab are backslash escaped and other
-	 * control characters are written as <code>\</code><code>uXXXX</code>, so every event
-	 * stays on one line. Characters logfmt does not allow in keys, and <code>%</code>,
-	 * are percent-encoded (<code>a b</code> is <code>a%20b</code>), and an empty key is
-	 * <code>%</code>, so different keys stay different.
+	 * <code>\</code>, newline, carriage return, and tab are backslash escaped. Other C0
+	 * controls, DEL, C1 controls (U+0080 through U+009F), Unicode line and paragraph
+	 * separators, and bidirectional embedding, override and isolate characters (U+202A
+	 * through U+202E, U+2066 through U+2069) are written as
+	 * <code>\</code><code>uXXXX</code>, so every event stays on one line and a field
+	 * cannot control a terminal or visually reorder the line. Characters logfmt does not
+	 * allow in keys, those controls, and <code>%</code> are percent-encoded as UTF-8
+	 * (<code>a b</code> is <code>a%20b</code>), and an empty key is <code>%</code>, so
+	 * different keys stay different.
 	 * <p>
 	 * Values can be colored like the TTLL formatter; keys, <code>msg</code>,
 	 * <code>error</code>, and <code>stacktrace</code> are not. Padding from a padding
