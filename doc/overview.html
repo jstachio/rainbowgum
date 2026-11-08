@@ -1395,7 +1395,10 @@ time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1
 }
 
 Tab, newline, carriage return, and <code>\</code> in a value are backslash escaped (<code>\t</code>, <code>\n</code>,
-<code>\r</code>, <code>\\</code>), so every event stays on one line. Key values, the <code>thread</code>,
+<code>\r</code>, <code>\\</code>). Other C0 controls, DEL, C1 controls (U+0080 through U+009F), and Unicode line and
+paragraph separators are written as <code>&#92;uXXXX</code>. This escapes terminal controls from field values,
+including ESC and C1 introducers. Formatter-owned colours are added outside value escaping; other Unicode text is
+unchanged. Key values, the <code>thread</code>,
 <code>color</code>, and <code>theme</code> properties, and <code>error</code> and <code>stacktrace</code> work as in the
 <a href="#logfmt">logfmt formatter</a>, except that with color on, <code>error</code> and <code>stacktrace</code>
 take the level's color, since they are on the event's line. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.

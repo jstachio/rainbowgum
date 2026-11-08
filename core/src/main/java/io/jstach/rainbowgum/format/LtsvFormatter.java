@@ -107,16 +107,19 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * </ul>
 	 * Values are never quoted. LTSV does not allow tab, newline, or carriage return in a
 	 * value, so these and <code>\</code> are backslash escaped (<code>\t</code>,
-	 * <code>\n</code>, <code>\r</code>, <code>\\</code>) and other control characters are
-	 * written as <code>\</code><code>uXXXX</code>, so every event stays on one line.
-	 * Characters LTSV does not allow in labels (anything but
-	 * <code>A-Z a-z 0-9 _ . -</code>) are percent-encoded as UTF-8 (<code>a b</code> is
-	 * <code>a%20b</code>), and an empty key is <code>%</code>, so different keys stay
+	 * <code>\n</code>, <code>\r</code>, <code>\\</code>). Other C0 controls, DEL, C1
+	 * controls (U+0080 through U+009F), and Unicode line and paragraph separators are
+	 * written as <code>\</code><code>uXXXX</code>. This includes ESC and the C1
+	 * control-sequence introducers, so field values cannot inject terminal controls.
+	 * Other Unicode text is unchanged. Characters LTSV does not allow in labels (anything
+	 * but <code>A-Z a-z 0-9 _ . -</code>) are percent-encoded as UTF-8 (<code>a b</code>
+	 * is <code>a%20b</code>), and an empty key is <code>%</code>, so different keys stay
 	 * different.
 	 * <p>
 	 * Values can be colored like the TTLL formatter; labels and <code>msg</code> are not.
 	 * <code>error</code> and <code>stacktrace</code> take the level's color, since they
-	 * are on the event's line.
+	 * are on the event's line. These formatter-owned colours are added outside value
+	 * escaping; escape characters supplied in field values are always escaped.
 	 * @param name encoder name, used for property lookup.
 	 * @param timestamp time format, see {@link TTLL.TimestampFormat};
 	 * <code>default</code> is <code>iso</code>.
@@ -376,6 +379,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 
 	private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
+	private static final String ESCAPE_HEX = "0123456789abcdef";
+
 	private static boolean isLabelChar(char c) {
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.'
 				|| c == '-';
@@ -386,12 +391,13 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * character or backslash, in place so the common case copies nothing. Replacing each
 	 * escaped character shifts the rest of the text, which is quadratic for a message of
 	 * many lines, so from the first escape on the escaped copy is appended after the text
-	 * in one pass and the original is then deleted.
+	 * in one pass and the original is then deleted. Each value character produces at most
+	 * six characters, so time and extra space remain linear.
 	 */
 	static void escapeInPlace(StringBuilder output, int start) {
 		int end = output.length();
 		int first = start;
-		while (first < end && escape(output.charAt(first)) == null) {
+		while (first < end && output.charAt(first) != '\\' && !isEscapedControl(output.charAt(first))) {
 			first++;
 		}
 		if (first == end) {
@@ -399,25 +405,30 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		}
 		for (int i = first; i < end; i++) {
 			char c = output.charAt(i);
-			String escape = escape(c);
-			if (escape != null) {
-				output.append(escape);
-			}
-			else {
-				output.append(c);
+			switch (c) {
+				case '\\' -> output.append("\\\\");
+				case '\t' -> output.append("\\t");
+				case '\n' -> output.append("\\n");
+				case '\r' -> output.append("\\r");
+				default -> {
+					if (isEscapedControl(c)) {
+						output.append("\\u")
+							.append(ESCAPE_HEX.charAt((c >>> 12) & 0xf))
+							.append(ESCAPE_HEX.charAt((c >>> 8) & 0xf))
+							.append(ESCAPE_HEX.charAt((c >>> 4) & 0xf))
+							.append(ESCAPE_HEX.charAt(c & 0xf));
+					}
+					else {
+						output.append(c);
+					}
+				}
 			}
 		}
 		output.delete(first, end);
 	}
 
-	private static @Nullable String escape(char c) {
-		return switch (c) {
-			case '\\' -> "\\\\";
-			case '\t' -> "\\t";
-			case '\n' -> "\\n";
-			case '\r' -> "\\r";
-			default -> c < ' ' || c == 0x7f ? String.format(Locale.ROOT, "\\u%04x", (int) c) : null;
-		};
+	private static boolean isEscapedControl(char c) {
+		return c < ' ' || (c >= '\u007f' && c <= '\u009f') || c == '\u2028' || c == '\u2029';
 	}
 
 	private static void trimTrailingLineBreaks(StringBuilder sb, int start) {
