@@ -924,6 +924,15 @@ disables MDC too, which is the same effect as combining the appender and MDC opt
 <h3 id="publisher_batch_swap">Batch swap</h3>
 
 <p>
+Network outputs are a good fit for an asynchronous publisher: a worker performs network I/O
+while logging threads enqueue events. With a synchronous publisher, a slow or stalled endpoint
+can block the logging thread. Configure <code>logging.route.example.publisher.uri=async</code>
+to use the default async publisher for the <code>example</code> route. Its bounded queue can
+still fill when an output cannot keep up; the <a href="#publisher_batch_swap_overload">overflow policy</a>
+controls whether callers block or events are discarded.
+</p>
+
+<p>
 {@link io.jstach.rainbowgum.publisher.BlockingQueueAsyncLogPublisher} was intended as an
 example and must not be used in production. It is deprecated for removal in the next
 release. Batch swap is the built-in async queue publisher.
