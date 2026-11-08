@@ -600,7 +600,8 @@ final class RainbowGumHolder {
 	}
 
 	/*
-	 * Null when this thread holds the write lock, so is starting or removing a gum.
+	 * Returns the existing binding during a replacement. When provisioning the first
+	 * binding reenters on this thread, returns null instead of provisioning recursively.
 	 */
 	static @Nullable RainbowGum getOrNullIfStarting() {
 		lock.readLock().lock();
@@ -654,15 +655,16 @@ final class RainbowGumHolder {
 		}
 		lock.writeLock().lock();
 		try {
+			// Prepare the candidate before changing the visible holder or supplier.
+			// A failed build/start leaves the previous binding intact.
+			var r = rainbowGumSupplier.get();
+			start(r);
 			var original = rainbowGum;
-			rainbowGum = null;
 			supplier = rainbowGumSupplier;
+			rainbowGum = r;
 			if (original != null) {
 				globalChangePublisher.enqueue(Optional.empty());
 			}
-			var r = rainbowGumSupplier.get();
-			start(r);
-			rainbowGum = r;
 			globalChangePublisher.enqueue(Optional.of(r));
 			return r;
 		}
@@ -693,6 +695,7 @@ final class RainbowGumHolder {
 			}
 			r = rainbowGumSupplier.get();
 			start(r);
+			supplier = rainbowGumSupplier;
 			rainbowGum = r;
 			globalChangePublisher.enqueue(Optional.of(r));
 			return r;
@@ -759,11 +762,41 @@ final class RainbowGumHolder {
 		}
 	}
 
+	@SuppressWarnings("ReferenceEquality") // Throwable self-suppression.
 	private static void start(RainbowGum gum) {
 		Objects.requireNonNull(gum);
-		ShutdownManager.addShutdownHook(gum);
-		gum.start();
-		long dropped = InternalRootRouter.setRouter(gum.router());
+		var previousRouter = GlobalLogRouter.INSTANCE.currentRouter();
+		boolean binding = false;
+		long dropped;
+		try {
+			gum.start();
+			ShutdownManager.addShutdownHook(gum);
+			binding = true;
+			dropped = InternalRootRouter.setRouter(gum.router());
+		}
+		catch (RuntimeException | Error failure) {
+			if (binding) {
+				try {
+					GlobalLogRouter.INSTANCE.restoreAfterFailedBind(previousRouter, (InternalRootRouter) gum.router());
+				}
+				catch (RuntimeException | Error restoreFailure) {
+					if (failure != restoreFailure) {
+						failure.addSuppressed(restoreFailure);
+					}
+				}
+			}
+			try (gum) {
+			}
+			catch (RuntimeException | Error closeFailure) {
+				if (failure != closeFailure) {
+					failure.addSuppressed(closeFailure);
+				}
+			}
+			finally {
+				ShutdownManager.removeShutdownHook(gum);
+			}
+			throw failure;
+		}
 		if (dropped > 0) {
 			gum.config()
 				.alerts()
