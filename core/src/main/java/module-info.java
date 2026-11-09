@@ -6,6 +6,15 @@
  * <strong>Thread Safety:</strong>
  * With the exception of builders, buffers, and outputs this modules components are
  * all threadsafe. Output thread safety is protected by Appenders which are threadsafe.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-core</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @see io.jstach.rainbowgum
  * @uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider

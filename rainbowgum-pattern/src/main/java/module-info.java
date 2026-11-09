@@ -19,6 +19,15 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * <em>(That guide lives on the package rather than here because a JDK javadoc doclet bug
  * crashes module description generation when a {@code @snippet} tag referencing an
  * external file is used directly in {@code module-info.java}.)</em>
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-pattern</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides RainbowGumServiceProvider
  * @see io.jstach.rainbowgum.pattern.format.PatternConfigurator

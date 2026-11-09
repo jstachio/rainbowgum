@@ -10,6 +10,15 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * The {@link io.jstach.rainbowgum.jansi.JAnsiConfigurator#JANSI_DISABLE} property is useful
  * to set in development environments particularly IntelliJ which Jansi does not currently 
  * detect as ANSI escape supported (and therefore will strip the ANSI escape sequences).
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-jansi</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  * 
  * @provides RainbowGumServiceProvider
  */

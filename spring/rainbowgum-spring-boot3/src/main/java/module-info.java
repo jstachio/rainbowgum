@@ -172,6 +172,15 @@
  * {@code io.jstach.rainbowgum.spring.boot4.SpringBootSupportedProperties#CONSOLE_ENABLED}).</td>
  * </tr>
  * </table>
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-spring-boot3</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  */
 module io.jstach.rainbowgum.spring.boot3 {
 	requires transitive io.jstach.rainbowgum;

@@ -8,6 +8,15 @@
  * expected to remain source and binary compatible across Spring Boot major versions, so
  * there is no reason to force implementers of {@code SpringRainbowGumServiceProvider} to
  * change their import when bumping Spring Boot major versions.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-spring-spi</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  */
 module io.jstach.rainbowgum.spring.boot.spi {
 	exports io.jstach.rainbowgum.spring.boot.spi;

@@ -3,6 +3,15 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 /**
  * Uses <a href="https://avaje.io/config/">Avaje Config</a> for LogProperties.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-avaje-config</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  * @provides RainbowGumServiceProvider
  * @provides AppLog.Provider
  */

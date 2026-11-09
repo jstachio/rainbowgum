@@ -27,6 +27,15 @@
  * Works under GraalVM native-image with no consumer-side configuration - see
  * {@link io.jstach.rainbowgum.jul.logmanager.RainbowGumLogManager}'s own javadoc for the
  * build-time mechanism this module bundles to make that true.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-jul-logmanager</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  */
 module io.jstach.rainbowgum.jul.logmanager {
 

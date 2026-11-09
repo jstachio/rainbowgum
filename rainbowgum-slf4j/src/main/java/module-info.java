@@ -47,6 +47,15 @@ import io.jstach.rainbowgum.slf4j.RainbowGumSLF4JServiceProvider;
  * Like SLF4J's own reference {@link org.slf4j.spi.LoggingEventBuilder} implementation,
  * Rainbow Gum's is mutable: each fluent call mutates and returns the same instance
  * rather than a new one.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-slf4j</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  * @provides org.slf4j.spi.SLF4JServiceProvider

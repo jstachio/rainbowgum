@@ -8,6 +8,15 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * {@code fileNamePattern} conventions, only a numbered-suffix (<code>%i</code>) scheme.
  * {@code rainbowgum-core} on its own has no file I/O capability at all - this module is
  * what adds it.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-file</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides RainbowGumServiceProvider
  * @see io.jstach.rainbowgum.file.FileOutput

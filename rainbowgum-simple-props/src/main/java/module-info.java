@@ -5,6 +5,15 @@ import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
  * variables, profile resources, and a classpath {@code logging.properties} resource.
  * See {@link io.jstach.rainbowgum.simple.props.SimpleProperties} for profile selection
  * and precedence.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-simple-props</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  * @provides RainbowGumServiceProvider
  */
 module io.jstach.rainbowgum.simple.props {

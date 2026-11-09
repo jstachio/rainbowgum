@@ -46,6 +46,15 @@
  * {@code io.jstach.rainbowgum.RainbowGum#of()} explicitly before any JUL logging
  * happens.</li>
  * </ul>
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-jul</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */

@@ -64,6 +64,15 @@
  * to be actual class names and could be anything
  * (unlike SLF4J which encourages class names and static loggers) Rainbow Gum
  * does not cache System.Loggers.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-jdk</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides System.LoggerFinder
  */

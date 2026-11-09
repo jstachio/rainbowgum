@@ -5,6 +5,15 @@
  * span is read when the event is created, on the logging thread, from whatever set the
  * OpenTelemetry context (the Java agent, the SDK, or a bridge), with no MDC involved.
  * This module can be used with any output or encoder, independently of the OTLP module.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-opentelemetry</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */
