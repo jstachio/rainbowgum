@@ -18,7 +18,7 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * <code>12:00:00.123 [main] INFO  com.example.App {requestId=42} - hello</code>. When an
  * event has no key values the braces are left out, or written as <code>{}</code>,
  * according to {@link KeyValuesWhenEmpty}, and {@link KeyValuesFormat#NONE} leaves the
- * key values out entirely.
+ * key values out entirely. {@link Part} changes the order of the parts.
  * <p>
  * Every part also accepts <code>default</code>, which restores its default without naming
  * it, and <code>true</code> and <code>false</code> to show or hide it; the
@@ -385,6 +385,48 @@ public sealed interface TTLL permits TTLLFormatter {
 				case "true" -> SHOW;
 				default -> io.jstach.rainbowgum.LogProperty.enumValue(KeyValuesWhenEmpty.class, value, "true", "false",
 						"default");
+			};
+		}
+
+	}
+
+	/**
+	 * A part of the line, for the order property, which lists the parts in the order they
+	 * are written: <code>order=level,timestamp,logger,keyValues</code>. Parts not listed
+	 * are left out, and a part may be listed only once. The default is every part in the
+	 * order of these constants.
+	 */
+	@CaseChanging
+	enum Part {
+
+		/**
+		 * Time, see {@link TimestampFormat}.
+		 */
+		@EnumAlias("time")
+		TIMESTAMP,
+		/**
+		 * Thread, see {@link ThreadFormat}.
+		 */
+		THREAD,
+		/**
+		 * Level, see {@link LevelFormat}.
+		 */
+		LEVEL,
+		/**
+		 * Logger name, see {@link LoggerFormat}.
+		 */
+		LOGGER,
+		/**
+		 * Key values, see {@link KeyValuesFormat}.
+		 */
+		@EnumAlias("keyValues")
+		KEY_VALUES;
+
+		static Part parse(String value) {
+			return switch (value.strip().toLowerCase(java.util.Locale.ROOT)) {
+				case "time" -> TIMESTAMP;
+				case "keyvalues" -> KEY_VALUES;
+				default -> io.jstach.rainbowgum.LogProperty.enumValue(Part.class, value, "time", "keyValues");
 			};
 		}
 
