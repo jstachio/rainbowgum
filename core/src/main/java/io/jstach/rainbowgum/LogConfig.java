@@ -1077,6 +1077,8 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	 * only ever called once per never-before-seen logger name (RainbowGumLoggerFactory
 	 * caches the resulting Logger forever afterward), so a ConcurrentHashMap here matches
 	 * the exact call pattern that made a ConcurrentHashMap the right tradeoff there too.
+	 * Like every per logger name cache it grows with the distinct logger names, which the
+	 * logger.names metric (LogMetrics.LOGGER_NAMES_METRIC) counts.
 	 */
 	private final ConcurrentHashMap<String, Set<ChangeType>> changesCache = new ConcurrentHashMap<>();
 

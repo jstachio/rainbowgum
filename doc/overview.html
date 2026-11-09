@@ -608,6 +608,28 @@ exceptions including custom components.
   {@value io.jstach.rainbowgum.LogProperties#CHANGE_LOGGER_PREFIX}.
 </p>
 
+<h3 id="lifecycle">Binding, rebinding and shutdown</h3>
+
+<p>
+Starting the global Rainbow Gum binds it, so the logging facades log to it.
+{@link io.jstach.rainbowgum.RainbowGum#set(io.jstach.rainbowgum.RainbowGum)} and
+{@link io.jstach.rainbowgum.RainbowGum.Builder#set()} replace a Rainbow Gum that is already bound but do not close
+it: close it yourself, or the shutdown hook below closes it when the JVM exits.
+</p>
+<p>
+Unless <a href="#changing_resolving">changing loggers</a> are turned on, a logger is bound to the Rainbow Gum it was
+created from, much as other logging frameworks keep their loggers in global static state. If that Rainbow Gum is
+closed and another one bound, as tests or a framework reinitializing logging may do, loggers created before keep
+writing to the closed one and their events are dropped. Bind once, turn on changing loggers if the application
+rebinds, or get loggers again after rebinding.
+</p>
+<p>
+Starting the global Rainbow Gum also registers a JVM shutdown hook that closes it. JVM shutdown hooks run at the
+same time in no set order, so anything another hook logs after Rainbow Gum's hook has run is lost, except errors,
+which are echoed to standard error. An application or framework that logs during its own shutdown can set
+<code>logging.global.shutdownHook=false</code> and close Rainbow Gum itself as its last step.
+</p>
+
 <h2 id="router">Router</h2>
 
 A Router has a {@link io.jstach.rainbowgum.LevelResolver}, appenders and a {@linkplain io.jstach.rainbowgum.LogPublisher Publisher}.
@@ -1289,6 +1311,20 @@ as request and trace ids is actually reaching their logs, and a feature that is 
 knows exists. Agents reading logs also benefit from the extra context. With wide screens and color the extra text
 costs little, and <code>keyValues=none</code> turns it off.
 
+<p>
+TTLL, like the <a href="#pattern">pattern</a> format, is for people to read, not for parsing. It does not escape
+logged text, so a message containing a line break looks like two events. For logs that are parsed or that contain
+untrusted data, use a structured format such as <a href="#ltsv">LTSV</a>, <a href="#logfmt">logfmt</a> or
+<a href="#json_encoders">JSON</a>, or add the <a href="#post_processors"><code>crlf</code> post processor</a>.
+</p>
+<div class="callout callout-note" role="note">
+<p class="callout-title">Note</p>
+<p>
+The lead developer of Rainbow Gum vastly prefers <a href="#ltsv">LTSV</a>: it is both parseable and human readable,
+and it does not have these problems. For historical reasons it is not Rainbow Gum's default.
+</p>
+</div>
+
 Each part can be changed with properties of the encoder, much like slf4j-simple's options, so changing the key
 values format or dropping the time does not require the pattern module:
 
@@ -1854,6 +1890,12 @@ properties (e.g. {@link io.jstach.rainbowgum.file.FileOutputBuilder#append(Boole
 their defaults. A file in the working directory is written <code>./logs/app.log</code> or
 <code>file:///./logs/app.log</code>, and missing parent directories such as <code>logs</code> are created.
 
+<p>
+Log files are created with the permissions the process umask allows, like any other file the process creates, and
+compressed rolling archives get the permissions of the file they came from. Set the service's umask to control who
+can read its logs.
+</p>
+
 <h3 id="jfr">JDK Flight Recorder (JFR)</h3>
 
 The optional {@linkplain io.jstach.rainbowgum.jfr/ JFR module} (inspired by
@@ -1985,6 +2027,13 @@ below instead (typically
 or for a systemd service let <a href="#rolling_journald">the journal</a> handle it.
 It remains the recommended approach for anything beyond preventing a disk from
 filling up, and does not depend on the {@linkplain io.jstach.rainbowgum.file/ rainbowgum-file} module at all.</p>
+
+<p>
+Rotation, including compressing the old file when <code>fileNamePattern</code> ends in <code>.gz</code>, runs on the
+thread writing the event that crosses <code>maxFileSize</code>, while it holds the appender's lock. With the default
+synchronous publisher that is an application thread, so use the <a href="#publishers">async publisher</a> for a
+rolling output, or leave rotation and compression to an external tool.
+</p>
 
 <h4 id="rolling_external">External Tool Support (logrotate)</h4>
 
@@ -2340,6 +2389,13 @@ waiting in its queues across all publishers sharing the config. An event stops b
 when removed for processing. Snapshots are approximate during concurrent queue activity.
 </p>
 
+<p>
+{@value io.jstach.rainbowgum.LogMetrics#LOGGER_NAMES_METRIC} counts distinct logger names, whichever facade they come
+from. Like every logging framework, Rainbow Gum keeps per logger state for the life of the process, so logger names
+should come from a bounded set such as class names. A count that keeps climbing means something builds logger
+names from request data. The <a href="#reporting">report</a>'s loggers section lists the names.
+</p>
+
 The fixed, well known set of metrics Rainbow Gum itself records is enumerable through
 {@link io.jstach.rainbowgum.LogMetrics.StandardMetric}, useful for something wanting to bind
 every standard metric to an external system without hand listing each name/level pair.
@@ -2687,6 +2743,12 @@ MDC defaults to a {@link java.lang.ThreadLocal}-backed implementation; setting
 <code>{@index logging.mdc.type}</code> to <code>NOOP</code> swaps in a no-op implementation instead, for deployments
 that want no {@link java.lang.ThreadLocal} anywhere in the logging path and are fine losing MDC to get it.
 <p>
+SLF4J 2's deque by key MDC methods ({@link org.slf4j.spi.MDCAdapter#pushByKey(String, String)},
+<code>popByKey</code>, <code>getCopyOfDequeByKey</code> and <code>clearDequeByKey</code>) are not supported: they do
+nothing, and their first use raises a single warning alert. No layout prints their values, and libraries should
+not depend on this API.
+</p>
+<p>
 There is no built-in {@link org.slf4j.Marker} support (it is not stored on the event
 or used for routing/filtering by default), but a
 {@linkplain io.jstach.rainbowgum.slf4j.spi.AbstractFilteringLogger decorator} can
@@ -2725,6 +2787,8 @@ which require a constant check if the level threshold has changed.
 Level loggers do not need to do that check. Unless
 {@linkplain io.jstach.rainbowgum.LogConfig.ChangePublisher changing loggers is turned on}
 by default Level Loggers are used which are close to zero cost for discarding events.
+A level logger stays bound to the Rainbow Gum it was created from; see
+<a href="#lifecycle">Binding, rebinding and shutdown</a>.
 <p>
 The SLF4J API does not document nullability for {@link org.slf4j.spi.MDCAdapter} or
 {@link org.slf4j.spi.LoggingEventBuilder#addArgument(Object)} (see

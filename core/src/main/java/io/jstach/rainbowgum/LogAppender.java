@@ -128,7 +128,10 @@ public sealed interface LogAppender extends LogLifecycle {
 		 * <p>
 		 * This flag is to allow outputs that do logging themselves. For performance
 		 * reasons and to allow async publishers it is recommended that you fix the output
-		 * code such that it does not do logging. This flag is ignored if
+		 * code such that it does not do logging. With
+		 * {@link AppenderType#LOCK_NEW_BUFFER}, which keeps no per thread state, only
+		 * reentry while writing to the output is detected, not while encoding (an
+		 * argument's {@code toString()} that logs). This flag is ignored if
 		 * {@link #REENTRY_LOG} is set.
 		 * <p>
 		 * <strong>This flag will not fix outputs causing lool like logging if an async
@@ -145,6 +148,9 @@ public sealed interface LogAppender extends LogLifecycle {
 		 * does by default</a>. Detection is the same as {@link #REENTRY_DROP} and is not
 		 * enabled by default. This flag is to resolve failures of outputs that then do
 		 * logging.
+		 * <p>
+		 * As with {@link #REENTRY_DROP}, {@link AppenderType#LOCK_NEW_BUFFER} only
+		 * detects reentry while writing to the output, not while encoding.
 		 * <p>
 		 * This flag takes precedence over {@link #REENTRY_DROP}.
 		 */

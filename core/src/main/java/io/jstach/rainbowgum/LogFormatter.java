@@ -1521,6 +1521,12 @@ final class RootCauseFirstThrowableFormatter implements ThrowableFormatter {
  */
 final class PackagingDataResolver {
 
+	/*
+	 * Keyed by the class names in stack traces, not logger names, so the logger.names
+	 * metric does not cover it. It is opt in, and the names come from a mostly fixed set,
+	 * but classes generated per request (a script engine compiling Script1, Script2, ...)
+	 * are unloaded while their names stay here, so it can grow without bound.
+	 */
 	private final ConcurrentMap<String, String> cache = new ConcurrentHashMap<>();
 
 	String resolve(StackTraceElement element) {

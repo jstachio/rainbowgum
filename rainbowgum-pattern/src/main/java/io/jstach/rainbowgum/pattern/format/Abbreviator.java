@@ -53,6 +53,10 @@ interface Abbreviator {
 
 		private final Abbreviator abbreviator;
 
+		/*
+		 * Keyed by logger name, so it grows with the distinct logger names, which the
+		 * logger.names metric (LogMetrics.LOGGER_NAMES_METRIC) counts.
+		 */
 		private final ConcurrentHashMap<String, String> cache = new ConcurrentHashMap<>();
 
 		CacheAbbreviator(Abbreviator abbreviator) {
