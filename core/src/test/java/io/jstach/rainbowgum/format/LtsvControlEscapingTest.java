@@ -132,8 +132,8 @@ class LtsvControlEscapingTest {
 			gum.log(event);
 		}
 		String escaped = reference(payload);
-		String expected = "logger:" + escaped + "\tthread:" + escaped + "\tmsg:" + escaped + "\tkey%C2%85:" + escaped
-				+ "\terror:" + reference(failure.toString()) + "\tstacktrace:"
+		String expected = "logger:" + escaped + "\tthread:" + escaped + "\tmessage:" + escaped + "\tkey%C2%85:"
+				+ escaped + "\terror:" + reference(failure.toString()) + "\tstacktrace:"
 				+ reference(failure + "\n\tat class\u009b.method\u0085(file\u2028:42)") + "\n";
 		assertEquals(expected, output.toString());
 		assertEquals(1, output.events().size());
@@ -157,7 +157,7 @@ class LtsvControlEscapingTest {
 			.build()
 			.format(output, event);
 		String escaped = "\\u001b[8mhidden\\u001b[0m\\u009b8m";
-		assertEquals("msg:" + escaped + "\t\u001b[2;39mvalue:" + escaped + "\u001b[0;39m\n", output.toString());
+		assertEquals("message:" + escaped + "\t\u001b[2;39mvalue:" + escaped + "\u001b[0;39m\n", output.toString());
 	}
 
 	// The reference uses the JDK's control classification and number conversion, rather

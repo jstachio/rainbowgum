@@ -57,7 +57,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * text handler, selected with the logfmt encoder scheme.
 	 * <p>
 	 * Each event is written as one line, for example:
-	 * <code>time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg="hello world" requestId=42</code>
+	 * <code>time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main message="hello world" requestId=42</code>
 	 * <ul>
 	 * <li>The thread fields are chosen with {@link ThreadFields}, by default
 	 * <code>threadId</code> and <code>threadName</code>.</li>
@@ -66,8 +66,8 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * <code>TRACE</code>, <code>DEBUG</code>, <code>INFO</code>, <code>WARN</code>, or
 	 * <code>ERROR</code>. logfmt does not define level names, and tools differ (Go's slog
 	 * is upper case, logrus lower case).</li>
-	 * <li>Every key value follows <code>msg</code>, in order. A key value named like one
-	 * of these fields is prefixed with <code>keyValues.</code>.</li>
+	 * <li>Every key value follows <code>message</code>, in order. A key value named like
+	 * one of these fields is prefixed with <code>keyValues.</code>.</li>
 	 * <li>A throwable adds <code>error</code> (its <code>toString()</code>) and
 	 * <code>stacktrace</code>.</li>
 	 * </ul>
@@ -79,7 +79,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 	 * are percent-encoded (<code>a b</code> is <code>a%20b</code>), and an empty key is
 	 * <code>%</code>, so different keys stay different.
 	 * <p>
-	 * Values can be colored like the TTLL formatter; keys, <code>msg</code>,
+	 * Values can be colored like the TTLL formatter; keys, <code>message</code>,
 	 * <code>error</code>, and <code>stacktrace</code> are not. Padding from a padding
 	 * level formatter is written after the level's color.
 	 * @param name encoder name, used for property lookup.
@@ -171,7 +171,7 @@ final class LogfmtFormatter implements LogFormatter.EventFormatter {
 			case NONE -> {
 			}
 		}
-		output.append(" msg=");
+		output.append(" message=");
 		int start = output.length();
 		event.formattedMessage(output);
 		LogfmtKeyValuesFormatter.quoteInPlace(output, start);

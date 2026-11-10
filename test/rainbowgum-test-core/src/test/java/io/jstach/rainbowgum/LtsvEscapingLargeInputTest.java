@@ -49,7 +49,7 @@ class LtsvEscapingLargeInputTest {
 		String prefix = "previous:record\n";
 		var output = new StringBuilder(prefix);
 		assertTimeout(Duration.ofSeconds(2), () -> formatter.format(output, event));
-		assertEquals(prefix + "msg:" + input.escaped.repeat(count) + "\n", output.toString());
+		assertEquals(prefix + "message:" + input.escaped.repeat(count) + "\n", output.toString());
 	}
 
 }

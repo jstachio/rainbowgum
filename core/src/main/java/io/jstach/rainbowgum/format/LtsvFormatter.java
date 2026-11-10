@@ -79,17 +79,17 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * selected with the ltsv encoder scheme.
 	 * <p>
 	 * Each event is written as one line, for example (<code>⇥</code> is a tab):
-	 * <code>time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1⇥threadName:main⇥msg:hello world⇥requestId:42</code>
+	 * <code>time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1⇥threadName:main⇥message:hello world⇥requestId:42</code>
 	 * <ul>
 	 * <li>The labels are logfmt's field names. The thread fields are chosen with
 	 * {@link ThreadFields}, by default <code>threadId</code> and
 	 * <code>threadName</code>.</li>
 	 * <li>The fields listed as columns (see {@link EventField}) come first, in the order
 	 * listed and without labels, so they are read by position. With
-	 * <code>columns=time,level,logger,thread,msg</code>:
+	 * <code>columns=time,level,logger,thread,message</code>:
 	 * <code>2026-10-05T15:04:05.123Z⇥INFO⇥com.example.App⇥1⇥main⇥hello world⇥requestId:42</code>.
 	 * The fields not listed follow with their labels, before the key values. With
-	 * <code>columns=thread,msg</code>:
+	 * <code>columns=thread,message</code>:
 	 * <code>1⇥main⇥hello world⇥time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥requestId:42</code>.
 	 * Output with columns is no longer LTSV.</li>
 	 * <li><code>time</code> is the UTC instant with milliseconds by default, and
@@ -157,12 +157,12 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * takes linear time and space in its input length; this formatter does not impose a
 	 * record or value length limit.
 	 * <p>
-	 * Values can be colored like the TTLL formatter; built-in labels and <code>msg</code>
-	 * are not. Key-value labels and values are colored together. <code>error</code> and
-	 * <code>stacktrace</code> take the level's color, since they are on the event's line.
-	 * These formatter-owned colors are added outside value escaping; escape characters
-	 * supplied in field values are always escaped. Select <code>color=off</code> to
-	 * suppress formatter-owned ANSI sequences as well.
+	 * Values can be colored like the TTLL formatter; built-in labels and
+	 * <code>message</code> are not. Key-value labels and values are colored together.
+	 * <code>error</code> and <code>stacktrace</code> take the level's color, since they
+	 * are on the event's line. These formatter-owned colors are added outside value
+	 * escaping; escape characters supplied in field values are always escaped. Select
+	 * <code>color=off</code> to suppress formatter-owned ANSI sequences as well.
 	 * @param name encoder name, used for property lookup.
 	 * @param timestamp time format, see {@link TTLL.TimestampFormat};
 	 * <code>default</code> is <code>iso</code>.
@@ -318,7 +318,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 			}
 			case MESSAGE -> {
 				separate(output, any);
-				label(output, labeled, "msg:");
+				label(output, labeled, "message:");
 				int start = output.length();
 				event.formattedMessage(output);
 				escapeInPlace(output, start);

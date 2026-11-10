@@ -1371,7 +1371,7 @@ logging.appender.myappender.encoder.uri=logfmt
 }
 
 {@snippet :
-time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main msg="hello world" requestId=42
+time=2026-10-05T15:04:05.123Z level=INFO logger=com.example.App threadId=1 threadName=main message="hello world" requestId=42
 }
 
 Key values follow the message; one named like a field the encoder writes gets a <code>keyValues.</code>
@@ -1383,7 +1383,7 @@ and the thread fields with <code>thread</code>, as in the <a href="#core_json">J
 <p>
 Values are colored with the same <code>color</code> and <code>theme</code> properties as the
 <a href="#ttll">TTLL formatter</a>: by default when the console supports ANSI, with the <code>rainbowgum</code>
-theme. Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are never colored, and level padding
+theme. Keys, <code>message</code>, <code>error</code>, and <code>stacktrace</code> are never colored, and level padding
 is written after the level's color.
 </p>
 
@@ -1402,7 +1402,7 @@ logging.appender.myappender.encoder.uri=ltsv
 With the tabs shown as <code>⇥</code>:
 
 {@snippet :
-time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1⇥threadName:main⇥msg:hello world⇥requestId:42
+time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1⇥threadName:main⇥message:hello world⇥requestId:42
 }
 
 Tab, newline, carriage return, and <code>\</code> in a value are backslash escaped (<code>\t</code>, <code>\n</code>,
@@ -1433,18 +1433,18 @@ logging.appender.console.encoder.ltsv.thread=none
 }
 
 {@snippet :
-time:15:04:05.123⇥level:INFO ⇥logger:App⇥msg:hello world⇥requestId:42
+time:15:04:05.123⇥level:INFO ⇥logger:App⇥message:hello world⇥requestId:42
 }
 
 <p>
 <code>columns</code> lists fields to write first, in that order and without labels, so they are read by
-position, from <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code> and <code>msg</code>.
+position, from <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code> and <code>message</code>.
 The fields not listed follow with their labels, then the key values, <code>error</code> and <code>stacktrace</code>,
 which always keep theirs. The output is then no longer LTSV. Every field as a column:
 </p>
 
 {@snippet lang=properties :
-logging.appender.console.encoder.ltsv.columns=time,level,logger,thread,msg
+logging.appender.console.encoder.ltsv.columns=time,level,logger,thread,message
 }
 
 {@snippet :
@@ -1459,7 +1459,7 @@ both out, keep the logger and message as columns, and have the thread and key va
 
 {@snippet lang=properties :
 logging.appender.console.encoder.uri=ltsv
-logging.appender.console.encoder.ltsv.columns=logger,msg
+logging.appender.console.encoder.ltsv.columns=logger,message
 logging.appender.console.encoder.ltsv.timestamp=none
 logging.appender.console.encoder.ltsv.level=none
 logging.appender.console.encoder.postProcessors=journald
@@ -1494,7 +1494,7 @@ logging.appender.console.encoder.uri=json5
 }
 
 {@snippet :
-{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",msg:"hello world",requestId:"42"}
+{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",message:"hello world",requestId:"42"}
 }
 
 It writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
@@ -1509,7 +1509,7 @@ logging.appender.console.encoder.json.thread=name
 }
 
 The fields use logfmt's names: <code>time</code>, <code>level</code>, <code>logger</code>,
-<code>threadId</code> and <code>threadName</code> (see <code>thread</code> below), <code>msg</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
+<code>threadId</code> and <code>threadName</code> (see <code>thread</code> below), <code>message</code>, and for a throwable <code>error</code> and <code>stacktrace</code>. Every value is a string, or
 <code>null</code> for a key value without one. Properties of the encoder:
 
 <ul>
@@ -1535,7 +1535,7 @@ is no longer one line; <code>off</code> adds no whitespace.</li>
 <li>{@link io.jstach.rainbowgum.format.Json5FormatterBuilder#color(io.jstach.rainbowgum.format.TTLL.ColorMode) color}
 and {@link io.jstach.rainbowgum.format.Json5FormatterBuilder#theme(io.jstach.rainbowgum.format.TTLL.ColorTheme) theme}:
 color values the same way the <a href="#ttll">TTLL formatter</a> does, by default when the console supports ANSI.
-Keys, <code>msg</code>, <code>error</code>, and <code>stacktrace</code> are never colored.</li>
+Keys, <code>message</code>, <code>error</code>, and <code>stacktrace</code> are never colored.</li>
 </ul>
 
 <code>prettyPrint</code>, <code>color</code>, and <code>theme</code> only apply to JSON5. With
