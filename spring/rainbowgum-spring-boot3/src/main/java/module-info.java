@@ -35,13 +35,31 @@
  * logging.level.<logger>}, {@value io.jstach.rainbowgum.LogProperties#GROUP_PROPERTY}</td>
  * <td>Native - the group property works because RainbowGum core's own {@code
  * GroupLevelResolver} already uses this exact property key, not anything
- * Spring-specific.</td>
+ * Spring-specific. As in Spring Boot, a group is on once it is defined, without
+ * listing it in {@code logging.groups}, and the built-in {@code web} and {@code sql}
+ * groups are defined.</td>
  * </tr>
  * <tr>
  * <td>{@code debug}, {@code trace}</td>
- * <td>Transitively - Spring's own {@code LoggingApplicationListener} converts these to
- * {@value io.jstach.rainbowgum.spring.boot3.SpringBootSupportedProperties#LOGGING_LEVEL_ROOT} before any
- * {@code LoggingSystem} is initialized.</td>
+ * <td>Native - the loggers and groups Spring Boot sets for them get DEBUG or TRACE,
+ * unless {@code logging.level.<logger>} sets them.</td>
+ * </tr>
+ * <tr>
+ * <td>Logger levels through {@code LoggingSystem}, for example the actuator
+ * {@code loggers} endpoint</td>
+ * <td>Native - lists the loggers created so far with their configured and effective
+ * levels. Changing a level is refused unless
+ * {@value io.jstach.rainbowgum.LogProperties#CHANGE_MODE_PROPERTY} is {@code on} and
+ * {@code logging.change.logger.<logger>} allows {@code level}, since loggers that can
+ * change cost more per call.</td>
+ * </tr>
+ * <tr>
+ * <td>{@code logging.register-shutdown-hook}</td>
+ * <td>Native - Rainbow Gum's own JVM shutdown hook is off, and Spring Boot's shutdown
+ * handler, which runs after its contexts close, closes Rainbow Gum instead, so beans
+ * closing can still log. With {@code false} nothing closes it, as with Logback.
+ * {@value io.jstach.rainbowgum.LogProperties#GLOBAL_SHUTDOWN_HOOK_PROPERTY} turns the
+ * JVM hook back on.</td>
  * </tr>
  * <tr>
  * <td>{@value io.jstach.rainbowgum.spring.boot3.SpringBootSupportedProperties#PATTERN_CONSOLE}, {@value
@@ -158,10 +176,6 @@
  * config file format like {@code logback.xml}.</td>
  * </tr>
  * <tr>
- * <td>{@code logging.register-shutdown-hook}</td>
- * <td>Unclear mapping to RainbowGum's own shutdown lifecycle - not attempted.</td>
- * </tr>
- * <tr>
  * <td>{@code logging.log4j2.rollingpolicy.*}</td>
  * <td>N/A - this module has no Log4j2 dependency; {@code logging.logback.rollingpolicy.*}
  * (despite the name) is bridged - see the "Supported" table above.</td>
@@ -198,6 +212,8 @@ module io.jstach.rainbowgum.spring.boot3 {
 
 	provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
 		with io.jstach.rainbowgum.spring.boot3.PreBootRainbowGumProvider;
+
+	uses io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
 
 	uses io.jstach.rainbowgum.spring.boot.spi.SpringRainbowGumServiceProvider;
 }
