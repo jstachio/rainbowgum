@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -129,6 +130,20 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 					return null;
 				}
 				return pattern;
+			}
+			else if (key.equals(LogProperties.GROUPS_PROPERTY)) {
+				String value = environment.getProperty(key);
+				return value != null ? value : SpringLevels.groups(environment);
+			}
+			else if (key.startsWith(SpringLevels.GROUP_PREFIX)) {
+				String value = environment.getProperty(key);
+				return value != null ? value
+						: SpringLevels.defaultGroup(key.substring(SpringLevels.GROUP_PREFIX.length()));
+			}
+			else if (key.startsWith(SpringLevels.LEVEL_PREFIX)) {
+				String value = environment.getProperty(key);
+				return value != null ? value
+						: SpringLevels.bootLevel(environment, key.substring(SpringLevels.LEVEL_PREFIX.length()));
 			}
 			else if (key.equals(LogProperties.GLOBAL_ANSI_MODE_PROPERTY)) {
 				String ansiEnabled = environment.getProperty(SpringBootSupportedProperties.OUTPUT_ANSI_ENABLED);
@@ -275,8 +290,6 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		 */
 		private final ClassLoader classLoader;
 
-		private volatile @Nullable RainbowGum rainbowGum;
-
 		RainbowGumLoggingSystem(ClassLoader classLoader) {
 			super();
 			this.classLoader = classLoader;
@@ -287,11 +300,18 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 		}
 
 		@Override
-		public void initialize(LoggingInitializationContext initializationContext, String configLocation,
-				LogFile logFile) {
+		public void initialize(LoggingInitializationContext initializationContext, @Nullable String configLocation,
+				@Nullable LogFile logFile) {
 			var gum = RainbowGum.getOrNull();
+			SpringLevels.@Nullable State previous = null;
 			if (gum != null) {
-				if (gum.config().serviceRegistry().findOrNull(PreBootRainbowGumProvider.BootFlag.class) == null) {
+				previous = SpringLevels.State.of(gum);
+				if (previous != null && previous.initialized) {
+					return;
+				}
+				if (previous == null && gum.config()
+					.serviceRegistry()
+					.findOrNull(PreBootRainbowGumProvider.BootFlag.class) == null) {
 					var route = gum.router().route(getClass().getName(), Level.INFO);
 					if (route.isEnabled()) {
 						var currentThread = Thread.currentThread();
@@ -304,12 +324,16 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 					return;
 				}
 			}
-			LogConfig config = LogConfig.builder()
-				.properties(new SpringLogProperties(initializationContext.getEnvironment()))
-				.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class, classLoader))
-				.configurator(new SpringBootPatternKeywordProvider())
+			Environment environment = Objects.requireNonNull(initializationContext.getEnvironment());
+			var state = new SpringLevels.State();
+			LogConfig config = state
+				.register(LogConfig.builder()
+					.properties(new SpringLogProperties(environment))
+					.serviceLoader(ServiceLoader.load(RainbowGumServiceProvider.class, classLoader))
+					.configurator(new SpringBootPatternKeywordProvider())
+					// Spring Boot runs the shutdown handler after its contexts close.
+					.shutdownHook(LogConfig.Globals.ShutdownHookMode.OFF))
 				.build();
-			Environment environment = initializationContext.getEnvironment();
 			LogProperties patternProperties = LogProperties.StandardProperties.SYSTEM_PROPERTIES;
 			Patterns patterns = new Patterns(patternProperties, environment);
 
@@ -324,43 +348,68 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 			config.encoderRegistry().setEncoderForOutputType(OutputType.CONSOLE_OUT, consoleEncoder);
 			config.encoderRegistry().setEncoderForOutputType(OutputType.FILE, fileEncoder);
 			StructuredLogging.apply(config, environment);
-			rainbowGum = findAndSet(config, classLoader, environment);
+			var bound = findAndSet(config, classLoader, environment);
+			if (previous != null && gum != null && gum != bound) {
+				// The one an earlier application built and cleaned up.
+				gum.close();
+			}
 		}
 
+		/*
+		 * Like Logback, logging carries on until the shutdown handler, so beans closing
+		 * after the context closed event can still log. A later initialize replaces it.
+		 */
 		@Override
 		public void cleanUp() {
-			/*
-			 * TODO hmm is it a good idea to close here or rather use shutdown handler.
-			 */
-			var gum = rainbowGum;
-			if (gum != null) {
-				gum.close();
+			var state = springState();
+			if (state != null) {
+				state.initialized = false;
 			}
 		}
 
 		@Override
 		public Runnable getShutdownHandler() {
-			return super.getShutdownHandler();
+			return () -> {
+				var gum = RainbowGum.getOrNull();
+				if (gum != null && SpringLevels.State.of(gum) != null) {
+					gum.close();
+				}
+			};
 		}
 
 		@Override
 		public Set<LogLevel> getSupportedLogLevels() {
-			return LogLevels.SUPPORTED;
+			return SpringLevels.SUPPORTED;
 		}
 
 		@Override
-		public void setLogLevel(String loggerName, LogLevel level) {
-			super.setLogLevel(loggerName, level);
+		public void setLogLevel(@Nullable String loggerName, @Nullable LogLevel level) {
+			var gum = springGum();
+			Objects.requireNonNull(SpringLevels.State.of(gum)).setLogLevel(gum.config(), loggerName, level);
 		}
 
 		@Override
 		public List<LoggerConfiguration> getLoggerConfigurations() {
-			return super.getLoggerConfigurations();
+			var gum = springGum();
+			return Objects.requireNonNull(SpringLevels.State.of(gum)).loggerConfigurations(gum.config());
 		}
 
 		@Override
-		public LoggerConfiguration getLoggerConfiguration(String loggerName) {
-			return super.getLoggerConfiguration(loggerName);
+		public @Nullable LoggerConfiguration getLoggerConfiguration(String loggerName) {
+			return SpringLevels.State.loggerConfiguration(springGum().config(), SpringLevels.loggerName(loggerName));
+		}
+
+		private static SpringLevels.@Nullable State springState() {
+			var gum = RainbowGum.getOrNull();
+			return gum == null ? null : SpringLevels.State.of(gum);
+		}
+
+		private static RainbowGum springGum() {
+			var gum = RainbowGum.getOrNull();
+			if (gum == null || SpringLevels.State.of(gum) == null) {
+				throw new UnsupportedOperationException("Rainbow Gum was not configured by Spring Boot");
+			}
+			return gum;
 		}
 
 		public static RainbowGum findAndSet(LogConfig config, ClassLoader classLoader, Environment environment) {
@@ -372,29 +421,6 @@ public class RainbowGumLoggingSystemFactory implements LoggingSystemFactory {
 					return RainbowGum.builder(config).build();
 				});
 			return RainbowGum.set(gum).get();
-		}
-
-	}
-
-	enum LogLevels {
-
-		;
-		public static final Set<LogLevel> SUPPORTED = supported();
-
-		private static Set<LogLevel> supported() {
-			return Set.of(LogLevel.TRACE, LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR, LogLevel.OFF);
-		}
-
-		public static LogLevel fromSystem(Level level) {
-			return switch (level) {
-				case ALL -> LogLevel.TRACE;
-				case TRACE -> LogLevel.TRACE;
-				case DEBUG -> LogLevel.DEBUG;
-				case INFO -> LogLevel.INFO;
-				case WARNING -> LogLevel.WARN;
-				case ERROR -> LogLevel.ERROR;
-				case OFF -> LogLevel.OFF;
-			};
 		}
 
 	}
