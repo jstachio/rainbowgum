@@ -649,14 +649,7 @@ abstract sealed class DefaultLogReporter implements LogReporter permits DefaultL
 
 	private void appendLoggers(Appendable out, LogConfig config, Options options) throws IOException {
 		out.append("Loggers:\n");
-		/*
-		 * DefaultLoggerRegistry is the only implementation (LogConfig.LoggerRegistry
-		 * deliberately does not expose the accumulated names itself, see its javadoc);
-		 * downcasting here is the same pattern DefaultLogConfig's own constructor uses to
-		 * reach DefaultLogAlerts#addInternalListener.
-		 */
-		var registry = (DefaultLoggerRegistry) config.loggerRegistry();
-		for (String name : new TreeSet<>(registry.loggerNames())) {
+		for (String name : new TreeSet<>(config.loggerRegistry().loggerNames())) {
 			out.append("  ").append(name);
 			if (options.loggerLevels) {
 				out.append(" = ").append(config.levelResolver().resolveLevel(name).toString());

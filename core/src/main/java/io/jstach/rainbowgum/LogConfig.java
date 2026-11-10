@@ -432,9 +432,9 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 	/**
 	 * Accounts for logger names, and which {@link LoggerAPI} vended them, registered via
-	 * {@link #registerLoggerName(LoggerAPI, String)}, deliberately without exposing the
-	 * accumulated names/APIs themselves: the one supported way to see them is
-	 * {@link LogReporter.Section#LOGGERS}/{@link LogReporter.Section#FACADES}.
+	 * {@link #registerLoggerName(LoggerAPI, String)}. The names are read with
+	 * {@link #loggerNames()}, for example by a framework listing loggers and their
+	 * levels. The APIs are only shown by {@link LogReporter.Section#FACADES}.
 	 */
 	interface LoggerRegistry {
 
@@ -449,6 +449,13 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		 * @param loggerName logger name.
 		 */
 		void registerLoggerName(LoggerAPI api, String loggerName);
+
+		/**
+		 * Every logger name registered so far. A facade registers a name when it first
+		 * creates a logger for it, so a name nothing has asked for yet is not listed.
+		 * @return immutable snapshot in no particular order.
+		 */
+		Set<String> loggerNames();
 
 	}
 
@@ -1539,20 +1546,15 @@ final class DefaultLoggerRegistry implements LogConfig.LoggerRegistry {
 		}
 	}
 
-	/*
-	 * Deliberately not on the LogConfig.LoggerRegistry interface itself (see its
-	 * javadoc): DefaultLogReporter downcasts to this package-private type to reach it,
-	 * the same pattern DefaultLogConfig's own constructor already uses to reach
-	 * DefaultLogAlerts#addInternalListener.
-	 */
-	Set<String> loggerNames() {
+	@Override
+	public Set<String> loggerNames() {
 		return Set.copyOf(loggerNames);
 	}
 
 	/**
 	 * Every {@link LoggerAPI} registered so far via {@link #registerLoggerName}, not just
 	 * {@link LoggerAPI.Standard}: an application-provided {@link LoggerAPI} works too.
-	 * Same downcast-only visibility as {@link #loggerNames()}.
+	 * Not on the interface: DefaultLogReporter downcasts to reach it.
 	 * @return immutable snapshot.
 	 */
 	Set<LoggerAPI> loggerAPIs() {
