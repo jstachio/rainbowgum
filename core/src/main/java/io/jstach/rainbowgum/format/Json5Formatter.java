@@ -32,7 +32,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * The event's own fields other than the thread's, which merged key values must not
 	 * repeat.
 	 */
-	private static final Set<String> FIELDS = Set.of("time", "level", "logger", "msg", "error", "stacktrace",
+	private static final Set<String> FIELDS = Set.of("time", "level", "logger", "message", "error", "stacktrace",
 			KEY_VALUES_FIELD);
 
 	/*
@@ -117,16 +117,16 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	 * Formats each event as a JSON5 (or JSON) object, one line unless pretty printed in
 	 * full, for switching an application to structured logging without adding a module,
 	 * for example:
-	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",msg:"hello world",requestId:"42"}</code>.
+	 * <code>{time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",message:"hello world",requestId:"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
 	 * <code>level</code>, <code>logger</code>, the thread fields chosen with
 	 * {@link ThreadFields} (by default <code>threadId</code> and
-	 * <code>threadName</code>), <code>msg</code>, and for a throwable <code>error</code>
-	 * (its <code>toString()</code>) and <code>stacktrace</code>. Every value, key values
-	 * and thread id included, is a string, or <code>null</code> for a key value without
-	 * one. For a specific schema (ECS, GELF, Logstash) and more options use the
-	 * <code>rainbowgum-json</code> module.
+	 * <code>threadName</code>), <code>message</code>, and for a throwable
+	 * <code>error</code> (its <code>toString()</code>) and <code>stacktrace</code>. Every
+	 * value, key values and thread id included, is a string, or <code>null</code> for a
+	 * key value without one. For a specific schema (ECS, GELF, Logstash) and more options
+	 * use the <code>rainbowgum-json</code> module.
 	 * <p>
 	 * With JSON5, values can be colored like the TTLL formatter, and by default the level
 	 * is padded after its closing quote so the value stays the level name:
@@ -168,16 +168,16 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 	/**
 	 * Formats each event as a JSON object on one line, the same as the JSON5 formatter
 	 * with format set to JSON, for example:
-	 * <code>{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","threadId":"1","threadName":"main","msg":"hello world","requestId":"42"}</code>.
+	 * <code>{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","threadId":"1","threadName":"main","message":"hello world","requestId":"42"}</code>.
 	 * <p>
 	 * The fields use logfmt's names: <code>time</code> (UTC instant with milliseconds),
 	 * <code>level</code>, <code>logger</code>, the thread fields chosen with
 	 * {@link ThreadFields} (by default <code>threadId</code> and
-	 * <code>threadName</code>), <code>msg</code>, and for a throwable <code>error</code>
-	 * (its <code>toString()</code>) and <code>stacktrace</code>. Every value, key values
-	 * and thread id included, is a string, or <code>null</code> for a key value without
-	 * one. For a specific schema (ECS, GELF, Logstash) and more options use the
-	 * <code>rainbowgum-json</code> module.
+	 * <code>threadName</code>), <code>message</code>, and for a throwable
+	 * <code>error</code> (its <code>toString()</code>) and <code>stacktrace</code>. Every
+	 * value, key values and thread id included, is a string, or <code>null</code> for a
+	 * key value without one. For a specific schema (ECS, GELF, Logstash) and more options
+	 * use the <code>rainbowgum-json</code> module.
 	 * @param name encoder name, used for property lookup.
 	 * @param keyValues where key values go, see {@link KeyValuesPlacement}.
 	 * @param thread which thread fields, see {@link ThreadFields}.
@@ -255,7 +255,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			case NONE -> {
 			}
 		}
-		appendKey(output, "msg", json5);
+		appendKey(output, "message", json5);
 		output.append(':');
 		int start = output.length();
 		event.formattedMessage(output);
@@ -274,7 +274,7 @@ final class Json5Formatter implements LogFormatter.EventFormatter {
 			}
 		}
 		if (output.length() > keyValuesStart && !p.keyValues().isEmpty()) {
-			// Key values start with the separator from msg, left uncolored.
+			// Key values start with the separator from message, left uncolored.
 			int colorStart = output.indexOf(separator, keyValuesStart) == keyValuesStart
 					? keyValuesStart + separator.length() : keyValuesStart;
 			output.insert(colorStart, Ansi.start(p.keyValues()));

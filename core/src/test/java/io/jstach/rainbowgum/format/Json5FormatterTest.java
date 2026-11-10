@@ -30,7 +30,7 @@ class Json5FormatterTest {
 	static final Instant TIME = Instant.parse("2026-10-05T15:04:05.123Z");
 
 	static final String PREFIX = "{\"time\":\"2026-10-05T15:04:05.123Z\",\"level\":\"INFO\",\"logger\":\"com.example.App\","
-			+ "\"threadId\":\"1\",\"threadName\":\"main\",\"msg\":\"hello world\"";
+			+ "\"threadId\":\"1\",\"threadName\":\"main\",\"message\":\"hello world\"";
 
 	private static LogEvent event(String message, KeyValues keyValues, @Nullable Throwable throwable) {
 		return LogEvent.of(TIME, "main", 1, Level.INFO, "com.example.App", message, keyValues, throwable);
@@ -99,7 +99,7 @@ class Json5FormatterTest {
 		kvs.putKeyValue("user name", "Ada");
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",threadId:\"1\",threadName:\"main\","
-						+ "msg:\"hello world\",requestId:\"42\",\"user name\":\"Ada\"}\n",
+						+ "message:\"hello world\",requestId:\"42\",\"user name\":\"Ada\"}\n",
 				format(new Json5FormatterBuilder("test").build(), event("hello world", kvs, null)));
 	}
 
@@ -124,10 +124,10 @@ class Json5FormatterTest {
 	@Test
 	void mergedKeyValuesNamedLikeFieldsAreNestedInstead() {
 		var kvs = MutableKeyValues.of();
-		kvs.putKeyValue("msg", "shadow");
+		kvs.putKeyValue("message", "shadow");
 		kvs.putKeyValue("requestId", "42");
 		kvs.putKeyValue("level", null);
-		assertEquals(PREFIX + ",\"requestId\":\"42\",\"keyValues\":{\"msg\":\"shadow\",\"level\":null}}\n",
+		assertEquals(PREFIX + ",\"requestId\":\"42\",\"keyValues\":{\"message\":\"shadow\",\"level\":null}}\n",
 				format(new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON).build(),
 						event("hello world", kvs, null)));
 	}
@@ -167,7 +167,7 @@ class Json5FormatterTest {
 				"logging.appender.list.encoder.json5.format=json\n", event("hello world", requestKeyValues(), null)));
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",threadId:\"1\",threadName:\"main\","
-						+ "msg:\"hello world\",keyValues:{requestId:\"42\",user:\"Ada Lovelace\"}}\n",
+						+ "message:\"hello world\",keyValues:{requestId:\"42\",user:\"Ada Lovelace\"}}\n",
 				log("json5", "logging.appender.list.encoder.json5.keyValues=nested\n",
 						event("hello world", requestKeyValues(), null)));
 		assertEquals(PREFIX + "}\n",
@@ -188,7 +188,7 @@ class Json5FormatterTest {
 						event("hello world", requestKeyValues(), null)));
 		assertEquals("""
 				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App","thread":"main",\
-				"msg":"hello world","requestId":"42","user":"Ada Lovelace"}
+				"message":"hello world","requestId":"42","user":"Ada Lovelace"}
 				""", log("json", "logging.appender.list.encoder.json.thread=name\n",
 				event("hello world", requestKeyValues(), null)));
 	}
@@ -218,7 +218,7 @@ class Json5FormatterTest {
 	void prettyPrintPropertyAliases() {
 		var event = event("hello", KeyValues.of(), null);
 		String off = "{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",threadId:\"1\",threadName:\"main\","
-				+ "msg:\"hello\"}\n";
+				+ "message:\"hello\"}\n";
 		String padded = off.replace("\"INFO\",", "\"INFO\" ,");
 		assertEquals(off, log("json5", "logging.appender.list.encoder.json5.prettyPrint=false\n", event));
 		assertEquals(padded, log("json5:///?prettyPrint=default", "", event));
@@ -230,7 +230,7 @@ class Json5FormatterTest {
 				 logger:"com.example.App",
 				 threadId:"1",
 				 threadName:"main",
-				 msg:"hello"
+				 message:"hello"
 				}
 				""";
 		assertEquals(full, log("json5", "logging.appender.list.encoder.json5.prettyPrint=full\n", event));
@@ -278,8 +278,8 @@ class Json5FormatterTest {
 			.build();
 		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "1;34m\"INFO\"" + R
 				+ ",logger:" + E + "35m\"com.example.App\"" + R + ",threadId:" + E + "2;39m\"1\"" + R + ",threadName:"
-				+ E + "2;39m\"main\"" + R + ",msg:\"hello\"," + E + "2;39mrequestId:\"42\",user:\"Ada Lovelace\"" + R
-				+ "}\n";
+				+ E + "2;39m\"main\"" + R + ",message:\"hello\"," + E + "2;39mrequestId:\"42\",user:\"Ada Lovelace\""
+				+ R + "}\n";
 		assertEquals(expected, format(formatter, event("hello", requestKeyValues(), null)));
 	}
 
@@ -287,7 +287,7 @@ class Json5FormatterTest {
 	void json5PadsTheLevelAfterTheQuoteByDefault() {
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\" ,logger:\"com.example.App\",threadId:\"1\",threadName:\"main\","
-						+ "msg:\"hello\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
+						+ "message:\"hello\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
 				format(new Json5FormatterBuilder("test").build(), event("hello", requestKeyValues(), null)));
 	}
 
@@ -295,7 +295,7 @@ class Json5FormatterTest {
 	void json5PrettyPrintOffAddsNoWhitespace() {
 		assertEquals(
 				"{time:\"2026-10-05T15:04:05.123Z\",level:\"INFO\",logger:\"com.example.App\",threadId:\"1\",threadName:\"main\","
-						+ "msg:\"hello\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
+						+ "message:\"hello\",requestId:\"42\",user:\"Ada Lovelace\"}\n",
 				format(new Json5FormatterBuilder("test").prettyPrint(Json5PrettyPrint.OFF).build(),
 						event("hello", requestKeyValues(), null)));
 	}
@@ -304,12 +304,12 @@ class Json5FormatterTest {
 	void json5SpacingPadsTheLevelAndSpacesEveryComma() {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("requestId", "42");
-		kvs.putKeyValue("msg", "shadow");
+		kvs.putKeyValue("message", "shadow");
 		kvs.putKeyValue("level", null);
 		var ex = new IllegalStateException("boom");
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
 		assertEquals("{time:\"2026-10-05T15:04:05.123Z\", level:\"INFO\" , logger:\"com.example.App\", "
-				+ "threadId:\"1\", threadName:\"main\", msg:\"hello\", requestId:\"42\", keyValues:{msg:\"shadow\", level:null}, "
+				+ "threadId:\"1\", threadName:\"main\", message:\"hello\", requestId:\"42\", keyValues:{message:\"shadow\", level:null}, "
 				+ "error:\"java.lang.IllegalStateException: boom\", "
 				+ "stacktrace:\"java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\"}\n",
 				format(new Json5FormatterBuilder("test").prettyPrint(Json5PrettyPrint.SPACING).build(),
@@ -320,7 +320,7 @@ class Json5FormatterTest {
 	void json5FullPutsEachFieldOnItsOwnLine() {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("requestId", "42");
-		kvs.putKeyValue("msg", "shadow");
+		kvs.putKeyValue("message", "shadow");
 		kvs.putKeyValue("level", null);
 		var ex = new IllegalStateException("boom");
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
@@ -331,9 +331,9 @@ class Json5FormatterTest {
 				 logger:"com.example.App",
 				 threadId:"1",
 				 threadName:"main",
-				 msg:"hello",
+				 message:"hello",
 				 requestId:"42",
-				 keyValues:{msg:"shadow",level:null},
+				 keyValues:{message:"shadow",level:null},
 				 error:"java.lang.IllegalStateException: boom",
 				 stacktrace:"java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)"
 				}
@@ -349,7 +349,7 @@ class Json5FormatterTest {
 			.build();
 		String expected = "{\n time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",\n level:" + E + "1;34m\"INFO\""
 				+ R + ",\n logger:" + E + "35m\"com.example.App\"" + R + ",\n threadId:" + E + "2;39m\"1\"" + R
-				+ ",\n threadName:" + E + "2;39m\"main\"" + R + ",\n msg:\"hello\",\n " + E
+				+ ",\n threadName:" + E + "2;39m\"main\"" + R + ",\n message:\"hello\",\n " + E
 				+ "2;39mrequestId:\"42\",\n user:\"Ada Lovelace\"" + R + "\n}\n";
 		assertEquals(expected, format(formatter, event("hello", requestKeyValues(), null)));
 	}
@@ -359,7 +359,7 @@ class Json5FormatterTest {
 		var formatter = new Json5FormatterBuilder("test").color(TTLL.ColorMode.FORCE).build();
 		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ",level:" + E + "1;34m\"INFO\"" + R
 				+ " ,logger:" + E + "35m\"com.example.App\"" + R + ",threadId:" + E + "2;39m\"1\"" + R + ",threadName:"
-				+ E + "2;39m\"main\"" + R + ",msg:\"hello\"}\n";
+				+ E + "2;39m\"main\"" + R + ",message:\"hello\"}\n";
 		assertEquals(expected, format(formatter, event("hello", KeyValues.of(), null)));
 	}
 
@@ -370,7 +370,7 @@ class Json5FormatterTest {
 			.build();
 		String expected = "{time:" + E + "36m\"2026-10-05T15:04:05.123Z\"" + R + ", level:" + E + "1;34m\"INFO\"" + R
 				+ " , logger:" + E + "35m\"com.example.App\"" + R + ", threadId:" + E + "2;39m\"1\"" + R
-				+ ", threadName:" + E + "2;39m\"main\"" + R + ", msg:\"hello\", " + E
+				+ ", threadName:" + E + "2;39m\"main\"" + R + ", message:\"hello\", " + E
 				+ "2;39mrequestId:\"42\", user:\"Ada Lovelace\"" + R + "}\n";
 		assertEquals(expected, format(formatter, event("hello", requestKeyValues(), null)));
 	}
@@ -391,7 +391,7 @@ class Json5FormatterTest {
 	void prettyPrintAndColorProperties() {
 		String expected = "{time:" + E + "2;39m\"2026-10-05T15:04:05.123Z\"" + R + ", level:" + E + "32m\"INFO\"" + R
 				+ " , logger:" + E + "36m\"com.example.App\"" + R + ", threadId:" + E + "2;39m\"1\"" + R
-				+ ", threadName:" + E + "2;39m\"main\"" + R + ", msg:\"hello\"}\n";
+				+ ", threadName:" + E + "2;39m\"main\"" + R + ", message:\"hello\"}\n";
 		assertEquals(expected, log("json5", """
 				logging.appender.list.encoder.json5.prettyPrint=spacing
 				logging.appender.list.encoder.json5.color=force
@@ -413,7 +413,7 @@ class Json5FormatterTest {
 		assertEquals(
 				"{\"time\":\"2026-10-05T15:04:05.123Z\",\"level\":\"INFO\",\"logger\":\"com.example.App\","
 						+ (fields == null ? "" : fields)
-						+ "\"msg\":\"hello world\",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
+						+ "\"message\":\"hello world\",\"requestId\":\"42\",\"user\":\"Ada Lovelace\"}\n",
 				log("json5", properties, event("hello world", requestKeyValues(), null)));
 	}
 
@@ -426,12 +426,12 @@ class Json5FormatterTest {
 		var json = new Json5FormatterBuilder("test").format(KeyValuesFormatterBuilder.Format.JSON);
 		assertEquals("""
 				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App",\
-				"threadId":"1","threadName":"main","msg":"hello world","thread":"t",\
+				"threadId":"1","threadName":"main","message":"hello world","thread":"t",\
 				"keyValues":{"threadId":"i","threadName":"n"}}
 				""", format(json.thread(ThreadFields.BOTH).build(), event("hello world", kvs, null)));
 		assertEquals("""
 				{"time":"2026-10-05T15:04:05.123Z","level":"INFO","logger":"com.example.App",\
-				"msg":"hello world","thread":"t","threadId":"i","threadName":"n"}
+				"message":"hello world","thread":"t","threadId":"i","threadName":"n"}
 				""", format(json.thread(ThreadFields.NONE).build(), event("hello world", kvs, null)));
 	}
 
@@ -440,7 +440,7 @@ class Json5FormatterTest {
 		var formatter = new Json5FormatterBuilder("test").thread(ThreadFields.BOTH).color(TTLL.ColorMode.FORCE).build();
 		String actual = format(formatter, event("hello world", KeyValues.of(), null));
 		assertEquals("threadId:\u001B[2;39m\"1\"\u001B[0;39m,threadName:\u001B[2;39m\"main\"\u001B[0;39m,",
-				actual.substring(actual.indexOf("threadId"), actual.indexOf("msg")));
+				actual.substring(actual.indexOf("threadId"), actual.indexOf("message")));
 	}
 
 	@Test

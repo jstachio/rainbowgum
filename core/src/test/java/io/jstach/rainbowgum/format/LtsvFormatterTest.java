@@ -45,7 +45,7 @@ class LtsvFormatterTest {
 		kvs.putKeyValue("requestId", "42");
 		kvs.putKeyValue("user", "ada");
 		assertEquals(
-				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:hello world\trequestId:42\tuser:ada\n",
+				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmessage:hello world\trequestId:42\tuser:ada\n",
 				format(event(Level.INFO, "main", "hello world", kvs, null)));
 	}
 
@@ -59,20 +59,20 @@ class LtsvFormatterTest {
 		kvs.putKeyValue("bell", "\u0007");
 		String actual = format(event(Level.WARNING, "pool 1", "say \"hi\"\n\tthere\r", kvs, null));
 		String expected = "time:2026-10-05T15:04:05.123Z\tlevel:WARN\tlogger:com.example.App\tthreadId:1\tthreadName:pool 1\t"
-				+ "msg:say \"hi\"\\n\\tthere\\r\tempty:\tmissing:\tpath:C:\\\\temp\tcolon:a:b\tbell:\\u0007\n";
+				+ "message:say \"hi\"\\n\\tthere\\r\tempty:\tmissing:\tpath:C:\\\\temp\tcolon:a:b\tbell:\\u0007\n";
 		assertEquals(expected, actual);
 	}
 
 	@Test
 	void keyValuesNamedLikeFieldsArePrefixed() {
 		var kvs = MutableKeyValues.of();
-		kvs.putKeyValue("msg", "m2");
+		kvs.putKeyValue("message", "m2");
 		kvs.putKeyValue("level", "L");
 		kvs.putKeyValue("keyValues.ok", "k");
 		kvs.putKeyValue("ok", "1");
 		assertEquals(
 				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\t"
-						+ "msg:real\tkeyValues.msg:m2\tkeyValues.level:L\tkeyValues.keyValues.ok:k\tok:1\n",
+						+ "message:real\tkeyValues.message:m2\tkeyValues.level:L\tkeyValues.keyValues.ok:k\tok:1\n",
 				format(event(Level.INFO, "main", "real", kvs, null)));
 	}
 
@@ -89,7 +89,7 @@ class LtsvFormatterTest {
 		kvs.putKeyValue("", "3");
 		kvs.putKeyValue("a_b.c-D9", "ok");
 		assertEquals("time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\t"
-				+ "msg:x\tuser%20name:ada\ta%3Ab:c\ttab%09key:t\t100%25:p\ttilde%7E:s\tcaf%C3%A9:u\t%F0%9F%8C%B3:tree"
+				+ "message:x\tuser%20name:ada\ta%3Ab:c\ttab%09key:t\t100%25:p\ttilde%7E:s\tcaf%C3%A9:u\t%F0%9F%8C%B3:tree"
 				+ "\t%:3\ta_b.c-D9:ok\n", format(event(Level.INFO, "main", "x", kvs, null)));
 	}
 
@@ -98,7 +98,7 @@ class LtsvFormatterTest {
 	void levelNames(Level level, String expected) {
 		assertEquals(
 				"time:2026-10-05T15:04:05.123Z\tlevel:" + expected
-						+ "\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:x\n",
+						+ "\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmessage:x\n",
 				format(event(level, "main", "x", KeyValues.of(), null)));
 	}
 
@@ -106,7 +106,7 @@ class LtsvFormatterTest {
 	void throwableStaysOnOneLine() {
 		var ex = new IllegalStateException("boom");
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
-		String expected = "time:2026-10-05T15:04:05.123Z\tlevel:ERROR\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:failed"
+		String expected = "time:2026-10-05T15:04:05.123Z\tlevel:ERROR\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmessage:failed"
 				+ "\terror:java.lang.IllegalStateException: boom"
 				+ "\tstacktrace:java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\n";
 		assertEquals(expected, format(event(Level.ERROR, "main", "failed", KeyValues.of(), ex)));
@@ -126,7 +126,7 @@ class LtsvFormatterTest {
 			g.log(event(Level.INFO, "main", "hello world", KeyValues.of(), null));
 		}
 		assertEquals(
-				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:hello world\n",
+				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmessage:hello world\n",
 				output.toString());
 	}
 
@@ -146,7 +146,7 @@ class LtsvFormatterTest {
 			g.log(event(Level.INFO, "main", "hello", KeyValues.of(), null));
 		}
 		assertEquals("time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\t"
-				+ (fields == null ? "" : fields + "\t") + "msg:hello\n", output.toString());
+				+ (fields == null ? "" : fields + "\t") + "message:hello\n", output.toString());
 	}
 
 	@Test
@@ -159,7 +159,7 @@ class LtsvFormatterTest {
 			.build()
 			.format(sb, event(Level.INFO, "main", "hello", kvs, null));
 		assertEquals(
-				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tmsg:hello\tthread:t\tkeyValues.threadId:i\n",
+				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tmessage:hello\tthread:t\tkeyValues.threadId:i\n",
 				sb.toString());
 	}
 
@@ -182,14 +182,14 @@ class LtsvFormatterTest {
 	void everyFieldAsAColumn() {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("requestId", "42");
-		kvs.putKeyValue("msg", "m2");
+		kvs.putKeyValue("message", "m2");
 		var ex = new IllegalStateException("boom");
 		ex.setStackTrace(new StackTraceElement[] { new StackTraceElement("app.Main", "run", "Main.java", 42) });
 		var sb = new StringBuilder();
 		new LtsvFormatterBuilder("test").columns(List.of(EventField.values()))
 			.build()
 			.format(sb, event(Level.ERROR, "", "failed: a:b", kvs, ex));
-		String expected = "2026-10-05T15:04:05.123Z\tERROR\tcom.example.App\t1\t\tfailed: a:b\trequestId:42\tkeyValues.msg:m2"
+		String expected = "2026-10-05T15:04:05.123Z\tERROR\tcom.example.App\t1\t\tfailed: a:b\trequestId:42\tkeyValues.message:m2"
 				+ "\terror:java.lang.IllegalStateException: boom"
 				+ "\tstacktrace:java.lang.IllegalStateException: boom\\n\\tat app.Main.run(Main.java:42)\n";
 		assertEquals(expected, sb.toString());
@@ -197,7 +197,7 @@ class LtsvFormatterTest {
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', value = { //
-			"|time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthread:main\tmsg:hello\trequestId:42", //
+			"|time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthread:main\tmessage:hello\trequestId:42", //
 			"time,level,logger,thread,msg|2026-10-05T15:04:05.123Z\tINFO\tcom.example.App\tmain\thello\trequestId:42", //
 			"thread,msg|main\thello\ttime:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\trequestId:42", //
 			"MESSAGE,timestamp|hello\t2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthread:main\trequestId:42" })
@@ -282,7 +282,7 @@ class LtsvFormatterTest {
 		assertEquals("com.example.App\thello\tthreadId:1\tthreadName:main\trequestId:42\n",
 				formatWith("ltsv.columns=logger,msg\nltsv.timestamp=none\nltsv.level=none\n",
 						event(Level.INFO, "main", "hello", kvs, null)));
-		assertEquals("time:2026-10-05T15:04:05.123Z\tmsg:hello\n",
+		assertEquals("time:2026-10-05T15:04:05.123Z\tmessage:hello\n",
 				formatWith("ltsv.level=false\nltsv.logger=none\nltsv.thread=none\n",
 						event(Level.INFO, "main", "hello", KeyValues.of(), null)));
 	}
@@ -318,7 +318,7 @@ class LtsvFormatterTest {
 			.format(sb, event(Level.INFO, "pool 1", "hello world", kvs, null));
 		String expected = "time:" + E + "36m2026-10-05T15:04:05.123Z" + R + "\tlevel:" + E + "1;34mINFO" + R
 				+ "\tlogger:" + E + "35mcom.example.App" + R + "\tthreadId:" + E + "2;39m1" + R + "\tthreadName:" + E
-				+ "2;39mpool 1" + R + "\tmsg:hello world\t" + E + "2;39mrequestId:42" + R + "\n";
+				+ "2;39mpool 1" + R + "\tmessage:hello world\t" + E + "2;39mrequestId:42" + R + "\n";
 		assertEquals(expected, sb.toString());
 	}
 
@@ -347,16 +347,16 @@ class LtsvFormatterTest {
 			.build()
 			.format(sb, event(Level.INFO, "main", "x", KeyValues.of(), null));
 		assertEquals(
-				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmsg:x\n",
+				"time:2026-10-05T15:04:05.123Z\tlevel:INFO\tlogger:com.example.App\tthreadId:1\tthreadName:main\tmessage:x\n",
 				sb.toString());
 	}
 
 	@Test
 	void escapingIsLinearInTheNumberOfEscapes() {
 		int count = 1 << 20;
-		var sb = new StringBuilder("msg:a").append("\n".repeat(count));
-		assertTimeout(Duration.ofSeconds(2), () -> LtsvFormatter.escapeInPlace(sb, 4));
-		assertEquals("msg:a" + "\\n".repeat(count), sb.toString());
+		var sb = new StringBuilder("message:a").append("\n".repeat(count));
+		assertTimeout(Duration.ofSeconds(2), () -> LtsvFormatter.escapeInPlace(sb, 8));
+		assertEquals("message:a" + "\\n".repeat(count), sb.toString());
 	}
 
 }
