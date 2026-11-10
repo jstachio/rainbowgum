@@ -98,7 +98,7 @@ Load-test numbers for both scenarios (TTLL and structured) are in
 Each app also supports a second, structured-output mode, selected by setting
 `STRUCTURED_FORMAT=gelf` before starting it (an env var read in each `App.main`, which
 sets the relevant framework's own config-selection system property before the first
-logger is created - `logging.appender.console.encoder` for Rainbow Gum,
+logger is created - `logging.appender.console.encoder.uri` for Rainbow Gum,
 `log4j2.configurationFile` for Log4j2, `logback.configurationFile` for Logback). No
 separate native image is needed for this - both configs are bundled in the same
 executable.
@@ -144,7 +144,7 @@ does to the numbers here - it is a real, repeatable win in this specific environ
 ## Output encoding strategy (`OUTPUT_TYPE=STRING`, `ENCODER_TYPE=GET_BYTES`, Rainbow Gum only)
 
 Rainbow Gum's app also honors `OUTPUT_TYPE=STRING`, setting
-`logging.appender.console.output=string-stdout:///` - a custom `LogOutput` (this
+`logging.appender.console.output.uri=string-stdout:///` - a custom `LogOutput` (this
 module's own `StringStdOutOutput`, registered via a hand-written `Configurator`/
 `META-INF/services` entry, since this module has no `@ServiceProvider` annotation
 processor wired up) identical to the default stdout output except it hints
@@ -156,7 +156,7 @@ default `BYTES` path avoids by design - see [RESULTS.md](RESULTS.md) for why thi
 quite an apples-to-apples "try Logback's strategy" swap and what it actually does to the
 numbers.
 
-`ENCODER_TYPE=GET_BYTES` sets `logging.appender.console.encoder=get-bytes-ttll:///` -
+`ENCODER_TYPE=GET_BYTES` sets `logging.appender.console.encoder.uri=get-bytes-ttll:///` -
 this module's own `GetBytesEncoderConfigurator`, registered the same way, resolving to
 the standard TTLL encoder built with `LogEncoder.Builder#useGetBytes(true)`. Unlike
 `OUTPUT_TYPE=STRING`, this pairs the `getBytes()` encode strategy with the **default**

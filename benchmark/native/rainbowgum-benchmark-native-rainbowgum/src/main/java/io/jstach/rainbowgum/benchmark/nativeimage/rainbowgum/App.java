@@ -68,7 +68,7 @@ public final class App {
 	public static void main(String[] args) throws Exception {
 		int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
 		if ("gelf".equals(System.getenv("STRUCTURED_FORMAT"))) {
-			System.setProperty("logging.appender.console.encoder", "gelf:///?host=benchmark-host");
+			System.setProperty("logging.appender.console.encoder.uri", "gelf:///?host=benchmark-host");
 		}
 		String appenderType = System.getenv("APPENDER_TYPE");
 		if (appenderType != null) {
@@ -76,13 +76,13 @@ public final class App {
 		}
 		String outputType = System.getenv("OUTPUT_TYPE");
 		if ("STRING".equals(outputType)) {
-			System.setProperty("logging.appender.console.output", StringStdOutOutput.SCHEME + ":///");
+			System.setProperty("logging.appender.console.output.uri", StringStdOutOutput.SCHEME + ":///");
 		}
 		else if ("BUFFERED".equals(outputType)) {
-			System.setProperty("logging.appender.console.output", BufferedStdOutOutput.SCHEME + ":///");
+			System.setProperty("logging.appender.console.output.uri", BufferedStdOutOutput.SCHEME + ":///");
 		}
 		if ("GET_BYTES".equals(System.getenv("ENCODER_TYPE"))) {
-			System.setProperty("logging.appender.console.encoder", GetBytesEncoderConfigurator.SCHEME + ":///");
+			System.setProperty("logging.appender.console.encoder.uri", GetBytesEncoderConfigurator.SCHEME + ":///");
 		}
 		String logLevel = System.getenv("LOG_LEVEL");
 		if (logLevel != null) {
