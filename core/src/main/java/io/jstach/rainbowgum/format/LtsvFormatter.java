@@ -105,18 +105,64 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <li>A throwable adds <code>error</code> (its <code>toString()</code>) and
 	 * <code>stacktrace</code>.</li>
 	 * </ul>
-	 * Values are never quoted. LTSV does not allow tab, newline, or carriage return in a
-	 * value, so these and <code>\</code> are backslash escaped (<code>\t</code>,
-	 * <code>\n</code>, <code>\r</code>, <code>\\</code>) and other control characters are
-	 * written as <code>\</code><code>uXXXX</code>, so every event stays on one line.
-	 * Characters LTSV does not allow in labels (anything but
-	 * <code>A-Z a-z 0-9 _ . -</code>) are percent-encoded as UTF-8 (<code>a b</code> is
-	 * <code>a%20b</code>), and an empty key is <code>%</code>, so different keys stay
-	 * different.
+	 * <strong>Value escaping.</strong> Values are never quoted. The same escaping applies
+	 * to messages, metadata, key values, and throwable text:
+	 * <table>
+	 * <caption>LTSV value escapes</caption>
+	 * <tr>
+	 * <th scope="col">Input</th>
+	 * <th scope="col">Written text</th>
+	 * </tr>
+	 * <tr>
+	 * <td>Backslash</td>
+	 * <td><code>\\</code></td>
+	 * </tr>
+	 * <tr>
+	 * <td>Tab, LF, CR</td>
+	 * <td><code>\t</code>, <code>\n</code>, <code>\r</code></td>
+	 * </tr>
+	 * <tr>
+	 * <td>Other C0 controls (U+0000–U+001F), DEL and C1 (U+007F–U+009F), U+2028/U+2029,
+	 * Unicode format characters (category Cf), and unpaired UTF-16 surrogates</td>
+	 * <td><code>&#92;uXXXX</code>, four lowercase hexadecimal digits per UTF-16 code
+	 * unit</td>
+	 * </tr>
+	 * </table>
+	 * This covers the Unicode 17 format characters even on Java 21, including bidi
+	 * controls. A supplementary format character becomes two surrogate escapes. Other
+	 * valid Unicode text is preserved without normalization, including ordinary
+	 * supplementary characters. Quotes, colons, and percent signs in values are
+	 * unchanged. Every ESC (U+001B) and C1 control from input is escaped, including SGR
+	 * sequences that could hide or restyle text. An actual newline becomes
+	 * <code>\n</code>; a literal backslash followed by n becomes <code>\\n</code>.
 	 * <p>
-	 * Values can be colored like the TTLL formatter; labels and <code>msg</code> are not.
-	 * <code>error</code> and <code>stacktrace</code> take the level's color, since they
-	 * are on the event's line.
+	 * <strong>Label encoding.</strong> Labels preserve <code>A-Z a-z 0-9 _ . -</code>.
+	 * Other valid Unicode is encoded as UTF-8 bytes, each written as <code>%HH</code>
+	 * with uppercase hexadecimal digits: <code>a b</code> becomes <code>a%20b</code>,
+	 * <code>:</code> becomes <code>%3A</code>, and a literal <code>%</code> becomes
+	 * <code>%25</code>. An empty key becomes a lone <code>%</code>. An unpaired surrogate
+	 * uses the extension <code>%uXXXX</code> with four uppercase hexadecimal digits (for
+	 * example <code>%uD800</code>), preserving malformed input without collisions. A
+	 * literal <code>%uD800</code> becomes <code>%25uD800</code>. Keys starting with
+	 * <code>keyValues.</code> also receive that prefix, keeping application keys distinct
+	 * from prefixed built-in field names.
+	 * <p>
+	 * <strong>Reading records.</strong> For machine parsing, use <code>color=off</code>
+	 * and leave <code>columns</code> empty. Split at raw LF and tabs, then split each
+	 * labeled field at its first colon. Decode value backslash escapes once, after
+	 * splitting; recursive decoding would turn literal escape text into controls. Decode
+	 * label percent bytes as UTF-8, handling the empty-key sentinel and surrogate
+	 * extension separately. These are this formatter's encoding conventions layered on
+	 * LTSV; generic LTSV readers need them to recover the original text. Escaping a value
+	 * takes linear time and space in its input length; this formatter does not impose a
+	 * record or value length limit.
+	 * <p>
+	 * Values can be colored like the TTLL formatter; built-in labels and <code>msg</code>
+	 * are not. Key-value labels and values are colored together. <code>error</code> and
+	 * <code>stacktrace</code> take the level's color, since they are on the event's line.
+	 * These formatter-owned colours are added outside value escaping; escape characters
+	 * supplied in field values are always escaped. Select <code>color=off</code> to
+	 * suppress formatter-owned ANSI sequences as well.
 	 * @param name encoder name, used for property lookup.
 	 * @param timestamp time format, see {@link TTLL.TimestampFormat};
 	 * <code>default</code> is <code>iso</code>.
@@ -367,14 +413,22 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 			}
 			int end = Character.isHighSurrogate(c) && i + 1 < key.length()
 					&& Character.isLowSurrogate(key.charAt(i + 1)) ? i + 2 : i + 1;
-			for (byte b : key.substring(i, end).getBytes(StandardCharsets.UTF_8)) {
-				output.append('%').append(HEX[(b >> 4) & 0xF]).append(HEX[b & 0xF]);
+			if (end == i + 1 && Character.isSurrogate(c)) {
+				output.append("%u");
+				appendHex(output, c, HEX);
+			}
+			else {
+				for (byte b : key.substring(i, end).getBytes(StandardCharsets.UTF_8)) {
+					output.append('%').append(HEX[(b >> 4) & 0xF]).append(HEX[b & 0xF]);
+				}
 			}
 			i = end - 1;
 		}
 	}
 
 	private static final char[] HEX = "0123456789ABCDEF".toCharArray();
+
+	private static final char[] ESCAPE_HEX = "0123456789abcdef".toCharArray();
 
 	private static boolean isLabelChar(char c) {
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.'
@@ -386,38 +440,74 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * character or backslash, in place so the common case copies nothing. Replacing each
 	 * escaped character shifts the rest of the text, which is quadratic for a message of
 	 * many lines, so from the first escape on the escaped copy is appended after the text
-	 * in one pass and the original is then deleted.
+	 * in one pass and the original is then deleted. Each value character produces at most
+	 * six characters, so time and extra space remain linear.
 	 */
 	static void escapeInPlace(StringBuilder output, int start) {
 		int end = output.length();
 		int first = start;
-		while (first < end && escape(output.charAt(first)) == null) {
-			first++;
+		while (first < end) {
+			int c = codePointAt(output, first, end);
+			if (c == '\\' || isEscapedControl(c)) {
+				break;
+			}
+			first += Character.charCount(c);
 		}
 		if (first == end) {
 			return;
 		}
-		for (int i = first; i < end; i++) {
-			char c = output.charAt(i);
-			String escape = escape(c);
-			if (escape != null) {
-				output.append(escape);
-			}
-			else {
-				output.append(c);
+		for (int i = first; i < end;) {
+			int c = codePointAt(output, i, end);
+			i += Character.charCount(c);
+			switch (c) {
+				case '\\' -> output.append("\\\\");
+				case '\t' -> output.append("\\t");
+				case '\n' -> output.append("\\n");
+				case '\r' -> output.append("\\r");
+				default -> {
+					if (isEscapedControl(c)) {
+						if (Character.isSupplementaryCodePoint(c)) {
+							appendUnicodeEscape(output, Character.highSurrogate(c));
+							appendUnicodeEscape(output, Character.lowSurrogate(c));
+						}
+						else {
+							appendUnicodeEscape(output, (char) c);
+						}
+					}
+					else {
+						output.appendCodePoint(c);
+					}
+				}
 			}
 		}
 		output.delete(first, end);
 	}
 
-	private static @Nullable String escape(char c) {
-		return switch (c) {
-			case '\\' -> "\\\\";
-			case '\t' -> "\\t";
-			case '\n' -> "\\n";
-			case '\r' -> "\\r";
-			default -> c < ' ' || c == 0x7f ? String.format(Locale.ROOT, "\\u%04x", (int) c) : null;
-		};
+	private static int codePointAt(StringBuilder output, int index, int end) {
+		char c = output.charAt(index);
+		return Character.isHighSurrogate(c) && index + 1 < end && Character.isLowSurrogate(output.charAt(index + 1))
+				? Character.toCodePoint(c, output.charAt(index + 1)) : c;
+	}
+
+	private static boolean isEscapedControl(int c) {
+		return c < ' ' || (c >= 0x7f && (c <= 0x9f || c == 0x2028 || c == 0x2029
+				|| (c >= Character.MIN_SURROGATE && c <= Character.MAX_SURROGATE)
+				|| Character.getType(c) == Character.FORMAT
+				// Cover Unicode 17's format set with older runtime character databases
+				// too.
+				|| c == 0x890 || c == 0x891 || (c >= 0x13439 && c <= 0x1343f)));
+	}
+
+	private static void appendUnicodeEscape(StringBuilder output, char c) {
+		output.append("\\u");
+		appendHex(output, c, ESCAPE_HEX);
+	}
+
+	private static void appendHex(StringBuilder output, char c, char[] digits) {
+		output.append(digits[(c >>> 12) & 0xf])
+			.append(digits[(c >>> 8) & 0xf])
+			.append(digits[(c >>> 4) & 0xf])
+			.append(digits[c & 0xf]);
 	}
 
 	private static void trimTrailingLineBreaks(StringBuilder sb, int start) {
