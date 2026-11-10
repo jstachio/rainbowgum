@@ -43,6 +43,10 @@ import io.jstach.rainbowgum.file.FileOutputBuilder;
  * when the output is first opened. Replacement outputs always append so recovery
  * preserves any active contents left behind by a failed rotation.
  * <p>
+ * Gzipped archives preserve the active file's POSIX owner, group, and permission bits.
+ * Rotation fails if these cannot be copied; the active contents remain available for
+ * recovery. Platform-specific ACLs are not copied.
+ * <p>
  * Failed automatic rotation attempts record {@link LogMetrics#ROLL_FAIL_METRIC} and an
  * error alert identifying the active file. If the active file can be reopened, the
  * triggering event is still appended. It may grow past {@code maxFileSize} until rotation

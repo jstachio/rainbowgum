@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,8 +21,11 @@ import java.util.zip.GZIPInputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.rolling.RollingPolicy.ParsedPattern;
 
@@ -66,15 +70,74 @@ class RollingPolicyTest {
 		assertEquals("hello", Files.readString(dir.resolve("app.log.1")));
 	}
 
-	@Test
-	void gzipArchiveKeepsTheActiveFilePermissions() throws IOException {
+	@ParameterizedTest
+	@ValueSource(strings = { "rw-------", "rw-r-----", "rw-r--r--", "r--r-----" })
+	void gzipArchiveKeepsTheActiveFilePermissions(String mode) throws IOException {
 		Path active = dir.resolve("app.log");
 		Files.writeString(active, "hello");
 		assumeTrue(Files.getFileAttributeView(active, PosixFileAttributeView.class) != null, "POSIX only");
-		var permissions = PosixFilePermissions.fromString("rw-r-----");
+		var permissions = PosixFilePermissions.fromString(mode);
 		Files.setPosixFilePermissions(active, permissions);
+		var owner = Files.getOwner(active);
 		RollingPolicy.roll(active, ParsedPattern.parse(".%i.gz"), 1, 0);
 		assertEquals(permissions, Files.getPosixFilePermissions(dir.resolve("app.log.1.gz")));
+		assertEquals(owner, Files.getOwner(dir.resolve("app.log.1.gz")));
+		try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.1.gz")))) {
+			assertEquals("hello", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		}
+	}
+
+	@Test
+	@EnabledOnOs(OS.LINUX)
+	void gzipArchiveKeepsTheSourceGroupWhenItDiffersFromTheDirectory() throws IOException {
+		Path active = dir.resolve("app.log");
+		Files.writeString(active, "private group log");
+		assumeTrue(Files.getFileAttributeView(active, PosixFileAttributeView.class) != null, "POSIX only");
+		int initialGroup = ((Number) Files.getAttribute(active, "unix:gid")).intValue();
+		var status = Path.of("/proc/self/status");
+		assumeTrue(Files.isReadable(status), "Requires Linux process group information");
+		String groups = Files.readAllLines(status)
+			.stream()
+			.filter(line -> line.startsWith("Groups:"))
+			.findFirst()
+			.orElse("");
+		int alternateGroup = initialGroup;
+		for (String group : groups.replace("Groups:", "").strip().split("\\s+", -1)) {
+			if (!group.isEmpty() && Integer.parseInt(group) != initialGroup) {
+				alternateGroup = Integer.parseInt(group);
+				break;
+			}
+		}
+		assumeTrue(alternateGroup != initialGroup, "Requires a supplementary group");
+		Files.setAttribute(active, "unix:gid", alternateGroup);
+		var permissions = PosixFilePermissions.fromString("rw-r-----");
+		Files.setPosixFilePermissions(active, permissions);
+
+		RollingPolicy.roll(active, ParsedPattern.parse(".%i.gz"), 1, 0);
+
+		Path archive = dir.resolve("app.log.1.gz");
+		assertEquals(alternateGroup, ((Number) Files.getAttribute(archive, "unix:gid")).intValue());
+		assertEquals(permissions, Files.getPosixFilePermissions(archive));
+	}
+
+	@Test
+	void gzipFailureKeepsTheSourceAndRemovesTheTemporaryArchive() throws IOException {
+		Path active = dir.resolve("app.log");
+		Files.writeString(active, "keep this log");
+		assumeTrue(Files.getFileAttributeView(active, PosixFileAttributeView.class) != null, "POSIX only");
+		Files.setPosixFilePermissions(active, Set.of());
+		try {
+			assumeTrue(!Files.isReadable(active), "Requires enforced read permissions");
+			assertThrows(UncheckedIOException.class,
+					() -> RollingPolicy.roll(active, ParsedPattern.parse(".%i.gz"), 1, 0));
+		}
+		finally {
+			Files.setPosixFilePermissions(active, PosixFilePermissions.fromString("rw-------"));
+		}
+		assertEquals("keep this log", Files.readString(active));
+		try (var files = Files.list(dir)) {
+			assertEquals(List.of(active), files.toList());
+		}
 	}
 
 	@Test
