@@ -1410,7 +1410,7 @@ Tab, newline, carriage return, and <code>\</code> in a value are backslash escap
 paragraph separators, format characters (category Cf, including bidi controls), and unpaired UTF-16 surrogates
 are written as <code>&#92;uXXXX</code> with lowercase hex digits per UTF-16 code unit. The Unicode 17 format set
 is covered on Java 21. This escapes every input ESC, including SGR conceal sequences, and C1 introducers.
-Formatter-owned colours are added outside value escaping; select <code>color=off</code> to suppress them.
+Formatter-owned colors are added outside value escaping; select <code>color=off</code> to suppress them.
 Other valid Unicode text is unchanged. Labels percent-encode forbidden characters as UTF-8 with uppercase hex
 digits, encode an empty key as <code>%</code>, and preserve unpaired surrogates using <code>%uXXXX</code>.
 Split records and fields before decoding values, and decode escapes only once. The complete escaping and label

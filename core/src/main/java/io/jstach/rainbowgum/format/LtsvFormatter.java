@@ -160,7 +160,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * Values can be colored like the TTLL formatter; built-in labels and <code>msg</code>
 	 * are not. Key-value labels and values are colored together. <code>error</code> and
 	 * <code>stacktrace</code> take the level's color, since they are on the event's line.
-	 * These formatter-owned colours are added outside value escaping; escape characters
+	 * These formatter-owned colors are added outside value escaping; escape characters
 	 * supplied in field values are always escaped. Select <code>color=off</code> to
 	 * suppress formatter-owned ANSI sequences as well.
 	 * @param name encoder name, used for property lookup.
@@ -447,35 +447,39 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		int end = output.length();
 		int first = start;
 		while (first < end) {
-			int c = codePointAt(output, first, end);
-			if (c == '\\' || isEscapedControl(c)) {
+			char c = output.charAt(first);
+			if (!isMarked(c)) {
+				first++;
+			}
+			else if (isUnescapedPair(output, first, end)) {
+				first += 2;
+			}
+			else {
 				break;
 			}
-			first += Character.charCount(c);
 		}
 		if (first == end) {
 			return;
 		}
-		for (int i = first; i < end;) {
-			int c = codePointAt(output, i, end);
-			i += Character.charCount(c);
+		for (int i = first; i < end; i++) {
+			char c = output.charAt(i);
+			if (!isMarked(c)) {
+				output.append(c);
+				continue;
+			}
 			switch (c) {
 				case '\\' -> output.append("\\\\");
 				case '\t' -> output.append("\\t");
 				case '\n' -> output.append("\\n");
 				case '\r' -> output.append("\\r");
 				default -> {
-					if (isEscapedControl(c)) {
-						if (Character.isSupplementaryCodePoint(c)) {
-							appendUnicodeEscape(output, Character.highSurrogate(c));
-							appendUnicodeEscape(output, Character.lowSurrogate(c));
-						}
-						else {
-							appendUnicodeEscape(output, (char) c);
-						}
+					if (isUnescapedPair(output, i, end)) {
+						output.append(c).append(output.charAt(++i));
 					}
 					else {
-						output.appendCodePoint(c);
+						// A lone surrogate, or each half of a supplementary format
+						// character.
+						appendUnicodeEscape(output, c);
 					}
 				}
 			}
@@ -483,10 +487,44 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		output.delete(first, end);
 	}
 
-	private static int codePointAt(StringBuilder output, int index, int end) {
-		char c = output.charAt(index);
-		return Character.isHighSurrogate(c) && index + 1 < end && Character.isLowSurrogate(output.charAt(index + 1))
-				? Character.toCodePoint(c, output.charAt(index + 1)) : c;
+	private static boolean isMarked(char c) {
+		return c == '\\' || c < ' ' || (c >= 0x7f && Marked.isMarked(c));
+	}
+
+	/*
+	 * One bit per UTF-16 code unit from DEL on that may need escaping, so non-ASCII text
+	 * costs an array read rather than a Unicode table lookup. Every surrogate is marked;
+	 * a valid pair is then checked as a code point. Built on first use, so ASCII-only
+	 * output never builds it.
+	 */
+	private static final class Marked {
+
+		private static final long[] BITS = bits();
+
+		private static long[] bits() {
+			long[] bits = new long[(Character.MAX_VALUE + 1) >>> 6];
+			for (int c = 0x7f; c <= Character.MAX_VALUE; c++) {
+				if (isEscapedControl(c)) {
+					bits[c >>> 6] |= 1L << c;
+				}
+			}
+			return bits;
+		}
+
+		static boolean isMarked(char c) {
+			return (BITS[c >>> 6] & (1L << c)) != 0;
+		}
+
+	}
+
+	// A valid surrogate pair whose code point is not a format character.
+	private static boolean isUnescapedPair(StringBuilder output, int index, int end) {
+		char high = output.charAt(index);
+		if (!Character.isHighSurrogate(high) || index + 1 >= end) {
+			return false;
+		}
+		char low = output.charAt(index + 1);
+		return Character.isLowSurrogate(low) && !isEscapedControl(Character.toCodePoint(high, low));
 	}
 
 	private static boolean isEscapedControl(int c) {
