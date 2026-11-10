@@ -13,6 +13,7 @@ import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
@@ -232,14 +233,7 @@ final class RollingPolicy {
 					var out = new GZIPOutputStream(Files.newOutputStream(temporary))) {
 				in.transferTo(out);
 			}
-			/*
-			 * createTempFile makes the file 0600, so without this a compressed archive
-			 * would be readable only by its owner while the active file follows the
-			 * umask.
-			 */
-			if (Files.getFileAttributeView(source, PosixFileAttributeView.class) != null) {
-				Files.setPosixFilePermissions(temporary, Files.getPosixFilePermissions(source));
-			}
+			copyPosixAccess(source, temporary);
 			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
 		}
 		catch (IOException | RuntimeException e) {
@@ -251,6 +245,28 @@ final class RollingPolicy {
 			}
 			throw e;
 		}
+	}
+
+	private static void copyPosixAccess(Path source, Path target) throws IOException {
+		var sourceView = Files.getFileAttributeView(source, PosixFileAttributeView.class);
+		if (sourceView == null) {
+			return;
+		}
+		var sourceAttributes = sourceView.readAttributes();
+		var targetView = Objects.requireNonNull(
+				Files.getFileAttributeView(target, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS));
+		var targetAttributes = targetView.readAttributes();
+		if (!sourceAttributes.owner().equals(targetAttributes.owner())) {
+			// Keep the contents inaccessible while changing the owner and group.
+			targetView.setPermissions(Set.of());
+			targetView.setOwner(sourceAttributes.owner());
+		}
+		if (!sourceAttributes.group().equals(targetAttributes.group())) {
+			targetView.setGroup(sourceAttributes.group());
+		}
+		// Apply access bits only after they refer to the correct owner and group.
+		// Failure propagates so the temporary file is removed and the source survives.
+		targetView.setPermissions(sourceAttributes.permissions());
 	}
 
 }
