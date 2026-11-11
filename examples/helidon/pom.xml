@@ -9,7 +9,7 @@
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <helidon.version>4.5.5</helidon.version>
+    <helidon4.version>4.5.5</helidon4.version>
     <exec.mainClass>rainbowgum.helidon.example.Main</exec.mainClass>
     <!-- Updated by bin/vh on release. -->
     <rainbowgum.version>1.0.0-SNAPSHOT</rainbowgum.version>
@@ -29,7 +29,7 @@
       <dependency>
         <groupId>io.helidon</groupId>
         <artifactId>helidon-bom</artifactId>
-        <version>${helidon.version}</version>
+        <version>${helidon4.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

@@ -10,7 +10,7 @@
   <artifactId>rainbowgum-helidon4</artifactId>
   <name>rainbowgum-helidon4</name>
   <properties>
-    <helidon.version>4.5.5</helidon.version>
+    <helidon4.version>4.5.5</helidon4.version>
     <doc.resources>../../</doc.resources>
     <parent.root>${basedir}/../..</parent.root>
   </properties>
@@ -19,7 +19,7 @@
       <dependency>
         <groupId>io.helidon</groupId>
         <artifactId>helidon-bom</artifactId>
-        <version>${helidon.version}</version>
+        <version>${helidon4.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
