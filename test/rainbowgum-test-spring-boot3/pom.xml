@@ -9,14 +9,14 @@
   </parent>
   <artifactId>rainbowgum-test-spring-boot3</artifactId>
   <properties>
-    <spring-boot.version>3.3.2</spring-boot.version>
+    <spring-boot3.version>3.3.3</spring-boot3.version>
   </properties>
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-dependencies</artifactId>
-        <version>${spring-boot.version}</version>
+        <version>${spring-boot3.version}</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
@@ -34,7 +34,7 @@
         <plugin>
           <groupId>org.springframework.boot</groupId>
           <artifactId>spring-boot-maven-plugin</artifactId>
-          <version>${spring-boot.version}</version>
+          <version>${spring-boot3.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>

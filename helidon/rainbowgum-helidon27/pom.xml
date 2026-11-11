@@ -10,7 +10,7 @@
   <artifactId>rainbowgum-helidon27</artifactId>
   <name>rainbowgum-helidon27</name>
   <properties>
-    <helidon.version>27.0.0</helidon.version>
+    <helidon27.version>27.0.0</helidon27.version>
     <!-- Helidon 27 is compiled for Java 27 (class file version 71). -->
     <java.version>27</java.version>
     <doc.resources>../../</doc.resources>
@@ -21,7 +21,7 @@
       <dependency>
         <groupId>io.helidon</groupId>
         <artifactId>helidon-bom</artifactId>
-        <version>${helidon.version}</version>
+        <version>${helidon27.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

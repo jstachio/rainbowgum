@@ -20,14 +20,14 @@
     repository), which are also plain classpath, not modular.
   -->
   <properties>
-    <micronaut.version>5.2.3</micronaut.version>
+    <micronaut5.version>5.2.3</micronaut5.version>
     <!--
       A plain dependencyManagement <scope>import</scope> of micronaut-platform (unlike a
       real <parent> inheritance) does not bring its own properties along, so the actual
       module patch version needed by the annotationProcessorPaths entry below is pinned
       here explicitly rather than assumed available as ${micronaut.core.version}.
     -->
-    <micronaut.core.version>5.2.20</micronaut.core.version>
+    <micronaut5.core.version>5.2.20</micronaut5.core.version>
     <doc.resources>../../</doc.resources>
     <parent.root>${basedir}/../..</parent.root>
   </properties>
@@ -36,7 +36,7 @@
       <dependency>
         <groupId>io.micronaut.platform</groupId>
         <artifactId>micronaut-platform</artifactId>
-        <version>${micronaut.version}</version>
+        <version>${micronaut5.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -60,7 +60,7 @@
             <path>
               <groupId>io.micronaut</groupId>
               <artifactId>micronaut-inject-java</artifactId>
-              <version>${micronaut.core.version}</version>
+              <version>${micronaut5.core.version}</version>
             </path>
             <path>
               <groupId>io.jstach.pistachio</groupId>
