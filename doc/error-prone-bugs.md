@@ -13,9 +13,10 @@ and a comment adds `{@summary}`; `{@index}` and `{@systemProperty}` are not ment
 yet. A maintainer replied there that a PR adding the missing standard tags is welcome.
 Add a comment with the repro below, or send that PR, rather than filing a new issue.
 
-- **Error Prone versions confirmed on:** 2.50.0 (this project's version) and 2.51.0,
-  the latest release as of 2026-10-30. `JavadocTag.java` on Error Prone's `master`
-  branch, checked the same day, does not list these tags either, so no fix is pending.
+- **Error Prone versions confirmed on:** 2.50.0, 2.51.0 and 2.52.0 (this project's
+  version), the latest release as of 2026-11-11. `JavadocTag.java` on Error Prone's
+  `master` branch, checked the same day, does not list these tags either, so no fix is
+  pending.
 - **JDK:** `javac 27` with `--release 21`.
 - **Symptom:** every use of one of these standard javadoc inline tags is reported, on a
   class, a field, or a method:
@@ -82,3 +83,35 @@ Add a comment with the repro below, or send that PR, rather than filing a new is
   commit `1e1f293` for issue #1811; 2.50.0 has it, 2.45.0 does not, and the releases
   in between were not checked. With it the repro above compiles clean, and the check
   still reports other unknown tags. Drop the flag once a release knows these tags.
+
+## `InvalidSnippet` flags external snippets that use `class`
+
+Status: **filed upstream** as
+[google/error-prone#6238](https://github.com/google/error-prone/issues/6238), open. The
+fix, [google/error-prone#6248](https://github.com/google/error-prone/pull/6248), is not
+merged as of 2026-11-11.
+
+- **Error Prone versions seen:** 2.51.0 and 2.52.0. 2.50.0 did not report it.
+- **Command:** `bin/analyze.sh errorprone` (the build uses `-Werror`, so the warning
+  fails it).
+- **Symptom:**
+  ```
+  [InvalidSnippet] This @snippet has no body. Is it meant to contain inline code?
+  Snippets should start with "{@snippet :" followed by a newline.
+  ```
+- **Trigger:** an external snippet that names its source with the `class` attribute:
+  ```java
+  /**
+   * {@snippet class = "snippets.DecoratorExample" region = "decoratorExample"}
+   */
+  public interface Example {}
+  ```
+  The javadoc spec allows either `class` or `file` for an external snippet. The check's
+  `visitSnippet` skips a snippet with no body only when it has a `file` attribute, so a
+  `class` snippet is reported.
+- **Not affected:** `file` snippets, hybrid snippets (`class` plus an inline body, as in
+  `RainbowGum`), and snippets in `package-info.java`, which the check does not visit.
+- **Workaround:** `LoggerDecoratorService` uses
+  `{@snippet file = "snippets/DecoratorExample.java" region = "decoratorExample"}`,
+  which resolves through the same `--snippet-path`. Once fixed upstream it can go back to
+  `class`.
