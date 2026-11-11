@@ -115,8 +115,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * </ul>
 	 * <strong>Value escaping.</strong> Values are never quoted. The same escaping applies
 	 * to messages, metadata, key values, and throwable text:
-	 * <table>
-	 * <caption>LTSV value escapes</caption>
+	 * <table class="table">
+	 * <caption><strong>LTSV value escapes</strong></caption>
 	 * <tr>
 	 * <th scope="col">Input</th>
 	 * <th scope="col">Written text</th>
@@ -130,8 +130,15 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <td><code>\t</code>, <code>\n</code>, <code>\r</code></td>
 	 * </tr>
 	 * <tr>
-	 * <td>Other C0 controls (U+0000–U+001F), DEL and C1 (U+007F–U+009F), U+2028/U+2029,
-	 * Unicode format characters (category Cf), and unpaired UTF-16 surrogates</td>
+	 * <td>
+	 * <ul>
+	 * <li>Other C0 controls (U+0000–U+001F)</li>
+	 * <li>DEL and C1 (U+007F–U+009F)</li>
+	 * <li>U+2028/U+2029</li>
+	 * <li>Unicode format characters (category Cf)</li>
+	 * <li>Unpaired UTF-16 surrogates</li>
+	 * </ul>
+	 * </td>
 	 * <td><code>&#92;uXXXX</code>, four lowercase hexadecimal digits per UTF-16 code
 	 * unit</td>
 	 * </tr>
