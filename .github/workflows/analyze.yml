@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+# Checks out code and builds; never writes back to the repository.
+permissions:
+  contents: read
+
 jobs:
   analyze:
 
