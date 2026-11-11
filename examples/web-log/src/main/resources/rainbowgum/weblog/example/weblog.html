@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rainbow Gum log</title>
+<style>
+  :root {
+    --bg: #fbfaf7;
+    --panel: #f3f0ea;
+    --fg: #22201c;
+    --muted: #6b665d;
+    --line: #e4e0d8;
+    --focus: #0b63a8;
+    --trace: #8a857c;
+    --debug: #2f7f7a;
+    --info: #22201c;
+    --warning: #9a5b00;
+    --warning-bg: #fbf1dc;
+    --error: #b3261e;
+    --error-bg: #fbe6e3;
+    --live: #2e7d32;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --panel: #202225;
+      --fg: #e6e3dd;
+      --muted: #9a958c;
+      --line: #2c2e31;
+      --focus: #6cb6f0;
+      --trace: #7d786f;
+      --debug: #6cc3bb;
+      --info: #e6e3dd;
+      --warning: #f0b45a;
+      --warning-bg: #2e2617;
+      --error: #f08a80;
+      --error-bg: #331d1b;
+      --live: #7cc47f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .bark {
+    flex: none;
+    height: 4px;
+    background: linear-gradient(90deg, #4f8a3b, #2f8f8a, #3c6fb6, #7b4ea3, #c0563b, #d9902b);
+  }
+  header {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .status.live::before { background: var(--live); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-left: auto; }
+  input[type="search"], select {
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 3px 8px;
+  }
+  input[type="search"] { width: 14em; }
+  label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .count { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  main {
+    flex: 1;
+    overflow: auto;
+    padding: 6px 0;
+    font: 13px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .event { margin: 0; padding: 1px 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .TRACE { color: var(--trace); }
+  .DEBUG { color: var(--debug); }
+  .INFO { color: var(--info); }
+  .WARNING { color: var(--warning); background: var(--warning-bg); }
+  .ERROR { color: var(--error); background: var(--error-bg); }
+  .hidden { display: none; }
+  .empty { padding: 16px; color: var(--muted); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+</head>
+<body>
+<div class="bark"></div>
+<header>
+  <h1>Rainbow Gum log</h1>
+  <span id="status" class="status">Connecting</span>
+  <div class="controls">
+    <input id="filter" type="search" placeholder="Filter" aria-label="Show only events containing">
+    <select id="level" aria-label="Lowest level shown">
+      <option value="0">All levels</option>
+      <option value="1">Debug and up</option>
+      <option value="2">Info and up</option>
+      <option value="3">Warning and up</option>
+      <option value="4">Errors only</option>
+    </select>
+    <label><input id="follow" type="checkbox" checked> Follow</label>
+    <span id="count" class="count"></span>
+  </div>
+</header>
+<main id="log"><p class="empty" id="empty">Nothing logged yet.</p></main>
+<script>
+  "use strict";
+  const LEVELS = { TRACE: 0, DEBUG: 1, INFO: 2, WARNING: 3, ERROR: 4 };
+  const MAX = 2000;
+  const log = document.getElementById("log");
+  const statusEl = document.getElementById("status");
+  const filter = document.getElementById("filter");
+  const level = document.getElementById("level");
+  const follow = document.getElementById("follow");
+  const count = document.getElementById("count");
+  let instance = null;
+  let lastSeq = 0;
+
+  function shown(el) {
+    const text = filter.value.toLowerCase();
+    return LEVELS[el.dataset.level] >= Number(level.value)
+      && (!text || el.textContent.toLowerCase().includes(text));
+  }
+
+  function updateCount() {
+    const total = log.querySelectorAll(".event").length;
+    const visible = log.querySelectorAll(".event:not(.hidden)").length;
+    count.textContent = visible === total ? total + " events" : visible + " of " + total + " events";
+  }
+
+  function refilter() {
+    for (const el of log.querySelectorAll(".event")) {
+      el.classList.toggle("hidden", !shown(el));
+    }
+    updateCount();
+    if (follow.checked) log.scrollTop = log.scrollHeight;
+  }
+
+  function add(event) {
+    // Reconnecting replays the events the server keeps; skip the ones already shown.
+    if (event.seq <= lastSeq) return;
+    lastSeq = event.seq;
+    document.getElementById("empty")?.remove();
+    const el = document.createElement("pre");
+    el.className = "event " + event.level;
+    el.dataset.level = event.level;
+    // textContent, never innerHTML: a log message is untrusted text.
+    el.textContent = event.text;
+    el.classList.toggle("hidden", !shown(el));
+    log.append(el);
+    const events = log.querySelectorAll(".event");
+    if (events.length > MAX) events[0].remove();
+  }
+
+  const source = new EventSource("events");
+  source.addEventListener("start", (e) => {
+    statusEl.textContent = "Live";
+    statusEl.classList.add("live");
+    // A new instance means the application restarted and its numbering starts over.
+    if (instance !== null && instance !== e.data) {
+      log.querySelectorAll(".event").forEach((el) => el.remove());
+      lastSeq = 0;
+    }
+    instance = e.data;
+  });
+  source.onmessage = (e) => {
+    add(JSON.parse(e.data));
+    updateCount();
+    if (follow.checked) log.scrollTop = log.scrollHeight;
+  };
+  source.onerror = () => {
+    statusEl.textContent = "Reconnecting";
+    statusEl.classList.remove("live");
+  };
+
+  // Scrolling up to read stops following; scrolling back to the end resumes it.
+  log.addEventListener("scroll", () => {
+    follow.checked = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
+  });
+  follow.addEventListener("change", () => { if (follow.checked) log.scrollTop = log.scrollHeight; });
+  filter.addEventListener("input", refilter);
+  level.addEventListener("change", refilter);
+</script>
+</body>
+</html>
