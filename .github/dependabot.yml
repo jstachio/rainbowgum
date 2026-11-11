@@ -1,7 +1,106 @@
 version: 2
 updates:
+# Version updates only for build plugins and build tooling that never ships
+# (Maven, plexus, ecj, Error Prone, NullAway, Checker Framework). Every other
+# dependency gets security updates only: an ignore with update-types stops
+# version updates but not security updates. A new dependency group not listed
+# here gets version updates until it is added.
 - package-ecosystem: maven
   directory: "/"
   schedule:
     interval: "daily"
   open-pull-requests-limit: 10
+  ignore:
+  # Our own artifacts, referenced by the examples.
+  - dependency-name: "io.jstach.rainbowgum*"
+  # Each framework major is its own module, updated by the blocks below.
+  - dependency-name: "org.springframework*"
+  - dependency-name: "io.helidon*"
+  - dependency-name: "io.micronaut*"
+  - dependency-name: "ch.qos.logback:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "com.lmax:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "com.typesafe:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "io.avaje:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "io.jstach:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "io.jstach.pistachio:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "io.opentelemetry*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.apache.logging.log4j:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.apache.tomcat:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.eclipse.jdt:org.eclipse.jdt.annotation"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.fusesource.jansi:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.jboss.logging:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.json:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.jspecify:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.junit*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.slf4j:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+  - dependency-name: "org.tomlj:*"
+    update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+# Framework modules: security updates only (open-pull-requests-limit 0 turns
+# off version updates), one block per major so a fix never crosses into the
+# next major, which would be a new module.
+- package-ecosystem: maven
+  directories:
+  - "/spring/rainbowgum-spring-boot3"
+  - "/test/rainbowgum-test-spring-boot3"
+  schedule:
+    interval: "daily"
+  open-pull-requests-limit: 0
+  allow:
+  - dependency-name: "org.springframework*"
+  ignore:
+  - dependency-name: "org.springframework*"
+    versions: [">= 4"]
+- package-ecosystem: maven
+  directories:
+  - "/spring/rainbowgum-spring-boot4"
+  - "/spring/rainbowgum-spring-boot4-actuator"
+  - "/test/rainbowgum-test-spring-boot4"
+  schedule:
+    interval: "daily"
+  open-pull-requests-limit: 0
+  allow:
+  - dependency-name: "org.springframework*"
+  ignore:
+  - dependency-name: "org.springframework*"
+    versions: [">= 5"]
+- package-ecosystem: maven
+  directories:
+  - "/helidon/rainbowgum-helidon4"
+  - "/test/rainbowgum-test-nested-properties"
+  - "/examples/helidon"
+  schedule:
+    interval: "daily"
+  open-pull-requests-limit: 0
+  allow:
+  - dependency-name: "io.helidon*"
+  ignore:
+  - dependency-name: "io.helidon*"
+    versions: [">= 5"]
+- package-ecosystem: maven
+  directories:
+  - "/micronaut/rainbowgum-micronaut5"
+  - "/examples/micronaut"
+  schedule:
+    interval: "daily"
+  open-pull-requests-limit: 0
+  allow:
+  - dependency-name: "io.micronaut*"
+  ignore:
+  - dependency-name: "io.micronaut*"
+    versions: [">= 6"]
