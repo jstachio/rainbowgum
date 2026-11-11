@@ -4,6 +4,14 @@ on:
     workflows: ['Build with Maven']
     types:
       - completed
+
+# Downloads the test-results artifact from the Build with Maven run and
+# publishes it as a check run.
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
 jobs:
   report:
     runs-on: ubuntu-latest

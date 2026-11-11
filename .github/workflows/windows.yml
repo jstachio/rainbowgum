@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Checks out code and builds; never writes back to the repository.
+permissions:
+  contents: read
+
 jobs:
   build:
 
