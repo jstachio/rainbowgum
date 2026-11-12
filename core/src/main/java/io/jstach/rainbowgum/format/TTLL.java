@@ -11,7 +11,7 @@ import io.jstach.rainbowgum.annotation.EnumAlias;
  * text format, configured with {@link TTLLFormatterBuilder} or properties of the
  * {@value #SCHEMA} encoder. Property values are the lowercase constant names, for
  * example: <pre>
- * logging.appender.console.encoder.ttll.timestamp=iso
+ * logging.appender.console.encoder.ttll.time=iso
  * logging.appender.console.encoder.ttll.keyValues=json5
  * </pre> The defaults produce the classic layout with the event's key values, percent
  * encoded, in braces after the logger name:

@@ -187,7 +187,7 @@ class LogConfigDebugTest {
 						  logging.appender.console.encoder.ttll.logger
 						  logging.appender.console.encoder.ttll.theme
 						  logging.appender.console.encoder.ttll.thread
-						  logging.appender.console.encoder.ttll.timestamp
+						  logging.appender.console.encoder.ttll.time
 						  logging.appender.console.encoder.uri
 						  logging.appender.console.flags
 						  logging.appender.console.output.stdout.stream
@@ -446,7 +446,7 @@ class LogConfigDebugTest {
 						  logging.appender.console.encoder.ttll.logger
 						  logging.appender.console.encoder.ttll.theme
 						  logging.appender.console.encoder.ttll.thread
-						  logging.appender.console.encoder.ttll.timestamp
+						  logging.appender.console.encoder.ttll.time
 						  logging.appender.console.encoder.uri
 						  logging.appender.console.flags
 						  logging.appender.console.output.stdout.stream

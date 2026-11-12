@@ -37,7 +37,7 @@ class LtsvEscapingLargeInputTest {
 	@EnumSource(Input.class)
 	void denseMegabyteValuesDoNotCauseRepeatedSuffixShifts(Input input) {
 		var properties = LogProperties.builder().fromProperties("""
-				logging.appender.test.encoder.ltsv.timestamp=none
+				logging.appender.test.encoder.ltsv.time=none
 				logging.appender.test.encoder.ltsv.level=none
 				logging.appender.test.encoder.ltsv.logger=none
 				logging.appender.test.encoder.ltsv.thread=none

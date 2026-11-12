@@ -1293,7 +1293,7 @@ Each part can be changed with properties of the encoder, much like slf4j-simple'
 values format or dropping the time does not require the pattern module:
 
 {@snippet lang=properties :
-logging.appender.console.encoder.ttll.timestamp=iso
+logging.appender.console.encoder.ttll.time=iso
 logging.appender.console.encoder.ttll.keyValues=json5
 }
 
@@ -1302,7 +1302,7 @@ logging.appender.console.encoder.ttll.keyValues=json5
 }
 
 <ul>
-<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#timestamp(io.jstach.rainbowgum.LogFormatter) timestamp}: <code>ttll</code> (default, <code>HH:mm:ss.SSS</code> UTC), <code>iso</code>,
+<li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#time(io.jstach.rainbowgum.LogFormatter) time}: <code>ttll</code> (default, <code>HH:mm:ss.SSS</code> UTC), <code>iso</code>,
 <code>none</code>, or a <code>DateTimeFormatter</code> pattern in UTC.</li>
 <li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#thread(io.jstach.rainbowgum.LogFormatter) thread}: <code>name</code> (default), <code>id</code>, or <code>none</code>.</li>
 <li>{@link io.jstach.rainbowgum.format.TTLLFormatterBuilder#level(io.jstach.rainbowgum.LogFormatter) level}: <code>padded</code> (default), <code>plain</code>, <code>bracketed</code>, or
@@ -1421,13 +1421,13 @@ rules are on {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}. Key value
 take the level's color, since they are on the event's line. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.
 
 <p>
-The <code>timestamp</code>, <code>level</code>, and <code>logger</code> properties take the same choices as the
-<a href="#ttll">TTLL formatter</a>'s, including a DateTimeFormatter pattern for <code>timestamp</code>, but by
+The <code>time</code>, <code>level</code>, and <code>logger</code> properties take the same choices as the
+<a href="#ttll">TTLL formatter</a>'s, including a DateTimeFormatter pattern for <code>time</code>, but by
 default the time is ISO 8601 and the level is not padded. <code>none</code> leaves a field out:
 </p>
 
 {@snippet lang=properties :
-logging.appender.console.encoder.ltsv.timestamp=ttll
+logging.appender.console.encoder.ltsv.time=ttll
 logging.appender.console.encoder.ltsv.level=padded
 logging.appender.console.encoder.ltsv.logger=short
 logging.appender.console.encoder.ltsv.thread=none
@@ -1461,7 +1461,7 @@ both out, keep the logger and message as columns, and have the thread and key va
 {@snippet lang=properties :
 logging.appender.console.encoder.uri=ltsv
 logging.appender.console.encoder.ltsv.columns=logger,message
-logging.appender.console.encoder.ltsv.timestamp=none
+logging.appender.console.encoder.ltsv.time=none
 logging.appender.console.encoder.ltsv.level=none
 logging.appender.console.encoder.postProcessors=journald
 }
