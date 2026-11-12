@@ -120,7 +120,7 @@ class LtsvControlEscapingTest {
 		};
 		var config = LogConfig.builder().properties(LogProperties.builder().fromProperties("""
 				logging.appender.app.encoder.uri=ltsv
-				logging.appender.app.encoder.ltsv.timestamp=none
+				logging.appender.app.encoder.ltsv.time=none
 				logging.appender.app.encoder.ltsv.level=none
 				logging.appender.app.encoder.ltsv.thread=name
 				logging.appender.app.encoder.ltsv.color=off
@@ -146,7 +146,7 @@ class LtsvControlEscapingTest {
 		values.putKeyValue("value", payload);
 		var event = LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "test", payload, values, null);
 		var properties = LogProperties.builder().fromProperties("""
-				logging.appender.test.encoder.ltsv.timestamp=none
+				logging.appender.test.encoder.ltsv.time=none
 				logging.appender.test.encoder.ltsv.level=none
 				logging.appender.test.encoder.ltsv.logger=none
 				logging.appender.test.encoder.ltsv.thread=none

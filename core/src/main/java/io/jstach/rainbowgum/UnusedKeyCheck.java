@@ -423,6 +423,14 @@ final class UnusedKeyCheck {
 				}
 			}
 		}
+		String renamed = renamedKeyOrNull(key);
+		if (renamed != null) {
+			for (String candidate : candidates) {
+				if (normalize(candidate).equals(normalize(renamed))) {
+					return candidate;
+				}
+			}
+		}
 		String loggerKey = loggerKeySuggestionOrNull(key);
 		if (loggerKey != null) {
 			return loggerKey;
@@ -540,6 +548,22 @@ final class UnusedKeyCheck {
 	}
 
 	private static final String ANY_SEGMENT = "*";
+
+	/*
+	 * Keys whose last segment was renamed, too far apart for distance to suggest.
+	 */
+	private static final Map<String, String> RENAMED = Map.of( //
+			"logging.appender.*.encoder.ttll.timestamp", "time", //
+			"logging.appender.*.encoder.ltsv.timestamp", "time");
+
+	static @Nullable String renamedKeyOrNull(String key) {
+		for (var e : RENAMED.entrySet()) {
+			if (matches(e.getKey(), key)) {
+				return key.substring(0, key.lastIndexOf(LogProperties.SEP) + 1) + e.getValue();
+			}
+		}
+		return null;
+	}
 
 	/*
 	 * Segments that name a component or choose its type, such as console in

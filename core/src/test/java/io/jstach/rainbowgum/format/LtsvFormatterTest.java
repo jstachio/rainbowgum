@@ -153,7 +153,7 @@ class LtsvFormatterTest {
 		new LtsvFormatterBuilder("test").color(TTLL.ColorMode.FORCE)
 			.stacktrace(LtsvStackTrace.LINES)
 			.columns(List.of(EventField.MESSAGE))
-			.timestamp(LogFormatter.noop())
+			.time(LogFormatter.noop())
 			.level(LogFormatter.noop())
 			.logger(LogFormatter.noop())
 			.thread(ThreadFields.NONE)
@@ -251,7 +251,7 @@ class LtsvFormatterTest {
 	@Test
 	void emptyLeadingColumnEscapeIsDistinctFromLiteralBackslashE() {
 		var formatter = new LtsvFormatterBuilder("test").columns(List.of(EventField.MESSAGE))
-			.timestamp(LogFormatter.noop())
+			.time(LogFormatter.noop())
 			.thread(ThreadFields.NONE)
 			.level(LogFormatter.noop())
 			.logger(LogFormatter.noop())
@@ -283,7 +283,7 @@ class LtsvFormatterTest {
 			var formatter = new LtsvFormatterBuilder("test").columns(List.of(field))
 				.color(TTLL.ColorMode.FORCE)
 				.thread(ThreadFields.NAME)
-				.timestamp(emptyTimestamp)
+				.time(emptyTimestamp)
 				.build();
 			var output = new StringBuilder();
 			formatter.format(output, LogEvent.of(TIME, "", 1, Level.INFO, "", "hello", KeyValues.of(), null));
@@ -293,7 +293,7 @@ class LtsvFormatterTest {
 			var lines = new LtsvFormatterBuilder("test").columns(List.of(field))
 				.color(TTLL.ColorMode.FORCE)
 				.thread(ThreadFields.NAME)
-				.timestamp(emptyTimestamp)
+				.time(emptyTimestamp)
 				.stacktrace(LtsvStackTrace.LINES)
 				.build();
 			output.setLength(0);
@@ -460,10 +460,10 @@ class LtsvFormatterTest {
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', quoteCharacter = '"', value = { //
-			"timestamp=ttll|time:15:04:05.123", //
-			"timestamp=iso|time:2026-10-05T15:04:05.123Z", //
-			"timestamp=default|time:2026-10-05T15:04:05.123Z", //
-			"timestamp=yyyy-MM-dd HH|time:2026-10-05 15", //
+			"time=ttll|time:15:04:05.123", //
+			"time=iso|time:2026-10-05T15:04:05.123Z", //
+			"time=default|time:2026-10-05T15:04:05.123Z", //
+			"time=yyyy-MM-dd HH|time:2026-10-05 15", //
 			"level=padded|\"level:INFO \"", //
 			"level=bracketed|level:[INFO]", //
 			"level=true|level:INFO", //
@@ -483,7 +483,7 @@ class LtsvFormatterTest {
 		var kvs = MutableKeyValues.of();
 		kvs.putKeyValue("requestId", "42");
 		assertEquals("com.example.App\thello\tthreadId:1\tthreadName:main\trequestId:42\n",
-				formatWith("ltsv.columns=logger,msg\nltsv.timestamp=none\nltsv.level=none\n",
+				formatWith("ltsv.columns=logger,msg\nltsv.time=none\nltsv.level=none\n",
 						event(Level.INFO, "main", "hello", kvs, null)));
 		assertEquals("time:2026-10-05T15:04:05.123Z\tmessage:hello\n",
 				formatWith("ltsv.level=false\nltsv.logger=none\nltsv.thread=none\n",
@@ -492,7 +492,7 @@ class LtsvFormatterTest {
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', value = { //
-			"timestamp=none|time|columns lists time but timestamp is none", //
+			"time=none|time|columns lists time but time is none", //
 			"level=none|level,msg|columns lists level but level is none", //
 			"logger=false|msg,logger|columns lists logger but logger is none", //
 			"thread=none|thread|columns lists thread but thread is none" })

@@ -43,7 +43,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 */
 	private final EventField[] labeled;
 
-	private final LogFormatter timestamp;
+	private final LogFormatter time;
 
 	private final ThreadFields thread;
 
@@ -61,13 +61,13 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 */
 	private final KeyValuesConsumer<StringBuilder> keyValues;
 
-	private LtsvFormatter(List<EventField> columns, LogFormatter timestamp, ThreadFields thread, LogFormatter level,
+	private LtsvFormatter(List<EventField> columns, LogFormatter time, ThreadFields thread, LogFormatter level,
 			LogFormatter logger, LtsvStackTrace stacktrace, Palette palette) {
 		this.columns = columns.toArray(EventField[]::new);
 		this.labeled = EnumSet
 			.complementOf(columns.isEmpty() ? EnumSet.noneOf(EventField.class) : EnumSet.copyOf(columns))
 			.toArray(EventField[]::new);
-		this.timestamp = timestamp;
+		this.time = time;
 		this.thread = thread;
 		this.level = level;
 		this.logger = logger;
@@ -97,8 +97,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * <code>columns=thread,message</code>:
 	 * <code>1⇥main⇥hello world⇥time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥requestId:42</code>.
 	 * Output with columns is no longer LTSV.</li>
-	 * <li><code>time</code> is the UTC instant with milliseconds by default, and
-	 * <code>timestamp</code> chooses another format or a DateTimeFormatter pattern in
+	 * <li><code>time</code> is the UTC instant with milliseconds by default, and the
+	 * <code>time</code> property chooses another format or a DateTimeFormatter pattern in
 	 * UTC, as for TTLL.</li>
 	 * <li><code>level</code> is <code>TRACE</code>, <code>DEBUG</code>,
 	 * <code>INFO</code>, <code>WARN</code>, or <code>ERROR</code>, unpadded by
@@ -179,8 +179,8 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 * escaping; escape characters supplied in field values are always escaped. Select
 	 * <code>color=off</code> to suppress formatter-owned ANSI sequences as well.
 	 * @param name encoder name, used for property lookup.
-	 * @param timestamp time format, see {@link TTLL.TimestampFormat};
-	 * <code>default</code> is <code>iso</code>.
+	 * @param time time format, see {@link TTLL.TimestampFormat}; <code>default</code> is
+	 * <code>iso</code>.
 	 * @param thread which thread fields, see {@link ThreadFields}.
 	 * @param level level format, see {@link TTLL.LevelFormat}; <code>default</code> is
 	 * <code>plain</code>.
@@ -194,7 +194,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 	 */
 	@LogConfigurable(name = "LtsvFormatterBuilder", prefix = LogProperties.ENCODER_PREFIX + "ltsv.")
 	static LogFormatter of(@LogConfigurable.KeyParameter String name,
-			@LogConfigurable.DefaultParameter("DEFAULT_TIMESTAMP") @LogConfigurable.ConvertParameter("convertTimestamp") LogFormatter timestamp,
+			@LogConfigurable.DefaultParameter("DEFAULT_TIMESTAMP") @LogConfigurable.ConvertParameter("convertTimestamp") LogFormatter time,
 			@LogConfigurable.DefaultParameter(
 					constant = "BOTH") @LogConfigurable.ConvertParameter("convertThread") ThreadFields thread,
 			@LogConfigurable.DefaultParameter("DEFAULT_LEVEL") @LogConfigurable.ConvertParameter("convertLevel") LogFormatter level,
@@ -208,7 +208,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		checkColumns(columns);
 		for (var f : columns) {
 			boolean none = switch (f) {
-				case TIME -> timestamp.isNoop();
+				case TIME -> time.isNoop();
 				case LEVEL -> level.isNoop();
 				case LOGGER -> logger.isNoop();
 				case THREAD -> thread == ThreadFields.NONE;
@@ -216,11 +216,10 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 			};
 			if (none) {
 				String field = f.name().toLowerCase(Locale.ROOT);
-				throw new IllegalArgumentException(
-						"columns lists " + field + " but " + (f == EventField.TIME ? "timestamp" : field) + " is none");
+				throw new IllegalArgumentException("columns lists " + field + " but " + field + " is none");
 			}
 		}
-		return new LtsvFormatter(columns, timestamp, thread, level, logger, stacktrace,
+		return new LtsvFormatter(columns, time, thread, level, logger, stacktrace,
 				Palette.of(color == null ? TTLL.ColorMode.DEFAULT : color,
 						PaletteColorTheme.resolve(theme, serviceRegistry), AnsiSupport::isAnsiSupported));
 	}
@@ -391,7 +390,7 @@ final class LtsvFormatter implements LogFormatter.EventFormatter {
 		var p = palette;
 		switch (field) {
 			case TIME -> {
-				return appendFormatted(output, any, labeled, "time:", p.timestamp(), timestamp, event);
+				return appendFormatted(output, any, labeled, "time:", p.timestamp(), time, event);
 			}
 			case LEVEL -> {
 				return appendFormatted(output, any, labeled, "level:", levelColor, level, event);

@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
@@ -70,6 +71,43 @@ class TTLLFormatterTest {
 		return output.toString();
 	}
 
+	/*
+	 * Before 1.0 the time property was called timestamp, in both ttll and ltsv. The old
+	 * key is too far from the new one for a distance based suggestion.
+	 */
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { //
+			"ttll|logging.appender.list.encoder.ttll.timestamp=iso|ttll", //
+			"ttll:///?timestamp=iso||ttll", //
+			"ltsv|logging.appender.list.encoder.ltsv.timestamp=iso|ltsv", //
+			"ltsv:///?timestamp=iso||ltsv" })
+	void theOldTimestampPropertySuggestsTime(String encoder, @Nullable String properties, String scheme)
+			throws Exception {
+		var values = new java.util.Properties();
+		values.load(new java.io.StringReader("logging.appenders=list\nlogging.appender.list.output.uri=list\n"
+				+ "logging.appender.list.encoder.uri=" + encoder + "\n" + (properties == null ? "" : properties)));
+		// Only sources that list their keys, such as files and system properties, are
+		// checked.
+		LogProperties.Listable listed = new LogProperties.Listable() {
+			@Override
+			public @Nullable String valueOrNull(String key) {
+				return values.getProperty(key);
+			}
+
+			@Override
+			public java.util.Collection<String> keys() {
+				return values.stringPropertyNames();
+			}
+		};
+		var config = LogConfig.builder().properties(listed).build();
+		config.outputRegistry().register("list", ref -> LogProvider.of(new ListLogOutput()));
+		var e = assertThrows(IllegalStateException.class, () -> RainbowGum.builder(config).build().start().close());
+		String prefix = "logging.appender.list.encoder." + scheme + ".";
+		String message = String.valueOf(e.getMessage());
+		assertTrue(message.contains("Property key '" + prefix + "timestamp' from "), message);
+		assertTrue(message.contains("Did you mean '" + prefix + "time'"), message);
+	}
+
 	@Test
 	void defaultsAreTheClassicLayout() {
 		assertEquals("12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world\n",
@@ -85,9 +123,9 @@ class TTLLFormatterTest {
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', value = { //
-			"timestamp=iso|2026-10-05T12:00:00.123Z [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
-			"timestamp=none|[main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
-			"timestamp=HH:mm|12:00 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"time=iso|2026-10-05T12:00:00.123Z [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"time=none|[main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"time=HH:mm|12:00 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=id|12:00:00.123 [7] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=both|12:00:00.123 [7][main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=name_or_id|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
@@ -103,8 +141,8 @@ class TTLLFormatterTest {
 			"keyValues=true|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"keyValues=false|12:00:00.123 [main] INFO  com.example.App - hello world", //
 			"keyValues=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
-			"timestamp=false|[main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
-			"timestamp=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"time=false|[main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
+			"time=default|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=false|12:00:00.123 INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"thread=true|12:00:00.123 [main] INFO  com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
 			"level=false|12:00:00.123 [main] com.example.App {requestId=42&user=Ada%20Lovelace} - hello world", //
@@ -120,7 +158,7 @@ class TTLLFormatterTest {
 	@Test
 	void everyPartNoneLeavesTheMessage() {
 		String properties = """
-				logging.appender.list.encoder.ttll.timestamp=none
+				logging.appender.list.encoder.ttll.time=none
 				logging.appender.list.encoder.ttll.thread=none
 				logging.appender.list.encoder.ttll.level=none
 				logging.appender.list.encoder.ttll.logger=none
@@ -167,7 +205,7 @@ class TTLLFormatterTest {
 	@Test
 	void everyPartNoneWithoutKeyValuesIsJustTheMessage() {
 		String properties = """
-				logging.appender.list.encoder.ttll.timestamp=none
+				logging.appender.list.encoder.ttll.time=none
 				logging.appender.list.encoder.ttll.thread=none
 				logging.appender.list.encoder.ttll.level=none
 				logging.appender.list.encoder.ttll.logger=none
@@ -275,14 +313,14 @@ class TTLLFormatterTest {
 	@Test
 	void invalidTimestampPatternFails() {
 		var properties = LogProperties.builder()
-			.fromProperties("logging.appender.list.encoder.ttll.timestamp=bogus{")
+			.fromProperties("logging.appender.list.encoder.ttll.time=bogus{")
 			.build();
 		var e = assertThrows(LogProperty.ValidationException.class,
 				() -> new TTLLFormatterBuilder("list").fromProperties(properties));
 		String expected = """
 				Validation failed for io.jstach.rainbowgum.format.TTLLFormatterBuilder:
-				Error for property. key: 'logging.appender.list.encoder.ttll.timestamp' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.timestamp], \
-				'bogus{' is neither a timestamp format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: \
+				Error for property. key: 'logging.appender.list.encoder.ttll.time' from PROPERTIES_STRING[logging.appender.list.encoder.ttll.time], \
+				'bogus{' is neither a time format (ttll, iso, none, true, false, default) nor a valid DateTimeFormatter pattern: \
 				Unknown pattern letter: b""";
 		assertEquals(expected, e.getMessage());
 	}
