@@ -28,6 +28,8 @@ TODO
 tmp
 checkstyle
 #javadoc
+benchmark/webapp/results/
+benchmark/webapp/*/benchmark.log*
 *.mv.db
 versions
 out
