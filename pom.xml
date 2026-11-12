@@ -49,7 +49,7 @@
     <plexus-compiler-eclipse.version>2.18.0</plexus-compiler-eclipse.version>
     <error-prone.version>2.52.0</error-prone.version>
     <nullaway.version>0.14.3</nullaway.version>
-    <checkerframework.version>4.3.1</checkerframework.version>
+    <checkerframework.version>4.4.0</checkerframework.version>
 
 
     <pistachio.version>0.1.2</pistachio.version>
