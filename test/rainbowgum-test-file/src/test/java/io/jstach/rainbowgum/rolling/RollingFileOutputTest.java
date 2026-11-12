@@ -153,41 +153,52 @@ class RollingFileOutputTest {
 
 	@ParameterizedTest
 	@EnumSource(FileMode.class)
-	void gzipFailurePreservesActiveFileAndRecovers(FileMode mode) throws IOException {
+	void gzipFailureKeepsThePendingFileAndRecoversOnStart(FileMode mode) throws Exception {
 		Path active = dir.resolve("app.log");
+		Path pending = RollingPolicy.pendingPath(active);
 		var config = mode.config();
 		var provider = RollingFileOutput
 			.of(b -> b.fileName(active.toString()).maxFileSize(DataSize.ofBytes(5)).fileNamePattern(".%i/archive.gz"));
-		var gum = RainbowGum.builder(config)
-			.route(r -> r.appender("file",
-					a -> a.output(provider).formatter(FORMATTER).appenderType(AppenderType.REUSE_BUFFER)))
-			.build();
-		try (var rg = gum.start()) {
-			config.alerts().clear();
-			rg.log(TestLogEventFactory.of().event("first"));
-			rg.log(TestLogEventFactory.of().event("kept"));
-			// The temporary compression filename is nondeterministic.
-			String alerts = errorAlerts(config).replaceAll("archive\\.gz[0-9]+\\.tmp", "<TEMP>");
-			assertEquals("""
-					ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to roll file '<DIR>/app.log'
-					java.io.UncheckedIOException: java.nio.file.NoSuchFileException: <DIR>/app.log.1/<TEMP>
-					""", alerts);
-			config.outputRegistry().flush();
-			assertEquals("first\nkept\n", Files.readString(active));
-			Files.createDirectory(dir.resolve("app.log.1"));
-			config.outputRegistry().reopen();
-			rg.log(TestLogEventFactory.of().event("next"));
-			assertEquals(java.util.List.of(), config.outputRegistry().flush());
-			try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.1/archive.gz")))) {
-				assertEquals("first\nkept\n", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		var threads = new java.util.concurrent.CopyOnWriteArrayList<String>();
+		try (var registration = config.alerts().addListener(a -> threads.add(Thread.currentThread().getName()))) {
+			try (var gum = RainbowGum.builder(config)
+				.route(r -> r.appender("file",
+						a -> a.output(provider).formatter(FORMATTER).appenderType(AppenderType.REUSE_BUFFER)))
+				.build()
+				.start()) {
+				config.alerts().clear();
+				gum.log(TestLogEventFactory.of().event("first"));
+				// Rolls; compressing fails because the archive directory is missing.
+				gum.log(TestLogEventFactory.of().event("kept"));
 			}
-			try (var files = Files.list(dir.resolve("app.log.1"))) {
-				assertEquals(java.util.List.of("archive.gz"), files.map(p -> p.getFileName().toString()).toList());
-			}
-			assertEquals("next\n", Files.readString(active));
-			assertEquals(1, metric(config, StandardMetric.ROLL_FAIL));
-			assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
 		}
+		// Closing waited for the compression thread, which raised the alert.
+		assertEquals(java.util.List.of("rainbowgum-rolling-compress"), threads);
+		// The temporary compression filename is nondeterministic.
+		String alerts = errorAlerts(config).replaceAll("archive\\.gz[0-9]+\\.tmp", "<TEMP>");
+		assertEquals(
+				"""
+						ERROR io.jstach.rainbowgum.rolling.DefaultRollingFileOutput: Failed to compress '<DIR>/app.log.pending'; it is kept and compressed again on the next roll
+						java.io.UncheckedIOException: java.nio.file.NoSuchFileException: <DIR>/app.log.1/<TEMP>
+						""",
+				alerts);
+		assertEquals("first\n", Files.readString(pending));
+		assertEquals("kept\n", Files.readString(active));
+		assertEquals(1, metric(config, StandardMetric.ROLL_FAIL));
+		assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
+		Files.createDirectory(dir.resolve("app.log.1"));
+		var restart = mode.config();
+		try (var output = provider.provide("file", restart)) {
+			output.start(restart);
+		}
+		try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.1/archive.gz")))) {
+			assertEquals("first\n", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		}
+		try (var files = Files.list(dir.resolve("app.log.1"))) {
+			assertEquals(java.util.List.of("archive.gz"), files.map(p -> p.getFileName().toString()).toList());
+		}
+		assertFalse(Files.exists(pending));
+		assertEquals(0, metric(restart, StandardMetric.ROLL_FAIL));
 	}
 
 	@ParameterizedTest
