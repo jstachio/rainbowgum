@@ -179,6 +179,45 @@ class RawJsonWriterTest {
 	}
 
 	@Test
+	void testWriteStringGrowsWithWhatIsWrittenNotSixTimesTheLength() {
+		String value = "a".repeat(1_000_000);
+		var w = new RawJsonWriter(16);
+		w.writeString(value);
+		assertEquals(value.length() + 2, w.size());
+		assertTrue(w.capacity() < 2 * value.length(), "capacity: " + w.capacity());
+	}
+
+	@Test
+	void testWriteStringKeepsASurrogatePairSplitByAChunk() {
+		String emoji = new String(Character.toChars(0x1F600));
+		for (int prefix : new int[] { RawJsonWriter.STRING_CHUNK - 2, RawJsonWriter.STRING_CHUNK - 1,
+				RawJsonWriter.STRING_CHUNK }) {
+			String value = "a".repeat(prefix) + emoji + "\n" + emoji;
+			var w = new RawJsonWriter(4);
+			w.writeString(value);
+			String decoded = new String(w.toByteArray(), StandardCharsets.UTF_8);
+			assertEquals("\"" + "a".repeat(prefix) + emoji + "\\n" + emoji + "\"", decoded);
+		}
+	}
+
+	@Test
+	void testWriteStringEscapesAcrossChunksRoundTripThroughRealJsonParser() {
+		String[] parts = { "a", "\"", "\\", "\n", "\u0001", "é", "中", new String(Character.toChars(0x1F600)) };
+		var sb = new StringBuilder();
+		for (int i = 0; sb.length() < RawJsonWriter.STRING_CHUNK * 5; i++) {
+			sb.append(parts[(i * 7 + i / 3) % parts.length]);
+		}
+		String value = sb.toString();
+		var w = new RawJsonWriter(4);
+		w.writeByte(RawJsonWriter.OBJECT_START);
+		w.writeString("k");
+		w.writeByte(RawJsonWriter.SEMI);
+		w.writeString(value);
+		w.writeByte(RawJsonWriter.OBJECT_END);
+		assertEquals(value, new JSONObject(new String(w.toByteArray(), StandardCharsets.UTF_8)).getString("k"));
+	}
+
+	@Test
 	void testWriteAsciiStringDoesNotEscape() {
 		// writeAsciiString trusts the caller completely and does not escape - contrast
 		// with writeString, which would have escaped the embedded quote.

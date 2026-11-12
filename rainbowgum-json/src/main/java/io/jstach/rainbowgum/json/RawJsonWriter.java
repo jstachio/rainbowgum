@@ -63,6 +63,17 @@ class RawJsonWriter {
 
 	private final Grisu3.FastDtoaBuilder doubleBuilder = new Grisu3.FastDtoaBuilder();
 
+	/*
+	 * The largest array most JVMs will allocate.
+	 */
+	private static final int MAX_CAPACITY = Integer.MAX_VALUE - 8;
+
+	/*
+	 * Characters escaped per capacity check. An escaped char takes at most six bytes, so
+	 * room is made a chunk at a time rather than six times the whole string up front.
+	 */
+	static final int STRING_CHUNK = 1024;
+
 	public RawJsonWriter(int capacity) {
 		this.buffer = new byte[capacity];
 	}
@@ -74,7 +85,20 @@ class RawJsonWriter {
 		 * padding) and trip an ArrayIndexOutOfBoundsException on the very next write.
 		 * Math.max(..., 1) guarantees growth even from a tiny starting capacity.
 		 */
-		buffer = Arrays.copyOf(buffer, buffer.length + Math.max(buffer.length / 2, 1) + padding);
+		long capacity = Math.min((long) buffer.length + Math.max(buffer.length / 2, 1) + padding, MAX_CAPACITY);
+		if (capacity - position <= padding) {
+			throw new IllegalStateException("JSON output is larger than the maximum array size");
+		}
+		buffer = Arrays.copyOf(buffer, (int) capacity);
+	}
+
+	/*
+	 * Written as a difference so a large position or padding cannot overflow.
+	 */
+	private void reserve(final int padding) {
+		if (padding >= buffer.length - position) {
+			enlargeOrFlush(padding);
+		}
 	}
 
 	/**
@@ -95,29 +119,44 @@ class RawJsonWriter {
 	 */
 	public final void writeString(final String value) {
 		final int len = value.length();
-		if (position + (len << 2) + (len << 1) + 2 >= buffer.length) {
-			enlargeOrFlush((len << 2) + (len << 1) + 2);
+		int chunk = Math.min(len, STRING_CHUNK);
+		reserve(chunk * 6 + 2);
+		buffer[position++] = QUOTE;
+		int i = 0;
+		while (true) {
+			i = writeChars(value, i, i + chunk);
+			if (i >= len) {
+				break;
+			}
+			chunk = Math.min(len - i, STRING_CHUNK);
+			reserve(chunk * 6 + 1);
 		}
+		buffer[position++] = QUOTE;
+	}
+
+	/*
+	 * Writes chars from i up to end, or one past end to finish a surrogate pair, and
+	 * returns the index of the next char to write.
+	 */
+	private int writeChars(final String value, int i, final int end) {
 		final byte[] _result = buffer;
-		_result[position] = QUOTE;
-		int cur = position + 1;
-		for (int i = 0; i < len; i++) {
+		int cur = position;
+		for (; i < end; i++) {
 			final char c = value.charAt(i);
 			if (c > 31 && c != '"' && c != '\\' && c < 126) {
 				_result[cur++] = (byte) c;
 			}
 			else {
-				writeQuotedString(value, i, cur, len);
-				return;
+				return writeQuotedString(value, i, cur, end);
 			}
 		}
-		_result[cur] = QUOTE;
-		position = cur + 1;
+		position = cur;
+		return i;
 	}
 
 	@GeneratedByATrustedSource
 	@SuppressWarnings("StatementSwitchToExpressionSwitch")
-	private void writeQuotedString(final CharSequence str, int i, int cur, final int len) {
+	private int writeQuotedString(final CharSequence str, int i, int cur, final int len) {
 		final byte[] _result = this.buffer;
 		for (; i < len; i++) {
 			final char c = str.charAt(i);
@@ -307,8 +346,8 @@ class RawJsonWriter {
 				}
 			}
 		}
-		_result[cur] = QUOTE;
-		position = cur + 1;
+		position = cur;
+		return i;
 	}
 
 	/**
@@ -319,9 +358,7 @@ class RawJsonWriter {
 	@SuppressWarnings("deprecation")
 	public final void writeAsciiString(final String value) {
 		final int len = value.length() + 2;
-		if (position + len >= buffer.length) {
-			enlargeOrFlush(len);
-		}
+		reserve(len);
 		final byte[] _result = buffer;
 		_result[position] = QUOTE;
 		value.getBytes(0, len - 2, _result, position + 1);
@@ -345,9 +382,7 @@ class RawJsonWriter {
 		}
 		else {
 			if (Grisu3.tryConvert(value, doubleBuilder)) {
-				if (position + 24 >= buffer.length) {
-					enlargeOrFlush(24);
-				}
+				reserve(24);
 				final int len = doubleBuilder.copyTo(buffer, position);
 				position += len;
 			}
@@ -365,9 +400,7 @@ class RawJsonWriter {
 	@SuppressWarnings("deprecation")
 	public final void writeAscii(final String value) {
 		final int len = value.length();
-		if (position + len >= buffer.length) {
-			enlargeOrFlush(len);
-		}
+		reserve(len);
 		value.getBytes(0, len, buffer, position);
 		position += len;
 	}
