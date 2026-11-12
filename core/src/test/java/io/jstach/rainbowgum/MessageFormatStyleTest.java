@@ -36,6 +36,27 @@ class MessageFormatStyleTest {
 
 	}
 
+	record Throws(Throwable thrown) {
+
+		@Override
+		public String toString() {
+			if (thrown instanceof Error error) {
+				throw error;
+			}
+			throw (RuntimeException) thrown;
+		}
+
+	}
+
+	static final class Recursive {
+
+		@Override
+		public String toString() {
+			return "x" + this;
+		}
+
+	}
+
 	enum Style {
 
 		DEFAULT(""), //
@@ -76,6 +97,13 @@ class MessageFormatStyleTest {
 				"{a} and {0} [MessageFormat failed: can't parse argument number: a]", "x"), //
 		BAD_TO_STRING("value {0}", "value {0} [MessageFormat failed: expected]",
 				"value {0} [MessageFormat failed: expected]", new BadToString()), //
+		ERROR_TO_STRING("value {0}", "value {0} [MessageFormat failed: assert]",
+				"value {0} [MessageFormat failed: assert]", new Throws(new AssertionError("assert"))), //
+		RECURSIVE_TO_STRING("value {0}", "value {0} [MessageFormat failed: java.lang.StackOverflowError]",
+				"value {0} [MessageFormat failed: java.lang.StackOverflowError]", new Recursive()), //
+		NO_REASON_TO_STRING("value {0}", "value {0} [MessageFormat failed: java.lang.IllegalStateException]",
+				"value {0} [MessageFormat failed: java.lang.IllegalStateException]",
+				new Throws(new IllegalStateException())), //
 		SLF4J_DELIMITER("a={0} b={1}", "a=X b={}", "a=X b={}", "X", "{}"), //
 		THREE_ARGS("{0} {1} {2}", "a b c", "a b c", "a", "b", "c"), //
 		ONE_THROWABLE("failed {0}", "failed java.lang.RuntimeException: boom",
@@ -156,6 +184,29 @@ class MessageFormatStyleTest {
 		var frozen = event.freeze();
 		assertEquals(c.expected(style), formatted(frozen));
 		assertEquals(String.valueOf(c.expectedThrowable(style)), String.valueOf(frozen.throwableOrNull()));
+	}
+
+	@ParameterizedTest
+	@EnumSource(Style.class)
+	void julFatalErrorsAreRethrown(Style style) {
+		var error = new OutOfMemoryError("fatal");
+		var event = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "test", "value {0}", KeyValues.of(),
+				style.formatter(), new Throws(error));
+		assertSame(error, assertThrows(OutOfMemoryError.class, () -> formatted(event)));
+	}
+
+	@ParameterizedTest
+	@EnumSource(Style.class)
+	void julFailingReasonFallsBackToTheClassName(Style style) {
+		var thrown = new IllegalStateException() {
+			@Override
+			public String getMessage() {
+				throw new IllegalStateException("message");
+			}
+		};
+		var event = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "test", "value {0}", KeyValues.of(),
+				style.formatter(), new Throws(thrown));
+		assertEquals("value {0} [MessageFormat failed: " + thrown.getClass().getName() + "]", formatted(event));
 	}
 
 	@ParameterizedTest

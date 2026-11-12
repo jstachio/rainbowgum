@@ -128,12 +128,12 @@ class GlobalQueueTest {
 		Object argument = new Object() {
 			@Override
 			public String toString() {
-				throw new AssertionError("freeze failed");
+				throw new OutOfMemoryError("freeze failed");
 			}
 		};
 		var bad = LogEvent.ofOneArg(Instant.EPOCH, "main", 1, Level.INFO, "test", "{0}", KeyValues.of(),
 				StandardMessageFormatter.JUL, argument);
-		assertEquals("freeze failed", assertThrows(AssertionError.class, () -> queue.log(bad)).getMessage());
+		assertEquals("freeze failed", assertThrows(OutOfMemoryError.class, () -> queue.log(bad)).getMessage());
 		queue.log(event("after failure", null));
 		var output = new ListLogOutput();
 		try (var gum = gum(LogConfig.builder().build(), output)) {

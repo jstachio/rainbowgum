@@ -227,7 +227,7 @@ enum Log4j2MessageFormatter implements LogMessageFormatter {
 			String result = MessageFormat.format(message, arg1);
 			builder.append(result);
 		}
-		catch (RuntimeException e) {
+		catch (Throwable e) {
 			formatBadPattern(builder, message, e);
 		}
 	}
@@ -238,7 +238,7 @@ enum Log4j2MessageFormatter implements LogMessageFormatter {
 			String result = MessageFormat.format(message, arg1, arg2);
 			builder.append(result);
 		}
-		catch (RuntimeException e) {
+		catch (Throwable e) {
 			formatBadPattern(builder, message, e);
 		}
 	}
@@ -254,7 +254,7 @@ enum Log4j2MessageFormatter implements LogMessageFormatter {
 			String result = MessageFormat.format(message, used);
 			builder.append(result);
 		}
-		catch (RuntimeException e) {
+		catch (Throwable e) {
 			formatBadPattern(builder, message, e);
 		}
 	}
@@ -266,10 +266,32 @@ enum Log4j2MessageFormatter implements LogMessageFormatter {
 	 * caller. We log the raw pattern and the reason, much like the SLF4J style's
 	 * "[FAILED toString()]", rather than raising an alert: the message may come from
 	 * outside, and an alert per bad message would let a caller make the service look
-	 * unhealthy.
+	 * unhealthy. An Error from toString(), such as the StackOverflowError of a recursive
+	 * one, is handled the same way; only an error that leaves the JVM unusable is
+	 * rethrown. The reason is the exception's message, or its class name when it has
+	 * none.
 	 */
-	private static void formatBadPattern(StringBuilder builder, String message, RuntimeException e) {
-		builder.append(message).append(" ").append("[MessageFormat failed: ").append(e.getMessage()).append("]");
+	private static void formatBadPattern(StringBuilder builder, String message, Throwable e) {
+		if (e instanceof VirtualMachineError fatal && !(e instanceof StackOverflowError)) {
+			throw fatal;
+		}
+		builder.append(message).append(" [MessageFormat failed: ").append(reason(e)).append("]");
+	}
+
+	/*
+	 * getMessage() can be overridden, so it is guarded like toString().
+	 */
+	private static String reason(Throwable e) {
+		try {
+			String reason = e.getMessage();
+			if (reason != null) {
+				return reason;
+			}
+		}
+		catch (Throwable ignored) {
+			// fall back to the class name
+		}
+		return e.getClass().getName();
 	}
 
 }
