@@ -3,6 +3,8 @@
 > Rainbow Gum _VERSION_ is a modular JDK 21+ logging framework. It implements SLF4J, System.Logger, java.util.logging, the Log4j2 API and JBoss Logging, and is configured with properties (Spring Boot style `logging.*` keys) or Java builders instead of XML.
 
 Links are relative to this file, which sits at the root of the Rainbow Gum javadoc.
+Use the documentation version that matches the application's Rainbow Gum dependency.
+These guides cover using Rainbow Gum in applications, not contributing to Rainbow Gum itself.
 
 ## Docs
 
@@ -12,6 +14,7 @@ Links are relative to this file, which sits at the root of the Rainbow Gum javad
 ## Guides
 
 - [Migrating from Logback](migrate-logback.md): steps for an agent moving a project from Logback to Rainbow Gum, including Spring Boot.
+- [Migrating from Log4j2](migrate-log4j2.md): replace Log4j Core while keeping Log4j2 API calls; translate configuration and check compatibility, including Spring Boot.
 
 ## Optional
 

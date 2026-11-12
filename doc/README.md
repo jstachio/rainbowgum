@@ -31,9 +31,15 @@ at the repo root, open `target/reports/apidocs/index.html` to check it.
 
 ## Documentation for agents
 
-The doc build also writes the user guide as `overview.md` next to `index.html`
-and copies the files in `agents/`, such as `llms.txt` and
-`migrate-logback.md`, beside it, replacing `_VERSION_` with the version. This
+The files in `agents/` are guides for **using Rainbow Gum in an application**, including
+migration from Logback and Log4j2. They are published user documentation, rather than
+repository instructions for developing Rainbow Gum. Keep them here instead of in a
+root `AGENTS.md` or a development skill: the published copies stay with the dependency
+version they describe and can be read without installing a tool-specific skill.
+
+The doc build writes the user guide as `overview.md` next to `index.html`
+and copies the files in `agents/` (`llms.txt`, `migrate-logback.md`, and
+`migrate-log4j2.md`) beside it, replacing `_VERSION_` with the version. This
 is done by `bin/src/main/java/io/jstach/script/AgentDocs.java`, which fails the
 build when a relative link in any of these files points to a missing file or a
 missing section of the guide. Link to guide sections from `agents/` files as
@@ -53,6 +59,10 @@ practice:
 
 The error names the line in the generated `index.html`; search
 `overview.html` for the text there.
+
+Keep the `llms.txt` index, the repository README, and the user guide's introduction
+linked to the available migration guides. The introduction belongs inside
+`js-toc-content` so it also appears in the generated Markdown guide.
 
 Publishing a built copy of that aggregate to the public javadoc site is a
 separate, release time step, see `release.md`'s "Updating Documentation"

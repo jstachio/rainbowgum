@@ -14,14 +14,15 @@ Rainbow Gum: JDK 21+ SLF4J logging implementation
 Fast, modular, GraalVM native friendly and easy to use.
 </em>
 </p>
-<p>
-This guide is also available as <a href="overview.md">Markdown</a> for agents and other tools, along with
-<a href="llms.txt">llms.txt</a> and a guide for <a href="migrate-logback.md">migrating from Logback</a>.
-</p>
-
 <h2 class="toc-title">Contents</h2>
 
 <div class="js-toc-content">
+
+<p>
+Using a coding agent? Start with <a href="llms.txt">llms.txt</a>, the index of documentation for using
+Rainbow Gum in your application. This user guide is also available as <a href="overview.md">Markdown</a>,
+with migration guides for <a href="migrate-logback.md">Logback</a> and <a href="migrate-log4j2.md">Log4j2</a>.
+</p>
 
 <h2 id="gettingstarted">Getting Started</h2>
 
@@ -47,9 +48,9 @@ swap <code>spring-boot-starter-logging</code> for the Rainbow Gum starter and ke
 natively understands almost all of Spring Boot's own documented logging properties (<code>logging.level.*</code>,
 log groups, <code>logging.file.*</code>, <code>logging.pattern.*</code>, <code>logging.charset.*</code>, ANSI
 control, and structured logging via <code>logging.structured.format.*</code> for ECS/GELF/Logstash), so existing
-<code>application.properties</code>/<code>application.yml</code> logging config generally keeps working as-is with
-no application code changes. That makes it a genuinely <strong>low-risk drop-in replacement for Logback</strong>:
-same properties, same behavior, a simpler and faster implementation underneath.
+<code>application.properties</code>/<code>application.yml</code> logging configuration generally keeps working.
+Calls through SLF4J need no changes. If you also have Logback XML configuration or custom components,
+use the <a href="migrate-logback.md">Logback migration guide</a> to translate them.
 
 <h3 id="simple_other_frameworks">Using Other Frameworks</h3>
 
@@ -63,7 +64,7 @@ Rainbow Gum also integrates with:
 
 <h3 id="simple_testing">Using rainbowgum-simple</h3>
 
-For tests, low depependency applications, or when you prefer the traditional method of letting
+For tests, applications with few dependencies, or when you prefer letting
 the logging system handle loading its own configuration, add
 <a href="#simple_bundle">rainbowgum-simple</a> and logging works without configuration. Add
 <code>logging.properties</code> to
@@ -108,9 +109,9 @@ default <a href="#ttll">TTLL</a> format.
   -jar myapp.jar
 }
 
-What happens with the above is Rainbow Gum will load its default Rainbow Gum via the service loader and use the properties to configure
-its builders. Unfortunately System properties on the command line can be rather tedious but luckily you
-can plugin in your own properties system easily.
+Rainbow Gum discovers its components through the service loader and configures them from these properties.
+For larger configurations, use <a href="#simple_props">a properties file</a> or
+<a href="#config_properties">your application's configuration system</a>.
 
 <h2 id="description">Description</h2>
 
@@ -815,58 +816,40 @@ without changing their root defaults.
 
 <h4 id="Additivity">Additivity</h4>
 
-Those familiar with Logback and Log4j2/1 "additivity" may wonder how that is achieved.
-Additivity is associated with a logger name in those frameworks and means that the logger level
-settings will apply to other appenders associated with logger (name) and its ancestors. If false the
-settings only apply to the associated appenders at that logger and descendants.
+In Logback and Log4j2, additivity controls whether events also reach appenders attached to ancestor
+loggers. Rainbow Gum configures this with <a href="#router">routes</a>: each route has its own appenders
+and logger levels. An event can reach every route that accepts its logger name and level.
+
 <p>
-In rainbowgum the configuration including logger name to level is done on the route 
-and rainbowgum allows multiple appenders on a route and multiple routes. 
+For example, send <code>DEBUG</code> and above from <code>com.mycompany</code> and its descendants to
+<code>mycompany.log</code>, while the console receives <code>WARN</code> and above from all loggers:
 </p>
 
-For example let us assume we want logger name <code>com.mycompany</code> (and descendants)
-at 
-<code>DEBUG</code> or greater to go to a file called <code>mycompany.log</code> and 
-<code>WARN</code> for console <code>com.mycompany</code> (and everything else).
-In Logback and others this is achieved by setting the appenders 
-on <code>com.mycompany</code> and <code>additivity=false</code> but in rainbowgum this is done
-by configuring separate routes:
-
-
 {@snippet lang=properties :
-logging.level=INFO
 logging.routes=console,mycompany
-logging.route.mycompany.appenders=mycompany
-logging.route.mycompany.level.com.mycompany=DEBUG
-logging.route.console.level=WARN
 logging.route.console.appenders=console
+logging.route.console.level=WARN
+logging.route.mycompany.appenders=mycompany
+logging.route.mycompany.level=OFF
+logging.route.mycompany.level.com.mycompany=DEBUG
 logging.appender.mycompany.output.uri=file:///./mycompany.log
 logging.appender.console.output.uri=stdout
 }
 
-In the above the route <em>"console"</em> will output log entries that
-will only have <code>WARN</code> or greater (<code>ERROR</code>)
-to  <code>stdout</code> (terminal/console output).
-The route <em>"mycompany"</em> will log <code>DEBUG</code> and greater for
-<code>com.mycompany</code> (and descendants like <code>com.mycompany.something</code>)
-to the file <code>mycompany.log</code>. However the <em>"mycompany"</em> route has no opinion
-about any other logger name, so for everything else it falls back to the global level
-(<code>INFO</code>). That means at this point <code>mycompany.log</code> is also catching
-<code>INFO</code> and greater from every other logger, not just <code>com.mycompany</code>.
-
 <p>
-To actually isolate <code>mycompany.log</code> to just <code>com.mycompany</code> (and
-descendants) the route needs to stop falling back to the global level for every other
-logger name. We do this by giving the route its own default of <code>OFF</code>, which the
-more specific <code>com.mycompany</code> override above still takes priority over:
+The file route's default <code>OFF</code> excludes other logger names; the more specific
+<code>com.mycompany=DEBUG</code> setting admits that logger and its descendants. Without the route default,
+other loggers would inherit the global level and could also write to the file.
+</p>
+<p>
+Warnings and errors from <code>com.mycompany</code> reach both routes in this example. To send those events
+only to the file, as with <code>additivity=false</code> and a dedicated file appender, exclude that logger
+from the console route too:
 </p>
 
 {@snippet lang=properties :
-logging.route.mycompany.level=OFF
+logging.route.console.level.com.mycompany=OFF
 }
-
-Even more sophisticated level resolution can be done programmatically with builder based configuration and custom
-Level Resolvers.
 
 <h3 id="caller_info">Caller Information</h3>
 
@@ -1405,20 +1388,24 @@ With the tabs shown as <code>⇥</code>:
 time:2026-10-05T15:04:05.123Z⇥level:INFO⇥logger:com.example.App⇥threadId:1⇥threadName:main⇥message:hello world⇥requestId:42
 }
 
-Tab, newline, carriage return, and <code>\</code> in a value are backslash escaped (<code>\t</code>, <code>\n</code>,
-<code>\r</code>, <code>\\</code>), so every event stays on one line, unless its stack trace is written as
-<a href="#ltsv_stacktrace">lines</a>. Other C0 controls, DEL, C1 controls (U+0080 through U+009F), Unicode line and
-paragraph separators, format characters (category Cf, including bidi controls), and unpaired UTF-16 surrogates
-are written as <code>&#92;uXXXX</code> with lowercase hex digits per UTF-16 code unit. The Unicode 17 format set
-is covered on Java 21. This escapes every input ESC, including SGR conceal sequences, and C1 introducers.
-Formatter-owned colors are added outside value escaping; select <code>color=off</code> to suppress them.
-Other valid Unicode text is unchanged. Labels percent-encode forbidden characters as UTF-8 with uppercase hex
-digits, encode an empty key as <code>%</code>, and preserve unpaired surrogates using <code>%uXXXX</code>.
-Split records and fields before decoding values, and decode escapes only once. The complete escaping and label
-rules are on {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}. Key values, the <code>thread</code>,
-<code>color</code>, and <code>theme</code> properties, and <code>error</code> and <code>stacktrace</code> work as in the
+<p>
+Tabs, newlines, carriage returns, and backslashes in values are escaped as <code>\t</code>, <code>\n</code>,
+<code>\r</code>, and <code>\\</code>. Other control characters, invisible formatting characters, and malformed
+UTF-16 are escaped too. This keeps input text from inserting fields, lines, or terminal escape sequences.
+Other valid Unicode text is unchanged. Rainbow Gum's own colors are added separately; use
+<code>color=off</code> for output without ANSI colors.
+</p>
+<p>
+Labels percent-encode characters that LTSV does not allow. If you parse this output, split records and fields
+before decoding, and decode escapes only once. See
+{@link io.jstach.rainbowgum.format.LtsvFormatterBuilder} for the complete value and label encoding rules.
+</p>
+<p>
+Key values, the <code>thread</code>, <code>color</code>, and <code>theme</code> properties,
+and <code>error</code> and <code>stacktrace</code> work as in the
 <a href="#logfmt">logfmt formatter</a>, except that with color on, <code>error</code> and <code>stacktrace</code>
-take the level's color, since they are on the event's line. See {@link io.jstach.rainbowgum.format.LtsvFormatterBuilder}.
+take the level's color.
+</p>
 
 <p>
 The <code>time</code>, <code>level</code>, and <code>logger</code> properties take the same choices as the
@@ -1438,10 +1425,10 @@ time:15:04:05.123⇥level:INFO ⇥logger:App⇥message:hello world⇥requestId:4
 }
 
 <p>
-<code>columns</code> lists fields to write first, in that order and without labels, so they are read by
-position, from <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code> and <code>message</code>.
-The fields not listed follow with their labels, then the key values, <code>error</code> and <code>stacktrace</code>,
-which always keep theirs. The output is then no longer LTSV. Every field as a column:
+Use <code>columns</code> to write selected fields first, without labels, in the order you specify.
+Choose from <code>time</code>, <code>level</code>, <code>logger</code>, <code>thread</code>, and <code>message</code>.
+The other fields follow with labels. Key values, <code>error</code>, and <code>stacktrace</code> always keep
+their labels. Positional output is no longer strict LTSV. For example:
 </p>
 
 {@snippet lang=properties :
@@ -1471,11 +1458,11 @@ logging.appender.console.encoder.postProcessors=journald
 }
 
 <p id="ltsv_stacktrace">
-A stack trace on one line is hard to read in a terminal or the journal. <code>stacktrace=lines</code> ends the
-event's line with <code>stacktrace:</code> and writes each line of the stack trace on a line of its own after a
-tab. That is no longer strict LTSV, but an event's line never starts with a tab, so the stack trace is still easy
-to tell from the next event, and removing that tab gives back the stack trace as Java prints it. The exception's
-message is escaped as in any value, so it stays on its line.
+For readable stack traces in a terminal, set <code>stacktrace=lines</code>. The event's line ends with
+<code>stacktrace:</code>, followed by one line per stack trace line. Each continuation starts with an extra
+tab; event lines never start with a tab, so you can distinguish the trace from the next event. Java's stack
+trace indentation is preserved after that extra tab. Line breaks and control characters within exception
+messages are escaped. This mode is no longer strict LTSV.
 </p>
 
 <p>
@@ -1514,9 +1501,9 @@ less -x2 app.log
 
 <h3 id="core_json">JSON5 Formatter</h3>
 
-The <code>json5</code> encoder writes each event as one line (unless <code>prettyPrint=full</code>) holding a JSON5 object, so an application that normally
-logs TTLL can switch to structured logging, for example while hunting a bug, by flipping one property and without
-adding a module:
+The <code>json5</code> encoder writes a JSON5 object for each event. It is built into core, so you can switch
+from text to structured output with one property. Each event stays on one line unless
+<code>prettyPrint=full</code> is enabled:
 
 {@snippet lang=properties :
 logging.appender.console.encoder.uri=json5
@@ -1526,10 +1513,9 @@ logging.appender.console.encoder.uri=json5
 {time:"2026-10-05T15:04:05.123Z",level:"INFO" ,logger:"com.example.App",threadId:"1",threadName:"main",message:"hello world",requestId:"42"}
 }
 
-It writes JSON5 by default, so it is not mistaken for the way to log JSON: like the
-other text formatters it is mostly for people reading logs, and the <a href="#json_encoders">JSON encoders</a> are
-for JSON logging. The <code>json</code> encoder writes the same fields as plain JSON. It has its own properties,
-of which only <code>keyValues</code> and <code>thread</code> below apply:
+JSON5 supports unquoted keys and optional colors for people reading logs. For tools that require standard
+JSON, select the core <code>json</code> encoder instead. It writes the same fields as plain JSON and supports
+the <code>keyValues</code> and <code>thread</code> options described below, under its own property prefix:
 
 {@snippet lang=properties :
 logging.appender.console.encoder.uri=json
@@ -3263,44 +3249,24 @@ or different property sources, use a custom
 
 <h3 id="spring_boot">Spring Boot</h3>
 
-Rainbow Gum provides Spring Boot 3 and 4 support that is maintained by the Rainbow Gum project, as two separate
-modules/artifacts, one per Spring Boot major version. Rainbow Gum cannot compete with Spring Boot's own bundled
-Logback/Log4j2 integration on "we maintain this forever regardless of what Spring Boot does next", so rather than
-bet on one major version staying source-compatible with the next (they usually are not), each supported major gets
-its own artifact:
+Choose the starter that matches your Spring Boot major version:
 
 <ul>
-  <li>{@linkplain io.jstach.rainbowgum.spring.boot4/ rainbowgum-spring-boot4} / {@linkplain io.jstach.rainbowgum.spring.boot4.starter/ rainbowgum-spring-boot4-starter}: for Spring Boot 4
-    <strong>(recommended for new projects)</strong>.</li>
-  <li>{@linkplain io.jstach.rainbowgum.spring.boot3/ rainbowgum-spring-boot3} / {@linkplain io.jstach.rainbowgum.spring.boot3.starter/ rainbowgum-spring-boot3-starter}: for Spring Boot 3.</li>
+  <li>{@linkplain io.jstach.rainbowgum.spring.boot4.starter/ rainbowgum-spring-boot4-starter}: Spring Boot 4.</li>
+  <li>{@linkplain io.jstach.rainbowgum.spring.boot3.starter/ rainbowgum-spring-boot3-starter}: Spring Boot 3.</li>
 </ul>
 
-Their own internal implementation packages ({@code io.jstach.rainbowgum.spring.boot3}/{@code boot4}) are not
-exported and never imported by consumers. Spring Boot discovers them itself through {@code META-INF/spring.factories}
-and the Java service loader, so those packages are duplicated per major version rather than shared, and are not
-necessarily identical in behavior. Each module's own javadoc has the authoritative full supported/not-supported
-property table for which Spring Boot logging properties (<code>logging.*</code>, <code>spring.output.ansi.enabled</code>,
-etc.) it supports, kept next to the code that implements it rather than duplicated here where it could drift out of
-sync:
-{@linkplain io.jstach.rainbowgum.spring.boot4/ rainbowgum-spring-boot4} and {@linkplain io.jstach.rainbowgum.spring.boot3/ rainbowgum-spring-boot3}. The one package you might
-actually import,
-{@link io.jstach.rainbowgum.spring.boot.spi}, lives in its own genuinely shared module ({@linkplain io.jstach.rainbowgum.spring.boot.spi/ rainbowgum-spring-spi},
-pulled in transitively by both starters) because it only depends on {@code org.springframework.core.env.Environment},
-which is expected to remain stable across Spring Boot major versions, so if you have implemented
-{@code SpringRainbowGumServiceProvider} yourself, that import never needs to change when you bump major versions.
-
 <p>
-Spring Boot allows configuration through simple properties for logging that tries to be logging framework agnostic.
-How this works is Spring Boot configures the logging framework from its own set of properties.
-There is a shocking amount of code Spring Boot requires to do this for Logback and Log4J2
-because both of those frameworks were not designed well for programmatic configuration.
+The starter lets Rainbow Gum read logging settings from Spring's configuration system, including
+<code>application.properties</code>, YAML, and profile files. Most Spring Boot logging properties work
+with Rainbow Gum. Each integration module lists the supported properties and any differences:
+{@linkplain io.jstach.rainbowgum.spring.boot4/ rainbowgum-spring-boot4} and
+{@linkplain io.jstach.rainbowgum.spring.boot3/ rainbowgum-spring-boot3}.
 </p>
-
 <p>
-<strong>Rainbow Gum key value configuration is purposely very similar and largely compatible with
-  Spring Boot's</strong> <em>however</em> Spring Boot still requires special integration if you would like
-to use its configuration system (for example <code>application.properties</code>).
-This is because Spring Boot uses/needs logging for initialization of its configuration system.
+If you have a custom {@link io.jstach.rainbowgum.spring.boot.spi.SpringRainbowGumServiceProvider},
+its API lives in the shared {@linkplain io.jstach.rainbowgum.spring.boot.spi/ rainbowgum-spring-spi} module,
+which both starters include. Its package name stays the same when switching between Spring Boot 3 and 4.
 </p>
 
 The recommended setup of Spring Boot 4 with Maven is:
@@ -3547,42 +3513,33 @@ fallback still happens. {@linkplain io.jstach.rainbowgum.jbosslogging/ rainbowgu
 
 <h3 id="log4j2">Log4j2</h3>
 
-<a href="https://logging.apache.org/log4j/2.x/">Log4j2</a> is a logging facade in its own right (not just
-an implementation) with a much larger method surface than SLF4J: dozens of per-level overloads across
-message type, parameter count, {@link org.apache.logging.log4j.Marker}, and {@link java.lang.Throwable}.
-
-<p>
-The {@linkplain io.jstach.rainbowgum.log4j/ rainbowgum-log4j2} module is a true, native
-{@link org.apache.logging.log4j.spi.LoggerContextFactory} implementation (not a bridge through SLF4J at
-all), registered via {@link java.util.ServiceLoader}. Add the dependency and it is picked up
-automatically, no configuration needed:</p>
+The {@linkplain io.jstach.rainbowgum.log4j/ rainbowgum-log4j2} module sends calls through the
+<a href="https://logging.apache.org/log4j/2.x/">Log4j2 API</a> directly to Rainbow Gum.
+Keep <code>log4j-api</code> for application code and add this module at runtime:
 
 {@snippet lang=xml :
 <dependency>
   <groupId>io.jstach.rainbowgum</groupId>
   <artifactId>rainbowgum-log4j2</artifactId>
   <version>_VERSION_</version>
+  <scope>runtime</scope>
 </dependency>
 }
 
 <p>
-Log4j2's {@link org.apache.logging.log4j.spi.AbstractLogger} (the base class every real Log4j2 backend
-extends) absorbs almost all of that combinatorial surface itself: it declares no abstract methods of its
-own, funneling every overload down to three methods a backend must actually implement:
-{@link org.apache.logging.log4j.spi.ExtendedLogger#isEnabled(org.apache.logging.log4j.Level) isEnabled(Level)},
-{@link org.apache.logging.log4j.spi.ExtendedLogger#isEnabled(org.apache.logging.log4j.Level, org.apache.logging.log4j.Marker) isEnabled(Level, Marker)},
-and
-{@link org.apache.logging.log4j.spi.LocationAwareLogger#logMessage(org.apache.logging.log4j.Level, org.apache.logging.log4j.Marker, String, StackTraceElement, org.apache.logging.log4j.message.Message, Throwable) logMessage(...)},
-plus around fifteen further <code>isEnabled(Level, Marker, &lt;message-type&gt;, Throwable...)</code>
-overloads declared directly on {@link org.apache.logging.log4j.spi.ExtendedLogger} that
-<code>AbstractLogger</code> leaves unimplemented (confirmed by inspection, matching
-<code>org.apache.logging.log4j:log4j-to-slf4j</code>'s own upstream reference implementation), all of
-which just delegate to the level+marker check since Rainbow Gum has no message-content-based filtering.</p>
-
+Rainbow Gum discovers the module automatically. When replacing Log4j Core, remove
+<code>log4j-core</code> and competing providers such as <code>log4j-to-slf4j</code>.
+Existing calls through <code>LogManager.getLogger(...)</code> can stay, but Log4j2 configuration files
+must be translated to Rainbow Gum properties or builders. Follow the
+<a href="migrate-log4j2.md">Log4j2 migration guide</a> for dependency changes, configuration examples,
+and verification steps.
+</p>
 <p>
-{@link org.apache.logging.log4j.Marker} is accepted but otherwise ignored, matching
-{@linkplain io.jstach.rainbowgum.jbosslogging/ rainbowgum-jboss-logging}'s own treatment of markers: Rainbow Gum's router has no
-marker-based filtering or routing concept.</p>
+The <code>ThreadContext</code> map is included as event key values, including on events from other logging
+APIs. The context stack (NDC) is not included. Markers are accepted but ignored, and
+<code>FATAL</code> events are written at <code>ERROR</code>. Code that uses Log4j Core classes or plugins
+needs to be adapted; it is separate from ordinary Log4j2 API logging calls.
+</p>
 
 <h3 id="commons_logging">Commons Logging (jcl)</h3>
 
@@ -3709,127 +3666,65 @@ and cannot come from the component's URI.
 
 <h3 id="graalvm_native">GraalVM Native Image</h3>
 
-Rainbow Gum is designed to work under GraalVM native-image with no extra configuration
-on the consuming side. Modules that need native-image build arguments bundle their own
-{@code native-image.properties} (at
-{@code META-INF/native-image/io.jstach.rainbowgum/<i>artifact-name</i>/}), which
-native-image's own embedded configuration discovery picks up automatically from any jar
-on the build classpath. As of this writing, two modules bundle one:
+Rainbow Gum modules include the metadata needed for GraalVM native-image. Most applications need no
+additional Rainbow Gum build flags. The <a href="#simple_props">simple properties module</a> includes
+<code>logging.properties</code> and <code>logging-&lt;profile&gt;.properties</code> as resources;
+custom resource names need their own native-image metadata.
 
-<ul>
-<li>{@linkplain io.jstach.rainbowgum.simple.props/ rainbowgum-simple-props} bundles a {@code resource-config.json} covering the
-default <code>logging.properties</code> resource name (see
-{@link io.jstach.rainbowgum.simple.props.SimpleProperties} for details), so it is
-included in the native image automatically.</li>
-<li>{@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk} and {@linkplain io.jstach.rainbowgum.systemlogger/ rainbowgum-systemlogger} (the
-{@code java.lang.System.LoggerFinder} integration) each bundle an
-{@code --initialize-at-build-time=...} argument, one covering
-{@code SystemLoggingFactory} plus a handful of core support classes
-({@code RainbowGumHolder}, {@code LogProperties} and its {@code StandardProperties}
-helper, {@code PropertySuccess}, {@code ServiceLoaderCache}), the other covering
-{@code RainbowGumSystemLoggerFinder$RouterProvider} plus {@code GlobalLogRouter} and
-{@code StaticLevelResolver}. This exists because the JDK's own internals
-({@code java.time}/{@code java.util.Locale} formatting, and separately
-{@code com.oracle.svm.core.jdk.TrustStoreManagerFeature} loading the default trust store
-at build time) call {@code System.getLogger(...)} incidentally, for their own
-diagnostics, from unrelated code paths that end up reachable during a real
-native-image build, and whichever registered {@code System.LoggerFinder} is on the
-classpath gets swept up regardless, along with whatever its resolution touches. While
-the image is being built the finder never starts a Rainbow Gum, so what gets frozen in
-for these specific classes is just the cheap "nothing bound yet" state (no real
-{@code RainbowGum} has loaded), the same state any freshly started JVM begins in, not
-anything environment-specific baked in from the build. See {@code io.jstach.rainbowgum.jdk.systemlogger.SystemLoggingFactory} (not part
-of {@linkplain io.jstach.rainbowgum.jdk/ rainbowgum-jdk}'s exported API) and
-{@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder} for the exact
-flags and the full explanation.</li>
-</ul>
-
-If a native-image build reports a Rainbow Gum object in the image heap, build again with
-{@code --trace-object-instantiation=<the reported class>} and read who created it:
-
-<ul>
-<li>If the trace shows a Rainbow Gum being started ({@code RainbowGum.of},
-{@code RainbowGumServiceProvider.provide}, a configurator such as {@code JULConfigurator}
-installing a {@code java.util.logging} handler), something started logging during the
-build. That is a bug, not a missing flag: do not add {@code --initialize-at-build-time}
-for it. Rainbow Gum 0.17.0 and earlier start one this way when the JDK logs during the
-build and no SLF4J facade is on the class path. On those versions build the image with
-<code>-Dlogging.systemlogger.initialize=false</code> and start Rainbow Gum yourself at
-run time, for example with {@code RainbowGum.of()} first thing in {@code main}: that
-setting is frozen into the image, so the {@code System.Logger} finder will not start one
-at run time either.</li>
-<li>If instead the object only holds the "nothing bound yet" state described above, add
-its class to the relevant module's own {@code native-image.properties}, the same way the
-classes above were found.</li>
-</ul>
+<p>
+The System.Logger integration also includes build-time initialization settings. These keep its routing
+state unbound while the image is built; the application's logging components start at run time. See
+{@link io.jstach.rainbowgum.systemlogger.RainbowGumSystemLoggerFinder} for the initialization details.
+</p>
+<p>
+If a native-image build reports a Rainbow Gum object in the image heap, rerun with
+<code>--trace-object-instantiation=&lt;the reported class&gt;</code> to find what created it. If the trace
+shows logging components starting during the build, report it as a bug. Adding
+<code>--initialize-at-build-time</code> for those components can freeze build-machine state into the image.
+</p>
+<p>
+Rainbow Gum 0.17.0 and earlier can start logging during image building when the JDK logs and no SLF4J
+facade is present. For those versions, build with <code>-Dlogging.systemlogger.initialize=false</code>
+and call <code>RainbowGum.of()</code> at the start of <code>main</code>. That setting is retained in the
+image, so explicit startup at run time is required too.
+</p>
 
 <h4 id="graalvm_appender_type">Appender Locking Strategy: Native Image vs HotSpot</h4>
 
-Real-workload benchmarking (virtual threads, both platforms) found the two thread-local-buffer
-appender types trading places depending on how the process is actually running:
-{@link io.jstach.rainbowgum.LogAppender.AppenderType#SYNCHRONIZED_THREAD_LOCAL_BUFFER} wins by a
-real, repeatable, double-digit-percentage margin under GraalVM native-image, while the default,
-{@link io.jstach.rainbowgum.LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER}, wins by a
-comparable margin on a regular JVM (HotSpot) - a genuine cross-over, not just a shrinking gap, so
-no single fixed choice is best on both.
-<p>
-This matters most for something distributed as more than one build of the same artifact for the
-same deployment - a native executable and a plain jar, say - where picking correctly per build
-would otherwise mean either shipping different configuration for each or sniffing the platform in
-application code.
-{@link io.jstach.rainbowgum.LogAppender.AppenderType#AUTO_DETECT} does that sniffing instead,
-resolving once, at appender construction time, to whichever of the two types wins on the platform
-actually running (via the same {@code org.graalvm.nativeimage.imagecode} system property check
-every native-image-aware framework uses, no GraalVM SDK dependency required):</p>
+Appender locking can perform differently on GraalVM native-image and HotSpot. To let Rainbow Gum choose
+for the running platform, opt into
+{@link io.jstach.rainbowgum.LogAppender.AppenderType#AUTO_DETECT}:
 
 {@snippet lang=properties :
 logging.appender.console.type=auto_detect
 }
 
-Which concrete type a given platform resolves to today is an implementation detail of this
-heuristic, not a contract - the whole point of {@code auto_detect} is to track whichever choice is
-actually best, so that mapping may change in a future release. If a deployment needs a specific
-type to always be used, pick that type explicitly instead of relying on what {@code auto_detect}
-happens to resolve to right now.
 <p>
-<strong>Not the default</strong> - {@code auto_detect} must be requested explicitly, the same as
-any other non-default {@link io.jstach.rainbowgum.LogAppender.AppenderType}.</p>
+This is optional. The default is
+{@link io.jstach.rainbowgum.LogAppender.AppenderType#LOCK_THREAD_LOCAL_BUFFER}.
+The type selected by <code>auto_detect</code> may change between releases; set an explicit type if your
+deployment requires a particular locking strategy.
+</p>
 
 <h4 id="graalvm_global_optimize">Opting Every Appender/Encoder Into Platform-Specific Defaults At Once</h4>
 
-Setting {@code auto_detect} per appender works, but it is still a choice made per appender, and
-{@link io.jstach.rainbowgum.LogAppender.AppenderType#AUTO_DETECT} is not the only place this
-project has found a platform-specific win - the same native-image benchmarking found
-{@code String.getBytes(Charset)}-based text encoding measurably faster there too, ahead of the
-default {@code CharsetEncoder}-based copy. {@code logging.global.optimize} opts every
-appender/encoder that has not been given a more specific, explicit choice into whichever of these
-this release currently believes is best for the platform actually running, all at once:
+To opt all appenders and text encoders into platform-specific defaults at once, set:
 
 {@snippet lang=properties :
 logging.global.optimize=true
 }
 
-An explicit choice always wins over this property, whether set programmatically
-({@code appenderType(...)}, {@code useGetBytes(...)}) or via a more specific property
-({@link io.jstach.rainbowgum.LogAppender#APPENDER_TYPE_PROPERTY}) - this property only ever fills
-in what would otherwise be left unset.
 <p>
-<strong>What this currently does, and why that is not a contract:</strong> today it only has an
-effect under GraalVM native-image (detected the same way {@code auto_detect} is, above) - the
-default appender type becomes {@code auto_detect}, and text encoders default to
-{@code String.getBytes(Charset)}-based encoding. On a plain JVM this property currently changes
-nothing - the same benchmarking that motivated the native-image behavior pointed the other way on
-HotSpot. Exactly like {@code auto_detect} itself, none of this is a promise: as this project
-benchmarks more platforms, JDK versions, and encode strategies, what {@code logging.global.optimize}
-resolves to on a given platform - including whether it does anything on a plain JVM at all - can
-and will change between releases without notice. Pin an explicit appender type/encoder strategy
-instead if a deployment needs a specific one to always be used.</p>
+Explicit appender or encoder settings still take precedence. Currently this changes defaults only under
+GraalVM native-image: appenders use <code>auto_detect</code>, and text encoders use
+<code>String.getBytes(Charset)</code> rather than <code>CharsetEncoder</code>. The selected defaults may
+change as platforms and JDKs evolve. See {@link io.jstach.rainbowgum.LogConfig.Globals#optimize()}.
+</p>
 <p>
-{@code test/rainbowgum-test-native} in the project's own repository is a working,
-end-to-end example: a small application depending only on <a href="#simple_bundle">rainbowgum-simple</a> plus
-a custom, ServiceLoader-discovered {@link io.jstach.rainbowgum.spi.RainbowGumServiceProvider.RainbowGumProvider},
-built to a real native executable and run as a black-box smoke test in CI, with no
-manual native-image flags of its own.</p>
+For a working native-image application, see <code>test/rainbowgum-test-native</code> in the repository.
+It uses <a href="#simple_bundle">rainbowgum-simple</a> and a custom service provider, with no manual
+native-image flags.
+</p>
 
 <h2 id="troubleshooting">Troubleshooting</h2>
 
@@ -3849,8 +3744,8 @@ In <code>help</code> mode Rainbow Gum:
   <li>lists every property key it read, with the value and where it came from for the ones that
   were set, so you can see what your configuration actually did and what else the chosen components
   read (see <a href="#troubleshooting_read_properties">below</a>);</li>
-  <li>reports every property key that was set but not read during startup, with the key it
-  was probably meant to be (see <a href="#troubleshooting_unused_keys">below</a>);</li>
+  <li>reports property keys that were set but not read during startup, suggesting corrections
+  when a similar key was read (see <a href="#troubleshooting_unused_keys">below</a>);</li>
   <li>fails startup if any warning or error alert was recorded, including a misspelled key,
   so the run stops with the reasons in front of you.</li>
 </ul>
@@ -3886,12 +3781,10 @@ fails on configuration mistakes by default, but without printing anything extra,
 
 <h3 id="troubleshooting_read_properties">Properties that were read</h3>
 
-The report printed in the <code>all</code> and <code>help</code> modes ends with every property
-key Rainbow Gum read while starting, in key order. A key that was set shows its value and where
-it came from; a key that was not set shows by itself. Since a component reads all of its keys
-under its own prefix, each chosen component's settings sit together, the ones you set next to
-the ones you could set. A parameter of a component's URI query is listed as the key it stands
-for. For example, part of the list for a <code>json5</code> console encoder:
+The <code>all</code> and <code>help</code> reports end with an alphabetical list of property keys Rainbow Gum
+looked up during startup. Keys you set show their values and sources. Keys you did not set appear without
+values, showing other settings the selected components looked up. URI query parameters appear under their
+equivalent property keys. For example, part of the list for a <code>json5</code> console encoder:
 
 {@snippet :
 Read Properties:
@@ -3905,24 +3798,24 @@ Read Properties:
   logging.appender.console.encoder.uri = json5:///?keyValues=none (SIMPLE_PROPS[classpath:/logging.properties:2])
 }
 
-A key that is set but missing from the list was not read, which is reported separately
-(see <a href="#troubleshooting_unused_keys">below</a>): for example a
-<code>maxFileSize</code> on an output whose keys in the list have no <code>maxFileSize</code>,
-because a plain file output was chosen instead of a rolling one. Keys that end with a logger name, such
-as <code>logging.level.com.example</code>, are read as loggers are created, so the report
-printed at startup may not have them yet. Values of keys that look sensitive, such as ones
-containing <code>password</code> or <code>token</code>, are redacted, as are values of properties
-a component marks as sensitive, such as the OTLP output's <code>headers</code>. The same list is the
+<p>
+A setting missing from this list was not read during startup. For example, <code>maxFileSize</code> has no
+effect on a plain file output; it belongs to a rolling output. Unread settings are
+<a href="#troubleshooting_unused_keys">reported separately</a>. Logger-specific keys such as
+<code>logging.level.com.example</code> are read as loggers are created, so they may not appear yet.
+</p>
+<p>
+Sensitive values are redacted. This includes keys containing words such as <code>password</code> or
+<code>token</code>, and properties a component marks as sensitive, such as the OTLP output's
+<code>headers</code>. You can also request this list through the
 {@link io.jstach.rainbowgum.LogReporter.Section#READ_PROPERTIES} section of a
-<a href="#reporting">report</a>, which is only filled in when reads are recorded.
+<a href="#reporting">report</a>, provided property reads are being recorded.
+</p>
 
 <h3 id="troubleshooting_unused_keys">Misspelled and unused property keys</h3>
 
-A misspelled property key is otherwise silently ignored: Rainbow Gum looks properties up by
-key, so a key nothing asks for does nothing. Unless
-<a href="#troubleshooting_alerts_fail"><code>logging.alerts.fail</code></a> is set so that it would
-not fail on a misspelled key, such as <code>off</code>, Rainbow Gum records every key it reads, and
-right after it starts it reports each key that was set but never read:
+Rainbow Gum checks for misspelled and unused property keys by default. It records which keys are read
+during startup, then reports settings that no selected component used:
 
 <ul>
   <li>An unread key close to a key that was read is reported as a <strong>warning</strong>
@@ -3941,11 +3834,11 @@ right after it starts it reports each key that was set but never read:
   <code>json5</code>. A misspelled key of an encoder that was not chosen is also only
   information, since none of that encoder's keys were read to suggest. With the default
   unused-key level, only warnings can fail startup.</li>
-  <li>A query parameter on a URI that the component it chose does not read is reported as a
-  <strong>warning</strong>, as the key it stands for. For example
+  <li>A URI query parameter that the selected component does not read is reported as a
+  <strong>warning</strong>, under its equivalent property key. For example,
   <code>logging.appender.app.output.uri=./app.log?maxFileSize=10MB</code> chooses the plain file
   output, which has no <code>maxFileSize</code>; <code>rolling:///./app.log?maxFileSize=10MB</code>
-  was meant.</li>
+  selects the rolling output that supports this setting.</li>
 </ul>
 
 <code>logging.alerts.unusedKey</code> makes this stricter for a configuration that should
@@ -3958,7 +3851,7 @@ above, and
 sets the default the property overrides.
 
 {@snippet lang=properties :
-# logging-ci.properties: fail on any key nothing reads
+# logging-ci.properties: fail on any unused key with the default logging.alerts.fail=config
 logging.alerts.unusedKey=warning
 }
 
@@ -3983,40 +3876,60 @@ such as <code>logging.levle.com.myapp</code> is therefore only information, sinc
 read up front to suggest. Also never reported are keys read before properties load, such as
 <code>logging.debug</code> and <code>logging.profiles</code>; and other libraries' system
 properties that happen to start with <code>logging.</code>, such as Spring Boot's
-<code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>. With
-<code>logging.alerts.fail=off</code>, or <code>error</code> while unused keys are below
-<code>error</code>, and debug mode not <code>all</code> or <code>help</code>, nothing is recorded
-and nothing is checked.
+<code>logging.config</code> and JBoss LogManager's <code>logging.configuration</code>.
+
+<p>
+The check runs when <code>logging.debug</code> is <code>all</code> or <code>help</code>, or when
+<code>logging.alerts.fail</code> would reject a misspelled key. For example, with
+<code>logging.alerts.fail=off</code> and debug mode off, property reads are not recorded and unused keys
+are not checked. With <code>logging.alerts.fail=error</code>, the check runs only if
+<code>logging.alerts.unusedKey=error</code> or one of those debug modes is enabled.
+</p>
 
 <h3 id="troubleshooting_alerts_fail">Failing on alerts</h3>
 
-<code>logging.alerts.fail</code> fails startup when an <a href="#alerts">alert</a> at or above a
-level is recorded while starting, similar to treating compiler warnings as errors.
-<code>config</code>, the default, fails on warnings and errors about configuration: misspelled
-keys, a URI query parameter nothing reads, a refused
-<a href="#simple_props_level_file">level file</a>, and a level that cannot be parsed. Problems while
-logging, such as an appender failing to write or an async publisher discarding events, are
-reported but do not stop the application. <code>warning</code> (or <code>warn</code> or
-<code>true</code>) fails on any warning or error, <code>error</code> on any error, and
-<code>off</code> (or <code>false</code>) never fails. A configuration source of your own marks its
-alerts with
-{@link io.jstach.rainbowgum.LogAlerts#config(java.lang.Class, java.lang.System.Logger.Level, java.lang.String, java.lang.Throwable)}. Unlike
-<code>logging.debug</code> it is an ordinary property, so it can be set in
-<code>logging.properties</code>, a profile, a system property, or an environment variable, and
+<p>
+<code>logging.alerts.fail</code> controls which <a href="#alerts">alerts</a> stop startup.
+The default, <code>config</code>, rejects configuration warnings and errors, including misspelled keys,
+unused URI query parameters, refused <a href="#simple_props_level_file">level files</a>, and invalid levels.
+Operational problems, such as a failed output write or an async publisher discarding events, are reported
+without stopping the application under this default.
+</p>
+
+<table class="table">
+<caption><strong>Startup failure policy</strong></caption>
+<tr><th>Value</th><th>Alerts that stop startup</th></tr>
+<tr><td><code>config</code> (default)</td><td>Configuration warnings and errors</td></tr>
+<tr><td><code>warning</code>, <code>warn</code>, or <code>true</code></td><td>Any warning or error</td></tr>
+<tr><td><code>error</code></td><td>Any error</td></tr>
+<tr><td><code>off</code> or <code>false</code></td><td>None</td></tr>
+</table>
+
+<p>
+Set this property in <code>logging.properties</code>, a profile, a system property, or an environment variable.
+The builder method
 {@link io.jstach.rainbowgum.LogConfig.Builder#alertsFail(io.jstach.rainbowgum.LogAlerts.FailLevel)}
-sets the default it overrides:
+sets the default that the property overrides. For example:
+</p>
 
 {@snippet lang=properties :
 # logging-ci.properties, selected with -Dlogging.profiles=ci:
-# also fail on problems while logging
+# also fail on operational warnings and errors recorded during startup
 logging.alerts.fail=warning
 }
 
-Alerts are checked when the configuration is built and again right after Rainbow Gum starts
-its components, which it closes again before failing. Alerts recorded after startup never fail
-anything. The failure lists only the alerts that crossed the level and says whether the level was
-the default; unlike debug mode it prints no report. <code>logging.alerts.unobservedErrorsAction</code> is different: it only acts
-on errors, and only when no alert listener is registered.
+<p>
+Alerts are checked when the configuration is built and again after components start. If startup fails,
+Rainbow Gum closes the components it started. The exception lists the alerts that triggered the failure;
+use <code>-Dlogging.debug=help</code> when you also need the diagnostic report.
+This policy does not stop the application for alerts recorded after startup.
+</p>
+<p>
+Custom configuration sources should report configuration alerts with
+{@link io.jstach.rainbowgum.LogAlerts#config(java.lang.Class, java.lang.System.Logger.Level, java.lang.String, java.lang.Throwable)}.
+The separate <code>logging.alerts.unobservedErrorsAction</code> setting controls errors recorded when
+no alert listener is registered.
+</p>
 
 <h3 id="troubleshooting_bug_report">Reporting a bug</h3>
 

@@ -66,8 +66,6 @@ Formats:
 
 * **[Latest SNAPSHOT RainbowGum doc](https://jstach.io/rainbowgum/)**
 * **[Current released RainbowGum doc](https://jstach.io/doc/rainbowgum/current/apidocs)**
-* [Latest SNAPSHOT user guide as Markdown](https://jstach.io/rainbowgum/overview.md), for agents and other tools
-  ([llms.txt](https://jstach.io/rainbowgum/llms.txt), [migrating from Logback](https://jstach.io/rainbowgum/migrate-logback.md))
 
 > [!WARNING]
 > While this readme does contain some documentation the above is the preferred documentation and
@@ -76,6 +74,20 @@ Formats:
 The doc is also on javadoc.io but is not aggregated like the above.
 
 Previous releases are listed at [jstach.io/doc/rainbowgum](https://jstach.io/doc/rainbowgum/).
+
+### Using Rainbow Gum with coding agents
+
+Start with [llms.txt](https://jstach.io/rainbowgum/llms.txt), which links the
+[Markdown user guide](https://jstach.io/rainbowgum/overview.md) and migration guides for
+[Logback](https://jstach.io/rainbowgum/migrate-logback.md) and
+[Log4j2](https://jstach.io/rainbowgum/migrate-log4j2.md). These instructions help an agent
+configure or migrate **your application**. They are usage guides, separate from the
+[instructions for developing Rainbow Gum](development.md).
+
+These links follow the latest snapshot. For a release, use `llms.txt` beside that
+version's published Javadoc so the instructions match your dependency. The migration
+guide sources live in [doc/agents](doc/agents); the doc build publishes them alongside
+the generated Markdown user guide.
 
 
 ## Why choose Rainbow Gum
