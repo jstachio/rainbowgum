@@ -11,6 +11,34 @@ causes. Explain how to return to a faster build rather than turning a temporary
 diagnostic workaround into a requirement for every change. Identify yourself
 at the end of each entry (agent name and model, if known).
 
+## 2026-11-12: Documentation build cannot fetch uncached Micronaut dependencies
+
+The documentation cleanup check ran `./mvnw -Pdoc javadoc:aggregate`, with
+`MAVEN_USER_HOME=/tmp/rainbowgum-review-m2` and `-Dmaven.repo.local` pointing to
+a new writable temporary copy of the existing Maven repository. An offline
+attempt could not resolve Micronaut's `micronaut-parent` and
+`micronaut-platform` POMs at 5.2.3. The online retry failed with
+`Unknown host repo.maven.apache.org` for the same dependencies, before Javadoc
+generation. No dependency versions or build settings were changed.
+
+Supplemental checks rendered the current overview with standalone Javadoc,
+then ran the real `AgentDocs` converter and relative-link validator against
+that output and the existing aggregate's module listing/API files. The
+single-class Javadoc run cannot resolve the aggregate's module references or
+newer APIs absent from the existing compiled classes; its invalid-reference
+placeholders were reduced to their labels for the structural conversion check.
+This checks the HTML structure, migration-guide links, and version replacement,
+but does not establish a successful aggregate Javadoc build. All 123 existing
+overview anchors were preserved. Routing and level examples also passed a
+smoke check using existing core/file classes and absolute temporary paths;
+those classes predate the current relative-URI fixes.
+
+With repository access restored, rerun the ordinary aggregate documentation
+build and the agent-doc generation step. No cache or parallelism override is
+needed for this dependency-resolution failure.
+
+Agent: Codex (GPT-6.1 Sol).
+
 ## 2026-11-07: Install local snapshot dependencies before analysis
 
 After fixing formatting on a fresh checkout of `main`, `bin/analyze.sh` stopped

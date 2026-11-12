@@ -1,6 +1,7 @@
 # Migrating from Logback to Rainbow Gum _VERSION_
 
-Instructions for an agent moving a project from Logback to Rainbow Gum. Links are
+Instructions for an agent moving a project from Logback to Rainbow Gum, which requires
+JDK 21 or later. Links are
 relative to this file. Section links such as [Spring Boot](overview.md#spring_boot) go to
 the Markdown user guide, which has the details; read a section there before changing
 anything it covers.
@@ -16,8 +17,9 @@ Before editing, find and list:
 - Dependencies: `ch.qos.logback:logback-classic`, `ch.qos.logback:logback-core`,
   `net.logstash.logback:logstash-logback-encoder`, `co.elastic.logging:logback-ecs-encoder`,
   `org.codehaus.janino:janino` (Logback conditionals), and
-  `org.springframework.boot:spring-boot-starter-logging` (pulled in by every Spring Boot
-  starter). Check transitive ones with `mvn dependency:tree` or `gradle dependencies`.
+  `org.springframework.boot:spring-boot-starter-logging` (brought in by many Spring Boot
+  starters). Check transitive dependencies with `./mvnw dependency:tree` or
+  `./gradlew dependencies`, using the project's wrapper.
 - Bridges: `org.slf4j:jul-to-slf4j` (and calls to `SLF4JBridgeHandler.install()`),
   `org.slf4j:jcl-over-slf4j`, `org.apache.logging.log4j:log4j-to-slf4j`,
   `org.slf4j:slf4j-jdk-platform-logging`.
@@ -56,7 +58,8 @@ Add modules for what the configuration uses, as listed in the
 
 - `rainbowgum-pattern` for Logback `<pattern>` layouts.
 - `rainbowgum-file` for file and rolling file appenders.
-- `rainbowgum-json` for JSON encoders.
+- `rainbowgum-json` for ECS, GELF, Logstash, or Logback JSON encoders. The core `json`
+  encoder needs no additional module; see [core JSON](overview.md#core_json).
 
 Bridges:
 
@@ -128,8 +131,9 @@ Watch for these differences:
 - Without `rainbowgum-pattern` the console uses the [TTLL format](overview.md#ttll),
   which prints MDC key values. Patterns print MDC only where they use `%X`. Check that
   nothing sensitive is in MDC, see [the warning about key values](overview.md#key_values_sensitive).
-- Logger names that cannot be written as property keys, such as ones with `$` or `-`,
-  go in a [level group](overview.md#level_groups_difficult_names).
+- Logger names that are difficult to express in the chosen property source, especially
+  environment variables (for example names with `$` or `-`), can go in a
+  [level group](overview.md#level_groups_difficult_names).
 
 The [full example configuration](overview.md#example_configuration_properties) shows many
 of these together.
@@ -156,7 +160,7 @@ of these together.
    at startup when it finds more than one.
 2. Delete the Logback configuration files only after the properties replace them.
 3. Run the application or tests once with `-Dlogging.debug=help`. It prints what Rainbow
-   Gum wired up, reports misspelled or unused keys, and fails startup on any warning, see
+   Gum wired up, reports misspelled or unused keys, and fails startup on any warning or error, see
    [Troubleshooting](overview.md#troubleshooting). Fix every warning it reports.
 4. Compare a few log lines before and after the migration with the user, since formats,
    time zones and key values can differ.
