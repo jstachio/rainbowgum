@@ -136,10 +136,11 @@ class GlobalBindTest {
 			}
 		};
 		broken.setConsumer((e, text) -> {
-			throw new AssertionError("queue drain failed");
+			// Appenders absorb other errors; one that leaves the JVM unusable escapes.
+			throw new OutOfMemoryError("queue drain failed");
 		});
 		var hooks = ShutdownManager.shutdownHooks();
-		var error = assertThrows(AssertionError.class,
+		var error = assertThrows(OutOfMemoryError.class,
 				() -> RainbowGum.builder(LogConfig.builder().build())
 					.route(r -> r.appender("bad", a -> a.output(broken)))
 					.set());
