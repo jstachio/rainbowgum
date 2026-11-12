@@ -1,11 +1,14 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+
+import org.jspecify.annotations.Nullable;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -111,6 +114,43 @@ class AppenderFailureEpisodeTest {
 				config.alerts().dump().stream().map(a -> a.level() + " " + a.message()).toList());
 	}
 
+	@ParameterizedTest
+	@EnumSource(AppenderType.class)
+	void anErrorFromEventDataIsAFailedAppend(AppenderType type) {
+		var config = LogConfig.builder().build();
+		var output = new ListLogOutput();
+		var encoder = LogFormatter.builder().message().throwable().encoder().build().provide("test", config);
+		var appender = DirectLogAppender.of("test", output, encoder, type, Set.of(), config);
+		var bad = event("bad", new IllegalStateException() {
+			@Override
+			public String getMessage() {
+				throw new StackOverflowError();
+			}
+		});
+		appender.append(bad);
+		appender.append(new LogEvent[] { bad }, 1);
+		appender.append(event("works"));
+		assertEquals(List.of("works"), output.events().stream().map(e -> e.getKey().message()).toList());
+		assertEquals(List.of("ERROR appender 'test' failed to append event",
+				"WARNING appender 'test' recovered; 1 more event(s) failed to append after the reported failure"),
+				config.alerts().dump().stream().map(a -> a.level() + " " + a.message()).toList());
+	}
+
+	@ParameterizedTest
+	@EnumSource(AppenderType.class)
+	void anErrorThatLeavesTheJvmUnusableIsRethrown(AppenderType type) {
+		var config = LogConfig.builder().build();
+		var output = new ListLogOutput();
+		output.setConsumer((e, s) -> {
+			throw new OutOfMemoryError("test");
+		});
+		var encoder = LogFormatter.builder().message().encoder().build().provide("test", config);
+		var appender = DirectLogAppender.of("test", output, encoder, type, Set.of(), config);
+		assertThrows(OutOfMemoryError.class, () -> appender.append(event("event")));
+		assertThrows(OutOfMemoryError.class, () -> appender.append(new LogEvent[] { event("event") }, 1));
+		assertEquals(List.of(), config.alerts().dump());
+	}
+
 	@Test
 	void concurrentRecoveryAccountsForEveryFailedEvent() throws Exception {
 		var config = LogConfig.builder().build();
@@ -163,7 +203,11 @@ class AppenderFailureEpisodeTest {
 	}
 
 	private static LogEvent event(String message) {
-		return LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "test", message, KeyValues.of(), null);
+		return event(message, null);
+	}
+
+	private static LogEvent event(String message, @Nullable Throwable throwable) {
+		return LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "test", message, KeyValues.of(), throwable);
 	}
 
 }

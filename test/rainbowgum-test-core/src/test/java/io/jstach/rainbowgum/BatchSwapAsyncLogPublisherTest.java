@@ -200,7 +200,7 @@ class BatchSwapAsyncLogPublisherTest {
 		output.setConsumer((event, text) -> {
 			entered.countDown();
 			await(release);
-			throw new AssertionError("fatal output failure");
+			throw new OutOfMemoryError("fatal output failure");
 		});
 		var config = LogConfig.builder().build();
 		var publisher = publisher(config, output, 1, Duration.ofSeconds(5));
@@ -257,6 +257,31 @@ class BatchSwapAsyncLogPublisherTest {
 			release.countDown();
 			publisher.close();
 		}
+	}
+
+	@Test
+	void anErrorFromEventDataDoesNotStopTheWorker() {
+		var output = new LifecycleOutput();
+		var config = LogConfig.builder().build();
+		var publisher = publisher(config, output, 4, Duration.ofSeconds(5));
+		publisher.start(config);
+		publisher.log(LogEvent.of(Instant.EPOCH, "producer", 1, Level.INFO, "test", "bad", KeyValues.of(),
+				new IllegalStateException() {
+					@Override
+					public String getMessage() {
+						throw new AssertionError("from getMessage()");
+					}
+				}));
+		// A batch fails as a whole, so let the bad event fail on its own first.
+		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+		while (metric(config, LogMetrics.EVENTS_FAILED_METRIC) == 0 && System.nanoTime() < deadline) {
+			Thread.onSpinWait();
+		}
+		publisher.log(event("after"));
+		publisher.close();
+		assertEquals(List.of("after"), output.events().stream().map(e -> e.getKey().message()).toList());
+		assertEquals(0, metric(config, LogMetrics.EVENTS_DROPPED_METRIC));
+		assertEquals(1, metric(config, LogMetrics.EVENTS_FAILED_METRIC));
 	}
 
 	@Test
@@ -705,7 +730,7 @@ class BatchSwapAsyncLogPublisherTest {
 			Duration timeout) {
 		var appender = LogAppender.builder("test")
 			.output(output)
-			.formatter(LogFormatter.builder().message().build())
+			.formatter(LogFormatter.builder().message().throwable().build())
 			.build();
 		return (BatchSwapAsyncLogPublisher) BatchSwapAsyncLogPublisher.builder("test")
 			.bufferSize(capacity)

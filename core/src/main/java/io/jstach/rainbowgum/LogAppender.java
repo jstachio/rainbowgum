@@ -1013,11 +1013,20 @@ sealed abstract class AbstractLogAppender implements DirectLogAppender {
 	/**
 	 * Records a failed append: always counted, alerted only when it starts an episode of
 	 * failures.
+	 * <p>
+	 * An Error is a failure like any other, because event data can raise one while it is
+	 * encoded, for example a throwable whose getMessage() overflows the stack. Letting it
+	 * escape would throw it at the caller of a synchronous route and stop the worker of
+	 * an asynchronous one for good. Only an error that leaves the JVM unusable is
+	 * rethrown.
 	 * @param e the failure.
 	 * @param count events that failed to append.
 	 * @param batch whether they were appended as a batch.
 	 */
-	final void appendFailed(Exception e, int count, boolean batch) {
+	final void appendFailed(Throwable e, int count, boolean batch) {
+		if (e instanceof VirtualMachineError fatal && !(e instanceof StackOverflowError)) {
+			throw fatal;
+		}
 		metrics.errorCounter(LogMetrics.EVENTS_FAILED_METRIC, count);
 		long previous = failureCount.getAndUpdate(value -> value < 0 ? 0 : value + count);
 		if (previous < 0) {
@@ -1348,7 +1357,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 			}
 			appendSucceeded();
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, 1, false);
 		}
 	}
@@ -1374,7 +1383,7 @@ final class ReuseBufferLogAppender extends LockLogAppender implements InternalLo
 				appendSucceeded();
 			}
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, count, true);
 		}
 	}
@@ -1450,7 +1459,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 			}
 			appendSucceeded();
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, 1, false);
 		}
 	}
@@ -1498,7 +1507,7 @@ final class LockThreadLocalBufferLogAppender extends LockLogAppender implements 
 				appendSucceeded();
 			}
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, count, true);
 		}
 	}
@@ -1550,7 +1559,7 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 				appendSucceeded();
 			}
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, 1, false);
 		}
 	}
@@ -1593,7 +1602,7 @@ final class LockNewBufferLogAppender extends LockLogAppender implements Internal
 				appendSucceeded();
 			}
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, count, true);
 		}
 	}
@@ -1649,7 +1658,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 			}
 			appendSucceeded();
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, 1, false);
 		}
 	}
@@ -1689,7 +1698,7 @@ final class SynchronizedThreadLocalBufferLogAppender extends AbstractLogAppender
 				appendSucceeded();
 			}
 		}
-		catch (Exception e) {
+		catch (Throwable e) {
 			appendFailed(e, count, true);
 		}
 	}
