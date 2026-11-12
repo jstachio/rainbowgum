@@ -9,6 +9,8 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
+
 import io.jstach.rainbowgum.LogConfig;
 import io.jstach.rainbowgum.LogEncoder;
 import io.jstach.rainbowgum.LogEncoder.Buffer;
@@ -55,6 +57,11 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 	private boolean started;
 
 	private boolean closed;
+
+	/*
+	 * Compresses the last rolled file. Only the writing thread starts or joins it.
+	 */
+	private @Nullable Thread compressor;
 
 	DefaultRollingFileOutput(Path activeFile, RollingPolicy.ParsedPattern pattern, long maxFileSize, int maxHistory,
 			long totalSizeCap, boolean cleanHistoryOnStart, Supplier<FileOutput> supplier, FileOutput delegate,
@@ -106,6 +113,10 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		}
 		delegate.start(config);
 		started = true;
+		// A previous process may have stopped before compressing what it rolled.
+		if (pattern.gzip() && Files.exists(RollingPolicy.pendingPath(activeFile))) {
+			startCompression();
+		}
 	}
 
 	@Override
@@ -141,7 +152,10 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 				needsOpen = true;
 				rollingRecovery = true;
 				delegate.close();
-				RollingPolicy.roll(activeFile, pattern, maxHistory, totalSizeCap);
+				awaitCompression();
+				if (RollingPolicy.rollUncompressed(activeFile, pattern, maxHistory, totalSizeCap)) {
+					startCompression();
+				}
 				openDelegate();
 				nextRollSize = maxFileSize;
 			}
@@ -161,6 +175,50 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 				}
 				throw recoveryFailure;
 			}
+		}
+	}
+
+	/*
+	 * Gzip reads the whole rolled file, so it runs off the writing thread instead of
+	 * holding up every logger behind the appender lock. The next roll waits for it.
+	 */
+	private void startCompression() {
+		var thread = new Thread(this::compress, "rainbowgum-rolling-compress");
+		thread.setDaemon(true);
+		compressor = thread;
+		thread.start();
+	}
+
+	private void compress() {
+		try {
+			RollingPolicy.compress(activeFile, pattern, maxHistory, totalSizeCap);
+		}
+		catch (RuntimeException e) {
+			config.metrics().errorCounter(LogMetrics.ROLL_FAIL_METRIC, 1);
+			config.alerts()
+				.error(getClass(), "Failed to compress '" + RollingPolicy.pendingPath(activeFile)
+						+ "'; it is kept and compressed again on the next roll", e);
+		}
+	}
+
+	private void awaitCompression() {
+		var thread = compressor;
+		if (thread == null) {
+			return;
+		}
+		compressor = null;
+		boolean interrupted = false;
+		while (true) {
+			try {
+				thread.join();
+				break;
+			}
+			catch (InterruptedException e) {
+				interrupted = true;
+			}
+		}
+		if (interrupted) {
+			Thread.currentThread().interrupt();
 		}
 	}
 
@@ -245,7 +303,12 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 	public void close() {
 		if (!closed) {
 			closed = true;
-			delegate.close();
+			try {
+				delegate.close();
+			}
+			finally {
+				awaitCompression();
+			}
 		}
 	}
 

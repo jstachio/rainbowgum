@@ -43,9 +43,14 @@ import io.jstach.rainbowgum.file.FileOutputBuilder;
  * when the output is first opened. Replacement outputs always append so recovery
  * preserves any active contents left behind by a failed rotation.
  * <p>
- * Gzipped archives preserve the active file's POSIX owner, group, and permission bits.
- * Rotation fails if these cannot be copied; the active contents remain available for
- * recovery. Platform-specific ACLs are not copied.
+ * With a pattern ending in <code>.gz</code>, rotation only renames the active file to
+ * <code>{activeFile}.pending</code>, and a background thread compresses it into archive
+ * slot 1, so writers are not held up while it is compressed. The next rotation and
+ * {@link #close()} wait for that thread. If compression fails, or the process stops
+ * before it finishes, the pending file is kept and compressed on the next rotation or
+ * start. Gzipped archives preserve the active file's POSIX owner, group, and permission
+ * bits. Compression fails if these cannot be copied. Platform-specific ACLs are not
+ * copied.
  * <p>
  * Failed automatic rotation attempts record {@link LogMetrics#ROLL_FAIL_METRIC} and an
  * error alert identifying the active file. If the active file can be reopened, the

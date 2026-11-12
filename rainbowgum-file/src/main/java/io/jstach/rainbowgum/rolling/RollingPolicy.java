@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.rolling;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
@@ -95,7 +96,35 @@ final class RollingPolicy {
 	 * means unlimited.
 	 */
 	static void roll(Path activeFile, ParsedPattern pattern, int maxHistory, long totalSizeCap) {
+		if (rollUncompressed(activeFile, pattern, maxHistory, totalSizeCap)) {
+			compress(activeFile, pattern, maxHistory, totalSizeCap);
+		}
+	}
+
+	/**
+	 * Where the active file waits to be compressed into archive slot 1.
+	 * @param activeFile the file being actively written to.
+	 * @return path next to the active file.
+	 */
+	static Path pendingPath(Path activeFile) {
+		return Path.of(activeFile + ".pending");
+	}
+
+	/**
+	 * Like {@link #roll}, except that for a gzip pattern the active file is only renamed
+	 * to {@link #pendingPath(Path)}, so the slow part can run without blocking writers. A
+	 * pending file left by an earlier failed or interrupted compression is compressed
+	 * first, so it is never overwritten.
+	 * @param activeFile the file being actively written to.
+	 * @param pattern parsed {@code fileNamePattern}.
+	 * @param maxHistory maximum number of archives to retain.
+	 * @param totalSizeCap maximum combined size, in bytes, of all archives; {@code <= 0}
+	 * means unlimited.
+	 * @return true if {@link #compress} must be called to finish the roll.
+	 */
+	static boolean rollUncompressed(Path activeFile, ParsedPattern pattern, int maxHistory, long totalSizeCap) {
 		try {
+			compress(activeFile, pattern, maxHistory, totalSizeCap);
 			if (maxHistory > 0) {
 				Files.deleteIfExists(pattern.archivePath(activeFile, maxHistory));
 			}
@@ -106,18 +135,46 @@ final class RollingPolicy {
 				}
 			}
 			if (maxHistory >= 1 && Files.exists(activeFile)) {
-				Path target = pattern.archivePath(activeFile, 1);
 				if (pattern.gzip()) {
-					gzip(activeFile, target);
-					Files.delete(activeFile);
+					Files.move(activeFile, pendingPath(activeFile));
+					return true;
 				}
-				else {
-					Files.move(activeFile, target, StandardCopyOption.REPLACE_EXISTING);
-				}
+				Files.move(activeFile, pattern.archivePath(activeFile, 1), StandardCopyOption.REPLACE_EXISTING);
 			}
 			else {
 				Files.deleteIfExists(activeFile);
 			}
+			enforceTotalSizeCap(activeFile, pattern, maxHistory, totalSizeCap);
+			return false;
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	/**
+	 * Compresses the {@link #pendingPath(Path) pending file}, if there is one, into
+	 * archive slot 1 and then enforces {@code totalSizeCap}. If compression fails the
+	 * pending file is kept for the next attempt.
+	 * @param activeFile the file being actively written to.
+	 * @param pattern parsed {@code fileNamePattern}.
+	 * @param maxHistory maximum number of archives to retain.
+	 * @param totalSizeCap maximum combined size, in bytes, of all archives; {@code <= 0}
+	 * means unlimited.
+	 */
+	static void compress(Path activeFile, ParsedPattern pattern, int maxHistory, long totalSizeCap) {
+		Path pending = pendingPath(activeFile);
+		if (!pattern.gzip() || Files.notExists(pending, LinkOption.NOFOLLOW_LINKS)) {
+			return;
+		}
+		try {
+			if (!Files.isRegularFile(pending, LinkOption.NOFOLLOW_LINKS)) {
+				throw new FileSystemException(pending.toString(), null, "not a regular file");
+			}
+			if (maxHistory >= 1) {
+				gzip(pending, pattern.archivePath(activeFile, 1));
+			}
+			Files.delete(pending);
 			enforceTotalSizeCap(activeFile, pattern, maxHistory, totalSizeCap);
 		}
 		catch (IOException e) {

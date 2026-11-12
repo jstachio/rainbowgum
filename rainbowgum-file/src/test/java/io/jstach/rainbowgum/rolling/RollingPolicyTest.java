@@ -121,8 +121,9 @@ class RollingPolicyTest {
 	}
 
 	@Test
-	void gzipFailureKeepsTheSourceAndRemovesTheTemporaryArchive() throws IOException {
+	void gzipFailureKeepsThePendingFileAndRemovesTheTemporaryArchive() throws IOException {
 		Path active = dir.resolve("app.log");
+		Path pending = RollingPolicy.pendingPath(active);
 		Files.writeString(active, "keep this log");
 		assumeTrue(Files.getFileAttributeView(active, PosixFileAttributeView.class) != null, "POSIX only");
 		Files.setPosixFilePermissions(active, Set.of());
@@ -132,12 +133,57 @@ class RollingPolicyTest {
 					() -> RollingPolicy.roll(active, ParsedPattern.parse(".%i.gz"), 1, 0));
 		}
 		finally {
-			Files.setPosixFilePermissions(active, PosixFilePermissions.fromString("rw-------"));
+			Files.setPosixFilePermissions(Files.exists(pending) ? pending : active,
+					PosixFilePermissions.fromString("rw-------"));
 		}
-		assertEquals("keep this log", Files.readString(active));
+		assertEquals("keep this log", Files.readString(pending));
 		try (var files = Files.list(dir)) {
-			assertEquals(List.of(active), files.toList());
+			assertEquals(List.of(pending), files.toList());
 		}
+	}
+
+	@Test
+	void gzipRollOnlyRenamesUntilCompressed() throws IOException {
+		Path active = dir.resolve("app.log");
+		Path pending = RollingPolicy.pendingPath(active);
+		var pattern = ParsedPattern.parse(".%i.gz");
+		Files.writeString(active, "first");
+		Files.writeString(dir.resolve("app.log.1.gz"), "older");
+		assertTrue(RollingPolicy.rollUncompressed(active, pattern, 3, 0));
+		assertEquals("first", Files.readString(pending));
+		assertEquals("older", Files.readString(dir.resolve("app.log.2.gz")));
+		assertFalse(Files.exists(active));
+		assertFalse(Files.exists(dir.resolve("app.log.1.gz")));
+		RollingPolicy.compress(active, pattern, 3, 0);
+		assertFalse(Files.exists(pending));
+		try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.1.gz")))) {
+			assertEquals("first", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		}
+	}
+
+	@Test
+	void aLeftoverPendingFileIsCompressedBeforeTheNextRoll() throws IOException {
+		Path active = dir.resolve("app.log");
+		Path pending = RollingPolicy.pendingPath(active);
+		var pattern = ParsedPattern.parse(".%i.gz");
+		Files.writeString(pending, "left over");
+		Files.writeString(active, "current");
+		assertTrue(RollingPolicy.rollUncompressed(active, pattern, 3, 0));
+		assertEquals("current", Files.readString(pending));
+		try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.2.gz")))) {
+			assertEquals("left over", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		}
+	}
+
+	@Test
+	void aPendingPathThatIsNotARegularFileIsNotCompressed() throws IOException {
+		Path active = dir.resolve("app.log");
+		Path pending = Files.createDirectory(RollingPolicy.pendingPath(active));
+		Files.writeString(active, "current");
+		assertThrows(UncheckedIOException.class,
+				() -> RollingPolicy.rollUncompressed(active, ParsedPattern.parse(".%i.gz"), 3, 0));
+		assertEquals("current", Files.readString(active));
+		assertTrue(Files.isDirectory(pending));
 	}
 
 	@Test
