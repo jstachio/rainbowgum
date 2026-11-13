@@ -2,11 +2,11 @@ package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.System.Logger.Level;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -143,7 +143,7 @@ class AppenderFailureEpisodeTest {
 	@EnumSource(AppenderType.class)
 	void failureDiagnosticsDoNotFormatTheBrokenCauseAgain(AppenderType type) {
 		var diagnostics = new ByteArrayOutputStream();
-		MetaLog.output = () -> new PrintStream(diagnostics);
+		MetaLog.output = () -> new PrintStream(diagnostics, true, StandardCharsets.UTF_8);
 		var config = LogConfig.builder()
 			.appenderLock(type == AppenderType.SYNCHRONIZED_THREAD_LOCAL_BUFFER
 					? LogConfig.Globals.AppenderLock.SYNCHRONIZED : LogConfig.Globals.AppenderLock.REENTRANT)
@@ -151,16 +151,27 @@ class AppenderFailureEpisodeTest {
 		var output = new ListLogOutput();
 		var encoder = LogFormatter.builder().message().throwable().encoder().build().provide("test", config);
 		var appender = DirectLogAppender.of("test", output, encoder, type, Set.of(), config);
+		boolean[] broken = { true };
 		var bad = event("bad", new IllegalStateException() {
 			@Override
 			public String getMessage() {
-				throw new AssertionError("from getMessage()", this);
+				if (broken[0]) {
+					throw new AssertionError("from getMessage()", this);
+				}
+				return "no longer broken";
 			}
 		});
-		appender.append(bad);
-		appender.append(event("after single"));
-		appender.append(new LogEvent[] { bad }, 1);
-		appender.append(event("after batch"));
+		try {
+			appender.append(bad);
+			appender.append(event("after single"));
+			appender.append(new LogEvent[] { bad }, 1);
+			appender.append(event("after batch"));
+		}
+		finally {
+			// If the error escapes, JUnit formats it. A throwable that is still broken
+			// then breaks JUnit's own reporting, and Surefire counts no test at all.
+			broken[0] = false;
+		}
 		assertEquals(List.of("after single", "after batch"),
 				output.events().stream().map(e -> e.getKey().message()).toList());
 		assertEquals(List.of("ERROR appender 'test' failed to append event",
@@ -168,8 +179,15 @@ class AppenderFailureEpisodeTest {
 				"ERROR appender 'test' failed to append batch of 1 event(s)",
 				"WARNING appender 'test' recovered; 0 more event(s) failed to append after the reported failure"),
 				config.alerts().dump().stream().map(a -> a.level() + " " + a.message()).toList());
-		assertTrue(diagnostics.toString().contains("appender 'test' failed to append event"));
-		assertTrue(diagnostics.toString().contains("appender 'test' failed to append batch of 1 event(s)"));
+		assertEquals(
+				"""
+						[ERROR] - RAINBOW_GUM - %1$s - appender 'test' failed to append event java.lang.AssertionError [stack trace unavailable: java.lang.AssertionError]
+						[WARN] - RAINBOW_GUM - %1$s - appender 'test' recovered; 0 more event(s) failed to append after the reported failure
+						[ERROR] - RAINBOW_GUM - %1$s - appender 'test' failed to append batch of 1 event(s) java.lang.AssertionError [stack trace unavailable: java.lang.AssertionError]
+						[WARN] - RAINBOW_GUM - %1$s - appender 'test' recovered; 0 more event(s) failed to append after the reported failure
+						"""
+					.formatted(appender.getClass().getSimpleName()),
+				diagnostics.toString(StandardCharsets.UTF_8));
 	}
 
 	@ParameterizedTest
