@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" child.project.url.inherit.append.path="false">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" child.project.url.inherit.append.path="false" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.jstach.rainbowgum</groupId>
   <artifactId>rainbowgum-maven-parent</artifactId>
   <name>rainbowgum-maven-parent</name>
   <packaging>pom</packaging>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>1.1.0-SNAPSHOT</version>
   <url>https://github.com/jstachio/rainbowgum</url>
   <description>Secure, GraalVM native and jlink friendly modular logging</description>
   <organization>
@@ -15,7 +15,7 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <metainf-services.version>1.11</metainf-services.version>
-    <project.build.outputTimestamp>1790274489</project.build.outputTimestamp>
+    <project.build.outputTimestamp>1794577320</project.build.outputTimestamp>
     <doc.resources>../</doc.resources>
     <doc.snippets>rainbowgum/src/test/java</doc.snippets>
     <deploy>snapshot</deploy>
@@ -42,7 +42,7 @@
       whitespace and cannot hold a newline. argLine itself defaults to empty so @{argLine}
       works without the JaCoCo agent.
     -->
-    <argLine></argLine>
+    <argLine/>
     <test.lineSeparator.argLine>@${maven.multiModuleProjectDirectory}/.mvn/test-line-separator.args</test.lineSeparator.argLine>
 
     <ecj.version>3.46.100</ecj.version>
