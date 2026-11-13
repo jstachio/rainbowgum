@@ -95,7 +95,7 @@ public final class JULBridge {
 	 * when asked from inside Rainbow Gum while this thread routes or checks a record.
 	 */
 	public static boolean isLoggable(String loggerName, java.util.logging.Level level) {
-		if (ACTIVE.get() == Boolean.TRUE) {
+		if (ACTIVE.get() != null) {
 			return false;
 		}
 		ACTIVE.set(Boolean.TRUE);
@@ -123,7 +123,7 @@ public final class JULBridge {
 			return;
 		}
 		String loggerName = rec.getLoggerName();
-		if (loggerName == null || ACTIVE.get() == Boolean.TRUE) {
+		if (loggerName == null || ACTIVE.get() != null) {
 			return;
 		}
 		ACTIVE.set(Boolean.TRUE);
