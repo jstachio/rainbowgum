@@ -53,16 +53,22 @@ their tests, so even a second or two of tests there delays the entire build. Slo
 tests always go in a test module.
 
 Golden strings of error messages or log output are desirable in this library.
-For error messages and diagnostic log output, always assert the complete string
-with `assertEquals` and a Java text block (`"""`). Do not use `contains` or other
-partial-message assertions.
+For error messages, log output and any other captured output (alerts, `MetaLog`,
+stderr), always assert the complete string with `assertEquals` and a Java text
+block (`"""`). Do not use `contains`, `startsWith` or other partial assertions.
 If a message includes nondeterministic values, replace only those values with stable
-placeholders before comparing the full string.
+placeholders before comparing the full string. A value that varies by test parameter,
+such as a class name, goes into the text block with `formatted`.
 
 Do not write unit tests that are not end to end just to improve code coverage.
 
 While this library does not do mutation testing the general idea is if code is
 edited other than refactor a test should fail.
+
+So check that a new regression test fails without the fix, and check the test
+count when it does. A throwable that throws from `getMessage()` or `toString()`
+can break JUnit's own reporting if it escapes: Surefire then reports no tests
+for that class and still passes the build.
 
 ## Error Handling
 

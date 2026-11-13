@@ -5,9 +5,12 @@ They contain the project's development conventions and build procedures.
 
 ## Tests and diagnostic strings
 
-- Compare complete error messages and diagnostic log output with `assertEquals`
-  and Java text blocks (`"""`). Normalize only nondeterministic values to stable
-  placeholders. Do not use `contains` or other partial-message assertions.
+- Compare complete error messages, log output and other captured output
+  (alerts, `MetaLog`, stderr) with `assertEquals` and Java text blocks (`"""`).
+  Normalize only nondeterministic values to stable placeholders. Do not use
+  `contains`, `startsWith` or other partial assertions.
+- Check that a new regression test fails without the fix, and that the failing
+  run reports the test. See the Testing section of `development.md`.
 - Prefer end to end tests and parameterized enum driven cases. Slow tests belong
   in the appropriate module under `test/`. Do not add tests merely for coverage.
 
