@@ -7,6 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.lang.System.Logger.Level;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,18 +19,25 @@ import java.util.Objects;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.boot.logging.LogLevel;
 import org.springframework.boot.logging.LoggerConfiguration;
 import org.springframework.boot.logging.LoggingInitializationContext;
 import org.springframework.boot.logging.LoggingSystem;
+import org.springframework.core.env.ConfigurablePropertyResolver;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.StandardEnvironment;
 
+import io.jstach.rainbowgum.KeyValues;
 import io.jstach.rainbowgum.LogConfig;
+import io.jstach.rainbowgum.LogEvent;
+import io.jstach.rainbowgum.LogRouter;
 import io.jstach.rainbowgum.LoggerAPI;
 import io.jstach.rainbowgum.RainbowGum;
 
@@ -49,11 +61,25 @@ class SpringLoggingSystemLevelsTest {
 		for (int i = 0; i < keyValues.length; i += 2) {
 			map.put(keyValues[i], keyValues[i + 1]);
 		}
-		var environment = new StandardEnvironment();
+		var environment = new ApplicationEnvironment();
 		environment.setConversionService(new ApplicationConversionService());
 		environment.getPropertySources().addFirst(new MapPropertySource("test", map));
 		system.initialize(new LoggingInitializationContext(environment), null, null);
 		return Objects.requireNonNull(RainbowGum.getOrNull());
+	}
+
+	/*
+	 * Resolves properties the way Spring Boot's own environment does. The plain
+	 * StandardEnvironment resolver logs every lookup at trace, which here goes to JUL and
+	 * back into Rainbow Gum while it resolves a level.
+	 */
+	static final class ApplicationEnvironment extends StandardEnvironment {
+
+		@Override
+		protected ConfigurablePropertyResolver createPropertyResolver(MutablePropertySources propertySources) {
+			return ConfigurationPropertySources.createPropertyResolver(propertySources);
+		}
+
 	}
 
 	private LoggerConfiguration logger(String name) {
@@ -151,6 +177,41 @@ class SpringLoggingSystemLevelsTest {
 		var second = initialize();
 		assertNotSame(first, second);
 		assertSame(second, RainbowGum.getOrNull());
+	}
+
+	/*
+	 * Spring Framework 7 pauses a cached test context by calling cleanUp, and resuming it
+	 * does not initialize logging again (#892).
+	 */
+	@Test
+	void loggingCarriesOnAfterContextsArePaused(@TempDir Path directory) throws IOException {
+		Path file = directory.resolve("app.log");
+		System.setProperty("FILE_LOG_PATTERN", "%m%n");
+		try {
+			initialize("logging.file.name", file.toString());
+			log("A: context 1");
+			// Context 1 is paused, then context 2 starts.
+			system.cleanUp();
+			initialize("logging.file.name", file.toString(), "repro.other", "true");
+			log("B: context 2");
+			// Context 1 resumes, which does not initialize, and context 2 is paused.
+			system.cleanUp();
+			log("C: context 1 again");
+			Objects.requireNonNull(system.getShutdownHandler()).run();
+		}
+		finally {
+			System.clearProperty("FILE_LOG_PATTERN");
+		}
+		assertEquals("""
+				A: context 1
+				B: context 2
+				C: context 1 again
+				""", Files.readString(file));
+	}
+
+	private static void log(String message) {
+		var route = LogRouter.global().route("repro", Level.INFO);
+		route.log(LogEvent.of(Instant.EPOCH, "main", 1, Level.INFO, "repro", message, KeyValues.of(), null));
 	}
 
 	@Test
