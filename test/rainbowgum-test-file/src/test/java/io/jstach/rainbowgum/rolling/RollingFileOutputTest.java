@@ -2,6 +2,7 @@ package io.jstach.rainbowgum.rolling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -11,6 +12,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
@@ -172,8 +176,8 @@ class RollingFileOutputTest {
 				gum.log(TestLogEventFactory.of().event("kept"));
 			}
 		}
-		// Closing waited for the compression thread, which raised the alert.
-		assertEquals(java.util.List.of("rainbowgum-rolling-compress"), threads);
+		// Closing joins the compressor and delivers its alert on the closing thread.
+		assertEquals(java.util.List.of(Thread.currentThread().getName()), threads);
 		// The temporary compression filename is nondeterministic.
 		String alerts = errorAlerts(config).replaceAll("archive\\.gz[0-9]+\\.tmp", "<TEMP>");
 		assertEquals(
@@ -199,6 +203,72 @@ class RollingFileOutputTest {
 		}
 		assertFalse(Files.exists(pending));
 		assertEquals(0, metric(restart, StandardMetric.ROLL_FAIL));
+	}
+
+	enum FailureNotification {
+
+		WRITE, FLUSH, CLOSE
+
+	}
+
+	@ParameterizedTest
+	@EnumSource(FailureNotification.class)
+	void compressionFailureListenerCanLogToTheSameAppender(FailureNotification operation) throws Exception {
+		Path active = dir.resolve("app.log");
+		var failure = new AtomicReference<Throwable>();
+		// A regression can deadlock both the writer and compressor. Keep them daemon
+		// threads and disable the shutdown hook so the test can fail without hanging
+		// the test JVM. All I/O handles are closed before the old join deadlocks.
+		var writer = Thread.ofPlatform().daemon().name("compression-failure-writer").start(() -> {
+			try {
+				var config = LogConfig.builder().shutdownHook(LogConfig.Globals.ShutdownHookMode.OFF).build();
+				var provider = RollingFileOutput.of(b -> b.fileName(active.toString())
+					.maxFileSize(DataSize.ofBytes(5))
+					.fileNamePattern(".%i/archive.gz"));
+				var notifications = new AtomicInteger();
+				var callbackThread = new AtomicReference<Thread>();
+				try (var gum = RainbowGum.builder(config)
+					.route(r -> r.appender("file",
+							a -> a.output(provider).formatter(FORMATTER).appenderType(AppenderType.REUSE_BUFFER)))
+					.build()
+					.start(); var registration = config.alerts().addListener(a -> {
+						if (a.message().startsWith("Failed to compress")) {
+							callbackThread.set(Thread.currentThread());
+							gum.log(TestLogEventFactory.of().event("alert"));
+							notifications.incrementAndGet();
+						}
+					})) {
+					gum.log(TestLogEventFactory.of().event("first"));
+					gum.log(TestLogEventFactory.of().event("second"));
+					switch (operation) {
+						case WRITE -> gum.log(TestLogEventFactory.of().event("third"));
+						case FLUSH -> {
+							long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+							while (notifications.get() == 0 && System.nanoTime() < deadline) {
+								config.outputRegistry().flush();
+								Thread.sleep(1);
+							}
+						}
+						case CLOSE -> gum.close();
+					}
+					assertEquals(1, notifications.get());
+					assertEquals(Thread.currentThread(), callbackThread.get());
+					assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
+				}
+				assertEquals("first\n", Files.readString(RollingPolicy.pendingPath(active)));
+				assertEquals(switch (operation) {
+					case WRITE -> "second\nalert\nthird\n";
+					case FLUSH -> "second\nalert\n";
+					case CLOSE -> "second\n";
+				}, Files.readString(active));
+			}
+			catch (Throwable e) {
+				failure.set(e);
+			}
+		});
+		writer.join(10000);
+		assertFalse(writer.isAlive(), "Writer and compressor must not wait for each other");
+		assertNull(failure.get());
 	}
 
 	@ParameterizedTest

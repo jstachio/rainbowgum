@@ -50,7 +50,11 @@ import io.jstach.rainbowgum.file.FileOutputBuilder;
  * before it finishes, the pending file is kept and compressed on the next rotation or
  * start. Gzipped archives preserve the active file's POSIX owner, group, and permission
  * bits. Compression fails if these cannot be copied. Platform-specific ACLs are not
- * copied.
+ * copied. An active path that is a symbolic link is compressed synchronously before
+ * removing the link, leaving its target intact; pending symbolic links are never
+ * followed. Compression failures are counted immediately, but their alerts are delivered
+ * by the next write, flush, or close that observes the completed worker. The worker never
+ * invokes alert listeners, which may themselves log through this output.
  * <p>
  * Failed automatic rotation attempts record {@link LogMetrics#ROLL_FAIL_METRIC} and an
  * error alert identifying the active file. If the active file can be reopened, the

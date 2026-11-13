@@ -114,7 +114,9 @@ final class RollingPolicy {
 	 * Like {@link #roll}, except that for a gzip pattern the active file is only renamed
 	 * to {@link #pendingPath(Path)}, so the slow part can run without blocking writers. A
 	 * pending file left by an earlier failed or interrupted compression is compressed
-	 * first, so it is never overwritten.
+	 * first, so it is never overwritten. An active symbolic link uses synchronous gzip,
+	 * as before: compress its target and remove only the link. Moving that link into the
+	 * pending path would leave a nonregular entry that recovery must not follow.
 	 * @param activeFile the file being actively written to.
 	 * @param pattern parsed {@code fileNamePattern}.
 	 * @param maxHistory maximum number of archives to retain.
@@ -136,6 +138,12 @@ final class RollingPolicy {
 			}
 			if (maxHistory >= 1 && Files.exists(activeFile)) {
 				if (pattern.gzip()) {
+					if (Files.isSymbolicLink(activeFile)) {
+						gzip(activeFile, pattern.archivePath(activeFile, 1));
+						Files.delete(activeFile);
+						enforceTotalSizeCap(activeFile, pattern, maxHistory, totalSizeCap);
+						return false;
+					}
 					Files.move(activeFile, pendingPath(activeFile));
 					return true;
 				}
