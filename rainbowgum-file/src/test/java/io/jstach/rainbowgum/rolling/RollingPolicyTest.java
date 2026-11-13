@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.FileSystemException;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -184,6 +185,52 @@ class RollingPolicyTest {
 				() -> RollingPolicy.rollUncompressed(active, ParsedPattern.parse(".%i.gz"), 3, 0));
 		assertEquals("current", Files.readString(active));
 		assertTrue(Files.isDirectory(pending));
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void gzipRotationOfAnActiveSymbolicLinkDoesNotLeaveAPendingLink(boolean relative) throws IOException {
+		Path active = dir.resolve("app.log");
+		Path target = Files.writeString(dir.resolve("target.log"), "linked contents");
+		createSymbolicLink(active, relative ? target.getFileName() : target);
+		var pattern = ParsedPattern.parse(".%i.gz");
+		RollingPolicy.roll(active, pattern, 3, 0);
+		assertFalse(Files.exists(active));
+		assertFalse(Files.exists(RollingPolicy.pendingPath(active)));
+		assertEquals("linked contents", Files.readString(target));
+		Files.writeString(active, "next contents");
+		RollingPolicy.roll(active, pattern, 3, 0);
+		try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.2.gz")))) {
+			assertEquals("linked contents", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		}
+		try (var in = new GZIPInputStream(Files.newInputStream(dir.resolve("app.log.1.gz")))) {
+			assertEquals("next contents", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		}
+	}
+
+	@Test
+	void aForeignPendingSymbolicLinkIsNotFollowedOrDeleted() throws IOException {
+		Path active = Files.writeString(dir.resolve("app.log"), "current");
+		Path target = Files.writeString(dir.resolve("foreign.log"), "foreign");
+		Path pending = RollingPolicy.pendingPath(active);
+		createSymbolicLink(pending, target);
+		assertThrows(UncheckedIOException.class,
+				() -> RollingPolicy.rollUncompressed(active, ParsedPattern.parse(".%i.gz"), 3, 0));
+		assertTrue(Files.isSymbolicLink(pending));
+		assertEquals("foreign", Files.readString(target));
+		assertEquals("current", Files.readString(active));
+		assertFalse(Files.exists(dir.resolve("app.log.1.gz")));
+	}
+
+	private static void createSymbolicLink(Path link, Path target) throws IOException {
+		try {
+			Files.createSymbolicLink(link, target);
+		}
+		catch (FileSystemException e) {
+			// Windows requires Developer Mode or the symbolic-link privilege.
+			assumeTrue(!System.getProperty("os.name").startsWith("Windows"), "Symbolic links unavailable: " + e);
+			throw e;
+		}
 	}
 
 	@Test

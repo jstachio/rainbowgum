@@ -63,6 +63,11 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 	 */
 	private @Nullable Thread compressor;
 
+	/* Written by the compressor and read only after joining it. */
+	private @Nullable RuntimeException compressionFailure;
+
+	private boolean reportingCompressionFailure;
+
 	DefaultRollingFileOutput(Path activeFile, RollingPolicy.ParsedPattern pattern, long maxFileSize, int maxHistory,
 			long totalSizeCap, boolean cleanHistoryOnStart, Supplier<FileOutput> supplier, FileOutput delegate,
 			LogConfig config) {
@@ -137,6 +142,11 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 	// Identity is required because Throwable rejects self-suppression.
 	@SuppressWarnings("ReferenceEquality")
 	private void maybeRoll() {
+		// A failure listener may log through this same output. Keep the delegate
+		// open and let that event append without starting another rotation.
+		if (reportingCompressionFailure) {
+			return;
+		}
 		if (needsOpen && !rollingRecovery) {
 			// An explicit reopen failure is not an automatic rotation failure.
 			openDelegate();
@@ -146,13 +156,15 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 				openDelegate();
 				deferRoll();
 			}
+			reportCompletedCompression();
 			if (maxFileSize > 0 && bytesWritten >= nextRollSize) {
+				// Join and notify before closing the delegate: listeners can log.
+				awaitCompression();
 				// Mark this before closing: any failure must leave the next write able to
 				// recover instead of silently writing to a closed output.
 				needsOpen = true;
 				rollingRecovery = true;
 				delegate.close();
-				awaitCompression();
 				if (RollingPolicy.rollUncompressed(activeFile, pattern, maxHistory, totalSizeCap)) {
 					startCompression();
 				}
@@ -195,9 +207,17 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		}
 		catch (RuntimeException e) {
 			config.metrics().errorCounter(LogMetrics.ROLL_FAIL_METRIC, 1);
-			config.alerts()
-				.error(getClass(), "Failed to compress '" + RollingPolicy.pendingPath(activeFile)
-						+ "'; it is kept and compressed again on the next roll", e);
+			// Alert listeners run synchronously and can acquire the appender lock.
+			// The writer may hold that lock while joining us, so it reports this
+			// failure after the join instead of invoking user code on this thread.
+			compressionFailure = e;
+		}
+	}
+
+	private void reportCompletedCompression() {
+		var thread = compressor;
+		if (thread != null && !thread.isAlive()) {
+			awaitCompression();
 		}
 	}
 
@@ -219,6 +239,19 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 		}
 		if (interrupted) {
 			Thread.currentThread().interrupt();
+		}
+		var failure = compressionFailure;
+		compressionFailure = null;
+		if (failure != null) {
+			reportingCompressionFailure = true;
+			try {
+				config.alerts()
+					.error(getClass(), "Failed to compress '" + RollingPolicy.pendingPath(activeFile)
+							+ "'; it is kept and compressed again on the next roll", failure);
+			}
+			finally {
+				reportingCompressionFailure = false;
+			}
 		}
 	}
 
@@ -296,6 +329,7 @@ final class DefaultRollingFileOutput implements RollingFileOutput {
 	public void flush() {
 		if (!closed && !needsOpen) {
 			delegate.flush();
+			reportCompletedCompression();
 		}
 	}
 
