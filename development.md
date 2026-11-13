@@ -1,11 +1,12 @@
 # Development Guide
 
-**Note there are no hard rules and these are just guidelines**.
-
-(The exception and rule that must be followed is that `main` branch must be
-    linear and we use rebase instead of merge.)
+The diagnostic-string testing rules and validation steps below are requirements.
+Other design recommendations allow judgment. [AGENTS.md](AGENTS.md) provides a
+short entry point for coding agents; this guide contains the detailed conventions.
 
 ## Git Workflow
+
+Keep `main` linear and use rebase instead of merge.
 
 Keep git commit titles under 72 chars.
 
@@ -16,6 +17,23 @@ not worth preserving or confusing. Agents should not squash till told to.
 
 See [build.md](build.md) for the Maven build cache, `bin/analyze.sh`, code
 coverage, and where to look when any of that goes stale.
+
+### Required validation before pushing
+
+For Java or Java build changes:
+
+1. Run the applicable tests and Spring Java Format validation through `./mvnw`.
+2. Run `bin/analyze.sh`. Passing tests alone does not complete validation. The
+   script selects the supported Checker Framework, Error Prone, and NullAway
+   checks and their module exclusions. Use its documented defaults or options
+   that cover every supported analyzer for the affected modules; do not replace
+   the script with an improvised selection of Maven profile commands.
+3. Inspect the final diff against the testing and development requirements.
+   Report the commands actually completed and their scope. If validation is
+   blocked, identify the exact blocker and the checks that remain unverified.
+
+For documentation-only changes, check the final diff, formatting, and local
+links. Java tests and analyzers are not required for prose-only edits.
 
 ## Release
 
@@ -35,8 +53,9 @@ their tests, so even a second or two of tests there delays the entire build. Slo
 tests always go in a test module.
 
 Golden strings of error messages or log output are desirable in this library.
-For error messages, always assert the complete message with `assertEquals` and a
-Java text block (`"""`). Do not use `contains` or other partial-message assertions.
+For error messages and diagnostic log output, always assert the complete string
+with `assertEquals` and a Java text block (`"""`). Do not use `contains` or other
+partial-message assertions.
 If a message includes nondeterministic values, replace only those values with stable
 placeholders before comparing the full string.
 
@@ -145,11 +164,6 @@ Enums and or sealed classes that are likely to have additional members on
 future minor releases should be annotated with `@CaseChanging`.
 
 ## Human specific
-
-This is for humans: try not write documentation targeted specifically for
-agents. This means we do not make AGENTS.md files or whatever youtube agentic
-vibe code practice bull shit. Naturally the next section is an
-exception.
 
 Colorful comments in the code can add levity it also makes it more clear that an
 agent probably did not work on that code but do not put them in javadoc. Likewise
