@@ -836,7 +836,24 @@ enum MetaLog implements LogEventLogger {
 		.text(" - ")
 		.message()
 		.textIfThrowable(" ")
-		.throwable()
+		.throwable((b, t) -> {
+			int start = b.length();
+			try {
+				LogFormatter.ThrowableFormatter.appendThrowable(b, t);
+			}
+			catch (Throwable failure) {
+				if (failure instanceof VirtualMachineError fatal && !(failure instanceof StackOverflowError)) {
+					throw fatal;
+				}
+				// A formatting failure can retain the broken event throwable as its
+				// cause. Do not invoke either throwable again to report that failure.
+				b.setLength(start);
+				b.append(t.getClass().getName())
+					.append(" [stack trace unavailable: ")
+					.append(failure.getClass().getName())
+					.append("]");
+			}
+		})
 		.newline()
 		.build();
 

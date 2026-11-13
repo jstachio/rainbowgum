@@ -1,6 +1,8 @@
 package io.jstach.rainbowgum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -45,6 +47,34 @@ class MetaLogTest {
 		MetaLog.error(MetaLogTest.class, new RuntimeException("expected"));
 		String actual = outputStream.toString(StandardCharsets.UTF_8).split("\n")[0];
 		assertEquals("[ERROR] - RAINBOW_GUM - MetaLogTest - expected java.lang.RuntimeException: expected", actual);
+	}
+
+	@Test
+	void brokenThrowableUsesSafeDiagnostic() {
+		var broken = new IllegalStateException() {
+			@Override
+			public String getMessage() {
+				throw new StackOverflowError();
+			}
+		};
+		MetaLog.error(MetaLogTest.class, "format failed", new AssertionError("broken cause", broken));
+		assertEquals(
+				"[ERROR] - RAINBOW_GUM - MetaLogTest - format failed java.lang.AssertionError"
+						+ " [stack trace unavailable: java.lang.StackOverflowError]\n",
+				outputStream.toString(StandardCharsets.UTF_8));
+	}
+
+	@Test
+	void fatalDiagnosticFailureIsRethrown() {
+		var fatal = new OutOfMemoryError("test");
+		var broken = new IllegalStateException() {
+			@Override
+			public String getMessage() {
+				throw fatal;
+			}
+		};
+		assertSame(fatal,
+				assertThrows(OutOfMemoryError.class, () -> MetaLog.error(MetaLogTest.class, "format failed", broken)));
 	}
 
 	@Test

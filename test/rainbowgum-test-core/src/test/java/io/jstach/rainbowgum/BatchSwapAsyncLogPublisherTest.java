@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import io.jstach.rainbowgum.output.ListLogOutput;
 import io.jstach.rainbowgum.publisher.BatchSwapAsyncLogPublisher;
@@ -259,8 +260,9 @@ class BatchSwapAsyncLogPublisherTest {
 		}
 	}
 
-	@Test
-	void anErrorFromEventDataDoesNotStopTheWorker() {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void anErrorFromEventDataDoesNotStopTheWorker(boolean retainsBrokenCause) {
 		var output = new LifecycleOutput();
 		var config = LogConfig.builder().build();
 		var publisher = publisher(config, output, 4, Duration.ofSeconds(5));
@@ -269,7 +271,7 @@ class BatchSwapAsyncLogPublisherTest {
 				new IllegalStateException() {
 					@Override
 					public String getMessage() {
-						throw new AssertionError("from getMessage()");
+						throw new AssertionError("from getMessage()", retainsBrokenCause ? this : null);
 					}
 				}));
 		// A batch fails as a whole, so let the bad event fail on its own first.
