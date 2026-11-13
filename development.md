@@ -35,10 +35,12 @@ their tests, so even a second or two of tests there delays the entire build. Slo
 tests always go in a test module.
 
 Golden strings of error messages or log output are desirable in this library.
-For error messages, always assert the complete message with `assertEquals` and a
-Java text block (`"""`). Do not use `contains` or other partial-message assertions.
+For error messages, log output and any other captured output (alerts, `MetaLog`,
+stderr), always assert the complete string with `assertEquals` and a Java text
+block (`"""`). Do not use `contains`, `startsWith` or other partial assertions.
 If a message includes nondeterministic values, replace only those values with stable
-placeholders before comparing the full string.
+placeholders before comparing the full string. A value that varies by test parameter,
+such as a class name, goes into the text block with `formatted`.
 
 Do not write unit tests that are not end to end just to improve code coverage.
 
