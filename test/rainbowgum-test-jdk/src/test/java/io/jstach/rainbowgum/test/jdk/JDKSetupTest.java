@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -444,6 +445,48 @@ class JDKSetupTest {
 			finally {
 				root.setLevel(original);
 			}
+		});
+	}
+
+	/*
+	 * Rainbow Gum can log through JUL while it routes a JUL record, for example when its
+	 * properties come from a framework that logs every lookup through JUL (#892). The
+	 * nested record is dropped. Routing it can resolve the same level again until the
+	 * stack overflows.
+	 */
+	@Order(14)
+	@Test
+	void testRecordLoggedWhileRoutingIsDropped() throws InterruptedException {
+		doInLock(() -> {
+			ListLogOutput output = new ListLogOutput();
+			AtomicBoolean lookupsLog = new AtomicBoolean();
+			List<Boolean> nestedLoggable = new ArrayList<>();
+			LogProperties properties = key -> {
+				if (lookupsLog.get() && key.startsWith(LogProperties.LEVEL_PREFIX)) {
+					nestedLoggable.add(JULBridge.isLoggable("lookup", java.util.logging.Level.INFO));
+					var lookup = new LogRecord(java.util.logging.Level.INFO, "looked up " + key);
+					lookup.setLoggerName("lookup");
+					JULBridge.publish(lookup, StandardMessageFormatter.JUL);
+				}
+				return key.equals(LogProperties.LEVEL_PREFIX) ? "INFO" : null;
+			};
+			var config = LogConfig.builder().properties(properties).build();
+			try (var gum = RainbowGum.builder(config).route(r -> r.appender("list", a -> {
+				a.output(output);
+				a.formatter(LogFormatter.builder().level().space().loggerName().space().message().newline().build());
+			})).set()) {
+				lookupsLog.set(true);
+				var record = new LogRecord(java.util.logging.Level.INFO, "hello");
+				record.setLoggerName("app");
+				JULBridge.publish(record, StandardMessageFormatter.JUL);
+				assertTrue(JULBridge.isLoggable("other", java.util.logging.Level.INFO));
+			}
+			String expected = """
+					INFO app hello
+					""";
+			assertEquals(expected, output.toString());
+			assertFalse(nestedLoggable.isEmpty());
+			assertFalse(nestedLoggable.contains(true));
 		});
 	}
 

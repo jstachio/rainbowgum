@@ -35,6 +35,15 @@ public final class JULBridge {
 	 */
 	private static final KeyValuesContributor KEY_VALUES = KeyValuesContributor.global();
 
+	/*
+	 * Set while this thread routes a JUL record or checks a JUL level. Rainbow Gum can
+	 * log through JUL while it does that, for example when its properties come from a
+	 * framework that logs every lookup through JUL. Such a nested record is dropped, as
+	 * Rainbow Gum drops other logging done while it logs, because routing it would
+	 * resolve the same level again until the stack overflows.
+	 */
+	private static final ThreadLocal<@Nullable Boolean> ACTIVE = new ThreadLocal<>();
+
 	private static final int TRACE_LEVEL_THRESHOLD = java.util.logging.Level.FINEST.intValue();
 
 	private static final int DEBUG_LEVEL_THRESHOLD = java.util.logging.Level.FINE.intValue();
@@ -82,10 +91,20 @@ public final class JULBridge {
 	 * @param loggerName logger name, as JUL would pass to
 	 * {@link java.util.logging.Logger#getName()}.
 	 * @param level JUL level being checked.
-	 * @return true if a record at this name/level would actually be routed.
+	 * @return true if a record at this name/level would actually be routed, and false
+	 * when asked from inside Rainbow Gum while this thread routes or checks a record.
 	 */
 	public static boolean isLoggable(String loggerName, java.util.logging.Level level) {
-		return LogRouter.global().route(loggerName, toLevel(level)).isEnabled();
+		if (ACTIVE.get() == Boolean.TRUE) {
+			return false;
+		}
+		ACTIVE.set(Boolean.TRUE);
+		try {
+			return LogRouter.global().route(loggerName, toLevel(level)).isEnabled();
+		}
+		finally {
+			ACTIVE.remove();
+		}
 	}
 
 	/**
@@ -93,7 +112,8 @@ public final class JULBridge {
 	 * record's logger name/level is currently enabled. A {@code null} record or a record
 	 * with a {@code null} logger name is silently ignored, matching
 	 * {@link java.util.logging.Handler#publish(LogRecord)}'s own contract for
-	 * {@code null}.
+	 * {@code null}. A record published on a thread that is already routing one, from
+	 * inside Rainbow Gum, is dropped.
 	 * @param rec JUL log record, possibly {@code null}.
 	 * @param messageFormatter formats the record's parameters, usually from
 	 * {@link LogMessageFormatter#ofJUL(io.jstach.rainbowgum.LogProperties)}.
@@ -103,9 +123,19 @@ public final class JULBridge {
 			return;
 		}
 		String loggerName = rec.getLoggerName();
-		if (loggerName == null) {
+		if (loggerName == null || ACTIVE.get() == Boolean.TRUE) {
 			return;
 		}
+		ACTIVE.set(Boolean.TRUE);
+		try {
+			route(rec, loggerName, messageFormatter);
+		}
+		finally {
+			ACTIVE.remove();
+		}
+	}
+
+	private static void route(LogRecord rec, String loggerName, LogMessageFormatter messageFormatter) {
 		var level = toLevel(rec.getLevel());
 		var router = LogRouter.global();
 		var route = router.route(loggerName, level);
