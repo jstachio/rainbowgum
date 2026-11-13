@@ -452,10 +452,13 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		/**
 		 * Every logger name registered so far. A facade registers a name when it first
-		 * creates a logger for it, so a name nothing has asked for yet is not listed.
+		 * creates a logger for it, so a name nothing has asked for yet is not listed. The
+		 * default returns none, so implementations written against 1.0.0 still compile.
 		 * @return immutable snapshot in no particular order.
 		 */
-		Set<String> loggerNames();
+		default Set<String> loggerNames() {
+			return Set.of();
+		}
 
 	}
 
