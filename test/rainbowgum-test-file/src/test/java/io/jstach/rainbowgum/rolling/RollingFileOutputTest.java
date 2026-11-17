@@ -256,11 +256,15 @@ class RollingFileOutputTest {
 					assertEquals(0, metric(config, StandardMetric.EVENTS_FAILED));
 				}
 				assertEquals("first\n", Files.readString(RollingPolicy.pendingPath(active)));
-				assertEquals(switch (operation) {
-					case WRITE -> "second\nalert\nthird\n";
-					case FLUSH -> "second\nalert\n";
-					case CLOSE -> "second\n";
-				}, Files.readString(active));
+				String actual = Files.readString(active);
+				switch (operation) {
+					case WRITE -> assertEquals("second\nalert\nthird\n", actual);
+					case FLUSH -> assertEquals("second\nalert\n", actual);
+					// The flush after "second" reports the failure if compression has
+					// already failed, so the alert is written. Otherwise close reports it
+					// after the output is closed and the alert is dropped.
+					case CLOSE -> assertTrue(actual.equals("second\n") || actual.equals("second\nalert\n"), actual);
+				}
 			}
 			catch (Throwable e) {
 				failure.set(e);
