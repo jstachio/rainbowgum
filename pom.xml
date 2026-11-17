@@ -729,6 +729,8 @@
               </doctitle>
               <windowtitle>Rainbow Gum ${project.version}</windowtitle>
               <linksource>true</linksource>
+              <!-- The source view expands tabs to spaces; 2 suits narrow screens, like tab-size in jstachio.css. -->
+              <sourcetab>2</sourcetab>
             </configuration>
             <executions>
               <execution>
