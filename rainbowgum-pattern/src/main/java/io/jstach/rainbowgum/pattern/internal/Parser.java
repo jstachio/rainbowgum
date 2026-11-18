@@ -80,7 +80,20 @@ public class Parser {
 	// }
 
 	public Node parse() throws ScanException {
-		return E();
+		Node node = E();
+		/*
+		 * E() stops at a token T() does not start with. At the top level that is a ')'
+		 * with no matching '%(' or '%keyword(', and ignoring it would silently drop the
+		 * rest of the pattern.
+		 */
+		Token t = getCurrentToken();
+		if (t != null) {
+			if (t.type() == Token.RIGHT_PARENTHESIS) {
+				throw new ScanException("Unmatched ')'. Escape it as '\\)' for a literal parenthesis.");
+			}
+			throw new ScanException("Unexpected token " + t);
+		}
+		return node;
 	}
 
 	interface NodeBuilder<T extends Node> {

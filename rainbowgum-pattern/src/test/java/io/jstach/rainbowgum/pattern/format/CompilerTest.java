@@ -3,6 +3,7 @@ package io.jstach.rainbowgum.pattern.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -88,6 +89,19 @@ class CompilerTest {
 		});
 		String message = e.getMessage();
 		assertEquals("Pattern is invalid: %missing", message);
+	}
+
+	@Test
+	void testUnmatchedRightParenthesis() throws Exception {
+		PatternConfig config = PatternConfig.builder().build();
+		var c = PatternCompiler.builder().patternConfig(config).build();
+		var e = assertThrows(IllegalArgumentException.class, () -> {
+			c.compile("%-5p (%C.%M\\(%file:%L\\)) - %m%n");
+		});
+		assertEquals("Pattern is invalid: %-5p (%C.%M\\(%file:%L\\)) - %m%n", e.getMessage());
+		var cause = e.getCause();
+		assertNotNull(cause);
+		assertEquals("Unmatched ')'. Escape it as '\\)' for a literal parenthesis.", cause.getMessage());
 	}
 
 	@Test
