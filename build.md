@@ -22,7 +22,8 @@ stale cached artifact.
 
 Runs the null safety analyzers, checkerframework, errorprone, and nullaway,
 against the modules that have already been verified clean. Modules get added
-to that list one at a time as they pass, not all at once, see `develop.md`.
+to that list one at a time as they pass, not all at once, see
+[development.md](development.md).
 
 ```
 bin/analyze.sh
