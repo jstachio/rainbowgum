@@ -26,9 +26,9 @@ jobs:
         shell: bash
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up JDK 27
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '27'
           distribution: 'temurin'
@@ -44,7 +44,7 @@ jobs:
         run: ./mvnw $MAVEN_CLI_OPTS clean verify
       # Not named test-results, which the Test Report workflow reads from the Linux build.
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-windows

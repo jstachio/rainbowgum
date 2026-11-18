@@ -23,9 +23,9 @@ jobs:
       MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode --no-transfer-progress -T1 -Daether.transport.http.retryHandler.serviceUnavailable=429,500,502,503,504"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up JDK 27
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '27'
           distribution: 'temurin'
@@ -40,7 +40,7 @@ jobs:
       - name: Build and Test with Maven
         run: ./mvnw $MAVEN_CLI_OPTS clean verify
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results
@@ -54,7 +54,7 @@ jobs:
           rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml
           --summary "$GITHUB_STEP_SUMMARY"
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always() && hashFiles('rainbowgum-coverage-aggregate/target/site/jacoco-aggregate/jacoco.xml') != ''
         with:
           name: coverage-report

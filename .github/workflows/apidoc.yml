@@ -29,11 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Set up JDK 27
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '27'
           distribution: 'temurin'
@@ -64,7 +64,7 @@ jobs:
             --badge target/reports/apidocs/coverage/badge.svg \
             --summary "$GITHUB_STEP_SUMMARY"
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           # Upload entire repository
           path: 'target/reports/apidocs'
