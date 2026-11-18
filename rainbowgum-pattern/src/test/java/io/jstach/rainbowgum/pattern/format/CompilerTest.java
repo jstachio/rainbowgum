@@ -210,6 +210,34 @@ class CompilerTest {
 				return LogEvent.withCaller(super.event(), requireNonNull(caller));
 			}
 		},
+		IF_CALLER("%ifCaller(\\(%C.%M\\))", "(" + CompilerTest.class.getName() + ".test)") {
+			@Override
+			LogEvent event() {
+				Caller caller = Caller.ofDepthOrNull(1);
+				return LogEvent.withCaller(super.event(), requireNonNull(caller));
+			}
+		},
+		IF_CALLER_WITHOUT_CALLER_INFO("[%ifCaller(\\(%C.%M\\))]", "[]") {
+		},
+		IF_CALLER_PADDED("[%-6ifCaller(%M)]", "[test  ]") {
+			@Override
+			LogEvent event() {
+				Caller caller = Caller.ofDepthOrNull(1);
+				return LogEvent.withCaller(super.event(), requireNonNull(caller));
+			}
+		},
+		/*
+		 * Padding applies to the child, so nothing at all is printed without caller info.
+		 */
+		IF_CALLER_PADDED_WITHOUT_CALLER_INFO("[%-6ifCaller(%M)]", "[]") {
+		},
+		IF_CALLER_NO_CHILD(List.of("[%ifCaller]", "[%ifCaller()]"), "[]") {
+			@Override
+			LogEvent event() {
+				Caller caller = Caller.ofDepthOrNull(1);
+				return LogEvent.withCaller(super.event(), requireNonNull(caller));
+			}
+		},
 		PROPERTY(List.of("%property"), "Property_HAS_NO_KEY") {
 		},
 		PROPERTY_KEY(List.of("%property{mykey}"), "hello") {
