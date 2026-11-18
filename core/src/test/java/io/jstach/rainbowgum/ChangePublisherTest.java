@@ -405,6 +405,109 @@ class ChangePublisherTest {
 		assertEquals(CallerType.BASIC, cp.callerType("com.app.Other"));
 	}
 
+	@Test
+	void builderCallerAppliesToTheLoggerAndItsChildren() {
+		var cp = LogConfig.builder().caller(CallerType.BASIC, "com.mycompany").build().changePublisher();
+		assertEquals(CallerType.BASIC, cp.callerType("com.mycompany"));
+		assertEquals(CallerType.BASIC, cp.callerType("com.mycompany.app"));
+		assertEquals(CallerType.NONE, cp.callerType("com.mycompanyx"));
+		assertEquals(CallerType.NONE, cp.callerType("org.other"));
+	}
+
+	@Test
+	void builderCallerForAllLoggers() {
+		var cp = LogConfig.builder().caller(CallerType.BASIC).build().changePublisher();
+		assertEquals(CallerType.BASIC, cp.callerType("anything"));
+		assertEquals(Set.of(), cp.allowedChanges("anything"), "caller info is not a change");
+	}
+
+	@Test
+	void builderChangeNeedsChangeMode() {
+		var off = LogConfig.builder().change(EnumSet.of(ChangeType.LEVEL), "com.mycompany").build();
+		assertEquals(Set.of(), off.changePublisher().allowedChanges("com.mycompany.app"));
+
+		var on = LogConfig.builder()
+			.changeMode(ChangeMode.ON)
+			.change(EnumSet.of(ChangeType.LEVEL), "com.mycompany")
+			.build();
+		assertEquals(EnumSet.of(ChangeType.LEVEL), on.changePublisher().allowedChanges("com.mycompany.app"));
+		assertEquals(Set.of(), on.changePublisher().allowedChanges("org.other"));
+	}
+
+	@Test
+	void builderChangeForAllLoggers() {
+		var config = LogConfig.builder().changeMode(ChangeMode.ON).change(EnumSet.of(ChangeType.LEVEL)).build();
+		assertEquals(EnumSet.of(ChangeType.LEVEL), config.changePublisher().allowedChanges("anything"));
+		assertEquals(CallerType.NONE, config.changePublisher().callerType("anything"));
+	}
+
+	@Test
+	void builderNoneStopsAnInheritedProperty() {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties("""
+					logging.change.mode=on
+					logging.change.logger=level
+					logging.caller.logger=true
+					""").build())
+			.change(Set.of(ChangeType.NONE), "com.quiet")
+			.change(Set.of(), "com.empty")
+			.caller(CallerType.NONE, "com.quiet")
+			.build();
+		var cp = config.changePublisher();
+		assertEquals(Set.of(), cp.allowedChanges("com.quiet.Thing"));
+		assertEquals(Set.of(), cp.allowedChanges("com.empty.Thing"));
+		assertEquals(CallerType.NONE, cp.callerType("com.quiet.Thing"));
+		assertEquals(EnumSet.of(ChangeType.LEVEL), cp.allowedChanges("com.loud.Thing"));
+		assertEquals(CallerType.BASIC, cp.callerType("com.loud.Thing"));
+	}
+
+	/*
+	 * Builder caller and change follow builder levels: at the same logger name the
+	 * builder wins over the property, and a property for a more specific name wins over
+	 * the builder.
+	 */
+	@Test
+	void builderPrecedenceMatchesLevels() {
+		var config = LogConfig.builder()
+			.properties(LogProperties.builder().fromProperties("""
+					logging.change.mode=on
+					logging.level.com.app=ERROR
+					logging.level.com.app.Main=WARNING
+					logging.level.com=ERROR
+					logging.change.logger.com.app=none
+					logging.change.logger.com.app.Main=level
+					logging.change.logger.com=none
+					logging.caller.logger.com.app=false
+					logging.caller.logger.com.app.Main=true
+					logging.caller.logger.com=false
+					""").build())
+			.level(Level.DEBUG, "com.app")
+			.change(EnumSet.of(ChangeType.LEVEL), "com.app")
+			.caller(CallerType.BASIC, "com.app")
+			.level(Level.DEBUG, "com.app.Main.Inner")
+			.change(Set.of(), "com.app.Main.Inner")
+			.caller(CallerType.NONE, "com.app.Main.Inner")
+			.build();
+		var levels = config.levelResolver();
+		var cp = config.changePublisher();
+
+		assertEquals(Level.DEBUG, levels.resolveLevel("com.app.Other"), "builder wins at the same name");
+		assertEquals(EnumSet.of(ChangeType.LEVEL), cp.allowedChanges("com.app.Other"));
+		assertEquals(CallerType.BASIC, cp.callerType("com.app.Other"));
+
+		assertEquals(Level.WARNING, levels.resolveLevel("com.app.Main"), "a more specific property wins");
+		assertEquals(EnumSet.of(ChangeType.LEVEL), cp.allowedChanges("com.app.Main"));
+		assertEquals(CallerType.BASIC, cp.callerType("com.app.Main"));
+
+		assertEquals(Level.DEBUG, levels.resolveLevel("com.app.Main.Inner.X"), "a more specific builder wins");
+		assertEquals(Set.of(), cp.allowedChanges("com.app.Main.Inner.X"));
+		assertEquals(CallerType.NONE, cp.callerType("com.app.Main.Inner.X"));
+
+		assertEquals(Level.ERROR, levels.resolveLevel("com.other"), "the property applies outside the builder");
+		assertEquals(Set.of(), cp.allowedChanges("com.other"));
+		assertEquals(CallerType.NONE, cp.callerType("com.other"));
+	}
+
 	enum GroupOrder {
 
 		FIRST_LAST("first,second,first", Level.DEBUG, CallerType.BASIC, true),
