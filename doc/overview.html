@@ -711,6 +711,19 @@ logging.change.mode=on
 logging.change.logger.com.mycompany=level
 }
 
+The same can be done in code with {@link io.jstach.rainbowgum.LogConfig.Builder#changeMode(io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode)}
+and {@link io.jstach.rainbowgum.LogConfig.Builder#change(java.util.Set, String)}:
+
+{@snippet :
+LogConfig.builder()
+    .changeMode(ChangeMode.ON)
+    .change(EnumSet.of(ChangeType.LEVEL), "com.mycompany")
+    .build();
+}
+
+Like builder levels, a builder entry wins over the property for the same logger name, but a property for a more
+specific logger name wins over the builder.
+
 To fire off that configuration has changed the {@link io.jstach.rainbowgum.LogConfig.ChangePublisher}
 is used and depending on configuration backend may require a manual {@link io.jstach.rainbowgum.LogConfig.ChangePublisher publish call}.
 
@@ -864,6 +877,14 @@ Below is an example of configuring caller info for a set of logger names:
 {@snippet lang=properties :
 # only logger names starting with com.mycompany will have caller info
 logging.caller.logger.com.mycompany=true
+}
+
+Or in code with {@link io.jstach.rainbowgum.LogConfig.Builder#caller(io.jstach.rainbowgum.LogEvent.Caller.CallerType, String)}:
+
+{@snippet :
+LogConfig.builder()
+    .caller(CallerType.BASIC, "com.mycompany")
+    .build();
 }
 
 Caller info is decided once, when a logger is created, and does not change afterward.
