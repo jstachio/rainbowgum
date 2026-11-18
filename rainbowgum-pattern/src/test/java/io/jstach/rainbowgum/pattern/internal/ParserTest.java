@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ParserTest {
 
@@ -62,6 +63,20 @@ class ParserTest {
 			parser.parse();
 		});
 		assertEquals("Unexpected end of pattern string in OptionTokenizer", e.getMessage());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { ")", "%m)", "%m) %n", "(%C.%M\\(%file:%L\\)) - %m%n", "%(%m)) %n" })
+	void testUnmatchedRightParenthesisThrowsScanException(String input) {
+		/*
+		 * A ')' with no matching '%(' used to end the pattern early and silently drop the
+		 * rest of it.
+		 */
+		Throwable e = assertThrows(ScanException.class, () -> {
+			Parser parser = new Parser(input);
+			parser.parse();
+		});
+		assertEquals("Unmatched ')'. Escape it as '\\)' for a literal parenthesis.", e.getMessage());
 	}
 
 }
