@@ -877,6 +877,15 @@ value is a {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType} (or
 <code>true</code>/<code>false</code>), where {@link io.jstach.rainbowgum.LogEvent.Caller.CallerType#BASIC
 BASIC} (what <code>true</code> means today) is the only strategy implemented so far.
 
+The pattern caller keywords (<code>%C</code>, <code>%M</code>, <code>%file</code>, <code>%L</code>) print nothing
+for loggers without caller info. Wrap them in <code>%ifCaller(...)</code> to print the surrounding text only when
+there is caller info. For example this pattern prints <code>INFO com.mycompany.App (com.mycompany.App.main(App.java:12)) - hello</code>
+with caller info and <code>INFO com.mycompany.App - hello</code> without:
+
+<pre>
+%-5p %c%ifCaller( \(%C.%M\(%file:%L\)\)) - %m%n
+</pre>
+
 <h2 id="publishers">Publishers</h2>
 
 A {@link io.jstach.rainbowgum.LogPublisher} schedules delivery of a {@link io.jstach.rainbowgum.LogEvent} to a group of 

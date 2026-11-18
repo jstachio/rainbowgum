@@ -534,6 +534,31 @@ enum BareCompositeFactory implements CompositeFactory {
 
 }
 
+enum ConditionalCompositeFactory implements CompositeFactory {
+
+	IF_CALLER() {
+		@Override
+		public LogFormatter create(PatternConfig config, PatternKeyword node, @Nullable LogFormatter child) {
+			if (child == null) {
+				return LogFormatter.noop();
+			}
+			return new IfCallerFormatter(PadFormatter.of(child, node.padding()));
+		}
+	};
+
+}
+
+record IfCallerFormatter(LogFormatter child) implements LogFormatter.EventFormatter {
+
+	@Override
+	public void format(StringBuilder output, LogEvent event) {
+		if (event.callerOrNull() != null) {
+			child.format(output, event);
+		}
+	}
+
+}
+
 final class ANSIConstants {
 
 	final static String ESC_START = "\033[";
