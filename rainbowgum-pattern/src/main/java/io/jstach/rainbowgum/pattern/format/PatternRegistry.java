@@ -148,9 +148,10 @@ public sealed interface PatternRegistry {
 		 */
 		RELATIVE("r", "relative"), //
 		/**
-		 * <a href="https://logback.qos.ch/manual/layouts.html#file">File</a>
+		 * <a href="https://logback.qos.ch/manual/layouts.html#file">File</a>. {@code f}
+		 * is not a Logback keyword and is kept because earlier versions only had it.
 		 */
-		FILE("f", "file"),
+		FILE("F", "file", "f"),
 		/**
 		 * <a href="https://logback.qos.ch/manual/layouts.html#line">Line no</a>
 		 */
@@ -160,7 +161,7 @@ public sealed interface PatternRegistry {
 		 */
 		CLASS("C", "class"),
 		/**
-		 * <a href="https://logback.qos.ch/manual/layouts.html#line">Line no</a>
+		 * <a href="https://logback.qos.ch/manual/layouts.html#method">Method</a>
 		 */
 		METHOD("M", "method"),
 		/**

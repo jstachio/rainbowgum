@@ -163,7 +163,7 @@ class CompilerTest {
 					.build();
 			}
 		},
-		FILE(List.of("%f", "%file"), "CompilerTest.java") {
+		FILE(List.of("%F", "%file", "%f"), "CompilerTest.java") {
 			@Override
 			LogEvent event() {
 				Caller caller = Caller.ofDepthOrNull(1);
