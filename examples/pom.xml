@@ -25,5 +25,6 @@
     <module>helidon</module>
     <module>micronaut</module>
     <module>simple-props</module>
+    <module>web-log</module>
   </modules>
 </project>
