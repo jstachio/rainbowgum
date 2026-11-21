@@ -73,6 +73,7 @@ public sealed interface PatternRegistry {
 	 *
 	 * @see KeywordKey
 	 * @see ColorKey
+	 * @see ConditionalKey
 	 */
 	public sealed interface PatternKey {
 
@@ -353,6 +354,43 @@ public sealed interface PatternRegistry {
 
 	}
 
+	/**
+	 * Composite keys that format their child only when a condition holds.
+	 */
+	@CaseChanging
+	/*
+	 * aliases is always assigned via List.of(...) in the constructor - genuinely
+	 * immutable, just not through a type that says so statically.
+	 */
+	@SuppressWarnings("ImmutableEnumChecker")
+	enum ConditionalKey implements PatternKey {
+
+		/**
+		 * Formats the child only when the event has caller info, so a pattern can show
+		 * caller info when it is on without printing empty separators when it is off. For
+		 * example <code>%ifCaller( \(%C.%M\(%F:%L\)\))</code>. Padding applies to the
+		 * child and nothing is printed without caller info. Caller info is enabled per
+		 * logger with <code>logging.caller.logger</code>.
+		 */
+		IF_CALLER("ifCaller");
+
+		private final List<String> aliases;
+
+		private ConditionalKey(List<String> aliases) {
+			this.aliases = aliases;
+		}
+
+		private ConditionalKey(String... others) {
+			this(List.of(others));
+		}
+
+		@Override
+		public List<String> aliases() {
+			return this.aliases;
+		}
+
+	}
+
 	// config.conversionRule("clr", ColorConverter.class);
 	// config.conversionRule("correlationId", CorrelationIdConverter.class);
 	// config.conversionRule("esb", EnclosedInSquareBracketsConverter.class);
@@ -508,6 +546,13 @@ final class DefaultPatternRegistry implements PatternRegistry {
 				case ESB -> StandardKeywordFactory.ENCLOSED_SQUARE_BRACKET;
 			};
 			registry.register(sk, factory);
+		}
+
+		for (ConditionalKey ck : ConditionalKey.values()) {
+			var factory = switch (ck) {
+				case IF_CALLER -> ConditionalCompositeFactory.IF_CALLER;
+			};
+			registry.register(ck, factory);
 		}
 
 		registry.register(BareKey.BARE, BareCompositeFactory.BARE);
