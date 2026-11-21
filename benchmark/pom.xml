@@ -19,6 +19,7 @@
     <module>rainbowgum-benchmark-logback</module>
     <module>rainbowgum-benchmark-share</module>
     <module>rainbowgum-benchmark-log4j</module>
+    <module>rainbowgum-benchmark-jfr</module>
   </modules>
   <dependencyManagement>
     <dependencies>
