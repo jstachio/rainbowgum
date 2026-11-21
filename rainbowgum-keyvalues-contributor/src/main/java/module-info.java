@@ -4,6 +4,15 @@
  * {@link io.jstach.rainbowgum.keyvalues.contributor.DefaultKeyValues} as the
  * {@code DEFAULTS} key values source, which every other source (SLF4J MDC, scoped key
  * values, ...) overrides on a key collision.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-keyvalues-contributor</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.jstach.rainbowgum.spi.RainbowGumServiceProvider
  */

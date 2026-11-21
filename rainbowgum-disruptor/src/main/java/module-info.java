@@ -2,6 +2,15 @@
  * <strong>EXPERIMENTAL</strong> Disruptor async publisher.
  * This optional module will install Disruptor as the default
  * async publisher provider.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-disruptor</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  */
 
 module io.jstach.rainbowgum.disruptor {

@@ -6,6 +6,15 @@
  * is deliberately its own module rather than folded into
  * {@code io.jstach.rainbowgum.spring.boot4} itself: Micrometer/Actuator are an opt in
  * dependency, not something every RainbowGum + Spring Boot user should be forced onto.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-spring-boot4-actuator</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  */
 module io.jstach.rainbowgum.spring.boot4.actuator {
 	requires transitive io.jstach.rainbowgum;

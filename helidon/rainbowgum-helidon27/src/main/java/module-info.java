@@ -21,6 +21,15 @@ import io.jstach.rainbowgum.helidon27.RainbowGumLoggingProvider;
  * shared, single-version-across-every-module scheme can't otherwise express an
  * upstream-driven break, the same reason {@code rainbowgum-spring-boot3}/
  * {@code rainbowgum-spring-boot4} are two separate artifacts rather than one.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum.helidon</groupId>
+ *     <artifactId>rainbowgum-helidon27</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  *
  * @provides io.helidon.logging.common.spi.LoggingProvider
  */

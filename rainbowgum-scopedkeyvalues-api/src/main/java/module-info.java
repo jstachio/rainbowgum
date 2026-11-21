@@ -14,6 +14,15 @@
  * back to running the body without recording anything, the same "safe with nothing
  * bound" behavior SLF4J's own facade falls back to when no
  * {@code org.slf4j.spi.SLF4JServiceProvider} is found.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-scopedkeyvalues-api</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  */
 module io.jstach.rainbowgum.scopedkeyvalues {
 

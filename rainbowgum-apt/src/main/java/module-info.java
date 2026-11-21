@@ -1,5 +1,14 @@
 /**
  * Rainbow Gum annotation processors.
+ * <p>
+ * Maven dependency:
+ * {@snippet lang=xml :
+ * <dependency>
+ *     <groupId>io.jstach.rainbowgum</groupId>
+ *     <artifactId>rainbowgum-apt</artifactId>
+ *     <version>_VERSION_</version>
+ * </dependency>
+ * }
  * @provides javax.annotation.processing.Processor with config and enum alias processors.
  */
 module io.jstach.rainbowgum.apt {
