@@ -6,8 +6,10 @@ import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
@@ -23,6 +25,7 @@ import org.jspecify.annotations.Nullable;
 import io.jstach.rainbowgum.LevelResolver.LevelConfig;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher;
 import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeMode;
+import io.jstach.rainbowgum.LogConfig.ChangePublisher.ChangeType;
 import io.jstach.rainbowgum.LogEvent.Caller.CallerType;
 import io.jstach.rainbowgum.annotation.EnumAlias;
 import io.jstach.rainbowgum.spi.RainbowGumServiceProvider;
@@ -673,6 +676,10 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 
 		private Globals.ShutdownHookMode shutdownHook = Globals.ShutdownHookMode.ON;
 
+		private final Map<String, CallerType> callers = new LinkedHashMap<>();
+
+		private final Map<String, Set<ChangeType>> changes = new LinkedHashMap<>();
+
 		/**
 		 * Default constructor
 		 */
@@ -802,6 +809,60 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 		public Builder shutdownHook(Globals.ShutdownHookMode shutdownHook) {
 			this.shutdownHook = Objects.requireNonNull(shutdownHook);
 			return this;
+		}
+
+		/**
+		 * Sets the caller info strategy for a logger and the loggers under it, like
+		 * {@value LogProperties#CALLER_LOGGER_PREFIX}<code>.{logger}</code>. At the same
+		 * logger name this wins over the property, but a property for a more specific
+		 * logger name wins over this.
+		 * @param callerType caller type.
+		 * @param loggerName logger name.
+		 * @return this.
+		 */
+		public Builder caller(CallerType callerType, String loggerName) {
+			callers.put(Objects.requireNonNull(loggerName), Objects.requireNonNull(callerType));
+			return this;
+		}
+
+		/**
+		 * Sets the caller info strategy for all loggers, like
+		 * {@value LogProperties#CALLER_LOGGER_PREFIX}.
+		 * @param callerType caller type.
+		 * @return this.
+		 * @see #caller(CallerType, String)
+		 */
+		public Builder caller(CallerType callerType) {
+			return caller(callerType, "");
+		}
+
+		/**
+		 * Sets what may change for a logger and the loggers under it, like
+		 * {@value LogProperties#CHANGE_LOGGER_PREFIX}<code>.{logger}</code>. Like the
+		 * property it does nothing unless the change mode is {@link ChangeMode#ON}. At
+		 * the same logger name this wins over the property, but a property for a more
+		 * specific logger name wins over this.
+		 * @param changes allowed changes, empty or {@link ChangeType#NONE} for none.
+		 * @param loggerName logger name.
+		 * @return this.
+		 */
+		public Builder change(Set<ChangeType> changes, String loggerName) {
+			var allowed = EnumSet.noneOf(ChangeType.class);
+			allowed.addAll(changes);
+			allowed.remove(ChangeType.NONE);
+			this.changes.put(Objects.requireNonNull(loggerName), Set.copyOf(allowed));
+			return this;
+		}
+
+		/**
+		 * Sets what may change for all loggers, like
+		 * {@value LogProperties#CHANGE_LOGGER_PREFIX}.
+		 * @param changes allowed changes, empty or {@link ChangeType#NONE} for none.
+		 * @return this.
+		 * @see #change(Set, String)
+		 */
+		public Builder change(Set<ChangeType> changes) {
+			return change(changes, "");
 		}
 
 		/**
@@ -949,7 +1010,8 @@ public sealed interface LogConfig extends LogProperty.PropertySupport {
 				var config = new DefaultLogConfig(serviceRegistry, logProperties, levelResolver, alerts, metrics, debug,
 						unusedKeyCheck, new Globals(changeMode, ansiMode, appenderLock, threadLocal, optimize,
 								keyValueSources, shutdownHook)
-							.withProperties(logProperties));
+							.withProperties(logProperties),
+						Map.copyOf(callers), Map.copyOf(changes));
 				// The config constructor installs the metrics listener before replay.
 				prePropertiesAlerts.drainTo(alerts);
 				dumpAlerts = alerts;
@@ -1215,23 +1277,55 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 	}
 
 	/*
-	 * Walks up the logger name like level resolution. At each step the key for that name
-	 * wins over the keys of groups listing that name, and only a Missing value continues
-	 * the walk.
+	 * Logger name to value set with LogConfig.Builder caller and change. Checked before
+	 * the properties at each step of the walk, like builder levels.
 	 */
-	private <T> LogProperty.@Nullable Result<T> findForLogger(String prefix, String loggerName,
-			Function<LogProperty, LogProperty.Result<T>> resolve) {
+	protected Map<String, CallerType> builderCallers() {
+		return Map.of();
+	}
+
+	protected Map<String, Set<ChangeType>> builderChanges() {
+		return Map.of();
+	}
+
+	/*
+	 * Walks up the logger name like level resolution. At each step the builder value for
+	 * that name wins, then the key for that name wins over the keys of groups listing
+	 * that name, and only a Missing value continues the walk.
+	 *
+	 * A present-but-malformed value is a Result.Error, not a Missing - it stops the walk
+	 * right there rather than silently falling through to a less specific ancestor's
+	 * value. A malformed value must not be able to break logging itself, so it alerts and
+	 * falls back. The callers cache the fallback like a successful parse:
+	 * ConcurrentHashMap#computeIfAbsent leaves nothing cached when the mapping function
+	 * throws, so without catching this a bad property would re-parse and re-alert on
+	 * every call for this logger name, not just once - same amplification risk
+	 * CachedLevelResolver guards against for level properties.
+	 */
+	private <T> T findForLogger(String prefix, String loggerName, Map<String, T> builderValues,
+			Function<LogProperty, LogProperty.Result<T>> resolve, T fallback) {
 		var props = config().properties();
 		var groups = groups();
-		return LogProperties.findUpPathOrNull(loggerName, path -> {
-			for (String name : groups.names(path)) {
-				var r = resolve.apply(DefaultLogProperty.ofLoggerKey(props, prefix, name));
-				if (!(r instanceof LogProperty.Result.Missing)) {
-					return r;
+		try {
+			T value = LogProperties.findUpPathOrNull(loggerName, path -> {
+				T builderValue = builderValues.get(path);
+				if (builderValue != null) {
+					return builderValue;
 				}
-			}
-			return null;
-		});
+				for (String name : groups.names(path)) {
+					var r = resolve.apply(DefaultLogProperty.ofLoggerKey(props, prefix, name));
+					if (!(r instanceof LogProperty.Result.Missing)) {
+						return r.validateNow(ChangePublisher.class);
+					}
+				}
+				return null;
+			});
+			return value == null ? fallback : value;
+		}
+		catch (LogProperty.ValidationException e) {
+			config().alerts().error(ChangePublisher.class, e);
+			return fallback;
+		}
 	}
 
 	@Override
@@ -1239,64 +1333,19 @@ abstract class AbstractChangePublisher implements ChangePublisher {
 		if (changeMode() == ChangeMode.OFF) {
 			return Set.of();
 		}
-		return changesCache.computeIfAbsent(loggerName, n -> {
-			/*
-			 * findForLogger walks the logger-name hierarchy (closest match wins) trying
-			 * each candidate key in turn. A present-but-malformed value is a
-			 * Result.Error, not a Missing - it stops the walk right there rather than
-			 * silently falling through to a less specific ancestor's value.
-			 */
-			LogProperty.Result<Set<ChangeType>> result = findForLogger(LogProperties.CHANGE_LOGGER_PREFIX, n,
-					property -> property.ofList().map(ChangeType::parse));
-			if (result == null) {
-				return Set.of();
-			}
-			try {
-				return result.validateNow(ChangePublisher.class);
-			}
-			catch (LogProperty.ValidationException e) {
-				/*
-				 * A malformed logging.change.logger.<name> value must not be able to
-				 * break logging itself. ConcurrentHashMap#computeIfAbsent leaves nothing
-				 * cached when the mapping function throws, so without catching this a bad
-				 * property would re-parse and re-alert on every single allowedChanges(n)
-				 * call for this logger name, not just once - same amplification risk
-				 * CachedLevelResolver guards against for level properties. Fall back to
-				 * "nothing allowed to change" and alert exactly once per logger name
-				 * instead, since the fallback value is itself cached above just like a
-				 * successful parse would be. validateNow's own Missing = failure
-				 * semantics are moot here - the lambda above never returns a Missing
-				 * result to it in the first place.
-				 */
-				config().alerts().error(ChangePublisher.class, e);
-				return Set.of();
-			}
-		});
+		return changesCache.computeIfAbsent(loggerName, n -> findForLogger(LogProperties.CHANGE_LOGGER_PREFIX, n,
+				builderChanges(), property -> property.ofList().map(ChangeType::parse), Set.of()));
 	}
 
 	@Override
 	public CallerType callerType(String loggerName) {
-		return callerTypeCache.computeIfAbsent(loggerName, n -> {
-			LogProperty.Result<CallerType> result = findForLogger(LogProperties.CALLER_LOGGER_PREFIX, n,
-					property -> property.ofString().map(CallerType::parse));
-			if (result == null) {
-				return CallerType.NONE;
-			}
-			try {
-				return result.validateNow(ChangePublisher.class);
-			}
-			catch (LogProperty.ValidationException e) {
-				/*
-				 * Same reasoning as allowedChanges()'s catch above: a malformed (or
-				 * pre-split, e.g. the old "caller" token that used to live in
-				 * logging.change.<name>) logging.caller.logger.<name> value alerts once
-				 * and falls back to CallerType.NONE, cached, rather than re-parsing and
-				 * re-alerting on every call.
-				 */
-				config().alerts().error(ChangePublisher.class, e);
-				return CallerType.NONE;
-			}
-		});
+		/*
+		 * A malformed (or pre-split, e.g. the old "caller" token that used to live in
+		 * logging.change.<name>) logging.caller.logger.<name> value alerts once and falls
+		 * back to CallerType.NONE.
+		 */
+		return callerTypeCache.computeIfAbsent(loggerName, n -> findForLogger(LogProperties.CALLER_LOGGER_PREFIX, n,
+				builderCallers(), property -> property.ofString().map(CallerType::parse), CallerType.NONE));
 	}
 
 }
@@ -1350,9 +1399,16 @@ final class DefaultLogConfig implements LogConfig {
 
 	private final @Nullable UnusedKeyCheck unusedKeyCheck;
 
+	private final Map<String, CallerType> builderCallers;
+
+	private final Map<String, Set<ChangeType>> builderChanges;
+
 	DefaultLogConfig(ServiceRegistry registry, LogProperties properties, LevelConfig levelResolver, LogAlerts alerts,
-			LogMetrics metrics, DebugModeType debugMode, @Nullable UnusedKeyCheck unusedKeyCheck, Globals globals) {
+			LogMetrics metrics, DebugModeType debugMode, @Nullable UnusedKeyCheck unusedKeyCheck, Globals globals,
+			Map<String, CallerType> builderCallers, Map<String, Set<ChangeType>> builderChanges) {
 		super();
+		this.builderCallers = builderCallers;
+		this.builderChanges = builderChanges;
 		this.unusedKeyCheck = unusedKeyCheck;
 		this.registry = registry;
 		this.properties = properties;
@@ -1440,6 +1496,16 @@ final class DefaultLogConfig implements LogConfig {
 		@Override
 		protected ChangeMode changeMode() {
 			return globals.changeMode();
+		}
+
+		@Override
+		protected Map<String, CallerType> builderCallers() {
+			return builderCallers;
+		}
+
+		@Override
+		protected Map<String, Set<ChangeType>> builderChanges() {
+			return builderChanges;
 		}
 
 		@Override
